@@ -28,11 +28,9 @@
 #include "PlatformString.h"
 #include "FilePath.h"
 #include "Package.h"
-#include "JavaTypes.h"
 #include "Helpers.h"
 #include "Messages.h"
 #include "Macros.h"
-#include "PlatformThread.h"
 
 #include "jni.h"
 
@@ -52,35 +50,6 @@ bool RunVM() {
     }
 
     return result;
-}
-
-JavaLibrary::JavaLibrary() : Library(), FCreateProc(NULL)  {
-}
-
-bool JavaLibrary::JavaVMCreate(size_t argc, char *argv[]) {
-    if (FCreateProc == NULL) {
-        FCreateProc = (JVM_CREATE)GetProcAddress(LAUNCH_FUNC);
-    }
-
-    if (FCreateProc == NULL) {
-        Platform& platform = Platform::GetInstance();
-        Messages& messages = Messages::GetInstance();
-        platform.ShowMessage(
-                messages.GetMessage(FAILED_LOCATING_JVM_ENTRY_POINT));
-        return false;
-    }
-
-    return FCreateProc((int)argc, argv,
-            0, NULL,
-            0, NULL,
-            "",
-            "",
-            "java",
-            "java",
-            false,
-            false,
-            false,
-            0) == 0;
 }
 
 //----------------------------------------------------------------------------
@@ -265,22 +234,8 @@ bool JavaVirtualMachine::StartJVM() {
 void JavaVirtualMachine::configureLibrary() {
     Platform& platform = Platform::GetInstance();
     Package& package = Package::GetInstance();
-    // TODO: Clean this up. Because of bug JDK-8131321 the opening of the
-    // PE file ails in WindowsPlatform.cpp on the check to
-    // if (pNTHeader->Signature == IMAGE_NT_SIGNATURE)
     TString libName = package.GetJVMLibraryFileName();
-#ifdef _WIN64
-    if (FilePath::FileExists(_T("msvcr100.dll")) == true) {
-        javaLibrary.AddDependency(_T("msvcr100.dll"));
-    }
-
-    TString runtimeBin = platform.GetPackageRuntimeBinDirectory();
-    SetDllDirectory(runtimeBin.c_str());
-#else
-    javaLibrary.AddDependencies(
-            platform.FilterOutRuntimeDependenciesForPlatform(
-            platform.GetLibraryImports(libName)));
-#endif
+    platform.addPlatformDependencies(&javaLibrary);
     javaLibrary.Load(libName);
 }
 

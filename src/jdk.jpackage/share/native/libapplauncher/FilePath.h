@@ -28,59 +28,9 @@
 
 #include "Platform.h"
 #include "PlatformString.h"
+#include "FileAttribute.h"
 
 #include <vector>
-
-enum FileAttribute {
-#ifdef WINDOWS
-    faArchive = FILE_ATTRIBUTE_ARCHIVE,
-    faCompressed = FILE_ATTRIBUTE_COMPRESSED,
-    faDevice = FILE_ATTRIBUTE_DEVICE,
-    faDirectory = FILE_ATTRIBUTE_DIRECTORY,
-    faEncrypted = FILE_ATTRIBUTE_ENCRYPTED,
-    faHidden = FILE_ATTRIBUTE_HIDDEN,
-    //faIntegrityStream = FILE_ATTRIBUTE_INTEGRITY_STREAM,
-    faNormal = FILE_ATTRIBUTE_NORMAL,
-    faNotContentIndexed = FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
-    //faNoScrubData = FILE_ATTRIBUTE_NO_SCRUB_DATA,
-    faOffline = FILE_ATTRIBUTE_OFFLINE,
-    faSystem = FILE_ATTRIBUTE_SYSTEM,
-    faSymbolicLink = FILE_ATTRIBUTE_REPARSE_POINT,
-    faSparceFile = FILE_ATTRIBUTE_SPARSE_FILE,
-    faReadOnly = FILE_ATTRIBUTE_READONLY,
-    faTemporary = FILE_ATTRIBUTE_TEMPORARY,
-    faVirtual = FILE_ATTRIBUTE_VIRTUAL
-#endif //WINDOWS
-#ifdef POSIX
-    faBlockSpecial,
-    faCharacterSpecial,
-    faFIFOSpecial,
-    faNormal,
-    faDirectory,
-    faSymbolicLink,
-    faSocket,
-
-    // Owner
-    faReadOnly,
-    faWriteOnly,
-    faReadWrite,
-    faExecute,
-
-    // Group
-    faGroupReadOnly,
-    faGroupWriteOnly,
-    faGroupReadWrite,
-    faGroupExecute,
-
-    // Others
-    faOthersReadOnly,
-    faOthersWriteOnly,
-    faOthersReadWrite,
-    faOthersExecute,
-
-    faHidden
-#endif //POSIX
-};
 
 class FileAttributes {
 private:

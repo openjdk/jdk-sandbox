@@ -46,7 +46,7 @@ PropertyFile::PropertyFile(OrderedMap<TString, TString> Value) {
     FData.Append(Value);
 }
 
-PropertyFile::PropertyFile(const PropertyFile &Value) {
+PropertyFile::PropertyFile(PropertyFile &Value) {
     FData = Value.FData;
     FReadOnly = Value.FReadOnly;
     FModified = Value.FModified;

@@ -36,21 +36,6 @@
 #include "Platform.h"
 
 
-struct WideString {
-    size_t length;
-    wchar_t* data;
-
-    WideString() { length = 0; data = NULL; }
-};
-
-struct MultibyteString {
-    size_t length;
-    char* data;
-
-    MultibyteString() { length = 0; data = NULL; }
-};
-
-
 template <typename T>
 class DynamicBuffer {
 private:
@@ -100,62 +85,6 @@ public:
     }
 };
 
-
-#ifdef MAC
-// StringToFileSystemString is a stack object. It's usage is
-// simply inline to convert a
-// TString to a file system string. Example:
-//
-// return dlopen(StringToFileSystemString(FileName), RTLD_LAZY);
-//
-class StringToFileSystemString {
-    // Prohibit Heap-Based StringToFileSystemString
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-private:
-    TCHAR* FData;
-    bool FRelease;
-
-public:
-    StringToFileSystemString(const TString &value);
-    ~StringToFileSystemString();
-
-    operator TCHAR* ();
-};
-
-
-// FileSystemStringToString is a stack object. It's usage is
-// simply inline to convert a
-// file system string to a TString. Example:
-//
-// DynamicBuffer<TCHAR> buffer(MAX_PATH);
-// if (readlink("/proc/self/exe", buffer.GetData(), MAX_PATH) != -1)
-//    result = FileSystemStringToString(buffer.GetData());
-//
-class FileSystemStringToString {
-    // Prohibit Heap-Based FileSystemStringToString
-private:
-    static void *operator new(size_t size);
-    static void operator delete(void *ptr);
-
-private:
-    TString FData;
-
-public:
-    FileSystemStringToString(const TCHAR* value);
-
-    operator TString ();
-};
-#endif //MAC
-
-#ifdef LINUX
-#define StringToFileSystemString PlatformString
-#define FileSystemStringToString PlatformString
-#endif //LINUX
-
-
 class PlatformString {
 private:
     char* FData; // Stored as UTF-8
@@ -163,17 +92,6 @@ private:
     wchar_t* FWideTStringToFree;
 
     void initialize();
-
-    // Caller must free result using delete[].
-    static void CopyString(char *Destination,
-            size_t NumberOfElements, const char *Source);
-
-    // Caller must free result using delete[].
-    static void CopyString(wchar_t *Destination,
-            size_t NumberOfElements, const wchar_t *Source);
-
-    static WideString MultibyteStringToWideString(const char* value);
-    static MultibyteString WideStringToMultibyteString(const wchar_t* value);
 
 // Prohibit Heap-Based PlatformStrings
 private:
@@ -187,7 +105,6 @@ public:
     PlatformString(const wchar_t* value);
     PlatformString(const std::string &value);
     PlatformString(const std::wstring &value);
-    PlatformString(JNIEnv *env, jstring value);
     PlatformString(size_t Value);
 
     static TString Format(const TString value, ...);
@@ -201,7 +118,6 @@ public:
     wchar_t* toWideString();
     std::wstring toUnicodeString();
     std::string toStdString();
-    jstring toJString(JNIEnv *env);
     TCHAR* toPlatformString();
     TString toString();
 

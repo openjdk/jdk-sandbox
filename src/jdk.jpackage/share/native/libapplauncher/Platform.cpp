@@ -24,20 +24,24 @@
  */
 
 #include "Platform.h"
-#include "Lock.h"
 #include "Messages.h"
+#include "PlatformString.h"
+#include "FilePath.h"
 
+#include <fstream>
+#include <locale>
+
+#ifdef WINDOWS
 #include "WindowsPlatform.h"
+#endif // WINDOWS
+#ifdef LINUX
 #include "LinuxPlatform.h"
+#endif // LINUX
+#ifdef MAC
 #include "MacPlatform.h"
-
-
-// Environment
-StaticReadProperty<TString, &Environment::GetNewLine> Environment::NewLine;
-
+#endif // MAC
 
 Platform& Platform::GetInstance() {
-
 #ifdef WINDOWS
     static WindowsPlatform instance;
 #endif // WINDOWS
@@ -49,133 +53,123 @@ Platform& Platform::GetInstance() {
 #ifdef MAC
     static MacPlatform instance;
 #endif // MAC
+
     return instance;
 }
 
+TString Platform::GetConfigFileName() {
+    TString result;
+    TString basedir = GetPackageAppDirectory();
 
-Library::Library() {
-    Initialize();
-}
+    if (basedir.empty() == false) {
+        basedir = FilePath::IncludeTrailingSeparator(basedir);
+        TString appConfig = basedir + GetAppName() + _T(".cfg");
 
-Library::Library(const TString &FileName) {
-    Initialize();
-    Load(FileName);
-}
-
-Library::~Library() {
-    Unload();
-}
-
-void Library::Initialize() {
-    FModule = NULL;
-    FDependentLibraryNames = NULL;
-    FDependenciesLibraries = NULL;
-}
-
-void Library::InitializeDependencies() {
-    if (FDependentLibraryNames == NULL) {
-        FDependentLibraryNames = new std::vector<TString>();
-    }
-
-    if (FDependenciesLibraries == NULL) {
-        FDependenciesLibraries = new std::vector<Library*>();
-    }
-}
-
-void Library::LoadDependencies() {
-    if (FDependentLibraryNames != NULL && FDependenciesLibraries != NULL) {
-        for (std::vector<TString>::const_iterator iterator =
-                FDependentLibraryNames->begin();
-                iterator != FDependentLibraryNames->end(); iterator++) {
-            Library* library = new Library();
-
-            if (library->Load(*iterator) == true) {
-                FDependenciesLibraries->push_back(library);
-            }
+        if (FilePath::FileExists(appConfig) == true) {
+            result = appConfig;
         }
+        else {
+            result = basedir + _T("package.cfg");
 
-        delete FDependentLibraryNames;
-        FDependentLibraryNames = NULL;
-    }
-}
-
-void Library::UnloadDependencies() {
-    if (FDependenciesLibraries != NULL) {
-        for (std::vector<Library*>::const_iterator iterator =
-                FDependenciesLibraries->begin();
-                iterator != FDependenciesLibraries->end(); iterator++) {
-            Library* library = *iterator;
-
-            if (library != NULL) {
-                library->Unload();
-                delete library;
+            if (FilePath::FileExists(result) == false) {
+                result = _T("");
             }
-        }
-
-        delete FDependenciesLibraries;
-        FDependenciesLibraries = NULL;
-    }
-}
-
-Procedure Library::GetProcAddress(const std::string& MethodName) const {
-    Platform& platform = Platform::GetInstance();
-    return platform.GetProcAddress(FModule, MethodName);
-}
-
-bool Library::Load(const TString &FileName) {
-    bool result = true;
-
-    if (FModule == NULL) {
-        LoadDependencies();
-        Platform& platform = Platform::GetInstance();
-        FModule = platform.LoadLibrary(FileName);
-
-        if (FModule == NULL) {
-            Messages& messages = Messages::GetInstance();
-            platform.ShowMessage(messages.GetMessage(LIBRARY_NOT_FOUND),
-                    FileName);
-            result = false;
-        } else {
-            fname = PlatformString(FileName).toStdString();
         }
     }
 
     return result;
 }
 
-bool Library::Unload() {
-    bool result = false;
+std::list<TString> Platform::LoadFromFile(TString FileName) {
+    std::list<TString> result;
 
-    if (FModule != NULL) {
-        Platform& platform = Platform::GetInstance();
-        platform.FreeLibrary(FModule);
-        FModule = NULL;
-        UnloadDependencies();
-        result = true;
+    if (FilePath::FileExists(FileName) == true) {
+        std::wifstream stream(FileName.data());
+        InitStreamLocale(&stream);
+
+        if (stream.is_open() == true) {
+            while (stream.eof() == false) {
+                std::wstring line;
+                std::getline(stream, line);
+
+                // # at the first character will comment out the line.
+                if (line.empty() == false && line[0] != '#') {
+                    result.push_back(PlatformString(line).toString());
+                }
+            }
+        }
     }
 
     return result;
 }
 
-void Library::AddDependency(const TString &FileName) {
-    InitializeDependencies();
+void Platform::SaveToFile(TString FileName, std::list<TString> Contents, bool ownerOnly) {
+    TString path = FilePath::ExtractFilePath(FileName);
 
-    if (FDependentLibraryNames != NULL) {
-        FDependentLibraryNames->push_back(FileName);
+    if (FilePath::DirectoryExists(path) == false) {
+        FilePath::CreateDirectory(path, ownerOnly);
+    }
+
+    std::wofstream stream(FileName.data());
+    InitStreamLocale(&stream);
+
+    FilePath::ChangePermissions(FileName.data(), ownerOnly);
+
+    if (stream.is_open() == true) {
+        for (std::list<TString>::const_iterator iterator =
+                Contents.begin(); iterator != Contents.end(); iterator++) {
+            TString line = *iterator;
+            stream << PlatformString(line).toUnicodeString() << std::endl;
+        }
     }
 }
 
-void Library::AddDependencies(const std::vector<TString> &Dependencies) {
-    if (Dependencies.size() > 0) {
-        InitializeDependencies();
+std::map<TString, TString> Platform::GetKeys() {
+    std::map<TString, TString> keys;
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,
+            _T("app.version")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
+            _T("app.mainjar")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,
+            _T("app.mainmodule")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINCLASSNAME_KEY,
+            _T("app.mainclass")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_CLASSPATH_KEY,
+            _T("app.classpath")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_MODULEPATH_KEY,
+            _T("app.modulepath")));
+    keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,
+            _T("app.name")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
+            _T("app.preferences.id")));
+    keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,
+            _T("app.runtime")));
+    keys.insert(std::map<TString, TString>::value_type(JPACKAGE_APP_DATA_DIR,
+            _T("app.identifier")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,
+            _T("app.splash")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_MEMORY,
+            _T("app.memory")));
+    keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_DEBUG,
+            _T("app.debug")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_APPLICATION_INSTANCE,
+            _T("app.application.instance")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPLICATION,
+            _T("Application")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_JVMOPTIONS,
+            _T("JVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS,
+            _T("AppCDSJVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS,
+            _T("AppCDSGenerateCacheJVMOptions")));
+    keys.insert(std::map<TString,
+            TString>::value_type(CONFIG_SECTION_ARGOPTIONS,
+            _T("ArgOptions")));
 
-        if (FDependentLibraryNames != NULL) {
-            for (std::vector<TString>::const_iterator iterator =
-                    FDependentLibraryNames->begin();
-                iterator != FDependentLibraryNames->end(); iterator++) {
-                TString fileName = *iterator;
-                AddDependency(fileName);
-            }
-        }
-    }
+    return keys;
 }

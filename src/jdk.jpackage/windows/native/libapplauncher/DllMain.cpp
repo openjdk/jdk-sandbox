@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,55 +23,12 @@
  * questions.
  */
 
-#include "PlatformThread.h"
+#include <windows.h>
 
+extern "C" {
 
-PlatformThread::PlatformThread(void) {
-}
-
-PlatformThread::~PlatformThread(void) {
-    Wait();
-    Terminate();
-}
-
-#ifdef WINDOWS
-DWORD WINAPI PlatformThread::Do(LPVOID Data) {
-    PlatformThread* self = (PlatformThread*)Data;
-    self->Execute();
-    return 0;
-}
-#endif // WINDOWS
-#ifdef POSIX
-void* PlatformThread::Do(void *Data) {
-    PlatformThread* self = (PlatformThread*)Data;
-    self->Execute();
-    pthread_exit(NULL);
-}
-#endif // POSIX
-
-void PlatformThread::Run() {
-#ifdef WINDOWS
-    FHandle = CreateThread(NULL, 0, Do, this, 0, &FThreadID);
-#endif // WINDOWS
-#ifdef POSIX
-    pthread_create(&FHandle, NULL, Do, this);
-#endif // POSIX
-}
-
-void PlatformThread::Terminate() {
-#ifdef WINDOWS
-    CloseHandle(FHandle);
-#endif // WINDOWS
-#ifdef POSIX
-    pthread_cancel(FHandle);
-#endif // POSIX
-}
-
-void PlatformThread::Wait() {
-#ifdef WINDOWS
-    WaitForSingleObject(FHandle, INFINITE);
-#endif // WINDOWS
-#ifdef POSIX
-    pthread_join(FHandle, NULL);
-#endif // POSIX
+    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
+            LPVOID lpvReserved) {
+        return true;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,40 +23,28 @@
  * questions.
  */
 
-#include "Platform.h"
+#ifndef FILEATTRIBUTE_H
+#define FILEATTRIBUTE_H
 
-#ifndef PLATFORMTHREAD_H
-#define PLATFORMTHREAD_H
-
-#ifdef POSIX
-#include <pthread.h>
-#endif // POSIX
-
-
-class PlatformThread {
-private:
-#ifdef WINDOWS
-    HANDLE FHandle;
-    DWORD FThreadID;
-    static DWORD WINAPI Do(LPVOID lpParam);
-#endif // WINDOWS
-#ifdef POSIX
-    pthread_t FHandle;
-    static void* Do(void *threadid);
-#endif // POSIX
-
-protected:
-    // Never call directly. Override this method and this is your code
-    // that runs in a thread.
-    virtual void Execute() = 0;
-
-public:
-    PlatformThread(void);
-    virtual ~PlatformThread(void);
-
-    void Run();
-    void Terminate();
-    void Wait();
+enum FileAttribute {
+    faArchive = FILE_ATTRIBUTE_ARCHIVE,
+    faCompressed = FILE_ATTRIBUTE_COMPRESSED,
+    faDevice = FILE_ATTRIBUTE_DEVICE,
+    faDirectory = FILE_ATTRIBUTE_DIRECTORY,
+    faEncrypted = FILE_ATTRIBUTE_ENCRYPTED,
+    faHidden = FILE_ATTRIBUTE_HIDDEN,
+    //faIntegrityStream = FILE_ATTRIBUTE_INTEGRITY_STREAM,
+    faNormal = FILE_ATTRIBUTE_NORMAL,
+    faNotContentIndexed = FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
+    //faNoScrubData = FILE_ATTRIBUTE_NO_SCRUB_DATA,
+    faOffline = FILE_ATTRIBUTE_OFFLINE,
+    faSystem = FILE_ATTRIBUTE_SYSTEM,
+    faSymbolicLink = FILE_ATTRIBUTE_REPARSE_POINT,
+    faSparceFile = FILE_ATTRIBUTE_SPARSE_FILE,
+    faReadOnly = FILE_ATTRIBUTE_READONLY,
+    faTemporary = FILE_ATTRIBUTE_TEMPORARY,
+    faVirtual = FILE_ATTRIBUTE_VIRTUAL
 };
 
-#endif // PLATFORMTHREAD_H
+#endif // FILEATTRIBUTE_H
+

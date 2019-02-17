@@ -26,10 +26,6 @@
 #ifndef ORDEREDMAP_H
 #define ORDEREDMAP_H
 
-#ifdef WINDOWS
-#pragma warning(disable:4522)
-#endif
-
 #include <map>
 #include <vector>
 #include <assert.h>
@@ -37,9 +33,8 @@
 
 #include <iostream>
 
-
 template <typename _T1, typename _T2>
-struct pair
+struct JPPair
 {
     typedef _T1 first_type;
     typedef _T2 second_type;
@@ -47,7 +42,7 @@ struct pair
     first_type first;
     second_type second;
 
-    pair(first_type Value1, second_type Value2) {
+    JPPair(first_type Value1, second_type Value2) {
         first = Value1;
         second = Value2;
     }
@@ -59,7 +54,7 @@ class OrderedMap {
 public:
     typedef TKey key_type;
     typedef TValue mapped_type;
-    typedef pair<key_type, mapped_type> container_type;
+    typedef JPPair<key_type, mapped_type> container_type;
     typedef typename std::vector<container_type*>::iterator iterator;
     typedef typename std::vector<container_type*>::const_iterator const_iterator;
 
@@ -231,12 +226,6 @@ public:
     }
 
     OrderedMap& operator= (OrderedMap &Value) {
-        Clear();
-        Append(Value);
-        return *this;
-    }
-
-    OrderedMap& operator= (const OrderedMap &Value) {
         Clear();
         Append(Value);
         return *this;

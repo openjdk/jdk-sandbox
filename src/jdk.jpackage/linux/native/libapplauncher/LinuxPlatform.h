@@ -23,23 +23,17 @@
  * questions.
  */
 
-#include "Platform.h"
-
-#ifdef LINUX
-
 #ifndef LINUXPLATFORM_H
 #define LINUXPLATFORM_H
 
+#include "Platform.h"
 #include "PosixPlatform.h"
-#include "GenericPlatform.h"
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <pthread.h>
 #include <list>
 
-
-class LinuxPlatform : virtual public Platform, GenericPlatform, PosixPlatform
-{
+class LinuxPlatform : virtual public Platform, PosixPlatform {
 private:
     pthread_t FMainThread;
 
@@ -49,6 +43,10 @@ protected:
 public:
     LinuxPlatform(void);
     virtual ~LinuxPlatform(void);
+
+    TString GetPackageAppDirectory();
+    TString GetPackageLauncherDirectory();
+    TString GetPackageRuntimeBinDirectory();
 
     virtual void ShowMessage(TString title, TString description);
     virtual void ShowMessage(TString description);
@@ -61,6 +59,7 @@ public:
     virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
+    virtual TString GetAppName();
 
     virtual TString GetModuleFileName();
 
@@ -70,28 +69,6 @@ public:
 
     virtual bool IsMainThread();
     virtual TPlatformNumber GetMemorySize();
-
-#ifdef DEBUG
-    virtual bool IsNativeDebuggerPresent();
-    virtual int GetProcessID();
-#endif //DEBUG
-};
-
-class ProcessReactivator {
-private:
-    void searchWindowHelper(Window w);
-    void reactivateProcess();
-
-    Library libX11;
-
-    pid_t _pid;
-    Atom _atomPid;
-    Display* _display;
-    std::list<Window> _result;
-public:
-    explicit ProcessReactivator(pid_t pid);
 };
 
 #endif //LINUXPLATFORM_H
-
-#endif //LINUX

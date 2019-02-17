@@ -25,12 +25,10 @@
 
 #include "Messages.h"
 #include "Platform.h"
-#include "Lock.h"
 #include "FilePath.h"
 #include "Helpers.h"
 #include "Macros.h"
 #include "JavaVirtualMachine.h"
-
 
 Messages::Messages(void) {
     FMessages.SetReadOnly(false);
@@ -47,7 +45,6 @@ Messages::Messages(void) {
 }
 
 Messages& Messages::GetInstance() {
-    //Lock lock;
     static Messages instance;
     // Guaranteed to be destroyed. Instantiated on first use.
     return instance;

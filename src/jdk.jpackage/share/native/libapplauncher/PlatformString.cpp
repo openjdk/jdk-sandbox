@@ -25,7 +25,6 @@
 
 #include "PlatformString.h"
 
-#include "JavaTypes.h"
 #include "Helpers.h"
 
 #include <stdio.h>
@@ -37,76 +36,10 @@
 
 #include "jni.h"
 
-#ifdef MAC
-StringToFileSystemString::StringToFileSystemString(const TString &value) {
-    FRelease = false;
-    PlatformString lvalue = PlatformString(value);
-    Platform& platform = Platform::GetInstance();
-    FData = platform.ConvertStringToFileSystemString(lvalue, FRelease);
-}
-
-StringToFileSystemString::~StringToFileSystemString() {
-    if (FRelease == true) {
-        delete[] FData;
-    }
-}
-
-StringToFileSystemString::operator TCHAR* () {
-    return FData;
-}
-#endif //MAC
-
-#ifdef MAC
-FileSystemStringToString::FileSystemStringToString(const TCHAR* value) {
-    bool release = false;
-    PlatformString lvalue = PlatformString(value);
-    Platform& platform = Platform::GetInstance();
-    TCHAR* buffer = platform.ConvertFileSystemStringToString(lvalue, release);
-    FData = buffer;
-
-    if (buffer != NULL && release == true) {
-        delete[] buffer;
-    }
-}
-
-FileSystemStringToString::operator TString () {
-    return FData;
-}
-#endif //MAC
-
-
 void PlatformString::initialize() {
     FWideTStringToFree = NULL;
     FLength = 0;
     FData = NULL;
-}
-
-void PlatformString::CopyString(char *Destination,
-        size_t NumberOfElements, const char *Source) {
-#ifdef WINDOWS
-    strcpy_s(Destination, NumberOfElements, Source);
-#endif //WINDOWS
-#ifdef POSIX
-    strncpy(Destination, Source, NumberOfElements);
-#endif //POSIX
-
-    if (NumberOfElements > 0) {
-        Destination[NumberOfElements - 1] = '\0';
-    }
-}
-
-void PlatformString::CopyString(wchar_t *Destination,
-        size_t NumberOfElements, const wchar_t *Source) {
-#ifdef WINDOWS
-    wcscpy_s(Destination, NumberOfElements, Source);
-#endif //WINDOWS
-#ifdef POSIX
-    wcsncpy(Destination, Source, NumberOfElements);
-#endif //POSIX
-
-    if (NumberOfElements > 0) {
-        Destination[NumberOfElements - 1] = '\0';
-    }
 }
 
 PlatformString::PlatformString(void) {
@@ -123,81 +56,18 @@ PlatformString::~PlatformString(void) {
     }
 }
 
-// Owner must free the return value.
-MultibyteString PlatformString::WideStringToMultibyteString(
-        const wchar_t* value) {
-    MultibyteString result;
-    size_t count = 0;
-
-    if (value == NULL) {
-        return result;
-    }
-
-#ifdef WINDOWS
-    count = WideCharToMultiByte(CP_UTF8, 0, value, -1, NULL, 0, NULL, NULL);
-
-    if (count > 0) {
-        result.data = new char[count + 1];
-        result.length = WideCharToMultiByte(CP_UTF8, 0, value, -1,
-                result.data, (int)count, NULL, NULL);
-#endif //WINDOWS
-
-#ifdef POSIX
-    count = wcstombs(NULL, value, 0);
-
-    if (count > 0) {
-        result.data = new char[count + 1];
-        result.data[count] = '\0';
-        result.length = count;
-        wcstombs(result.data, value, count);
-#endif //POSIX
-    }
-
-    return result;
-}
-
-// Owner must free the return value.
-WideString PlatformString::MultibyteStringToWideString(const char* value) {
-    WideString result;
-    size_t count = 0;
-
-    if (value == NULL) {
-        return result;
-    }
-
-#ifdef WINDOWS
-    mbstowcs_s(&count, NULL, 0, value, _TRUNCATE);
-
-    if (count > 0) {
-        result.data = new wchar_t[count + 1];
-        mbstowcs_s(&result.length, result.data, count, value, count);
-#endif // WINDOWS
-#ifdef POSIX
-    count = mbstowcs(NULL, value, 0);
-
-    if (count > 0) {
-        result.data = new wchar_t[count + 1];
-        result.data[count] = '\0';
-        result.length = count;
-        mbstowcs(result.data, value, count);
-#endif //POSIX
-    }
-
-    return result;
-}
-
 PlatformString::PlatformString(const PlatformString &value) {
     initialize();
     FLength = value.FLength;
     FData = new char[FLength + 1];
-    PlatformString::CopyString(FData, FLength + 1, value.FData);
+    Platform::CopyString(FData, FLength + 1, value.FData);
 }
 
 PlatformString::PlatformString(const char* value) {
     initialize();
     FLength = strlen(value);
     FData = new char[FLength + 1];
-    PlatformString::CopyString(FData, FLength + 1, value);
+    Platform::CopyString(FData, FLength + 1, value);
 }
 
 PlatformString::PlatformString(size_t Value) {
@@ -210,12 +80,12 @@ PlatformString::PlatformString(size_t Value) {
 
     FLength = strlen(s.c_str());
     FData = new char[FLength + 1];
-    PlatformString::CopyString(FData, FLength + 1, s.c_str());
+    Platform::CopyString(FData, FLength + 1, s.c_str());
 }
 
 PlatformString::PlatformString(const wchar_t* value) {
     initialize();
-    MultibyteString temp = WideStringToMultibyteString(value);
+    MultibyteString temp = Platform::WideStringToMultibyteString(value);
     FLength = temp.length;
     FData = temp.data;
 }
@@ -225,44 +95,15 @@ PlatformString::PlatformString(const std::string &value) {
     const char* lvalue = value.data();
     FLength = value.size();
     FData = new char[FLength + 1];
-    PlatformString::CopyString(FData, FLength + 1, lvalue);
+    Platform::CopyString(FData, FLength + 1, lvalue);
 }
 
 PlatformString::PlatformString(const std::wstring &value) {
     initialize();
     const wchar_t* lvalue = value.data();
-    MultibyteString temp = WideStringToMultibyteString(lvalue);
+    MultibyteString temp = Platform::WideStringToMultibyteString(lvalue);
     FLength = temp.length;
     FData = temp.data;
-}
-
-PlatformString::PlatformString(JNIEnv *env, jstring value) {
-    initialize();
-
-    if (env != NULL) {
-        const char* lvalue = env->GetStringUTFChars(value, JNI_FALSE);
-
-        if (lvalue == NULL || env->ExceptionCheck() == JNI_TRUE) {
-            throw JavaException();
-        }
-
-        if (lvalue != NULL) {
-            FLength = env->GetStringUTFLength(value);
-
-            if (env->ExceptionCheck() == JNI_TRUE) {
-                throw JavaException();
-            }
-
-            FData = new char[FLength + 1];
-            PlatformString::CopyString(FData, FLength + 1, lvalue);
-
-            env->ReleaseStringUTFChars(value, lvalue);
-
-            if (env->ExceptionCheck() == JNI_TRUE) {
-                throw JavaException();
-            }
-        }
-    }
 }
 
 TString PlatformString::Format(const TString value, ...) {
@@ -307,7 +148,7 @@ char* PlatformString::toMultibyte() {
 }
 
 wchar_t* PlatformString::toWideString() {
-    WideString result = MultibyteStringToWideString(FData);
+    WideString result = Platform::MultibyteStringToWideString(FData);
 
     if (result.data != NULL) {
         if (FWideTStringToFree != NULL) {
@@ -338,20 +179,6 @@ std::string PlatformString::toStdString() {
 
     if (FLength > 0 && data != NULL) {
         result = data;
-    }
-
-    return result;
-}
-
-jstring PlatformString::toJString(JNIEnv *env) {
-    jstring result = NULL;
-
-    if (env != NULL) {
-        result = env->NewStringUTF(c_str());
-
-        if (result == NULL || env->ExceptionCheck() == JNI_TRUE) {
-            throw JavaException();
-        }
     }
 
     return result;
@@ -388,13 +215,13 @@ PlatformString::operator std::wstring () {
 char* PlatformString::duplicate(const char* Value) {
     size_t length = strlen(Value);
     char* result = new char[length + 1];
-    PlatformString::CopyString(result, length + 1, Value);
+    Platform::CopyString(result, length + 1, Value);
     return result;
 }
 
 wchar_t* PlatformString::duplicate(const wchar_t* Value) {
     size_t length = wcslen(Value);
     wchar_t* result = new wchar_t[length + 1];
-    PlatformString::CopyString(result, length + 1, Value);
+    Platform::CopyString(result, length + 1, Value);
     return result;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,45 @@
  * questions.
  */
 
-#ifndef LOCK_H
-#define LOCK_H
+#ifndef PLATFORM_DEFS_H
+#define PLATFORM_DEFS_H
 
-#include "Platform.h"
+#include <errno.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dlfcn.h>
+#include <libgen.h>
+#include <string>
 
-#ifdef POSIX
-#include <pthread.h>
-#endif //POSIX
+using namespace std;
 
+#ifndef LINUX
+#define LINUX
+#endif
 
-class Lock {
-private:
-#ifdef WINDOWS
-    CRITICAL_SECTION FCriticalSection;
-#endif //WINDOWS
-#ifdef POSIX
-    pthread_mutex_t FMutex;
-#endif //POSIX
+#define _T(x) x
 
-    void Initialize();
+typedef char TCHAR;
+typedef std::string TString;
+#define StringLength strlen
 
-public:
-    Lock(void);
-    Lock(bool Value);
-    ~Lock(void);
+typedef unsigned long DWORD;
 
-    void Enter();
-    void Leave();
-    bool TryEnter();
-};
+#define TRAILING_PATHSEPARATOR '/'
+#define BAD_TRAILING_PATHSEPARATOR '\\'
+#define PATH_SEPARATOR ':'
+#define BAD_PATH_SEPARATOR ';'
+#define MAX_PATH 1000
 
-#endif // LOCK_H
+typedef long TPlatformNumber;
+typedef pid_t TProcessID;
+
+#define HMODULE void*
+
+typedef void* Module;
+typedef void* Procedure;
+
+#define StringToFileSystemString PlatformString
+#define FileSystemStringToString PlatformString
+
+#endif // PLATFORM_DEFS_H

@@ -24,7 +24,6 @@
  */
 
 #include "Package.h"
-#include "Lock.h"
 #include "Helpers.h"
 #include "Macros.h"
 #include "IniFile.h"

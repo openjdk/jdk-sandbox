@@ -25,8 +25,6 @@
 
 #include "Platform.h"
 
-#ifdef MAC
-
 #include "MacPlatform.h"
 #include "Helpers.h"
 #include "Package.h"
@@ -36,6 +34,8 @@
 #include <sys/sysctl.h>
 #include <pthread.h>
 #include <vector>
+#include <signal.h>
+#include <mach-o/dyld.h>
 
 #import <Foundation/Foundation.h>
 #import <AppKit/NSRunningApplication.h>
@@ -51,15 +51,63 @@
         "/Library/Application Support/Java/JPackage/tmp"
 
 NSString* StringToNSString(TString Value) {
-    NSString* result = [NSString stringWithCString:Value.c_str()
-            encoding:[NSString defaultCStringEncoding]];
+    NSString* result = [NSString stringWithCString : Value.c_str()
+            encoding : [NSString defaultCStringEncoding]];
     return result;
 }
 
-MacPlatform::MacPlatform(void) : Platform(), GenericPlatform(), PosixPlatform() {
+FileSystemStringToString::FileSystemStringToString(const TCHAR* value) {
+    bool release = false;
+    PlatformString lvalue = PlatformString(value);
+    Platform& platform = Platform::GetInstance();
+    TCHAR* buffer = platform.ConvertFileSystemStringToString(lvalue, release);
+    FData = buffer;
+
+    if (buffer != NULL && release == true) {
+        delete[] buffer;
+    }
+}
+
+FileSystemStringToString::operator TString() {
+    return FData;
+}
+
+StringToFileSystemString::StringToFileSystemString(const TString &value) {
+    FRelease = false;
+    PlatformString lvalue = PlatformString(value);
+    Platform& platform = Platform::GetInstance();
+    FData = platform.ConvertStringToFileSystemString(lvalue, FRelease);
+}
+
+StringToFileSystemString::~StringToFileSystemString() {
+    if (FRelease == true) {
+        delete[] FData;
+    }
+}
+
+StringToFileSystemString::operator TCHAR* () {
+    return FData;
+}
+
+MacPlatform::MacPlatform(void) : Platform(), PosixPlatform() {
 }
 
 MacPlatform::~MacPlatform(void) {
+}
+
+TString MacPlatform::GetPackageAppDirectory() {
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("Java");
+}
+
+TString MacPlatform::GetPackageLauncherDirectory() {
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("MacOS");
+}
+
+TString MacPlatform::GetPackageRuntimeBinDirectory() {
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) +
+            _T("Plugins/Java.runtime/Contents/Home/bin");
 }
 
 bool MacPlatform::UsePListForConfigFile() {
@@ -91,7 +139,7 @@ TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source,
             Source, kCFStringEncodingUTF8);
 
     if (StringRef != NULL) {
-        @try {
+        @ try {
             CFIndex length =
                     CFStringGetMaximumSizeOfFileSystemRepresentation(StringRef);
             result = new char[length + 1];
@@ -99,14 +147,14 @@ TCHAR* MacPlatform::ConvertStringToFileSystemString(TCHAR* Source,
                 if (CFStringGetFileSystemRepresentation(StringRef,
                         result, length)) {
                     release = true;
-                }
-                else {
+                } else {
                     delete[] result;
                     result = NULL;
                 }
             }
         }
-        @finally {
+        @finally
+        {
             CFRelease(StringRef);
         }
     }
@@ -122,7 +170,7 @@ TCHAR* MacPlatform::ConvertFileSystemStringToString(TCHAR* Source,
             kCFAllocatorDefault, Source);
 
     if (StringRef != NULL) {
-        @try {
+        @ try {
             CFIndex length = CFStringGetLength(StringRef);
 
             if (length > 0) {
@@ -134,15 +182,15 @@ TCHAR* MacPlatform::ConvertFileSystemStringToString(TCHAR* Source,
                     if (CFStringGetCString(StringRef, result, maxSize,
                             kCFStringEncodingUTF8) == true) {
                         release = true;
-                    }
-                    else {
+                    } else {
                         delete[] result;
                         result = NULL;
                     }
                 }
             }
         }
-        @finally {
+        @finally
+        {
             CFRelease(StringRef);
         }
     }
@@ -158,7 +206,7 @@ TString MacPlatform::GetPackageRootDirectory() {
     NSBundle *mainBundle = [NSBundle mainBundle];
     NSString *mainBundlePath = [mainBundle bundlePath];
     NSString *contentsPath =
-            [mainBundlePath stringByAppendingString:@"/Contents"];
+            [mainBundlePath stringByAppendingString : @"/Contents"];
     TString result = [contentsPath UTF8String];
     return result;
 }
@@ -166,7 +214,7 @@ TString MacPlatform::GetPackageRootDirectory() {
 TString MacPlatform::GetAppDataDirectory() {
     TString result;
     NSArray *paths = NSSearchPathForDirectoriesInDomains(
-           NSApplicationSupportDirectory, NSUserDomainMask, YES);
+            NSApplicationSupportDirectory, NSUserDomainMask, YES);
     NSString *applicationSupportDirectory = [paths firstObject];
     result = [applicationSupportDirectory UTF8String];
     return result;
@@ -177,11 +225,11 @@ TString MacPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
 
     // first try lib/, then lib/jli
     result = FilePath::IncludeTrailingSeparator(RuntimePath) +
-             _T("Contents/Home/lib/libjli.dylib");
+            _T("Contents/Home/lib/libjli.dylib");
 
     if (FilePath::FileExists(result) == false) {
         result = FilePath::IncludeTrailingSeparator(RuntimePath) +
-                 _T("Contents/Home/lib/jli/libjli.dylib");
+                _T("Contents/Home/lib/jli/libjli.dylib");
 
         if (FilePath::FileExists(result) == false) {
             // cannot find
@@ -199,14 +247,108 @@ TString MacPlatform::GetAppName() {
     return result;
 }
 
+void PosixProcess::Cleanup() {
+    if (FOutputHandle != 0) {
+        close(FOutputHandle);
+        FOutputHandle = 0;
+    }
+
+    if (FInputHandle != 0) {
+        close(FInputHandle);
+        FInputHandle = 0;
+    }
+
+    sigaction(SIGINT, &savintr, (struct sigaction *) 0);
+    sigaction(SIGQUIT, &savequit, (struct sigaction *) 0);
+    sigprocmask(SIG_SETMASK, &saveblock, (sigset_t *) 0);
+}
+
+#define PIPE_READ 0
+#define PIPE_WRITE 1
+
+bool PosixProcess::Execute(const TString Application,
+        const std::vector<TString> Arguments, bool AWait) {
+    bool result = false;
+
+    if (FRunning == false) {
+        FRunning = true;
+
+        int handles[2];
+
+        if (pipe(handles) == -1) {
+            return false;
+        }
+
+        struct sigaction sa;
+        sa.sa_handler = SIG_IGN;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+        sigemptyset(&savintr.sa_mask);
+        sigemptyset(&savequit.sa_mask);
+        sigaction(SIGINT, &sa, &savintr);
+        sigaction(SIGQUIT, &sa, &savequit);
+        sigaddset(&sa.sa_mask, SIGCHLD);
+        sigprocmask(SIG_BLOCK, &sa.sa_mask, &saveblock);
+
+        FChildPID = fork();
+
+        // PID returned by vfork is 0 for the child process and the
+        // PID of the child process for the parent.
+        if (FChildPID == -1) {
+            // Error
+            TString message = PlatformString::Format(
+                    _T("Error: Unable to create process %s"),
+                    Application.data());
+            throw Exception(message);
+        } else if (FChildPID == 0) {
+            Cleanup();
+            TString command = Application;
+
+            for (std::vector<TString>::const_iterator iterator =
+                    Arguments.begin(); iterator != Arguments.end();
+                    iterator++) {
+                command += TString(_T(" ")) + *iterator;
+            }
+#ifdef DEBUG
+            printf("%s\n", command.data());
+#endif // DEBUG
+
+            dup2(handles[PIPE_READ], STDIN_FILENO);
+            dup2(handles[PIPE_WRITE], STDOUT_FILENO);
+
+            close(handles[PIPE_READ]);
+            close(handles[PIPE_WRITE]);
+
+            execl("/bin/sh", "sh", "-c", command.data(), (char *) 0);
+
+            _exit(127);
+        } else {
+            FOutputHandle = handles[PIPE_READ];
+            FInputHandle = handles[PIPE_WRITE];
+
+            if (AWait == true) {
+                ReadOutput();
+                Wait();
+                Cleanup();
+                FRunning = false;
+                result = true;
+            } else {
+                result = true;
+            }
+        }
+    }
+
+    return result;
+}
+
 void AppendPListArrayToIniFile(NSDictionary *infoDictionary,
         IniFile *result, TString Section) {
     NSString *sectionKey =
-        [NSString stringWithUTF8String:PlatformString(Section).toMultibyte()];
-    NSDictionary *array = [infoDictionary objectForKey:sectionKey];
+            [NSString stringWithUTF8String : PlatformString(Section).toMultibyte()];
+    NSDictionary *array = [infoDictionary objectForKey : sectionKey];
 
     for (id option in array) {
-        if ([option isKindOfClass:[NSString class]]) {
+        if ([option isKindOfClass : [NSString class]]) {
             TString arg = [option UTF8String];
 
             TString name;
@@ -224,19 +366,18 @@ void AppendPListDictionaryToIniFile(NSDictionary *infoDictionary,
     NSDictionary *dictionary = NULL;
 
     if (FollowSection == true) {
-        NSString *sectionKey = [NSString stringWithUTF8String:PlatformString(
+        NSString *sectionKey = [NSString stringWithUTF8String : PlatformString(
                 Section).toMultibyte()];
-        dictionary = [infoDictionary objectForKey:sectionKey];
-    }
-    else {
+        dictionary = [infoDictionary objectForKey : sectionKey];
+    } else {
         dictionary = infoDictionary;
     }
 
     for (id key in dictionary) {
-        id option = [dictionary valueForKey:key];
+        id option = [dictionary valueForKey : key];
 
-        if ([key isKindOfClass:[NSString class]] &&
-                    [option isKindOfClass:[NSString class]]) {
+        if ([key isKindOfClass : [NSString class]] &&
+                [option isKindOfClass : [NSString class]]) {
             TString name = [key UTF8String];
             TString value = [option UTF8String];
             result->Append(Section, name, value);
@@ -258,8 +399,7 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
             // attempt to load old property file format.
             Helpers::LoadOldConfigFile(FileName, result);
         }
-    }
-    else {
+    } else {
         NSBundle *mainBundle = [NSBundle mainBundle];
         NSDictionary *infoDictionary = [mainBundle infoDictionary];
         std::map<TString, TString> keys = GetKeys();
@@ -288,7 +428,7 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
 
 TString GetModuleFileNameOSX() {
     Dl_info module_info;
-    if (dladdr(reinterpret_cast<void*>(GetModuleFileNameOSX),
+    if (dladdr(reinterpret_cast<void*> (GetModuleFileNameOSX),
             &module_info) == 0) {
         // Failed to find the symbol we asked for.
         return std::string();
@@ -296,11 +436,7 @@ TString GetModuleFileNameOSX() {
     return TString(module_info.dli_fname);
 }
 
-#include <mach-o/dyld.h>
-
 TString MacPlatform::GetModuleFileName() {
-    //return GetModuleFileNameOSX();
-
     TString result;
     DynamicBuffer<TCHAR> buffer(MAX_PATH);
     uint32_t size = buffer.GetSize();
@@ -330,9 +466,8 @@ std::map<TString, TString> MacPlatform::GetKeys() {
     std::map<TString, TString> keys;
 
     if (UsePListForConfigFile() == false) {
-        return GenericPlatform::GetKeys();
-    }
-    else {
+        return Platform::GetKeys();
+    } else {
         keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,
                 _T("app.version")));
         keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
@@ -376,31 +511,3 @@ std::map<TString, TString> MacPlatform::GetKeys() {
 
     return keys;
 }
-
-#ifdef DEBUG
-bool MacPlatform::IsNativeDebuggerPresent() {
-    int state;
-    int mib[4];
-    struct kinfo_proc info;
-    size_t size;
-
-    info.kp_proc.p_flag = 0;
-
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_PROC;
-    mib[2] = KERN_PROC_PID;
-    mib[3] = getpid();
-
-    size = sizeof(info);
-    state = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
-    assert(state == 0);
-    return ((info.kp_proc.p_flag & P_TRACED) != 0);
-}
-
-int MacPlatform::GetProcessID() {
-    int pid = [[NSProcessInfo processInfo] processIdentifier];
-    return pid;
-}
-#endif //DEBUG
-
-#endif //MAC

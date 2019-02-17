@@ -25,13 +25,12 @@
 
 #include "Platform.h"
 
-#ifdef LINUX
-
 #include "JavaVirtualMachine.h"
 #include "LinuxPlatform.h"
 #include "PlatformString.h"
 #include "IniFile.h"
 #include "Helpers.h"
+#include "FilePath.h"
 
 #include <stdlib.h>
 #include <pwd.h>
@@ -41,28 +40,47 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <limits.h>
+#include <signal.h>
 
 #define LINUX_JPACKAGE_TMP_DIR "/.java/jpackage/tmp"
-
 
 TString GetEnv(const TString &name) {
     TString result;
 
-    char *value = ::getenv((TCHAR*)name.c_str());
+    char *value = ::getenv((TCHAR*) name.c_str());
 
     if (value != NULL) {
-       result = value;
+        result = value;
     }
 
     return result;
 }
 
 LinuxPlatform::LinuxPlatform(void) : Platform(),
-        GenericPlatform(), PosixPlatform() {
+PosixPlatform() {
     FMainThread = pthread_self();
 }
 
 LinuxPlatform::~LinuxPlatform(void) {
+}
+
+TString LinuxPlatform::GetPackageAppDirectory() {
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("app");
+}
+
+TString LinuxPlatform::GetAppName() {
+    TString result = GetModuleFileName();
+    result = FilePath::ExtractFileName(result);
+    return result;
+}
+
+TString LinuxPlatform::GetPackageLauncherDirectory() {
+    return GetPackageRootDirectory();
+}
+
+TString LinuxPlatform::GetPackageRuntimeBinDirectory() {
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) + _T("runtime/bin");
 }
 
 void LinuxPlatform::ShowMessage(TString title, TString description) {
@@ -79,13 +97,13 @@ void LinuxPlatform::ShowMessage(TString description) {
 }
 
 TCHAR* LinuxPlatform::ConvertStringToFileSystemString(TCHAR* Source,
-         bool &release) {
+        bool &release) {
     // Not Implemented.
     return NULL;
 }
 
 TCHAR* LinuxPlatform::ConvertFileSystemStringToString(TCHAR* Source,
-         bool &release) {
+        bool &release) {
     // Not Implemented.
     return NULL;
 }
@@ -144,11 +162,11 @@ ISectionalPropertyContainer* LinuxPlatform::GetConfigFile(TString FileName) {
 
 TString LinuxPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
     TString result = FilePath::IncludeTrailingSeparator(RuntimePath) +
-        "lib/libjli.so";
+            "lib/libjli.so";
 
     if (FilePath::FileExists(result) == false) {
         result = FilePath::IncludeTrailingSeparator(RuntimePath) +
-            "lib/jli/libjli.so";
+                "lib/jli/libjli.so";
         if (FilePath::FileExists(result) == false) {
             printf("Cannot find libjli.so!");
         }
@@ -174,26 +192,90 @@ TPlatformNumber LinuxPlatform::GetMemorySize() {
     return result;
 }
 
-#ifdef DEBUG
-bool LinuxPlatform::IsNativeDebuggerPresent() {
-    // gdb opens file descriptors stdin=3, stdout=4, stderr=5 whereas
-    // a typical prog uses only stdin=0, stdout=1, stderr=2.
-    bool result = false;
-    FILE *fd = fopen("/tmp", "r");
-
-    if (fileno(fd) > 5) {
-        result = true;
+void PosixProcess::Cleanup() {
+    if (FOutputHandle != 0) {
+        close(FOutputHandle);
+        FOutputHandle = 0;
     }
 
-    fclose(fd);
+    if (FInputHandle != 0) {
+        close(FInputHandle);
+        FInputHandle = 0;
+    }
+}
+
+#define PIPE_READ 0
+#define PIPE_WRITE 1
+
+bool PosixProcess::Execute(const TString Application,
+        const std::vector<TString> Arguments, bool AWait) {
+    bool result = false;
+
+    if (FRunning == false) {
+        FRunning = true;
+
+        int handles[2];
+
+        if (pipe(handles) == -1) {
+            return false;
+        }
+
+        struct sigaction sa;
+        sa.sa_handler = SIG_IGN;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = 0;
+
+        FChildPID = fork();
+
+        // PID returned by vfork is 0 for the child process and the
+        // PID of the child process for the parent.
+        if (FChildPID == -1) {
+            // Error
+            TString message = PlatformString::Format(
+                    _T("Error: Unable to create process %s"),
+                    Application.data());
+            throw Exception(message);
+        } else if (FChildPID == 0) {
+            Cleanup();
+            TString command = Application;
+
+            for (std::vector<TString>::const_iterator iterator =
+                    Arguments.begin(); iterator != Arguments.end();
+                    iterator++) {
+                command += TString(_T(" ")) + *iterator;
+            }
+#ifdef DEBUG
+            printf("%s\n", command.data());
+#endif // DEBUG
+
+            dup2(handles[PIPE_READ], STDIN_FILENO);
+            dup2(handles[PIPE_WRITE], STDOUT_FILENO);
+
+            close(handles[PIPE_READ]);
+            close(handles[PIPE_WRITE]);
+
+            execl("/bin/sh", "sh", "-c", command.data(), (char *) 0);
+
+            _exit(127);
+        } else {
+            FOutputHandle = handles[PIPE_READ];
+            FInputHandle = handles[PIPE_WRITE];
+
+            if (AWait == true) {
+                ReadOutput();
+                Wait();
+                Cleanup();
+                FRunning = false;
+                result = true;
+            } else {
+                result = true;
+            }
+        }
+    }
+
     return result;
 }
 
-int LinuxPlatform::GetProcessID() {
-    int pid = getpid();
-    return pid;
-}
-#endif //DEBUG
 
 //----------------------------------------------------------------------------
 
@@ -229,6 +311,7 @@ int LinuxPlatform::GetProcessID() {
     strdup((strSource))
 
 //return "error code" (like on Windows)
+
 static int JPACKAGE_STRNCPY(char *strDest, size_t numberOfElements,
         const char *strSource, size_t count) {
     char *s = strncpy(strDest, strSource, count);
@@ -323,31 +406,30 @@ typedef struct _xmlNode XMLNode;
 typedef struct _xmlAttribute XMLAttribute;
 
 struct _xmlNode {
-    int           _type;        // Type of node: tag, pcdata, cdate
-    TCHAR*         _name;       // Contents of node
-    XMLNode*      _next;        // Next node at same level
-    XMLNode*      _sub;         // First sub-node
-    XMLAttribute* _attributes;  // List of attributes
+    int _type; // Type of node: tag, pcdata, cdate
+    TCHAR* _name; // Contents of node
+    XMLNode* _next; // Next node at same level
+    XMLNode* _sub; // First sub-node
+    XMLAttribute* _attributes; // List of attributes
 };
 
 struct _xmlAttribute {
-    TCHAR* _name;               // Name of attribute
-    TCHAR* _value;              // Value of attribute
-    XMLAttribute* _next;        // Next attribute for this tag
+    TCHAR* _name; // Name of attribute
+    TCHAR* _value; // Value of attribute
+    XMLAttribute* _next; // Next attribute for this tag
 };
 
 // Public interface
-static void     RemoveNonAsciiUTF8FromBuffer(char *buf);
-XMLNode* ParseXMLDocument    (TCHAR* buf);
-void     FreeXMLDocument     (XMLNode* root);
+static void RemoveNonAsciiUTF8FromBuffer(char *buf);
+XMLNode* ParseXMLDocument(TCHAR* buf);
+void FreeXMLDocument(XMLNode* root);
 
 // Utility methods for parsing document
-XMLNode* FindXMLChild        (XMLNode* root,      const TCHAR* name);
-TCHAR*    FindXMLAttribute    (XMLAttribute* attr, const TCHAR* name);
+XMLNode* FindXMLChild(XMLNode* root, const TCHAR* name);
+TCHAR* FindXMLAttribute(XMLAttribute* attr, const TCHAR* name);
 
 // Debugging
 void PrintXMLDocument(XMLNode* node, int indt);
-
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -355,34 +437,33 @@ void PrintXMLDocument(XMLNode* node, int indt);
 #include <stdlib.h>
 #include <wctype.h>
 
-
 #define JWS_assert(s, msg)      \
     if (!(s)) { Abort(msg); }
 
 
 // Internal declarations
-static XMLNode*      ParseXMLElement(void);
+static XMLNode* ParseXMLElement(void);
 static XMLAttribute* ParseXMLAttribute(void);
-static TCHAR*         SkipWhiteSpace(TCHAR *p);
-static TCHAR*         SkipXMLName(TCHAR *p);
-static TCHAR*         SkipXMLComment(TCHAR *p);
-static TCHAR*         SkipXMLDocType(TCHAR *p);
-static TCHAR*         SkipXMLProlog(TCHAR *p);
-static TCHAR*         SkipPCData(TCHAR *p);
-static int           IsPCData(TCHAR *p);
-static void          ConvertBuiltInEntities(TCHAR* p);
-static void          SetToken(int type, TCHAR* start, TCHAR* end);
-static void          GetNextToken(void);
-static XMLNode*      CreateXMLNode(int type, TCHAR* name);
+static TCHAR* SkipWhiteSpace(TCHAR *p);
+static TCHAR* SkipXMLName(TCHAR *p);
+static TCHAR* SkipXMLComment(TCHAR *p);
+static TCHAR* SkipXMLDocType(TCHAR *p);
+static TCHAR* SkipXMLProlog(TCHAR *p);
+static TCHAR* SkipPCData(TCHAR *p);
+static int IsPCData(TCHAR *p);
+static void ConvertBuiltInEntities(TCHAR* p);
+static void SetToken(int type, TCHAR* start, TCHAR* end);
+static void GetNextToken(void);
+static XMLNode* CreateXMLNode(int type, TCHAR* name);
 static XMLAttribute* CreateXMLAttribute(TCHAR *name, TCHAR* value);
-static XMLNode*      ParseXMLElement(void);
+static XMLNode* ParseXMLElement(void);
 static XMLAttribute* ParseXMLAttribute(void);
-static void          FreeXMLAttribute(XMLAttribute* attr);
-static void          PrintXMLAttributes(XMLAttribute* attr);
-static void          indent(int indt);
+static void FreeXMLAttribute(XMLAttribute* attr);
+static void PrintXMLAttributes(XMLAttribute* attr);
+static void indent(int indt);
 
-static jmp_buf       jmpbuf;
-static XMLNode*      root_node = NULL;
+static jmp_buf jmpbuf;
+static XMLNode* root_node = NULL;
 
 /** definition of error codes for setjmp/longjmp,
  *  that can be handled in ParseXMLDocument()
@@ -457,20 +538,20 @@ static void RemoveNonAsciiUTF8FromBuffer(char *buf) {
     p = q = buf;
     // We are not using NEXT_CHAR() to check if *q is NULL, as q is output
     // location and offset for q is smaller than for p.
-    while(*p != '\0') {
+    while (*p != '\0') {
         c = *p;
-        if ( (c & 0x80) == 0) {
+        if ((c & 0x80) == 0) {
             /* Range A */
             *q++ = *p;
             NEXT_CHAR(p);
-        } else if ((c & 0xE0) == 0xC0){
+        } else if ((c & 0xE0) == 0xC0) {
             /* Range B */
-            *q++ = (char)0xFF;
+            *q++ = (char) 0xFF;
             NEXT_CHAR(p);
             NEXT_CHAR_OR_BREAK(p);
         } else {
             /* Range C */
-            *q++ = (char)0xFF;
+            *q++ = (char) 0xFF;
             NEXT_CHAR(p);
             SKIP_CHARS_OR_BREAK(p, 2);
         }
@@ -481,7 +562,7 @@ static void RemoveNonAsciiUTF8FromBuffer(char *buf) {
 
 static TCHAR* SkipWhiteSpace(TCHAR *p) {
     if (p != NULL) {
-        while(iswspace(*p))
+        while (iswspace(*p))
             NEXT_CHAR_OR_BREAK(p);
     }
     return p;
@@ -490,14 +571,14 @@ static TCHAR* SkipWhiteSpace(TCHAR *p) {
 static TCHAR* SkipXMLName(TCHAR *p) {
     TCHAR c = *p;
     /* Check if start of token */
-    if ( ('a' <= c && c <= 'z') ||
-         ('A' <= c && c <= 'Z') ||
-         c == '_' || c == ':') {
+    if (('a' <= c && c <= 'z') ||
+            ('A' <= c && c <= 'Z') ||
+            c == '_' || c == ':') {
 
-        while( ('a' <= c && c <= 'z') ||
-               ('A' <= c && c <= 'Z') ||
-               ('0' <= c && c <= '9') ||
-               c == '_' || c == ':' || c == '.' || c == '-' ) {
+        while (('a' <= c && c <= 'z') ||
+                ('A' <= c && c <= 'Z') ||
+                ('0' <= c && c <= '9') ||
+                c == '_' || c == ':' || c == '.' || c == '-') {
             NEXT_CHAR(p);
             c = *p;
             if (c == '\0') break;
@@ -516,7 +597,7 @@ static TCHAR* SkipXMLComment(TCHAR *p) {
                     return p;
                 }
                 NEXT_CHAR(p);
-            } while(*p != '\0');
+            } while (*p != '\0');
         }
     }
     return p;
@@ -548,7 +629,7 @@ static TCHAR* SkipXMLProlog(TCHAR *p) {
                     return p;
                 }
                 NEXT_CHAR(p);
-            } while(*p != '\0');
+            } while (*p != '\0');
         }
     }
     return p;
@@ -563,12 +644,12 @@ static void ConvertBuiltInEntities(TCHAR* p) {
     q = p;
     // We are not using NEXT_CHAR() to check if *q is NULL,
     // as q is output location and offset for q is smaller than for p.
-    while(*p) {
+    while (*p) {
         if (IsPCData(p)) {
             /* dont convert &xxx values within PData */
             TCHAR *end;
             end = SkipPCData(p);
-            while(p < end) {
+            while (p < end) {
                 *q++ = *p;
                 NEXT_CHAR(p);
             }
@@ -576,21 +657,21 @@ static void ConvertBuiltInEntities(TCHAR* p) {
             if (JPACKAGE_STRNCMP(p, _T("&amp;"), 5) == 0) {
                 *q++ = '&';
                 SKIP_CHARS(p, 5);
-            } else if (JPACKAGE_STRNCMP(p, _T("&lt;"), 4)  == 0) {
+            } else if (JPACKAGE_STRNCMP(p, _T("&lt;"), 4) == 0) {
                 *q = '<';
                 SKIP_CHARS(p, 4);
-            } else if (JPACKAGE_STRNCMP(p, _T("&gt;"), 4)  == 0) {
+            } else if (JPACKAGE_STRNCMP(p, _T("&gt;"), 4) == 0) {
                 *q = '>';
                 SKIP_CHARS(p, 4);
-            } else if (JPACKAGE_STRNCMP(p, _T("&apos;"), 6)  == 0) {
+            } else if (JPACKAGE_STRNCMP(p, _T("&apos;"), 6) == 0) {
                 *q = '\'';
                 SKIP_CHARS(p, 6);
-            } else if (JPACKAGE_STRNCMP(p, _T("&quote;"), 7)  == 0) {
+            } else if (JPACKAGE_STRNCMP(p, _T("&quote;"), 7) == 0) {
                 *q = '\"';
-              SKIP_CHARS(p, 7);
+                SKIP_CHARS(p, 7);
             } else {
-              *q++ = *p;
-              NEXT_CHAR(p);
+                *q++ = *p;
+                NEXT_CHAR(p);
             }
         }
     }
@@ -609,18 +690,18 @@ static void ConvertBuiltInEntities(TCHAR* p) {
 #define TOKEN_CDATA               6  /* cdata */
 #define TOKEN_EOF                 7
 
-static TCHAR* CurPos       = NULL;
-static TCHAR* CurTokenName        = NULL;
-static int   CurTokenType;
-static int   MaxTokenSize = -1;
+static TCHAR* CurPos = NULL;
+static TCHAR* CurTokenName = NULL;
+static int CurTokenType;
+static int MaxTokenSize = -1;
 
 /* Copy token from buffer to Token variable */
 static void SetToken(int type, TCHAR* start, TCHAR* end) {
     int len = end - start;
     if (len > MaxTokenSize) {
         if (CurTokenName != NULL) free(CurTokenName);
-        CurTokenName = (TCHAR *)malloc((len + 1) * sizeof(TCHAR));
-        if (CurTokenName == NULL ) {
+        CurTokenName = (TCHAR *) malloc((len + 1) * sizeof (TCHAR));
+        if (CurTokenName == NULL) {
             return;
         }
         MaxTokenSize = len;
@@ -641,8 +722,8 @@ static TCHAR* SkipFilling(void) {
         CurPos = SkipWhiteSpace(CurPos);
         CurPos = SkipXMLComment(CurPos); /* Must be called befor DocTypes */
         CurPos = SkipXMLDocType(CurPos); /* <! ... > directives */
-        CurPos = SkipXMLProlog(CurPos);   /* <? ... ?> directives */
-    } while(CurPos != q);
+        CurPos = SkipXMLProlog(CurPos); /* <? ... ?> directives */
+    } while (CurPos != q);
 
     return CurPos;
 }
@@ -650,7 +731,7 @@ static TCHAR* SkipFilling(void) {
 /* Parses next token and initializes the global token variables above
    The tokennizer automatically skips comments (<!-- comment -->) and
    <! ... > directives.
-*/
+ */
 static void GetNextToken(void) {
     TCHAR *p, *q;
 
@@ -665,7 +746,7 @@ static void GetNextToken(void) {
         q = SkipXMLName(p + 2);
         SetToken(TOKEN_END_TAG, p + 2, q);
         p = q;
-    } else  if (*p == '<') {
+    } else if (*p == '<') {
         /* TOKEN_BEGIN_TAG */
         q = SkipXMLName(p + 1);
         SetToken(TOKEN_BEGIN_TAG, p + 1, q);
@@ -679,7 +760,7 @@ static void GetNextToken(void) {
     } else {
         /* Search for end of data */
         q = p + 1;
-        while(*q && *q != '<') {
+        while (*q && *q != '<') {
             if (IsPCData(q)) {
                 q = SkipPCData(q);
             } else {
@@ -697,70 +778,69 @@ static void GetNextToken(void) {
 
 static XMLNode* CreateXMLNode(int type, TCHAR* name) {
     XMLNode* node;
-    node  = (XMLNode*)malloc(sizeof(XMLNode));
+    node = (XMLNode*) malloc(sizeof (XMLNode));
     if (node == NULL) {
         return NULL;
     }
     node->_type = type;
     node->_name = name;
     node->_next = NULL;
-    node->_sub  = NULL;
+    node->_sub = NULL;
     node->_attributes = NULL;
     return node;
 }
 
 static XMLAttribute* CreateXMLAttribute(TCHAR *name, TCHAR* value) {
     XMLAttribute* attr;
-    attr = (XMLAttribute*)malloc(sizeof(XMLAttribute));
+    attr = (XMLAttribute*) malloc(sizeof (XMLAttribute));
     if (attr == NULL) {
         return NULL;
     }
     attr->_name = name;
     attr->_value = value;
-    attr->_next =  NULL;
+    attr->_next = NULL;
     return attr;
 }
 
 XMLNode* ParseXMLDocument(TCHAR* buf) {
     XMLNode* root;
     int err_code = setjmp(jmpbuf);
-    switch (err_code)
-    {
-    case JMP_NO_ERROR:
+    switch (err_code) {
+        case JMP_NO_ERROR:
 #ifndef _UNICODE
-        /* Remove UTF-8 encoding from buffer */
-        RemoveNonAsciiUTF8FromBuffer(buf);
+            /* Remove UTF-8 encoding from buffer */
+            RemoveNonAsciiUTF8FromBuffer(buf);
 #endif
 
-        /* Get first Token */
-        CurPos = buf;
-        GetNextToken();
+            /* Get first Token */
+            CurPos = buf;
+            GetNextToken();
 
-        /* Parse document*/
-        root =  ParseXMLElement();
-    break;
-    case JMP_OUT_OF_RANGE:
-        /* cleanup: */
-        if (root_node != NULL) {
-            FreeXMLDocument(root_node);
-            root_node = NULL;
-        }
-        if (CurTokenName != NULL) free(CurTokenName);
-        fprintf(stderr,"Error during parsing jnlp file...\n");
-        exit(-1);
-    break;
-    default:
-        root = NULL;
-    break;
+            /* Parse document*/
+            root = ParseXMLElement();
+            break;
+        case JMP_OUT_OF_RANGE:
+            /* cleanup: */
+            if (root_node != NULL) {
+                FreeXMLDocument(root_node);
+                root_node = NULL;
+            }
+            if (CurTokenName != NULL) free(CurTokenName);
+            fprintf(stderr, "Error during parsing jnlp file...\n");
+            exit(-1);
+            break;
+        default:
+            root = NULL;
+            break;
     }
 
     return root;
 }
 
 static XMLNode* ParseXMLElement(void) {
-    XMLNode*  node     = NULL;
-    XMLNode*  subnode  = NULL;
-    XMLNode*  nextnode = NULL;
+    XMLNode* node = NULL;
+    XMLNode* subnode = NULL;
+    XMLNode* nextnode = NULL;
     XMLAttribute* attr = NULL;
 
     if (CurTokenType == TOKEN_BEGIN_TAG) {
@@ -769,16 +849,16 @@ static XMLNode* ParseXMLElement(void) {
         node = CreateXMLNode(xmlTagType, JPACKAGE_STRDUP(CurTokenName));
         /* We need to save root node pointer to be able to cleanup
            if an error happens during parsing */
-        if(!root_node) {
+        if (!root_node) {
             root_node = node;
         }
         /* Parse attributes. This section eats a all input until
            EOF, a > or a /> */
         attr = ParseXMLAttribute();
-        while(attr != NULL) {
-          attr->_next = node->_attributes;
-          node->_attributes = attr;
-          attr = ParseXMLAttribute();
+        while (attr != NULL) {
+            attr->_next = node->_attributes;
+            node->_attributes = attr;
+            attr = ParseXMLAttribute();
         }
 
         /* This will eihter be a TOKEN_EOF, TOKEN_CLOSE_BRACKET, or a
@@ -787,12 +867,12 @@ static XMLNode* ParseXMLElement(void) {
 
         /* Skip until '>', '/>' or EOF. This should really be an error, */
         /* but we are loose */
-//        if(CurTokenType == TOKEN_EMPTY_CLOSE_BRACKET ||
-//               CurTokenType == TOKEN_CLOSE_BRACKET ||
-//               CurTokenType  == TOKEN_EOF) {
-//            println("XML Parsing error: wrong kind of token found");
-//            return NULL;
-//        }
+        //        if(CurTokenType == TOKEN_EMPTY_CLOSE_BRACKET ||
+        //               CurTokenType == TOKEN_CLOSE_BRACKET ||
+        //               CurTokenType  == TOKEN_EOF) {
+        //            println("XML Parsing error: wrong kind of token found");
+        //            return NULL;
+        //        }
 
         if (CurTokenType == TOKEN_EMPTY_CLOSE_BRACKET) {
             GetNextToken();
@@ -802,13 +882,13 @@ static XMLNode* ParseXMLElement(void) {
             GetNextToken();
 
             /* Parse until end tag if found */
-            node->_sub  = ParseXMLElement();
+            node->_sub = ParseXMLElement();
 
             if (CurTokenType == TOKEN_END_TAG) {
                 /* Find closing bracket '>' for end tag */
                 do {
-                   GetNextToken();
-                } while(CurTokenType != TOKEN_EOF &&
+                    GetNextToken();
+                } while (CurTokenType != TOKEN_EOF &&
                         CurTokenType != TOKEN_CLOSE_BRACKET);
                 GetNextToken();
             }
@@ -826,7 +906,7 @@ static XMLNode* ParseXMLElement(void) {
         node = CreateXMLNode(xmlPCDataType, JPACKAGE_STRDUP(CurTokenName));
         /* We need to save root node pointer to be able to cleanup
            if an error happens during parsing */
-        if(!root_node) {
+        if (!root_node) {
             root_node = node;
         }
         GetNextToken();
@@ -843,8 +923,7 @@ static XMLAttribute* ParseXMLAttribute(void) {
     TCHAR* name = NULL;
     TCHAR* PrevPos = NULL;
 
-    do
-    {
+    do {
         /* We need to check this condition to avoid endless loop
            in case if an error happend during parsing. */
         if (PrevPos == CurPos) {
@@ -863,8 +942,8 @@ static XMLAttribute* ParseXMLAttribute(void) {
 
         /* Check if we are done witht this attribute section */
         if (CurPos[0] == '\0' ||
-            CurPos[0] == '>' ||
-            (CurPos[0] == '/' && CurPos[1] == '>')) {
+                CurPos[0] == '>' ||
+                (CurPos[0] == '/' && CurPos[1] == '>')) {
 
             if (name != NULL) {
                 free(name);
@@ -876,7 +955,7 @@ static XMLAttribute* ParseXMLAttribute(void) {
 
         /* Find end of name */
         q = CurPos;
-        while(*q && !iswspace(*q) && *q !='=') NEXT_CHAR(q);
+        while (*q && !iswspace(*q) && *q != '=') NEXT_CHAR(q);
 
         SetToken(TOKEN_UNKNOWN, CurPos, q);
         if (name) {
@@ -893,8 +972,8 @@ static XMLAttribute* ParseXMLAttribute(void) {
            If it is not, this is really an error.
            We ignore this, and just try to parse an attribute
            out of the rest of the string.
-        */
-    } while(*CurPos != '=');
+         */
+    } while (*CurPos != '=');
 
     NEXT_CHAR(CurPos);
     CurPos = SkipWhiteSpace(CurPos);
@@ -902,12 +981,12 @@ static XMLAttribute* ParseXMLAttribute(void) {
     if ((*CurPos == '\"') || (*CurPos == '\'')) {
         TCHAR quoteChar = *CurPos;
         q = ++CurPos;
-        while(*q != '\0' && *q != quoteChar) NEXT_CHAR(q);
+        while (*q != '\0' && *q != quoteChar) NEXT_CHAR(q);
         SetToken(TOKEN_CDATA, CurPos, q);
         CurPos = q + 1;
     } else {
         q = CurPos;
-        while(*q != '\0' && !iswspace(*q)) NEXT_CHAR(q);
+        while (*q != '\0' && !iswspace(*q)) NEXT_CHAR(q);
         SetToken(TOKEN_CDATA, CurPos, q);
         CurPos = q;
     }
@@ -955,7 +1034,6 @@ TCHAR* FindXMLAttribute(XMLAttribute* attr, const TCHAR* name) {
     return FindXMLAttribute(attr->_next, name);
 }
 
-
 void PrintXMLDocument(XMLNode* node, int indt) {
     if (node == NULL) return;
 
@@ -987,7 +1065,7 @@ static void PrintXMLAttributes(XMLAttribute* attr) {
 
 static void indent(int indt) {
     int i;
-    for(i = 0; i < indt; i++) {
+    for (i = 0; i < indt; i++) {
         JPACKAGE_PRINTF(_T("  "));
     }
 }
@@ -995,187 +1073,15 @@ static void indent(int indt) {
 const TCHAR *CDStart = _T("<![CDATA[");
 const TCHAR *CDEnd = _T("]]>");
 
-
 static TCHAR* SkipPCData(TCHAR *p) {
     TCHAR *end = JPACKAGE_STRSTR(p, CDEnd);
     if (end != NULL) {
-        return end+sizeof(CDEnd);
+        return end + sizeof (CDEnd);
     }
     return (++p);
 }
 
 static int IsPCData(TCHAR *p) {
-    const int size = sizeof(CDStart);
+    const int size = sizeof (CDStart);
     return (JPACKAGE_STRNCMP(CDStart, p, size) == 0);
 }
-
-namespace {
-    template<class funcType>
-    class DllFunction {
-        const Library& lib;
-        funcType funcPtr;
-        std::string theName;
-
-    public:
-        DllFunction(const Library& library,
-                const std::string &funcName): lib(library) {
-            funcPtr = reinterpret_cast<funcType>(lib.GetProcAddress(funcName));
-            if (!funcPtr) {
-                throw std::runtime_error("Failed to load function \""
-                        + funcName + "\" from \""
-                        + library.GetName() + "\" library");
-            }
-        }
-
-        operator funcType() const {
-            return funcPtr;
-        }
-    };
-} // namespace
-
-extern "C" {
-typedef Status (*XInitThreadsFuncPtr)();
-typedef Display* (*XOpenDisplayFuncPtr)(char *display_name);
-
-typedef Atom (*XInternAtomFuncPtr)(
-        Display *display, char *atom_name, Bool only_if_exists);
-
-typedef Window (*XDefaultRootWindowFuncPtr)(Display *display);
-
-typedef int (*XCloseDisplayFuncPtr)(Display *display);
-}
-
-ProcessReactivator::ProcessReactivator(pid_t pid): _pid(pid) {
-    const std::string libname = "libX11.so";
-    if(!libX11.Load(libname)) {
-        throw std::runtime_error("Failed to load \"" + libname + "\" library");
-    }
-
-    DllFunction<XInitThreadsFuncPtr> XInitThreadsFunc(libX11, "XInitThreads");
-
-    XInitThreadsFunc();
-
-    DllFunction<XOpenDisplayFuncPtr> XOpenDisplayFunc(libX11, "XOpenDisplay");
-
-    _display = XOpenDisplayFunc(NULL);
-
-    DllFunction<XInternAtomFuncPtr> XInternAtomFunc(libX11, "XInternAtom");
-
-    _atomPid = XInternAtomFunc(_display, (char*)"_NET_WM_PID", True);
-
-    if (_atomPid == None) {
-        return;
-    }
-
-    DllFunction<XDefaultRootWindowFuncPtr> XDefaultRootWindowFunc(libX11,
-            "XDefaultRootWindow");
-
-    searchWindowHelper(XDefaultRootWindowFunc(_display));
-
-    reactivateProcess();
-
-    DllFunction<XCloseDisplayFuncPtr> XCloseDisplayFunc(libX11,
-            "XCloseDisplay");
-
-    XCloseDisplayFunc(_display);
-}
-
-extern "C" {
-typedef int (*XGetWindowPropertyFuncPtr)(
-        Display *display, Window w, Atom property, long long_offset,
-        long long_length, Bool d, Atom req_type, Atom *actual_type_return,
-        int *actual_format_return, unsigned long *nitems_return,
-        unsigned long *bytes_after_return, unsigned char **prop_return);
-
-typedef Status (*XQueryTreeFuncPtr)(
-        Display *display, Window w, Window *root_return, Window *parent_return,
-         Window **children_return, unsigned int *nchildren_return);
-
-typedef int (*XFreeFuncPtr)(void *data);
-}
-
-void ProcessReactivator::searchWindowHelper(Window w) {
-
-    DllFunction<XGetWindowPropertyFuncPtr> XGetWindowPropertyFunc(libX11,
-            "XGetWindowProperty");
-
-    DllFunction<XFreeFuncPtr> XFreeFunc(libX11, "XFree");
-
-    Atom type;
-    int format;
-    unsigned long  num, bytesAfter;
-    unsigned char* propPid = 0;
-    if (Success == XGetWindowPropertyFunc(_display, w, _atomPid, 0, 1,
-            False, XA_CARDINAL, &type, &format, &num, &bytesAfter, &propPid)) {
-        if (propPid != 0) {
-            if (_pid == *((pid_t *)propPid)) {
-                _result.push_back(w);
-            }
-            XFreeFunc(propPid);
-        }
-    }
-
-    DllFunction<XQueryTreeFuncPtr> XQueryTreeFunc(libX11, "XQueryTree");
-
-    Window root, parent;
-    Window* child;
-    unsigned int numChildren;
-    if (0 != XQueryTreeFunc(_display, w, &root,
-            &parent, &child, &numChildren)) {
-        for (unsigned int i = 0; i < numChildren; i++) {
-            searchWindowHelper(child[i]);
-        }
-    }
-}
-
-
-extern "C" {
-typedef Status (*XGetWindowAttributesFuncPtr)(Display *display, Window w,
-        XWindowAttributes *window_attributes_return);
-
-typedef Status (*XSendEventFuncPtr)(Display *display, Window w, Bool propagate,
-        long event_mask, XEvent *event_send);
-
-typedef int (*XRaiseWindowFuncPtr)(Display *display, Window w);
-}
-
-void ProcessReactivator::reactivateProcess() {
-
-    DllFunction<XGetWindowAttributesFuncPtr> XGetWindowAttributesFunc(libX11,
-            "XGetWindowAttributes");
-
-    DllFunction<XSendEventFuncPtr> XSendEventFunc(libX11, "XSendEvent");
-
-    DllFunction<XRaiseWindowFuncPtr> XRaiseWindowFunc(libX11, "XRaiseWindow");
-
-    DllFunction<XInternAtomFuncPtr> XInternAtomFunc(libX11, "XInternAtom");
-
-    for (std::list<Window>::const_iterator it = _result.begin();
-            it != _result.end(); it++) {
-        // try sending an event to activate window,
-        // after that we can try to raise it.
-        XEvent xev;
-        Atom atom = XInternAtomFunc (
-                _display, (char*)"_NET_ACTIVE_WINDOW", False);
-        xev.xclient.type = ClientMessage;
-        xev.xclient.serial = 0;
-        xev.xclient.send_event = True;
-        xev.xclient.display = _display;
-        xev.xclient.window = *it;
-        xev.xclient.message_type = atom;
-        xev.xclient.format = 32;
-        xev.xclient.data.l[0] = 2;
-        xev.xclient.data.l[1] = 0;
-        xev.xclient.data.l[2] = 0;
-        xev.xclient.data.l[3] = 0;
-        xev.xclient.data.l[4] = 0;
-        XWindowAttributes attr;
-        XGetWindowAttributesFunc(_display, *it, &attr);
-        XSendEventFunc(_display, attr.root, False,
-            SubstructureRedirectMask | SubstructureNotifyMask, &xev);
-        XRaiseWindowFunc(_display, *it);
-    }
-}
-
-
-#endif // LINUX

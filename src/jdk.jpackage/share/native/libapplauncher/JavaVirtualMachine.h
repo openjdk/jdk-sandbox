@@ -29,6 +29,7 @@
 
 #include "jni.h"
 #include "Platform.h"
+#include "Library.h"
 
 struct JavaOptionItem {
     TString name;
@@ -52,29 +53,6 @@ public:
     void ReplaceValue(const TString Key, TString Value);
     std::list<TString> ToList();
     size_t GetCount();
-};
-
-// Private typedef for function pointer casting
-#define LAUNCH_FUNC "JLI_Launch"
-
-typedef int (JNICALL *JVM_CREATE)(int argc, char ** argv,
-                                  int jargc, const char** jargv,
-                                  int appclassc, const char** appclassv,
-                                  const char* fullversion,
-                                  const char* dotversion,
-                                  const char* pname,
-                                  const char* lname,
-                                  jboolean javaargs,
-                                  jboolean cpwildcard,
-                                  jboolean javaw,
-                                  jint ergo);
-
-class JavaLibrary : public Library {
-    JVM_CREATE FCreateProc;
-    JavaLibrary(const TString &FileName);
-public:
-    JavaLibrary();
-    bool JavaVMCreate(size_t argc, char *argv[]);
 };
 
 class JavaVirtualMachine {

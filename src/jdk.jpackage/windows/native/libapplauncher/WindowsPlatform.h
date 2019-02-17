@@ -23,21 +23,13 @@
  * questions.
  */
 
-#include "Platform.h"
-
-#ifdef WINDOWS
-
 #ifndef WINDOWSPLATFORM_H
 #define WINDOWSPLATFORM_H
 
-#include "GenericPlatform.h"
-
 #include <Windows.h>
+#include "Platform.h"
 
-#pragma warning( push )
-// C4250 - 'class1' : inherits 'class2::member'
-#pragma warning( disable : 4250 )
-class WindowsPlatform : virtual public Platform, GenericPlatform {
+class WindowsPlatform : virtual public Platform {
 private:
     DWORD FMainThread;
 
@@ -54,12 +46,15 @@ public:
     virtual void ShowMessage(TString description);
     virtual MessageResponse ShowResponseMessage(TString title,
             TString description);
-    //virtual MessageResponse ShowResponseMessage(TString description);
 
     virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
+    virtual TString GetAppName();
     virtual TString GetBundledJVMLibraryFileName(TString RuntimePath);
+    TString GetPackageAppDirectory();
+    TString GetPackageLauncherDirectory();
+    TString GetPackageRuntimeBinDirectory();
 
     virtual ISectionalPropertyContainer* GetConfigFile(TString FileName);
 
@@ -67,9 +62,6 @@ public:
     virtual Module LoadLibrary(TString FileName);
     virtual void FreeLibrary(Module AModule);
     virtual Procedure GetProcAddress(Module AModule, std::string MethodName);
-    virtual std::vector<TString> GetLibraryImports(const TString FileName);
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
-            std::vector<TString> Imports);
 
     virtual Process* CreateProcess();
 
@@ -77,14 +69,9 @@ public:
     virtual TPlatformNumber GetMemorySize();
 
     virtual TString GetTempDirectory();
-
-#ifdef DEBUG
-    virtual bool IsNativeDebuggerPresent();
-    virtual int GetProcessID();
-#endif //DEBUG
+    void InitStreamLocale(wios *stream);
+    void addPlatformDependencies(JavaLibrary *pJavaLibrary);
 };
-#pragma warning( pop ) // C4250
-
 
 class FileHandle {
 private:
@@ -182,9 +169,4 @@ public:
     virtual std::list<TString> GetOutput();
 };
 
-
-
-
 #endif // WINDOWSPLATFORM_H
-
-#endif // WINDOWS

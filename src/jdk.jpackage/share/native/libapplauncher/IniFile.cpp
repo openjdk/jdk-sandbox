@@ -35,7 +35,7 @@ IniFile::IniFile() : ISectionalPropertyContainer() {
 IniFile::~IniFile() {
     for (OrderedMap<TString, IniSectionData*>::iterator iterator =
             FMap.begin(); iterator != FMap.end(); iterator++) {
-        pair<TString, IniSectionData*> *item = *iterator;
+        JPPair<TString, IniSectionData*> *item = *iterator;
         delete item->second;
     }
 }

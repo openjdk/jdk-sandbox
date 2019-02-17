@@ -26,7 +26,10 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#include "PlatformDefs.h"
+#include "Properties.h"
 #include "OrderedMap.h"
+#include "Library.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,85 +38,9 @@
 #include <map>
 #include <list>
 #include <vector>
+#include <fstream>
 
-
-#ifdef WIN32
-#ifndef WINDOWS
-#define WINDOWS
-#endif
-#endif //WIN32
-
-#ifdef __APPLE__
-#define MAC
-#define POSIX
-#endif //__APPLE__
-
-
-#ifdef __linux
-#ifndef LINUX
-#define LINUX
-#endif
-#endif //__linux
-
-#ifdef LINUX
-#define POSIX
-#endif //LINUX
-
-
-
-#ifdef WINDOWS
-// Define Windows compatibility requirements XP or later
-#define WINVER 0x0600
-#define _WIN32_WINNT 0x0600
-
-#include <Windows.h>
-#include <tchar.h>
-#include <shlobj.h>
-#include <direct.h>
-#include <process.h>
-#include <malloc.h>
-
-typedef std::wstring TString;
-#define StringLength wcslen
-
-#define TRAILING_PATHSEPARATOR '\\'
-#define BAD_TRAILING_PATHSEPARATOR '/'
-#define PATH_SEPARATOR ';'
-#define BAD_PATH_SEPARATOR ':'
-
-typedef ULONGLONG TPlatformNumber;
-typedef DWORD TProcessID;
-
-#endif //WINDOWS
-
-
-#ifdef POSIX
-#include <errno.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <dlfcn.h>
-#include <libgen.h>
-
-#define _T(x) x
-
-typedef char TCHAR;
-typedef std::string TString;
-#define StringLength strlen
-
-typedef unsigned long DWORD;
-
-#define TRAILING_PATHSEPARATOR '/'
-#define BAD_TRAILING_PATHSEPARATOR '\\'
-#define PATH_SEPARATOR ':'
-#define BAD_PATH_SEPARATOR ';'
-#define MAX_PATH 1000
-
-typedef long TPlatformNumber;
-typedef pid_t TProcessID;
-
-#define HMODULE void*
-#endif //POSIX
-
+using namespace std;
 
 // Config file sections
 #define CONFIG_SECTION_APPLICATION       _T("CONFIG_SECTION_APPLICATION")
@@ -140,131 +67,19 @@ typedef pid_t TProcessID;
 #define JVM_RUNTIME_KEY           _T("JVM_RUNTIME_KEY")
 #define JPACKAGE_APP_DATA_DIR     _T("CONFIG_APP_IDENTIFIER")
 
+struct WideString {
+    size_t length;
+    wchar_t* data;
 
-
-typedef void* Module;
-typedef void* Procedure;
-
-
-template <typename ObjectType, typename ValueType,
-        ValueType (ObjectType::*getter)(void),
-        void (ObjectType::*setter)(ValueType)>
-class Property {
-private:
-    ObjectType* FObject;
-
-public:
-    Property() {
-        FObject = NULL;
-    }
-
-    void SetInstance(ObjectType* Value) {
-        FObject = Value;
-    }
-
-    // To set the value using the set method.
-    ValueType operator =(const ValueType& Value) {
-        assert(FObject != NULL);
-        (FObject->*setter)(Value);
-        return Value;
-    }
-
-    // The Property class is treated as the internal type.
-    operator ValueType() {
-        assert(FObject != NULL);
-        return (FObject->*getter)();
-    }
+    WideString() { length = 0; data = NULL; }
 };
 
-template <typename ObjectType, typename ValueType,
-        ValueType (ObjectType::*getter)(void)>
-class ReadProperty {
-private:
-    ObjectType* FObject;
+struct MultibyteString {
+    size_t length;
+    char* data;
 
-public:
-    ReadProperty() {
-        FObject = NULL;
-    }
-
-    void SetInstance(ObjectType* Value) {
-        FObject = Value;
-    }
-
-    // The Property class is treated as the internal type.
-    operator ValueType() {
-        assert(FObject != NULL);
-        return (FObject->*getter)();
-    }
+    MultibyteString() { length = 0; data = NULL; }
 };
-
-template <typename ObjectType, typename ValueType,
-        void (ObjectType::*setter)(ValueType)>
-class WriteProperty {
-private:
-    ObjectType* FObject;
-
-public:
-    WriteProperty() {
-        FObject = NULL;
-    }
-
-    void SetInstance(ObjectType* Value) {
-        FObject = Value;
-    }
-
-    // To set the value using the set method.
-    ValueType operator =(const ValueType& Value) {
-        assert(FObject != NULL);
-        (FObject->*setter)(Value);
-        return Value;
-    }
-};
-
-template <typename ValueType,
-        ValueType (*getter)(void), void (*setter)(ValueType)>
-class StaticProperty {
-public:
-    StaticProperty() {
-    }
-
-    // To set the value using the set method.
-    ValueType operator =(const ValueType& Value) {
-        (*getter)(Value);
-        return Value;
-    }
-
-    // The Property class is treated as the internal type which is the getter.
-    operator ValueType() {
-        return (*setter)();
-    }
-};
-
-template <typename ValueType, ValueType (*getter)(void)>
-class StaticReadProperty {
-public:
-    StaticReadProperty() {
-    }
-
-    // The Property class is treated as the internal type which is the getter.
-    operator ValueType() {
-        return (*getter)();
-    }
-};
-
-template <typename ValueType, void (*setter)(ValueType)>
-class StaticWriteProperty {
-public:
-    StaticWriteProperty() {
-    }
-
-    // To set the value using the set method.
-    ValueType operator =(const ValueType& Value) {
-        (*setter)(Value);
-        return Value;
-    }
-};
-
 
 class Process {
 protected:
@@ -335,47 +150,6 @@ public:
     }
 };
 
-
-class IPropertyContainer {
-public:
-    IPropertyContainer(void) {}
-    virtual ~IPropertyContainer(void) {}
-
-    virtual bool GetValue(const TString Key, TString& Value) = 0;
-    virtual size_t GetCount() = 0;
-};
-
-class ISectionalPropertyContainer {
-public:
-    ISectionalPropertyContainer(void) {}
-    virtual ~ISectionalPropertyContainer(void) {}
-
-    virtual bool GetValue(const TString SectionName,
-            const TString Key, TString& Value) = 0;
-    virtual bool ContainsSection(const TString SectionName) = 0;
-    virtual bool GetSection(const TString SectionName,
-            OrderedMap<TString, TString> &Data) = 0;
-};
-
-class Environment {
-private:
-    Environment() {
-    }
-
-public:
-    static TString GetNewLine() {
-#ifdef WINDOWS
-        return _T("\r\n");
-#endif //WINDOWS
-#ifdef POSIX
-        return _T("\n");
-#endif //POSIX
-    }
-
-    static StaticReadProperty<TString, &Environment::GetNewLine> NewLine;
-};
-
-
 enum DebugState {dsNone, dsNative, dsJava};
 enum MessageResponse {mrOK, mrCancel};
 enum AppCDSState {cdsUninitialized, cdsDisabled,
@@ -424,7 +198,7 @@ public:
     virtual TString GetPackageRuntimeBinDirectory() = 0;
     virtual TString GetAppName() = 0;
 
-    virtual TString GetConfigFileName() = 0;
+    virtual TString GetConfigFileName();
 
     virtual TString GetBundledJVMLibraryFileName(TString RuntimePath) = 0;
 
@@ -437,9 +211,6 @@ public:
     virtual Module LoadLibrary(TString FileName) = 0;
     virtual void FreeLibrary(Module Module) = 0;
     virtual Procedure GetProcAddress(Module Module, std::string MethodName) = 0;
-    virtual std::vector<TString> GetLibraryImports(const TString FileName) = 0;
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
-            std::vector<TString> Imports) = 0;
 
     // Caller must free result.
     virtual Process* CreateProcess() = 0;
@@ -449,13 +220,29 @@ public:
     // Returns megabytes.
     virtual TPlatformNumber GetMemorySize() = 0;
 
-    virtual std::map<TString, TString> GetKeys() = 0;
+    virtual std::map<TString, TString> GetKeys();
 
-    virtual std::list<TString> LoadFromFile(TString FileName) = 0;
+    virtual void InitStreamLocale(wios *stream) = 0;
+    virtual std::list<TString> LoadFromFile(TString FileName);
     virtual void SaveToFile(TString FileName,
-             std::list<TString> Contents, bool ownerOnly) = 0;
+             std::list<TString> Contents, bool ownerOnly);
 
     virtual TString GetTempDirectory() = 0;
+
+    virtual void addPlatformDependencies(JavaLibrary *pJavaLibrary) = 0;
+
+public:
+    // String helpers
+    // Caller must free result using delete[].
+    static void CopyString(char *Destination,
+            size_t NumberOfElements, const char *Source);
+
+    // Caller must free result using delete[].
+    static void CopyString(wchar_t *Destination,
+            size_t NumberOfElements, const wchar_t *Source);
+
+    static WideString MultibyteStringToWideString(const char* value);
+    static MultibyteString WideStringToMultibyteString(const wchar_t* value);
 
 #ifdef DEBUG
     virtual DebugState GetDebugState() = 0;
@@ -463,39 +250,6 @@ public:
     virtual bool IsNativeDebuggerPresent() = 0;
 #endif //DEBUG
 };
-
-
-class Library {
-private:
-    std::vector<TString> *FDependentLibraryNames;
-    std::vector<Library*> *FDependenciesLibraries;
-    Module FModule;
-    std::string fname;
-
-    void Initialize();
-    void InitializeDependencies();
-    void LoadDependencies();
-    void UnloadDependencies();
-
-public:
-    void* GetProcAddress(const std::string& MethodName) const;
-
-public:
-    Library();
-    Library(const TString &FileName);
-    ~Library();
-
-    bool Load(const TString &FileName);
-    bool Unload();
-
-    const std::string& GetName() const {
-        return fname;
-    }
-
-    void AddDependency(const TString &FileName);
-    void AddDependencies(const std::vector<TString> &Dependencies);
-};
-
 
 class Exception: public std::exception {
 private:
@@ -514,11 +268,6 @@ public:
     virtual ~Exception() throw() {}
 
     TString GetMessage() { return FMessage; }
-};
-
-class FileNotFoundException: public Exception {
-public:
-    explicit FileNotFoundException(const TString Message) : Exception(Message) {}
 };
 
 #endif // PLATFORM_H

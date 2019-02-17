@@ -25,8 +25,6 @@
 
 #include "PosixPlatform.h"
 
-#ifdef POSIX
-
 #include "PlatformString.h"
 #include "FilePath.h"
 #include "Helpers.h"
@@ -38,9 +36,7 @@
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#ifdef LINUX
 #include <sys/wait.h>
-#endif
 #include <errno.h>
 #include <limits.h>
 #include <pwd.h>
@@ -49,6 +45,7 @@
 #include <dlfcn.h>
 #include <signal.h>
 
+using namespace std;
 
 PosixPlatform::PosixPlatform(void) {
 }
@@ -114,20 +111,76 @@ Procedure PosixPlatform::GetProcAddress(Module AModule,
     return dlsym(AModule, PlatformString(MethodName));
 }
 
-std::vector<std::string> PosixPlatform::GetLibraryImports(
-       const TString FileName) {
- std::vector<TString> result;
- return result;
-}
-
-std::vector<TString> PosixPlatform::FilterOutRuntimeDependenciesForPlatform(
-       std::vector<TString> Imports) {
- std::vector<TString> result;
- return result;
-}
-
 Process* PosixPlatform::CreateProcess() {
     return new PosixProcess();
+}
+
+void PosixPlatform::addPlatformDependencies(JavaLibrary *pJavaLibrary) {
+}
+
+void Platform::CopyString(char *Destination,
+        size_t NumberOfElements, const char *Source) {
+    strncpy(Destination, Source, NumberOfElements);
+
+    if (NumberOfElements > 0) {
+        Destination[NumberOfElements - 1] = '\0';
+    }
+}
+
+void Platform::CopyString(wchar_t *Destination,
+        size_t NumberOfElements, const wchar_t *Source) {
+    wcsncpy(Destination, Source, NumberOfElements);
+
+    if (NumberOfElements > 0) {
+        Destination[NumberOfElements - 1] = '\0';
+    }
+}
+
+// Owner must free the return value.
+
+MultibyteString Platform::WideStringToMultibyteString(
+        const wchar_t* value) {
+    MultibyteString result;
+    size_t count = 0;
+
+    if (value == NULL) {
+        return result;
+    }
+
+    count = wcstombs(NULL, value, 0);
+    if (count > 0) {
+        result.data = new char[count + 1];
+        result.data[count] = '\0';
+        result.length = count;
+        wcstombs(result.data, value, count);
+    }
+
+    return result;
+}
+
+// Owner must free the return value.
+
+WideString Platform::MultibyteStringToWideString(const char* value) {
+    WideString result;
+    size_t count = 0;
+
+    if (value == NULL) {
+        return result;
+    }
+
+    count = mbstowcs(NULL, value, 0);
+    if (count > 0) {
+        result.data = new wchar_t[count + 1];
+        result.data[count] = '\0';
+        result.length = count;
+        mbstowcs(result.data, value, count);
+    }
+
+    return result;
+}
+
+void PosixPlatform::InitStreamLocale(wios *stream) {
+    // Nothing to do for POSIX platforms.
 }
 
 PosixProcess::PosixProcess() : Process() {
@@ -141,31 +194,13 @@ PosixProcess::~PosixProcess() {
     Terminate();
 }
 
-void PosixProcess::Cleanup() {
-    if (FOutputHandle != 0) {
-        close(FOutputHandle);
-        FOutputHandle = 0;
-    }
-
-    if (FInputHandle != 0) {
-        close(FInputHandle);
-        FInputHandle = 0;
-    }
-
-#ifdef MAC
-    sigaction(SIGINT, &savintr, (struct sigaction *)0);
-    sigaction(SIGQUIT, &savequit, (struct sigaction *)0);
-    sigprocmask(SIG_SETMASK, &saveblock, (sigset_t *)0);
-#endif //MAC
-}
-
 bool PosixProcess::ReadOutput() {
     bool result = false;
 
     if (FOutputHandle != 0 && IsRunning() == true) {
         char buffer[4096] = {0};
 
-        ssize_t count = read(FOutputHandle, buffer, sizeof(buffer));
+        ssize_t count = read(FOutputHandle, buffer, sizeof (buffer));
 
         if (count == -1) {
             if (errno == EINTR) {
@@ -233,102 +268,15 @@ bool PosixProcess::Terminate() {
     return result;
 }
 
-#define PIPE_READ 0
-#define PIPE_WRITE 1
-
-bool PosixProcess::Execute(const TString Application,
-        const std::vector<TString> Arguments, bool AWait) {
-    bool result = false;
-
-    if (FRunning == false) {
-        FRunning = true;
-
-        int handles[2];
-
-        if (pipe(handles) == -1) {
-            return false;
-        }
-
-        struct sigaction sa;
-        sa.sa_handler = SIG_IGN;
-        sigemptyset(&sa.sa_mask);
-        sa.sa_flags = 0;
-#ifdef MAC
-        sigemptyset(&savintr.sa_mask);
-        sigemptyset(&savequit.sa_mask);
-        sigaction(SIGINT, &sa, &savintr);
-        sigaction(SIGQUIT, &sa, &savequit);
-        sigaddset(&sa.sa_mask, SIGCHLD);
-        sigprocmask(SIG_BLOCK, &sa.sa_mask, &saveblock);
-#endif // MAC
-        FChildPID = fork();
-
-        // PID returned by vfork is 0 for the child process and the
-        // PID of the child process for the parent.
-        if (FChildPID == -1) {
-            // Error
-            TString message = PlatformString::Format(
-                    _T("Error: Unable to create process %s"),
-                    Application.data());
-            throw Exception(message);
-        }
-        else if (FChildPID == 0) {
-            Cleanup();
-            TString command = Application;
-
-            for (std::vector<TString>::const_iterator iterator =
-                    Arguments.begin(); iterator != Arguments.end();
-                    iterator++) {
-                command += TString(_T(" ")) + *iterator;
-            }
-#ifdef DEBUG
-            printf("%s\n", command.data());
-#endif // DEBUG
-
-            dup2(handles[PIPE_READ], STDIN_FILENO);
-            dup2(handles[PIPE_WRITE], STDOUT_FILENO);
-
-            close(handles[PIPE_READ]);
-            close(handles[PIPE_WRITE]);
-
-            execl("/bin/sh", "sh", "-c", command.data(), (char *)0);
-
-            _exit(127);
-        } else {
-            FOutputHandle = handles[PIPE_READ];
-            FInputHandle = handles[PIPE_WRITE];
-
-            if (AWait == true) {
-                ReadOutput();
-                Wait();
-                Cleanup();
-                FRunning = false;
-                result = true;
-            }
-            else {
-                result = true;
-            }
-        }
-    }
-
-    return result;
-}
-
 bool PosixProcess::Wait() {
     bool result = false;
 
     int status = 0;
     pid_t wpid = 0;
 
-#ifdef LINUX
     wpid = wait(&status);
-#endif
-#ifdef MAC
-    wpid = wait(&status);
-#endif
-
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        if (errno != EINTR){
+        if (errno != EINTR) {
             status = -1;
         }
     }
@@ -370,5 +318,3 @@ std::list<TString> PosixProcess::GetOutput() {
     ReadOutput();
     return Process::GetOutput();
 }
-
-#endif // POSIX

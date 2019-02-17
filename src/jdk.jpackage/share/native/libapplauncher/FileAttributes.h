@@ -23,43 +23,32 @@
  * questions.
  */
 
-#ifndef PROPERTYFILE_H
-#define PROPERTYFILE_H
+#ifndef FILEATTRIBUTES_H
+#define FILEATTRIBUTES_H
 
 #include "Platform.h"
-#include "Helpers.h"
+#include "PlatformString.h"
+#include "FileAttribute.h"
 
+#include <vector>
 
-class PropertyFile : public IPropertyContainer {
+class FileAttributes {
 private:
-    bool FReadOnly;
-    bool FModified;
-    OrderedMap<TString, TString> FData;
+    TString FFileName;
+    bool FFollowLink;
+    std::vector<FileAttribute> FAttributes;
 
-    void SetModified(bool Value);
+    bool WriteAttributes();
+    bool ReadAttributes();
+    bool Valid(const FileAttribute Value);
 
 public:
-    PropertyFile(void);
-    PropertyFile(const TString FileName);
-    PropertyFile(OrderedMap<TString, TString> Value);
-    PropertyFile(PropertyFile &Value);
-    virtual ~PropertyFile(void);
+    FileAttributes(const TString FileName, bool FollowLink = true);
 
-    bool IsModified();
-    bool GetReadOnly();
-    void SetReadOnly(bool Value);
-
-    bool LoadFromFile(const TString FileName);
-    bool SaveToFile(const TString FileName, bool ownerOnly = true);
-
-    bool SetValue(const TString Key, TString Value);
-    bool RemoveKey(const TString Key);
-
-    OrderedMap<TString, TString> GetData();
-
-    // IPropertyContainer
-    virtual bool GetValue(const TString Key, TString& Value);
-    virtual size_t GetCount();
+    void Append(const FileAttribute Value);
+    bool Contains(const FileAttribute Value);
+    void Remove(const FileAttribute Value);
 };
 
-#endif // PROPERTYFILE_H
+#endif // FILEATTRIBUTES_H
+

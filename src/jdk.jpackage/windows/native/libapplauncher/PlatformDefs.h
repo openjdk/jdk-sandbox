@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,39 @@
  * questions.
  */
 
-#ifndef JAVATYPES_H
-#define JAVATYPES_H
+#ifndef PLATFORM_DEFS_H
+#define PLATFORM_DEFS_H
 
-#include "Platform.h"
-#include "Messages.h"
+// Define Windows compatibility requirements XP or later
+#define WINVER 0x0600
+#define _WIN32_WINNT 0x0600
 
-#include "jni.h"
+#include <Windows.h>
+#include <tchar.h>
+#include <shlobj.h>
+#include <direct.h>
+#include <process.h>
+#include <malloc.h>
+#include <string>
 
-class JavaException : public Exception {
-// Prohibit Heap-Based Classes.
-private:
-    static void *operator new(size_t size);
+using namespace std;
 
-private:
-#ifdef DEBUG
-    static TString CreateExceptionMessage(JNIEnv* Env, jthrowable Exception,
-            jmethodID GetCauseMethod, jmethodID GetStackTraceMethod,
-            jmethodID ThrowableToStringMethod, jmethodID FrameToStringMethod);
-#endif // DEBUG
+#ifndef WINDOWS
+#define WINDOWS
+#endif
 
-    jthrowable FException;
-    JNIEnv *FEnv;
+typedef std::wstring TString;
+#define StringLength wcslen
 
-public:
-    explicit JavaException();
-    explicit JavaException(JNIEnv *Env, const TString message);
-    virtual ~JavaException() throw() {}
+#define TRAILING_PATHSEPARATOR '\\'
+#define BAD_TRAILING_PATHSEPARATOR '/'
+#define PATH_SEPARATOR ';'
+#define BAD_PATH_SEPARATOR ':'
 
-    void Rethrow();
-};
+typedef ULONGLONG TPlatformNumber;
+typedef DWORD TProcessID;
 
-#endif // JAVATYPES_H
+typedef void* Module;
+typedef void* Procedure;
+
+#endif // PLATFORM_DEFS_H

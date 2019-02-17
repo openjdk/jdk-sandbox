@@ -23,13 +23,11 @@
  * questions.
  */
 
-#include "Platform.h"
-
-#ifdef POSIX
-
 #ifndef POSIXPLATFORM_H
 #define POSIXPLATFORM_H
 
+#include "Platform.h"
+#include <signal.h>
 
 class PosixPlatform : virtual public Platform {
 protected:
@@ -51,14 +49,12 @@ public:
     virtual Module LoadLibrary(TString FileName);
     virtual void FreeLibrary(Module AModule);
     virtual Procedure GetProcAddress(Module AModule, std::string MethodName);
-    virtual std::vector<TString> GetLibraryImports(const TString FileName);
-    virtual std::vector<TString> FilterOutRuntimeDependenciesForPlatform(
-            std::vector<TString> Imports);
 
     virtual Process* CreateProcess();
     virtual TString GetTempDirectory();
+    void InitStreamLocale(wios *stream);
+    void addPlatformDependencies(JavaLibrary *pJavaLibrary);
 };
-
 
 class PosixProcess : public Process {
 private:
@@ -66,9 +62,7 @@ private:
     sigset_t saveblock;
     int FOutputHandle;
     int FInputHandle;
-#ifdef MAC
     struct sigaction savintr, savequit;
-#endif //MAC
     bool FRunning;
 
     void Cleanup();
@@ -89,4 +83,3 @@ public:
 };
 
 #endif // POSIXPLATFORM_H
-#endif // POSX

@@ -230,7 +230,7 @@ std::list<TString>
 
     for (OrderedMap<TString, TString>::const_iterator iterator = Map.begin();
             iterator != Map.end(); iterator++) {
-       pair<TString, TString> *item = *iterator;
+       JPPair<TString, TString> *item = *iterator;
        TString key = item->first;
        TString value = item->second;
 

@@ -29,15 +29,8 @@
 #include "PropertyFile.h"
 #include "JavaVirtualMachine.h"
 #include "Package.h"
-#include "PlatformThread.h"
 #include "Macros.h"
 #include "Messages.h"
-
-
-#ifdef WINDOWS
-#include <Shellapi.h>
-#endif
-
 
 #include <stdio.h>
 #include <signal.h>
@@ -67,13 +60,6 @@ Limitations and future work:
 */
 
 extern "C" {
-
-#ifdef WINDOWS
-    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
-            LPVOID lpvReserved) {
-        return true;
-    }
-#endif //WINDOWS
 
     JNIEXPORT bool start_launcher(int argc, TCHAR* argv[]) {
         bool result = false;
@@ -183,7 +169,7 @@ extern "C" {
                                 messages.GetMessage(
                                 APPCDS_CACHE_FILE_NOT_FOUND),
                                 cacheFileName.data());
-                        throw FileNotFoundException(message);
+                        throw Exception(message);
                     }
                     break;
                 }
@@ -196,7 +182,7 @@ extern "C" {
 
             // Run App
             result = RunVM();
-        } catch (FileNotFoundException &e) {
+        } catch (Exception &e) {
             platform.ShowMessage(e.GetMessage());
         }
 

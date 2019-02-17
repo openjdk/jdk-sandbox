@@ -23,18 +23,13 @@
  * questions.
  */
 
-#include "Platform.h"
-
-#ifdef MAC
-
 #ifndef MACPLATFORM_H
 #define MACPLATFORM_H
 
-#include "GenericPlatform.h"
+#include "Platform.h"
 #include "PosixPlatform.h"
 
-
-class MacPlatform : virtual public Platform, GenericPlatform, PosixPlatform {
+class MacPlatform : virtual public Platform, PosixPlatform {
 private:
     bool UsePListForConfigFile();
 
@@ -60,6 +55,10 @@ public:
     virtual TString GetBundledJVMLibraryFileName(TString RuntimePath);
     virtual TString GetAppName();
 
+    TString GetPackageAppDirectory();
+    TString GetPackageLauncherDirectory();
+    TString GetPackageRuntimeBinDirectory();
+
     virtual ISectionalPropertyContainer* GetConfigFile(TString FileName);
     virtual TString GetModuleFileName();
 
@@ -67,14 +66,7 @@ public:
     virtual TPlatformNumber GetMemorySize();
 
     virtual std::map<TString, TString> GetKeys();
-
-#ifdef DEBUG
-    virtual bool IsNativeDebuggerPresent();
-    virtual int GetProcessID();
-#endif // DEBUG
 };
 
 
 #endif // MACPLATFORM_H
-
-#endif // MAC

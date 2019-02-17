@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,44 +23,37 @@
  * questions.
  */
 
-#ifndef GENERICPLATFORM_H
-#define GENERICPLATFORM_H
+#ifndef FILEATTRIBUTE_H
+#define FILEATTRIBUTE_H
 
-#include "FilePath.h"
-// #include "Platform.h"
+enum FileAttribute {
+    faBlockSpecial,
+    faCharacterSpecial,
+    faFIFOSpecial,
+    faNormal,
+    faDirectory,
+    faSymbolicLink,
+    faSocket,
 
-#ifdef WINDOWS
-#pragma warning( push )
-// C4250 - 'class1' : inherits 'class2::member' via dominance
-#pragma warning( disable : 4250 )
-#endif
+    // Owner
+    faReadOnly,
+    faWriteOnly,
+    faReadWrite,
+    faExecute,
 
-class GenericPlatform : virtual public Platform {
-public:
-    GenericPlatform(void);
-    virtual ~GenericPlatform(void);
+    // Group
+    faGroupReadOnly,
+    faGroupWriteOnly,
+    faGroupReadWrite,
+    faGroupExecute,
 
-    virtual TString GetPackageAppDirectory();
-    virtual TString GetPackageLauncherDirectory();
-    virtual TString GetPackageRuntimeBinDirectory();
+    // Others
+    faOthersReadOnly,
+    faOthersWriteOnly,
+    faOthersReadWrite,
+    faOthersExecute,
 
-    virtual TString GetConfigFileName();
-
-    virtual std::list<TString> LoadFromFile(TString FileName);
-    virtual void SaveToFile(TString FileName,
-            std::list<TString> Contents, bool ownerOnly);
-
-#if defined(WINDOWS) || defined(LINUX)
-    virtual TString GetAppName();
-#endif // WINDOWS || LINUX
-
-    virtual std::map<TString, TString> GetKeys();
-
-#ifdef DEBUG
-    virtual DebugState GetDebugState();
-#endif // DEBUG
+    faHidden
 };
-#ifdef WINDOWS
-#pragma warning( pop ) // C4250
-#endif
-#endif // GENERICPLATFORM_H
+
+#endif // FILEATTRIBUTE_H
