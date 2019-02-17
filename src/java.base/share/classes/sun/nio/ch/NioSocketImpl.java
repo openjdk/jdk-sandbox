@@ -913,15 +913,61 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         return Collections.unmodifiableSet(options);
     }
 
-    private boolean booleanValue(Object value, String desc) {
+    @Override
+    protected <T> void setOption(SocketOption<T> opt, T value) throws IOException {
+        if (!supportedOptions().contains(opt))
+            throw new UnsupportedOperationException("'" + opt + "' not supported");
+        synchronized (stateLock) {
+            ensureOpen();
+            if (opt == StandardSocketOptions.IP_TOS) {
+                // maps to IP_TOS or IPV6_TCLASS
+                int i = (int) value;
+                Net.setSocketOption(fd, family(), opt, i);
+                trafficClass = i;
+            } else if (opt == StandardSocketOptions.SO_REUSEADDR) {
+                boolean b = (boolean) value;
+                if (Net.useExclusiveBind()) {
+                    isReuseAddress = b;
+                } else {
+                    Net.setSocketOption(fd, opt, b);
+                }
+            } else {
+                // option does not need special handling
+                Net.setSocketOption(fd, opt, value);
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected <T> T getOption(SocketOption<T> opt) throws IOException {
+        if (!supportedOptions().contains(opt))
+            throw new UnsupportedOperationException("'" + opt + "' not supported");
+        synchronized (stateLock) {
+            ensureOpen();
+            if (opt == StandardSocketOptions.IP_TOS) {
+                return (T) Integer.valueOf(trafficClass);
+            } else if (opt == StandardSocketOptions.SO_REUSEADDR) {
+                if (Net.useExclusiveBind()) {
+                    return (T) Boolean.valueOf(isReuseAddress);
+                } else {
+                    return (T) Net.getSocketOption(fd, opt);
+                }
+            } else {
+                // option does not need special handling
+                return (T) Net.getSocketOption(fd, opt);
+            }
+        }
+    }
+
+    private boolean booleanValue(Object value, String desc) throws SocketException {
         if (!(value instanceof Boolean))
-            throw new IllegalArgumentException("Bad value for " + desc);
+            throw new SocketException("Bad value for " + desc);
         return (boolean) value;
     }
 
-    private int intValue(Object value, String desc) {
+    private int intValue(Object value, String desc) throws SocketException {
         if (!(value instanceof Integer))
-            throw new IllegalArgumentException("Bad value for " + desc);
+            throw new SocketException("Bad value for " + desc);
         return (int) value;
     }
 
@@ -963,14 +1009,14 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 case SO_SNDBUF: {
                     int i = intValue(value, "SO_SNDBUF");
                     if (i <= 0)
-                        throw new IllegalArgumentException("SO_SNDBUF < 0");
+                        throw new SocketException("SO_SNDBUF <= 0");
                     Net.setSocketOption(fd, StandardSocketOptions.SO_SNDBUF, i);
                     break;
                 }
                 case SO_RCVBUF: {
                     int i = intValue(value, "SO_RCVBUF");
                     if (i <= 0)
-                        throw new IllegalArgumentException("SO_RCVBUF < 0");
+                        throw new SocketException("SO_RCVBUF <= 0");
                     Net.setSocketOption(fd, StandardSocketOptions.SO_RCVBUF, i);
                     break;
                 }
@@ -995,7 +1041,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 }
                 case SO_REUSEPORT: {
                     if (!Net.isReusePortAvailable())
-                        throw new UnsupportedOperationException("SO_REUSEPORT not supported");
+                        throw new SocketException("SO_REUSEPORT not supported");
                     boolean b = booleanValue(value, "SO_REUSEPORT");
                     Net.setSocketOption(fd, StandardSocketOptions.SO_REUSEPORT, b);
                     break;
@@ -1003,8 +1049,10 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 default:
                     throw new SocketException("Unknown option " + opt);
                 }
-            } catch (IOException ioe) {
-                throw new SocketException(ioe.getMessage());
+            } catch (SocketException e) {
+                throw e;
+            } catch (IllegalArgumentException | IOException e) {
+                throw new SocketException(e.getMessage());
             }
         }
     }
@@ -1048,47 +1096,15 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_KEEPALIVE);
                 case SO_REUSEPORT:
                     if (!Net.isReusePortAvailable())
-                        throw new UnsupportedOperationException("SO_REUSEPORT not supported");
+                        throw new SocketException("SO_REUSEPORT not supported");
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_REUSEPORT);
                 default:
                     throw new SocketException("Unknown option " + opt);
                 }
-            } catch (IOException ioe) {
-                throw new SocketException(ioe.getMessage());
-            }
-        }
-    }
-
-    @Override
-    protected <T> void setOption(SocketOption<T> opt, T value) throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            if (supportedOptions().contains(opt)) {
-                ExtendedSocketOptions extended = ExtendedSocketOptions.getInstance();
-                if (extended.isOptionSupported(opt)) {
-                    extended.setOption(fd, opt, value);
-                } else {
-                    super.setOption(opt, value);
-                }
-            } else {
-                throw new UnsupportedOperationException(opt.name());
-            }
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> T getOption(SocketOption<T> opt) throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            if (supportedOptions().contains(opt)) {
-                ExtendedSocketOptions extended = ExtendedSocketOptions.getInstance();
-                if (extended.isOptionSupported(opt)) {
-                    return (T) extended.getOption(fd, opt);
-                } else {
-                    return super.getOption(opt);
-                }
-            } else {
-                throw new UnsupportedOperationException(opt.name());
+            } catch (SocketException e) {
+                throw e;
+            } catch (IllegalArgumentException | IOException e) {
+                throw new SocketException(e.getMessage());
             }
         }
     }
