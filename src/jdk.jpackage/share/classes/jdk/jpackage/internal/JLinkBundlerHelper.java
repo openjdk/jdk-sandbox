@@ -162,7 +162,7 @@ final class JLinkBundlerHelper {
     }
 
     static String getMainModule(Map<String, ? super Object> params) {
-        String result = "";
+        String result = null;
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
 
         if (mainModule != null) {
@@ -184,7 +184,8 @@ final class JLinkBundlerHelper {
                 StandardBundlerParam.MODULE_PATH.fetchFrom(params);
         Set<String> limitModules =
                 StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
+        Path javaBasePath = findPathOfModule(modulePath,
+                "java.base.jmod").resolve("java.base.jmod");
         Set<String> addModules = getValidModules(modulePath,
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params),
                 limitModules);
@@ -194,7 +195,6 @@ final class JLinkBundlerHelper {
             result = getModuleVersion(javaBasePath.toFile(),
                     modulePath, addModules, limitModules);
         }
-
         return result;
     }
 
@@ -265,25 +265,30 @@ final class JLinkBundlerHelper {
         }
 
         // Modules
-
+        String mainModule = getMainModule(params);
         if (mainJarType == ModFile.ModType.UnnamedJar) {
             // The default for an unnamed jar is ALL_DEFAULT
             addModules.add(ModuleHelper.ALL_DEFAULT);
         } else if (mainJarType == ModFile.ModType.Unknown ||
                 mainJarType == ModFile.ModType.ModularJar) {
-            String mainModule = getMainModule(params);
-            addModules.add(mainModule);
+            if (mainModule == null) {
+                addModules.add(ModuleHelper.ALL_DEFAULT);
+            }
+        } 
+
+        Set<String> validModules =
+                  getValidModules(modulePath, addModules, limitModules);
+        if (mainModule != null) {
+            validModules.add(mainModule);
         }
-        addModules.addAll(getValidModules(
-                modulePath, addModules, limitModules));
 
         Log.verbose(MessageFormat.format(
-                I18N.getString("message.modules"), addModules.toString()));
+                I18N.getString("message.modules"), validModules.toString()));
 
         AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
         appRuntimeBuilder.setOutputDir(outputDir);
         appRuntimeBuilder.setModulePath(modulePath);
-        appRuntimeBuilder.setAddModules(addModules);
+        appRuntimeBuilder.setAddModules(validModules);
         appRuntimeBuilder.setLimitModules(limitModules);
         appRuntimeBuilder.setExcludeFileList(excludeFileList);
         appRuntimeBuilder.setStripNativeCommands(stripNativeCommands);
@@ -327,20 +332,17 @@ final class JLinkBundlerHelper {
     }
 
     // Returns the path to the JDK modules in the user defined module path.
-    static Path findPathOfModule(
-            List<Path> modulePath, String moduleName) {
-        Path result = null;
+    static Path findPathOfModule( List<Path> modulePath, String moduleName) {
 
         for (Path path : modulePath) {
             Path moduleNamePath = path.resolve(moduleName);
 
             if (Files.exists(moduleNamePath)) {
-                result = path;
-                break;
+                return path;
             }
         }
 
-        return result;
+        return null;
     }
 
     /*
@@ -437,7 +439,6 @@ final class JLinkBundlerHelper {
                 }
             }
         }
-
         return result;
     }
 

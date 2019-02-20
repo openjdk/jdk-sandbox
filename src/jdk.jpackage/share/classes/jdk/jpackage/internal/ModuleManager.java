@@ -78,41 +78,45 @@ final class ModuleManager {
         return result;
     }
 
-    private static List<ModFile> getAllModulesInDirectory(String Folder,
+    private static List<ModFile> getAllModulesInDirectory(String folder,
             EnumSet<SearchType> Search) {
         List<ModFile> result = new ArrayList<ModFile>();
-        File lfolder = new File(Folder);
-        File[] files = lfolder.listFiles();
-
-        for (File file : files) {
-            ModFile modFile = new ModFile(file);
-
-            switch (modFile.getModType()) {
-                case Unknown:
-                    break;
-                case UnnamedJar:
-                    if (Search.contains(SearchType.UnnamedJar)) {
-                        result.add(modFile);
-                    }
-                    break;
-                case ModularJar:
-                    if (Search.contains(SearchType.ModularJar)) {
-                        result.add(modFile);
-                    }
-                    break;
-                case Jmod:
-                    if (Search.contains(SearchType.Jmod)) {
-                        result.add(modFile);
-                    }
-                    break;
-                case ExplodedModule:
-                    if (Search.contains(SearchType.ExplodedModule)) {
-                        result.add(modFile);
-                    }
-                    break;
-            }
+        File lfolder = new File(folder);
+        File[] files = { lfolder };
+        if (lfolder.isDirectory()) {
+            files = lfolder.listFiles();
         }
 
+        if (files != null) {
+            for (File file : files) {
+                ModFile modFile = new ModFile(file);
+
+                switch (modFile.getModType()) {
+                    case Unknown:
+                        break;
+                    case UnnamedJar:
+                        if (Search.contains(SearchType.UnnamedJar)) {
+                            result.add(modFile);
+                        }
+                        break;
+                    case ModularJar:
+                        if (Search.contains(SearchType.ModularJar)) {
+                            result.add(modFile);
+                        }
+                        break;
+                    case Jmod:
+                        if (Search.contains(SearchType.Jmod)) {
+                            result.add(modFile);
+                        }
+                        break;
+                    case ExplodedModule:
+                        if (Search.contains(SearchType.ExplodedModule)) {
+                            result.add(modFile);
+                        }
+                        break;
+                }
+            }
+        }
         return result;
     }
 }
