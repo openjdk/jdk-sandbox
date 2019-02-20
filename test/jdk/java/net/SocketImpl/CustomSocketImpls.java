@@ -248,7 +248,7 @@ public class CustomSocketImpls {
             }
         } finally {
             if (s1 != null) s1.close();
-            if (s2 != null) s1.close();
+            if (s2 != null) s2.close();
         }
     }
 
@@ -275,7 +275,7 @@ public class CustomSocketImpls {
             }
         } finally {
             if (s1 != null) s1.close();
-            if (s2 != null) s1.close();
+            if (s2 != null) s2.close();
         }
     }
 
@@ -294,7 +294,7 @@ public class CustomSocketImpls {
             consumer.accept(s2);
         } finally {
             if (s1 != null) s1.close();
-            if (s2 != null) s1.close();
+            if (s2 != null) s2.close();
         }
     }
 
@@ -319,7 +319,7 @@ public class CustomSocketImpls {
             consumer.accept(s2);
         } finally {
             if (s1 != null) s1.close();
-            if (s2 != null) s1.close();
+            if (s2 != null) s2.close();
         }
     }
 
@@ -338,7 +338,7 @@ public class CustomSocketImpls {
             consumer.accept(s2);
         } finally {
             if (s1 != null) s1.close();
-            if (s2 != null) s1.close();
+            if (s2 != null) s2.close();
         }
     }
 
