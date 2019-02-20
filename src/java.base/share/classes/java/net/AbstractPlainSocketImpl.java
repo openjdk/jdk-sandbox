@@ -744,15 +744,14 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
 
     @Override
     public void copyTo(SocketImpl si) {
+        // this SocketImpl should be connected
+        assert fd.valid() && localport != 0 && address != null && port != 0;
+
         if (si instanceof AbstractPlainSocketImpl) {
-            try {
-                si.close();
-            } catch (IOException ignore) { }
-
-            // this SocketImpl should be connected
-            assert fd.valid() && localport != 0 && address != null && port != 0;
-
             AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl) si;
+            try {
+                psi.close();
+            } catch (IOException ignore) { }
 
             // copy fields
             psi.stream = this.stream;
@@ -767,8 +766,16 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
             psi.shut_rd = false;
             psi.shut_wr = false;
         } else {
-            throw new RuntimeException("not implemented");
+            // copy fields
+            si.fd = this.fd;
+            si.localport = this.localport;
+            si.address = this.address;
+            si.port = this.port;
         }
+
+        // this SocketImpl is now closed and should be discarded
+        this.closePending = true;
+        this.fd = null;
     }
 
     abstract void socketCreate(boolean isServer) throws IOException;

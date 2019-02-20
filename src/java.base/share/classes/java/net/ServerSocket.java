@@ -710,6 +710,8 @@ class ServerSocket implements java.io.Closeable {
     public synchronized void setSoTimeout(int timeout) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
+        if (timeout < 0)
+            throw new IllegalArgumentException("timeout can't be negative");
         getImpl().setOption(SocketOptions.SO_TIMEOUT, timeout);
     }
 
