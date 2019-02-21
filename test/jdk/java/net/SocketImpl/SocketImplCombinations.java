@@ -24,8 +24,9 @@
 /**
  * @test
  * @modules java.base/java.net:+open java.base/sun.nio.ch:+open
- * @run testng/othervm CustomSocketImpls
- * @run testng/othervm -Djdk.net.usePlainSocketImpl CustomSocketImpls
+ * @run testng/othervm SocketImplCombinations
+ * @run testng/othervm -Djdk.net.usePlainSocketImpl SocketImplCombinations
+ * @summary Test Socket and ServerSocket with combinations of SocketImpls
  */
 
 import java.io.FileDescriptor;
@@ -43,59 +44,45 @@ import java.net.SocketImpl;
 import java.net.SocketImplFactory;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 @Test
-public class CustomSocketImpls {
+public class SocketImplCombinations {
 
-    /**
-     * Test ServerSocket is created with the expected SocketImpl.
-     */
-    public void testServerSocketSocketImpl() throws Exception {
-        try (ServerSocket ss = new ServerSocket()) {
-            SocketImpl si = getSocketImpl(ss);
-            assertTrue(isPlatformSocketImpl(si));
-        }
+    // Tests to ensure that a Socket is created with the expected SocketImpl
 
-        SocketImpl impl = new CustomSocketImpl(true);
-        try (ServerSocket ss = new ServerSocket(impl){}) {
-            SocketImpl si = getSocketImpl(ss);
-            assertTrue(si instanceof CustomSocketImpl);
-        }
-
-        setSocketFactory(() -> new CustomSocketImpl(true));
-        try (ServerSocket ss = new ServerSocket()) {
-            SocketImpl si = getSocketImpl(ss);
-            assertTrue(si instanceof CustomSocketImpl);
-        } finally {
-            setSocketFactory(null);
-        }
-    }
-
-    /**
-     * Test Socket is created with the expected SocketImpl.
-     */
-    public void tesSocketSocketImpl() throws Exception {
+    public void testNewSocket1() throws IOException {
         try (Socket s = new Socket()) {
             SocketImpl si = getSocketImpl(s);
             assertTrue(isSocksSocketImpl(si));
             SocketImpl delegate = getDelegate(si);
             assertTrue(isPlatformSocketImpl(delegate));
         }
+    }
 
-        try (Socket s = new Socket((SocketImpl) null){}) {
-            assertTrue(getSocketImpl(s) == null);
+    public void testNewSocket2() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            try (Socket s = new Socket(ss.getInetAddress(), ss.getLocalPort())) {
+                SocketImpl si = getSocketImpl(s);
+                assertTrue(isSocksSocketImpl(si));
+                SocketImpl delegate = getDelegate(si);
+                assertTrue(isPlatformSocketImpl(delegate));
+            }
         }
+    }
 
+    public void testNewSocket3() throws IOException {
         try (Socket s = new Socket(Proxy.NO_PROXY)) {
             SocketImpl si = getSocketImpl(s);
             assertTrue(isPlatformSocketImpl(si));
         }
+    }
 
-        var address = new InetSocketAddress("127.0.0.1", 1000);
+    public void testNewSocket4() throws IOException {
+        var address = new InetSocketAddress("127.0.0.1", 1080);
         var socksProxy = new Proxy(Proxy.Type.SOCKS, address);
         try (Socket s = new Socket(socksProxy)) {
             SocketImpl si = getSocketImpl(s);
@@ -103,7 +90,10 @@ public class CustomSocketImpls {
             SocketImpl delegate = getDelegate(si);
             assertTrue(isPlatformSocketImpl(delegate));
         }
+    }
 
+    public void testNewSocket5() throws IOException {
+        var address = new InetSocketAddress("127.0.0.1", 8080);
         var httpProxy = new Proxy(Proxy.Type.HTTP, address);
         try (Socket s = new Socket(httpProxy)) {
             SocketImpl si = getSocketImpl(s);
@@ -111,29 +101,109 @@ public class CustomSocketImpls {
             SocketImpl delegate = getDelegate(si);
             assertTrue(isPlatformSocketImpl(delegate));
         }
+    }
 
-        try (Socket s = new Socket(new CustomSocketImpl(false)){}) {
+    public void testNewSocket6() throws IOException {
+        Socket s = new Socket((SocketImpl) null) { };
+        try (s) {
+            assertTrue(getSocketImpl(s) == null);
+            s.bind(new InetSocketAddress(0));   // force SocketImpl to be created
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(isSocksSocketImpl(si));
+            SocketImpl delegate = getDelegate(si);
+            assertTrue(isPlatformSocketImpl(delegate));
+        }
+    }
+
+    public void testNewSocket7() throws IOException {
+        Socket s = new Socket(new CustomSocketImpl(false)) { };
+        try (s) {
             SocketImpl si = getSocketImpl(s);
             assertTrue(si instanceof CustomSocketImpl);
         }
+    }
 
-        setSocketImplFactory(() -> new CustomSocketImpl(false));
+    public void testNewSocket8() throws IOException {
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
         try (Socket s = new Socket()) {
             SocketImpl si = getSocketImpl(s);
             assertTrue(si instanceof CustomSocketImpl);
         } finally {
-            setSocketImplFactory(null);
+            setSocketSocketImplFactory(null);
         }
     }
 
+    public void testNewSocket9() throws IOException {
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
+        try (Socket s = new Socket(Proxy.NO_PROXY)) {
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(si instanceof CustomSocketImpl);
+        } finally {
+            setSocketSocketImplFactory(null);
+        }
+    }
+
+    public void testNewSocket10() throws IOException {
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
+        try {
+            Socket s = new Socket((SocketImpl) null) { };
+            try (s) {
+                assertTrue(getSocketImpl(s) == null);
+                s.bind(new InetSocketAddress(0));   // force SocketImpl to be created
+                assertTrue(getSocketImpl(s) instanceof CustomSocketImpl);
+            }
+        } finally {
+            setSocketSocketImplFactory(null);
+        }
+    }
+
+    // Tests to ensure that a ServerSocket is created with the expected SocketImpl
+
+    public void testNewServerSocket1() throws IOException {
+        try (ServerSocket ss = new ServerSocket()) {
+            SocketImpl si = getSocketImpl(ss);
+            assertTrue(isPlatformSocketImpl(si));
+        }
+    }
+
+    public void testNewServerSocket2() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            SocketImpl si = getSocketImpl(ss);
+            assertTrue(isPlatformSocketImpl(si));
+        }
+    }
+
+    public void testNewServerSocket3() throws IOException {
+        ServerSocket ss = new ServerSocket(new CustomSocketImpl(true)) { };
+        try (ss) {
+            SocketImpl si = getSocketImpl(ss);
+            assertTrue(si instanceof CustomSocketImpl);
+        }
+    }
+
+    public void testNewServerSocket4() throws IOException {
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = new ServerSocket()) {
+            SocketImpl si = getSocketImpl(ss);
+            assertTrue(si instanceof CustomSocketImpl);
+        } finally {
+            setServerSocketImplFactory(null);
+        }
+    }
+
+    // Tests to ensure that a ServerSocket.accept returns a Socket with the
+    // expected SocketImpl
+
     /**
-     * ServerSocket using default SocketImpl. Test accept returning a Socket
-     * that initially doesn't have a SocketImpl.
+     * Test ServerSocket.accept returning a Socket that initially doesn't have a
+     * SocketImpl. The ServerSocket uses the default SocketImpl.
      */
-    public void test1() throws Exception {
+    public void testServerSocketAccept1() throws IOException {
         var socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);
-        testAccept(socket, s -> {
+
+        serverSocketAccept(socket, (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
             SocketImpl si = getSocketImpl(s);
             assertTrue(isPlatformSocketImpl(si));
@@ -142,16 +212,18 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket using default SocketImpl. Test accept returning a Socket
-     * that has an existing default SocketImpl.
+     * Test ServerSocket.accept returning a Socket that has an existing SocketImpl.
+     * The ServerSocket uses the default SocketImpl.
      */
-    public void test2() throws Exception {
+    public void testServerSocketAccept2() throws IOException {
         var socket = new Socket();
         SocketImpl si = getSocketImpl(socket);
         assertTrue(isSocksSocketImpl(si));
         SocketImpl delegate = getDelegate(si);
         assertTrue(isPlatformSocketImpl(delegate));
-        testAccept(socket, s -> {
+
+        serverSocketAccept(socket, (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
             assertTrue(getSocketImpl(s) == si);
             assertTrue(getDelegate(si) == delegate);
@@ -160,14 +232,17 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket using default SocketImpl. A SocketImplFactory is set to
-     * return a custom SocketImpl. Test accept returning a Socket that initially
-     * doesn't have a SocketImpl.
+     * Test ServerSocket.accept returning a Socket that initially doesn't have a
+     * SocketImpl. A SocketImplFactory is set to a custom SocketImplFactory so
+     * the accepted Socket should have a custom SocketImpl. The ServerSocket
+     * uses the default SocketImpl.
      */
-    public void test3() throws Exception {
+    public void testServerSocketAccept3() throws IOException {
         var socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);
-        testAccept(socket, () -> new CustomSocketImpl(false), s -> {
+
+        serverSocketAccept(socket, () -> new CustomSocketImpl(false), (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
             SocketImpl si = getSocketImpl(s);
             assertTrue(si instanceof CustomSocketImpl);
@@ -176,14 +251,16 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket using default SocketImpl. Test accept returning a Socket
-     * that has an existing custom SocketImpl.
+     * Test ServerSocket.accept returning a Socket that has an existing custom
+     * SocketImpl. The ServerSocket uses the default SocketImpl.
      */
-    public void test4() throws Exception {
+    public void testServerSocketAccept4() throws IOException {
         SocketImpl si = new CustomSocketImpl(false);
         Socket socket = new Socket(si) { };
         assertTrue(getSocketImpl(socket) == si);
-        testAccept(socket, s -> {
+
+        serverSocketAccept(socket, (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
             assertTrue(getSocketImpl(s) == si);
             checkFields(si);
@@ -191,14 +268,16 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket using a custom SocketImpl. Test accept returning a Socket
-     * that initially doesn't have a SocketImpl.
+     * Test ServerSocket.accept returning a Socket that initially doesn't have a
+     * SocketImpl. The ServerSocket uses a custom SocketImpl.
      */
-    public void test5() throws Exception {
-        SocketImpl impl = new CustomSocketImpl(true);
+    public void testServerSocketAccept5() throws Exception {
         Socket socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);
-        testAccept(impl, socket, s -> {
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        serverSocketAccept(serverImpl, socket, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
             assertTrue(s == socket);
             SocketImpl si = getSocketImpl(s);
             assertTrue(isPlatformSocketImpl(si));
@@ -206,18 +285,21 @@ public class CustomSocketImpls {
         });
     }
 
+
     /**
-     * ServerSocket using a custom SocketImpl. Test accept returning a Socket
-     * that has an existing default SocketImpl.
+     * Test ServerSocket.accept returning a Socket that has an existing
+     * SocketImpl. The ServerSocket uses a custom SocketImpl.
      */
-    public void test6() throws Exception {
-        SocketImpl impl = new CustomSocketImpl(true);
+    public void testServerSocketAccept6() throws Exception {
         var socket = new Socket();
         SocketImpl si = getSocketImpl(socket);
         assertTrue(isSocksSocketImpl(si));
         SocketImpl delegate = getDelegate(si);
         assertTrue(isPlatformSocketImpl(delegate));
-        testAccept(impl, socket, s -> {
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        serverSocketAccept(serverImpl, socket, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
             assertTrue(s == socket);
             assertTrue(getSocketImpl(s) == si);
             assertTrue(getDelegate(si) == delegate);
@@ -226,72 +308,57 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket using a custom SocketImpl. A SocketImplFactory is set to
-     * return a custom SocketImpl. Test accept returning a Socket that initially
-     * doesn't have a SocketImpl.
+     * Test ServerSocket.accept returning a Socket that initially doesn't have a
+     * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
+     * The ServerSocket also uses custom SocketImpl.
      */
-    public void test7() throws Exception {
+    public void testServerSocketAccept7() throws Exception {
         var socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);
-        Socket s1 = null;
-        Socket s2 = null;
-        try (ServerSocket ss = prepareToAccept(new CustomSocketImpl(true), socket)) {
-            s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
-            setSocketImplFactory(() -> new CustomSocketImpl(false));
-            try {
-                s2 = ss.accept();
-                SocketImpl si = getSocketImpl(s2);
-                assertTrue(si instanceof CustomSocketImpl);
-                checkFields(si);
-            } finally {
-                setSocketImplFactory(null);
-            }
-        } finally {
-            if (s1 != null) s1.close();
-            if (s2 != null) s2.close();
-        }
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
+        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(si instanceof CustomSocketImpl);
+            checkFields(si);
+        });
     }
 
     /**
-     * ServerSocket using a custom SocketImpl. A SocketImplFactory is set to
-     * return a custom SocketImpl. Test accept returning a Socket has an existing
-     * custom SocketImpl.
+     * Test ServerSocket.accept returning a Socket that has an existing custom
+     * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
+     * The ServerSocket also uses custom SocketImpl.
      */
-    public void test8() throws Exception {
+    public void testServerSocketAccept8() throws Exception {
         SocketImpl si = new CustomSocketImpl(false);
         Socket socket = new Socket(si) { };
         assertTrue(getSocketImpl(socket) == si);
-        Socket s1 = null;
-        Socket s2 = null;
-        try (ServerSocket ss = prepareToAccept(new CustomSocketImpl(true), socket)) {
-            s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
-            setSocketImplFactory(() -> new CustomSocketImpl(false));
-            try {
-                s2 = ss.accept();
-                assertTrue(getSocketImpl(s2) == si);
-                checkFields(si);
-            } finally {
-                setSocketImplFactory(null);
-            }
-        } finally {
-            if (s1 != null) s1.close();
-            if (s2 != null) s2.close();
-        }
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
+        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
+            assertTrue(getSocketImpl(s) == si);
+            checkFields(si);
+        });
     }
 
     /**
      * Creates a ServerSocket that returns the given Socket from accept.
-     * The consumer is invoked with the accepted socket.
+     * The consumer is invoked with the server socket and the accepted socket.
      */
-    static void testAccept(Socket socket, Consumer<Socket> consumer)
+    static void serverSocketAccept(Socket socket,
+                                   BiConsumer<ServerSocket, Socket> consumer)
         throws IOException
     {
         Socket s1 = null;
         Socket s2 = null;
-        try (ServerSocket ss = prepareToAccept(socket)) {
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
             s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
             s2 = ss.accept();
-            consumer.accept(s2);
+            consumer.accept(ss, s2);
         } finally {
             if (s1 != null) s1.close();
             if (s2 != null) s2.close();
@@ -301,22 +368,24 @@ public class CustomSocketImpls {
     /**
      * Creates a ServerSocket that returns the given Socket from accept. The
      * given SocketImplFactory is set during the accept and the consumer is
-     * invoked when the accepted socket.
+     * invoked when the server socket and the accepted socket.
      */
-    static void testAccept(Socket socket, SocketImplFactory factory, Consumer<Socket> consumer)
+    static void serverSocketAccept(Socket socket,
+                                   SocketImplFactory factory,
+                                   BiConsumer<ServerSocket, Socket> consumer)
         throws IOException
     {
         Socket s1 = null;
         Socket s2 = null;
-        try (ServerSocket ss = prepareToAccept(socket)) {
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
             s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
-            setSocketImplFactory(factory);
+            setSocketSocketImplFactory(factory);
             try {
                 s2 = ss.accept();
             } finally {
-                setSocketImplFactory(null);
+                setSocketSocketImplFactory(null);
             }
-            consumer.accept(s2);
+            consumer.accept(ss, s2);
         } finally {
             if (s1 != null) s1.close();
             if (s2 != null) s2.close();
@@ -325,17 +394,48 @@ public class CustomSocketImpls {
 
     /**
      * Creates a ServerSocket with a SocketImpl that returns the given Socket
-     * from accept. The consumer is invoked with the accepted socket.
+     * from accept. The consumer is invoked with the server socket and the
+     * accepted socket.
      */
-    static void testAccept(SocketImpl impl, Socket socket, Consumer<Socket> consumer)
+    static void serverSocketAccept(SocketImpl impl,
+                                   Socket socket,
+                                   BiConsumer<ServerSocket, Socket> consumer)
         throws IOException
     {
         Socket s1 = null;
         Socket s2 = null;
-        try (ServerSocket ss = prepareToAccept(impl, socket)) {
+        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
             s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
             s2 = ss.accept();
-            consumer.accept(s2);
+            consumer.accept(ss, s2);
+        } finally {
+            if (s1 != null) s1.close();
+            if (s2 != null) s2.close();
+        }
+    }
+
+    /**
+     * Creates a ServerSocket with a SocketImpl returns the given Socket from
+     * accept. The given SocketImplFactory is set during the accept and the
+     * consumer is invoked when the server socket and the accepted socket.
+     */
+    static void serverSocketAccept(SocketImpl impl,
+                                   Socket socket,
+                                   SocketImplFactory factory,
+                                   BiConsumer<ServerSocket, Socket> consumer)
+        throws IOException
+    {
+        Socket s1 = null;
+        Socket s2 = null;
+        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
+            s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
+            setSocketSocketImplFactory(factory);
+            try {
+                s2 = ss.accept();
+            } finally {
+                setSocketSocketImplFactory(null);
+            }
+            consumer.accept(ss, s2);
         } finally {
             if (s1 != null) s1.close();
             if (s2 != null) s2.close();
@@ -345,7 +445,7 @@ public class CustomSocketImpls {
     /**
      * Creates a ServerSocket that returns the given Socket from accept.
      */
-    static ServerSocket prepareToAccept(Socket s) throws IOException {
+    static ServerSocket serverSocketToAccept(Socket s) throws IOException {
         return new ServerSocket(0) {
             @Override
             public Socket accept() throws IOException {
@@ -359,7 +459,7 @@ public class CustomSocketImpls {
      * Creates a ServerSocket with a SocketImpl that returns the given Socket
      * from accept.
      */
-    static ServerSocket prepareToAccept(SocketImpl impl, Socket s) throws IOException {
+    static ServerSocket serverSocketToAccept(SocketImpl impl, Socket s) throws IOException {
         ServerSocket ss = new ServerSocket(impl) {
             @Override
             public Socket accept() throws IOException {
@@ -474,9 +574,9 @@ public class CustomSocketImpls {
     }
 
     /**
-     * Socket.setSocketImplFactory
+     * Socket.setSocketImplFactory(SocketImplFactory)
      */
-    static void setSocketImplFactory(SocketImplFactory factory) {
+    static void setSocketSocketImplFactory(SocketImplFactory factory) {
         try {
             Field f = Socket.class.getDeclaredField("factory");
             f.setAccessible(true);
@@ -487,9 +587,9 @@ public class CustomSocketImpls {
     }
 
     /**
-     * ServerSocket.setSocketFactory
+     * ServerSocket.setSocketFactory(SocketImplFactory)
      */
-    static void setSocketFactory(SocketImplFactory factory) {
+    static void setServerSocketImplFactory(SocketImplFactory factory) {
         try {
             Field f = ServerSocket.class.getDeclaredField("factory");
             f.setAccessible(true);
@@ -553,11 +653,12 @@ public class CustomSocketImpls {
         protected void bind(InetAddress address, int port) throws IOException {
             if (server) {
                 ssc.bind(new InetSocketAddress(address, port));
+                super.localport = ssc.socket().getLocalPort();
             } else {
                 sc.bind(new InetSocketAddress(address, port));
+                super.localport = sc.socket().getLocalPort();
             }
             super.address = address;
-            super.localport = ssc.socket().getLocalPort();
         }
 
         @Override
