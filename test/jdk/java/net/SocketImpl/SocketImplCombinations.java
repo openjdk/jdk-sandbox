@@ -52,8 +52,9 @@ import static org.testng.Assert.*;
 @Test
 public class SocketImplCombinations {
 
-    // Tests to ensure that a Socket is created with the expected SocketImpl
-
+    /**
+     * Test creating an unconnected Socket, it should be created with a default SocketImpl.
+     */
     public void testNewSocket1() throws IOException {
         try (Socket s = new Socket()) {
             SocketImpl si = getSocketImpl(s);
@@ -63,6 +64,9 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a connected Socket, it should be created with a default SocketImpl.
+     */
     public void testNewSocket2() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             try (Socket s = new Socket(ss.getInetAddress(), ss.getLocalPort())) {
@@ -74,6 +78,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket for a DIRECT connection, it should be created with a
+     * platform SocketImpl.
+     */
     public void testNewSocket3() throws IOException {
         try (Socket s = new Socket(Proxy.NO_PROXY)) {
             SocketImpl si = getSocketImpl(s);
@@ -81,6 +89,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket for a SOCKS connection, it should be created with a
+     * SOCKS SocketImpl.
+     */
     public void testNewSocket4() throws IOException {
         var address = new InetSocketAddress("127.0.0.1", 1080);
         var socksProxy = new Proxy(Proxy.Type.SOCKS, address);
@@ -92,6 +104,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket for a HTTP proxy connection, it should be created with
+     * a HTTP proxy SocketImpl.
+     */
     public void testNewSocket5() throws IOException {
         var address = new InetSocketAddress("127.0.0.1", 8080);
         var httpProxy = new Proxy(Proxy.Type.HTTP, address);
@@ -103,6 +119,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket with "null" as the SocketImpl. A default SocketImpl
+     * should be lazily created.
+     */
     public void testNewSocket6() throws IOException {
         Socket s = new Socket((SocketImpl) null) { };
         try (s) {
@@ -115,6 +135,9 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket with a custom SocketImpl.
+     */
     public void testNewSocket7() throws IOException {
         Socket s = new Socket(new CustomSocketImpl(false)) { };
         try (s) {
@@ -123,6 +146,9 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket when there is a SocketImplFactory set.
+     */
     public void testNewSocket8() throws IOException {
         setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
         try (Socket s = new Socket()) {
@@ -133,6 +159,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket for a DIRECT connection when there is a
+     * SocketImplFactory set.
+     */
     public void testNewSocket9() throws IOException {
         setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
         try (Socket s = new Socket(Proxy.NO_PROXY)) {
@@ -143,7 +173,47 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a Socket for a SOCKS connection when there is a
+     * SocketImplFactory set.
+     */
     public void testNewSocket10() throws IOException {
+        var address = new InetSocketAddress("127.0.0.1", 1080);
+        var socksProxy = new Proxy(Proxy.Type.SOCKS, address);
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
+        try (Socket s = new Socket(socksProxy)) {
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(isSocksSocketImpl(si));
+            SocketImpl delegate = getDelegate(si);
+            assertTrue(isPlatformSocketImpl(delegate));
+        } finally {
+            setSocketSocketImplFactory(null);
+        }
+    }
+
+    /**
+     * Test creating a Socket for a HTTP proxy connection when there is a
+     * SocketImplFactory set.
+     */
+    public void testNewSocket11() throws IOException {
+        var address = new InetSocketAddress("127.0.0.1", 8080);
+        var httpProxy = new Proxy(Proxy.Type.HTTP, address);
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
+        try (Socket s = new Socket(httpProxy)) {
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(isHttpConnectSocketImpl(si));
+            SocketImpl delegate = getDelegate(si);
+            assertTrue(isPlatformSocketImpl(delegate));
+        } finally {
+            setSocketSocketImplFactory(null);
+        }
+    }
+
+    /**
+     * Test creating a Socket with a "null" SocketImpl when there is a
+     * SocketImplFactory set.
+     */
+    public void testNewSocket20() throws IOException {
         setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
         try {
             Socket s = new Socket((SocketImpl) null) { };
@@ -157,8 +227,10 @@ public class SocketImplCombinations {
         }
     }
 
-    // Tests to ensure that a ServerSocket is created with the expected SocketImpl
-
+    /**
+     * Test creating an unbound ServerSocket, it should be created with a default
+     * SocketImpl.
+     */
     public void testNewServerSocket1() throws IOException {
         try (ServerSocket ss = new ServerSocket()) {
             SocketImpl si = getSocketImpl(ss);
@@ -166,6 +238,10 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a bound ServerSocket, it should be created with a default
+     * SocketImpl.
+     */
     public void testNewServerSocket2() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             SocketImpl si = getSocketImpl(ss);
@@ -173,6 +249,9 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating a ServerSocket with a custom SocketImpl.
+     */
     public void testNewServerSocket3() throws IOException {
         ServerSocket ss = new ServerSocket(new CustomSocketImpl(true)) { };
         try (ss) {
@@ -181,6 +260,9 @@ public class SocketImplCombinations {
         }
     }
 
+    /**
+     * Test creating an unbound ServerSocket when there is a SocketImplFactory set.
+     */
     public void testNewServerSocket4() throws IOException {
         setServerSocketImplFactory(() -> new CustomSocketImpl(true));
         try (ServerSocket ss = new ServerSocket()) {
@@ -191,8 +273,18 @@ public class SocketImplCombinations {
         }
     }
 
-    // Tests to ensure that a ServerSocket.accept returns a Socket with the
-    // expected SocketImpl
+    /**
+     * Test creating a bound ServerSocket when there is a SocketImplFactory set.
+     */
+    public void testNewServerSocket5() throws IOException {
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = new ServerSocket(0)) {
+            SocketImpl si = getSocketImpl(ss);
+            assertTrue(si instanceof CustomSocketImpl);
+        } finally {
+            setServerSocketImplFactory(null);
+        }
+    }
 
     /**
      * Test ServerSocket.accept returning a Socket that initially doesn't have a
