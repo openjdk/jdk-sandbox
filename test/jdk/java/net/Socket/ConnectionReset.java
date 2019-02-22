@@ -156,6 +156,37 @@ public class ConnectionReset {
         });
     }
 
+    /**
+     * Tests available and read on a socket closed after connection reset
+     */
+    public void testAfterClose() throws IOException {
+        System.out.println("testAfterClose");
+        acceptResetConnection(null, s -> {
+            InputStream in = s.getInputStream();
+            try {
+                in.read();
+                assertTrue(false);
+            } catch (IOException ioe) {
+                // expected
+            }
+            s.close();
+            try {
+                int bytesAvailable = in.available();
+                System.out.format("available => %d%n", bytesAvailable);
+                assertTrue(false);
+            } catch (IOException ioe) {
+                System.out.format("available => %s (expected)%n", ioe);
+            }
+            try {
+                int n = in.read();
+                System.out.format("read => %d%n", n);
+                assertTrue(false);
+            } catch (IOException ioe) {
+                System.out.format("read => %s (expected)%n", ioe);
+            }
+        });
+    }
+
     interface ThrowingConsumer<T> {
         void accept(T t) throws IOException;
     }

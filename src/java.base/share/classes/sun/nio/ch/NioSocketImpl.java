@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -248,6 +248,30 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
+     * Reads bytes from the socket into the given byte array with a timeout.
+     * @throws SocketTimeoutException if the read timeout elapses
+     */
+    private int timedRead(FileDescriptor fd, byte[] b, int off, int len, int millis)
+        throws IOException
+    {
+        long nanos = NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
+        long remainingNanos = nanos;
+        long startNanos = System.nanoTime();
+        int n;
+        do {
+            park(fd, Net.POLLIN, remainingNanos);
+            n = tryRead(fd, b, off, len);
+            if (n == IOStatus.UNAVAILABLE) {
+                remainingNanos = nanos - (System.nanoTime() - startNanos);
+                if (remainingNanos <= 0) {
+                    throw new SocketTimeoutException("Read timed out");
+                }
+            }
+        } while (n == IOStatus.UNAVAILABLE && isOpen());
+        return n;
+    }
+
+    /**
      * Reads bytes from the socket into the given byte array.
      * @return the number of bytes read
      * @throws IOException if the socket is closed or an I/O occurs
@@ -256,28 +280,18 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private int read(byte[] b, int off, int len) throws IOException {
         readLock.lock();
         try {
-            int timeout = this.timeout;
             int n = 0;
             FileDescriptor fd = beginRead();
             try {
                 if (isInputClosed)
                     return IOStatus.EOF;
+                int timeout = this.timeout;
                 configureNonBlockingIfNeeded(fd, timeout);
                 n = tryRead(fd, b, off, len);
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // read with timeout
-                        long nanos = NANOSECONDS.convert(timeout, TimeUnit.MILLISECONDS);
-                        do {
-                            long startTime = System.nanoTime();
-                            park(fd, Net.POLLIN, nanos);
-                            n = tryRead(fd, b, off, len);
-                            if (n == IOStatus.UNAVAILABLE) {
-                                nanos -= System.nanoTime() - startTime;
-                                if (nanos <= 0)
-                                    throw new SocketTimeoutException("Read timed out");
-                            }
-                        } while (n == IOStatus.UNAVAILABLE && isOpen());
+                        n = timedRead(fd, b, off, len, timeout);
                     } else {
                         // read, no timeout
                         do {
@@ -526,6 +540,28 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
+     * Waits for a connection attempt to finish with a timeout
+     * @throws SocketTimeoutException if the connect timeout elapses
+     */
+    private int timedFinishConnect(FileDescriptor fd, int millis) throws IOException {
+        long nanos = NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
+        long remainingNanos = nanos;
+        long startNanos = System.nanoTime();
+        int n;
+        do {
+            park(fd, Net.POLLOUT, remainingNanos);
+            n = Net.pollConnectNow(fd);
+            if (n == 0) {
+                remainingNanos = nanos - (System.nanoTime() - startNanos);
+                if (remainingNanos <= 0) {
+                    throw new SocketTimeoutException("Connect timed out");
+                }
+            }
+        } while (n == 0 && isOpen());
+        return n;
+    }
+
+    /**
      * Connect the socket. Closes the socket if connection cannot be established.
      * @throws IllegalArgumentException if the address is not an InetSocketAddress
      * @throws UnknownHostException if the InetSocketAddress is not resolved
@@ -555,21 +591,10 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     int n = Net.connect(fd, address, port);
                     if (IOStatus.okayToRetry(n) && isOpen()) {
                         if (millis > 0) {
-                            // connect with timeout
-                            assert nonBlocking;
-                            long nanos = NANOSECONDS.convert(millis, MILLISECONDS);
-                            do {
-                                long startTime = System.nanoTime();
-                                park(fd, Net.POLLOUT, nanos);
-                                n = Net.pollConnectNow(fd);
-                                if (n == 0) {
-                                    nanos -= System.nanoTime() - startTime;
-                                    if (nanos <= 0)
-                                        throw new SocketTimeoutException("Connect timed out");
-                                }
-                            } while (n == 0 && isOpen());
+                            // finish connect with timeout
+                            n = timedFinishConnect(fd, millis);
                         } else {
-                            // connect, no timeout
+                            // finish connect, no timeout
                             do {
                                 park(fd, Net.POLLOUT);
                                 n = Net.pollConnectNow(fd);
@@ -661,6 +686,33 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         }
     }
 
+    /**
+     * Accepts a new connection with a timeout
+     * @throws SocketTimeoutException if the accept timeout elapses
+     */
+    private int timedAccept(FileDescriptor fd,
+                            FileDescriptor newfd,
+                            InetSocketAddress[] isaa,
+                            int millis)
+        throws IOException
+    {
+        long nanos = NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
+        long remainingNanos = nanos;
+        long startNanos = System.nanoTime();
+        int n;
+        do {
+            park(fd, Net.POLLIN, remainingNanos);
+            n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
+            if (n == IOStatus.UNAVAILABLE) {
+                remainingNanos = nanos - (System.nanoTime() - startNanos);
+                if (remainingNanos <= 0) {
+                    throw new SocketTimeoutException("Accept timed out");
+                }
+            }
+        } while (n == IOStatus.UNAVAILABLE && isOpen());
+        return n;
+    }
+
     @Override
     protected void accept(SocketImpl si) throws IOException {
         // accept a connection
@@ -679,18 +731,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // accept with timeout
-                        assert nonBlocking;
-                        long nanos = NANOSECONDS.convert(timeout, TimeUnit.MILLISECONDS);
-                        do {
-                            long startTime = System.nanoTime();
-                            park(fd, Net.POLLIN, nanos);
-                            n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
-                            if (n == IOStatus.UNAVAILABLE) {
-                                nanos -= System.nanoTime() - startTime;
-                                if (nanos <= 0)
-                                    throw new SocketTimeoutException("Accept timed out");
-                            }
-                        } while (n == IOStatus.UNAVAILABLE && isOpen());
+                        n = timedAccept(fd, newfd, isaa, timeout);
                     } else {
                         // accept, no timeout
                         do {
@@ -756,6 +797,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 if (eof) {
                     return -1;
                 } else if (reset) {
+                    NioSocketImpl.this.ensureOpen();
                     throw new SocketException("Connection reset");
                 } else if (len == 0) {
                     return 0;
@@ -1153,7 +1195,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     n = Net.sendOOB(fd, (byte) data);
                 } while (n == IOStatus.INTERRUPTED && isOpen());
                 if (n == IOStatus.UNAVAILABLE) {
-                    throw new RuntimeException("not implemented yet");
+                    throw new SocketException("No buffer space available");
                 }
             } finally {
                 endWrite(n > 0);
