@@ -31,6 +31,8 @@
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -47,7 +49,7 @@ public class ConnectionReset {
      */
     public void testAvailableBeforeRead1() throws IOException {
         System.out.println("testAvailableBeforeRead1");
-        acceptResetConnection(null, s -> {
+        withResetConnection(null, s -> {
             InputStream in = s.getInputStream();
             for (int i=0; i<REPEAT_COUNT; i++) {
                 int bytesAvailable = in.available();
@@ -74,7 +76,7 @@ public class ConnectionReset {
     public void testAvailableBeforeRead2() throws IOException {
         System.out.println("testAvailableBeforeRead2");
         byte[] data = { 1, 2, 3 };
-        acceptResetConnection(data, s -> {
+        withResetConnection(data, s -> {
             InputStream in = s.getInputStream();
             int remaining = data.length;
             for (int i=0; i<REPEAT_COUNT; i++) {
@@ -104,7 +106,7 @@ public class ConnectionReset {
      */
     public void testReadBeforeAvailable1() throws IOException {
         System.out.println("testReadBeforeAvailable1");
-        acceptResetConnection(null, s -> {
+        withResetConnection(null, s -> {
             InputStream in = s.getInputStream();
             for (int i=0; i<REPEAT_COUNT; i++) {
                 try {
@@ -131,7 +133,7 @@ public class ConnectionReset {
     public void testReadBeforeAvailable2() throws IOException {
         System.out.println("testReadBeforeAvailable2");
         byte[] data = { 1, 2, 3 };
-        acceptResetConnection(data, s -> {
+        withResetConnection(data, s -> {
             InputStream in = s.getInputStream();
             int remaining = data.length;
             for (int i=0; i<REPEAT_COUNT; i++) {
@@ -161,7 +163,7 @@ public class ConnectionReset {
      */
     public void testAfterClose() throws IOException {
         System.out.println("testAfterClose");
-        acceptResetConnection(null, s -> {
+        withResetConnection(null, s -> {
             InputStream in = s.getInputStream();
             try {
                 in.read();
@@ -196,10 +198,12 @@ public class ConnectionReset {
      * connection with a "connection reset". The peer sends the given data bytes
      * before closing (when data is not null).
      */
-    static void acceptResetConnection(byte[] data, ThrowingConsumer<Socket> consumer)
+    static void withResetConnection(byte[] data, ThrowingConsumer<Socket> consumer)
         throws IOException
     {
-        try (var listener = new ServerSocket(0)) {
+        var loopback = InetAddress.getLoopbackAddress();
+        try (var listener = new ServerSocket()) {
+            listener.bind(new InetSocketAddress(loopback, 0));
             try (var socket = new Socket()) {
                 socket.connect(listener.getLocalSocketAddress());
                 try (Socket peer = listener.accept()) {

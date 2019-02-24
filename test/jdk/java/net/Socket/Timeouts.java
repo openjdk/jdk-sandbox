@@ -32,6 +32,8 @@
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -55,7 +57,7 @@ public class Timeouts {
     public void testTimedConnect1() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             try (Socket s = new Socket()) {
-                s.connect(ss.getLocalSocketAddress(), 3000);
+                s.connect(ss.getLocalSocketAddress(), 2000);
             }
         }
     }
@@ -73,12 +75,24 @@ public class Timeouts {
     }
 
     /**
-     * Test timed read where the read succeeds
+     * Test timed read where the read succeeds immediately
      */
     public void testTimedRead1() throws IOException {
         withConnection((s1, s2) -> {
             s1.getOutputStream().write(99);
-            s2.setSoTimeout(3000);
+            s2.setSoTimeout(30*1000);
+            int b = s2.getInputStream().read();
+            assertTrue(b == 99);
+        });
+    }
+
+    /**
+     * Test timed read where the read succeeds after a delay
+     */
+    public void testTimedRead2() throws IOException {
+        withConnection((s1, s2) -> {
+            scheduleWrite(s1.getOutputStream(), 99, 2000);
+            s2.setSoTimeout(30*1000);
             int b = s2.getInputStream().read();
             assertTrue(b == 99);
         });
@@ -87,9 +101,9 @@ public class Timeouts {
     /**
      * Test timed read where the read times out
      */
-    public void testTimedRead2() throws IOException {
+    public void testTimedRead3() throws IOException {
         withConnection((s1, s2) -> {
-            s2.setSoTimeout(3000);
+            s2.setSoTimeout(2000);
             try {
                 s2.getInputStream().read();
                 assertTrue(false);
@@ -100,9 +114,9 @@ public class Timeouts {
     /**
      * Test timed read that succeeds after a previous read has timed out
      */
-    public void testTimedRead3() throws IOException {
+    public void testTimedRead4() throws IOException {
         withConnection((s1, s2) -> {
-            s2.setSoTimeout(3000);
+            s2.setSoTimeout(2000);
             try {
                 s2.getInputStream().read();
                 assertTrue(false);
@@ -114,11 +128,29 @@ public class Timeouts {
     }
 
     /**
-     * Test non-timed read that succeeds after a previous read has timed out
+     * Test timed read that succeeds after a previous read has timed out and
+     * after a short delay
      */
-    public void testTimedRead4() throws IOException {
+    public void testTimedRead5() throws IOException {
         withConnection((s1, s2) -> {
-            s2.setSoTimeout(3000);
+            s2.setSoTimeout(2000);
+            try {
+                s2.getInputStream().read();
+                assertTrue(false);
+            } catch (SocketTimeoutException e) { }
+            s2.setSoTimeout(30*3000);
+            scheduleWrite(s1.getOutputStream(), 99, 2000);
+            int b = s2.getInputStream().read();
+            assertTrue(b == 99);
+        });
+    }
+
+    /**
+     * Test untimed read that succeeds after a previous read has timed out
+     */
+    public void testTimedRead6() throws IOException {
+        withConnection((s1, s2) -> {
+            s2.setSoTimeout(2000);
             try {
                 s2.getInputStream().read();
                 assertTrue(false);
@@ -131,11 +163,29 @@ public class Timeouts {
     }
 
     /**
+     * Test untimed read that succeeds after a previous read has timed out and
+     * after a short delay
+     */
+    public void testTimedRead7() throws IOException {
+        withConnection((s1, s2) -> {
+            s2.setSoTimeout(2000);
+            try {
+                s2.getInputStream().read();
+                assertTrue(false);
+            } catch (SocketTimeoutException e) { }
+            scheduleWrite(s1.getOutputStream(), 99, 2000);
+            s2.setSoTimeout(0);
+            int b = s2.getInputStream().read();
+            assertTrue(b == 99);
+        });
+    }
+
+    /**
      * Test async close of timed read
      */
-    public void testTimedRead5() throws IOException {
+    public void testTimedRead8() throws IOException {
         withConnection((s1, s2) -> {
-            s2.setSoTimeout(30000);
+            s2.setSoTimeout(30*1000);
             scheduleClose(s2, 2000);
             try {
                 s2.getInputStream().read();
@@ -156,7 +206,7 @@ public class Timeouts {
             assertTrue(b == 99);
 
             // schedule thread to read s1 to EOF
-            scheduleReadToEOF(s1, 3000);
+            scheduleReadToEOF(s1.getInputStream(), 3000);
 
             // write a lot so that write blocks
             byte[] data = new byte[128*1024];
@@ -191,7 +241,7 @@ public class Timeouts {
     }
 
     /**
-     * Test timed accept where a connection is established
+     * Test timed accept where a connection is established immediately
      */
     public void testTimedAccept1() throws IOException {
         Socket s1 = null;
@@ -199,7 +249,7 @@ public class Timeouts {
         try (ServerSocket ss = new ServerSocket(0)) {
             s1 = new Socket();
             s1.connect(ss.getLocalSocketAddress());
-            ss.setSoTimeout(3000);
+            ss.setSoTimeout(30*1000);
             s2 = ss.accept();
         } finally {
             if (s1 != null) s1.close();
@@ -208,27 +258,41 @@ public class Timeouts {
     }
 
     /**
-     * Test timed accept where the accept times out
+     * Test timed accept where a connection is established after a short delay
      */
     public void testTimedAccept2() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(30*1000);
+            scheduleConnect(ss.getLocalSocketAddress(), 2000);
+            Socket s = ss.accept();
+            s.close();
+        }
+    }
+    
+    /**
+     * Test timed accept where the accept times out
+     */
+    public void testTimedAccept3() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(2000);
             try {
-                ss.accept().close();
+                Socket s = ss.accept();
+                s.close();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) { }
         }
     }
 
     /**
-     * Test timed accept where a connection is established after a previous
-     * accept timed out.
+     * Test timed accept where a connection is established immediately after a
+     * previous accept timed out.
      */
-    public void testTimedAccept3() throws IOException {
+    public void testTimedAccept4() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
-            ss.setSoTimeout(3000);
+            ss.setSoTimeout(2000);
             try {
-                ss.accept().close();
+                Socket s = ss.accept();
+                s.close();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) { }
             try (Socket s1 = new Socket()) {
@@ -240,11 +304,51 @@ public class Timeouts {
     }
 
     /**
+     * Test untimed accept where a connection is established after a previous
+     * accept timed out
+     */
+    public void testTimedAccept5() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(2000);
+            try {
+                Socket s = ss.accept();
+                s.close();
+                assertTrue(false);
+            } catch (SocketTimeoutException expected) { }
+            ss.setSoTimeout(0);
+            try (Socket s1 = new Socket()) {
+                s1.connect(ss.getLocalSocketAddress());
+                Socket s2 = ss.accept();
+                s2.close();
+            }
+        }
+    }
+
+    /**
+     * Test untimed accept where a connection is established after a previous
+     * accept timed out and after a short delay
+     */
+    public void testTimedAccept6() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(2000);
+            try {
+                Socket s = ss.accept();
+                s.close();
+                assertTrue(false);
+            } catch (SocketTimeoutException expected) { }
+            ss.setSoTimeout(0);
+            scheduleConnect(ss.getLocalSocketAddress(), 2000);
+            Socket s = ss.accept();
+            s.close();
+        }
+    }
+
+    /**
      * Test async close of a timed accept
      */
-    public void testTimedAccept4() throws IOException {
+    public void testTimedAccept7() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
-            ss.setSoTimeout(30000);
+            ss.setSoTimeout(30*1000);
             scheduleClose(ss, 2000);
             try {
                 ss.accept().close();
@@ -300,7 +404,7 @@ public class Timeouts {
     }
 
     /**
-     * Schedule c to be closed after {@code delay} milliseconds
+     * Schedule c to be closed after a delay
      */
     static void scheduleClose(Closeable c, long delay) {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -313,20 +417,57 @@ public class Timeouts {
     }
 
     /**
-     * Schedule a thread to read to EOF {@code delay} milliseconds
+     * Schedule a thread to connect to the given end point after a delay
      */
-    static void scheduleReadToEOF(Socket socket, long delay) {
+    static void scheduleConnect(SocketAddress remote, long delay) {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
             Runnable task = () -> {
-                byte[] bytes = new byte[8192];
-                try {
-                    while (socket.getInputStream().read(bytes) != -1) { }
+                try (Socket s = new Socket()) {
+                    s.connect(remote);
                 } catch (IOException ioe) { }
             };
             executor.schedule(task, delay, TimeUnit.MILLISECONDS);
         } finally {
             executor.shutdown();
         }
+    }
+
+    /**
+     * Schedule a thread to read to EOF after a delay
+     */
+    static void scheduleReadToEOF(InputStream in, long delay) {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            Runnable task = () -> {
+                byte[] bytes = new byte[8192];
+                try {
+                    while (in.read(bytes) != -1) { }
+                } catch (IOException ioe) { }
+            };
+            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
+        } finally {
+            executor.shutdown();
+        }
+    }
+
+    /**
+     * Schedule a thread to write after a delay
+     */
+    static void scheduleWrite(OutputStream out, byte[] data, long delay) {
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        try {
+            Runnable task = () -> {
+                try {
+                    out.write(data);
+                } catch (IOException ioe) { }
+            };
+            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
+        } finally {
+            executor.shutdown();
+        }
+    }
+    static void scheduleWrite(OutputStream out, int b, long delay) {
+        scheduleWrite(out, new byte[] { (byte)b }, delay);
     }
 }

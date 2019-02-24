@@ -29,6 +29,7 @@
  */
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -42,10 +43,11 @@ public class UdpSocket {
 
     public static void main(String[] args) throws IOException {
         try (DatagramChannel dc = DatagramChannel.open()) {
-            dc.bind(new InetSocketAddress(0));
+            var loopback = InetAddress.getLoopbackAddress();
+            dc.bind(new InetSocketAddress(loopback, 0));
 
             int port = ((InetSocketAddress) dc.getLocalAddress()).getPort();
-            try (Socket s = new Socket("127.0.0.1", port, false)) {
+            try (Socket s = new Socket(loopback, port, false)) {
 
                 // send datagram with socket output stream
                 byte[] array1 = MESSAGE.getBytes("UTF-8");
