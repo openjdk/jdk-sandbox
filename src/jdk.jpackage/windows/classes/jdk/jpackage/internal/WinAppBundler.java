@@ -102,21 +102,7 @@ public class WinAppBundler extends AbstractImageBundler {
                     I18N.getString("error.no-windows-resources.advice"));
         }
 
-        // validate runtime bit-architectire
-        testRuntimeBitArchitecture(p);
-
         return true;
-    }
-
-    private static void testRuntimeBitArchitecture(
-            Map<String, ? super Object> params) throws ConfigException {
-
-        if ((BIT_ARCH_64.fetchFrom(params) !=
-                BIT_ARCH_64_RUNTIME.fetchFrom(params))) {
-            throw new ConfigException(
-                    I18N.getString("error.bit-architecture-mismatch"),
-                    I18N.getString("error.bit-architecture-mismatch.advice"));
-        }
     }
 
     private static boolean usePredefineAppName(Map<String, ? super Object> p) {
@@ -229,36 +215,6 @@ public class WinAppBundler extends AbstractImageBundler {
             Log.verbose(e);
             throw new PackagerException(e);
         }
-    }
-
-    private static final String RUNTIME_AUTO_DETECT = ".runtime.autodetect";
-
-    public static void extractFlagsFromRuntime(
-            Map<String, ? super Object> params) {
-        if (params.containsKey(".runtime.autodetect")) return;
-
-        params.put(RUNTIME_AUTO_DETECT, "attempted");
-
-        String commandline;
-        File runtimePath = JLinkBundlerHelper.getJDKHome(params).toFile();
-        File launcherPath = new File(runtimePath, "bin\\java.exe");
-
-        ProcessBuilder pb =
-                 new ProcessBuilder(launcherPath.getAbsolutePath(), "-version");
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            try (PrintStream pout = new PrintStream(baos)) {
-                IOUtils.exec(pb, Log.isDebug(), true, pout);
-            }
-
-            commandline = baos.toString();
-        } catch (IOException e) {
-            e.printStackTrace();
-            params.put(RUNTIME_AUTO_DETECT, "failed");
-            return;
-        }
-
-        AbstractImageBundler.extractFlagsFromVersion(params, commandline);
-        params.put(RUNTIME_AUTO_DETECT, "succeeded");
     }
 
     @Override

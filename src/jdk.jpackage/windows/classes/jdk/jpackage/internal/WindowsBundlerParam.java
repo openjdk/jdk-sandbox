@@ -91,29 +91,6 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<Boolean> BIT_ARCH_64 =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.64-bit.name"),
-                    I18N.getString("param.64-bit.description"),
-                    "win.64Bit",
-                    Boolean.class,
-                    params -> System.getProperty("os.arch").contains("64"),
-                    (s, p) -> Boolean.valueOf(s)
-            );
-
-    static final StandardBundlerParam<Boolean> BIT_ARCH_64_RUNTIME =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.runtime-64-bit.name"),
-                    I18N.getString("param.runtime-64-bit.description"),
-                    "win.64BitJreRuntime",
-                    Boolean.class,
-                    params -> {
-                        WinAppBundler.extractFlagsFromRuntime(params);
-                        return "64".equals(params.get(".runtime.bit-arch"));
-                    },
-                    (s, p) -> Boolean.valueOf(s)
-            );
-
     static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
             new StandardBundlerParam<> (
             I18N.getString("param.installdir-chooser.name"),

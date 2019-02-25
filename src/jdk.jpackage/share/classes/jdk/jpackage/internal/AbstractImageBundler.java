@@ -155,10 +155,6 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         }
         rootDirectory.mkdirs();
 
-        if (!p.containsKey(JLinkBundlerHelper.JLINK_BUILDER.getID())) {
-            p.put(JLinkBundlerHelper.JLINK_BUILDER.getID(), jlinkKey);
-        }
-
         return rootDirectory;
     }
 

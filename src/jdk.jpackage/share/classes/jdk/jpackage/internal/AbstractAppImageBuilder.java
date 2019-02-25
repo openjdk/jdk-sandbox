@@ -223,15 +223,6 @@ public abstract class AbstractAppImageBuilder {
             }
         }
 
-        String version = JLinkBundlerHelper.getJDKVersion(params);
-
-        if (!version.isEmpty()) {
-            out.println("app.java.version=" + version);
-        }
-
-        out.println("jpackage.java.version="
-                + System.getProperty("java.version"));
-
         Integer port = JLinkBundlerHelper.DEBUG.fetchFrom(params);
 
         if (port != null) {

@@ -609,13 +609,8 @@ public class WinMsiBundler  extends AbstractBundler {
             data.put("INSTALL_SCOPE", "perUser");
         }
 
-        if (BIT_ARCH_64.fetchFrom(params)) {
-            data.put("PLATFORM", "x64");
-            data.put("WIN64", "yes");
-        } else {
-            data.put("PLATFORM", "x86");
-            data.put("WIN64", "no");
-        }
+        data.put("PLATFORM", "x64");
+        data.put("WIN64", "yes");
 
         data.put("UI_BLOCK", getUIBlock(params));
 
@@ -748,7 +743,7 @@ public class WinMsiBundler  extends AbstractBundler {
         out.println(prefix + " <Component Id=\"comp" + (compId++)
                 + "\" DiskId=\"1\""
                 + " Guid=\"" + UUID.randomUUID().toString() + "\""
-                + (BIT_ARCH_64.fetchFrom(params) ? " Win64=\"yes\"" : "")
+                + " Win64=\"yes\"" 
                 + ">");
         out.println(prefix + "  <CreateFolder/>");
         out.println(prefix + "  <RemoveFolder Id=\"RemoveDir"
@@ -805,8 +800,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     thisFileId + "\""
                     + " Name=\"" + f.getName() + "\" "
                     + " Source=\"" + relativePath(imageRootDir, f) + "\""
-                    + (BIT_ARCH_64.fetchFrom(params) ?
-                    " ProcessorArchitecture=\"x64\"" : "") + ">");
+                    + " ProcessorArchitecture=\"x64\"" + ">");
             if (doShortcuts && desktopShortcut) {
                 out.println(prefix
                         + "  <Shortcut Id=\"desktopShortcut\" Directory="
@@ -963,13 +957,8 @@ public class WinMsiBundler  extends AbstractBundler {
         out.println(" <Directory Id=\"TARGETDIR\" Name=\"SourceDir\">");
         if (MSI_SYSTEM_WIDE.fetchFrom(params)) {
             // install to programfiles
-            if (BIT_ARCH_64.fetchFrom(params)) {
-                out.println("  <Directory Id=\"ProgramFiles64Folder\" "
+            out.println("  <Directory Id=\"ProgramFiles64Folder\" "
                         + "Name=\"PFiles\">");
-            } else {
-                out.println("  <Directory Id=\"ProgramFilesFolder\" "
-                        + "Name=\"PFiles\">");
-            }
         } else {
             // install to user folder
             out.println(
@@ -997,7 +986,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     + MENU_GROUP.fetchFrom(params) + "\">");
             out.println("      <Component Id=\"comp" + (compId++) + "\""
                     + " Guid=\"" + UUID.randomUUID().toString() + "\""
-                    + (BIT_ARCH_64.fetchFrom(params) ? " Win64=\"yes\"" : "")
+                    + " Win64=\"yes\""
                     + ">");
             out.println("        <RemoveFolder Id=\"ProgramMenuDir\" "
                     + "On=\"uninstall\" />");

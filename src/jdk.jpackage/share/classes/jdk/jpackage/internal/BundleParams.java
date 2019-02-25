@@ -25,10 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.*;
-import jdk.jpackage.internal.BundlerType;
-import jdk.jpackage.internal.JLinkBundlerHelper;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.*;

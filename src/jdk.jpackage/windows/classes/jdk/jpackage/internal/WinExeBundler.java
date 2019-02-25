@@ -540,11 +540,8 @@ public class WinExeBundler extends AbstractBundler {
             data.put("APPLICATION_INSTALL_PRIVILEGE", "lowest");
         }
 
-        if (BIT_ARCH_64.fetchFrom(p)) {
-            data.put("ARCHITECTURE_BIT_MODE", "x64");
-        } else {
-            data.put("ARCHITECTURE_BIT_MODE", "");
-        }
+        data.put("ARCHITECTURE_BIT_MODE", "x64");
+
         validateValueAndPut(data, "RUN_FILENAME", APP_NAME, p);
 
         validateValueAndPut(data, "APPLICATION_DESCRIPTION",

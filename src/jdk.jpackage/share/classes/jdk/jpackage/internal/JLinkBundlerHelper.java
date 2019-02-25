@@ -28,9 +28,12 @@ package jdk.jpackage.internal;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -48,13 +51,13 @@ import java.util.Optional;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.regex.Matcher;
+import java.util.spi.ToolProvider;
 import java.lang.module.Configuration;
 import java.lang.module.ResolvedModule;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
-
-import jdk.tools.jlink.internal.packager.AppRuntimeImageBuilder;
 
 final class JLinkBundlerHelper {
 
@@ -65,17 +68,10 @@ final class JLinkBundlerHelper {
     private static final String SERVER_JRE_MODULES_FILENAME =
             "jdk/jpackage/internal/resources/jre.module.list";
 
-    private JLinkBundlerHelper() {}
+    static final ToolProvider JLINK_TOOL =
+            ToolProvider.findFirst("jlink").orElseThrow();
 
-    @SuppressWarnings("unchecked")
-    static final BundlerParamInfo<String> JLINK_BUILDER =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.jlink-builder.name"),
-                    I18N.getString("param.jlink-builder.description"),
-                    "jlink.builder",
-                    String.class,
-                    null,
-                    (s, p) -> s);
+    private JLinkBundlerHelper() {}
 
     @SuppressWarnings("unchecked")
     static final BundlerParamInfo<Integer> DEBUG =
@@ -178,62 +174,6 @@ final class JLinkBundlerHelper {
         return result;
     }
 
-    static String getJDKVersion(Map<String, ? super Object> params) {
-        String result = "";
-        List<Path> modulePath =
-                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Set<String> limitModules =
-                StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        Path javaBasePath = findPathOfModule(modulePath,
-                "java.base.jmod").resolve("java.base.jmod");
-        Set<String> addModules = getValidModules(modulePath,
-                StandardBundlerParam.ADD_MODULES.fetchFrom(params),
-                limitModules);
-
-
-        if (javaBasePath != null && javaBasePath.toFile().exists()) {
-            result = getModuleVersion(javaBasePath.toFile(),
-                    modulePath, addModules, limitModules);
-        }
-        return result;
-    }
-
-    static Path getJDKHome(Map<String, ? super Object> params) {
-        Path result = null;
-        List<Path> modulePath =
-                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Path javaBasePath = findPathOfModule(modulePath, "java.base.jmod");
-
-        if (javaBasePath != null && javaBasePath.toFile().exists()) {
-            result = javaBasePath.getParent();
-
-            // On a developer build the JDK Home isn't where we expect it
-            // relative to the jmods directory. Do some extra
-            // processing to find it.
-            if (result != null) {
-                boolean found = false;
-                Path bin = result.resolve("bin");
-
-                if (Files.exists(bin)) {
-                    final String exe =
-                            (Platform.getPlatform() == Platform.WINDOWS) ?
-                            ".exe" : "";
-                    Path javaExe = bin.resolve("java" + exe);
-
-                    if (Files.exists(javaExe)) {
-                        found = true;
-                    }
-                }
-
-                if (!found) {
-                    result = result.resolve(".." + File.separator + "jdk");
-                }
-            }
-        }
-
-        return result;
-    }
-
     private static Set<String> getValidModules(List<Path> modulePath,
             Set<String> addModules, Set<String> limitModules) {
         ModuleHelper moduleHelper = new ModuleHelper(
@@ -285,18 +225,13 @@ final class JLinkBundlerHelper {
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), validModules.toString()));
 
-        AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
-        appRuntimeBuilder.setOutputDir(outputDir);
-        appRuntimeBuilder.setModulePath(modulePath);
-        appRuntimeBuilder.setAddModules(validModules);
-        appRuntimeBuilder.setLimitModules(limitModules);
-        appRuntimeBuilder.setExcludeFileList(excludeFileList);
-        appRuntimeBuilder.setStripNativeCommands(stripNativeCommands);
-        appRuntimeBuilder.setUserArguments(new HashMap<String,String>());
+        runJLink(outputDir, modulePath, validModules, limitModules,
+                excludeFileList, stripNativeCommands,
+                new HashMap<String,String>());
 
-        appRuntimeBuilder.build();
         imageBuilder.prepareApplicationFiles();
     }
+
 
     static void generateJre(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
@@ -318,16 +253,9 @@ final class JLinkBundlerHelper {
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.modules"), addModules.toString()));
 
-        AppRuntimeImageBuilder appRuntimeBuilder = new AppRuntimeImageBuilder();
-        appRuntimeBuilder.setOutputDir(outputDir);
-        appRuntimeBuilder.setModulePath(modulePath);
-        appRuntimeBuilder.setAddModules(addModules);
-        appRuntimeBuilder.setLimitModules(limitModules);
-        appRuntimeBuilder.setStripNativeCommands(stripNativeCommands);
-        appRuntimeBuilder.setExcludeFileList("");
-        appRuntimeBuilder.setUserArguments(new HashMap<String,String>());
+        runJLink(outputDir, modulePath, addModules, limitModules,
+                null, stripNativeCommands, new HashMap<String,String>());
 
-        appRuntimeBuilder.build();
         imageBuilder.prepareJreFiles();
     }
 
@@ -417,31 +345,6 @@ final class JLinkBundlerHelper {
         return result;
     }
 
-    private static String getModuleVersion(File moduleFile,
-            List<Path> modulePath, Set<String> addModules,
-            Set<String> limitModules) {
-        String result = "";
-
-        ModFile modFile = new ModFile(moduleFile);
-        ModuleFinder finder = AppRuntimeImageBuilder.moduleFinder(modulePath,
-                addModules, limitModules);
-        Optional<ModuleReference> mref = finder.find(modFile.getModName());
-
-        if (mref.isPresent()) {
-            ModuleDescriptor descriptor = mref.get().descriptor();
-
-            if (descriptor != null) {
-                Optional<ModuleDescriptor.Version> version =
-                        descriptor.version();
-
-                if (version.isPresent()) {
-                    result = version.get().toString();
-                }
-            }
-        }
-        return result;
-    }
-
     private static class ModuleHelper {
         // The token for "all modules on the module path".
         private static final String ALL_MODULE_PATH = "ALL-MODULE-PATH";
@@ -501,5 +404,82 @@ final class JLinkBundlerHelper {
             }
             return result;
         }
+    }
+
+    private static void runJLink(Path output, List<Path> modulePath,
+            Set<String> modules, Set<String> limitModules, String excludes,
+            boolean strip, HashMap<String, String> user) throws IOException {
+
+        // This is just to ensure jlink is given a non-existant directory
+        // The passed in output path should be non-existant or empty directory
+        IOUtils.deleteRecursive(output.toFile());
+
+        ArrayList<String> args = new ArrayList<String>();
+        args.add("--output");
+        args.add(output.toString());
+        if (modulePath != null && !modulePath.isEmpty()) {
+            args.add("--module-path");
+            args.add(getPathList(modulePath));
+        }
+        if (modules != null && !modules.isEmpty()) {
+            args.add("--add-modules");
+            args.add(getStringList(modules));
+        }
+        if (limitModules != null && !limitModules.isEmpty()) {
+            args.add("--limit-modules");
+            args.add(getStringList(limitModules));
+        }
+        if (excludes != null) {
+            args.add("--exclude-files");
+            args.add(excludes);
+        }
+        if (strip) {
+            args.add("--strip-native-commands");
+        }
+        for (Map.Entry<String, String> entry : user.entrySet()) {
+            args.add(entry.getKey());
+            args.add(entry.getValue());
+        }
+        args.add("--strip-debug");
+        args.add("--no-header-files");
+        args.add("--bind-services");
+        
+        StringWriter writer = new StringWriter();
+        PrintWriter pw = new PrintWriter(writer);
+
+        Log.verbose("jlink arguments: " + args);
+        int retVal = JLINK_TOOL.run(pw, pw, args.toArray(new String[0]));
+        String jlinkOut = writer.toString();
+
+        if (retVal != 0) {
+            throw new IOException("jlink failed with: " + jlinkOut);
+        } else if (jlinkOut.length() > 0) {
+            Log.verbose("jlink output: " + jlinkOut);
+        }
+    }
+
+    private static String getPathList(List<Path> pathList) {
+        String ret = null;
+        for (Path p : pathList) {
+            String s =  Matcher.quoteReplacement(p.toString());
+            if (ret == null) {
+                ret = s;
+            } else {
+                ret += File.pathSeparator +  s;
+            }
+        }
+        return ret;
+    }
+
+    private static String getStringList(Set<String> strings) {
+        String ret = null;
+        for (String s : strings) {
+            if (ret == null) {
+                ret = s;
+            } else {
+                ret += "," + s;
+            }
+        }
+        return (ret == null) ? null : Matcher.quoteReplacement(ret);
     }
 }
