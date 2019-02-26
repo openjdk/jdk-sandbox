@@ -75,18 +75,19 @@ public class Main {
     }
 
     private static int run(String... args) throws Exception {
-        if (args.length == 0) {
+        String[] newArgs = CommandLine.parse(args);
+        if (newArgs.length == 0) {
             CLIHelp.showHelp(true);
-        } else if (hasHelp(args)){
-            if (hasVersion(args)) {
+        } else if (hasHelp(newArgs)){
+            if (hasVersion(newArgs)) {
                 Log.info(version + "\n");
             }
             CLIHelp.showHelp(false);
-        } else if (hasVersion(args)) {
+        } else if (hasVersion(newArgs)) {
             Log.info(version);
         } else {
             try {
-                Arguments arguments = new Arguments(args);
+                Arguments arguments = new Arguments(newArgs);
                 if (!arguments.processArguments()) {
                     // processArguments() should log error message if failed.
                     return -1;
