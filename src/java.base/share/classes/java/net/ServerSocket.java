@@ -541,52 +541,32 @@ class ServerSocket implements java.io.Closeable {
      * @spec JSR-51
      */
     protected final void implAccept(Socket s) throws IOException {
-        SocketImpl impl = getImpl();
         SocketImpl si = s.impl;
 
-        // Socket does not have a SocketImpl
+        // Socket has no SocketImpl
         if (si == null) {
             // create a SocketImpl and accept the connection
             si = Socket.createImpl();
-            assert !(si instanceof DelegatingSocketImpl);
-            impl.accept(si);
-            try {
-                // a custom impl has accepted the connection with a platform SocketImpl
-                if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
-                    ((PlatformSocketImpl) si).postCustomAccept();
-                }
-            } finally {
-                securityCheckAccept(si);  // closes si if permission check fails
-            }
-
+            implAccept(si);
             // bind Socket to the SocketImpl and update socket state
             s.setImpl(si);
             s.postAccept();
             return;
         }
 
-        // Socket has a SOCKS or HTTP SocketImpl
+        // Socket has a SOCKS or HTTP SocketImpl, need delegate
         if (si instanceof DelegatingSocketImpl) {
             si = ((DelegatingSocketImpl) si).delegate();
             assert si instanceof PlatformSocketImpl;
         }
 
-        // ServerSocket or Socket (or both) have a platform SocketImpl
+        // ServerSocket or Socket (or both) have, or delegate to, a platform SocketImpl
         if (impl instanceof PlatformSocketImpl || si instanceof PlatformSocketImpl) {
             // create a new platform SocketImpl and accept the connection
-            var nsi = SocketImpl.createPlatformSocketImpl(false);
-            impl.accept(nsi);
-            try {
-                // a custom impl has accepted the connection
-                if (!(impl instanceof PlatformSocketImpl)) {
-                    nsi.postCustomAccept();
-                }
-            } finally {
-                securityCheckAccept(nsi);  // closes nsi if permission check fails
-            }
-
-            // copy state to the existing SocketImpl and update socket state
-            nsi.copyTo(si);
+            var psi = SocketImpl.createPlatformSocketImpl(false);
+            implAccept(psi);
+            // copy connection/state to the existing SocketImpl and update socket state
+            psi.copyTo(si);
             s.postAccept();
             return;
         }
@@ -607,6 +587,26 @@ class ServerSocket implements java.io.Closeable {
             s.impl = si;  // restore connection to impl
         }
         s.postAccept();
+    }
+
+    /**
+     * Accepts a new connection so that the given SocketImpl is connected to
+     * the peer. The SocketImpl and connection are closed if the connection is
+     * denied by the security manager.
+     * @throws IOException if an I/O error occurs
+     * @throws SecurityException if the security manager's checkAccept method fails
+     */
+    private void implAccept(SocketImpl si) throws IOException {
+        assert !(si instanceof DelegatingSocketImpl);
+        impl.accept(si);
+        try {
+            // a custom impl has accepted the connection with a platform SocketImpl
+            if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
+                ((PlatformSocketImpl) si).postCustomAccept();
+            }
+        } finally {
+            securityCheckAccept(si);  // closes si if permission check fails
+        }
     }
 
     /**
