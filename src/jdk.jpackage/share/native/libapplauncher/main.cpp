@@ -81,19 +81,6 @@ extern "C" {
                 else if (argument == _T("-Xapp:child")) {
                     parentProcess = false;
                 }
-#ifdef DEBUG
-                // There is a compiler bug on Mac when overloading
-                // ShowResponseMessage.
-                else if (argument == _T("-nativedebug")) {
-                    if (platform.ShowResponseMessage(_T("Test"),
-                        TString(_T("Would you like to debug?\n\nProcessID: "))
-                        + PlatformString(platform.GetProcessID()).toString())
-                         == mrOK) {
-                        while (platform.IsNativeDebuggerPresent() == false) {
-                        }
-                    }
-                }
-#endif //DEBUG
             }
 
             // Package must be initialized after Platform is fully initialized.

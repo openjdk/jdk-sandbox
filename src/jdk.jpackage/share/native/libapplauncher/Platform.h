@@ -243,12 +243,6 @@ public:
 
     static WideString MultibyteStringToWideString(const char* value);
     static MultibyteString WideStringToMultibyteString(const wchar_t* value);
-
-#ifdef DEBUG
-    virtual DebugState GetDebugState() = 0;
-    virtual int GetProcessID() = 0;
-    virtual bool IsNativeDebuggerPresent() = 0;
-#endif //DEBUG
 };
 
 class Exception: public std::exception {

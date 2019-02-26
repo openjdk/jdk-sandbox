@@ -44,9 +44,9 @@ private:
     map<wstring, wstring> m_props;
 
     bool LoadFromPropertyFile();
-    void CreateNewResource(ByteBuffer *buf);
+    bool CreateNewResource(ByteBuffer *buf);
     bool UpdateResource(LPVOID lpResLock, DWORD size);
-    void FillFixedFileInfo(VS_FIXEDFILEINFO *fxi);
+    bool FillFixedFileInfo(VS_FIXEDFILEINFO *fxi);
 };
 
 #endif // VERSIONINFOSWAP_H

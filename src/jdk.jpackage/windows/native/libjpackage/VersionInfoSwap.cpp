@@ -64,16 +64,20 @@ bool VersionInfoSwap::PatchExecutable() {
     }
 
     ByteBuffer buf;
-    CreateNewResource(&buf);
+    b = CreateNewResource(&buf);
+    if (!b) {
+        return false;
+    }
+
     b = this->UpdateResource(buf.getPtr(), static_cast<DWORD> (buf.getPos()));
     if (!b) {
         return false;
     }
+
     return true;
 }
 
 bool VersionInfoSwap::LoadFromPropertyFile() {
-    bool result = false;
     wifstream stream(m_executableProperties.c_str());
 
     const locale empty_locale = locale::empty();
@@ -94,18 +98,14 @@ bool VersionInfoSwap::LoadFromPropertyFile() {
                     wstring name = line.substr(0, pos);
                     wstring value = line.substr(pos + 1);
                     m_props[name] = value;
-                } else {
-                    printf("Unable to find delimiter at line %d\n", lineNumber);
                 }
             }
             lineNumber++;
         }
-        result = true;
-    } else {
-        printf("Unable to read property file\n");
+        return true;
     }
 
-    return result;
+    return false;
 }
 
 /*
@@ -114,7 +114,7 @@ bool VersionInfoSwap::LoadFromPropertyFile() {
  * MSND docs for VS_VERSION_INFO structure
  *     https://msdn.microsoft.com/en-us/library/ms647001(v=vs.85).aspx
  */
-void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
+bool VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     size_t versionInfoStart = buf->getPos();
     buf->AppendWORD(0);
     buf->AppendWORD(sizeof VS_FIXEDFILEINFO);
@@ -123,7 +123,9 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     buf->Align(4);
 
     VS_FIXEDFILEINFO fxi;
-    FillFixedFileInfo(&fxi);
+    if (!FillFixedFileInfo(&fxi)) {
+        return false;
+    }
     buf->AppendBytes((BYTE*) & fxi, sizeof (VS_FIXEDFILEINFO));
     buf->Align(4);
 
@@ -186,17 +188,19 @@ void VersionInfoSwap::CreateNewResource(ByteBuffer *buf) {
     buf->AppendWORD(0x00);
     buf->AppendString(TEXT("Translation"));
     buf->Align(4);
-    // "040904B0" = LANG_ENGLISH/SUBLANG_ENGLISH_US, Unicode CP
-    buf->AppendWORD(0x0409);
+    // "000004B0" = LANG_NEUTRAL/SUBLANG_ENGLISH_US, Unicode CP
+    buf->AppendWORD(0x0000);
     buf->AppendWORD(0x04B0);
 
     buf->ReplaceWORD(varFileInfoStart,
             static_cast<WORD> (buf->getPos() - varFileInfoStart));
     buf->ReplaceWORD(versionInfoStart,
             static_cast<WORD> (buf->getPos() - versionInfoStart));
+
+    return true;
 }
 
-void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
+bool VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     wstring fileVersion;
     wstring productVersion;
     int ret;
@@ -210,13 +214,13 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
     ret = _stscanf_s(fileVersion.c_str(),
             TEXT("%d.%d.%d.%d"), &fv_1, &fv_2, &fv_3, &fv_4);
     if (ret <= 0 || ret > 4) {
-        printf("Unable to parse FileVersion value\n");
+        return false;
     }
 
     ret = _stscanf_s(productVersion.c_str(),
             TEXT("%d.%d.%d.%d"), &pv_1, &pv_2, &pv_3, &pv_4);
     if (ret <= 0 || ret > 4) {
-        printf("Unable to parse ProductVersion value\n");
+        return false;
     }
 
     fxi->dwSignature = 0xFEEF04BD;
@@ -229,12 +233,6 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
 
     fxi->dwFileFlagsMask = 0;
     fxi->dwFileFlags = 0;
-    if (m_props.count(TEXT("PrivateBuild"))) {
-        fxi->dwFileFlags |= VS_FF_PRIVATEBUILD;
-    }
-    if (m_props.count(TEXT("SpecialBuild"))) {
-        fxi->dwFileFlags |= VS_FF_SPECIALBUILD;
-    }
     fxi->dwFileOS = VOS_NT_WINDOWS32;
 
     wstring exeExt =
@@ -250,6 +248,8 @@ void VersionInfoSwap::FillFixedFileInfo(VS_FIXEDFILEINFO *fxi) {
 
     fxi->dwFileDateLS = 0;
     fxi->dwFileDateMS = 0;
+
+    return true;
 }
 
 /*
@@ -262,24 +262,21 @@ bool VersionInfoSwap::UpdateResource(LPVOID lpResLock, DWORD size) {
 
     hUpdateRes = ::BeginUpdateResource(m_launcher.c_str(), FALSE);
     if (hUpdateRes == NULL) {
-        printf("Could not open file for writing\n");
         return false;
     }
 
     r = ::UpdateResource(hUpdateRes,
             RT_VERSION,
             MAKEINTRESOURCE(VS_VERSION_INFO),
-            MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL),
             lpResLock,
             size);
 
     if (!r) {
-        printf("Could not add resource\n");
         return false;
     }
 
     if (!::EndUpdateResource(hUpdateRes, FALSE)) {
-        printf("Could not write changes to file\n");
         return false;
     }
 

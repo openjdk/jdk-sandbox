@@ -421,23 +421,6 @@ WideString Platform::MultibyteStringToWideString(const char* value) {
     return result;
 }
 
-#ifdef DEBUG
-bool WindowsPlatform::IsNativeDebuggerPresent() {
-    bool result = false;
-
-    if (IsDebuggerPresent() == TRUE) {
-        result = true;
-    }
-
-    return result;
-}
-
-int WindowsPlatform::GetProcessID() {
-    int pid = GetProcessId(GetCurrentProcess());
-    return pid;
-}
-#endif //DEBUG
-
 FileHandle::FileHandle(std::wstring FileName) {
     FHandle = ::CreateFile(FileName.data(), GENERIC_READ, FILE_SHARE_READ,
             NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);

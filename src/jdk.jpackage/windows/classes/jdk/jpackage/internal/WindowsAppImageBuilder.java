@@ -329,29 +329,25 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         Map<String, String> data = new HashMap<>();
 
         // mapping Java parameters in strings for version resource
-        data.put("COMMENTS", "");
         validateValueAndPut(data, "COMPANY_NAME", VENDOR, params);
         validateValueAndPut(data, "FILE_DESCRIPTION", DESCRIPTION, params);
         validateValueAndPut(data, "FILE_VERSION", VERSION, params);
         data.put("INTERNAL_NAME", getLauncherName(params));
         validateValueAndPut(data, "LEGAL_COPYRIGHT", COPYRIGHT, params);
-        data.put("LEGAL_TRADEMARK", "");
         data.put("ORIGINAL_FILENAME", getLauncherName(params));
-        data.put("PRIVATE_BUILD", "");
         validateValueAndPut(data, "PRODUCT_NAME", APP_NAME, params);
         validateValueAndPut(data, "PRODUCT_VERSION", VERSION, params);
-        data.put("SPECIAL_BUILD", "");
 
-        Writer w = new BufferedWriter(
-                new FileWriter(getConfig_ExecutableProperties(params)));
-        String content = preprocessTextResource(
-                getConfig_ExecutableProperties(params).getName(),
-                I18N.getString("resource.executable-properties-template"),
-                EXECUTABLE_PROPERTIES_TEMPLATE, data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = new BufferedWriter(
+                new FileWriter(getConfig_ExecutableProperties(params)))) {
+            String content = preprocessTextResource(
+                    getConfig_ExecutableProperties(params).getName(),
+                    I18N.getString("resource.executable-properties-template"),
+                    EXECUTABLE_PROPERTIES_TEMPLATE, data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
     }
 
     private void createLauncherForEntryPoint(
@@ -412,8 +408,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 File executableProperties = getConfig_ExecutableProperties(p);
 
                 if (executableProperties.exists()) {
-                    versionSwap(executableProperties.getAbsolutePath(),
-                            launcher.getAbsolutePath());
+                    if (versionSwap(executableProperties.getAbsolutePath(),
+                            launcher.getAbsolutePath()) != 0) {
+                        throw new RuntimeException(MessageFormat.format(
+                                I18N.getString("error.version-swap"),
+                                executableProperties.getAbsolutePath()));
+                    }
                 }
             } finally {
                 executableFile.toFile().setReadOnly();
