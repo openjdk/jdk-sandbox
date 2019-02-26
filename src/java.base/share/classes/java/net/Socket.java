@@ -949,6 +949,13 @@ class Socket implements java.io.Closeable {
         return in;
     }
 
+    /**
+     * An InputStream that delegates read/available operations to an underlying
+     * input stream. The close method is overridden to close the Socket.
+     *
+     * This class is instrumented by Java Flight Recorder (JFR) to get socket
+     * I/O events.
+     */
     private static class SocketInputStream extends InputStream {
         private final Socket parent;
         private final InputStream in;
@@ -1012,6 +1019,13 @@ class Socket implements java.io.Closeable {
         return out;
     }
 
+    /**
+     * An OutputStream that delegates write operations to an underlying output
+     * stream. The close method is overridden to close the Socket.
+     *
+     * This class is instrumented by Java Flight Recorder (JFR) to get socket
+     * I/O events.
+     */
     private static class SocketOutputStream extends OutputStream {
         private final Socket parent;
         private final OutputStream out;
