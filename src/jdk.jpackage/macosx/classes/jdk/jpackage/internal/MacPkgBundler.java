@@ -30,8 +30,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -339,18 +341,62 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 APP_NAME.fetchFrom(params) + "-post-image.sh");
     }
 
+    private void patchCPLFile(File cpl) throws IOException {
+        String cplData = Files.readString(cpl.toPath());
+        String[] lines = cplData.split("\n");
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(
+                new FileWriter(cpl)))) {
+            boolean skip = false; // Used to skip Java.runtime bundle, since
+            // pkgbuild with --root will find two bundles app and Java runtime.
+            // We cannot generate component proprty list when using
+            // --component argument.
+            for (int i = 0; i < lines.length; i++) {
+                if (lines[i].trim().equals("<key>BundleIsRelocatable</key>")) {
+                    out.println(lines[i]);
+                    out.println("<false/>");
+                    i++;
+                } else if (lines[i].trim().equals("<key>ChildBundles</key>")) {
+                    skip = true;
+                } else if (skip && lines[i].trim().equals("</array>")) {
+                    skip = false;
+                } else {
+                    if (!skip) {
+                        out.println(lines[i]);
+                    }
+                }
+            }
+        }
+    }
+
     private File createPKG(Map<String, ? super Object> params,
             File outdir, File appLocation) {
         // generic find attempt
         try {
             File appPKG = getPackages_AppPackage(params);
 
-            // build application package
+            // Generate default CPL file
+            File cpl = new File(CONFIG_ROOT.fetchFrom(params).getAbsolutePath()
+                    + File.separator + "cpl.plist");
             ProcessBuilder pb = new ProcessBuilder("pkgbuild",
-                    "--component",
-                    appLocation.toString(),
+                    "--root",
+                    appLocation.getParent(),
                     "--install-location",
                     MAC_INSTALL_DIR.fetchFrom(params),
+                    "--analyze",
+                    cpl.getAbsolutePath());
+
+            IOUtils.exec(pb, false);
+
+            patchCPLFile(cpl);
+
+            // build application package
+            pb = new ProcessBuilder("pkgbuild",
+                    "--root",
+                    appLocation.getParent(),
+                    "--install-location",
+                    MAC_INSTALL_DIR.fetchFrom(params),
+                    "--component-plist",
+                    cpl.getAbsolutePath(),
                     appPKG.getAbsolutePath());
             IOUtils.exec(pb, false);
 
