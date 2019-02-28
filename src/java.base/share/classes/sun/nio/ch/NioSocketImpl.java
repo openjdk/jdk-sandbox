@@ -233,7 +233,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Try to read bytes from the socket into the given byte array.
+     * Tries to read bytes from the socket into the given byte array.
      */
     private int tryRead(FileDescriptor fd, byte[] b, int off, int len)
         throws IOException
@@ -374,7 +374,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Try to write a sequence of bytes to this socket from the given byte array
+     * Tries to write a sequence of bytes to this socket from the given
+     * byte array.
      */
     private int tryWrite(FileDescriptor fd, byte[] b, int off, int len)
         throws IOException
@@ -589,7 +590,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Waits for a connection attempt to finish with a timeout
+     * Waits for a connection attempt to finish with a timeout.
      * @throws SocketTimeoutException if the connect timeout elapses
      */
     private int timedFinishConnect(FileDescriptor fd, int millis) throws IOException {
@@ -611,7 +612,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Connect the socket. Closes the socket if connection cannot be established.
+     * Connects the socket. Closes the socket if connection cannot be established.
      * @throws IllegalArgumentException if the address is not an InetSocketAddress
      * @throws UnknownHostException if the InetSocketAddress is not resolved
      * @throws IOException if the connection cannot be established
@@ -686,8 +687,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 throw new SocketException("Already bound");
             NetHooks.beforeTcpBind(fd, host, port);
             Net.bind(fd, host, port);
-            // set the address field to the address specified to the method to
-            // keep compatibility with PlainSocketImpl. When binding to 0.0.0.0
+            // set the address field to the given address, host, to keep
+            // compatibility with PlainSocketImpl. When binding to 0.0.0.0
             // then the actual local address will be ::0 when IPv6 is enabled.
             address = host;
             localport = Net.localAddress(fd).getPort();
@@ -736,7 +737,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Accepts a new connection with a timeout
+     * Accepts a new connection with a timeout.
      * @throws SocketTimeoutException if the accept timeout elapses
      */
     private int timedAccept(FileDescriptor fd,
@@ -1270,7 +1271,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Returns the socket protocol family
+     * Returns the socket protocol family.
      */
     private static ProtocolFamily family() {
         if (Net.isIPv6Available()) {
@@ -1281,7 +1282,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Returns the native file descriptor
+     * Returns the native file descriptor.
      */
     private static int fdVal(FileDescriptor fd) {
         int fdVal = SharedSecrets.getJavaIOFileDescriptorAccess().get(fd);
