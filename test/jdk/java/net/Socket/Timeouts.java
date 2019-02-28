@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @library /test/lib
  * @build jdk.test.lib.Utils
@@ -71,6 +71,32 @@ public class Timeouts {
             try {
                 s.connect(remote, 2000);
             } catch (ConnectException expected) { }
+        }
+    }
+
+    /**
+     * Test connect with a timeout of Integer.MAX_VALUE
+     */
+    public void testTimedConnect3() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            try (Socket s = new Socket()) {
+                s.connect(ss.getLocalSocketAddress(), Integer.MAX_VALUE);
+            }
+        }
+    }
+
+    /**
+     * Test connect with a negative timeout. This case is not currently specified
+     * but the long standing behavior is to throw IllegalArgumentException.
+     */
+    public void testTimedConnect4() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            try (Socket s = new Socket()) {
+                try {
+                    s.connect(ss.getLocalSocketAddress(), -1);
+                    assertTrue(false);
+                } catch (IllegalArgumentException expected) { }
+            }
         }
     }
 
@@ -191,6 +217,18 @@ public class Timeouts {
                 s2.getInputStream().read();
                 assertTrue(false);
             } catch (SocketException expected) { }
+        });
+    }
+
+    /**
+     * Test read with a timeout of Integer.MAX_VALUE
+     */
+    public void testTimedRead9() throws IOException {
+        withConnection((s1, s2) -> {
+            scheduleWrite(s1.getOutputStream(), 99, 2000);
+            s2.setSoTimeout(Integer.MAX_VALUE);
+            int b = s2.getInputStream().read();
+            assertTrue(b == 99);
         });
     }
 
@@ -357,6 +395,10 @@ public class Timeouts {
         }
     }
 
+    /**
+     * Test Socket setSoTimeout with a negative timeout. This case is not currently
+     * specified but the long standing behavior is to throw IllegalArgumentException.
+     */
     @Test(expectedExceptions = { IllegalArgumentException.class })
     public void testBadTimeout1() throws IOException {
         try (Socket s = new Socket()) {
@@ -364,17 +406,13 @@ public class Timeouts {
         }
     }
 
+    /**
+     * Test ServerSocket setSoTimeout with a negative timeout. This case is not
+     * currently specified but the long standing behavior is to throw
+     * IllegalArgumentException.
+     */
     @Test(expectedExceptions = { IllegalArgumentException.class })
     public void testBadTimeout2() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
-            try (Socket s = new Socket()) {
-                s.connect(ss.getLocalSocketAddress(), -1);
-            }
-        }
-    }
-
-    @Test(expectedExceptions = { IllegalArgumentException.class })
-    public void testBadTimeout3() throws IOException {
         try (ServerSocket ss = new ServerSocket()) {
             ss.setSoTimeout(-1);
         }
@@ -407,67 +445,56 @@ public class Timeouts {
      * Schedule c to be closed after a delay
      */
     static void scheduleClose(Closeable c, long delay) {
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        try {
-            Runnable task = () -> { try { c.close(); } catch (IOException ioe) { } };
-            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
-        } finally {
-            executor.shutdown();
-        }
+        schedule(() -> {
+            try {
+                c.close();
+            } catch (IOException ioe) { }
+        }, delay);
     }
 
     /**
      * Schedule a thread to connect to the given end point after a delay
      */
     static void scheduleConnect(SocketAddress remote, long delay) {
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        try {
-            Runnable task = () -> {
-                try (Socket s = new Socket()) {
-                    s.connect(remote);
-                } catch (IOException ioe) { }
-            };
-            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
-        } finally {
-            executor.shutdown();
-        }
+        schedule(() -> {
+            try (Socket s = new Socket()) {
+                s.connect(remote);
+            } catch (IOException ioe) { }
+        }, delay);
     }
 
     /**
      * Schedule a thread to read to EOF after a delay
      */
     static void scheduleReadToEOF(InputStream in, long delay) {
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        try {
-            Runnable task = () -> {
-                byte[] bytes = new byte[8192];
-                try {
-                    while (in.read(bytes) != -1) { }
-                } catch (IOException ioe) { }
-            };
-            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
-        } finally {
-            executor.shutdown();
-        }
+        schedule(() -> {
+            byte[] bytes = new byte[8192];
+            try {
+                while (in.read(bytes) != -1) { }
+            } catch (IOException ioe) { }
+        }, delay);
     }
 
     /**
      * Schedule a thread to write after a delay
      */
     static void scheduleWrite(OutputStream out, byte[] data, long delay) {
+        schedule(() -> {
+            try {
+                out.write(data);
+            } catch (IOException ioe) { }
+        }, delay);
+    }
+    static void scheduleWrite(OutputStream out, int b, long delay) {
+        scheduleWrite(out, new byte[] { (byte)b }, delay);
+    }
+
+    static void schedule(Runnable task, long delay) {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
-            Runnable task = () -> {
-                try {
-                    out.write(data);
-                } catch (IOException ioe) { }
-            };
             executor.schedule(task, delay, TimeUnit.MILLISECONDS);
         } finally {
             executor.shutdown();
         }
-    }
-    static void scheduleWrite(OutputStream out, int b, long delay) {
-        scheduleWrite(out, new byte[] { (byte)b }, delay);
     }
 }
