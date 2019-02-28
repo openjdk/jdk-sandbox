@@ -24,7 +24,6 @@
  */
 package sun.net;
 
-import java.io.IOException;
 import java.net.SocketImpl;
 
 /**
@@ -32,12 +31,6 @@ import java.net.SocketImpl;
  */
 
 public interface PlatformSocketImpl {
-
-    /**
-     * Invoked by ServerSocket to fix up the SocketImpl state after a connection
-     * is accepted by a custom SocketImpl
-     */
-    void postCustomAccept() throws IOException;
 
     /**
      * Copy the state from this connected SocketImpl to a target SocketImpl. If

@@ -361,50 +361,10 @@ public class SocketImplCombinations {
 
     /**
      * Test ServerSocket.accept returning a Socket that initially doesn't have a
-     * SocketImpl. The ServerSocket uses a custom SocketImpl.
-     */
-    public void testServerSocketAccept5() throws Exception {
-        Socket socket = new Socket((SocketImpl) null) { };
-        assertTrue(getSocketImpl(socket) == null);
-
-        SocketImpl serverImpl = new CustomSocketImpl(true);
-        serverSocketAccept(serverImpl, socket, (ss, s) -> {
-            assertTrue(getSocketImpl(ss) == serverImpl);
-            assertTrue(s == socket);
-            SocketImpl si = getSocketImpl(s);
-            assertTrue(isPlatformSocketImpl(si));
-            checkFields(si);
-        });
-    }
-
-
-    /**
-     * Test ServerSocket.accept returning a Socket that has an existing
-     * SocketImpl. The ServerSocket uses a custom SocketImpl.
-     */
-    public void testServerSocketAccept6() throws Exception {
-        var socket = new Socket();
-        SocketImpl si = getSocketImpl(socket);
-        assertTrue(isSocksSocketImpl(si));
-        SocketImpl delegate = getDelegate(si);
-        assertTrue(isPlatformSocketImpl(delegate));
-
-        SocketImpl serverImpl = new CustomSocketImpl(true);
-        serverSocketAccept(serverImpl, socket, (ss, s) -> {
-            assertTrue(getSocketImpl(ss) == serverImpl);
-            assertTrue(s == socket);
-            assertTrue(getSocketImpl(s) == si);
-            assertTrue(getDelegate(si) == delegate);
-            checkFields(delegate);
-        });
-    }
-
-    /**
-     * Test ServerSocket.accept returning a Socket that initially doesn't have a
      * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
      * The ServerSocket also uses custom SocketImpl.
      */
-    public void testServerSocketAccept7() throws Exception {
+    public void testServerSocketAccept5() throws Exception {
         var socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);
 
@@ -423,7 +383,7 @@ public class SocketImplCombinations {
      * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
      * The ServerSocket also uses custom SocketImpl.
      */
-    public void testServerSocketAccept8() throws Exception {
+    public void testServerSocketAccept6() throws Exception {
         SocketImpl si = new CustomSocketImpl(false);
         Socket socket = new Socket(si) { };
         assertTrue(getSocketImpl(socket) == si);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -598,15 +598,25 @@ class ServerSocket implements java.io.Closeable {
      */
     private void implAccept(SocketImpl si) throws IOException {
         assert !(si instanceof DelegatingSocketImpl);
-        impl.accept(si);
-        try {
-            // a custom impl has accepted the connection with a platform SocketImpl
-            if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
-                ((PlatformSocketImpl) si).postCustomAccept();
-            }
-        } finally {
-            securityCheckAccept(si);  // closes si if permission check fails
+        
+        // A non-platform SocketImpl cannot accept a connection with a platform
+        // SocketImpl
+        if (!(impl instanceof PlatformSocketImpl) && si instanceof PlatformSocketImpl) {
+            throw new IOException("An instance of " + impl.getClass() +
+                    " cannot accept a connection with an instance of " + si.getClass());
         }
+
+        impl.accept(si);
+
+        if (si instanceof PlatformSocketImpl) {
+            var fd = si.fd;
+            if (fd == null || !fd.valid() || si.localport <= 0 ||
+                si.address == null || si.port <= 0) {
+                throw new IOException("Invalid accepted state:" + si);
+            }
+        }
+
+        securityCheckAccept(si);  // closes si if permission check fails
     }
 
     /**

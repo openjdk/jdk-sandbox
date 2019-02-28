@@ -732,16 +732,6 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         socketClose0(false);
     }
 
-
-    @Override
-    public void postCustomAccept() {
-        assert fd.valid() && localport != 0 && address != null && port != 0;
-        stream = true;
-
-        // assume the custom SocketImpl didn't register a cleaner
-        SocketCleanable.register(fd);
-    }
-
     @Override
     public void copyTo(SocketImpl si) {
         // this SocketImpl should be connected

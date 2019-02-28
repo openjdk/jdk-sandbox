@@ -465,23 +465,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * For use by ServerSocket to set the state and other fields after a
-     * connection is accepted by a ServerSocket using a custom SocketImpl.
-     * The protected fields defined by SocketImpl should be set.
-     */
-    @Override
-    public void postCustomAccept() throws IOException {
-        synchronized (stateLock) {
-            assert state == ST_NEW;
-            assert fd.valid() && localport != 0 && address != null && port != 0;
-            IOUtil.configureBlocking(fd, true);
-            stream = true;
-            closer = FileDescriptorCloser.create(this);
-            state = ST_CONNECTED;
-        }
-    }
-
-    /**
      * For use by ServerSocket to copy the state from this connected SocketImpl
      * to a target SocketImpl. If the target SocketImpl is not a newly created
      * SocketImpl then it is first closed to release any resources. The target
