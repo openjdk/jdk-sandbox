@@ -410,13 +410,8 @@ public class DeployParams {
                 Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId());
         if (appImage != null) {
             File appImageDir = new File(appImage);
-            if (!appImageDir.exists()) {
+            if (!appImageDir.exists() || appImageDir.list().length == 0) {
                 throw new PackagerException("ERR_AppImageNotExist", appImage);
-            }
-
-            File appImageAppDir = new File(appImage + File.separator + "app");
-            if (!appImageAppDir.exists()) {
-                throw new PackagerException("ERR_AppImageInvalid", appImage);
             }
         }
 

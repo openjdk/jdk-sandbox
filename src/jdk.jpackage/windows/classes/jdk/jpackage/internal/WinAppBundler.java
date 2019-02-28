@@ -29,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -118,14 +119,23 @@ public class WinAppBundler extends AbstractImageBundler {
             if (appName == null) {
                 // Use WIN_APP_IMAGE here, since we already copy pre-defined
                 // image to WIN_APP_IMAGE
-                File appImageDir = new File(
-                        WIN_APP_IMAGE.fetchFrom(p).toString() + "\\app");
-                File [] files = appImageDir.listFiles(
+                File appImageDir = WIN_APP_IMAGE.fetchFrom(p);
+
+                File appDir = new File(appImageDir.toString() + "\\app");
+                File [] files = appDir.listFiles(
                         (File dir, String name) -> name.endsWith(".cfg"));
                 if (files == null || files.length == 0) {
-                    throw new RuntimeException(MessageFormat.format(
-                        I18N.getString("error.cannot-find-launcher"),
-                        appImageDir));
+                    String name = APP_NAME.fetchFrom(p);
+                    Path exePath = appImageDir.toPath().resolve(name + ".exe");
+                    Path icoPath = appImageDir.toPath().resolve(name + ".ico");
+                    if (exePath.toFile().exists() &&
+                            icoPath.toFile().exists()) {
+                        return name;
+                    } else {
+                        throw new RuntimeException(MessageFormat.format(
+                                I18N.getString("error.cannot-find-launcher"),
+                                appImageDir));
+                    }
                 } else {
                     appName = files[0].getName();
                     int index = appName.indexOf(".");
