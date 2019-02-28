@@ -243,39 +243,17 @@ public class WinMsiBundler  extends AbstractBundler {
         return (Platform.getPlatform() == Platform.WINDOWS);
     }
 
-    static class VersionExtractor extends PrintStream {
-        double version = 0f;
-
-        public VersionExtractor() {
-            super(new ByteArrayOutputStream());
-        }
-
-        double getVersion() {
-            if (version == 0f) {
-                String content =
-                        new String(((ByteArrayOutputStream) out).toByteArray());
-                Pattern pattern = Pattern.compile("version (\\d+.\\d+)");
-                Matcher matcher = pattern.matcher(content);
-                if (matcher.find()) {
-                    String v = matcher.group(1);
-                    version = Double.parseDouble(v);
-                }
-            }
-            return version;
-        }
-    }
-
-    private static double findToolVersion(String toolName) {
+    private static String findToolVersion(String toolName) {
         try {
-            if (toolName == null || "".equals(toolName)) return 0f;
+            if (toolName == null || "".equals(toolName)) return null;
 
             ProcessBuilder pb = new ProcessBuilder(
                     toolName,
                     "/?");
-            VersionExtractor ve = new VersionExtractor();
+            VersionExtractor ve = new VersionExtractor("version (\\d+.\\d+)");
             // not interested in the output
             IOUtils.exec(pb, Log.isDebug(), true, ve);
-            double version = ve.getVersion();
+            String version = ve.getVersion();
             Log.verbose(MessageFormat.format(
                     I18N.getString("message.tool-version"),
                     toolName, version));
@@ -284,7 +262,7 @@ public class WinMsiBundler  extends AbstractBundler {
             if (Log.isDebug()) {
                 Log.verbose(e);
             }
-            return 0f;
+            return null;
         }
     }
 
@@ -300,22 +278,22 @@ public class WinMsiBundler  extends AbstractBundler {
             // we are not interested in return code, only possible exception
             APP_BUNDLER.fetchFrom(p).validate(p);
 
-            double candleVersion =
+            String candleVersion =
                     findToolVersion(TOOL_CANDLE_EXECUTABLE.fetchFrom(p));
-            double lightVersion =
+            String lightVersion =
                     findToolVersion(TOOL_LIGHT_EXECUTABLE.fetchFrom(p));
 
             // WiX 3.0+ is required
-            double minVersion = 3.0f;
+            String minVersion = "3.0";
             boolean bad = false;
 
-            if (candleVersion < minVersion) {
+            if (VersionExtractor.isLessThan(candleVersion, minVersion)) {
                 Log.verbose(MessageFormat.format(
                         I18N.getString("message.wrong-tool-version"),
                         TOOL_CANDLE, candleVersion, minVersion));
                 bad = true;
             }
-            if (lightVersion < minVersion) {
+            if (VersionExtractor.isLessThan(lightVersion, minVersion)) {
                 Log.verbose(MessageFormat.format(
                         I18N.getString("message.wrong-tool-version"),
                         TOOL_LIGHT, lightVersion, minVersion));
@@ -328,7 +306,7 @@ public class WinMsiBundler  extends AbstractBundler {
                         I18N.getString("error.no-wix-tools.advice"));
             }
 
-            if (lightVersion >= 3.6f) {
+            if (!VersionExtractor.isLessThan(lightVersion, "3.6")) {
                 Log.verbose(I18N.getString("message.use-wix36-features"));
                 p.put(CAN_USE_WIX36.getID(), Boolean.TRUE);
             }
@@ -743,7 +721,7 @@ public class WinMsiBundler  extends AbstractBundler {
         out.println(prefix + " <Component Id=\"comp" + (compId++)
                 + "\" DiskId=\"1\""
                 + " Guid=\"" + UUID.randomUUID().toString() + "\""
-                + " Win64=\"yes\"" 
+                + " Win64=\"yes\""
                 + ">");
         out.println(prefix + "  <CreateFolder/>");
         out.println(prefix + "  <RemoveFolder Id=\"RemoveDir"

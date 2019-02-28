@@ -200,39 +200,18 @@ public class WinExeBundler extends AbstractBundler {
         return (Platform.getPlatform() == Platform.WINDOWS);
     }
 
-    static class VersionExtractor extends PrintStream {
-        double version = 0f;
-
-        public VersionExtractor() {
-            super(new ByteArrayOutputStream());
-        }
-
-        double getVersion() {
-            if (version == 0f) {
-                String content =
-                        new String(((ByteArrayOutputStream) out).toByteArray());
-                Pattern pattern = Pattern.compile("Inno Setup (\\d+.?\\d*)");
-                Matcher matcher = pattern.matcher(content);
-                if (matcher.find()) {
-                    String v = matcher.group(1);
-                    version = Double.parseDouble(v);
-                }
-            }
-            return version;
-        }
-    }
-
-    private static double findToolVersion(String toolName) {
+    private static String findToolVersion(String toolName) {
         try {
-            if (toolName == null || "".equals(toolName)) return 0f;
+            if (toolName == null || "".equals(toolName)) return null;
 
             ProcessBuilder pb = new ProcessBuilder(
                     toolName,
                     "/?");
-            VersionExtractor ve = new VersionExtractor();
+            VersionExtractor ve =
+                    new VersionExtractor("Inno Setup (\\d+.?\\d*)");
             IOUtils.exec(pb, Log.isDebug(), true, ve);
             // not interested in the output
-            double version = ve.getVersion();
+            String version = ve.getVersion();
             Log.verbose(MessageFormat.format(
                     getString("message.tool-version"), toolName, version));
             return version;
@@ -240,7 +219,7 @@ public class WinExeBundler extends AbstractBundler {
             if (Log.isDebug()) {
                 Log.verbose(e);
             }
-            return 0f;
+            return null;
         }
     }
 
@@ -283,13 +262,13 @@ public class WinExeBundler extends AbstractBundler {
                         getString("error.copyright-is-too-long.advice"));
             }
 
-            double innoVersion = findToolVersion(
+            String innoVersion = findToolVersion(
                     TOOL_INNO_SETUP_COMPILER_EXECUTABLE.fetchFrom(p));
 
             //Inno Setup 5+ is required
-            double minVersion = 5.0f;
+            String minVersion = "5.0";
 
-            if (innoVersion < minVersion) {
+            if (VersionExtractor.isLessThan(innoVersion, minVersion)) {
                 Log.error(MessageFormat.format(
                         getString("message.tool-wrong-version"),
                         TOOL_INNO_SETUP_COMPILER, innoVersion, minVersion));
