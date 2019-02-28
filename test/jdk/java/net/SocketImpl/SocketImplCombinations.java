@@ -21,7 +21,7 @@
  * questions.
  */
 
-/**
+/*
  * @test
  * @modules java.base/java.net:+open java.base/sun.nio.ch:+open
  * @run testng/othervm SocketImplCombinations
