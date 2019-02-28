@@ -233,7 +233,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Tries to read bytes from the socket into the given byte array.
+     * Attempts to read bytes from the socket into the given byte array.
      */
     private int tryRead(FileDescriptor fd, byte[] b, int off, int len)
         throws IOException
@@ -374,7 +374,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Tries to write a sequence of bytes to this socket from the given
+     * Attempts to write a sequence of bytes to the socket from the given
      * byte array.
      */
     private int tryWrite(FileDescriptor fd, byte[] b, int off, int len)
@@ -391,7 +391,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Writes a sequence of bytes to this socket from the given byte array.
+     * Writes a sequence of bytes to the socket from the given byte array.
      * @return the number of bytes written
      * @throws SocketException if the socket is closed or an socket I/O error occurs
      */
@@ -418,7 +418,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Writes a sequence of bytes to this socket from the given byte array.
+     * Writes a sequence of bytes to the socket from the given byte array.
      * @throws SocketException if the socket is closed or an socket I/O error occurs
      */
     private void write(byte[] b, int off, int len) throws IOException {
@@ -442,7 +442,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     @Override
     protected void create(boolean stream) throws IOException {
         synchronized (stateLock) {
-            assert state == ST_NEW;
+            if (state != ST_NEW)
+                throw new IOException("Already created");
             if (!stream)
                 ResourceManager.beforeUdpCreate();
             FileDescriptor fd;
@@ -483,11 +484,11 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             }
             // copy/reset fields protected by stateLock
             synchronized (nsi.stateLock) {
-                assert nsi.state == ST_NEW || nsi.state == ST_CLOSED;
+                guarantee(nsi.state == ST_NEW || nsi.state == ST_CLOSED);
                 synchronized (this.stateLock) {
                     // this SocketImpl should be connected
-                    assert state == ST_CONNECTED && fd.valid()
-                        && localport != 0 && address != null && port != 0;
+                    guarantee(state == ST_CONNECTED && fd != null && fd.valid()
+                        && localport > 0 && address != null && port > 0);
 
                     // copy fields
                     nsi.stream = this.stream;
@@ -522,8 +523,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         } else {
             synchronized (this.stateLock) {
                 // this SocketImpl should be connected
-                assert state == ST_CONNECTED && fd.valid()
-                        && localport != 0 && address != null && port != 0;
+                guarantee(state == ST_CONNECTED && fd != null && fd.valid()
+                        && localport > 0 && address != null && port > 0);
 
                 // set fields in foreign impl
                 setSocketImplFields(si, fd, localport, address, port);
@@ -612,7 +613,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Connects the socket. Closes the socket if connection cannot be established.
+     * Attempts to establish a connection to the given socket address with a
+     * timeout. Closes the socket if connection cannot be established.
      * @throws IllegalArgumentException if the address is not an InetSocketAddress
      * @throws UnknownHostException if the InetSocketAddress is not resolved
      * @throws IOException if the connection cannot be established
@@ -687,7 +689,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 throw new SocketException("Already bound");
             NetHooks.beforeTcpBind(fd, host, port);
             Net.bind(fd, host, port);
-            // set the address field to the given address, host, to keep
+            // set the address field to the given host address to keep
             // compatibility with PlainSocketImpl. When binding to 0.0.0.0
             // then the actual local address will be ::0 when IPv6 is enabled.
             address = host;
@@ -764,6 +766,10 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         return n;
     }
 
+    /**
+     * Accepts a new connection so that the given SocketImpl is connected to
+     * the peer.
+     */
     @Override
     protected void accept(SocketImpl si) throws IOException {
         // accept a connection
@@ -1319,5 +1325,12 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         Field field = SocketImpl.class.getDeclaredField(name);
         field.setAccessible(true);
         field.set(si, value);
+    }
+
+    /**
+     * Throws InternalError if the given expression is not true.
+     */
+    private static void guarantee(boolean expr) {
+        if (!expr) throw new InternalError();
     }
 }
