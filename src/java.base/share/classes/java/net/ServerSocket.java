@@ -598,7 +598,7 @@ class ServerSocket implements java.io.Closeable {
      */
     private void implAccept(SocketImpl si) throws IOException {
         assert !(si instanceof DelegatingSocketImpl);
-        
+
         // A non-platform SocketImpl cannot accept a connection with a platform
         // SocketImpl
         if (!(impl instanceof PlatformSocketImpl) && si instanceof PlatformSocketImpl) {
