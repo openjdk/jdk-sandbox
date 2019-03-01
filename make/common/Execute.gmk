@@ -140,7 +140,7 @@ define SetupExecuteBody
         ifneq ($$($1_INFO), )
 	  $$(call LogInfo, $$($1_INFO))
         endif
-	$$(call MakeDir, $$($1_SUPPORT_DIR) $$($1_OUTPUT_DIR))
+	$$(call MakeDir, $$(call EncodeSpace, $$($1_SUPPORT_DIR)) $$(call EncodeSpace, $$($1_OUTPUT_DIR)))
 	$$(call ExecuteWithLog, $$($1_BASE)_exec, \
 	    $$($1_COMMAND))
         ifeq ($$($1_EXEC_RESULT), $$($1_EXEC_MARKER))
