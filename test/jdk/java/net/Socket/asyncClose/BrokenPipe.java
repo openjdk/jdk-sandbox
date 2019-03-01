@@ -69,7 +69,7 @@ public class BrokenPipe {
              * replace this by catching a more specific exception.
              */
             String text = ioe.getMessage();
-            if (text.toLowerCase().indexOf("Socket closed") >= 0) {
+            if (text.toLowerCase().indexOf("closed") >= 0) {
                 throw ioe;
             }
         } finally {
