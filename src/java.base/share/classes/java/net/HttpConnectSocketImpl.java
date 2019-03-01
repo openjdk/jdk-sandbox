@@ -209,10 +209,14 @@ import java.util.Set;
         }
     }
 
-    private void doTunneling(HttpURLConnection conn) {
+    private void doTunneling(HttpURLConnection conn) throws IOException {
         try {
             doTunneling.invoke(conn);
         } catch (ReflectiveOperationException x) {
+            Throwable cause = x.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            }
             throw new InternalError("Should not reach here", x);
         }
     }
