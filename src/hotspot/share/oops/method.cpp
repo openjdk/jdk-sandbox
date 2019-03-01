@@ -42,6 +42,7 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/constMethod.hpp"
+#include "oops/constantPool.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -2119,7 +2120,8 @@ void Method::change_method_associated_with_jmethod_id(jmethodID jmid, Method* ne
   // Can't assert the method_holder is the same because the new method has the
   // scratch method holder.
   assert(resolve_jmethod_id(jmid)->method_holder()->class_loader()
-           == new_method->method_holder()->class_loader(),
+           == new_method->method_holder()->class_loader() ||
+           new_method->method_holder()->class_loader() == NULL, // allow Unsafe substitution
          "changing to a different class loader");
   // Just change the method in place, jmethodID pointer doesn't change.
   *((Method**)jmid) = new_method;

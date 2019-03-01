@@ -421,11 +421,21 @@ class Thread: public ThreadShadow {
 
 #ifdef ASSERT
  private:
-  bool _visited_for_critical_count;
+  volatile uint64_t _visited_for_critical_count;
 
  public:
-  void set_visited_for_critical_count(bool z) { _visited_for_critical_count = z; }
-  bool was_visited_for_critical_count() const   { return _visited_for_critical_count; }
+  void set_visited_for_critical_count(uint64_t safepoint_id) {
+    assert(_visited_for_critical_count == 0, "Must be reset before set");
+    assert((safepoint_id & 0x1) == 1, "Must be odd");
+    _visited_for_critical_count = safepoint_id;
+  }
+  void reset_visited_for_critical_count(uint64_t safepoint_id) {
+    assert(_visited_for_critical_count == safepoint_id, "Was not visited");
+    _visited_for_critical_count = 0;
+  }
+  bool was_visited_for_critical_count(uint64_t safepoint_id) const {
+    return _visited_for_critical_count == safepoint_id;
+  }
 #endif
 
  public:
@@ -782,7 +792,6 @@ protected:
   volatile int _TypeTag;
   ParkEvent * _ParkEvent;                     // for synchronized()
   ParkEvent * _SleepEvent;                    // for Thread.sleep
-  ParkEvent * _MutexEvent;                    // for native internal Mutex/Monitor
   ParkEvent * _MuxEvent;                      // for low-level muxAcquire-muxRelease
   int NativeSyncRecursion;                    // diagnostic
 
@@ -791,8 +800,6 @@ protected:
   jint _hashStateX;                           // thread-specific hashCode generator state
   jint _hashStateY;
   jint _hashStateZ;
-
-  volatile jint rng[4];                      // RNG for spin loop
 
   // Low-level leaf-lock primitives used to implement synchronization
   // and native monitor-mutex infrastructure.
@@ -1280,15 +1287,8 @@ class JavaThread: public Thread {
   address last_Java_pc(void)                     { return _anchor.last_Java_pc(); }
 
   // Safepoint support
-#if !(defined(PPC64) || defined(AARCH64))
-  JavaThreadState thread_state() const           { return _thread_state; }
-  void set_thread_state(JavaThreadState s)       { _thread_state = s;    }
-#else
-  // Use membars when accessing volatile _thread_state. See
-  // Threads::create_vm() for size checks.
   inline JavaThreadState thread_state() const;
   inline void set_thread_state(JavaThreadState s);
-#endif
   inline ThreadSafepointState* safepoint_state() const;
   inline void set_safepoint_state(ThreadSafepointState* state);
   inline bool is_at_poll_safepoint();

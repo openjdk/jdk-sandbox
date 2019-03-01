@@ -521,6 +521,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Override with specific mechanism for each specialized heap type.
   virtual void register_nmethod(nmethod* nm) {}
   virtual void unregister_nmethod(nmethod* nm) {}
+  virtual void flush_nmethod(nmethod* nm) {}
   virtual void verify_nmethod(nmethod* nmethod) {}
 
   void trace_heap_before_gc(const GCTracer* gc_tracer);
@@ -533,12 +534,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // request_concurrent_phase_control) is supported by this collector.
   // The default implementation returns false.
   virtual bool supports_concurrent_phase_control() const;
-
-  // Return a NULL terminated array of concurrent phase names provided
-  // by this collector.  Supports Whitebox testing.  These are the
-  // names recognized by request_concurrent_phase(). The default
-  // implementation returns an array of one NULL element.
-  virtual const char* const* concurrent_phases() const;
 
   // Request the collector enter the indicated concurrent phase, and
   // wait until it does so.  Supports WhiteBox testing.  Only one

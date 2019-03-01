@@ -123,6 +123,11 @@ public:
 
 #ifdef SUPPORTS_CLOCK_MONOTONIC
 
+private:
+  // These need to be members so we can access them from inline functions
+  static int (*_clock_gettime)(clockid_t, struct timespec *);
+  static int (*_clock_getres)(clockid_t, struct timespec *);
+public:
   static bool supports_monotonic_clock();
   static int clock_gettime(clockid_t clock_id, struct timespec *tp);
   static int clock_getres(clockid_t clock_id, struct timespec *tp);
@@ -172,7 +177,7 @@ private:
  * These event objects are type-stable and immortal - we never delete them.
  * Events are associated with a thread for the lifetime of the thread.
  */
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
  private:
   double cachePad[4];        // Increase odds that _mutex is sole occupant of cache line
   volatile int _event;       // Event count/permit: -1, 0 or 1
@@ -207,7 +212,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
 // API updates of course). But Parker methods use fastpaths that break that
 // level of encapsulation - so combining the two remains a future project.
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
  protected:
   enum {
     REL_INDEX = 0,
@@ -222,6 +227,23 @@ class PlatformParker : public CHeapObj<mtInternal> {
 
  public:
   PlatformParker();
+};
+
+// Platform specific implementation that underpins VM Monitor/Mutex class
+class PlatformMonitor : public CHeapObj<mtSynchronizer> {
+ private:
+  pthread_mutex_t _mutex; // Native mutex for locking
+  pthread_cond_t  _cond;  // Native condition variable for blocking
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+  void lock();
+  void unlock();
+  bool try_lock();
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
 };
 
 #endif // !SOLARIS

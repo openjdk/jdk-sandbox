@@ -25,10 +25,10 @@
 #include "jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
+#include "os_posix.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/os.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/formatBuffer.hpp"
@@ -180,19 +180,16 @@ int os::create_file_for_heap(const char* dir) {
 
   const char name_template[] = "/jvmheap.XXXXXX";
 
-  char *fullname = (char*)os::malloc((strlen(dir) + strlen(name_template) + 1), mtInternal);
+  size_t fullname_len = strlen(dir) + strlen(name_template);
+  char *fullname = (char*)os::malloc(fullname_len + 1, mtInternal);
   if (fullname == NULL) {
     vm_exit_during_initialization(err_msg("Malloc failed during creation of backing file for heap (%s)", os::strerror(errno)));
     return -1;
   }
-  (void)strncpy(fullname, dir, strlen(dir)+1);
-  (void)strncat(fullname, name_template, strlen(name_template));
+  int n = snprintf(fullname, fullname_len + 1, "%s%s", dir, name_template);
+  assert((size_t)n == fullname_len, "Unexpected number of characters in string");
 
   os::native_path(fullname);
-
-  sigset_t set, oldset;
-  int ret = sigfillset(&set);
-  assert_with_errno(ret == 0, "sigfillset returned error");
 
   // set the file creation mask.
   mode_t file_mode = S_IRUSR | S_IWUSR;
@@ -207,7 +204,7 @@ int os::create_file_for_heap(const char* dir) {
   }
 
   // delete the name from the filesystem. When 'fd' is closed, the file (and space) will be deleted.
-  ret = unlink(fullname);
+  int ret = unlink(fullname);
   assert_with_errno(ret == 0, "unlink returned error");
 
   os::free(fullname);
@@ -1659,25 +1656,12 @@ static void pthread_init_common(void) {
 
 // This means we have clockid_t, clock_gettime et al and CLOCK_MONOTONIC
 
-static int (*_clock_gettime)(clockid_t, struct timespec *) = NULL;
-static int (*_clock_getres)(clockid_t, struct timespec *) = NULL;
+int (*os::Posix::_clock_gettime)(clockid_t, struct timespec *) = NULL;
+int (*os::Posix::_clock_getres)(clockid_t, struct timespec *) = NULL;
+
 static int (*_pthread_condattr_setclock)(pthread_condattr_t *, clockid_t) = NULL;
 
 static bool _use_clock_monotonic_condattr = false;
-
-// Exported clock functionality
-
-int os::Posix::clock_gettime(clockid_t clock_id, struct timespec *tp) {
-  return _clock_gettime != NULL ? _clock_gettime(clock_id, tp) : -1;
-}
-
-int os::Posix::clock_getres(clockid_t clock_id, struct timespec *tp) {
-  return _clock_getres != NULL ? _clock_getres(clock_id, tp) : -1;
-}
-
-bool os::Posix::supports_monotonic_clock() {
-  return _clock_gettime != NULL;
-}
 
 // Determine what POSIX API's are present and do appropriate
 // configuration.
@@ -1879,12 +1863,12 @@ static void to_abstime(timespec* abstime, jlong timeout,
 
   clockid_t clock = CLOCK_MONOTONIC;
   // need to ensure we have a runtime check for clock_gettime support
-  if (!isAbsolute && _clock_gettime != NULL) {
+  if (!isAbsolute && os::Posix::supports_monotonic_clock()) {
     if (!_use_clock_monotonic_condattr || isRealtime) {
       clock = CLOCK_REALTIME;
     }
     struct timespec now;
-    int status = _clock_gettime(clock, &now);
+    int status = os::Posix::clock_gettime(clock, &now);
     assert_status(status == 0, status, "clock_gettime");
     calc_rel_time(abstime, timeout, now.tv_sec, now.tv_nsec, NANOUNITS);
     DEBUG_ONLY(max_secs += now.tv_sec;)
@@ -2215,5 +2199,48 @@ void Parker::unpark() {
   }
 }
 
+// Platform Monitor implementation
+
+os::PlatformMonitor::PlatformMonitor() {
+  int status = pthread_cond_init(&_cond, _condAttr);
+  assert_status(status == 0, status, "cond_init");
+  status = pthread_mutex_init(&_mutex, _mutexAttr);
+  assert_status(status == 0, status, "mutex_init");
+}
+
+os::PlatformMonitor::~PlatformMonitor() {
+  int status = pthread_cond_destroy(&_cond);
+  assert_status(status == 0, status, "cond_destroy");
+  status = pthread_mutex_destroy(&_mutex);
+  assert_status(status == 0, status, "mutex_destroy");
+}
+
+// Must already be locked
+int os::PlatformMonitor::wait(jlong millis) {
+  assert(millis >= 0, "negative timeout");
+  if (millis > 0) {
+    struct timespec abst;
+    // We have to watch for overflow when converting millis to nanos,
+    // but if millis is that large then we will end up limiting to
+    // MAX_SECS anyway, so just do that here.
+    if (millis / MILLIUNITS > MAX_SECS) {
+      millis = jlong(MAX_SECS) * MILLIUNITS;
+    }
+    to_abstime(&abst, millis * (NANOUNITS / MILLIUNITS), false, false);
+
+    int ret = OS_TIMEOUT;
+    int status = pthread_cond_timedwait(&_cond, &_mutex, &abst);
+    assert_status(status == 0 || status == ETIMEDOUT,
+                  status, "cond_timedwait");
+    if (status == 0) {
+      ret = OS_OK;
+    }
+    return ret;
+  } else {
+    int status = pthread_cond_wait(&_cond, &_mutex);
+    assert_status(status == 0, status, "cond_wait");
+    return OS_OK;
+  }
+}
 
 #endif // !SOLARIS
