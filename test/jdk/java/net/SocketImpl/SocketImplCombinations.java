@@ -213,7 +213,7 @@ public class SocketImplCombinations {
      * Test creating a Socket with a "null" SocketImpl when there is a
      * SocketImplFactory set.
      */
-    public void testNewSocket20() throws IOException {
+    public void testNewSocket12() throws IOException {
         setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
         try {
             Socket s = new Socket((SocketImpl) null) { };
@@ -398,6 +398,94 @@ public class SocketImplCombinations {
     }
 
     /**
+     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
+     * has a platform SocketImpl so IOException should be thrown.
+     */
+    public void testServerSocketAccept7() throws IOException {
+        SocketImpl impl = new CustomSocketImpl(true);
+        var socket = new Socket();
+        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
+     * has no SocketImpl so a platform SocketImpl will be created and IOException
+     * should be thrown.
+     */
+    public void testServerSocketAccept8() throws IOException {
+        SocketImpl impl = new CustomSocketImpl(true);
+        var socket = new Socket((SocketImpl) null) { };
+        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
+     * has no SocketImpl so a platform SocketImpl will be created and IOException
+     * should be thrown.
+     */
+    public void testServerSocketAccept9() throws IOException {
+        SocketImpl impl = new CustomSocketImpl(true);
+        try (ServerSocket ss = new ServerSocket(impl) { }) {
+            ss.bind(new InetSocketAddress(0));
+            expectThrows(IOException.class, ss::accept);
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept where there is a custom server SocketImplFactory
+     * set. The client Socket has a platform SocketImpl so IOException should be
+     * thrown.
+     */
+    public void testServerSocketAccept10() throws IOException {
+        var socket = new Socket();
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setServerSocketImplFactory(null);
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept where there is a custom server SocketImplFactory
+     * set. The client Socket has no SocketImpl so a platform SocketImpl will be
+     * created and IOException should be thrown.
+     */
+    public void testServerSocketAccept11() throws IOException {
+        var socket = new Socket((SocketImpl) null) { };
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setServerSocketImplFactory(null);
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept where there is a custom server SocketImplFactory
+     * set. The client Socket has no SocketImpl so a platform SocketImpl will be
+     * created and IOException should be thrown.
+     */
+    public void testServerSocketAccept12() throws IOException {
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = new ServerSocket(0)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setServerSocketImplFactory(null);
+        }
+    }
+
+    /**
      * Creates a ServerSocket that returns the given Socket from accept.
      * The consumer is invoked with the server socket and the accepted socket.
      */
@@ -437,28 +525,6 @@ public class SocketImplCombinations {
             } finally {
                 setSocketSocketImplFactory(null);
             }
-            consumer.accept(ss, s2);
-        } finally {
-            if (s1 != null) s1.close();
-            if (s2 != null) s2.close();
-        }
-    }
-
-    /**
-     * Creates a ServerSocket with a SocketImpl that returns the given Socket
-     * from accept. The consumer is invoked with the server socket and the
-     * accepted socket.
-     */
-    static void serverSocketAccept(SocketImpl impl,
-                                   Socket socket,
-                                   BiConsumer<ServerSocket, Socket> consumer)
-        throws IOException
-    {
-        Socket s1 = null;
-        Socket s2 = null;
-        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
-            s1 = new Socket(ss.getInetAddress(), ss.getLocalPort());
-            s2 = ss.accept();
             consumer.accept(ss, s2);
         } finally {
             if (s1 != null) s1.close();
