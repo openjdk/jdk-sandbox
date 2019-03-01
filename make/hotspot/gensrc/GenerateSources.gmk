@@ -36,10 +36,10 @@ include HotspotCommon.gmk
 
 # The real work is done in these files
 
+include gensrc/GensrcJfr.gmk
 include gensrc/GensrcAdlc.gmk
 include gensrc/GensrcDtrace.gmk
 include gensrc/GensrcJvmti.gmk
-include gensrc/GensrcJfr.gmk
 
 $(eval $(call IncludeCustomExtension, hotspot/gensrc/GenerateSources.gmk))
 

@@ -64,4 +64,5 @@ $(eval $(call SetupExecute, jfr_gen, \
     COMMAND := $(TOOL_JFR_GEN) $(METADATA_XML) $(METADATA_XSD) $(JFR_OUTPUTDIR), \
 ))
 
-TARGETS += $(jfr_gen_TARGET)
+JFR_FILES := $(jfr_gen_TARGET)
+TARGETS += $(JFR_FILES)

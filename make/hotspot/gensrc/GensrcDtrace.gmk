@@ -64,9 +64,9 @@ ifeq ($(call check-jvm-feature, dtrace), true)
     include lib/JvmFeatures.gmk
     include lib/JvmFlags.gmk
 
-    # We cannot compile until the JVMTI and JFR gensrc has finished
+    # We cannot compile until the JVMTI and JFR gensrc has finished.
+    # JFR_FILES is defined in GensrcJfr.gmk.
     JVMTI_H := $(JVM_VARIANT_OUTPUTDIR)/gensrc/jvmtifiles/jvmti.h
-    JFR_FILES := $(JVM_VARIANT_OUTPUTDIR)/gensrc/jfrfiles/jfrEventClasses.hpp
 
     $(eval $(call SetupNativeCompilation, BUILD_DTRACE_GEN_OFFSETS, \
         NAME := dtraceGenOffsets, \
