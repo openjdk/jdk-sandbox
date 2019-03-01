@@ -32,27 +32,26 @@
  * @run main/othervm -Xmx512m JPackageCreateImageJVMArgsTest
  */
 public class JPackageCreateImageJVMArgsTest {
+    private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--overwrite",
         "--jvm-args", "TBD"};
 
     private static final String[] CMD2 = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--overwrite",
         "--jvm-args", "TBD",
         "--jvm-args", "TBD",
         "--jvm-args", "TBD"};
@@ -60,9 +59,12 @@ public class JPackageCreateImageJVMArgsTest {
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgsToolProvider(CMD);
 
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2(CMD2);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2ToolProvider(CMD2);
     }
 

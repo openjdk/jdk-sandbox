@@ -32,11 +32,11 @@
  * @run main/othervm -Xmx512m JPackageCreateImageSecondaryLauncherModuleTest
  */
 public class JPackageCreateImageSecondaryLauncherModuleTest {
+    private static final String OUTPUT = "output";
     private static final String [] CMD = {
         "create-image",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
-        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
         "--secondary-launcher", "sl.properties"};
@@ -45,6 +45,7 @@ public class JPackageCreateImageSecondaryLauncherModuleTest {
         JPackageHelper.createHelloModule();
         JPackageCreateImageSecondaryLauncherBase.createSLProperties();
         JPackageCreateImageSecondaryLauncherBase.testCreateImage(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageSecondaryLauncherBase.testCreateImageToolProvider(CMD);
     }
 

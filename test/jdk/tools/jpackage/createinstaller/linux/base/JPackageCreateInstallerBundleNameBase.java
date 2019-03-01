@@ -75,7 +75,6 @@ public class JPackageCreateInstallerBundleNameBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--overwrite",
             "--files", "hello.jar",
             "--linux-bundle-name", BUNDLE_NAME};
     }

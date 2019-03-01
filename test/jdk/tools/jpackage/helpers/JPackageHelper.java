@@ -22,11 +22,15 @@
  */
 
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.FileVisitResult;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -147,6 +151,47 @@ public class JPackageHelper {
         }
 
         return command;
+    }
+
+    private static void deleteRecursive(File path) throws IOException {
+        if (!path.exists()) {
+            return;
+        }
+
+        Path directory = path.toPath();
+        Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file,
+                    BasicFileAttributes attr) throws IOException {
+                if (OS.startsWith("win")) {
+                    Files.setAttribute(file, "dos:readonly", false);
+                }
+                Files.delete(file);
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir,
+                    BasicFileAttributes attr) throws IOException {
+                if (OS.startsWith("win")) {
+                    Files.setAttribute(dir, "dos:readonly", false);
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException e)
+                    throws IOException {
+                Files.delete(dir);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    public static void deleteOutputFolder(String output) throws IOException {
+        File outputFolder = new File(output);
+        System.out.println("AMDEBUG output: " + outputFolder.getAbsolutePath());
+        deleteRecursive(outputFolder);
     }
 
     public static String executeCLI(boolean retValZero, String... args) throws Exception {

@@ -32,17 +32,19 @@
  * @run main/othervm -Xmx512m JPackageCreateImageModuleTest
  */
 public class JPackageCreateImageModuleTest {
+    private static final String OUTPUT = "output";
+
     private static final String [] CMD = {
         "create-image",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
-        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();
         JPackageCreateImageBase.testCreateImage(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageBase.testCreateImageToolProvider(CMD);
     }
 

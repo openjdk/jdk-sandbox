@@ -35,6 +35,7 @@ import java.nio.file.Files;
  * @run main/othervm -Xmx512m JPackageCreateImageVersionTest
  */
 public class JPackageCreateImageVersionTest {
+    private static final String OUTPUT = "output";
     private static final String appCfg = JPackagePath.getAppCfg();
     private static final String VERSION = "2.3";
     private static final String VERSION_DEFAULT = "1.0";
@@ -42,22 +43,20 @@ public class JPackageCreateImageVersionTest {
     private static final String[] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String[] CMD_VERSION = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--overwrite",
         "--app-version", VERSION};
 
     private static void validate(String version)
@@ -82,13 +81,16 @@ public class JPackageCreateImageVersionTest {
     private static void testVersion() throws Exception {
         JPackageHelper.executeCLI(true, CMD);
         validate(null);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeCLI(true, CMD_VERSION);
         validate(VERSION);
     }
 
     private static void testVersionToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
         validate(null);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD_VERSION);
         validate(VERSION);
     }

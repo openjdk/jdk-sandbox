@@ -31,26 +31,24 @@
  * @run main/othervm -Xmx512m JPackageCreateImageVerboseTest
  */
 public class JPackageCreateImageVerboseTest {
-
+    private static final String OUTPUT = "output";
     private static final String[] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar"};
 
     private static final String[] CMD_VERBOSE = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--overwrite",
         "--verbose"};
 
     private static void validate(String result, String resultVerbose)
@@ -70,12 +68,15 @@ public class JPackageCreateImageVerboseTest {
 
     private static void testCreateImage() throws Exception {
         String result = JPackageHelper.executeCLI(true, CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         String resultVerbose = JPackageHelper.executeCLI(true, CMD_VERBOSE);
         validate(result, resultVerbose);
     }
 
     private static void testCreateImageToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         String result = JPackageHelper.executeToolProvider(true, CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         String resultVerbose =
                 JPackageHelper.executeToolProvider(true, CMD_VERBOSE);
         validate(result, resultVerbose);

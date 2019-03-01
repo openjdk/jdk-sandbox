@@ -32,21 +32,22 @@
  * @run main/othervm -Xmx512m JPackageCreateImageRuntimeTest
  */
 public class JPackageCreateImageRuntimeTest {
+    private static final String OUTPUT = "output";
     private static final String [] CMD = {
         "create-image",
         "--runtime-image", "runtime",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
         JPackageHelper.createRuntime();
         JPackageCreateImageRuntimeBase.testCreateImage(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageRuntimeBase.testCreateImageToolProvider(CMD);
     }
 

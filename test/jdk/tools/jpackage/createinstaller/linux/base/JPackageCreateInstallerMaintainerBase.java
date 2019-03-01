@@ -86,13 +86,12 @@ public class JPackageCreateInstallerMaintainerBase {
         OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         CMD = new String[]{
             "create-installer",
-            EXT,
+            "--installer-type", EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--overwrite",
             "--files", "hello.jar",
             "--linux-deb-maintainer", EMAIL};
     }

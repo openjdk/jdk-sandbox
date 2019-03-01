@@ -36,6 +36,7 @@ import java.io.PrintWriter;
  * @run main/othervm -Xmx512m JPackageCreateImageInputFilesTest
  */
 public class JPackageCreateImageInputFilesTest {
+    private static final String OUTPUT = "output";
     private static final String inputFile =
             "input" + File.separator + "input.txt";
     private static final String jarFile =
@@ -51,20 +52,18 @@ public class JPackageCreateImageInputFilesTest {
     private static final String [] CMD_1 = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--overwrite",
         "--main-class", "Hello"};
 
     private static final String [] CMD_2 = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validate1() throws Exception {
@@ -99,14 +98,17 @@ public class JPackageCreateImageInputFilesTest {
         JPackageHelper.executeCLI(true, CMD_1);
         validate1();
 
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeCLI(true, CMD_2);
         validate2();
     }
 
     private static void testCreateImageToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD_1);
         validate1();
 
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD_2);
         validate2();
     }

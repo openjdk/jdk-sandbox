@@ -34,6 +34,7 @@ import java.nio.file.Files;
  * @run main/othervm -Xmx512m JPackageCreateImageIconTest
  */
 public class JPackageCreateImageIconTest {
+    private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
@@ -44,10 +45,9 @@ public class JPackageCreateImageIconTest {
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar",
         "--icon", getIconPath(),
-        "--output", "output"};
+        "--output", OUTPUT};
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {
@@ -98,6 +98,7 @@ public class JPackageCreateImageIconTest {
     }
 
     private static void testIconToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
         validate();
         validateIcon();

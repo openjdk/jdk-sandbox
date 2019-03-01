@@ -32,12 +32,12 @@
  * @run main/othervm -Xmx512m JPackageCreateImageRuntimeModuleTest
  */
 public class JPackageCreateImageRuntimeModuleTest {
+    private static final String OUTPUT = "output";
     private static final String [] CMD = {
         "create-image",
         "--runtime-image", "runtime",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
-        "--overwrite",
         "--win-console",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input"};
@@ -46,6 +46,7 @@ public class JPackageCreateImageRuntimeModuleTest {
         JPackageHelper.createHelloModule();
         JPackageHelper.createRuntime();
         JPackageCreateImageRuntimeBase.testCreateImage(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageRuntimeBase.testCreateImageToolProvider(CMD);
     }
 

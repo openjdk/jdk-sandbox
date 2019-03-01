@@ -151,7 +151,6 @@ public class JPackageCreateInstallerWinRegistryNameBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--overwrite",
             "--files", "hello.jar",
             "--file-associations", "fa.properties",
             "--win-registry-name", WIN_REGISTRY_NAME};

@@ -75,7 +75,6 @@ public class JPackageCreateInstallerBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--overwrite",
             "--files", "hello.jar"};
     }
 

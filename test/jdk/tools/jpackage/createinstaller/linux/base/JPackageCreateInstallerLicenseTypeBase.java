@@ -96,7 +96,6 @@ public class JPackageCreateInstallerLicenseTypeBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--overwrite",
             "--files", "hello.jar",
             "--linux-rpm-license-type", JP_LICENSE_TYPE};
     }

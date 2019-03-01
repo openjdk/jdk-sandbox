@@ -34,6 +34,7 @@ import java.nio.file.Files;
  * @run main/othervm -Xmx512m JPackageCreateImageMainClassAttributeTest
  */
 public class JPackageCreateImageMainClassAttributeTest {
+    private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
@@ -41,10 +42,9 @@ public class JPackageCreateImageMainClassAttributeTest {
     private static final String[] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--overwrite",
         "--files", "hello.jar"};
 
     private static void validateResult(String[] result) throws Exception {
@@ -85,6 +85,7 @@ public class JPackageCreateImageMainClassAttributeTest {
     }
 
     private static void testMainClassAttributeToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
         validate();
     }

@@ -34,6 +34,7 @@ import java.io.File;
  * @run main/othervm -Xmx512m JPackageCreateImageBuildRootTest
  */
 public class JPackageCreateImageBuildRootTest {
+    private static final String OUTPUT = "output";
     private static String buildRoot = null;
     private static final String BUILD_ROOT = "buildRoot";
     private static final String BUILD_ROOT_TB = "buildRootToolProvider";
@@ -41,22 +42,20 @@ public class JPackageCreateImageBuildRootTest {
     private static final String [] CMD = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--overwrite" };
+        "--files", "hello.jar" };
 
     private static final String [] CMD_BUILD_ROOT = {
         "create-image",
         "--input", "input",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--overwrite",
         "--build-root", "TBD"};
 
     private static void validate(boolean retain) throws Exception {
@@ -86,14 +85,17 @@ public class JPackageCreateImageBuildRootTest {
         init(false);
         JPackageHelper.executeCLI(true, CMD);
         validate(false);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeCLI(true, CMD_BUILD_ROOT);
         validate(true);
     }
 
     private static void testBuildRootToolProvider() throws Exception {
         init(true);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
         validate(false);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD_BUILD_ROOT);
         validate(true);
     }

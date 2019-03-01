@@ -75,7 +75,6 @@ public class JPackageCreateInstallerLicenseBase {
         "--name", TEST_NAME,
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--overwrite",
         "--files", "hello.jar",
         "--license-file", JPackagePath.getLicenseFilePath()};
     }

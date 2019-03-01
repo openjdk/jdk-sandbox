@@ -32,21 +32,20 @@
  * @run main/othervm -Xmx512m JPackageCreateImageJVMArgsModuleTest
  */
 public class JPackageCreateImageJVMArgsModuleTest {
+    private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
         "create-image",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
-        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
         "--jvm-args", "TBD"};
 
     private static final String[] CMD2 = {
         "create-image",
-        "--output", "output",
+        "--output", OUTPUT,
         "--name", "test",
-        "--overwrite",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
         "--jvm-args", "TBD",
@@ -57,9 +56,12 @@ public class JPackageCreateImageJVMArgsModuleTest {
         JPackageHelper.createHelloModule();
 
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs(CMD);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgsToolProvider(CMD);
 
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2(CMD2);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2ToolProvider(CMD2);
     }
 
