@@ -607,14 +607,9 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         }
     }
 
-    void reset() throws IOException {
-        if (fd != null) {
-            socketClose();
-        }
-        fd = null;
-        super.reset();
+    void reset() {
+        throw new InternalError("should not get here");
     }
-
 
     /**
      * Shutdown read-half of the socket connection;

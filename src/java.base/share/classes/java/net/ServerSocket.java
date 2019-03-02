@@ -576,6 +576,7 @@ class ServerSocket implements java.io.Closeable {
         boolean completed = false;
         try {
             si.reset();
+            // custom SocketImpl may expect fd/address to be created
             si.fd = new FileDescriptor();
             si.address = new InetAddress();
             impl.accept(si);
@@ -599,19 +600,20 @@ class ServerSocket implements java.io.Closeable {
     private void implAccept(SocketImpl si) throws IOException {
         assert !(si instanceof DelegatingSocketImpl);
 
-        // A non-platform SocketImpl cannot accept a connection with a platform
-        // SocketImpl
-        if (!(impl instanceof PlatformSocketImpl) && si instanceof PlatformSocketImpl) {
+        // A non-platform SocketImpl cannot accept a connection with a platform SocketImpl
+        if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
             throw new IOException("An instance of " + impl.getClass() +
-                    " cannot accept a connection with an instance of " + si.getClass());
+                " cannot accept a connection with an instance of " + si.getClass());
         }
 
+        // accept a connection
         impl.accept(si);
 
+        // sanity check that the fields defined by SocketImpl have been set
         if (si instanceof PlatformSocketImpl) {
             var fd = si.fd;
-            if (fd == null || !fd.valid() || si.localport <= 0 ||
-                si.address == null || si.port <= 0) {
+            if (fd == null || !fd.valid() || si.localport <= 0
+                    || si.address == null || si.port <= 0) {
                 throw new IOException("Invalid accepted state:" + si);
             }
         }

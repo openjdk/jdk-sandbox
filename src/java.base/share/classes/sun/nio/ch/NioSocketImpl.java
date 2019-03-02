@@ -1173,9 +1173,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             ensureOpenAndConnected();
             if (!isInputClosed) {
                 Net.shutdown(fd, Net.SHUT_RD);
-                long reader = readerThread;
-                if (reader != 0)
-                    NativeThread.signal(reader);
                 isInputClosed = true;
             }
         }
@@ -1187,9 +1184,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             ensureOpenAndConnected();
             if (!isOutputClosed) {
                 Net.shutdown(fd, Net.SHUT_WR);
-                long writer = writerThread;
-                if (writer != 0)
-                    NativeThread.signal(writer);
                 isOutputClosed = true;
             }
         }
@@ -1285,15 +1279,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         } else {
             return StandardProtocolFamily.INET;
         }
-    }
-
-    /**
-     * Returns the native file descriptor.
-     */
-    private static int fdVal(FileDescriptor fd) {
-        int fdVal = SharedSecrets.getJavaIOFileDescriptorAccess().get(fd);
-        assert fdVal == IOUtil.fdVal(fd);
-        return fdVal;
     }
 
     /**

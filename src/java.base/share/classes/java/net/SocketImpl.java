@@ -332,7 +332,8 @@ public abstract class SocketImpl implements SocketOptions {
             ",port=" + getPort() + ",localport=" + getLocalPort()  + "]";
     }
 
-    void reset() throws IOException {
+    void reset() {
+        fd = null;
         address = null;
         port = 0;
         localport = 0;
