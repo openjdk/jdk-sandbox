@@ -291,6 +291,7 @@ class ServerSocket implements java.io.Closeable {
     }
 
     private void setImpl() {
+        SocketImplFactory factory = ServerSocket.factory;
         if (factory != null) {
             impl = factory.createSocketImpl();
             checkOldImpl();
@@ -841,7 +842,7 @@ class ServerSocket implements java.io.Closeable {
     /**
      * The factory for all server sockets.
      */
-    private static SocketImplFactory factory = null;
+    private static volatile SocketImplFactory factory;
 
     /**
      * Sets the server socket implementation factory for the

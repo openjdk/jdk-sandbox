@@ -161,11 +161,13 @@ class Socket implements java.io.Closeable {
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
+                SocketImplFactory factory = Socket.factory;
                 if (factory == null) {
                     impl = SocketImpl.createPlatformSocketImpl(false);
-                    impl.setSocket(this);
-                } else
-                    setImpl();
+                } else {
+                    impl = factory.createSocketImpl();
+                }
+                impl.setSocket(this);
             } else
                 throw new IllegalArgumentException("Invalid Proxy");
         }
@@ -529,6 +531,7 @@ class Socket implements java.io.Closeable {
      * @since 1.4
      */
     void setImpl() {
+        SocketImplFactory factory = Socket.factory;
         if (factory != null) {
             impl = factory.createSocketImpl();
             checkOldImpl();
@@ -1731,7 +1734,7 @@ class Socket implements java.io.Closeable {
     /**
      * The factory for all client sockets.
      */
-    private static SocketImplFactory factory = null;
+    private static volatile SocketImplFactory factory;
 
     /**
      * Sets the client socket implementation factory for the

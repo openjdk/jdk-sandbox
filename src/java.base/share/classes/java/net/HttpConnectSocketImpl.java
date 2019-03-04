@@ -134,7 +134,7 @@ import java.util.Set;
 
         // update the Sockets impl to the impl from the http Socket
         SocketImpl si = httpSocket.impl;
-        ((SocketImpl) this).getSocket().setImpl(si);
+        getSocket().setImpl(si);
 
         // best effort is made to try and reset options previously set
         Set<Map.Entry<Integer,Object>> options = optionsMap.entrySet();
