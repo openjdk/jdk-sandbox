@@ -574,18 +574,13 @@ class ServerSocket implements java.io.Closeable {
 
         // ServerSocket and Socket bound to custom SocketImpls
         s.impl = null; // break connection to impl
-        boolean completed = false;
+        si.reset();
         try {
+            implAccept(si);
+        } catch (Exception e) {
             si.reset();
-            // custom SocketImpl may expect fd/address to be created
-            si.fd = new FileDescriptor();
-            si.address = new InetAddress();
-            impl.accept(si);
-            securityCheckAccept(si);  // closes si if permission check fails
-            completed = true;
+            throw e;
         } finally {
-            if (!completed)
-                si.reset();
             s.impl = si;  // restore connection to impl
         }
         s.postAccept();
@@ -607,6 +602,12 @@ class ServerSocket implements java.io.Closeable {
                 " cannot accept a connection with an instance of " + si.getClass());
         }
 
+        // custom SocketImpl may expect fd/address objects to be created
+        if (!(si instanceof PlatformSocketImpl)) {
+            si.fd = new FileDescriptor();
+            si.address = new InetAddress();
+        }
+
         // accept a connection
         impl.accept(si);
 
@@ -619,14 +620,7 @@ class ServerSocket implements java.io.Closeable {
             }
         }
 
-        securityCheckAccept(si);  // closes si if permission check fails
-    }
-
-    /**
-     * Invokes the security manager's checkAccept method. If the permission
-     * check fails then it closes the SocketImpl.
-     */
-    private void securityCheckAccept(SocketImpl si) throws IOException {
+        // check permission, close SocketImpl/connection if denied
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             try {

@@ -151,6 +151,9 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * Throws SocketException if the socket is not open.
      */
     private void ensureOpen() throws SocketException {
+        int state = this.state;
+        if (state == ST_NEW)
+            throw new SocketException("Socket not created");
         if (state >= ST_CLOSING)
             throw new SocketException("Socket closed");
     }
