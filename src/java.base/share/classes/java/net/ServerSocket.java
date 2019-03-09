@@ -546,8 +546,13 @@ class ServerSocket implements java.io.Closeable {
 
         // Socket has no SocketImpl
         if (si == null) {
-            // create a SocketImpl and accept the connection
-            si = Socket.createImpl();
+            // create a platform or custom SocketImpl and accept the connection
+            SocketImplFactory factory = Socket.socketImplFactory();
+            if (factory == null) {
+                si = SocketImpl.createPlatformSocketImpl(false);
+            } else {
+                si = factory.createSocketImpl();
+            }
             implAccept(si);
             // bind Socket to the SocketImpl and update socket state
             s.setImpl(si);

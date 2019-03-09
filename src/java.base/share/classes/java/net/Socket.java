@@ -155,12 +155,14 @@ class Socket implements java.io.Closeable {
                                   epoint.getPort());
             }
 
-            SocketImpl si = SocketImpl.createPlatformSocketImpl(false);
-            impl = (type == Proxy.Type.SOCKS) ? new SocksSocketImpl(p, si)
-                                              : new HttpConnectSocketImpl(p, si);
+            // create a SOCKS or HTTP SocketImpl that delegates to a platform SocketImpl
+            SocketImpl delegate = SocketImpl.createPlatformSocketImpl(false);
+            impl = (type == Proxy.Type.SOCKS) ? new SocksSocketImpl(p, delegate)
+                                              : new HttpConnectSocketImpl(p, delegate);
             impl.setSocket(this);
         } else {
             if (p == Proxy.NO_PROXY) {
+                // create a platform or custom SocketImpl for the DIRECT case
                 SocketImplFactory factory = Socket.factory;
                 if (factory == null) {
                     impl = SocketImpl.createPlatformSocketImpl(false);
@@ -512,15 +514,6 @@ class Socket implements java.io.Closeable {
         });
     }
 
-    static SocketImpl createImpl() {
-        SocketImplFactory factory = Socket.factory;
-        if (factory != null) {
-            return factory.createSocketImpl();
-        } else {
-            return SocketImpl.createPlatformSocketImpl(false);
-        }
-    }
-
     void setImpl(SocketImpl si) {
          impl = si;
          impl.setSocket(this);
@@ -536,8 +529,9 @@ class Socket implements java.io.Closeable {
             impl = factory.createSocketImpl();
             checkOldImpl();
         } else {
-            SocketImpl si = SocketImpl.createPlatformSocketImpl(false);
-            impl = new SocksSocketImpl(si);
+            // create a SOCKS SocketImpl that delegates to a platform SocketImpl
+            SocketImpl delegate = SocketImpl.createPlatformSocketImpl(false);
+            impl = new SocksSocketImpl(delegate);
         }
         if (impl != null)
             impl.setSocket(this);
@@ -1735,6 +1729,10 @@ class Socket implements java.io.Closeable {
      * The factory for all client sockets.
      */
     private static volatile SocketImplFactory factory;
+
+    static SocketImplFactory socketImplFactory() {
+        return factory;
+    }
 
     /**
      * Sets the client socket implementation factory for the

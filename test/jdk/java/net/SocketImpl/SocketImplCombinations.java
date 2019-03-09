@@ -53,7 +53,7 @@ import static org.testng.Assert.*;
 public class SocketImplCombinations {
 
     /**
-     * Test creating an unconnected Socket, it should be created with a default SocketImpl.
+     * Test creating an unconnected Socket, it should be created with a platform SocketImpl.
      */
     public void testNewSocket1() throws IOException {
         try (Socket s = new Socket()) {
@@ -65,7 +65,7 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test creating a connected Socket, it should be created with a default SocketImpl.
+     * Test creating a connected Socket, it should be created with a platform SocketImpl.
      */
     public void testNewSocket2() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
@@ -120,8 +120,8 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test creating a Socket with "null" as the SocketImpl. A default SocketImpl
-     * should be lazily created.
+     * Test creating a Socket no SocketImpl. A platform SocketImpl should be
+     * created lazily.
      */
     public void testNewSocket6() throws IOException {
         Socket s = new Socket((SocketImpl) null) { };
@@ -210,8 +210,7 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test creating a Socket with a "null" SocketImpl when there is a
-     * SocketImplFactory set.
+     * Test creating a Socket no SocketImpl when there is a SocketImplFactory set.
      */
     public void testNewSocket12() throws IOException {
         setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
@@ -228,7 +227,7 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test creating an unbound ServerSocket, it should be created with a default
+     * Test creating an unbound ServerSocket, it should be created with a platform
      * SocketImpl.
      */
     public void testNewServerSocket1() throws IOException {
@@ -239,7 +238,7 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test creating a bound ServerSocket, it should be created with a default
+     * Test creating a bound ServerSocket, it should be created with a platform
      * SocketImpl.
      */
     public void testNewServerSocket2() throws IOException {
@@ -287,8 +286,8 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test ServerSocket.accept returning a Socket that initially doesn't have a
-     * SocketImpl. The ServerSocket uses the default SocketImpl.
+     * Test ServerSocket.accept. The ServerSocket uses a platform SocketImpl,
+     * the Socket to accept is created with no SocketImpl.
      */
     public void testServerSocketAccept1() throws IOException {
         var socket = new Socket((SocketImpl) null) { };
@@ -304,10 +303,29 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test ServerSocket.accept returning a Socket that has an existing SocketImpl.
-     * The ServerSocket uses the default SocketImpl.
+     * Test ServerSocket.accept. The ServerSocket uses a platform SocketImpl,
+     * the Socket to accept is created with no SocketImpl, and there is a custom
+     * client SocketImplFactory set.
      */
     public void testServerSocketAccept2() throws IOException {
+        var socket = new Socket((SocketImpl) null) { };
+        assertTrue(getSocketImpl(socket) == null);
+
+        serverSocketAccept(socket, () -> new CustomSocketImpl(false), (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
+            assertTrue(s == socket);
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(si instanceof CustomSocketImpl);
+            checkFields(si);
+        });
+    }
+
+    /**
+     * Test ServerSocket.accept. The ServerSocket uses a platform SocketImpl,
+     * the Socket to accept is created with a SocketImpl that delegates to a
+     * platform SocketImpl.
+     */
+    public void testServerSocketAccept3() throws IOException {
         var socket = new Socket();
         SocketImpl si = getSocketImpl(socket);
         assertTrue(isSocksSocketImpl(si));
@@ -324,165 +342,152 @@ public class SocketImplCombinations {
     }
 
     /**
-     * Test ServerSocket.accept returning a Socket that initially doesn't have a
-     * SocketImpl. A SocketImplFactory is set to a custom SocketImplFactory so
-     * the accepted Socket should have a custom SocketImpl. The ServerSocket
-     * uses the default SocketImpl.
+     * Test ServerSocket.accept. The ServerSocket uses a platform SocketImpl,
+     * the Socket to accept is created with a custom SocketImpl.
      */
-    public void testServerSocketAccept3() throws IOException {
-        var socket = new Socket((SocketImpl) null) { };
-        assertTrue(getSocketImpl(socket) == null);
-
-        serverSocketAccept(socket, () -> new CustomSocketImpl(false), (ss, s) -> {
-            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
-            assertTrue(s == socket);
-            SocketImpl si = getSocketImpl(s);
-            assertTrue(si instanceof CustomSocketImpl);
-            checkFields(si);
-        });
-    }
-
-    /**
-     * Test ServerSocket.accept returning a Socket that has an existing custom
-     * SocketImpl. The ServerSocket uses the default SocketImpl.
-     */
-    public void testServerSocketAccept4() throws IOException {
-        SocketImpl si = new CustomSocketImpl(false);
-        Socket socket = new Socket(si) { };
-        assertTrue(getSocketImpl(socket) == si);
+    public void testServerSocketAccept4a() throws IOException {
+        SocketImpl clientImpl = new CustomSocketImpl(false);
+        Socket socket = new Socket(clientImpl) { };
+        assertTrue(getSocketImpl(socket) == clientImpl);
 
         serverSocketAccept(socket, (ss, s) -> {
             assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
-            assertTrue(getSocketImpl(s) == si);
-            checkFields(si);
+            assertTrue(getSocketImpl(s) == clientImpl);
+            checkFields(clientImpl);
+        });
+    }
+
+    public void testServerSocketAccept4b() throws IOException {
+        SocketImpl clientImpl = new CustomSocketImpl(false);
+        Socket socket = new Socket(clientImpl) { };
+        assertTrue(getSocketImpl(socket) == clientImpl);
+
+        serverSocketAccept(socket, () -> new CustomSocketImpl(false), (ss, s) -> {
+            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
+            assertTrue(s == socket);
+            assertTrue(getSocketImpl(s) == clientImpl);
+            checkFields(clientImpl);
         });
     }
 
     /**
-     * Test ServerSocket.accept returning a Socket that initially doesn't have a
-     * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
-     * The ServerSocket also uses custom SocketImpl.
+     * Test ServerSocket.accept. The ServerSocket uses a custom SocketImpl,
+     * the Socket to accept is created no SocketImpl.
      */
-    public void testServerSocketAccept5() throws Exception {
-        var socket = new Socket((SocketImpl) null) { };
-        assertTrue(getSocketImpl(socket) == null);
-
+    public void testServerSocketAccept5a() throws IOException {
         SocketImpl serverImpl = new CustomSocketImpl(true);
-        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
-        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
-            assertTrue(getSocketImpl(ss) == serverImpl);
-            SocketImpl si = getSocketImpl(s);
-            assertTrue(si instanceof CustomSocketImpl);
-            checkFields(si);
-        });
-    }
-
-    /**
-     * Test ServerSocket.accept returning a Socket that has an existing custom
-     * SocketImpl. A SocketImplFactory is set to create custom SocketImpls.
-     * The ServerSocket also uses custom SocketImpl.
-     */
-    public void testServerSocketAccept6() throws Exception {
-        SocketImpl si = new CustomSocketImpl(false);
-        Socket socket = new Socket(si) { };
-        assertTrue(getSocketImpl(socket) == si);
-
-        SocketImpl serverImpl = new CustomSocketImpl(true);
-        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
-        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
-            assertTrue(getSocketImpl(ss) == serverImpl);
-            assertTrue(getSocketImpl(s) == si);
-            checkFields(si);
-        });
-    }
-
-    /**
-     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
-     * has a platform SocketImpl so IOException should be thrown.
-     */
-    public void testServerSocketAccept7() throws IOException {
-        SocketImpl impl = new CustomSocketImpl(true);
-        var socket = new Socket();
-        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
-            expectThrows(IOException.class, ss::accept);
-        } finally {
-            socket.close();
-        }
-    }
-
-    /**
-     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
-     * has no SocketImpl so a platform SocketImpl will be created and IOException
-     * should be thrown.
-     */
-    public void testServerSocketAccept8() throws IOException {
-        SocketImpl impl = new CustomSocketImpl(true);
-        var socket = new Socket((SocketImpl) null) { };
-        try (ServerSocket ss = serverSocketToAccept(impl, socket)) {
-            expectThrows(IOException.class, ss::accept);
-        } finally {
-            socket.close();
-        }
-    }
-
-    /**
-     * Test ServerSocket.accept using a custom SocketImpl. The client Socket
-     * has no SocketImpl so a platform SocketImpl will be created and IOException
-     * should be thrown.
-     */
-    public void testServerSocketAccept9() throws IOException {
-        SocketImpl impl = new CustomSocketImpl(true);
-        try (ServerSocket ss = new ServerSocket(impl) { }) {
+        try (ServerSocket ss = new ServerSocket(serverImpl) { }) {
             ss.bind(new InetSocketAddress(0));
             expectThrows(IOException.class, ss::accept);
         }
     }
-
-    /**
-     * Test ServerSocket.accept where there is a custom server SocketImplFactory
-     * set. The client Socket has a platform SocketImpl so IOException should be
-     * thrown.
-     */
-    public void testServerSocketAccept10() throws IOException {
-        var socket = new Socket();
-        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
-        try (ServerSocket ss = serverSocketToAccept(socket)) {
-            expectThrows(IOException.class, ss::accept);
-        } finally {
-            setServerSocketImplFactory(null);
-            socket.close();
-        }
-    }
-
-    /**
-     * Test ServerSocket.accept where there is a custom server SocketImplFactory
-     * set. The client Socket has no SocketImpl so a platform SocketImpl will be
-     * created and IOException should be thrown.
-     */
-    public void testServerSocketAccept11() throws IOException {
+    
+    public void testServerSocketAccept5b() throws IOException {
         var socket = new Socket((SocketImpl) null) { };
-        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
-        try (ServerSocket ss = serverSocketToAccept(socket)) {
+        assertTrue(getSocketImpl(socket) == null);
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        try (ServerSocket ss = serverSocketToAccept(serverImpl, socket)) {
             expectThrows(IOException.class, ss::accept);
         } finally {
-            setServerSocketImplFactory(null);
             socket.close();
         }
     }
 
-    /**
-     * Test ServerSocket.accept where there is a custom server SocketImplFactory
-     * set. The client Socket has no SocketImpl so a platform SocketImpl will be
-     * created and IOException should be thrown.
-     */
-    public void testServerSocketAccept12() throws IOException {
+    public void testServerSocketAccept5c() throws IOException {
         setServerSocketImplFactory(() -> new CustomSocketImpl(true));
         try (ServerSocket ss = new ServerSocket(0)) {
             expectThrows(IOException.class, ss::accept);
         } finally {
             setServerSocketImplFactory(null);
         }
+    }
+
+    public void testServerSocketAccept5d() throws IOException {
+        var socket = new Socket((SocketImpl) null) { };
+        assertTrue(getSocketImpl(socket) == null);
+
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setServerSocketImplFactory(null);
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept. The ServerSocket uses a custom SocketImpl,
+     * the Socket to accept is created with no SocketImpl, and there is a custom
+     * client SocketImplFactory set.
+     */
+    public void testServerSocketAccept6() throws Exception {
+        var socket = new Socket((SocketImpl) null) { };
+        assertTrue(getSocketImpl(socket) == null);
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
+        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
+            SocketImpl si = getSocketImpl(s);
+            assertTrue(si instanceof CustomSocketImpl);
+            checkFields(si);
+        });
+    }
+
+    /**
+     * Test ServerSocket.accept. The ServerSocket uses a custom SocketImpl,
+     * the Socket to accept is created with a SocketImpl that delegates to a
+     * platform SocketImpl.
+     */
+    public void testServerSocketAccept7a() throws IOException {
+        var socket = new Socket();
+        SocketImpl si = getSocketImpl(socket);
+        assertTrue(isSocksSocketImpl(si));
+        SocketImpl delegate = getDelegate(si);
+        assertTrue(isPlatformSocketImpl(delegate));
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        try (ServerSocket ss = serverSocketToAccept(serverImpl, socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            socket.close();
+        }
+    }
+
+    public void testServerSocketAccept7b() throws IOException {
+        var socket = new Socket();
+        SocketImpl si = getSocketImpl(socket);
+        assertTrue(isSocksSocketImpl(si));
+        SocketImpl delegate = getDelegate(si);
+        assertTrue(isPlatformSocketImpl(delegate));
+
+        setServerSocketImplFactory(() -> new CustomSocketImpl(true));
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setServerSocketImplFactory(null);
+            socket.close();
+        }
+    }
+
+    /**
+     * Test ServerSocket.accept. The ServerSocket uses a custom SocketImpl,
+     * the Socket to accept is created with a custom SocketImpl.
+     */
+    public void testServerSocketAccept8() throws Exception {
+        SocketImpl clientImpl = new CustomSocketImpl(false);
+        Socket socket = new Socket(clientImpl) { };
+        assertTrue(getSocketImpl(socket) == clientImpl);
+
+        SocketImpl serverImpl = new CustomSocketImpl(true);
+        SocketImplFactory clientFactory = () -> new CustomSocketImpl(false);
+        serverSocketAccept(serverImpl, socket, clientFactory, (ss, s) -> {
+            assertTrue(getSocketImpl(ss) == serverImpl);
+            assertTrue(getSocketImpl(s) == clientImpl);
+            checkFields(clientImpl);
+        });
     }
 
     /**
