@@ -67,3 +67,21 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
 endif
 
+# Build Wix custom action helper
+# Output library in resources dir, and symbols in the object dir
+ifeq ($(OPENJDK_TARGET_OS), windows)
+
+  $(eval $(call SetupJdkLibrary, BUILD_LIB_WIXHELPER, \
+      NAME := wixhelper, \
+      OUTPUT_DIR := $(JDK_OUTPUTDIR)/modules/$(MODULE)/jdk/jpackage/internal/resources, \
+      SYMBOLS_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libwixhelper, \
+      OPTIMIZATION := LOW, \
+      CFLAGS := $(CXXFLAGS_JDKLIB), \
+      CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
+      LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
+      LIBS := $(LIBCXX), \
+      LIBS_windows := msi.lib Shlwapi.lib User32.lib, \
+  ))
+
+  TARGETS += $(BUILD_LIB_WIXHELPER)
+endif

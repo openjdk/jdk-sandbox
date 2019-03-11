@@ -592,6 +592,15 @@ public class WinMsiBundler  extends AbstractBundler {
 
         data.put("UI_BLOCK", getUIBlock(params));
 
+        // Add CA to check install dir
+        if (INSTALLDIR_CHOOSER.fetchFrom(params)) {
+            data.put("CA_BLOCK", CA_BLOCK);
+            data.put("INVALID_INSTALL_DIR_DLG_BLOCK", INVALID_INSTALL_DIR_DLG_BLOCK);
+        } else {
+            data.put("CA_BLOCK", "");
+            data.put("INVALID_INSTALL_DIR_DLG_BLOCK", "");
+        }
+
         List<Map<String, ? super Object>> secondaryLaunchers =
                 SECONDARY_LAUNCHERS.fetchFrom(params);
 
@@ -635,6 +644,28 @@ public class WinMsiBundler  extends AbstractBundler {
     private int compId;
     private final static String LAUNCHER_ID = "LauncherId";
 
+    private static final String CA_BLOCK =
+            "<Binary Id=\"CustomActionDLL\" SourceFile=\"wixhelper.dll\" />\n" +
+            "<CustomAction Id=\"CHECK_INSTALLDIR\" BinaryKey=\"CustomActionDLL\" " +
+            "DllEntry=\"CheckInstallDir\" />";
+
+    private static final String INVALID_INSTALL_DIR_DLG_BLOCK =
+            "<Dialog Id=\"InvalidInstallDir\" Width=\"300\" Height=\"85\" " +
+            "Title=\"[ProductName] Setup\" NoMinimize=\"yes\">\n" +
+            "<Control Id=\"InvalidInstallDirYes\" Type=\"PushButton\" X=\"100\" Y=\"55\" " +
+            "Width=\"50\" Height=\"15\" Default=\"no\" Cancel=\"no\" Text=\"Yes\">\n" +
+            "<Publish Event=\"NewDialog\" Value=\"VerifyReadyDlg\">1</Publish>\n" +
+            "</Control>\n" +
+            "<Control Id=\"InvalidInstallDirNo\" Type=\"PushButton\" X=\"150\" Y=\"55\" " +
+            "Width=\"50\" Height=\"15\" Default=\"yes\" Cancel=\"yes\" Text=\"No\">\n" +
+            "<Publish Event=\"NewDialog\" Value=\"InstallDirDlg\">1</Publish>\n" +
+            "</Control>\n" +
+            "<Control Id=\"Text\" Type=\"Text\" X=\"25\" Y=\"15\" Width=\"250\" Height=\"30\" " +
+            "TabSkip=\"no\">\n" +
+            "<Text>" + I18N.getString("message.install.dir.exist") + "</Text>\n" +
+            "</Control>\n" +
+            "</Dialog>";
+
     /**
      * Overrides the dialog sequence in built-in dialog set "WixUI_InstallDir"
      * to exclude license dialog
@@ -642,12 +673,21 @@ public class WinMsiBundler  extends AbstractBundler {
     private static final String TWEAK_FOR_EXCLUDING_LICENSE =
               "     <Publish Dialog=\"WelcomeDlg\" Control=\"Next\""
             + "              Event=\"NewDialog\" Value=\"InstallDirDlg\""
-            + " Order=\"2\"> 1"
-            + "     </Publish>\n"
+            + " Order=\"2\">1</Publish>\n"
             + "     <Publish Dialog=\"InstallDirDlg\" Control=\"Back\""
             + "              Event=\"NewDialog\" Value=\"WelcomeDlg\""
-            + " Order=\"2\"> 1"
-            + "     </Publish>\n";
+            + " Order=\"2\">1</Publish>\n";
+
+    private static final String CHECK_INSTALL_DLG_CTRL =
+              "     <Publish Dialog=\"InstallDirDlg\" Control=\"Next\""
+            + "              Event=\"DoAction\" Value=\"CHECK_INSTALLDIR\""
+            + " Order=\"3\">1</Publish>\n"
+            + "     <Publish Dialog=\"InstallDirDlg\" Control=\"Next\""
+            + "              Event=\"NewDialog\" Value=\"InvalidInstallDir\""
+            + " Order=\"5\">INSTALLDIR_VALID=\"0\"</Publish>\n"
+            + "     <Publish Dialog=\"InstallDirDlg\" Control=\"Next\""
+            + "              Event=\"NewDialog\" Value=\"VerifyReadyDlg\""
+            + " Order=\"5\">INSTALLDIR_VALID=\"1\"</Publish>\n";
 
     // Required upgrade element for installers which support major upgrade (when user
     // specifies --win-upgrade-uuid). We will allow downgrades.
@@ -671,23 +711,28 @@ public class WinMsiBundler  extends AbstractBundler {
      * WixUI_InstallDir for installdir dialog only or for both
      * installdir/license dialogs
      */
-    private String getUIBlock(Map<String, ? super Object> params) {
-        String uiBlock = "     <UI/>\n"; // UI-less element
+    private String getUIBlock(Map<String, ? super Object> params) throws IOException {
+        String uiBlock = ""; // UI-less element
+
+        // Copy CA dll to include with installer
+        if (INSTALLDIR_CHOOSER.fetchFrom(params)) {
+            File helper = new File(CONFIG_ROOT.fetchFrom(params), "wixhelper.dll");
+            try (InputStream is_lib = getResourceAsStream("wixhelper.dll")) {
+                Files.copy(is_lib, helper.toPath());
+            }
+        }
 
         if (INSTALLDIR_CHOOSER.fetchFrom(params)) {
             boolean enableTweakForExcludingLicense =
                     (getLicenseFile(params) == null);
-            uiBlock = "     <UI>\n"
-                    + "     <Property Id=\"WIXUI_INSTALLDIR\""
+            uiBlock = "     <Property Id=\"WIXUI_INSTALLDIR\""
                     + " Value=\"APPLICATIONFOLDER\" />\n"
                     + "     <UIRef Id=\"WixUI_InstallDir\" />\n"
                     + (enableTweakForExcludingLicense ?
                             TWEAK_FOR_EXCLUDING_LICENSE : "")
-                    +"     </UI>\n";
+                    + CHECK_INSTALL_DLG_CTRL;
         } else if (getLicenseFile(params) != null) {
-            uiBlock = "     <UI>\n"
-                    + "     <UIRef Id=\"WixUI_Minimal\" />\n"
-                    + "     </UI>\n";
+            uiBlock = "     <UIRef Id=\"WixUI_Minimal\" />\n";
         }
 
         return uiBlock;
@@ -1076,6 +1121,13 @@ public class WinMsiBundler  extends AbstractBundler {
             commandLine.add("-ext");
             commandLine.add("WixUIExtension.dll");
         }
+
+        // Only needed if we using CA dll, so Wix can find it
+        if (enableInstalldirUI) {
+            commandLine.add("-b");
+            commandLine.add(CONFIG_ROOT.fetchFrom(params).getAbsolutePath());
+        }
+
         commandLine.add("-out");
         commandLine.add(msiOut.getAbsolutePath());
 

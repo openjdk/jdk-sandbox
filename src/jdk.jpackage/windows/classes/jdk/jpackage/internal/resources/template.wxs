@@ -9,7 +9,7 @@
                  InstallerVersion="200" Compressed="yes"
                  InstallScope="INSTALL_SCOPE" Platform="PLATFORM"/>
         <Media Id="1" Cabinet="simple.cab" EmbedCab="yes" />
-UPGRADE_BLOCK
+        UPGRADE_BLOCK
 
         <!-- We use RemoveFolderEx to ensure application folder is fully
              removed on uninstall. Including files created outside of MSI
@@ -29,9 +29,9 @@ UPGRADE_BLOCK
         <DirectoryRef Id="APPLICATIONFOLDER">
             <Component Id="CleanupMainApplicationFolder" Guid="*" Win64="WIN64">
                 <RegistryValue Root="REGISTRY_ROOT"
-                                   Key="SOFTWARE\APPLICATION_VENDOR\APPLICATION_NAME"
-                                   Name="Path" Type="string" Value="[APPLICATIONFOLDER]"
-                                   KeyPath="yes" />
+                               Key="SOFTWARE\APPLICATION_VENDOR\APPLICATION_NAME"
+                               Name="Path" Type="string" Value="[APPLICATIONFOLDER]"
+                               KeyPath="yes" />
                 <!-- We need to use APPLICATIONFOLDER variable here or RemoveFolderEx
                      will not remove on "install". But only if WiX 3.6 is used. -->
                 WIX36_ONLY_START
@@ -40,9 +40,13 @@ UPGRADE_BLOCK
             </Component>
         </DirectoryRef>
         <?include bundle.wxi ?>
-UI_BLOCK
+        CA_BLOCK
+        <UI>
+            INVALID_INSTALL_DIR_DLG_BLOCK
+            UI_BLOCK
+        </UI>
         <Icon Id="DesktopIcon.exe" SourceFile="APPLICATION_ICON" />
         <Icon Id="StartMenuIcon.exe" SourceFile="APPLICATION_ICON" />
-SECONDARY_LAUNCHER_ICONS
+        SECONDARY_LAUNCHER_ICONS
     </Product>
 </Wix>
