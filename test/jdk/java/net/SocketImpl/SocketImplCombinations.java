@@ -315,7 +315,7 @@ public class SocketImplCombinations {
             assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
             SocketImpl si = getSocketImpl(s);
-            assertTrue(si instanceof CustomSocketImpl);
+            assertTrue(isPlatformSocketImpl(si));
             checkFields(si);
         });
     }
@@ -335,9 +335,9 @@ public class SocketImplCombinations {
         serverSocketAccept(socket, (ss, s) -> {
             assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
             assertTrue(s == socket);
-            assertTrue(getSocketImpl(s) == si);
-            assertTrue(getDelegate(si) == delegate);
-            checkFields(delegate);
+            SocketImpl psi = getSocketImpl(socket);
+            assertTrue(isPlatformSocketImpl(psi));
+            checkFields(psi);
         });
     }
 
@@ -350,12 +350,11 @@ public class SocketImplCombinations {
         Socket socket = new Socket(clientImpl) { };
         assertTrue(getSocketImpl(socket) == clientImpl);
 
-        serverSocketAccept(socket, (ss, s) -> {
-            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
-            assertTrue(s == socket);
-            assertTrue(getSocketImpl(s) == clientImpl);
-            checkFields(clientImpl);
-        });
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            socket.close();
+        }
     }
 
     public void testServerSocketAccept4b() throws IOException {
@@ -363,12 +362,13 @@ public class SocketImplCombinations {
         Socket socket = new Socket(clientImpl) { };
         assertTrue(getSocketImpl(socket) == clientImpl);
 
-        serverSocketAccept(socket, () -> new CustomSocketImpl(false), (ss, s) -> {
-            assertTrue(isPlatformSocketImpl(getSocketImpl(ss)));
-            assertTrue(s == socket);
-            assertTrue(getSocketImpl(s) == clientImpl);
-            checkFields(clientImpl);
-        });
+        setSocketSocketImplFactory(() -> new CustomSocketImpl(false));
+        try (ServerSocket ss = serverSocketToAccept(socket)) {
+            expectThrows(IOException.class, ss::accept);
+        } finally {
+            setSocketSocketImplFactory(null);
+            socket.close();
+        }
     }
 
     /**

@@ -546,15 +546,7 @@ class ServerSocket implements java.io.Closeable {
 
         // Socket has no SocketImpl
         if (si == null) {
-            // create a platform or custom SocketImpl and accept the connection
-            SocketImplFactory factory = Socket.socketImplFactory();
-            if (factory == null) {
-                si = SocketImpl.createPlatformSocketImpl(false);
-            } else {
-                si = factory.createSocketImpl();
-            }
-            implAccept(si);
-            // bind Socket to the SocketImpl and update socket state
+            si = implAccept();
             s.setImpl(si);
             s.postAccept();
             return;
@@ -566,18 +558,61 @@ class ServerSocket implements java.io.Closeable {
             assert si instanceof PlatformSocketImpl;
         }
 
-        // ServerSocket or Socket (or both) have, or delegate to, a platform SocketImpl
-        if (impl instanceof PlatformSocketImpl || si instanceof PlatformSocketImpl) {
-            // create a new platform SocketImpl and accept the connection
-            var psi = SocketImpl.createPlatformSocketImpl(false);
-            implAccept(psi);
-            // copy connection/state to the existing SocketImpl and update socket state
-            psi.copyTo(si);
-            s.postAccept();
-            return;
+        // accept connection with a platform or custom SocketImpl
+        ensureCompatible(si);
+        if (impl instanceof PlatformSocketImpl) {
+            SocketImpl psi = platformImplAccept();
+            tryCopyOptions(si, psi);
+            s.setImpl(psi);
+            close(si);
+        } else {
+            customImplAccept(s, si);
+            assert s.impl == si;
         }
+        s.postAccept();
+    }
 
-        // ServerSocket and Socket bound to custom SocketImpls
+    /**
+     * Accepts a connection with a new SocketImpl.
+     * @return the new SocketImpl
+     */
+    private SocketImpl implAccept() throws IOException {
+        if (impl instanceof PlatformSocketImpl) {
+            return platformImplAccept();
+        } else {
+            // custom server SocketImpl, client socket SocketImpl must be set
+            SocketImplFactory factory = Socket.socketImplFactory();
+            if (factory == null) {
+                throw new IOException("An instance of " + impl.getClass() +
+                    " cannot accept connection with 'null' SocketImpl:" +
+                    " client socket implementation factory not set");
+            }
+            SocketImpl si = factory.createSocketImpl();
+            implAccept(si);
+            return si;
+        }
+    }
+
+    /**
+     * Accepts a connection with a new platform SocketImpl.
+     * @return the new platform SocketImpl
+     */
+    private SocketImpl platformImplAccept() throws IOException {
+        assert impl instanceof PlatformSocketImpl;
+
+        // create a new platform SocketImpl and accept the connection
+        SocketImpl psi = SocketImpl.createPlatformSocketImpl(false);
+        implAccept(psi);
+        return psi;
+    }
+
+    /**
+     * Accepts a new connection with a custom SocketImpl.
+     */
+    private void customImplAccept(Socket s, SocketImpl si) throws IOException {
+        assert !(impl instanceof PlatformSocketImpl)
+                && !(si instanceof PlatformSocketImpl);
+
         s.impl = null; // break connection to impl
         si.reset();
         try {
@@ -588,7 +623,6 @@ class ServerSocket implements java.io.Closeable {
         } finally {
             s.impl = si;  // restore connection to impl
         }
-        s.postAccept();
     }
 
     /**
@@ -601,12 +635,6 @@ class ServerSocket implements java.io.Closeable {
     private void implAccept(SocketImpl si) throws IOException {
         assert !(si instanceof DelegatingSocketImpl);
 
-        // A non-platform SocketImpl cannot accept a connection with a platform SocketImpl
-        if (!(impl instanceof PlatformSocketImpl) && (si instanceof PlatformSocketImpl)) {
-            throw new IOException("An instance of " + impl.getClass() +
-                " cannot accept a connection with an instance of " + si.getClass());
-        }
-
         // custom SocketImpl may expect fd/address objects to be created
         if (!(si instanceof PlatformSocketImpl)) {
             si.fd = new FileDescriptor();
@@ -615,15 +643,6 @@ class ServerSocket implements java.io.Closeable {
 
         // accept a connection
         impl.accept(si);
-
-        // sanity check that the fields defined by SocketImpl have been set
-        if (si instanceof PlatformSocketImpl) {
-            var fd = si.fd;
-            if (fd == null || !fd.valid() || si.localport <= 0
-                    || si.address == null || si.port <= 0) {
-                throw new IOException("Invalid accepted state:" + si);
-            }
-        }
 
         // check permission, close SocketImpl/connection if denied
         SecurityManager sm = System.getSecurityManager();
@@ -634,6 +653,39 @@ class ServerSocket implements java.io.Closeable {
                 si.close();
                 throw se;
             }
+        }
+    }
+
+    /**
+     * Attempts to copy socket options from an old/existing SocketImpl to a new
+     * SocketImpl. At this time, only the SO_TIMEOUT make sense to copy.
+     */
+    private void tryCopyOptions(SocketImpl oldImpl, SocketImpl newImpl) {
+        try {
+            Object timeout = oldImpl.getOption(SocketOptions.SO_TIMEOUT);
+            if (timeout instanceof Integer) {
+                newImpl.setOption(SocketOptions.SO_TIMEOUT, timeout);
+            }
+        } catch (IOException ignore) { }
+    }
+
+    /**
+     * Close the given SocketImpl.
+     */
+    private void close(SocketImpl si) {
+        try {
+            si.close();
+        } catch (IOException ignore) { }
+    }
+
+    /**
+     * Throws IOException if the server SocketImpl and the given client
+     * SocketImpl are not both platform or custom SocketImpls.
+     */
+    private void ensureCompatible(SocketImpl si) throws IOException {
+        if ((impl instanceof PlatformSocketImpl) != (si instanceof PlatformSocketImpl)) {
+            throw new IOException("An instance of " + impl.getClass() +
+                " cannot accept a connection with an instance of " + si.getClass());
         }
     }
 

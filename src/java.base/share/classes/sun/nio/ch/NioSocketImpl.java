@@ -54,7 +54,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
-import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
@@ -466,77 +465,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             this.stream = stream;
             this.closer = FileDescriptorCloser.create(this);
             this.state = ST_UNCONNECTED;
-        }
-    }
-
-    /**
-     * For use by ServerSocket to copy the state from this connected SocketImpl
-     * to a target SocketImpl. If the target SocketImpl is not a newly created
-     * SocketImpl then it is first closed to release any resources. The target
-     * SocketImpl becomes the owner of the file descriptor, this SocketImpl
-     * is marked as closed and should be discarded.
-     */
-    @Override
-    public void copyTo(SocketImpl si) {
-        if (si instanceof NioSocketImpl) {
-            NioSocketImpl nsi = (NioSocketImpl) si;
-            if (nsi.state != ST_NEW) {
-                try {
-                    nsi.close();
-                } catch (IOException ignore) { }
-            }
-            // copy/reset fields protected by stateLock
-            synchronized (nsi.stateLock) {
-                guarantee(nsi.state == ST_NEW || nsi.state == ST_CLOSED);
-                synchronized (this.stateLock) {
-                    // this SocketImpl should be connected
-                    guarantee(state == ST_CONNECTED && fd != null && fd.valid()
-                        && localport > 0 && address != null && port > 0);
-
-                    // copy fields
-                    nsi.stream = this.stream;
-                    nsi.fd = this.fd;
-                    nsi.localport = this.localport;
-                    nsi.address = this.address;
-                    nsi.port = this.port;
-
-                    // reset fields; do not reset timeout
-                    nsi.nonBlocking = false;
-                    nsi.isReuseAddress = false;
-                    nsi.isInputClosed = false;
-                    nsi.isOutputClosed = false;
-                    nsi.state = ST_CONNECTED;
-
-                    // GC'ing of this impl should not close the file descriptor
-                    this.closer.disable();
-                    this.state = ST_CLOSED;
-
-                    // create new closer to execute when nsi is GC'ed
-                    nsi.closer = FileDescriptorCloser.create(nsi);
-                }
-            }
-            // reset fields protected by readLock
-            nsi.readLock.lock();
-            try {
-                nsi.readEOF = false;
-                nsi.connectionReset = false;
-            } finally {
-                nsi.readLock.unlock();
-            }
-        } else {
-            synchronized (this.stateLock) {
-                // this SocketImpl should be connected
-                guarantee(state == ST_CONNECTED && fd != null && fd.valid()
-                        && localport > 0 && address != null && port > 0);
-
-                // set fields in foreign impl
-                setSocketImplFields(si, fd, localport, address, port);
-
-                // disable closer to prevent GC'ing of this impl from
-                // closing the file descriptor
-                this.closer.disable();
-                this.state = ST_CLOSED;
-            }
         }
     }
 
@@ -1267,10 +1195,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 }
             }
         }
-
-        boolean disable() {
-            return CLOSED.compareAndSet(this, false, true);
-        }
     }
 
     /**
@@ -1313,12 +1237,5 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         Field field = SocketImpl.class.getDeclaredField(name);
         field.setAccessible(true);
         field.set(si, value);
-    }
-
-    /**
-     * Throws InternalError if the given expression is not true.
-     */
-    private static void guarantee(boolean expr) {
-        if (!expr) throw new InternalError();
     }
 }

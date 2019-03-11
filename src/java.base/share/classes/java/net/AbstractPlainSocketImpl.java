@@ -727,42 +727,6 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         socketClose0(false);
     }
 
-    @Override
-    public void copyTo(SocketImpl si) {
-        // this SocketImpl should be connected
-        assert fd.valid() && localport != 0 && address != null && port != 0;
-
-        if (si instanceof AbstractPlainSocketImpl) {
-            AbstractPlainSocketImpl psi = (AbstractPlainSocketImpl) si;
-            try {
-                psi.close();
-            } catch (IOException ignore) { }
-
-            // copy fields
-            psi.stream = this.stream;
-            psi.fd = this.fd;
-            psi.localport = this.localport;
-            psi.address = this.address;
-            psi.port = this.port;
-
-            // reset fields; do not reset timeout
-            psi.closePending = false;
-            psi.connectionReset = false;
-            psi.shut_rd = false;
-            psi.shut_wr = false;
-        } else {
-            // copy fields
-            si.fd = this.fd;
-            si.localport = this.localport;
-            si.address = this.address;
-            si.port = this.port;
-        }
-
-        // this SocketImpl is now closed and should be discarded
-        this.closePending = true;
-        this.fd = null;
-    }
-
     abstract void socketCreate(boolean isServer) throws IOException;
     abstract void socketConnect(InetAddress address, int port, int timeout)
         throws IOException;
