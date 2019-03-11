@@ -143,7 +143,7 @@ public class LinuxDebBundler extends AbstractBundler {
             new StandardBundlerParam<> (
             I18N.getString("param.maintainer-email.name"),
             I18N.getString("param.maintainer-email.description"),
-            BundleParams.PARAM_EMAIL,
+            Arguments.CLIOptions.LINUX_DEB_MAINTAINER.getId(),
             String.class,
             params -> "Unknown",
             (s, p) -> s);
@@ -152,7 +152,7 @@ public class LinuxDebBundler extends AbstractBundler {
             new StandardBundlerParam<> (
             I18N.getString("param.maintainer-name.name"),
             I18N.getString("param.maintainer-name.description"),
-            Arguments.CLIOptions.LINUX_DEB_MAINTAINER.getId(),
+            BundleParams.PARAM_MAINTAINER,
             String.class,
             params -> VENDOR.fetchFrom(params) + " <"
                     + EMAIL.fetchFrom(params) + ">",
@@ -747,7 +747,6 @@ public class LinuxDebBundler extends AbstractBundler {
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
         data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params));
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
-        data.put("APPLICATION_SUMMARY", TITLE.fetchFrom(params));
         data.put("APPLICATION_COPYRIGHT", COPYRIGHT.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TEXT", LICENSE_TEXT.fetchFrom(params));
         data.put("APPLICATION_ARCH", getArch());
@@ -862,7 +861,6 @@ public class LinuxDebBundler extends AbstractBundler {
                 EMAIL,
                 ICON_PNG,
                 LICENSE_FILE,
-                TITLE,
                 VENDOR
         );
     }

@@ -58,6 +58,9 @@ public class BundleParams {
     // String - email name and email, only used for debian */
     public static final String PARAM_EMAIL              = "email";
 
+    // String - vendor <email>, only used for debian */
+    public static final String PARAM_MAINTAINER         = "maintainer";
+
     /* String - Copyright. Used on Mac */
     public static final String PARAM_COPYRIGHT          = "copyright";
 
@@ -77,9 +80,6 @@ public class BundleParams {
     // String - Application category. Used at least on Mac/Linux.
     // Value is platform specific
     public static final String PARAM_CATEGORY       = "applicationCategory";
-
-    // String - Optional short application
-    public static final String PARAM_TITLE              = "title";
 
     // String - Optional application description. Used by MSI and on Linux
     public static final String PARAM_DESCRIPTION        = "description";
@@ -188,14 +188,6 @@ public class BundleParams {
 
     public String getPreferencesID() {
         return fetchParam(PREFERENCES_ID);
-    }
-
-    public String getTitle() {
-        return fetchParam(TITLE);
-    }
-
-    public void setTitle(String title) {
-        putUnlessNull(PARAM_TITLE, title);
     }
 
     public String getApplicationClass() {

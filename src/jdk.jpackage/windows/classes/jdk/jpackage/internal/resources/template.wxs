@@ -5,7 +5,8 @@
              Language="1033" Version="APPLICATION_VERSION"
              Manufacturer="APPLICATION_VENDOR"
              UpgradeCode="PRODUCT_UPGRADE_GUID">
-        <Package Description="APPLICATION_DESCRIPTION" Comments="None"
+        <Package Description="APPLICATION_DESCRIPTION"
+                 Manufacturer="APPLICATION_VENDOR"
                  InstallerVersion="200" Compressed="yes"
                  InstallScope="INSTALL_SCOPE" Platform="PLATFORM"/>
         <Media Id="1" Cabinet="simple.cab" EmbedCab="yes" />

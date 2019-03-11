@@ -588,7 +588,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params));
         // TODO rpm categories
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
-        data.put("APPLICATION_SUMMARY", TITLE.fetchFrom(params));
+        data.put("APPLICATION_SUMMARY", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));
         data.put("APPLICATION_LICENSE_FILE", getLicenseFileString(params));
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
@@ -696,7 +696,6 @@ public class LinuxRpmBundler extends AbstractBundler {
                 LinuxAppBundler.ICON_PNG,
                 LICENSE_FILE,
                 LICENSE_TYPE,
-                TITLE,
                 VENDOR
         );
     }

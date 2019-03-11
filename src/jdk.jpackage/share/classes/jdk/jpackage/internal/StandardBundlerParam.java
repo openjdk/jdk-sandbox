@@ -289,16 +289,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> Arrays.asList(s.split("\n\n"))
             );
 
-    static final StandardBundlerParam<String> TITLE =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.title.name"),
-                    I18N.getString("param.title.description"),
-                    BundleParams.PARAM_TITLE,
-                    String.class,
-                    APP_NAME::fetchFrom,
-                    (s, p) -> s
-            );
-
     // note that each bundler is likely to replace this one with
     // their own converter
     static final StandardBundlerParam<String> VERSION =

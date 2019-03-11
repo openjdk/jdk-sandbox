@@ -183,7 +183,6 @@ public class WinExeBundler extends AbstractBundler {
                 MENU_HINT,
                 SHORTCUT_HINT,
                 EXE_SYSTEM_WIDE,
-                TITLE,
                 VENDOR,
                 INSTALLDIR_CHOOSER
         );
@@ -241,7 +240,6 @@ public class WinExeBundler extends AbstractBundler {
                     COPYRIGHT,
                     DESCRIPTION,
                     MENU_GROUP,
-                    TITLE,
                     VENDOR,
                     VERSION)
             ) {
@@ -501,7 +499,6 @@ public class WinExeBundler extends AbstractBundler {
         data.put("APPLICATION_MENU_SHORTCUT",
                 MENU_HINT.fetchFrom(p) ? "returnTrue" : "returnFalse");
         validateValueAndPut(data, "APPLICATION_GROUP", MENU_GROUP, p);
-        validateValueAndPut(data, "APPLICATION_COMMENTS", TITLE, p);
         validateValueAndPut(data, "APPLICATION_COPYRIGHT", COPYRIGHT, p);
 
         data.put("APPLICATION_LICENSE_FILE",

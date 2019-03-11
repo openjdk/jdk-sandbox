@@ -53,7 +53,6 @@ public class DeployParams {
     final List<RelativeFileSet> resources = new ArrayList<>();
 
     String id;
-    String title;
     String vendor;
     String email;
     String description;
@@ -184,10 +183,6 @@ public class DeployParams {
         this.params = params;
     }
 
-    void setTitle(String title) {
-        this.title = title;
-    }
-
     void setVendor(String vendor) {
         this.vendor = vendor;
     }
@@ -289,10 +284,10 @@ public class DeployParams {
 
     static void validateName(String s, boolean forApp)
             throws PackagerException {
-        
+
         String exceptionKey = forApp ?
             "ERR_InvalidAppName" : "ERR_InvalidSLName";
-        
+
         if (s == null) {
             if (forApp) {
                 return;
@@ -529,7 +524,6 @@ public class DeployParams {
         bundleParams.setCopyright(copyright);
         bundleParams.setApplicationCategory(category);
         bundleParams.setDescription(description);
-        bundleParams.setTitle(title);
 
         bundleParams.setJvmargs(jvmargs);
         bundleParams.setArguments(arguments);
