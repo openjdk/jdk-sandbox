@@ -43,37 +43,42 @@ public class CLIHelp {
     // generates --help for jpackage's CLI
     public static void showHelp(boolean noArgs) {
 
-        Platform platform = Platform.getPlatform();
         if (noArgs) {
-            Log.info(MessageFormat.format(
-                     I18N.getString("MSG_Help_no_args"), File.pathSeparator));
+            Log.info(I18N.getString("MSG_Help_no_args"));
         } else {
-            Log.info(MessageFormat.format(
-                    I18N.getString("MSG_Help_common"), File.pathSeparator));
-
+            Platform platform = (Log.isDebug()) ? 
+                    Platform.UNKNOWN : Platform.getPlatform();
+            String types;
+            String pLaunchOptions;
+            String pInstallOptions;
             switch (platform) {
                 case MAC:
-                    Log.info(I18N.getString("MSG_Help_mac"));
-                    if (Log.isDebug()) {
-                        Log.info(I18N.getString("MSG_Help_win"));
-                        Log.info(I18N.getString("MSG_Help_linux"));
-                    }
+                    types = "{\"pkg\", \"dmg\"}";
+		    pLaunchOptions = "";
+                    pInstallOptions = I18N.getString("MSG_Help_mac_install");
                     break;
                 case LINUX:
-                    Log.info(I18N.getString("MSG_Help_linux"));
-                    if (Log.isDebug()) {
-                        Log.info(I18N.getString("MSG_Help_win"));
-                        Log.info(I18N.getString("MSG_Help_mac"));
-                    }
+                    types = "{\"rpm\", \"deb\"}";
+		    pLaunchOptions = "";
+                    pInstallOptions = I18N.getString("MSG_Help_linux_install");
                     break;
                 case WINDOWS:
-                    Log.info(I18N.getString("MSG_Help_win"));
-                    if (Log.isDebug()) {
-                        Log.info(I18N.getString("MSG_Help_mac"));
-                        Log.info(I18N.getString("MSG_Help_linux"));
-                    }
+                    types = "{\"exe\", \"msi\"}";
+		    pLaunchOptions = I18N.getString("MSG_Help_win_launcher");
+                    pInstallOptions = I18N.getString("MSG_Help_win_install");
+                    break;
+                default:
+                    types = 
+                      "{\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}";
+		    pLaunchOptions = I18N.getString("MSG_Help_win_launcher");
+                    pInstallOptions = I18N.getString("MSG_Help_win_install")
+                            + I18N.getString("MSG_Help_mac_install")
+                            + I18N.getString("MSG_Help_linux_install");
                     break;
             }
+            Log.info(MessageFormat.format(I18N.getString("MSG_Help"),
+                    File.pathSeparator, types, pLaunchOptions,
+                    pInstallOptions));
         }
     }
 }
