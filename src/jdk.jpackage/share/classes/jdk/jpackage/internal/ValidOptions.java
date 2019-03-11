@@ -47,137 +47,97 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  */
 class ValidOptions {
 
-    private ValidOptions() {};
+    enum USE {
+        ALL,        // valid in all cases
+        LAUNCHER,   // valid when creating a launcher
+        INSTALL     // valid when creating an installer
+    }
+        
+    private static final HashMap<String, USE> options = new HashMap<>();
 
-    // multimap that contains pairs of (mode, supported args)
-    private static final Map<CLIOptions, Set<CLIOptions>> options =
-            new HashMap<>();
-
-    private static boolean argsInitialized = false;
 
     // initializing list of mandatory arguments
-    private static void initArgs() {
-        if (argsInitialized) {
-            return;
-        }
+    static {
+        options.put(CLIOptions.CREATE_IMAGE.getId(), USE.ALL);
+        options.put(CLIOptions.CREATE_INSTALLER.getId(), USE.ALL);
+        options.put(CLIOptions.NAME.getId(), USE.ALL);
+        options.put(CLIOptions.VERSION.getId(), USE.ALL);
+        options.put(CLIOptions.OUTPUT.getId(), USE.ALL);
+        options.put(CLIOptions.TEMP_ROOT.getId(), USE.ALL);
+        options.put(CLIOptions.VERBOSE.getId(), USE.ALL);
+        options.put(CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(), USE.ALL);
+        options.put(CLIOptions.RESOURCE_DIR.getId(), USE.ALL);
+        options.put(CLIOptions.IDENTIFIER.getId(), USE.ALL);
+        options.put(CLIOptions.DESCRIPTION.getId(), USE.ALL);
+        options.put(CLIOptions.VENDOR.getId(), USE.ALL);
+        options.put(CLIOptions.COPYRIGHT.getId(), USE.ALL);
 
-        // add options for CREATE_IMAGE
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.INPUT);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.OUTPUT);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.APPCLASS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.NAME);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.IDENTIFIER);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.VERBOSE);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.OVERWRITE);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.FILES);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.ARGUMENTS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.STRIP_NATIVE_COMMANDS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.ICON);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.VERSION);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.JVM_ARGS);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.SECONDARY_LAUNCHER);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.BUILD_ROOT);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.PREDEFINED_RUNTIME_IMAGE);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.MAIN_JAR);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.MODULE);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.ADD_MODULES);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.MODULE_PATH);
-        add(CLIOptions.CREATE_IMAGE, CLIOptions.RESOURCE_DIR);
+        options.put(CLIOptions.INPUT.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.FILES.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.MODULE.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.MODULE_PATH.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.ADD_MODULES.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.MAIN_JAR.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.APPCLASS.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.ICON.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.ARGUMENTS.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.JVM_ARGS.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.ADD_LAUNCHER.getId(), USE.LAUNCHER);
 
-        if (Platform.getPlatform() == Platform.MAC) {
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_SIGN);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_BUNDLE_NAME);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_BUNDLE_IDENTIFIER);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_BUNDLE_SIGNING_PREFIX);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_SIGNING_KEY_NAME);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.MAC_SIGNING_KEYCHAIN);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.CATEGORY);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.COPYRIGHT);
-        }
+        options.put(CLIOptions.INSTALLER_TYPE.getId(), USE.INSTALL);
+        options.put(CLIOptions.LICENSE_FILE.getId(), USE.INSTALL);
+        options.put(CLIOptions.FILE_ASSOCIATIONS.getId(), USE.INSTALL);
+        options.put(CLIOptions.INSTALL_DIR.getId(), USE.INSTALL);
+        options.put(CLIOptions.PREDEFINED_APP_IMAGE.getId(), USE.INSTALL);
+        options.put(CLIOptions.INSTALLER_TYPE.getId(), USE.INSTALL);
 
         if (Platform.getPlatform() == Platform.WINDOWS) {
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.DESCRIPTION);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.VENDOR);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.COPYRIGHT);
-            add(CLIOptions.CREATE_IMAGE, CLIOptions.WIN_CONSOLE_HINT);
+            options.put(CLIOptions.WIN_CONSOLE_HINT.getId(), USE.LAUNCHER);
+
+            options.put(CLIOptions.WIN_MENU_HINT.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_MENU_GROUP.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_SHORTCUT_HINT.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_DIR_CHOOSER.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_REGISTRY_NAME.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_UPGRADE_UUID.getId(), USE.INSTALL);
+            options.put(CLIOptions.WIN_PER_USER_INSTALLATION.getId(),
+                        USE.INSTALL);
         }
 
-        // add options for CREATE_INSTALLER
-        // (start with all options for CREATE_IMAGE)
-        Set<CLIOptions> imageOptions = options.get(CLIOptions.CREATE_IMAGE);
-        imageOptions.forEach(o -> add(CLIOptions.CREATE_INSTALLER, o));
-
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.RUNTIME_INSTALLER);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.INSTALLER_TYPE);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.LICENSE_FILE);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.FILE_ASSOCIATIONS);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.INSTALL_DIR);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.PREDEFINED_APP_IMAGE);
-        add(CLIOptions.CREATE_INSTALLER, CLIOptions.INSTALLER_TYPE);
-
         if (Platform.getPlatform() == Platform.MAC) {
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.MAC_APP_STORE_CATEGORY);
-            add(CLIOptions.CREATE_INSTALLER,
-                    CLIOptions.MAC_APP_STORE_ENTITLEMENTS);
+            options.put(CLIOptions.MAC_SIGN.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_BUNDLE_NAME.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_BUNDLE_SIGNING_PREFIX.getId(),
+                        USE.INSTALL);
+            options.put(CLIOptions.MAC_SIGNING_KEY_NAME.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_SIGNING_KEYCHAIN.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_APP_STORE_CATEGORY.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_APP_STORE_ENTITLEMENTS.getId(),
+                        USE.INSTALL);
         }
 
         if (Platform.getPlatform() == Platform.LINUX) {
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.LINUX_BUNDLE_NAME);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.LINUX_DEB_MAINTAINER);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.LINUX_RPM_LICENSE_TYPE);
-            add(CLIOptions.CREATE_INSTALLER,
-                    CLIOptions.LINUX_PACKAGE_DEPENDENCIES);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.DESCRIPTION);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.VENDOR);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.CATEGORY);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.COPYRIGHT);
+            options.put(CLIOptions.LINUX_BUNDLE_NAME.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_DEB_MAINTAINER.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_RPM_LICENSE_TYPE.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
+                        USE.INSTALL);
+            options.put(CLIOptions.LINUX_MENU_GROUP.getId(), USE.INSTALL);
         }
-
-        if (Platform.getPlatform() == Platform.WINDOWS) {
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_MENU_HINT);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_MENU_GROUP);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_SHORTCUT_HINT);
-            add(CLIOptions.CREATE_INSTALLER,
-                    CLIOptions.WIN_PER_USER_INSTALLATION);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_DIR_CHOOSER);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_REGISTRY_NAME);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_UPGRADE_UUID);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.CATEGORY);
-            add(CLIOptions.CREATE_INSTALLER, CLIOptions.WIN_CONSOLE_HINT);
-        }
-
-        argsInitialized = true;
     }
 
-    static void add(CLIOptions mode, CLIOptions arg) {
-        if (mode.equals(arg)) {
-            return;
-        }
-        options.computeIfAbsent(mode,
-                    k -> new HashSet<>()).add(arg);
+    static boolean checkIfSupported(CLIOptions arg) {
+        return options.containsKey(arg.getId());
     }
 
-    static boolean checkIfSupported(CLIOptions mode, CLIOptions arg) {
-        if (mode.equals(arg)) {
-            return true;
-        }
-
-        initArgs();
-        Set<CLIOptions> set = options.get(mode);
-        if (set != null) {
-            return set.contains(arg);
-        }
-        return false;
+    static boolean checkIfImageSupported(CLIOptions arg) {
+        USE use = options.get(arg.getId());
+        return USE.ALL == use || USE.LAUNCHER == use;
     }
 
-    static boolean checkIfOtherSupported(CLIOptions mode, CLIOptions arg) {
-        for (CLIOptions other : options.keySet()) {
-            if (!other.equals(mode)) {
-                if (checkIfSupported(other, arg)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+    static boolean checkIfInstallerSupported(CLIOptions arg) {
+        USE use = options.get(arg.getId());
+        return USE.ALL == use || USE.INSTALL == use;
     }
 }

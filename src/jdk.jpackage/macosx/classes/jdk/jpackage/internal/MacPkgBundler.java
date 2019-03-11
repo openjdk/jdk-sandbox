@@ -63,13 +63,11 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     private static final BundlerParamInfo<File> PACKAGES_ROOT =
             new StandardBundlerParam<>(
-            I18N.getString("param.packages-root.name"),
-            I18N.getString("param.packages-root.description"),
             "mac.pkg.packagesRoot",
             File.class,
             params -> {
                 File packagesRoot =
-                        new File(BUILD_ROOT.fetchFrom(params), "packages");
+                        new File(TEMP_ROOT.fetchFrom(params), "packages");
                 packagesRoot.mkdirs();
                 return packagesRoot;
             },
@@ -78,8 +76,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     protected final BundlerParamInfo<File> SCRIPTS_DIR =
             new StandardBundlerParam<>(
-            I18N.getString("param.scripts-dir.name"),
-            I18N.getString("param.scripts-dir.description"),
             "mac.pkg.scriptsDir",
             File.class,
             params -> {
@@ -93,9 +89,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     public static final
             BundlerParamInfo<String> DEVELOPER_ID_INSTALLER_SIGNING_KEY =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-key-developer-id-installer.name"),
-            I18N.getString(
-            "param.signing-key-developer-id-installer.description"),
             "mac.signing-key-developer-id-installer",
             String.class,
             params -> {
@@ -121,8 +114,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> MAC_INSTALL_DIR =
             new StandardBundlerParam<>(
-            I18N.getString("param.mac-install-dir.name"),
-            I18N.getString("param.mac-install-dir.description"),
             "mac-install-dir",
             String.class,
              params -> {
@@ -134,8 +125,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
             new StandardBundlerParam<> (
-            I18N.getString("param.installer-suffix.name"),
-            I18N.getString("param.installer-suffix.description"),
             "mac.pkg.installerName.suffix",
             String.class,
             params -> "",

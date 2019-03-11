@@ -45,8 +45,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
             new StandardBundlerParam<> (
-            I18N.getString("param.installer-suffix.name"),
-            I18N.getString("param.installer-suffix.description"),
             "mac.dmg.installerName.suffix",
             String.class,
             params -> "",
@@ -67,7 +65,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     outdir.getAbsolutePath());
         }
 
-        File appImageDir = APP_IMAGE_BUILD_ROOT.fetchFrom(params);
+        File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
         try {
             appImageDir.mkdirs();
 
@@ -262,7 +260,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 + INSTALLER_SUFFIX.fetchFrom(p)
                 + ".dmg");
 
-        File srcFolder = APP_IMAGE_BUILD_ROOT.fetchFrom(p);
+        File srcFolder = APP_IMAGE_TEMP_ROOT.fetchFrom(p);
         File predefinedImage = StandardBundlerParam.getPredefinedAppImage(p);
         if (predefinedImage != null) {
             srcFolder = predefinedImage;

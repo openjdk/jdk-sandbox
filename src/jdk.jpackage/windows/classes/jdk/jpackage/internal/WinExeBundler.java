@@ -42,8 +42,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER =
             new WindowsBundlerParam<>(
-            getString("param.exe-bundler.name"),
-            getString("param.exe-bundler.description"),
             "win.app.bundler",
             WinAppBundler.class,
             params -> new WinAppBundler(),
@@ -51,8 +49,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<File> EXE_IMAGE_DIR =
             new WindowsBundlerParam<>(
-            getString("param.image-dir.name"),
-            getString("param.image-dir.description"),
             "win.exe.imageDir",
             File.class,
             params -> {
@@ -64,8 +60,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<File> WIN_APP_IMAGE =
             new WindowsBundlerParam<>(
-            getString("param.app-dir.name"),
-            getString("param.app-dir.description"),
             "win.app.image",
             File.class,
             null,
@@ -73,8 +67,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<UUID> UPGRADE_UUID =
             new WindowsBundlerParam<>(
-            I18N.getString("param.upgrade-uuid.name"),
-            I18N.getString("param.upgrade-uuid.description"),
             Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
             UUID.class,
             params -> UUID.randomUUID(),
@@ -82,8 +74,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> EXE_SYSTEM_WIDE  =
             new StandardBundlerParam<>(
-            getString("param.system-wide.name"),
-            getString("param.system-wide.description"),
             Arguments.CLIOptions.WIN_PER_USER_INSTALLATION.getId(),
             Boolean.class,
             params -> true, // default to system wide
@@ -92,8 +82,6 @@ public class WinExeBundler extends AbstractBundler {
             );
     public static final StandardBundlerParam<String> PRODUCT_VERSION =
             new StandardBundlerParam<>(
-                    getString("param.product-version.name"),
-                    getString("param.product-version.description"),
                     "win.msi.productVersion",
                     String.class,
                     VERSION::fetchFrom,
@@ -102,8 +90,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> MENU_HINT =
         new WindowsBundlerParam<>(
-                getString("param.menu-shortcut-hint.name"),
-                getString("param.menu-shortcut-hint.description"),
                 Arguments.CLIOptions.WIN_MENU_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -113,8 +99,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
         new WindowsBundlerParam<>(
-                getString("param.desktop-shortcut-hint.name"),
-                getString("param.desktop-shortcut-hint.description"),
                 Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -128,8 +112,6 @@ public class WinExeBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String>
             TOOL_INNO_SETUP_COMPILER_EXECUTABLE = new WindowsBundlerParam<>(
-            getString("param.iscc-path.name"),
-            getString("param.iscc-path.description"),
             "win.exe.iscc.exe",
             String.class,
             params -> {
@@ -372,7 +354,7 @@ public class WinExeBundler extends AbstractBundler {
 
         String tempDirectory = WindowsDefender.getUserTempDirectory();
         if (Arguments.CLIOptions.context().userProvidedBuildRoot) {
-            tempDirectory = BUILD_ROOT.fetchFrom(p).getAbsolutePath();
+            tempDirectory = TEMP_ROOT.fetchFrom(p).getAbsolutePath();
         }
         if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                 tempDirectory)) {
@@ -536,36 +518,36 @@ public class WinExeBundler extends AbstractBundler {
         Log.verbose("setting APPLICATION_IMAGE to " +
                 innosetupEscape(imagePathString) + " for InnoSetup");
 
-        StringBuilder secondaryLaunchersCfg = new StringBuilder();
+        StringBuilder addLaunchersCfg = new StringBuilder();
         for (Map<String, ? super Object>
-                launcher : SECONDARY_LAUNCHERS.fetchFrom(p)) {
+                launcher : ADD_LAUNCHERS.fetchFrom(p)) {
             String application_name = APP_NAME.fetchFrom(launcher);
             if (MENU_HINT.fetchFrom(launcher)) {
                 // Name: "{group}\APPLICATION_NAME";
                 // Filename: "{app}\APPLICATION_NAME.exe";
                 // IconFilename: "{app}\APPLICATION_NAME.ico"
-                secondaryLaunchersCfg.append("Name: \"{group}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append("\"; Filename: \"{app}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append(".exe\"; IconFilename: \"{app}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append(".ico\"\r\n");
+                addLaunchersCfg.append("Name: \"{group}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append("\"; Filename: \"{app}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append(".exe\"; IconFilename: \"{app}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append(".ico\"\r\n");
             }
             if (SHORTCUT_HINT.fetchFrom(launcher)) {
                 // Name: "{commondesktop}\APPLICATION_NAME";
                 // Filename: "{app}\APPLICATION_NAME.exe";
                 // IconFilename: "{app}\APPLICATION_NAME.ico"
-                secondaryLaunchersCfg.append("Name: \"{commondesktop}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append("\"; Filename: \"{app}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append(".exe\";  IconFilename: \"{app}\\");
-                secondaryLaunchersCfg.append(application_name);
-                secondaryLaunchersCfg.append(".ico\"\r\n");
+                addLaunchersCfg.append("Name: \"{commondesktop}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append("\"; Filename: \"{app}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append(".exe\";  IconFilename: \"{app}\\");
+                addLaunchersCfg.append(application_name);
+                addLaunchersCfg.append(".ico\"\r\n");
             }
         }
-        data.put("SECONDARY_LAUNCHERS", secondaryLaunchersCfg.toString());
+        data.put("ADD_LAUNCHERS", addLaunchersCfg.toString());
 
         StringBuilder registryEntries = new StringBuilder();
         String regName = APP_REGISTRY_NAME.fetchFrom(p);
@@ -720,8 +702,7 @@ public class WinExeBundler extends AbstractBundler {
             data.put("FILE_ASSOCIATIONS", "");
         }
 
-        // TODO - alternate template for JRE installer
-        String iss = RUNTIME_INSTALLER.fetchFrom(p) ?
+        String iss = StandardBundlerParam.isRuntimeInstaller(p) ?
                 DEFAULT_JRE_EXE_TEMPLATE : DEFAULT_EXE_PROJECT_TEMPLATE;
 
         Writer w = new BufferedWriter(new FileWriter(

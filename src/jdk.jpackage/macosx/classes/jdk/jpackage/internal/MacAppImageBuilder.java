@@ -88,28 +88,23 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<Boolean>
             MAC_CONFIGURE_LAUNCHER_IN_PLIST = new StandardBundlerParam<>(
-                    I18N.getString("param.configure-launcher-in-plist"),
-                    I18N.getString(
-                            "param.configure-launcher-in-plist.description"),
                     "mac.configure-launcher-in-plist",
                     Boolean.class,
                     params -> Boolean.FALSE,
                     (s, p) -> Boolean.valueOf(s));
 
-    public static final BundlerParamInfo<String> MAC_CATEGORY =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.category-name"),
-                    I18N.getString("param.category-name.description"),
-                    "mac.category",
+    public static final EnumeratedBundlerParam<String> MAC_CATEGORY =
+            new EnumeratedBundlerParam<>(
+                    Arguments.CLIOptions.MAC_APP_STORE_CATEGORY.getId(),
                     String.class,
-                    CATEGORY::fetchFrom,
-                    (s, p) -> s
+                    params -> "Unknown",
+                    (s, p) -> s,
+                    MacAppBundler.getMacCategories(),
+                    false //strict - for MacStoreBundler this should be strict
             );
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_NAME =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-name.name"),
-                    I18N.getString("param.cfbundle-name.description"),
                     "mac.CFBundleName",
                     String.class,
                     params -> null,
@@ -117,8 +112,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_IDENTIFIER =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-identifier.name"),
-                    I18N.getString("param.cfbundle-identifier.description"),
                     Arguments.CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(),
                     String.class,
                     IDENTIFIER::fetchFrom,
@@ -126,8 +119,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_VERSION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-version.name"),
-                    I18N.getString("param.cfbundle-version.description"),
                     "mac.CFBundleVersion",
                     String.class,
                     p -> {
@@ -142,8 +133,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<String> DEFAULT_ICNS_ICON =
             new StandardBundlerParam<>(
-            I18N.getString("param.default-icon-icns"),
-            I18N.getString("param.default-icon-icns.description"),
             ".mac.default.icns",
             String.class,
             params -> TEMPLATE_BUNDLE_ICON,
@@ -151,8 +140,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<File> ICON_ICNS =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-icns.name"),
-            I18N.getString("param.icon-icns.description"),
             "icon.icns",
             File.class,
             params -> {
@@ -168,8 +155,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final StandardBundlerParam<Boolean> SIGN_BUNDLE  =
             new StandardBundlerParam<>(
-            I18N.getString("param.sign-bundle.name"),
-            I18N.getString("param.sign-bundle.description"),
             Arguments.CLIOptions.MAC_SIGN.getId(),
             Boolean.class,
             params -> false,
@@ -334,21 +319,21 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         File cfg = new File(root.toFile(), getLauncherCfgName(params));
         writeCfgFile(params, cfg, "$APPDIR/PlugIns/Java.runtime");
 
-        // create secondary app launcher(s) and config file(s)
+        // create additional app launcher(s) and config file(s)
         List<Map<String, ? super Object>> entryPoints =
-                StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+                StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
             Map<String, ? super Object> tmp = new HashMap<>(originalParams);
             tmp.putAll(entryPoint);
 
-            // add executable for secondary launcher
-            Path secondaryExecutable = macOSDir.resolve(getLauncherName(tmp));
+            // add executable for add launcher
+            Path addExecutable = macOSDir.resolve(getLauncherName(tmp));
             try (InputStream is = getResourceAsStream("jpackageapplauncher");) {
-                writeEntry(is, secondaryExecutable);
+                writeEntry(is, addExecutable);
             }
-            secondaryExecutable.toFile().setExecutable(true, false);
+            addExecutable.toFile().setExecutable(true, false);
 
-            // add config file for secondary launcher
+            // add config file for add launcher
             cfg = new File(root.toFile(), getLauncherCfgName(tmp));
             writeCfgFile(tmp, cfg, "$APPDIR/PlugIns/Java.runtime");
         }
@@ -481,11 +466,11 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     private void writeRuntimeInfoPlist(File file) throws IOException {
         Map<String, String> data = new HashMap<>();
-        String identifier = RUNTIME_INSTALLER.fetchFrom(params) ?
+        String identifier = StandardBundlerParam.isRuntimeInstaller(params) ?
                 MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) :
                 "com.oracle.java." + MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params);
         data.put("CF_BUNDLE_IDENTIFIER", identifier);
-        String name = RUNTIME_INSTALLER.fetchFrom(params) ?
+        String name = StandardBundlerParam.isRuntimeInstaller(params) ?
                 getBundleName(params): "Java Runtime Image";
         data.put("CF_BUNDLE_NAME", name);
         data.put("CF_BUNDLE_VERSION", VERSION.fetchFrom(params));

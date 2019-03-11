@@ -58,7 +58,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * StandardBundlerParams
+ * StandardBundlerParam
  *
  * A parameter to a bundler.
  *
@@ -74,13 +74,10 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             "jdk.jpackage.internal.resources.MainResources");
     private static final String JAVABASEJMOD = "java.base.jmod";
 
-    StandardBundlerParam(String name, String description, String id,
-            Class<T> valueType,
+    StandardBundlerParam(String id, Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
             BiFunction<String, Map<String, ? super Object>, T> stringConverter)
     {
-        this.name = name;
-        this.description = description;
         this.id = id;
         this.valueType = valueType;
         this.defaultValueFunction = defaultValueFunction;
@@ -89,8 +86,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<RelativeFileSet> APP_RESOURCES =
             new StandardBundlerParam<>(
-                    I18N.getString("param.app-resources.name"),
-                    I18N.getString("param.app-resource.description"),
                     BundleParams.PARAM_APP_RESOURCES,
                     RelativeFileSet.class,
                     null, // no default.  Required parameter
@@ -102,8 +97,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     static final
             StandardBundlerParam<List<RelativeFileSet>> APP_RESOURCES_LIST =
             new StandardBundlerParam<>(
-                    I18N.getString("param.app-resources-list.name"),
-                    I18N.getString("param.app-resource-list.description"),
                     BundleParams.PARAM_APP_RESOURCES + "List",
                     (Class<List<RelativeFileSet>>) (Object) List.class,
                     // Default is appResources, as a single item list
@@ -114,8 +107,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> SOURCE_DIR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.source-dir.name"),
-                    I18N.getString("param.source-dir.description"),
                     Arguments.CLIOptions.INPUT.getId(),
                     String.class,
                     p -> null,
@@ -135,8 +126,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     // their own converter
     static final StandardBundlerParam<RelativeFileSet> MAIN_JAR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.main-jar.name"),
-                    I18N.getString("param.main-jar.description"),
                     Arguments.CLIOptions.MAIN_JAR.getId(),
                     RelativeFileSet.class,
                     params -> {
@@ -149,8 +138,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     // TODO: test CLASSPATH jar manifest Attributet
     static final StandardBundlerParam<String> CLASSPATH =
             new StandardBundlerParam<>(
-                    I18N.getString("param.classpath.name"),
-                    I18N.getString("param.classpath.description"),
                     "classpath",
                     String.class,
                     params -> {
@@ -161,27 +148,12 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s.replace(File.pathSeparator, " ")
             );
 
-    static final StandardBundlerParam<Boolean> RUNTIME_INSTALLER  =
-            new StandardBundlerParam<>(
-                    "",
-                    "",
-                    Arguments.CLIOptions.RUNTIME_INSTALLER.getId(),
-                    Boolean.class,
-                    params -> false,
-                    // valueOf(null) is false, and we actually do want null
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s)
-            );
-
-
     static final StandardBundlerParam<String> MAIN_CLASS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.main-class.name"),
-                    I18N.getString("param.main-class.description"),
                     Arguments.CLIOptions.APPCLASS.getId(),
                     String.class,
                     params -> {
-                        if (RUNTIME_INSTALLER.fetchFrom(params)) {
+                        if (isRuntimeInstaller(params)) {
                             return null;
                         }
                         extractMainClassInfoFromAppResources(params);
@@ -197,8 +169,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> APP_NAME =
             new StandardBundlerParam<>(
-                    I18N.getString("param.app-name.name"),
-                    I18N.getString("param.app-name.description"),
                     Arguments.CLIOptions.NAME.getId(),
                     String.class,
                     params -> {
@@ -216,8 +186,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<File> ICON =
             new StandardBundlerParam<>(
-                    I18N.getString("param.icon-file.name"),
-                    I18N.getString("param.icon-file.description"),
                     Arguments.CLIOptions.ICON.getId(),
                     File.class,
                     params -> null,
@@ -226,28 +194,14 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> VENDOR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.vendor.name"),
-                    I18N.getString("param.vendor.description"),
                     Arguments.CLIOptions.VENDOR.getId(),
                     String.class,
                     params -> I18N.getString("param.vendor.default"),
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<String> CATEGORY =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.category.name"),
-                    I18N.getString("param.category.description"),
-                   Arguments.CLIOptions.CATEGORY.getId(),
-                    String.class,
-                    params -> I18N.getString("param.category.default"),
-                    (s, p) -> s
-            );
-
     static final StandardBundlerParam<String> DESCRIPTION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.description.name"),
-                    I18N.getString("param.description.description"),
                     Arguments.CLIOptions.DESCRIPTION.getId(),
                     String.class,
                     params -> params.containsKey(APP_NAME.getID())
@@ -258,8 +212,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> COPYRIGHT =
             new StandardBundlerParam<>(
-                    I18N.getString("param.copyright.name"),
-                    I18N.getString("param.copyright.description"),
                     Arguments.CLIOptions.COPYRIGHT.getId(),
                     String.class,
                     params -> MessageFormat.format(I18N.getString(
@@ -270,8 +222,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final StandardBundlerParam<List<String>> ARGUMENTS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.arguments.name"),
-                    I18N.getString("param.arguments.description"),
                     Arguments.CLIOptions.ARGUMENTS.getId(),
                     (Class<List<String>>) (Object) List.class,
                     params -> Collections.emptyList(),
@@ -281,8 +231,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final StandardBundlerParam<List<String>> JVM_OPTIONS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.jvm-options.name"),
-                    I18N.getString("param.jvm-options.description"),
                     Arguments.CLIOptions.JVM_ARGS.getId(),
                     (Class<List<String>>) (Object) List.class,
                     params -> Collections.emptyList(),
@@ -293,8 +241,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     // their own converter
     static final StandardBundlerParam<String> VERSION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.version.name"),
-                    I18N.getString("param.version.description"),
                     Arguments.CLIOptions.VERSION.getId(),
                     String.class,
                     params -> I18N.getString("param.version.default"),
@@ -304,19 +250,15 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     public static final StandardBundlerParam<String> LICENSE_FILE =
             new StandardBundlerParam<>(
-                    I18N.getString("param.license-file.name"),
-                    I18N.getString("param.license-file.description"),
                     Arguments.CLIOptions.LICENSE_FILE.getId(),
                     String.class,
                     params -> null,
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<File> BUILD_ROOT =
+    static final StandardBundlerParam<File> TEMP_ROOT =
             new StandardBundlerParam<>(
-                    I18N.getString("param.build-root.name"),
-                    I18N.getString("param.build-root.description"),
-                    Arguments.CLIOptions.BUILD_ROOT.getId(),
+                    Arguments.CLIOptions.TEMP_ROOT.getId(),
                     File.class,
                     params -> {
                         try {
@@ -331,13 +273,11 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     public static final StandardBundlerParam<File> CONFIG_ROOT =
             new StandardBundlerParam<>(
-                I18N.getString("param.config-root.name"),
-                I18N.getString("param.config-root.description"),
                 "configRoot",
                 File.class,
                 params -> {
                     File root =
-                            new File(BUILD_ROOT.fetchFrom(params), "config");
+                            new File(TEMP_ROOT.fetchFrom(params), "config");
                     root.mkdirs();
                     return root;
                 },
@@ -346,8 +286,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> IDENTIFIER =
             new StandardBundlerParam<>(
-                    I18N.getString("param.identifier.name"),
-                    I18N.getString("param.identifier.description"),
                     Arguments.CLIOptions.IDENTIFIER.getId(),
                     String.class,
                     params -> {
@@ -365,8 +303,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> PREFERENCES_ID =
             new StandardBundlerParam<>(
-                    I18N.getString("param.preferences-id.name"),
-                    I18N.getString("param.preferences-id.description"),
                     "preferencesID",
                     String.class,
                     p -> Optional.ofNullable(IDENTIFIER.fetchFrom(p)).
@@ -376,21 +312,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<Boolean> VERBOSE  =
             new StandardBundlerParam<>(
-                    I18N.getString("param.verbose.name"),
-                    I18N.getString("param.verbose.description"),
                     Arguments.CLIOptions.VERBOSE.getId(),
-                    Boolean.class,
-                    params -> false,
-                    // valueOf(null) is false, and we actually do want null
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s)
-            );
-
-    static final StandardBundlerParam<Boolean> OVERWRITE  =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.overwrite.name"),
-                    I18N.getString("param.overwrite.description"),
-                    Arguments.CLIOptions.OVERWRITE.getId(),
                     Boolean.class,
                     params -> false,
                     // valueOf(null) is false, and we actually do want null
@@ -400,8 +322,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<File> RESOURCE_DIR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.resource-dir.name"),
-                    I18N.getString("param.resource-dir.description"),
                     Arguments.CLIOptions.RESOURCE_DIR.getId(),
                     File.class,
                     params -> null,
@@ -410,8 +330,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final BundlerParamInfo<String> INSTALL_DIR =
             new StandardBundlerParam<>(
-                    I18N.getString("param.install-dir.name"),
-                    I18N.getString("param.install-dir.description"),
                     Arguments.CLIOptions.INSTALL_DIR.getId(),
                     String.class,
                      params -> null,
@@ -420,8 +338,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<File> PREDEFINED_APP_IMAGE =
             new StandardBundlerParam<>(
-            I18N.getString("param.predefined-app-image.name"),
-            I18N.getString("param.predefined-app-image.description"),
             Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId(),
             File.class,
             params -> null,
@@ -429,19 +345,15 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<File> PREDEFINED_RUNTIME_IMAGE =
             new StandardBundlerParam<>(
-            I18N.getString("param.predefined-runtime-image.name"),
-            I18N.getString("param.predefined-runtime-image.description"),
             Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(),
             File.class,
             params -> null,
             (s, p) -> new File(s));
 
     @SuppressWarnings("unchecked")
-    static final StandardBundlerParam<List<Map<String, ? super Object>>> SECONDARY_LAUNCHERS =
+    static final StandardBundlerParam<List<Map<String, ? super Object>>> ADD_LAUNCHERS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.secondary-launchers.name"),
-                    I18N.getString("param.secondary-launchers.description"),
-                    Arguments.CLIOptions.SECONDARY_LAUNCHER.getId(),
+                    Arguments.CLIOptions.ADD_LAUNCHER.getId(),
                     (Class<List<Map<String, ? super Object>>>) (Object)
                             List.class,
                     params -> new ArrayList<>(1),
@@ -453,8 +365,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     static final StandardBundlerParam
             <List<Map<String, ? super Object>>> FILE_ASSOCIATIONS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.file-associations.name"),
-                    I18N.getString("param.file-associations.description"),
                     Arguments.CLIOptions.FILE_ASSOCIATIONS.getId(),
                     (Class<List<Map<String, ? super Object>>>) (Object)
                             List.class,
@@ -466,8 +376,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final StandardBundlerParam<List<String>> FA_EXTENSIONS =
             new StandardBundlerParam<>(
-                    I18N.getString("param.fa-extension.name"),
-                    I18N.getString("param.fa-extension.description"),
                     "fileAssociation.extension",
                     (Class<List<String>>) (Object) List.class,
                     params -> null, // null means not matched to an extension
@@ -477,8 +385,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final StandardBundlerParam<List<String>> FA_CONTENT_TYPE =
             new StandardBundlerParam<>(
-                    I18N.getString("param.fa-content-type.name"),
-                    I18N.getString("param.fa-content-type.description"),
                     "fileAssociation.contentType",
                     (Class<List<String>>) (Object) List.class,
                     params -> null,
@@ -488,8 +394,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> FA_DESCRIPTION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.fa-description.name"),
-                    I18N.getString("param.fa-description.description"),
                     "fileAssociation.description",
                     String.class,
                     params -> APP_NAME.fetchFrom(params) + " File",
@@ -498,8 +402,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<File> FA_ICON =
             new StandardBundlerParam<>(
-                    I18N.getString("param.fa-icon.name"),
-                    I18N.getString("param.fa-icon.description"),
                     "fileAssociation.icon",
                     File.class,
                     ICON::fetchFrom,
@@ -509,8 +411,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final BundlerParamInfo<List<Path>> MODULE_PATH =
             new StandardBundlerParam<>(
-                    I18N.getString("param.module-path.name"),
-                    I18N.getString("param.module-path.description"),
                     Arguments.CLIOptions.MODULE_PATH.getId(),
                     (Class<List<Path>>) (Object)List.class,
                     p -> { return getDefaultModulePath(); },
@@ -550,8 +450,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final BundlerParamInfo<String> MODULE =
             new StandardBundlerParam<>(
-                    I18N.getString("param.main.module.name"),
-                    I18N.getString("param.main.module.description"),
                     Arguments.CLIOptions.MODULE.getId(),
                     String.class,
                     p -> null,
@@ -562,8 +460,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final BundlerParamInfo<Set<String>> ADD_MODULES =
             new StandardBundlerParam<>(
-                    I18N.getString("param.add-modules.name"),
-                    I18N.getString("param.add-modules.description"),
                     Arguments.CLIOptions.ADD_MODULES.getId(),
                     (Class<Set<String>>) (Object) Set.class,
                     p -> new LinkedHashSet<String>(),
@@ -573,23 +469,22 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     @SuppressWarnings("unchecked")
     static final BundlerParamInfo<Set<String>> LIMIT_MODULES =
             new StandardBundlerParam<>(
-                    I18N.getString("param.limit-modules.name"),
-                    I18N.getString("param.limit-modules.description"),
                     "limit-modules",
                     (Class<Set<String>>) (Object) Set.class,
                     p -> new LinkedHashSet<String>(),
                     (s, p) -> new LinkedHashSet<>(Arrays.asList(s.split(",")))
             );
 
-    static final BundlerParamInfo<Boolean> STRIP_NATIVE_COMMANDS =
-            new StandardBundlerParam<>(
-                    I18N.getString("param.strip-executables.name"),
-                    I18N.getString("param.strip-executables.description"),
-                    Arguments.CLIOptions.STRIP_NATIVE_COMMANDS.getId(),
-                    Boolean.class,
-                    p -> Boolean.FALSE,
-                    (s, p) -> Boolean.valueOf(s)
-            );
+    static boolean isRuntimeInstaller(Map<String, ? super Object> p) {
+        if (p.containsKey(MODULE.getID()) ||
+                p.containsKey(MAIN_JAR.getID()) ||
+                p.containsKey(PREDEFINED_APP_IMAGE.getID())) {
+            return false; // we are building or are given an application
+        }
+        // runtime installer requires --runtime-image, if this is false
+        // here then we should have thrown error validating args.
+        return p.containsKey(PREDEFINED_RUNTIME_IMAGE.getID());
+    }
 
     static File getPredefinedAppImage(Map<String, ? super Object> p) {
         File applicationImage = null;
@@ -650,11 +545,9 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasMainJar = params.containsKey(MAIN_JAR.getID());
         boolean hasMainJarClassPath = params.containsKey(CLASSPATH.getID());
         boolean hasModule = params.containsKey(MODULE.getID());
-        boolean runtimeInstaller =
-                params.containsKey(RUNTIME_INSTALLER.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath || hasModule ||
-                runtimeInstaller) {
+                isRuntimeInstaller(params)) {
             return;
         }
 
@@ -738,11 +631,9 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasMainJarClassPath = params.containsKey(CLASSPATH.getID());
         boolean hasModule = params.containsKey(MODULE.getID());
         boolean hasAppImage = params.containsKey(PREDEFINED_APP_IMAGE.getID());
-        boolean runtimeInstaller =
-                params.containsKey(RUNTIME_INSTALLER.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath ||
-               hasModule || runtimeInstaller || hasAppImage) {
+               hasModule || hasAppImage || isRuntimeInstaller(params)) {
             return;
         }
 
@@ -764,7 +655,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             }
         }
     }
-
 
     private static List<String> splitStringWithEscapes(String s) {
         List<String> l = new ArrayList<>();

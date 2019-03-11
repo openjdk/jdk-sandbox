@@ -80,8 +80,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<Boolean> REBRAND_EXECUTABLE =
             new WindowsBundlerParam<>(
-            I18N.getString("param.rebrand-executable.name"),
-            I18N.getString("param.rebrand-executable.description"),
             "win.launcher.rebrand",
             Boolean.class,
             params -> Boolean.TRUE,
@@ -89,8 +87,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<File> ICON_ICO =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-ico.name"),
-            I18N.getString("param.icon-ico.description"),
             "icon.ico",
             File.class,
             params -> {
@@ -106,8 +102,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final StandardBundlerParam<Boolean> CONSOLE_HINT =
             new WindowsBundlerParam<>(
-            I18N.getString("param.console-hint.name"),
-            I18N.getString("param.console-hint.description"),
             Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
             Boolean.class,
             params -> false,
@@ -256,9 +250,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         copyMSVCDLLs();
 
-        // create the secondary launchers, if any
+        // create the additional launcher(s), if any
         List<Map<String, ? super Object>> entryPoints =
-                StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+                StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
             Map<String, ? super Object> tmp = new HashMap<>(originalParams);
             tmp.putAll(entryPoint);
@@ -389,7 +383,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             try {
                 String tempDirectory = WindowsDefender.getUserTempDirectory();
                 if (Arguments.CLIOptions.context().userProvidedBuildRoot) {
-                    tempDirectory = BUILD_ROOT.fetchFrom(p).getAbsolutePath();
+                    tempDirectory = TEMP_ROOT.fetchFrom(p).getAbsolutePath();
                 }
                 if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                         tempDirectory)) {

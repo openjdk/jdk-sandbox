@@ -51,17 +51,13 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
     // This could be generalized more to be for any type of Image Bundler
     public static final BundlerParamInfo<MacAppBundler> APP_BUNDLER =
             new StandardBundlerParam<>(
-            I18N.getString("param.app-bundler.name"),
-            I18N.getString("param.app-bundle.description"),
             "mac.app.bundler",
             MacAppBundler.class,
             params -> new MacAppBundler(),
             (s, p) -> null);
 
-    public final BundlerParamInfo<File> APP_IMAGE_BUILD_ROOT =
+    public final BundlerParamInfo<File> APP_IMAGE_TEMP_ROOT =
             new StandardBundlerParam<>(
-            I18N.getString("param.app-image-build-root.name"),
-            I18N.getString("param.app-image-build-root.description"),
             "mac.app.imageRoot",
             File.class,
             params -> {
@@ -78,8 +74,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> SIGNING_KEY_USER =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-key-name.name"),
-            I18N.getString("param.signing-key-name.description"),
             Arguments.CLIOptions.MAC_SIGNING_KEY_NAME.getId(),
             String.class,
             params -> "",
@@ -87,8 +81,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> SIGNING_KEYCHAIN =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-keychain.name"),
-            I18N.getString("param.signing-keychain.description"),
             Arguments.CLIOptions.MAC_SIGNING_KEYCHAIN.getId(),
             String.class,
             params -> "",
@@ -96,8 +88,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> INSTALLER_NAME =
             new StandardBundlerParam<> (
-            I18N.getString("param.installer-name.name"),
-            I18N.getString("param.installer-name.description"),
             "mac.installerName",
             String.class,
             params -> {
@@ -151,7 +141,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         if (predefinedImage != null) {
             return predefinedImage;
         }
-        File appImageRoot = APP_IMAGE_BUILD_ROOT.fetchFrom(p);
+        File appImageRoot = APP_IMAGE_TEMP_ROOT.fetchFrom(p);
         if (pkg) {
             // create pkg in dmg
             return new MacPkgBundler().bundle(p, appImageRoot);
@@ -168,7 +158,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         results.addAll(Arrays.asList(
                 APP_BUNDLER,
                 CONFIG_ROOT,
-                APP_IMAGE_BUILD_ROOT,
+                APP_IMAGE_TEMP_ROOT,
                 PREDEFINED_APP_IMAGE
         ));
 

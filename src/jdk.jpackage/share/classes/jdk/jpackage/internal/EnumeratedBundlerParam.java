@@ -59,13 +59,10 @@ class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
     private final Map<String, T> elements;
     private final boolean strict;
 
-    EnumeratedBundlerParam(String name, String description,
-            String id, Class<T> valueType,
+    EnumeratedBundlerParam(String id, Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
             BiFunction<String, Map<String, ? super Object>, T> stringConverter,
             Map<String, T> elements, boolean strict) {
-        this.name = name;
-        this.description = description;
         this.id = id;
         this.valueType = valueType;
         this.defaultValueFunction = defaultValueFunction;
@@ -94,21 +91,6 @@ class EnumeratedBundlerParam<T> extends BundlerParamInfo<T> {
 
     boolean isLoose() {
         return !isStrict();
-    }
-
-    T validatedFetchFrom(Map<String, ? super Object> params)
-            throws InvalidBundlerParamException {
-        if (isStrict()) {
-            T value = fetchFrom(params);
-            if (!isInPossibleValues(value)) {
-                throw new InvalidBundlerParamException("Parameter "
-                        + value.toString()
-                        + " not in valid set of values for BundlerParam "
-                        + name);
-            }
-            return value;
-        }
-        return fetchFrom(params);
     }
 
 }

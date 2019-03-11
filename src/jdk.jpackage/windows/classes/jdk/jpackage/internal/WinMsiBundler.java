@@ -42,8 +42,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER =
             new WindowsBundlerParam<>(
-            I18N.getString("param.msi-bundler.name"),
-            I18N.getString("param.msi-bundler.description"),
             "win.app.bundler",
             WinAppBundler.class,
             params -> new WinAppBundler(),
@@ -51,8 +49,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<Boolean> CAN_USE_WIX36 =
             new WindowsBundlerParam<>(
-            I18N.getString("param.can-use-wix36.name"),
-            I18N.getString("param.can-use-wix36.description"),
             "win.msi.canUseWix36",
             Boolean.class,
             params -> false,
@@ -60,8 +56,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<File> MSI_IMAGE_DIR =
             new WindowsBundlerParam<>(
-            I18N.getString("param.image-dir.name"),
-            I18N.getString("param.image-dir.description"),
             "win.msi.imageDir",
             File.class,
             params -> {
@@ -73,8 +67,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<File> WIN_APP_IMAGE =
             new WindowsBundlerParam<>(
-            I18N.getString("param.app-dir.name"),
-            I18N.getString("param.app-dir.description"),
             "win.app.image",
             File.class,
             null,
@@ -82,8 +74,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> MSI_SYSTEM_WIDE  =
             new StandardBundlerParam<>(
-                    I18N.getString("param.system-wide.name"),
-                    I18N.getString("param.system-wide.description"),
                     Arguments.CLIOptions.WIN_PER_USER_INSTALLATION.getId(),
                     Boolean.class,
                     params -> true, // MSIs default to system wide
@@ -96,8 +86,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final StandardBundlerParam<String> PRODUCT_VERSION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.product-version.name"),
-                    I18N.getString("param.product-version.description"),
                     "win.msi.productVersion",
                     String.class,
                     VERSION::fetchFrom,
@@ -106,8 +94,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<UUID> UPGRADE_UUID =
             new WindowsBundlerParam<>(
-            I18N.getString("param.upgrade-uuid.name"),
-            I18N.getString("param.upgrade-uuid.description"),
             Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
             UUID.class,
             params -> UUID.randomUUID(),
@@ -130,8 +116,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<String> TOOL_CANDLE_EXECUTABLE =
             new WindowsBundlerParam<>(
-            I18N.getString("param.candle-path.name"),
-            I18N.getString("param.candle-path.description"),
             "win.msi.candle.exe",
             String.class,
             params -> {
@@ -148,8 +132,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final BundlerParamInfo<String> TOOL_LIGHT_EXECUTABLE =
             new WindowsBundlerParam<>(
-            I18N.getString("param.light-path.name"),
-            I18N.getString("param.light-path.description"),
             "win.msi.light.exe",
             String.class,
             params -> {
@@ -166,8 +148,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> MENU_HINT =
         new WindowsBundlerParam<>(
-                I18N.getString("param.menu-shortcut-hint.name"),
-                I18N.getString("param.menu-shortcut-hint.description"),
                 Arguments.CLIOptions.WIN_MENU_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -179,8 +159,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
         new WindowsBundlerParam<>(
-                I18N.getString("param.desktop-shortcut-hint.name"),
-                I18N.getString("param.desktop-shortcut-hint.description"),
                 Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -601,31 +579,31 @@ public class WinMsiBundler  extends AbstractBundler {
             data.put("INVALID_INSTALL_DIR_DLG_BLOCK", "");
         }
 
-        List<Map<String, ? super Object>> secondaryLaunchers =
-                SECONDARY_LAUNCHERS.fetchFrom(params);
+        List<Map<String, ? super Object>> addLaunchers =
+                ADD_LAUNCHERS.fetchFrom(params);
 
-        StringBuilder secondaryLauncherIcons = new StringBuilder();
-        for (int i = 0; i < secondaryLaunchers.size(); i++) {
-            Map<String, ? super Object> sl = secondaryLaunchers.get(i);
+        StringBuilder addLauncherIcons = new StringBuilder();
+        for (int i = 0; i < addLaunchers.size(); i++) {
+            Map<String, ? super Object> sl = addLaunchers.get(i);
             // <Icon Id="DesktopIcon.exe" SourceFile="APPLICATION_ICON" />
             if (SHORTCUT_HINT.fetchFrom(sl) || MENU_HINT.fetchFrom(sl)) {
-                File secondaryLauncher = new File(imageRootDir,
+                File addLauncher = new File(imageRootDir,
                         WinAppBundler.getLauncherName(sl));
-                String secondaryLauncherPath =
-                        relativePath(imageRootDir, secondaryLauncher);
-                String secondaryLauncherIconPath =
-                        secondaryLauncherPath.replace(".exe", ".ico");
+                String addLauncherPath =
+                        relativePath(imageRootDir, addLauncher);
+                String addLauncherIconPath =
+                        addLauncherPath.replace(".exe", ".ico");
 
-                secondaryLauncherIcons.append("        <Icon Id=\"Launcher");
-                secondaryLauncherIcons.append(i);
-                secondaryLauncherIcons.append(".exe\" SourceFile=\"");
-                secondaryLauncherIcons.append(secondaryLauncherIconPath);
-                secondaryLauncherIcons.append("\" />\r\n");
+                addLauncherIcons.append("        <Icon Id=\"Launcher");
+                addLauncherIcons.append(i);
+                addLauncherIcons.append(".exe\" SourceFile=\"");
+                addLauncherIcons.append(addLauncherIconPath);
+                addLauncherIcons.append("\" />\r\n");
             }
         }
-        data.put("SECONDARY_LAUNCHER_ICONS", secondaryLauncherIcons.toString());
+        data.put("ADD_LAUNCHER_ICONS", addLauncherIcons.toString());
 
-        String wxs = RUNTIME_INSTALLER.fetchFrom(params) ?
+        String wxs = StandardBundlerParam.isRuntimeInstaller(params) ?
                 MSI_PROJECT_TEMPLATE_SERVER_JRE : MSI_PROJECT_TEMPLATE;
 
         Writer w = new BufferedWriter(
@@ -842,13 +820,13 @@ public class WinMsiBundler  extends AbstractBundler {
                         + " IconIndex=\"0\" />");
             }
 
-            List<Map<String, ? super Object>> secondaryLaunchers =
-                    SECONDARY_LAUNCHERS.fetchFrom(params);
-            for (int i = 0; i < secondaryLaunchers.size(); i++) {
-                Map<String, ? super Object> sl = secondaryLaunchers.get(i);
-                File secondaryLauncherFile = new File(imageRootDir,
+            List<Map<String, ? super Object>> addLaunchers =
+                    ADD_LAUNCHERS.fetchFrom(params);
+            for (int i = 0; i < addLaunchers.size(); i++) {
+                Map<String, ? super Object> sl = addLaunchers.get(i);
+                File addLauncherFile = new File(imageRootDir,
                         WinAppBundler.getLauncherName(sl));
-                if (f.equals(secondaryLauncherFile)) {
+                if (f.equals(addLauncherFile)) {
                     if (SHORTCUT_HINT.fetchFrom(sl)) {
                         out.println(prefix
                                 + "  <Shortcut Id=\"desktopShortcut"
@@ -1077,7 +1055,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
     private File buildMSI(Map<String, ? super Object> params, File outdir)
             throws IOException {
-        File tmpDir = new File(BUILD_ROOT.fetchFrom(params), "tmp");
+        File tmpDir = new File(TEMP_ROOT.fetchFrom(params), "tmp");
         File candleOut = new File(
                 tmpDir, APP_NAME.fetchFrom(params) +".wixobj");
         File msiOut = new File(

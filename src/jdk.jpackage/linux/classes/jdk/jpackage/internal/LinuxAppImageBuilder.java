@@ -65,8 +65,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-png.name"),
-            I18N.getString("param.icon-png.description"),
             "icon.png",
             File.class,
             params -> {
@@ -191,9 +189,9 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             writeEntry(is_lib, root.resolve(LIBRARY_NAME));
         }
 
-        // create the secondary launchers, if any
+        // create the additional launchers, if any
         List<Map<String, ? super Object>> entryPoints
-                = StandardBundlerParam.SECONDARY_LAUNCHERS.fetchFrom(params);
+                = StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
             Map<String, ? super Object> tmp = new HashMap<>(originalParams);
             tmp.putAll(entryPoint);

@@ -77,10 +77,6 @@ public class BundleParams {
     // String - Application version. Format may differ for different bundlers
     public static final String PARAM_VERSION            = "appVersion";
 
-    // String - Application category. Used at least on Mac/Linux.
-    // Value is platform specific
-    public static final String PARAM_CATEGORY       = "applicationCategory";
-
     // String - Optional application description. Used by MSI and on Linux
     public static final String PARAM_DESCRIPTION        = "description";
 
@@ -163,11 +159,6 @@ public class BundleParams {
 
     public void setLimitModules(String value)  {
         putUnlessNull(StandardBundlerParam.LIMIT_MODULES.getID(), value);
-    }
-
-    public void setStripNativeCommands(boolean value) {
-        putUnlessNull(StandardBundlerParam.STRIP_NATIVE_COMMANDS.getID(),
-                value);
     }
 
     public void setModulePath(String value) {
@@ -267,14 +258,6 @@ public class BundleParams {
     public void setAppResourcesList(
             List<jdk.jpackage.internal.RelativeFileSet> rfs) {
         putUnlessNull(APP_RESOURCES_LIST.getID(), rfs);
-    }
-
-    public String getApplicationCategory() {
-        return fetchParam(CATEGORY);
-    }
-
-    public void setApplicationCategory(String category) {
-        putUnlessNull(PARAM_CATEGORY, category);
     }
 
     public String getMainClassName() {

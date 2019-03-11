@@ -35,19 +35,15 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.WinResources");
 
-    WindowsBundlerParam(String name, String description, String id,
-            Class<T> valueType,
+    WindowsBundlerParam(String id, Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
             BiFunction<String,
             Map<String, ? super Object>, T> stringConverter) {
-        super(name, description, id, valueType,
-                defaultValueFunction, stringConverter);
+        super(id, valueType, defaultValueFunction, stringConverter);
     }
 
     static final BundlerParamInfo<String> INSTALLER_FILE_NAME =
             new StandardBundlerParam<> (
-            I18N.getString("param.installer-name.name"),
-            I18N.getString("param.installer-name.description"),
             "win.installerName",
             String.class,
             params -> {
@@ -65,8 +61,6 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     static final BundlerParamInfo<String> APP_REGISTRY_NAME =
             new StandardBundlerParam<> (
-            I18N.getString("param.registry-name.name"),
-            I18N.getString("param.registry-name.description"),
             Arguments.CLIOptions.WIN_REGISTRY_NAME.getId(),
             String.class,
             params -> {
@@ -79,22 +73,14 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     static final StandardBundlerParam<String> MENU_GROUP =
             new StandardBundlerParam<>(
-                    I18N.getString("param.menu-group.name"),
-                    I18N.getString("param.menu-group.description"),
                     Arguments.CLIOptions.WIN_MENU_GROUP.getId(),
                     String.class,
-                    params -> params.containsKey(VENDOR.getID())
-                            ? VENDOR.fetchFrom(params)
-                            : params.containsKey(CATEGORY.getID())
-                            ? CATEGORY.fetchFrom(params)
-                            : I18N.getString("param.menu-group.default"),
+                    params -> I18N.getString("param.menu-group.default"),
                     (s, p) -> s
             );
 
     static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
             new StandardBundlerParam<> (
-            I18N.getString("param.installdir-chooser.name"),
-            I18N.getString("param.installdir-chooser.description"),
             Arguments.CLIOptions.WIN_DIR_CHOOSER.getId(),
             Boolean.class,
             params -> Boolean.FALSE,

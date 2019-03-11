@@ -44,8 +44,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-png.name"),
-            I18N.getString("param.icon-png.description"),
             "icon.png",
             File.class,
             params -> {
@@ -61,8 +59,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> LINUX_INSTALL_DIR =
             new StandardBundlerParam<>(
-            I18N.getString("param.linux-install-dir.name"),
-            I18N.getString("param.linux-install-dir.description"),
             "linux-install-dir",
             String.class,
             params -> {
@@ -80,8 +76,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> LINUX_PACKAGE_DEPENDENCIES =
             new StandardBundlerParam<>(
-            I18N.getString("param.linux-package-dependencies.name"),
-            I18N.getString("param.linux-package-dependencies.description"),
             Arguments.CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
             String.class,
             params -> {
@@ -131,32 +125,10 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (RUNTIME_INSTALLER.fetchFrom(p)) {
-            return doJreBundle(p, outputDirectory, dependentTask);
+        if (StandardBundlerParam.isRuntimeInstaller(p)) {
+            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
         } else {
             return doAppBundle(p, outputDirectory, dependentTask);
-        }
-    }
-
-    private File doJreBundle(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask) throws PackagerException {
-        try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p), "linuxapp-image-builder");
-            AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(
-                    APP_NAME.fetchFrom(p), outputDirectory.toPath());
-            File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
-            if (predefined == null ) {
-                JLinkBundlerHelper.generateJre(p, appBuilder);
-            } else {
-                return predefined;
-            }
-            return rootDirectory;
-        } catch (PackagerException pe) {
-            throw pe;
-        } catch (Exception ex) {
-            Log.verbose(ex);
-            throw new PackagerException(ex);
         }
     }
 
@@ -164,7 +136,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             File outputDirectory, boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p), "linuxapp-image-builder");
+                    APP_NAME.fetchFrom(p));
             AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(p,
                     outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {

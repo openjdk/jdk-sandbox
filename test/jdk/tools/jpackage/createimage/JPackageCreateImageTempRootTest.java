@@ -26,14 +26,14 @@ import java.io.File;
  /*
  * @test
  * @requires (os.family == "windows")
- * @summary jpackage create image to test --build-root
+ * @summary jpackage create image to test --temp-root
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageBuildRootTest
+ * @run main/othervm -Xmx512m JPackageCreateImageTempRootTest
  */
-public class JPackageCreateImageBuildRootTest {
+public class JPackageCreateImageTempRootTest {
     private static final String OUTPUT = "output";
     private static String buildRoot = null;
     private static final String BUILD_ROOT = "buildRoot";
@@ -56,7 +56,7 @@ public class JPackageCreateImageBuildRootTest {
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--build-root", "TBD"};
+        "--temp-root", "TBD"};
 
     private static void validate(boolean retain) throws Exception {
         File br = new File(buildRoot);
@@ -81,7 +81,7 @@ public class JPackageCreateImageBuildRootTest {
         CMD_BUILD_ROOT[CMD_BUILD_ROOT.length - 1] = buildRoot;
     }
 
-    private static void testBuildRoot() throws Exception {
+    private static void testTempRoot() throws Exception {
         init(false);
         JPackageHelper.executeCLI(true, CMD);
         validate(false);
@@ -90,7 +90,7 @@ public class JPackageCreateImageBuildRootTest {
         validate(true);
     }
 
-    private static void testBuildRootToolProvider() throws Exception {
+    private static void testTempRootToolProvider() throws Exception {
         init(true);
         JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
@@ -102,8 +102,8 @@ public class JPackageCreateImageBuildRootTest {
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        testBuildRoot();
-        testBuildRootToolProvider();
+        testTempRoot();
+        testTempRootToolProvider();
     }
 
 }

@@ -46,8 +46,6 @@ public class WinAppBundler extends AbstractImageBundler {
 
     static final BundlerParamInfo<File> ICON_ICO =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-ico.name"),
-            I18N.getString("param.icon-ico.description"),
             "icon.ico",
             File.class,
             params -> {
@@ -171,33 +169,10 @@ public class WinAppBundler extends AbstractImageBundler {
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (RUNTIME_INSTALLER.fetchFrom(p)) {
-            return doJreBundle(p, outputDirectory, dependentTask);
+        if (StandardBundlerParam.isRuntimeInstaller(p)) {
+            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
         } else {
             return doAppBundle(p, outputDirectory, dependentTask);
-        }
-    }
-
-    File doJreBundle(Map<String, ? super Object> p, File outputDirectory,
-            boolean dependentTask) throws PackagerException {
-        try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                APP_NAME.fetchFrom(p), "windowsapp-image-builder");
-            AbstractAppImageBuilder appBuilder = new WindowsAppImageBuilder(
-                    APP_NAME.fetchFrom(p),
-                    outputDirectory.toPath());
-            File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
-            if (predefined == null ) {
-                JLinkBundlerHelper.generateJre(p, appBuilder);
-            } else {
-                return predefined;
-            }
-            return rootDirectory;
-        } catch (PackagerException pe) {
-            throw pe;
-        } catch (Exception e) {
-            Log.verbose(e);
-            throw new PackagerException(e);
         }
     }
 
@@ -205,7 +180,7 @@ public class WinAppBundler extends AbstractImageBundler {
             boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p), "windowsapp-image-builder");
+                    APP_NAME.fetchFrom(p));
             AbstractAppImageBuilder appBuilder =
                     new WindowsAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {

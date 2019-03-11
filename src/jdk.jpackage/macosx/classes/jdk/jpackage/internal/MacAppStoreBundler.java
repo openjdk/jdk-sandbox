@@ -54,8 +54,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> MAC_APP_STORE_APP_SIGNING_KEY =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-key-app.name"),
-            I18N.getString("param.signing-key-app.description"),
             "mac.signing-key-app",
             String.class,
             params -> {
@@ -81,8 +79,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> MAC_APP_STORE_PKG_SIGNING_KEY =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-key-pkg.name"),
-            I18N.getString("param.signing-key-pkg.description"),
             "mac.signing-key-pkg",
             String.class,
             params -> {
@@ -109,8 +105,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     public static final StandardBundlerParam<File> MAC_APP_STORE_ENTITLEMENTS  =
             new StandardBundlerParam<>(
-            I18N.getString("param.mac-app-store-entitlements.name"),
-            I18N.getString("param.mac-app-store-entitlements.description"),
             Arguments.CLIOptions.MAC_APP_STORE_ENTITLEMENTS.getId(),
             File.class,
             params -> null,
@@ -118,8 +112,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     public static final BundlerParamInfo<String> INSTALLER_SUFFIX =
             new StandardBundlerParam<> (
-            I18N.getString("param.installer-suffix.name"),
-            I18N.getString("param.installer-suffix.description"),
             "mac.app-store.installerName.suffix",
             String.class,
             params -> "-MacAppStore",
@@ -146,7 +138,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
         p.put(DEFAULT_ICNS_ICON.getID(), TEMPLATE_BUNDLE_ICON_HIDPI);
 
         // now we create the app
-        File appImageDir = APP_IMAGE_BUILD_ROOT.fetchFrom(p);
+        File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(p);
         try {
             appImageDir.mkdirs();
 
@@ -369,7 +361,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return (!runtimeInstaller &&
-                Platform.getPlatform() == Platform.MAC);
+        // return (!runtimeInstaller &&
+        //         Platform.getPlatform() == Platform.MAC);
+        return false; // mac-app-store not yet supported
     }
 }

@@ -47,7 +47,7 @@ public class MacAppBundler extends AbstractImageBundler {
 
     private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
 
-    private static Map<String, String> getMacCategories() {
+    public static Map<String, String> getMacCategories() {
         Map<String, String> map = new HashMap<>();
         map.put("Business", "public.app-category.business");
         map.put("Developer Tools", "public.app-category.developer-tools");
@@ -97,13 +97,9 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final EnumeratedBundlerParam<String> MAC_CATEGORY =
             new EnumeratedBundlerParam<>(
-                    I18N.getString("param.category-name"),
-                    I18N.getString("param.category-name.description"),
                     Arguments.CLIOptions.MAC_APP_STORE_CATEGORY.getId(),
                     String.class,
-                    params -> params.containsKey(CATEGORY.getID())
-                            ? CATEGORY.fetchFrom(params)
-                            : "Unknown",
+                    params -> "Unknown",
                     (s, p) -> s,
                     getMacCategories(),
                     false //strict - for MacStoreBundler this should be strict
@@ -111,8 +107,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_NAME =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-name.name"),
-                    I18N.getString("param.cfbundle-name.description"),
                     Arguments.CLIOptions.MAC_BUNDLE_NAME.getId(),
                     String.class,
                     params -> null,
@@ -120,8 +114,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_IDENTIFIER =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-identifier.name"),
-                    I18N.getString("param.cfbundle-identifier.description"),
                     Arguments.CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(),
                     String.class,
                     IDENTIFIER::fetchFrom,
@@ -129,8 +121,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_VERSION =
             new StandardBundlerParam<>(
-                    I18N.getString("param.cfbundle-version.name"),
-                    I18N.getString("param.cfbundle-version.description"),
                     "mac.CFBundleVersion",
                     String.class,
                     p -> {
@@ -145,8 +135,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> DEFAULT_ICNS_ICON =
             new StandardBundlerParam<>(
-            I18N.getString("param.default-icon-icns"),
-            I18N.getString("param.default-icon-icns.description"),
             ".mac.default.icns",
             String.class,
             params -> TEMPLATE_BUNDLE_ICON,
@@ -154,8 +142,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> DEVELOPER_ID_APP_SIGNING_KEY =
             new StandardBundlerParam<>(
-            I18N.getString("param.signing-key-developer-id-app.name"),
-            I18N.getString("param.signing-key-developer-id-app.description"),
             "mac.signing-key-developer-id-app",
             String.class,
             params -> {
@@ -180,8 +166,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<String> BUNDLE_ID_SIGNING_PREFIX =
             new StandardBundlerParam<>(
-            I18N.getString("param.bundle-id-signing-prefix.name"),
-            I18N.getString("param.bundle-id-signing-prefix.description"),
             Arguments.CLIOptions.MAC_BUNDLE_SIGNING_PREFIX.getId(),
             String.class,
             params -> IDENTIFIER.fetchFrom(params) + ".",
@@ -189,8 +173,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     public static final BundlerParamInfo<File> ICON_ICNS =
             new StandardBundlerParam<>(
-            I18N.getString("param.icon-icns.name"),
-            I18N.getString("param.icon-icns.description"),
             "icon.icns",
             File.class,
             params -> {
@@ -306,32 +288,10 @@ public class MacAppBundler extends AbstractImageBundler {
 
     File doBundle(Map<String, ? super Object> p, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (RUNTIME_INSTALLER.fetchFrom(p)) {
-            return doJreBundle(p, outputDirectory, dependentTask);
+        if (StandardBundlerParam.isRuntimeInstaller(p)) {
+            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
         } else {
             return doAppBundle(p, outputDirectory, dependentTask);
-        }
-    }
-
-    File doJreBundle(Map<String, ? super Object> p, File outputDirectory,
-            boolean dependentTask) throws PackagerException {
-        try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p), "macapp-image-builder");
-            AbstractAppImageBuilder appBuilder = new MacAppImageBuilder(p,
-                    APP_NAME.fetchFrom(p), outputDirectory.toPath());
-            File predefined = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
-            if (predefined == null ) {
-                JLinkBundlerHelper.generateJre(p, appBuilder);
-            } else {
-                return predefined;
-            }
-            return rootDirectory;
-        } catch (PackagerException pe) {
-            throw pe;
-        } catch (Exception ex) {
-            Log.verbose(ex);
-            throw new PackagerException(ex);
         }
     }
 
@@ -339,7 +299,7 @@ public class MacAppBundler extends AbstractImageBundler {
             boolean dependentTask) throws PackagerException {
         try {
             File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p) + ".app", "macapp-image-builder");
+                    APP_NAME.fetchFrom(p) + ".app");
             AbstractAppImageBuilder appBuilder =
                     new MacAppImageBuilder(p, outputDirectory.toPath());
             if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {

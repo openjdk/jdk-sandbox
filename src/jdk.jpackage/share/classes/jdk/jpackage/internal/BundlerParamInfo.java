@@ -35,15 +35,6 @@ import java.util.function.Function;
  * A BundlerParamInfo encapsulates an individual bundler parameter of type <T>.
  */
 class BundlerParamInfo<T> {
-    /**
-     * The user friendly name of the parameter
-     */
-    String name;
-
-    /**
-     * A more verbose description of the parameter
-     */
-    String description;
 
     /**
      * The command line and hashmap name of the parameter
@@ -70,22 +61,6 @@ class BundlerParamInfo<T> {
      * An optional string converter for command line arguments.
      */
     BiFunction<String, Map<String, ? super Object>, T> stringConverter;
-
-    String getName() {
-        return name;
-    }
-
-    void setName(String name) {
-        this.name = name;
-    }
-
-    String getDescription() {
-        return description;
-    }
-
-    void setDescription(String description) {
-        this.description = description;
-    }
 
     String getID() {
         return id;

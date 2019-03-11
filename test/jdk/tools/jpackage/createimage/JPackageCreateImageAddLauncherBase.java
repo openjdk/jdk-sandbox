@@ -29,13 +29,13 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JPackageCreateImageSecondaryLauncherBase {
+public class JPackageCreateImageAddLauncherBase {
     private static final String app = JPackagePath.getApp();
     private static final String app2 = JPackagePath.getAppSL();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
-    // Note: quotes in argument for secondary launcher is not support by test
+    // Note: quotes in argument for add launcher is not support by test
     private static final String ARGUMENT1 = "argument 1";
     private static final String ARGUMENT2 = "argument 2";
     private static final String ARGUMENT3 = "argument 3";

@@ -56,7 +56,6 @@ public class DeployParams {
     String vendor;
     String email;
     String description;
-    String category;
     String licenseType;
     String copyright;
     String version;
@@ -73,7 +72,6 @@ public class DeployParams {
     // Java 9 modules support
     String addModules = null;
     String limitModules = null;
-    Boolean stripNativeCommands = null;
     String modulePath = null;
     String module = null;
     String debugPort = null;
@@ -88,10 +86,6 @@ public class DeployParams {
 
     // raw arguments to the bundler
     Map<String, ? super Object> bundlerArguments = new LinkedHashMap<>();
-
-    void setCategory(String category) {
-        this.category = category;
-    }
 
     void setLicenseType(String licenseType) {
         this.licenseType = licenseType;
@@ -165,10 +159,6 @@ public class DeployParams {
 
     void setDebug(String value) {
         this.debugPort = value;
-    }
-
-    void setStripNativeCommands(boolean value) {
-        this.stripNativeCommands = value;
     }
 
     void setDescription(String description) {
@@ -334,7 +324,7 @@ public class DeployParams {
 
         boolean hasModule = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE.getId()) != null);
-        boolean hasImage = (bundlerArguments.get(
+        boolean hasAppImage = (bundlerArguments.get(
                 Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId()) != null);
         boolean hasClass = (bundlerArguments.get(
                 Arguments.CLIOptions.APPCLASS.getId()) != null);
@@ -346,10 +336,8 @@ public class DeployParams {
                 Arguments.CLIOptions.INPUT.getId()) != null);
         boolean hasModulePath = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE_PATH.getId()) != null);
-        boolean hasAppImage = (bundlerArguments.get(
-                Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId()) != null);
-        boolean runtimeInstaller = (bundlerArguments.get(
-                Arguments.CLIOptions.RUNTIME_INSTALLER.getId()) != null);
+        boolean runtimeInstaller = (BundlerType.INSTALLER == getBundleType()) &&
+                !hasAppImage && !hasModule && !hasMain && hasRuntimeImage;
 
         if (getBundleType() == BundlerType.IMAGE) {
             // Module application requires --runtime-image or --module-path
@@ -382,7 +370,7 @@ public class DeployParams {
 
         // if bundling non-modular image, or installer without app-image
         // then we need some resources and a main class
-        if (!hasModule && !hasImage && !runtimeInstaller) {
+        if (!hasModule && !hasAppImage && !runtimeInstaller) {
             if (resources.isEmpty()) {
                 throw new PackagerException("ERR_MissingAppResources");
             }
@@ -410,9 +398,9 @@ public class DeployParams {
             }
         }
 
-        // Validate build-root
+        // Validate temp-root
         String root = (String)bundlerArguments.get(
-                Arguments.CLIOptions.BUILD_ROOT.getId());
+                Arguments.CLIOptions.TEMP_ROOT.getId());
         if (root != null) {
             String [] contents = (new File(root)).list();
 
@@ -522,7 +510,6 @@ public class DeployParams {
         bundleParams.setEmail(email);
         bundleParams.setInstalldirChooser(installdirChooser);
         bundleParams.setCopyright(copyright);
-        bundleParams.setApplicationCategory(category);
         bundleParams.setDescription(description);
 
         bundleParams.setJvmargs(jvmargs);
@@ -534,10 +521,6 @@ public class DeployParams {
 
         if (limitModules != null && !limitModules.isEmpty()) {
             bundleParams.setLimitModules(limitModules);
-        }
-
-        if (stripNativeCommands != null) {
-            bundleParams.setStripNativeCommands(stripNativeCommands);
         }
 
         if (modulePath != null && !modulePath.isEmpty()) {

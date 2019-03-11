@@ -53,12 +53,10 @@ public abstract class AbstractBundler implements Bundler {
 
     public static final BundlerParamInfo<File> IMAGES_ROOT =
             new StandardBundlerParam<>(
-            I18N.getString("param.images-root.name"),
-            I18N.getString("param.images-root.description"),
             "imagesRoot",
             File.class,
             params -> new File(
-                StandardBundlerParam.BUILD_ROOT.fetchFrom(params), "images"),
+                StandardBundlerParam.TEMP_ROOT.fetchFrom(params), "images"),
             (s, p) -> null);
 
     public InputStream getResourceAsStream(String name) {
@@ -188,7 +186,7 @@ public abstract class AbstractBundler implements Bundler {
     public void cleanup(Map<String, ? super Object> params) {
         try {
             IOUtils.deleteRecursive(
-                    StandardBundlerParam.BUILD_ROOT.fetchFrom(params));
+                    StandardBundlerParam.TEMP_ROOT.fetchFrom(params));
         } catch (IOException e) {
             Log.debug(e.getMessage());
         }

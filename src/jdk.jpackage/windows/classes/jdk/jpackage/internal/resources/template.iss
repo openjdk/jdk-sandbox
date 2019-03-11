@@ -44,7 +44,7 @@ Source: "INSTALLER_NAME\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 [Icons]
 Name: "{group}\INSTALLER_NAME"; Filename: "{app}\LAUNCHER_NAME.exe"; IconFilename: "{app}\LAUNCHER_NAME.ico"; Check: APPLICATION_MENU_SHORTCUT()
 Name: "{commondesktop}\INSTALLER_NAME"; Filename: "{app}\LAUNCHER_NAME.exe";  IconFilename: "{app}\LAUNCHER_NAME.ico"; Check: APPLICATION_DESKTOP_SHORTCUT()
-SECONDARY_LAUNCHERS
+ADD_LAUNCHERS
 
 [Run]
 Filename: "{app}\RUN_FILENAME.exe"; Parameters: "-Xappcds:generatecache"; Check: APPLICATION_APP_CDS_INSTALL()

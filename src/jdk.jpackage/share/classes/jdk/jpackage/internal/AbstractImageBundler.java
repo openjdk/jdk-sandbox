@@ -59,17 +59,6 @@ public abstract class AbstractImageBundler extends AbstractBundler {
              throws ConfigException {
         StandardBundlerParam.validateMainClassInfoFromAppResources(p);
 
-        boolean hasMainJar = MAIN_JAR.fetchFrom(p) != null;
-        boolean hasMainModule =
-                StandardBundlerParam.MODULE.fetchFrom(p) != null;
-        boolean hasMainClass = MAIN_CLASS.fetchFrom(p) != null;
-        boolean runtime = RUNTIME_INSTALLER.fetchFrom(p);
-
-        if (!hasMainJar && !hasMainModule && !hasMainClass && !runtime) {
-            throw new ConfigException(
-                    I18N.getString("error.no-application-class"),
-                    I18N.getString("error.no-application-class.advice"));
-        }
     }
 
     public static void extractFlagsFromVersion(
@@ -121,8 +110,8 @@ public abstract class AbstractImageBundler extends AbstractBundler {
     }
 
     protected File createRoot(Map<String, ? super Object> p,
-            File outputDirectory, boolean dependentTask,
-            String name, String jlinkKey) throws PackagerException {
+            File outputDirectory, boolean dependentTask, String name)
+            throws PackagerException {
         if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
             throw new RuntimeException(MessageFormat.format(
                     I18N.getString("error.cannot-create-output-dir"),
@@ -143,16 +132,10 @@ public abstract class AbstractImageBundler extends AbstractBundler {
         File rootDirectory = new File(outputDirectory, name);
 
         if (rootDirectory.exists()) {
-            if (!(OVERWRITE.fetchFrom(p))) {
-                throw new PackagerException("error.root-exists-without-overwrite",
-                        rootDirectory.getAbsolutePath());
-            }
-            try {
-                IOUtils.deleteRecursive(rootDirectory);
-            } catch (IOException ioe) {
-                throw new PackagerException(ioe);
-            }
+            throw new PackagerException("error.root-exists",
+                    rootDirectory.getAbsolutePath());
         }
+
         rootDirectory.mkdirs();
 
         return rootDirectory;

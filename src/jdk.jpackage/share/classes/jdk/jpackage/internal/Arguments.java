@@ -74,8 +74,6 @@ public class Arguments {
 
     public static final BundlerParamInfo<Boolean> CREATE_IMAGE =
             new StandardBundlerParam<>(
-                    I18N.getString("param.create-image.name"),
-                    I18N.getString("param.create-image.description"),
                     IMAGE_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
@@ -84,15 +82,13 @@ public class Arguments {
 
     public static final BundlerParamInfo<Boolean> CREATE_INSTALLER =
             new StandardBundlerParam<>(
-                    I18N.getString("param.create-installer.name"),
-                    I18N.getString("param.create-installer.description"),
                     INSTALLER_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
                     (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
                             true : Boolean.valueOf(s));
 
-    // regexp for parsing args (for example, for secondary launchers)
+    // regexp for parsing args (for example, for additional launchers)
     private static Pattern pattern = Pattern.compile(
           "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
 
@@ -123,7 +119,7 @@ public class Arguments {
 
     private List<jdk.jpackage.internal.Bundler> platformBundlers = null;
 
-    private List<SecondaryLauncherArguments> secondaryLaunchers = null;
+    private List<AddLauncherArguments> addLaunchers = null;
 
     private static Map<String, CLIOptions> argIds = new HashMap<>();
     private static Map<String, CLIOptions> argShortIds = new HashMap<>();
@@ -159,12 +155,6 @@ public class Arguments {
             context().deployParams.setTargetFormat(format);
         }),
 
-        RUNTIME_INSTALLER("runtime-installer",
-                OptionCategories.PROPERTY, () -> {
-            runtimeInstaller = true;
-            setOptionValue("runtime-installer", true);
-        }),
-
         INSTALLER_TYPE("installer-type", OptionCategories.PROPERTY, () -> {
             String type = popArg();
             if (BundlerType.INSTALLER.equals(context().bundleType)) {
@@ -188,7 +178,7 @@ public class Arguments {
 
         VENDOR ("vendor", OptionCategories.PROPERTY),
 
-        APPCLASS ("main-class", "c", OptionCategories.PROPERTY, () -> {
+        APPCLASS ("main-class", OptionCategories.PROPERTY, () -> {
             context().hasMainClass = true;
             setOptionValue("main-class", popArg());
         }),
@@ -200,10 +190,6 @@ public class Arguments {
         VERBOSE ("verbose", OptionCategories.PROPERTY, () -> {
             setOptionValue("verbose", true);
             Log.setVerbose(true);
-        }),
-
-        OVERWRITE ("overwrite", OptionCategories.PROPERTY, () -> {
-            setOptionValue("overwrite", true);
         }),
 
         RESOURCE_DIR("resource-dir",
@@ -219,18 +205,13 @@ public class Arguments {
                       Arrays.asList(files.split(File.pathSeparator)));
         }),
 
-        ARGUMENTS ("arguments", "a", OptionCategories.PROPERTY, () -> {
+        ARGUMENTS ("arguments", OptionCategories.PROPERTY, () -> {
             List<String> arguments = getArgumentList(popArg());
             setOptionValue("arguments", arguments);
         }),
 
-        STRIP_NATIVE_COMMANDS ("strip-native-commands",
-                   OptionCategories.PROPERTY, () -> {
-            setOptionValue("strip-native-commands", true);
-        }),
-
         ICON ("icon", OptionCategories.PROPERTY),
-        CATEGORY ("category", OptionCategories.PROPERTY),
+
         COPYRIGHT ("copyright", OptionCategories.PROPERTY),
 
         LICENSE_FILE ("license-file", OptionCategories.PROPERTY),
@@ -279,16 +260,16 @@ public class Arguments {
 
         }),
 
-        SECONDARY_LAUNCHER ("secondary-launcher",
+        ADD_LAUNCHER ("add-launcher",
                     OptionCategories.PROPERTY, () -> {
-            context().secondaryLaunchers.add(
-                new SecondaryLauncherArguments(popArg()));
+            context().addLaunchers.add(
+                new AddLauncherArguments(popArg()));
         }),
 
-        BUILD_ROOT ("build-root", OptionCategories.PROPERTY, () -> {
+        TEMP_ROOT ("temp-root", OptionCategories.PROPERTY, () -> {
             context().buildRoot = popArg();
             context().userProvidedBuildRoot = true;
-            setOptionValue("build-root", context().buildRoot);
+            setOptionValue("temp-root", context().buildRoot);
         }),
 
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
@@ -300,7 +281,7 @@ public class Arguments {
 
         PREDEFINED_RUNTIME_IMAGE ("runtime-image", OptionCategories.PROPERTY),
 
-        MAIN_JAR ("main-jar", "j", OptionCategories.PROPERTY, () -> {
+        MAIN_JAR ("main-jar",  OptionCategories.PROPERTY, () -> {
             context().mainJarPath = popArg();
             context().hasMainJar = true;
             setOptionValue("main-jar", context().mainJarPath);
@@ -379,7 +360,9 @@ public class Arguments {
                 OptionCategories.PLATFORM_LINUX),
 
         LINUX_PACKAGE_DEPENDENCIES ("linux-package-deps",
-                OptionCategories.PLATFORM_LINUX);
+                OptionCategories.PLATFORM_LINUX),
+
+        LINUX_MENU_GROUP ("linux-menu-group", OptionCategories.PLATFORM_LINUX);
 
         private final String id;
         private final String shortId;
@@ -504,7 +487,7 @@ public class Arguments {
 
         allOptions = new ArrayList<>();
 
-        secondaryLaunchers = new ArrayList<>();
+        addLaunchers = new ArrayList<>();
     }
 
     public boolean processArguments() throws Exception {
@@ -553,12 +536,12 @@ public class Arguments {
             List<Map<String, ? super Object>> launchersAsMap =
                     new ArrayList<>();
 
-            for (SecondaryLauncherArguments sl : secondaryLaunchers) {
+            for (AddLauncherArguments sl : addLaunchers) {
                 launchersAsMap.add(sl.getLauncherMap());
             }
 
             deployParams.addBundleArgument(
-                    StandardBundlerParam.SECONDARY_LAUNCHERS.getID(),
+                    StandardBundlerParam.ADD_LAUNCHERS.getID(),
                     launchersAsMap);
 
             // at this point deployParams should be already configured
@@ -571,14 +554,14 @@ public class Arguments {
             ArrayList<String> usedNames = new ArrayList<String>();
             usedNames.add(bp.getName()); // add main app name
 
-            for (SecondaryLauncherArguments sl : secondaryLaunchers) {
+            for (AddLauncherArguments sl : addLaunchers) {
                 Map<String, ? super Object> slMap = sl.getLauncherMap();
                 String slName =
                         (String) slMap.get(Arguments.CLIOptions.NAME.getId());
                 if (slName == null) {
-                    throw new PackagerException("ERR_NoSecondaryLauncherName");
+                    throw new PackagerException("ERR_NoAddLauncherName");
                 }
-                // same rules apply to secondary launcher names as app name
+                // same rules apply to additional launcher names as app name
                 DeployParams.validateName(slName, false);
                 for (String usedName : usedNames) {
                     if (slName.equals(usedName)) {
@@ -605,17 +588,46 @@ public class Arguments {
         }
     }
 
-    private void validateArguments() {
+    private void validateArguments() throws PackagerException {
         CLIOptions mode = allOptions.get(0);
+        boolean imageOnly = (mode == CLIOptions.CREATE_IMAGE);
+        boolean hasAppImage = allOptions.contains(
+                CLIOptions.PREDEFINED_APP_IMAGE);
+        boolean hasRuntime = allOptions.contains(
+                CLIOptions.PREDEFINED_RUNTIME_IMAGE);
+        boolean installerOnly = !imageOnly && hasAppImage;
+        boolean runtimeInstall = !imageOnly && hasRuntime && !hasAppImage &&
+                !hasMainModule && !hasMainJar;
+
         for (CLIOptions option : allOptions) {
-            if(!ValidOptions.checkIfSupported(mode, option)) {
-                String key = "warning.unsupported.option";
-                if (ValidOptions.checkIfOtherSupported(mode, option)) {
-                    key = "warning.unsupported.mode.option";
-                }
-                Log.info(MessageFormat.format(I18N.getString(key),
-                        option.getId(), mode));
+            if (!ValidOptions.checkIfSupported(option)) {
+                // includes option valid only on different platform
+                throw new PackagerException("ERR_UnsupportedOption",
+                        option.getIdWithPrefix());
             }
+            if (imageOnly) {
+                if (!ValidOptions.checkIfImageSupported(option)) {
+                    throw new PackagerException("ERR_NotImageOption",
+                        option.getIdWithPrefix());
+                }
+            } else if (installerOnly || runtimeInstall) {
+                if (!ValidOptions.checkIfInstallerSupported(option)) {
+                    String key = runtimeInstaller ?
+                        "ERR_NoInstallerEntryPoint" : "ERR_NotInstallerOption";
+                    throw new PackagerException(key, option.getIdWithPrefix());
+                }
+            }
+        }
+        if (installerOnly && hasRuntime) {
+            // note --runtime-image is only for image or runtime installer.
+            throw new PackagerException("ERR_NotInstallerOption",
+                    CLIOptions.PREDEFINED_RUNTIME_IMAGE.getIdWithPrefix());
+        }
+        if (hasMainJar && hasMainModule) {
+            throw new PackagerException("ERR_BothMainJarAndModule");
+        }
+        if (imageOnly && !hasMainJar && !hasMainModule) {
+            throw new PackagerException("ERR_NoEntryPoint");
         }
     }
 
@@ -647,15 +659,19 @@ public class Arguments {
 
         boolean bundleCreated = false;
 
-        // the build-root needs to be fetched from the params early,
+        // the temp-root needs to be fetched from the params early,
         // to prevent each copy of the params (such as may be used for
-        // secondary launchers) from generating a separate build-root when
+        // additional launchers) from generating a separate temp-root when
         // the default is used (the default is a new temp directory)
         // The bundler.cleanup() below would not otherwise be able to
         // clean these extra (and unneeded) temp directories.
-        StandardBundlerParam.BUILD_ROOT.fetchFrom(params);
-
-        for (jdk.jpackage.internal.Bundler bundler : getPlatformBundlers()) {
+        StandardBundlerParam.TEMP_ROOT.fetchFrom(params);
+        List<jdk.jpackage.internal.Bundler> bundlers = getPlatformBundlers();
+        if (bundlers.isEmpty()) {
+            throw new PackagerException("ERR_InvalidInstallerType",
+                    deployParams.getTargetFormat());
+        }
+        for (jdk.jpackage.internal.Bundler bundler : bundlers) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
             try {
                 if (bundler.validate(localParams)) {

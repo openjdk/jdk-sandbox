@@ -76,8 +76,6 @@ final class JLinkBundlerHelper {
     @SuppressWarnings("unchecked")
     static final BundlerParamInfo<Integer> DEBUG =
             new StandardBundlerParam<>(
-                    "",
-                    "",
                     "-J-Xdebug",
                     Integer.class,
                     p -> null,
@@ -190,8 +188,6 @@ final class JLinkBundlerHelper {
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params);
         Set<String> limitModules =
                 StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        boolean stripNativeCommands =
-                StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
         String excludeFileList = imageBuilder.getExcludeFileList();
         File mainJar = getMainJar(params);
@@ -204,20 +200,25 @@ final class JLinkBundlerHelper {
             mainJarType = ModFile.ModType.UnnamedJar;
         }
 
+        boolean bindServices = addModules.isEmpty();
+
         // Modules
         String mainModule = getMainModule(params);
-        if (mainJarType == ModFile.ModType.UnnamedJar) {
-            // The default for an unnamed jar is ALL_DEFAULT
-            addModules.add(ModuleHelper.ALL_DEFAULT);
-        } else if (mainJarType == ModFile.ModType.Unknown ||
-                mainJarType == ModFile.ModType.ModularJar) {
-            if (mainModule == null) {
+        if (mainModule == null) {
+            if (mainJarType == ModFile.ModType.UnnamedJar) {
+                if (addModules.isEmpty()) {
+                    // The default for an unnamed jar is ALL_DEFAULT
+                    addModules.add(ModuleHelper.ALL_DEFAULT);
+                }
+            } else if (mainJarType == ModFile.ModType.Unknown ||
+                    mainJarType == ModFile.ModType.ModularJar) {
                 addModules.add(ModuleHelper.ALL_DEFAULT);
             }
         } 
 
         Set<String> validModules =
                   getValidModules(modulePath, addModules, limitModules);
+
         if (mainModule != null) {
             validModules.add(mainModule);
         }
@@ -226,38 +227,11 @@ final class JLinkBundlerHelper {
                 I18N.getString("message.modules"), validModules.toString()));
 
         runJLink(outputDir, modulePath, validModules, limitModules,
-                excludeFileList, stripNativeCommands,
-                new HashMap<String,String>());
+                excludeFileList, new HashMap<String,String>(), bindServices);
 
         imageBuilder.prepareApplicationFiles();
     }
 
-
-    static void generateJre(Map<String, ? super Object> params,
-            AbstractAppImageBuilder imageBuilder)
-            throws IOException, Exception {
-        List<Path> modulePath =
-                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
-        Set<String> addModules =
-                StandardBundlerParam.ADD_MODULES.fetchFrom(params);
-        Set<String> limitModules =
-                StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        boolean stripNativeCommands =
-                StandardBundlerParam.STRIP_NATIVE_COMMANDS.fetchFrom(params);
-        Path outputDir = imageBuilder.getRoot();
-        addModules.add(ModuleHelper.ALL_MODULE_PATH);
-        Set<String> redistModules = getValidModules(modulePath,
-                addModules, limitModules);
-        addModules.addAll(redistModules);
-
-        Log.verbose(MessageFormat.format(
-                I18N.getString("message.modules"), addModules.toString()));
-
-        runJLink(outputDir, modulePath, addModules, limitModules,
-                null, stripNativeCommands, new HashMap<String,String>());
-
-        imageBuilder.prepareJreFiles();
-    }
 
     // Returns the path to the JDK modules in the user defined module path.
     static Path findPathOfModule( List<Path> modulePath, String moduleName) {
@@ -408,7 +382,8 @@ final class JLinkBundlerHelper {
 
     private static void runJLink(Path output, List<Path> modulePath,
             Set<String> modules, Set<String> limitModules, String excludes,
-            boolean strip, HashMap<String, String> user) throws IOException {
+            HashMap<String, String> user, boolean bindServices)
+            throws IOException {
 
         // This is just to ensure jlink is given a non-existant directory
         // The passed in output path should be non-existant or empty directory
@@ -433,16 +408,20 @@ final class JLinkBundlerHelper {
             args.add("--exclude-files");
             args.add(excludes);
         }
-        if (strip) {
+        if (user != null && !user.isEmpty()) {
+            for (Map.Entry<String, String> entry : user.entrySet()) {
+                args.add(entry.getKey());
+                args.add(entry.getValue());
+            }
+        } else {
             args.add("--strip-native-commands");
+            args.add("--strip-debug");
+            args.add("--no-man-pages");
+            args.add("--no-header-files");
+            if (bindServices) {
+                args.add("--bind-services");
+            }
         }
-        for (Map.Entry<String, String> entry : user.entrySet()) {
-            args.add(entry.getKey());
-            args.add(entry.getValue());
-        }
-        args.add("--strip-debug");
-        args.add("--no-header-files");
-        args.add("--bind-services");
         
         StringWriter writer = new StringWriter();
         PrintWriter pw = new PrintWriter(writer);

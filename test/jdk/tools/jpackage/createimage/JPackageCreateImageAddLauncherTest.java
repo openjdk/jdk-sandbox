@@ -23,15 +23,15 @@
 
  /*
  * @test
- * @summary jpackage create image with secondary launcher test
+ * @summary jpackage create image with additional launcher test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageSecondaryLauncherBase
+ * @build JPackageCreateImageAddLauncherBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageSecondaryLauncherTest
+ * @run main/othervm -Xmx512m JPackageCreateImageAddLauncherTest
  */
-public class JPackageCreateImageSecondaryLauncherTest {
+public class JPackageCreateImageAddLauncherTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD = {
         "create-image",
@@ -41,14 +41,14 @@ public class JPackageCreateImageSecondaryLauncherTest {
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--files", "hello.jar",
-        "--secondary-launcher", "sl.properties"};
+        "--add-launcher", "sl.properties"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        JPackageCreateImageSecondaryLauncherBase.createSLProperties();
-        JPackageCreateImageSecondaryLauncherBase.testCreateImage(CMD);
+        JPackageCreateImageAddLauncherBase.createSLProperties();
+        JPackageCreateImageAddLauncherBase.testCreateImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageSecondaryLauncherBase.testCreateImageToolProvider(CMD);
+        JPackageCreateImageAddLauncherBase.testCreateImageToolProvider(CMD);
     }
 
 }

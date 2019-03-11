@@ -49,8 +49,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
             new StandardBundlerParam<>(
-            I18N.getString("param.deb-app-bundler.name"),
-            I18N.getString("param.deb-app-bundler.description"),
             "linux.app.bundler",
             LinuxAppBundler.class,
             params -> new LinuxAppBundler(),
@@ -69,8 +67,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> BUNDLE_NAME =
             new StandardBundlerParam<> (
-            I18N.getString("param.bundle-name.name"),
-            I18N.getString("param.bundle-name.description"),
             Arguments.CLIOptions.LINUX_BUNDLE_NAME.getId(),
             String.class,
             params -> {
@@ -96,8 +92,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> FULL_PACKAGE_NAME =
             new StandardBundlerParam<> (
-            I18N.getString("param.full-package-name.name"),
-            I18N.getString("param.full-package-name.description"),
             "linux.deb.fullPackageName",
             String.class,
             params -> BUNDLE_NAME.fetchFrom(params) + "-"
@@ -106,8 +100,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<File> DEB_IMAGE_DIR =
             new StandardBundlerParam<>(
-            I18N.getString("param.image-dir.name"),
-            I18N.getString("param.image-dir.description"),
             "linux.deb.imageDir",
             File.class,
             params -> {
@@ -120,8 +112,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<File> APP_IMAGE_ROOT =
             new StandardBundlerParam<>(
-            I18N.getString("param.app-image-root.name"),
-            I18N.getString("param.app-image-root.description"),
             "linux.deb.imageRoot",
             File.class,
             params -> {
@@ -132,8 +122,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<File> CONFIG_DIR =
             new StandardBundlerParam<>(
-            I18N.getString("param.config-dir.name"),
-            I18N.getString("param.config-dir.description"),
             "linux.deb.configDir",
             File.class,
             params ->  new File(DEB_IMAGE_DIR.fetchFrom(params), "DEBIAN"),
@@ -141,8 +129,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> EMAIL =
             new StandardBundlerParam<> (
-            I18N.getString("param.maintainer-email.name"),
-            I18N.getString("param.maintainer-email.description"),
             Arguments.CLIOptions.LINUX_DEB_MAINTAINER.getId(),
             String.class,
             params -> "Unknown",
@@ -150,8 +136,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> MAINTAINER =
             new StandardBundlerParam<> (
-            I18N.getString("param.maintainer-name.name"),
-            I18N.getString("param.maintainer-name.description"),
             BundleParams.PARAM_MAINTAINER,
             String.class,
             params -> VENDOR.fetchFrom(params) + " <"
@@ -160,8 +144,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> LICENSE_TEXT =
             new StandardBundlerParam<> (
-            I18N.getString("param.license-text.name"),
-            I18N.getString("param.license-text.description"),
             "linux.deb.licenseText",
             String.class,
             params -> {
@@ -179,8 +161,6 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static final BundlerParamInfo<String> XDG_FILE_PREFIX =
             new StandardBundlerParam<> (
-            I18N.getString("param.xdg-prefix.name"),
-            I18N.getString("param.xdg-prefix.description"),
             "linux.xdg-prefix",
             String.class,
             params -> {
@@ -200,6 +180,14 @@ public class LinuxDebBundler extends AbstractBundler {
                 return "unknown-MimeInfo.xml";
             },
             (s, p) -> s);
+
+    public static final BundlerParamInfo<String> MENU_GROUP =
+        new StandardBundlerParam<>(
+                Arguments.CLIOptions.LINUX_MENU_GROUP.getId(),
+                String.class,
+                params -> I18N.getString("param.menu-group.default"),
+                (s, p) -> s
+        );
 
     private final static String DEFAULT_ICON = "javalogo_white_32.png";
     private final static String DEFAULT_CONTROL_TEMPLATE = "template.control";
@@ -410,7 +398,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
         File iconTarget = getConfig_IconFile(rootDir, params);
         File icon = ICON_PNG.fetchFrom(params);
-        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
+        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             // prepare installer icon
             if (icon == null || !icon.exists()) {
                 fetchResource(iconTarget.getName(),
@@ -431,25 +419,25 @@ public class LinuxDebBundler extends AbstractBundler {
 
         StringBuilder installScripts = new StringBuilder();
         StringBuilder removeScripts = new StringBuilder();
-        for (Map<String, ? super Object> secondaryLauncher :
-                SECONDARY_LAUNCHERS.fetchFrom(params)) {
-            Map<String, String> secondaryLauncherData =
-                    createReplacementData(secondaryLauncher);
-            secondaryLauncherData.put("APPLICATION_FS_NAME",
+        for (Map<String, ? super Object> addLauncher :
+                ADD_LAUNCHERS.fetchFrom(params)) {
+            Map<String, String> addLauncherData =
+                    createReplacementData(addLauncher);
+            addLauncherData.put("APPLICATION_FS_NAME",
                     data.get("APPLICATION_FS_NAME"));
-            secondaryLauncherData.put("DESKTOP_MIMES", "");
+            addLauncherData.put("DESKTOP_MIMES", "");
 
-            if (!RUNTIME_INSTALLER.fetchFrom(params)) {
+            if (!StandardBundlerParam.isRuntimeInstaller(params)) {
                 // prepare desktop shortcut
                 Writer w = new BufferedWriter(new FileWriter(
                         getConfig_DesktopShortcutFile(
-                                rootDir, secondaryLauncher)));
+                                rootDir, addLauncher)));
                 String content = preprocessTextResource(
                         getConfig_DesktopShortcutFile(rootDir,
-                        secondaryLauncher).getName(),
+                        addLauncher).getName(),
                         I18N.getString("resource.menu-shortcut-descriptor"),
                         DEFAULT_DESKTOP_FILE_TEMPLATE,
-                        secondaryLauncherData,
+                        addLauncherData,
                         VERBOSE.fetchFrom(params),
                         RESOURCE_DIR.fetchFrom(params));
                 w.write(content);
@@ -457,8 +445,8 @@ public class LinuxDebBundler extends AbstractBundler {
             }
 
             // prepare installer icon
-            iconTarget = getConfig_IconFile(rootDir, secondaryLauncher);
-            icon = ICON_PNG.fetchFrom(secondaryLauncher);
+            iconTarget = getConfig_IconFile(rootDir, addLauncher);
+            icon = ICON_PNG.fetchFrom(addLauncher);
             if (icon == null || !icon.exists()) {
                 fetchResource(iconTarget.getName(),
                         I18N.getString("resource.menu-icon"),
@@ -483,7 +471,7 @@ public class LinuxDebBundler extends AbstractBundler {
             installScripts.append(data.get("APPLICATION_FS_NAME"));
             installScripts.append("/");
             installScripts.append(
-                    secondaryLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
+                    addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
             installScripts.append(".desktop\n");
 
             // postrm cleanup of desktop icon
@@ -494,11 +482,11 @@ public class LinuxDebBundler extends AbstractBundler {
             removeScripts.append(data.get("APPLICATION_FS_NAME"));
             removeScripts.append("/");
             removeScripts.append(
-                    secondaryLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
+                    addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
             removeScripts.append(".desktop\n");
         }
-        data.put("SECONDARY_LAUNCHERS_INSTALL", installScripts.toString());
-        data.put("SECONDARY_LAUNCHERS_REMOVE", removeScripts.toString());
+        data.put("ADD_LAUNCHERS_INSTALL", installScripts.toString());
+        data.put("ADD_LAUNCHERS_REMOVE", removeScripts.toString());
 
         List<Map<String, ? super Object>> associations =
                 FILE_ASSOCIATIONS.fetchFrom(params);
@@ -640,7 +628,7 @@ public class LinuxDebBundler extends AbstractBundler {
             }
         }
 
-        if (!RUNTIME_INSTALLER.fetchFrom(params)) {
+        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             //prepare desktop shortcut
             Writer w = new BufferedWriter(new FileWriter(
                     getConfig_DesktopShortcutFile(rootDir, params)));
@@ -745,7 +733,7 @@ public class LinuxDebBundler extends AbstractBundler {
         data.put("APPLICATION_LAUNCHER_FILENAME", APP_NAME.fetchFrom(params));
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
-        data.put("DEPLOY_BUNDLE_CATEGORY", CATEGORY.fetchFrom(params));
+        data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_COPYRIGHT", COPYRIGHT.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TEXT", LICENSE_TEXT.fetchFrom(params));
@@ -755,8 +743,8 @@ public class LinuxDebBundler extends AbstractBundler {
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
         data.put("PACKAGE_DEPENDENCIES",
                 deps.isEmpty() ? "" : "Depends: " + deps);
-        data.put("RUNTIME_INSTALLER",
-                RUNTIME_INSTALLER.fetchFrom(params).toString());
+        data.put("RUNTIME_INSTALLER", "" +
+                StandardBundlerParam.isRuntimeInstaller(params));
 
         return data;
     }
@@ -856,7 +844,7 @@ public class LinuxDebBundler extends AbstractBundler {
         return Arrays.asList(
                 BUNDLE_NAME,
                 COPYRIGHT,
-                CATEGORY,
+                MENU_GROUP,
                 DESCRIPTION,
                 EMAIL,
                 ICON_PNG,
