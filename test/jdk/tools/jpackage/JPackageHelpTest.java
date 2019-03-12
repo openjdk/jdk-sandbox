@@ -34,11 +34,11 @@ public class JPackageHelpTest {
 
     // Platform specific help messages.
     private static final String WINDOWS_HELP =
-            "The following options are valid for Windows platforms";
+            "--win-dir-chooser";
     private static final String OSX_HELP =
-            "The following options are valid for Mac OS X platforms";
+            "--mac-bundle-identifier";
     private static final String LINUX_HELP =
-            "The following options are valid for Linux platforms";
+            "--linux-bundle-name";
 
     private static void validate(String output1, String output2)
             throws Exception {

@@ -38,7 +38,6 @@ public class JPackageCreateImageRuntimeModuleTest {
         "--runtime-image", "runtime",
         "--output", OUTPUT,
         "--name", "test",
-        "--win-console",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input"};
 
