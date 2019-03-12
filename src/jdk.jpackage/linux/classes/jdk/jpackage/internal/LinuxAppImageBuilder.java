@@ -193,9 +193,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         List<Map<String, ? super Object>> entryPoints
                 = StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
-            Map<String, ? super Object> tmp = new HashMap<>(originalParams);
-            tmp.putAll(entryPoint);
-            createLauncherForEntryPoint(tmp, root);
+            createLauncherForEntryPoint(
+                    AddLauncherArguments.merge(originalParams, entryPoint));
         }
 
         // Copy class path entries to Java folder

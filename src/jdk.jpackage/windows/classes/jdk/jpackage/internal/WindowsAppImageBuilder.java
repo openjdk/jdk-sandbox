@@ -254,9 +254,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         List<Map<String, ? super Object>> entryPoints =
                 StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
-            Map<String, ? super Object> tmp = new HashMap<>(originalParams);
-            tmp.putAll(entryPoint);
-            createLauncherForEntryPoint(tmp);
+            createLauncherForEntryPoint(
+                    AddLauncherArguments.merge(originalParams, entryPoint));
         }
     }
 

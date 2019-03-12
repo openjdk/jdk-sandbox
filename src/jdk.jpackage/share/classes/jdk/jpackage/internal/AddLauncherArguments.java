@@ -164,4 +164,22 @@ class AddLauncherArguments {
             params.put(param, value);
         }
     }
+
+    static Map<String, ? super Object> merge(
+            Map<String, ? super Object> original,
+            Map<String, ? super Object> additional) {
+        Map<String, ? super Object> tmp = new HashMap<>(original);
+        if (additional.containsKey("module")) {
+            tmp.remove("main-jar");
+            tmp.remove("main-class");
+        } else if (additional.containsKey("main-jar")) {
+            tmp.remove("module");
+            // should we only remove add-modules when it wasn't actually passed
+            // but was inferred or empty ?
+            tmp.remove("add-modules");
+        }
+        tmp.putAll(additional);
+        return tmp;
+    }
+
 }
