@@ -558,16 +558,27 @@ class ServerSocket implements java.io.Closeable {
             assert si instanceof PlatformSocketImpl;
         }
 
-        // accept connection with a platform or custom SocketImpl
+        // Accept connection with a platform or custom SocketImpl.
+        // For the platform SocketImpl case:
+        // - the connection is accepted with a new SocketImpl
+        // - the SO_TIMEOUT socket option is copied to the new SocketImpl
+        // - the Socket is connected to the new SocketImpl
+        // - the existing/old SocketImpl is closed
+        // For the custom SocketImpl case, the connection is accepted with the
+        // existing custom SocketImpl.
         ensureCompatible(si);
         if (impl instanceof PlatformSocketImpl) {
             SocketImpl psi = platformImplAccept();
-            tryCopyOptions(si, psi);
+            si.copyOptionsTo(psi);
             s.setImpl(psi);
-            close(si);
+            si.closeQuietly();
         } else {
-            customImplAccept(s, si);
-            assert s.impl == si;
+            s.impl = null; // temporarily break connection to impl
+            try {
+                customImplAccept(si);
+            } finally {
+                s.impl = si;  // restore connection to impl
+            }
         }
         s.postAccept();
     }
@@ -580,7 +591,7 @@ class ServerSocket implements java.io.Closeable {
         if (impl instanceof PlatformSocketImpl) {
             return platformImplAccept();
         } else {
-            // custom server SocketImpl, client socket SocketImpl must be set
+            // custom server SocketImpl, client SocketImplFactory must be set
             SocketImplFactory factory = Socket.socketImplFactory();
             if (factory == null) {
                 throw new IOException("An instance of " + impl.getClass() +
@@ -588,7 +599,7 @@ class ServerSocket implements java.io.Closeable {
                     " client socket implementation factory not set");
             }
             SocketImpl si = factory.createSocketImpl();
-            implAccept(si);
+            customImplAccept(si);
             return si;
         }
     }
@@ -607,21 +618,21 @@ class ServerSocket implements java.io.Closeable {
     }
 
     /**
-     * Accepts a new connection with a custom SocketImpl.
+     * Accepts a new connection with the given custom SocketImpl.
      */
-    private void customImplAccept(Socket s, SocketImpl si) throws IOException {
+    private void customImplAccept(SocketImpl si) throws IOException {
         assert !(impl instanceof PlatformSocketImpl)
                 && !(si instanceof PlatformSocketImpl);
 
-        s.impl = null; // break connection to impl
         si.reset();
         try {
+            // custom SocketImpl may expect fd/address objects to be created
+            si.fd = new FileDescriptor();
+            si.address = new InetAddress();
             implAccept(si);
         } catch (Exception e) {
             si.reset();
             throw e;
-        } finally {
-            s.impl = si;  // restore connection to impl
         }
     }
 
@@ -634,12 +645,6 @@ class ServerSocket implements java.io.Closeable {
      */
     private void implAccept(SocketImpl si) throws IOException {
         assert !(si instanceof DelegatingSocketImpl);
-
-        // custom SocketImpl may expect fd/address objects to be created
-        if (!(si instanceof PlatformSocketImpl)) {
-            si.fd = new FileDescriptor();
-            si.address = new InetAddress();
-        }
 
         // accept a connection
         impl.accept(si);
@@ -654,28 +659,6 @@ class ServerSocket implements java.io.Closeable {
                 throw se;
             }
         }
-    }
-
-    /**
-     * Attempts to copy socket options from an old/existing SocketImpl to a new
-     * SocketImpl. At this time, only the SO_TIMEOUT make sense to copy.
-     */
-    private void tryCopyOptions(SocketImpl oldImpl, SocketImpl newImpl) {
-        try {
-            Object timeout = oldImpl.getOption(SocketOptions.SO_TIMEOUT);
-            if (timeout instanceof Integer) {
-                newImpl.setOption(SocketOptions.SO_TIMEOUT, timeout);
-            }
-        } catch (IOException ignore) { }
-    }
-
-    /**
-     * Close the given SocketImpl.
-     */
-    private void close(SocketImpl si) {
-        try {
-            si.close();
-        } catch (IOException ignore) { }
     }
 
     /**
