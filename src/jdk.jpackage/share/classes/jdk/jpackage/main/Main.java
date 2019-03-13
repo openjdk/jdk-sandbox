@@ -119,7 +119,7 @@ public class Main {
 
     private static boolean hasVersion(String[] args) {
         for (String a : args) {
-            if ("--version".equals(a) || "-v".equals(a)) {
+            if ("--version".equals(a)) {
                 return true;
             }
         }

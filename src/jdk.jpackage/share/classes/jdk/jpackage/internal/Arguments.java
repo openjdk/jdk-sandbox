@@ -579,9 +579,13 @@ public class Arguments {
             if (Log.isVerbose()) {
                 throw e;
             } else {
-                Log.error(e.getMessage());
+                String msg1 = e.getMessage();
+                Log.error(msg1);
                 if (e.getCause() != null && e.getCause() != e) {
-                    Log.error(e.getCause().getMessage());
+                    String msg2 = e.getCause().getMessage();
+                    if (!msg1.contains(msg2)) {
+                        Log.error(msg2);
+                    }
                 }
                 return false;
             }
@@ -671,6 +675,7 @@ public class Arguments {
             throw new PackagerException("ERR_InvalidInstallerType",
                     deployParams.getTargetFormat());
         }
+        PackagerException pe = null;
         for (jdk.jpackage.internal.Bundler bundler : bundlers) {
             Map<String, ? super Object> localParams = new HashMap<>(params);
             try {
@@ -686,25 +691,33 @@ public class Arguments {
                     }
                     bundleCreated = true; // at least one bundle was created
                 }
-            } catch (UnsupportedPlatformException e) {
-                throw new PackagerException(e,
-                        "MSG_BundlerPlatformException",
-                        bundler.getName());
+                Log.verbose(MessageFormat.format(
+                        I18N.getString("message.bundle-created"),
+                        bundler.getName()));
+            } catch (UnsupportedPlatformException upe) {
+                Log.debug(upe);
+                if (pe == null) {
+                    pe = new PackagerException(upe,
+                            "MSG_BundlerPlatformException", bundler.getName());
+                }
             } catch (ConfigException e) {
                 Log.debug(e);
-                if (e.getAdvice() != null) {
-                    throw new PackagerException(e,
+                if (pe == null) {
+                    pe = (e.getAdvice() != null) ?
+                            new PackagerException(e,
                             "MSG_BundlerConfigException",
-                            bundler.getName(), e.getMessage(), e.getAdvice());
-                } else {
-                    throw new PackagerException(e,
+                            bundler.getName(), e.getMessage(), e.getAdvice()) :
+                            new PackagerException(e,
                            "MSG_BundlerConfigExceptionNoAdvice",
                             bundler.getName(), e.getMessage());
                 }
             } catch (RuntimeException re) {
                 Log.debug(re);
-                throw new PackagerException(re, "MSG_BundlerRuntimeException",
-                        bundler.getName(), re.toString());
+                if (pe == null) {
+                    pe = new PackagerException(re,
+                            "MSG_BundlerRuntimeException",
+                            bundler.getName(), re.toString());
+                }
             } finally {
                 if (userProvidedBuildRoot) {
                     Log.verbose(MessageFormat.format(
@@ -713,7 +726,10 @@ public class Arguments {
                 }
             }
         }
-
+        if (pe != null) {
+            // throw packager exception only after trying all bundlers
+            throw pe;
+        }
         return bundleCreated;
     }
 
