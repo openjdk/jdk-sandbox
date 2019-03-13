@@ -182,7 +182,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
         // create the primary launcher
-        createLauncherForEntryPoint(params, root);
+        createLauncherForEntryPoint(params);
 
         // Copy library to the launcher folder
         try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
@@ -207,8 +207,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public void prepareJreFiles() throws IOException {}
 
-    private void createLauncherForEntryPoint(Map<String, ? super Object> p,
-            Path rootDir) throws IOException {
+    private void createLauncherForEntryPoint(Map<String, ? super Object> p
+            throws IOException {
         // Copy executable to Linux folder
         Path executableFile = root.resolve(getLauncherName(p));
         try (InputStream is_launcher =
