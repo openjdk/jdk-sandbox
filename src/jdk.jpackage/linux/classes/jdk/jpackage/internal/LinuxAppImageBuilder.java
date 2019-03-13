@@ -207,7 +207,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public void prepareJreFiles() throws IOException {}
 
-    private void createLauncherForEntryPoint(Map<String, ? super Object> p
+    private void createLauncherForEntryPoint(Map<String, ? super Object> p)
             throws IOException {
         // Copy executable to Linux folder
         Path executableFile = root.resolve(getLauncherName(p));
