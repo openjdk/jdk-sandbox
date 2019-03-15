@@ -72,6 +72,7 @@ import com.sun.source.util.DocTreeScanner;
 import com.sun.source.util.DocTrees;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.SimpleDocTreeVisitor;
+import com.sun.source.util.TreeBuilder;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.NamedImportScope;
@@ -1241,5 +1242,9 @@ public class JavacTrees extends DocTrees {
         jcCompilationUnit.starImportScope = new StarImportScope(psym);
         jcCompilationUnit.toplevelScope = WriteableScope.create(psym);
         return new TreePath(jcCompilationUnit);
+    }
+
+    public TreeBuilder getTreeBuilder() {
+        return new TreeBuilderImpl(treeMaker, names);
     }
 }

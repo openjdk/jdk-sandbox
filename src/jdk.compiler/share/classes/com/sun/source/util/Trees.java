@@ -255,4 +255,6 @@ public abstract class Trees {
      * @return The lub of the exception parameter
      */
     public abstract TypeMirror getLub(CatchTree tree);
+
+    public abstract TreeBuilder getTreeBuilder();
 }
