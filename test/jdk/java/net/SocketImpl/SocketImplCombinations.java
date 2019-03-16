@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8220493
  * @modules java.base/java.net:+open java.base/sun.nio.ch:+open
  * @run testng/othervm SocketImplCombinations
  * @run testng/othervm -Djdk.net.usePlainSocketImpl SocketImplCombinations

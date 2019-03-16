@@ -492,6 +492,10 @@ public class Net {
                                        int remotePort)
         throws IOException;
 
+    public static native int accept(FileDescriptor fd,
+                                    FileDescriptor newfd,
+                                    InetSocketAddress[] isaa)
+        throws IOException;
 
     public static final int SHUT_RD = 0;
     public static final int SHUT_WR = 1;

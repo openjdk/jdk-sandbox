@@ -686,7 +686,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         int n;
         do {
             park(fd, Net.POLLIN, remainingNanos);
-            n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
+            n = Net.accept(fd, newfd, isaa);
             if (n == IOStatus.UNAVAILABLE) {
                 remainingNanos = nanos - (System.nanoTime() - startNanos);
                 if (remainingNanos <= 0) {
@@ -715,7 +715,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             try {
                 int timeout = this.timeout;
                 configureNonBlockingIfNeeded(fd, timeout);
-                n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
+                n = Net.accept(fd, newfd, isaa);
                 if (IOStatus.okayToRetry(n) && isOpen()) {
                     if (timeout > 0) {
                         // accept with timeout
@@ -724,7 +724,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                         // accept, no timeout
                         do {
                             park(fd, Net.POLLIN);
-                            n = ServerSocketChannelImpl.accept0(fd, newfd, isaa);
+                            n = Net.accept(fd, newfd, isaa);
                         } while (IOStatus.okayToRetry(n) && isOpen());
                     }
                 }
