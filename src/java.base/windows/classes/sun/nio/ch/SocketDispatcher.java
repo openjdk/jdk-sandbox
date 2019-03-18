@@ -33,10 +33,7 @@ import java.io.*;
  */
 
 class SocketDispatcher extends NativeDispatcher {
-
     SocketDispatcher() { }
-
-    SocketDispatcher(boolean ignore) { }
 
     int read(FileDescriptor fd, long address, int len) throws IOException {
         return read0(fd, address, len);

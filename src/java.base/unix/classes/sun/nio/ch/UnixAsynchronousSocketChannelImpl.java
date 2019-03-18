@@ -31,6 +31,8 @@ import java.net.*;
 import java.util.concurrent.*;
 import java.io.IOException;
 import java.io.FileDescriptor;
+
+import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.util.SocketExceptions;
 import sun.security.action.GetPropertyAction;
@@ -415,6 +417,8 @@ class UnixAsynchronousSocketChannelImpl
             enableReading();
             if (x instanceof ClosedChannelException)
                 x = new AsynchronousCloseException();
+            if (x instanceof ConnectionResetException)
+                x = new IOException(x.getMessage());
             exc = x;
         } finally {
             // restart poll in case of concurrent write
@@ -546,6 +550,8 @@ class UnixAsynchronousSocketChannelImpl
         } catch (Throwable x) {
             if (x instanceof ClosedChannelException)
                 x = new AsynchronousCloseException();
+            if (x instanceof ConnectionResetException)
+                x = new IOException(x.getMessage());
             exc = x;
         } finally {
             if (!pending)

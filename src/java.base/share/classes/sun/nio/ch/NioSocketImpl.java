@@ -78,7 +78,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  */
 
 public final class NioSocketImpl extends SocketImpl implements PlatformSocketImpl {
-    private static final NativeDispatcher nd = new SocketDispatcher(true);
+    private static final NativeDispatcher nd = new SocketDispatcher();
 
     // The maximum number of bytes to read/write per syscall to avoid needing
     // a huge buffer from the temporary buffer cache

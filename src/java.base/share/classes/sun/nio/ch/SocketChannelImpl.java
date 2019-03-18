@@ -52,6 +52,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 
+import sun.net.ConnectionResetException;
 import sun.net.NetHooks;
 import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.SocketExceptions;
@@ -356,6 +357,8 @@ class SocketChannelImpl
                 } else {
                     n = IOUtil.read(fd, buf, -1, nd);
                 }
+            } catch (ConnectionResetException e) {
+                throw new IOException(e.getMessage());
             } finally {
                 endRead(blocking, n > 0);
                 if (n <= 0 && isInputClosed)
@@ -391,6 +394,8 @@ class SocketChannelImpl
                 } else {
                     n = IOUtil.read(fd, dsts, offset, length, nd);
                 }
+            } catch (ConnectionResetException e) {
+                throw new IOException(e.getMessage());
             } finally {
                 endRead(blocking, n > 0);
                 if (n <= 0 && isInputClosed)
