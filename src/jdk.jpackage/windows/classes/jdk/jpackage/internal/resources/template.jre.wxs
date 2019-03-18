@@ -24,7 +24,7 @@ UPGRADE_BLOCK
         -->
         <Property Id="APPLICATIONFOLDER">
             <RegistrySearch Key="SOFTWARE\APPLICATION_VENDOR\APPLICATION_NAME"
-                            Root="REGISTRY_ROOT" Type="raw"
+                            Root="REGISTRY_ROOT" Type="raw" Win64="WIN64"
                             Id="APPLICATIONFOLDER_REGSEARCH" Name="Path" />
         </Property>
         <DirectoryRef Id="APPLICATIONFOLDER">
