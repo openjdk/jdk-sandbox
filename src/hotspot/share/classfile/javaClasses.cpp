@@ -1968,6 +1968,13 @@ bool java_lang_Throwable::get_method_and_bci(oop throwable, Method** method, int
     return false;
   }
 
+  // If the exception happened in a frame that has been hidden, i.e.,
+  // omitted from the back trace, we can not compute the message.
+  oop hidden = bt->obj_at(trace_hidden_offset);
+  if (hidden != NULL) {
+    return false;
+  }
+
   oop ms = bt->obj_at(trace_methods_offset);
   typeArrayOop methods = typeArrayOop(ms);
   typeArrayOop bcis = (typeArrayOop)bt->obj_at(trace_bcis_offset);
@@ -2005,7 +2012,11 @@ class BacktraceBuilder: public StackObj {
   typeArrayOop    _methods;
   typeArrayOop    _bcis;
   objArrayOop     _mirrors;
-  typeArrayOop    _names; // needed to insulate method name against redefinition
+  typeArrayOop    _names; // Needed to insulate method name against redefinition.
+  // This is set to a java.lang.Boolean(true) if the top frame
+  // of the backtrace is omitted because it shall be hidden.
+  // Else it is null.
+  oop             _has_hidden_top_frame;
   int             _index;
   NoSafepointVerifier _nsv;
 
@@ -2015,6 +2026,7 @@ class BacktraceBuilder: public StackObj {
     trace_mirrors_offset = java_lang_Throwable::trace_mirrors_offset,
     trace_names_offset   = java_lang_Throwable::trace_names_offset,
     trace_next_offset    = java_lang_Throwable::trace_next_offset,
+    trace_hidden_offset  = java_lang_Throwable::trace_hidden_offset,
     trace_size           = java_lang_Throwable::trace_size,
     trace_chunk_size     = java_lang_Throwable::trace_chunk_size
   };
@@ -2040,11 +2052,15 @@ class BacktraceBuilder: public StackObj {
     assert(names != NULL, "names array should be initialized in backtrace");
     return names;
   }
+  static oop get_has_hidden_top_frame(objArrayHandle chunk) {
+    oop hidden = chunk->obj_at(trace_hidden_offset);
+    return hidden;
+  }
 
  public:
 
   // constructor for new backtrace
-  BacktraceBuilder(TRAPS): _head(NULL), _methods(NULL), _bcis(NULL), _mirrors(NULL), _names(NULL) {
+  BacktraceBuilder(TRAPS): _head(NULL), _methods(NULL), _bcis(NULL), _mirrors(NULL), _names(NULL), _has_hidden_top_frame(NULL) {
     expand(CHECK);
     _backtrace = Handle(THREAD, _head);
     _index = 0;
@@ -2055,6 +2071,7 @@ class BacktraceBuilder: public StackObj {
     _bcis = get_bcis(backtrace);
     _mirrors = get_mirrors(backtrace);
     _names = get_names(backtrace);
+    _has_hidden_top_frame = get_has_hidden_top_frame(backtrace);
     assert(_methods->length() == _bcis->length() &&
            _methods->length() == _mirrors->length() &&
            _mirrors->length() == _names->length(),
@@ -2092,6 +2109,7 @@ class BacktraceBuilder: public StackObj {
     new_head->obj_at_put(trace_bcis_offset, new_bcis());
     new_head->obj_at_put(trace_mirrors_offset, new_mirrors());
     new_head->obj_at_put(trace_names_offset, new_names());
+    new_head->obj_at_put(trace_hidden_offset, NULL);
 
     _head    = new_head();
     _methods = new_methods();
@@ -2130,6 +2148,16 @@ class BacktraceBuilder: public StackObj {
     assert(method->method_holder()->java_mirror() != NULL, "never push null for mirror");
     _mirrors->obj_at_put(_index, method->method_holder()->java_mirror());
     _index++;
+  }
+
+  void set_has_hidden_top_frame(TRAPS) {
+    if (_has_hidden_top_frame == NULL) {
+      jvalue prim;
+      prim.z = 1;
+      PauseNoSafepointVerifier pnsv(&_nsv);
+      _has_hidden_top_frame = java_lang_boxing_object::create(T_BOOLEAN, &prim, CHECK);
+      _head->obj_at_put(trace_hidden_offset, _has_hidden_top_frame);
+    }
   }
 
 };
@@ -2461,7 +2489,13 @@ void java_lang_Throwable::fill_in_stack_trace(Handle throwable, const methodHand
       }
     }
     if (method->is_hidden()) {
-      if (skip_hidden)  continue;
+      if (skip_hidden) {
+        if (total_count == 0) {
+          // The top frame will be hidden from the stack trace.
+          bt.set_has_hidden_top_frame(CHECK);
+        }
+        continue;
+      }
     }
     bt.push(method, bci, CHECK);
     total_count++;

@@ -522,7 +522,8 @@ class java_lang_Throwable: AllStatic {
     trace_mirrors_offset = 2,
     trace_names_offset   = 3,
     trace_next_offset    = 4,
-    trace_size           = 5,
+    trace_hidden_offset  = 5,
+    trace_size           = 6,
     trace_chunk_size     = 32
   };
 
