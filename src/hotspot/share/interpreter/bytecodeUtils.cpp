@@ -204,9 +204,9 @@ static TrackingStackSource createLocalVarSource(int bci, Method* method, int slo
         ConstantPool* cp = method->constants();
         char *var =  cp->symbol_at(elem->name_cp_index)->as_C_string();
         if (strlen(var) == 4 && strcmp(var, "this") == 0) {
-          reason.print("loaded from 'this'");
+          reason.print("this");
         } else {
-          reason.print("loaded from local variable '%s'", var);
+          reason.print("%s", var);
         }
 
         return TrackingStackSource(TrackingStackSource::LOCAL_VAR, bci, reason.as_string());
@@ -216,7 +216,7 @@ static TrackingStackSource createLocalVarSource(int bci, Method* method, int slo
 
   // Handle at least some cases we know.
   if (!method->is_static() && (slot == 0)) {
-    reason.print("loaded from 'this'");
+    reason.print("this");
   } else {
     int curr = method->is_static() ? 0 : 1;
     SignatureStream ss(method->signature());
@@ -240,25 +240,19 @@ static TrackingStackSource createLocalVarSource(int bci, Method* method, int slo
     }
 
     if (found) {
-      reason.print("loaded from the parameter nr. %d of the method", 1 + param_index);
+      reason.print("<parameter%d>", 1 + param_index);
     } else {
       // This is the best we can do.
-      reason.print("loaded from a local variable at slot %d", slot);
+      reason.print("<local%d>", slot);
     }
   }
 
   return TrackingStackSource(TrackingStackSource::LOCAL_VAR, bci, reason.as_string());
 }
 
-static TrackingStackSource createMethodSource(int bci, Method* method, int cp_index) {
-  // We assume outermost caller has ResourceMark.
-  stringStream reason;
-  reason.print("returned from '%s'", MethodBytecodePrinter::get_method_name(method, cp_index));
-  return TrackingStackSource(TrackingStackSource::METHOD, bci, reason.as_string());
-}
 
-static TrackingStackSource createConstantSource(int bci) {
-  return TrackingStackSource(TrackingStackSource::CONSTANT, bci, "loaded from a constant");
+static TrackingStackSource createConstantSource(int bci, const char *text) {
+  return TrackingStackSource(TrackingStackSource::CONSTANT, bci, text);
 }
 
 static TrackingStackSource createArraySource(int bci, TrackingStackSource const& array_source,
@@ -267,18 +261,14 @@ static TrackingStackSource createArraySource(int bci, TrackingStackSource const&
   stringStream reason;
 
   if (array_source.get_type() != TrackingStackSource::INVALID) {
-    if (index_source.get_type() != TrackingStackSource::INVALID) {
-      reason.print("loaded from an array (which itself was %s) with an index %s",
-                   array_source.as_string(), index_source.as_string());
-    } else {
-      reason.print("loaded from an array (which itself was %s)", array_source.as_string());
-    }
+    reason.print("%s", array_source.as_string());
   } else {
-    if (index_source.get_type() != TrackingStackSource::INVALID) {
-      reason.print("loaded from an array with an index %s", index_source.as_string());
-    } else {
-      reason.print("loaded from an array");
-    }
+    reason.print("array");
+  }
+  if (index_source.get_type() != TrackingStackSource::INVALID) {
+    reason.print("[%s]", index_source.as_string());
+  } else {
+    reason.print("[...]");
   }
 
   return TrackingStackSource(TrackingStackSource::ARRAY_ELEM, bci, reason.as_string());
@@ -289,14 +279,12 @@ static TrackingStackSource createFieldSource(int bci, Method* method, int cp_ind
   // We assume outermost caller has ResourceMark.
   stringStream reason;
 
+  // GLGL We could also print the type of the field. Should we do that?
+  //MethodBytecodePrinter::get_klass_name(method, cp_index)
   if (object_source.get_type() != TrackingStackSource::INVALID) {
-    reason.print("loaded from field '%s' of an object %s",
-                 MethodBytecodePrinter::get_field_and_class(method, cp_index),
-                 object_source.as_string());
-  } else {
-    reason.print("loaded from field '%s' of an object",
-                 MethodBytecodePrinter::get_field_and_class(method, cp_index));
+    reason.print("%s.", object_source.as_string());
   }
+  reason.print("%s", MethodBytecodePrinter::get_field_name(method, cp_index));
 
   return TrackingStackSource(TrackingStackSource::FIELD_ELEM, bci, reason.as_string());
 }
@@ -304,7 +292,7 @@ static TrackingStackSource createFieldSource(int bci, Method* method, int cp_ind
 static TrackingStackSource createStaticFieldSource(int bci, Method* method, int cp_index) {
   // We assume outermost caller has ResourceMark.
   stringStream reason;
-  reason.print("loaded from static field '%s'",
+  reason.print("static %s",
                MethodBytecodePrinter::get_field_and_class(method, cp_index));
 
   return TrackingStackSource(TrackingStackSource::FIELD_ELEM, bci, reason.as_string());
@@ -1005,24 +993,47 @@ TrackingStackSource TrackingStackCreator::get_source(int bci, int slot, int max_
       return createLocalVarSource(source_bci, _method, 3);
 
     case Bytecodes::_aconst_null:
+      return createConstantSource(source_bci, "null");
     case Bytecodes::_iconst_m1:
+      return createConstantSource(source_bci, "-1");
     case Bytecodes::_iconst_0:
+      return createConstantSource(source_bci, "0");
     case Bytecodes::_iconst_1:
+      return createConstantSource(source_bci, "1");
     case Bytecodes::_iconst_2:
+      return createConstantSource(source_bci, "2");
     case Bytecodes::_iconst_3:
+      return createConstantSource(source_bci, "3");
     case Bytecodes::_iconst_4:
+      return createConstantSource(source_bci, "4");
     case Bytecodes::_iconst_5:
+      return createConstantSource(source_bci, "5");
     case Bytecodes::_lconst_0:
+      return createConstantSource(source_bci, "0L");
     case Bytecodes::_lconst_1:
+      return createConstantSource(source_bci, "1L");
     case Bytecodes::_fconst_0:
+      return createConstantSource(source_bci, "0.0f");
     case Bytecodes::_fconst_1:
+      return createConstantSource(source_bci, "1.0f");
     case Bytecodes::_fconst_2:
+      return createConstantSource(source_bci, "2.0f");
     case Bytecodes::_dconst_0:
+      return createConstantSource(source_bci, "0.0");
     case Bytecodes::_dconst_1:
-    case Bytecodes::_bipush:
-    case Bytecodes::_sipush:
-      return createConstantSource(source_bci);
-
+      return createConstantSource(source_bci, "1.0");
+    case Bytecodes::_bipush: {
+      jbyte con = *(jbyte*) (code_base + source_bci + 1);
+      stringStream ss;
+      ss.print("%d", con);
+      return createConstantSource(source_bci, ss.as_string());
+    }
+    case Bytecodes::_sipush: {
+      u2 con = Bytes::get_Java_u2(code_base + source_bci + 1);
+      stringStream ss;
+      ss.print("%d", con);
+      return createConstantSource(source_bci, ss.as_string());
+    }
     case Bytecodes::_iaload:
     case Bytecodes::_faload:
     case Bytecodes::_aaload:
@@ -1041,7 +1052,14 @@ TrackingStackSource TrackingStackCreator::get_source(int bci, int slot, int max_
     case Bytecodes::_invokestatic:
     case Bytecodes::_invokeinterface: {
         int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
-        return createMethodSource(source_bci, _method, cp_index);
+        // We assume outermost caller has ResourceMark.
+        stringStream reason;
+        if (max_detail == 5 /* Todo: introduce a constant ... */) {
+          reason.print("The return value of '%s'", MethodBytecodePrinter::get_method_name(_method, cp_index));
+        } else {
+          reason.print("%s", MethodBytecodePrinter::get_method_name(_method, cp_index));
+        }
+        return TrackingStackSource(TrackingStackSource::METHOD, source_bci, reason.as_string());
     }
 
     case Bytecodes::_getstatic:
@@ -1080,7 +1098,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
   switch (code) {
     case Bytecodes::_iaload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null int array";
+        *reason = "Can not load from null int array.";
       }
 
       result = 1;
@@ -1088,7 +1106,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_faload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null float array";
+        *reason = "Can not load from null float array.";
       }
 
       result = 1;
@@ -1096,7 +1114,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_aaload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null object array";
+        *reason = "Can not load from null object array.";
       }
 
       result = 1;
@@ -1104,7 +1122,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_baload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null byte (or boolean) array";
+        *reason = "Can not load from null byte/boolean array.";
       }
 
       result = 1;
@@ -1112,7 +1130,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_caload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null char array";
+        *reason = "Can not load from null char array.";
       }
 
       result = 1;
@@ -1120,7 +1138,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_saload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null short array";
+        *reason = "Can not load from null short array.";
       }
 
       result = 1;
@@ -1128,7 +1146,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_laload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null long array";
+        *reason = "Can not load from null long array.";
       }
 
       result = 1;
@@ -1136,7 +1154,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_daload:
       if (reason != NULL) {
-        *reason = "while trying to load from a null double array";
+        *reason = "Can not load from null double array.";
       }
 
       result = 1;
@@ -1144,7 +1162,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_iastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null int array";
+        *reason = "Can not store to null int array.";
       }
 
       result = 2;
@@ -1152,7 +1170,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_lastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null long array";
+        *reason = "Can not store to null long array.";
       }
 
       result = 3;
@@ -1160,7 +1178,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_fastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null float array";
+        *reason = "Can not store to null float array.";
       }
 
       result = 2;
@@ -1168,7 +1186,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_dastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null double array";
+        *reason = "Can not store to null double array.";
       }
 
       result = 3;
@@ -1176,7 +1194,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_aastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null object array";
+        *reason = "Can not store to null object array.";
       }
 
       result = 2;
@@ -1184,7 +1202,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_bastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null byte (or boolean) array";
+        *reason = "Can not store to to null byte/boolean array.";
       }
 
       result = 2;
@@ -1192,7 +1210,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_castore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null char array";
+        *reason = "Can not store to to null char array.";
       }
 
       result = 2;
@@ -1200,7 +1218,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_sastore:
       if (reason != NULL) {
-        *reason = "while trying to store to a null short array";
+        *reason = "Can not store to null short array.";
       }
 
       result = 2;
@@ -1215,7 +1233,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
           int name_index = cp->name_ref_index_at(name_and_type_index);
           Symbol* name = cp->symbol_at(name_index);
           stringStream ss;
-          ss.print("while trying to read the field '%s' of a null object", name->as_C_string());
+          ss.print("Can not read field '%s'.", name->as_C_string());
           *reason = ss.as_string();
         }
 
@@ -1226,7 +1244,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_arraylength:
       if (reason != NULL) {
-        *reason = "while trying to get the length of a null array";
+        *reason = "Can not read the array length.";
       }
 
       result = 0;
@@ -1234,7 +1252,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_athrow:
       if (reason != NULL) {
-        *reason = "while trying to throw a null exception object";
+        *reason = "Can not throw a null exception object.";
       }
 
       result = 0;
@@ -1242,7 +1260,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_monitorenter:
       if (reason != NULL) {
-        *reason = "while trying to enter a null monitor";
+        *reason = "Can not enter a null monitor.";
       }
 
       result = 0;
@@ -1250,7 +1268,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
     case Bytecodes::_monitorexit:
       if (reason != NULL) {
-        *reason = "while trying to exit a null monitor";
+        *reason = "Can not exit a null monitor.";
       }
 
       result = 0;
@@ -1266,8 +1284,8 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
 
         if (reason != NULL) {
           stringStream ss;
-          ss.print("while trying to write the field '%s' of a null object",
-                   MethodBytecodePrinter::get_field_and_class(_method, cp_index));
+          ss.print("Can not write field '%s'.",
+                   MethodBytecodePrinter::get_field_name(_method, cp_index));
           *reason = ss.as_string();
         }
 
@@ -1294,7 +1312,7 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
         if (name != vmSymbols::object_initializer_name()) {
           if (reason != NULL) {
             stringStream ss;
-            ss.print("while trying to invoke the method '%s' on a null reference",
+            ss.print("Can not invoke method '%s'.",
                      MethodBytecodePrinter::get_method_name(_method, cp_index));
             *reason = ss.as_string();
           }

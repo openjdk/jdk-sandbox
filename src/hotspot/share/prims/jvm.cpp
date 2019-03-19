@@ -571,11 +571,16 @@ JVM_ENTRY(jstring, JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable))
     ss.print("Cannot get the reason for the NullPointerException at bci %d of method %s",
              bci, method->name_and_sig_as_C_string());
   } else {
-    TrackingStackSource source = stc.get_source(bci, slot, 2);
-    ss.print("%s", reason);
+    TrackingStackSource source = stc.get_source(bci, slot, 5);
     if (source.get_type() != TrackingStackSource::INVALID) {
-      ss.print(" %s", source.as_string());
+      const char *msg = source.as_string();
+      if (strncmp("The return value of", msg, strlen("The return value of")) == 0) {
+        ss.print("%s is null. ", msg);
+      } else {
+        ss.print("'%s' is null. ", msg);
+      }
     }
+    ss.print("%s", reason);
   }
 
   oop result = java_lang_String::create_oop_from_str(ss.as_string(), CHECK_0);
