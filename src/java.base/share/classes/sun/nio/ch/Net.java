@@ -535,9 +535,18 @@ public class Net {
                                              int level, int opt, int arg, boolean isIPv6)
         throws IOException;
 
+    /**
+     * Polls a file descriptor for events.
+     * @param timeout the timeout to wait; 0 to not wait, -1 to wait indefinitely
+     * @return the polled events or 0 if no events are polled
+     */
     static native int poll(FileDescriptor fd, int events, long timeout)
         throws IOException;
 
+    /**
+     * Performs a non-blocking poll of a file descriptor.
+     * @return the polled events or 0 if no events are polled
+     */
     static int pollNow(FileDescriptor fd, int events) throws IOException {
         return poll(fd, events, 0);
     }
@@ -548,12 +557,18 @@ public class Net {
      * @apiNote This method is public to allow it be used by code in jdk.sctp.
      *
      * @param timeout the timeout to wait; 0 to not wait, -1 to wait indefinitely
-     * @return 1 if connected, 0 if not connected, or IOS_INTERRUPTED
+     * @return true if connected
      */
-    public static native int pollConnect(FileDescriptor fd, long timeout)
+    public static native boolean pollConnect(FileDescriptor fd, long timeout)
         throws IOException;
 
-    static int pollConnectNow(FileDescriptor fd) throws IOException {
+    /**
+     * Performs a non-blocking poll of a connecting socket to test if the
+     * connection has been established.
+     *
+     * @return true if connected
+     */
+    static boolean pollConnectNow(FileDescriptor fd) throws IOException {
         return pollConnect(fd, 0);
     }
 

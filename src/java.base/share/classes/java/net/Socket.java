@@ -1221,7 +1221,7 @@ class Socket implements java.io.Closeable {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (timeout < 0)
-          throw new IllegalArgumentException("timeout can't be negative");
+          throw new IllegalArgumentException("timeout < 0");
 
         getImpl().setOption(SocketOptions.SO_TIMEOUT, timeout);
     }

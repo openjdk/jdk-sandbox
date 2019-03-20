@@ -525,22 +525,22 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * Waits for a connection attempt to finish with a timeout.
      * @throws SocketTimeoutException if the connect timeout elapses
      */
-    private int timedFinishConnect(FileDescriptor fd, int millis) throws IOException {
+    private boolean timedFinishConnect(FileDescriptor fd, int millis) throws IOException {
         long nanos = NANOSECONDS.convert(millis, TimeUnit.MILLISECONDS);
         long remainingNanos = nanos;
         long startNanos = System.nanoTime();
-        int n;
+        boolean connected;
         do {
             park(fd, Net.POLLOUT, remainingNanos);
-            n = Net.pollConnectNow(fd);
-            if (n == 0) {
+            connected = Net.pollConnectNow(fd);
+            if (!connected) {
                 remainingNanos = nanos - (System.nanoTime() - startNanos);
                 if (remainingNanos <= 0) {
                     throw new SocketTimeoutException("Connect timed out");
                 }
             }
-        } while (n == 0 && isOpen());
-        return n;
+        } while (!connected && isOpen());
+        return connected;
     }
 
     /**
@@ -572,19 +572,20 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 try {
                     configureNonBlockingIfNeeded(fd, millis);
                     int n = Net.connect(fd, address, port);
-                    if (IOStatus.okayToRetry(n) && isOpen()) {
+                    if (n > 0 && isOpen()) {
+                        connected = true;
+                    } else if (IOStatus.okayToRetry(n) && isOpen()) {
                         if (millis > 0) {
                             // finish connect with timeout
-                            n = timedFinishConnect(fd, millis);
+                            connected = timedFinishConnect(fd, millis);
                         } else {
                             // finish connect, no timeout
                             do {
                                 park(fd, Net.POLLOUT);
-                                n = Net.pollConnectNow(fd);
-                            } while (n == 0 && isOpen());
+                                connected = Net.pollConnectNow(fd);
+                            } while (!connected && isOpen());
                         }
                     }
-                    connected = (n > 0) && isOpen();
                 } finally {
                     endConnect(connected);
                 }
@@ -813,16 +814,13 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
     @Override
     protected int available() throws IOException {
-        readLock.lock();
-        try {
+        synchronized (stateLock) {
             ensureOpenAndConnected();
             if (isInputClosed) {
                 return 0;
             } else {
                 return Net.available(fd);
             }
-        } finally {
-            readLock.unlock();
         }
     }
 

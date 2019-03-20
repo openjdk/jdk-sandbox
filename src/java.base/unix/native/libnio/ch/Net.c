@@ -804,7 +804,7 @@ Java_sun_nio_ch_Net_poll(JNIEnv* env, jclass this, jobject fdo, jint events, jlo
     }
 }
 
-JNIEXPORT jint JNICALL
+JNIEXPORT jboolean JNICALL
 Java_sun_nio_ch_Net_pollConnect(JNIEnv *env, jobject this, jobject fdo, jlong timeout)
 {
     jint fd = fdval(env, fdo);
@@ -835,16 +835,12 @@ Java_sun_nio_ch_Net_pollConnect(JNIEnv *env, jobject this, jobject fdo, jlong ti
             return handleSocketError(env, ENOTCONN);
         }
         // connected
-        return 1;
-    } else if (result == 0) {
-        return 0;
+        return JNI_TRUE;
+    } else if (result == 0 || errno == EINTR) {
+        return JNI_FALSE;
     } else {
-        if (errno == EINTR) {
-            return IOS_INTERRUPTED;
-        } else {
-            JNU_ThrowIOExceptionWithLastError(env, "poll failed");
-            return IOS_THROWN;
-        }
+        JNU_ThrowIOExceptionWithLastError(env, "poll failed");
+        return JNI_FALSE;
     }
 }
 
