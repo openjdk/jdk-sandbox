@@ -226,17 +226,7 @@ public class DeployParams {
     }
 
     public void addResource(File baseDir, String path) {
-        File file = new File(baseDir, path);
-        // normalize top level dir
-        // to strip things like "." in the path
-        // or it can confuse symlink detection logic
-        file = file.getAbsoluteFile();
-
-        if (baseDir == null) {
-            baseDir = file.getParentFile();
-        }
-        resources.add(new RelativeFileSet(
-                baseDir, new LinkedHashSet<>(expandFileset(file))));
+        addResource(baseDir, new File(baseDir, path));
     }
 
     public void addResource(File baseDir, File file) {

@@ -124,11 +124,9 @@ public class Arguments {
     private static Map<String, CLIOptions> argIds = new HashMap<>();
     private static Map<String, CLIOptions> argShortIds = new HashMap<>();
 
-    {
+    static {
         // init maps for parsing arguments
-        EnumSet<CLIOptions> options = EnumSet.allOf(CLIOptions.class);
-
-        options.forEach(option -> {
+        (EnumSet.allOf(CLIOptions.class)).forEach(option -> {
             argIds.put(option.getIdWithPrefix(), option);
             if (option.getShortIdWithPrefix() != null) {
                 argShortIds.put(option.getShortIdWithPrefix(), option);
@@ -137,7 +135,19 @@ public class Arguments {
     }
 
     public Arguments(String[] args) throws PackagerException {
-        initArgumentList(args);
+        argList = new ArrayList<String>(args.length);
+        for (String arg : args) {
+            argList.add(arg);
+        }
+        Log.debug ("\njpackage argument list: \n" + argList + "\n");
+        pos = 0;
+
+        deployParams = new DeployParams();
+        bundleType = BundlerType.NONE;
+
+        allOptions = new ArrayList<>();
+
+        addLaunchers = new ArrayList<>();
     }
 
     // CLIOptions is public for DeployParamsTest
@@ -472,22 +482,6 @@ public class Arguments {
         PLATFORM_MAC,
         PLATFORM_WIN,
         PLATFORM_LINUX;
-    }
-
-    private void initArgumentList(String[] args) throws PackagerException {
-        argList = new ArrayList<String>(args.length);
-        for (String arg : args) {
-            argList.add(arg);
-        }
-        Log.debug ("\njpackage argument list: \n" + argList + "\n");
-        pos = 0;
-
-        deployParams = new DeployParams();
-        bundleType = BundlerType.NONE;
-
-        allOptions = new ArrayList<>();
-
-        addLaunchers = new ArrayList<>();
     }
 
     public boolean processArguments() throws Exception {
