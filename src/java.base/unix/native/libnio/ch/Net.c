@@ -828,11 +828,14 @@ Java_sun_nio_ch_Net_pollConnect(JNIEnv *env, jobject this, jobject fdo, jlong ti
         errno = 0;
         result = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &n);
         if (result < 0) {
-            return handleSocketError(env, errno);
+            handleSocketError(env, errno);
+            return JNI_FALSE;
         } else if (error) {
-            return handleSocketError(env, error);
+            handleSocketError(env, error);
+            return JNI_FALSE;
         } else if ((poller.revents & POLLHUP) != 0) {
-            return handleSocketError(env, ENOTCONN);
+            handleSocketError(env, ENOTCONN);
+            return JNI_FALSE;
         }
         // connected
         return JNI_TRUE;
