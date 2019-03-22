@@ -233,8 +233,7 @@ public class Timeouts {
     }
 
     /**
-     * Test writing after a timed read. The timed read changes the underlying
-     * socket to non-blocking.
+     * Test writing after a timed read.
      */
     public void testTimedWrite1() throws IOException {
         withConnection((s1, s2) -> {
@@ -255,8 +254,7 @@ public class Timeouts {
     }
 
     /**
-     * Test async close of writer (after a timed read). The timed read changes
-     * the underlying socket to non-blocking.
+     * Test async close of writer (after a timed read).
      */
     public void testTimedWrite2() throws IOException {
         withConnection((s1, s2) -> {
