@@ -26,7 +26,6 @@
  * @library /test/lib
  * @build jdk.test.lib.Utils
  * @run testng Timeouts
- * @run testng/othervm -Djdk.net.usePlainSocketImpl Timeouts
  * @summary Test Socket timeouts
  */
 

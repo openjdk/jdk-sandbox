@@ -26,7 +26,6 @@
  * @bug 8220493
  * @modules java.base/java.net:+open java.base/sun.nio.ch:+open
  * @run testng/othervm SocketImplCombinations
- * @run testng/othervm -Djdk.net.usePlainSocketImpl SocketImplCombinations
  * @summary Test Socket and ServerSocket with combinations of SocketImpls
  */
 
@@ -383,7 +382,7 @@ public class SocketImplCombinations {
             expectThrows(IOException.class, ss::accept);
         }
     }
-    
+
     public void testServerSocketAccept5b() throws IOException {
         var socket = new Socket((SocketImpl) null) { };
         assertTrue(getSocketImpl(socket) == null);

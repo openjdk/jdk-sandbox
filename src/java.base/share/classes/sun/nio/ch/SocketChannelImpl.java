@@ -792,13 +792,15 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginFinishConnect(blocking);
+                        boolean polled;
                         if (blocking) {
                             do {
-                                connected = Net.pollConnect(fd, -1);
-                            } while (!connected && isOpen());
+                                polled = Net.pollConnect(fd, -1);
+                            } while (!polled && isOpen());
                         } else {
-                            connected = Net.pollConnect(fd, 0);
+                            polled = Net.pollConnect(fd, 0);
                         }
+                        connected = polled && isOpen();
                     } finally {
                         endFinishConnect(blocking, connected);
                     }

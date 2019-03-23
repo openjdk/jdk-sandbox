@@ -25,7 +25,6 @@
  * @test
  * @requires (os.family == "linux" | os.family == "mac")
  * @run testng AsyncShutdown
- * @run testng/othervm -Djdk.net.usePlainSocketImpl AsyncShutdown
  * @summary Test shutdownInput/shutdownOutput with threads blocked in read/write
  */
 

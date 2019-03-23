@@ -24,7 +24,6 @@
 /**
  * @test
  * @run main UdpSocket
- * @run main/othervm -Djdk.net.usePlainSocketImpl UdpSocket
  * @summary Basic test for a Socket to a UDP socket
  */
 
