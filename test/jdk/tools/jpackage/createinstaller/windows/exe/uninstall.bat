@@ -8,4 +8,6 @@
 "%ProgramFiles%\JPackageCreateInstallerWinShortcutTest\unins000.exe"
 "%ProgramFiles%\JPackageCreateInstallerLicenseTest\unins000.exe"
 "%ProgramFiles%\JPackageCreateInstallerWinUpgradeUUIDTest\unins000.exe"
+"%ProgramFiles%\TestVendor\JPackageCreateInstallerInstallDirTestDir\unins000.exe"
+"%ProgramFiles%\TestVendor\JPackageCreateInstallerFileAssociationsInstallDirTestDir\unins000.exe"
 PAUSE

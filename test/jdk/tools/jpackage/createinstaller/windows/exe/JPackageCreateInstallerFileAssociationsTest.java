@@ -38,8 +38,9 @@
 public class JPackageCreateInstallerFileAssociationsTest {
     private static final String TEST_NAME = "JPackageCreateInstallerFileAssociationsTest";
     private static final String EXT = "exe";
+    private static final String TEST_EXT = "jptest1";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT);
+        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT, null, TEST_EXT);
     }
 }

@@ -46,39 +46,48 @@ public class CLIHelp {
         if (noArgs) {
             Log.info(I18N.getString("MSG_Help_no_args"));
         } else {
-            Platform platform = (Log.isDebug()) ? 
+            Platform platform = (Log.isDebug()) ?
                     Platform.UNKNOWN : Platform.getPlatform();
             String types;
             String pLaunchOptions;
             String pInstallOptions;
+            String pInstallDir;
             switch (platform) {
                 case MAC:
                     types = "{\"pkg\", \"dmg\"}";
 		    pLaunchOptions = "";
                     pInstallOptions = I18N.getString("MSG_Help_mac_install");
+                    pInstallDir
+                            = I18N.getString("MSG_Help_mac_linux_install_dir");
                     break;
                 case LINUX:
                     types = "{\"rpm\", \"deb\"}";
 		    pLaunchOptions = "";
                     pInstallOptions = I18N.getString("MSG_Help_linux_install");
+                    pInstallDir
+                            = I18N.getString("MSG_Help_mac_linux_install_dir");
                     break;
                 case WINDOWS:
                     types = "{\"exe\", \"msi\"}";
 		    pLaunchOptions = I18N.getString("MSG_Help_win_launcher");
                     pInstallOptions = I18N.getString("MSG_Help_win_install");
+                    pInstallDir
+                            = I18N.getString("MSG_Help_win_install_dir");
                     break;
                 default:
-                    types = 
+                    types =
                       "{\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}";
 		    pLaunchOptions = I18N.getString("MSG_Help_win_launcher");
                     pInstallOptions = I18N.getString("MSG_Help_win_install")
                             + I18N.getString("MSG_Help_mac_install")
                             + I18N.getString("MSG_Help_linux_install");
+                    pInstallDir
+                            = I18N.getString("MSG_Help_default_install_dir");
                     break;
             }
             Log.info(MessageFormat.format(I18N.getString("MSG_Help"),
                     File.pathSeparator, types, pLaunchOptions,
-                    pInstallOptions));
+                    pInstallOptions, pInstallDir));
         }
     }
 }

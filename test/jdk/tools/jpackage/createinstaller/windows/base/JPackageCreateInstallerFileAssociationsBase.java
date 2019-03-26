@@ -136,25 +136,39 @@ public class JPackageCreateInstallerFileAssociationsBase {
         }
     }
 
-    private static void init(String name, String ext) {
+    private static void init(String name, String ext, String installDir, String testExt) {
         TEST_NAME = name;
         EXT = ext;
-        TEST_EXT = "jptest1";
+        TEST_EXT = testExt;
         OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
-        CMD = new String[]{
-            "create-installer",
-            "--installer-type", EXT,
-            "--input", "input",
-            "--output", "output",
-            "--name", TEST_NAME,
-            "--main-jar", "hello.jar",
-            "--main-class", "Hello",
-            "--files", "hello.jar",
-            "--file-associations", "fa.properties"};
+        if (installDir == null) {
+            CMD = new String[]{
+                "create-installer",
+                "--installer-type", EXT,
+                "--input", "input",
+                "--output", "output",
+                "--name", TEST_NAME,
+                "--main-jar", "hello.jar",
+                "--main-class", "Hello",
+                "--files", "hello.jar",
+                "--file-associations", "fa.properties"};
+        } else {
+            CMD = new String[]{
+                "create-installer",
+                "--installer-type", EXT,
+                "--input", "input",
+                "--output", "output",
+                "--name", TEST_NAME,
+                "--main-jar", "hello.jar",
+                "--main-class", "Hello",
+                "--files", "hello.jar",
+                "--file-associations", "fa.properties",
+                "--install-dir", installDir};
+        }
     }
 
-    public static void run(String name, String ext) throws Exception {
-        init(name, ext);
+    public static void run(String name, String ext, String installDir, String testExt) throws Exception {
+        init(name, ext, installDir, testExt);
 
         if (JPackageInstallerHelper.isVerifyInstall()) {
             verifyInstall();

@@ -220,6 +220,11 @@ public class JPackagePath {
                 + testName + ".exe";
     }
 
+    public static String getWinInstalledApp(String installDir, String testName) {
+        return getWinProgramFiles() + File.separator + installDir + File.separator
+                + testName + ".exe";
+    }
+
     public static String getOSXInstalledApp(String testName) {
         return File.separator + "Applications" + File.separator + testName
                 + ".app" + File.separator + "Contents" + File.separator

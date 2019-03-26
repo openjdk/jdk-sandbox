@@ -30,8 +30,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static jdk.jpackage.internal.WindowsBundlerParam.*;
 
@@ -463,7 +461,7 @@ public class WinExeBundler extends AbstractBundler {
         data.put("PRODUCT_APP_IDENTIFIER",
                 innosetupEscape(getAppIdentifier(p)));
 
-
+        validateValueAndPut(data, "INSTALL_DIR", WINDOWS_INSTALL_DIR, p);
         validateValueAndPut(data, "INSTALLER_NAME", APP_NAME, p);
         validateValueAndPut(data, "APPLICATION_VENDOR", VENDOR, p);
         validateValueAndPut(data, "APPLICATION_VERSION", VERSION, p);

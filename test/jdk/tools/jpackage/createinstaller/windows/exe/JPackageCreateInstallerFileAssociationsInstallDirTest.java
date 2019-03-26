@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,14 +33,16 @@
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
  * @ignore
- * @run main/othervm -Xmx512m JPackageCreateInstallerFileAssociationsTest
+ * @run main/othervm -Xmx512m JPackageCreateInstallerFileAssociationsInstallDirTest
  */
-public class JPackageCreateInstallerFileAssociationsTest {
-    private static final String TEST_NAME = "JPackageCreateInstallerFileAssociationsTest";
-    private static final String EXT = "msi";
-    private static final String TEST_EXT = "jptest1";
+public class JPackageCreateInstallerFileAssociationsInstallDirTest {
+    private static final String TEST_NAME = "JPackageCreateInstallerFileAssociationsInstallDirTest";
+    private static final String EXT = "exe";
+    private static final String INSTALL_DIR
+            = "TestVendor\\JPackageCreateInstallerFileAssociationsInstallDirTestDir";
+    private static final String TEST_EXT = "jptest3";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT, null, TEST_EXT);
+        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT, INSTALL_DIR, TEST_EXT);
     }
 }

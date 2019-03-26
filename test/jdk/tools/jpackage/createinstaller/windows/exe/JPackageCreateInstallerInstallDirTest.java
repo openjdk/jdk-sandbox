@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,23 @@
 
 /*
  * @test
- * @summary jpackage create installer test
+ * @summary jpackage create installer install dir test
  * @library ../../../helpers
  * @library ../base
  * @build JPackageHelper
  * @build JPackagePath
  * @build JPackageInstallerHelper
- * @build JPackageCreateInstallerFileAssociationsBase
+ * @build JPackageCreateInstallerInstallDirBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
  * @ignore
- * @run main/othervm -Xmx512m JPackageCreateInstallerFileAssociationsTest
+ * @run main/othervm -Xmx512m JPackageCreateInstallerInstallDirTest
  */
-public class JPackageCreateInstallerFileAssociationsTest {
-    private static final String TEST_NAME = "JPackageCreateInstallerFileAssociationsTest";
-    private static final String EXT = "msi";
-    private static final String TEST_EXT = "jptest1";
+public class JPackageCreateInstallerInstallDirTest {
+    private static final String TEST_NAME = "JPackageCreateInstallerInstallDirTest";
+    private static final String EXT = "exe";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT, null, TEST_EXT);
+        JPackageCreateInstallerInstallDirBase.run(TEST_NAME, EXT);
     }
 }

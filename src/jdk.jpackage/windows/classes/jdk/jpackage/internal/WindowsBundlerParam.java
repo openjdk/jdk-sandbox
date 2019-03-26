@@ -25,6 +25,7 @@
 
 package jdk.jpackage.internal;
 
+import java.text.MessageFormat;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.function.BiFunction;
@@ -85,5 +86,31 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
             Boolean.class,
             params -> Boolean.FALSE,
             (s, p) -> Boolean.valueOf(s)
+    );
+
+    static final BundlerParamInfo<String> WINDOWS_INSTALL_DIR =
+            new StandardBundlerParam<>(
+            "windows-install-dir",
+            String.class,
+            params -> {
+                 String dir = INSTALL_DIR.fetchFrom(params);
+                 if (dir != null) {
+                     if (dir.contains(":") || dir.contains("..")) {
+                         Log.error(MessageFormat.format(I18N.getString(
+                                "message.invalid.install.dir"), dir,
+                                APP_NAME.fetchFrom(params)));
+                     } else {
+                        if (dir.startsWith("\\")) {
+                             dir = dir.substring(1);
+                        }
+                        if (dir.endsWith("\\")) {
+                             dir = dir.substring(0, dir.length() - 1);
+                        }
+                        return dir;
+                     }
+                 }
+                 return APP_NAME.fetchFrom(params); // Default to app name
+             },
+            (s, p) -> s
     );
 }

@@ -30,7 +30,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static jdk.jpackage.internal.WindowsBundlerParam.*;
@@ -965,8 +964,17 @@ public class WinMsiBundler  extends AbstractBundler {
             out.println(
                     "  <Directory Name=\"AppData\" Id=\"LocalAppDataFolder\">");
         }
+
+        // We should get valid folder or subfolders
+        String installDir = WINDOWS_INSTALL_DIR.fetchFrom(params);
+        String [] installDirs = installDir.split(Pattern.quote("\\"));
+        for (int i = 0; i < (installDirs.length - 1); i++)  {
+            out.println("   <Directory Id=\"SUBDIR" + i + "\" Name=\""
+                + installDirs[i] + "\">");
+        }
+
         out.println("   <Directory Id=\"APPLICATIONFOLDER\" Name=\""
-                + APP_NAME.fetchFrom(params) + "\">");
+                + installDirs[installDirs.length - 1] + "\">");
 
         // dynamic part
         id = 0;
@@ -974,7 +982,9 @@ public class WinMsiBundler  extends AbstractBundler {
         walkFileTree(params, WIN_APP_IMAGE.fetchFrom(params), out, "    ");
 
         // closing
-        out.println("   </Directory>");
+        for (int i = 0; i < installDirs.length; i++)  {
+            out.println("   </Directory>");
+        }
         out.println("  </Directory>");
 
         // for shortcuts
