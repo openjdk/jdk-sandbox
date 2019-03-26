@@ -88,7 +88,7 @@ public class JNLPConverter {
             saveLaunchArgs();
             runJPackage();
         } catch (Exception ex) {
-            Log.error(ex.getLocalizedMessage());
+            Log.error(ex.getMessage());
         }
     }
 
@@ -391,7 +391,10 @@ public class JNLPConverter {
             if (options.getInstallerType() == null) {
                 addLaunchArg("create-installer", launchArgs);
             } else {
-                addLaunchArg("create-installer", options.getInstallerType(), launchArgs);
+                addLaunchArg("create-installer", launchArgs);
+                if (options.getInstallerType() != null) {
+                    addLaunchArg("--installer-type", options.getInstallerType(), launchArgs);
+                }
             }
         }
 
@@ -403,59 +406,61 @@ public class JNLPConverter {
         addLaunchArg("--input", getJarDownloadFolder(), launchArgs);
         addLaunchArg("--output", options.getOutput(), launchArgs);
         addLaunchArg("--name", jnlpd.getName(), launchArgs);
-        addLaunchArg("--version", jnlpd.getVersion(), launchArgs);
+        addLaunchArg("--app-version", jnlpd.getVersion(), launchArgs);
         addLaunchArg("--vendor", jnlpd.getVendor(), launchArgs);
         addLaunchArg("--description", jnlpd.getDescription(), launchArgs);
         addLaunchArg("--icon", jnlpd.getIconLocation(), launchArgs);
         addLaunchArg("--main-jar", jnlpd.getMainJar(), launchArgs);
-        addLaunchArg("--class", jnlpd.getMainClass(), launchArgs);
+        addLaunchArg("--main-class", jnlpd.getMainClass(), launchArgs);
 
         addFiles(launchArgs);
         addArguments(launchArgs);
         addJVMArgs(launchArgs);
 
-        if (jnlpd.isDesktopHint()) {
-            if (Platform.isWindows()) {
-                addLaunchArg("--win-shortcut", launchArgs);
-            } else {
-                Log.warning("Ignoring shortcut hint, since it is not supported on current platform.");
+        if (options.createInstaller()) {
+            if (jnlpd.isDesktopHint()) {
+                if (Platform.isWindows()) {
+                    addLaunchArg("--win-shortcut", launchArgs);
+                } else {
+                    Log.warning("Ignoring shortcut hint, since it is not supported on current platform.");
+                }
             }
-        }
 
-        if (jnlpd.isMenuHint()) {
-            if (Platform.isWindows()) {
-                addLaunchArg("--win-menu", launchArgs);
-                addLaunchArg("--win-menu-group", jnlpd.getSubMenu(), launchArgs);
-            } else {
-                Log.warning("Ignoring menu hint, since it is not supported on current platform.");
+            if (jnlpd.isMenuHint()) {
+                if (Platform.isWindows()) {
+                    addLaunchArg("--win-menu", launchArgs);
+                    addLaunchArg("--win-menu-group", jnlpd.getSubMenu(), launchArgs);
+                } else {
+                    Log.warning("Ignoring menu hint, since it is not supported on current platform.");
+                }
             }
-        }
 
-        AssociationDesc [] associations = jnlpd.getAssociations();
-        if (associations != null) {
-            for (AssociationDesc association : associations) {
-                String file = getFileAssociationsFile();
-                markFileToDelete(file);
+            AssociationDesc[] associations = jnlpd.getAssociations();
+            if (associations != null) {
+                for (AssociationDesc association : associations) {
+                    String file = getFileAssociationsFile();
+                    markFileToDelete(file);
 
-                try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)))) {
-                    if (association.getExtensions() != null && association.getMimeType() != null) {
-                        out.println(FA_EXTENSIONS + "=" + quote(association.getExtensions()));
-                        out.println(FA_CONTENT_TYPE + "=" + quote(association.getMimeType()));
+                    try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(file)))) {
+                        if (association.getExtensions() != null && association.getMimeType() != null) {
+                            out.println(FA_EXTENSIONS + "=" + quote(association.getExtensions()));
+                            out.println(FA_CONTENT_TYPE + "=" + quote(association.getMimeType()));
 
-                        if (association.getMimeDescription() != null) {
-                            out.println(FA_DESCRIPTION + "=" + association.getMimeDescription());
+                            if (association.getMimeDescription() != null) {
+                                out.println(FA_DESCRIPTION + "=" + association.getMimeDescription());
+                            }
+
+                            if (association.getIconLocalLocation() != null) {
+                                out.println(FA_ICON + "=" + quote(association.getIconLocalLocation()));
+                            }
+
+                            addLaunchArg("--file-associations", file, launchArgs);
                         }
-
-                        if (association.getIconLocalLocation() != null) {
-                            out.println(FA_ICON + "=" + quote(association.getIconLocalLocation()));
+                    } catch (Exception ex) {
+                        Log.warning(ex.toString());
+                        if (association.getExtensions() != null) {
+                            Log.warning("File assoication for " + association.getExtensions() + " will be ignored due to exception above.");
                         }
-
-                        addLaunchArg("--file-associations", file, launchArgs);
-                    }
-                } catch (Exception ex) {
-                    Log.warning(ex.toString());
-                    if (association.getExtensions() != null) {
-                        Log.warning("File assoication for " + association.getExtensions() + " will be ignored due to exception above.");
                     }
                 }
             }
@@ -682,11 +687,7 @@ public class JNLPConverter {
                     case '"':
                         // " -> \" -> \\\"
                         if (i == 0 || in.codePointAt(i - 1) != '\\') {
-                            if (Platform.isWindows()) {
                                 sb.appendCodePoint('\\');
-                                sb.appendCodePoint('\\');
-                            }
-                            sb.appendCodePoint('\\');
                             sb.appendCodePoint(code);
                         }
                         break;
@@ -705,9 +706,6 @@ public class JNLPConverter {
                                 sb.appendCodePoint(code);
                             }
                         } else {
-                            if (Platform.isWindows()) {
-                                sb.appendCodePoint('\\');
-                            }
                             sb.appendCodePoint(code);
                         }
                         break;
@@ -739,7 +737,7 @@ public class JNLPConverter {
 
                 downloadFolder = file.getAbsolutePath();
             } catch (IOException e) {
-                Log.error(e.getLocalizedMessage());
+                Log.error(e.getMessage());
             }
         }
 

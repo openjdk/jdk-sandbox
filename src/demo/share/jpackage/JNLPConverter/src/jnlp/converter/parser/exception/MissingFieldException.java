@@ -46,4 +46,9 @@ public class MissingFieldException extends Exception {
     public String toString() {
         return "MissingFieldException[ " + getField() + "]";
     }
+
+    @Override
+    public String getMessage(){
+        return toString();
+    }
 }

@@ -55,4 +55,9 @@ public class BadFieldException extends Exception {
     public String toString() {
         return "BadFieldException[ " + getField() + "," + getValue() + "]";
     }
+
+    @Override
+    public String getMessage(){
+        return toString();
+    }
 }

@@ -157,6 +157,13 @@ public class XMLParser extends DefaultHandler {
     }
 
     @Override
+    public void characters(char[] chars, int start, int length)
+            throws SAXException {
+        String s = new String(chars, start, length);
+        _characters = ((_characters == null) ? s : _characters + s);
+    }
+
+    @Override
     public void ignorableWhitespace(char[] chars, int start, int length)
             throws SAXException {
         String s = new String(chars, start, length);

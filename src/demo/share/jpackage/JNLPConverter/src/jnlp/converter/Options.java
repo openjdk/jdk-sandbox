@@ -48,13 +48,13 @@ public class Options {
     private static final String OUTPUT_OPTION_SHORT_PREFIX = "-o";
     private static final String KEEP_OPTION_SHORT_PREFIX = "-k";
 
-    private static final String [] INSTALLER_TYPES = {"msi", "rpm", "deb",
-                                                      "dmg", "pkg", "pkg-app-store"};
+    private static final String [] INSTALLER_TYPES = {"msi", "exe", "dmg", "pkg",
+                                                      "rpm", "deb"};
 
-    // --output, -o, --input, -i, --files, -f, --main-jar, -j, --class, -c
+    // --output, -o, --input, -i, --files, -f, --main-jar, --main-class
     private static final String [] BLOCKED_JPACKAGE_OPTIONS = {"--output", "-o", "--input", "-i",
                                                                 "--files", "-f", "--main-jar",
-                                                                "-j", "--class", "-c"};
+                                                                "--main-class"};
 
     private static final String RUNTIME_IMAGE_OPTION = "--runtime-image";
 
@@ -204,11 +204,8 @@ public class Options {
         System.out.println("where mode is one of:");
         System.out.println("  create-image");
         System.out.println("          Generates a platform-specific application image.");
-        System.out.println("  create-installer <type>");
+        System.out.println("  create-installer");
         System.out.println("          Generates a platform-specific installer for the application.");
-        System.out.println("          Valid values for \"type\" are \"msi\", \"rpm\", \"deb\", \"dmg\", \"pkg\",");
-        System.out.println("          \"pkg-app-store\". If \"type\" is omitted, all supported types of installable");
-        System.out.println("          packages for current platform will be generated.");
         System.out.println("");
         System.out.println("Possible options include:");
         System.out.println("  -j, --jnlp <path>");
@@ -222,6 +219,12 @@ public class Options {
         System.out.println("          Specify additional jpackage options or overwrite provided by JNLPConverter.");
         System.out.println("          All jpackage options can be specified except: --output -o, --input -i,");
         System.out.println("          --files -f, --main-jar -j and --class -c.");
+        System.out.println("      --installer-type <type>");
+        System.out.println("          The type of the installer to create");
+        System.out.println("          Valid values are: {\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}");
+        System.out.println("          If this option is not specified (in create-installer mode) all");
+        System.out.println("          supported types of installable packages for the current");
+        System.out.println("          platform will be created.");
         System.out.println("  -h, --help, -?");
         System.out.println("          Print this help message");
         System.out.println("  -v, --verbose");
@@ -256,12 +259,6 @@ public class Options {
                 case "create-installer":
                     options.createInstaller = true;
                     index = 1;
-                    if (args.length >= 2) {
-                        if (isInstallerType(args[1])) {
-                            options.installerType = args[1];
-                            index = 2;
-                        }
-                    }
                     break;
                 case "-h":
                 case "--help":
@@ -337,6 +334,13 @@ public class Options {
                         }
                     }
                     options.jpackageOptions.add(args[i]);
+                }
+            } else if (arg.equals("--installer-type")) {
+                if ((i + 1) < args.length) {
+                    if (isInstallerType(args[i + 1])) {
+                        options.installerType = args[i + 1];
+                        i++;
+                    }
                 }
             } else {
                 optionError(ERR_UNKNOWN_OPTION, arg);
