@@ -86,10 +86,11 @@ class ValidOptions {
 
         options.put(CLIOptions.INSTALLER_TYPE.getId(), USE.INSTALL);
         options.put(CLIOptions.LICENSE_FILE.getId(), USE.INSTALL);
-        options.put(CLIOptions.FILE_ASSOCIATIONS.getId(), USE.INSTALL);
         options.put(CLIOptions.INSTALL_DIR.getId(), USE.INSTALL);
         options.put(CLIOptions.PREDEFINED_APP_IMAGE.getId(), USE.INSTALL);
-        options.put(CLIOptions.INSTALLER_TYPE.getId(), USE.INSTALL);
+
+        options.put(CLIOptions.FILE_ASSOCIATIONS.getId(), 
+            (Platform.getPlatform() == Platform.MAC) ?  USE.ALL : USE.INSTALL);
 
         if (Platform.getPlatform() == Platform.WINDOWS) {
             options.put(CLIOptions.WIN_CONSOLE_HINT.getId(), USE.LAUNCHER);
@@ -105,16 +106,16 @@ class ValidOptions {
         }
 
         if (Platform.getPlatform() == Platform.MAC) {
-            options.put(CLIOptions.MAC_SIGN.getId(), USE.INSTALL);
-            options.put(CLIOptions.MAC_BUNDLE_NAME.getId(), USE.INSTALL);
-            options.put(CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(), USE.INSTALL);
+            options.put(CLIOptions.MAC_SIGN.getId(), USE.ALL);
+            options.put(CLIOptions.MAC_BUNDLE_NAME.getId(), USE.ALL);
+            options.put(CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(), USE.ALL);
             options.put(CLIOptions.MAC_BUNDLE_SIGNING_PREFIX.getId(),
-                        USE.INSTALL);
-            options.put(CLIOptions.MAC_SIGNING_KEY_NAME.getId(), USE.INSTALL);
-            options.put(CLIOptions.MAC_SIGNING_KEYCHAIN.getId(), USE.INSTALL);
-            options.put(CLIOptions.MAC_APP_STORE_CATEGORY.getId(), USE.INSTALL);
+                        USE.ALL);
+            options.put(CLIOptions.MAC_SIGNING_KEY_NAME.getId(), USE.ALL);
+            options.put(CLIOptions.MAC_SIGNING_KEYCHAIN.getId(), USE.ALL);
+            options.put(CLIOptions.MAC_APP_STORE_CATEGORY.getId(), USE.ALL);
             options.put(CLIOptions.MAC_APP_STORE_ENTITLEMENTS.getId(),
-                        USE.INSTALL);
+                        USE.ALL);
         }
 
         if (Platform.getPlatform() == Platform.LINUX) {
