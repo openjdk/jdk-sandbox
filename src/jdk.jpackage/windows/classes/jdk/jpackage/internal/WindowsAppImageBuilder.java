@@ -35,6 +35,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -331,8 +332,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         validateValueAndPut(data, "PRODUCT_NAME", APP_NAME, params);
         validateValueAndPut(data, "PRODUCT_VERSION", VERSION, params);
 
-        try (Writer w = new BufferedWriter(
-                new FileWriter(getConfig_ExecutableProperties(params)))) {
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_ExecutableProperties(params).toPath(),
+                StandardCharsets.UTF_8)) {
             String content = preprocessTextResource(
                     getConfig_ExecutableProperties(params).getName(),
                     I18N.getString("resource.executable-properties-template"),
