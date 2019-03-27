@@ -412,7 +412,7 @@ std::vector<TString> GetKeysThatAreNotOverridesOfDefaultValues(
                 TString value = Overrides[key];
                 Defaults[key] = value;
             }
-            catch (std::out_of_range) {
+            catch (std::out_of_range &) {
             }
         }
         else {

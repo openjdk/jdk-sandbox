@@ -115,7 +115,7 @@ bool PropertyFile::SaveToFile(const TString FileName, bool ownerOnly) {
                     contents.push_back(line);
                 }
             }
-            catch (std::out_of_range) {
+            catch (std::out_of_range &) {
             }
         }
 
