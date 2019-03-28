@@ -116,7 +116,7 @@ public class TreeBuilderImpl implements TreeBuilder {
             }
             VariableImpl vi = new VariableImpl(ti.type, name);
             field.accept(vi);
-            result.defs = result.defs.prepend(vi.result);
+            result.defs = result.defs.append(vi.result);
             return this;
         }
 
@@ -184,7 +184,17 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Variable init(Consumer<Expression> init) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            ExpressionImpl expr = new ExpressionImpl();
+
+            init.accept(expr);
+
+            if (expr.expr == null) {
+                throw new IllegalStateException("Expression not provided!");
+            }
+
+            result.init = expr.expr;
+
+            return this;
         }
 
         @Override
@@ -202,5 +212,39 @@ public class TreeBuilderImpl implements TreeBuilder {
             throw new UnsupportedOperationException("Not supported yet.");
         }
         
+    }
+
+    private final class ExpressionImpl implements Expression {
+
+        private JCExpression expr;
+
+        @Override
+        public void minusminus(Consumer<Expression> expr) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public void plus(Consumer<Expression> lhs, Consumer<Expression> rhs) {
+            ExpressionImpl left = new ExpressionImpl();
+            lhs.accept(left);
+            ExpressionImpl right = new ExpressionImpl();
+            rhs.accept(right);
+            expr = make.Binary(Tag.PLUS, left.expr, right.expr); //XXX: check exprs filled!
+        }
+
+        @Override
+        public void cond(Consumer<Expression> cond, Consumer<Expression> truePart, Consumer<Expression> falsePart) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public void ident(String... qnames) {
+            expr = make.Ident(names.fromString(qnames[0])); //XXX
+        }
+
+        @Override
+        public void literal(Object value) {
+            expr = make.Literal(value);
+        }
     }
 }

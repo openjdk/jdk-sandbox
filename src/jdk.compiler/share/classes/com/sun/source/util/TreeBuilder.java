@@ -125,6 +125,7 @@ public interface TreeBuilder {
         void plus(Consumer<Expression> lhs, Consumer<Expression> rhs);
         void cond(Consumer<Expression> cond, Consumer<Expression> truePart, Consumer<Expression> falsePart);
         void ident(String... qnames);
+        void literal(Object value);
     }
 
     interface Statements {

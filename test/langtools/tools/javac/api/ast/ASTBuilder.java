@@ -25,8 +25,12 @@
  * @test
  * @bug 9999999
  * @summary XXX
- * @modules java.compiler
- *          jdk.compiler
+ * @library /tools/lib
+ * @modules
+ *      jdk.compiler/com.sun.tools.javac.api
+ *      jdk.compiler/com.sun.tools.javac.main
+ * @build toolbox.ToolBox CodeBuilder
+ * @run main ASTBuilder
  */
 
 import java.net.URI;
@@ -46,6 +50,16 @@ import com.sun.source.util.TreeBuilder.*;
 import com.sun.source.util.Trees;
 import com.sun.source.util.TreeScanner;
 
+import javax.tools.StandardLocation;
+
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberReferenceTree;
+import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.VariableTree;
+import toolbox.ToolBox.MemoryFileManager;
+
 public class ASTBuilder {
     
     public static void main(String[] args) throws Exception {
@@ -53,15 +67,19 @@ public class ASTBuilder {
                 "    int x;" +
                 "}",
                 U -> U._class("Test", C -> C.field("x", Type::_int)));
+        runTest("class Test {" +
+                "    int x1 = 2;" +
+                "    int x2 = 2 + x1;" +
+                "}");
     }
 
     private static void runTest(String expectedCode, Consumer<CompilationUnit> actualBuilder) throws Exception {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
-        JavacTask expecteTask = (JavacTask) tool.getTask(null, null, null,
+        JavacTask expectedTask = (JavacTask) tool.getTask(null, null, null,
             null, null, Arrays.asList(new MyFileObject(expectedCode)));
-        String expectedDump = dumpTree(expecteTask.parse().iterator().next());
+        String expectedDump = dumpTree(expectedTask.parse().iterator().next());
 
         JavacTask ct = (JavacTask) tool.getTask(null, null, null,
             null, null, Arrays.asList(new MyFileObject("")));
@@ -76,6 +94,55 @@ public class ASTBuilder {
         
         if (!actualDump.equals(expectedDump)) {
             throw new AssertionError("Expected and actual dump differ. Expected: " + expectedDump + "; actual: " + actualDump);
+        }
+    }
+
+    private static void runTest(String expectedCode) throws Exception {
+        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assert tool != null;
+
+        JavacTask expectedTask = (JavacTask) tool.getTask(null, null, null,
+            null, null, Arrays.asList(new MyFileObject(expectedCode)));
+        CompilationUnitTree expectedCUT = expectedTask.parse().iterator().next();
+        String builderCode = CodeBuilder.buildCodeToGenerate(expectedCUT, "builder");
+        System.err.println("builderCode:");
+        System.err.println(builderCode);
+        String expectedCodeGen = "import com.sun.source.tree.*; import com.sun.source.util.*; public class CodeGen { public static CompilationUnitTree build(TreeBuilder builder) { return " + builderCode + "; } }";
+        String expectedDump = dumpTree(expectedCUT);
+
+        try (MemoryFileManager mfm = new MemoryFileManager(tool.getStandardFileManager(null, null, null))) {
+            Boolean res = tool.getTask(null, mfm, null,
+                                       null, null, Arrays.asList(new MyFileObject(expectedCodeGen)))
+                              .call();
+            if (!res) {
+                throw new IllegalStateException("Could not compile the generated code!");
+            }
+            
+            ClassLoader codeCL = new ClassLoader(ASTBuilder.class.getClassLoader()) {
+                @Override
+                protected java.lang.Class<?> findClass(String name) throws ClassNotFoundException {
+                    byte[] bytecode = mfm.getFileBytes(StandardLocation.CLASS_OUTPUT, name);
+                    if (bytecode != null) {
+                        return defineClass(name, bytecode, 0, bytecode.length);
+                    }
+                    return super.findClass(name);
+                }
+            };
+
+            JavacTask ct = (JavacTask) tool.getTask(null, null, null,
+                null, null, Arrays.asList(new MyFileObject("")));
+            ct.parse(); //init javac
+            Trees t = Trees.instance(ct);
+
+            TreeBuilder builder = t.getTreeBuilder();
+
+            java.lang.Class<?> codeGen = codeCL.loadClass("CodeGen");
+            CompilationUnitTree cut = (CompilationUnitTree) codeGen.getDeclaredMethod("build", TreeBuilder.class).invoke(null, builder);
+            String actualDump = dumpTree(cut);
+
+            if (!actualDump.equals(expectedDump)) {
+                throw new AssertionError("Expected and actual dump differ. Expected: " + expectedDump + "; actual: " + actualDump);
+            }
         }
     }
 
@@ -110,6 +177,36 @@ public class ASTBuilder {
                 result.append(")");
                 return null;
             }
+            @Override
+            public Void visitIdentifier(IdentifierTree node, Void p) {
+                result.append(node.getName());
+                return super.visitIdentifier(node, p);
+            }
+            @Override
+            public Void visitMemberSelect(MemberSelectTree node, Void p) {
+                result.append(node.getIdentifier());
+                return super.visitMemberSelect(node, p);
+            }
+            @Override
+            public Void visitMemberReference(MemberReferenceTree node, Void p) {
+                result.append(node.getName());
+                return super.visitMemberReference(node, p);
+            }
+            @Override
+            public Void visitClass(ClassTree node, Void p) {
+                result.append(node.getSimpleName());
+                return super.visitClass(node, p);
+            }
+            @Override
+            public Void visitMethod(MethodTree node, Void p) {
+                result.append(node.getName());
+                return super.visitMethod(node, p);
+            }
+            @Override
+            public Void visitVariable(VariableTree node, Void p) {
+                result.append(node.getName());
+                return super.visitVariable(node, p);
+            }
         }.scan(t, null);
         return result.toString();
     }
@@ -125,6 +222,11 @@ public class ASTBuilder {
         @Override
         public CharSequence getCharContent(boolean ignoreEncodingErrors) {
             return text;
+        }
+
+        @Override
+        public boolean isNameCompatible(String simpleName, Kind kind) {
+            return true;
         }
     }
 }
