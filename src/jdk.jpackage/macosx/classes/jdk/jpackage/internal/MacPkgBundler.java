@@ -211,9 +211,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         Map<String, String> data = new HashMap<>();
 
-        data.put("DEPLOY_DAEMON_IDENTIFIER", getDaemonIdentifier(params));
-        data.put("DEPLOY_LAUNCHD_PLIST_FILE",
-                IDENTIFIER.fetchFrom(params).toLowerCase() + ".launchd.plist");
+        data.put("INSTALL_LOCATION", MAC_INSTALL_DIR.fetchFrom(params));
 
         Writer w = new BufferedWriter(
                 new FileWriter(getScripts_PreinstallFile(params)));
@@ -378,6 +376,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
             patchCPLFile(cpl);
 
+            preparePackageScripts(params);
+
             // build application package
             pb = new ProcessBuilder("pkgbuild",
                     "--root",
@@ -386,6 +386,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     MAC_INSTALL_DIR.fetchFrom(params),
                     "--component-plist",
                     cpl.getAbsolutePath(),
+                    "--scripts",
+                    SCRIPTS_DIR.fetchFrom(params).getAbsolutePath(),
                     appPKG.getAbsolutePath());
             IOUtils.exec(pb, false);
 

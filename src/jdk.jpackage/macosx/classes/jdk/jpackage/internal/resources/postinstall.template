@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-set -e
-launchctl load "/Library/LaunchDaemons/DEPLOY_LAUNCHD_PLIST_FILE"
+chown -R root:wheel "INSTALL_LOCATION"
+chmod -R o+rX "INSTALL_LOCATION"
 
 exit 0
