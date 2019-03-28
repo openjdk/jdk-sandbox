@@ -134,7 +134,7 @@ public class JPackageCreateImageAddLauncherBase {
                 new FileWriter("sl.properties")))) {
             out.println("name=test2");
             out.println("arguments=" + argumentsMap);
-            out.println("jvm-args=" + vmArgumentsMap);
+            out.println("java-options=" + vmArgumentsMap);
         }
     }
 

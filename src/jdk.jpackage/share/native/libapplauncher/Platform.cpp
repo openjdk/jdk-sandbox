@@ -159,14 +159,14 @@ std::map<TString, TString> Platform::GetKeys() {
             TString>::value_type(CONFIG_SECTION_APPLICATION,
             _T("Application")));
     keys.insert(std::map<TString,
-            TString>::value_type(CONFIG_SECTION_JVMOPTIONS,
-            _T("JVMOptions")));
+            TString>::value_type(CONFIG_SECTION_JAVAOPTIONS,
+            _T("JavaOptions")));
     keys.insert(std::map<TString,
-            TString>::value_type(CONFIG_SECTION_APPCDSJVMOPTIONS,
-            _T("AppCDSJVMOptions")));
+            TString>::value_type(CONFIG_SECTION_APPCDSJAVAOPTIONS,
+            _T("AppCDSJavaOptions")));
     keys.insert(std::map<TString,
-            TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS,
-            _T("AppCDSGenerateCacheJVMOptions")));
+            TString>::value_type(CONFIG_SECTION_APPCDSGENERATECACHEJAVAOPTIONS,
+            _T("AppCDSGenerateCacheJavaOptions")));
     keys.insert(std::map<TString,
             TString>::value_type(CONFIG_SECTION_ARGOPTIONS,
             _T("ArgOptions")));

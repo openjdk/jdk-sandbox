@@ -198,10 +198,10 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
         AppendToIni(propertyFile, Container, keys[CONFIG_APP_MEMORY]);
         AppendToIni(propertyFile, Container, keys[CONFIG_SPLASH_KEY]);
 
-        // JVMOptions Section
+        // JavaOptions Section
         OrderedMap<TString, TString> JVMArgs =
                 Helpers::GetJVMArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JVMOPTIONS], JVMArgs);
+        Container->AppendSection(keys[CONFIG_SECTION_JAVAOPTIONS], JVMArgs);
 
         // ArgOptions Section
         std::list<TString> args = Helpers::GetArgsFromConfig(&propertyFile);

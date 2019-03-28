@@ -192,8 +192,8 @@ void Package::Clear() {
 // -> cdsUninitialized
 //    -> cdsGenCache If -Xappcds:generatecache
 //    -> cdsDisabled If -Xappcds:off
-//    -> cdsEnabled If "AppCDSJVMOptions" section is present
-//    -> cdsAuto If "AppCDSJVMOptions" section is present and
+//    -> cdsEnabled If "AppCDSJavaOptions" section is present
+//    -> cdsAuto If "AppCDSJavaOptions" section is present and
 //               app.appcds.cache=auto
 //    -> cdsDisabled Default
 //
@@ -213,7 +213,7 @@ void Package::PromoteAppCDSState(ISectionalPropertyContainer* Config) {
 
         case cdsUninitialized: {
             if (Config->ContainsSection(
-                    keys[CONFIG_SECTION_APPCDSJVMOPTIONS]) == true) {
+                    keys[CONFIG_SECTION_APPCDSJAVAOPTIONS]) == true) {
                 // If the AppCDS section is present then enable AppCDS.
                 TString appCDSCacheValue;
 
@@ -248,21 +248,21 @@ void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
         }
 
         case cdsDisabled: {
-            Config->GetSection(keys[CONFIG_SECTION_JVMOPTIONS],
+            Config->GetSection(keys[CONFIG_SECTION_JAVAOPTIONS],
                     FBootFields->FJVMArgs);
             break;
         }
 
         case cdsGenCache: {
             Config->GetSection(keys[
-                    CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS],
+                    CONFIG_SECTION_APPCDSGENERATECACHEJAVAOPTIONS],
                     FBootFields->FJVMArgs);
             break;
         }
 
         case cdsAuto:
         case cdsEnabled: {
-            if (Config->GetValue(keys[CONFIG_SECTION_APPCDSJVMOPTIONS],
+            if (Config->GetValue(keys[CONFIG_SECTION_APPCDSJAVAOPTIONS],
                     _T( "-XX:SharedArchiveFile"),
                     FBootFields->FAppCDSCacheFileName) == true) {
                 // File names may contain the incorrect path separators.
@@ -275,13 +275,13 @@ void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
                                 FilePath::FixPathForPlatform(
                                 FBootFields->FAppCDSCacheFileName);
                         iniConfig->SetValue(keys[
-                                CONFIG_SECTION_APPCDSJVMOPTIONS],
+                                CONFIG_SECTION_APPCDSJAVAOPTIONS],
                                 _T( "-XX:SharedArchiveFile"),
                                 FBootFields->FAppCDSCacheFileName);
                     }
                 }
 
-                Config->GetSection(keys[CONFIG_SECTION_APPCDSJVMOPTIONS],
+                Config->GetSection(keys[CONFIG_SECTION_APPCDSJAVAOPTIONS],
                         FBootFields->FJVMArgs);
             }
 

@@ -23,49 +23,46 @@
 
 /*
  * @test
- * @summary jpackage create image with --jvm-args test
+ * @summary jpackage create image with --java-options test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageJVMArgsBase
+ * @build JPackageCreateImageJavaOptionsBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageJVMArgsTest
+ * @run main/othervm -Xmx512m JPackageCreateImageJavaOptionsModuleTest
  */
-public class JPackageCreateImageJVMArgsTest {
+public class JPackageCreateImageJavaOptionsModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
         "create-image",
-        "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--jvm-args", "TBD"};
+        "--module", "com.hello/com.hello.Hello",
+        "--module-path", "input",
+        "--java-options", "TBD"};
 
     private static final String[] CMD2 = {
         "create-image",
-        "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--jvm-args", "TBD",
-        "--jvm-args", "TBD",
-        "--jvm-args", "TBD"};
+        "--module", "com.hello/com.hello.Hello",
+        "--module-path", "input",
+        "--java-options", "TBD",
+        "--java-options", "TBD",
+        "--java-options", "TBD"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloImageJar();
-        JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs(CMD);
+        JPackageHelper.createHelloModule();
+
+        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJVMArgsBase.testCreateImageJVMArgsToolProvider(CMD);
+        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptionsToolProvider(CMD);
 
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2(CMD2);
+        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2(CMD2);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJVMArgsBase.testCreateImageJVMArgs2ToolProvider(CMD2);
+        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2ToolProvider(CMD2);
     }
 
 }

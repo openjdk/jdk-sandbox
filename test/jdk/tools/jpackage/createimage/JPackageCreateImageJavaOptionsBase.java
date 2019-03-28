@@ -26,7 +26,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JPackageCreateImageJVMArgsBase {
+public class JPackageCreateImageJavaOptionsBase {
 
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
@@ -54,19 +54,19 @@ public class JPackageCreateImageJVMArgsBase {
     private static void initArguments2(boolean toolProvider, String [] cmd) {
         int index = cmd.length - 6;
 
-        cmd[index++] = "--jvm-args";
+        cmd[index++] = "--java-options";
         arguments.clear();
         arguments.add(ARGUMENT1);
         cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
                 toolProvider);
 
-        cmd[index++] = "--jvm-args";
+        cmd[index++] = "--java-options";
         arguments.clear();
         arguments.add(ARGUMENT2);
         cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
                 toolProvider);
 
-        cmd[index++] = "--jvm-args";
+        cmd[index++] = "--java-options";
         arguments.clear();
         arguments.add(ARGUMENT3);
         cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
@@ -123,25 +123,25 @@ public class JPackageCreateImageJVMArgsBase {
         validateResult(result, expectedArgs);
     }
 
-    public static void testCreateImageJVMArgs(String [] cmd) throws Exception {
+    public static void testCreateImageJavaOptions(String [] cmd) throws Exception {
         initArguments(false, cmd);
         JPackageHelper.executeCLI(true, cmd);
         validate(arguments);
     }
 
-    public static void testCreateImageJVMArgsToolProvider(String [] cmd) throws Exception {
+    public static void testCreateImageJavaOptionsToolProvider(String [] cmd) throws Exception {
         initArguments(true, cmd);
         JPackageHelper.executeToolProvider(true, cmd);
         validate(arguments);
     }
 
-    public static void testCreateImageJVMArgs2(String [] cmd) throws Exception {
+    public static void testCreateImageJavaOptions2(String [] cmd) throws Exception {
         initArguments2(false, cmd);
         JPackageHelper.executeCLI(true, cmd);
         validate(arguments);
     }
 
-    public static void testCreateImageJVMArgs2ToolProvider(String [] cmd) throws Exception {
+    public static void testCreateImageJavaOptions2ToolProvider(String [] cmd) throws Exception {
         initArguments2(true, cmd);
         JPackageHelper.executeToolProvider(true, cmd);
         validate(arguments);

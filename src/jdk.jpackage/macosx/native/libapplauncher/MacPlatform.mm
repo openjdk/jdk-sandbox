@@ -410,13 +410,13 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
 
         // jvmargs
         AppendPListArrayToIniFile(infoDictionary, result,
-                keys[CONFIG_SECTION_JVMOPTIONS]);
+                keys[CONFIG_SECTION_JAVAOPTIONS]);
 
         // Generate AppCDS Cache
         AppendPListDictionaryToIniFile(infoDictionary, result,
-                keys[CONFIG_SECTION_APPCDSJVMOPTIONS]);
+                keys[CONFIG_SECTION_APPCDSJAVAOPTIONS]);
         AppendPListDictionaryToIniFile(infoDictionary, result,
-                keys[CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS]);
+                keys[CONFIG_SECTION_APPCDSGENERATECACHEJAVAOPTIONS]);
 
         // args
         AppendPListArrayToIniFile(infoDictionary, result,
@@ -499,12 +499,12 @@ std::map<TString, TString> MacPlatform::GetKeys() {
         keys.insert(std::map<TString, TString>::value_type(
                 CONFIG_SECTION_APPLICATION, _T("Application")));
         keys.insert(std::map<TString, TString>::value_type(
-                CONFIG_SECTION_JVMOPTIONS, _T("JVMOptions")));
+                CONFIG_SECTION_JAVAOPTIONS, _T("JavaOptions")));
         keys.insert(std::map<TString, TString>::value_type(
-                CONFIG_SECTION_APPCDSJVMOPTIONS, _T("AppCDSJVMOptions")));
+                CONFIG_SECTION_APPCDSJAVAOPTIONS, _T("AppCDSJavaOptions")));
         keys.insert(std::map<TString, TString>::value_type(
-                CONFIG_SECTION_APPCDSGENERATECACHEJVMOPTIONS,
-                _T("AppCDSGenerateCacheJVMOptions")));
+                CONFIG_SECTION_APPCDSGENERATECACHEJAVAOPTIONS,
+                _T("AppCDSGenerateCacheJavaOptions")));
         keys.insert(std::map<TString, TString>::value_type(
                 CONFIG_SECTION_ARGOPTIONS, _T("ArgOptions")));
     }

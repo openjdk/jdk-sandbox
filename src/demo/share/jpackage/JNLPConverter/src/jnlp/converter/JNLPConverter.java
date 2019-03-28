@@ -606,7 +606,7 @@ public class JNLPConverter {
             }
         }
 
-        launchArgs.add("--jvm-args");
+        launchArgs.add("--java-options");
         if (Platform.isWindows()) {
             if (jvmArgsStr.contains(" ")) {
                 if (jvmArgsStr.contains("\"")) {

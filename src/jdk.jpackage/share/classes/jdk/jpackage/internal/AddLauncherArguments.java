@@ -57,7 +57,7 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  * main-class
  * icon
  * arguments
- * jvm-args
+ * java-options
  * win-console
  *
  */
@@ -119,9 +119,9 @@ class AddLauncherArguments {
                 CLIOptions.ARGUMENTS.getId(),
                 Arguments.getArgumentList(argumentStr));
 
-        String jvmargsStr = getOptionValue(CLIOptions.JVM_ARGS);
+        String jvmargsStr = getOptionValue(CLIOptions.JAVA_OPTIONS);
         putUnlessNullOrEmpty(bundleParams,
-                CLIOptions.JVM_ARGS.getId(),
+                CLIOptions.JAVA_OPTIONS.getId(),
                 Arguments.getArgumentList(jvmargsStr));
     }
 

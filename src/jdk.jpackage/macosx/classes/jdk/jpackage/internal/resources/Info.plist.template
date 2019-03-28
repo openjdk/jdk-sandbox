@@ -42,7 +42,7 @@
   <string>DEPLOY_MAIN_JAR_NAME</string>
   <key>JVMPreferencesID</key>
   <string>DEPLOY_PREFERENCES_ID</string>
-  <key>JVMOptions</key>
+  <key>JavaOptions</key>
   <array>
 DEPLOY_JVM_OPTIONS
   </array>
