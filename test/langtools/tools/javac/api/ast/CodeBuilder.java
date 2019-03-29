@@ -37,6 +37,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
+import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.ParameterizedTypeTree;
 
 public class CodeBuilder {
 
@@ -48,7 +50,21 @@ public class CodeBuilder {
             @Override
             public Void visitClass(ClassTree node, Void p) {
                 result.append(currentBuilder() + "._class(\"" + node.getSimpleName() + "\", ");
-                doScan("C", () -> super.visitClass(node, p));
+                doScan("C", () -> {
+//                    R r = scan(node.getModifiers(), p);
+//                    r = scanAndReduce(node.getTypeParameters(), p, r);
+                    if (node.getExtendsClause() != null) {
+                        result.append(currentBuilder() + ".superclass(");
+                        handleDeclaredType(node.getExtendsClause());
+                        result.append(")");
+                    }
+                    for (Tree impl : node.getImplementsClause()) {
+                        result.append(currentBuilder() + ".superinterface(");
+                        handleDeclaredType(impl);
+                        result.append(")");
+                    }
+                    scan(node.getMembers(), p);
+                });
                 result.append(")");
                 return null;
             }
@@ -83,6 +99,20 @@ public class CodeBuilder {
             }
 
             @Override
+            public Void visitParameterizedType(ParameterizedTypeTree node, Void p) {
+                scan(node.getType(), null);
+                result.append(", ");
+                doScan("A", () -> {
+                    for (Tree ta : node.getTypeArguments()) {
+                        result.append(currentBuilder() + ".type(");
+                        handleDeclaredType(ta);
+                        result.append(")");
+                    }
+                });
+                return null;
+            }
+
+            @Override
             public Void visitLiteral(LiteralTree node, Void p) {
                 result.append(currentBuilder() + ".literal(" + node.getValue() + ")");
                 return null;
@@ -104,9 +134,28 @@ public class CodeBuilder {
             }
 
             @Override
+            public Void visitMemberSelect(MemberSelectTree node, Void p) {
+                //TODO: use ident(String...) for "flat" selects
+                result.append(currentBuilder() + ".select(");
+                doScan("E", node.getExpression());
+                result.append(", \"");
+                result.append(node.getIdentifier());
+                result.append("\")");
+                return null;
+            }
+
+            @Override
             public Void visitIdentifier(IdentifierTree node, Void p) {
                 result.append(currentBuilder() + ".ident(\"" + node.getName() + "\")");
                 return null;
+            }
+
+            private void handleDeclaredType(Tree t) {
+                doScan("T", () -> {
+                    result.append(currentBuilder() + "._class(");
+                    doScan("Q", t);
+                    result.append(")");
+                });
             }
 
             private String currentBuilder() {

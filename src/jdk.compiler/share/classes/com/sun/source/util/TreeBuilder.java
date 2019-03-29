@@ -57,8 +57,8 @@ public interface TreeBuilder {
 
     interface Class extends WithModifiers<Class>, WithJavadoc<Class> {
         //setters:
-        Class superclass(Consumer<Expression> sup);
-        Class superinterface(Consumer<Expression> sup);
+        Class superclass(Consumer<Type> sup);
+        Class superinterface(Consumer<Type> sup);
         //type parameters?
 
         //adders:
@@ -105,12 +105,32 @@ public interface TreeBuilder {
         //TODO...
     }
 
+    //TODO: DeclaredType vs. Type?
+
     interface Type {
-        void _class(String simpleName); //TODO: type parameters - declaredtype???
-//        void _class(String simpleName, Consumer<TypeArgs> targs);
+        default void _class(String className) {
+            _class(N -> N.qualifiedName(className));
+        }
+        default void _class(Consumer<QualifiedName> className) {
+            _class(className, A -> {});
+        }
+        void _class(Consumer<QualifiedName> className, Consumer<TypeArguments> typeArguments);
         void _int();
         void _float();
         void _void();
+    }
+
+    interface TypeArguments { //???
+        TypeArguments type(Consumer<Type> t);
+    }
+
+    interface QualifiedName {
+        void select(Consumer<QualifiedName> selected, String name);
+        void ident(String simpleName);
+        void ident(String... components);
+        default void qualifiedName(String qualifiedName) {
+            ident(qualifiedName.split("\\."));
+        }
     }
 
 //    interface TypeArgs { //???
@@ -119,12 +139,13 @@ public interface TreeBuilder {
 //        TypeArgs _super(Consumer<Type> t);
 //        TypeArgs unbound();
 //    }
-
+//
     interface Expression {
         void minusminus(Consumer<Expression> expr);
         void plus(Consumer<Expression> lhs, Consumer<Expression> rhs);
         void cond(Consumer<Expression> cond, Consumer<Expression> truePart, Consumer<Expression> falsePart);
-        void ident(String... qnames);
+        void select(Consumer<Expression> selected, String name);
+        void ident(String qnames);
         void literal(Object value);
     }
 
@@ -141,7 +162,7 @@ public interface TreeBuilder {
                                             Type::_void,
                                             M -> M.parameter(T -> T._class("Foo"))
                                                   .parameter(T -> T._float(), P -> P.name("whatever"))
-                                                  .body(B -> B._if(E -> E.minusminus(V -> V.ident("foo", "bar")),
+                                                  .body(B -> B._if(E -> E.minusminus(V -> V.select(S -> S.ident("foo"), "bar")),
                                                                    Statements::skip,
                                                                    Statements::skip
                                                                   )

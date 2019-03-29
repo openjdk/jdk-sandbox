@@ -67,7 +67,7 @@ public class ASTBuilder {
                 "    int x;" +
                 "}",
                 U -> U._class("Test", C -> C.field("x", Type::_int)));
-        runTest("class Test {" +
+        runTest("class Test extends Exception implements java.util.List<Map<String, String>>, CharSequence {" +
                 "    int x1 = 2;" +
                 "    int x2 = 2 + x1;" +
                 "}");

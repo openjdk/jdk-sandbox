@@ -98,13 +98,15 @@ public class TreeBuilderImpl implements TreeBuilder {
         }
         
         @Override
-        public Class superclass(Consumer<Expression> sup) {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public Class superclass(Consumer<Type> sup) {
+            result.extending = visitType(sup); //TODO: check extending not filled!
+            return this;
         }
 
         @Override
-        public Class superinterface(Consumer<Expression> sup) {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public Class superinterface(Consumer<Type> sup) {
+            result.implementing = result.implementing.append(visitType(sup));
+            return this;
         }
 
         @Override
@@ -152,8 +154,15 @@ public class TreeBuilderImpl implements TreeBuilder {
         private JCExpression type;
 
         @Override
-        public void _class(String simpleName) {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public void _class(Consumer<QualifiedName> className, Consumer<TypeArguments> typeArguments) {
+            JCExpression clazz = visitQualifiedName(className);
+            TypeArgumentsImpl ta = new TypeArgumentsImpl();
+            typeArguments.accept(ta);
+            if (ta.types.isEmpty()) {
+                type = clazz;
+            } else {
+                type = make.TypeApply(clazz, ta.types);
+            }
         }
 
         @Override
@@ -173,7 +182,18 @@ public class TreeBuilderImpl implements TreeBuilder {
         }
 
     }
-    
+
+    private final class TypeArgumentsImpl implements TypeArguments {
+        private List<JCExpression> types = List.nil();
+        @Override
+        public TypeArguments type(Consumer<Type> t) {
+            TypeImpl type = new TypeImpl();
+            t.accept(type);
+            types = types.append(type.type);
+            return this;
+        }
+    }
+
     private final class VariableImpl implements Variable {
 
         private final JCVariableDecl result;
@@ -184,16 +204,7 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Variable init(Consumer<Expression> init) {
-            ExpressionImpl expr = new ExpressionImpl();
-
-            init.accept(expr);
-
-            if (expr.expr == null) {
-                throw new IllegalStateException("Expression not provided!");
-            }
-
-            result.init = expr.expr;
-
+            result.init = visitExpression(init);
             return this;
         }
 
@@ -225,11 +236,9 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public void plus(Consumer<Expression> lhs, Consumer<Expression> rhs) {
-            ExpressionImpl left = new ExpressionImpl();
-            lhs.accept(left);
-            ExpressionImpl right = new ExpressionImpl();
-            rhs.accept(right);
-            expr = make.Binary(Tag.PLUS, left.expr, right.expr); //XXX: check exprs filled!
+            expr = make.Binary(Tag.PLUS,
+                               visitExpression(lhs),
+                               visitExpression(rhs));
         }
 
         @Override
@@ -238,13 +247,78 @@ public class TreeBuilderImpl implements TreeBuilder {
         }
 
         @Override
-        public void ident(String... qnames) {
-            expr = make.Ident(names.fromString(qnames[0])); //XXX
+        public void select(Consumer<Expression> selected, String name) {
+            expr = make.Select(visitExpression(selected), names.fromString(name));
+        }
+
+        @Override
+        public void ident(String ident) {
+            expr = make.Ident(names.fromString(ident)); //XXX
         }
 
         @Override
         public void literal(Object value) {
             expr = make.Literal(value);
         }
+    }
+
+    private final class QualifiedNameImpl implements QualifiedName {
+
+        private JCExpression expr;
+
+        @Override
+        public void select(Consumer<QualifiedName> selected, String name) {
+            expr = make.Select(visitQualifiedName(selected), names.fromString(name));
+        }
+
+        @Override
+        public void ident(String ident) {
+            expr = make.Ident(names.fromString(ident));
+        }
+
+        @Override
+        public void ident(String... qnames) {
+            expr = make.Ident(names.fromString(qnames[0]));
+            for (int i = 1; i < qnames.length; i++) {
+                expr = make.Select(expr, names.fromString(qnames[i]));
+            }
+        }
+
+    }
+
+    private JCExpression visitExpression(Consumer<Expression> c) {
+        ExpressionImpl expr = new ExpressionImpl();
+
+        c.accept(expr);
+
+        if (expr.expr == null) {
+            throw new IllegalStateException("Expression not provided!");
+        }
+
+        return expr.expr;
+    }
+
+    private JCExpression visitQualifiedName(Consumer<QualifiedName> c) {
+        QualifiedNameImpl expr = new QualifiedNameImpl();
+
+        c.accept(expr);
+
+        if (expr.expr == null) {
+            throw new IllegalStateException("Name not provided!");
+        }
+
+        return expr.expr;
+    }
+
+    private JCExpression visitType(Consumer<Type> c) {
+        TypeImpl type = new TypeImpl();
+
+        c.accept(type);
+
+        if (type.type == null) {
+            throw new IllegalStateException("Expression not provided!");
+        }
+
+        return type.type;
     }
 }
