@@ -749,8 +749,9 @@ class ServerSocket implements java.io.Closeable {
      * timeout must be {@code > 0}.
      * A timeout of zero is interpreted as an infinite timeout.
      * @param timeout the specified timeout, in milliseconds
-     * @exception SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
+     * @throws  SocketException if there is an error in the underlying protocol,
+     *          such as a TCP error
+     * @throws  IllegalArgumentException  if {@code timeout} is negative
      * @since   1.1
      * @see #getSoTimeout()
      */
