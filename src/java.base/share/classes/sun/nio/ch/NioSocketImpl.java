@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -285,48 +285,38 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * @throws SocketTimeoutException if the read timeout elapses
      */
     private int implRead(byte[] b, int off, int len) throws IOException {
-        readLock.lock();
+        int n = 0;
+        FileDescriptor fd = beginRead();
         try {
-            // emulate legacy behavior to return -1, even if socket is closed
-            if (readEOF)
-                return -1;
-            int n = 0;
-            FileDescriptor fd = beginRead();
-            try {
-                if (connectionReset)
-                    throw new SocketException("Connection reset");
-                if (isInputClosed)
-                    return -1;
-                int timeout = this.timeout;
-                configureNonBlockingIfNeeded(fd, timeout);
-                n = tryRead(fd, b, off, len);
-                if (IOStatus.okayToRetry(n) && isOpen()) {
-                    if (timeout > 0) {
-                        // read with timeout
-                        n = timedRead(fd, b, off, len, timeout);
-                    } else {
-                        // read, no timeout
-                        do {
-                            park(fd, Net.POLLIN);
-                            n = tryRead(fd, b, off, len);
-                        } while (IOStatus.okayToRetry(n) && isOpen());
-                    }
-                }
-                if (n == -1)
-                    readEOF = true;
-                return n;
-            } catch (SocketTimeoutException e) {
-                throw e;
-            } catch (ConnectionResetException e) {
-                connectionReset = true;
+            if (connectionReset)
                 throw new SocketException("Connection reset");
-            } catch (IOException ioe) {
-                throw new SocketException(ioe.getMessage());
-            } finally {
-                endRead(n > 0);
+            if (isInputClosed)
+                return -1;
+            int timeout = this.timeout;
+            configureNonBlockingIfNeeded(fd, timeout);
+            n = tryRead(fd, b, off, len);
+            if (IOStatus.okayToRetry(n) && isOpen()) {
+                if (timeout > 0) {
+                    // read with timeout
+                    n = timedRead(fd, b, off, len, timeout);
+                } else {
+                    // read, no timeout
+                    do {
+                        park(fd, Net.POLLIN);
+                        n = tryRead(fd, b, off, len);
+                    } while (IOStatus.okayToRetry(n) && isOpen());
+                }
             }
+            return n;
+        } catch (SocketTimeoutException e) {
+            throw e;
+        } catch (ConnectionResetException e) {
+            connectionReset = true;
+            throw new SocketException("Connection reset");
+        } catch (IOException ioe) {
+            throw new SocketException(ioe.getMessage());
         } finally {
-            readLock.unlock();
+            endRead(n > 0);
         }
     }
 
@@ -342,9 +332,20 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         if (len == 0) {
             return 0;
         } else {
-            // read up to MAX_BUFFER_SIZE bytes
-            int size = Math.min(len, MAX_BUFFER_SIZE);
-            return implRead(b, off, size);
+            readLock.lock();
+            try {
+                // emulate legacy behavior to return -1, even if socket is closed
+                if (readEOF)
+                    return -1;
+                // read up to MAX_BUFFER_SIZE bytes
+                int size = Math.min(len, MAX_BUFFER_SIZE);
+                int n = implRead(b, off, size);
+                if (n == -1)
+                    readEOF = true;
+                return n;
+            } finally {
+                readLock.unlock();
+            }
         }
     }
 
@@ -398,24 +399,19 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * @throws SocketException if the socket is closed or an socket I/O error occurs
      */
     private int implWrite(byte[] b, int off, int len) throws IOException {
-        writeLock.lock();
+        int n = 0;
+        FileDescriptor fd = beginWrite();
         try {
-            int n = 0;
-            FileDescriptor fd = beginWrite();
-            try {
+            n = tryWrite(fd, b, off, len);
+            while (IOStatus.okayToRetry(n) && isOpen()) {
+                park(fd, Net.POLLOUT);
                 n = tryWrite(fd, b, off, len);
-                while (IOStatus.okayToRetry(n) && isOpen()) {
-                    park(fd, Net.POLLOUT);
-                    n = tryWrite(fd, b, off, len);
-                }
-                return n;
-            } catch (IOException ioe) {
-                throw new SocketException(ioe.getMessage());
-            } finally {
-                endWrite(n > 0);
             }
+            return n;
+        } catch (IOException ioe) {
+            throw new SocketException(ioe.getMessage());
         } finally {
-            writeLock.unlock();
+            endWrite(n > 0);
         }
     }
 
@@ -426,13 +422,18 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private void write(byte[] b, int off, int len) throws IOException {
         Objects.checkFromIndexSize(off, len, b.length);
         if (len > 0) {
-            int pos = off;
-            int end = off + len;
-            while (pos < end) {
-                // write up to MAX_BUFFER_SIZE bytes
-                int size = Math.min((end - pos), MAX_BUFFER_SIZE);
-                int n = implWrite(b, pos, size);
-                pos += n;
+            writeLock.lock();
+            try {
+                int pos = off;
+                int end = off + len;
+                while (pos < end) {
+                    // write up to MAX_BUFFER_SIZE bytes
+                    int size = Math.min((end - pos), MAX_BUFFER_SIZE);
+                    int n = implWrite(b, pos, size);
+                    pos += n;
+                }
+            } finally {
+                writeLock.unlock();
             }
         }
     }
@@ -506,7 +507,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * Marks the end of a connect operation that may have blocked.
      * @throws SocketException is the socket is closed
      */
-    private void endConnect(boolean completed) throws IOException {
+    private void endConnect(FileDescriptor fd, boolean completed) throws IOException {
         synchronized (stateLock) {
             readerThread = 0;
             int state = this.state;
@@ -545,10 +546,11 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     /**
      * Attempts to establish a connection to the given socket address with a
      * timeout. Closes the socket if connection cannot be established.
-     * @throws IOException if the address is not a resolved InetSocketAdress or
+     * @throws IOException if the address is not a resolved InetSocketAddress or
      *         the connection cannot be established
      */
-    private void implConnect(SocketAddress remote, int millis) throws IOException {
+    @Override
+    protected void connect(SocketAddress remote, int millis) throws IOException {
         // SocketImpl connect only specifies IOException
         if (!(remote instanceof InetSocketAddress))
             throw new IOException("Unsupported address type");
@@ -592,7 +594,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                         }
                     }
                 } finally {
-                    endConnect(connected);
+                    endConnect(fd, connected);
                 }
             } finally {
                 connectLock.unlock();
@@ -605,17 +607,12 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
     @Override
     protected void connect(String host, int port) throws IOException {
-        implConnect(new InetSocketAddress(host, port), timeout);
+        connect(new InetSocketAddress(host, port), 0);
     }
 
     @Override
     protected void connect(InetAddress address, int port) throws IOException {
-        implConnect(new InetSocketAddress(address, port), timeout);
-    }
-
-    @Override
-    protected void connect(SocketAddress address, int timeout) throws IOException {
-        implConnect(address, timeout);
+        connect(new InetSocketAddress(address, port), 0);
     }
 
     @Override
