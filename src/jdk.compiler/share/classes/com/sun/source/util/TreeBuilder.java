@@ -90,9 +90,10 @@ public interface TreeBuilder {
             return parameter(type, P -> {});
         }
 
+        //TODO: parameter overload type+name?
         Method parameter(Consumer<Type> type, Consumer<Parameter> parameter);
 
-        Method body(Consumer<Statements> statements);
+        Method body(Consumer<Block> statements);
         //throws, default value
     }
 
@@ -141,6 +142,7 @@ public interface TreeBuilder {
 //    }
 //
     interface Expression {
+        void equal_to(Consumer<Expression> lhs, Consumer<Expression> rhs);
         void minusminus(Consumer<Expression> expr);
         void plus(Consumer<Expression> lhs, Consumer<Expression> rhs);
         void cond(Consumer<Expression> cond, Consumer<Expression> truePart, Consumer<Expression> falsePart);
@@ -149,10 +151,19 @@ public interface TreeBuilder {
         void literal(Object value);
     }
 
-    interface Statements {
-        Statements _if(Consumer<Expression> cond, Consumer<Statements> ifPart, Consumer<Statements> elsePart);
-        Statements expr(Consumer<Expression> expr);
-        Statements skip();
+    interface StatementBase<S> {
+        S _if(Consumer<Expression> cond, Consumer<Statement> ifPart);
+        S _if(Consumer<Expression> cond, Consumer<Statement> ifPart, Consumer<Statement> elsePart);
+        S _return();
+        S _return(Consumer<Expression> expr);
+        S expr(Consumer<Expression> expr);
+        S skip();
+    }
+
+    interface Statement extends StatementBase<Void> {
+    }
+
+    interface Block extends StatementBase<Block>{
     }
 
     static void test(TreeBuilder builder) {
@@ -163,8 +174,8 @@ public interface TreeBuilder {
                                             M -> M.parameter(T -> T._class("Foo"))
                                                   .parameter(T -> T._float(), P -> P.name("whatever"))
                                                   .body(B -> B._if(E -> E.minusminus(V -> V.select(S -> S.ident("foo"), "bar")),
-                                                                   Statements::skip,
-                                                                   Statements::skip
+                                                                   Statement::skip,
+                                                                   Statement::skip
                                                                   )
                                                        )
                                             )));

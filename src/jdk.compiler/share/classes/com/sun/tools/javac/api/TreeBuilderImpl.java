@@ -29,14 +29,18 @@ import com.sun.source.doctree.DocTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.TreeBuilder;
 import com.sun.tools.javac.code.TypeTag;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
+import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.Tag;
 
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
 /**
@@ -124,7 +128,15 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Class method(String name, Consumer<Type> restype, Consumer<Method> method) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            TypeImpl ti = new TypeImpl();
+            restype.accept(ti);
+            if (ti.type == null) {
+                throw new IllegalStateException("Type not provided!");
+            }
+            MethodImpl vi = new MethodImpl(ti.type, name);
+            method.accept(vi);
+            result.defs = result.defs.append(vi.result);
+            return this;
         }
 
         @Override
@@ -225,9 +237,153 @@ public class TreeBuilderImpl implements TreeBuilder {
         
     }
 
+    private final class MethodImpl implements Method {
+
+        private final JCMethodDecl result;
+
+        public MethodImpl(JCExpression restype, String name) {
+            result = make.MethodDef(make.Modifiers(0), names.fromString(name), restype, List.nil(), List.nil(), List.nil(), null, null);
+        }
+
+        @Override
+        public Method parameter(Consumer<Type> type, Consumer<Parameter> parameter) {
+            ParameterImpl paramImpl = new ParameterImpl(visitType(type));
+            parameter.accept(paramImpl);
+            result.params = result.params.append(paramImpl.result);
+            return this;
+        }
+
+        @Override
+        public Method body(Consumer<Block> statements) {
+            BlockImpl block = new BlockImpl();
+            statements.accept(block);
+            result.body = make.Block(0, block.statements);
+            return this;
+        }
+
+        @Override
+        public Method modifiers(Consumer<Modifiers> modifiers) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public Method javadoc(DocTree doc) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public Method javadoc(String doc) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+        
+    }
+
+    private final class ParameterImpl implements Parameter {
+
+        private final JCVariableDecl result;
+
+        public ParameterImpl(JCExpression type) {
+            //TODO: infer name
+            result = make.VarDef(make.Modifiers(0), null, type, null);
+        }
+
+        @Override
+        public Parameter modifiers(Consumer<Modifiers> modifiers) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public Parameter name(String name) {
+            result.name = names.fromString(name); //XXX: check not set yet.
+            return this;
+        }
+        
+    }
+
+    private final class BlockImpl extends StatementBaseImpl<Block> implements Block {
+
+        private List<JCStatement> statements = List.nil();
+
+        @Override
+        protected Block addStatement(JCStatement stat) {
+            statements = statements.append(stat);
+            return this;
+        }
+        
+    }
+
+    private final class StatementImpl extends StatementBaseImpl<Void> implements Statement {
+        private JCStatement result;
+
+        @Override
+        protected Void addStatement(JCStatement stat) {
+            if (result != null) {
+                throw new IllegalStateException();
+            }
+            result = stat;
+            return null;
+        }
+    }
+
+    private abstract class StatementBaseImpl<S> implements StatementBase<S> {
+
+        @Override
+        public S _if(Consumer<Expression> cond, Consumer<Statement> ifPart) {
+            JCExpression expr = visitExpression(cond);
+            //TODO: should this automatic wrapping with parenthesized be here?
+            expr = make.Parens(expr);
+            StatementImpl ifStatement = new StatementImpl();
+            ifPart.accept(ifStatement);
+            //TODO: check ifPart filled!
+            return addStatement(make.If(expr, ifStatement.result, null));
+        }
+
+        @Override
+        public S _if(Consumer<Expression> cond, Consumer<Statement> ifPart, Consumer<Statement> elsePart) {
+            JCExpression expr = visitExpression(cond);
+            //TODO: should this automatic wrapping with parenthesized be here?
+            expr = make.Parens(expr);
+            StatementImpl ifStatement = new StatementImpl();
+            ifPart.accept(ifStatement);
+            //TODO: check ifPart filled!
+            StatementImpl elseStatement = new StatementImpl();
+            elsePart.accept(elseStatement);
+            return addStatement(make.If(expr, ifStatement.result, elseStatement.result));
+        }
+
+        @Override
+        public S _return() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public S _return(Consumer<Expression> expr) {
+            return addStatement(make.Return(visitExpression(expr)));
+        }
+
+        @Override
+        public S expr(Consumer<Expression> expr) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        @Override
+        public S skip() {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        protected abstract S addStatement(JCStatement stat);
+    }
+    
     private final class ExpressionImpl implements Expression {
 
         private JCExpression expr;
+
+        @Override
+        public void equal_to(Consumer<Expression> lhs, Consumer<Expression> rhs) {
+            expr = make.Binary(Tag.EQ,
+                               visitExpression(lhs),
+                               visitExpression(rhs));
+        }
 
         @Override
         public void minusminus(Consumer<Expression> expr) {

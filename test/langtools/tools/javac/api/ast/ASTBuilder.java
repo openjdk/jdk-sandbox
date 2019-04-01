@@ -70,6 +70,14 @@ public class ASTBuilder {
         runTest("class Test extends Exception implements java.util.List<Map<String, String>>, CharSequence {" +
                 "    int x1 = 2;" +
                 "    int x2 = 2 + x1;" +
+                "    int test(int param) {" +
+                "        if (param == 0) return 0;" +
+                "        else return 1;" +
+                "    }" +
+                "    int test2(int param) {" +
+                "        if (param == 0) return 0;" +
+                "        return 1;" +
+                "    }" +
                 "}");
     }
 

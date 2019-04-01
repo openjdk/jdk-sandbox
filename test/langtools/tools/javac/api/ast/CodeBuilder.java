@@ -37,8 +37,13 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.IfTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.ReturnTree;
+import com.sun.source.tree.StatementTree;
 
 public class CodeBuilder {
 
@@ -68,6 +73,7 @@ public class CodeBuilder {
                 result.append(")");
                 return null;
             }
+
             @Override
             public Void visitCompilationUnit(CompilationUnitTree node, Void p) {
                 result.append(currentBuilder() + ".createCompilationUnitTree(");
@@ -75,6 +81,7 @@ public class CodeBuilder {
                 result.append(")");
                 return null;
             }
+
             @Override
             public Void visitVariable(VariableTree node, Void p) {
                 result.append(currentBuilder() + ".field(\"" + node.getName() + "\", "); //XXX: field/vs local variable!
@@ -85,6 +92,33 @@ public class CodeBuilder {
                     if (node.getInitializer() != null) {
                         result.append(currentBuilder() + ".init(");
                         doScan("E", node.getInitializer());
+                        result.append(")");
+                    }
+                });
+                result.append(")");
+                return null;
+            }
+
+            @Override
+            public Void visitMethod(MethodTree node, Void p) {
+                result.append(currentBuilder() + ".method(\"" + node.getName() + "\", ");
+                doScan("T", node.getReturnType());
+                result.append(", ");
+                doScan("M", () -> {
+                    //TODO: other attributes!
+                    for (VariableTree param : node.getParameters()) {
+                        result.append(currentBuilder() + ".parameter(");
+                        doScan("T", param.getType());
+                        result.append(", ");
+                        doScan("P", () -> {
+                            result.append(currentBuilder() + ".name(\"" + param.getName() + "\")");
+                        });
+                        //TODO: other attributes!
+                        result.append(")");
+                    }
+                    if (node.getBody() != null) {//TODO: test no/null body!
+                        result.append(currentBuilder() + ".body(");
+                        doScan("B", node.getBody());
                         result.append(")");
                     }
                 });
@@ -120,16 +154,19 @@ public class CodeBuilder {
 
             @Override
             public Void visitBinary(BinaryTree node, Void p) {
+                String methodName;
                 switch (node.getKind()) {
                     case PLUS:
-                        result.append(currentBuilder() + ".plus(");
-                        doScan("E", node.getLeftOperand());
-                        result.append(", ");
-                        doScan("E", node.getRightOperand());
-                        result.append(")");
-                        break;
+                        methodName = "plus"; break;
+                    case EQUAL_TO:
+                        methodName = "equal_to"; break;
                     default: throw new IllegalStateException("Not handled: " + node.getKind());
                 }
+                result.append(currentBuilder() + "." + methodName + "(");
+                doScan("E", node.getLeftOperand());
+                result.append(", ");
+                doScan("E", node.getRightOperand());
+                result.append(")");
                 return null;
             }
 
@@ -147,6 +184,38 @@ public class CodeBuilder {
             @Override
             public Void visitIdentifier(IdentifierTree node, Void p) {
                 result.append(currentBuilder() + ".ident(\"" + node.getName() + "\")");
+                return null;
+            }
+
+//            @Override
+//            public Void visitBlock(BlockTree node, Void p) {
+////                for (StatementTree st : node.getStatements()) {
+////                    result.append(curr)
+////                }
+//                return super.visitBlock(node, p);
+//            }
+
+            @Override
+            public Void visitIf(IfTree node, Void p) {
+                result.append(currentBuilder() + "._if(");
+                doScan("E", node.getCondition());
+                result.append(", ");
+                doScan("S", node.getThenStatement());
+                if (node.getElseStatement() != null) {
+                    result.append(", ");
+                    doScan("S", node.getElseStatement());
+                }
+                result.append(")");
+                return null;
+            }
+
+            @Override
+            public Void visitReturn(ReturnTree node, Void p) {
+                result.append(currentBuilder() + "._return(");
+                if (node.getExpression()!= null) {
+                    doScan("E", node.getExpression());
+                }
+                result.append(")");
                 return null;
             }
 
