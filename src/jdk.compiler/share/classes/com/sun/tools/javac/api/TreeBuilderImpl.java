@@ -23,7 +23,11 @@
  * questions.
  */package com.sun.tools.javac.api;
 
+import java.nio.CharBuffer;
 import java.util.function.Consumer;
+import java.util.function.Function;
+
+import javax.tools.JavaFileObject;
 
 import com.sun.source.doctree.DocTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -34,13 +38,18 @@ import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.JCTree.Tag;
 
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.parser.Parser;
+import com.sun.tools.javac.parser.ParserFactory;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCStatement;
+import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.Log.DiagnosticHandler;
 import com.sun.tools.javac.util.Names;
 
 /**
@@ -49,10 +58,14 @@ import com.sun.tools.javac.util.Names;
  */
 public class TreeBuilderImpl implements TreeBuilder {
 
+    private final JavaCompiler compiler;
+    private final ParserFactory parserFactory;
     private final TreeMaker make;
     private final Names names;
 
-    public TreeBuilderImpl(TreeMaker make, Names names) {
+    public TreeBuilderImpl(JavaCompiler compiler, ParserFactory parserFactory, TreeMaker make, Names names) {
+        this.compiler = compiler;
+        this.parserFactory = parserFactory;
         this.make = make;
         this.names = names;
     }
@@ -193,6 +206,11 @@ public class TreeBuilderImpl implements TreeBuilder {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        @Override
+        public void type(String typeSpec) {
+            type = parse(typeSpec, Parser::parseType);
+        }
+
     }
 
     private final class TypeArgumentsImpl implements TypeArguments {
@@ -258,6 +276,16 @@ public class TreeBuilderImpl implements TreeBuilder {
             BlockImpl block = new BlockImpl();
             statements.accept(block);
             result.body = make.Block(0, block.statements);
+            return this;
+        }
+
+        @Override
+        public Method body(String body) {
+            JCStatement parsedBody = parse(body, Parser::parseStatement);
+            if (!parsedBody.hasTag(Tag.BLOCK)) {
+                throw new IllegalArgumentException("Block not provided!");
+            }
+            result.body = (JCBlock) parsedBody;
             return this;
         }
 
@@ -371,6 +399,11 @@ public class TreeBuilderImpl implements TreeBuilder {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
+        @Override
+        public S statement(String statement) {
+            return addStatement(parse(statement, Parser::parseStatement));
+        }
+
         protected abstract S addStatement(JCStatement stat);
     }
     
@@ -416,6 +449,12 @@ public class TreeBuilderImpl implements TreeBuilder {
         public void literal(Object value) {
             expr = make.Literal(value);
         }
+
+        @Override
+        public void expression(String expression) {
+            expr = parse(expression, Parser::parseExpression);
+        }
+
     }
 
     private final class QualifiedNameImpl implements QualifiedName {
@@ -477,4 +516,31 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         return type.type;
     }
+
+    private <T extends JCTree> T parse(String toParse, Function<Parser, T> runParse) {
+        if (toParse == null || toParse.equals(""))
+            throw new IllegalArgumentException();
+        JavaFileObject prev = compiler.log.useSource(null);
+        DiagnosticHandler h = null;
+        try {
+            h = new DiagnosticHandler() {
+                {
+                    install(compiler.log);
+                }
+                @Override
+                public void report(JCDiagnostic err) {
+                    if (err.getKind() == JCDiagnostic.Kind.ERROR) {
+                        throw new IllegalArgumentException("Cannot parse input: " + err.getMessage(null));
+                    }
+                }
+            };
+            CharBuffer buf = CharBuffer.wrap((toParse+"\u0000").toCharArray(), 0, toParse.length());
+            Parser parser = parserFactory.newParser(buf, false, false, false);
+            return runParse.apply(parser);
+        } finally {
+            compiler.log.popDiagnosticHandler(h);
+            compiler.log.useSource(prev);
+        }
+    }
+
 }

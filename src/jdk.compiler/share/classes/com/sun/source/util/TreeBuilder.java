@@ -58,7 +58,13 @@ public interface TreeBuilder {
     interface Class extends WithModifiers<Class>, WithJavadoc<Class> {
         //setters:
         Class superclass(Consumer<Type> sup);
+        default Class superclass(String sup) {
+            return superclass(t -> t.type(sup));
+        }
         Class superinterface(Consumer<Type> sup);
+        default Class superinterface(String sup) {
+            return superinterface(t -> t.type(sup));
+        }
         //type parameters?
 
         //adders:
@@ -77,6 +83,9 @@ public interface TreeBuilder {
     interface Variable extends WithModifiers<Variable>, WithJavadoc<Variable> {
         //setters:
         Variable init(Consumer<Expression> init);
+        default Variable init(String init) {
+            return init(E -> E.expression(init));
+        }
     }
 
     interface Parameter extends WithModifiers<Parameter> {
@@ -93,7 +102,14 @@ public interface TreeBuilder {
         //TODO: parameter overload type+name?
         Method parameter(Consumer<Type> type, Consumer<Parameter> parameter);
 
-        Method body(Consumer<Block> statements);
+        Method body(Consumer<Block> body);
+
+        /**
+         * Must include the '{' '}'.
+         * @param body
+         * @return 
+         */
+        Method body(String body);
         //throws, default value
     }
 
@@ -119,6 +135,7 @@ public interface TreeBuilder {
         void _int();
         void _float();
         void _void();
+        void type(String type);
     }
 
     interface TypeArguments { //???
@@ -149,6 +166,7 @@ public interface TreeBuilder {
         void select(Consumer<Expression> selected, String name);
         void ident(String qnames);
         void literal(Object value);
+        void expression(String expression);
     }
 
     interface StatementBase<S> {
@@ -158,6 +176,7 @@ public interface TreeBuilder {
         S _return(Consumer<Expression> expr);
         S expr(Consumer<Expression> expr);
         S skip();
+        S statement(String statement);
     }
 
     interface Statement extends StatementBase<Void> {

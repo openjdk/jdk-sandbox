@@ -79,6 +79,30 @@ public class ASTBuilder {
                 "        return 1;" +
                 "    }" +
                 "}");
+        runTest("class Test extends java.util.Map<List<String>, Numer> {" +
+                "}",
+                U -> U._class("Test", C -> C.superclass("java.util.Map<List<String>, Numer>")));
+        runTest("class Test {" +
+                "    int i = true ? 0 : 1;" +
+                "}",
+                U -> U._class("Test", C -> C.field("i", Type::_int, F -> F.init("true ? 0 : 1"))));
+        runTest("class Test {" +
+                "    int test(int param) {" +
+                "        if (param == 0) return 0;" +
+                "        else return 1;" +
+                "    }" +
+                "}",
+                U -> U._class("Test", C -> C.method("test", Type::_int, M -> M.parameter(Type::_int, P -> P.name("param")).body("{\n" +
+                "        if (param == 0) return 0;\n" +
+                "        else return 1;\n" +
+                "    }"))));
+        try {
+            runTest("broken",
+                    U -> U._class("Test", C -> C.superclass("java.util.Map<")));
+            throw new AssertionError("The exceptec exception was not thrown.");
+        } catch (IllegalArgumentException ex) {
+            //OK
+        }
     }
 
     private static void runTest(String expectedCode, Consumer<CompilationUnit> actualBuilder) throws Exception {

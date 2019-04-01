@@ -182,6 +182,7 @@ public class JavacTrees extends DocTrees {
     private JavaFileManager fileManager;
     private ParserFactory parser;
     private Symtab syms;
+    private com.sun.tools.javac.main.JavaCompiler compiler;
 
     private final Map<Type, Type> extraType2OriginalMap = new WeakHashMap<>();
 
@@ -230,6 +231,7 @@ public class JavacTrees extends DocTrees {
         docTreeMaker = DocTreeMaker.instance(context);
         parser = ParserFactory.instance(context);
         syms = Symtab.instance(context);
+        compiler = com.sun.tools.javac.main.JavaCompiler.instance(context);
         fileManager = context.get(JavaFileManager.class);
         JavacTask t = context.get(JavacTask.class);
         if (t instanceof JavacTaskImpl)
@@ -1245,6 +1247,6 @@ public class JavacTrees extends DocTrees {
     }
 
     public TreeBuilder getTreeBuilder() {
-        return new TreeBuilderImpl(treeMaker, names);
+        return new TreeBuilderImpl(compiler, parser, treeMaker, names);
     }
 }
