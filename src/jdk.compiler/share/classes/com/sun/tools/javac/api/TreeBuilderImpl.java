@@ -27,11 +27,13 @@ import java.nio.CharBuffer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import javax.lang.model.element.Modifier;
 import javax.tools.JavaFileObject;
 
 import com.sun.source.doctree.DocTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.TreeBuilder;
+import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
@@ -47,6 +49,7 @@ import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
+import com.sun.tools.javac.tree.JCTree.JCModifiers;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.Log.DiagnosticHandler;
@@ -159,7 +162,8 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Class modifiers(Consumer<Modifiers> modifiers) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            modifiers.accept(new ModifiersImpl(result.mods));
+            return this;
         }
 
         @Override
@@ -240,7 +244,8 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Variable modifiers(Consumer<Modifiers> modifiers) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            modifiers.accept(new ModifiersImpl(result.mods));
+            return this;
         }
 
         @Override
@@ -291,7 +296,8 @@ public class TreeBuilderImpl implements TreeBuilder {
 
         @Override
         public Method modifiers(Consumer<Modifiers> modifiers) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            modifiers.accept(new ModifiersImpl(result.mods));
+            return this;
         }
 
         @Override
@@ -477,6 +483,44 @@ public class TreeBuilderImpl implements TreeBuilder {
             for (int i = 1; i < qnames.length; i++) {
                 expr = make.Select(expr, names.fromString(qnames[i]));
             }
+        }
+
+    }
+
+    private final class ModifiersImpl implements Modifiers {
+
+        private final JCModifiers mods;
+
+        public ModifiersImpl(JCModifiers mods) {
+            this.mods = mods;
+        }
+
+        @Override
+        public Modifiers modifier(Modifier modifier) {
+            long flag;
+            switch (modifier) {
+                case PUBLIC: flag = Flags.PUBLIC; break;
+                case PROTECTED: flag = Flags.PROTECTED; break;
+                case PRIVATE: flag = Flags.PRIVATE; break;
+                case ABSTRACT: flag = Flags.ABSTRACT; break;
+                case STATIC: flag = Flags.STATIC; break;
+                case FINAL: flag = Flags.FINAL; break;
+                case TRANSIENT: flag = Flags.TRANSIENT; break;
+                case VOLATILE: flag = Flags.VOLATILE; break;
+                case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
+                case NATIVE: flag = Flags.NATIVE; break;
+                case STRICTFP: flag = Flags.STRICTFP; break;
+                case DEFAULT: flag = Flags.DEFAULT; break;
+                default:
+                    throw new IllegalArgumentException("Unknown modifier: " + modifier);
+            }
+            mods.flags |= flag;
+            return this;
+        }
+
+        @Override
+        public Modifiers annotation(Consumer<Annotation> annotation) {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
 
     }

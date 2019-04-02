@@ -151,13 +151,6 @@ public interface TreeBuilder {
         }
     }
 
-//    interface TypeArgs { //???
-//        TypeArgs type(Consumer<Type> t);
-//        TypeArgs _extends(Consumer<Type> t);
-//        TypeArgs _super(Consumer<Type> t);
-//        TypeArgs unbound();
-//    }
-//
     interface Expression {
         void equal_to(Consumer<Expression> lhs, Consumer<Expression> rhs);
         void minusminus(Consumer<Expression> expr);

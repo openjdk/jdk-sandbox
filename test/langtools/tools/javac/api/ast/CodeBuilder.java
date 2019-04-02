@@ -187,14 +187,6 @@ public class CodeBuilder {
                 return null;
             }
 
-//            @Override
-//            public Void visitBlock(BlockTree node, Void p) {
-////                for (StatementTree st : node.getStatements()) {
-////                    result.append(curr)
-////                }
-//                return super.visitBlock(node, p);
-//            }
-
             @Override
             public Void visitIf(IfTree node, Void p) {
                 result.append(currentBuilder() + "._if(");

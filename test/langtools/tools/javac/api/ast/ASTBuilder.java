@@ -35,8 +35,10 @@
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.function.Consumer;
 
+import javax.lang.model.element.Modifier;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -57,16 +59,27 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.VariableTree;
 import toolbox.ToolBox.MemoryFileManager;
 
 public class ASTBuilder {
     
     public static void main(String[] args) throws Exception {
-        runTest("class Test {" +
-                "    int x;" +
+        runTest("public class Test {" +
+                "    public static volatile int x;" +
                 "}",
-                U -> U._class("Test", C -> C.field("x", Type::_int)));
+                U -> U._class("Test",
+                              C -> C.modifiers(M -> M.modifier(Modifier.PUBLIC))
+                                    .field("x",
+                                           Type::_int,
+                                           F -> F.modifiers(M -> M.modifier(Modifier.PUBLIC)
+                                                                  .modifier(Modifier.STATIC)
+                                                                  .modifier(Modifier.VOLATILE)
+                                                           )
+                                          )
+                             )
+                );
         runTest("class Test extends Exception implements java.util.List<Map<String, String>>, CharSequence {" +
                 "    int x1 = 2;" +
                 "    int x2 = 2 + x1;" +
@@ -238,6 +251,11 @@ public class ASTBuilder {
             public Void visitVariable(VariableTree node, Void p) {
                 result.append(node.getName());
                 return super.visitVariable(node, p);
+            }
+            @Override
+            public Void visitModifiers(ModifiersTree node, Void p) {
+                result.append(node.getFlags());
+                return super.visitModifiers(node, p);
             }
         }.scan(t, null);
         return result.toString();
