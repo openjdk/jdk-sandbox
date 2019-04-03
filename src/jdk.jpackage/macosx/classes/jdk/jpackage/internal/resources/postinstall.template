@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-chown -R root:wheel "INSTALL_LOCATION"
-chmod -R o+rX "INSTALL_LOCATION"
+chown root:wheel "INSTALL_LOCATION"
+chmod a+rX "INSTALL_LOCATION"
 
 exit 0
