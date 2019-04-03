@@ -107,16 +107,6 @@ public interface JavaLangAccess {
     void blockedOn(Interruptible b);
 
     /**
-     * Set the current thread's native ID
-     */
-    void setNativeTid(long tid);
-
-    /**
-     * Returns the current thread's native ID
-     */
-    long nativeTid();
-
-    /**
      * Registers a shutdown hook.
      *
      * It is expected that this method with registerShutdownInProgress=true

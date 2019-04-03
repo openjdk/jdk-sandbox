@@ -2172,12 +2172,6 @@ public final class System {
             public void blockedOn(Interruptible b) {
                 Thread.blockedOn(b);
             }
-            public void setNativeTid(long tid) {
-                Thread.setNativeTid(tid);
-            }
-            public long nativeTid() {
-                return Thread.nativeTid();
-            }
             public void registerShutdownHook(int slot, boolean registerShutdownInProgress, Runnable hook) {
                 Shutdown.add(slot, registerShutdownInProgress, hook);
             }

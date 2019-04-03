@@ -43,16 +43,16 @@ import sun.nio.ch.NioSocketImpl;
  * create both client and server sockets.
  *
  * @implNote The JDK historically used a {@code SocketImpl} implementation named
- * <em>PlainSocketImpl</em>. This has been replaced by a simpler and more modern
- * implementation but the JDK continues to ship with the older implementation
- * to allow code that depends on unspecified behavior, that differs between the
- * old and new implementations, to continue to run. The old implementation
- * will be used if the Java virtual machine is started with the system property
- * {@systemProperty jdk.net.usePlainSocketImpl} set on the command line. The
- * value of the system property is a boolean. If set without a value then it
- * defaults to {@code true}, hence running with {@code -Djdk.net.usePlainSocketImpl}
- * or {@code -Djdk.net.usePlainSocketImpl=true} will configure the Java virtual
- * machine use the old implementation.
+ * <em>PlainSocketImpl</em>. This has been replaced by a newer implementation
+ * but the JDK continues to ship with the older implementation to allow code that
+ * depends on unspecified behavior, that differs between the old and new
+ * implementations, to continue to run. The old implementation will be used if
+ * the Java virtual machine is started with the system property {@systemProperty
+ * jdk.net.usePlainSocketImpl} set on the command line. The value of the system
+ * property is the string representation of a boolean. If set without a value
+ * then it defaults to {@code true}, hence running with {@code
+ * -Djdk.net.usePlainSocketImpl} or {@code -Djdk.net.usePlainSocketImpl=true}
+ * will configure the Java virtual machine use the old implementation.
  *
  * @author  unascribed
  * @since   1.0

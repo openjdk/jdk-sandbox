@@ -241,18 +241,6 @@ class Thread implements Runnable {
     }
 
     /**
-     * Native thread id, cached here for use for threads are blocked in I/O
-     * operations.
-     */
-    private long nativeTid;
-    static void setNativeTid(long tid) {
-        Thread.currentThread().nativeTid = tid;
-    }
-    static long nativeTid() {
-        return Thread.currentThread().nativeTid;
-    }
-
-    /**
      * The minimum priority that a thread can have.
      */
     public static final int MIN_PRIORITY = 1;
