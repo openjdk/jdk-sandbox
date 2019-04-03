@@ -25,15 +25,28 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
+import java.awt.Desktop;
+import java.awt.desktop.OpenFilesEvent;
+import java.awt.desktop.OpenFilesHandler;
+import java.util.List;
 
-public class Hello {
+public class Hello implements OpenFilesHandler {
 
     private static final String MSG = "jpackage test application";
     private static final int EXPECTED_NUM_OF_PARAMS = 3; // Starts at 1
+    private static List<File> files;
 
     public static void main(String[] args) {
+        if(Desktop.getDesktop().isSupported(Desktop.Action.APP_OPEN_FILE)) {
+            Desktop.getDesktop().setOpenFileHandler(new Hello());
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         printToStdout(args);
-        if (args.length == 1) { // Called via file association
+        if (args.length == 1 || (files != null && files.size() == 1)) { // Called via file association
             printToFile(args);
         }
     }
@@ -41,10 +54,16 @@ public class Hello {
     private static void printToStdout(String[] args) {
         System.out.println(MSG);
 
-        System.out.println("args.length: " + args.length);
+        System.out.println("args.length: " + (files == null ? args.length : args.length + files.size()));
 
         for (String arg : args) {
             System.out.println(arg);
+        }
+
+        if (files != null) {
+            for (File file : files) {
+                System.out.println(file.getAbsolutePath());
+            }
         }
 
         for (int index = 1; index <= EXPECTED_NUM_OF_PARAMS; index++) {
@@ -56,7 +75,7 @@ public class Hello {
     }
 
     private static void printToFile(String[] args) {
-        File inputFile = new File(args[0]);
+        File inputFile = files == null ? new File(args[0]) : files.get(0);
         String outputFile = inputFile.getParent() + File.separator + "appOutput.txt";
         File file = new File(outputFile);
 
@@ -64,10 +83,16 @@ public class Hello {
                 = new PrintWriter(new BufferedWriter(new FileWriter(file)))) {
             out.println(MSG);
 
-            out.println("args.length: " + args.length);
+            out.println("args.length: " + (files == null ? args.length : args.length + files.size()));
 
             for (String arg : args) {
                 out.println(arg);
+            }
+
+            if (files != null) {
+                for (File f : files) {
+                    out.println(f.getAbsolutePath());
+                }
             }
 
             for (int index = 1; index <= EXPECTED_NUM_OF_PARAMS; index++) {
@@ -79,5 +104,10 @@ public class Hello {
         } catch (Exception ex) {
             System.err.println(ex.getMessage());
         }
+    }
+
+    @Override
+    public void openFiles(OpenFilesEvent e) {
+        files = e.getFiles();
     }
 }
