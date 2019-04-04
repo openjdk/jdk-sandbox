@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
-import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
@@ -44,9 +43,6 @@ import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
@@ -701,10 +697,13 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
     /**
      * Accepts a new connection so that the given SocketImpl is connected to
-     * the peer.
+     * the peer. The SocketImpl must be a newly created NioSocketImpl.
      */
     @Override
     protected void accept(SocketImpl si) throws IOException {
+        NioSocketImpl nsi = (NioSocketImpl) si;
+        assert !nsi.server && nsi.state == ST_NEW;
+
         FileDescriptor newfd = new FileDescriptor();
         InetSocketAddress[] isaa = new InetSocketAddress[1];
 
@@ -762,24 +761,14 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         }
 
         // set the fields
-        InetSocketAddress remoteAddress = isaa[0];
-        if (si instanceof NioSocketImpl) {
-            NioSocketImpl nsi = (NioSocketImpl) si;
-            synchronized (nsi.stateLock) {
-                nsi.fd = newfd;
-                nsi.stream = true;
-                nsi.closer = FileDescriptorCloser.create(nsi);
-                nsi.localport = localAddress.getPort();
-                nsi.address = remoteAddress.getAddress();
-                nsi.port = remoteAddress.getPort();
-                nsi.state = ST_CONNECTED;
-            }
-        } else {
-            // set fields in foreign impl
-            setSocketImplFields(si, newfd,
-                                localAddress.getPort(),
-                                remoteAddress.getAddress(),
-                                remoteAddress.getPort());
+        synchronized (nsi.stateLock) {
+            nsi.fd = newfd;
+            nsi.stream = true;
+            nsi.closer = FileDescriptorCloser.create(nsi);
+            nsi.localport = localAddress.getPort();
+            nsi.address = isaa[0].getAddress();
+            nsi.port = isaa[0].getPort();
+            nsi.state = ST_CONNECTED;
         }
     }
 
@@ -1266,36 +1255,5 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         } else {
             return StandardProtocolFamily.INET;
         }
-    }
-
-    /**
-     * Sets the SocketImpl fields to the given values.
-     */
-    private static void setSocketImplFields(SocketImpl si,
-                                            FileDescriptor fd,
-                                            int localport,
-                                            InetAddress address,
-                                            int port)
-    {
-        PrivilegedExceptionAction<Void> pa = () -> {
-            setSocketImplField(si, "fd", fd);
-            setSocketImplField(si, "localport", localport);
-            setSocketImplField(si, "address", address);
-            setSocketImplField(si, "port", port);
-            return null;
-        };
-        try {
-            AccessController.doPrivileged(pa);
-        } catch (PrivilegedActionException pae) {
-            throw new InternalError(pae);
-        }
-    }
-
-    private static void setSocketImplField(SocketImpl si, String name, Object value)
-        throws Exception
-    {
-        Field field = SocketImpl.class.getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(si, value);
     }
 }
