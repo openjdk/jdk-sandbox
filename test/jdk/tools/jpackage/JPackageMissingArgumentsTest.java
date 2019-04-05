@@ -34,21 +34,21 @@
 public class JPackageMissingArgumentsTest {
     private static final String [] RESULT_1 = {"--output"};
     private static final String [] CMD_1 = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_2 = {"--input"};
     private static final String [] CMD_2 = {
-        "create-image",
+        "create-app-image",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_3 = {"--input", "--app-image"};
     private static final String [] CMD_3 = {
@@ -57,33 +57,33 @@ public class JPackageMissingArgumentsTest {
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_4 = {"--main-class"};
     private static final String [] CMD_4 = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_5 = {"--main-jar"};
     private static final String [] CMD_5 = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
     private static final String [] CMD_6 = {
-        "create-image",
+        "create-app-image",
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String [] RESULT_7 = {"--module-path", "--runtime-image",
                                                "--app-image"};
@@ -92,7 +92,7 @@ public class JPackageMissingArgumentsTest {
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--files", "hello.jar"};
+    };
 
     private static void validate(String output, String [] expected)
            throws Exception {

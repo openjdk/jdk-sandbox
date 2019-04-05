@@ -81,7 +81,6 @@ public class JPackageCreateInstallerWinShortcutBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar",
             "--win-shortcut"};
     }
 

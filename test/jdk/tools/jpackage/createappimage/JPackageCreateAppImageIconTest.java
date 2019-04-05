@@ -31,21 +31,20 @@ import java.nio.file.Files;
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageIconTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageIconTest
  */
-public class JPackageCreateImageIconTest {
+public class JPackageCreateAppImageIconTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String[] CMD = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
         "--icon", getIconPath(),
         "--output", OUTPUT};
 

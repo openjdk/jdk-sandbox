@@ -74,8 +74,7 @@ public class JPackageCreateInstallerBase {
             "--output", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
-            "--main-class", "Hello",
-            "--files", "hello.jar"};
+            "--main-class", "Hello"};
     }
 
     public static void run(String name, String ext) throws Exception {

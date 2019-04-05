@@ -23,49 +23,31 @@
 
 /*
  * @test
- * @summary jpackage create image with --java-options test
+ * @summary jpackage create image with --arguments test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageJavaOptionsBase
+ * @build JPackageCreateAppImageArgumentsBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageJavaOptionsTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageArgumentsTest
  */
-public class JPackageCreateImageJavaOptionsTest {
+public class JPackageCreateAppImageArgumentsTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--java-options", "TBD"};
-
-    private static final String[] CMD2 = {
-        "create-image",
-        "--input", "input",
-        "--output", OUTPUT,
-        "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--java-options", "TBD",
-        "--java-options", "TBD",
-        "--java-options", "TBD"};
+        "--arguments", "TBD"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions(CMD);
+        JPackageCreateAppImageArgumentsBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptionsToolProvider(CMD);
-
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2(CMD2);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2ToolProvider(CMD2);
+        JPackageCreateAppImageArgumentsBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

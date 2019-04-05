@@ -1,3 +1,7 @@
+
+import java.io.File;
+import java.nio.file.Files;
+
 /*
  * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -21,89 +25,79 @@
  * questions.
  */
 
-import java.io.File;
-
- /*
+/*
  * @test
- * @requires (os.family == "windows")
- * @summary jpackage create image to test --temp-root
+ * @summary jpackage create image --app-version test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageTempRootTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageVersionTest
  */
-public class JPackageCreateImageTempRootTest {
+public class JPackageCreateAppImageVersionTest {
     private static final String OUTPUT = "output";
-    private static String buildRoot = null;
-    private static final String BUILD_ROOT = "buildRoot";
-    private static final String BUILD_ROOT_TB = "buildRootToolProvider";
+    private static final String appCfg = JPackagePath.getAppCfg();
+    private static final String VERSION = "2.3";
+    private static final String VERSION_DEFAULT = "1.0";
 
-    private static final String [] CMD = {
-        "create-image",
+    private static final String[] CMD = {
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar" };
+   };
 
-    private static final String [] CMD_BUILD_ROOT = {
-        "create-image",
+    private static final String[] CMD_VERSION = {
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--temp-root", "TBD"};
+        "--app-version", VERSION};
 
-    private static void validate(boolean retain) throws Exception {
-        File br = new File(buildRoot);
-        if (retain) {
-            if (!br.exists()) {
-                throw new AssertionError(br.getAbsolutePath() + " does not exist");
-            }
-        } else {
-            if (br.exists()) {
-                throw new AssertionError(br.getAbsolutePath() + " exist");
-            }
+    private static void validate(String version)
+            throws Exception {
+        File outfile = new File(appCfg);
+        if (!outfile.exists()) {
+            throw new AssertionError(appCfg + " was not created");
+        }
+
+        String output = Files.readString(outfile.toPath());
+        if (version == null) {
+            version = VERSION_DEFAULT;
+        }
+
+        String expected = "app.version=" + version;
+        if (!output.contains(expected)) {
+            System.err.println("Expected: " + expected);
+            throw new AssertionError("Cannot find expected entry in config file");
         }
     }
 
-    private static void init(boolean toolProvider) {
-        if (toolProvider) {
-            buildRoot = BUILD_ROOT_TB;
-        } else {
-            buildRoot = BUILD_ROOT;
-        }
-
-        CMD_BUILD_ROOT[CMD_BUILD_ROOT.length - 1] = buildRoot;
-    }
-
-    private static void testTempRoot() throws Exception {
-        init(false);
+    private static void testVersion() throws Exception {
         JPackageHelper.executeCLI(true, CMD);
-        validate(false);
+        validate(null);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageHelper.executeCLI(true, CMD_BUILD_ROOT);
-        validate(true);
+        JPackageHelper.executeCLI(true, CMD_VERSION);
+        validate(VERSION);
     }
 
-    private static void testTempRootToolProvider() throws Exception {
-        init(true);
+    private static void testVersionToolProvider() throws Exception {
         JPackageHelper.deleteOutputFolder(OUTPUT);
         JPackageHelper.executeToolProvider(true, CMD);
-        validate(false);
+        validate(null);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageHelper.executeToolProvider(true, CMD_BUILD_ROOT);
-        validate(true);
+        JPackageHelper.executeToolProvider(true, CMD_VERSION);
+        validate(VERSION);
     }
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        testTempRoot();
-        testTempRootToolProvider();
+        testVersion();
+        testVersionToolProvider();
     }
 
 }

@@ -102,7 +102,6 @@ public class JPackageCreateInstallerWinUpgradeUUIDBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar" + File.pathSeparator + FILE_1,
             "--app-version", "1.0",
             "--win-upgrade-uuid", "F0B18E75-52AD-41A2-BC86-6BE4FCD50BEB"};
         OUTPUT_2 = "output" + File.separator + TEST_NAME + "-2.0." + EXT;
@@ -114,7 +113,6 @@ public class JPackageCreateInstallerWinUpgradeUUIDBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar" + File.pathSeparator + FILE_2,
             "--app-version", "2.0",
             "--win-upgrade-uuid", "F0B18E75-52AD-41A2-BC86-6BE4FCD50BEB"};
     }

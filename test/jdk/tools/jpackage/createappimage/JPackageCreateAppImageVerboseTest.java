@@ -28,27 +28,26 @@
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageVerboseTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageVerboseTest
  */
-public class JPackageCreateImageVerboseTest {
+public class JPackageCreateAppImageVerboseTest {
     private static final String OUTPUT = "output";
     private static final String[] CMD = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static final String[] CMD_VERBOSE = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
         "--verbose"};
 
     private static void validate(String result, String resultVerbose)
@@ -66,14 +65,14 @@ public class JPackageCreateImageVerboseTest {
         }
     }
 
-    private static void testCreateImage() throws Exception {
+    private static void testCreateAppImage() throws Exception {
         String result = JPackageHelper.executeCLI(true, CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
         String resultVerbose = JPackageHelper.executeCLI(true, CMD_VERBOSE);
         validate(result, resultVerbose);
     }
 
-    private static void testCreateImageToolProvider() throws Exception {
+    private static void testCreateAppImageToolProvider() throws Exception {
         JPackageHelper.deleteOutputFolder(OUTPUT);
         String result = JPackageHelper.executeToolProvider(true, CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
@@ -84,8 +83,8 @@ public class JPackageCreateImageVerboseTest {
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        testCreateImage();
-        testCreateImageToolProvider();
+        testCreateAppImage();
+        testCreateAppImageToolProvider();
     }
 
 }

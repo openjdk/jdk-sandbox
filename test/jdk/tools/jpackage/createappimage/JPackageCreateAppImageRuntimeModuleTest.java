@@ -21,48 +21,32 @@
  * questions.
  */
 
-/*
+ /*
  * @test
- * @summary jpackage create image with --java-options test
+ * @summary jpackage create image runtime test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageJavaOptionsBase
+ * @build JPackageCreateAppImageRuntimeBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageJavaOptionsModuleTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageRuntimeModuleTest
  */
-public class JPackageCreateImageJavaOptionsModuleTest {
+public class JPackageCreateAppImageRuntimeModuleTest {
     private static final String OUTPUT = "output";
-
-    private static final String[] CMD = {
-        "create-image",
+    private static final String [] CMD = {
+        "create-app-image",
+        "--runtime-image", "runtime",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input",
-        "--java-options", "TBD"};
-
-    private static final String[] CMD2 = {
-        "create-image",
-        "--output", OUTPUT,
-        "--name", "test",
-        "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input",
-        "--java-options", "TBD",
-        "--java-options", "TBD",
-        "--java-options", "TBD"};
+        "--module-path", "input"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();
-
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions(CMD);
+        JPackageHelper.createRuntime();
+        JPackageCreateAppImageRuntimeBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptionsToolProvider(CMD);
-
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2(CMD2);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageJavaOptionsBase.testCreateImageJavaOptions2ToolProvider(CMD2);
+        JPackageCreateAppImageRuntimeBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

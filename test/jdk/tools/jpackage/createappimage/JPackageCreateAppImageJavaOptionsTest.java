@@ -21,34 +21,49 @@
  * questions.
  */
 
- /*
+/*
  * @test
- * @summary jpackage create image with additional launcher test
+ * @summary jpackage create image with --java-options test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageAddLauncherBase
+ * @build JPackageCreateAppImageJavaOptionsBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageAddLauncherTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageJavaOptionsTest
  */
-public class JPackageCreateImageAddLauncherTest {
+public class JPackageCreateAppImageJavaOptionsTest {
     private static final String OUTPUT = "output";
-    private static final String [] CMD = {
-        "create-image",
+
+    private static final String[] CMD = {
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--add-launcher", "sl.properties"};
+        "--java-options", "TBD"};
+
+    private static final String[] CMD2 = {
+        "create-app-image",
+        "--input", "input",
+        "--output", OUTPUT,
+        "--name", "test",
+        "--main-jar", "hello.jar",
+        "--main-class", "Hello",
+        "--java-options", "TBD",
+        "--java-options", "TBD",
+        "--java-options", "TBD"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        JPackageCreateImageAddLauncherBase.createSLProperties();
-        JPackageCreateImageAddLauncherBase.testCreateImage(CMD);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageAddLauncherBase.testCreateImageToolProvider(CMD);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptionsToolProvider(CMD);
+
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions2(CMD2);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions2ToolProvider(CMD2);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,46 +23,31 @@
 
  /*
  * @test
- * @summary jpackage create image modular jar test
+ * @summary jpackage create image with additional launcher test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageBase
+ * @build JPackageCreateAppImageAddLauncherBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageModularJarTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageAddLauncherTest
  */
-public class JPackageCreateImageModularJarTest {
+public class JPackageCreateAppImageAddLauncherTest {
     private static final String OUTPUT = "output";
-
-    private static final String [] CMD1 = {
-        "create-image",
+    private static final String [] CMD = {
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
-        "--main-jar", "com.hello.jar",
-        "--main-class", "com.hello.Hello",
-        "--files", "com.hello.jar",
-    };
-
-    private static final String [] CMD2 = {
-        "create-image",
-        "--output", OUTPUT,
-        "--name", "test",
-        "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input/com.hello.jar",
-    };
+        "--main-jar", "hello.jar",
+        "--main-class", "Hello",
+        "--add-launcher", "sl.properties"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloModule();
-
-        JPackageCreateImageBase.testCreateImage(CMD1);
+        JPackageHelper.createHelloImageJar();
+        JPackageCreateAppImageAddLauncherBase.createSLProperties();
+        JPackageCreateAppImageAddLauncherBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageBase.testCreateImageToolProvider(CMD1);
-
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageBase.testCreateImage(CMD2);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageBase.testCreateImageToolProvider(CMD2);
+        JPackageCreateAppImageAddLauncherBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

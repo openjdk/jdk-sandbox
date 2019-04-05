@@ -26,71 +26,88 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JPackageCreateImageArgumentsBase {
+public class JPackageCreateAppImageJavaOptionsBase {
 
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
-    private static final String ARGUMENT1 = "argument";
-    private static final String ARGUMENT2 = "Some Arguments";
-    private static final String ARGUMENT3 = "Value \"with\" quotes";
-
-    private static final String ARGUMENT_CMD1 = "test";
+    private static final String ARGUMENT1 = "-Dparam1=Some Param 1";
+    private static final String ARGUMENT2 = "-Dparam2=Some \"Param\" 2";
+    private static final String ARGUMENT3 =
+            "-Dparam3=Some \"Param\" with \" 3";
 
     private static final List<String> arguments = new ArrayList<>();
-    private static final List<String> argumentsCmd = new ArrayList<>();
 
-    public static void initArguments(boolean toolProvider, String[] cmd) {
+    private static void initArguments(boolean toolProvider, String [] cmd) {
         if (arguments.isEmpty()) {
             arguments.add(ARGUMENT1);
             arguments.add(ARGUMENT2);
             arguments.add(ARGUMENT3);
         }
 
-        if (argumentsCmd.isEmpty()) {
-            argumentsCmd.add(ARGUMENT_CMD1);
-        }
-
-        String argumentsMap
-                = JPackageHelper.listToArgumentsMap(arguments, toolProvider);
+        String argumentsMap = JPackageHelper.listToArgumentsMap(arguments,
+                toolProvider);
         cmd[cmd.length - 1] = argumentsMap;
+    }
+
+    private static void initArguments2(boolean toolProvider, String [] cmd) {
+        int index = cmd.length - 6;
+
+        cmd[index++] = "--java-options";
+        arguments.clear();
+        arguments.add(ARGUMENT1);
+        cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        cmd[index++] = "--java-options";
+        arguments.clear();
+        arguments.add(ARGUMENT2);
+        cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        cmd[index++] = "--java-options";
+        arguments.clear();
+        arguments.add(ARGUMENT3);
+        cmd[index++] = JPackageHelper.listToArgumentsMap(arguments,
+                toolProvider);
+
+        arguments.clear();
+        arguments.add(ARGUMENT1);
+        arguments.add(ARGUMENT2);
+        arguments.add(ARGUMENT3);
     }
 
     private static void validateResult(String[] result, List<String> args)
             throws Exception {
         if (result.length != (args.size() + 2)) {
-            throw new AssertionError(
-                    "Unexpected number of lines: " + result.length);
+            for (String r : result) {
+                System.err.println(r.trim());
+            }
+            throw new AssertionError("Unexpected number of lines: "
+                    + result.length);
         }
 
         if (!result[0].trim().equals("jpackage test application")) {
             throw new AssertionError("Unexpected result[0]: " + result[0]);
         }
 
-        if (!result[1].trim().equals("args.length: " + args.size())) {
+        if (!result[1].trim().equals("args.length: 0")) {
             throw new AssertionError("Unexpected result[1]: " + result[1]);
         }
 
         int index = 2;
         for (String arg : args) {
             if (!result[index].trim().equals(arg)) {
-                throw new AssertionError(
-                        "Unexpected result[" + index + "]: " + result[index]);
+                throw new AssertionError("Unexpected result[" + index + "]: "
+                    + result[index]);
             }
             index++;
         }
     }
 
-    private static void validate(String arg, List<String> expectedArgs)
-            throws Exception {
-        int retVal;
-
-        if (arg == null) {
-            retVal = JPackageHelper.execute(null, app);
-        } else {
-            retVal = JPackageHelper.execute(null, app, arg);
-        }
+    private static void validate(List<String> expectedArgs) throws Exception {
+        int retVal = JPackageHelper.execute(null, app);
         if (retVal != 0) {
             throw new AssertionError("Test application exited with error: "
                     + retVal);
@@ -106,17 +123,27 @@ public class JPackageCreateImageArgumentsBase {
         validateResult(result, expectedArgs);
     }
 
-    public static void testCreateImage(String[] cmd) throws Exception {
+    public static void testCreateAppImageJavaOptions(String [] cmd) throws Exception {
         initArguments(false, cmd);
         JPackageHelper.executeCLI(true, cmd);
-        validate(null, arguments);
-        validate(ARGUMENT_CMD1, argumentsCmd);
+        validate(arguments);
     }
 
-    public static void testCreateImageToolProvider(String[] cmd) throws Exception {
+    public static void testCreateAppImageJavaOptionsToolProvider(String [] cmd) throws Exception {
         initArguments(true, cmd);
         JPackageHelper.executeToolProvider(true, cmd);
-        validate(null, arguments);
-        validate(ARGUMENT_CMD1, argumentsCmd);
+        validate(arguments);
+    }
+
+    public static void testCreateAppImageJavaOptions2(String [] cmd) throws Exception {
+        initArguments2(false, cmd);
+        JPackageHelper.executeCLI(true, cmd);
+        validate(arguments);
+    }
+
+    public static void testCreateAppImageJavaOptions2ToolProvider(String [] cmd) throws Exception {
+        initArguments2(true, cmd);
+        JPackageHelper.executeToolProvider(true, cmd);
+        validate(arguments);
     }
 }

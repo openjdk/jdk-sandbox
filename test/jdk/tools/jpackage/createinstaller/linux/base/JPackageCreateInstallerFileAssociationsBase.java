@@ -137,7 +137,6 @@ public class JPackageCreateInstallerFileAssociationsBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar",
             "--file-associations", "fa.properties"};
     }
 

@@ -24,7 +24,7 @@
 import java.io.File;
 import java.nio.file.Files;
 
-public abstract class JPackageCreateImageBase {
+public abstract class JPackageCreateAppImageBase {
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
@@ -61,12 +61,12 @@ public abstract class JPackageCreateImageBase {
         validateResult(result);
     }
 
-    public static void testCreateImage(String [] cmd) throws Exception {
+    public static void testCreateAppImage(String [] cmd) throws Exception {
         JPackageHelper.executeCLI(true, cmd);
         validate();
     }
 
-    public static void testCreateImageToolProvider(String [] cmd) throws Exception {
+    public static void testCreateAppImageToolProvider(String [] cmd) throws Exception {
         JPackageHelper.executeToolProvider(true, cmd);
         validate();
     }

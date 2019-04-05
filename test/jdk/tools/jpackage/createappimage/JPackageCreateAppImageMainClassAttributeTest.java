@@ -24,16 +24,32 @@
 import java.io.File;
 import java.nio.file.Files;
 
- public class JPackageCreateImageRuntimeBase {
+/*
+ * @test
+ * @summary jpackage create image with no main class arguments and with main-class attribute
+ * @library ../helpers
+ * @build JPackageHelper
+ * @build JPackagePath
+ * @modules jdk.jpackage
+ * @run main/othervm -Xmx512m JPackageCreateAppImageMainClassAttributeTest
+ */
+public class JPackageCreateAppImageMainClassAttributeTest {
+    private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
-    private static final String runtimeJava = JPackagePath.getRuntimeJava();
-    private static final String runtimeJavaOutput = "javaOutput.txt";
     private static final String appOutput = JPackagePath.getAppOutputFile();
+    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
+
+    private static final String[] CMD = {
+        "create-app-image",
+        "--input", "input",
+        "--output", OUTPUT,
+        "--name", "test",
+        "--main-jar", "hello.jar"};
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {
-            throw new AssertionError("Unexpected number of lines: " + result.length);
+            throw new AssertionError(
+                   "Unexpected number of lines: " + result.length);
         }
 
         if (!result[0].trim().equals("jpackage test application")) {
@@ -48,7 +64,8 @@ import java.nio.file.Files;
     private static void validate() throws Exception {
         int retVal = JPackageHelper.execute(null, app);
         if (retVal != 0) {
-            throw new AssertionError("Test application exited with error: " + retVal);
+            throw new AssertionError(
+                   "Test application exited with error: " + retVal);
         }
 
         File outfile = new File(appWorkingDir + File.separator + appOutput);
@@ -61,38 +78,21 @@ import java.nio.file.Files;
         validateResult(result);
     }
 
-    private static void validateRuntime() throws Exception {
-        int retVal = JPackageHelper.execute(new File(runtimeJavaOutput), runtimeJava, "--list-modules");
-        if (retVal != 0) {
-            throw new AssertionError("Test application exited with error: " + retVal);
-        }
-
-        File outfile = new File(runtimeJavaOutput);
-        if (!outfile.exists()) {
-            throw new AssertionError(runtimeJavaOutput + " was not created");
-        }
-
-        String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
-        if (result.length != 1) {
-            throw new AssertionError("Unexpected number of lines: " + result.length);
-        }
-
-        if (!result[0].startsWith("java.base")) {
-            throw new AssertionError("Unexpected result: " + result[0]);
-        }
+    private static void testMainClassAttribute() throws Exception {
+        JPackageHelper.executeCLI(true, CMD);
+        validate();
     }
 
-    public static void testCreateImage(String [] cmd) throws Exception {
-        JPackageHelper.executeCLI(true, cmd);
+    private static void testMainClassAttributeToolProvider() throws Exception {
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageHelper.executeToolProvider(true, CMD);
         validate();
-        validateRuntime();
     }
 
-    public static void testCreateImageToolProvider(String [] cmd) throws Exception {
-        JPackageHelper.executeToolProvider(true, cmd);
-        validate();
-        validateRuntime();
+    public static void main(String[] args) throws Exception {
+        JPackageHelper.createHelloImageJarWithMainClass();
+        testMainClassAttribute();
+        testMainClassAttributeToolProvider();
     }
 
 }

@@ -21,34 +21,32 @@
  * questions.
  */
 
- /*
+/*
  * @test
- * @summary jpackage create image runtime test
+ * @summary jpackage create image with --arguments test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageRuntimeBase
+ * @build JPackageCreateAppImageArgumentsBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageRuntimeTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageArgumentsModuleTest
  */
-public class JPackageCreateImageRuntimeTest {
+public class JPackageCreateAppImageArgumentsModuleTest {
     private static final String OUTPUT = "output";
-    private static final String [] CMD = {
-        "create-image",
-        "--runtime-image", "runtime",
-        "--input", "input",
+
+    private static final String[] CMD = {
+        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--files", "hello.jar"};
+        "--module", "com.hello/com.hello.Hello",
+        "--module-path", "input",
+        "--arguments", "TBD"};
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloImageJar();
-        JPackageHelper.createRuntime();
-        JPackageCreateImageRuntimeBase.testCreateImage(CMD);
+        JPackageHelper.createHelloModule();
+        JPackageCreateAppImageArgumentsBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageRuntimeBase.testCreateImageToolProvider(CMD);
+        JPackageCreateAppImageArgumentsBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

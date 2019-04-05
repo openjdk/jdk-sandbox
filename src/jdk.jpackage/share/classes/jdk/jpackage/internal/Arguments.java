@@ -64,17 +64,17 @@ public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
-    private static final String IMAGE_MODE = "image";
-    private static final String INSTALLER_MODE = "installer";
+    private static final String APPIMAGE_MODE = "create-app-image";
+    private static final String INSTALLER_MODE = "create-installer";
 
     private static final String FA_EXTENSIONS = "extension";
     private static final String FA_CONTENT_TYPE = "mime-type";
     private static final String FA_DESCRIPTION = "description";
     private static final String FA_ICON = "icon";
 
-    public static final BundlerParamInfo<Boolean> CREATE_IMAGE =
+    public static final BundlerParamInfo<Boolean> CREATE_APP_IMAGE =
             new StandardBundlerParam<>(
-                    IMAGE_MODE,
+                    APPIMAGE_MODE,
                     Boolean.class,
                     p -> Boolean.FALSE,
                     (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
@@ -99,8 +99,6 @@ public class Arguments {
     private List<String> argList = null;
 
     private List<CLIOptions> allOptions = null;
-
-    private ArrayList<String> files = null;
 
     private String input = null;
     private String output = null;
@@ -152,10 +150,10 @@ public class Arguments {
 
     // CLIOptions is public for DeployParamsTest
     public enum CLIOptions {
-        CREATE_IMAGE(IMAGE_MODE, OptionCategories.MODE, () -> {
+        CREATE_APP_IMAGE(APPIMAGE_MODE, OptionCategories.MODE, () -> {
             context().bundleType = BundlerType.IMAGE;
             context().deployParams.setTargetFormat("image");
-            setOptionValue(IMAGE_MODE, true);
+            setOptionValue(APPIMAGE_MODE, true);
         }),
 
         CREATE_INSTALLER(INSTALLER_MODE, OptionCategories.MODE, () -> {
@@ -206,13 +204,6 @@ public class Arguments {
                 OptionCategories.PROPERTY, () -> {
             String resourceDir = popArg();
             setOptionValue("resource-dir", resourceDir);
-        }),
-
-        FILES ("files", "f", OptionCategories.PROPERTY, () -> {
-              context().files = new ArrayList<>();
-              String files = popArg();
-              context().files.addAll(
-                      Arrays.asList(files.split(File.pathSeparator)));
         }),
 
         ARGUMENTS ("arguments", OptionCategories.PROPERTY, () -> {
@@ -419,7 +410,7 @@ public class Arguments {
         }
 
         String getIdWithPrefix() {
-            String prefix = isMode() ? "create-" : "--";
+            String prefix = isMode() ? "" : "--";
             return prefix + this.id;
         }
 
@@ -523,7 +514,7 @@ public class Arguments {
 
             validateArguments();
 
-            addResources(deployParams, input, files);
+            addResources(deployParams, input);
 
             deployParams.setBundleType(bundleType);
 
@@ -588,7 +579,7 @@ public class Arguments {
 
     private void validateArguments() throws PackagerException {
         CLIOptions mode = allOptions.get(0);
-        boolean imageOnly = (mode == CLIOptions.CREATE_IMAGE);
+        boolean imageOnly = (mode == CLIOptions.CREATE_APP_IMAGE);
         boolean hasAppImage = allOptions.contains(
                 CLIOptions.PREDEFINED_APP_IMAGE);
         boolean hasRuntime = allOptions.contains(
@@ -728,7 +719,7 @@ public class Arguments {
     }
 
     private void addResources(DeployParams deployParams,
-            String inputdir, List<String> inputfiles) {
+            String inputdir) {
 
         if (inputdir == null || inputdir.isEmpty()) {
             return;
@@ -743,18 +734,12 @@ public class Arguments {
         }
 
         List<String> fileNames;
-        if (inputfiles != null) {
-            fileNames = inputfiles;
-        } else {
-            // "-files" is omitted, all files in input cdir (which
-            // is a mandatory argument in this case) will be packaged.
-            fileNames = new ArrayList<>();
-            try (Stream<Path> files = Files.list(baseDir.toPath())) {
-                files.forEach(file -> fileNames.add(
-                        file.getFileName().toString()));
-            } catch (IOException e) {
-                Log.error("Unable to add resources: " + e.getMessage());
-            }
+        fileNames = new ArrayList<>();
+        try (Stream<Path> files = Files.list(baseDir.toPath())) {
+            files.forEach(file -> fileNames.add(
+                    file.getFileName().toString()));
+        } catch (IOException e) {
+            Log.error("Unable to add resources: " + e.getMessage());
         }
         fileNames.forEach(file -> deployParams.addResource(baseDir, file));
 

@@ -23,19 +23,19 @@
 
  /*
  * @test
- * @summary jpackage create image runtime test
+ * @summary jpackage create image module test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageRuntimeBase
+ * @build JPackageCreateAppImageBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageRuntimeModuleTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageModuleTest
  */
-public class JPackageCreateImageRuntimeModuleTest {
+public class JPackageCreateAppImageModuleTest {
     private static final String OUTPUT = "output";
+
     private static final String [] CMD = {
-        "create-image",
-        "--runtime-image", "runtime",
+        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -43,10 +43,9 @@ public class JPackageCreateImageRuntimeModuleTest {
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();
-        JPackageHelper.createRuntime();
-        JPackageCreateImageRuntimeBase.testCreateImage(CMD);
+        JPackageCreateAppImageBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageRuntimeBase.testCreateImageToolProvider(CMD);
+        JPackageCreateAppImageBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

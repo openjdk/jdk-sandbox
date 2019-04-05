@@ -92,7 +92,6 @@ public class JPackageCreateInstallerMaintainerBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar",
             "--linux-deb-maintainer", EMAIL};
     }
 

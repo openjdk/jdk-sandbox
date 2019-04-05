@@ -120,7 +120,6 @@ public class JPackageCreateInstallerPackageDepsBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar",
             "--linux-package-deps", DEP_NAME.toLowerCase()};
         CMD_DEP = new String[]{
             "create-installer",
@@ -129,8 +128,7 @@ public class JPackageCreateInstallerPackageDepsBase {
             "--output", "output",
             "--name", DEP_NAME,
             "--main-jar", "hello.jar",
-            "--main-class", "Hello",
-            "--files", "hello.jar"};
+            "--main-class", "Hello"};
     }
 
     public static void run(String name, String ext) throws Exception {

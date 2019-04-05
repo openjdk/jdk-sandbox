@@ -42,7 +42,7 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
  *
  * It contains methods and parameters common to all Image Bundlers.
  *
- * Application Image Bundlers are created in "create-image" mode,
+ * Application Image Bundlers are created in "create-app-image" mode,
  * or as an intermeadiate step in "create-installer" mode.
  *
  * The concrete implementations are in the platform specific Bundlers.

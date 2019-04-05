@@ -23,30 +23,46 @@
 
 /*
  * @test
- * @summary jpackage create image with --arguments test
+ * @summary jpackage create image with --java-options test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageArgumentsBase
+ * @build JPackageCreateAppImageJavaOptionsBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageArgumentsModuleTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageJavaOptionsModuleTest
  */
-public class JPackageCreateImageArgumentsModuleTest {
+public class JPackageCreateAppImageJavaOptionsModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "create-image",
+        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
-        "--arguments", "TBD"};
+        "--java-options", "TBD"};
+
+    private static final String[] CMD2 = {
+        "create-app-image",
+        "--output", OUTPUT,
+        "--name", "test",
+        "--module", "com.hello/com.hello.Hello",
+        "--module-path", "input",
+        "--java-options", "TBD",
+        "--java-options", "TBD",
+        "--java-options", "TBD"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();
-        JPackageCreateImageArgumentsBase.testCreateImage(CMD);
+
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageArgumentsBase.testCreateImageToolProvider(CMD);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptionsToolProvider(CMD);
+
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions2(CMD2);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageCreateAppImageJavaOptionsBase.testCreateAppImageJavaOptions2ToolProvider(CMD2);
     }
 
 }

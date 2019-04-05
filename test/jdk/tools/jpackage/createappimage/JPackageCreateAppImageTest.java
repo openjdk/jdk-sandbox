@@ -21,34 +21,32 @@
  * questions.
  */
 
-/*
+ /*
  * @test
- * @summary jpackage create image with --arguments test
+ * @summary jpackage create image test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @build JPackageCreateImageArgumentsBase
+ * @build JPackageCreateAppImageBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageArgumentsTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageTest
  */
-public class JPackageCreateImageArgumentsTest {
+public class JPackageCreateAppImageTest {
     private static final String OUTPUT = "output";
 
-    private static final String[] CMD = {
-        "create-image",
+    private static final String [] CMD = {
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar",
-        "--arguments", "TBD"};
+    };
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();
-        JPackageCreateImageArgumentsBase.testCreateImage(CMD);
+        JPackageCreateAppImageBase.testCreateAppImage(CMD);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateImageArgumentsBase.testCreateImageToolProvider(CMD);
+        JPackageCreateAppImageBase.testCreateAppImageToolProvider(CMD);
     }
-
 }

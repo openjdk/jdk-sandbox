@@ -31,21 +31,21 @@ import java.nio.file.Files;
  * @build JPackageHelper
  * @build JPackagePath
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateImageNoNameTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageNoNameTest
  */
-public class JPackageCreateImageNoNameTest {
+public class JPackageCreateAppImageNoNameTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getAppNoName();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDirNoName();
 
     private static final String[] CMD = {
-        "create-image",
+        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--files", "hello.jar"};
+    };
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {

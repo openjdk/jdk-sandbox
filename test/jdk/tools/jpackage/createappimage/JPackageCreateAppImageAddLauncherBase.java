@@ -29,7 +29,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
-public class JPackageCreateImageAddLauncherBase {
+public class JPackageCreateAppImageAddLauncherBase {
     private static final String app = JPackagePath.getApp();
     private static final String app2 = JPackagePath.getAppSL();
     private static final String appOutput = JPackagePath.getAppOutputFile();
@@ -105,12 +105,12 @@ public class JPackageCreateImageAddLauncherBase {
         validateResult(arguments, vmArguments);
     }
 
-    public static void testCreateImage(String [] cmd) throws Exception {
+    public static void testCreateAppImage(String [] cmd) throws Exception {
         JPackageHelper.executeCLI(true, cmd);
         validate();
     }
 
-    public static void testCreateImageToolProvider(String [] cmd) throws Exception {
+    public static void testCreateAppImageToolProvider(String [] cmd) throws Exception {
         JPackageHelper.executeToolProvider(true, cmd);
         validate();
     }

@@ -75,7 +75,6 @@ public class JPackageCreateInstallerWinPerUserInstallBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--files", "hello.jar",
             "--win-per-user-install",
             "--win-menu",
             "--win-menu-group", TEST_NAME};

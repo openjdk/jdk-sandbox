@@ -58,7 +58,7 @@ class ValidOptions {
 
     // initializing list of mandatory arguments
     static {
-        options.put(CLIOptions.CREATE_IMAGE.getId(), USE.ALL);
+        options.put(CLIOptions.CREATE_APP_IMAGE.getId(), USE.ALL);
         options.put(CLIOptions.CREATE_INSTALLER.getId(), USE.ALL);
         options.put(CLIOptions.NAME.getId(), USE.ALL);
         options.put(CLIOptions.VERSION.getId(), USE.ALL);
@@ -73,7 +73,6 @@ class ValidOptions {
         options.put(CLIOptions.COPYRIGHT.getId(), USE.ALL);
 
         options.put(CLIOptions.INPUT.getId(), USE.LAUNCHER);
-        options.put(CLIOptions.FILES.getId(), USE.LAUNCHER);
         options.put(CLIOptions.MODULE.getId(), USE.LAUNCHER);
         options.put(CLIOptions.MODULE_PATH.getId(), USE.LAUNCHER);
         options.put(CLIOptions.ADD_MODULES.getId(), USE.LAUNCHER);
