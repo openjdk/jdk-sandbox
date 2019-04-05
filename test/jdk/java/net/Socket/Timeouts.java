@@ -40,6 +40,9 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -392,6 +395,119 @@ public class Timeouts {
     }
 
     /**
+     * Test timed accept with the thread interrupt status set.
+     */
+    public void testTimedAccept8() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(2000);
+            Thread.currentThread().interrupt();
+            long start = System.currentTimeMillis();
+            try {
+                Socket s = ss.accept();
+                s.close();
+                assertTrue(false);
+            } catch (SocketTimeoutException expected) {
+                // accept should have blocked for 2000ms
+                assertTrue((System.currentTimeMillis() - start) > 1800);
+                assertTrue(Thread.currentThread().isInterrupted());
+            } finally {
+                Thread.interrupted(); // clear interrupt status
+            }
+        }
+    }
+
+    /**
+     * Test interrupt of thread blocked in timed accept.
+     */
+    public void testTimedAccept9() throws IOException {
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(4000);
+            // interrupt thread after 1000ms
+            Future<?> interrupter = scheduleInterrupt(Thread.currentThread(), 1000);
+            long start = System.currentTimeMillis();
+            try {
+                Socket s = ss.accept();   // should block for 4000
+                s.close();
+                assertTrue(false);
+            } catch (SocketTimeoutException expected) {
+                // accept should have blocked for 4000ms
+                assertTrue((System.currentTimeMillis() - start) > 3800);
+                assertTrue(Thread.currentThread().isInterrupted());
+            } finally {
+                interrupter.cancel(true);
+                Thread.interrupted(); // clear interrupt status
+            }
+        }
+    }
+
+    /**
+     * Test two threads blocked in timed accept where no connection is established.
+     */
+    public void testTimedAccept10() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(4000);
+
+            long start = System.currentTimeMillis();
+
+            Future<Socket> result1 = pool.submit(ss::accept);
+            Future<Socket> result2 = pool.submit(ss::accept);
+
+            // both tasks should complete with SocketTimeoutException
+            Throwable e = expectThrows(ExecutionException.class, result1::get);
+            assertTrue(e.getCause() instanceof SocketTimeoutException);
+            e = expectThrows(ExecutionException.class, result2::get);
+            assertTrue(e.getCause() instanceof SocketTimeoutException);
+
+            // both tasks should completed in a little over 4000ms
+            assertTrue((System.currentTimeMillis() - start) < 5000);
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    /**
+     * Test two threads blocked in timed accept where one connection is established.
+     */
+    public void testTimedAccept11() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try (ServerSocket ss = new ServerSocket(0)) {
+            ss.setSoTimeout(4000);
+
+            long start = System.currentTimeMillis();
+
+            Future<Socket> result1 = pool.submit(ss::accept);
+            Future<Socket> result2 = pool.submit(ss::accept);
+
+            scheduleConnect(ss.getLocalSocketAddress(), 1500);
+
+            // one task should have accepted the connection, the other should
+            // have completed with SocketTimeoutException
+            Socket s1 = null;
+            try {
+                s1 = result1.get();
+                s1.close();
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof SocketTimeoutException);
+            }
+            Socket s2 = null;
+            try {
+                s2 = result2.get();
+                s2.close();
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof SocketTimeoutException);
+            }
+            assertTrue((s1 != null) ^ (s2 != null));
+
+            // both tasks should completed in a little over 4000ms
+            long duration = System.currentTimeMillis() - start;
+            assertTrue(duration > 3800 && duration < 5000);
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    /**
      * Test Socket setSoTimeout with a negative timeout.
      */
     @Test(expectedExceptions = { IllegalArgumentException.class })
@@ -446,6 +562,13 @@ public class Timeouts {
     }
 
     /**
+     * Schedule thread to be interrupted after a delay
+     */
+    static Future<?> scheduleInterrupt(Thread thread, long delay) {
+        return schedule(() -> thread.interrupt(), delay);
+    }
+
+    /**
      * Schedule a thread to connect to the given end point after a delay
      */
     static void scheduleConnect(SocketAddress remote, long delay) {
@@ -482,10 +605,10 @@ public class Timeouts {
         scheduleWrite(out, new byte[] { (byte)b }, delay);
     }
 
-    static void schedule(Runnable task, long delay) {
+    static Future<?> schedule(Runnable task, long delay) {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         try {
-            executor.schedule(task, delay, TimeUnit.MILLISECONDS);
+            return executor.schedule(task, delay, TimeUnit.MILLISECONDS);
         } finally {
             executor.shutdown();
         }
