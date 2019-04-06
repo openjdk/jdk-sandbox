@@ -25,7 +25,7 @@
  * @test
  * @library /test/lib
  * @build jdk.test.lib.Utils
- * @run testng Timeouts
+ * @run testng/timeout=180 Timeouts
  * @summary Test Socket timeouts
  */
 
@@ -131,10 +131,14 @@ public class Timeouts {
     public void testTimedRead3() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
+            long start = System.currentTimeMillis();
             try {
                 s2.getInputStream().read();
                 assertTrue(false);
-            } catch (SocketTimeoutException expected) { }
+            } catch (SocketTimeoutException expected) {
+                int timeout = s2.getSoTimeout();
+                checkDuration(start, timeout-100, timeout+2000);
+            }
         });
     }
 
@@ -312,11 +316,15 @@ public class Timeouts {
     public void testTimedAccept3() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(2000);
+            long start = System.currentTimeMillis();
             try {
                 Socket s = ss.accept();
                 s.close();
                 assertTrue(false);
-            } catch (SocketTimeoutException expected) { }
+            } catch (SocketTimeoutException expected) {
+                int timeout = ss.getSoTimeout();
+                checkDuration(start, timeout-100, timeout+2000);
+            }
         }
     }
 
@@ -386,11 +394,15 @@ public class Timeouts {
     public void testTimedAccept7() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(30*1000);
-            scheduleClose(ss, 2000);
+            long delay = 2000;
+            scheduleClose(ss, delay);
+            long start = System.currentTimeMillis();
             try {
                 ss.accept().close();
                 assertTrue(false);
-            } catch (SocketException expected) { }
+            } catch (SocketException expected) {
+                checkDuration(start, delay-100, delay+2000);
+            }
         }
     }
 
@@ -407,8 +419,9 @@ public class Timeouts {
                 s.close();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) {
-                // accept should have blocked for 2000ms
-                assertTrue((System.currentTimeMillis() - start) > 1800);
+                // accept should have blocked for 2 seconds
+                int timeout = ss.getSoTimeout();
+                checkDuration(start, timeout-100, timeout+2000);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
                 Thread.interrupted(); // clear interrupt status
@@ -422,16 +435,17 @@ public class Timeouts {
     public void testTimedAccept9() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(4000);
-            // interrupt thread after 1000ms
+            // interrupt thread after 1 second
             Future<?> interrupter = scheduleInterrupt(Thread.currentThread(), 1000);
             long start = System.currentTimeMillis();
             try {
-                Socket s = ss.accept();   // should block for 4000
+                Socket s = ss.accept();   // should block for 4 seconds
                 s.close();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) {
-                // accept should have blocked for 4000ms
-                assertTrue((System.currentTimeMillis() - start) > 3800);
+                // accept should have blocked for 4 seconds
+                int timeout = ss.getSoTimeout();
+                checkDuration(start, timeout-100, timeout+2000);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
                 interrupter.cancel(true);
@@ -459,8 +473,9 @@ public class Timeouts {
             e = expectThrows(ExecutionException.class, result2::get);
             assertTrue(e.getCause() instanceof SocketTimeoutException);
 
-            // both tasks should completed in a little over 4000ms
-            assertTrue((System.currentTimeMillis() - start) < 5000);
+            // should get here in 4 seconds, not 8 seconds
+            int timeout = ss.getSoTimeout();
+            checkDuration(start, timeout-100, timeout+2000);
         } finally {
             pool.shutdown();
         }
@@ -479,7 +494,8 @@ public class Timeouts {
             Future<Socket> result1 = pool.submit(ss::accept);
             Future<Socket> result2 = pool.submit(ss::accept);
 
-            scheduleConnect(ss.getLocalSocketAddress(), 1500);
+            // establish connection after 3 seconds
+            scheduleConnect(ss.getLocalSocketAddress(), 3000);
 
             // one task should have accepted the connection, the other should
             // have completed with SocketTimeoutException
@@ -499,9 +515,9 @@ public class Timeouts {
             }
             assertTrue((s1 != null) ^ (s2 != null));
 
-            // both tasks should completed in a little over 4000ms
-            long duration = System.currentTimeMillis() - start;
-            assertTrue(duration > 3800 && duration < 5000);
+            // should get here in 4 seconds, not 7 seconds
+            int timeout = ss.getSoTimeout();
+            checkDuration(start, timeout-100, timeout+2000);
         } finally {
             pool.shutdown();
         }
@@ -612,5 +628,18 @@ public class Timeouts {
         } finally {
             executor.shutdown();
         }
+    }
+
+    /**
+     * Check the duration of a task
+     * @param start start time, in milliseconds
+     * @param min minimum expected duration, in milliseconds
+     * @param max maximum expected duration, in milliseconds
+     * @return the duration (now - start), in milliseconds
+     */
+    private static long checkDuration(long start, long min, long max) {
+        long duration = System.currentTimeMillis() - start;
+        assertTrue(duration >= min && duration <= max);
+        return duration;
     }
 }
