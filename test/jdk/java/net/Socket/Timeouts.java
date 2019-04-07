@@ -494,8 +494,8 @@ public class Timeouts {
             Future<Socket> result1 = pool.submit(ss::accept);
             Future<Socket> result2 = pool.submit(ss::accept);
 
-            // establish connection after 3 seconds
-            scheduleConnect(ss.getLocalSocketAddress(), 3000);
+            // establish connection after 2 seconds
+            scheduleConnect(ss.getLocalSocketAddress(), 2000);
 
             // one task should have accepted the connection, the other should
             // have completed with SocketTimeoutException
@@ -515,7 +515,7 @@ public class Timeouts {
             }
             assertTrue((s1 != null) ^ (s2 != null));
 
-            // should get here in 4 seconds, not 7 seconds
+            // should get here in 4 seconds, not 8 seconds
             int timeout = ss.getSoTimeout();
             checkDuration(start, timeout-100, timeout+2000);
         } finally {

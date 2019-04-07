@@ -28,6 +28,7 @@
  */
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -37,7 +38,8 @@ import java.nio.channels.DatagramChannel;
 import java.security.Permission;
 import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -84,7 +86,7 @@ public class UdpSocket {
      * Test that the number of UDP sockets is limited when running with a
      * security manager.
      */
-    public void testMaxSockets() throws IOException {
+    public void testMaxSockets() throws Exception {
         int limit = Integer.getInteger("sun.net.maxDatagramSockets");
 
         // security manager grants all permissions
@@ -93,14 +95,14 @@ public class UdpSocket {
         };
 
         System.setSecurityManager(securityManager);
-        List<Socket> sockets = new ArrayList<>();
+        Deque<Socket> sockets = new ArrayDeque<>();
         try {
             // create the maximum number of sockets
             for (int i=0; i<limit; i++) {
-                sockets.add(newUdpSocket());
+                sockets.offer(newUdpSocket());
             }
 
-            // try to create another socket
+            // try to create another socket - should fail
             try {
                 Socket s = newUdpSocket();
                 s.close();
@@ -108,10 +110,21 @@ public class UdpSocket {
             } catch (IOException expected) { }
 
             // close one socket
-            sockets.get(0).close();
+            sockets.pop().close();
 
-            // create another socket
+            // try to create another socket - should succeed
             Socket s = newUdpSocket();
+
+            // unreference the socket and wait for it to be closed by the cleaner
+            var ref = new WeakReference<>(s);
+            s = null;
+            while (ref.get() != null) {
+                System.gc();
+                Thread.sleep(100);
+            }
+
+            // try to create another socket - should succeed
+            s = newUdpSocket();
             s.close();
         } finally {
             closeAll(sockets);
@@ -123,9 +136,9 @@ public class UdpSocket {
         return new Socket(InetAddress.getLoopbackAddress(), 8000, false);
     }
 
-    private void closeAll(List<Socket> sockets) throws IOException {
-        for (Socket s : sockets) {
-            s.close();
-        }
+    private static void closeAll(Deque<Socket> sockets) throws IOException {
+        sockets.forEach(s -> {
+            try { s.close(); } catch (IOException ignore) { }
+        });
     }
 }
