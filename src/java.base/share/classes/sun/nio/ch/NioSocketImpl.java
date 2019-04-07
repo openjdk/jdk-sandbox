@@ -474,6 +474,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         synchronized (stateLock) {
             int state = this.state;
             if (state != ST_UNCONNECTED) {
+                if (state == ST_NEW)
+                    throw new SocketException("Not created");
                 if (state == ST_CONNECTING)
                     throw new SocketException("Connection in progress");
                 if (state == ST_CONNECTED)
@@ -702,7 +704,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     @Override
     protected void accept(SocketImpl si) throws IOException {
         NioSocketImpl nsi = (NioSocketImpl) si;
-        assert !nsi.server && nsi.state == ST_NEW;
+        if (nsi.state != ST_NEW)
+            throw new SocketException("Not a newly created SocketImpl");
 
         FileDescriptor newfd = new FileDescriptor();
         InetSocketAddress[] isaa = new InetSocketAddress[1];
