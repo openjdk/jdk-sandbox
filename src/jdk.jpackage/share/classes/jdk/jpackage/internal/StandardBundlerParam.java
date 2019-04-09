@@ -167,19 +167,33 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
+    static final StandardBundlerParam<File> PREDEFINED_RUNTIME_IMAGE =
+            new StandardBundlerParam<>(
+                    Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(),
+                    File.class,
+                    params -> null,
+                    (s, p) -> new File(s)
+            );
+
     static final StandardBundlerParam<String> APP_NAME =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.NAME.getId(),
                     String.class,
                     params -> {
                         String s = MAIN_CLASS.fetchFrom(params);
-                        if (s == null) return null;
-
-                        int idx = s.lastIndexOf(".");
-                        if (idx >= 0) {
-                            return s.substring(idx+1);
+                        if (s != null) {
+                            int idx = s.lastIndexOf(".");
+                            if (idx >= 0) {
+                                return s.substring(idx+1);
+                            }
+                            return s;
+                        } else if (isRuntimeInstaller(params)) {
+                            File f = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
+                            if (f != null) {
+                                return f.getName();
+                            }
                         }
-                        return s;
+                        return null;
                     },
                     (s, p) -> s
             );
@@ -339,13 +353,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     static final StandardBundlerParam<File> PREDEFINED_APP_IMAGE =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.PREDEFINED_APP_IMAGE.getId(),
-            File.class,
-            params -> null,
-            (s, p) -> new File(s));
-
-    static final StandardBundlerParam<File> PREDEFINED_RUNTIME_IMAGE =
-            new StandardBundlerParam<>(
-            Arguments.CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(),
             File.class,
             params -> null,
             (s, p) -> new File(s));
@@ -718,17 +725,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             }
             mainJarFile = new File(mainJarValue);
             if (mainJarFile.exists()) {
-                // absolute path for main-jar may fail is only legal if
-                // path is within the appResourceRoot directory
-                try {
-                    return new RelativeFileSet(appResourcesRoot,
-                         new LinkedHashSet<>(Collections.singletonList(
-                         mainJarFile)));
-                } catch (Exception e) {
-                    // if not within, RelativeFileSet constructor throws a
-                    // RuntimeException, but the IllegalArgumentException
-                    // below contains a more explicit error message.
-                }
+                // absolute path for main-jar may fail is not legal
+                // below contains explicit error message.
             } else {
                 List<Path> modulePath = MODULE_PATH.fetchFrom(params);
                 modulePath.removeAll(getDefaultModulePath());

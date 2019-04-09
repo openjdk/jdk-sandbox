@@ -107,8 +107,11 @@ class RelativeFileSet {
 
     @Override
     public String toString() {
+        if (files.size() ==  1) {
+            return "" + basedir + File.pathSeparator + files;
+        }
         return "RelativeFileSet {basedir:" + basedir
-                + ", files: {" + files + ")}";
+                + ", files: {" + files + "}";
     }
 
 }

@@ -364,10 +364,6 @@ public class DeployParams {
             if (resources.isEmpty()) {
                 throw new PackagerException("ERR_MissingAppResources");
             }
-            if (!hasClass) {
-                throw new PackagerException("ERR_MissingArgument",
-                        "--main-class");
-            }
             if (!hasMain) {
                 throw new PackagerException("ERR_MissingArgument",
                         "--main-jar");

@@ -719,7 +719,7 @@ public class Arguments {
     }
 
     private void addResources(DeployParams deployParams,
-            String inputdir) {
+            String inputdir) throws PackagerException {
 
         if (inputdir == null || inputdir.isEmpty()) {
             return;
@@ -728,9 +728,10 @@ public class Arguments {
         File baseDir = new File(inputdir);
 
         if (!baseDir.isDirectory()) {
-            Log.error(
-                    "Unable to add resources: \"--input\" is not a directory.");
-            return;
+            throw new PackagerException("ERR_InputNotDirectory", inputdir);
+        }
+        if (!baseDir.canRead()) {
+            throw new PackagerException("ERR_CannotReadInputDir", inputdir);
         }
 
         List<String> fileNames;

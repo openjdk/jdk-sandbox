@@ -153,7 +153,7 @@ public class JPackageHelper {
         return command;
     }
 
-    private static void deleteRecursive(File path) throws IOException {
+    public static void deleteRecursive(File path) throws IOException {
         if (!path.exists()) {
             return;
         }
@@ -191,7 +191,13 @@ public class JPackageHelper {
     public static void deleteOutputFolder(String output) throws IOException {
         File outputFolder = new File(output);
         System.out.println("AMDEBUG output: " + outputFolder.getAbsolutePath());
-        deleteRecursive(outputFolder);
+        try {
+            deleteRecursive(outputFolder);
+        } catch (IOException ioe) {
+            System.out.println("IOException: " + ioe);
+            ioe.printStackTrace();
+            deleteRecursive(outputFolder);
+        }
     }
 
     public static String executeCLI(boolean retValZero, String... args) throws Exception {
@@ -344,7 +350,8 @@ public class JPackageHelper {
         createModule("Hello.java");
     }
 
-    private static void createModule(String javaFile) throws Exception {
+    private static void createModule(String javaFile)
+            throws Exception {
         int retVal;
 
         File input = new File("input");

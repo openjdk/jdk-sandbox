@@ -59,7 +59,7 @@ public class JPackageMissingArgumentsTest {
         "--main-class", "Hello",
     };
 
-    private static final String [] RESULT_4 = {"--main-class"};
+    private static final String [] RESULT_4 = {"main class was not specified"};
     private static final String [] CMD_4 = {
         "create-app-image",
         "--input", "input",
@@ -94,10 +94,10 @@ public class JPackageMissingArgumentsTest {
         "--module", "com.hello/com.hello.Hello",
     };
 
-    private static void validate(String output, String [] expected)
-           throws Exception {
+    private static void validate(String output, String [] expected,
+           boolean single) throws Exception {
         String[] result = output.split("\n");
-        if (result.length != 1) {
+        if (single && result.length != 1) {
             System.err.println(output);
             throw new AssertionError("Invalid number of lines in output: "
                     + result.length);
@@ -114,48 +114,48 @@ public class JPackageMissingArgumentsTest {
 
     private static void testMissingArg() throws Exception {
         String output = JPackageHelper.executeCLI(false, CMD_1);
-        validate(output, RESULT_1);
+        validate(output, RESULT_1, true);
 
         output = JPackageHelper.executeCLI(false, CMD_2);
-        validate(output, RESULT_2);
+        validate(output, RESULT_2, true);
 
         output = JPackageHelper.executeCLI(false, CMD_3);
-        validate(output, RESULT_3);
+        validate(output, RESULT_3, true);
 
         output = JPackageHelper.executeCLI(false, CMD_4);
-        validate(output, RESULT_4);
+        validate(output, RESULT_4, false);
 
         output = JPackageHelper.executeCLI(false, CMD_5);
-        validate(output, RESULT_5);
+        validate(output, RESULT_5, true);
 
         output = JPackageHelper.executeCLI(false, CMD_6);
-        validate(output, RESULT_6);
+        validate(output, RESULT_6, true);
 
         output = JPackageHelper.executeCLI(false, CMD_7);
-        validate(output, RESULT_7);
+        validate(output, RESULT_7, true);
     }
 
     private static void testMissingArgToolProvider() throws Exception {
         String output = JPackageHelper.executeToolProvider(false, CMD_1);
-        validate(output, RESULT_1);
+        validate(output, RESULT_1, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_2);
-        validate(output, RESULT_2);
+        validate(output, RESULT_2, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_3);
-        validate(output, RESULT_3);
+        validate(output, RESULT_3, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_4);
-        validate(output, RESULT_4);
+        validate(output, RESULT_4, false);
 
         output = JPackageHelper.executeToolProvider(false, CMD_5);
-        validate(output, RESULT_5);
+        validate(output, RESULT_5, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_6);
-        validate(output, RESULT_6);
+        validate(output, RESULT_6, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_7);
-        validate(output, RESULT_7);
+        validate(output, RESULT_7, true);
     }
 
     public static void main(String[] args) throws Exception {
