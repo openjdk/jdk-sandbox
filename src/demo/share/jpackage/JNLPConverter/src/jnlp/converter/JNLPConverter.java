@@ -385,8 +385,8 @@ public class JNLPConverter {
     }
 
     private void buildLaunchArgs() {
-        if (options.createImage()) {
-            addLaunchArg("create-image", launchArgs);
+        if (options.createAppImage()) {
+            addLaunchArg("create-app-image", launchArgs);
         } else if (options.createInstaller()) {
             if (options.getInstallerType() == null) {
                 addLaunchArg("create-installer", launchArgs);
@@ -413,7 +413,6 @@ public class JNLPConverter {
         addLaunchArg("--main-jar", jnlpd.getMainJar(), launchArgs);
         addLaunchArg("--main-class", jnlpd.getMainClass(), launchArgs);
 
-        addFiles(launchArgs);
         addArguments(launchArgs);
         addJVMArgs(launchArgs);
 
@@ -541,27 +540,6 @@ public class JNLPConverter {
         } catch (IOException | InterruptedException ex) {
             Log.error(ex.getMessage());
         }
-    }
-
-    private void addFileList(String arg, List<String> filesToAdd, List<String> launchArgs) {
-        if (filesToAdd.isEmpty()) {
-            return;
-        }
-
-        String filesArg = "";
-        for (int i = 0; i < filesToAdd.size(); i++) {
-            filesArg += quote(filesToAdd.get(i));
-            if ((i + 1) != filesToAdd.size()) {
-                filesArg += File.pathSeparator;
-            }
-        }
-
-        launchArgs.add(arg);
-        launchArgs.add(filesArg);
-    }
-
-    private void addFiles(List<String> launchArgs) {
-        addFileList("--files", jnlpd.getFiles(), launchArgs);
     }
 
     private void addArguments(List<String> launchArgs) {

@@ -29,7 +29,7 @@ import java.util.List;
 
 public class Options {
 
-    private boolean createImage = false;
+    private boolean createAppImage = false;
     private boolean createInstaller = false;
     private String installerType = null;
     private String jnlp = null;
@@ -51,24 +51,23 @@ public class Options {
     private static final String [] INSTALLER_TYPES = {"msi", "exe", "dmg", "pkg",
                                                       "rpm", "deb"};
 
-    // --output, -o, --input, -i, --files, -f, --main-jar, --main-class
+    // --output, -o, --input, -i, --main-jar, --main-class
     private static final String [] BLOCKED_JPACKAGE_OPTIONS = {"--output", "-o", "--input", "-i",
-                                                                "--files", "-f", "--main-jar",
-                                                                "--main-class"};
+                                                               "--main-jar", "--main-class"};
 
     private static final String RUNTIME_IMAGE_OPTION = "--runtime-image";
 
     private static final String ERR_UNKNOWN_OPTION = "Unknown option: ";
     private static final String ERR_MISSING_VALUE = "Value is required for option ";
-    private static final String ERR_MISSING_MODE = "Error: create-image or create-installer mode is required";
+    private static final String ERR_MISSING_MODE = "Error: create-app-image or create-installer mode is required";
     private static final String ERR_MISSING_JNLP = "Error: --jnlp is required";
     private static final String ERR_MISSING_OUTPUT = "Error: --output is required";
     private static final String ERR_OUTPUT_EXISTS = "Error: output folder already exists";
     private static final String ERR_KEEP_EXISTS = "Error: folder for --keep argument already exists";
     private static final String ERR_INVALID_PROTOCOL_JNLP = "Error: Invalid protocol for JNLP file. Only HTTP, HTTPS and FILE protocols are supported.";
 
-    public boolean createImage() {
-        return createImage;
+    public boolean createAppImage() {
+        return createAppImage;
     }
 
     public boolean createInstaller() {
@@ -114,7 +113,7 @@ public class Options {
     // Helper method to dump all options
     private void display() {
         System.out.println("Options:");
-        System.out.println("createImage: " + createImage);
+        System.out.println("createAppImage: " + createAppImage);
         System.out.println("createInstaller: " + createInstaller);
         System.out.println("installerType: " + installerType);
         System.out.println("jnlp: " + jnlp);
@@ -133,7 +132,7 @@ public class Options {
             return;
         }
 
-        if (!createImage && !createInstaller) {
+        if (!createAppImage && !createInstaller) {
             optionError(ERR_MISSING_MODE);
         }
 
@@ -202,7 +201,7 @@ public class Options {
         System.out.println("Usage: java -jar JNLPConverter.jar <mode> <options>");
         System.out.println("");
         System.out.println("where mode is one of:");
-        System.out.println("  create-image");
+        System.out.println("  create-app-image");
         System.out.println("          Generates a platform-specific application image.");
         System.out.println("  create-installer");
         System.out.println("          Generates a platform-specific installer for the application.");
@@ -218,7 +217,7 @@ public class Options {
         System.out.println("      --jpackage-options <options>");
         System.out.println("          Specify additional jpackage options or overwrite provided by JNLPConverter.");
         System.out.println("          All jpackage options can be specified except: --output -o, --input -i,");
-        System.out.println("          --files -f, --main-jar -j and --class -c.");
+        System.out.println("          --main-jar -j and --class -c.");
         System.out.println("      --installer-type <type>");
         System.out.println("          The type of the installer to create");
         System.out.println("          Valid values are: {\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}");
@@ -252,8 +251,8 @@ public class Options {
         int index = 0;
         if (args.length >= 1) {
             switch (args[0]) {
-                case "create-image":
-                    options.createImage = true;
+                case "create-app-image":
+                    options.createAppImage = true;
                     index = 1;
                     break;
                 case "create-installer":
