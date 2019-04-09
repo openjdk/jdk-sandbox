@@ -243,7 +243,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             );
 
     @SuppressWarnings("unchecked")
-    static final StandardBundlerParam<List<String>> JVM_OPTIONS =
+    static final StandardBundlerParam<List<String>> JAVA_OPTIONS =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.JAVA_OPTIONS.getId(),
                     (Class<List<String>>) (Object) List.class,

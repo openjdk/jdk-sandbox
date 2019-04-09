@@ -130,11 +130,11 @@ void Package::Initialize() {
 
     // Runtime.
     config->GetValue(keys[CONFIG_SECTION_APPLICATION],
-            keys[JVM_RUNTIME_KEY], FBootFields->FJVMRuntimeDirectory);
+            keys[JAVA_RUNTIME_KEY], FBootFields->FJavaRuntimeDirectory);
 
     // Read jvmargs.
     PromoteAppCDSState(config);
-    ReadJVMArgs(config);
+    ReadJavaOptions(config);
 
     // Read args if none were passed in.
     if (FBootFields->FArgs.size() == 0) {
@@ -237,7 +237,7 @@ void Package::PromoteAppCDSState(ISectionalPropertyContainer* Config) {
     }
 }
 
-void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
+void Package::ReadJavaOptions(ISectionalPropertyContainer* Config) {
     Platform& platform = Platform::GetInstance();
     std::map<TString, TString> keys = platform.GetKeys();
 
@@ -249,14 +249,14 @@ void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
 
         case cdsDisabled: {
             Config->GetSection(keys[CONFIG_SECTION_JAVAOPTIONS],
-                    FBootFields->FJVMArgs);
+                    FBootFields->FJavaOptions);
             break;
         }
 
         case cdsGenCache: {
             Config->GetSection(keys[
                     CONFIG_SECTION_APPCDSGENERATECACHEJAVAOPTIONS],
-                    FBootFields->FJVMArgs);
+                    FBootFields->FJavaOptions);
             break;
         }
 
@@ -282,7 +282,7 @@ void Package::ReadJVMArgs(ISectionalPropertyContainer* Config) {
                 }
 
                 Config->GetSection(keys[CONFIG_SECTION_APPCDSJAVAOPTIONS],
-                        FBootFields->FJVMArgs);
+                        FBootFields->FJavaOptions);
             }
 
             break;
@@ -357,8 +357,8 @@ void Package::FreeBootFields() {
     }
 }
 
-OrderedMap<TString, TString> Package::GetJVMArgs() {
-    return FBootFields->FJVMArgs;
+OrderedMap<TString, TString> Package::GetJavaOptions() {
+    return FBootFields->FJavaOptions;
 }
 
 std::vector<TString> GetKeysThatAreNotDuplicates(OrderedMap<TString,
@@ -514,23 +514,23 @@ TString Package::GetMainClassName() {
     return FBootFields->FMainClassName;
 }
 
-TString Package::GetJVMLibraryFileName() {
+TString Package::GetJavaLibraryFileName() {
     assert(FBootFields != NULL);
 
-    if (FBootFields->FJVMLibraryFileName.empty() == true) {
+    if (FBootFields->FJavaLibraryFileName.empty() == true) {
         Platform& platform = Platform::GetInstance();
         Macros& macros = Macros::GetInstance();
-        TString jvmRuntimePath = macros.ExpandMacros(GetJVMRuntimeDirectory());
-        FBootFields->FJVMLibraryFileName =
-                platform.GetBundledJVMLibraryFileName(jvmRuntimePath);
+        TString jvmRuntimePath = macros.ExpandMacros(GetJavaRuntimeDirectory());
+        FBootFields->FJavaLibraryFileName =
+                platform.GetBundledJavaLibraryFileName(jvmRuntimePath);
     }
 
-    return FBootFields->FJVMLibraryFileName;
+    return FBootFields->FJavaLibraryFileName;
 }
 
-TString Package::GetJVMRuntimeDirectory() {
+TString Package::GetJavaRuntimeDirectory() {
     assert(FBootFields != NULL);
-    return FBootFields->FJVMRuntimeDirectory;
+    return FBootFields->FJavaRuntimeDirectory;
 }
 
 TString Package::GetSplashScreenFileName() {

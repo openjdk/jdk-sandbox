@@ -142,7 +142,7 @@ std::map<TString, TString> Platform::GetKeys() {
             _T("app.name")));
     keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
             _T("app.preferences.id")));
-    keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,
+    keys.insert(std::map<TString, TString>::value_type(JAVA_RUNTIME_KEY,
             _T("app.runtime")));
     keys.insert(std::map<TString, TString>::value_type(JPACKAGE_APP_DATA_DIR,
             _T("app.identifier")));

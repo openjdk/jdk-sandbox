@@ -234,7 +234,7 @@ public abstract class AbstractAppImageBuilder {
 
         out.println();
         out.println("[JavaOptions]");
-        List<String> jvmargs = JVM_OPTIONS.fetchFrom(params);
+        List<String> jvmargs = JAVA_OPTIONS.fetchFrom(params);
         for (String arg : jvmargs) {
             out.println(arg);
         }

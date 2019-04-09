@@ -220,7 +220,7 @@ TString MacPlatform::GetAppDataDirectory() {
     return result;
 }
 
-TString MacPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
+TString MacPlatform::GetBundledJavaLibraryFileName(TString RuntimePath) {
     TString result;
 
     // first try lib/, then lib/jli
@@ -471,19 +471,19 @@ std::map<TString, TString> MacPlatform::GetKeys() {
         keys.insert(std::map<TString, TString>::value_type(CONFIG_VERSION,
                 _T("app.version")));
         keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
-                _T("JVMMainJarName")));
+                _T("JavaMainJarName")));
         keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,
-                _T("JVMMainModuleName")));
+                _T("JavaMainModuleName")));
         keys.insert(std::map<TString, TString>::value_type(
-                CONFIG_MAINCLASSNAME_KEY, _T("JVMMainClassName")));
+                CONFIG_MAINCLASSNAME_KEY, _T("JavaMainClassName")));
         keys.insert(std::map<TString, TString>::value_type(
-                CONFIG_CLASSPATH_KEY, _T("JVMAppClasspath")));
+                CONFIG_CLASSPATH_KEY, _T("JavaAppClasspath")));
         keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,
                 _T("CFBundleName")));
         keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
-                _T("JVMPreferencesID")));
-        keys.insert(std::map<TString, TString>::value_type(JVM_RUNTIME_KEY,
-                _T("JVMRuntime")));
+                _T("JavaPreferencesID")));
+        keys.insert(std::map<TString, TString>::value_type(JAVA_RUNTIME_KEY,
+                _T("JavaRuntime")));
         keys.insert(std::map<TString, TString>::value_type(JPACKAGE_APP_DATA_DIR,
                 _T("CFBundleIdentifier")));
 

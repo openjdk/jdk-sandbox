@@ -159,7 +159,7 @@ bool JavaVirtualMachine::StartJVM() {
     options.AppendValue(
             _T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
     options.AppendValue(_T("-Dapp.preferences.id"), package.GetAppID());
-    options.AppendValues(package.GetJVMArgs());
+    options.AppendValues(package.GetJavaOptions());
 
 #ifdef DEBUG
     if (package.Debugging() == dsJava) {
@@ -234,7 +234,7 @@ bool JavaVirtualMachine::StartJVM() {
 void JavaVirtualMachine::configureLibrary() {
     Platform& platform = Platform::GetInstance();
     Package& package = Package::GetInstance();
-    TString libName = package.GetJVMLibraryFileName();
+    TString libName = package.GetJavaLibraryFileName();
     platform.addPlatformDependencies(&javaLibrary);
     javaLibrary.Load(libName);
 }

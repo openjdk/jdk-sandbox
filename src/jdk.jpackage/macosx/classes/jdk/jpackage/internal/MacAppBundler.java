@@ -354,7 +354,7 @@ public class MacAppBundler extends AbstractImageBundler {
                 CLASSPATH,
                 DEVELOPER_ID_APP_SIGNING_KEY,
                 ICON_ICNS,
-                JVM_OPTIONS,
+                JAVA_OPTIONS,
                 MAC_CATEGORY,
                 MAC_CF_BUNDLE_IDENTIFIER,
                 MAC_CF_BUNDLE_NAME,

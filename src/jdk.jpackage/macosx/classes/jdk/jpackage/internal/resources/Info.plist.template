@@ -32,19 +32,19 @@
   <string>DEPLOY_BUNDLE_CFBUNDLE_VERSION</string>
   <key>NSHumanReadableCopyright</key>
   <string>DEPLOY_BUNDLE_COPYRIGHT</string>
-  <key>JVMRuntime</key>
+  <key>JavaRuntime</key>
   <string>DEPLOY_JAVA_RUNTIME_NAME</string>
-  <key>JVMMainClassName</key>
+  <key>JavaMainClassName</key>
   <string>DEPLOY_LAUNCHER_CLASS</string>
-  <key>JVMAppClasspath</key>
+  <key>JavaAppClasspath</key>
   <string>DEPLOY_APP_CLASSPATH</string>
-  <key>JVMMainJarName</key>
+  <key>JavaMainJarName</key>
   <string>DEPLOY_MAIN_JAR_NAME</string>
-  <key>JVMPreferencesID</key>
+  <key>JavaPreferencesID</key>
   <string>DEPLOY_PREFERENCES_ID</string>
   <key>JavaOptions</key>
   <array>
-DEPLOY_JVM_OPTIONS
+DEPLOY_JAVA_OPTIONS
   </array>
   <key>ArgOptions</key>
   <array>

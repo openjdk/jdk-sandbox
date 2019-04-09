@@ -52,7 +52,7 @@ public:
     virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
-    virtual TString GetBundledJVMLibraryFileName(TString RuntimePath);
+    virtual TString GetBundledJavaLibraryFileName(TString RuntimePath);
     virtual TString GetAppName();
 
     TString GetPackageAppDirectory();

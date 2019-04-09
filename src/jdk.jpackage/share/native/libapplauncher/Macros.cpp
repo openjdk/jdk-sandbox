@@ -45,7 +45,7 @@ void Macros::Initialize() {
     macros.AddMacro(_T("$APPDATADIR"), package.GetAppDataDirectory());
 
     TString javaHome =
-            FilePath::ExtractFilePath(package.GetJVMLibraryFileName());
+            FilePath::ExtractFilePath(package.GetJavaLibraryFileName());
     macros.AddMacro(_T("$JREHOME"), javaHome);
 
     // App CDS Macros

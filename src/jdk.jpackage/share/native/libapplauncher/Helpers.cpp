@@ -125,7 +125,7 @@ TString Helpers::ConvertJavaPathToId(TString Value) {
 }
 
 OrderedMap<TString, TString>
-        Helpers::GetJVMArgsFromConfig(IPropertyContainer* config) {
+        Helpers::GetJavaOptionsFromConfig(IPropertyContainer* config) {
     OrderedMap<TString, TString> result;
 
     for (unsigned int index = 0; index < config->GetCount(); index++) {
@@ -192,16 +192,16 @@ void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
         AppendToIni(propertyFile, Container, keys[CONFIG_CLASSPATH_KEY]);
         AppendToIni(propertyFile, Container, keys[APP_NAME_KEY]);
         AppendToIni(propertyFile, Container, keys[CONFIG_APP_ID_KEY]);
-        AppendToIni(propertyFile, Container, keys[JVM_RUNTIME_KEY]);
+        AppendToIni(propertyFile, Container, keys[JAVA_RUNTIME_KEY]);
         AppendToIni(propertyFile, Container, keys[JPACKAGE_APP_DATA_DIR]);
 
         AppendToIni(propertyFile, Container, keys[CONFIG_APP_MEMORY]);
         AppendToIni(propertyFile, Container, keys[CONFIG_SPLASH_KEY]);
 
         // JavaOptions Section
-        OrderedMap<TString, TString> JVMArgs =
-                Helpers::GetJVMArgsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JAVAOPTIONS], JVMArgs);
+        OrderedMap<TString, TString> JavaOptions =
+                Helpers::GetJavaOptionsFromConfig(&propertyFile);
+        Container->AppendSection(keys[CONFIG_SECTION_JAVAOPTIONS], JavaOptions);
 
         // ArgOptions Section
         std::list<TString> args = Helpers::GetArgsFromConfig(&propertyFile);

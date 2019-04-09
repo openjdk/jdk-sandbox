@@ -221,7 +221,7 @@ MessageResponse WindowsPlatform::ShowResponseMessage(TString title,
     return result;
 }
 
-TString WindowsPlatform::GetBundledJVMLibraryFileName(TString RuntimePath) {
+TString WindowsPlatform::GetBundledJavaLibraryFileName(TString RuntimePath) {
     TString result = FilePath::IncludeTrailingSeparator(RuntimePath) +
             _T("jre\\bin\\jli.dll");
 

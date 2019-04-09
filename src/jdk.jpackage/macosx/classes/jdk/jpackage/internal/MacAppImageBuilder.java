@@ -528,7 +528,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 PREFERENCES_ID.fetchFrom(params).toLowerCase());
 
         StringBuilder sb = new StringBuilder();
-        List<String> jvmOptions = JVM_OPTIONS.fetchFrom(params);
+        List<String> jvmOptions = JAVA_OPTIONS.fetchFrom(params);
 
         String newline = ""; //So we don't add extra line after last append
         for (String o : jvmOptions) {
@@ -537,7 +537,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             newline = "\n";
         }
 
-        data.put("DEPLOY_JVM_OPTIONS", sb.toString());
+        data.put("DEPLOY_JAVA_OPTIONS", sb.toString());
 
         sb = new StringBuilder();
         List<String> args = ARGUMENTS.fetchFrom(params);

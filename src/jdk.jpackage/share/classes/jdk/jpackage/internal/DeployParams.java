@@ -451,7 +451,7 @@ public class DeployParams {
     }
 
     static final Set<String> multi_args = new TreeSet<>(Arrays.asList(
-            StandardBundlerParam.JVM_OPTIONS.getID(),
+            StandardBundlerParam.JAVA_OPTIONS.getID(),
             StandardBundlerParam.ARGUMENTS.getID(),
             StandardBundlerParam.MODULE_PATH.getID(),
             StandardBundlerParam.ADD_MODULES.getID(),

@@ -46,16 +46,16 @@ Basic approach:
     and calls start_launcher below.
   - Reads app/package.cfg or Info.plist or app/<appname>.cfg for application
     launch configuration (package.cfg is property file).
-  - Load JVM with requested JVM settings (bundled client JVM if availble,
-    server or installed JVM otherwise).
-  - Wait for JVM to exit and then exit from Main
+  - Load Java with requested Java settings (bundled client Java if availble,
+    server or installed Java otherwise).
+  - Wait for Java to exit and then exit from Main
   - To debug application by passing command line argument.
   - Application folder is added to the library path (so LoadLibrary()) works.
 
 Limitations and future work:
   - Running Java code in primordial thread may cause problems
     (example: can not use custom stack size).
-    Solution used by java launcher is to create a new thread to invoke JVM.
+    Solution used by java launcher is to create a new thread to invoke Java.
     See CR 6316197 for more information.
 */
 

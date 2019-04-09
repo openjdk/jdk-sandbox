@@ -146,7 +146,7 @@ public class BundleParams {
     }
 
     public void setJvmargs(List<String> jvmargs) {
-        putUnlessNullOrEmpty(JVM_OPTIONS.getID(), jvmargs);
+        putUnlessNullOrEmpty(JAVA_OPTIONS.getID(), jvmargs);
     }
 
     public void setArguments(List<String> arguments) {
@@ -240,7 +240,7 @@ public class BundleParams {
     }
 
     public List<String> getJvmargs() {
-        return JVM_OPTIONS.fetchFrom(params);
+        return JAVA_OPTIONS.fetchFrom(params);
     }
 
     public List<String> getArguments() {

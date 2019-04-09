@@ -163,7 +163,7 @@ JavaLibrary::JavaLibrary() : Library(), FCreateProc(NULL) {
 
 bool JavaLibrary::JavaVMCreate(size_t argc, char *argv[]) {
     if (FCreateProc == NULL) {
-        FCreateProc = (JVM_CREATE) GetProcAddress(LAUNCH_FUNC);
+        FCreateProc = (JAVA_CREATE) GetProcAddress(LAUNCH_FUNC);
     }
 
     if (FCreateProc == NULL) {

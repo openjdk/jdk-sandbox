@@ -40,7 +40,7 @@ public:
     enum MemoryState {msManual, msAuto};
 
 public:
-    OrderedMap<TString, TString> FJVMArgs;
+    OrderedMap<TString, TString> FJavaOptions;
     std::list<TString> FArgs;
 
     TString FPackageRootDirectory;
@@ -54,8 +54,8 @@ public:
     TString FMainJar;
     TString FMainModule;
     TString FMainClassName;
-    TString FJVMRuntimeDirectory;
-    TString FJVMLibraryFileName;
+    TString FJavaRuntimeDirectory;
+    TString FJavaLibraryFileName;
     TString FSplashScreenFileName;
     bool FUseJavaPreferences;
     TString FCommandName;
@@ -82,7 +82,7 @@ private:
     Package(void);
 
     TString GetMainJar();
-    void ReadJVMArgs(ISectionalPropertyContainer* Config);
+    void ReadJavaOptions(ISectionalPropertyContainer* Config);
     void PromoteAppCDSState(ISectionalPropertyContainer* Config);
 
 public:
@@ -95,7 +95,7 @@ public:
 
     void SetCommandLineArguments(int argc, TCHAR* argv[]);
 
-    OrderedMap<TString, TString> GetJVMArgs();
+    OrderedMap<TString, TString> GetJavaOptions();
     TString GetMainModule();
 
     std::list<TString> GetArgs();
@@ -113,8 +113,8 @@ public:
     TString GetClassPath();
     TString GetModulePath();
     TString GetMainClassName();
-    TString GetJVMLibraryFileName();
-    TString GetJVMRuntimeDirectory();
+    TString GetJavaLibraryFileName();
+    TString GetJavaRuntimeDirectory();
     TString GetSplashScreenFileName();
     bool HasSplashScreen();
     TString GetCommandName();

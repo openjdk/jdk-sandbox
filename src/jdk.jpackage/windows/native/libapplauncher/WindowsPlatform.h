@@ -51,7 +51,7 @@ public:
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
     virtual TString GetAppName();
-    virtual TString GetBundledJVMLibraryFileName(TString RuntimePath);
+    virtual TString GetBundledJavaLibraryFileName(TString RuntimePath);
     TString GetPackageAppDirectory();
     TString GetPackageLauncherDirectory();
     TString GetPackageRuntimeBinDirectory();

@@ -52,7 +52,7 @@ public:
     static TString ConvertJavaPathToId(TString Value);
 
     static OrderedMap<TString, TString>
-            GetJVMArgsFromConfig(IPropertyContainer* config);
+            GetJavaOptionsFromConfig(IPropertyContainer* config);
     static std::list<TString> GetArgsFromConfig(IPropertyContainer* config);
 
     static void LoadOldConfigFile(TString FileName, IniFile* Container);

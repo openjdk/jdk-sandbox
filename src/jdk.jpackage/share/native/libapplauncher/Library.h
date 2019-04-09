@@ -45,7 +45,7 @@ using namespace std;
 // Private typedef for function pointer casting
 #define LAUNCH_FUNC "JLI_Launch"
 
-typedef int (JNICALL *JVM_CREATE)(int argc, char ** argv,
+typedef int (JNICALL *JAVA_CREATE)(int argc, char ** argv,
         int jargc, const char** jargv,
         int appclassc, const char** appclassv,
         const char* fullversion,
@@ -89,7 +89,7 @@ public:
 };
 
 class JavaLibrary : public Library {
-    JVM_CREATE FCreateProc;
+    JAVA_CREATE FCreateProc;
     JavaLibrary(const TString &FileName);
 public:
     JavaLibrary();

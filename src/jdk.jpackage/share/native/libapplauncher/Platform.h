@@ -64,7 +64,7 @@ using namespace std;
 #define CONFIG_APP_DEBUG          _T("CONFIG_APP_DEBUG")
 #define CONFIG_APPLICATION_INSTANCE _T("CONFIG_APPLICATION_INSTANCE")
 
-#define JVM_RUNTIME_KEY           _T("JVM_RUNTIME_KEY")
+#define JAVA_RUNTIME_KEY           _T("JAVA_RUNTIME_KEY")
 #define JPACKAGE_APP_DATA_DIR     _T("CONFIG_APP_IDENTIFIER")
 
 struct WideString {
@@ -200,7 +200,7 @@ public:
 
     virtual TString GetConfigFileName();
 
-    virtual TString GetBundledJVMLibraryFileName(TString RuntimePath) = 0;
+    virtual TString GetBundledJavaLibraryFileName(TString RuntimePath) = 0;
 
     // Caller must free result.
     virtual ISectionalPropertyContainer* GetConfigFile(TString FileName) = 0;
