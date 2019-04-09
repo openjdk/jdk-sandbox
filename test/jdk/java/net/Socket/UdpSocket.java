@@ -137,8 +137,9 @@ public class UdpSocket {
     }
 
     private static void closeAll(Deque<Socket> sockets) throws IOException {
-        sockets.forEach(s -> {
-            try { s.close(); } catch (IOException ignore) { }
-        });
+        Socket s;
+        while ((s = sockets.poll()) != null) {
+            s.close();
+        }
     }
 }

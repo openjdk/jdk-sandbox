@@ -131,13 +131,13 @@ public class Timeouts {
     public void testTimedRead3() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
             try {
                 s2.getInputStream().read();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) {
                 int timeout = s2.getSoTimeout();
-                checkDuration(start, timeout-100, timeout+2000);
+                checkDuration(startMillis, timeout-100, timeout+2000);
             }
         });
     }
@@ -316,14 +316,14 @@ public class Timeouts {
     public void testTimedAccept3() throws IOException {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(2000);
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
             try {
                 Socket s = ss.accept();
                 s.close();
                 assertTrue(false);
             } catch (SocketTimeoutException expected) {
                 int timeout = ss.getSoTimeout();
-                checkDuration(start, timeout-100, timeout+2000);
+                checkDuration(startMillis, timeout-100, timeout+2000);
             }
         }
     }
@@ -396,12 +396,12 @@ public class Timeouts {
             ss.setSoTimeout(30*1000);
             long delay = 2000;
             scheduleClose(ss, delay);
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
             try {
                 ss.accept().close();
                 assertTrue(false);
             } catch (SocketException expected) {
-                checkDuration(start, delay-100, delay+2000);
+                checkDuration(startMillis, delay-100, delay+2000);
             }
         }
     }
@@ -413,7 +413,7 @@ public class Timeouts {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(2000);
             Thread.currentThread().interrupt();
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
             try {
                 Socket s = ss.accept();
                 s.close();
@@ -421,7 +421,7 @@ public class Timeouts {
             } catch (SocketTimeoutException expected) {
                 // accept should have blocked for 2 seconds
                 int timeout = ss.getSoTimeout();
-                checkDuration(start, timeout-100, timeout+2000);
+                checkDuration(startMillis, timeout-100, timeout+2000);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
                 Thread.interrupted(); // clear interrupt status
@@ -437,7 +437,7 @@ public class Timeouts {
             ss.setSoTimeout(4000);
             // interrupt thread after 1 second
             Future<?> interrupter = scheduleInterrupt(Thread.currentThread(), 1000);
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
             try {
                 Socket s = ss.accept();   // should block for 4 seconds
                 s.close();
@@ -445,7 +445,7 @@ public class Timeouts {
             } catch (SocketTimeoutException expected) {
                 // accept should have blocked for 4 seconds
                 int timeout = ss.getSoTimeout();
-                checkDuration(start, timeout-100, timeout+2000);
+                checkDuration(startMillis, timeout-100, timeout+2000);
                 assertTrue(Thread.currentThread().isInterrupted());
             } finally {
                 interrupter.cancel(true);
@@ -462,7 +462,7 @@ public class Timeouts {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(4000);
 
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
 
             Future<Socket> result1 = pool.submit(ss::accept);
             Future<Socket> result2 = pool.submit(ss::accept);
@@ -475,7 +475,7 @@ public class Timeouts {
 
             // should get here in 4 seconds, not 8 seconds
             int timeout = ss.getSoTimeout();
-            checkDuration(start, timeout-100, timeout+2000);
+            checkDuration(startMillis, timeout-100, timeout+2000);
         } finally {
             pool.shutdown();
         }
@@ -489,7 +489,7 @@ public class Timeouts {
         try (ServerSocket ss = new ServerSocket(0)) {
             ss.setSoTimeout(4000);
 
-            long start = System.currentTimeMillis();
+            long startMillis = millisTime();
 
             Future<Socket> result1 = pool.submit(ss::accept);
             Future<Socket> result2 = pool.submit(ss::accept);
@@ -517,7 +517,7 @@ public class Timeouts {
 
             // should get here in 4 seconds, not 8 seconds
             int timeout = ss.getSoTimeout();
-            checkDuration(start, timeout-100, timeout+2000);
+            checkDuration(startMillis, timeout-100, timeout+2000);
         } finally {
             pool.shutdown();
         }
@@ -631,6 +631,14 @@ public class Timeouts {
     }
 
     /**
+     * Returns the current time in milliseconds.
+     */
+    private static long millisTime() {
+        long now = System.nanoTime();
+        return TimeUnit.MILLISECONDS.convert(now, TimeUnit.NANOSECONDS);
+    }
+
+    /**
      * Check the duration of a task
      * @param start start time, in milliseconds
      * @param min minimum expected duration, in milliseconds
@@ -638,8 +646,11 @@ public class Timeouts {
      * @return the duration (now - start), in milliseconds
      */
     private static long checkDuration(long start, long min, long max) {
-        long duration = System.currentTimeMillis() - start;
-        assertTrue(duration >= min && duration <= max);
+        long duration = millisTime() - start;
+        assertTrue(duration >= min,
+                "Duration " + duration + "ms, expected >= " + min + "ms");
+        assertTrue(duration <= max,
+                "Duration " + duration + "ms, expected <= " + max + "ms");
         return duration;
     }
 }
