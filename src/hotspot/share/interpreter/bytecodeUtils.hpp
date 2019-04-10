@@ -23,37 +23,13 @@
  *
  */
 
-#ifndef SHARE_CLASSFILE_BYTECODEUTILS_HPP
-#define SHARE_CLASSFILE_BYTECODEUTILS_HPP
+#ifndef SHARE_INTERPRETER_BYTECODEUTILS_HPP
+#define SHARE_INTERPRETER_BYTECODEUTILS_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
 #include "utilities/growableArray.hpp"
-
-
-// A class which can be used to print out the bytecode
-// of a method.
-// NOTE: The method must already be rewritten.
-class MethodBytecodePrinter : public AllStatic {
- public:
-
-  // Returns the external (using '.') name of the class at the given cp index in an
-  // area allocated string.
-  static char const* get_klass_name(Method* method, int cp_index);
-
-  // Returns the name of the method(including signature, but without
-  // the return type) at the given cp index in a resource area
-  // allocated string.
-  static char const* get_method_name(Method* method, int cp_index);
-
-  // Returns the name of the field at the given cp index in
-  // a resource area allocated string.
-  static char const *get_field_name(Method* method, int cp_index);
-
-  // Returns the name and class of the field at the given cp index in
-  // a resource area allocated string.
-  static char const* get_field_and_class(Method* method, int cp_index);
-};
+#include "utilities/globalDefinitions.hpp"
 
 class TrackingStack;
 class TrackingStackCreator;
@@ -140,56 +116,9 @@ class TrackingStack: CHeapObj<mtInternal> {
   TrackingStackEntry get_entry(int slot);
 };
 
-// Defines a source of a slot of the operand stack.
-class TrackingStackSource {
-
- public:
-
-  enum Type {
-    // If the value was loaded from a local variable.
-    LOCAL_VAR,
-
-    // If the value was returned from a method.
-    METHOD,
-
-    // If the value was loaded from an array.
-    ARRAY_ELEM,
-
-    // If the value was loaded from a field.
-    FIELD_ELEM,
-
-    // If the value was from a constant.
-    CONSTANT,
-
-    // If the source is invalid.
-    INVALID
-  };
-
- private:
-
-  const char *_reason;
-
-  Type _type;
-  int _bci;
-
- public:
-
-  TrackingStackSource(Type type, int bci, const char * reason) : _reason(reason), _type(type), _bci(bci) { }
-
-  // Returns the type.
-  Type get_type() const {
-    return _type;
-  }
-
-  // Returns a human readable string describing the source.
-  char const* as_string() const {
-    return _reason;
-  }
-};
-
 // Analyses the bytecodes of a method and tries to create a tracking
 // stack for each bci. The tracking stack holds the bci and type of
-// the objec on the stack. The bci (if valid) holds the bci of the
+// the object on the stack. The bci (if valid) holds the bci of the
 // instruction, which put the entry on the stack.
 class TrackingStackCreator {
 
@@ -213,6 +142,8 @@ class TrackingStackCreator {
   // If true, we have processed all bytecodes.
   bool _all_processed;
 
+  static const int _max_cause_detail;
+
   // Merges the stack the the given bci with the given stack. If there
   // is no stack at the bci, we just put the given stack there. This
   // method doesn't takes ownership of the stack.
@@ -221,6 +152,8 @@ class TrackingStackCreator {
   // Processes the instruction at the given bci in the method. Returns
   // the size of the instruction.
   int do_instruction(int bci);
+
+  bool print_NPE_cause0(outputStream *os, int bci, int slot, int max_detail, const char *prefix = NULL);
 
  public:
 
@@ -236,22 +169,21 @@ class TrackingStackCreator {
   // Returns the number of stacks (this is the size of the method).
   int get_size() { return _stacks->length() - 1; }
 
-  // Returns the source of the value in the given slot at the given bci.
-  // The TOS has the slot number 0, that below 1 and so on. You have to
-  // delete the returned object via 'delete'. 'max_detail' is the number
-  // of levels for which we include sources recursively (e.g. for a source
-  // which was from an array and the array was loaded from field of an
-  // object which ...). The larger the value, the more detailed the source.
-  TrackingStackSource get_source(int bci, int slot, int max_detail);
-
   // Assuming that a NullPointerException was thrown at the given bci,
   // we return the nr of the slot holding the null reference. If this
   // NPE is created by hand, we return -2 as the slot. If there
-  // cannot be a NullPointerException at the bci, -1 is returned. If
-  // 'reason' is != NULL, a description is stored, which is allocated
-  // statically or in the resource area.
-  int get_null_pointer_slot(int bci, char const** reason);
+  // cannot be a NullPointerException at the bci, -1 is returned.
+  int get_NPE_null_slot(int bci);
 
+  // Prints a java-like expression for the bytecode that pushed
+  // the value to the given slot being live at the given bci.
+  // It constructs the expression recuring backwards over the
+  // bytecode.
+  // The TOS has the slot number 0, that below 1 and so on.
+  void print_NPE_cause(outputStream *os, int bci, int slot);
+
+  // Prints a string describing the failed action.
+  void print_NPE_failedAction(outputStream *os, int bci);
 };
 
-#endif // SHARE_CLASSFILE_BYTECODEUTILS_HPP
+#endif // SHARE_INTERPRETER_BYTECODEUTILS_HPP

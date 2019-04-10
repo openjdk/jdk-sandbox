@@ -556,31 +556,29 @@ JVM_ENTRY(jstring, JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable))
   }
 
   ResourceMark rm(THREAD);
+
+  // Analyse the bytecodes.
   TrackingStackCreator stc(method, bci);
-  char const* reason;
-  int slot = stc.get_null_pointer_slot(bci, &reason);
+
+  // The slot of the operand stack that contains the null reference.
+  int slot = stc.get_NPE_null_slot(bci);
 
   // Build the message.
   stringStream ss;
   if (slot == -2) {
+    // We don't want to print a message.
     return NULL;
   } else if (slot == -1) {
-    ss.print("There cannot be a NullPointerException at bci %d of method %s",
-             bci, method->name_and_sig_as_C_string());
-  } else if (reason == NULL) {
-    ss.print("Cannot get the reason for the NullPointerException at bci %d of method %s",
-             bci, method->name_and_sig_as_C_string());
+    // We encoutered a bytecode that does not dereference a reference.
+    DEBUG_ONLY(ss.print("There cannot be a NullPointerException at bci %d of method %s",
+                        bci, method->external_name()));
+    NOT_DEBUG(return NULL);
   } else {
-    TrackingStackSource source = stc.get_source(bci, slot, 5);
-    if (source.get_type() != TrackingStackSource::INVALID) {
-      const char *msg = source.as_string();
-      if (strncmp("The return value of", msg, strlen("The return value of")) == 0) {
-        ss.print("%s is null. ", msg);
-      } else {
-        ss.print("'%s' is null. ", msg);
-      }
-    }
-    ss.print("%s", reason);
+    // Print a description of what is null.
+    stc.print_NPE_cause(&ss, bci, slot);
+    // Print string describing which action (bytecode) could not be
+    // perfromed because of the null reference.
+    stc.print_NPE_failedAction(&ss, bci);
   }
 
   oop result = java_lang_String::create_oop_from_str(ss.as_string(), CHECK_0);

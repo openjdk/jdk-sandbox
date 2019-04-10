@@ -32,22 +32,10 @@
 #include "utilities/events.hpp"
 
 /*
- * Returns the name of the klass that is described at constant pool
+ * Prints the name of the method that is described at constant pool
  * index cp_index in the constant pool of method 'method'.
  */
-char const* MethodBytecodePrinter::get_klass_name(Method* method, int cp_index) {
-  ConstantPool* cp = method->constants();
-  int class_index = cp->klass_ref_index_at(cp_index);
-  Symbol* klass = cp->klass_at_noresolve(class_index);
-
-  return klass->as_klass_external_name();
-}
-
-/*
- * Returns the name of the method that is described at constant pool
- * index cp_index in the constant pool of method 'method'.
- */
-char const* MethodBytecodePrinter::get_method_name(Method* method, int cp_index) {
+static void print_method_name(outputStream *os, Method* method, int cp_index) {
   ConstantPool* cp = method->constants();
   int class_index = cp->klass_ref_index_at(cp_index);
   Symbol* klass = cp->klass_at_noresolve(class_index);
@@ -58,16 +46,17 @@ char const* MethodBytecodePrinter::get_method_name(Method* method, int cp_index)
   Symbol* name = cp->symbol_at(name_index);
   Symbol* signature = cp->symbol_at(type_index);
 
-  stringStream ss;
-  ss.print("%s.%s%s", klass->as_klass_external_name(), name->as_C_string(), signature->as_C_string());
-  return ss.as_string();
+  signature->print_as_signature_external_return_type(os);
+  os->print(" %s.%s(", klass->as_klass_external_name(), name->as_C_string());
+  signature->print_as_signature_external_parameters(os);
+  os->print(")");
 }
 
 /*
- * Returns the name of the field that is described at constant pool
+ * Prints the name of the field that is described at constant pool
  * index cp_index in the constant pool of method 'method'.
  */
-char const* MethodBytecodePrinter::get_field_and_class(Method* method, int cp_index) {
+static void print_field_and_class(outputStream *os, Method* method, int cp_index) {
   ConstantPool* cp = method->constants();
   int class_index = cp->klass_ref_index_at(cp_index);
   Symbol* klass = cp->klass_at_noresolve(class_index);
@@ -76,21 +65,67 @@ char const* MethodBytecodePrinter::get_field_and_class(Method* method, int cp_in
   int name_index = cp->name_ref_index_at(name_and_type_index);
   Symbol* name = cp->symbol_at(name_index);
 
-  stringStream ss;
-  ss.print("%s.%s", klass->as_klass_external_name(), name->as_C_string());
-  return ss.as_string();
+  os->print("%s.%s", klass->as_klass_external_name(), name->as_C_string());
 }
 
 /*
  * Returns the name of the field that is described at constant pool
  * index cp_index in the constant pool of method 'method'.
  */
-char const* MethodBytecodePrinter::get_field_name(Method* method, int cp_index) {
+static char const* get_field_name(Method* method, int cp_index) {
   ConstantPool* cp = method->constants();
   int name_and_type_index = cp->name_and_type_ref_index_at(cp_index);
   int name_index = cp->name_ref_index_at(name_and_type_index);
   Symbol* name = cp->symbol_at(name_index);
   return name->as_C_string();
+}
+
+static void print_local_var(outputStream *os, int bci, Method* method, int slot) {
+  if (method->has_localvariable_table()) {
+    for (int i = 0; i < method->localvariable_table_length(); i++) {
+      LocalVariableTableElement* elem = method->localvariable_table_start() + i;
+      int start = elem->start_bci;
+      int end = start + elem->length;
+
+      if ((bci >= start) && (bci < end) && (elem->slot == slot)) {
+        ConstantPool* cp = method->constants();
+        char *var =  cp->symbol_at(elem->name_cp_index)->as_C_string();
+        os->print("%s", var);
+
+        return;
+      }
+    }
+  }
+
+  // Handle at least some cases we know.
+  if (!method->is_static() && (slot == 0)) {
+    os->print("this");
+  } else {
+    int curr = method->is_static() ? 0 : 1;
+    SignatureStream ss(method->signature());
+    int param_index = 0;
+    bool found = false;
+
+    for (SignatureStream ss(method->signature()); !ss.is_done(); ss.next()) {
+      if (ss.at_return_type()) {
+        continue;
+      }
+      int size = type2size[ss.type()];
+      if ((slot >= curr) && (slot < curr + size)) {
+        found = true;
+        break;
+      }
+      param_index += 1;
+      curr += size;
+    }
+
+    if (found) {
+      os->print("<parameter%d>", 1 + param_index);
+    } else {
+      // This is the best we can do.
+      os->print("<local%d>", slot);
+    }
+  }
 }
 
 TrackingStackEntry::TrackingStackEntry(BasicType type) : _entry(INVALID + type * SCALE) { }
@@ -105,7 +140,7 @@ int TrackingStackEntry::get_bci() {
 }
 
 BasicType TrackingStackEntry::get_type() {
-  return BasicType (_entry / SCALE);
+  return BasicType(_entry / SCALE);
 }
 
 TrackingStackEntry TrackingStackEntry::merge(TrackingStackEntry other) {
@@ -182,120 +217,6 @@ TrackingStackEntry TrackingStack::get_entry(int slot) {
   assert(slot < get_size(), "Slot >= size");
 
   return _stack.at(get_size() - slot - 1);
-}
-
-
-
-static TrackingStackSource createInvalidSource(int bci) {
-  return TrackingStackSource(TrackingStackSource::INVALID, bci, "invalid");
-}
-
-static TrackingStackSource createLocalVarSource(int bci, Method* method, int slot) {
-  // We assume outermost caller has ResourceMark.
-  stringStream reason;
-
-  if (method->has_localvariable_table()) {
-    for (int i = 0; i < method->localvariable_table_length(); i++) {
-      LocalVariableTableElement* elem = method->localvariable_table_start() + i;
-      int start = elem->start_bci;
-      int end = start + elem->length;
-
-      if ((bci >= start) && (bci < end) && (elem->slot == slot)) {
-        ConstantPool* cp = method->constants();
-        char *var =  cp->symbol_at(elem->name_cp_index)->as_C_string();
-        if (strlen(var) == 4 && strcmp(var, "this") == 0) {
-          reason.print("this");
-        } else {
-          reason.print("%s", var);
-        }
-
-        return TrackingStackSource(TrackingStackSource::LOCAL_VAR, bci, reason.as_string());
-      }
-    }
-  }
-
-  // Handle at least some cases we know.
-  if (!method->is_static() && (slot == 0)) {
-    reason.print("this");
-  } else {
-    int curr = method->is_static() ? 0 : 1;
-    SignatureStream ss(method->signature());
-    int param_index = 0;
-    bool found = false;
-
-    for (SignatureStream ss(method->signature()); !ss.is_done(); ss.next()) {
-      if (ss.at_return_type()) {
-        continue;
-      }
-
-      int size = type2size[ss.type()];
-
-      if ((slot >= curr) && (slot < curr + size)) {
-        found = true;
-        break;
-      }
-
-      param_index += 1;
-      curr += size;
-    }
-
-    if (found) {
-      reason.print("<parameter%d>", 1 + param_index);
-    } else {
-      // This is the best we can do.
-      reason.print("<local%d>", slot);
-    }
-  }
-
-  return TrackingStackSource(TrackingStackSource::LOCAL_VAR, bci, reason.as_string());
-}
-
-
-static TrackingStackSource createConstantSource(int bci, const char *text) {
-  return TrackingStackSource(TrackingStackSource::CONSTANT, bci, text);
-}
-
-static TrackingStackSource createArraySource(int bci, TrackingStackSource const& array_source,
-                                             TrackingStackSource const& index_source) {
-  // We assume outermost caller has ResourceMark.
-  stringStream reason;
-
-  if (array_source.get_type() != TrackingStackSource::INVALID) {
-    reason.print("%s", array_source.as_string());
-  } else {
-    reason.print("array");
-  }
-  if (index_source.get_type() != TrackingStackSource::INVALID) {
-    reason.print("[%s]", index_source.as_string());
-  } else {
-    reason.print("[...]");
-  }
-
-  return TrackingStackSource(TrackingStackSource::ARRAY_ELEM, bci, reason.as_string());
-}
-
-static TrackingStackSource createFieldSource(int bci, Method* method, int cp_index,
-                                             TrackingStackSource const& object_source) {
-  // We assume outermost caller has ResourceMark.
-  stringStream reason;
-
-  // GLGL We could also print the type of the field. Should we do that?
-  //MethodBytecodePrinter::get_klass_name(method, cp_index)
-  if (object_source.get_type() != TrackingStackSource::INVALID) {
-    reason.print("%s.", object_source.as_string());
-  }
-  reason.print("%s", MethodBytecodePrinter::get_field_name(method, cp_index));
-
-  return TrackingStackSource(TrackingStackSource::FIELD_ELEM, bci, reason.as_string());
-}
-
-static TrackingStackSource createStaticFieldSource(int bci, Method* method, int cp_index) {
-  // We assume outermost caller has ResourceMark.
-  stringStream reason;
-  reason.print("static %s",
-               MethodBytecodePrinter::get_field_and_class(method, cp_index));
-
-  return TrackingStackSource(TrackingStackSource::FIELD_ELEM, bci, reason.as_string());
 }
 
 TrackingStackCreator::TrackingStackCreator(Method* method, int bci) : _method(method) {
@@ -912,388 +833,54 @@ int TrackingStackCreator::do_instruction(int bci) {
   return len;
 }
 
-TrackingStackSource TrackingStackCreator::get_source(int bci, int slot, int max_detail) {
-  assert(bci >= 0, "BCI too low");
-  assert(bci < get_size(), "BCI to large");
-
-  if (max_detail <= 0) {
-    return createInvalidSource(bci);
-  }
-
-  if (_stacks->at(bci) == NULL) {
-    return createInvalidSource(bci);
-  }
-
-  TrackingStack* stack = _stacks->at(bci);
-  assert(slot >= 0, "Slot nr. too low");
-  assert(slot < stack->get_size(), "Slot nr. too large");
-
-  TrackingStackEntry entry = stack->get_entry(slot);
-
-  if (!entry.has_bci()) {
-    return createInvalidSource(bci);
-  }
-
-  // Get the bytecode.
-  int source_bci = entry.get_bci();
-  address code_base = _method->constMethod()->code_base();
-  Bytecodes::Code code = Bytecodes::java_code_at(_method, code_base + source_bci);
-  bool is_wide = false;
-  int pos = source_bci + 1;
-
-  if (code == Bytecodes::_wide) {
-    is_wide = true;
-    code = Bytecodes::java_code_at(_method, code_base + source_bci + 1);
-    pos += 1;
-  }
-
-  switch (code) {
-    case Bytecodes::_iload:
-    case Bytecodes::_lload:
-    case Bytecodes::_fload:
-    case Bytecodes::_dload:
-    case Bytecodes::_aload: {
-      int index;
-
-      if (is_wide) {
-        index = Bytes::get_Java_u2(code_base + source_bci + 2);
-      } else {
-        index = *(uint8_t*) (code_base + source_bci + 1);
-      }
-
-      return createLocalVarSource(source_bci, _method, index);
-    }
-
-    case Bytecodes::_iload_0:
-    case Bytecodes::_lload_0:
-    case Bytecodes::_fload_0:
-    case Bytecodes::_dload_0:
-    case Bytecodes::_aload_0:
-      return createLocalVarSource(source_bci, _method, 0);
-
-    case Bytecodes::_iload_1:
-    case Bytecodes::_lload_1:
-    case Bytecodes::_fload_1:
-    case Bytecodes::_dload_1:
-    case Bytecodes::_aload_1:
-      return createLocalVarSource(source_bci, _method, 1);
-
-    case Bytecodes::_iload_2:
-    case Bytecodes::_lload_2:
-    case Bytecodes::_fload_2:
-    case Bytecodes::_dload_2:
-    case Bytecodes::_aload_2:
-      return createLocalVarSource(source_bci, _method, 2);
-
-    case Bytecodes::_lload_3:
-    case Bytecodes::_iload_3:
-    case Bytecodes::_fload_3:
-    case Bytecodes::_dload_3:
-    case Bytecodes::_aload_3:
-      return createLocalVarSource(source_bci, _method, 3);
-
-    case Bytecodes::_aconst_null:
-      return createConstantSource(source_bci, "null");
-    case Bytecodes::_iconst_m1:
-      return createConstantSource(source_bci, "-1");
-    case Bytecodes::_iconst_0:
-      return createConstantSource(source_bci, "0");
-    case Bytecodes::_iconst_1:
-      return createConstantSource(source_bci, "1");
-    case Bytecodes::_iconst_2:
-      return createConstantSource(source_bci, "2");
-    case Bytecodes::_iconst_3:
-      return createConstantSource(source_bci, "3");
-    case Bytecodes::_iconst_4:
-      return createConstantSource(source_bci, "4");
-    case Bytecodes::_iconst_5:
-      return createConstantSource(source_bci, "5");
-    case Bytecodes::_lconst_0:
-      return createConstantSource(source_bci, "0L");
-    case Bytecodes::_lconst_1:
-      return createConstantSource(source_bci, "1L");
-    case Bytecodes::_fconst_0:
-      return createConstantSource(source_bci, "0.0f");
-    case Bytecodes::_fconst_1:
-      return createConstantSource(source_bci, "1.0f");
-    case Bytecodes::_fconst_2:
-      return createConstantSource(source_bci, "2.0f");
-    case Bytecodes::_dconst_0:
-      return createConstantSource(source_bci, "0.0");
-    case Bytecodes::_dconst_1:
-      return createConstantSource(source_bci, "1.0");
-    case Bytecodes::_bipush: {
-      jbyte con = *(jbyte*) (code_base + source_bci + 1);
-      stringStream ss;
-      ss.print("%d", con);
-      return createConstantSource(source_bci, ss.as_string());
-    }
-    case Bytecodes::_sipush: {
-      u2 con = Bytes::get_Java_u2(code_base + source_bci + 1);
-      stringStream ss;
-      ss.print("%d", con);
-      return createConstantSource(source_bci, ss.as_string());
-    }
-    case Bytecodes::_iaload:
-    case Bytecodes::_faload:
-    case Bytecodes::_aaload:
-    case Bytecodes::_baload:
-    case Bytecodes::_caload:
-    case Bytecodes::_saload:
-    case Bytecodes::_laload:
-    case Bytecodes::_daload: {
-      TrackingStackSource array_source = get_source(source_bci, 1, max_detail - 1);
-      TrackingStackSource index_source = get_source(source_bci, 0, max_detail - 1);
-      return createArraySource(source_bci, array_source, index_source);
-    }
-
-    case Bytecodes::_invokevirtual:
-    case Bytecodes::_invokespecial:
-    case Bytecodes::_invokestatic:
-    case Bytecodes::_invokeinterface: {
-        int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
-        // We assume outermost caller has ResourceMark.
-        stringStream reason;
-        if (max_detail == 5 /* Todo: introduce a constant ... */) {
-          reason.print("The return value of '%s'", MethodBytecodePrinter::get_method_name(_method, cp_index));
-        } else {
-          reason.print("%s", MethodBytecodePrinter::get_method_name(_method, cp_index));
-        }
-        return TrackingStackSource(TrackingStackSource::METHOD, source_bci, reason.as_string());
-    }
-
-    case Bytecodes::_getstatic:
-      return createStaticFieldSource(source_bci, _method,
-                                     Bytes::get_native_u2(code_base + pos) + ConstantPool::CPCACHE_INDEX_TAG);
-
-    case Bytecodes::_getfield: {
-      int cp_index = Bytes::get_native_u2(code_base + pos) + ConstantPool::CPCACHE_INDEX_TAG;
-      TrackingStackSource object_source = get_source(source_bci, 0, max_detail - 1);
-      return createFieldSource(source_bci, _method, cp_index, object_source);
-    }
-
-    default:
-      return createInvalidSource(bci);
-  }
-}
-
-int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
+int TrackingStackCreator::get_NPE_null_slot(int bci) {
   // If this NPE was created via reflection, we have no real NPE.
   if (_method->method_holder() == SystemDictionary::reflect_NativeConstructorAccessorImpl_klass()) {
     return -2;
   }
-
   // Get the bytecode.
   address code_base = _method->constMethod()->code_base();
   Bytecodes::Code code = Bytecodes::java_code_at(_method, code_base + bci);
   int pos = bci + 1;
-
   if (code == Bytecodes::_wide) {
     code = Bytecodes::java_code_at(_method, code_base + bci + 1);
     pos += 1;
   }
 
-  int result = -1;
-
   switch (code) {
-    case Bytecodes::_iaload:
-      if (reason != NULL) {
-        *reason = "Can not load from null int array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_faload:
-      if (reason != NULL) {
-        *reason = "Can not load from null float array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_aaload:
-      if (reason != NULL) {
-        *reason = "Can not load from null object array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_baload:
-      if (reason != NULL) {
-        *reason = "Can not load from null byte/boolean array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_caload:
-      if (reason != NULL) {
-        *reason = "Can not load from null char array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_saload:
-      if (reason != NULL) {
-        *reason = "Can not load from null short array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_laload:
-      if (reason != NULL) {
-        *reason = "Can not load from null long array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_daload:
-      if (reason != NULL) {
-        *reason = "Can not load from null double array.";
-      }
-
-      result = 1;
-      break;
-
-    case Bytecodes::_iastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null int array.";
-      }
-
-      result = 2;
-      break;
-
-    case Bytecodes::_lastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null long array.";
-      }
-
-      result = 3;
-      break;
-
-    case Bytecodes::_fastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null float array.";
-      }
-
-      result = 2;
-      break;
-
-    case Bytecodes::_dastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null double array.";
-      }
-
-      result = 3;
-      break;
-
-    case Bytecodes::_aastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null object array.";
-      }
-
-      result = 2;
-      break;
-
-    case Bytecodes::_bastore:
-      if (reason != NULL) {
-        *reason = "Can not store to to null byte/boolean array.";
-      }
-
-      result = 2;
-      break;
-
-    case Bytecodes::_castore:
-      if (reason != NULL) {
-        *reason = "Can not store to to null char array.";
-      }
-
-      result = 2;
-      break;
-
-    case Bytecodes::_sastore:
-      if (reason != NULL) {
-        *reason = "Can not store to null short array.";
-      }
-
-      result = 2;
-      break;
-
     case Bytecodes::_getfield:
-      {
-        if (reason != NULL) {
-          int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
-          ConstantPool* cp = _method->constants();
-          int name_and_type_index = cp->name_and_type_ref_index_at(cp_index);
-          int name_index = cp->name_ref_index_at(name_and_type_index);
-          Symbol* name = cp->symbol_at(name_index);
-          stringStream ss;
-          ss.print("Can not read field '%s'.", name->as_C_string());
-          *reason = ss.as_string();
-        }
-
-        result = 0;
-      }
-
-      break;
-
     case Bytecodes::_arraylength:
-      if (reason != NULL) {
-        *reason = "Can not read the array length.";
-      }
-
-      result = 0;
-      break;
-
     case Bytecodes::_athrow:
-      if (reason != NULL) {
-        *reason = "Can not throw a null exception object.";
-      }
-
-      result = 0;
-      break;
-
     case Bytecodes::_monitorenter:
-      if (reason != NULL) {
-        *reason = "Can not enter a null monitor.";
-      }
-
-      result = 0;
-      break;
-
     case Bytecodes::_monitorexit:
-      if (reason != NULL) {
-        *reason = "Can not exit a null monitor.";
-      }
-
-      result = 0;
-      break;
-
-    case Bytecodes::_putfield:
-      {
+      return 0;
+    case Bytecodes::_iaload:
+    case Bytecodes::_faload:
+    case Bytecodes::_aaload:
+    case Bytecodes::_baload:
+    case Bytecodes::_caload:
+    case Bytecodes::_saload:
+    case Bytecodes::_laload:
+    case Bytecodes::_daload:
+      return 1;
+    case Bytecodes::_iastore:
+    case Bytecodes::_fastore:
+    case Bytecodes::_aastore:
+    case Bytecodes::_bastore:
+    case Bytecodes::_castore:
+    case Bytecodes::_sastore:
+      return 2;
+    case Bytecodes::_lastore:
+    case Bytecodes::_dastore:
+      return 3;
+    case Bytecodes::_putfield: {
         int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
         ConstantPool* cp = _method->constants();
         int name_and_type_index = cp->name_and_type_ref_index_at(cp_index);
         int type_index = cp->signature_ref_index_at(name_and_type_index);
         Symbol* signature = cp->symbol_at(type_index);
-
-        if (reason != NULL) {
-          stringStream ss;
-          ss.print("Can not write field '%s'.",
-                   MethodBytecodePrinter::get_field_name(_method, cp_index));
-          *reason = ss.as_string();
-        }
-
-        result = type2size[char2type((char) signature->char_at(0))];
+        return type2size[char2type((char) signature->char_at(0))];
       }
-
-      break;
-
     case Bytecodes::_invokevirtual:
     case Bytecodes::_invokespecial:
     case Bytecodes::_invokeinterface:
@@ -1310,26 +897,332 @@ int TrackingStackCreator::get_null_pointer_slot(int bci, char const** reason) {
         // (which is true in Java). This is mainly used to avoid generating wrong
         // messages for NullPointerExceptions created explicitly by new in Java code.
         if (name != vmSymbols::object_initializer_name()) {
-          if (reason != NULL) {
-            stringStream ss;
-            ss.print("Can not invoke method '%s'.",
-                     MethodBytecodePrinter::get_method_name(_method, cp_index));
-            *reason = ss.as_string();
-          }
-
-          result = ArgumentSizeComputer(signature).size();
-        }
-        else {
-          result = -2;
+          return ArgumentSizeComputer(signature).size();
+        } else {
+          return -2;
         }
       }
-
-      break;
 
     default:
       break;
   }
 
-  return result;
+  return -1;
+}
+
+const int TrackingStackCreator::_max_cause_detail = 5;
+
+void TrackingStackCreator::TrackingStackCreator::print_NPE_cause(outputStream *os, int bci, int slot) {
+  if (print_NPE_cause0(os, bci, slot, _max_cause_detail, "'")) {
+    os->print("' is null. ");
+  }
+}
+
+/* Recursively print what was null.
+ *
+ * Go the the bytecode that pushed slot 'slot' on the operant stack
+ * at bytecode 'bci'. Compute a message for that bytecode. If
+ * necessary (array, field), recur further.
+ * At most do max_detail recursions.
+ *
+ * Returns true if something was printed.
+ */
+bool TrackingStackCreator::TrackingStackCreator::print_NPE_cause0(outputStream *os, int bci, int slot,
+                                                                  int max_detail, const char *prefix) {
+  assert(bci >= 0, "BCI too low");
+  assert(bci < get_size(), "BCI to large");
+
+  if (max_detail <= 0) {
+    return false;
+  }
+
+  if (_stacks->at(bci) == NULL) {
+    return false;
+  }
+
+  TrackingStack* stack = _stacks->at(bci);
+  assert(slot >= 0, "Slot nr. too low");
+  assert(slot < stack->get_size(), "Slot nr. too large");
+
+  TrackingStackEntry entry = stack->get_entry(slot);
+
+  if (!entry.has_bci()) {
+    return false;
+  }
+
+  // Get the bytecode.
+  int source_bci = entry.get_bci();
+  address code_base = _method->constMethod()->code_base();
+  Bytecodes::Code code = Bytecodes::java_code_at(_method, code_base + source_bci);
+  bool is_wide = false;
+  int pos = source_bci + 1;
+
+  if (code == Bytecodes::_wide) {
+    is_wide = true;
+    code = Bytecodes::java_code_at(_method, code_base + source_bci + 1);
+    pos += 1;
+  }
+
+  if (max_detail == _max_cause_detail &&
+      prefix != NULL &&
+      code != Bytecodes::_invokevirtual &&
+      code != Bytecodes::_invokespecial &&
+      code != Bytecodes::_invokestatic &&
+      code != Bytecodes::_invokeinterface) {
+    os->print("%s", prefix);
+  }
+
+  switch (code) {
+    case Bytecodes::_iload_0:
+    //case Bytecodes::_lload_0: // ?
+    //case Bytecodes::_fload_0: // ?
+    //case Bytecodes::_dload_0: // ?
+    case Bytecodes::_aload_0:
+      print_local_var(os, source_bci, _method, 0);
+      return true;
+
+    case Bytecodes::_iload_1:
+    //case Bytecodes::_lload_1: // ?
+    //case Bytecodes::_fload_1: // ?
+    //case Bytecodes::_dload_1: // ?
+    case Bytecodes::_aload_1:
+      print_local_var(os, source_bci, _method, 1);
+      return true;
+
+    case Bytecodes::_iload_2:
+    //case Bytecodes::_lload_2: // ?
+    //case Bytecodes::_fload_2: // ?
+    //case Bytecodes::_dload_2: // ?
+    case Bytecodes::_aload_2:
+      print_local_var(os, source_bci, _method, 2);
+      return true;
+
+    case Bytecodes::_iload_3:
+    //case Bytecodes::_lload_3: // ?
+    //case Bytecodes::_fload_3: // ?
+    //case Bytecodes::_dload_3: // ?
+    case Bytecodes::_aload_3:
+      print_local_var(os, source_bci, _method, 3);
+      return true;
+
+    case Bytecodes::_iload:
+    //case Bytecodes::_lload: // ?
+    //case Bytecodes::_fload: // ?
+    //case Bytecodes::_dload: // ?
+    case Bytecodes::_aload: {
+      int index;
+
+      if (is_wide) {
+        index = Bytes::get_Java_u2(code_base + source_bci + 2);
+      } else {
+        index = *(uint8_t*) (code_base + source_bci + 1);
+      }
+
+      print_local_var(os, source_bci, _method, index);
+      return true;
+    }
+
+    case Bytecodes::_aconst_null:
+      os->print("null");
+      return true;
+    case Bytecodes::_iconst_m1:
+      os->print("-1");
+      return true;
+    case Bytecodes::_iconst_0:
+      os->print("0");
+      return true;
+    case Bytecodes::_iconst_1:
+      os->print("1");
+      return true;
+    case Bytecodes::_iconst_2:
+      os->print("2");
+      return true;
+    case Bytecodes::_iconst_3:
+      os->print("3");
+      return true;
+    case Bytecodes::_iconst_4:
+      os->print("4");
+      return true;
+    case Bytecodes::_iconst_5:
+      os->print("5");
+      return true;
+      /*
+    case Bytecodes::_lconst_0: // ?
+      os->print("0L");
+      return true;
+    case Bytecodes::_lconst_1: // ?
+      os->print("1L");
+      return true;
+    case Bytecodes::_fconst_0: // ?
+      os->print("0.0f");
+      return true;
+    case Bytecodes::_fconst_1: // ?
+      os->print("1.0f");
+      return true;
+    case Bytecodes::_fconst_2: // ?
+      os->print("2.0f");
+      return true;
+    case Bytecodes::_dconst_0: // ?
+      os->print("0.0");
+      return true;
+    case Bytecodes::_dconst_1: // ?
+      os->print("1.0");
+      return true;
+      */
+    case Bytecodes::_bipush: {
+      jbyte con = *(jbyte*) (code_base + source_bci + 1);
+      os->print("%d", con);
+      return true;
+    }
+    case Bytecodes::_sipush: {
+      u2 con = Bytes::get_Java_u2(code_base + source_bci + 1);
+      os->print("%d", con);
+      return true;
+    }
+   case Bytecodes::_iaload:
+      //case Bytecodes::_faload: // ?
+  case Bytecodes::_aaload: {
+    //case Bytecodes::_baload: // ?
+    //case Bytecodes::_caload: // ?
+    //case Bytecodes::_saload: // ?
+    //case Bytecodes::_laload: // ?
+    //case Bytecodes::_daload: { // ?
+
+      // Print the 'name' of the array. Go back to the bytecode that
+      // pushed the array reference on the operand stack.
+      if (!print_NPE_cause0(os, source_bci, 1, max_detail-1)) {
+        //  Returned false. Max recursion depth was reached. Print dummy.
+        os->print("<array>");
+      }
+      os->print("[");
+      // Print the index expression. Go back to the bytecode that
+      // pushed the index on the operand stack.
+      // Don't decrement maxdetail so we get a value here and only 
+      // cancel out on the dereference.
+      if (!print_NPE_cause0(os, source_bci, 0, max_detail)) {
+        // Returned false. We don't print complex array index expressions. Print placeholder.
+        os->print("...");
+      }
+      os->print("]");
+      return true;
+    }
+
+    case Bytecodes::_getstatic: {
+      int cp_index = Bytes::get_native_u2(code_base + pos) + ConstantPool::CPCACHE_INDEX_TAG;
+      os->print("static ");
+      print_field_and_class(os, _method, cp_index);
+      return true;
+    }
+
+    case Bytecodes::_getfield: {
+      // Print the sender. Go back to the bytecode that
+      // pushed the sender on the operand stack.
+      if (print_NPE_cause0(os, source_bci, 0, max_detail - 1)) {
+        os->print(".");
+      }
+      int cp_index = Bytes::get_native_u2(code_base + pos) + ConstantPool::CPCACHE_INDEX_TAG;
+      os->print("%s", get_field_name(_method, cp_index));
+      return true;
+    }
+
+    case Bytecodes::_invokevirtual:
+    case Bytecodes::_invokespecial:
+    case Bytecodes::_invokestatic:
+    case Bytecodes::_invokeinterface: {
+      int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
+      if (max_detail == _max_cause_detail) {
+        os->print("The return value of '");
+      }
+      print_method_name(os, _method, cp_index);
+      return true;
+    }
+
+    default: break;
+  }
+  return false;
+}
+
+void TrackingStackCreator::print_NPE_failedAction(outputStream *os, int bci) {
+  // If this NPE was created via reflection, we have no real NPE.
+  assert(_method->method_holder() != SystemDictionary::reflect_NativeConstructorAccessorImpl_klass(),
+         "We should have checked for reflection in get_NPE_null_slot().");
+
+  // Get the bytecode.
+  address code_base = _method->constMethod()->code_base();
+  Bytecodes::Code code = Bytecodes::java_code_at(_method, code_base + bci);
+  int pos = bci + 1;
+  if (code == Bytecodes::_wide) {
+    code = Bytecodes::java_code_at(_method, code_base + bci + 1);
+    pos += 1;
+  }
+
+  switch (code) {
+    case Bytecodes::_iaload:
+      os->print("Can not load from null int array."); break;
+    case Bytecodes::_faload:
+      os->print("Can not load from null float array."); break;
+    case Bytecodes::_aaload:
+      os->print("Can not load from null object array."); break;
+    case Bytecodes::_baload:
+      os->print("Can not load from null byte/boolean array."); break;
+    case Bytecodes::_caload:
+      os->print("Can not load from null char array."); break;
+    case Bytecodes::_saload:
+      os->print("Can not load from null short array."); break;
+    case Bytecodes::_laload:
+      os->print("Can not load from null long array."); break;
+    case Bytecodes::_daload:
+      os->print("Can not load from null double array."); break;
+
+    case Bytecodes::_iastore:
+      os->print("Can not store to null int array."); break;
+    case Bytecodes::_fastore:
+      os->print("Can not store to null float array."); break;
+    case Bytecodes::_aastore:
+      os->print("Can not store to null object array."); break;
+    case Bytecodes::_bastore:
+      os->print("Can not store to null byte/boolean array."); break;
+    case Bytecodes::_castore:
+      os->print("Can not store to null char array."); break;
+    case Bytecodes::_sastore:
+      os->print("Can not store to null short array."); break;
+    case Bytecodes::_lastore:
+      os->print("Can not store to null long array."); break;
+    case Bytecodes::_dastore:
+      os->print("Can not store to null double array."); break;
+
+    case Bytecodes::_arraylength:
+      os->print("Can not read the array length."); break;
+    case Bytecodes::_athrow:
+      os->print("Can not throw a null exception object."); break;
+    case Bytecodes::_monitorenter:
+      os->print("Can not enter a null monitor."); break;
+    case Bytecodes::_monitorexit:
+      os->print("Can not exit a null monitor."); break;
+    case Bytecodes::_getfield: {
+        int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
+        ConstantPool* cp = _method->constants();
+        int name_and_type_index = cp->name_and_type_ref_index_at(cp_index);
+        int name_index = cp->name_ref_index_at(name_and_type_index);
+        Symbol* name = cp->symbol_at(name_index);
+        os->print("Can not read field '%s'.", name->as_C_string());
+      } break;
+    case Bytecodes::_putfield: {
+        int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
+        os->print("Can not write field '%s'.", get_field_name(_method, cp_index));
+      } break;
+    case Bytecodes::_invokevirtual:
+    case Bytecodes::_invokespecial:
+    case Bytecodes::_invokeinterface: {
+        int cp_index = Bytes::get_native_u2(code_base+ pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
+        os->print("Can not invoke method '");
+        print_method_name(os, _method, cp_index);
+        os->print("'.");
+      } break;
+
+    default:
+      assert(0, "We should have checked this bytecode in get_NPE_null_slot().");
+      break;
+  }
 }
 
