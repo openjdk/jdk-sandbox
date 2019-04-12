@@ -394,11 +394,7 @@ ISectionalPropertyContainer* MacPlatform::GetConfigFile(TString FileName) {
     }
 
     if (UsePListForConfigFile() == false) {
-        if (result->LoadFromFile(FileName) == false) {
-            // New property file format was not found,
-            // attempt to load old property file format.
-            Helpers::LoadOldConfigFile(FileName, result);
-        }
+        result->LoadFromFile(FileName);
     } else {
         NSBundle *mainBundle = [NSBundle mainBundle];
         NSDictionary *infoDictionary = [mainBundle infoDictionary];
@@ -480,8 +476,6 @@ std::map<TString, TString> MacPlatform::GetKeys() {
                 CONFIG_CLASSPATH_KEY, _T("JavaAppClasspath")));
         keys.insert(std::map<TString, TString>::value_type(APP_NAME_KEY,
                 _T("CFBundleName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_APP_ID_KEY,
-                _T("JavaPreferencesID")));
         keys.insert(std::map<TString, TString>::value_type(JAVA_RUNTIME_KEY,
                 _T("JavaRuntime")));
         keys.insert(std::map<TString, TString>::value_type(JPACKAGE_APP_DATA_DIR,

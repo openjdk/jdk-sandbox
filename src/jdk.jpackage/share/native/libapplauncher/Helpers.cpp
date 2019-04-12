@@ -167,62 +167,6 @@ std::list<TString> Helpers::GetArgsFromConfig(IPropertyContainer* config) {
     return result;
 }
 
-void AppendToIni(PropertyFile &Source, IniFile* Destination, TString Key) {
-    TString value;
-
-    if (Source.GetValue(Key, value) == true) {
-        Platform& platform = Platform::GetInstance();
-        std::map<TString, TString> keys = platform.GetKeys();
-        Destination->Append(keys[CONFIG_SECTION_APPLICATION], Key, value);
-    }
-}
-
-void Helpers::LoadOldConfigFile(TString FileName, IniFile* Container) {
-    PropertyFile propertyFile;
-
-    if (propertyFile.LoadFromFile(FileName) == true) {
-        Platform& platform = Platform::GetInstance();
-
-        std::map<TString, TString> keys = platform.GetKeys();
-
-        // Application Section
-        AppendToIni(propertyFile, Container, keys[CONFIG_MAINJAR_KEY]);
-        AppendToIni(propertyFile, Container, keys[CONFIG_MAINMODULE_KEY]);
-        AppendToIni(propertyFile, Container, keys[CONFIG_MAINCLASSNAME_KEY]);
-        AppendToIni(propertyFile, Container, keys[CONFIG_CLASSPATH_KEY]);
-        AppendToIni(propertyFile, Container, keys[APP_NAME_KEY]);
-        AppendToIni(propertyFile, Container, keys[CONFIG_APP_ID_KEY]);
-        AppendToIni(propertyFile, Container, keys[JAVA_RUNTIME_KEY]);
-        AppendToIni(propertyFile, Container, keys[JPACKAGE_APP_DATA_DIR]);
-
-        AppendToIni(propertyFile, Container, keys[CONFIG_APP_MEMORY]);
-        AppendToIni(propertyFile, Container, keys[CONFIG_SPLASH_KEY]);
-
-        // JavaOptions Section
-        OrderedMap<TString, TString> JavaOptions =
-                Helpers::GetJavaOptionsFromConfig(&propertyFile);
-        Container->AppendSection(keys[CONFIG_SECTION_JAVAOPTIONS], JavaOptions);
-
-        // ArgOptions Section
-        std::list<TString> args = Helpers::GetArgsFromConfig(&propertyFile);
-        OrderedMap<TString, TString> convertedArgs;
-
-        for (std::list<TString>::iterator iterator = args.begin();
-                iterator != args.end(); iterator++) {
-            TString arg = *iterator;
-            TString name;
-            TString value;
-
-            if (Helpers::SplitOptionIntoNameValue(arg, name, value) == true) {
-                convertedArgs.Append(name, value);
-            }
-        }
-
-        Container->AppendSection(keys[CONFIG_SECTION_ARGOPTIONS],
-                convertedArgs);
-    }
-}
-
 std::list<TString>
         Helpers::MapToNameValueList(OrderedMap<TString, TString> Map) {
     std::list<TString> result;

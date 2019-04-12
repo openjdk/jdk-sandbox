@@ -55,8 +55,6 @@ public:
             GetJavaOptionsFromConfig(IPropertyContainer* config);
     static std::list<TString> GetArgsFromConfig(IPropertyContainer* config);
 
-    static void LoadOldConfigFile(TString FileName, IniFile* Container);
-
     static std::list<TString>
             MapToNameValueList(OrderedMap<TString, TString> Map);
 

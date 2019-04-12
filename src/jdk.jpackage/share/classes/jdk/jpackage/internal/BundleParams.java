@@ -177,10 +177,6 @@ public class BundleParams {
         return fetchParam(IDENTIFIER);
     }
 
-    public String getPreferencesID() {
-        return fetchParam(PREFERENCES_ID);
-    }
-
     public String getApplicationClass() {
         return fetchParam(MAIN_CLASS);
     }
@@ -280,14 +276,6 @@ public class BundleParams {
 
     public void setCopyright(String c) {
         putUnlessNull(PARAM_COPYRIGHT, c);
-    }
-
-    public String getIdentifier() {
-        return fetchParam(IDENTIFIER);
-    }
-
-    public void setIdentifier(String s) {
-        putUnlessNull(PARAM_IDENTIFIER, s);
     }
 
     private String mainJar = null;

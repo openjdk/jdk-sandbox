@@ -315,15 +315,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
-    static final StandardBundlerParam<String> PREFERENCES_ID =
-            new StandardBundlerParam<>(
-                    "preferencesID",
-                    String.class,
-                    p -> Optional.ofNullable(IDENTIFIER.fetchFrom(p)).
-                             orElse("").replace('.', '/'),
-                    (s, p) -> s
-            );
-
     static final StandardBundlerParam<Boolean> VERBOSE  =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.VERBOSE.getId(),

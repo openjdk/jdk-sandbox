@@ -187,7 +187,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
                 JAVA_OPTIONS,
                 MAIN_CLASS,
                 MAIN_JAR,
-                PREFERENCES_ID,
                 VERSION,
                 VERBOSE
         );

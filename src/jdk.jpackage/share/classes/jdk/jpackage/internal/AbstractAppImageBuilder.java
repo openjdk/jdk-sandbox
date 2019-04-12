@@ -197,7 +197,6 @@ public abstract class AbstractAppImageBuilder {
         out.println("[Application]");
         out.println("app.name=" + APP_NAME.fetchFrom(params));
         out.println("app.version=" + VERSION.fetchFrom(params));
-        out.println("app.preferences.id=" + PREFERENCES_ID.fetchFrom(params));
         out.println("app.runtime=" + runtimeLocation);
         out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
         out.println("app.classpath=" + String.join(File.pathSeparator,

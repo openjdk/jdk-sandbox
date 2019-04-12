@@ -71,8 +71,6 @@ void Package::Initialize() {
             platform.GetConfigFile(platform.GetConfigFileName());
 
     config->GetValue(keys[CONFIG_SECTION_APPLICATION],
-            keys[CONFIG_APP_ID_KEY], FBootFields->FAppID);
-    config->GetValue(keys[CONFIG_SECTION_APPLICATION],
             keys[JPACKAGE_APP_DATA_DIR], FBootFields->FPackageAppDataDirectory);
     FBootFields->FPackageAppDataDirectory =
             FilePath::FixPathForPlatform(FBootFields->FPackageAppDataDirectory);
@@ -477,11 +475,6 @@ TString Package::GetAppCDSCacheFileName() {
     }
 
     return FBootFields->FAppCDSCacheFileName;
-}
-
-TString Package::GetAppID() {
-    assert(FBootFields != NULL);
-    return FBootFields->FAppID;
 }
 
 TString Package::GetPackageAppDataDirectory() {

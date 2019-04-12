@@ -158,7 +158,6 @@ bool JavaVirtualMachine::StartJVM() {
             + package.GetPackageLauncherDirectory());
     options.AppendValue(
             _T("-Djava.launcher.path"), package.GetPackageLauncherDirectory());
-    options.AppendValue(_T("-Dapp.preferences.id"), package.GetAppID());
     options.AppendValues(package.GetJavaOptions());
 
 #ifdef DEBUG

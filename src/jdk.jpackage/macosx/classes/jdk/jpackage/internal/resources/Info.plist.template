@@ -40,8 +40,6 @@
   <string>DEPLOY_APP_CLASSPATH</string>
   <key>JavaMainJarName</key>
   <string>DEPLOY_MAIN_JAR_NAME</string>
-  <key>JavaPreferencesID</key>
-  <string>DEPLOY_PREFERENCES_ID</string>
   <key>JavaOptions</key>
   <array>
 DEPLOY_JAVA_OPTIONS

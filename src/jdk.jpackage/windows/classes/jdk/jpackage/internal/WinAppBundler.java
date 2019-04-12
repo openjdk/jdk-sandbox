@@ -234,7 +234,6 @@ public class WinAppBundler extends AbstractImageBundler {
                 JAVA_OPTIONS,
                 MAIN_CLASS,
                 MAIN_JAR,
-                PREFERENCES_ID,
                 VERSION,
                 VERBOSE
             );

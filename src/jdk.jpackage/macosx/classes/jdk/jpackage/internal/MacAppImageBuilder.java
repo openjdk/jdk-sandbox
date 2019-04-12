@@ -524,9 +524,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     StandardBundlerParam.MODULE.fetchFrom(params));
         }
 
-        data.put("DEPLOY_PREFERENCES_ID",
-                PREFERENCES_ID.fetchFrom(params).toLowerCase());
-
         StringBuilder sb = new StringBuilder();
         List<String> jvmOptions = JAVA_OPTIONS.fetchFrom(params);
 

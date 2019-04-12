@@ -47,7 +47,6 @@ public:
     TString FPackageAppDirectory;
     TString FPackageLauncherDirectory;
     TString FAppDataDirectory;
-    TString FAppID;
     TString FPackageAppDataDirectory;
     TString FClassPath;
     TString FModulePath;
@@ -108,7 +107,6 @@ public:
     TString GetAppCDSCacheDirectory();
     TString GetAppCDSCacheFileName();
 
-    TString GetAppID();
     TString GetPackageAppDataDirectory();
     TString GetClassPath();
     TString GetModulePath();

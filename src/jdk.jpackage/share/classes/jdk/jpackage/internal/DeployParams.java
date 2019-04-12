@@ -486,8 +486,6 @@ public class DeployParams {
         // construct app resources relative to output folder!
         bundleParams.setAppResourcesList(resources);
 
-        bundleParams.setIdentifier(id);
-
         bundleParams.setApplicationClass(applicationClass);
         bundleParams.setAppVersion(version);
         bundleParams.setType(bundleType);

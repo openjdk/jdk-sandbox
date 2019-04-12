@@ -151,11 +151,7 @@ ISectionalPropertyContainer* LinuxPlatform::GetConfigFile(TString FileName) {
         return NULL;
     }
 
-    if (result->LoadFromFile(FileName) == false) {
-        // New property file format was not found,
-        // attempt to load old property file format.
-        Helpers::LoadOldConfigFile(FileName, result);
-    }
+    result->LoadFromFile(FileName);
 
     return result;
 }
