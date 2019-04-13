@@ -115,11 +115,6 @@ public:
 };
 #endif
 
-class ShenandoahAlwaysTrueClosure : public BoolObjectClosure {
-public:
-  bool do_object_b(oop p) { return true; }
-};
-
 class ShenandoahForwardedIsAliveClosure: public BoolObjectClosure {
 private:
   ShenandoahMarkingContext* const _mark_context;
@@ -198,6 +193,7 @@ public:
 //
 private:
            size_t _initial_size;
+           size_t _minimum_size;
   DEFINE_PAD_MINUS_SIZE(0, DEFAULT_CACHE_LINE_SIZE, sizeof(volatile size_t));
   volatile size_t _used;
   volatile size_t _committed;
@@ -216,6 +212,7 @@ public:
   size_t bytes_allocated_since_gc_start();
   void reset_bytes_allocated_since_gc_start();
 
+  size_t min_capacity()     const;
   size_t max_capacity()     const;
   size_t initial_capacity() const;
   size_t capacity()         const;

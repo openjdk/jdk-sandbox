@@ -48,14 +48,15 @@ struct PhaseMap {
 
 static const struct PhaseMap phase_mapping[] = {
 #if INCLUDE_JVMTI
-  {WeakProcessorPhases::jvmti,       ShenandoahPhaseTimings::JVMTIWeakRoots},
+  {WeakProcessorPhases::jvmti,                 ShenandoahPhaseTimings::JVMTIWeakRoots},
 #endif
 #if INCLUDE_JFR
-  {WeakProcessorPhases::jfr,         ShenandoahPhaseTimings::JFRWeakRoots},
+  {WeakProcessorPhases::jfr,                   ShenandoahPhaseTimings::JFRWeakRoots},
 #endif
-  {WeakProcessorPhases::jni,         ShenandoahPhaseTimings::JNIWeakRoots},
-  {WeakProcessorPhases::stringtable, ShenandoahPhaseTimings::StringTableRoots},
-  {WeakProcessorPhases::vm,          ShenandoahPhaseTimings::VMWeakRoots}
+  {WeakProcessorPhases::jni,                   ShenandoahPhaseTimings::JNIWeakRoots},
+  {WeakProcessorPhases::stringtable,           ShenandoahPhaseTimings::StringTableRoots},
+  {WeakProcessorPhases::resolved_method_table, ShenandoahPhaseTimings::ResolvedMethodTableRoots},
+  {WeakProcessorPhases::vm,                    ShenandoahPhaseTimings::VMWeakRoots}
 };
 
 STATIC_ASSERT(sizeof(phase_mapping) / sizeof(PhaseMap) == WeakProcessorPhases::phase_count);
@@ -64,7 +65,6 @@ ShenandoahRootProcessor::ShenandoahRootProcessor(ShenandoahHeap* heap, uint n_wo
                                                  ShenandoahPhaseTimings::Phase phase) :
   _process_strong_tasks(new SubTasksDone(SHENANDOAH_RP_PS_NumElements)),
   _srs(n_workers),
-  _par_state_string(StringTable::weak_storage()),
   _phase(phase),
   _coderoots_all_iterator(ShenandoahCodeRoots::iterator()),
   _weak_processor_timings(n_workers),
