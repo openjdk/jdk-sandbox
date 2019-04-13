@@ -465,7 +465,14 @@ public class DeployParams {
         if (multi_args.contains(key)) {
             Object existingValue = bundlerArguments.get(key);
             if (existingValue instanceof String && value instanceof String) {
-                bundlerArguments.put(key, existingValue + "\n\n" + value);
+                String delim = "\n\n";
+                if (key.equals(StandardBundlerParam.MODULE_PATH.getID())) {
+                    delim = File.pathSeparator;
+                } else if (key.equals(
+                        StandardBundlerParam.ADD_MODULES.getID())) {
+                    delim = ",";
+                }
+                bundlerArguments.put(key, existingValue + delim + value);
             } else if (existingValue instanceof List && value instanceof List) {
                 ((List)existingValue).addAll((List)value);
             } else if (existingValue instanceof Map &&

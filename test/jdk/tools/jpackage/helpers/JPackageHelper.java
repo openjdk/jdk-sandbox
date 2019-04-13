@@ -347,19 +347,23 @@ public class JPackageHelper {
     }
 
     public static void createHelloModule() throws Exception {
-        createModule("Hello.java");
+        createModule("Hello.java", "input", "hello");
     }
 
-    private static void createModule(String javaFile)
-            throws Exception {
+    public static void createOtherModule() throws Exception {
+        createModule("Other.java", "input-other", "other");
+    }
+
+    private static void createModule(String javaFile, String inputDir,
+            String aName) throws Exception {
         int retVal;
 
-        File input = new File("input");
+        File input = new File(inputDir);
         if (!input.exists()) {
             input.mkdir();
         }
 
-        File module = new File("module" + File.separator + "com.hello");
+        File module = new File("module" + File.separator + "com." + aName);
         if (!module.exists()) {
             module.mkdirs();
         }
@@ -369,12 +373,12 @@ public class JPackageHelper {
             List<String> args = new ArrayList<>();
             args.add(JAVAC.toString());
             args.add("-d");
-            args.add("module" + File.separator + "com.hello");
-            args.add(TEST_SRC_ROOT + File.separator + "apps" + File.separator + "com.hello"
-                    + File.separator + "module-info.java");
-            args.add(TEST_SRC_ROOT + File.separator + "apps" + File.separator + "com.hello"
-                    + File.separator + "com" + File.separator + "hello" + File.separator
-                    + javaFile);
+            args.add("module" + File.separator + "com." + aName);
+            args.add(TEST_SRC_ROOT + File.separator + "apps" + File.separator
+                    + "com." + aName + File.separator + "module-info.java");
+            args.add(TEST_SRC_ROOT + File.separator + "apps"
+                    + File.separator + "com." + aName + File.separator + "com"
+                    + File.separator + aName + File.separator + javaFile);
             retVal = execute(javacLog, args.stream().toArray(String[]::new));
         } catch (Exception ex) {
             if (javacLog.exists()) {
@@ -396,9 +400,9 @@ public class JPackageHelper {
             args.add(JAR.toString());
             args.add("--create");
             args.add("--file");
-            args.add("input" + File.separator + "com.hello.jar");
+            args.add(inputDir + File.separator + "com." + aName + ".jar");
             args.add("-C");
-            args.add("module" + File.separator + "com.hello");
+            args.add("module" + File.separator + "com." + aName);
             args.add(".");
 
             retVal = execute(jarLog, args.stream().toArray(String[]::new));
