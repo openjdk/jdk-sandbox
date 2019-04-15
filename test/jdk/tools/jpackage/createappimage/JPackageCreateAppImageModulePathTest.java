@@ -31,6 +31,9 @@
  * @modules jdk.jpackage
  * @run main/othervm -Xmx512m JPackageCreateAppImageModulePathTest
  */
+
+import java.io.File;
+
 public class JPackageCreateAppImageModulePathTest {
     private static final String OUTPUT = "output";
 
@@ -47,7 +50,7 @@ public class JPackageCreateAppImageModulePathTest {
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input;input-other",
+        "--module-path", "input" + File.pathSeparator + "input-other",
     };
 
     private static final String [] CMD3 = {
