@@ -263,8 +263,16 @@ public class Arguments {
 
         ADD_LAUNCHER ("add-launcher",
                     OptionCategories.PROPERTY, () -> {
+            String spec = popArg();
+            String name = null;
+            String filename = spec;
+            if (spec.contains("=")) {
+                String[] values = spec.split("=", 2);
+                name = values[0];
+                filename = values[1];
+            }
             context().addLaunchers.add(
-                new AddLauncherArguments(popArg()));
+                new AddLauncherArguments(name, filename));
         }),
 
         TEMP_ROOT ("temp-root", OptionCategories.PROPERTY, () -> {

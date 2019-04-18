@@ -40,7 +40,7 @@ public class JPackageCreateAppImageAddLauncherTest {
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--add-launcher", "sl.properties"};
+        "--add-launcher", "test2=sl.properties"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloImageJar();

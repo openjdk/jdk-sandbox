@@ -132,7 +132,6 @@ public class JPackageCreateAppImageAddLauncherBase {
 
         try (PrintWriter out = new PrintWriter(new BufferedWriter(
                 new FileWriter("sl.properties")))) {
-            out.println("name=test2");
             out.println("arguments=" + argumentsMap);
             out.println("java-options=" + vmArgumentsMap);
         }

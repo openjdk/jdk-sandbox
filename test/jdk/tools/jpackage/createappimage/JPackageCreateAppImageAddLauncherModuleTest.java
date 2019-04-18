@@ -39,7 +39,7 @@ public class JPackageCreateAppImageAddLauncherModuleTest {
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
-        "--add-launcher", "sl.properties"};
+        "--add-launcher", "test2=sl.properties"};
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();

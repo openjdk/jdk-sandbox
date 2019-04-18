@@ -49,7 +49,6 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  *
  * The add-launcher properties file may have any of:
  *
- * name (required)
  * appVersion
  * module
  * add-modules
@@ -63,11 +62,13 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  */
 class AddLauncherArguments {
 
+    private final String name;
     private final String filename;
     private Map<String, String> allArgs;
     private Map<String, ? super Object> bundleParams;
 
-    AddLauncherArguments(String filename) {
+    AddLauncherArguments(String name, String filename) {
+        this.name = name;
         this.filename = filename;
     }
 
@@ -77,6 +78,7 @@ class AddLauncherArguments {
         }
 
         allArgs = Arguments.getPropertiesFromFile(filename);
+        allArgs.put(CLIOptions.NAME.getId(), name);
 
         bundleParams = new HashMap<>();
         String mainJar = getOptionValue(CLIOptions.MAIN_JAR);
@@ -84,34 +86,34 @@ class AddLauncherArguments {
         String module = getOptionValue(CLIOptions.MODULE);
 
         if (module != null && mainClass != null) {
-            putUnlessNull(bundleParams, Arguments.CLIOptions.MODULE.getId(),
+            putUnlessNull(bundleParams, CLIOptions.MODULE.getId(),
                     module + "/" + mainClass);
         } else if (module != null) {
-            putUnlessNull(bundleParams, Arguments.CLIOptions.MODULE.getId(),
+            putUnlessNull(bundleParams, CLIOptions.MODULE.getId(),
                     module);
         } else {
-            putUnlessNull(bundleParams, Arguments.CLIOptions.MAIN_JAR.getId(),
+            putUnlessNull(bundleParams, CLIOptions.MAIN_JAR.getId(),
                     mainJar);
-            putUnlessNull(bundleParams, Arguments.CLIOptions.APPCLASS.getId(),
+            putUnlessNull(bundleParams, CLIOptions.APPCLASS.getId(),
                     mainClass);
         }
 
-        putUnlessNull(bundleParams, Arguments.CLIOptions.NAME.getId(),
+        putUnlessNull(bundleParams, CLIOptions.NAME.getId(),
                 getOptionValue(CLIOptions.NAME));
 
-        putUnlessNull(bundleParams, Arguments.CLIOptions.VERSION.getId(),
+        putUnlessNull(bundleParams, CLIOptions.VERSION.getId(),
                 getOptionValue(CLIOptions.VERSION));
 
         putUnlessNull(bundleParams,
-                Arguments.CLIOptions.ADD_MODULES.getId(),
+                CLIOptions.ADD_MODULES.getId(),
                 getOptionValue(CLIOptions.ADD_MODULES));
 
         putUnlessNull(bundleParams,
-                Arguments.CLIOptions.WIN_CONSOLE_HINT.getId(),
+                CLIOptions.WIN_CONSOLE_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_CONSOLE_HINT));
 
         String value = getOptionValue(CLIOptions.ICON);
-        putUnlessNull(bundleParams, Arguments.CLIOptions.ICON.getId(),
+        putUnlessNull(bundleParams, CLIOptions.ICON.getId(),
                 (value == null) ? null : new File(value));
 
         String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
