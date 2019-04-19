@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.io.Writer;
 import java.net.URLEncoder;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -355,18 +356,57 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         }
     }
 
+    // pkgbuild includes all components from "--root" and subfolders,
+    // so if we have app image in folder which contains other images, then they
+    // will be included as well. It does have "--filter" option which use regex
+    // to exclude files/folder, but it will overwrite default one which excludes
+    // based on doc "any .svn or CVS directories, and any .DS_Store files".
+    // So easy aproach will be to copy user provided app-image into temp folder
+    // if root path contains other files.
+    private String getRoot(Map<String, ? super Object> params,
+            File appLocation) throws IOException {
+        String root = appLocation.getParent() == null ?
+                "." : appLocation.getParent();
+        File rootDir = new File(root);
+        File[] list = rootDir.listFiles();
+        if (list != null) { // Should not happend
+            // We should only have app image and/or .DS_Store
+            if (list.length == 1) {
+                return root;
+            } else if (list.length == 2) {
+                // Check case with app image and .DS_Store
+                if (list[0].toString().toLowerCase().endsWith(".ds_store") ||
+                    list[1].toString().toLowerCase().endsWith(".ds_store")) {
+                    return root; // Only app image and .DS_Store
+                }
+            }
+        }
+
+        // Copy to new root
+        Path newRoot = Files.createTempDirectory(
+                TEMP_ROOT.fetchFrom(params).toPath(),
+                "root-");
+
+        IOUtils.copyRecursive(appLocation.toPath(),
+                newRoot.resolve(appLocation.getName()));
+
+        return newRoot.toString();
+    }
+
     private File createPKG(Map<String, ? super Object> params,
             File outdir, File appLocation) {
         // generic find attempt
         try {
             File appPKG = getPackages_AppPackage(params);
 
+            String root = getRoot(params, appLocation);
+
             // Generate default CPL file
             File cpl = new File(CONFIG_ROOT.fetchFrom(params).getAbsolutePath()
                     + File.separator + "cpl.plist");
             ProcessBuilder pb = new ProcessBuilder("pkgbuild",
                     "--root",
-                    appLocation.getParent(),
+                    root,
                     "--install-location",
                     MAC_INSTALL_DIR.fetchFrom(params),
                     "--analyze",
@@ -381,7 +421,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             // build application package
             pb = new ProcessBuilder("pkgbuild",
                     "--root",
-                    appLocation.getParent(),
+                    root,
                     "--install-location",
                     MAC_INSTALL_DIR.fetchFrom(params),
                     "--component-plist",
