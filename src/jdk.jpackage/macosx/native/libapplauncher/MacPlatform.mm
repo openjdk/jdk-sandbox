@@ -107,7 +107,7 @@ TString MacPlatform::GetPackageLauncherDirectory() {
 
 TString MacPlatform::GetPackageRuntimeBinDirectory() {
     return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) +
-            _T("Plugins/Java.runtime/Contents/Home/bin");
+            _T("runtime/Contents/Home/bin");
 }
 
 bool MacPlatform::UsePListForConfigFile() {

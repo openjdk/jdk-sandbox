@@ -166,7 +166,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     public MacAppImageBuilder(Map<String, Object> config, Path imageOutDir)
             throws IOException {
         super(config, imageOutDir.resolve(APP_NAME.fetchFrom(config)
-                + ".app/Contents/PlugIns/Java.runtime/Contents/Home"));
+                + ".app/Contents/runtime/Contents/Home"));
 
         Objects.requireNonNull(imageOutDir);
 
@@ -177,7 +177,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         this.javaModsDir = javaDir.resolve("mods");
         this.resourcesDir = contentsDir.resolve("Resources");
         this.macOSDir = contentsDir.resolve("MacOS");
-        this.runtimeDir = contentsDir.resolve("PlugIns/Java.runtime");
+        this.runtimeDir = contentsDir.resolve("runtime");
         this.runtimeRoot = runtimeDir.resolve("Contents/Home");
         this.mdir = runtimeRoot.resolve("lib");
         Files.createDirectories(javaDir);
@@ -317,7 +317,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         executable.toFile().setExecutable(true, false);
         // generate main app launcher config file
         File cfg = new File(root.toFile(), getLauncherCfgName(params));
-        writeCfgFile(params, cfg, "$APPDIR/PlugIns/Java.runtime");
+        writeCfgFile(params, cfg, "$APPDIR/runtime");
 
         // create additional app launcher(s) and config file(s)
         List<Map<String, ? super Object>> entryPoints =
@@ -335,7 +335,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
             // add config file for add launcher
             cfg = new File(root.toFile(), getLauncherCfgName(tmp));
-            writeCfgFile(tmp, cfg, "$APPDIR/PlugIns/Java.runtime");
+            writeCfgFile(tmp, cfg, "$APPDIR/runtime");
         }
 
         // Copy class path entries to Java folder
@@ -502,7 +502,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 COPYRIGHT.fetchFrom(params) != null ?
                 COPYRIGHT.fetchFrom(params) : "Unknown");
         data.put("DEPLOY_LAUNCHER_NAME", getLauncherName(params));
-        data.put("DEPLOY_JAVA_RUNTIME_NAME", "$APPDIR/PlugIns/Java.runtime");
+        data.put("DEPLOY_JAVA_RUNTIME_NAME", "$APPDIR/runtime");
         data.put("DEPLOY_BUNDLE_SHORT_VERSION",
                 VERSION.fetchFrom(params) != null ?
                 VERSION.fetchFrom(params) : "1.0.0");
@@ -874,7 +874,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             throw ioe;
         }
 
-        // sign all plugins and frameworks
+        // sign all runtime and frameworks
         Consumer<? super Path> signIdentifiedByPList = path -> {
             //noinspection ThrowableResultOfMethodCallIgnored
             if (toThrow.get() != null) return;
@@ -913,9 +913,9 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             }
         };
 
-        Path pluginsPath = appLocation.resolve("Contents/PlugIns");
-        if (Files.isDirectory(pluginsPath)) {
-            Files.list(pluginsPath)
+        Path javaPath = appLocation.resolve("Contents/runtime");
+        if (Files.isDirectory(javaPath)) {
+            Files.list(javaPath)
                     .forEach(signIdentifiedByPList);
 
             ioe = toThrow.get();

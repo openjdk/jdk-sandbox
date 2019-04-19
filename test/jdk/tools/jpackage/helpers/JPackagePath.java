@@ -152,15 +152,17 @@ public class JPackagePath {
     // Returns path including executable to java in image runtime folder
     public static String getRuntimeJava() {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "runtime" + File.separator
+            return "output" + File.separator + "test"
+                    + File.separator + "runtime" + File.separator
                     + "bin" + File.separator + "java.exe";
         } else if (JPackageHelper.isOSX()) {
             return "output" + File.separator + "test.app" + File.separator
-                    + "Contents" + File.separator + "PlugIns" + File.separator
-                    + "Java.runtime" + File.separator + "Contents" + File.separator
+                    + "Contents" + File.separator
+                    + "runtime" + File.separator + "Contents" + File.separator
                     + "Home" + File.separator + "bin" + File.separator + "java";
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "runtime" + File.separator
+            return "output" + File.separator + "test"
+                    + File.separator + "runtime" + File.separator
                     + "bin" + File.separator + "java";
         } else {
             throw new AssertionError("Cannot detect platform");
@@ -175,16 +177,17 @@ public class JPackagePath {
     // Returns path to bin folder in image runtime
     public static String getRuntimeBin() {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "runtime"
-                    + File.separator + "bin";
+            return "output" + File.separator + "test"
+                    + File.separator + "runtime" + File.separator + "bin";
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "PlugIns" + File.separator + "Java.runtime"
-                    + File.separator + "Contents" + File.separator + "Home" + File.separator
-                    + "bin";
+            return "output" + File.separator + "test.app"
+                    + File.separator + "Contents"
+                    + File.separator + "runtime"
+                    + File.separator + "Contents"
+                    + File.separator + "Home" + File.separator + "bin";
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "runtime"
-                    + File.separator + "bin";
+            return "output" + File.separator + "test"
+                    + File.separator + "runtime" + File.separator + "bin";
         } else {
             throw new AssertionError("Cannot detect platform");
         }
