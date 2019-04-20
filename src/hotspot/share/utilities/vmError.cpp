@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -524,6 +524,9 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->print("%s", buf);
        st->print(" (0x%x)", _id);                // signal number
        st->print(" at pc=" PTR_FORMAT, p2i(_pc));
+       if (_siginfo != NULL && os::signal_sent_by_kill(_siginfo)) {
+         st->print(" (sent by kill)");
+       }
      } else {
        if (should_report_bug(_id)) {
          st->print("Internal Error");
@@ -1458,9 +1461,13 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     }
   }
 
-  // print to screen
+  // Part 1: print an abbreviated version (the '#' section) to stdout.
   if (!out_done) {
-    report(&out, false);
+    // Suppress this output if we plan to print Part 2 to stdout too.
+    // No need to have the "#" section twice.
+    if (!(ErrorFileToStdout && out.fd() == 1)) {
+      report(&out, false);
+    }
 
     out_done = true;
 
@@ -1468,21 +1475,27 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     _current_step_info = "";
   }
 
+  // Part 2: print a full error log file (optionally to stdout or stderr).
   // print to error log file
   if (!log_done) {
     // see if log file is already open
     if (!log.is_open()) {
       // open log file
-      fd_log = prepare_log_file(ErrorFile, "hs_err_pid%p.log", buffer, sizeof(buffer));
-      if (fd_log != -1) {
-        out.print_raw("# An error report file with more information is saved as:\n# ");
-        out.print_raw_cr(buffer);
-
-        log.set_fd(fd_log);
+      if (ErrorFileToStdout) {
+        fd_log = 1;
+      } else if (ErrorFileToStderr) {
+        fd_log = 2;
       } else {
-        out.print_raw_cr("# Can not save log file, dump to screen..");
-        log.set_fd(fd_out);
+        fd_log = prepare_log_file(ErrorFile, "hs_err_pid%p.log", buffer, sizeof(buffer));
+        if (fd_log != -1) {
+          out.print_raw("# An error report file with more information is saved as:\n# ");
+          out.print_raw_cr(buffer);
+        } else {
+          out.print_raw_cr("# Can not save log file, dump to screen..");
+          fd_log = 1;
+        }
       }
+      log.set_fd(fd_log);
     }
 
     report(&log, true);
@@ -1490,7 +1503,7 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     _current_step = 0;
     _current_step_info = "";
 
-    if (fd_log != -1) {
+    if (fd_log > 3) {
       close(fd_log);
       fd_log = -1;
     }
@@ -1738,7 +1751,16 @@ void VMError::controlled_crash(int how) {
   const char* const eol = os::line_separator();
   const char* const msg = "this message should be truncated during formatting";
   char * const dataPtr = NULL;  // bad data pointer
-  const void (*funcPtr)(void) = (const void(*)()) 0xF;  // bad function pointer
+  const void (*funcPtr)(void);  // bad function pointer
+
+#if defined(PPC64) && !defined(ABI_ELFv2)
+  struct FunctionDescriptor functionDescriptor;
+
+  functionDescriptor.set_entry((address) 0xF);
+  funcPtr = (const void(*)()) &functionDescriptor;
+#else
+  funcPtr = (const void(*)()) 0xF;
+#endif
 
   // Keep this in sync with test/hotspot/jtreg/runtime/ErrorHandling/ErrorHandler.java
   // which tests cases 1 thru 13.

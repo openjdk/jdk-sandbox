@@ -35,7 +35,7 @@
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
-#include "gc/shenandoah/shenandoahRootProcessor.hpp"
+#include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahTraversalGC.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
@@ -123,15 +123,13 @@ void ShenandoahMarkCompact::do_it(GCCause::Cause gc_cause) {
 
   heap->make_parsable(true);
 
-  CodeCache::gc_prologue();
-
   OrderAccess::fence();
 
   phase1_mark_heap();
 
   // Once marking is done, which may have fixed up forwarded objects, we can drop it.
   // Coming out of Full GC, we would not have any forwarded objects.
-  // This also prevents read barrier from kicking in while adjusting pointers in phase3.
+  // This also prevents resolves with fwdptr from kicking in while adjusting pointers in phase3.
   heap->set_has_forwarded_objects(false);
 
   heap->set_full_gc_move_in_progress(true);
@@ -168,7 +166,6 @@ void ShenandoahMarkCompact::do_it(GCCause::Cause gc_cause) {
   }
   FREE_C_HEAP_ARRAY(ShenandoahHeapRegionSet*, worker_slices);
 
-  CodeCache::gc_epilogue();
   JvmtiExport::gc_epilogue();
 
   heap->set_full_gc_move_in_progress(false);
@@ -575,9 +572,9 @@ public:
     MarkingCodeBlobClosure adjust_code_closure(&cl,
                                              CodeBlobToOopClosure::FixRelocations);
 
-    _rp->process_all_roots(&cl, &cl,
-                           &adjust_cld_closure,
-                           &adjust_code_closure, NULL, worker_id);
+    _rp->update_all_roots<AlwaysTrueClosure>(&cl,
+                                             &adjust_cld_closure,
+                                             &adjust_code_closure, NULL, worker_id);
   }
 };
 

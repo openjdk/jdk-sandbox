@@ -477,7 +477,8 @@ void SafepointSynchronize::disarm_safepoint() {
       assert(!cur_state->is_running(), "Thread not suspended at safepoint");
       cur_state->restart(); // TSS _running
       assert(cur_state->is_running(), "safepoint state has not been reset");
-      SafepointMechanism::disarm_local_poll(current);
+
+      SafepointMechanism::disarm_if_needed(current, false /* NO release */);
     }
   } // ~JavaThreadIteratorWithHandle
 
@@ -716,8 +717,6 @@ static bool safepoint_safe_with(JavaThread *thread, JavaThreadState state) {
 }
 
 bool SafepointSynchronize::handshake_safe(JavaThread *thread) {
-  // The polls must be armed otherwise the safe state can change to unsafe at any time.
-  assert(SafepointMechanism::should_block(thread), "Must be armed");
   // This function must be called with the Threads_lock held so an externally
   // suspended thread cannot be resumed thus it is safe.
   assert(Threads_lock->owned_by_self() && Thread::current()->is_VM_thread(),
@@ -806,9 +805,9 @@ void SafepointSynchronize::block(JavaThread *thread) {
 
       // This part we can skip if we notice we miss or are in a future safepoint.
       OrderAccess::storestore();
-      thread->set_thread_state(_thread_blocked);
+      // Load in wait barrier should not float up
+      thread->set_thread_state_fence(_thread_blocked);
 
-      OrderAccess::fence(); // Load in wait barrier should not float up
       _wait_barrier->wait(static_cast<int>(safepoint_id));
       assert(_state != _synchronized, "Can't be");
 
@@ -851,6 +850,9 @@ void SafepointSynchronize::block(JavaThread *thread) {
     thread->handle_special_runtime_exit_condition(
       !thread->is_at_poll_safepoint() && (state != _thread_in_native_trans));
   }
+
+  // cross_modify_fence is done by SafepointMechanism::block_if_requested_slow
+  // which is the only caller here.
 }
 
 // ------------------------------------------------------------------------------------------------------
@@ -902,6 +904,16 @@ void SafepointSynchronize::print_safepoint_timeout() {
   // To debug the long safepoint, specify both AbortVMOnSafepointTimeout &
   // ShowMessageBoxOnError.
   if (AbortVMOnSafepointTimeout) {
+    // Send the blocking thread a signal to terminate and write an error file.
+    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *cur_thread = jtiwh.next(); ) {
+      if (cur_thread->safepoint_state()->is_running()) {
+        if (!os::signal_thread(cur_thread, SIGILL, "blocking a safepoint")) {
+          break; // Could not send signal. Report fatal error.
+        }
+        // Give cur_thread a chance to report the error and terminate the VM.
+        os::sleep(Thread::current(), 3000, false);
+      }
+    }
     fatal("Safepoint sync time longer than " INTX_FORMAT "ms detected when executing %s.",
           SafepointTimeoutDelay, VMThread::vm_operation()->name());
   }

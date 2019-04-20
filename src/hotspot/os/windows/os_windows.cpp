@@ -36,6 +36,7 @@
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/filemap.hpp"
 #include "oops/oop.inline.hpp"
@@ -669,6 +670,10 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
   } else {
     log_warning(os, thread)("Failed to start thread - _beginthreadex failed (%s) for attributes: %s.",
       os::errno_name(errno), describe_beginthreadex_attributes(buf, sizeof(buf), stack_size, initflag));
+    // Log some OS information which might explain why creating the thread failed.
+    log_info(os, thread)("Number of threads approx. running in the VM: %d", Threads::number_of_threads());
+    LogStream st(Log(os, thread)::info());
+    os::print_memory_info(&st);
   }
 
   if (thread_handle == NULL) {
@@ -1596,6 +1601,10 @@ void os::print_os_info(outputStream* st) {
 #endif
   st->print("OS:");
   os::win32::print_windows_version(st);
+
+#ifdef _LP64
+  VM_Version::print_platform_virtualization_info(st);
+#endif
 }
 
 void os::win32::print_windows_version(outputStream* st) {
@@ -1797,6 +1806,11 @@ void os::print_memory_info(outputStream* st) {
   st->cr();
 }
 
+bool os::signal_sent_by_kill(const void* siginfo) {
+  // TODO: Is this possible?
+  return false;
+}
+
 void os::print_siginfo(outputStream *st, const void* siginfo) {
   const EXCEPTION_RECORD* const er = (EXCEPTION_RECORD*)siginfo;
   st->print("siginfo:");
@@ -1828,6 +1842,11 @@ void os::print_siginfo(outputStream *st, const void* siginfo) {
     }
   }
   st->cr();
+}
+
+bool os::signal_thread(Thread* thread, int sig, const char* reason) {
+  // TODO: Can we kill thread?
+  return false;
 }
 
 void os::print_signal_handlers(outputStream* st, char* buf, size_t buflen) {
@@ -4981,17 +5000,13 @@ char* os::pd_remap_memory(int fd, const char* file_name, size_t file_offset,
                           char *addr, size_t bytes, bool read_only,
                           bool allow_exec) {
   // This OS does not allow existing memory maps to be remapped so we
-  // have to unmap the memory before we remap it.
-  if (!os::unmap_memory(addr, bytes)) {
-    return NULL;
-  }
+  // would have to unmap the memory before we remap it.
 
-  // There is a very small theoretical window between the unmap_memory()
-  // call above and the map_memory() call below where a thread in native
-  // code may be able to access an address that is no longer mapped.
-
-  return os::map_memory(fd, file_name, file_offset, addr, bytes,
-                        read_only, allow_exec);
+  // Because there is a small window between unmapping memory and mapping
+  // it in again with different protections, CDS archives are mapped RW
+  // on windows, so this function isn't called.
+  ShouldNotReachHere();
+  return NULL;
 }
 
 

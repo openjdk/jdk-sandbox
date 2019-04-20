@@ -367,8 +367,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "Print out every time compilation is longer than "                \
           "a given threshold")                                              \
                                                                             \
-  develop(bool, SafepointALot, false,                                       \
+  diagnostic(bool, SafepointALot, false,                                    \
           "Generate a lot of safepoints. This works with "                  \
+          "GuaranteedSafepointInterval")                                    \
+                                                                            \
+  diagnostic(bool, HandshakeALot, false,                                    \
+          "Generate a lot of handshakes. This works with "                  \
           "GuaranteedSafepointInterval")                                    \
                                                                             \
   product_pd(bool, BackgroundCompilation,                                   \
@@ -871,7 +875,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "by the application (Solaris & Linux only)")                      \
                                                                             \
   product(bool, AllowJNIEnvProxy, false,                                    \
-          "Allow JNIEnv proxies for jdbx")                                  \
+          "(Deprecated) Allow JNIEnv proxies for jdbx")                     \
                                                                             \
   product(bool, RestoreMXCSROnJNICalls, false,                              \
           "Restore MXCSR when returning from JNI calls")                    \
@@ -983,6 +987,10 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
   /* change to false by default sometime after Mustang */                   \
   product(bool, VerifyMergedCPBytecodes, true,                              \
           "Verify bytecodes after RedefineClasses constant pool merging")   \
+                                                                            \
+  product(bool, AllowRedefinitionToAddDeleteMethods, false,                 \
+          "Allow redefinition to add and delete private static or "         \
+          "final methods for compatibility with old releases")              \
                                                                             \
   develop(bool, TraceBytecodes, false,                                      \
           "Trace bytecode execution")                                       \
@@ -1244,7 +1252,7 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
           "exit")                                                           \
                                                                             \
   product(bool, PrintFlagsRanges, false,                                    \
-          "Print VM flags and their ranges and exit VM")                    \
+          "Print VM flags and their ranges")                                \
                                                                             \
   diagnostic(bool, SerializeVMOutput, true,                                 \
           "Use a mutex to serialize output to tty and LogFile")             \
@@ -1272,6 +1280,12 @@ define_pd_global(uint64_t,MaxRAM,                    1ULL*G);
                                                                             \
   product(bool, DisplayVMOutputToStdout, false,                             \
           "If DisplayVMOutput is true, display all VM output to stdout")    \
+                                                                            \
+  product(bool, ErrorFileToStderr, false,                                   \
+          "If true, error data is printed to stderr instead of a file")     \
+                                                                            \
+  product(bool, ErrorFileToStdout, false,                                   \
+          "If true, error data is printed to stdout instead of a file")     \
                                                                             \
   product(bool, UseHeavyMonitors, false,                                    \
           "use heavyweight instead of lightweight Java monitors")           \

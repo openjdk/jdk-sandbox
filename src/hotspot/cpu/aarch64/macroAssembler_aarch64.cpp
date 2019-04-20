@@ -812,6 +812,18 @@ address MacroAssembler::emit_trampoline_stub(int insts_call_instruction_offset,
   return stub_start_addr;
 }
 
+void MacroAssembler::emit_static_call_stub() {
+  // CompiledDirectStaticCall::set_to_interpreted knows the
+  // exact layout of this stub.
+
+  isb();
+  mov_metadata(rmethod, (Metadata*)NULL);
+
+  // Jump to the entry point of the i2c stub.
+  movptr(rscratch1, 0);
+  br(rscratch1);
+}
+
 void MacroAssembler::c2bool(Register x) {
   // implements x == 0 ? 0 : 1
   // note: must only look at least-significant byte of x
@@ -4305,7 +4317,7 @@ void MacroAssembler::adrp(Register reg1, const Address &dest, unsigned long &byt
 }
 
 void MacroAssembler::load_byte_map_base(Register reg) {
-  jbyte *byte_map_base =
+  CardTable::CardValue* byte_map_base =
     ((CardTableBarrierSet*)(BarrierSet::barrier_set()))->card_table()->byte_map_base();
 
   if (is_valid_AArch64_address((address)byte_map_base)) {

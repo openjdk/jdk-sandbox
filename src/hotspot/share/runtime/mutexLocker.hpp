@@ -48,7 +48,8 @@ extern Mutex*   StringTableWeakActive_lock;      // STringTable weak storage act
 extern Mutex*   JNIHandleBlockFreeList_lock;     // a lock on the JNI handle block free list
 extern Mutex*   VMWeakAlloc_lock;                // VM Weak Handles storage allocate list lock
 extern Mutex*   VMWeakActive_lock;               // VM Weak Handles storage active list lock
-extern Mutex*   ResolvedMethodTable_lock;        // a lock on the ResolvedMethodTable updates
+extern Mutex*   ResolvedMethodTableWeakAlloc_lock;  // ResolvedMethodTable weak storage allocate list
+extern Mutex*   ResolvedMethodTableWeakActive_lock; // ResolvedMethodTable weak storage active list
 extern Mutex*   JmethodIdCreation_lock;          // a lock on creating JNI method identifiers
 extern Mutex*   JfieldIdCreation_lock;           // a lock on creating JNI static field identifiers
 extern Monitor* JNICritical_lock;                // a lock used while entering and exiting JNI critical regions, allows GC to sometimes get in
@@ -72,6 +73,7 @@ extern Monitor* VMOperationRequest_lock;         // a lock on Threads waiting fo
 extern Monitor* Threads_lock;                    // a lock on the Threads table of active Java threads
                                                  // (also used by Safepoints too to block threads creation/destruction)
 extern Mutex*   NonJavaThreadsList_lock;         // a lock on the NonJavaThreads list
+extern Mutex*   NonJavaThreadsListSync_lock;     // a lock for NonJavaThreads list synchronization
 extern Monitor* CGC_lock;                        // used for coordination between
                                                  // fore- & background GC threads.
 extern Monitor* STS_lock;                        // used for joining/leaving SuspendibleThreadSet.
@@ -96,6 +98,7 @@ extern Mutex*   CompileStatistics_lock;          // a lock held when updating co
 extern Mutex*   DirectivesStack_lock;            // a lock held when mutating the dirstack and ref counting directives
 extern Mutex*   MultiArray_lock;                 // a lock used to guard allocation of multi-dim arrays
 extern Monitor* Terminator_lock;                 // a lock used to guard termination of the vm
+extern Monitor* InitCompleted_lock;              // a lock used to signal threads waiting on init completed
 extern Monitor* BeforeExit_lock;                 // a lock used to guard cleanups and shutdown hooks
 extern Monitor* Notify_lock;                     // a lock used to synchronize the start-up of the vm
 extern Mutex*   ProfilePrint_lock;               // a lock used to serialize the printing of profiles

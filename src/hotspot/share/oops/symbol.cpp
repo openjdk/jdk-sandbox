@@ -34,6 +34,7 @@
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_length_and_refcount(int length, int refcount) {
   STATIC_ASSERT(max_symbol_length == ((1 << 16) - 1));
@@ -199,6 +200,66 @@ const char* Symbol::as_klass_external_name() const {
   return str;
 }
 
+static void print_class(outputStream *os, char *class_str, int len) {
+  for (int i = 0; i < len; ++i) {
+    if (class_str[i] == '/') {
+      os->put('.');
+    } else {
+      os->put(class_str[i]);
+    }
+  }
+}
+
+static void print_array(outputStream *os, char *array_str, int len) {
+  int dimensions = 0;
+  for (int i = 0; i < len; ++i) {
+    if (array_str[i] == '[') {
+      dimensions++;
+    } else if (array_str[i] == 'L') {
+      // Expected format: L<type name>;. Skip 'L' and ';' delimiting the type name.
+      print_class(os, array_str+i+1, len-i-2);
+      break;
+    } else {
+      os->print("%s", type2name(char2type(array_str[i])));
+    }
+  }
+  for (int i = 0; i < dimensions; ++i) {
+    os->print("[]");
+  }
+}
+
+void Symbol::print_as_signature_external_return_type(outputStream *os) {
+  for (SignatureStream ss(this); !ss.is_done(); ss.next()) {
+    if (ss.at_return_type()) {
+      if (ss.is_array()) {
+        print_array(os, (char*)ss.raw_bytes(), (int)ss.raw_length());
+      } else if (ss.is_object()) {
+        // Expected format: L<type name>;. Skip 'L' and ';' delimiting the class name.
+        print_class(os, (char*)ss.raw_bytes()+1, (int)ss.raw_length()-2);
+      } else {
+        os->print("%s", type2name(ss.type()));
+      }
+    }
+  }
+}
+
+void Symbol::print_as_signature_external_parameters(outputStream *os) {
+  bool first = true;
+  for (SignatureStream ss(this); !ss.is_done(); ss.next()) {
+    if (ss.at_return_type()) break;
+    if (!first) { os->print(", "); }
+    if (ss.is_array()) {
+      print_array(os, (char*)ss.raw_bytes(), (int)ss.raw_length());
+    } else if (ss.is_object()) {
+      // Skip 'L' and ';'.
+      print_class(os, (char*)ss.raw_bytes()+1, (int)ss.raw_length()-2);
+    } else {
+      os->print("%s", type2name(ss.type()));
+    }
+    first = false;
+  }
+}
+
 // Increment refcount while checking for zero.  If the Symbol's refcount becomes zero
 // a thread could be concurrently removing the Symbol.  This is used during SymbolTable
 // lookup to avoid reviving a dead Symbol.
@@ -256,6 +317,30 @@ void Symbol::decrement_refcount() {
       return;
     } else {
       found = Atomic::cmpxchg(old_value - 1, &_length_and_refcount, old_value);
+      if (found == old_value) {
+        return;  // successfully updated.
+      }
+      // refcount changed, try again.
+    }
+  }
+}
+
+void Symbol::make_permanent() {
+  uint32_t found = _length_and_refcount;
+  while (true) {
+    uint32_t old_value = found;
+    int refc = extract_refcount(old_value);
+    if (refc == PERM_REFCOUNT) {
+      return;  // refcount is permanent, permanent is sticky
+    } else if (refc == 0) {
+#ifdef ASSERT
+      print();
+      fatal("refcount underflow");
+#endif
+      return;
+    } else {
+      int len = extract_length(old_value);
+      found = Atomic::cmpxchg(pack_length_and_refcount(len, PERM_REFCOUNT), &_length_and_refcount, old_value);
       if (found == old_value) {
         return;  // successfully updated.
       }
