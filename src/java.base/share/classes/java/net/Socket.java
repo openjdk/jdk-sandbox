@@ -1469,8 +1469,9 @@ class Socket implements java.io.Closeable {
         try {
             getImpl().setOption(SocketOptions.IP_TOS, tc);
         } catch (SocketException se) {
-            // may not be supported to change when socket is connected
-            if (!isConnected())
+            // not supported if socket already connected
+            // Solaris returns error in such cases
+            if(!isConnected())
                 throw se;
         }
     }
@@ -1858,14 +1859,7 @@ class Socket implements java.io.Closeable {
      * @since 9
      */
     public <T> Socket setOption(SocketOption<T> name, T value) throws IOException {
-        try {
-            getImpl().setOption(name, value);
-        } catch (SocketException se) {
-            // may not be supported to change when socket is connected
-            if (name != StandardSocketOptions.IP_TOS || !isConnected()) {
-                throw se;
-            }
-        }
+        getImpl().setOption(name, value);
         return this;
     }
 

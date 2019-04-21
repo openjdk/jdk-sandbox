@@ -115,9 +115,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     // used when SO_REUSEADDR is emulated, protected by stateLock
     private boolean isReuseAddress;
 
-    // cached value of IPV6_TCLASS or IP_TOS socket option, protected by stateLock
-    private int trafficClass;
-
     // read or accept timeout in millis
     private volatile int timeout;
 
@@ -198,7 +195,13 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private void configureNonBlocking(FileDescriptor fd) throws IOException {
         if (!nonBlocking) {
             assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
-            IOUtil.configureBlocking(fd, false);
+            stateLock.lock();
+            try {
+                ensureOpen();
+                IOUtil.configureBlocking(fd, false);
+            } finally {
+                stateLock.unlock();
+            }
             nonBlocking = true;
         }
     }
@@ -980,9 +983,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             ensureOpen();
             if (opt == StandardSocketOptions.IP_TOS) {
                 // maps to IP_TOS or IPV6_TCLASS
-                int i = (int) value;
-                Net.setSocketOption(fd, family(), opt, i);
-                trafficClass = i;
+                Net.setSocketOption(fd, family(), opt, value);
             } else if (opt == StandardSocketOptions.SO_REUSEADDR) {
                 boolean b = (boolean) value;
                 if (Net.useExclusiveBind()) {
@@ -1007,7 +1008,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         try {
             ensureOpen();
             if (opt == StandardSocketOptions.IP_TOS) {
-                return (T) Integer.valueOf(trafficClass);
+                return (T) Net.getSocketOption(fd, family(), opt);
             } else if (opt == StandardSocketOptions.SO_REUSEADDR) {
                 if (Net.useExclusiveBind()) {
                     return (T) Boolean.valueOf(isReuseAddress);
@@ -1063,7 +1064,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 case IP_TOS: {
                     int i = intValue(value, "IP_TOS");
                     Net.setSocketOption(fd, family(), StandardSocketOptions.IP_TOS, i);
-                    trafficClass = i;
                     break;
                 }
                 case TCP_NODELAY: {
@@ -1159,7 +1159,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 case SO_RCVBUF:
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_RCVBUF);
                 case IP_TOS:
-                    return trafficClass;
+                    return Net.getSocketOption(fd, family(), StandardSocketOptions.IP_TOS);
                 case SO_KEEPALIVE:
                     return Net.getSocketOption(fd, StandardSocketOptions.SO_KEEPALIVE);
                 case SO_REUSEPORT:
