@@ -174,7 +174,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         if (nanos == 0) {
             millis = -1;
         } else {
-            millis = MILLISECONDS.convert(nanos, NANOSECONDS);
+            millis = NANOSECONDS.toMillis(nanos);
         }
         Net.poll(fd, event, millis);
     }
@@ -266,19 +266,16 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         throws IOException
     {
         assert nonBlocking;
-        long remainingNanos = nanos;
         long startNanos = System.nanoTime();
-        int n;
-        do {
+        int n = tryRead(fd, b, off, len);
+        while (n == IOStatus.UNAVAILABLE && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Read timed out");
+            }
             park(fd, Net.POLLIN, remainingNanos);
             n = tryRead(fd, b, off, len);
-            if (n == IOStatus.UNAVAILABLE) {
-                remainingNanos = nanos - (System.nanoTime() - startNanos);
-                if (remainingNanos <= 0) {
-                    throw new SocketTimeoutException("Read timed out");
-                }
-            }
-        } while (n == IOStatus.UNAVAILABLE && isOpen());
+        }
         return n;
     }
 
@@ -297,20 +294,16 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             if (isInputClosed)
                 return -1;
             int timeout = this.timeout;
-            if (timeout > 0)
+            if (timeout > 0) {
+                // read with timeout
                 configureNonBlocking(fd);
-            n = tryRead(fd, b, off, len);
-            if (IOStatus.okayToRetry(n) && isOpen()) {
-                if (timeout > 0) {
-                    // read with timeout
-                    long nanos = NANOSECONDS.convert(timeout, MILLISECONDS);
-                    n = timedRead(fd, b, off, len, nanos);
-                } else {
-                    // read, no timeout
-                    do {
-                        park(fd, Net.POLLIN);
-                        n = tryRead(fd, b, off, len);
-                    } while (IOStatus.okayToRetry(n) && isOpen());
+                n = timedRead(fd, b, off, len, MILLISECONDS.toNanos(timeout));
+            } else {
+                // read, no timeout
+                n = tryRead(fd, b, off, len);
+                while (IOStatus.okayToRetry(n) && isOpen()) {
+                    park(fd, Net.POLLIN);
+                    n = tryRead(fd, b, off, len);
                 }
             }
             return n;
@@ -549,20 +542,18 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
      * Waits for a connection attempt to finish with a timeout
      * @throws SocketTimeoutException if the connect timeout elapses
      */
-    private void timedFinishConnect(FileDescriptor fd, long nanos) throws IOException {
-        long remainingNanos = nanos;
+    private boolean timedFinishConnect(FileDescriptor fd, long nanos) throws IOException {
         long startNanos = System.nanoTime();
-        boolean polled;
-        do {
+        boolean polled = Net.pollConnectNow(fd);
+        while (!polled && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Connect timed out");
+            }
             park(fd, Net.POLLOUT, remainingNanos);
             polled = Net.pollConnectNow(fd);
-            if (!polled) {
-                remainingNanos = nanos - (System.nanoTime() - startNanos);
-                if (remainingNanos <= 0) {
-                    throw new SocketTimeoutException("Connect timed out");
-                }
-            }
-        } while (!polled && isOpen());
+        }
+        return polled && isOpen();
     }
 
     /**
@@ -596,25 +587,23 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                     if (millis > 0)
                         configureNonBlocking(fd);
                     int n = Net.connect(fd, address, port);
-                    if (isOpen()) {
-                        if (n > 0) {
-                            // connection established
-                            connected = true;
-                        } else if (IOStatus.okayToRetry(n)) {
-                            // not established or interrupted
-                            if (millis > 0) {
-                                // finish connect with timeout
-                                long nanos = NANOSECONDS.convert(millis, MILLISECONDS);
-                                timedFinishConnect(fd, nanos);
-                            } else {
-                                // finish connect, no timeout
-                                boolean polled;
-                                do {
-                                    park(fd, Net.POLLOUT);
-                                    polled = Net.pollConnectNow(fd);
-                                } while (!polled && isOpen());
+                    if (n > 0) {
+                        // connection established
+                        connected = true;
+                    } else {
+                        assert IOStatus.okayToRetry(n);
+                        if (millis > 0) {
+                            // finish connect with timeout
+                            long nanos = MILLISECONDS.toNanos(millis);
+                            connected = timedFinishConnect(fd, nanos);
+                        } else {
+                            // finish connect, no timeout
+                            boolean polled = false;
+                            while (!polled && isOpen()) {
+                                park(fd, Net.POLLOUT);
+                                polled = Net.pollConnectNow(fd);
                             }
-                            connected = isOpen();
+                            connected = polled && isOpen();
                         }
                     }
                 } finally {
@@ -719,19 +708,16 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         throws IOException
     {
         assert nonBlocking;
-        long remainingNanos = nanos;
         long startNanos = System.nanoTime();
-        int n;
-        do {
+        int n = Net.accept(fd, newfd, isaa);
+        while (n == IOStatus.UNAVAILABLE && isOpen()) {
+            long remainingNanos = nanos - (System.nanoTime() - startNanos);
+            if (remainingNanos <= 0) {
+                throw new SocketTimeoutException("Accept timed out");
+            }
             park(fd, Net.POLLIN, remainingNanos);
             n = Net.accept(fd, newfd, isaa);
-            if (n == IOStatus.UNAVAILABLE) {
-                remainingNanos = nanos - (System.nanoTime() - startNanos);
-                if (remainingNanos <= 0) {
-                    throw new SocketTimeoutException("Accept timed out");
-                }
-            }
-        } while (n == IOStatus.UNAVAILABLE && isOpen());
+        }
         return n;
     }
 
@@ -768,19 +754,16 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             int n = 0;
             FileDescriptor fd = beginAccept();
             try {
-                if (remainingNanos > 0)
+                if (remainingNanos > 0) {
+                    // accept with timeout
                     configureNonBlocking(fd);
-                n = Net.accept(fd, newfd, isaa);
-                if (IOStatus.okayToRetry(n) && isOpen()) {
-                    if (remainingNanos > 0) {
-                        // accept with timeout
-                        n = timedAccept(fd, newfd, isaa, remainingNanos);
-                    } else {
-                        // accept, no timeout
-                        do {
-                            park(fd, Net.POLLIN);
-                            n = Net.accept(fd, newfd, isaa);
-                        } while (IOStatus.okayToRetry(n) && isOpen());
+                    n = timedAccept(fd, newfd, isaa, remainingNanos);
+                } else {
+                    // accept, no timeout
+                    n = Net.accept(fd, newfd, isaa);
+                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                        park(fd, Net.POLLIN);
+                        n = Net.accept(fd, newfd, isaa);
                     }
                 }
             } finally {
