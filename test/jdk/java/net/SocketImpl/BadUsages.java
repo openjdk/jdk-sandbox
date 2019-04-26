@@ -23,9 +23,10 @@
 
 /*
  * @test
+ * @bug 8221481
  * @compile/module=java.base java/net/PlatformSocketImpl.java
  * @run testng/othervm BadUsages
- * @summary Test the platform SocketImpl in illegal state/bad input scenarios
+ * @summary Test the platform SocketImpl when used in unintended ways
  */
 
 import java.io.IOException;

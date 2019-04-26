@@ -69,9 +69,13 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
  * including behavior and exceptions that are not specified by SocketImpl.
  *
  * The underlying socket used by this SocketImpl is initially configured
- * blocking. If a connect, accept or read is attempted with a timeout then the
- * socket is changed to non-blocking mode. When in non-blocking mode, operations
- * that don't complete immediately will poll the socket.
+ * blocking. If the connect method is used to establish a connection with a
+ * timeout then the socket is configured non-blocking for the connect attempt,
+ * and then restored to blocking mode when the connection is established.
+ * If the accept or read methods are used with a timeout then the socket is
+ * configured non-blocking and is never restored. When in non-blocking mode,
+ * operations that don't complete immediately will poll the socket and preserve
+ * the semantics of blocking operations.
  */
 
 public final class NioSocketImpl extends SocketImpl implements PlatformSocketImpl {
@@ -105,7 +109,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private boolean stream;
     private FileDescriptorCloser closer;
 
-    // lazily set to true when the socket is configured non-blocking
+    // set by configureNonBlockingForever when the socket changed to non-blocking
     private volatile boolean nonBlocking;
 
     // used by connect/read/write/accept, protected by stateLock
@@ -189,20 +193,41 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Configures the socket to be non-blocking (if not already non-blocking)
-     * @throws IOException if there is an I/O error changing the blocking mode
+     * Configures the socket's blocking mode except when socket has been
+     * configured non-blocking by {@code configureNonBlockingForever}.
+     * @throws IOException if closed or there is an I/O error changing the mode
      */
-    private void configureNonBlocking(FileDescriptor fd) throws IOException {
+    private void configureBlocking(FileDescriptor fd, boolean block) throws IOException {
+        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
         if (!nonBlocking) {
-            assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
+            stateLock.lock();
+            try {
+                if (!nonBlocking) {
+                    ensureOpen();
+                    IOUtil.configureBlocking(fd, block);
+                }
+            } finally {
+                stateLock.unlock();
+            }
+        }
+    }
+
+    /**
+     * Configures the socket to be non-blocking. Once configured to non-blocking
+     * by this method then the blocking mode cannot be changed back to blocking.
+     * @throws IOException if closed or there is an I/O error changing the mode
+     */
+    private void configureNonBlockingForever(FileDescriptor fd) throws IOException {
+        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
+        if (!nonBlocking) {
             stateLock.lock();
             try {
                 ensureOpen();
                 IOUtil.configureBlocking(fd, false);
+                nonBlocking = true;
             } finally {
                 stateLock.unlock();
             }
-            nonBlocking = true;
         }
     }
 
@@ -265,7 +290,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private int timedRead(FileDescriptor fd, byte[] b, int off, int len, long nanos)
         throws IOException
     {
-        assert nonBlocking;
         long startNanos = System.nanoTime();
         int n = tryRead(fd, b, off, len);
         while (n == IOStatus.UNAVAILABLE && isOpen()) {
@@ -296,7 +320,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             int timeout = this.timeout;
             if (timeout > 0) {
                 // read with timeout
-                configureNonBlocking(fd);
+                configureNonBlockingForever(fd);
                 n = timedRead(fd, b, off, len, MILLISECONDS.toNanos(timeout));
             } else {
                 // read, no timeout
@@ -584,8 +608,12 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 boolean connected = false;
                 FileDescriptor fd = beginConnect(address, port);
                 try {
-                    if (millis > 0)
-                        configureNonBlocking(fd);
+
+                    // configure socket to non-blocking mode when there is a timeout
+                    if (millis > 0) {
+                        configureBlocking(fd, false);
+                    }
+
                     int n = Net.connect(fd, address, port);
                     if (n > 0) {
                         // connection established
@@ -606,6 +634,12 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                             connected = polled && isOpen();
                         }
                     }
+
+                    // restore socket to blocking mode
+                    if (connected && millis > 0) {
+                        configureBlocking(fd, true);
+                    }
+
                 } finally {
                     endConnect(fd, connected);
                 }
@@ -707,7 +741,6 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                             long nanos)
         throws IOException
     {
-        assert nonBlocking;
         long startNanos = System.nanoTime();
         int n = Net.accept(fd, newfd, isaa);
         while (n == IOStatus.UNAVAILABLE && isOpen()) {
@@ -756,7 +789,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             try {
                 if (remainingNanos > 0) {
                     // accept with timeout
-                    configureNonBlocking(fd);
+                    configureNonBlockingForever(fd);
                     n = timedAccept(fd, newfd, isaa, remainingNanos);
                 } else {
                     // accept, no timeout
@@ -886,7 +919,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 }
             } catch (IOException ignore) { }
 
-            // interrupt and wait for kernel threads to complete I/O operations
+            // interrupt and wait for threads to complete I/O operations
             long reader = readerThread;
             long writer = writerThread;
             if (reader != 0 || writer != 0) {
