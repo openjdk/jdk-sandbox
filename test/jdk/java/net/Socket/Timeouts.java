@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @bug 8221481
  * @library /test/lib
  * @build jdk.test.lib.Utils
  * @run testng/timeout=180 Timeouts
@@ -34,6 +35,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ConnectException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -57,7 +60,7 @@ public class Timeouts {
      * Test timed connect where connection is established
      */
     public void testTimedConnect1() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             try (Socket s = new Socket()) {
                 s.connect(ss.getLocalSocketAddress(), 2000);
             }
@@ -80,7 +83,7 @@ public class Timeouts {
      * Test connect with a timeout of Integer.MAX_VALUE
      */
     public void testTimedConnect3() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             try (Socket s = new Socket()) {
                 s.connect(ss.getLocalSocketAddress(), Integer.MAX_VALUE);
             }
@@ -91,7 +94,7 @@ public class Timeouts {
      * Test connect with a negative timeout.
      */
     public void testTimedConnect4() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             try (Socket s = new Socket()) {
                 try {
                     s.connect(ss.getLocalSocketAddress(), -1);
@@ -287,7 +290,7 @@ public class Timeouts {
     public void testTimedAccept1() throws IOException {
         Socket s1 = null;
         Socket s2 = null;
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             s1 = new Socket();
             s1.connect(ss.getLocalSocketAddress());
             ss.setSoTimeout(30*1000);
@@ -302,7 +305,7 @@ public class Timeouts {
      * Test timed accept where a connection is established after a short delay
      */
     public void testTimedAccept2() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(30*1000);
             scheduleConnect(ss.getLocalSocketAddress(), 2000);
             Socket s = ss.accept();
@@ -314,7 +317,7 @@ public class Timeouts {
      * Test timed accept where the accept times out
      */
     public void testTimedAccept3() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(2000);
             long startMillis = millisTime();
             try {
@@ -333,7 +336,7 @@ public class Timeouts {
      * previous accept timed out.
      */
     public void testTimedAccept4() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(2000);
             try {
                 Socket s = ss.accept();
@@ -353,7 +356,7 @@ public class Timeouts {
      * accept timed out
      */
     public void testTimedAccept5() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(2000);
             try {
                 Socket s = ss.accept();
@@ -374,7 +377,7 @@ public class Timeouts {
      * accept timed out and after a short delay
      */
     public void testTimedAccept6() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(2000);
             try {
                 Socket s = ss.accept();
@@ -392,7 +395,7 @@ public class Timeouts {
      * Test async close of a timed accept
      */
     public void testTimedAccept7() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(30*1000);
             long delay = 2000;
             scheduleClose(ss, delay);
@@ -410,7 +413,7 @@ public class Timeouts {
      * Test timed accept with the thread interrupt status set.
      */
     public void testTimedAccept8() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(2000);
             Thread.currentThread().interrupt();
             long startMillis = millisTime();
@@ -433,7 +436,7 @@ public class Timeouts {
      * Test interrupt of thread blocked in timed accept.
      */
     public void testTimedAccept9() throws IOException {
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(4000);
             // interrupt thread after 1 second
             Future<?> interrupter = scheduleInterrupt(Thread.currentThread(), 1000);
@@ -459,7 +462,7 @@ public class Timeouts {
      */
     public void testTimedAccept10() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(4000);
 
             long startMillis = millisTime();
@@ -486,7 +489,7 @@ public class Timeouts {
      */
     public void testTimedAccept11() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             ss.setSoTimeout(4000);
 
             long startMillis = millisTime();
@@ -543,6 +546,19 @@ public class Timeouts {
         }
     }
 
+    /**
+     * Returns a ServerSocket bound to a port on the loopback address
+     */
+    static ServerSocket boundServerSocket() throws IOException {
+        var loopback = InetAddress.getLoopbackAddress();
+        ServerSocket ss = new ServerSocket();
+        ss.bind(new InetSocketAddress(loopback, 0));
+        return ss;
+    }
+
+    /**
+     * An operation that accepts two arguments and may throw IOException
+     */
     interface ThrowingBiConsumer<T, U> {
         void accept(T t, U u) throws IOException;
     }
@@ -555,7 +571,7 @@ public class Timeouts {
     {
         Socket s1 = null;
         Socket s2 = null;
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = boundServerSocket()) {
             s1 = new Socket();
             s1.connect(ss.getLocalSocketAddress());
             s2 = ss.accept();

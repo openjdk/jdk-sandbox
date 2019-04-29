@@ -136,7 +136,7 @@ public class UdpSocket {
         return new Socket(InetAddress.getLoopbackAddress(), 8000, false);
     }
 
-    private static void closeAll(Deque<Socket> sockets) throws IOException {
+    private void closeAll(Deque<Socket> sockets) throws IOException {
         Socket s;
         while ((s = sockets.poll()) != null) {
             s.close();

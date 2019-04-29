@@ -118,13 +118,14 @@ public class BadUsages {
      * Test connect when already connected.
      */
     public void testConnect4() throws IOException {
-        try (var ss = new ServerSocket(0);
+        try (var ss = new ServerSocket();
              var impl = new PlatformSocketImpl(false)) {
+            var loopback = InetAddress.getLoopbackAddress();
+            ss.bind(new InetSocketAddress(loopback, 0));
             impl.create(true);
-            String host = ss.getInetAddress().getHostAddress();
             int port = ss.getLocalPort();
-            impl.connect(host, port);
-            expectThrows(IOException.class, () -> impl.connect(host, port));
+            impl.connect(loopback, port);
+            expectThrows(IOException.class, () -> impl.connect(loopback, port));
         }
     }
 
@@ -166,11 +167,12 @@ public class BadUsages {
      * Test bind when connected.
      */
     public void testBind3() throws IOException {
-        try (var ss = new ServerSocket(0);
+        try (var ss = new ServerSocket();
              var impl = new PlatformSocketImpl(false)) {
+            var loopback = InetAddress.getLoopbackAddress();
+            ss.bind(new InetSocketAddress(loopback, 0));
             impl.create(true);
             impl.connect(ss.getLocalSocketAddress(), 0);
-            var loopback = InetAddress.getLoopbackAddress();
             expectThrows(IOException.class, () -> impl.bind(loopback, 0));
         }
     }

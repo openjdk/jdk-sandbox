@@ -1578,15 +1578,11 @@ class Socket implements java.io.Closeable {
     public void close() throws IOException {
         closeLock.lock();
         try {
-            if (!closed) {
-                try {
-                    SocketImpl impl = this.impl;
-                    if (impl != null)
-                        impl.close();
-                } finally {
-                    closed = true;
-                }
-            }
+            if (closed)
+                return;
+            closed = true;
+            if (created)
+                impl.close();
         } finally {
             closeLock.unlock();
         }
