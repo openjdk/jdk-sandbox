@@ -35,7 +35,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Set;
 import java.util.Collections;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class implements client sockets (also called just
@@ -63,7 +62,7 @@ class Socket implements java.io.Closeable {
     private boolean bound = false;
     private boolean connected = false;
     private boolean closed = false;
-    private final ReentrantLock closeLock = new ReentrantLock();
+    private Object closeLock = new Object();
     private boolean shutIn = false;
     private boolean shutOut = false;
 
@@ -1575,16 +1574,13 @@ class Socket implements java.io.Closeable {
      * @spec JSR-51
      * @see #isClosed
      */
-    public void close() throws IOException {
-        closeLock.lock();
-        try {
-            if (closed)
+    public synchronized void close() throws IOException {
+        synchronized(closeLock) {
+            if (isClosed())
                 return;
-            closed = true;
             if (created)
                 impl.close();
-        } finally {
-            closeLock.unlock();
+            closed = true;
         }
     }
 
@@ -1705,11 +1701,8 @@ class Socket implements java.io.Closeable {
      * @see #close
      */
     public boolean isClosed() {
-        closeLock.lock();
-        try {
+        synchronized(closeLock) {
             return closed;
-        } finally {
-            closeLock.unlock();
         }
     }
 
