@@ -29,8 +29,8 @@
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  *        jdk.test.lib.Platform
- * @run main TcpTest
- * @run main/othervm -Djdk.net.usePlainSocketImpl TcpTest
+ * @run main TcpTest -d
+ * @run main/othervm -Djdk.net.usePlainSocketImpl TcpTest -d
  */
 
 import java.net.*;

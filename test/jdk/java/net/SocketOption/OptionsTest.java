@@ -153,7 +153,9 @@ public class OptionsTest {
         }
 
         // connected socket
-        try (ServerSocket ss = new ServerSocket(0)) {
+        try (ServerSocket ss = new ServerSocket()) {
+            var loopback = InetAddress.getLoopbackAddress();
+            ss.bind(new InetSocketAddress(loopback, 0));
             try (Socket s1 = new Socket()) {
                 s1.connect(ss.getLocalSocketAddress());
                 try (Socket s2 = ss.accept()) {

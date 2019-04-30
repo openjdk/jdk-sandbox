@@ -911,7 +911,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             this.state = ST_CLOSING;
             assert fd != null && closer != null;
 
-            // shutdown output when linger interval not set
+            // shutdown output when linger interval not set to 0
             try {
                 var SO_LINGER = StandardSocketOptions.SO_LINGER;
                 if ((int) Net.getSocketOption(fd, SO_LINGER) != 0) {
