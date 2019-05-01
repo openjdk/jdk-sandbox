@@ -134,7 +134,7 @@ class TestLDAPServer extends BaseLdapServer {
     private byte[] searchResponse = {0x30, 0x0C, 0x02, 0x01, 0x02, 0x65, 0x07, 0x0A, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00};
 
     public TestLDAPServer() throws IOException {
-        super(new ServerSocket(0, 0, InetAddress.getLoopbackAddress()), true);
+        super(new ServerSocket(0, 0, InetAddress.getLoopbackAddress()));
         setCommonRequestHandler((msg, out) -> {
             switch (msg.getOperation()) {
                 case BIND_REQUEST:

@@ -92,7 +92,6 @@ public class BaseLdapServer extends Thread implements AutoCloseable {
     private ExecutorService workingPool;
     private ConnectionHandler connectionHandler;
     private SessionHandler sessionHandler;
-    private boolean useDaemonThread = false;
 
     enum DebugLevel {
         FULL,      // all debug message will be printed
@@ -114,30 +113,14 @@ public class BaseLdapServer extends Thread implements AutoCloseable {
     }
 
     /**
-     * BaseLdapServer overload constructor with given server socket.
-     *
-     * @param serverSocket given server socket
-     */
-    public BaseLdapServer(ServerSocket serverSocket) {
-        this(serverSocket, false);
-    }
-
-    /**
      * BaseLdapServer constructor with given server socket and specify whether
      * use daemon for each accept connection handling thread.
      *
      * @param serverSocket    given server socket
-     * @param useDaemonThread <tt>true</tt> if use daemon thread
      */
-    public BaseLdapServer(ServerSocket serverSocket, boolean useDaemonThread) {
+    public BaseLdapServer(ServerSocket serverSocket) {
         this.serverSocket = Objects.requireNonNull(serverSocket);
-        this.useDaemonThread = useDaemonThread;
-        if (useDaemonThread) {
-            workingPool = Executors
-                    .newCachedThreadPool(new DefaultDaemonThreadFactory());
-        } else {
-            workingPool = Executors.newCachedThreadPool();
-        }
+        workingPool = Executors.newCachedThreadPool();
         try {
             stackWalker = StackWalker.getInstance(RETAIN_CLASS_REFERENCE);
         } catch (SecurityException se) {
@@ -201,19 +184,17 @@ public class BaseLdapServer extends Thread implements AutoCloseable {
         isRunning = false;
         workingPool.shutdown();
         cleanupClosableRes(serverSocket);
-        if (!useDaemonThread) {
-            // let's cleanup thread pool
-            synchronized (socketList) {
-                socketList.forEach(BaseLdapServer::cleanupClosableRes);
-            }
-            try {
-                if (!workingPool.awaitTermination(10, TimeUnit.SECONDS)) {
-                    workingPool.shutdownNow();
-                }
-            } catch (InterruptedException e) {
+        // let's cleanup thread pool
+        synchronized (socketList) {
+            socketList.forEach(BaseLdapServer::cleanupClosableRes);
+        }
+        try {
+            if (!workingPool.awaitTermination(10, TimeUnit.SECONDS)) {
                 workingPool.shutdownNow();
-                Thread.currentThread().interrupt();
             }
+        } catch (InterruptedException e) {
+            workingPool.shutdownNow();
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -379,19 +360,6 @@ public class BaseLdapServer extends Thread implements AutoCloseable {
             case NONE:
             default:
                 break;
-        }
-    }
-
-    class DefaultDaemonThreadFactory implements ThreadFactory {
-
-        private ThreadFactory defaultThreadFactory = Executors
-                .defaultThreadFactory();
-
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread thread = defaultThreadFactory.newThread(r);
-            thread.setDaemon(true);
-            return thread;
         }
     }
 
