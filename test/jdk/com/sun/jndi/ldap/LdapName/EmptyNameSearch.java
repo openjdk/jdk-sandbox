@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,10 @@
 /**
  * @test
  * @bug 6997561
+ * @library ../lib/
  * @summary A request for better error handling in JNDI
  */
 
-import java.net.Socket;
-import java.net.ServerSocket;
 import java.io.*;
 import javax.naming.*;
 import javax.naming.directory.*;
@@ -46,12 +45,12 @@ public class EmptyNameSearch {
         Thread.sleep(3000);
 
         // Setup JNDI parameters
-        Hashtable env = new Hashtable();
+        Hashtable<String, Object> env = new Hashtable<>();
         env.put(Context.INITIAL_CONTEXT_FACTORY,
             "com.sun.jndi.ldap.LdapCtxFactory");
-        env.put(Context.PROVIDER_URL, "ldap://localhost:" + s.getPortNumber());
+        env.put(Context.PROVIDER_URL, "ldap://localhost:" + s.getPort());
 
-        try {
+        try (s) {
 
             // Create initial context
             System.out.println("Client: connecting...");
@@ -73,9 +72,8 @@ public class EmptyNameSearch {
         }
     }
 
-    static class Server extends Thread {
+    static class Server extends BaseLdapServer {
 
-        private int serverPort = 0;
         private byte[] bindResponse = {
             0x30, 0x0C, 0x02, 0x01, 0x01, 0x61, 0x07, 0x0A,
             0x01, 0x00, 0x04, 0x00, 0x04, 0x00
@@ -85,57 +83,24 @@ public class EmptyNameSearch {
             0x01, 0x02, 0x04, 0x00, 0x04, 0x00
         };
 
-        Server() {
-        }
-
-        public int getPortNumber() {
-            return serverPort;
-        }
-
-        public void run() {
-            try {
-                ServerSocket serverSock = new ServerSocket(0);
-                serverPort = serverSock.getLocalPort();
-                System.out.println("Server: listening on port " + serverPort);
-
-                Socket socket = serverSock.accept();
-                System.out.println("Server: connection accepted");
-
-                InputStream in = socket.getInputStream();
-                OutputStream out = socket.getOutputStream();
-
-                // Read the LDAP BindRequest
-                System.out.println("Server: reading request...");
-                while (in.read() != -1) {
-                    in.skip(in.available());
-                    break;
+        Server() throws IOException {
+            setDebugLevel(DebugLevel.FULL);
+            setCommonRequestHandler((msg, out) -> {
+                switch (msg.getOperation()) {
+                    case BIND_REQUEST:
+                        // Write an LDAP BindResponse
+                        debug("writing response...");
+                        out.write(bindResponse);
+                        break;
+                    case SEARCH_REQUEST:
+                        // Write an LDAP SearchResponse
+                        debug("writing response...");
+                        out.write(searchResponse);
+                        break;
+                    default:
+                        break;
                 }
-
-                // Write an LDAP BindResponse
-                System.out.println("Server: writing response...");
-                out.write(bindResponse);
-                out.flush();
-
-                // Read the LDAP SearchRequest
-                System.out.println("Server: reading request...");
-                while (in.read() != -1) {
-                    in.skip(in.available());
-                    break;
-                }
-
-                // Write an LDAP SearchResponse
-                System.out.println("Server: writing response...");
-                out.write(searchResponse);
-                out.flush();
-
-                in.close();
-                out.close();
-                socket.close();
-                serverSock.close();
-
-            } catch (IOException e) {
-                // ignore
-            }
+            });
         }
     }
 }

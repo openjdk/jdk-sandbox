@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,10 @@
 /**
  * @test
  * @bug 6748156
+ * @library lib/
  * @summary add an new JNDI property to control the boolean flag WaitForReply
  */
 
-import java.net.Socket;
-import java.net.ServerSocket;
-import java.io.*;
 import javax.naming.*;
 import javax.naming.directory.*;
 import java.util.Hashtable;
@@ -41,13 +39,13 @@ public class NoWaitForReplyTest {
         boolean passed = false;
 
         // start the LDAP server
-        DummyServer ldapServer = new DummyServer();
-        ldapServer.start();
+        BaseLdapServer ldapServer = new BaseLdapServer()
+                .setDebugLevel(BaseLdapServer.DebugLevel.FULL).startServer();
 
         // Set up the environment for creating the initial context
-        Hashtable env = new Hashtable(11);
+        Hashtable<String, Object> env = new Hashtable<>(11);
         env.put(Context.PROVIDER_URL, "ldap://localhost:" +
-            ldapServer.getPortNumber());
+                ldapServer.getPort());
         env.put(Context.INITIAL_CONTEXT_FACTORY,
             "com.sun.jndi.ldap.LdapCtxFactory");
 
@@ -61,7 +59,7 @@ public class NoWaitForReplyTest {
         env.put("java.naming.ldap.version", "3");
 
 
-        try {
+        try (ldapServer) {
 
             // Create initial context
             System.out.println("Client: connecting to the server");
@@ -70,7 +68,7 @@ public class NoWaitForReplyTest {
             SearchControls scl = new SearchControls();
             scl.setSearchScope(SearchControls.SUBTREE_SCOPE);
             System.out.println("Client: performing search");
-            NamingEnumeration answer =
+            NamingEnumeration<?> answer =
             ctx.search("ou=People,o=JNDITutorial", "(objectClass=*)", scl);
 
             // Server will never reply: either we waited in the call above until
@@ -84,48 +82,11 @@ public class NoWaitForReplyTest {
         } catch (NamingException e) {
             // timeout (ignore)
         }
-        ldapServer.interrupt();
 
         if (!passed) {
             throw new Exception(
                 "Test FAILED: should not have waited until first search reply");
         }
         System.out.println("Test PASSED");
-    }
-
-    static class DummyServer extends Thread {
-
-        private final ServerSocket serverSocket;
-
-        DummyServer() throws IOException {
-            this.serverSocket = new ServerSocket(0);
-            System.out.println("Server: listening on port " + serverSocket.getLocalPort());
-        }
-
-        public int getPortNumber() {
-            return serverSocket.getLocalPort();
-        }
-
-        public void run() {
-            try (Socket socket = serverSocket.accept()) {
-                System.out.println("Server: accepted a connection");
-                InputStream in = socket.getInputStream();
-
-                while (!isInterrupted()) {
-                   in.skip(in.available());
-                }
-
-            } catch (Exception e) {
-                // ignore
-
-            } finally {
-                System.out.println("Server: shutting down");
-                try {
-                    serverSocket.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        }
     }
 }

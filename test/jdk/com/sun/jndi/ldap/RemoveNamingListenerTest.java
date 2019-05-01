@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,13 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-import java.io.BufferedInputStream;
+
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.ConcurrentModificationException;
 import java.util.Hashtable;
 import javax.naming.Context;
@@ -44,6 +41,7 @@ import javax.naming.event.ObjectChangeListener;
  * @summary Incorrect usage of Iterator in Java 8 In com.sun.jndi.ldap.
  * EventSupport.removeNamingListener
  * @modules java.naming
+ * @library lib/
  * @run main RemoveNamingListenerTest
  */
 public class RemoveNamingListenerTest {
@@ -130,112 +128,26 @@ public class RemoveNamingListenerTest {
     }
 }
 
-class TestLDAPServer extends Thread {
+class TestLDAPServer extends BaseLdapServer {
 
-    private final int LDAP_PORT;
-    private final ServerSocket serverSocket;
-    private volatile boolean isRunning;
+    private byte[] bindResponse = {0x30, 0x0C, 0x02, 0x01, 0x01, 0x61, 0x07, 0x0A, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00};
+    private byte[] searchResponse = {0x30, 0x0C, 0x02, 0x01, 0x02, 0x65, 0x07, 0x0A, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00};
 
-    TestLDAPServer() throws IOException {
-        serverSocket = new ServerSocket(0);
-        isRunning = true;
-        LDAP_PORT = serverSocket.getLocalPort();
-        setDaemon(true);
-    }
-
-    public int getPort() {
-        return LDAP_PORT;
-    }
-
-    public void stopServer() {
-        isRunning = false;
-        if (serverSocket != null && !serverSocket.isClosed()) {
-            try {
-                // this will cause ServerSocket.accept() to throw SocketException.
-                serverSocket.close();
-            } catch (IOException ignored) {
-            }
-        }
-    }
-
-    @Override
-    public void run() {
-        try {
-            while (isRunning) {
-                Socket clientSocket = serverSocket.accept();
-                Thread handler = new Thread(new LDAPServerHandler(clientSocket));
-                handler.setDaemon(true);
-                handler.start();
-            }
-        } catch (IOException iOException) {
-            //do not throw exception if server is not running.
-            if (isRunning) {
-                throw new RuntimeException(iOException);
-            }
-        } finally {
-            stopServer();
-        }
-    }
-}
-
-class LDAPServerHandler implements Runnable {
-
-    private final Socket clientSocket;
-
-    public LDAPServerHandler(final Socket clientSocket) {
-        this.clientSocket = clientSocket;
-    }
-
-    @Override
-    public void run() {
-        BufferedInputStream in = null;
-        PrintWriter out = null;
-        byte[] bindResponse = {0x30, 0x0C, 0x02, 0x01, 0x01, 0x61, 0x07, 0x0A, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00};
-        byte[] searchResponse = {0x30, 0x0C, 0x02, 0x01, 0x02, 0x65, 0x07, 0x0A, 0x01, 0x00, 0x04, 0x00, 0x04, 0x00};
-        try {
-            in = new BufferedInputStream(clientSocket.getInputStream());
-            out = new PrintWriter(new OutputStreamWriter(
-                    clientSocket.getOutputStream(), StandardCharsets.UTF_8), true);
-            while (true) {
-
-                // Read the LDAP BindRequest
-                while (in.read() != -1) {
-                    in.skip(in.available());
+    public TestLDAPServer() throws IOException {
+        super(new ServerSocket(0, 0, InetAddress.getLoopbackAddress()), true);
+        setCommonRequestHandler((msg, out) -> {
+            switch (msg.getOperation()) {
+                case BIND_REQUEST:
+                    // Write an LDAP BindResponse
+                    out.write(bindResponse);
                     break;
-                }
-
-                // Write an LDAP BindResponse
-                out.write(new String(bindResponse));
-                out.flush();
-
-                // Read the LDAP SearchRequest
-                while (in.read() != -1) {
-                    in.skip(in.available());
+                case SEARCH_REQUEST:
+                    // Write an LDAP SearchResponse
+                    out.write(searchResponse);
                     break;
-                }
-
-                // Write an LDAP SearchResponse
-                out.write(new String(searchResponse));
-                out.flush();
+                default:
+                    break;
             }
-        } catch (IOException iOException) {
-            throw new RuntimeException(iOException);
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException ignored) {
-                }
-            }
-            if (out != null) {
-                out.close();
-            }
-            if (clientSocket != null) {
-                try {
-                    clientSocket.close();
-                } catch (IOException ignored) {
-                }
-            }
-        }
+        });
     }
 }

@@ -259,14 +259,7 @@ public class LDAPTestUtils {
                             + "cache file " + fileName);
         }
 
-        Thread thread = new Thread(() -> {
-            try {
-                new test.LDAPServer(serverSocket, fileName);
-            } catch (Exception e) {
-                System.out.println("Warning: LDAP server running with issue");
-                e.printStackTrace();
-            }
-        });
+        Thread thread = new LdapPlaybackServer(serverSocket, fileName);
 
         thread.start();
         return thread;
