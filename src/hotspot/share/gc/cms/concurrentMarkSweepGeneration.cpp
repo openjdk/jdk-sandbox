@@ -26,7 +26,6 @@
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
-#include "gc/cms/cmsCollectorPolicy.hpp"
 #include "gc/cms/cmsGCStats.hpp"
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/cms/cmsOopClosures.inline.hpp"
@@ -43,7 +42,6 @@
 #include "gc/shared/cardTableRS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/collectorCounters.hpp"
-#include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcTimer.hpp"
@@ -82,6 +80,9 @@
 #include "services/runtimeService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_JVMCI
+#include "jvmci/jvmci.hpp"
+#endif
 
 // statics
 CMSCollector* ConcurrentMarkSweepGeneration::_collector = NULL;
@@ -204,7 +205,11 @@ class CMSParGCThreadState: public CHeapObj<mtGC> {
 };
 
 ConcurrentMarkSweepGeneration::ConcurrentMarkSweepGeneration(
-     ReservedSpace rs, size_t initial_byte_size, CardTableRS* ct) :
+     ReservedSpace rs,
+     size_t initial_byte_size,
+     size_t min_byte_size,
+     size_t max_byte_size,
+     CardTableRS* ct) :
   CardGeneration(rs, initial_byte_size, ct),
   _dilatation_factor(((double)MinChunkSize)/((double)(CollectedHeap::min_fill_size()))),
   _did_compact(false)
@@ -255,6 +260,8 @@ ConcurrentMarkSweepGeneration::ConcurrentMarkSweepGeneration(
   // note that all arithmetic is in units of HeapWords.
   assert(MinChunkSize >= CollectedHeap::min_fill_size(), "just checking");
   assert(_dilatation_factor >= 1.0, "from previous assert");
+
+  initialize_performance_counters(min_byte_size, max_byte_size);
 }
 
 
@@ -311,13 +318,13 @@ AdaptiveSizePolicy* CMSCollector::size_policy() {
   return CMSHeap::heap()->size_policy();
 }
 
-void ConcurrentMarkSweepGeneration::initialize_performance_counters() {
+void ConcurrentMarkSweepGeneration::initialize_performance_counters(size_t min_old_size,
+                                                                    size_t max_old_size) {
 
   const char* gen_name = "old";
-  GenCollectorPolicy* gcp = CMSHeap::heap()->gen_policy();
   // Generation Counters - generation 1, 1 subspace
   _gen_counters = new GenerationCounters(gen_name, 1, 1,
-      gcp->min_old_size(), gcp->max_old_size(), &_virtual_space);
+      min_old_size, max_old_size, &_virtual_space);
 
   _space_counters = new GSpaceCounters(gen_name, 0,
                                        _virtual_space.reserved_size(),
@@ -446,8 +453,7 @@ bool CMSCollector::_foregroundGCIsActive = false;
 bool CMSCollector::_foregroundGCShouldWait = false;
 
 CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
-                           CardTableRS*                   ct,
-                           ConcurrentMarkSweepPolicy*     cp):
+                           CardTableRS*                   ct):
   _overflow_list(NULL),
   _conc_workers(NULL),     // may be set later
   _completed_initialization(false),
@@ -457,7 +463,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   _roots_scanning_options(GenCollectedHeap::SO_None),
   _verification_mark_bm(0, Mutex::leaf + 1, "CMS_verification_mark_bm_lock"),
   _verifying(false),
-  _collector_policy(cp),
   _inter_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
   _intra_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
   _gc_tracer_cm(new (ResourceObj::C_HEAP, mtGC) CMSTracer()),
@@ -491,7 +496,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   _stats(cmsGen),
   _eden_chunk_lock(new Mutex(Mutex::leaf + 1, "CMS_eden_chunk_lock", true,
                              //verify that this lock should be acquired with safepoint check.
-                             Monitor::_safepoint_check_sometimes)),
+                             Monitor::_safepoint_check_never)),
   _eden_chunk_array(NULL),     // may be set in ctor body
   _eden_chunk_index(0),        // -- ditto --
   _eden_chunk_capacity(0),     // -- ditto --
@@ -5258,6 +5263,9 @@ void CMSCollector::refProcessingWork() {
 
       // Prune dead klasses from subklass/sibling/implementor lists.
       Klass::clean_weak_klass_links(purged_class);
+
+      // Clean JVMCI metadata handles.
+      JVMCI_ONLY(JVMCI::do_unloading(purged_class));
     }
   }
 
@@ -5643,7 +5651,7 @@ CMSBitMap::CMSBitMap(int shifter, int mutex_rank, const char* mutex_name):
   _shifter(shifter),
   _bm(),
   _lock(mutex_rank >= 0 ? new Mutex(mutex_rank, mutex_name, true,
-                                    Monitor::_safepoint_check_sometimes) : NULL)
+                                    Monitor::_safepoint_check_never) : NULL)
 {
   _bmStartWord = 0;
   _bmWordSize  = 0;
@@ -7526,7 +7534,7 @@ void SweepClosure::do_yield_work(HeapWord* addr) {
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
-  _freelistLock->lock();
+  _freelistLock->lock_without_safepoint_check();
   _bitMap->lock()->lock_without_safepoint_check();
   _collector->startTimer();
 }

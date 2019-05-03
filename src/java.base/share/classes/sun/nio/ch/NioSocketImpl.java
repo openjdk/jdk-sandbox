@@ -264,7 +264,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 dst.get(b, off, n);
             }
             return n;
-        } finally{
+        } finally {
             Util.offerFirstTemporaryDirectBuffer(dst);
         }
     }

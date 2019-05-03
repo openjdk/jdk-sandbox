@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,7 +81,6 @@ import static java.nio.file.StandardCopyOption.*;
  */
 
 public class ZipFSTester {
-
     public static void main(String[] args) throws Exception {
         // create JAR file for test, actual contents don't matter
         Path jarFile = Utils.createJarFile("tester.jar",
@@ -146,7 +145,7 @@ public class ZipFSTester {
             // copy the test jar itself in
             Files.copy(Paths.get(fs0.toString()), copy.getPath("/foo.jar"));
             Path zpath = copy.getPath("/foo.jar");
-            try (FileSystem zzfs = FileSystems.newFileSystem(zpath, null)) {
+            try (FileSystem zzfs = FileSystems.newFileSystem(zpath)) {
                 Files.copy(src, zzfs.getPath("/srcInjarjar"));
             }
         }
@@ -254,7 +253,7 @@ public class ZipFSTester {
             // test foo.jar in jar/zipfs #8034802
             Path jpath = fs.getPath("/foo.jar");
             System.out.println("walking: " + jpath);
-            try (FileSystem zzfs = FileSystems.newFileSystem(jpath, null)) {
+            try (FileSystem zzfs = FileSystems.newFileSystem(jpath)) {
                 walk(zzfs.getPath("/"));
                 // foojar:/srcInjarjar
                 checkEqual(src, zzfs.getPath("/srcInjarjar"));
@@ -533,10 +532,7 @@ public class ZipFSTester {
             try (var zfs = newZipFileSystem(zpath, Collections.emptyMap())) {
                 for (Object[] e : entries) {
                     Path path = zfs.getPath((String)e[0]);
-                    int method = (int)e[1];
                     byte[] bytes = (byte[])e[2];
-                    // System.out.printf("checking read [%s, %d, %d]%n",
-                    //                   path.toString(), bytes.length, method);
                     checkRead(path, bytes);
                 }
             }
