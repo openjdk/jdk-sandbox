@@ -214,7 +214,7 @@ final class JLinkBundlerHelper {
                     mainJarType == ModFile.ModType.ModularJar) {
                 addModules.add(ModuleHelper.ALL_DEFAULT);
             }
-        } 
+        }
 
         Set<String> validModules =
                   getValidModules(modulePath, addModules, limitModules);
@@ -279,7 +279,7 @@ final class JLinkBundlerHelper {
                 .stream()
                 .map(ResolvedModule::name)
                 .collect(Collectors.toSet());
-    } 
+    }
 
     /*
      * Returns true if the given module exports an API to all module.
@@ -333,7 +333,7 @@ final class JLinkBundlerHelper {
                 Set<String> limitModules) {
             boolean addAllModulePath = false;
             boolean addDefaultMods = false;
-            
+
             for (Iterator<String> iterator = addModules.iterator();
                     iterator.hasNext();) {
                 String module = iterator.next();
@@ -422,7 +422,7 @@ final class JLinkBundlerHelper {
                 args.add("--bind-services");
             }
         }
-        
+
         StringWriter writer = new StringWriter();
         PrintWriter pw = new PrintWriter(writer);
 

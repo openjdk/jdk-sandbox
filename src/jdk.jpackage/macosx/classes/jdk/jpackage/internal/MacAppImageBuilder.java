@@ -323,7 +323,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         List<Map<String, ? super Object>> entryPoints =
                 StandardBundlerParam.ADD_LAUNCHERS.fetchFrom(params);
         for (Map<String, ? super Object> entryPoint : entryPoints) {
-            Map<String, ? super Object> tmp = 
+            Map<String, ? super Object> tmp =
                     AddLauncherArguments.merge(originalParams, entryPoint);
 
             // add executable for add launcher

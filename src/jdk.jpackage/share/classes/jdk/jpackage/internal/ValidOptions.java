@@ -52,7 +52,7 @@ class ValidOptions {
         LAUNCHER,   // valid when creating a launcher
         INSTALL     // valid when creating an installer
     }
-        
+
     private static final HashMap<String, USE> options = new HashMap<>();
 
 
@@ -88,7 +88,7 @@ class ValidOptions {
         options.put(CLIOptions.INSTALL_DIR.getId(), USE.INSTALL);
         options.put(CLIOptions.PREDEFINED_APP_IMAGE.getId(), USE.INSTALL);
 
-        options.put(CLIOptions.FILE_ASSOCIATIONS.getId(), 
+        options.put(CLIOptions.FILE_ASSOCIATIONS.getId(),
             (Platform.getPlatform() == Platform.MAC) ?  USE.ALL : USE.INSTALL);
 
         if (Platform.getPlatform() == Platform.WINDOWS) {
