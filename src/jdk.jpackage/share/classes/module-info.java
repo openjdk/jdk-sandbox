@@ -35,6 +35,13 @@
  * or the {@link java.util.ServiceLoader service loader} with the name
  * {@code "jpackage"}.
  *
+ * @implNote The {@code jpackage} tool is not thread-safe. An application
+ * should not call either of the
+ * {@link java.util.spi.ToolProvider ToolProvider} {@code run} methods
+ * concurrently, even with separate {@code "jpackage"} {@code ToolProvider}
+ * instances, or undefined behavior may result.
+ * <p></p>
+ *
  * @moduleGraph
  * @since 13
  */
