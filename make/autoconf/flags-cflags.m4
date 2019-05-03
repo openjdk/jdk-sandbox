@@ -219,7 +219,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
           -Wunused-function -Wundef -Wunused-value -Woverloaded-virtual"
       WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
 
-      DISABLED_WARNINGS="unused-parameter unused"
+      DISABLED_WARNINGS="unknown-warning-option unused-parameter unused"
 
       if test "x$OPENJDK_TARGET_OS" = xmacosx; then
         # missing-method-return-type triggers in JavaNativeFoundation framework
@@ -536,6 +536,12 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
 
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$DEBUG_LEVEL" = xrelease; then
+        # Clang does not inline as much as GCC does for functions with "inline" keyword by default.
+        # This causes noticeable slowdown in pause time for G1, and possibly in other areas.
+        # Increasing the inline hint threshold avoids the slowdown for Clang-built JVM.
+        TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mllvm -inlinehint-threshold=100000"
+      fi
       TOOLCHAIN_CFLAGS_JDK="-pipe"
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
     fi
