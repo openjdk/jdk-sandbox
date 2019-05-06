@@ -42,17 +42,22 @@ import sun.nio.ch.NioSocketImpl;
  * of all classes that actually implement sockets. It is used to
  * create both client and server sockets.
  *
- * @implNote The JDK historically used a {@code SocketImpl} implementation named
- * <em>PlainSocketImpl</em>. This has been replaced by a newer implementation
- * but the JDK continues to ship with the older implementation to allow code that
- * depends on unspecified behavior, that differs between the old and new
- * implementations, to continue to run. The old implementation will be used if
- * the Java virtual machine is started with the system property {@systemProperty
- * jdk.net.usePlainSocketImpl} set on the command line. The value of the system
- * property is the string representation of a boolean. If set without a value
- * then it defaults to {@code true}, hence running with {@code
- * -Djdk.net.usePlainSocketImpl} or {@code -Djdk.net.usePlainSocketImpl=true}
- * will configure the Java virtual machine use the old implementation.
+ * @implNote Client and server sockets created with the {@code Socket} and
+ * {@code SocketServer} public constructors create a system/platform default
+ * {@code SocketImpl}. The JDK historically used a {@code SocketImpl}
+ * implementation type named "PlainSocketImpl" that has since been replaced by a
+ * newer implementation. The JDK continues to ship with the older implementation
+ * to allow code to run that depends on unspecified behavior that differs between
+ * the old and new implementations. The old implementation will be used if the
+ * Java virtual machine is started with the system property {@systemProperty
+ * jdk.net.usePlainSocketImpl} set on the command line. It may also be set in
+ * the JDK's network configuration file, located in {@code
+ * ${java.home}/conf/net.properties}, for cases where it needs to be set without
+ * changing the command line. The value of the system property is the string
+ * representation of a boolean. If set without a value then it defaults to {@code
+ * true}, hence running with {@code -Djdk.net.usePlainSocketImpl} or {@code
+ * -Djdk.net.usePlainSocketImpl=true} will configure the Java virtual machine
+ * to use the old implementation.
  *
  * @author  unascribed
  * @since   1.0
