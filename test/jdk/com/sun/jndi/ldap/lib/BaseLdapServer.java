@@ -161,8 +161,8 @@ public class BaseLdapServer extends Thread implements AutoCloseable {
      */
     @Override
     public synchronized void start() {
-        super.start();
         isRunning = true;
+        super.start();
     }
 
     /**

@@ -60,13 +60,16 @@ public class LdapPlaybackServer extends BaseLdapServer {
      */
     private final Map<Integer, List<byte[]>> cache = new HashMap<>();
 
-    private String fileName;
-
     public LdapPlaybackServer(ServerSocket serverSocket, String fileName) {
         super(serverSocket);
-        this.fileName = fileName;
         setDebugLevel(DebugLevel.CUSTOMIZE, this.getClass());
         setCommonRequestHandler(this::handleRequest);
+        try {
+            debug("Loading LDAP cache from: " + fileName);
+            loadCaptureFile(fileName);
+        } catch (IOException e) {
+            throw new RuntimeException("ERROR: failed to load LDAP cache", e);
+        }
     }
 
     /*
@@ -167,10 +170,7 @@ public class LdapPlaybackServer extends BaseLdapServer {
     @Override
     public void run() {
         try {
-            debug("Loading LDAP cache from: " + fileName);
-            loadCaptureFile(fileName);
             debug("listening on port " + getPort());
-
             super.run();
         } catch (Exception e) {
             debug("ERROR: " + e);
