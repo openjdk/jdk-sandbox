@@ -77,7 +77,8 @@ public class UdpSocket {
                 byte[] array2 = new byte[100];
                 int n = s.getInputStream().read(array2);
                 assertTrue(n == MESSAGE.length(), "Unexpected size");
-                assertTrue(Arrays.equals(array1, 0, n, array2, 0, n), "Unexpected contents");
+                assertEquals(Arrays.copyOf(array1, n), Arrays.copyOf(array2, n),
+                            "Unexpected contents");
             }
         }
     }

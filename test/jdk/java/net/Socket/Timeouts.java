@@ -96,10 +96,8 @@ public class Timeouts {
     public void testTimedConnect4() throws IOException {
         try (ServerSocket ss = boundServerSocket()) {
             try (Socket s = new Socket()) {
-                try {
-                    s.connect(ss.getLocalSocketAddress(), -1);
-                    assertTrue(false);
-                } catch (IllegalArgumentException expected) { }
+                expectThrows(IllegalArgumentException.class,
+                             () -> s.connect(ss.getLocalSocketAddress(), -1));
             }
         }
     }
@@ -135,13 +133,9 @@ public class Timeouts {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
             long startMillis = millisTime();
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketTimeoutException expected) {
-                int timeout = s2.getSoTimeout();
-                checkDuration(startMillis, timeout-100, timeout+2000);
-            }
+            expectThrows(SocketTimeoutException.class, () -> s2.getInputStream().read());
+            int timeout = s2.getSoTimeout();
+            checkDuration(startMillis, timeout-100, timeout+2000);
         });
     }
 
@@ -151,10 +145,7 @@ public class Timeouts {
     public void testTimedRead4() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketTimeoutException e) { }
+            expectThrows(SocketTimeoutException.class, () -> s2.getInputStream().read());
             s1.getOutputStream().write(99);
             int b = s2.getInputStream().read();
             assertTrue(b == 99);
@@ -168,10 +159,7 @@ public class Timeouts {
     public void testTimedRead5() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketTimeoutException e) { }
+            expectThrows(SocketTimeoutException.class, () -> s2.getInputStream().read());
             s2.setSoTimeout(30*3000);
             scheduleWrite(s1.getOutputStream(), 99, 2000);
             int b = s2.getInputStream().read();
@@ -185,10 +173,7 @@ public class Timeouts {
     public void testTimedRead6() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketTimeoutException e) { }
+            expectThrows(SocketTimeoutException.class, () -> s2.getInputStream().read());
             s1.getOutputStream().write(99);
             s2.setSoTimeout(0);
             int b = s2.getInputStream().read();
@@ -203,10 +188,7 @@ public class Timeouts {
     public void testTimedRead7() throws IOException {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(2000);
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketTimeoutException e) { }
+            expectThrows(SocketTimeoutException.class, () -> s2.getInputStream().read());
             scheduleWrite(s1.getOutputStream(), 99, 2000);
             s2.setSoTimeout(0);
             int b = s2.getInputStream().read();
@@ -221,10 +203,7 @@ public class Timeouts {
         withConnection((s1, s2) -> {
             s2.setSoTimeout(30*1000);
             scheduleClose(s2, 2000);
-            try {
-                s2.getInputStream().read();
-                assertTrue(false);
-            } catch (SocketException expected) { }
+            expectThrows(SocketException.class, () -> s2.getInputStream().read());
         });
     }
 
@@ -323,7 +302,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) {
                 int timeout = ss.getSoTimeout();
                 checkDuration(startMillis, timeout-100, timeout+2000);
@@ -341,7 +320,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) { }
             try (Socket s1 = new Socket()) {
                 s1.connect(ss.getLocalSocketAddress());
@@ -361,7 +340,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) { }
             ss.setSoTimeout(0);
             try (Socket s1 = new Socket()) {
@@ -382,7 +361,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) { }
             ss.setSoTimeout(0);
             scheduleConnect(ss.getLocalSocketAddress(), 2000);
@@ -402,7 +381,7 @@ public class Timeouts {
             long startMillis = millisTime();
             try {
                 ss.accept().close();
-                assertTrue(false);
+                fail();
             } catch (SocketException expected) {
                 checkDuration(startMillis, delay-100, delay+2000);
             }
@@ -420,7 +399,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) {
                 // accept should have blocked for 2 seconds
                 int timeout = ss.getSoTimeout();
@@ -444,7 +423,7 @@ public class Timeouts {
             try {
                 Socket s = ss.accept();   // should block for 4 seconds
                 s.close();
-                assertTrue(false);
+                fail();
             } catch (SocketTimeoutException expected) {
                 // accept should have blocked for 4 seconds
                 int timeout = ss.getSoTimeout();

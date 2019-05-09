@@ -29,6 +29,7 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.net.InetAddress;
@@ -107,7 +108,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private boolean stream;
     private FileDescriptorCloser closer;
 
-    // set by configureNonBlockingForever when the socket changed to non-blocking
+    // set to true when the socket is in non-blocking mode
     private volatile boolean nonBlocking;
 
     // used by connect/read/write/accept, protected by stateLock
@@ -191,29 +192,28 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Configures the socket's blocking mode except when socket has been
-     * configured non-blocking by {@code configureNonBlockingForever}.
+     * Configures the socket to blocking mode. This method is a no-op if the
+     * socket is already in blocking mode.
      * @throws IOException if closed or there is an I/O error changing the mode
      */
-    private void configureBlocking(FileDescriptor fd, boolean block) throws IOException {
-        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
-        if (!nonBlocking) {
+    private void configureBlocking(FileDescriptor fd) throws IOException {
+        assert readLock.isHeldByCurrentThread();
+        if (nonBlocking) {
             synchronized (stateLock) {
-                if (!nonBlocking) {
-                    ensureOpen();
-                    IOUtil.configureBlocking(fd, block);
-                }
+                ensureOpen();
+                IOUtil.configureBlocking(fd, true);
+                nonBlocking = false;
             }
         }
     }
 
     /**
-     * Configures the socket to be non-blocking. Once configured to non-blocking
-     * by this method then the blocking mode cannot be changed back to blocking.
+     * Configures the socket to non-blocking mode. This method is a no-op if the
+     * socket is already in non-blocking mode.
      * @throws IOException if closed or there is an I/O error changing the mode
      */
-    private void configureNonBlockingForever(FileDescriptor fd) throws IOException {
-        assert readLock.isHeldByCurrentThread() || writeLock.isHeldByCurrentThread();
+    private void configureNonBlocking(FileDescriptor fd) throws IOException {
+        assert readLock.isHeldByCurrentThread();
         if (!nonBlocking) {
             synchronized (stateLock) {
                 ensureOpen();
@@ -244,7 +244,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             readerThread = 0;
             int state = this.state;
             if (state == ST_CLOSING)
-                tryClose();
+                tryFinishClose();
             if (!completed && state >= ST_CLOSING)
                 throw new SocketException("Socket closed");
         }
@@ -306,7 +306,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             int timeout = this.timeout;
             if (timeout > 0) {
                 // read with timeout
-                configureNonBlockingForever(fd);
+                configureNonBlocking(fd);
                 n = timedRead(fd, b, off, len, MILLISECONDS.toNanos(timeout));
             } else {
                 // read, no timeout
@@ -379,7 +379,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             writerThread = 0;
             int state = this.state;
             if (state == ST_CLOSING)
-                tryClose();
+                tryFinishClose();
             if (!completed && state >= ST_CLOSING)
                 throw new SocketException("Socket closed");
         }
@@ -405,7 +405,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     /**
      * Writes a sequence of bytes to the socket from the given byte array.
      * @return the number of bytes written
-     * @throws SocketException if the socket is closed or an socket I/O error occurs
+     * @throws SocketException if the socket is closed or a socket I/O error occurs
      */
     private int implWrite(byte[] b, int off, int len) throws IOException {
         int n = 0;
@@ -426,7 +426,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
     /**
      * Writes a sequence of bytes to the socket from the given byte array.
-     * @throws SocketException if the socket is closed or an socket I/O error occurs
+     * @throws SocketException if the socket is closed or a socket I/O error occurs
      */
     private void write(byte[] b, int off, int len) throws IOException {
         Objects.checkFromIndexSize(off, len, b.length);
@@ -523,7 +523,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             readerThread = 0;
             int state = this.state;
             if (state == ST_CLOSING)
-                tryClose();
+                tryFinishClose();
             if (completed && state == ST_CONNECTING) {
                 this.state = ST_CONNECTED;
                 localport = Net.localAddress(fd).getPort();
@@ -582,7 +582,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
                     // configure socket to non-blocking mode when there is a timeout
                     if (millis > 0) {
-                        configureBlocking(fd, false);
+                        configureNonBlocking(fd);
                     }
 
                     int n = Net.connect(fd, address, port);
@@ -608,7 +608,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
 
                     // restore socket to blocking mode
                     if (connected && millis > 0) {
-                        configureBlocking(fd, true);
+                        configureBlocking(fd);
                     }
 
                 } finally {
@@ -684,7 +684,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             int state = this.state;
             readerThread = 0;
             if (state == ST_CLOSING)
-                tryClose();
+                tryFinishClose();
             if (!completed && state >= ST_CLOSING)
                 throw new SocketException("Socket closed");
         }
@@ -748,7 +748,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
             try {
                 if (remainingNanos > 0) {
                     // accept with timeout
-                    configureNonBlockingForever(fd);
+                    configureNonBlocking(fd);
                     n = timedAccept(fd, newfd, isaa, remainingNanos);
                 } else {
                     // accept, no timeout
@@ -844,14 +844,15 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     }
 
     /**
-     * Closes the socket, and returns true, if there are no I/O operations in
-     * progress.
+     * Closes the socket if there are no I/O operations in progress.
      */
-    private boolean tryClose() {
+    private boolean tryClose() throws IOException {
         assert Thread.holdsLock(stateLock) && state == ST_CLOSING;
         if (readerThread == 0 && writerThread == 0) {
             try {
                 closer.run();
+            } catch (UncheckedIOException ioe) {
+                throw ioe.getCause();
             } finally {
                 state = ST_CLOSED;
             }
@@ -859,6 +860,17 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
         } else {
             return false;
         }
+    }
+
+    /**
+     * Invokes tryClose to attempt to close the socket.
+     *
+     * This method is used for deferred closing by I/O operations.
+     */
+    private void tryFinishClose() {
+        try {
+            tryClose();
+        } catch (IOException ignore) { }
     }
 
     /**
@@ -1218,7 +1230,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
                 try {
                     nd.close(fd);
                 } catch (IOException ioe) {
-                    throw new RuntimeException(ioe);
+                    throw new UncheckedIOException(ioe);
                 } finally {
                     if (!stream) {
                         // decrement
