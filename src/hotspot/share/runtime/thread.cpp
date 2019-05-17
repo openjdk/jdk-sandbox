@@ -953,6 +953,8 @@ void Thread::print_on(outputStream* st, bool print_extended_info) const {
   debug_only(if (WizardMode) print_owned_locks_on(st);)
 }
 
+void Thread::print() const { print_on(tty); }
+
 // Thread::print_on_error() is called by fatal error handler. Don't use
 // any lock or allocate memory.
 void Thread::print_on_error(outputStream* st, char* buf, int buflen) const {
@@ -1575,18 +1577,15 @@ bool jvmci_counters_include(JavaThread* thread) {
   return !JVMCICountersExcludeCompiler || !thread->is_Compiler_thread();
 }
 
-void JavaThread::collect_counters(JVMCIEnv* jvmci_env, JVMCIPrimitiveArray array) {
-  if (JVMCICounterSize > 0) {
-    JavaThreadIteratorWithHandle jtiwh;
-    int len = jvmci_env->get_length(array);
-    for (int i = 0; i < len; i++) {
-      jvmci_env->put_long_at(array, i, _jvmci_old_thread_counters[i]);
-    }
-    for (; JavaThread *tp = jtiwh.next(); ) {
-      if (jvmci_counters_include(tp)) {
-        for (int i = 0; i < len; i++) {
-          jvmci_env->put_long_at(array, i, jvmci_env->get_long_at(array, i) + tp->_jvmci_counters[i]);
-        }
+void JavaThread::collect_counters(jlong* array, int length) {
+  assert(length == JVMCICounterSize, "wrong value");
+  for (int i = 0; i < length; i++) {
+    array[i] = _jvmci_old_thread_counters[i];
+  }
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *tp = jtiwh.next(); ) {
+    if (jvmci_counters_include(tp)) {
+      for (int i = 0; i < length; i++) {
+        array[i] += tp->_jvmci_counters[i];
       }
     }
   }
@@ -3029,6 +3028,8 @@ void JavaThread::print_on(outputStream *st, bool print_extended_info) const {
   }
 }
 
+void JavaThread::print() const { print_on(tty); }
+
 void JavaThread::print_name_on_error(outputStream* st, char *buf, int buflen) const {
   st->print("%s", get_thread_name_string(buf, buflen));
 }
@@ -3193,8 +3194,7 @@ void JavaThread::prepare(jobject jni_thread, ThreadPriority prio) {
 oop JavaThread::current_park_blocker() {
   // Support for JSR-166 locks
   oop thread_oop = threadObj();
-  if (thread_oop != NULL &&
-      JDK_Version::current().supports_thread_park_blocker()) {
+  if (thread_oop != NULL) {
     return java_lang_Thread::park_blocker(thread_oop);
   }
   return NULL;
@@ -4010,13 +4010,11 @@ jint Threads::create_vm(JavaVMInitArgs* args, bool* canTryAgain) {
   RTMLockingCounters::init();
 #endif
 
-  if (JDK_Version::current().post_vm_init_hook_enabled()) {
-    call_postVMInitHook(THREAD);
-    // The Java side of PostVMInitHook.run must deal with all
-    // exceptions and provide means of diagnosis.
-    if (HAS_PENDING_EXCEPTION) {
-      CLEAR_PENDING_EXCEPTION;
-    }
+  call_postVMInitHook(THREAD);
+  // The Java side of PostVMInitHook.run must deal with all
+  // exceptions and provide means of diagnosis.
+  if (HAS_PENDING_EXCEPTION) {
+    CLEAR_PENDING_EXCEPTION;
   }
 
   {

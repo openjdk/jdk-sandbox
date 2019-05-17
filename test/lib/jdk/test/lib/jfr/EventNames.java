@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,6 +82,11 @@ public class EventNames {
     public final static String BiasedLockRevocation = PREFIX + "BiasedLockRevocation";
     public final static String BiasedLockSelfRevocation = PREFIX + "BiasedLockSelfRevocation";
     public final static String BiasedLockClassRevocation = PREFIX + "BiasedLockClassRevocation";
+    public final static String SymbolTableStatistics = PREFIX + "SymbolTableStatistics";
+    public final static String StringTableStatistics = PREFIX + "StringTableStatistics";
+    public final static String PlaceholderTableStatistics = PREFIX + "PlaceholderTableStatistics";
+    public final static String LoaderConstraintsTableStatistics = PREFIX + "LoaderConstraintsTableStatistics";
+    public final static String ProtectionDomainCacheTableStatistics = PREFIX + "ProtectionDomainCacheTableStatistics";
     // This event is hard to test
     public final static String ReservedStackActivation = PREFIX + "ReservedStackActivation";
 
@@ -149,6 +154,7 @@ public class EventNames {
 
     // OS
     public final static String OSInformation = PREFIX + "OSInformation";
+    public final static String VirtualizationInformation = PREFIX + "VirtualizationInformation";
     public final static String CPUInformation = PREFIX + "CPUInformation";
     public final static String CPULoad = PREFIX + "CPULoad";
     public final static String ThreadCPULoad = PREFIX + "ThreadCPULoad";

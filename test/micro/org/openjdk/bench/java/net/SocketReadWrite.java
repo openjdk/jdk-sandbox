@@ -31,6 +31,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -40,12 +41,13 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Tests socket read/write.
+ * Benchmark socket read/write.
+ *
  */
-
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
@@ -55,6 +57,8 @@ public class SocketReadWrite {
     public static final int TIMEOUT = 10000;
 
     static class EchoServer implements Runnable {
+        // EchoServer is implemented to execute the same amount echo threads as benchmarking threads are running
+
         final ServerSocket ss;
         final int port;
         final CountDownLatch startedLatch;
@@ -136,27 +140,14 @@ public class SocketReadWrite {
 
             @Override
             public void run() {
-                if (size == 1) {
-                    while (!isDone) {
-                        try {
-                            int b = this.in.read();
-                            out.write(b);
-                        } catch (IOException e) {
-                            if (!isDone) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }
-                } else {
-                    byte[] a = new byte[size];
-                    while (!isDone) {
-                        try {
-                            readN(a, size, this.in);
-                            out.write(a);
-                        } catch (IOException e) {
-                            if (!isDone) {
-                                e.printStackTrace();
-                            }
+                byte[] a = new byte[size];
+                while (!isDone) {
+                    try {
+                        readN(a, size, this.in);
+                        out.write(a);
+                    } catch (IOException e) {
+                        if (!isDone) {
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -201,10 +192,13 @@ public class SocketReadWrite {
         s.setTcpNoDelay(true);
         if (timeout) {
             s.setSoTimeout(TIMEOUT);
+            // 10 seconds times is quite large and never will happen (for microbenchmarking),
+            // but it's required since other paths inside SocketImpl are involved
         }
         in = s.getInputStream();
         out = s.getOutputStream();
         array = new byte[size];
+        ThreadLocalRandom.current().nextBytes(array);
     }
 
     @TearDown
@@ -215,13 +209,7 @@ public class SocketReadWrite {
 
     @Benchmark
     public void echo() throws IOException {
-        if (size == 1) {
-            out.write((byte) 47);
-            int c = in.read();
-        } else {
-            out.write(array);
-            readN(array, size, in);
-        }
-
+        out.write(array);
+        readN(array, size, in);
     }
 }

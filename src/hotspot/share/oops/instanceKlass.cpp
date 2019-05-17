@@ -31,6 +31,7 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verifier.hpp"
@@ -52,6 +53,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
@@ -2609,7 +2611,7 @@ Symbol* InstanceKlass::package_from_name(const Symbol* name, TRAPS) {
     if (package_name == NULL) {
       return NULL;
     }
-    Symbol* pkg_name = SymbolTable::new_symbol(package_name, THREAD);
+    Symbol* pkg_name = SymbolTable::new_symbol(package_name);
     return pkg_name;
   }
 }
@@ -2965,6 +2967,13 @@ void InstanceKlass::adjust_default_methods(bool* trace_name_printed) {
 
 // On-stack replacement stuff
 void InstanceKlass::add_osr_nmethod(nmethod* n) {
+#ifndef PRODUCT
+  if (TieredCompilation) {
+      nmethod * prev = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), n->comp_level(), true);
+      assert(prev == NULL || !prev->is_in_use(),
+      "redundunt OSR recompilation detected. memory leak in CodeCache!");
+  }
+#endif
   // only one compilation can be active
   {
     // This is a short non-blocking critical region, so the no safepoint check is ok.
@@ -3083,7 +3092,9 @@ nmethod* InstanceKlass::lookup_osr_nmethod(const Method* m, int bci, int comp_le
     }
     osr = osr->osr_link();
   }
-  if (best != NULL && best->comp_level() >= comp_level && match_level == false) {
+
+  assert(match_level == false || best == NULL, "shouldn't pick up anything if match_level is set");
+  if (best != NULL && best->comp_level() >= comp_level) {
     return best;
   }
   return NULL;
