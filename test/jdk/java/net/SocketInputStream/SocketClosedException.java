@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,7 +51,8 @@ public class SocketClosedException {
     }
 
     static void doClientSide(int port) throws Exception {
-        Socket socket = new Socket("localhost", port);
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        Socket socket = new Socket(loopback, port);
         InputStream is = socket.getInputStream();
 
         is.read();
@@ -63,8 +64,10 @@ public class SocketClosedException {
     static Exception serverException = null;
 
     public static void main(String[] args) throws Exception {
-        IPSupport.skipIfCurrentConfigurationIsInvalid();
-        serverSocket = new ServerSocket(0);
+        IPSupport.throwSkippedExceptionIfNonOperational();
+        InetAddress loopback = InetAddress.getLoopbackAddress();
+        serverSocket = new ServerSocket();
+        serverSocket.bind(new InetSocketAddress(loopback, 0));
         startServer();
         try {
             doClientSide(serverSocket.getLocalPort());

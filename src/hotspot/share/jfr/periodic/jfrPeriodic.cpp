@@ -95,6 +95,12 @@ TRACE_REQUEST_FUNC(OSInformation) {
   event.commit();
 }
 
+TRACE_REQUEST_FUNC(VirtualizationInformation) {
+  EventVirtualizationInformation event;
+  event.set_name(JfrOSInterface::virtualization_name());
+  event.commit();
+}
+
 TRACE_REQUEST_FUNC(ModuleRequire) {
   JfrModuleEvent::generate_module_dependency_events();
 }
@@ -525,12 +531,12 @@ static void emit_table_statistics(TableStatistics statistics) {
 }
 
 TRACE_REQUEST_FUNC(SymbolTableStatistics) {
-  TableStatistics statistics = SymbolTable::the_table()->get_table_statistics();
+  TableStatistics statistics = SymbolTable::get_table_statistics();
   emit_table_statistics<EventSymbolTableStatistics>(statistics);
 }
 
 TRACE_REQUEST_FUNC(StringTableStatistics) {
-  TableStatistics statistics = StringTable::the_table()->get_table_statistics();
+  TableStatistics statistics = StringTable::get_table_statistics();
   emit_table_statistics<EventStringTableStatistics>(statistics);
 }
 

@@ -1143,7 +1143,6 @@ void nmethod::make_unloaded() {
     MutexLocker ml(SafepointSynchronize::is_at_safepoint() ? NULL : CodeCache_lock,
                      Mutex::_no_safepoint_check_flag);
     Universe::heap()->unregister_nmethod(this);
-    CodeCache::unregister_old_nmethod(this);
   }
 
   // Clear the method of this dead nmethod
@@ -1336,7 +1335,6 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
       MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       if (nmethod_needs_unregister) {
         Universe::heap()->unregister_nmethod(this);
-        CodeCache::unregister_old_nmethod(this);
       }
       flush_dependencies(/*delete_immediately*/true);
     }
@@ -1415,6 +1413,7 @@ void nmethod::flush() {
   }
 
   Universe::heap()->flush_nmethod(this);
+  CodeCache::unregister_old_nmethod(this);
 
   CodeBlob::flush();
   CodeCache::free(this);
@@ -1555,7 +1554,7 @@ void nmethod::metadata_do(MetadataClosure* f) {
     // Visit all immediate references that are embedded in the instruction stream.
     RelocIterator iter(this, oops_reloc_begin());
     while (iter.next()) {
-      if (iter.type() == relocInfo::metadata_type ) {
+      if (iter.type() == relocInfo::metadata_type) {
         metadata_Relocation* r = iter.metadata_reloc();
         // In this metadata, we must only follow those metadatas directly embedded in
         // the code.  Other metadatas (oop_index>0) are seen as part of
