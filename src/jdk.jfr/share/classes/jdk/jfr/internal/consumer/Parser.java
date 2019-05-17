@@ -23,16 +23,14 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
-
-import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
  * Base class for parsing data from a {@link RecordingInput}.
  */
-abstract class Parser {
+public abstract class Parser {
     /**
      * Parses data from a {@link RecordingInput} and return an object.
      *
@@ -41,5 +39,14 @@ abstract class Parser {
      * @throws IOException if operation couldn't be completed due to I/O
      *         problems
      */
-    abstract Object parse(RecordingInput input) throws IOException;
+    public abstract Object parse(RecordingInput input) throws IOException;
+
+    /**
+     * Skips data that would usually be by parsed the {@code #parse(RecordingInput)} method.
+     *
+     * @param input input to read from
+     * @throws IOException if operation couldn't be completed due to I/O
+     *         problems
+     */
+    public abstract void skip(RecordingInput input) throws IOException;
 }
