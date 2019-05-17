@@ -44,8 +44,11 @@ class CompositeOperation {
   bool process(Type* t = NULL) {
     return _next == NULL ? _op->process(t) : _op->process(t) && _next->process(t);
   }
-  size_t processed() const {
-    return _next == NULL ? _op->processed() : _op->processed() + _next->processed();
+  size_t elements() const {
+    return _next == NULL ? _op->elements() : _op->elements() + _next->elements();
+  }
+  size_t size() const {
+    return _next == NULL ? _op->size() : _op->size() + _next->size();
   }
 };
 
@@ -53,23 +56,27 @@ template <typename T>
 class UnBufferedWriteToChunk {
  private:
   JfrChunkWriter& _writer;
-  size_t _processed;
+  size_t _elements;
+  size_t _size;
  public:
   typedef T Type;
-  UnBufferedWriteToChunk(JfrChunkWriter& writer) : _writer(writer), _processed(0) {}
+  UnBufferedWriteToChunk(JfrChunkWriter& writer) : _writer(writer), _elements(0), _size(0) {}
   bool write(Type* t, const u1* data, size_t size);
-  size_t processed() { return _processed; }
+  size_t elements() const { return _elements; }
+  size_t size() const { return _size; }
 };
 
 template <typename T>
 class DefaultDiscarder {
  private:
-  size_t _processed;
+  size_t _elements;
+  size_t _size;
  public:
   typedef T Type;
-  DefaultDiscarder() : _processed() {}
+  DefaultDiscarder() : _elements(0), _size(0) {}
   bool discard(Type* t, const u1* data, size_t size);
-  size_t processed() const { return _processed; }
+  size_t elements() const { return _elements; }
+  size_t size() const { return _size; }
 };
 
 template <typename Operation>
@@ -80,7 +87,8 @@ class ConcurrentWriteOp {
   typedef typename Operation::Type Type;
   ConcurrentWriteOp(Operation& operation) : _operation(operation) {}
   bool process(Type* t);
-  size_t processed() const { return _operation.processed(); }
+  size_t elements() const { return _operation.elements(); }
+  size_t size() const { return _operation.size(); }
 };
 
 template <typename Operation>
@@ -89,9 +97,9 @@ class ConcurrentWriteOpExcludeRetired : private ConcurrentWriteOp<Operation> {
   typedef typename Operation::Type Type;
   ConcurrentWriteOpExcludeRetired(Operation& operation) : ConcurrentWriteOp<Operation>(operation) {}
   bool process(Type* t);
-  size_t processed() const { return ConcurrentWriteOp<Operation>::processed(); }
+  size_t elements() const { return ConcurrentWriteOp<Operation>::elements();}
+  size_t size() const { return ConcurrentWriteOp<Operation>::size(); }
 };
-
 
 template <typename Operation>
 class MutexedWriteOp {
@@ -101,7 +109,17 @@ class MutexedWriteOp {
   typedef typename Operation::Type Type;
   MutexedWriteOp(Operation& operation) : _operation(operation) {}
   bool process(Type* t);
-  size_t processed() const { return _operation.processed(); }
+  size_t elements() const { return _operation.elements(); }
+  size_t size() const { return _operation.size(); }
+};
+
+template <typename Operation>
+class ExclusiveOp : public MutexedWriteOp<Operation> {
+ public:
+  typedef typename Operation::Type Type;
+  ExclusiveOp(Operation& operation) : MutexedWriteOp<Operation>(operation) {}
+  bool process(Type* t);
+  size_t size() const { return MutexedWriteOp<Operation>::size(); }
 };
 
 enum jfr_operation_mode {
@@ -118,7 +136,8 @@ class DiscardOp {
   typedef typename Operation::Type Type;
   DiscardOp(jfr_operation_mode mode = concurrent) : _operation(), _mode(mode) {}
   bool process(Type* t);
-  size_t processed() const { return _operation.processed(); }
+  size_t elements() const { return _operation.elements(); }
+  size_t size() const { return _operation.size(); }
 };
 
 #endif // SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP

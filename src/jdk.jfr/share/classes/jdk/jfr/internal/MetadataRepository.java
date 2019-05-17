@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,8 @@ public final class MetadataRepository {
     private boolean staleMetadata = true;
     private boolean unregistered;
     private long lastUnloaded = -1;
+    private boolean flushMetadata;
+    private short flushCounter = 0;
 
     public MetadataRepository() {
         initializeJVMEventTypes();
@@ -142,6 +144,7 @@ public final class MetadataRepository {
         typeLibrary.addType(handler.getPlatformEventType());
         if (jvm.isRecording()) {
             storeDescriptorInJVM(); // needed for emergency dump
+            flushMetadata = true;
             settingsManager.setEventControl(handler.getEventControl());
             settingsManager.updateRetransform(Collections.singletonList((eventClass)));
         } else {
@@ -255,12 +258,12 @@ public final class MetadataRepository {
         staleMetadata = true;
     }
 
-    // Lock around setOutput ensures that other threads dosn't
-    // emit event after setOutput and unregister the event class, before a call
+    // Lock around setOutput ensures that other threads don't
+    // emit events after setOutput and unregister the event class, before a call
     // to storeDescriptorInJVM
     synchronized void setOutput(String filename) {
         jvm.setOutput(filename);
-
+        flushMetadata = false;
         unregisterUnloaded();
         if (unregistered) {
             staleMetadata = typeLibrary.clearUnregistered();
@@ -269,6 +272,7 @@ public final class MetadataRepository {
         if (staleMetadata) {
             storeDescriptorInJVM();
         }
+        flushCounter = 0;
     }
 
     private void unregisterUnloaded() {
@@ -307,4 +311,11 @@ public final class MetadataRepository {
         throw new InternalError("Mirror class must have annotation " + MirrorEvent.class.getName());
     }
 
+    public synchronized void flush() {
+        jvm.flush(flushMetadata || flushCounter == 0, ++flushCounter);
+        if (flushCounter == Short.MAX_VALUE) {
+            flushCounter = 0;
+        }
+        this.flushMetadata = false;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -196,20 +196,22 @@ uintptr_t JfrSymbolId::regular_klass_name_hash_code(const Klass* k) {
   return (uintptr_t)const_cast<Symbol*>(sym)->identity_hash();
 }
 
-JfrArtifactSet::JfrArtifactSet(bool class_unload) : _symbol_id(new JfrSymbolId()),
-                                                    _klass_list(NULL),
-                                                    _class_unload(class_unload) {
-  initialize(class_unload);
+JfrArtifactSet::JfrArtifactSet(bool current_epoch) : _symbol_id(new JfrSymbolId()),
+                                                     _klass_list(NULL),
+                                                     _total_count(0),
+                                                     _current_epoch(current_epoch) {
+  initialize(current_epoch);
   assert(_klass_list != NULL, "invariant");
 }
 
 static const size_t initial_class_list_size = 200;
-void JfrArtifactSet::initialize(bool class_unload) {
+void JfrArtifactSet::initialize(bool current_epoch) {
   assert(_symbol_id != NULL, "invariant");
   _symbol_id->initialize();
   assert(!_symbol_id->has_entries(), "invariant");
   _symbol_id->mark(BOOTSTRAP_LOADER_NAME, 0); // pre-load "bootstrap"
-  _class_unload = class_unload;
+  _total_count = 0;
+  _current_epoch = current_epoch;
   // resource allocation
   _klass_list = new GrowableArray<const Klass*>(initial_class_list_size, false, mtTracing);
 }
@@ -269,3 +271,8 @@ void JfrArtifactSet::register_klass(const Klass* k) {
   assert(_klass_list->find(k) == -1, "invariant");
   _klass_list->append(k);
 }
+
+size_t JfrArtifactSet::total_count() const {
+  return _total_count;
+}
+

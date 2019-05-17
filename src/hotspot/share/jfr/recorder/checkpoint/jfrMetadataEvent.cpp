@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,19 +29,11 @@
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
 
 static jbyteArray _metadata_blob = NULL;
-static Semaphore metadata_mutex_semaphore(1);
-
-void JfrMetadataEvent::lock() {
-  metadata_mutex_semaphore.wait();
-}
-
-void JfrMetadataEvent::unlock() {
-  metadata_mutex_semaphore.signal();
-}
+static u8 metadata_id = 0;
+static u8 last_written_metadata_id = 0;
 
 static void write_metadata_blob(JfrChunkWriter& chunkwriter, jbyteArray metadata_blob) {
   if (metadata_blob != NULL) {
@@ -56,34 +48,38 @@ static void write_metadata_blob(JfrChunkWriter& chunkwriter, jbyteArray metadata
   }
 }
 
-// the semaphore is assumed to be locked  (was locked previous safepoint)
-size_t JfrMetadataEvent::write(JfrChunkWriter& chunkwriter, jlong metadata_offset) {
+void JfrMetadataEvent::write(JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
+  const jlong metadata_offset = chunkwriter.current_offset();
   assert(chunkwriter.current_offset() == metadata_offset, "invariant");
+
+  if (last_written_metadata_id == metadata_id && chunkwriter.has_metadata()) {
+    return;
+  }
+
   // header
   chunkwriter.reserve(sizeof(u4));
   chunkwriter.write<u8>(EVENT_METADATA); // ID 0
   // time data
   chunkwriter.write(JfrTicks::now());
   chunkwriter.write((u8)0); // duration
-  chunkwriter.write((u8)0); // metadata id
+  chunkwriter.write(metadata_id); // metadata id
   write_metadata_blob(chunkwriter, _metadata_blob); // payload
-  unlock(); // open up for java to provide updated metadata
+  last_written_metadata_id = metadata_id;
   // fill in size of metadata descriptor event
   const jlong size_written = chunkwriter.current_offset() - metadata_offset;
   chunkwriter.write_padded_at_offset((u4)size_written, metadata_offset);
-  return size_written;
+  chunkwriter.set_last_metadata_offset(metadata_offset);
 }
 
 void JfrMetadataEvent::update(jbyteArray metadata) {
   JavaThread* thread = (JavaThread*)Thread::current();
   assert(thread->is_Java_thread(), "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(thread));
-  lock();
   if (_metadata_blob != NULL) {
     JfrJavaSupport::destroy_global_jni_handle(_metadata_blob);
   }
   const oop new_desc_oop = JfrJavaSupport::resolve_non_null(metadata);
   _metadata_blob = new_desc_oop != NULL ? (jbyteArray)JfrJavaSupport::global_jni_handle(new_desc_oop, thread) : NULL;
-  unlock();
+  ++metadata_id;
 }

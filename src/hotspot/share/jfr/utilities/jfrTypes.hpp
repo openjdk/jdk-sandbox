@@ -33,6 +33,7 @@ typedef u8 traceid;
 typedef int fio_fd;
 const int invalid_fd = -1;
 const jlong invalid_offset = -1;
+const int64_t invalid_time = -1;
 const u4 STACK_DEPTH_DEFAULT = 64;
 const u4 MIN_STACK_DEPTH = 1;
 const u4 MAX_STACK_DEPTH = 2048;

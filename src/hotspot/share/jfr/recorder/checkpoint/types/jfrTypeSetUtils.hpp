@@ -76,9 +76,9 @@ class KlassToFieldEnvelope {
 };
 
 template <typename T>
-void tag_leakp_artifact(T const& value, bool class_unload) {
+void tag_leakp_artifact(T const& value, bool current_epoch) {
   assert(value != NULL, "invariant");
-  if (class_unload) {
+  if (current_epoch) {
     SET_LEAKP_USED_THIS_EPOCH(value);
     assert(LEAKP_USED_THIS_EPOCH(value), "invariant");
   } else {
@@ -89,11 +89,11 @@ void tag_leakp_artifact(T const& value, bool class_unload) {
 
 template <typename T>
 class LeakpClearArtifact {
-  bool _class_unload;
+  bool _current_epoch;
  public:
-  LeakpClearArtifact(bool class_unload) : _class_unload(class_unload) {}
+  LeakpClearArtifact(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(T const& value) {
-    if (_class_unload) {
+    if (_current_epoch) {
       if (LEAKP_USED_THIS_EPOCH(value)) {
         LEAKP_UNUSE_THIS_EPOCH(value);
       }
@@ -101,6 +101,21 @@ class LeakpClearArtifact {
       if (LEAKP_USED_PREV_EPOCH(value)) {
         LEAKP_UNUSE_PREV_EPOCH(value);
       }
+    }
+    return true;
+  }
+};
+
+template <typename T>
+class UnTagArtifact {
+ public:
+  UnTagArtifact() {}
+  bool operator()(T const& value) {
+    if (LEAKP_USED_PREV_EPOCH(value)) {
+      LEAKP_UNUSE_PREV_EPOCH(value);
+    }
+    if (USED_PREV_EPOCH(value)) {
+      UNUSE_PREV_EPOCH(value);
     }
     return true;
   }
@@ -108,49 +123,49 @@ class LeakpClearArtifact {
 
 template <typename T>
 class ClearArtifact {
-  bool _class_unload;
  public:
-  ClearArtifact(bool class_unload) : _class_unload(class_unload) {}
   bool operator()(T const& value) {
-    if (_class_unload) {
-      if (LEAKP_USED_THIS_EPOCH(value)) {
-        LEAKP_UNUSE_THIS_EPOCH(value);
-      }
-      if (USED_THIS_EPOCH(value)) {
-        UNUSE_THIS_EPOCH(value);
-      }
-      if (METHOD_USED_THIS_EPOCH(value)) {
-        UNUSE_METHOD_THIS_EPOCH(value);
-      }
-    } else {
-      if (LEAKP_USED_PREV_EPOCH(value)) {
-        LEAKP_UNUSE_PREV_EPOCH(value);
-      }
-      if (USED_PREV_EPOCH(value)) {
-        UNUSE_PREV_EPOCH(value);
-      }
-      if (METHOD_USED_PREV_EPOCH(value)) {
-        UNUSE_METHOD_PREV_EPOCH(value);
-      }
+    if (LEAKP_USED_PREV_EPOCH(value)) {
+      LEAKP_UNUSE_PREV_EPOCH(value);
     }
+    if (USED_PREV_EPOCH(value)) {
+      UNUSE_PREV_EPOCH(value);
+    }
+    if (IS_SERIALIZED(value)) {
+      UNSERIALIZE(value);
+    }
+    assert(IS_NOT_SERIALIZED(value), "invariant");
+    return true;
+  }
+};
+
+template <>
+class ClearArtifact<const Klass*> {
+ public:
+  bool operator()(const Klass* klass) {
+    if (LEAKP_USED_PREV_EPOCH(klass)) {
+      LEAKP_UNUSE_PREV_EPOCH(klass);
+    }
+    if (USED_PREV_EPOCH(klass)) {
+      UNUSE_PREV_EPOCH(klass);
+    }
+    if (METHOD_USED_PREV_EPOCH(klass)) {
+      UNUSE_METHOD_PREV_EPOCH(klass);
+    }
+    if (IS_SERIALIZED(klass)) {
+      UNSERIALIZE(klass);
+    }
+    assert(IS_NOT_SERIALIZED(klass), "invariant");
     return true;
   }
 };
 
 template <>
 class ClearArtifact<const Method*> {
-  bool _class_unload;
  public:
-  ClearArtifact(bool class_unload) : _class_unload(class_unload) {}
   bool operator()(const Method* method) {
-    if (_class_unload) {
-      if (METHOD_FLAG_USED_THIS_EPOCH(method)) {
-        CLEAR_METHOD_FLAG_USED_THIS_EPOCH(method);
-      }
-    } else {
-      if (METHOD_FLAG_USED_PREV_EPOCH(method)) {
-        CLEAR_METHOD_FLAG_USED_PREV_EPOCH(method);
-      }
+    if (METHOD_FLAG_USED_PREV_EPOCH(method)) {
+      CLEAR_METHOD_FLAG_USED_PREV_EPOCH(method);
     }
     return true;
   }
@@ -158,21 +173,53 @@ class ClearArtifact<const Method*> {
 
 template <typename T>
 class LeakPredicate {
-  bool _class_unload;
+  bool _current_epoch;
  public:
-  LeakPredicate(bool class_unload) : _class_unload(class_unload) {}
+  LeakPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(T const& value) {
-    return _class_unload ? LEAKP_USED_THIS_EPOCH(value) : LEAKP_USED_PREV_EPOCH(value);
+    return _current_epoch ? LEAKP_USED_THIS_EPOCH(value) : LEAKP_USED_PREV_EPOCH(value);
+  }
+};
+
+template <typename T>
+class LeakSerializePredicate {
+  LeakPredicate<T> _leak_predicate;
+ public:
+  LeakSerializePredicate(bool current_epoch) : _leak_predicate(current_epoch) {}
+  bool operator()(T const& value) {
+    return IS_NOT_LEAKP_SERIALIZED(value) && _leak_predicate(value);
   }
 };
 
 template <typename T>
 class UsedPredicate {
-  bool _class_unload;
+  bool _current_epoch;
  public:
-  UsedPredicate(bool class_unload) : _class_unload(class_unload) {}
+  UsedPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(T const& value) {
-    return _class_unload ? USED_THIS_EPOCH(value) : USED_PREV_EPOCH(value);
+    return _current_epoch ? USED_THIS_EPOCH(value) : USED_PREV_EPOCH(value);
+  }
+};
+
+template <typename T>
+class SerializePredicate {
+  bool _current_epoch;
+ public:
+  SerializePredicate(bool current_epoch) : _current_epoch(current_epoch) {}
+  bool operator()(T const& value) {
+    assert(value != NULL, "invariant");
+    return IS_NOT_SERIALIZED(value);
+  }
+};
+
+template <>
+class SerializePredicate<const Method*> {
+  bool _current_epoch;
+public:
+  SerializePredicate(bool current_epoch) : _current_epoch(current_epoch) {}
+  bool operator()(const Method* method) {
+    assert(method != NULL, "invariant");
+    return METHOD_NOT_SERIALIZED(method);
   }
 };
 
@@ -194,22 +241,22 @@ class UniquePredicate {
 };
 
 class MethodFlagPredicate {
-  bool _class_unload;
+  bool _current_epoch;
  public:
-  MethodFlagPredicate(bool class_unload) : _class_unload(class_unload) {}
+  MethodFlagPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(const Method* method) {
-    return _class_unload ? METHOD_FLAG_USED_THIS_EPOCH(method) : METHOD_FLAG_USED_PREV_EPOCH(method);
+    return _current_epoch ? METHOD_FLAG_USED_THIS_EPOCH(method) : METHOD_FLAG_USED_PREV_EPOCH(method);
   }
 };
 
 template <bool leakp>
 class MethodUsedPredicate {
-  bool _class_unload;
+  bool _current_epoch;
  public:
-  MethodUsedPredicate(bool class_unload) : _class_unload(class_unload) {}
+  MethodUsedPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(const Klass* klass) {
     assert(ANY_USED(klass), "invariant");
-    if (_class_unload) {
+    if (_current_epoch) {
       return leakp ? LEAKP_METHOD_USED_THIS_EPOCH(klass) : METHOD_USED_THIS_EPOCH(klass);
     }
     return leakp ? LEAKP_METHOD_USED_PREV_EPOCH(klass) : METHOD_USED_PREV_EPOCH(klass);
@@ -313,14 +360,15 @@ class JfrArtifactSet : public JfrCHeapObj {
  private:
   JfrSymbolId* _symbol_id;
   GrowableArray<const Klass*>* _klass_list;
-  bool _class_unload;
+  size_t _total_count;
+  bool _current_epoch;
 
  public:
-  JfrArtifactSet(bool class_unload);
+  JfrArtifactSet(bool current_epoch);
   ~JfrArtifactSet();
 
   // caller needs ResourceMark
-  void initialize(bool class_unload);
+  void initialize(bool current_epoch);
   void clear();
 
   traceid mark(const Symbol* sym, uintptr_t hash);
@@ -334,7 +382,9 @@ class JfrArtifactSet : public JfrCHeapObj {
   const JfrSymbolId::CStringEntry* map_cstring(uintptr_t hash) const;
 
   bool has_klass_entries() const;
+  bool current_epoch() const { return _current_epoch; }
   int entries() const;
+  size_t total_count() const;
   void register_klass(const Klass* k);
 
   template <typename Functor>
@@ -355,6 +405,12 @@ class JfrArtifactSet : public JfrCHeapObj {
   void iterate_cstrings(T& functor) {
     _symbol_id->iterate_cstrings(functor);
   }
+
+  template <typename Writer>
+  void tally(Writer& writer) {
+    _total_count += writer.count();
+  }
+
 };
 
 class KlassArtifactRegistrator {

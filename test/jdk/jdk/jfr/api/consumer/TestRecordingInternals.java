@@ -60,6 +60,7 @@ public class TestRecordingInternals {
                 Asserts.assertEquals(id.toString(), rt.getThreadGroup().getName(), "Thread group name should match id");
                 Asserts.assertEquals(id, Integer.valueOf(i), "Chunks out of order");
                 i++;
+                System.out.println(i + " OK ");
             }
         }
     }

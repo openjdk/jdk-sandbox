@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import java.util.List;
 
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
+import jdk.jfr.internal.consumer.Parser;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
@@ -44,29 +45,68 @@ final class EventParser extends Parser {
     private final TimeConverter timeConverter;
     private final boolean hasDuration;
     private final List<ValueDescriptor> valueDescriptors;
+    private final int startIndex;
+    private long thresholdTicks = -1;
+    private boolean enabled = true;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
         this.parsers = parsers;
         this.eventType = type;
         this.hasDuration = type.getField(FIELD_DURATION) != null;
+        this.startIndex = hasDuration ? 2 : 1;
         this.valueDescriptors = type.getFields();
     }
 
-    @Override
-    public Object parse(RecordingInput input) throws IOException {
-        Object[] values = new Object[parsers.length];
-        for (int i = 0; i < parsers.length; i++) {
-            values[i] = parsers[i].parse(input);
-        }
-        Long startTicks = (Long) values[0];
-        long startTime = timeConverter.convertTimestamp(startTicks);
-        if (hasDuration) {
-            long durationTicks = (Long) values[1];
-            long endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
-            return new RecordedEvent(eventType, valueDescriptors, values, startTime, endTime, timeConverter);
-        } else {
-            return new RecordedEvent(eventType, valueDescriptors, values, startTime, startTime, timeConverter);
-        }
+    public EventType getEventType() {
+        return eventType;
     }
+
+    public void setThreshold(long thresholdTicks) {
+        this.thresholdTicks = thresholdTicks;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+    public RecordedEvent parse(RecordingInput input) throws IOException {
+        if (enabled) {
+            long startTicks = input.readLong();
+            long durationTicks = 0;
+            if (hasDuration) {
+                durationTicks = input.readLong();
+                if (durationTicks < thresholdTicks) {
+                    return null;
+                }
+            }
+            Object[] values = new Object[parsers.length];
+            for (int i = startIndex; i < parsers.length; i++) {
+                values[i] = parsers[i].parse(input);
+            }
+            values[0] = startTicks;
+            if (hasDuration) {
+                values[1] = Long.valueOf(durationTicks);
+            }
+            long startTime = timeConverter.convertTimestamp(startTicks);
+            if (hasDuration) {
+                long endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
+                return new RecordedEvent(eventType, valueDescriptors, values, startTime, endTime, timeConverter);
+            } else {
+                return new RecordedEvent(eventType, valueDescriptors, values, startTime, startTime, timeConverter);
+            }
+        }
+        return null;
+
+    }
+
+    @Override
+    public void skip(RecordingInput input) throws IOException {
+        throw new InternalError("Should not call this method. More efficent to read event size and skip ahead");
+    }
+
 }

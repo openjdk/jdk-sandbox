@@ -3075,17 +3075,6 @@ void JavaThread::verify() {
 // if vm exit occurs during initialization). These cases can all be accounted
 // for such that this method never returns NULL.
 const char* JavaThread::get_thread_name() const {
-#ifdef ASSERT
-  // early safepoints can hit while current thread does not yet have TLS
-  if (!SafepointSynchronize::is_at_safepoint()) {
-    Thread *cur = Thread::current();
-    if (!(cur->is_Java_thread() && cur == this)) {
-      // Current JavaThreads are allowed to get their own name without
-      // the Threads_lock.
-      assert_locked_or_safepoint(Threads_lock);
-    }
-  }
-#endif // ASSERT
   return get_thread_name_string();
 }
 

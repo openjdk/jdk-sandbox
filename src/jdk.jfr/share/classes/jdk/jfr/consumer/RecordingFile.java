@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -41,7 +40,6 @@ import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.consumer.ChunkHeader;
 import jdk.jfr.internal.consumer.RecordingInput;
-import jdk.jfr.internal.consumer.RecordingInternals;
 
 /**
  * A recording file.
@@ -62,29 +60,8 @@ import jdk.jfr.internal.consumer.RecordingInternals;
  * @since 9
  */
 public final class RecordingFile implements Closeable {
-    static{
-        RecordingInternals.INSTANCE = new RecordingInternals() {
-            public List<Type> readTypes(RecordingFile file) throws IOException {
-                return file.readTypes();
-            }
 
-            public boolean isLastEventInChunk(RecordingFile file) {
-                return file.isLastEventInChunk;
-            }
-
-            @Override
-            public Object getOffsetDataTime(RecordedObject event, String name) {
-                return event.getOffsetDateTime(name);
-            }
-
-            @Override
-            public void sort(List<RecordedEvent> events) {
-               Collections.sort(events, (e1, e2) -> Long.compare(e1.endTime, e2.endTime));
-            }
-        };
-    }
-
-    private boolean isLastEventInChunk;
+    boolean isLastEventInChunk;
     private final File file;
     private RecordingInput input;
     private ChunkParser chunkParser;
@@ -154,14 +131,15 @@ public final class RecordingFile implements Closeable {
      */
     public List<EventType> readEventTypes() throws IOException {
         ensureOpen();
+        MetadataDescriptor previous = null;
         List<EventType> types = new ArrayList<>();
         HashSet<Long> foundIds = new HashSet<>();
         try (RecordingInput ri = new RecordingInput(file)) {
             ChunkHeader ch = new ChunkHeader(ri);
-            aggregateEventTypeForChunk(ch, types, foundIds);
+            aggregateEventTypeForChunk(ch, null, types, foundIds);
             while (!ch.isLastChunk()) {
                 ch = ch.nextHeader();
-                aggregateEventTypeForChunk(ch, types, foundIds);
+                previous = aggregateEventTypeForChunk(ch, previous, types, foundIds);
             }
         }
         return types;
@@ -169,37 +147,41 @@ public final class RecordingFile implements Closeable {
 
     List<Type> readTypes() throws IOException  {
         ensureOpen();
+        MetadataDescriptor previous = null;
         List<Type> types = new ArrayList<>();
         HashSet<Long> foundIds = new HashSet<>();
         try (RecordingInput ri = new RecordingInput(file)) {
             ChunkHeader ch = new ChunkHeader(ri);
-            aggregateTypeForChunk(ch, types, foundIds);
+            ch.awaitFinished();
+            aggregateTypeForChunk(ch, null, types, foundIds);
             while (!ch.isLastChunk()) {
                 ch = ch.nextHeader();
-                aggregateTypeForChunk(ch, types, foundIds);
+                previous = aggregateTypeForChunk(ch, previous, types, foundIds);
             }
         }
         return types;
     }
 
-    private void aggregateTypeForChunk(ChunkHeader ch, List<Type> types, HashSet<Long> foundIds) throws IOException {
-        MetadataDescriptor m = ch.readMetadata();
+    private MetadataDescriptor aggregateTypeForChunk(ChunkHeader ch, MetadataDescriptor previous, List<Type> types, HashSet<Long> foundIds) throws IOException {
+        MetadataDescriptor m = ch.readMetadata(previous);
         for (Type t : m.getTypes()) {
             if (!foundIds.contains(t.getId())) {
                 types.add(t);
                 foundIds.add(t.getId());
             }
         }
+        return m;
     }
 
-    private static void aggregateEventTypeForChunk(ChunkHeader ch, List<EventType> types, HashSet<Long> foundIds) throws IOException {
-        MetadataDescriptor m = ch.readMetadata();
+    private static MetadataDescriptor aggregateEventTypeForChunk(ChunkHeader ch,  MetadataDescriptor previous, List<EventType> types, HashSet<Long> foundIds) throws IOException {
+        MetadataDescriptor m = ch.readMetadata(previous);
         for (EventType t : m.getEventTypes()) {
             if (!foundIds.contains(t.getId())) {
                 types.add(t);
                 foundIds.add(t.getId());
             }
         }
+        return m;
     }
 
     /**
@@ -246,6 +228,11 @@ public final class RecordingFile implements Closeable {
         }
     }
 
+    // package protected
+    File getFile() {
+        return file;
+    }
+
     // either sets next to an event or sets eof to true
     private void findNext() throws IOException {
         while (nextEvent == null) {
@@ -266,4 +253,6 @@ public final class RecordingFile implements Closeable {
             throw new IOException("Stream Closed");
         }
     }
+
+
 }

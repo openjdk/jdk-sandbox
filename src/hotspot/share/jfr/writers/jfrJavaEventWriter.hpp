@@ -32,7 +32,7 @@ class JavaThread;
 class Thread;
 
 class JfrJavaEventWriter : AllStatic {
-  friend class JfrCheckpointThreadClosure;
+  friend class JfrNotifyClosure;
   friend class JfrJavaEventWriterNotifyOperation;
   friend class JfrJavaEventWriterNotificationClosure;
  private:

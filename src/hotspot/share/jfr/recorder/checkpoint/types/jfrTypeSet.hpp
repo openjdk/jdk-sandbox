@@ -44,6 +44,10 @@ class JfrTypeSet : AllStatic {
   static JfrArtifactSet* _artifacts;
   static JfrArtifactClosure* _subsystem_callback;
   static bool _class_unload;
+  static bool _flushpoint;
+  static bool is_rotating();
+  static bool is_not_rotating();
+  static bool current_epoch();
 
   static void do_klass(Klass* k);
   static void do_unloaded_klass(Klass* k);
@@ -67,7 +71,7 @@ class JfrTypeSet : AllStatic {
   static void write_class_loader_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
   static void write_method_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
   static void write_symbol_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload);
+  static size_t serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload, bool flushpoint);
 };
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP

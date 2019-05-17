@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -290,6 +290,10 @@ public final class SecuritySupport {
         doPrivileged(() ->  MetadataRepository.getInstance().registerMirror(eventClass), new FlightRecorderPermission(Utils.REGISTER_EVENT));
     }
 
+    public static void setProperty(String propertyName, String value) {
+        doPrivileged(() -> System.setProperty(propertyName, value), new PropertyPermission(propertyName, "write"));
+    }
+
     static boolean getBooleanProperty(String propertyName) {
         return doPrivilegedWithReturn(() -> Boolean.getBoolean(propertyName), new PropertyPermission(propertyName, "read"));
     }
@@ -330,7 +334,7 @@ public final class SecuritySupport {
         doPriviligedIO(() -> Files.walkFileTree(safePath.toPath(), new DirectoryCleaner()));
     }
 
-    static SafePath toRealPath(SafePath safePath) throws Exception {
+    static SafePath toRealPath(SafePath safePath) throws IOException {
         return new SafePath(doPrivilegedIOWithReturn(() -> safePath.toPath().toRealPath()));
     }
 
@@ -408,7 +412,7 @@ public final class SecuritySupport {
     }
 
     static Class<?> defineClass(Class<?> lookupClass, byte[] bytes) {
-        return AccessController.doPrivileged(new PrivilegedAction<>() {
+        return AccessController.doPrivileged(new PrivilegedAction<Class<?>>() {
             @Override
             public Class<?> run() {
                 try {

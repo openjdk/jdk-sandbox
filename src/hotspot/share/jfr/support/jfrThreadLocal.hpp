@@ -50,6 +50,7 @@ class JfrThreadLocal {
   unsigned int _stack_trace_hash;
   mutable u4 _stackdepth;
   volatile jint _entering_suspend_flag;
+  bool _excluded;
   bool _dead;
 
   JfrBuffer* install_native_buffer() const;
@@ -205,6 +206,10 @@ class JfrThreadLocal {
     _trace_id = id;
   }
 
+  bool is_excluded() const {
+    return _excluded;
+  }
+
   bool is_dead() const {
     return _dead;
   }
@@ -215,6 +220,8 @@ class JfrThreadLocal {
 
   static void on_start(Thread* t);
   static void on_exit(Thread* t);
+  static void exclude(Thread* t);
+  static void include(Thread* t);
 
   // Code generation
   static ByteSize trace_id_offset();

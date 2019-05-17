@@ -983,6 +983,42 @@
     <Field type="ulong" name="value" label="Value" />
   </Event>
 
+  <Event name="Flush" category="Flight Recorder" label="Flush" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
+  <Event name="FlushStorage" category="Flight Recorder" label="Flush Storage" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
+  <Event name="FlushStacktrace" category="Flight Recorder" label="Flush Stacktrace" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
+  <Event name="FlushStringPool" category="Flight Recorder" label="Flush String Pool" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
+  <Event name="FlushMetadata" category="Flight Recorder" label="Flush Metadata" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
+  <Event name="FlushTypeSet" category="Flight Recorder" label="Flush Type Set" thread="false">
+    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
+    <Field type="ulong" name="elements" label="Elements Written" />
+    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
+  </Event>
+
   <Type name="ZStatisticsCounterType" label="Z Statistics Counter">
     <Field type="string" name="counter" label="Counter" />
   </Type>
@@ -1168,6 +1204,7 @@
   <Relation name="GcId"/>
   <Relation name="CompileId" />
   <Relation name="SweepId"/>
+  <Relation name="FlushId"/>
  
   <XmlType name="Package" parameterType="const PackageEntry*" fieldType="const PackageEntry*"/> 
   <XmlType name="Class" javaType="java.lang.Class" parameterType="const Klass*" fieldType="const Klass*"/> 

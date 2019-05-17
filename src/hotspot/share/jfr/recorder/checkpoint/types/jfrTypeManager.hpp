@@ -34,11 +34,12 @@ class JfrTypeManager : public AllStatic {
   static bool initialize();
   static void clear();
   static void write_types(JfrCheckpointWriter& writer);
-  static void write_safepoint_types(JfrCheckpointWriter& writer);
+  static void notify_types_on_rotation();
   static void write_type_set();
   static void write_type_set_for_unloaded_classes();
-  static void create_thread_checkpoint(JavaThread* jt);
-  static void write_thread_checkpoint(JavaThread* jt);
+  static size_t flush_type_set();
+  static void create_thread_checkpoint(Thread* t);
+  static void write_thread_checkpoint(Thread* t);
 };
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP

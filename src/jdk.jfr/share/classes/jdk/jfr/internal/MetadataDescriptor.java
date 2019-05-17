@@ -25,7 +25,6 @@
 
 package jdk.jfr.internal;
 
-import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import jdk.jfr.EventType;
+import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
  * Metadata about a chunk
@@ -214,6 +214,7 @@ public final class MetadataDescriptor {
     long gmtOffset;
     String locale;
     Element root;
+    public long metadataId;
 
     // package private
     MetadataDescriptor() {
@@ -252,7 +253,7 @@ public final class MetadataDescriptor {
         return locale;
     }
 
-    public static MetadataDescriptor read(DataInput input) throws IOException {
+    public static MetadataDescriptor read(RecordingInput input) throws IOException {
         MetadataReader r = new MetadataReader(input);
         return r.getDescriptor();
     }

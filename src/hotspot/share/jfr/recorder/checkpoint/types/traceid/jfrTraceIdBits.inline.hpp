@@ -40,17 +40,11 @@ static const int leakp_offset = low_offset - 1;
 
 inline void set_bits(jbyte bits, jbyte* const dest) {
   assert(dest != NULL, "invariant");
-  const jbyte current = OrderAccess::load_acquire(dest);
+  const jbyte current = *dest;
   if (bits != (current & bits)) {
-    *dest |= bits;
-  }
-}
+    *dest = current | bits;
 
-inline void set_mask(jbyte mask, jbyte* const dest) {
-  assert(dest != NULL, "invariant");
-  const jbyte current = OrderAccess::load_acquire(dest);
-  if (mask != (current & mask)) {
-    *dest &= mask;
+    OrderAccess::storestore();
   }
 }
 
@@ -82,6 +76,27 @@ inline void clear_bits_cas(jbyte bits, jbyte* const dest) {
   } while (true);
 }
 
+inline void set_mask(jbyte mask, jbyte* const dest) {
+  assert(dest != NULL, "invariant");
+  const jbyte current = *dest;
+  if (mask != (current & mask)) {
+    *dest = current & mask;
+    OrderAccess::storestore();
+  }
+}
+inline void set_mask_cas(jbyte mask, jbyte* const dest) {
+  assert(dest != NULL, "invariant");
+  do {
+    const jbyte current = OrderAccess::load_acquire(dest);
+    if (mask == (current & mask)) {
+      return;
+    }
+    const jbyte new_value = current & mask;
+    if (Atomic::cmpxchg(new_value, dest, current) == current) {
+      return;
+    }
+  } while (true);
+}
 inline void set_traceid_bits(jbyte bits, traceid* dest) {
   set_bits(bits, ((jbyte*)dest) + low_offset);
 }
@@ -103,7 +118,7 @@ inline void set_leakp_traceid_bits_cas(jbyte bits, traceid* dest) {
 }
 
 inline void set_leakp_traceid_mask(jbyte mask, traceid* dest) {
-  set_mask(mask, ((jbyte*)dest) + leakp_offset);
+  set_mask_cas(mask, ((jbyte*)dest) + leakp_offset);
 }
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDBITS_INLINE_HPP

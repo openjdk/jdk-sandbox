@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 
 package jdk.jfr.consumer;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -37,6 +39,9 @@ import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.PrivateAccess;
+import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.Parser;
+import jdk.jfr.internal.consumer.RecordingInternals;
 import jdk.jfr.internal.tool.PrettyWriter;
 
 /**
@@ -50,6 +55,33 @@ import jdk.jfr.internal.tool.PrettyWriter;
  * @since 9
  */
 public class RecordedObject {
+
+    static{
+        RecordingInternals.INSTANCE = new RecordingInternals() {
+            public List<Type> readTypes(RecordingFile file) throws IOException {
+                return file.readTypes();
+            }
+
+            public boolean isLastEventInChunk(RecordingFile file) {
+                return file.isLastEventInChunk;
+            }
+
+            @Override
+            public Object getOffsetDataTime(RecordedObject event, String name) {
+                return event.getOffsetDateTime(name);
+            }
+
+            @Override
+            public void sort(List<RecordedEvent> events) {
+               Collections.sort(events, (e1, e2) -> Long.compare(e1.endTime, e2.endTime));
+            }
+
+            @Override
+            public Parser newStringParser() {
+                return new StringParser(null, false);
+            }
+        };
+    }
 
     private final static class UnsignedValue {
         private final Object o;

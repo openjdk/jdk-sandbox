@@ -42,6 +42,12 @@ class ClassUnloadTypeSet : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
+class FlushTypeSet : public JfrSerializer {
+ size_t _elements;
+ public:
+  void serialize(JfrCheckpointWriter& writer);
+  size_t elements() const;
+};
 class FlagValueOriginConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
@@ -129,9 +135,9 @@ class ThreadStateConstant : public JfrSerializer {
 
 class JfrThreadConstant : public JfrSerializer {
  private:
-  JavaThread* _thread;
+  Thread* _thread;
  public:
-  JfrThreadConstant(JavaThread* jt) : _thread(jt) {}
+  JfrThreadConstant(Thread* t) : _thread(t) {}
   void serialize(JfrCheckpointWriter& writer);
 };
 

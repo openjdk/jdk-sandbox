@@ -73,13 +73,17 @@ class JfrCheckpointManager : public JfrCHeapObj {
 
   size_t clear();
   size_t write();
+  size_t write_constants();
+  size_t flush();
   size_t write_epoch_transition_mspace();
   size_t write_types();
-  size_t write_safepoint_types();
+  size_t write_metadata_event();
   void write_type_set();
   void shift_epoch();
   void synchronize_epoch();
   bool use_epoch_transition_mspace(const Thread* t) const;
+  void notify_threads();
+  void notify_types_on_rotation();
 
   JfrCheckpointManager(JfrChunkWriter& cw);
   ~JfrCheckpointManager();
@@ -91,9 +95,10 @@ class JfrCheckpointManager : public JfrCHeapObj {
 
  public:
   void register_service_thread(const Thread* t);
+  size_t flush_type_set();
   static void write_type_set_for_unloaded_classes();
-  static void create_thread_checkpoint(JavaThread* jt);
-  static void write_thread_checkpoint(JavaThread* jt);
+  static void create_thread_checkpoint(Thread* t);
+  static void write_thread_checkpoint(Thread* t);
 
   friend class JfrRecorder;
   friend class JfrRecorderService;

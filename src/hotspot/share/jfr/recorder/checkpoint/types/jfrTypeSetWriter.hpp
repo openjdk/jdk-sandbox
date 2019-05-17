@@ -41,8 +41,8 @@ class JfrArtifactWriterHost : public StackObj {
  public:
   JfrArtifactWriterHost(JfrCheckpointWriter* writer,
                         JfrArtifactSet* artifacts,
-                        bool class_unload,
-                        bool skip_header = false) : _impl(writer, artifacts, class_unload),
+                        bool current_epoch,
+                        bool skip_header = false) : _impl(writer, artifacts, current_epoch),
                                                     _writer(writer),
                                                     _ctx(writer->context()),
                                                     _count(0),
@@ -82,11 +82,11 @@ class JfrArtifactWriterImplHost {
  private:
   JfrCheckpointWriter* _writer;
   JfrArtifactSet* _artifacts;
-  bool _class_unload;
+  bool _current_epoch;
  public:
   typedef T Type;
-  JfrArtifactWriterImplHost(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, bool class_unload) :
-    _writer(writer), _artifacts(artifacts), _class_unload(class_unload) {}
+  JfrArtifactWriterImplHost(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, bool current_epoch) :
+    _writer(writer), _artifacts(artifacts), _current_epoch(current_epoch) {}
   int operator()(T const& value) {
     return op(this->_writer, this->_artifacts, value);
   }
@@ -98,8 +98,8 @@ class JfrPredicatedArtifactWriterImplHost : public JfrArtifactWriterImplHost<T, 
   Predicate _predicate;
   typedef JfrArtifactWriterImplHost<T, op> Parent;
  public:
-  JfrPredicatedArtifactWriterImplHost(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, bool class_unload) :
-    Parent(writer, artifacts, class_unload), _predicate(class_unload) {}
+  JfrPredicatedArtifactWriterImplHost(JfrCheckpointWriter* writer, JfrArtifactSet* artifacts, bool current_epoch) :
+    Parent(writer, artifacts, current_epoch), _predicate(current_epoch) {}
   int operator()(T const& value) {
     return _predicate(value) ? Parent::operator()(value) : 0;
   }

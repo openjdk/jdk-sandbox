@@ -71,6 +71,7 @@ class JfrStringPool : public JfrCHeapObj {
   static JfrStringPool* create(JfrChunkWriter& cw);
   bool initialize();
   static void destroy();
+  static bool modified();
 
   friend class JfrRecorder;
   friend class JfrRecorderService;

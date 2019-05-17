@@ -48,6 +48,9 @@ class Jfr : AllStatic {
   static void on_unloading_classes();
   static void on_thread_start(Thread* thread);
   static void on_thread_exit(Thread* thread);
+  static void exclude_thread(Thread* thread);
+  static bool is_excluded(Thread* thread);
+  static void include_thread(Thread* thread);
   static void on_java_thread_dismantle(JavaThread* jt);
   static void on_vm_shutdown(bool exception_handler = false);
   static bool on_flight_recorder_option(const JavaVMOption** option, char* delimiter);

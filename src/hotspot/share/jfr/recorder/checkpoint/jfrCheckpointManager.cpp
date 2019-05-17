@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,9 +34,13 @@
 #include "jfr/recorder/storage/jfrStorageUtils.inline.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/utilities/jfrBigEndian.hpp"
+#include "jfr/utilities/jfrIterator.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
+#include "jfr/writers/jfrJavaEventWriter.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
@@ -136,6 +140,8 @@ void JfrCheckpointManager::register_service_thread(const Thread* thread) {
 
 void JfrCheckpointManager::register_full(BufferPtr t, Thread* thread) {
   // nothing here at the moment
+  assert(t != NULL, "invariant");
+  assert(t->acquired_by(thread), "invariant");
   assert(t->retired(), "invariant");
 }
 
@@ -271,15 +277,15 @@ static void write_checkpoint_content(JfrChunkWriter& cw, const u1* data, size_t 
 
 static size_t write_checkpoint_event(JfrChunkWriter& cw, const u1* data) {
   assert(data != NULL, "invariant");
-  const intptr_t previous_checkpoint_event = cw.previous_checkpoint_offset();
-  const intptr_t event_begin = cw.current_offset();
-  const intptr_t offset_to_previous_checkpoint_event = 0 == previous_checkpoint_event ? 0 : previous_checkpoint_event - event_begin;
-  const jlong total_checkpoint_size = total_size(data);
-  write_checkpoint_header(cw, offset_to_previous_checkpoint_event, data);
+  const int64_t last_checkpoint_event = cw.last_checkpoint_offset();
+  const int64_t event_begin = cw.current_offset();
+  const int64_t offset_to_last_checkpoint_event = 0 == last_checkpoint_event ? 0 : last_checkpoint_event - event_begin;
+  const int64_t total_checkpoint_size = total_size(data);
+  write_checkpoint_header(cw, offset_to_last_checkpoint_event, data);
   write_checkpoint_content(cw, data, total_checkpoint_size - sizeof(JfrCheckpointEntry));
-  const jlong checkpoint_event_size = cw.current_offset() - event_begin;
+  const int64_t checkpoint_event_size = cw.current_offset() - event_begin;
   cw.write_padded_at_offset<u4>(checkpoint_event_size, event_begin);
-  cw.set_previous_checkpoint_offset(event_begin);
+  cw.set_last_checkpoint_offset(event_begin);
   return (size_t)total_checkpoint_size;
 }
 
@@ -336,8 +342,36 @@ size_t JfrCheckpointManager::write() {
   return processed;
 }
 
+typedef StopOnEmptyIterator<JfrDoublyLinkedList<JfrBuffer> > EmptyIterator;
+
+template <typename Processor>
+static void process_transition_mspace(Processor& processor, JfrCheckpointMspace* mspace) {
+  assert(mspace->is_full_empty(), "invariant");
+  process_free_list_iterator_control<Processor, JfrCheckpointMspace, EmptyIterator>(processor, mspace, forward);
+}
+
+size_t JfrCheckpointManager::flush() {
+  WriteOperation wo(_chunkwriter);
+  MutexedWriteOperation mwo(wo);
+  process_transition_mspace(mwo, _epoch_transition_mspace);
+  assert(_free_list_mspace->is_full_empty(), "invariant");
+  process_free_list(mwo, _free_list_mspace);
+  return wo.processed();
+}
+
+size_t JfrCheckpointManager::write_constants() {
+  write_types();
+  return flush();
+}
+
 size_t JfrCheckpointManager::write_epoch_transition_mspace() {
-  return write_mspace_exclusive(_epoch_transition_mspace, _chunkwriter);
+  Thread* const thread = Thread::current();
+  WriteOperation wo(_chunkwriter);
+  MutexedWriteOperation mwo(wo);
+  CheckpointReleaseOperation cro(_epoch_transition_mspace, thread, false);
+  CheckpointWriteOperation cpwo(&mwo, &cro);
+  process_transition_mspace(cpwo, _epoch_transition_mspace);
+  return wo.processed();
 }
 
 typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
@@ -346,20 +380,38 @@ size_t JfrCheckpointManager::clear() {
   process_free_list(discarder, _free_list_mspace);
   process_free_list(discarder, _epoch_transition_mspace);
   synchronize_epoch();
-  return discarder.processed();
+  return discarder.elements();
 }
 
 size_t JfrCheckpointManager::write_types() {
+  ResourceMark rm;
+  HandleMark hm;
   JfrCheckpointWriter writer(false, true, Thread::current());
   JfrTypeManager::write_types(writer);
   return writer.used_size();
 }
 
-size_t JfrCheckpointManager::write_safepoint_types() {
-  // this is also a "flushpoint"
-  JfrCheckpointWriter writer(true, true, Thread::current());
-  JfrTypeManager::write_safepoint_types(writer);
-  return writer.used_size();
+class JfrNotifyClosure : public ThreadClosure {
+ public:
+  void do_thread(Thread* t) {
+    assert(t != NULL, "invariant");
+    assert(t->is_Java_thread(), "invariant");
+    assert_locked_or_safepoint(Threads_lock);
+    JfrJavaEventWriter::notify((JavaThread*)t);
+  }
+};
+
+void JfrCheckpointManager::notify_threads() {
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  JfrNotifyClosure tc;
+  JfrJavaThreadIterator iter;
+  while (iter.has_next()) {
+    tc.do_thread(iter.next());
+  }
+}
+
+void JfrCheckpointManager::notify_types_on_rotation() {
+  JfrTypeManager::notify_types_on_rotation();
 }
 
 void JfrCheckpointManager::write_type_set() {
@@ -371,10 +423,16 @@ void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
   JfrTypeManager::write_type_set_for_unloaded_classes();
 }
 
-void JfrCheckpointManager::create_thread_checkpoint(JavaThread* jt) {
-  JfrTypeManager::create_thread_checkpoint(jt);
+size_t JfrCheckpointManager::flush_type_set() {
+  const size_t elements = JfrTypeManager::flush_type_set();
+  flush();
+  return elements;
 }
 
-void JfrCheckpointManager::write_thread_checkpoint(JavaThread* jt) {
-  JfrTypeManager::write_thread_checkpoint(jt);
+void JfrCheckpointManager::create_thread_checkpoint(Thread* t) {
+  JfrTypeManager::create_thread_checkpoint(t);
+}
+
+void JfrCheckpointManager::write_thread_checkpoint(Thread* t) {
+  JfrTypeManager::write_thread_checkpoint(t);
 }

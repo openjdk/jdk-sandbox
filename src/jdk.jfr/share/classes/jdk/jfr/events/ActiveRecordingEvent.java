@@ -53,6 +53,10 @@ public final class ActiveRecordingEvent extends AbstractJDKEvent {
     @Timespan(Timespan.MILLISECONDS)
     public long maxAge;
 
+    @Label("Flush Interval")
+    @Timespan(Timespan.MILLISECONDS)
+    public long flushInterval;
+
     @Label("Max Size")
     @DataAmount
     public long maxSize;

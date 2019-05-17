@@ -49,6 +49,9 @@ import jdk.jfr.AnnotationElement;
 import jdk.jfr.SettingDescriptor;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.MetadataDescriptor.Element;
+import jdk.jfr.internal.consumer.Parser;
+import jdk.jfr.internal.consumer.RecordingInput;
+import jdk.jfr.internal.consumer.RecordingInternals;
 
 /**
  * Parses metadata.
@@ -61,12 +64,13 @@ final class MetadataReader {
     private final MetadataDescriptor descriptor;
     private final Map<Long, Type> types = new HashMap<>();
 
-    public MetadataReader(DataInput input) throws IOException {
+    public MetadataReader(RecordingInput input) throws IOException {
         this.input = input;
         int size = input.readInt();
         this.pool = new ArrayList<>(size);
+        Parser p = RecordingInternals.instance().newStringParser();
         for (int i = 0; i < size; i++) {
-            this.pool.add(input.readUTF());
+            this.pool.add((String) p.parse(input));
         }
         descriptor = new MetadataDescriptor();
         Element root = createElement();

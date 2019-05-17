@@ -119,7 +119,7 @@ class JfrFrameType : public JfrSerializer {
 };
 
 bool JfrStackTraceRepository::initialize() {
-  return JfrSerializer::register_serializer(TYPE_FRAMETYPE, false, true, new JfrFrameType());
+  return JfrSerializer::register_serializer(TYPE_FRAMETYPE, true, new JfrFrameType());
 }
 
 size_t JfrStackTraceRepository::clear() {
@@ -196,7 +196,7 @@ traceid JfrStackTraceRepository::record(Thread* thread, int skip, unsigned int* 
     *hash = tl->cached_stack_trace_hash();
     return tl->cached_stack_trace_id();
   }
-  if (!thread->is_Java_thread() || thread->is_hidden_from_external_view()) {
+  if (!thread->is_Java_thread() || thread->is_hidden_from_external_view() || tl->is_excluded()) {
     return 0;
   }
   JfrStackFrame* frames = tl->stackframes();
@@ -367,7 +367,6 @@ void JfrStackFrame::resolve_lineno() {
   assert(_method, "no method pointer");
   assert(_line == 0, "already have linenumber");
   _line = _method->line_number_from_bci(_bci);
-  _method = NULL;
 }
 
 void JfrStackTrace::set_frame(u4 frame_pos, JfrStackFrame& frame) {
@@ -446,7 +445,7 @@ bool JfrStackTrace::record_thread(JavaThread& thread, frame& frame) {
     const int lineno = method->line_number_from_bci(bci);
     // Can we determine if it's inlined?
     _hash = (_hash << 2) + (unsigned int)(((size_t)mid >> 2) + (bci << 4) + type);
-    _frames[count] = JfrStackFrame(mid, bci, type, lineno);
+    _frames[count] = JfrStackFrame(method, mid, bci, type, lineno);
     st.samples_next();
     count++;
   }

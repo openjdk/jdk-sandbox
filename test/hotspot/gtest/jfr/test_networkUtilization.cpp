@@ -78,6 +78,9 @@ namespace {
     void write_key(traceid id) {
       current = id;
     }
+    void write_type(JfrTypeId id) {}
+    MockJfrCheckpointWriter() {}
+    MockJfrCheckpointWriter(bool dummy1, bool dummy2, void* dummy3) {}
     void write(const char* data) {
       ids[current] = data;
     }
@@ -89,12 +92,12 @@ namespace {
   public:
     static MockJfrSerializer* current;
 
-    static bool register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, MockJfrSerializer* serializer) {
+    static bool register_serializer(JfrTypeId id, bool permit_cache, MockJfrSerializer* serializer) {
       current = serializer;
       return true;
     }
 
-    virtual void serialize(MockJfrCheckpointWriter& writer) = 0;
+    virtual void serialize(MockJfrCheckpointWriter& writer) {}
   };
 
   MockJfrSerializer* MockJfrSerializer::current;

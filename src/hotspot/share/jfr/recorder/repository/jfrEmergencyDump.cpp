@@ -248,7 +248,6 @@ static void write_emergency_file(fio_fd emergency_fd, const RepositoryIterator& 
 }
 
 static const char* create_emergency_dump_path() {
-  assert(JfrStream_lock->owned_by_self(), "invariant");
   char* buffer = NEW_RESOURCE_ARRAY_RETURN_NULL(char, JVM_MAXPATHLEN);
   if (NULL == buffer) {
     return NULL;
@@ -291,7 +290,6 @@ static const char* create_emergency_dump_path() {
 // Caller needs ResourceMark
 static const char* create_emergency_chunk_path(const char* repository_path) {
   assert(repository_path != NULL, "invariant");
-  assert(JfrStream_lock->owned_by_self(), "invariant");
   const size_t repository_path_len = strlen(repository_path);
   // date time
   char date_time_buffer[32] = { 0 };
@@ -312,7 +310,6 @@ static const char* create_emergency_chunk_path(const char* repository_path) {
 }
 
 static fio_fd emergency_dump_file_descriptor() {
-  assert(JfrStream_lock->owned_by_self(), "invariant");
   ResourceMark rm;
   const char* const emergency_dump_path = create_emergency_dump_path();
   return emergency_dump_path != NULL ? open_exclusivly(emergency_dump_path) : invalid_fd;
@@ -325,7 +322,7 @@ const char* JfrEmergencyDump::build_dump_path(const char* repository_path) {
 void JfrEmergencyDump::on_vm_error(const char* repository_path) {
   assert(repository_path != NULL, "invariant");
   ResourceMark rm;
-  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+
   const fio_fd emergency_fd = emergency_dump_file_descriptor();
   if (emergency_fd != invalid_fd) {
     RepositoryIterator iterator(repository_path, strlen(repository_path));
@@ -407,10 +404,6 @@ static void prepare_for_emergency_dump(Thread* thread) {
 
   if (JfrBuffer_lock->owned_by_self()) {
     JfrBuffer_lock->unlock();
-  }
-
-  if (JfrStream_lock->owned_by_self()) {
-    JfrStream_lock->unlock();
   }
 
   if (JfrStacktrace_lock->owned_by_self()) {

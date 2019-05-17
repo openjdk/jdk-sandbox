@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,7 +78,7 @@ abstract class ObjectFactory<T> {
         if (value instanceof Object[]) {
             return createTyped(valueDescriptors, id, (Object[]) value);
         }
-        throw new InternalError("Object factory must have struct type");
+        throw new InternalError("Object factory must have struct type. Type was " + value.getClass().getName());
     }
 
     abstract T createTyped(List<ValueDescriptor> valueDescriptors, long id, Object[] values);

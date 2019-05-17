@@ -48,17 +48,24 @@
 // #define JDK_JFR_EVENT_SUBKLASS  16
 // #define JDK_JFR_EVENT_KLASS     32
 // #define EVENT_HOST_KLASS        64
+// #define EVENT_RESERVED          128
 
 #define IS_JDK_JFR_EVENT_SUBKLASS(ptr) (((ptr)->trace_id() & (JDK_JFR_EVENT_SUBKLASS)) != 0)
 
+#define IS_SERIALIZED(ptr)        (((ptr)->trace_id() & (SERIALIZED_TEST_BIT)) != 0)
+#define IS_NOT_SERIALIZED(ptr)    (!IS_SERIALIZED(ptr))
+#define IS_LEAKP_SERIALIZED(ptr)  (((ptr)->trace_id() & (LEAKP_SERIALIZED_TEST_BIT)) != 0)
+#define IS_NOT_LEAKP_SERIALIZED(ptr) (!IS_LEAKP_SERIALIZED(ptr))
 #define ANY_USED_BITS (USED_EPOCH_2_BIT         | \
                        USED_EPOCH_1_BIT         | \
                        METHOD_USED_EPOCH_2_BIT  | \
                        METHOD_USED_EPOCH_1_BIT  | \
+                       LEAKP_USED_EPOCH_1_BIT    | \
                        LEAKP_USED_EPOCH_2_BIT   | \
-                       LEAKP_USED_EPOCH_1_BIT)
+                       SERIALIZED_TEST_BIT       | \
+                       LEAKP_SERIALIZED_TEST_BIT)
 
-#define TRACE_ID_META_BITS (EVENT_HOST_KLASS | JDK_JFR_EVENT_KLASS | JDK_JFR_EVENT_SUBKLASS | ANY_USED_BITS)
+#define TRACE_ID_META_BITS (EVENT_RESERVED | EVENT_HOST_KLASS | JDK_JFR_EVENT_KLASS | JDK_JFR_EVENT_SUBKLASS | ANY_USED_BITS)
 
 #define ANY_EVENT                       (EVENT_HOST_KLASS | JDK_JFR_EVENT_KLASS | JDK_JFR_EVENT_SUBKLASS)
 #define IS_JDK_JFR_EVENT_KLASS(ptr)     (((ptr)->trace_id() & JDK_JFR_EVENT_KLASS) != 0)
@@ -76,13 +83,17 @@
 #define TRACE_ID_MASKED_PTR(ptr)        (TRACE_ID_MASKED((ptr)->trace_id()))
 #define TRACE_ID_RAW(ptr)               ((ptr)->trace_id())
 #define TRACE_ID(ptr)                   (TRACE_ID_MASKED_PTR(ptr) >> TRACE_ID_SHIFT)
-#define METHOD_ID(kls, meth)            (TRACE_ID_MASKED_PTR(kls) | (meth)->method_idnum())
+#define METHOD_ID(kls, meth)            (TRACE_ID_MASKED_PTR(kls) | (meth)->orig_method_idnum())
 #define SET_TAG(ptr, tag)               (set_traceid_bits(tag, (ptr)->trace_id_addr()))
-#define SET_LEAKP_TAG(ptr, tag)         (set_leakp_traceid_bits(tag, (ptr)->trace_id_addr()))
 #define SET_TAG_CAS(ptr, tag)           (set_traceid_bits_cas(tag, (ptr)->trace_id_addr()))
 #define SET_LEAKP_TAG_CAS(ptr, tag)     (set_leakp_traceid_bits_cas(tag, (ptr)->trace_id_addr()))
+#define SET_LEAKP_TAG(ptr, tag)         (SET_LEAKP_TAG_CAS(ptr, tag))
 
+#define SET_SERIALIZED(ptr)             (set_leakp_traceid_bits_cas((jbyte)SERIALIZED_BIT, (ptr)->trace_id_addr()))
+#define SET_LEAKP_SERIALIZED(ptr)       (set_leakp_traceid_bits_cas((jbyte)LEAKP_SERIALIZED_BIT, (ptr)->trace_id_addr()))
+#define UNSERIALIZE_MASK                (~(SERIALIZED_BIT | LEAKP_SERIALIZED_BIT))
 #define IN_USE_THIS_EPOCH_BIT           (JfrTraceIdEpoch::in_use_this_epoch_bit())
+#define IN_USE_THIS_EPOCH_UNSERIALIZED_BIT (IN_USE_THIS_EPOCH_BIT | SERIALIZED_TEST_BIT)
 #define IN_USE_PREV_EPOCH_BIT           (JfrTraceIdEpoch::in_use_prev_epoch_bit())
 #define LEAKP_IN_USE_THIS_EPOCH_BIT     (JfrTraceIdEpoch::leakp_in_use_this_epoch_bit())
 #define LEAKP_IN_USE_PREV_EPOCH_BIT     (JfrTraceIdEpoch::leakp_in_use_prev_epoch_bit())
@@ -107,13 +118,15 @@
 
 #define SET_USED_THIS_EPOCH(ptr)        (SET_TAG(ptr, IN_USE_THIS_EPOCH_BIT))
 #define SET_USED_PREV_EPOCH(ptr)        (SET_TAG_CAS(ptr, IN_USE_PREV_EPOCH_BIT))
-#define SET_LEAKP_USED_THIS_EPOCH(ptr)  (SET_LEAKP_TAG(ptr, IN_USE_THIS_EPOCH_BIT))
-#define SET_LEAKP_USED_PREV_EPOCH(ptr)  (SET_LEAKP_TAG(ptr, IN_USE_PREV_EPOCH_BIT))
+#define SET_LEAKP_USED_THIS_EPOCH(ptr)  (SET_LEAKP_TAG_CAS(ptr, IN_USE_THIS_EPOCH_BIT))
+#define SET_LEAKP_USED_PREV_EPOCH(ptr)  (SET_LEAKP_TAG_CAS(ptr, IN_USE_PREV_EPOCH_BIT))
 #define SET_METHOD_AND_CLASS_USED_THIS_EPOCH(kls) (SET_TAG(kls, METHOD_AND_CLASS_IN_USE_THIS_EPOCH_BITS))
 
 #define USED_THIS_EPOCH(ptr)            (((ptr)->trace_id() & IN_USE_THIS_EPOCH_BIT) != 0)
+#define USED_THIS_EPOCH_UNSERIALIZED(ptr) ((USED_THIS_EPOCH(ptr)) && (IS_NOT_SERIALIZED(ptr)))
 #define NOT_USED_THIS_EPOCH(ptr)        (!USED_THIS_EPOCH(ptr))
 #define USED_PREV_EPOCH(ptr)            (((ptr)->trace_id() & IN_USE_PREV_EPOCH_BIT) != 0)
+#define USED_PREV_EPOCH_UNSERIALIZED(ptr) ((USED_PREV_EPOCH(ptr)) && (IS_NOT_SERIALIZED(ptr)))
 #define NOT_USED_PREV_EPOCH(ptr)        (!USED_PREV_EPOCH(ptr))
 #define USED_ANY_EPOCH(ptr)             (((ptr)->trace_id() & (USED_EPOCH_2_BIT | USED_EPOCH_1_BIT)) != 0)
 #define NOT_USED_ANY_EPOCH(ptr)         (!USED_ANY_EPOCH(ptr))
@@ -126,8 +139,10 @@
 #define LEAKP_NOT_USED_ANY_EPOCH(ptr)   (!LEAKP_USED_ANY_EPOCH(ptr))
 
 #define ANY_USED_THIS_EPOCH(ptr)        (((ptr)->trace_id() & (LEAKP_IN_USE_THIS_EPOCH_BIT | IN_USE_THIS_EPOCH_BIT)) != 0)
+#define ANY_USED_THIS_EPOCH_UNSERIALIZED(ptr) ((ANY_USED_THIS_EPOCH(ptr)) && (IS_NOT_SERIALIZED(ptr)))
 #define ANY_NOT_USED_THIS_EPOCH(ptr)    (!ANY_USED_THIS_EPOCH(ptr))
 #define ANY_USED_PREV_EPOCH(ptr)        (((ptr)->trace_id() & (LEAKP_IN_USE_PREV_EPOCH_BIT | IN_USE_PREV_EPOCH_BIT)) != 0)
+#define ANY_USED_PREV_EPOCH_UNSERIALIZED(ptr) ((ANY_USED_PREV_EPOCH(ptr)) && (IS_NOT_SERIALIZED(ptr)))
 #define ANY_NOT_USED_PREV_EPOCH(ptr)    (!ANY_USED_PREV_EPOCH(ptr))
 
 #define METHOD_USED_THIS_EPOCH(kls)     (((kls)->trace_id() & METHOD_IN_USE_THIS_EPOCH_BIT) != 0)
@@ -166,6 +181,7 @@
 #define LEAKP_UNUSE_METHOD_THIS_EPOCH(kls) (set_leakp_traceid_mask(UNUSE_METHOD_THIS_EPOCH_MASK, (kls)->trace_id_addr()))
 #define LEAKP_UNUSE_METHOD_PREV_EPOCH(kls) (set_leakp_traceid_mask(UNUSE_METHOD_PREV_EPOCH_MASK, (kls)->trace_id_addr()))
 
+#define UNSERIALIZE(ptr)                (set_leakp_traceid_mask(UNSERIALIZE_MASK, (ptr)->trace_id_addr()))
 #define ANY_USED(ptr)                   (((ptr)->trace_id() & ANY_USED_BITS) != 0)
 #define ANY_NOT_USED(ptr)               (!ANY_USED(ptr))
 
@@ -174,14 +190,22 @@
 #define UNUSE_METHOD_AND_CLASS_PREV_EPOCH(kls) (set_traceid_mask(UNUSE_METHOD_AND_CLASS_PREV_EPOCH_MASK, (kls)->trace_id_addr()))
 #define LEAKP_UNUSE_METHODS_AND_CLASS_PREV_EPOCH(kls) (set_leakp_traceid_mask(UNUSE_METHOD_AND_CLASS_PREV_EPOCH_MASK, (kls)->trace_id_addr()))
 
+#define IS_METHOD_SERIALIZED(m)              ((m)->is_trace_flag_set((jbyte)SERIALIZED_BIT))
+#define METHOD_NOT_SERIALIZED(m)             (!IS_METHOD_SERIALIZED(m))
+#define SET_METHOD_SERIALIZED(m)             (set_bits_cas((jbyte)SERIALIZED_BIT, (m)->trace_flags_addr()))
+#define UNSERIALIZE_METHOD(m)                (clear_bits_cas((jbyte)SERIALIZED_BIT, (m)->trace_flags_addr()))
+#define IS_LEAKP_METHOD_SERIALIZED(m)        ((m)->is_trace_flag_set((jbyte)LEAKP_SERIALIZED_BIT))
+#define METHOD_NOT_LEAKP_SERIALIZED(m)       (!IS_LEAKP_METHOD_SERIALIZED(m))
+#define SET_LEAKP_METHOD_SERIALIZED(m)       (set_bits_cas((jbyte)LEAKP_SERIALIZED_BIT, (m)->trace_flags_addr()))
+#define UNSERIALIZE_LEAKP_METHOD(m)          (clear_bits_cas((jbyte)LEAKP_SERIALIZED_BIT, (m)->trace_flags_addr()))
 #define METHOD_FLAG_USED_THIS_EPOCH(m)       ((m)->is_trace_flag_set((jbyte)JfrTraceIdEpoch::in_use_this_epoch_bit()))
 #define METHOD_FLAG_NOT_USED_THIS_EPOCH(m)   (!METHOD_FLAG_USED_THIS_EPOCH(m))
-#define SET_METHOD_FLAG_USED_THIS_EPOCH(m)   ((m)->set_trace_flag((jbyte)JfrTraceIdEpoch::in_use_this_epoch_bit()))
+#define SET_METHOD_FLAG_USED_THIS_EPOCH(m)   (set_bits_cas((jbyte)JfrTraceIdEpoch::in_use_this_epoch_bit(), (m)->trace_flags_addr()))
 #define METHOD_FLAG_USED_PREV_EPOCH(m)       ((m)->is_trace_flag_set((jbyte)JfrTraceIdEpoch::in_use_prev_epoch_bit()))
 #define METHOD_FLAG_NOT_USED_PREV_EPOCH(m)   (!METHOD_FLAG_USED_PREV_EPOCH(m))
 #define METHOD_FLAG_USED_ANY_EPOCH(m)        ((METHOD_FLAG_USED_THIS_EPOCH(m) || METHOD_FLAG_USED_PREV_EPOCH(m)) != 0)
 #define METHOD_FLAG_NOT_USED_ANY_EPOCH(m)    ((METHOD_FLAG_NOT_USED_THIS_EPOCH(m) && METHOD_FLAG_NOT_USED_PREV_EPOCH(m)) != 0)
-#define CLEAR_METHOD_FLAG_USED_THIS_EPOCH(m) (clear_bits_cas((jbyte)JfrTraceIdEpoch::in_use_this_epoch_bit(), (m)->trace_flags_addr()))
-#define CLEAR_METHOD_FLAG_USED_PREV_EPOCH(m) (clear_bits_cas((jbyte)JfrTraceIdEpoch::in_use_prev_epoch_bit(), (m)->trace_flags_addr()))
+#define CLEAR_METHOD_FLAG_USED_THIS_EPOCH(m) (clear_bits_cas((jbyte)JfrTraceIdEpoch::in_use_this_epoch_bit() | SERIALIZED_BIT, (m)->trace_flags_addr()))
+#define CLEAR_METHOD_FLAG_USED_PREV_EPOCH(m) (clear_bits_cas((jbyte)JfrTraceIdEpoch::in_use_prev_epoch_bit() | SERIALIZED_BIT, (m)->trace_flags_addr()))
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDMACROS_HPP

@@ -45,6 +45,7 @@
 #include "jfr/periodic/jfrNetworkUtilization.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/support/jfrThreadId.hpp"
+#include "jfr/utilities/jfrThreadIterator.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfrfiles/jfrPeriodic.hpp"
 #include "logging/log.hpp"
@@ -57,7 +58,6 @@
 #include "runtime/os.hpp"
 #include "runtime/os_perf.hpp"
 #include "runtime/thread.inline.hpp"
-#include "runtime/threadSMR.hpp"
 #include "runtime/sweeper.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/classLoadingService.hpp"
@@ -416,10 +416,13 @@ TRACE_REQUEST_FUNC(ThreadAllocationStatistics) {
   GrowableArray<jlong> allocated(initial_size);
   GrowableArray<traceid> thread_ids(initial_size);
   JfrTicks time_stamp = JfrTicks::now();
+
   {
-    // Collect allocation statistics while holding threads lock
-    MutexLocker ml(Threads_lock);
-    for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
+    JfrJavaThreadIterator iter;
+    while (iter.has_next()) {
+      JavaThread* const jt = iter.next();
+      assert(jt != NULL, "invariant");
+
       allocated.append(jt->cooked_allocated_bytes());
       thread_ids.append(JFR_THREAD_ID(jt));
     }

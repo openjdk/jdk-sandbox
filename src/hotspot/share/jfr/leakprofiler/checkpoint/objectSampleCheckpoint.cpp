@@ -230,8 +230,8 @@ void ObjectSampleCheckpoint::write(const EdgeStore* edge_store, bool emit_all, T
   assert(thread != NULL, "invariant");
   static bool types_registered = false;
   if (!types_registered) {
-    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTSYSTEM, false, true, new RootSystemType());
-    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTTYPE, false, true, new RootType());
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTSYSTEM, true, new RootSystemType());
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTTYPE, true, new RootType());
     types_registered = true;
   }
   const ObjectSampler* const object_sampler = LeakProfiler::object_sampler();

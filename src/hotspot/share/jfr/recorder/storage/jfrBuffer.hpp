@@ -57,12 +57,11 @@ class JfrBuffer {
   u4 _size;
 
   const u1* stable_top() const;
-  void clear_flags();
 
  public:
   JfrBuffer();
   bool initialize(size_t header_size, size_t size, const void* id = NULL);
-  void reinitialize();
+  void reinitialize(bool exclusion = false);
   void concurrent_reinitialization();
   size_t discard();
   JfrBuffer* next() const {
@@ -150,6 +149,8 @@ class JfrBuffer {
 
   void acquire(const void* id);
   bool try_acquire(const void* id);
+  bool acquired_by(const void* id) const;
+  bool acquired_by_self() const;
   void release();
 
   void move(JfrBuffer* const to, size_t size);
@@ -167,7 +168,10 @@ class JfrBuffer {
   void set_retired();
   void clear_retired();
 
-  debug_only(bool acquired_by_self() const;)
+  bool excluded() const;
+  void set_excluded();
+  void clear_excluded();
+
 };
 
 class JfrAgeNode : public JfrBuffer {

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "jfr/jfr.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
@@ -72,6 +73,8 @@ class JfrSerializerRegistration : public JfrCHeapObj {
   }
 
   void invoke(JfrCheckpointWriter& writer) const;
+
+  void on_rotation() const;
 };
 
 void JfrSerializerRegistration::invoke(JfrCheckpointWriter& writer) const {
@@ -96,6 +99,10 @@ void JfrSerializerRegistration::invoke(JfrCheckpointWriter& writer) const {
   }
 }
 
+void  JfrSerializerRegistration::on_rotation() const {
+  _serializer->on_rotation();
+}
+
 class SerializerRegistrationGuard : public StackObj {
  private:
   static Semaphore _mutex_semaphore;
@@ -113,7 +120,6 @@ Semaphore SerializerRegistrationGuard::_mutex_semaphore(1);
 typedef JfrDoublyLinkedList<JfrSerializerRegistration> List;
 typedef StopOnNullIterator<const List> Iterator;
 static List types;
-static List safepoint_types;
 
 void JfrTypeManager::clear() {
   SerializerRegistrationGuard guard;
@@ -121,12 +127,6 @@ void JfrTypeManager::clear() {
   JfrSerializerRegistration* registration;
   while (iter.has_next()) {
     registration = types.remove(iter.next());
-    assert(registration != NULL, "invariant");
-    delete registration;
-  }
-  Iterator sp_type_iter(safepoint_types);
-  while (sp_type_iter.has_next()) {
-    registration = safepoint_types.remove(sp_type_iter.next());
     assert(registration != NULL, "invariant");
     delete registration;
   }
@@ -139,54 +139,53 @@ void JfrTypeManager::write_types(JfrCheckpointWriter& writer) {
   }
 }
 
-void JfrTypeManager::write_safepoint_types(JfrCheckpointWriter& writer) {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  const Iterator iter(safepoint_types);
+void JfrTypeManager::notify_types_on_rotation() {
+  const Iterator iter(types);
   while (iter.has_next()) {
-    iter.next()->invoke(writer);
+    iter.next()->on_rotation();
   }
 }
 
 void JfrTypeManager::write_type_set() {
   // can safepoint here because of Module_lock
-  MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
-  MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
-
+  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrCheckpointWriter writer(true, true, Thread::current());
   TypeSet set;
   set.serialize(writer);
 }
 
 void JfrTypeManager::write_type_set_for_unloaded_classes() {
-  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrCheckpointWriter writer(false, true, Thread::current());
   ClassUnloadTypeSet class_unload_set;
   class_unload_set.serialize(writer);
 }
 
-void JfrTypeManager::create_thread_checkpoint(JavaThread* jt) {
-  assert(jt != NULL, "invariant");
-  JfrThreadConstant type_thread(jt);
-  JfrCheckpointWriter writer(false, true, jt);
+size_t JfrTypeManager::flush_type_set() {
+  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  JfrCheckpointWriter writer(true, true, Thread::current());
+  FlushTypeSet flush;
+  flush.serialize(writer);
+  return flush.elements();
+}
+
+void JfrTypeManager::create_thread_checkpoint(Thread* t) {
+  assert(t != NULL, "invariant");
+  JfrThreadConstant type_thread(t);
+  JfrCheckpointWriter writer(false, true, t);
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
   // create and install a checkpoint blob
-  jt->jfr_thread_local()->set_thread_checkpoint(writer.checkpoint_blob());
-  assert(jt->jfr_thread_local()->has_thread_checkpoint(), "invariant");
+  t->jfr_thread_local()->set_thread_checkpoint(writer.checkpoint_blob());
+  assert(t->jfr_thread_local()->has_thread_checkpoint(), "invariant");
 }
 
-void JfrTypeManager::write_thread_checkpoint(JavaThread* jt) {
-  assert(jt != NULL, "JavaThread is NULL!");
-  ResourceMark rm(jt);
-  if (jt->jfr_thread_local()->has_thread_checkpoint()) {
-    JfrCheckpointWriter writer(false, false, jt);
-    jt->jfr_thread_local()->thread_checkpoint()->write(writer);
-  } else {
-    JfrThreadConstant type_thread(jt);
-    JfrCheckpointWriter writer(false, true, jt);
-    writer.write_type(TYPE_THREAD);
-    type_thread.serialize(writer);
-  }
+void JfrTypeManager::write_thread_checkpoint(Thread* t) {
+  assert(t != NULL, "invariant");
+  JfrThreadConstant type_thread(t);
+  JfrCheckpointWriter writer(false, true, t);
+  writer.write_type(TYPE_THREAD);
+  type_thread.serialize(writer);
 }
 
 #ifdef ASSERT
@@ -198,22 +197,21 @@ static void assert_not_registered_twice(JfrTypeId id, List& list) {
 }
 #endif
 
-static bool register_type(JfrTypeId id, bool require_safepoint, bool permit_cache, JfrSerializer* serializer) {
+static bool register_type(JfrTypeId id, bool permit_cache, JfrSerializer* serializer) {
   assert(serializer != NULL, "invariant");
   JfrSerializerRegistration* const registration = new JfrSerializerRegistration(id, permit_cache, serializer);
   if (registration == NULL) {
     delete serializer;
     return false;
   }
-  if (require_safepoint) {
-    assert(!safepoint_types.in_list(registration), "invariant");
-    DEBUG_ONLY(assert_not_registered_twice(id, safepoint_types);)
-    safepoint_types.prepend(registration);
-  } else {
-    assert(!types.in_list(registration), "invariant");
-    DEBUG_ONLY(assert_not_registered_twice(id, types);)
-    types.prepend(registration);
+
+  assert(!types.in_list(registration), "invariant");
+  DEBUG_ONLY(assert_not_registered_twice(id, types);)
+  if (Jfr::is_recording()) {
+    JfrCheckpointWriter writer(false, true, Thread::current());
+    registration->invoke(writer);
   }
+  types.prepend(registration);
   return true;
 }
 
@@ -221,31 +219,30 @@ bool JfrTypeManager::initialize() {
   SerializerRegistrationGuard guard;
 
   // register non-safepointing type serialization
-  register_type(TYPE_FLAGVALUEORIGIN, false, true, new FlagValueOriginConstant());
-  register_type(TYPE_INFLATECAUSE, false, true, new MonitorInflateCauseConstant());
-  register_type(TYPE_GCCAUSE, false, true, new GCCauseConstant());
-  register_type(TYPE_GCNAME, false, true, new GCNameConstant());
-  register_type(TYPE_GCWHEN, false, true, new GCWhenConstant());
-  register_type(TYPE_G1HEAPREGIONTYPE, false, true, new G1HeapRegionTypeConstant());
-  register_type(TYPE_GCTHRESHOLDUPDATER, false, true, new GCThresholdUpdaterConstant());
-  register_type(TYPE_METADATATYPE, false, true, new MetadataTypeConstant());
-  register_type(TYPE_METASPACEOBJECTTYPE, false, true, new MetaspaceObjectTypeConstant());
-  register_type(TYPE_G1YCTYPE, false, true, new G1YCTypeConstant());
-  register_type(TYPE_REFERENCETYPE, false, true, new ReferenceTypeConstant());
-  register_type(TYPE_NARROWOOPMODE, false, true, new NarrowOopModeConstant());
-  register_type(TYPE_COMPILERPHASETYPE, false, true, new CompilerPhaseTypeConstant());
-  register_type(TYPE_CODEBLOBTYPE, false, true, new CodeBlobTypeConstant());
-  register_type(TYPE_VMOPERATIONTYPE, false, true, new VMOperationTypeConstant());
-  register_type(TYPE_THREADSTATE, false, true, new ThreadStateConstant());
+  register_type(TYPE_THREADGROUP, false, new JfrThreadGroupConstant());
+  register_type(TYPE_THREAD, false, new JfrThreadConstantSet());
+  register_type(TYPE_FLAGVALUEORIGIN, true, new FlagValueOriginConstant());
+  register_type(TYPE_INFLATECAUSE, true, new MonitorInflateCauseConstant());
+  register_type(TYPE_GCCAUSE, true, new GCCauseConstant());
+  register_type(TYPE_GCNAME, true, new GCNameConstant());
+  register_type(TYPE_GCWHEN, true, new GCWhenConstant());
+  register_type(TYPE_G1HEAPREGIONTYPE, true, new G1HeapRegionTypeConstant());
+  register_type(TYPE_GCTHRESHOLDUPDATER, true, new GCThresholdUpdaterConstant());
+  register_type(TYPE_METADATATYPE, true, new MetadataTypeConstant());
+  register_type(TYPE_METASPACEOBJECTTYPE, true, new MetaspaceObjectTypeConstant());
+  register_type(TYPE_G1YCTYPE, true, new G1YCTypeConstant());
+  register_type(TYPE_REFERENCETYPE, true, new ReferenceTypeConstant());
+  register_type(TYPE_NARROWOOPMODE, true, new NarrowOopModeConstant());
+  register_type(TYPE_COMPILERPHASETYPE, true, new CompilerPhaseTypeConstant());
+  register_type(TYPE_CODEBLOBTYPE, true, new CodeBlobTypeConstant());
+  register_type(TYPE_VMOPERATIONTYPE, true, new VMOperationTypeConstant());
+  register_type(TYPE_THREADSTATE, true, new ThreadStateConstant());
 
-  // register safepointing type serialization
-  register_type(TYPE_THREADGROUP, true, false, new JfrThreadGroupConstant());
-  register_type(TYPE_THREAD, true, false, new JfrThreadConstantSet());
   return true;
 }
 
 // implementation for the static registration function exposed in the JfrSerializer api
-bool JfrSerializer::register_serializer(JfrTypeId id, bool require_safepoint, bool permit_cache, JfrSerializer* serializer) {
+bool JfrSerializer::register_serializer(JfrTypeId id, bool permit_cache, JfrSerializer* serializer) {
   SerializerRegistrationGuard guard;
-  return register_type(id, require_safepoint, permit_cache, serializer);
+  return register_type(id, permit_cache, serializer);
 }
