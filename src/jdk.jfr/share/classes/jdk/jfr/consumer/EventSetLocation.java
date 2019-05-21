@@ -105,9 +105,11 @@ final class EventSetLocation {
                     return es;
                 }
                 try {
-                    updateEventSets(previousEventSet);
+                    if (updateEventSets(previousEventSet)) {
+                        continue;
+                    }
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "IOException during event set update " + e.getMessage());
                     // This can happen if a chunk is being removed
                     // between the file was discovered and an instance
                     // of an EventSet was constructed. Just ignore,
@@ -123,9 +125,15 @@ final class EventSetLocation {
         return null;
     }
 
-    private void updateEventSets(EventSet previousEventSet) throws IOException {
+    private boolean updateEventSets(EventSet previousEventSet) throws IOException {
+        boolean foundNew = false;
         List<Path> added = new ArrayList<>();
         Set<Path> current = new HashSet<>();
+        if (!Files.exists(path)) {
+            // Repository removed, probably due to shutdown
+            closed = true;
+            return true;
+        }
         try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(path, "*.jfr")) {
             for (Path p : dirStream) {
                 if (!lastPaths.containsKey(p)) {
@@ -157,19 +165,19 @@ final class EventSetLocation {
                 long startTime = es.getStartTimeNanos();
                 if (startTime == 0) {
                     String errorMsg = "Chunk header should always contain a valid start time";
-                    System.err.println(errorMsg);
                     throw new InternalError(errorMsg);
                 }
                 EventSet previous = eventSets.get(startTime);
                 if (previous != null) {
                     String errorMsg = "Found chunk " + p + " with the same start time " + startTime + " as previous chunk " + previous.getPath();
-                    System.err.println(errorMsg);
                     throw new InternalError(errorMsg);
                 }
                 eventSets.put(startTime, es);
                 lastPaths.put(p, startTime);
                 previousEventSet = es;
+                foundNew = true;
             }
         }
+        return foundNew;
     }
 }
