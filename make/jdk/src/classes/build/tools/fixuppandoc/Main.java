@@ -54,7 +54,7 @@ public class Main {
      * Runs the program.
      *
      * <pre>
-     *     java build.tools.fixuphtml.Main [-o output-file] [input-file]
+     *     java build.tools.fixuppandoc.Main [-o output-file] [input-file]
      * </pre>
      *
      * If no input file is specified, the program will read from standard input.
