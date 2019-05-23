@@ -171,6 +171,34 @@ public class MethodTypeDescTest extends SymbolicDescTest {
         } catch (IndexOutOfBoundsException ex) {
             // good
         }
+
+        try {
+            ClassDesc[] newParamTypes = new ClassDesc[1];
+            newParamTypes[0] = CD_void;
+            MethodTypeDesc newDesc = MethodTypeDesc.of(returnType, CD_int);
+            newDesc = newDesc.insertParameterTypes(0, newParamTypes);
+            fail("shouldn't allow parameters with class descriptor CD_void");
+        } catch (IllegalArgumentException ex) {
+            // good
+        }
+
+        try {
+            MethodTypeDesc newDesc = MethodTypeDesc.of(returnType, CD_int);
+            newDesc = newDesc.insertParameterTypes(0, null);
+            fail("should fail with NPE");
+        } catch (NullPointerException ex) {
+            // good
+        }
+
+        try {
+            ClassDesc[] newParamTypes = new ClassDesc[1];
+            newParamTypes[0] = null;
+            MethodTypeDesc newDesc = MethodTypeDesc.of(returnType, CD_int);
+            newDesc = newDesc.insertParameterTypes(0, newParamTypes);
+            fail("should fail with NPE");
+        } catch (NullPointerException ex) {
+            // good
+        }
     }
 
     private void badDropParametersTypes(ClassDesc returnType, String... paramDescTypes) {
@@ -209,7 +237,7 @@ public class MethodTypeDescTest extends SymbolicDescTest {
         try {
             MethodTypeDesc newDesc = mtDesc.dropParameterTypes(1, 0);
             fail("start index > end index should have failed");
-        } catch (IllegalArgumentException ex) {
+        } catch (IndexOutOfBoundsException ex) {
             // good
         }
     }
@@ -256,6 +284,24 @@ public class MethodTypeDescTest extends SymbolicDescTest {
             fail("can't reach here");
         }
         catch (IllegalArgumentException e) {
+            // good
+        }
+
+        try {
+            MethodTypeDesc r = MethodTypeDesc.of(CD_int, null);
+            fail("ClassDesc array should not be null");
+        }
+        catch (NullPointerException e) {
+            // good
+        }
+
+        try {
+            ClassDesc[] paramDescs = new ClassDesc[1];
+            paramDescs[0] = null;
+            MethodTypeDesc r = MethodTypeDesc.of(CD_int, paramDescs);
+            fail("ClassDesc should not be null");
+        }
+        catch (NullPointerException e) {
             // good
         }
     }

@@ -372,15 +372,18 @@ oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
 
   bool rehash_warning;
   do {
-    if (_local_table->get(THREAD, lookup, stg, &rehash_warning)) {
-      update_needs_rehash(rehash_warning);
-      return stg.get_res_oop();
-    }
+    // Callers have already looked up the String using the jchar* name, so just go to add.
     WeakHandle<vm_string_table_data> wh = WeakHandle<vm_string_table_data>::create(string_h);
     // The hash table takes ownership of the WeakHandle, even if it's not inserted.
     if (_local_table->insert(THREAD, lookup, wh, &rehash_warning)) {
       update_needs_rehash(rehash_warning);
       return wh.resolve();
+    }
+    // In case another thread did a concurrent add, return value already in the table.
+    // This could fail if the String got gc'ed concurrently, so loop back until success.
+    if (_local_table->get(THREAD, lookup, stg, &rehash_warning)) {
+      update_needs_rehash(rehash_warning);
+      return stg.get_res_oop();
     }
   } while(true);
 }
@@ -779,9 +782,7 @@ void StringTable::write_to_archive() {
   assert(HeapShared::is_heap_object_archiving_allowed(), "must be");
 
   _shared_table.reset();
-  int num_buckets = CompactHashtableWriter::default_num_buckets(_items_count);
-  CompactHashtableWriter writer(num_buckets,
-                                &MetaspaceShared::stats()->string);
+  CompactHashtableWriter writer(_items_count, &MetaspaceShared::stats()->string);
 
   // Copy the interned strings into the "string space" within the java heap
   copy_shared_string_table(&writer);
