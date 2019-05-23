@@ -953,6 +953,8 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     protected <T> void setOption(SocketOption<T> opt, T value) throws IOException {
         if (!supportedOptions().contains(opt))
             throw new UnsupportedOperationException("'" + opt + "' not supported");
+        if (!opt.type().isInstance(value))
+            throw new IllegalArgumentException("Invalid value '" + value + "'");
         synchronized (stateLock) {
             ensureOpen();
             if (opt == StandardSocketOptions.IP_TOS) {
