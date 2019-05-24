@@ -42,8 +42,11 @@ import jdk.jfr.internal.consumer.RecordingInput;
  */
 final class EventFileStream implements EventStream {
 
-    final static class FileEventConsumer extends EventConsumer {
+    private final static class FileEventConsumer extends EventConsumer {
         private final RecordingInput input;
+        private ChunkParser chunkParser;
+        private RecordedEvent event;
+        private boolean moreEvents = true;
 
         public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
@@ -52,11 +55,30 @@ final class EventFileStream implements EventStream {
 
         @Override
         public void process() throws Exception {
-            // TODO This need more work; filter, multiple chunk etc
-            ChunkParser cp = new ChunkParser(input);
-            while (true) {
-                RecordedEvent e = cp.readEvent();
-                dispatch(e);
+            chunkParser = new ChunkParser(input);
+            while (moreEvents) {
+                event = chunkParser.readEvent();
+                if (event == null) {
+                    findNext();
+                    if (!moreEvents) {
+                        return;
+                    }
+                }
+                dispatch(event);
+            }
+        }
+
+        private void findNext() throws IOException {
+            while (event == null) {
+                if (chunkParser == null) {
+                    chunkParser = new ChunkParser(input);
+                } else if (!chunkParser.isLastChunk()) {
+                    chunkParser = chunkParser.nextChunkParser();
+                } else {
+                    moreEvents = false;
+                    return;
+                }
+                event = chunkParser.readEvent();
             }
         }
     }
