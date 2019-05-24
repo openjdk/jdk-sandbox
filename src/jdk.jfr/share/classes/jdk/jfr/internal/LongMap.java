@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal;
 
 import java.util.BitSet;
 import java.util.function.Consumer;
@@ -209,8 +209,6 @@ public final class LongMap<T> {
     }
 
     private int index(long id) {
-//      int hash = (int) (id ^ (id >>> 32));
-//      return hash & (keys.length - 1);
         return (int) ((id * -7046029254386353131L) >>> shift);
     }
 

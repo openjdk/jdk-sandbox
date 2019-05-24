@@ -52,8 +52,6 @@ final class EventFilter {
         return new EventFilter(eventNames, threshold, fieldNames);
     }
 
-
-
     public EventFilter onlyThreads(Thread... t) {
         return this;
     }

@@ -31,6 +31,7 @@ import java.util.List;
 
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
+import jdk.jfr.internal.LongMap;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Type;

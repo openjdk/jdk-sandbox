@@ -25,6 +25,8 @@
 
 package jdk.jfr.consumer;
 
+import jdk.jfr.internal.LongMap;
+
 /**
  * Holds mapping between a set of keys and their corresponding object.
  *

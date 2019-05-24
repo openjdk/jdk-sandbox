@@ -34,6 +34,7 @@ import jdk.jfr.EventType;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
+import jdk.jfr.internal.LongMap;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.Utils;

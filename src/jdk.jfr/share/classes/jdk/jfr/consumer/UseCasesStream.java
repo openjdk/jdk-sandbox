@@ -57,19 +57,23 @@ class UseCasesStream {
             rs.start();
         }
 
-        // EventStream.start("jdk.JavaMonitorEnter", "threshold", "20 ms",
-        // "stackTrace", "false")
-        // .addConsumer(System.out::println);
-        //
-        // EventStream.start("jdk.CPULoad", "period", "1 s")
-        // .addConsumer(e -> System.out.println(100 *
-        // e.getDouble("totalMachine") + " %"));
-        //
-        // EventStream.start("jdk.GarbageCollection")
-        // .addConsumer(e -> System.out.println("GC: " + e.getStartTime() + "
-        // maxPauseTime=" + e.getDuration("maxPauseTime").toMillis() + " ms"));
+        try (RecordingStream rs = new RecordingStream()) {
+            rs.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(20)).withoutStackTrace();
+            rs.onEvent(System.out::println);
+            rs.start();
+        }
 
-        Thread.sleep(100_000);
+        try (RecordingStream rs = new RecordingStream()) {
+            rs.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
+            rs.onEvent(System.out::println);
+            rs.start();
+        }
+
+        try (RecordingStream rs = new RecordingStream()) {
+            rs.enable("jdk.GarbageCollection");
+            rs.onEvent(System.out::println);
+            rs.start();
+        }
     }
 
     // Use case: Event Forwarding

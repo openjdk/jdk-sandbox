@@ -36,14 +36,14 @@ import jdk.jfr.internal.consumer.EventConsumer;
 
 final class EventDirectoryStream implements EventStream {
 
-    private static class EventRunner extends EventConsumer {
+    private static class EventSetConsumer extends EventConsumer {
         private EventSetLocation location;
         private EventSet eventSet;
         private int eventSetIndex;
         private int eventArrayIndex;
         private RecordedEvent[] currentEventArray = new RecordedEvent[0];
 
-        public EventRunner(AccessControlContext acc) throws IOException {
+        public EventSetConsumer(AccessControlContext acc) throws IOException {
             super(acc);
         }
 
@@ -104,10 +104,10 @@ final class EventDirectoryStream implements EventStream {
         }
     }
 
-    private final EventRunner eventConsumer;
+    private final EventSetConsumer eventConsumer;
 
     public EventDirectoryStream(AccessControlContext acc) throws IOException {
-        eventConsumer = new EventRunner(acc);
+        eventConsumer = new EventSetConsumer(acc);
     }
 
     public void close() {

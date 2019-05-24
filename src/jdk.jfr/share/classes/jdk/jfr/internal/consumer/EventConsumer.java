@@ -39,12 +39,12 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import jdk.jfr.EventType;
-import jdk.jfr.consumer.LongMap;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
+import jdk.jfr.internal.LongMap;
 
 abstract public class EventConsumer implements Runnable {
 
