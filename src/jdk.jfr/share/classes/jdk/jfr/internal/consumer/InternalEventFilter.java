@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 public final class InternalEventFilter {
-    static final InternalEventFilter ACCEPT_ALL = new InternalEventFilter();
+    public static final InternalEventFilter ACCEPT_ALL = new InternalEventFilter();
     private final Map<String, Long> thresholds = new HashMap<>();
     private boolean acceptAll;
 

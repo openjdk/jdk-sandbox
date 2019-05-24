@@ -26,7 +26,6 @@
 package jdk.jfr.consumer;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,31 +44,25 @@ final class EventFilter {
         return new EventFilter(eventNames.clone(), null, new String[0]);
     }
 
-    public EventFilter threshold(Duration threshold) {
+    public EventFilter aboveThreshold(Duration threshold) {
         return new EventFilter(eventNames, threshold, fields);
     }
 
-    public EventFilter fields(String... fieldNames) {
+    public EventFilter mustHaveFields(String... fieldNames) {
         return new EventFilter(eventNames, threshold, fieldNames);
     }
 
-    public EventFilter start(Instant instant) {
+
+
+    public EventFilter onlyThreads(Thread... t) {
         return this;
     }
 
-    public EventFilter end(Instant instant) {
+    public EventFilter onlyThreadIds(long... threadId) {
         return this;
     }
 
-    public EventFilter threads(Thread... t) {
-        return this;
-    }
-
-    public EventFilter threadIds(long... threadId) {
-        return this;
-    }
-
-    public EventFilter threadNames(String... threadName) {
+    public EventFilter onlyThreadNames(String... threadName) {
         return this;
     }
 

@@ -28,6 +28,7 @@ package jdk.jfr.consumer;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.function.Consumer;
 
 /**
@@ -53,11 +54,36 @@ public interface EventStream extends AutoCloseable {
      *
      * @param file location of the file, not {@code null}
      * @return an event stream, not {@code null}
+     *
+     * @throws IOException if a stream can't be opened,or an I/O error occurs during reading
      */
     public static EventStream openFile(Path file) throws IOException {
         throw new UnsupportedOperationException("Not yet implemented");
 //      return new EventFileStream(file);
     }
+
+    /**
+     * Creates an event stream starting start time and end time in a file.
+     *
+     * @param file location of the file, not {@code null}
+     *
+     * @param the start start time for the stream, or {@code null} to get data from
+     *        the beginning of the
+     *
+     * @param the end end time for the stream, or {@code null} to get data until the
+     *        end.
+     *
+     * @throws IllegalArgumentException if {@code end} happens before
+     *         {@code start}
+     *
+     * @throws IOException if a stream can't be opened,or an I/O error occurs during reading
+     */
+    public static EventStream openFile(Path file, Instant from, Instant to) throws IOException {
+        throw new UnsupportedOperationException("Not yet implemented");
+//      return new EventFileStream(file);
+    }
+
+
 
     /**
      * Performs an action on all events in the stream.

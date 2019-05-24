@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import jdk.jfr.internal.consumer.ChunkHeader;
+import jdk.jfr.internal.consumer.InternalEventFilter;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**

@@ -30,7 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 
 @SuppressWarnings("unchecked")
-final class LongMap<T> {
+public final class LongMap<T> {
     private static final int MAXIMUM_CAPACITY = 1 << 30;
     private static final long[] EMPTY_KEYS = new long[0];
     private static final Object[] EMPTY_OBJECTS = new Object[0];
