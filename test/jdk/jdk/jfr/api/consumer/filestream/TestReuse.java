@@ -28,9 +28,9 @@ package jdk.jfr.api.consumer.filestream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import jdk.jfr.Event;
 import jdk.jfr.Recording;
@@ -57,21 +57,27 @@ public class TestReuse {
         testSetReuseFalse(p);
     }
 
-    private static void testSetReuseFalse(Path p) throws IOException {
+    private static void testSetReuseFalse(Path p) throws Exception {
+        AtomicBoolean fail = new AtomicBoolean(false);
         Map<RecordedEvent, RecordedEvent> identity = new IdentityHashMap<>();
         try (EventStream es = EventStream.openFile(p)) {
             es.setReuse(false);
             es.onEvent(e -> {
                 if (identity.containsKey(e)) {
+                    fail.set(true);
                     throw new Error("Unexpected reuse!");
                 }
                 identity.put(e,e);
             });
             es.start();
         }
+        if (fail.get()) {
+            throw new Exception("Unexpected resued");
+        }
     }
 
-    private static void testSetReuseTrue(Path p) throws IOException {
+    private static void testSetReuseTrue(Path p) throws Exception {
+        AtomicBoolean fail = new AtomicBoolean(false);
         try (EventStream es = EventStream.openFile(p)) {
             es.setReuse(true);
             RecordedEvent[] events = new RecordedEvent[1];
@@ -80,11 +86,15 @@ public class TestReuse {
                     events[0] = e;
                 } else {
                     if (e != events[0]) {
+                        fail.set(true);
                         throw new Error("No reuse");
                     }
                 }
             });
             es.start();
+        }
+        if (fail.get()) {
+            throw new Exception("No reuse");
         }
     }
 
