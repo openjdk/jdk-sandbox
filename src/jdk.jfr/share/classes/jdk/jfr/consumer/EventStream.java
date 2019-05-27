@@ -59,8 +59,7 @@ public interface EventStream extends AutoCloseable {
      *         during reading
      */
     public static EventStream openFile(Path file) throws IOException {
-        throw new UnsupportedOperationException("Not yet implemented");
-        // return new EventFileStream(file);
+        return new EventFileStream(file);
     }
 
     /**

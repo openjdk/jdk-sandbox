@@ -70,6 +70,7 @@ final class ChunkParser {
 
     public void setReuse(boolean resue) {
         this.reuse = resue;
+        updateParsers();
     }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
@@ -94,6 +95,7 @@ final class ChunkParser {
             parsers = previous.parsers;
             typeMap = previous.typeMap;
         }
+        updateParsers();
         constantLookups.forEach(c -> c.newPool());
         fillConstantPools(0);
         constantLookups.forEach(c -> c.getLatestPool().setResolving());
