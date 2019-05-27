@@ -95,7 +95,7 @@ public class RecordedObject {
         }
     }
 
-    private final Object[] objects;
+    final Object[] objects;
     private final List<ValueDescriptor> descriptors;
     private final TimeConverter timeConverter;
 

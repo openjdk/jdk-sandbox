@@ -159,7 +159,7 @@ final class EventSet {
     // held with lock
     private void addSegment(int index) throws IOException {
         if (chunkParser == null) {
-            chunkParser = new ChunkParser(new RecordingInput(path.toFile()));
+            chunkParser = new ChunkParser(new RecordingInput(path.toFile()), false);
         }
         if (dirtyFilter) {
             chunkParser.setParserFilter(globalFilter);

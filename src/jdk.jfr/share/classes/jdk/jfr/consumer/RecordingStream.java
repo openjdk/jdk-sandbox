@@ -296,4 +296,9 @@ public class RecordingStream implements AutoCloseable, EventStream {
     public void awaitTermination() {
         stream.awaitTermination();
     }
+
+    @Override
+    public void setReuse(boolean reuse) {
+     // hint is ignored
+    }
 }

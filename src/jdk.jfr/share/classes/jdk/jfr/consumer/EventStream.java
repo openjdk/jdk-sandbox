@@ -45,8 +45,8 @@ public interface EventStream extends AutoCloseable {
      */
     public static EventStream openRepository(Path directory) throws IOException {
         throw new UnsupportedOperationException("Not yet implemented");
-//       AccessControlContext acc = AccessController.getContext();
-//       return new EventDirectoryStream(acc);
+        // AccessControlContext acc = AccessController.getContext();
+        // return new EventDirectoryStream(acc);
     }
 
     /**
@@ -55,11 +55,12 @@ public interface EventStream extends AutoCloseable {
      * @param file location of the file, not {@code null}
      * @return an event stream, not {@code null}
      *
-     * @throws IOException if a stream can't be opened,or an I/O error occurs during reading
+     * @throws IOException if a stream can't be opened,or an I/O error occurs
+     *         during reading
      */
     public static EventStream openFile(Path file) throws IOException {
         throw new UnsupportedOperationException("Not yet implemented");
-//      return new EventFileStream(file);
+        // return new EventFileStream(file);
     }
 
     /**
@@ -67,23 +68,22 @@ public interface EventStream extends AutoCloseable {
      *
      * @param file location of the file, not {@code null}
      *
-     * @param the start start time for the stream, or {@code null} to get data from
-     *        the beginning of the
+     * @param the start start time for the stream, or {@code null} to get data
+     *        from the beginning of the
      *
-     * @param the end end time for the stream, or {@code null} to get data until the
-     *        end.
+     * @param the end end time for the stream, or {@code null} to get data until
+     *        the end.
      *
      * @throws IllegalArgumentException if {@code end} happens before
      *         {@code start}
      *
-     * @throws IOException if a stream can't be opened,or an I/O error occurs during reading
+     * @throws IOException if a stream can't be opened,or an I/O error occurs
+     *         during reading
      */
     public static EventStream openFile(Path file, Instant from, Instant to) throws IOException {
         throw new UnsupportedOperationException("Not yet implemented");
-//      return new EventFileStream(file);
+        // return new EventFileStream(file);
     }
-
-
 
     /**
      * Performs an action on all events in the stream.
@@ -138,6 +138,19 @@ public interface EventStream extends AutoCloseable {
      * @see #onEvent(String, Consumer)
      */
     boolean remove(Object action);
+
+    /**
+     * Hint that the the event object in an {@link #onEvent(Consumer)} action
+     * may be reused.
+     * <p>
+     * If reuse is set to
+     * {@code true), a callback should not keep a reference to the event object
+     * after the callback from {@code onEvent} has returned.
+     * <p>
+     * By default reuse is {@code true}
+     *
+     */
+    public void setReuse(boolean reuse);
 
     /**
      * Starts processing events in the stream.

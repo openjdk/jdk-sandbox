@@ -46,8 +46,10 @@ final class EventParser extends Parser {
     private final boolean hasDuration;
     private final List<ValueDescriptor> valueDescriptors;
     private final int startIndex;
+    private final RecordedEvent event;
     private long thresholdTicks = -1;
     private boolean enabled = true;
+    private boolean reuse;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
@@ -56,6 +58,7 @@ final class EventParser extends Parser {
         this.hasDuration = type.getField(FIELD_DURATION) != null;
         this.startIndex = hasDuration ? 2 : 1;
         this.valueDescriptors = type.getFields();
+        this.event = new RecordedEvent(type, valueDescriptors, new Object[parsers.length], 0L, 0L, timeConverter);
     }
 
     public EventType getEventType() {
@@ -84,29 +87,53 @@ final class EventParser extends Parser {
                     return null;
                 }
             }
-            Object[] values = new Object[parsers.length];
-            for (int i = startIndex; i < parsers.length; i++) {
-                values[i] = parsers[i].parse(input);
-            }
-            values[0] = startTicks;
-            if (hasDuration) {
-                values[1] = Long.valueOf(durationTicks);
-            }
-            long startTime = timeConverter.convertTimestamp(startTicks);
-            if (hasDuration) {
-                long endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
-                return new RecordedEvent(eventType, valueDescriptors, values, startTime, endTime, timeConverter);
+            if (reuse) {
+                Object[] values = event.objects;
+                for (int i = startIndex; i < parsers.length; i++) {
+                    values[i] = parsers[i].parse(input);
+                }
+                values[0] = startTicks;
+                if (hasDuration) {
+                    values[1] = Long.valueOf(durationTicks);
+                }
+                long startTime = timeConverter.convertTimestamp(startTicks);
+                if (hasDuration) {
+                    event.startTime = startTime;
+                    event.endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
+                    return event;
+                } else {
+                    event.startTime = startTime;
+                    event.endTime = startTime;
+                    return event;
+                }
             } else {
-                return new RecordedEvent(eventType, valueDescriptors, values, startTime, startTime, timeConverter);
+                Object[] values = new Object[parsers.length];
+                for (int i = startIndex; i < parsers.length; i++) {
+                    values[i] = parsers[i].parse(input);
+                }
+                values[0] = startTicks;
+                if (hasDuration) {
+                    values[1] = Long.valueOf(durationTicks);
+                }
+                long startTime = timeConverter.convertTimestamp(startTicks);
+                if (hasDuration) {
+                    long endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
+                    return new RecordedEvent(eventType, valueDescriptors, values, startTime, endTime, timeConverter);
+                } else {
+                    return new RecordedEvent(eventType, valueDescriptors, values, startTime, startTime, timeConverter);
+                }
             }
         }
-        return null;
-
+        return event;
     }
 
     @Override
     public void skip(RecordingInput input) throws IOException {
         throw new InternalError("Should not call this method. More efficent to read event size and skip ahead");
+    }
+
+    public void setReuse(boolean reuse) {
+        this.reuse = reuse;
     }
 
 }

@@ -45,8 +45,7 @@ final class EventFileStream implements EventStream {
     private final static class FileEventConsumer extends EventConsumer {
         private final RecordingInput input;
         private ChunkParser chunkParser;
-        private RecordedEvent event;
-        private boolean moreEvents = true;
+        private boolean reuse = true;
 
         public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
@@ -55,12 +54,14 @@ final class EventFileStream implements EventStream {
 
         @Override
         public void process() throws Exception {
-            chunkParser = new ChunkParser(input);
-            while (moreEvents) {
+            chunkParser = new ChunkParser(input, reuse);
+            chunkParser.setReuse(reuse);
+            RecordedEvent event;
+            while (true) {
                 event = chunkParser.readEvent();
                 if (event == null) {
-                    findNext();
-                    if (!moreEvents) {
+                    event = findNext();
+                    if (event == null) {
                         return;
                     }
                 }
@@ -68,17 +69,23 @@ final class EventFileStream implements EventStream {
             }
         }
 
-        private void findNext() throws IOException {
+        private RecordedEvent findNext() throws IOException {
+            RecordedEvent event = null;
             while (event == null) {
-                if (chunkParser == null) {
-                    chunkParser = new ChunkParser(input);
-                } else if (!chunkParser.isLastChunk()) {
-                    chunkParser = chunkParser.nextChunkParser();
-                } else {
-                    moreEvents = false;
-                    return;
+                if (chunkParser.isLastChunk()) {
+                    return null;
                 }
+                chunkParser = chunkParser.nextChunkParser();
                 event = chunkParser.readEvent();
+            }
+            return event;
+        }
+
+        public void setReuse(boolean reuse) {
+            if (chunkParser == null) {
+                this.reuse = reuse;
+            } else {
+                chunkParser.setReuse(reuse);
             }
         }
     }
@@ -137,6 +144,10 @@ final class EventFileStream implements EventStream {
     @Override
     public void start() {
         eventConsumer.start(0);
+    }
+
+    public void setReuse(boolean reuse) {
+        eventConsumer.setReuse(reuse);
     }
 
     @Override

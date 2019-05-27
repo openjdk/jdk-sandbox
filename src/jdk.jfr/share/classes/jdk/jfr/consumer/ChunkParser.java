@@ -61,9 +61,15 @@ final class ChunkParser {
     private LongMap<Parser> parsers;
     private boolean chunkFinished;
     private InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
+    private boolean reuse;
 
-    public ChunkParser(RecordingInput input) throws IOException {
+    public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
         this(new ChunkHeader(input), null, 500);
+       this.reuse = reuse;
+    }
+
+    public void setReuse(boolean resue) {
+        this.reuse = resue;
     }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
@@ -108,10 +114,13 @@ final class ChunkParser {
         return this.eventFilter;
     }
 
-    private void updateParserFilters() {
+    private void updateParsers() {
         parsers.forEach(p -> {
             if (p instanceof EventParser) {
                 EventParser ep = (EventParser) p;
+                if (reuse) {
+                    ep.setReuse(true);
+                }
                 long threshold = eventFilter.getThreshold(ep.getEventType().getName());
                 if (threshold >= 0) {
                     ep.setEnabled(true);
@@ -152,7 +161,7 @@ final class ChunkParser {
                 ParserFactory factory = new ParserFactory(metadata, constantLookups, timeConverter);
                 parsers = factory.getParsers();
                 typeMap = factory.getTypeMap();
-                updateParserFilters();
+                updateParsers();
             }
             if (contantPosition != chunkHeader.getConstantPoolPosition()) {
                 Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Found new constant pool data. Filling up pools with new values");

@@ -102,6 +102,10 @@ final class EventDirectoryStream implements EventStream {
             }
             runCloseActions();
         }
+
+        public void setReuse(boolean reuse) {
+            // ignore hint
+        }
     }
 
     private final EventSetConsumer eventConsumer;
@@ -171,5 +175,10 @@ final class EventDirectoryStream implements EventStream {
     @Override
     public void awaitTermination() {
         eventConsumer.awaitTermination(Duration.ofMillis(0));
+    }
+
+    @Override
+    public void setReuse(boolean reuse) {
+        eventConsumer.setReuse(reuse);
     }
 }
