@@ -62,14 +62,18 @@ public class OptionsTest {
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_LINGER, Integer.valueOf(80)),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test<?>[] serverSocketTests = new Test<?>[] {
         Test.create(StandardSocketOptions.SO_RCVBUF, Integer.valueOf(8 * 100)),
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test<?>[] datagramSocketTests = new Test<?>[] {
@@ -77,12 +81,16 @@ public class OptionsTest {
         Test.create(StandardSocketOptions.SO_RCVBUF, Integer.valueOf(8 * 100)),
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test<?>[] multicastSocketTests = new Test<?>[] {
         Test.create(StandardSocketOptions.IP_MULTICAST_IF, getNetworkInterface()),
+        Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(0)),   // lower-bound
         Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(10)),
+        Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(255)), //upper-bound
         Test.create(StandardSocketOptions.IP_MULTICAST_LOOP, Boolean.TRUE)
     };
 
