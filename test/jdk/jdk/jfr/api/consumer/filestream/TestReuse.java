@@ -66,7 +66,7 @@ public class TestReuse {
             es.onEvent(e -> {
                 if (identity.containsKey(e)) {
                     fail.set(true);
-                    throw new Error("Unexpected reuse!");
+                    es.close();
                 }
                 identity.put(e, e);
             });
@@ -88,7 +88,7 @@ public class TestReuse {
                 } else {
                     if (e != event.get()) {
                         fail.set(true);
-                        throw new Error("No reuse!");
+                        es.close();
                     }
                 }
             });
@@ -102,7 +102,7 @@ public class TestReuse {
     private static Path makeRecording() throws IOException {
         try (Recording r = new Recording()) {
             r.start();
-            for (int i = 0; i < 2_000_000; i++) {
+            for (int i = 0; i < 1_000; i++) {
                 ReuseEvent e = new ReuseEvent();
                 e.commit();
             }
