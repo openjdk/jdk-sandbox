@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import jdk.jfr.Event;
 import jdk.jfr.Recording;
@@ -67,34 +68,34 @@ public class TestReuse {
                     fail.set(true);
                     throw new Error("Unexpected reuse!");
                 }
-                identity.put(e,e);
+                identity.put(e, e);
             });
             es.start();
         }
         if (fail.get()) {
-            throw new Exception("Unexpected resued");
+            throw new Exception("Unexpected reuse!");
         }
     }
 
     private static void testSetReuseTrue(Path p) throws Exception {
         AtomicBoolean fail = new AtomicBoolean(false);
+        AtomicReference<RecordedEvent> event = new AtomicReference<RecordedEvent>(null);
         try (EventStream es = EventStream.openFile(p)) {
             es.setReuse(true);
-            RecordedEvent[] events = new RecordedEvent[1];
             es.onEvent(e -> {
-                if (events[0] == null) {
-                    events[0] = e;
+                if (event.get() == null) {
+                    event.set(e);
                 } else {
-                    if (e != events[0]) {
+                    if (e != event.get()) {
                         fail.set(true);
-                        throw new Error("No reuse");
+                        throw new Error("No reuse!");
                     }
                 }
             });
             es.start();
         }
         if (fail.get()) {
-            throw new Exception("No reuse");
+            throw new Exception("No reuse!");
         }
     }
 

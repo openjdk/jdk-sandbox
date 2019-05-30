@@ -46,10 +46,11 @@ final class EventParser extends Parser {
     private final boolean hasDuration;
     private final List<ValueDescriptor> valueDescriptors;
     private final int startIndex;
-    private final RecordedEvent event;
     private long thresholdTicks = -1;
     private boolean enabled = true;
-    private boolean reuse;
+    private RecordedEvent[] eventCache;
+    private int index;
+    private boolean ordered;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
@@ -58,7 +59,23 @@ final class EventParser extends Parser {
         this.hasDuration = type.getField(FIELD_DURATION) != null;
         this.startIndex = hasDuration ? 2 : 1;
         this.valueDescriptors = type.getFields();
-        this.event = new RecordedEvent(type, valueDescriptors, new Object[parsers.length], 0L, 0L, timeConverter);
+    }
+
+    private RecordedEvent cachedEvent() {
+        if (index == eventCache.length) {
+            RecordedEvent[] cache = eventCache;
+            eventCache = new RecordedEvent[eventCache.length * 2];
+            System.arraycopy(cache, 0, eventCache, 0, cache.length);
+        }
+        RecordedEvent event = eventCache[index];
+        if (event == null) {
+            event = new RecordedEvent(eventType, valueDescriptors, new Object[parsers.length], 0L, 0L, timeConverter);
+            eventCache[index] = event;
+        }
+        if (ordered) {
+            index++;
+        }
+        return event;
     }
 
     public EventType getEventType() {
@@ -87,7 +104,8 @@ final class EventParser extends Parser {
                     return null;
                 }
             }
-            if (reuse) {
+            if (eventCache != null) {
+                RecordedEvent event = cachedEvent();
                 Object[] values = event.objects;
                 for (int i = startIndex; i < parsers.length; i++) {
                     values[i] = parsers[i].parse(input);
@@ -124,7 +142,7 @@ final class EventParser extends Parser {
                 }
             }
         }
-        return event;
+        return null;
     }
 
     @Override
@@ -132,8 +150,27 @@ final class EventParser extends Parser {
         throw new InternalError("Should not call this method. More efficent to read event size and skip ahead");
     }
 
-    public void setReuse(boolean reuse) {
-        this.reuse = reuse;
+    public void resetCache() {
+        index = 0;
     }
 
+    public boolean hasReuse() {
+        return eventCache != null;
+    }
+
+    public void setReuse(boolean reuse) {
+        if (reuse == hasReuse()) {
+            return;
+        }
+        if (reuse) {
+            eventCache = new RecordedEvent[2];
+            index = 0;
+        } else {
+            eventCache = null;
+        }
+    }
+
+    public void setOrdered(boolean ordered) {
+       this.ordered = ordered;
+    }
 }

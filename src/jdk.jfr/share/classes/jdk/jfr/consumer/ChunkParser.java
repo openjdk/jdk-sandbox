@@ -62,16 +62,14 @@ final class ChunkParser {
     private boolean chunkFinished;
     private InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
     private boolean reuse;
+    private boolean ordered;
+    private boolean resetEventCache;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
         this(new ChunkHeader(input), null, 500);
        this.reuse = reuse;
     }
 
-    public void setReuse(boolean resue) {
-        this.reuse = resue;
-        updateParsers();
-    }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
         this.input = header.getInput();
@@ -95,7 +93,7 @@ final class ChunkParser {
             parsers = previous.parsers;
             typeMap = previous.typeMap;
         }
-        updateParsers();
+        updateEventParsers();
         constantLookups.forEach(c -> c.newPool());
         fillConstantPools(0);
         constantLookups.forEach(c -> c.getLatestPool().setResolving());
@@ -116,23 +114,7 @@ final class ChunkParser {
         return this.eventFilter;
     }
 
-    private void updateParsers() {
-        parsers.forEach(p -> {
-            if (p instanceof EventParser) {
-                EventParser ep = (EventParser) p;
-                if (reuse) {
-                    ep.setReuse(true);
-                }
-                long threshold = eventFilter.getThreshold(ep.getEventType().getName());
-                if (threshold >= 0) {
-                    ep.setEnabled(true);
-                    ep.setThreshold(timeConverter.convertDurationNanos(threshold));
-                } else {
-                    ep.setThreshold(-1L);
-                }
-            }
-        });
-    }
+
 
     /**
      * Reads an event and returns null when segment or chunk ends.
@@ -163,7 +145,7 @@ final class ChunkParser {
                 ParserFactory factory = new ParserFactory(metadata, constantLookups, timeConverter);
                 parsers = factory.getParsers();
                 typeMap = factory.getTypeMap();
-                updateParsers();
+                updateEventParsers();
             }
             if (contantPosition != chunkHeader.getConstantPoolPosition()) {
                 Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Found new constant pool data. Filling up pools with new values");
@@ -355,5 +337,44 @@ final class ChunkParser {
 
     public boolean isChunkFinished() {
         return chunkFinished;
+    }
+
+    // Need to call updateEventParsers() for
+    // change to take effect
+    public void setReuse(boolean resue) {
+        this.reuse = resue;
+    }
+
+    // Need to call updateEventParsers() for
+    // change to take effect
+    public void setOrdered(boolean ordered) {
+        this.ordered = ordered;
+    }
+
+    // Need to call updateEventParsers() for
+    // change to take effect
+    public void resetEventCache() {
+        this.resetEventCache = true;
+    }
+
+    public void updateEventParsers() {
+        parsers.forEach(p -> {
+            if (p instanceof EventParser) {
+                EventParser ep = (EventParser) p;
+                ep.setOrdered(ordered);
+                ep.setReuse(reuse);
+                if (resetEventCache) {
+                    ep.resetCache();
+                }
+                long threshold = eventFilter.getThreshold(ep.getEventType().getName());
+                if (threshold >= 0) {
+                    ep.setEnabled(true);
+                    ep.setThreshold(timeConverter.convertDurationNanos(threshold));
+                } else {
+                    ep.setThreshold(-1L);
+                }
+            }
+        });
+        resetEventCache = false;
     }
 }

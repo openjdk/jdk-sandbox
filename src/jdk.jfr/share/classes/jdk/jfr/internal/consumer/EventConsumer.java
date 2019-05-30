@@ -131,9 +131,9 @@ abstract public class EventConsumer implements Runnable {
         jvm.exclude(Thread.currentThread());
         try {
             process();
-        } catch (Throwable e) {
-            e.printStackTrace();
-            Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Unexpectedexception iterating consumer.");
+        } catch (Exception e) {
+            e.printStackTrace(); // for debugging purposes, remove before integration
+            Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Unexpected error processing stream. " + e.getMessage());
         } finally {
             Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Execution of stream ended.");
         }
@@ -185,7 +185,12 @@ abstract public class EventConsumer implements Runnable {
             dispatcher.put(e.getEventType().getId(), consumerDispatch);
         }
         for (int i = 0; i < consumerDispatch.length; i++) {
-            consumerDispatch[i].offer(e);
+            try {
+                consumerDispatch[i].offer(e);
+            } catch (Exception exception) {
+                // Is this a reasonable behavior for an exception?
+                // Error will abort the stream.
+            }
         }
 
     }

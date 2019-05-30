@@ -139,17 +139,30 @@ public interface EventStream extends AutoCloseable {
     boolean remove(Object action);
 
     /**
-     * Hint that the the event object in an {@link #onEvent(Consumer)} action
+     * Hint that the event object in an {@link #onEvent(Consumer)} action
      * may be reused.
      * <p>
-     * If reuse is set to
-     * {@code true), a callback should not keep a reference to the event object
-     * after the callback from {@code onEvent} has returned.
+     * If reuse is set to {@code true), a callback should not keep a reference
+     * to the event object after the callback from {@code onEvent} has returned.
      * <p>
-     * By default reuse is {@code true}
+     * By default reuse is set to {@code true}
+     *
+     * @param resuse if event objects can be reused between calls to {@code #onEvent(Consumer)}
      *
      */
     public void setReuse(boolean reuse);
+
+    /**
+     * Orders events in chronological order aft the end timestamp
+     *
+     * TODO: WHAT ABOUT EVENTS THAT OCCUR WAY OUT OF ORDER
+     * <p>
+     * By default ordered is set to {@code true}
+     *
+     * @param ordered if event objects arrive in chronological order to {@code #onEvent(Consumer)}
+     */
+    public void setOrdered(boolean ordered);
+
 
     /**
      * Starts processing events in the stream.

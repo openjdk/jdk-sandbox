@@ -30,6 +30,8 @@ import java.nio.file.Path;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -43,9 +45,14 @@ import jdk.jfr.internal.consumer.RecordingInput;
 final class EventFileStream implements EventStream {
 
     private final static class FileEventConsumer extends EventConsumer {
+        private static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTime, e2.endTime);
+        private static final int DEFAULT_ARRAY_SIZE = 100_000;
         private final RecordingInput input;
         private ChunkParser chunkParser;
         private boolean reuse = true;
+        private RecordedEvent[] sortedList;
+        private boolean ordered;
+        private boolean finished;
 
         public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
@@ -55,13 +62,59 @@ final class EventFileStream implements EventStream {
         @Override
         public void process() throws Exception {
             chunkParser = new ChunkParser(input, reuse);
-            chunkParser.setReuse(reuse);
+            while (!isClosed() && !finished) {
+                boolean reuse = this.reuse;
+                boolean ordered = this.ordered;
+
+                chunkParser.setReuse(reuse);
+                chunkParser.setOrdered(ordered);
+                chunkParser.resetEventCache();
+                chunkParser.updateEventParsers();
+
+                if (ordered) {
+                    processOrdered();
+                } else {
+                    processUnordered();
+                }
+            }
+        }
+
+        private void processOrdered() throws IOException {
+            if (sortedList == null) {
+                sortedList = new RecordedEvent[DEFAULT_ARRAY_SIZE];
+            }
             RecordedEvent event;
+            int index = 0;
             while (true) {
+                event = chunkParser.readEvent();
+                if (event == null) {
+                    Arrays.sort(sortedList, 0, index, END_TIME);
+                    for (int i = 0; i < index; i++) {
+                        dispatch(sortedList[i]);
+                    }
+                    event = findNext();
+                    if (event == null) {
+                        finished = true;
+                        return;
+                    }
+                }
+                if (index == sortedList.length) {
+                    RecordedEvent[] tmp = sortedList;
+                    sortedList = new RecordedEvent[2 * tmp.length];
+                    System.arraycopy(tmp, 0, sortedList, 0, tmp.length);
+                }
+                sortedList[index++] = event;
+            }
+        }
+
+        private void processUnordered() throws IOException {
+            RecordedEvent event;
+            while (!isClosed()) {
                 event = chunkParser.readEvent();
                 if (event == null) {
                     event = findNext();
                     if (event == null) {
+                        finished = true;
                         return;
                     }
                 }
@@ -82,11 +135,11 @@ final class EventFileStream implements EventStream {
         }
 
         public void setReuse(boolean reuse) {
-            if (chunkParser == null) {
-                this.reuse = reuse;
-            } else {
-                chunkParser.setReuse(reuse);
-            }
+            this.reuse = reuse;
+        }
+
+        public void setOrdered(boolean ordered) {
+            this.ordered = ordered;
         }
     }
 
@@ -164,5 +217,10 @@ final class EventFileStream implements EventStream {
     @Override
     public void awaitTermination() {
         eventConsumer.awaitTermination();
+    }
+
+    @Override
+    public void setOrdered(boolean ordered) {
+        eventConsumer.setOrdered(ordered);
     }
 }

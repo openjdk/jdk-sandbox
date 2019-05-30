@@ -181,4 +181,11 @@ final class EventDirectoryStream implements EventStream {
     public void setReuse(boolean reuse) {
         eventConsumer.setReuse(reuse);
     }
+
+    @Override
+    public void setOrdered(boolean ordered) {
+      if (ordered == false) {
+          throw new UnsupportedOperationException("Unordered not implemented yet");
+      }
+    }
 }
