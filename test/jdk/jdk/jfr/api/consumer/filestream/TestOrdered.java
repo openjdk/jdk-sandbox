@@ -74,6 +74,7 @@ public class TestOrdered {
     }
 
     private static final int THREAD_COUNT = 4;
+    private static final boolean[] BOOLEAN_STATES = { false, true };
 
     public static void main(String... args) throws Exception {
         Path p = makeUnorderedRecording();
@@ -83,36 +84,42 @@ public class TestOrdered {
     }
 
     private static void testSetOrderedTrue(Path p) throws Exception {
-        AtomicReference<Instant> timestamp = new AtomicReference<>(Instant.MIN);
-        try (EventStream es = EventStream.openFile(p)) {
-            es.setOrdered(true);
-            es.onEvent(e -> {
-                Instant endTime = e.getEndTime();
-                if (endTime.isBefore(timestamp.get())) {
-                    throw new Error("Events are not ordered!");
-                }
-                timestamp.set(endTime);
-            });
-            es.start();
+        for (boolean reuse : BOOLEAN_STATES) {
+            AtomicReference<Instant> timestamp = new AtomicReference<>(Instant.MIN);
+            try (EventStream es = EventStream.openFile(p)) {
+                es.setReuse(reuse);
+                es.setOrdered(true);
+                es.onEvent(e -> {
+                    Instant endTime = e.getEndTime();
+                    if (endTime.isBefore(timestamp.get())) {
+                        throw new Error("Events are not ordered! Reues = " + reuse);
+                    }
+                    timestamp.set(endTime);
+                });
+                es.start();
+            }
         }
     }
 
     private static void testSetOrderedFalse(Path p) throws Exception {
-        AtomicReference<Instant> timestamp = new AtomicReference<>(Instant.MIN);
-        AtomicBoolean unoreded = new AtomicBoolean(false);
-        try (EventStream es = EventStream.openFile(p)) {
-            es.setOrdered(false);
-            es.onEvent(e -> {
-                Instant endTime = e.getEndTime();
-                if (endTime.isBefore(timestamp.get())) {
-                    unoreded.set(true);
-                    es.close();
+        for (boolean reuse : BOOLEAN_STATES) {
+            AtomicReference<Instant> timestamp = new AtomicReference<>(Instant.MIN);
+            AtomicBoolean unoreded = new AtomicBoolean(false);
+            try (EventStream es = EventStream.openFile(p)) {
+                es.setReuse(reuse);
+                es.setOrdered(false);
+                es.onEvent(e -> {
+                    Instant endTime = e.getEndTime();
+                    if (endTime.isBefore(timestamp.get())) {
+                        unoreded.set(true);
+                        es.close();
+                    }
+                    timestamp.set(endTime);
+                });
+                es.start();
+                if (!unoreded.get()) {
+                    throw new Exception("Expected at least some events to be out of order! Reues = " + reuse);
                 }
-                timestamp.set(endTime);
-            });
-            es.start();
-            if (!unoreded.get()) {
-                throw new Exception("Expected at least some events to be out of order");
             }
         }
     }

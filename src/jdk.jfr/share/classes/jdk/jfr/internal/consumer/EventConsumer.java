@@ -131,15 +131,24 @@ abstract public class EventConsumer implements Runnable {
         jvm.exclude(Thread.currentThread());
         try {
             process();
+        } catch (IOException e) {
+            if (!isClosed()) {
+                logException(e);
+            }
         } catch (Exception e) {
-            e.printStackTrace(); // for debugging purposes, remove before integration
-            Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Unexpected error processing stream. " + e.getMessage());
+            logException(e);
         } finally {
             Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Execution of stream ended.");
         }
     }
 
-    public abstract void process() throws Exception;
+    private void logException(Exception e) {
+        e.printStackTrace(); // for debugging purposes, remove before
+        // integration
+        Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Unexpected error processing stream. " + e.getMessage());
+    }
+
+    public abstract void process() throws IOException;
 
     public synchronized boolean remove(Object action) {
         boolean remove = false;

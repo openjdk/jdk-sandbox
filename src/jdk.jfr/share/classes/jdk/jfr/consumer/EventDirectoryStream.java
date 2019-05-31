@@ -47,7 +47,7 @@ final class EventDirectoryStream implements EventStream {
             super(acc);
         }
 
-        public void process() throws Exception, IOException {
+        public void process() throws IOException {
             this.location = EventSetLocation.current();
             this.eventSet = location.acquire(startNanos, null); // use timestamp
                                                                 // from

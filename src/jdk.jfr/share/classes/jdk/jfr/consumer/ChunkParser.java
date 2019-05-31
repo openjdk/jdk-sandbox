@@ -82,6 +82,9 @@ final class ChunkParser {
             this.constantLookups = previous.constantLookups;
             this.previousMetadata = previous.metadata;
             this.pollInterval = previous.pollInterval;
+            this.ordered = previous.ordered;
+            this.reuse = previous.reuse;
+            this.eventFilter = previous.eventFilter;
         }
         this.metadata = header.readMetadata(previousMetadata);
         this.timeConverter = new TimeConverter(chunkHeader, metadata.getGMTOffset());
@@ -89,11 +92,11 @@ final class ChunkParser {
             ParserFactory factory = new ParserFactory(metadata, constantLookups, timeConverter);
             parsers = factory.getParsers();
             typeMap = factory.getTypeMap();
+            updateEventParsers();
         } else {
             parsers = previous.parsers;
             typeMap = previous.typeMap;
         }
-        updateEventParsers();
         constantLookups.forEach(c -> c.newPool());
         fillConstantPools(0);
         constantLookups.forEach(c -> c.getLatestPool().setResolving());

@@ -171,6 +171,10 @@ final class EventParser extends Parser {
     }
 
     public void setOrdered(boolean ordered) {
+        if (this.ordered == ordered) {
+            return;
+        }
        this.ordered = ordered;
+       this.index = 0;
     }
 }

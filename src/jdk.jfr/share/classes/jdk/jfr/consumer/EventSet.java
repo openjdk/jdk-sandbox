@@ -138,14 +138,14 @@ final class EventSet {
         dirtyFilter = true;
     }
 
-    public RecordedEvent[] readEvents(int index) throws Exception {
+    public RecordedEvent[] readEvents(int index) throws IOException {
         while (!closed) {
 
             RecordedEvent[] events = (RecordedEvent[]) segments[index];
             if (events != null) {
                 return events;
             }
-            if (lock.tryLock(250, TimeUnit.MILLISECONDS)) {
+            if (await()) {
                 try {
                     addSegment(index);
                 } finally {
@@ -154,6 +154,14 @@ final class EventSet {
             }
         }
         return null;
+    }
+
+    private boolean await()  {
+        try {
+            return lock.tryLock(250, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 
     // held with lock

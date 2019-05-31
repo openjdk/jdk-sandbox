@@ -31,7 +31,6 @@ import java.nio.file.Path;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import jdk.jfr.Event;
 import jdk.jfr.Recording;
@@ -51,6 +50,8 @@ public class TestReuse {
     static class ReuseEvent extends Event {
     }
 
+    private static final boolean[] BOOLEAN_STATES = { false, true };
+
     public static void main(String... args) throws Exception {
         Path p = makeRecording();
 
@@ -59,54 +60,66 @@ public class TestReuse {
     }
 
     private static void testSetReuseFalse(Path p) throws Exception {
-        AtomicBoolean fail = new AtomicBoolean(false);
-        Map<RecordedEvent, RecordedEvent> identity = new IdentityHashMap<>();
-        try (EventStream es = EventStream.openFile(p)) {
-            es.setReuse(false);
-            es.onEvent(e -> {
-                if (identity.containsKey(e)) {
-                    fail.set(true);
-                    es.close();
-                }
-                identity.put(e, e);
-            });
-            es.start();
-        }
-        if (fail.get()) {
-            throw new Exception("Unexpected reuse!");
+        for (boolean ordered : BOOLEAN_STATES) {
+            AtomicBoolean fail = new AtomicBoolean(false);
+            Map<RecordedEvent, RecordedEvent> identity = new IdentityHashMap<>();
+            try (EventStream es = EventStream.openFile(p)) {
+                es.setOrdered(ordered);
+                es.setReuse(false);
+                es.onEvent(e -> {
+                    if (identity.containsKey(e)) {
+                        fail.set(true);
+                        es.close();
+                    }
+                    identity.put(e, e);
+                });
+                es.start();
+            }
+            if (fail.get()) {
+                throw new Exception("Unexpected reuse! Ordered = " + ordered);
+            }
+
         }
     }
 
     private static void testSetReuseTrue(Path p) throws Exception {
-        AtomicBoolean fail = new AtomicBoolean(false);
-        AtomicReference<RecordedEvent> event = new AtomicReference<RecordedEvent>(null);
-        try (EventStream es = EventStream.openFile(p)) {
-            es.setReuse(true);
-            es.onEvent(e -> {
-                if (event.get() == null) {
-                    event.set(e);
-                } else {
-                    if (e != event.get()) {
-                        fail.set(true);
+        for (boolean ordered : BOOLEAN_STATES) {
+            AtomicBoolean success = new AtomicBoolean(false);
+            Map<RecordedEvent, RecordedEvent> events = new IdentityHashMap<>();
+            try (EventStream es = EventStream.openFile(p)) {
+                es.setOrdered(ordered);
+                es.setReuse(true);
+                es.onEvent(e -> {
+                    if(events.containsKey(e)) {
+                        success.set(true);;
                         es.close();
                     }
-                }
-            });
-            es.start();
+                    events.put(e,e);
+                });
+                es.start();
+            }
+            if (!success.get()) {
+                throw new Exception("No reuse! Ordered = " + ordered);
+            }
         }
-        if (fail.get()) {
-            throw new Exception("No reuse!");
-        }
+
     }
 
     private static Path makeRecording() throws IOException {
         try (Recording r = new Recording()) {
             r.start();
-            for (int i = 0; i < 1_000; i++) {
+            for (int i = 0; i < 5; i++) {
+                ReuseEvent e = new ReuseEvent();
+                e.commit();
+            }
+            Recording rotation = new Recording();
+            rotation.start();
+            for (int i = 0; i < 5; i++) {
                 ReuseEvent e = new ReuseEvent();
                 e.commit();
             }
             r.stop();
+            rotation.close();
             Path p = Files.createTempFile("recording", ".jfr");
             r.dump(p);
             return p;

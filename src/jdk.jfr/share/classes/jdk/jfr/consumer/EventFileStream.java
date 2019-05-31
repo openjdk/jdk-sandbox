@@ -52,7 +52,7 @@ final class EventFileStream implements EventStream {
         private boolean reuse = true;
         private RecordedEvent[] sortedList;
         private boolean ordered;
-        private boolean finished;
+
 
         public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
@@ -60,12 +60,11 @@ final class EventFileStream implements EventStream {
         }
 
         @Override
-        public void process() throws Exception {
+        public void process() throws IOException {
             chunkParser = new ChunkParser(input, reuse);
-            while (!isClosed() && !finished) {
+            while (!isClosed()) {
                 boolean reuse = this.reuse;
                 boolean ordered = this.ordered;
-
                 chunkParser.setReuse(reuse);
                 chunkParser.setOrdered(ordered);
                 chunkParser.resetEventCache();
@@ -76,8 +75,13 @@ final class EventFileStream implements EventStream {
                 } else {
                     processUnordered();
                 }
+                if (chunkParser.isLastChunk()) {
+                    return;
+                }
+                chunkParser = chunkParser.nextChunkParser();
             }
         }
+
 
         private void processOrdered() throws IOException {
             if (sortedList == null) {
@@ -92,11 +96,7 @@ final class EventFileStream implements EventStream {
                     for (int i = 0; i < index; i++) {
                         dispatch(sortedList[i]);
                     }
-                    event = findNext();
-                    if (event == null) {
-                        finished = true;
-                        return;
-                    }
+                    return;
                 }
                 if (index == sortedList.length) {
                     RecordedEvent[] tmp = sortedList;
@@ -112,26 +112,10 @@ final class EventFileStream implements EventStream {
             while (!isClosed()) {
                 event = chunkParser.readEvent();
                 if (event == null) {
-                    event = findNext();
-                    if (event == null) {
-                        finished = true;
-                        return;
-                    }
+                    return;
                 }
                 dispatch(event);
             }
-        }
-
-        private RecordedEvent findNext() throws IOException {
-            RecordedEvent event = null;
-            while (event == null) {
-                if (chunkParser.isLastChunk()) {
-                    return null;
-                }
-                chunkParser = chunkParser.nextChunkParser();
-                event = chunkParser.readEvent();
-            }
-            return event;
         }
 
         public void setReuse(boolean reuse) {
