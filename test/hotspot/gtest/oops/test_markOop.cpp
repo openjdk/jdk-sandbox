@@ -31,6 +31,7 @@
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/synchronizer.hpp"
+#include "runtime/semaphore.inline.hpp"
 #include "threadHelper.inline.hpp"
 #include "unittest.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -100,9 +101,11 @@ TEST_VM(markOopDesc, printing) {
   markOop mark = obj->mark()->incr_bias_epoch();
   obj->set_mark(mark);
   ObjectSynchronizer::fast_enter(h_obj, lock.lock(), true, THREAD);
-#ifdef _LP64
   // Look for the biased_locker in markOop, not prototype_header.
+#ifdef _LP64
   assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x0000000000000000");
+#else
+  assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x00000000");
 #endif
 
   // Same thread tries to lock it again.
@@ -125,6 +128,7 @@ TEST_VM(markOopDesc, printing) {
 
     ol.wait(THREAD);
     assert_test_pattern(h_obj, "monitor");
+    done.wait_with_safepoint_check(THREAD);  // wait till the thread is done.
   }
 
   // Make the object older. Not all GCs use this field.

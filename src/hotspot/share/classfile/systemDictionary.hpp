@@ -214,6 +214,9 @@ class OopStorage;
   do_klass(Integer_klass,                               java_lang_Integer                                     ) \
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
                                                                                                                 \
+  /* force inline of iterators */                                                                               \
+  do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
+                                                                                                                \
   /*end*/
 
 
@@ -355,7 +358,7 @@ public:
 
 public:
   // Printing
-  static void print() { return print_on(tty); }
+  static void print();
   static void print_on(outputStream* st);
   static void dump(outputStream* st, bool verbose);
 
@@ -681,6 +684,11 @@ private:
   static oop  _java_platform_loader;
 
   static bool _has_checkPackageAccess;
+
+public:
+  static TableStatistics placeholders_statistics();
+  static TableStatistics loader_constraints_statistics();
+  static TableStatistics protection_domain_cache_statistics();
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
