@@ -125,6 +125,11 @@ final class EventFileStream implements EventStream {
         public void setOrdered(boolean ordered) {
             this.ordered = ordered;
         }
+
+        @Override
+        public void close() {
+
+        }
     }
 
     private final RecordingInput input;

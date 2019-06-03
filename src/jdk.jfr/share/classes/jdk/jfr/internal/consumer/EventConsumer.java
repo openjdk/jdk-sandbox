@@ -326,4 +326,14 @@ abstract public class EventConsumer implements Runnable {
         return a.toArray(new Runnable[0]);
     }
 
+    abstract public void close();
+
+    public void setReuse(boolean reuse) {
+
+    }
+
+    public void setOrdered(boolean ordered) {
+
+    }
+
 }

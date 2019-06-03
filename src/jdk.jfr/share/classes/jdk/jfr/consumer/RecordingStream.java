@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.time.Duration;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import jdk.jfr.Configuration;
@@ -136,6 +137,37 @@ public class RecordingStream implements AutoCloseable, EventStream {
     public EventSettings enable(String name) {
         return recording.enable(name);
     }
+
+    /**
+     * Replaces all settings for this recording stream
+     * <p>
+     * The following example shows how to set event settings for a recording.
+     *
+     * <pre>
+     * <code>
+     *     Map{@literal <}String, String{@literal >} settings = new HashMap{@literal <}{@literal >}();
+     *     settings.putAll(EventSettings.enabled("jdk.CPUSample").withPeriod(Duration.ofSeconds(2)).toMap());
+     *     settings.putAll(EventSettings.enabled(MyEvent.class).withThreshold(Duration.ofSeconds(2)).withoutStackTrace().toMap());
+     *     settings.put("jdk.ExecutionSample#period", "10 ms");
+     *     recordingStream.setSettings(settings);
+     * </code>
+     * </pre>
+     *
+     * The following example shows how to merge settings.
+     *
+     * <pre>
+     *     {@code
+     *     Map<String, String> settings = recording.getSettings();
+     *     settings.putAll(additionalSettings);
+     *     recordingStream.setSettings(settings);
+     * }
+     * </pre>
+     *
+     * @param settings the settings to set, not {@code null}
+     */
+    public void setSettings(Map<String, String> settings) {
+        recording.setSettings(settings);
+    };
 
     /**
      * Enables event.

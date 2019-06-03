@@ -30,6 +30,7 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.file.Path;
 
 public final class RecordingInput implements DataInput, AutoCloseable {
 
@@ -57,6 +58,11 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         public byte get(long position) {
             return bytes[(int) (position - blockPosition)];
         }
+
+        public void reset() {
+           blockPosition = 0;
+           size = 0;
+        }
     }
 
     private final RandomAccessFile file;
@@ -79,6 +85,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
     public RecordingInput(File f) throws IOException {
         this(f, DEFAULT_BLOCK_SIZE);
     }
+
     public void positionPhysical(long position) throws IOException {
         file.seek(position);
     }
@@ -324,6 +331,23 @@ public final class RecordingInput implements DataInput, AutoCloseable {
 
     public String getFilename() {
         return filename;
+    }
+
+    // Purpose of this method is to reuse block cache from a
+    // previous RecordingInput
+    public RecordingInput newFile(Path path) throws IOException  {
+        try {
+            close();
+        } catch (IOException e) {
+            // perhaps deleted
+        }
+        RecordingInput input = new RecordingInput(path.toFile(), this.blockSize);
+        input.currentBlock = this.currentBlock;
+        input.currentBlock.reset();
+        input.previousBlock = this.previousBlock;
+        input.previousBlock.reset();
+
+        return input;
     }
 
 }

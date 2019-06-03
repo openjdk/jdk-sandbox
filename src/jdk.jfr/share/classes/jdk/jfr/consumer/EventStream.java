@@ -163,7 +163,6 @@ public interface EventStream extends AutoCloseable {
      */
     public void setOrdered(boolean ordered);
 
-
     /**
      * Starts processing events in the stream.
      * <p>
