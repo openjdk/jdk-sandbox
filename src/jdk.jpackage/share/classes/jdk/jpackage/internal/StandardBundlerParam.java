@@ -161,6 +161,9 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                                 BundleParams.PARAM_APPLICATION_CLASS);
                         if (s == null) {
                             s = JLinkBundlerHelper.getMainClass(params);
+                            if (s.length() == 0) {
+                                s = null;
+                            }
                         }
                         return s;
                     },

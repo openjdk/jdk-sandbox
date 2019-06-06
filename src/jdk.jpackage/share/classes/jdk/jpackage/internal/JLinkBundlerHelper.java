@@ -182,6 +182,12 @@ final class JLinkBundlerHelper {
     static void execute(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
+
+        // we might be able to build it (with no main class) but it won't run
+        if (StandardBundlerParam.MAIN_CLASS.fetchFrom(params) == null) {
+            throw new PackagerException("ERR_NoMainClass");
+        }
+
         List<Path> modulePath =
                 StandardBundlerParam.MODULE_PATH.fetchFrom(params);
         Set<String> addModules =

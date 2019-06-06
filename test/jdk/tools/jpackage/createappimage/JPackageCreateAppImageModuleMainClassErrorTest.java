@@ -39,20 +39,27 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
-    private static final String [] CMD = {
+    private static final String [] CMD1 = {
         "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello",
         "--module-path", "input"};
 
+    private static final String [] CMD2 = {
+        "create-app-image",
+        "--output", OUTPUT,
+        "--name", "test",
+        "--module", "com.hello/com.hello.Hello",
+        "--module-path", "input"};
+
     private static void validate(String buildOutput) throws Exception {
 
         File outfile = new File(appWorkingDir + File.separator + appOutput);
         int retVal = JPackageHelper.execute(outfile, app);
-        if (retVal == 0) {
+        if (retVal != 0) {
             throw new AssertionError(
-                   "Test application exited without error: ");
+                   "Test application exited with error: ");
         }
 
         if (!outfile.exists()) {
@@ -61,15 +68,12 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
         String output = Files.readString(outfile.toPath());
         String[] result = output.split("\n");
 
-        if (result.length != 1) {
-            System.out.println("outfile (" + outfile + ") content: " + output);
-            throw new AssertionError(
-                   "Unexpected number of lines: " + result.length);
+        if (!result[0].trim().equals("jpackage test application")) {
+            throw new AssertionError("Unexpected result[0]: " + result[0]);
         }
 
-        if (!result[0].trim().contains(
-                "does not have a ModuleMainClass attribute")) {
-            throw new AssertionError("Unexpected result[0]: " + result[0]);
+        if (!result[1].trim().equals("args.length: 0")) {
+            throw new AssertionError("Unexpected result[1]: " + result[1]);
         }
     }
 
@@ -77,10 +81,16 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
         JPackageHelper.createHelloModule();
 
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        validate(JPackageHelper.executeCLI(true, CMD));
+        JPackageHelper.executeCLI(false, CMD1);
 
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        validate(JPackageHelper.executeToolProvider(true, CMD));
+        JPackageHelper.executeToolProvider(false, CMD1);
+
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        validate(JPackageHelper.executeCLI(true, CMD2));
+
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        validate(JPackageHelper.executeToolProvider(true, CMD2));
     }
 
 }

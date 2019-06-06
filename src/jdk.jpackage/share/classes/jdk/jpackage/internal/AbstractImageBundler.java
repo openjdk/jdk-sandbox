@@ -128,6 +128,11 @@ public abstract class AbstractImageBundler extends AbstractBundler {
                     name, outputDirectory.getAbsolutePath()));
         }
 
+        // NAME will default to CLASS, so the real problem is no MAIN_CLASS
+        if (name == null) {
+            throw new PackagerException("ERR_NoMainClass");
+        }
+
         // Create directory structure
         File rootDirectory = new File(outputDirectory, name);
 
