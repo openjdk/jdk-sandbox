@@ -35,7 +35,7 @@ public abstract class JPackageCreateAppImageBase {
                    "Unexpected number of lines: " + result.length);
         }
 
-        if (!result[0].trim().equals("jpackage test application")) {
+        if (!result[0].trim().endsWith("jpackage test application")) {
             throw new AssertionError("Unexpected result[0]: " + result[0]);
         }
 

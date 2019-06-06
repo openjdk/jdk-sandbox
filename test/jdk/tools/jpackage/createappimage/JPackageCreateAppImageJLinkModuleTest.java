@@ -21,56 +21,48 @@
  * questions.
  */
 
+import java.util.ArrayList;
+
  /*
- * @test
- * @summary jpackage create image modular jar test
- * @library ../helpers
- * @build JPackageHelper
- * @build JPackagePath
- * @build JPackageCreateAppImageBase
- * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateAppImageModuleTest
- */
-public class JPackageCreateAppImageModuleTest {
+  * @test
+  * @summary jpackage create image modular jar test
+  * @library ../helpers
+  * @build JPackageHelper
+  * @build JPackagePath
+  * @build JPackageCreateAppImageBase
+  * @modules jdk.jpackage
+  * @run main/othervm -Xmx512m JPackageCreateAppImageJLinkModuleTest
+  */
+public class JPackageCreateAppImageJLinkModuleTest {
     private static final String OUTPUT = "output";
+    private static final String RUNTIME = "runtime";
 
-    private static final String [] CMD1 = {
+    private static final String [] CMD = {
         "create-app-image",
-        "--module-path", "module",
-        "--module", "com.other/com.other.Other",
         "--output", OUTPUT,
         "--name", "test",
-    };
-
-    private static String [] commands = {
-        "create-app-image",
-        "--module-path", "module",
         "--module", "com.other/com.other.Other",
-        "--output", OUTPUT,
-        "--name", "test",
-        "--add-modules", "TBD",
-    };
-
-    private final static String [] paths = {
-        "ALL-MODULES",
-        "ALL_MODULE_PATH",
-        "ALL-SYSTEM",
-        "ALL-DEFAULT",
+        "--runtime-image", RUNTIME,
     };
 
     public static void main(String[] args) throws Exception {
         JPackageHelper.createOtherModule();
 
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateAppImageBase.testCreateAppImage(CMD1);
+        ArrayList<String> jlargs = new ArrayList<>();
+        jlargs.add("--add-modules");
+        jlargs.add("com.other");
+        jlargs.add("--module-path");
+        jlargs.add("module");
+        jlargs.add("--strip-debug");
+        jlargs.add("--no-header-files");
+        jlargs.add("--no-man-pages");
+        jlargs.add("--strip-native-commands");
+        JPackageHelper.createRuntime(jlargs);
 
-        for (String path : paths) {
-            commands[commands.length - 1] = path;
-            System.out.println("using --add-modules " + path);
-            JPackageHelper.deleteOutputFolder(OUTPUT);
-            JPackageCreateAppImageBase.testCreateAppImageToolProvider(commands);
-            System.out.println("succeeded");
-        }
+
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageCreateAppImageBase.testCreateAppImage(CMD);
+
     }
 
 }

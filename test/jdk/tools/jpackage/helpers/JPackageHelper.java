@@ -25,6 +25,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.nio.file.FileVisitResult;
 
 import java.nio.file.Files;
@@ -164,7 +166,13 @@ public class JPackageHelper {
             public FileVisitResult visitFile(Path file,
                     BasicFileAttributes attr) throws IOException {
                 if (OS.startsWith("win")) {
-                    Files.setAttribute(file, "dos:readonly", false);
+                    try {
+                        Files.setAttribute(file, "dos:readonly", false);
+                    } catch (Exception ioe) {
+                        // just report and try to contune
+                        System.err.println("IOException: " + ioe);
+                        ioe.printStackTrace(System.err);
+                    }
                 }
                 Files.delete(file);
                 return FileVisitResult.CONTINUE;
@@ -194,8 +202,8 @@ public class JPackageHelper {
         try {
             deleteRecursive(outputFolder);
         } catch (IOException ioe) {
-            System.out.println("IOException: " + ioe);
-            ioe.printStackTrace();
+            System.err.println("IOException: " + ioe);
+            ioe.printStackTrace(System.err);
             deleteRecursive(outputFolder);
         }
     }
@@ -272,33 +280,44 @@ public class JPackageHelper {
         return ((OS.contains("nix") || OS.contains("nux")));
     }
 
+    public static void createHelloImageJar(String inputDir) throws Exception {
+        createJar(false, "Hello", "image", inputDir);
+    }
+
     public static void createHelloImageJar() throws Exception {
-        createJar(false, "Hello", "image");
+        createJar(false, "Hello", "image", "input");
     }
 
     public static void createHelloImageJarWithMainClass() throws Exception {
-        createJar(true, "Hello", "image");
+        createJar(true, "Hello", "image", "input");
     }
 
     public static void createHelloInstallerJar() throws Exception {
-        createJar(false, "Hello", "installer");
+        createJar(false, "Hello", "installer", "input");
     }
 
     public static void createHelloInstallerJarWithMainClass() throws Exception {
-        createJar(true, "Hello", "installer");
+        createJar(true, "Hello", "installer", "input");
     }
 
     private static void createJar(boolean mainClassAttribute, String name,
-                                  String testType) throws Exception {
+        String testType, String inputDir) throws Exception {
         int retVal;
 
-        File input = new File("input");
+        File input = new File(inputDir);
         if (!input.exists()) {
-            input.mkdir();
+            input.mkdirs();
         }
 
-        Files.copy(Path.of(TEST_SRC_ROOT + File.separator + "apps" + File.separator
-                + testType + File.separator + name + ".java"), Path.of(name + ".java"));
+        Path src = Path.of(TEST_SRC_ROOT + File.separator + "apps"
+                + File.separator + testType + File.separator + name + ".java");
+        Path dst = Path.of(name + ".java");
+        
+        if (dst.toFile().exists()) {
+            Files.delete(dst);
+        }
+        Files.copy(src, dst);
+
 
         File javacLog = new File("javac.log");
         try {
@@ -324,7 +343,7 @@ public class JPackageHelper {
             args.add("-c");
             args.add("-v");
             args.add("-f");
-            args.add("input" + File.separator + name.toLowerCase() + ".jar");
+            args.add(inputDir + File.separator + name.toLowerCase() + ".jar");
             if (mainClassAttribute) {
                 args.add("-e");
                 args.add(name);
@@ -347,15 +366,15 @@ public class JPackageHelper {
     }
 
     public static void createHelloModule() throws Exception {
-        createModule("Hello.java", "input", "hello");
+        createModule("Hello.java", "input", "hello", true);
     }
 
     public static void createOtherModule() throws Exception {
-        createModule("Other.java", "input-other", "other");
+        createModule("Other.java", "input-other", "other", false);
     }
 
     private static void createModule(String javaFile, String inputDir,
-            String aName) throws Exception {
+            String aName, boolean createModularJar) throws Exception {
         int retVal;
 
         File input = new File(inputDir);
@@ -394,34 +413,41 @@ public class JPackageHelper {
             throw new AssertionError("javac exited with error: " + retVal);
         }
 
-        File jarLog = new File("jar.log");
-        try {
-            List<String> args = new ArrayList<>();
-            args.add(JAR.toString());
-            args.add("--create");
-            args.add("--file");
-            args.add(inputDir + File.separator + "com." + aName + ".jar");
-            args.add("-C");
-            args.add("module" + File.separator + "com." + aName);
-            args.add(".");
+        if (createModularJar) {
+            File jarLog = new File("jar.log");
+            try {
+                List<String> args = new ArrayList<>();
+                args.add(JAR.toString());
+                args.add("--create");
+                args.add("--file");
+                args.add(inputDir + File.separator + "com." + aName + ".jar");
+                args.add("-C");
+                args.add("module" + File.separator + "com." + aName);
+                args.add(".");
 
-            retVal = execute(jarLog, args.stream().toArray(String[]::new));
-        } catch (Exception ex) {
-            if (jarLog.exists()) {
-                System.err.println(Files.readString(jarLog.toPath()));
+                retVal = execute(jarLog, args.stream().toArray(String[]::new));
+            } catch (Exception ex) {
+                if (jarLog.exists()) {
+                    System.err.println(Files.readString(jarLog.toPath()));
+                }
+                throw ex;
             }
-            throw ex;
-        }
 
-        if (retVal != 0) {
-            if (jarLog.exists()) {
-                System.err.println(Files.readString(jarLog.toPath()));
+            if (retVal != 0) {
+                if (jarLog.exists()) {
+                    System.err.println(Files.readString(jarLog.toPath()));
+                }
+                throw new AssertionError("jar exited with error: " + retVal);
             }
-            throw new AssertionError("jar exited with error: " + retVal);
         }
     }
 
     public static void createRuntime() throws Exception {
+        List<String> moreArgs = new ArrayList<>();
+        createRuntime(moreArgs);
+    }
+
+    public static void createRuntime(List<String> moreArgs) throws Exception {
         int retVal;
 
         File jlinkLog = new File("jlink.log");
@@ -432,6 +458,8 @@ public class JPackageHelper {
             args.add("runtime");
             args.add("--add-modules");
             args.add("java.base");
+            args.addAll(moreArgs);
+
             retVal = execute(jlinkLog, args.stream().toArray(String[]::new));
         } catch (Exception ex) {
             if (jlinkLog.exists()) {
@@ -471,6 +499,30 @@ public class JPackageHelper {
             }
         }
         return argsStr;
+    }
+
+    public static String[] cmdWithAtFilename(String [] cmd, int ndx, int len)
+                throws IOException {
+        ArrayList<String> newAList = new ArrayList<>();
+        String fileString = null;
+        for (int i=0; i<cmd.length; i++) {
+            if (i == ndx) {
+                newAList.add("@argfile.cmds");
+                fileString = cmd[i];
+            } else if (i > ndx && i < ndx + len) {
+                fileString += " " + cmd[i];
+            } else {
+                newAList.add(cmd[i]);
+            }
+        }
+        if (fileString != null) {
+            Path path = new File("argfile.cmds").toPath();
+            try (BufferedWriter bw = Files.newBufferedWriter(path);
+                    PrintWriter out = new PrintWriter(bw)) {
+                out.println(fileString);
+            }
+        }
+        return newAList.toArray(new String[0]);
     }
 
     private static String quote(String in, boolean toolProvider) {

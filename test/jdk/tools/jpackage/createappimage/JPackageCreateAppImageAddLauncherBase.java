@@ -31,7 +31,6 @@ import java.util.List;
 
 public class JPackageCreateAppImageAddLauncherBase {
     private static final String app = JPackagePath.getApp();
-    private static final String app2 = JPackagePath.getAppSL();
     private static final String appOutput = JPackagePath.getAppOutputFile();
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
@@ -47,6 +46,7 @@ public class JPackageCreateAppImageAddLauncherBase {
     private static final String PARAM3 = "-Dparam3=Some Param 3";
 
     private static final List<String> vmArguments = new ArrayList<>();
+    private static final List<String> empty = new ArrayList<>();
 
     private static void validateResult(List<String> args, List<String> vmArgs)
             throws Exception {
@@ -58,12 +58,14 @@ public class JPackageCreateAppImageAddLauncherBase {
         String output = Files.readString(outfile.toPath());
         String[] result = output.split("\n");
 
-        if (result.length != (args.size() + vmArgs.size() + 2)) {
+        int expected = 2 + args.size() + vmArgs.size();
+
+        if (result.length != expected) {
             throw new AssertionError("Unexpected number of lines: "
-                    + result.length);
+                    + result.length + " expected: " + expected + " - results: " + output);
         }
 
-        if (!result[0].trim().equals("jpackage test application")) {
+        if (!result[0].trim().endsWith("jpackage test application")) {
             throw new AssertionError("Unexpected result[0]: " + result[0]);
         }
 
@@ -74,45 +76,62 @@ public class JPackageCreateAppImageAddLauncherBase {
         int index = 2;
         for (String arg : args) {
             if (!result[index].trim().equals(arg)) {
-                throw new AssertionError("Unexpected result[" + index + "]: "
-                    + result[index]);
+                throw new AssertionError("Unexpected result["
+                        + index + "]: " + result[index]);
             }
             index++;
         }
 
         for (String vmArg : vmArgs) {
             if (!result[index].trim().equals(vmArg)) {
-                throw new AssertionError("Unexpected result[" + index + "]: "
-                    + result[index]);
+                throw new AssertionError("Unexpected result["
+                        + index + "]: " + result[index]);
             }
             index++;
         }
     }
 
-    private static void validate() throws Exception {
+    private static void validate(boolean includeArgs, String name)
+            throws Exception {
         int retVal = JPackageHelper.execute(null, app);
         if (retVal != 0) {
-            throw new AssertionError("Test application exited with error: "
-                    + retVal);
+            throw new AssertionError("Test application " + app
+                    + " exited with error: " + retVal);
         }
         validateResult(new ArrayList<>(), new ArrayList<>());
 
+        String app2 = JPackagePath.getAppSL(name);
         retVal = JPackageHelper.execute(null, app2);
         if (retVal != 0) {
-            throw new AssertionError("Test application exited with error: "
-                    + retVal);
+            throw new AssertionError("Test application " + app2
+                    +  " exited with error: " + retVal);
         }
-        validateResult(arguments, vmArguments);
+        if (includeArgs) {
+            validateResult(arguments, vmArguments);
+        } else {
+            validateResult(empty, empty);
+        }
     }
 
     public static void testCreateAppImage(String [] cmd) throws Exception {
-        JPackageHelper.executeCLI(true, cmd);
-        validate();
+        testCreateAppImage(cmd, true, "test2");
     }
 
-    public static void testCreateAppImageToolProvider(String [] cmd) throws Exception {
+    public static void testCreateAppImage(String [] cmd,
+            boolean includeArgs, String name) throws Exception {
+        JPackageHelper.executeCLI(true, cmd);
+        validate(includeArgs, name);
+    }
+
+    public static void testCreateAppImageToolProvider(String [] cmd)
+            throws Exception {
+        testCreateAppImageToolProvider(cmd, true, "test2");
+    }
+
+    public static void testCreateAppImageToolProvider(String [] cmd,
+            boolean includeArgs, String name) throws Exception {
         JPackageHelper.executeToolProvider(true, cmd);
-        validate();
+        validate(includeArgs, name);
     }
 
     public static void createSLProperties() throws Exception {
@@ -135,6 +154,20 @@ public class JPackageCreateAppImageAddLauncherBase {
             out.println("arguments=" + argumentsMap);
             out.println("java-options=" + vmArgumentsMap);
         }
+
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(
+                new FileWriter("m1.properties")))) {
+            out.println("module=com.hello/com.hello.Hello");
+            out.println("main-jar=");
+        }
+
+        try (PrintWriter out = new PrintWriter(new BufferedWriter(
+                new FileWriter("j1.properties")))) {
+            out.println("main-jar hello.jar");
+            out.println("main-class Hello");
+        }
+
+        
     }
 
 }

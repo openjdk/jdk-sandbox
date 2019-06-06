@@ -50,13 +50,19 @@ public class JPackagePath {
 
     // Returns path to generate test application
     public static String getApp() {
+        return getApp("test");
+    }
+
+    public static String getApp(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "test.exe";
+            return "output" + File.separator + name
+                    + File.separator + name + ".exe";
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + "test";
+            return "output" + File.separator + name + ".app"
+                    + File.separator + "Contents"
+                    + File.separator + "MacOS" + File.separator + name;
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "test";
+            return "output" + File.separator + name + File.separator + name;
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -64,14 +70,20 @@ public class JPackagePath {
 
     // Returns path to generate test application icon
     public static String getAppIcon() {
+        return getAppIcon("test");
+    }
+
+    public static String getAppIcon(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "test.ico";
+            return "output" + File.separator + name + File.separator
+                    + name + ".ico";
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "Resources" + File.separator + "test.icns";
+            return "output" + File.separator + name + ".app"
+                    + File.separator + "Contents" + File.separator
+                    + "Resources" + File.separator + name + ".icns";
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator
-                    + File.separator + "resources"+ File.separator + "test.png";
+            return "output" + File.separator + name + File.separator
+                    + "resources"+ File.separator + name + ".png";
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -92,14 +104,16 @@ public class JPackagePath {
     }
 
     // Returns path to generate secondary launcher of test application
-    public static String getAppSL() {
+    public static String getAppSL(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "test2.exe";
+            return "output" + File.separator + "test" + File.separator
+                    + name + ".exe";
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + "test2";
+            return "output" + File.separator + "test.app" + File.separator
+                    + "Contents" + File.separator + "MacOS"
+                    + File.separator + name;
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "test2";
+            return "output" + File.separator + "test" + File.separator + name;
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -107,13 +121,17 @@ public class JPackagePath {
 
     // Returns path to app working directory (where test application generates its output)
     public static String getAppWorkingDir() {
+        return getAppWorkingDir("test");
+    }
+
+    public static String getAppWorkingDir(String name) {
          if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "app";
+            return "output" + File.separator + name + File.separator + "app";
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "Java";
+            return "output" + File.separator + name + ".app"
+                    + File.separator + "Contents" + File.separator + "Java";
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "app";
+            return "output" + File.separator + name + File.separator + "app";
         } else {
             throw new AssertionError("Cannot detect platform");
         }

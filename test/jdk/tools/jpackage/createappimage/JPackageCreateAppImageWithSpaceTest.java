@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,56 +21,50 @@
  * questions.
  */
 
+import java.io.File;
+
  /*
  * @test
- * @summary jpackage create image modular jar test
+ * @summary jpackage create image test
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
  * @build JPackageCreateAppImageBase
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m JPackageCreateAppImageModuleTest
+ * @run main/othervm -Xmx512m JPackageCreateAppImageWithSpaceTest
  */
-public class JPackageCreateAppImageModuleTest {
+public class JPackageCreateAppImageWithSpaceTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
         "create-app-image",
-        "--module-path", "module",
-        "--module", "com.other/com.other.Other",
+        "--input", "input dir",
         "--output", OUTPUT,
         "--name", "test",
+        "--main-jar", "hello.jar",
+        "--main-class", "Hello",
     };
 
-    private static String [] commands = {
+    private static final String [] CMD2 = {
         "create-app-image",
-        "--module-path", "module",
-        "--module", "com.other/com.other.Other",
+        "--input", "input dir2",
         "--output", OUTPUT,
         "--name", "test",
-        "--add-modules", "TBD",
-    };
-
-    private final static String [] paths = {
-        "ALL-MODULES",
-        "ALL_MODULE_PATH",
-        "ALL-SYSTEM",
-        "ALL-DEFAULT",
+        "--main-jar", "sub dir/hello.jar",
+        "--main-class", "Hello",
     };
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createOtherModule();
 
         JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageHelper.createHelloImageJar("input dir");
         JPackageCreateAppImageBase.testCreateAppImage(CMD1);
 
-        for (String path : paths) {
-            commands[commands.length - 1] = path;
-            System.out.println("using --add-modules " + path);
-            JPackageHelper.deleteOutputFolder(OUTPUT);
-            JPackageCreateAppImageBase.testCreateAppImageToolProvider(commands);
-            System.out.println("succeeded");
-        }
-    }
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+        JPackageHelper.createHelloImageJar(
+                "input dir2" + File.separator + "sub dir");
 
+        JPackageCreateAppImageBase.testCreateAppImageToolProvider(CMD2);
+        JPackageHelper.deleteOutputFolder(OUTPUT);
+    }
 }

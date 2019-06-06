@@ -1,7 +1,3 @@
-
-import java.io.File;
-import java.nio.file.Files;
-
 /*
  * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -24,6 +20,9 @@ import java.nio.file.Files;
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+import java.io.File;
+import java.nio.file.Files;
 
 /*
  * @test
