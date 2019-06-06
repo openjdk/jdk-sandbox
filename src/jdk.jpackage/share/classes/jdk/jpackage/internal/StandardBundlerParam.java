@@ -25,9 +25,6 @@
 
 package jdk.jpackage.internal;
 
-import jdk.jpackage.internal.BundleParams;
-import jdk.jpackage.internal.AbstractAppImageBuilder;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
@@ -242,7 +239,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     Arguments.CLIOptions.ARGUMENTS.getId(),
                     (Class<List<String>>) (Object) List.class,
                     params -> Collections.emptyList(),
-                    (s, p) -> splitStringWithEscapes(s)
+                    (s, p) -> null
             );
 
     @SuppressWarnings("unchecked")
@@ -655,27 +652,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         I18N.getString("error.no-main-class.advice"));
             }
         }
-    }
-
-    private static List<String> splitStringWithEscapes(String s) {
-        List<String> l = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean quoted = false;
-        boolean escaped = false;
-        for (char c : s.toCharArray()) {
-            if (escaped) {
-                current.append(c);
-            } else if ('"' == c) {
-                quoted = !quoted;
-            } else if (!quoted && Character.isWhitespace(c)) {
-                l.add(current.toString());
-                current = new StringBuilder();
-            } else {
-                current.append(c);
-            }
-        }
-        l.add(current.toString());
-        return l;
     }
 
     private static List<RelativeFileSet>

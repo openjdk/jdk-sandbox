@@ -76,7 +76,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     Log.verbose(MessageFormat.format(
                             I18N.getString("message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript, false);
+                    IOUtils.run("bash", configScript);
                 }
 
                 return buildDMG(params, outdir);
@@ -291,7 +291,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "-ov", protoDMG.getAbsolutePath(),
                 "-fs", "HFS+",
                 "-format", "UDRW");
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         // mount temp image
         pb = new ProcessBuilder(
@@ -300,7 +300,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 protoDMG.getAbsolutePath(),
                 hdiUtilVerbosityFlag,
                 "-mountroot", imagesRoot.getAbsolutePath());
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         File mountedRoot =
                 new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
@@ -312,7 +312,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         pb = new ProcessBuilder("osascript",
                 getConfig_VolumeScript(p).getAbsolutePath());
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         // Indicate that we want a custom icon
         // NB: attributes of the root directory are ignored
@@ -332,14 +332,14 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                         setFileUtility,
                         "-c", "icnC",
                         volumeIconFile.getAbsolutePath());
-                IOUtils.exec(pb, false);
+                IOUtils.exec(pb);
                 volumeIconFile.setReadOnly();
 
                 pb = new ProcessBuilder(
                         setFileUtility,
                         "-a", "C",
                         mountedRoot.getAbsolutePath());
-                IOUtils.exec(pb, false);
+                IOUtils.exec(pb);
             } catch (IOException ex) {
                 Log.error(ex.getMessage());
                 Log.verbose("Cannot enable custom icon using SetFile utility");
@@ -355,7 +355,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "detach",
                 hdiUtilVerbosityFlag,
                 mountedRoot.getAbsolutePath());
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         // Compress it to a new image
         pb = new ProcessBuilder(
@@ -365,7 +365,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 hdiUtilVerbosityFlag,
                 "-format", "UDZO",
                 "-o", finalDMG.getAbsolutePath());
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         //add license if needed
         if (getConfig_LicenseFile(p).exists()) {
@@ -375,7 +375,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "unflatten",
                     finalDMG.getAbsolutePath()
             );
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
             //add license
             pb = new ProcessBuilder(
@@ -385,7 +385,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "-xml",
                     getConfig_LicenseFile(p).getAbsolutePath()
             );
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
             //hdiutil flatten your_image_file.dmg
             pb = new ProcessBuilder(
@@ -393,7 +393,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "flatten",
                     finalDMG.getAbsolutePath()
             );
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
         }
 

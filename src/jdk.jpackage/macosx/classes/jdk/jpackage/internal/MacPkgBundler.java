@@ -157,7 +157,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     Log.verbose(MessageFormat.format(I18N.getString(
                             "message.running-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("bash", configScript, false);
+                    IOUtils.run("bash", configScript);
                 }
 
                 return createPKG(params, outdir, appImageDir);
@@ -413,7 +413,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     "--analyze",
                     cpl.getAbsolutePath());
 
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
             patchCPLFile(cpl);
 
@@ -430,7 +430,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     "--scripts",
                     SCRIPTS_DIR.fetchFrom(params).getAbsolutePath(),
                     appPKG.getAbsolutePath());
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
             // build final package
             File finalPKG = new File(outdir, INSTALLER_NAME.fetchFrom(params)
@@ -477,7 +477,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             commandLine.add(finalPKG.getAbsolutePath());
 
             pb = new ProcessBuilder(commandLine);
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
 
             return finalPKG;
         } catch (Exception ignored) {

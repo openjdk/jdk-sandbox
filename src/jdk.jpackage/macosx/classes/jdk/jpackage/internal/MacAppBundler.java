@@ -38,7 +38,6 @@ import java.util.ResourceBundle;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.*;
-import jdk.jpackage.internal.AbstractAppImageBuilder;
 
 public class MacAppBundler extends AbstractImageBundler {
 

@@ -193,7 +193,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
             pb = new ProcessBuilder(buildOptions);
 
-            IOUtils.exec(pb, false);
+            IOUtils.exec(pb);
             return finalPKG;
         } catch (PackagerException pe) {
             throw pe;

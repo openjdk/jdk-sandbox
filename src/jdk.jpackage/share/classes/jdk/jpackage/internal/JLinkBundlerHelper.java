@@ -73,16 +73,6 @@ final class JLinkBundlerHelper {
 
     private JLinkBundlerHelper() {}
 
-    @SuppressWarnings("unchecked")
-    static final BundlerParamInfo<Integer> DEBUG =
-            new StandardBundlerParam<>(
-                    "-J-Xdebug",
-                    Integer.class,
-                    p -> null,
-                    (s, p) -> {
-                        return Integer.valueOf(s);
-                    });
-
     static String listOfPathToString(List<Path> value) {
         String result = "";
 
@@ -195,7 +185,6 @@ final class JLinkBundlerHelper {
         Set<String> limitModules =
                 StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
         Path outputDir = imageBuilder.getRoot();
-        String excludeFileList = imageBuilder.getExcludeFileList();
         File mainJar = getMainJar(params);
         ModFile.ModType mainJarType = ModFile.ModType.Unknown;
 
@@ -229,11 +218,8 @@ final class JLinkBundlerHelper {
             validModules.add(mainModule);
         }
 
-        Log.verbose(MessageFormat.format(
-                I18N.getString("message.modules"), validModules.toString()));
-
         runJLink(outputDir, modulePath, validModules, limitModules,
-                excludeFileList, new HashMap<String,String>(), bindServices);
+                new HashMap<String,String>(), bindServices);
 
         imageBuilder.prepareApplicationFiles();
     }
@@ -387,7 +373,7 @@ final class JLinkBundlerHelper {
     }
 
     private static void runJLink(Path output, List<Path> modulePath,
-            Set<String> modules, Set<String> limitModules, String excludes,
+            Set<String> modules, Set<String> limitModules,
             HashMap<String, String> user, boolean bindServices)
             throws IOException {
 
@@ -409,10 +395,6 @@ final class JLinkBundlerHelper {
         if (limitModules != null && !limitModules.isEmpty()) {
             args.add("--limit-modules");
             args.add(getStringList(limitModules));
-        }
-        if (excludes != null) {
-            args.add("--exclude-files");
-            args.add(excludes);
         }
         if (user != null && !user.isEmpty()) {
             for (Map.Entry<String, String> entry : user.entrySet()) {

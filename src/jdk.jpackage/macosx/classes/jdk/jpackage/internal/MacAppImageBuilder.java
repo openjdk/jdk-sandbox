@@ -761,7 +761,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         args.add(keyChain);
 
         ProcessBuilder  pb = new ProcessBuilder(args);
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
     }
 
     public static void restoreKeychainList(Map<String, ? super Object> params)
@@ -785,7 +785,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         args.addAll(keyChains);
 
         ProcessBuilder  pb = new ProcessBuilder(args);
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
     }
 
     public static void signAppBundle(
@@ -860,7 +860,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     f.setWritable(true, true);
 
                     ProcessBuilder pb = new ProcessBuilder(args);
-                    IOUtils.exec(pb, false);
+                    IOUtils.exec(pb);
 
                     Files.setPosixFilePermissions(p, oldPermissions);
                 } catch (IOException ioe) {
@@ -892,7 +892,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 }
                 args.add(path.toString());
                 ProcessBuilder pb = new ProcessBuilder(args);
-                IOUtils.exec(pb, false);
+                IOUtils.exec(pb);
 
                 args = new ArrayList<>();
                 args.addAll(Arrays.asList("codesign",
@@ -907,7 +907,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 args.add(path.toString()
                         + "/Contents/_CodeSignature/CodeResources");
                 pb = new ProcessBuilder(args);
-                IOUtils.exec(pb, false);
+                IOUtils.exec(pb);
             } catch (IOException e) {
                 toThrow.set(e);
             }
@@ -951,7 +951,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         ProcessBuilder pb =
                 new ProcessBuilder(args.toArray(new String[args.size()]));
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
     }
 
 }

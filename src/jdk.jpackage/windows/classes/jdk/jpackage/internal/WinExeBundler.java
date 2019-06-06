@@ -188,7 +188,7 @@ public class WinExeBundler extends AbstractBundler {
                     "/?");
             VersionExtractor ve =
                     new VersionExtractor("Inno Setup (\\d+.?\\d*)");
-            IOUtils.exec(pb, Log.isDebug(), true, ve);
+            IOUtils.exec(pb, true, ve);
             // not interested in the output
             String version = ve.getVersion();
             Log.verbose(MessageFormat.format(
@@ -388,7 +388,7 @@ public class WinExeBundler extends AbstractBundler {
                     Log.verbose(MessageFormat.format(
                             getString("message.running-wsh-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("wscript", configScript, VERBOSE.fetchFrom(p));
+                    IOUtils.run("wscript", configScript);
                 }
                 return buildEXE(p, outdir);
             }
@@ -778,7 +778,7 @@ public class WinExeBundler extends AbstractBundler {
                 "/o"+outdir.getAbsolutePath(),
                 getConfig_ExeProjectFile(p).getAbsolutePath());
         pb = pb.directory(EXE_IMAGE_DIR.fetchFrom(p));
-        IOUtils.exec(pb, VERBOSE.fetchFrom(p));
+        IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(
                 getString("message.output-location"),

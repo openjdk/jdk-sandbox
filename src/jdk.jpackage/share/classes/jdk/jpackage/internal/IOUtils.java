@@ -191,29 +191,23 @@ public class IOUtils {
     }
 
     // run "launcher paramfile" in the directory where paramfile is kept
-    public static void run(String launcher, File paramFile, boolean verbose)
+    public static void run(String launcher, File paramFile)
             throws IOException {
         if (paramFile != null && paramFile.exists()) {
             ProcessBuilder pb =
                     new ProcessBuilder(launcher, paramFile.getName());
             pb = pb.directory(paramFile.getParentFile());
-            exec(pb, verbose);
+            exec(pb);
         }
     }
 
-    public static void exec(ProcessBuilder pb, boolean verbose)
+    public static void exec(ProcessBuilder pb)
             throws IOException {
-        exec(pb, verbose, false);
+        exec(pb, false, null);
     }
 
-    public static void exec(ProcessBuilder pb, boolean verbose,
-            boolean testForPresenseOnly) throws IOException {
-        exec(pb, verbose, testForPresenseOnly, null);
-    }
-
-    public static void exec(ProcessBuilder pb, boolean verbose,
-            boolean testForPresenseOnly, PrintStream consumer)
-            throws IOException {
+    public static void exec(ProcessBuilder pb, boolean testForPresenseOnly,
+            PrintStream consumer) throws IOException {
         pb.redirectErrorStream(true);
         Log.verbose("Running "
                 + Arrays.toString(pb.command().toArray(new String[0]))
@@ -243,45 +237,20 @@ public class IOUtils {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static Process startProcess(Object... args) throws IOException {
-        final ArrayList<String> argsList = new ArrayList<>();
-        for (Object a : args) {
-            if (a instanceof List) {
-                argsList.addAll((List)a);
-            } else if (a instanceof String) {
-                argsList.add((String)a);
-            }
-        }
-
-        return Runtime.getRuntime().exec(
-                argsList.toArray(new String[argsList.size()]));
-    }
-
-    private static void logErrorStream(Process p) {
-        final BufferedReader err =
-                new BufferedReader(new InputStreamReader(p.getErrorStream()));
-        Thread t = new Thread(() -> {
-            try {
-                String line;
-                while ((line = err.readLine()) != null) {
-                    Log.error(line);
-                }
-            } catch (IOException ioe) {
-                Log.verbose(ioe);
-            }
-        });
-        t.setDaemon(true);
-        t.start();
-    }
-
-    public static int getProcessOutput(List<String> result, Object... args)
+    public static int getProcessOutput(List<String> result, String... args)
             throws IOException, InterruptedException {
-        final Process p = startProcess(args);
+
+        ProcessBuilder pb = new ProcessBuilder(args);
+
+        final Process p = pb.start();
 
         List<String> list = new ArrayList<>();
+
         final BufferedReader in =
                 new BufferedReader(new InputStreamReader(p.getInputStream()));
+        final BufferedReader err =
+                new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
         Thread t = new Thread(() -> {
             try {
                 String line;
@@ -289,13 +258,20 @@ public class IOUtils {
                     list.add(line);
                 }
             } catch (IOException ioe) {
-                jdk.jpackage.internal.Log.verbose(ioe);
+                Log.verbose(ioe);
+            }
+
+            try {
+                String line;
+                while ((line = err.readLine()) != null) {
+                    Log.error(line);
+                }
+            } catch (IOException ioe) {
+                  Log.verbose(ioe);
             }
         });
         t.setDaemon(true);
         t.start();
-
-        logErrorStream(p);
 
         int ret = p.waitFor();
 

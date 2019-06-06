@@ -154,7 +154,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 PrintStream ps = new PrintStream(baos)) {
             ProcessBuilder pb = new ProcessBuilder(toolName, "--version");
-            IOUtils.exec(pb, Log.isDebug(), false, ps);
+            IOUtils.exec(pb, false, ps);
                     //not interested in the above's output
             String content = new String(baos.toByteArray());
             Pattern pattern = Pattern.compile(" (\\d+\\.\\d+)");
@@ -636,7 +636,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 "--define", "%_topdir " + broot.getAbsolutePath()
         );
         pb = pb.directory(RPM_IMAGE_DIR.fetchFrom(params));
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.output-bundle-location"),

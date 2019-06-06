@@ -67,14 +67,12 @@ public class DeployParams {
     String applicationClass;
 
     List<Param> params;
-    List<String> arguments; //unnamed arguments
 
-    // Java 9 modules support
+    // Java modules support
     String addModules = null;
     String limitModules = null;
     String modulePath = null;
     String module = null;
-    String debugPort = null;
 
     File outdir = null;
 
@@ -115,18 +113,6 @@ public class DeployParams {
         jvmargs.add(v);
     }
 
-    void setArguments(List<String> args) {
-        this.arguments = args;
-    }
-
-    List<String> getArguments() {
-        return this.arguments;
-    }
-
-    void addArgument(String arg) {
-        this.arguments.add(arg);
-    }
-
     void addAddModule(String value) {
         if (addModules == null) {
             addModules = value;
@@ -155,10 +141,6 @@ public class DeployParams {
 
     void setModule(String value) {
         this.module = value;
-    }
-
-    void setDebug(String value) {
-        this.debugPort = value;
     }
 
     void setDescription(String description) {
@@ -504,7 +486,6 @@ public class DeployParams {
         bundleParams.setDescription(description);
 
         bundleParams.setJvmargs(jvmargs);
-        bundleParams.setArguments(arguments);
 
         if (addModules != null && !addModules.isEmpty()) {
             bundleParams.setAddModules(addModules);
@@ -520,10 +501,6 @@ public class DeployParams {
 
         if (module != null && !module.isEmpty()) {
             bundleParams.setMainModule(module);
-        }
-
-        if (debugPort != null && !debugPort.isEmpty()) {
-            bundleParams.setDebug(debugPort);
         }
 
         Map<String, String> paramsMap = new TreeMap<>();

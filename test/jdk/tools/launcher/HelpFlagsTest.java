@@ -161,7 +161,7 @@ public class HelpFlagsTest extends TestHelper {
         new ToolHelpSpec("rmiregistry", 0,   0,   0,   0,         0,    0,     1),     // none, prints help message anyways.
         new ToolHelpSpec("serialver",   0,   0,   0,   0,         0,    0,     1),     // none, prints help message anyways.
         new ToolHelpSpec("unpack200",   1,   1,   1,   0,         1,    0,     2),     // -?, -h, --help, -help accepted but not documented.
-        new ToolHelpSpec("jpackage",    0,   1,   1,   0,         0,    1,   255),     //     -h, --help,
+        new ToolHelpSpec("jpackage",    0,   1,   1,   0,         0,    1,     1),     //     -h, --help,
     };
 
     // Returns true if the file is not a tool.

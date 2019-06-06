@@ -34,8 +34,6 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static jdk.jpackage.internal.IOUtils.exec;
-
 final class WindowsRegistry {
 
     // Currently we only support HKEY_LOCAL_MACHINE. Native implementation will

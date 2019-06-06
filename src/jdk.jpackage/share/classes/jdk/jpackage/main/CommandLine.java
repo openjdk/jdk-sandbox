@@ -35,6 +35,13 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * This file is direct copy of CommandLine.java in com.sun.tools.javac.main.
+ * It should not be modified other than the package declaration above,
+ * the copyright year and this comment.
+ * It should track changes made to that file.
+ */
+
+/**
  * Various utility methods for processing Java tool command line arguments.
  *
  *  <p><b>This is NOT part of any supported API.

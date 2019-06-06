@@ -77,7 +77,7 @@ final class MacCertificate {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 PrintStream ps = new PrintStream(baos)) {
             ProcessBuilder security = new ProcessBuilder(args);
-            IOUtils.exec(security, verbose, false, ps);
+            IOUtils.exec(security, false, ps);
 
             File output = File.createTempFile("tempfile", ".tmp");
 
@@ -105,7 +105,7 @@ final class MacCertificate {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 PrintStream ps = new PrintStream(baos)) {
             ProcessBuilder security = new ProcessBuilder(args);
-            IOUtils.exec(security, verbose, false, ps);
+            IOUtils.exec(security, false, ps);
             String output = baos.toString();
             output = output.substring(output.indexOf("=") + 1);
             DateFormat df = new SimpleDateFormat(

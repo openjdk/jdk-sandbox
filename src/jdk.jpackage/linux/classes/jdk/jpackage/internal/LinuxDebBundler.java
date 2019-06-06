@@ -210,7 +210,7 @@ public class LinuxDebBundler extends AbstractBundler {
                     toolName,
                     "--version");
             // not interested in the output
-            IOUtils.exec(pb, Log.isDebug(), true);
+            IOUtils.exec(pb, true, null);
         } catch (Exception e) {
             Log.verbose(MessageFormat.format(I18N.getString(
                     "message.test-for-tool"), toolName, e.getMessage()));
@@ -807,7 +807,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 FULL_PACKAGE_NAME.fetchFrom(params),
                 outFile.getAbsolutePath());
         pb = pb.directory(DEB_IMAGE_DIR.fetchFrom(params).getParentFile());
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"), outFile.getAbsolutePath()));

@@ -229,7 +229,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     "/?");
             VersionExtractor ve = new VersionExtractor("version (\\d+.\\d+)");
             // not interested in the output
-            IOUtils.exec(pb, Log.isDebug(), true, ve);
+            IOUtils.exec(pb, true, ve);
             String version = ve.getVersion();
             Log.verbose(MessageFormat.format(
                     I18N.getString("message.tool-version"),
@@ -479,8 +479,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     Log.verbose(MessageFormat.format(
                             I18N.getString("message.running-wsh-script"),
                             configScript.getAbsolutePath()));
-                    IOUtils.run("wscript",
-                             configScript, false);
+                    IOUtils.run("wscript", configScript);
                 }
                 return buildMSI(p, outdir);
             }
@@ -1086,7 +1085,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 "-ext", "WixUtilExtension",
                 "-out", candleOut.getAbsolutePath());
         pb = pb.directory(WIN_APP_IMAGE.fetchFrom(params));
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.generating-msi"), msiOut.getAbsolutePath()));
@@ -1125,7 +1124,7 @@ public class WinMsiBundler  extends AbstractBundler {
         pb = new ProcessBuilder(commandLine);
 
         pb = pb.directory(WIN_APP_IMAGE.fetchFrom(params));
-        IOUtils.exec(pb, false);
+        IOUtils.exec(pb);
 
         candleOut.delete();
         IOUtils.deleteRecursive(tmpDir);

@@ -30,6 +30,7 @@ import jdk.jpackage.internal.Log;
 import jdk.jpackage.internal.CLIHelp;
 import java.io.PrintWriter;
 import java.util.ResourceBundle;
+import java.io.IOException;
 
 public class Main {
 
@@ -50,65 +51,60 @@ public class Main {
         Log.Logger logger = new Log.Logger(false);
         Log.setLogger(logger);
 
-        int status = run(args);
+        int status = new jdk.jpackage.main.Main().execute(args);
         System.exit(status);
     }
 
     /**
-     * run() - this is the entry point for the ToolProvider API.
+     * execute() - this is the entry point for the ToolProvider API.
      *
      * @param out output stream
      * @param err error output stream
      * @param args command line arguments
      * @return an exit code. 0 means success, non-zero means an error occurred.
      */
-    public static int run(PrintWriter out, PrintWriter err, String... args)
-            throws Exception {
+    public int execute(PrintWriter out, PrintWriter err, String... args) {
         // Create logger with provided streams
         Log.Logger logger = new Log.Logger(false);
         logger.setPrintWriter(out, err);
         Log.setLogger(logger);
 
-        int status = run(args);
-        Log.flush();
-        return status;
+        return execute(args);
     }
 
-    private static int run(String... args) throws Exception {
-        String[] newArgs = CommandLine.parse(args);
-        if (newArgs.length == 0) {
-            CLIHelp.showHelp(true);
-        } else if (hasHelp(newArgs)){
-            if (hasVersion(newArgs)) {
-                Log.info(version + "\n");
-            }
-            CLIHelp.showHelp(false);
-        } else if (hasVersion(newArgs)) {
-            Log.info(version);
-        } else {
+    private int execute(String... args) {
+        try {
+            String[] newArgs;
             try {
+                newArgs = CommandLine.parse(args);
+            } catch (IOException ioe) {
+                Log.error(ioe.getMessage());
+                return 1;
+            }
+
+            if (newArgs.length == 0) {
+                CLIHelp.showHelp(true);
+            } else if (hasHelp(newArgs)){
+                if (hasVersion(newArgs)) {
+                    Log.info(version + "\n");
+                }
+                CLIHelp.showHelp(false);
+            } else if (hasVersion(newArgs)) {
+                Log.info(version);
+            } else {
                 Arguments arguments = new Arguments(newArgs);
                 if (!arguments.processArguments()) {
-                    // processArguments() should log error message if failed.
-                    return -1;
+                    // processArguments() will log error message if failed.
+                    return 1;
                 }
-            } catch (Exception e) {
-                if (Log.isVerbose()) {
-                    Log.verbose(e);
-                } else {
-                    Log.error(e.getMessage());
-                    if (e.getCause() != null && e.getCause() != e) {
-                        Log.error(e.getCause().getMessage());
-                    }
-                }
-                return -1;
             }
+            return 0;
+        } finally {
+            Log.flush();
         }
-
-        return 0;
     }
 
-    private static boolean hasHelp(String[] args) {
+    private boolean hasHelp(String[] args) {
         for (String a : args) {
             if ("--help".equals(a) || "-h".equals(a)) {
                 return true;
@@ -117,7 +113,7 @@ public class Main {
         return false;
     }
 
-    private static boolean hasVersion(String[] args) {
+    private boolean hasVersion(String[] args) {
         for (String a : args) {
             if ("--version".equals(a)) {
                 return true;

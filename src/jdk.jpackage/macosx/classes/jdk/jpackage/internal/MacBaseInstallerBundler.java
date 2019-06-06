@@ -190,7 +190,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
 
             ProcessBuilder pb = new ProcessBuilder(searchOptions);
 
-            IOUtils.exec(pb, verbose, false, ps);
+            IOUtils.exec(pb, false, ps);
             Pattern p = Pattern.compile("\"alis\"<blob>=\"([^\"]+)\"");
             Matcher m = p.matcher(baos.toString());
             if (!m.find()) {

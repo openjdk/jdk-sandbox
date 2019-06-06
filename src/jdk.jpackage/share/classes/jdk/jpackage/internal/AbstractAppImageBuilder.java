@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import jdk.jpackage.internal.resources.ResourceLocator;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
-import static jdk.jpackage.internal.StandardBundlerParam.ARGUMENTS;
 
 public abstract class AbstractAppImageBuilder {
 
@@ -51,13 +50,10 @@ public abstract class AbstractAppImageBuilder {
 
     private final Map<String, Object> properties;
     private final Path root;
-    protected List<String> excludeFileList = new ArrayList<>();
 
-    public AbstractAppImageBuilder(Map<String, Object> properties,
-            Path root) throws IOException {
+    public AbstractAppImageBuilder(Map<String, Object> properties, Path root) {
         this.properties = properties;
         this.root = root;
-        excludeFileList.add(".*\\.diz");
     }
 
     public InputStream getResourceAsStream(String name) {
@@ -75,10 +71,6 @@ public abstract class AbstractAppImageBuilder {
 
     public Path getRoot() {
         return this.root;
-    }
-
-    public String getExcludeFileList() {
-        return String.join(",", excludeFileList);
     }
 
     protected void copyEntry(Path appDir, File srcdir, String fname)
@@ -182,7 +174,6 @@ public abstract class AbstractAppImageBuilder {
     public void writeCfgFile(Map<String, ? super Object> params,
             File cfgFileName, String runtimeLocation) throws IOException {
         cfgFileName.delete();
-
         File mainJar = JLinkBundlerHelper.getMainJar(params);
         ModFile.ModType mainJarType = ModFile.ModType.Unknown;
 
@@ -220,15 +211,6 @@ public abstract class AbstractAppImageBuilder {
                     out.println("app.mainclass="
                             + mainClass.replaceAll("\\.", "/"));
                 }
-            }
-
-            Integer port = JLinkBundlerHelper.DEBUG.fetchFrom(params);
-
-            if (port != null) {
-                out.println(
-                        "app.debug=-agentlib:jdwp=transport=dt_socket,"
-                        + "server=y,suspend=y,address=localhost:"
-                        + port);
             }
 
             out.println();

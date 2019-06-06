@@ -149,10 +149,6 @@ public class BundleParams {
         putUnlessNullOrEmpty(JAVA_OPTIONS.getID(), jvmargs);
     }
 
-    public void setArguments(List<String> arguments) {
-        putUnlessNullOrEmpty(ARGUMENTS.getID(), arguments);
-    }
-
     public void setAddModules(String value) {
         putUnlessNull(StandardBundlerParam.ADD_MODULES.getID(), value);
     }
@@ -167,10 +163,6 @@ public class BundleParams {
 
     public void setMainModule(String value) {
         putUnlessNull(StandardBundlerParam.MODULE.getID(), value);
-    }
-
-    public void setDebug(String value) {
-        putUnlessNull(JLinkBundlerHelper.DEBUG.getID(), value);
     }
 
     public String getApplicationID() {
@@ -237,10 +229,6 @@ public class BundleParams {
 
     public List<String> getJvmargs() {
         return JAVA_OPTIONS.fetchFrom(params);
-    }
-
-    public List<String> getArguments() {
-        return ARGUMENTS.fetchFrom(params);
     }
 
     public jdk.jpackage.internal.RelativeFileSet getAppResource() {

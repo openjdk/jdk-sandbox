@@ -132,7 +132,7 @@ public class Arguments {
         });
     }
 
-    public Arguments(String[] args) throws PackagerException {
+    public Arguments(String[] args) {
         argList = new ArrayList<String>(args.length);
         for (String arg : args) {
             argList.add(arg);
@@ -483,7 +483,7 @@ public class Arguments {
         PLATFORM_LINUX;
     }
 
-    public boolean processArguments() throws Exception {
+    public boolean processArguments() {
         try {
 
             // init context of arguments
@@ -570,7 +570,7 @@ public class Arguments {
             return generateBundle(bp.getBundleParamsAsMap());
         } catch (Exception e) {
             if (Log.isVerbose()) {
-                throw e;
+                Log.verbose(e);
             } else {
                 String msg1 = e.getMessage();
                 Log.error(msg1);
@@ -580,8 +580,8 @@ public class Arguments {
                         Log.error(msg2);
                     }
                 }
-                return false;
             }
+            return false;
         }
     }
 
@@ -765,20 +765,6 @@ public class Arguments {
             option = argShortIds.get(arg);
         }
         return option;
-    }
-
-    static Map<String, String> getArgumentMap(String inputString) {
-        Map<String, String> map = new HashMap<>();
-        List<String> list = getArgumentList(inputString);
-        for (String pair : list) {
-            int equals = pair.indexOf("=");
-            if (equals != -1) {
-                String key = pair.substring(0, equals);
-                String value = pair.substring(equals+1, pair.length());
-                map.put(key, value);
-            }
-        }
-        return map;
     }
 
     static Map<String, String> getPropertiesFromFile(String filename) {
