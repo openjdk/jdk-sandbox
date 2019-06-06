@@ -410,7 +410,7 @@ public class WinMsiBundler  extends AbstractBundler {
         List<Map<String, ? super Object>> fileAssociations =
                 FILE_ASSOCIATIONS.fetchFrom(params);
         for (Map<String, ? super Object> fa : fileAssociations) {
-            File icon = FA_ICON.fetchFrom(fa); // TODO FA_ICON_ICO
+            File icon = FA_ICON.fetchFrom(fa);
             if (icon == null) {
                 continue;
             }
@@ -859,7 +859,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 String description = FA_DESCRIPTION.fetchFrom(fa);
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(fa);
                 List<String> mimeTypes = FA_CONTENT_TYPE.fetchFrom(fa);
-                File icon = FA_ICON.fetchFrom(fa); // TODO FA_ICON_ICO
+                File icon = FA_ICON.fetchFrom(fa);
 
                 String mime = (mimeTypes == null ||
                     mimeTypes.isEmpty()) ? null : mimeTypes.get(0);

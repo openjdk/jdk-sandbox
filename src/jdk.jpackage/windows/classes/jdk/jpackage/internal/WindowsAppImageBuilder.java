@@ -285,7 +285,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    // TODO: do we still need this?
     private boolean copyMSVCDLLs(String VS_VER) throws IOException {
         final InputStream REDIST_MSVCR_URL = getResourceAsStream(
                 REDIST_MSVCR.replaceAll("VS_VER", VS_VER));

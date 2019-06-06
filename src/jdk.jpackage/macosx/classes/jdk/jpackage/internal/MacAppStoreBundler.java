@@ -117,7 +117,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             params -> "-MacAppStore",
             (s, p) -> s);
 
-    //@Override
     public File bundle(Map<String, ? super Object> params,
             File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString(
@@ -313,8 +312,6 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             // hdiutil is always available so there's no need to test for
             // availability.
             // run basic validation to ensure requirements are met
-
-            // TODO Mac App Store apps cannot use the system runtime
 
             // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);

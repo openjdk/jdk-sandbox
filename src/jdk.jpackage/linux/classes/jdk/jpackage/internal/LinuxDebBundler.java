@@ -301,7 +301,6 @@ public class LinuxDebBundler extends AbstractBundler {
         return appDir != null;
     }
 
-    //@Override
     public File bundle(Map<String, ? super Object> params,
             File outdir) throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {

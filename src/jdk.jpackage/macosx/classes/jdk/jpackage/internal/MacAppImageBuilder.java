@@ -579,7 +579,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     + "." + ((extensions == null || extensions.isEmpty())
                     ? "mime" : extensions.get(0));
             String description = FA_DESCRIPTION.fetchFrom(fileAssociation);
-            File icon = FA_ICON.fetchFrom(fileAssociation); //TODO FA_ICON_ICNS
+            File icon = FA_ICON.fetchFrom(fileAssociation);
 
             bundleDocumentTypes.append("    <dict>\n")
                     .append("      <key>LSItemContentTypes</key>\n")

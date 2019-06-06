@@ -430,7 +430,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 }
 
                 String description = FA_DESCRIPTION.fetchFrom(assoc);
-                File faIcon = FA_ICON.fetchFrom(assoc); //TODO FA_ICON_PNG
+                File faIcon = FA_ICON.fetchFrom(assoc);
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
                 if (extensions == null) {
                     Log.verbose(I18N.getString(
@@ -585,7 +585,6 @@ public class LinuxRpmBundler extends AbstractBundler {
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
         data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
-        // TODO rpm categories
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_SUMMARY", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));

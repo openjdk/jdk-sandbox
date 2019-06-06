@@ -321,7 +321,7 @@ public class WinExeBundler extends AbstractBundler {
                 FILE_ASSOCIATIONS.fetchFrom(params);
 
         for (Map<String, ? super Object> fa : fileAssociations) {
-            File icon = FA_ICON.fetchFrom(fa); // TODO FA_ICON_ICO
+            File icon = FA_ICON.fetchFrom(fa);
             if (icon == null) {
                 continue;
             }
@@ -556,7 +556,7 @@ public class WinExeBundler extends AbstractBundler {
         for (int i = 0; i < fetchFrom.size(); i++) {
             Map<String, ? super Object> fileAssociation = fetchFrom.get(i);
             String description = FA_DESCRIPTION.fetchFrom(fileAssociation);
-            File icon = FA_ICON.fetchFrom(fileAssociation); //TODO FA_ICON_ICO
+            File icon = FA_ICON.fetchFrom(fileAssociation);
 
             List<String> extensions = FA_EXTENSIONS.fetchFrom(fileAssociation);
             String entryName = regName + "File";

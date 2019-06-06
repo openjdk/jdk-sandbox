@@ -386,18 +386,12 @@ bool FileAttributes::ReadAttributes() {
         if (attributes | FILE_ATTRIBUTE_HIDDEN) {
             FAttributes.push_back(faHidden);
         }
-        // if (attributes | FILE_ATTRIBUTE_INTEGRITY_STREAM) {
-        //     FAttributes.push_back(faIntegrityStream);
-        // }
         if (attributes | FILE_ATTRIBUTE_NORMAL) {
             FAttributes.push_back(faNormal);
         }
         if (attributes | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) {
             FAttributes.push_back(faNotContentIndexed);
         }
-        // if (attributes | FILE_ATTRIBUTE_NO_SCRUB_DATA) {
-        //     FAttributes.push_back(faNoScrubData);
-        // }
         if (attributes | FILE_ATTRIBUTE_SYSTEM) {
             FAttributes.push_back(faSystem);
         }

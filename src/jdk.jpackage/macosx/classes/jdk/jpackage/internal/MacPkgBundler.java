@@ -519,10 +519,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         results.addAll(MacAppBundler.getAppBundleParameters());
         results.addAll(Arrays.asList(
                 DEVELOPER_ID_INSTALLER_SIGNING_KEY,
-                // IDENTIFIER,
                 INSTALLER_SUFFIX,
                 LICENSE_FILE,
-                // SERVICE_HINT,
                 SIGNING_KEYCHAIN));
 
         return results;

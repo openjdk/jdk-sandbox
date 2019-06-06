@@ -861,15 +861,6 @@ static XMLNode* ParseXMLElement(void) {
          * TOKEN_EMPTY_CLOSE_BRACKET */
         GetNextToken();
 
-        /* Skip until '>', '/>' or EOF. This should really be an error, */
-        /* but we are loose */
-        //        if(CurTokenType == TOKEN_EMPTY_CLOSE_BRACKET ||
-        //               CurTokenType == TOKEN_CLOSE_BRACKET ||
-        //               CurTokenType  == TOKEN_EOF) {
-        //            println("XML Parsing error: wrong kind of token found");
-        //            return NULL;
-        //        }
-
         if (CurTokenType == TOKEN_EMPTY_CLOSE_BRACKET) {
             GetNextToken();
             /* We are done with the sublevel - fall through to continue */
