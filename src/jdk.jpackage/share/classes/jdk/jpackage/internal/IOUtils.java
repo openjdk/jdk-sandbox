@@ -133,15 +133,15 @@ public class IOUtils {
         if (file.exists() && !append) {
            file.delete();
         }
-        InputStream in = location.openStream();
-        FileOutputStream out = new FileOutputStream(file, append);
-        byte[] buffer = new byte[1024];
-        int len;
-        while ((len = in.read(buffer)) != -1) {
-            out.write(buffer, 0, len);
+        try (InputStream in = location.openStream();
+            FileOutputStream out = new FileOutputStream(file, append)) {
+
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = in.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
         }
-        out.close();
-        in.close();
         file.setReadOnly();
         file.setReadable(true, false);
     }
@@ -154,18 +154,13 @@ public class IOUtils {
         destFile.delete();
         destFile.createNewFile();
 
-        FileChannel source = null;
-        FileChannel destination = null;
-        source = new FileInputStream(sourceFile).getChannel();
-        destination = new FileOutputStream(destFile).getChannel();
-        if (destination != null && source != null) {
-            destination.transferFrom(source, 0, source.size());
-        }
-        if (source != null) {
-            source.close();
-        }
-        if (destination != null) {
-            destination.close();
+        try (FileChannel source = new FileInputStream(sourceFile).getChannel();
+            FileChannel destination =
+                    new FileOutputStream(destFile).getChannel()) {
+
+            if (destination != null && source != null) {
+                destination.transferFrom(source, 0, source.size());
+            }
         }
 
         //preserve executable bit!

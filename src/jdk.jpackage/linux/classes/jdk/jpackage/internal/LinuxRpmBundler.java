@@ -343,17 +343,18 @@ public class LinuxRpmBundler extends AbstractBundler {
             addLauncherData.put("DESKTOP_MIMES", "");
 
             // prepare desktop shortcut
-            Writer w = new BufferedWriter(new FileWriter(
-                    getConfig_DesktopShortcutFile(rootDir, addLauncher)));
-            String content = preprocessTextResource(
+            try (Writer w = Files.newBufferedWriter(
                     getConfig_DesktopShortcutFile(rootDir,
-                    addLauncher).getName(),
-                    I18N.getString("resource.menu-shortcut-descriptor"),
-                    DEFAULT_DESKTOP_FILE_TEMPLATE, addLauncherData,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-            w.close();
+                            addLauncher).toPath())) {
+                String content = preprocessTextResource(
+                        getConfig_DesktopShortcutFile(rootDir,
+                        addLauncher).getName(),
+                        I18N.getString("resource.menu-shortcut-descriptor"),
+                        DEFAULT_DESKTOP_FILE_TEMPLATE, addLauncherData,
+                        VERBOSE.fetchFrom(params),
+                        RESOURCE_DIR.fetchFrom(params));
+                w.write(content);
+            }
 
             // prepare installer icon
             iconTarget = getConfig_IconFile(rootDir, addLauncher);
@@ -532,10 +533,10 @@ public class LinuxRpmBundler extends AbstractBundler {
             mimeInfo.append("</mime-info>");
 
             if (addedEntry) {
-                Writer w = new BufferedWriter(new FileWriter(
-                        new File(rootDir, mimeInfoFile)));
-                w.write(mimeInfo.toString());
-                w.close();
+                try (Writer w = Files.newBufferedWriter(
+                        new File(rootDir, mimeInfoFile).toPath())) {
+                    w.write(mimeInfo.toString());
+                }
                 data.put("FILE_ASSOCIATION_INSTALL", registrations.toString());
                 data.put("FILE_ASSOCIATION_REMOVE", deregistrations.toString());
                 data.put("DESKTOP_MIMES", desktopMimes.toString());
@@ -544,29 +545,30 @@ public class LinuxRpmBundler extends AbstractBundler {
 
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             //prepare desktop shortcut
-            Writer w = new BufferedWriter(new FileWriter(
-                    getConfig_DesktopShortcutFile(rootDir, params)));
-            String content = preprocessTextResource(
-                    getConfig_DesktopShortcutFile(rootDir, params).getName(),
-                    I18N.getString("resource.menu-shortcut-descriptor"),
-                    DEFAULT_DESKTOP_FILE_TEMPLATE, data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-            w.close();
+            try (Writer w = Files.newBufferedWriter(
+                    getConfig_DesktopShortcutFile(rootDir, params).toPath())) {
+                String content = preprocessTextResource(
+                        getConfig_DesktopShortcutFile(rootDir,
+                                                      params).getName(),
+                        I18N.getString("resource.menu-shortcut-descriptor"),
+                        DEFAULT_DESKTOP_FILE_TEMPLATE, data,
+                        VERBOSE.fetchFrom(params),
+                        RESOURCE_DIR.fetchFrom(params));
+                w.write(content);
+            }
         }
 
         // prepare spec file
-        Writer w = new BufferedWriter(
-                new FileWriter(getConfig_SpecFile(params)));
-        String content = preprocessTextResource(
-                getConfig_SpecFile(params).getName(),
-                I18N.getString("resource.rpm-spec-file"),
-                DEFAULT_SPEC_TEMPLATE, data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_SpecFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_SpecFile(params).getName(),
+                    I18N.getString("resource.rpm-spec-file"),
+                    DEFAULT_SPEC_TEMPLATE, data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
 
         return true;
     }

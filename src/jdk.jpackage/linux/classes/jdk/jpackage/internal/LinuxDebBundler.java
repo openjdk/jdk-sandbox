@@ -429,19 +429,19 @@ public class LinuxDebBundler extends AbstractBundler {
 
             if (!StandardBundlerParam.isRuntimeInstaller(params)) {
                 // prepare desktop shortcut
-                Writer w = new BufferedWriter(new FileWriter(
+                try (Writer w = Files.newBufferedWriter(
                         getConfig_DesktopShortcutFile(
-                                rootDir, addLauncher)));
-                String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(rootDir,
-                        addLauncher).getName(),
-                        I18N.getString("resource.menu-shortcut-descriptor"),
-                        DEFAULT_DESKTOP_FILE_TEMPLATE,
-                        addLauncherData,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
-                w.close();
+                                rootDir, addLauncher).toPath())) {
+                    String content = preprocessTextResource(
+                            getConfig_DesktopShortcutFile(rootDir,
+                            addLauncher).getName(),
+                            I18N.getString("resource.menu-shortcut-descriptor"),
+                            DEFAULT_DESKTOP_FILE_TEMPLATE,
+                            addLauncherData,
+                            VERBOSE.fetchFrom(params),
+                            RESOURCE_DIR.fetchFrom(params));
+                    w.write(content);
+                }
             }
 
             // prepare installer icon
@@ -618,10 +618,10 @@ public class LinuxDebBundler extends AbstractBundler {
             mimeInfo.append("</mime-info>");
 
             if (addedEntry) {
-                Writer w = new BufferedWriter(new FileWriter(
-                        new File(rootDir, mimeInfoFile)));
-                w.write(mimeInfo.toString());
-                w.close();
+                try (Writer w = Files.newBufferedWriter(
+                        new File(rootDir, mimeInfoFile).toPath())) {
+                    w.write(mimeInfo.toString());
+                }
                 data.put("FILE_ASSOCIATION_INSTALL", registrations.toString());
                 data.put("FILE_ASSOCIATION_REMOVE", deregistrations.toString());
                 data.put("DESKTOP_MIMES", desktopMimes.toString());
@@ -630,92 +630,95 @@ public class LinuxDebBundler extends AbstractBundler {
 
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             //prepare desktop shortcut
-            Writer w = new BufferedWriter(new FileWriter(
-                    getConfig_DesktopShortcutFile(rootDir, params)));
+            try (Writer w = Files.newBufferedWriter(
+                    getConfig_DesktopShortcutFile(rootDir, params).toPath())) {
+                String content = preprocessTextResource(
+                        getConfig_DesktopShortcutFile(
+                        rootDir, params).getName(),
+                        I18N.getString("resource.menu-shortcut-descriptor"),
+                        DEFAULT_DESKTOP_FILE_TEMPLATE,
+                        data,
+                        VERBOSE.fetchFrom(params),
+                        RESOURCE_DIR.fetchFrom(params));
+                w.write(content);
+            }
+        }
+        // prepare control file
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_ControlFile(params).toPath())) {
             String content = preprocessTextResource(
-                    getConfig_DesktopShortcutFile(
-                    rootDir, params).getName(),
-                    I18N.getString("resource.menu-shortcut-descriptor"),
-                    DEFAULT_DESKTOP_FILE_TEMPLATE,
+                    getConfig_ControlFile(params).getName(),
+                    I18N.getString("resource.deb-control-file"),
+                    DEFAULT_CONTROL_TEMPLATE,
                     data,
                     VERBOSE.fetchFrom(params),
                     RESOURCE_DIR.fetchFrom(params));
             w.write(content);
-            w.close();
         }
-        // prepare control file
-        Writer w = new BufferedWriter(new FileWriter(
-                getConfig_ControlFile(params)));
-        String content = preprocessTextResource(
-                getConfig_ControlFile(params).getName(),
-                I18N.getString("resource.deb-control-file"),
-                DEFAULT_CONTROL_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
 
-        w = new BufferedWriter(new FileWriter(
-                getConfig_PreinstallFile(params)));
-        content = preprocessTextResource(
-                getConfig_PreinstallFile(params).getName(),
-                I18N.getString("resource.deb-preinstall-script"),
-                DEFAULT_PREINSTALL_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_PreinstallFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_PreinstallFile(params).getName(),
+                    I18N.getString("resource.deb-preinstall-script"),
+                    DEFAULT_PREINSTALL_TEMPLATE,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
         setPermissions(getConfig_PreinstallFile(params), "rwxr-xr-x");
 
-        w = new BufferedWriter(new FileWriter(getConfig_PrermFile(params)));
-        content = preprocessTextResource(
-                getConfig_PrermFile(params).getName(),
-                I18N.getString("resource.deb-prerm-script"),
-                DEFAULT_PRERM_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                    getConfig_PrermFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_PrermFile(params).getName(),
+                    I18N.getString("resource.deb-prerm-script"),
+                    DEFAULT_PRERM_TEMPLATE,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
         setPermissions(getConfig_PrermFile(params), "rwxr-xr-x");
 
-        w = new BufferedWriter(new FileWriter(
-                getConfig_PostinstallFile(params)));
-        content = preprocessTextResource(
-                getConfig_PostinstallFile(params).getName(),
-                I18N.getString("resource.deb-postinstall-script"),
-                DEFAULT_POSTINSTALL_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_PostinstallFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_PostinstallFile(params).getName(),
+                    I18N.getString("resource.deb-postinstall-script"),
+                    DEFAULT_POSTINSTALL_TEMPLATE,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
         setPermissions(getConfig_PostinstallFile(params), "rwxr-xr-x");
 
-        w = new BufferedWriter(new FileWriter(getConfig_PostrmFile(params)));
-        content = preprocessTextResource(
-                getConfig_PostrmFile(params).getName(),
-                I18N.getString("resource.deb-postrm-script"),
-                DEFAULT_POSTRM_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_PostrmFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_PostrmFile(params).getName(),
+                    I18N.getString("resource.deb-postrm-script"),
+                    DEFAULT_POSTRM_TEMPLATE,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
         setPermissions(getConfig_PostrmFile(params), "rwxr-xr-x");
 
-        w = new BufferedWriter(new FileWriter(getConfig_CopyrightFile(params)));
-        content = preprocessTextResource(
-                getConfig_CopyrightFile(params).getName(),
-                I18N.getString("resource.deb-copyright-file"),
-                DEFAULT_COPYRIGHT_TEMPLATE,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_CopyrightFile(params).toPath())) {
+            String content = preprocessTextResource(
+                    getConfig_CopyrightFile(params).getName(),
+                    I18N.getString("resource.deb-copyright-file"),
+                    DEFAULT_COPYRIGHT_TEMPLATE,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
 
         return true;
     }

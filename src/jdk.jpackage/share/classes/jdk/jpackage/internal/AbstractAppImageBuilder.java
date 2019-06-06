@@ -192,72 +192,70 @@ public abstract class AbstractAppImageBuilder {
 
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
 
-        PrintStream out = new PrintStream(cfgFileName);
+        try (PrintStream out = new PrintStream(cfgFileName)) {
 
-        out.println("[Application]");
-        out.println("app.name=" + APP_NAME.fetchFrom(params));
-        out.println("app.version=" + VERSION.fetchFrom(params));
-        out.println("app.runtime=" + runtimeLocation);
-        out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
-        out.println("app.classpath=" + String.join(File.pathSeparator,
-                CLASSPATH.fetchFrom(params).split("[ :;]")));
+            out.println("[Application]");
+            out.println("app.name=" + APP_NAME.fetchFrom(params));
+            out.println("app.version=" + VERSION.fetchFrom(params));
+            out.println("app.runtime=" + runtimeLocation);
+            out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
+            out.println("app.classpath=" + String.join(File.pathSeparator,
+                    CLASSPATH.fetchFrom(params).split("[ :;]")));
 
-        // The main app is required to be a jar, modular or unnamed.
-        if (mainModule != null &&
-                (mainJarType == ModFile.ModType.Unknown ||
-                mainJarType == ModFile.ModType.ModularJar)) {
-            out.println("app.mainmodule=" + mainModule);
-        } else {
-            String mainClass = JLinkBundlerHelper.getMainClass(params);
-            // If the app is contained in an unnamed jar then launch it the
-            // legacy way and the main class string must be
-            // of the format com/foo/Main
-            if (mainJar != null) {
-                out.println("app.mainjar="
-                        + mainJar.toPath().getFileName().toString());
-            }
-            if (mainClass != null) {
-                out.println("app.mainclass="
-                        + mainClass.replaceAll("\\.", "/"));
-            }
-        }
-
-        Integer port = JLinkBundlerHelper.DEBUG.fetchFrom(params);
-
-        if (port != null) {
-            out.println(
-                    "app.debug=-agentlib:jdwp=transport=dt_socket,"
-                    + "server=y,suspend=y,address=localhost:"
-                    + port);
-        }
-
-        out.println();
-        out.println("[JavaOptions]");
-        List<String> jvmargs = JAVA_OPTIONS.fetchFrom(params);
-        for (String arg : jvmargs) {
-            out.println(arg);
-        }
-        Path modsDir = getAppModsDir();
-        if (modsDir != null && modsDir.toFile().exists()) {
-            out.println("--module-path");
-            out.println(getAppDir().relativize(modsDir));
-        }
-
-        out.println();
-        out.println("[ArgOptions]");
-        List<String> args = ARGUMENTS.fetchFrom(params);
-        for (String arg : args) {
-            if (arg.endsWith("=") &&
-                    (arg.indexOf("=") == arg.lastIndexOf("="))) {
-                out.print(arg.substring(0, arg.length() - 1));
-                out.println("\\=");
+            // The main app is required to be a jar, modular or unnamed.
+            if (mainModule != null &&
+                    (mainJarType == ModFile.ModType.Unknown ||
+                    mainJarType == ModFile.ModType.ModularJar)) {
+                out.println("app.mainmodule=" + mainModule);
             } else {
+                String mainClass = JLinkBundlerHelper.getMainClass(params);
+                // If the app is contained in an unnamed jar then launch it the
+                // legacy way and the main class string must be
+                // of the format com/foo/Main
+                if (mainJar != null) {
+                    out.println("app.mainjar="
+                            + mainJar.toPath().getFileName().toString());
+                }
+                if (mainClass != null) {
+                    out.println("app.mainclass="
+                            + mainClass.replaceAll("\\.", "/"));
+                }
+            }
+
+            Integer port = JLinkBundlerHelper.DEBUG.fetchFrom(params);
+
+            if (port != null) {
+                out.println(
+                        "app.debug=-agentlib:jdwp=transport=dt_socket,"
+                        + "server=y,suspend=y,address=localhost:"
+                        + port);
+            }
+
+            out.println();
+            out.println("[JavaOptions]");
+            List<String> jvmargs = JAVA_OPTIONS.fetchFrom(params);
+            for (String arg : jvmargs) {
                 out.println(arg);
             }
+            Path modsDir = getAppModsDir();
+            if (modsDir != null && modsDir.toFile().exists()) {
+                out.println("--module-path");
+                out.println(getAppDir().relativize(modsDir));
+            }
+
+            out.println();
+            out.println("[ArgOptions]");
+            List<String> args = ARGUMENTS.fetchFrom(params);
+            for (String arg : args) {
+                if (arg.endsWith("=") &&
+                        (arg.indexOf("=") == arg.lastIndexOf("="))) {
+                    out.print(arg.substring(0, arg.length() - 1));
+                    out.println("\\=");
+                } else {
+                    out.println(arg);
+                }
+            }
         }
-
-
-        out.close();
     }
 
 }

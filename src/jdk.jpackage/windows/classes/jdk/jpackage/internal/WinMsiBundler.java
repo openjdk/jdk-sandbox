@@ -605,16 +605,16 @@ public class WinMsiBundler  extends AbstractBundler {
         String wxs = StandardBundlerParam.isRuntimeInstaller(params) ?
                 MSI_PROJECT_TEMPLATE_SERVER_JRE : MSI_PROJECT_TEMPLATE;
 
-        Writer w = new BufferedWriter(
-                new FileWriter(getConfig_ProjectFile(params)));
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_ProjectFile(params).toPath())) {
 
-        String content = preprocessTextResource(
-                getConfig_ProjectFile(params).getName(),
-                I18N.getString("resource.wix-config-file"),
-                wxs, data, VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        w.write(content);
-        w.close();
+            String content = preprocessTextResource(
+                    getConfig_ProjectFile(params).getName(),
+                    I18N.getString("resource.wix-config-file"),
+                    wxs, data, VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params));
+            w.write(content);
+        }
         return true;
     }
     private int id;
@@ -948,87 +948,89 @@ public class WinMsiBundler  extends AbstractBundler {
             throws FileNotFoundException {
         File f = new File(
                 CONFIG_ROOT.fetchFrom(params), MSI_PROJECT_CONTENT_FILE);
-        PrintStream out = new PrintStream(f);
 
-        // opening
-        out.println("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>");
-        out.println("<Include>");
+        try (PrintStream out = new PrintStream(f)) {
 
-        out.println(" <Directory Id=\"TARGETDIR\" Name=\"SourceDir\">");
-        if (MSI_SYSTEM_WIDE.fetchFrom(params)) {
-            // install to programfiles
-            out.println("  <Directory Id=\"ProgramFiles64Folder\" "
-                        + "Name=\"PFiles\">");
-        } else {
-            // install to user folder
-            out.println(
+            // opening
+            out.println("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>");
+            out.println("<Include>");
+
+            out.println(" <Directory Id=\"TARGETDIR\" Name=\"SourceDir\">");
+            if (MSI_SYSTEM_WIDE.fetchFrom(params)) {
+                // install to programfiles
+                out.println("  <Directory Id=\"ProgramFiles64Folder\" "
+                            + "Name=\"PFiles\">");
+            } else {
+                // install to user folder
+                out.println(
                     "  <Directory Name=\"AppData\" Id=\"LocalAppDataFolder\">");
-        }
+            }
 
-        // We should get valid folder or subfolders
-        String installDir = WINDOWS_INSTALL_DIR.fetchFrom(params);
-        String [] installDirs = installDir.split(Pattern.quote("\\"));
-        for (int i = 0; i < (installDirs.length - 1); i++)  {
-            out.println("   <Directory Id=\"SUBDIR" + i + "\" Name=\""
-                + installDirs[i] + "\">");
-        }
+            // We should get valid folder or subfolders
+            String installDir = WINDOWS_INSTALL_DIR.fetchFrom(params);
+            String [] installDirs = installDir.split(Pattern.quote("\\"));
+            for (int i = 0; i < (installDirs.length - 1); i++)  {
+                out.println("   <Directory Id=\"SUBDIR" + i + "\" Name=\""
+                    + installDirs[i] + "\">");
+            }
 
-        out.println("   <Directory Id=\"APPLICATIONFOLDER\" Name=\""
-                + installDirs[installDirs.length - 1] + "\">");
+            out.println("   <Directory Id=\"APPLICATIONFOLDER\" Name=\""
+                    + installDirs[installDirs.length - 1] + "\">");
 
-        // dynamic part
-        id = 0;
-        compId = 0; // reset counters
-        walkFileTree(params, WIN_APP_IMAGE.fetchFrom(params), out, "    ");
+            // dynamic part
+            id = 0;
+            compId = 0; // reset counters
+            walkFileTree(params, WIN_APP_IMAGE.fetchFrom(params), out, "    ");
 
-        // closing
-        for (int i = 0; i < installDirs.length; i++)  {
-            out.println("   </Directory>");
-        }
-        out.println("  </Directory>");
+            // closing
+            for (int i = 0; i < installDirs.length; i++)  {
+                out.println("   </Directory>");
+            }
+            out.println("  </Directory>");
 
-        // for shortcuts
-        if (SHORTCUT_HINT.fetchFrom(params)) {
-            out.println("  <Directory Id=\"DesktopFolder\" />");
-        }
-        if (MENU_HINT.fetchFrom(params)) {
-            out.println("  <Directory Id=\"ProgramMenuFolder\">");
-            out.println("    <Directory Id=\"ProgramMenuDir\" Name=\""
-                    + MENU_GROUP.fetchFrom(params) + "\">");
-            out.println("      <Component Id=\"comp" + (compId++) + "\""
-                    + " Guid=\"" + UUID.randomUUID().toString() + "\""
-                    + " Win64=\"yes\""
-                    + ">");
-            out.println("        <RemoveFolder Id=\"ProgramMenuDir\" "
-                    + "On=\"uninstall\" />");
-            // This has to be under HKCU to make WiX happy.
-            // There are numberous discussions on this amoung WiX users
-            // (if user A installs and user B uninstalls key is left behind)
-            // there are suggested workarounds but none of them are appealing.
-            // Leave it for now
-            out.println(
-                    "         <RegistryValue Root=\"HKCU\" Key=\"Software\\"
-                    + VENDOR.fetchFrom(params) + "\\"
-                    + APP_NAME.fetchFrom(params)
-                    + "\" Type=\"string\" Value=\"\" />");
-            out.println("      </Component>");
-            out.println("    </Directory>");
+            // for shortcuts
+            if (SHORTCUT_HINT.fetchFrom(params)) {
+                out.println("  <Directory Id=\"DesktopFolder\" />");
+            }
+            if (MENU_HINT.fetchFrom(params)) {
+                out.println("  <Directory Id=\"ProgramMenuFolder\">");
+                out.println("    <Directory Id=\"ProgramMenuDir\" Name=\""
+                        + MENU_GROUP.fetchFrom(params) + "\">");
+                out.println("      <Component Id=\"comp" + (compId++) + "\""
+                        + " Guid=\"" + UUID.randomUUID().toString() + "\""
+                        + " Win64=\"yes\""
+                        + ">");
+                out.println("        <RemoveFolder Id=\"ProgramMenuDir\" "
+                        + "On=\"uninstall\" />");
+                // This has to be under HKCU to make WiX happy.
+                // There are numberous discussions on this amoung WiX users
+                // (if user A installs and user B uninstalls key is left behind)
+                // there are suggested workarounds but none are appealing.
+                // Leave it for now
+                out.println(
+                        "         <RegistryValue Root=\"HKCU\" Key=\"Software\\"
+                        + VENDOR.fetchFrom(params) + "\\"
+                        + APP_NAME.fetchFrom(params)
+                        + "\" Type=\"string\" Value=\"\" />");
+                out.println("      </Component>");
+                out.println("    </Directory>");
+                out.println(" </Directory>");
+            }
+
             out.println(" </Directory>");
+
+            out.println(" <Feature Id=\"DefaultFeature\" "
+                    + "Title=\"Main Feature\" Level=\"1\">");
+            for (int j = 0; j < compId; j++) {
+                out.println("    <ComponentRef Id=\"comp" + j + "\" />");
+            }
+            // component is defined in the template.wsx
+            out.println(
+                    "    <ComponentRef Id=\"CleanupMainApplicationFolder\" />");
+            out.println(" </Feature>");
+            out.println("</Include>");
+
         }
-
-        out.println(" </Directory>");
-
-        out.println(" <Feature Id=\"DefaultFeature\" "
-                + "Title=\"Main Feature\" Level=\"1\">");
-        for (int j = 0; j < compId; j++) {
-            out.println("    <ComponentRef Id=\"comp" + j + "\" />");
-        }
-        // component is defined in the template.wsx
-        out.println("    <ComponentRef Id=\"CleanupMainApplicationFolder\" />");
-        out.println(" </Feature>");
-        out.println("</Include>");
-
-        out.close();
         return true;
     }
 

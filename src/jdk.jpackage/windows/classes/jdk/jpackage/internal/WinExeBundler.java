@@ -703,16 +703,16 @@ public class WinExeBundler extends AbstractBundler {
         String iss = StandardBundlerParam.isRuntimeInstaller(p) ?
                 DEFAULT_JRE_EXE_TEMPLATE : DEFAULT_EXE_PROJECT_TEMPLATE;
 
-        Writer w = new BufferedWriter(new FileWriter(
-                getConfig_ExeProjectFile(p)));
+        try (Writer w = Files.newBufferedWriter(
+                getConfig_ExeProjectFile(p).toPath())) {
 
-        String content = preprocessTextResource(
-                getConfig_ExeProjectFile(p).getName(),
-                getString("resource.inno-setup-project-file"),
-                iss, data, VERBOSE.fetchFrom(p),
-                RESOURCE_DIR.fetchFrom(p));
-        w.write(content);
-        w.close();
+            String content = preprocessTextResource(
+                    getConfig_ExeProjectFile(p).getName(),
+                    getString("resource.inno-setup-project-file"),
+                    iss, data, VERBOSE.fetchFrom(p),
+                    RESOURCE_DIR.fetchFrom(p));
+            w.write(content);
+        }
         return true;
     }
 

@@ -67,22 +67,19 @@ public abstract class AbstractBundler implements Bundler {
             String defaultName, File result, boolean verbose, File publicRoot)
             throws IOException {
 
-        InputStream is = streamResource(publicName, category,
-                defaultName, verbose, publicRoot);
-        if (is != null) {
-            try {
+        try (InputStream is = streamResource(publicName, category,
+                defaultName, verbose, publicRoot)) {
+            if (is != null) {
                 Files.copy(is, result.toPath(),
                         StandardCopyOption.REPLACE_EXISTING);
-            } finally {
-                is.close();
-            }
-        } else {
-            if (verbose) {
-                Log.verbose(MessageFormat.format(I18N.getString(
-                        "message.no-default-resource"),
-                        defaultName == null ? "" : defaultName,
-                        category == null ? "" : "[" + category + "] ",
-                        publicName));
+            } else {
+                if (verbose) {
+                    Log.verbose(MessageFormat.format(I18N.getString(
+                            "message.no-default-resource"),
+                            defaultName == null ? "" : defaultName,
+                            category == null ? "" : "[" + category + "] ",
+                            publicName));
+                }
             }
         }
     }
@@ -91,21 +88,18 @@ public abstract class AbstractBundler implements Bundler {
             File defaultFile, File result, boolean verbose, File publicRoot)
             throws IOException {
 
-        InputStream is = streamResource(publicName, category,
-                null, verbose, publicRoot);
-        if (is != null) {
-            try {
+        try (InputStream is = streamResource(publicName, category,
+                null, verbose, publicRoot)) {
+            if (is != null) {
                 Files.copy(is, result.toPath());
-            } finally {
-                is.close();
-            }
-        } else {
-            IOUtils.copyFile(defaultFile, result);
-            if (verbose) {
-                Log.verbose(MessageFormat.format(I18N.getString(
-                        "message.using-custom-resource-from-file"),
-                        category == null ? "" : "[" + category + "] ",
-                        defaultFile.getAbsoluteFile()));
+            } else {
+                IOUtils.copyFile(defaultFile, result);
+                if (verbose) {
+                    Log.verbose(MessageFormat.format(I18N.getString(
+                            "message.using-custom-resource-from-file"),
+                            category == null ? "" : "[" + category + "] ",
+                            defaultFile.getAbsoluteFile()));
+                }
             }
         }
     }

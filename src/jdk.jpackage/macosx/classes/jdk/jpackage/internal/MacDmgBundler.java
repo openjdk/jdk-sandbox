@@ -105,12 +105,12 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_INSTALL_LOCATION", "(path to desktop folder)");
         data.put("DEPLOY_INSTALL_NAME", "Desktop");
 
-        Writer w = new BufferedWriter(new FileWriter(dmgSetup));
-        w.write(preprocessTextResource(dmgSetup.getName(),
-                I18N.getString("resource.dmg-setup-script"),
-                        DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
-                RESOURCE_DIR.fetchFrom(p)));
-        w.close();
+        try (Writer w = Files.newBufferedWriter(dmgSetup.toPath())) {
+            w.write(preprocessTextResource(dmgSetup.getName(),
+                    I18N.getString("resource.dmg-setup-script"),
+                    DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
+                    RESOURCE_DIR.fetchFrom(p)));
+        }
     }
 
     private File getConfig_VolumeScript(Map<String, ? super Object> params) {
@@ -149,14 +149,14 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             Map<String, String> data = new HashMap<>();
             data.put("APPLICATION_LICENSE_TEXT", licenseInBase64);
 
-            Writer w = new BufferedWriter(
-                    new FileWriter(getConfig_LicenseFile(params)));
-            w.write(preprocessTextResource(
-                    getConfig_LicenseFile(params).getName(),
-                    I18N.getString("resource.license-setup"),
-                    DEFAULT_LICENSE_PLIST, data, VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params)));
-            w.close();
+            try (Writer w = Files.newBufferedWriter(
+                    getConfig_LicenseFile(params).toPath())) {
+                w.write(preprocessTextResource(
+                        getConfig_LicenseFile(params).getName(),
+                        I18N.getString("resource.license-setup"),
+                        DEFAULT_LICENSE_PLIST, data, VERBOSE.fetchFrom(params),
+                        RESOURCE_DIR.fetchFrom(params)));
+            }
 
         } catch (IOException ex) {
             Log.verbose(ex);

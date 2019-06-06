@@ -97,24 +97,18 @@ final class ModFile {
     private static JarType isModularJar(String FileName) {
         JarType result = JarType.All;
 
-        try {
-            ZipInputStream zip =
-                    new ZipInputStream(new FileInputStream(FileName));
+        try (ZipInputStream zip =
+                    new ZipInputStream(new FileInputStream(FileName))) {
             result = JarType.UnnamedJar;
 
-            try {
-                for (ZipEntry entry = zip.getNextEntry(); entry != null;
-                        entry = zip.getNextEntry()) {
-                    if (entry.getName().matches("module-info.class")) {
-                        result = JarType.ModularJar;
-                        break;
-                    }
+            for (ZipEntry entry = zip.getNextEntry(); entry != null;
+                    entry = zip.getNextEntry()) {
+                if (entry.getName().matches("module-info.class")) {
+                    result = JarType.ModularJar;
+                    break;
                 }
-
-                zip.close();
-            } catch (IOException ex) {
             }
-        } catch (FileNotFoundException e) {
+        } catch (IOException ex) {
         }
 
         return result;

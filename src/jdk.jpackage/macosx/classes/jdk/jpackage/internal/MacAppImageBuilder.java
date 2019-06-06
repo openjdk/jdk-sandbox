@@ -476,14 +476,14 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("CF_BUNDLE_VERSION", VERSION.fetchFrom(params));
         data.put("CF_BUNDLE_SHORT_VERSION_STRING", VERSION.fetchFrom(params));
 
-        Writer w = new BufferedWriter(new FileWriter(file));
-        w.write(preprocessTextResource("Runtime-Info.plist",
-                I18N.getString("resource.runtime-info-plist"),
-                TEMPLATE_RUNTIME_INFO_PLIST,
-                data,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params)));
-        w.close();
+        try (Writer w = Files.newBufferedWriter(file.toPath())) {
+            w.write(preprocessTextResource("Runtime-Info.plist",
+                    I18N.getString("resource.runtime-info-plist"),
+                    TEMPLATE_RUNTIME_INFO_PLIST,
+                    data,
+                    VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params)));
+        }
     }
 
     private void writeInfoPlist(File file) throws IOException {
@@ -690,22 +690,22 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("DEPLOY_FILE_ASSOCIATIONS", associationData);
 
 
-        Writer w = new BufferedWriter(new FileWriter(file));
-        w.write(preprocessTextResource(
-                // getConfig_InfoPlist(params).getName(),
-                "Info.plist",
-                I18N.getString("resource.app-info-plist"),
-                TEMPLATE_INFO_PLIST_LITE,
-                data, VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params)));
-        w.close();
+        try (Writer w = Files.newBufferedWriter(file.toPath())) {
+            w.write(preprocessTextResource(
+                    // getConfig_InfoPlist(params).getName(),
+                    "Info.plist",
+                    I18N.getString("resource.app-info-plist"),
+                    TEMPLATE_INFO_PLIST_LITE,
+                    data, VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params)));
+        }
     }
 
     private void writePkgInfo(File file) throws IOException {
         //hardcoded as it does not seem we need to change it ever
         String signature = "????";
 
-        try (Writer out = new BufferedWriter(new FileWriter(file))) {
+        try (Writer out = Files.newBufferedWriter(file.toPath())) {
             out.write(OS_TYPE_CODE + signature);
             out.flush();
         }
