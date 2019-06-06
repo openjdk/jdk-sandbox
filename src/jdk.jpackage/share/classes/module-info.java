@@ -49,8 +49,6 @@
 module jdk.jpackage {
     requires jdk.jlink;
 
-    requires java.xml;
-    requires java.logging;
     requires java.desktop;
 
     uses jdk.jpackage.internal.Bundler;

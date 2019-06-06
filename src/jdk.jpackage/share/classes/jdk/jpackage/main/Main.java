@@ -3,7 +3,6 @@
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 only, as
  * published by the Free Software Foundation.  Oracle designates this
  * particular file as subject to the "Classpath" exception as provided
  * by Oracle in the LICENSE file that accompanied this code.
@@ -36,9 +35,6 @@ public class Main {
 
     private static final ResourceBundle bundle = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
-
-    private static final String version = bundle.getString("MSG_Version")
-            + " " + System.getProperty("java.version");
 
     /**
      * main(String... args)
@@ -86,11 +82,11 @@ public class Main {
                 CLIHelp.showHelp(true);
             } else if (hasHelp(newArgs)){
                 if (hasVersion(newArgs)) {
-                    Log.info(version + "\n");
+                    Log.info(System.getProperty("java.version") + "\n");
                 }
                 CLIHelp.showHelp(false);
             } else if (hasVersion(newArgs)) {
-                Log.info(version);
+                Log.info(System.getProperty("java.version"));
             } else {
                 Arguments arguments = new Arguments(newArgs);
                 if (!arguments.processArguments()) {

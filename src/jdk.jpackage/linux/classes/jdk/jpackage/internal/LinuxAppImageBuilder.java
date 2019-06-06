@@ -144,15 +144,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    private static void createUtf8File(File file, String content)
-            throws IOException {
-        try (OutputStream fout = new FileOutputStream(file);
-            Writer output = new OutputStreamWriter(fout, "UTF-8")) {
-            output.write(content);
-        }
-    }
-
-
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
     public static File getRootDir(File outDir, Map<String, ? super Object> p) {

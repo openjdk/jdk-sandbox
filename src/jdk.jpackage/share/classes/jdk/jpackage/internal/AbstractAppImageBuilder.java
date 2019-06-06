@@ -43,6 +43,12 @@ import jdk.jpackage.internal.resources.ResourceLocator;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
+/*
+ * AbstractAppImageBuilder
+ *     This is sub-classed by each of the platform dependent AppImageBuilder
+ * classes, and contains resource processing code common to all platforms. 
+ */
+
 public abstract class AbstractAppImageBuilder {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(

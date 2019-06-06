@@ -39,11 +39,15 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  * initArgs()
  *      Computes the Map of valid options for each mode on this Platform.
  *
- * checkIfSupported(CLIOptions mode, CLIOptions arg)
- *      Determine if the given arg is valid in the given mode.
+ * checkIfSupported(CLIOptions arg)
+ *      Determine if the given arg is valid on this platform.
  *
- * checkIfOtherSupported(CLIOptions mode, CLIOptions arg)
- *      Determine if the given arg is valid in the a different mode.
+ * checkIfImageSupported(CLIOptions arg)
+ *      Determine if the given arg is valid for creating app image.
+ *
+ * checkIfInstallerSupported(CLIOptions arg)
+ *      Determine if the given arg is valid for creating installer.
+ *
  */
 class ValidOptions {
 

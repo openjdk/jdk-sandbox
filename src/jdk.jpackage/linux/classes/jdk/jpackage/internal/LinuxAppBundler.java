@@ -42,7 +42,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.LinuxResources");
 
-    public static final BundlerParamInfo<File> ICON_PNG =
+    static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
             "icon.png",
             File.class,
@@ -57,7 +57,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             },
             (s, p) -> new File(s));
 
-    public static final BundlerParamInfo<String> LINUX_INSTALL_DIR =
+    static final BundlerParamInfo<String> LINUX_INSTALL_DIR =
             new StandardBundlerParam<>(
             "linux-install-dir",
             String.class,
@@ -74,7 +74,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
             (s, p) -> s
     );
 
-    public static final BundlerParamInfo<String> LINUX_PACKAGE_DEPENDENCIES =
+    static final BundlerParamInfo<String> LINUX_PACKAGE_DEPENDENCIES =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
             String.class,
@@ -115,11 +115,11 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
-    public static File getRootDir(File outDir, Map<String, ? super Object> p) {
+    static File getRootDir(File outDir, Map<String, ? super Object> p) {
         return new File(outDir, APP_NAME.fetchFrom(p));
     }
 
-    public static String getLauncherCfgName(Map<String, ? super Object> p) {
+    static String getLauncherCfgName(Map<String, ? super Object> p) {
         return "app/" + APP_NAME.fetchFrom(p) +".cfg";
     }
 
@@ -178,7 +178,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
         return getAppBundleParameters();
     }
 
-    public static Collection<BundlerParamInfo<?>> getAppBundleParameters() {
+    static Collection<BundlerParamInfo<?>> getAppBundleParameters() {
         return Arrays.asList(
                 APP_NAME,
                 APP_RESOURCES,

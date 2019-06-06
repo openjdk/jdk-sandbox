@@ -44,7 +44,9 @@ public class JPackageToolProvider implements ToolProvider {
             PrintWriter out, PrintWriter err, String... args) {
         try {
             return new jdk.jpackage.main.Main().execute(out, err, args);
-        } catch (Exception ignored) {
+        } catch (RuntimeException re) {
+            Log.error(re.getMessage());
+            Log.verbose(re);
             return 1;
         }
     }

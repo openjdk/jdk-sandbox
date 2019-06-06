@@ -33,8 +33,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
 import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
@@ -356,8 +354,8 @@ public class LinuxDebBundler extends AbstractBundler {
                 Files.setPosixFilePermissions(file.toPath(), filePermissions);
             }
         } catch (IOException ex) {
-            Logger.getLogger(LinuxDebBundler.class.getName()).log(
-                    Level.SEVERE, null, ex);
+            Log.error(ex.getMessage());
+            Log.verbose(ex);
         }
 
     }

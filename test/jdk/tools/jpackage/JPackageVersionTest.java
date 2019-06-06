@@ -33,8 +33,7 @@
 public class JPackageVersionTest {
 
     private static final String ARG = "--version";
-    private static final String RESULT = "jpackage version"
-            + " " + System.getProperty("java.version");
+    private static final String RESULT = System.getProperty("java.version");
 
     private static void validate(String output) throws Exception {
         String[] result = output.split("\n");

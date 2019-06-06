@@ -132,7 +132,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> getMainJar(s, p)
             );
 
-    // TODO: test CLASSPATH jar manifest Attributet
     static final StandardBundlerParam<String> CLASSPATH =
             new StandardBundlerParam<>(
                     "classpath",

@@ -72,7 +72,7 @@ public class Arguments {
     private static final String FA_DESCRIPTION = "description";
     private static final String FA_ICON = "icon";
 
-    public static final BundlerParamInfo<Boolean> CREATE_APP_IMAGE =
+    static final BundlerParamInfo<Boolean> CREATE_APP_IMAGE =
             new StandardBundlerParam<>(
                     APPIMAGE_MODE,
                     Boolean.class,
@@ -80,7 +80,7 @@ public class Arguments {
                     (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
                             true : Boolean.valueOf(s));
 
-    public static final BundlerParamInfo<Boolean> CREATE_INSTALLER =
+    static final BundlerParamInfo<Boolean> CREATE_INSTALLER =
             new StandardBundlerParam<>(
                     INSTALLER_MODE,
                     Boolean.class,
@@ -107,7 +107,6 @@ public class Arguments {
     private boolean hasMainClass = false;
     private boolean hasMainModule = false;
     private boolean hasTargetFormat = false;
-    private boolean hasAppImage = false;
     public boolean userProvidedBuildRoot = false;
 
     private String buildRoot = null;
@@ -283,10 +282,7 @@ public class Arguments {
 
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
 
-        PREDEFINED_APP_IMAGE ("app-image", OptionCategories.PROPERTY, ()-> {
-            setOptionValue("app-image", popArg());
-            context().hasAppImage = true;
-        }),
+        PREDEFINED_APP_IMAGE ("app-image", OptionCategories.PROPERTY),
 
         PREDEFINED_RUNTIME_IMAGE ("runtime-image", OptionCategories.PROPERTY),
 

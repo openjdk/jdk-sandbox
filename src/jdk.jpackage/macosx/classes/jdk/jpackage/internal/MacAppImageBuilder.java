@@ -815,8 +815,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 })
                 .filter(p -> Files.isRegularFile(p) &&
                         !(p.toString().contains("/Contents/MacOS/libjli.dylib")
-                        || p.toString().contains(
-                                "/Contents/MacOS/JavaAppletPlugin")
                         || p.toString().endsWith(appExecutable))
                 ).forEach(p -> {
             //noinspection ThrowableResultOfMethodCallIgnored

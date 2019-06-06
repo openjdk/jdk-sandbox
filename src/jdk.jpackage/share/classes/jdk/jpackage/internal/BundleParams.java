@@ -113,17 +113,17 @@ public class BundleParams {
         params.putAll(p);
     }
 
-    public <C> C fetchParam(BundlerParamInfo<C> paramInfo) {
+    public <T> T fetchParam(BundlerParamInfo<T> paramInfo) {
         return paramInfo.fetchFrom(params);
     }
 
     @SuppressWarnings("unchecked")
-    public <C> C fetchParamWithDefault(
-            Class<C> klass, C defaultValue, String... keys) {
+    public <T> T fetchParamWithDefault(
+            Class<T> klass, T defaultValue, String... keys) {
         for (String key : keys) {
             Object o = params.get(key);
             if (klass.isInstance(o)) {
-                return (C) o;
+                return (T) o;
             } else if (params.containsKey(key) && o == null) {
                 return null;
             } else if (o != null) {
@@ -133,7 +133,7 @@ public class BundleParams {
         return defaultValue;
     }
 
-    public <C> C fetchParam(Class<C> klass, String... keys) {
+    public <T> T fetchParam(Class<T> klass, String... keys) {
         return fetchParamWithDefault(klass, null, keys);
     }
 
@@ -271,12 +271,8 @@ public class BundleParams {
     // assuming that application was packaged according to the rules
     // we must have application jar, i.e. jar where we embed launcher
     // and have main application class listed as main class!
-    // If there are more than one, or none - it will be treated as
-    // deployment error
-    //
-    // Note we look for both JavaFX executable jars and regular executable jars
-    // As long as main "application" entry point is the same it is main class
-    // (i.e. for FX jar we will use JavaFX manifest entry ...)
+    // If there are more than one, or none - it will be treated as an error
+
     public String getMainApplicationJar() {
         jdk.jpackage.internal.RelativeFileSet appResources = getAppResource();
         if (mainJar != null) {

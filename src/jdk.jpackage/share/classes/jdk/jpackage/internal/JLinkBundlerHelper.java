@@ -63,10 +63,6 @@ final class JLinkBundlerHelper {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
-    private static final String JRE_MODULES_FILENAME =
-            "jdk/jpackage/internal/resources/jre.list";
-    private static final String SERVER_JRE_MODULES_FILENAME =
-            "jdk/jpackage/internal/resources/jre.module.list";
 
     static final ToolProvider JLINK_TOOL =
             ToolProvider.findFirst("jlink").orElseThrow();
