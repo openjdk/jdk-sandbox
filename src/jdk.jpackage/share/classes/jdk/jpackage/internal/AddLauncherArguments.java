@@ -51,7 +51,6 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  *
  * appVersion
  * module
- * add-modules
  * main-jar
  * main-class
  * icon
@@ -103,10 +102,6 @@ class AddLauncherArguments {
 
         putUnlessNull(bundleParams, CLIOptions.VERSION.getId(),
                 getOptionValue(CLIOptions.VERSION));
-
-        putUnlessNull(bundleParams,
-                CLIOptions.ADD_MODULES.getId(),
-                getOptionValue(CLIOptions.ADD_MODULES));
 
         putUnlessNull(bundleParams,
                 CLIOptions.WIN_CONSOLE_HINT.getId(),
@@ -176,9 +171,6 @@ class AddLauncherArguments {
             tmp.remove("main-class");
         } else if (additional.containsKey("main-jar")) {
             tmp.remove("module");
-            // should we only remove add-modules when it wasn't actually passed
-            // but was inferred or empty ?
-            tmp.remove("add-modules");
         }
         tmp.putAll(additional);
         return tmp;
