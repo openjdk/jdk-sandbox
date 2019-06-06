@@ -109,8 +109,8 @@ public class BundleParams {
         this.params = new HashMap<>(params);
     }
 
-    public void addAllBundleParams(Map<String, ? super Object> p) {
-        params.putAll(p);
+    public void addAllBundleParams(Map<String, ? super Object> params) {
+        this.params.putAll(params);
     }
 
     public <T> T fetchParam(BundlerParamInfo<T> paramInfo) {

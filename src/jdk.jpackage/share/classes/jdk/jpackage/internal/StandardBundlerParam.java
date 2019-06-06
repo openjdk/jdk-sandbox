@@ -472,21 +472,21 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> new LinkedHashSet<>(Arrays.asList(s.split(",")))
             );
 
-    static boolean isRuntimeInstaller(Map<String, ? super Object> p) {
-        if (p.containsKey(MODULE.getID()) ||
-                p.containsKey(MAIN_JAR.getID()) ||
-                p.containsKey(PREDEFINED_APP_IMAGE.getID())) {
+    static boolean isRuntimeInstaller(Map<String, ? super Object> params) {
+        if (params.containsKey(MODULE.getID()) ||
+                params.containsKey(MAIN_JAR.getID()) ||
+                params.containsKey(PREDEFINED_APP_IMAGE.getID())) {
             return false; // we are building or are given an application
         }
         // runtime installer requires --runtime-image, if this is false
         // here then we should have thrown error validating args.
-        return p.containsKey(PREDEFINED_RUNTIME_IMAGE.getID());
+        return params.containsKey(PREDEFINED_RUNTIME_IMAGE.getID());
     }
 
-    static File getPredefinedAppImage(Map<String, ? super Object> p) {
+    static File getPredefinedAppImage(Map<String, ? super Object> params) {
         File applicationImage = null;
-        if (PREDEFINED_APP_IMAGE.fetchFrom(p) != null) {
-            applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(p);
+        if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
+            applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
             Log.debug("Using App Image from " + applicationImage);
             if (!applicationImage.exists()) {
                 throw new RuntimeException(
@@ -500,10 +500,10 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     }
 
     static void copyPredefinedRuntimeImage(
-            Map<String, ? super Object> p,
+            Map<String, ? super Object> params,
             AbstractAppImageBuilder appBuilder)
             throws IOException , ConfigException {
-        File image = PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
+        File image = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
         if (!image.exists()) {
             throw new ConfigException(
                     MessageFormat.format(I18N.getString(
@@ -520,7 +520,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
         // if module-path given - copy modules to appDir/mods
         List<Path> modulePath =
-                StandardBundlerParam.MODULE_PATH.fetchFrom(p);
+                StandardBundlerParam.MODULE_PATH.fetchFrom(params);
         List<Path> defaultModulePath = getDefaultModulePath();
         Path dest = appBuilder.getAppModsDir();
 

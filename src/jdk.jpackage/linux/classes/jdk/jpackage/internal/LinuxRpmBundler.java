@@ -173,16 +173,16 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public boolean validate(Map<String, ? super Object> p)
+    public boolean validate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException {
         try {
-            if (p == null) throw new ConfigException(
+            if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
                     I18N.getString("error.parameters-null.advice"));
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(p).validate(p);
+            APP_BUNDLER.fetchFrom(params).validate(params);
 
             // validate presense of required tools
             if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
@@ -197,7 +197,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             // only one mime type per association, at least one file extension
             List<Map<String, ? super Object>> associations =
-                    FILE_ASSOCIATIONS.fetchFrom(p);
+                    FILE_ASSOCIATIONS.fetchFrom(params);
             if (associations != null) {
                 for (int i = 0; i < associations.size(); i++) {
                     Map<String, ? super Object> assoc = associations.get(i);
@@ -220,7 +220,8 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             // bundle name has some restrictions
             // the string converter will throw an exception if invalid
-            BUNDLE_NAME.getStringConverter().apply(BUNDLE_NAME.fetchFrom(p), p);
+            BUNDLE_NAME.getStringConverter().apply(
+                    BUNDLE_NAME.fetchFrom(params), params);
 
             return true;
         } catch (RuntimeException re) {
@@ -232,25 +233,25 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> p)
+    private boolean prepareProto(Map<String, ? super Object> params)
             throws PackagerException, IOException {
-        File appImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File appImage = StandardBundlerParam.getPredefinedAppImage(params);
         File appDir = null;
 
         // we either have an application image or need to build one
         if (appImage != null) {
-            appDir = new File(RPM_IMAGE_DIR.fetchFrom(p),
-                APP_NAME.fetchFrom(p));
+            appDir = new File(RPM_IMAGE_DIR.fetchFrom(params),
+                APP_NAME.fetchFrom(params));
             // copy everything from appImage dir into appDir/name
             IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
         } else {
-            appDir = APP_BUNDLER.fetchFrom(p).doBundle(p,
-                    RPM_IMAGE_DIR.fetchFrom(p), true);
+            appDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
+                    RPM_IMAGE_DIR.fetchFrom(params), true);
         }
         return appDir != null;
     }
 
-    public File bundle(Map<String, ? super Object> p,
+    public File bundle(Map<String, ? super Object> params,
             File outdir) throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new PackagerException(
@@ -263,13 +264,13 @@ public class LinuxRpmBundler extends AbstractBundler {
                     outdir.getAbsolutePath());
         }
 
-        File imageDir = RPM_IMAGE_DIR.fetchFrom(p);
+        File imageDir = RPM_IMAGE_DIR.fetchFrom(params);
         try {
 
             imageDir.mkdirs();
 
-            if (prepareProto(p) && prepareProjectConfig(p)) {
-                return buildRPM(p, outdir);
+            if (prepareProto(params) && prepareProjectConfig(params)) {
+                return buildRPM(params, outdir);
             }
             return null;
         } catch (IOException ex) {

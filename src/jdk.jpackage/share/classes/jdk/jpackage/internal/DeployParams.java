@@ -52,31 +52,20 @@ public class DeployParams {
 
     final List<RelativeFileSet> resources = new ArrayList<>();
 
-    String id;
-    String vendor;
-    String email;
-    String description;
+    BundlerType bundleType = BundlerType.NONE;
+    String targetFormat = null; //means any
     String licenseType;
     String copyright;
     String version;
-    Boolean systemWide;
-    Boolean serviceHint;
-    Boolean signBundle;
-    Boolean installdirChooser;
-
     String applicationClass;
-
-    List<Param> params;
 
     // Java modules support
     String addModules = null;
     String limitModules = null;
-    String modulePath = null;
     String module = null;
 
     File outdir = null;
 
-    String appId = null;
 
     // list of jvm args
     // (in theory string can contain spaces and need to be escaped
@@ -95,18 +84,6 @@ public class DeployParams {
 
     void setVersion(String version) {
         this.version = version;
-    }
-
-    void setSystemWide(Boolean systemWide) {
-        this.systemWide = systemWide;
-    }
-
-    void setInstalldirChooser(Boolean installdirChooser) {
-        this.installdirChooser = installdirChooser;
-    }
-
-    void setSignBundle(Boolean signBundle) {
-        this.signBundle = signBundle;
     }
 
     void addJvmArg(String v) {
@@ -131,36 +108,8 @@ public class DeployParams {
         }
     }
 
-    String getModulePath() {
-        return this.modulePath;
-    }
-
-    void setModulePath(String value) {
-        this.modulePath = value;
-    }
-
     void setModule(String value) {
         this.module = value;
-    }
-
-    void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setAppId(String id) {
-        appId = id;
-    }
-
-    void setParams(List<Param> params) {
-        this.params = params;
-    }
-
-    void setVendor(String vendor) {
-        this.vendor = vendor;
-    }
-
-    void setEmail(String email) {
-        this.email = email;
     }
 
     void setApplicationClass(String applicationClass) {
@@ -235,13 +184,6 @@ public class DeployParams {
         }
         addBundleArgument(
                 StandardBundlerParam.CLASSPATH.getID(), classpath);
-    }
-
-    private static File createFile(final File baseDir, final String path) {
-        final File testFile = new File(path);
-        return testFile.isAbsolute() ?
-                testFile : new File(baseDir == null ?
-                        null : baseDir.getAbsolutePath(), path);
     }
 
     static void validateName(String s, boolean forApp)
@@ -400,9 +342,6 @@ public class DeployParams {
         return result;
     }
 
-    BundlerType bundleType = BundlerType.NONE;
-    String targetFormat = null; //means any
-
     void setBundleType(BundlerType type) {
         bundleType = type;
     }
@@ -419,20 +358,7 @@ public class DeployParams {
         return targetFormat;
     }
 
-    private String getArch() {
-        String arch = System.getProperty("os.arch").toLowerCase();
-
-        if ("x86".equals(arch) || "i386".equals(arch) || "i486".equals(arch)
-                || "i586".equals(arch) || "i686".equals(arch)) {
-            arch = "x86";
-        } else if ("x86_64".equals(arch) || "amd64".equals("arch")) {
-            arch = "x86_64";
-        }
-
-        return arch;
-    }
-
-    static final Set<String> multi_args = new TreeSet<>(Arrays.asList(
+    private static final Set<String> multi_args = new TreeSet<>(Arrays.asList(
             StandardBundlerParam.JAVA_OPTIONS.getID(),
             StandardBundlerParam.ARGUMENTS.getID(),
             StandardBundlerParam.MODULE_PATH.getID(),
@@ -479,11 +405,7 @@ public class DeployParams {
         bundleParams.setAppVersion(version);
         bundleParams.setType(bundleType);
         bundleParams.setBundleFormat(targetFormat);
-        bundleParams.setVendor(vendor);
-        bundleParams.setEmail(email);
-        bundleParams.setInstalldirChooser(installdirChooser);
         bundleParams.setCopyright(copyright);
-        bundleParams.setDescription(description);
 
         bundleParams.setJvmargs(jvmargs);
 
@@ -495,19 +417,8 @@ public class DeployParams {
             bundleParams.setLimitModules(limitModules);
         }
 
-        if (modulePath != null && !modulePath.isEmpty()) {
-            bundleParams.setModulePath(modulePath);
-        }
-
         if (module != null && !module.isEmpty()) {
             bundleParams.setMainModule(module);
-        }
-
-        Map<String, String> paramsMap = new TreeMap<>();
-        if (params != null) {
-            for (Param p : params) {
-                paramsMap.put(p.name, p.value);
-            }
         }
 
         Map<String, String> unescapedHtmlParams = new TreeMap<>();
@@ -529,24 +440,6 @@ public class DeployParams {
 
     Map<String, ? super Object> getBundlerArguments() {
         return this.bundlerArguments;
-    }
-
-    void putUnlessNull(String param, Object value) {
-        if (value != null) {
-            bundlerArguments.put(param, value);
-        }
-    }
-
-    void putUnlessNullOrEmpty(String param, Map<?, ?> value) {
-        if (value != null && !value.isEmpty()) {
-            bundlerArguments.put(param, value);
-        }
-    }
-
-    void putUnlessNullOrEmpty(String param, Collection<?> value) {
-        if (value != null && !value.isEmpty()) {
-            bundlerArguments.put(param, value);
-        }
     }
 
     @Override

@@ -91,8 +91,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     private static final String hdiutil = "/usr/bin/hdiutil";
 
     private void prepareDMGSetupScript(String volumeName,
-            Map<String, ? super Object> p) throws IOException {
-        File dmgSetup = getConfig_VolumeScript(p);
+            Map<String, ? super Object> params) throws IOException {
+        File dmgSetup = getConfig_VolumeScript(params);
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.preparing-dmg-setup"),
                 dmgSetup.getAbsolutePath()));
@@ -100,7 +100,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         //prepare config for exe
         Map<String, String> data = new HashMap<>();
         data.put("DEPLOY_ACTUAL_VOLUME_NAME", volumeName);
-        data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(p));
+        data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(params));
 
         data.put("DEPLOY_INSTALL_LOCATION", "(path to desktop folder)");
         data.put("DEPLOY_INSTALL_NAME", "Desktop");
@@ -108,8 +108,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         try (Writer w = Files.newBufferedWriter(dmgSetup.toPath())) {
             w.write(preprocessTextResource(dmgSetup.getName(),
                     I18N.getString("resource.dmg-setup-script"),
-                    DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(p),
-                    RESOURCE_DIR.fetchFrom(p)));
+                    DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(params),
+                    RESOURCE_DIR.fetchFrom(params)));
         }
     }
 
@@ -250,18 +250,19 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     private File buildDMG(
-            Map<String, ? super Object> p, File outdir)
+            Map<String, ? super Object> params, File outdir)
             throws IOException {
-        File imagesRoot = IMAGES_ROOT.fetchFrom(p);
+        File imagesRoot = IMAGES_ROOT.fetchFrom(params);
         if (!imagesRoot.exists()) imagesRoot.mkdirs();
 
-        File protoDMG = new File(imagesRoot, APP_NAME.fetchFrom(p) +"-tmp.dmg");
-        File finalDMG = new File(outdir, INSTALLER_NAME.fetchFrom(p)
-                + INSTALLER_SUFFIX.fetchFrom(p)
-                + ".dmg");
+        File protoDMG = new File(imagesRoot,
+                APP_NAME.fetchFrom(params) +"-tmp.dmg");
+        File finalDMG = new File(outdir, INSTALLER_NAME.fetchFrom(params)
+                + INSTALLER_SUFFIX.fetchFrom(params) + ".dmg");
 
-        File srcFolder = APP_IMAGE_TEMP_ROOT.fetchFrom(p);
-        File predefinedImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File srcFolder = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
+        File predefinedImage =
+                StandardBundlerParam.getPredefinedAppImage(params);
         if (predefinedImage != null) {
             srcFolder = predefinedImage;
         }
@@ -287,7 +288,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "create",
                 hdiUtilVerbosityFlag,
                 "-srcfolder", srcFolder.getAbsolutePath(),
-                "-volname", APP_NAME.fetchFrom(p),
+                "-volname", APP_NAME.fetchFrom(params),
                 "-ov", protoDMG.getAbsolutePath(),
                 "-fs", "HFS+",
                 "-format", "UDRW");
@@ -302,16 +303,16 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "-mountroot", imagesRoot.getAbsolutePath());
         IOUtils.exec(pb);
 
-        File mountedRoot =
-                new File(imagesRoot.getAbsolutePath(), APP_NAME.fetchFrom(p));
+        File mountedRoot = new File(imagesRoot.getAbsolutePath(),
+                APP_NAME.fetchFrom(params));
 
         // volume icon
         File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
-        IOUtils.copyFile(getConfig_VolumeIcon(p),
+        IOUtils.copyFile(getConfig_VolumeIcon(params),
                 volumeIconFile);
 
         pb = new ProcessBuilder("osascript",
-                getConfig_VolumeScript(p).getAbsolutePath());
+                getConfig_VolumeScript(params).getAbsolutePath());
         IOUtils.exec(pb);
 
         // Indicate that we want a custom icon
@@ -368,7 +369,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         IOUtils.exec(pb);
 
         //add license if needed
-        if (getConfig_LicenseFile(p).exists()) {
+        if (getConfig_LicenseFile(params).exists()) {
             //hdiutil unflatten your_image_file.dmg
             pb = new ProcessBuilder(
                     hdiutil,
@@ -383,7 +384,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "udifrez",
                     finalDMG.getAbsolutePath(),
                     "-xml",
-                    getConfig_LicenseFile(p).getAbsolutePath()
+                    getConfig_LicenseFile(params).getAbsolutePath()
             );
             IOUtils.exec(pb);
 
@@ -402,7 +403,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"),
-                APP_NAME.fetchFrom(p), finalDMG.getAbsolutePath()));
+                APP_NAME.fetchFrom(params), finalDMG.getAbsolutePath()));
 
         return finalDMG;
     }

@@ -40,11 +40,6 @@ class RelativeFileSet {
     private File basedir;
     private Set<String> files = new LinkedHashSet<>();
 
-    RelativeFileSet(RelativeFileSet copy) {
-        basedir = copy.basedir;
-        files = new LinkedHashSet<>(copy.files);
-    }
-
     RelativeFileSet(File base, Collection<File> files) {
         basedir = base;
         String baseAbsolute = basedir.getAbsolutePath();
@@ -61,40 +56,8 @@ class RelativeFileSet {
         }
     }
 
-    void upshift() {
-        String root = basedir.getName();
-        basedir = basedir.getParentFile();
-        Set<String> newFiles = new LinkedHashSet<>();
-        for (String s : files) {
-            newFiles.add(root + File.separator + s);
-        }
-        files = newFiles;
-    }
-
     RelativeFileSet(File base, Set<File> files) {
         this(base, (Collection<File>) files);
-    }
-
-    boolean contains(String[] requiredFiles) {
-        boolean result = true;
-
-        for(String fname: requiredFiles) {
-            if (!files.contains(fname)) {
-                Log.debug("  RelativeFileSet does not contain [" + fname + "]");
-                result = false;
-            }
-        }
-
-        return result;
-    }
-
-    boolean contains(String requiredFile) {
-        if (files.contains(requiredFile)) {
-            return true;
-        } else {
-            Log.debug("RelativeFileSet does not contain [" +requiredFile+ "]");
-            return false;
-        }
     }
 
     File getBaseDirectory() {

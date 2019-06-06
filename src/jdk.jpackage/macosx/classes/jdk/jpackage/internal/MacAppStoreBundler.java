@@ -118,10 +118,10 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             (s, p) -> s);
 
     //@Override
-    public File bundle(Map<String, ? super Object> p,
+    public File bundle(Map<String, ? super Object> params,
             File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString(
-                "message.building-bundle"), APP_NAME.fetchFrom(p)));
+                "message.building-bundle"), APP_NAME.fetchFrom(params)));
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new PackagerException(
                     "error.cannot-create-output-dir",
@@ -135,45 +135,48 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
         // first, load in some overrides
         // icns needs @2 versions, so load in the @2 default
-        p.put(DEFAULT_ICNS_ICON.getID(), TEMPLATE_BUNDLE_ICON_HIDPI);
+        params.put(DEFAULT_ICNS_ICON.getID(), TEMPLATE_BUNDLE_ICON_HIDPI);
 
         // now we create the app
-        File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(p);
+        File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
         try {
             appImageDir.mkdirs();
 
             try {
-                MacAppImageBuilder.addNewKeychain(p);
+                MacAppImageBuilder.addNewKeychain(params);
             } catch (InterruptedException e) {
                 Log.error(e.getMessage());
             }
             // first, make sure we don't use the local signing key
-            p.put(DEVELOPER_ID_APP_SIGNING_KEY.getID(), null);
-            File appLocation = prepareAppBundle(p, false);
+            params.put(DEVELOPER_ID_APP_SIGNING_KEY.getID(), null);
+            File appLocation = prepareAppBundle(params, false);
 
-            prepareEntitlements(p);
+            prepareEntitlements(params);
 
-            String signingIdentity = MAC_APP_STORE_APP_SIGNING_KEY.fetchFrom(p);
-            String identifierPrefix = BUNDLE_ID_SIGNING_PREFIX.fetchFrom(p);
-            String entitlementsFile = getConfig_Entitlements(p).toString();
+            String signingIdentity =
+                    MAC_APP_STORE_APP_SIGNING_KEY.fetchFrom(params);
+            String identifierPrefix =
+                    BUNDLE_ID_SIGNING_PREFIX.fetchFrom(params);
+            String entitlementsFile =
+                    getConfig_Entitlements(params).toString();
             String inheritEntitlements =
-                    getConfig_Inherit_Entitlements(p).toString();
+                    getConfig_Inherit_Entitlements(params).toString();
 
-            MacAppImageBuilder.signAppBundle(p, appLocation.toPath(),
+            MacAppImageBuilder.signAppBundle(params, appLocation.toPath(),
                     signingIdentity, identifierPrefix,
                     entitlementsFile, inheritEntitlements);
-            MacAppImageBuilder.restoreKeychainList(p);
+            MacAppImageBuilder.restoreKeychainList(params);
 
             ProcessBuilder pb;
 
             // create the final pkg file
-            File finalPKG = new File(outdir, INSTALLER_NAME.fetchFrom(p)
-                    + INSTALLER_SUFFIX.fetchFrom(p)
+            File finalPKG = new File(outdir, INSTALLER_NAME.fetchFrom(params)
+                    + INSTALLER_SUFFIX.fetchFrom(params)
                     + ".pkg");
             outdir.mkdirs();
 
             String installIdentify =
-                    MAC_APP_STORE_PKG_SIGNING_KEY.fetchFrom(p);
+                    MAC_APP_STORE_PKG_SIGNING_KEY.fetchFrom(params);
 
             List<String> buildOptions = new ArrayList<>();
             buildOptions.add("productbuild");
@@ -184,7 +187,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             buildOptions.add(installIdentify);
             buildOptions.add("--product");
             buildOptions.add(appLocation + "/Contents/Info.plist");
-            String keychainName = SIGNING_KEYCHAIN.fetchFrom(p);
+            String keychainName = SIGNING_KEYCHAIN.fetchFrom(params);
             if (keychainName != null && !keychainName.isEmpty()) {
                 buildOptions.add("--keychain");
                 buildOptions.add(keychainName);

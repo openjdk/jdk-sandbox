@@ -244,21 +244,21 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     @Override
-    public boolean validate(Map<String, ? super Object> p)
+    public boolean validate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException {
         try {
-            if (p == null) throw new ConfigException(
+            if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
                     I18N.getString("error.parameters-null.advice"));
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(p).validate(p);
+            APP_BUNDLER.fetchFrom(params).validate(params);
 
             String candleVersion =
-                    findToolVersion(TOOL_CANDLE_EXECUTABLE.fetchFrom(p));
+                    findToolVersion(TOOL_CANDLE_EXECUTABLE.fetchFrom(params));
             String lightVersion =
-                    findToolVersion(TOOL_LIGHT_EXECUTABLE.fetchFrom(p));
+                    findToolVersion(TOOL_LIGHT_EXECUTABLE.fetchFrom(params));
 
             // WiX 3.0+ is required
             String minVersion = "3.0";
@@ -285,12 +285,12 @@ public class WinMsiBundler  extends AbstractBundler {
 
             if (!VersionExtractor.isLessThan(lightVersion, "3.6")) {
                 Log.verbose(I18N.getString("message.use-wix36-features"));
-                p.put(CAN_USE_WIX36.getID(), Boolean.TRUE);
+                params.put(CAN_USE_WIX36.getID(), Boolean.TRUE);
             }
 
             /********* validate bundle parameters *************/
 
-            String version = PRODUCT_VERSION.fetchFrom(p);
+            String version = PRODUCT_VERSION.fetchFrom(params);
             if (!isVersionStringValid(version)) {
                 throw new ConfigException(
                         MessageFormat.format(I18N.getString(
@@ -302,7 +302,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
             // only one mime type per association, at least one file extension
             List<Map<String, ? super Object>> associations =
-                    FILE_ASSOCIATIONS.fetchFrom(p);
+                    FILE_ASSOCIATIONS.fetchFrom(params);
             if (associations != null) {
                 for (int i = 0; i < associations.size(); i++) {
                     Map<String, ? super Object> assoc = associations.get(i);
@@ -378,36 +378,37 @@ public class WinMsiBundler  extends AbstractBundler {
         return true;
     }
 
-    private boolean prepareProto(Map<String, ? super Object> p)
+    private boolean prepareProto(Map<String, ? super Object> params)
                 throws PackagerException, IOException {
-        File appImage = StandardBundlerParam.getPredefinedAppImage(p);
+        File appImage = StandardBundlerParam.getPredefinedAppImage(params);
         File appDir = null;
 
         // we either have an application image or need to build one
         if (appImage != null) {
-            appDir = new File(
-                    MSI_IMAGE_DIR.fetchFrom(p), APP_NAME.fetchFrom(p));
+            appDir = new File(MSI_IMAGE_DIR.fetchFrom(params),
+                    APP_NAME.fetchFrom(params));
             // copy everything from appImage dir into appDir/name
             IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
         } else {
-            appDir = APP_BUNDLER.fetchFrom(p).doBundle(p,
-                    MSI_IMAGE_DIR.fetchFrom(p), true);
+            appDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
+                    MSI_IMAGE_DIR.fetchFrom(params), true);
         }
 
-        p.put(WIN_APP_IMAGE.getID(), appDir);
+        params.put(WIN_APP_IMAGE.getID(), appDir);
 
-        String licenseFile = LICENSE_FILE.fetchFrom(p);
+        String licenseFile = LICENSE_FILE.fetchFrom(params);
         if (licenseFile != null) {
             // need to copy license file to the working directory and convert to rtf if needed
             File lfile = new File(licenseFile);
-            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            File destFile = new File(CONFIG_ROOT.fetchFrom(params),
+                    lfile.getName());
             IOUtils.copyFile(lfile, destFile);
             ensureByMutationFileIsRTF(destFile);
         }
 
         // copy file association icons
         List<Map<String, ? super Object>> fileAssociations =
-                FILE_ASSOCIATIONS.fetchFrom(p);
+                FILE_ASSOCIATIONS.fetchFrom(params);
         for (Map<String, ? super Object> fa : fileAssociations) {
             File icon = FA_ICON.fetchFrom(fa); // TODO FA_ICON_ICO
             if (icon == null) {
@@ -428,7 +429,7 @@ public class WinMsiBundler  extends AbstractBundler {
         return appDir != null;
     }
 
-    public File bundle(Map<String, ? super Object> p, File outdir)
+    public File bundle(Map<String, ? super Object> params, File outdir)
             throws PackagerException {
         if (!outdir.isDirectory() && !outdir.mkdirs()) {
             throw new PackagerException("error.cannot-create-output-dir",
@@ -440,8 +441,8 @@ public class WinMsiBundler  extends AbstractBundler {
         }
 
         // validate we have valid tools before continuing
-        String light = TOOL_LIGHT_EXECUTABLE.fetchFrom(p);
-        String candle = TOOL_CANDLE_EXECUTABLE.fetchFrom(p);
+        String light = TOOL_LIGHT_EXECUTABLE.fetchFrom(params);
+        String candle = TOOL_CANDLE_EXECUTABLE.fetchFrom(params);
         if (light == null || !new File(light).isFile() ||
             candle == null || !new File(candle).isFile()) {
             Log.verbose(MessageFormat.format(
@@ -451,21 +452,21 @@ public class WinMsiBundler  extends AbstractBundler {
             throw new PackagerException("error.no-wix-tools");
         }
 
-        File imageDir = MSI_IMAGE_DIR.fetchFrom(p);
+        File imageDir = MSI_IMAGE_DIR.fetchFrom(params);
         try {
             imageDir.mkdirs();
 
-            boolean menuShortcut = MENU_HINT.fetchFrom(p);
-            boolean desktopShortcut = SHORTCUT_HINT.fetchFrom(p);
+            boolean menuShortcut = MENU_HINT.fetchFrom(params);
+            boolean desktopShortcut = SHORTCUT_HINT.fetchFrom(params);
             if (!menuShortcut && !desktopShortcut) {
                 // both can not be false - user will not find the app
                 Log.verbose(I18N.getString("message.one-shortcut-required"));
-                p.put(MENU_HINT.getID(), true);
+                params.put(MENU_HINT.getID(), true);
             }
 
-            if (prepareProto(p) && prepareWiXConfig(p)
-                    && prepareBasicProjectConfig(p)) {
-                File configScriptSrc = getConfig_Script(p);
+            if (prepareProto(params) && prepareWiXConfig(params)
+                    && prepareBasicProjectConfig(params)) {
+                File configScriptSrc = getConfig_Script(params);
                 if (configScriptSrc.exists()) {
                     // we need to be running post script in the image folder
 
@@ -481,7 +482,7 @@ public class WinMsiBundler  extends AbstractBundler {
                             configScript.getAbsolutePath()));
                     IOUtils.run("wscript", configScript);
                 }
-                return buildMSI(p, outdir);
+                return buildMSI(params, outdir);
             }
             return null;
         } catch (IOException ex) {
@@ -1038,11 +1039,12 @@ public class WinMsiBundler  extends AbstractBundler {
                 APP_NAME.fetchFrom(params) + ".wxs");
     }
 
-    private String getLicenseFile(Map<String, ? super Object> p) {
-        String licenseFile = LICENSE_FILE.fetchFrom(p);
+    private String getLicenseFile(Map<String, ? super Object> params) {
+        String licenseFile = LICENSE_FILE.fetchFrom(params);
         if (licenseFile != null) {
             File lfile = new File(licenseFile);
-            File destFile = new File(CONFIG_ROOT.fetchFrom(p), lfile.getName());
+            File destFile = new File(CONFIG_ROOT.fetchFrom(params),
+                lfile.getName());
             String filePath = destFile.getAbsolutePath();
             if (filePath.contains(" ")) {
                 return "\"" + filePath + "\"";

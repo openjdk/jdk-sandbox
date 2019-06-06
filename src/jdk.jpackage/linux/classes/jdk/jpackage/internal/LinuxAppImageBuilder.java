@@ -146,16 +146,18 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
-    public static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_NAME.fetchFrom(p));
+    public static File getRootDir(File outDir,
+            Map<String, ? super Object> params) {
+        return new File(outDir, APP_NAME.fetchFrom(params));
     }
 
-    public static String getLauncherName(Map<String, ? super Object> p) {
-        return APP_NAME.fetchFrom(p);
+    public static String getLauncherName(Map<String, ? super Object> params) {
+        return APP_NAME.fetchFrom(params);
     }
 
-    public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_NAME.fetchFrom(p) + ".cfg";
+    public static String getLauncherCfgName(
+            Map<String, ? super Object> params) {
+        return "app/" + APP_NAME.fetchFrom(params) + ".cfg";
     }
 
     @Override
@@ -198,10 +200,10 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public void prepareJreFiles() throws IOException {}
 
-    private void createLauncherForEntryPoint(Map<String, ? super Object> p)
-            throws IOException {
+    private void createLauncherForEntryPoint(
+            Map<String, ? super Object> params) throws IOException {
         // Copy executable to Linux folder
-        Path executableFile = root.resolve(getLauncherName(p));
+        Path executableFile = root.resolve(getLauncherName(params));
         try (InputStream is_launcher =
                 getResourceAsStream("jpackageapplauncher")) {
             writeEntry(is_launcher, executableFile);
@@ -210,7 +212,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         executableFile.toFile().setExecutable(true, false);
         executableFile.toFile().setWritable(true, true);
 
-        writeCfgFile(p, root.resolve(getLauncherCfgName(p)).toFile(),
+        writeCfgFile(params, root.resolve(getLauncherCfgName(params)).toFile(),
                 "$APPDIR/runtime");
     }
 

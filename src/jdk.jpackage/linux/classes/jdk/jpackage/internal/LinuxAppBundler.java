@@ -85,14 +85,14 @@ public class LinuxAppBundler extends AbstractImageBundler {
     );
 
     @Override
-    public boolean validate(Map<String, ? super Object> p)
+    public boolean validate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException {
         try {
-            if (p == null) throw new ConfigException(
+            if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
                     I18N.getString("error.parameters-null.advice"));
 
-            return doValidate(p);
+            return doValidate(params);
         } catch (RuntimeException re) {
             if (re.getCause() instanceof ConfigException) {
                 throw (ConfigException) re.getCause();
@@ -102,47 +102,48 @@ public class LinuxAppBundler extends AbstractImageBundler {
         }
     }
 
-    private boolean doValidate(Map<String, ? super Object> p)
+    private boolean doValidate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.LINUX) {
             throw new UnsupportedPlatformException();
         }
 
-        imageBundleValidation(p);
+        imageBundleValidation(params);
 
         return true;
     }
 
     // it is static for the sake of sharing with "installer" bundlers
     // that may skip calls to validate/bundle in this class!
-    static File getRootDir(File outDir, Map<String, ? super Object> p) {
-        return new File(outDir, APP_NAME.fetchFrom(p));
+    static File getRootDir(File outDir, Map<String, ? super Object> params) {
+        return new File(outDir, APP_NAME.fetchFrom(params));
     }
 
-    static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_NAME.fetchFrom(p) +".cfg";
+    static String getLauncherCfgName(Map<String, ? super Object> params) {
+        return "app/" + APP_NAME.fetchFrom(params) +".cfg";
     }
 
-    File doBundle(Map<String, ? super Object> p, File outputDirectory,
+    File doBundle(Map<String, ? super Object> params, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (StandardBundlerParam.isRuntimeInstaller(p)) {
-            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
+        if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
         } else {
-            return doAppBundle(p, outputDirectory, dependentTask);
+            return doAppBundle(params, outputDirectory, dependentTask);
         }
     }
 
-    private File doAppBundle(Map<String, ? super Object> p,
+    private File doAppBundle(Map<String, ? super Object> params,
             File outputDirectory, boolean dependentTask) throws PackagerException {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p));
-            AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(p,
-                    outputDirectory.toPath());
-            if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
-                JLinkBundlerHelper.execute(p, appBuilder);
+            File rootDirectory = createRoot(params, outputDirectory,
+                    dependentTask, APP_NAME.fetchFrom(params));
+            AbstractAppImageBuilder appBuilder = new LinuxAppImageBuilder(
+                    params, outputDirectory.toPath());
+            if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ) {
+                JLinkBundlerHelper.execute(params, appBuilder);
             } else {
-                StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
+                StandardBundlerParam.copyPredefinedRuntimeImage(
+                        params, appBuilder);
             }
             return rootDirectory;
         } catch (PackagerException pe) {

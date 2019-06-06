@@ -182,22 +182,23 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    public static String getLauncherName(Map<String, ? super Object> p) {
-        return APP_NAME.fetchFrom(p) + ".exe";
+    public static String getLauncherName(Map<String, ? super Object> params) {
+        return APP_NAME.fetchFrom(params) + ".exe";
     }
 
     // Returns launcher resource name for launcher we need to use.
     public static String getLauncherResourceName(
-            Map<String, ? super Object> p) {
-        if (CONSOLE_HINT.fetchFrom(p)) {
+            Map<String, ? super Object> params) {
+        if (CONSOLE_HINT.fetchFrom(params)) {
             return "jpackageapplauncher.exe";
         } else {
             return "jpackageapplauncherw.exe";
         }
     }
 
-    public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app/" + APP_NAME.fetchFrom(p) +".cfg";
+    public static String getLauncherCfgName(
+            Map<String, ? super Object> params) {
+        return "app/" + APP_NAME.fetchFrom(params) +".cfg";
     }
 
     private File getConfig_AppIcon(Map<String, ? super Object> params) {
@@ -346,12 +347,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     private void createLauncherForEntryPoint(
-            Map<String, ? super Object> p) throws IOException {
+            Map<String, ? super Object> params) throws IOException {
 
-        File launcherIcon = ICON_ICO.fetchFrom(p);
+        File launcherIcon = ICON_ICO.fetchFrom(params);
         File icon = launcherIcon != null ?
                 launcherIcon : ICON_ICO.fetchFrom(params);
-        File iconTarget = getConfig_AppIcon(p);
+        File iconTarget = getConfig_AppIcon(params);
 
         InputStream in = locateResource(
                 APP_NAME.fetchFrom(params) + ".ico",
@@ -364,15 +365,15 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         Files.copy(in, iconTarget.toPath(),
                 StandardCopyOption.REPLACE_EXISTING);
 
-        writeCfgFile(p, root.resolve(
-                getLauncherCfgName(p)).toFile(), "$APPDIR\\runtime");
+        writeCfgFile(params, root.resolve(
+                getLauncherCfgName(params)).toFile(), "$APPDIR\\runtime");
 
-        prepareExecutableProperties(p);
+        prepareExecutableProperties(params);
 
         // Copy executable root folder
-        Path executableFile = root.resolve(getLauncherName(p));
+        Path executableFile = root.resolve(getLauncherName(params));
         try (InputStream is_launcher =
-                getResourceAsStream(getLauncherResourceName(p))) {
+                getResourceAsStream(getLauncherResourceName(params))) {
             writeEntry(is_launcher, executableFile);
         }
 
@@ -380,11 +381,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         launcher.setWritable(true, true);
 
         // Update branding of EXE file
-        if (REBRAND_EXECUTABLE.fetchFrom(p)) {
+        if (REBRAND_EXECUTABLE.fetchFrom(params)) {
             try {
                 String tempDirectory = WindowsDefender.getUserTempDirectory();
                 if (Arguments.CLIOptions.context().userProvidedBuildRoot) {
-                    tempDirectory = TEMP_ROOT.fetchFrom(p).getAbsolutePath();
+                    tempDirectory =
+                            TEMP_ROOT.fetchFrom(params).getAbsolutePath();
                 }
                 if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                         tempDirectory)) {
@@ -400,7 +402,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                             launcher.getAbsolutePath());
                 }
 
-                File executableProperties = getConfig_ExecutableProperties(p);
+                File executableProperties =
+                        getConfig_ExecutableProperties(params);
 
                 if (executableProperties.exists()) {
                     if (versionSwap(executableProperties.getAbsolutePath(),
@@ -416,7 +419,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         Files.copy(iconTarget.toPath(),
-                root.resolve(APP_NAME.fetchFrom(p) + ".ico"));
+                root.resolve(APP_NAME.fetchFrom(params) + ".ico"));
     }
 
     private void copyApplication(Map<String, ? super Object> params)

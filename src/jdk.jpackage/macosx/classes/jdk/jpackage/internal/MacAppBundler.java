@@ -252,20 +252,20 @@ public class MacAppBundler extends AbstractImageBundler {
         }
     }
 
-    private boolean doValidate(Map<String, ? super Object> p)
+    private boolean doValidate(Map<String, ? super Object> params)
             throws UnsupportedPlatformException, ConfigException {
         if (Platform.getPlatform() != Platform.MAC) {
             throw new UnsupportedPlatformException();
         }
 
-        imageBundleValidation(p);
+        imageBundleValidation(params);
 
-        if (StandardBundlerParam.getPredefinedAppImage(p) != null) {
+        if (StandardBundlerParam.getPredefinedAppImage(params) != null) {
             return true;
         }
 
         // validate short version
-        if (!validCFBundleVersion(MAC_CF_BUNDLE_VERSION.fetchFrom(p))) {
+        if (!validCFBundleVersion(MAC_CF_BUNDLE_VERSION.fetchFrom(params))) {
             throw new ConfigException(
                     I18N.getString("error.invalid-cfbundle-version"),
                     I18N.getString("error.invalid-cfbundle-version.advice"));
@@ -273,8 +273,9 @@ public class MacAppBundler extends AbstractImageBundler {
 
         // reject explicitly set sign to true and no valid signature key
         if (Optional.ofNullable(MacAppImageBuilder.
-                    SIGN_BUNDLE.fetchFrom(p)).orElse(Boolean.FALSE)) {
-            String signingIdentity = DEVELOPER_ID_APP_SIGNING_KEY.fetchFrom(p);
+                    SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.FALSE)) {
+            String signingIdentity =
+                    DEVELOPER_ID_APP_SIGNING_KEY.fetchFrom(params);
             if (signingIdentity == null) {
                 throw new ConfigException(
                         I18N.getString("error.explicit-sign-no-cert"),
@@ -285,26 +286,27 @@ public class MacAppBundler extends AbstractImageBundler {
         return true;
     }
 
-    File doBundle(Map<String, ? super Object> p, File outputDirectory,
+    File doBundle(Map<String, ? super Object> params, File outputDirectory,
             boolean dependentTask) throws PackagerException {
-        if (StandardBundlerParam.isRuntimeInstaller(p)) {
-            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(p);
+        if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            return PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
         } else {
-            return doAppBundle(p, outputDirectory, dependentTask);
+            return doAppBundle(params, outputDirectory, dependentTask);
         }
     }
 
-    File doAppBundle(Map<String, ? super Object> p, File outputDirectory,
+    File doAppBundle(Map<String, ? super Object> params, File outputDirectory,
             boolean dependentTask) throws PackagerException {
         try {
-            File rootDirectory = createRoot(p, outputDirectory, dependentTask,
-                    APP_NAME.fetchFrom(p) + ".app");
+            File rootDirectory = createRoot(params, outputDirectory,
+                    dependentTask, APP_NAME.fetchFrom(params) + ".app");
             AbstractAppImageBuilder appBuilder =
-                    new MacAppImageBuilder(p, outputDirectory.toPath());
-            if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(p) == null ) {
-                JLinkBundlerHelper.execute(p, appBuilder);
+                    new MacAppImageBuilder(params, outputDirectory.toPath());
+            if (PREDEFINED_RUNTIME_IMAGE.fetchFrom(params) == null ) {
+                JLinkBundlerHelper.execute(params, appBuilder);
             } else {
-                StandardBundlerParam.copyPredefinedRuntimeImage(p, appBuilder);
+                StandardBundlerParam.copyPredefinedRuntimeImage(
+                        params, appBuilder);
             }
             return rootDirectory;
         } catch (PackagerException pe) {

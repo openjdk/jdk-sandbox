@@ -424,8 +424,9 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "Contents/Java/" + APP_NAME.fetchFrom(p) + ".cfg";
+    public static String getLauncherCfgName(
+            Map<String, ? super Object> params) {
+        return "Contents/Java/" + APP_NAME.fetchFrom(params) + ".cfg";
     }
 
     private void copyClassPathEntries(Path javaDirectory) throws IOException {

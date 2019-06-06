@@ -49,67 +49,16 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
  */
 public abstract class AbstractImageBundler extends AbstractBundler {
 
-    private final static String JAVA_VERSION_SPEC =
-        "java version \"((\\d+).(\\d+).(\\d+).(\\d+))(-(.*))?(\\+[^\"]*)?\"";
-
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
-    public void imageBundleValidation(Map<String, ? super Object> p)
+    public void imageBundleValidation(Map<String, ? super Object> params)
              throws ConfigException {
-        StandardBundlerParam.validateMainClassInfoFromAppResources(p);
+        StandardBundlerParam.validateMainClassInfoFromAppResources(params);
 
     }
 
-    public static void extractFlagsFromVersion(
-            Map<String, ? super Object> params, String versionOutput) {
-        Pattern bitArchPattern = Pattern.compile("(\\d*)[- ]?[bB]it");
-        Matcher matcher = bitArchPattern.matcher(versionOutput);
-        if (matcher.find()) {
-            params.put(".runtime.bit-arch", matcher.group(1));
-        } else {
-            // presume 32 bit on no match
-            params.put(".runtime.bit-arch", "32");
-        }
-
-        Pattern oldVersionMatcher = Pattern.compile(
-                "java version \"((\\d+.(\\d+).\\d+)(_(\\d+)))?(-(.*))?\"");
-        matcher = oldVersionMatcher.matcher(versionOutput);
-        if (matcher.find()) {
-            params.put(".runtime.version", matcher.group(1));
-            params.put(".runtime.version.release", matcher.group(2));
-            params.put(".runtime.version.major", matcher.group(3));
-            params.put(".runtime.version.update", matcher.group(5));
-            params.put(".runtime.version.minor", matcher.group(5));
-            params.put(".runtime.version.security", matcher.group(5));
-            params.put(".runtime.version.patch", "0");
-            params.put(".runtime.version.modifiers", matcher.group(7));
-        } else {
-            Pattern newVersionMatcher = Pattern.compile(JAVA_VERSION_SPEC);
-            matcher = newVersionMatcher.matcher(versionOutput);
-            if (matcher.find()) {
-                params.put(".runtime.version", matcher.group(1));
-                params.put(".runtime.version.release", matcher.group(1));
-                params.put(".runtime.version.major", matcher.group(2));
-                params.put(".runtime.version.update", matcher.group(3));
-                params.put(".runtime.version.minor", matcher.group(3));
-                params.put(".runtime.version.security", matcher.group(4));
-                params.put(".runtime.version.patch", matcher.group(5));
-                params.put(".runtime.version.modifiers", matcher.group(7));
-            } else {
-                params.put(".runtime.version", "");
-                params.put(".runtime.version.release", "");
-                params.put(".runtime.version.major", "");
-                params.put(".runtime.version.update", "");
-                params.put(".runtime.version.minor", "");
-                params.put(".runtime.version.security", "");
-                params.put(".runtime.version.patch", "");
-                params.put(".runtime.version.modifiers", "");
-            }
-        }
-    }
-
-    protected File createRoot(Map<String, ? super Object> p,
+    protected File createRoot(Map<String, ? super Object> params,
             File outputDirectory, boolean dependentTask, String name)
             throws PackagerException {
         if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
