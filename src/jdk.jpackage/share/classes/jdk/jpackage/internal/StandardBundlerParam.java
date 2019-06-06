@@ -141,7 +141,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         String cp = (String) params.get("classpath");
                         return cp == null ? "" : cp;
                     },
-                    (s, p) -> s.replace(File.pathSeparator, " ")
+                    (s, p) -> s
             );
 
     static final StandardBundlerParam<String> MAIN_CLASS =

@@ -196,8 +196,7 @@ public abstract class AbstractAppImageBuilder {
             out.println("app.version=" + VERSION.fetchFrom(params));
             out.println("app.runtime=" + runtimeLocation);
             out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
-            out.println("app.classpath=" + String.join(File.pathSeparator,
-                    CLASSPATH.fetchFrom(params).split("[ :;]")));
+            out.println("app.classpath=" + CLASSPATH.fetchFrom(params));
 
             // The main app is required to be a jar, modular or unnamed.
             if (mainModule != null &&
