@@ -231,7 +231,7 @@ endif
 ################################################################################
 # jpackage is only on windows, macosx, and linux
 
-ifeq ($(filter $(OPENJDK_TARGET_OS), windows macosx linux), )
+ifeq ($(call isTargetOs, windows macosx linux), false)
   MODULES_FILTER += jdk.jpackage
 endif
 

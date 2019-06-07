@@ -380,8 +380,6 @@ endif
 
 ################################################################################
 
-jdk.jpackage_ADD_JAVAC_FLAGS += -parameters -XDstringConcat=inline
-
 jdk.jpackage_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list \
     .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .iss .ico .bmp
 

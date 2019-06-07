@@ -50,7 +50,7 @@ TARGETS += $(BUILD_LIB_APPLAUNCHER)
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
 
   $(eval $(call SetupJdkLibrary, BUILD_LIB_JPACKAGE, \
       NAME := jpackage, \
@@ -69,7 +69,7 @@ endif
 
 # Build Wix custom action helper
 # Output library in resources dir, and symbols in the object dir
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
 
   $(eval $(call SetupJdkLibrary, BUILD_LIB_WIXHELPER, \
       NAME := wixhelper, \

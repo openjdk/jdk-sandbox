@@ -57,7 +57,7 @@ $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHEREXE, \
 TARGETS += $(BUILD_JPACKAGE_APPLAUNCHEREXE)
 
 # Build non-console version of launcher
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
 
   $(eval $(call SetupJdkExecutable, BUILD_JPACKAGE_APPLAUNCHERWEXE, \
       NAME := jpackageapplauncherw, \
