@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.io.FileWriter;
 import java.io.BufferedWriter;
 import java.nio.file.FileVisitResult;
 
@@ -198,7 +197,7 @@ public class JPackageHelper {
 
     public static void deleteOutputFolder(String output) throws IOException {
         File outputFolder = new File(output);
-        System.out.println("AMDEBUG output: " + outputFolder.getAbsolutePath());
+        System.out.println("deleteOutputFolder: " + outputFolder.getAbsolutePath());
         try {
             deleteRecursive(outputFolder);
         } catch (IOException ioe) {
@@ -312,7 +311,7 @@ public class JPackageHelper {
         Path src = Path.of(TEST_SRC_ROOT + File.separator + "apps"
                 + File.separator + testType + File.separator + name + ".java");
         Path dst = Path.of(name + ".java");
-        
+
         if (dst.toFile().exists()) {
             Files.delete(dst);
         }
@@ -628,5 +627,4 @@ public class JPackageHelper {
 
         return in;
     }
-
 }
