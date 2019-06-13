@@ -914,8 +914,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         Path javaPath = appLocation.resolve("Contents/runtime");
         if (Files.isDirectory(javaPath)) {
-            Files.list(javaPath)
-                    .forEach(signIdentifiedByPList);
+            signIdentifiedByPList.accept(javaPath);
 
             ioe = toThrow.get();
             if (ioe != null) {
