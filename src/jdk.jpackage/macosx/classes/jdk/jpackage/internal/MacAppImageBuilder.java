@@ -105,7 +105,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_NAME =
             new StandardBundlerParam<>(
-                    "mac.CFBundleName",
+                    Arguments.CLIOptions.MAC_BUNDLE_NAME.getId(),
                     String.class,
                     params -> null,
                     (s, p) -> s);
