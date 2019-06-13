@@ -13,4 +13,5 @@ JPackageCreateInstallerWinUpgradeUUIDTest-1.0.msi
 JPackageCreateInstallerWinUpgradeUUIDTest-2.0.msi
 JPackageCreateInstallerInstallDirTest-1.0.msi
 JPackageCreateInstallerFileAssociationsInstallDirTest-1.0.msi
+JPackageCreateInstallerRuntimeTest-1.0.msi
 PAUSE

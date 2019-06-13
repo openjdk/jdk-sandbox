@@ -10,4 +10,5 @@
 "%ProgramFiles%\JPackageCreateInstallerWinUpgradeUUIDTest\unins000.exe"
 "%ProgramFiles%\TestVendor\JPackageCreateInstallerInstallDirTestDir\unins000.exe"
 "%ProgramFiles%\TestVendor\JPackageCreateInstallerFileAssociationsInstallDirTestDir\unins000.exe"
+"%ProgramFiles%\JPackageCreateInstallerRuntimeTest\unins000.exe"
 PAUSE

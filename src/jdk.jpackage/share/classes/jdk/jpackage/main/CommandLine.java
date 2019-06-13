@@ -49,7 +49,7 @@ import java.util.List;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public class CommandLine {
+class CommandLine {
     /**
      * Process Win32-style command files for the specified command line
      * arguments and return the resulting arguments. A command file argument
@@ -98,7 +98,7 @@ public class CommandLine {
      * @param args the arguments that may contain @files
      * @return the arguments, with environment variable's content and expansion of @files
      * @throws IOException if there is a problem reading any of the @files
-     * @throws com.sun.tools.javac.main.CommandLine.UnmatchedQuote
+     * @throws UnmatchedQuote
      */
     public static List<String> parse(String envVariable, List<String> args)
             throws IOException, UnmatchedQuote {
@@ -125,7 +125,7 @@ public class CommandLine {
      * @param args the arguments that may contain @files
      * @return the arguments, with environment variable's content and expansion of @files
      * @throws IOException if there is a problem reading any of the @files
-     * @throws com.sun.tools.javac.main.CommandLine.UnmatchedQuote
+     * @throws UnmatchedQuote
      */
     public static String[] parse(String envVariable, String[] args) throws IOException, UnmatchedQuote {
         List<String> out = parse(envVariable, Arrays.asList(args));

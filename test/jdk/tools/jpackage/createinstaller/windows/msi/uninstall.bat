@@ -10,4 +10,5 @@ MSIEXEC /uninstall JPackageCreateInstallerLicenseTest-1.0.msi
 MSIEXEC /uninstall JPackageCreateInstallerWinUpgradeUUIDTest-2.0.msi
 MSIEXEC /uninstall JPackageCreateInstallerInstallDirTest-1.0.msi
 MSIEXEC /uninstall JPackageCreateInstallerFileAssociationsInstallDirTest-1.0.msi
+MSIEXEC /uninstall JPackageCreateInstallerRuntimeTest-1.0.msi
 PAUSE
