@@ -342,14 +342,8 @@ public class WinExeBundler extends AbstractBundler {
 
     public File bundle(Map<String, ? super Object> params, File outdir)
             throws PackagerException {
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException("error.cannot-create-output-dir",
-                    outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException("error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         String tempDirectory = WindowsDefender.getUserTempDirectory();
         if (Arguments.CLIOptions.context().userProvidedBuildRoot) {

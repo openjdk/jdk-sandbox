@@ -253,16 +253,8 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     public File bundle(Map<String, ? super Object> params,
             File outdir) throws PackagerException {
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException(
-                    "error.cannot-create-output-dir",
-                    outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException(
-                    "error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         File imageDir = RPM_IMAGE_DIR.fetchFrom(params);
         try {
@@ -309,9 +301,10 @@ public class LinuxRpmBundler extends AbstractBundler {
         Map<String, String> data = createReplacementData(params);
         File rootDir =
             LinuxAppBundler.getRootDir(RPM_IMAGE_DIR.fetchFrom(params), params);
+        File binDir = new File(rootDir, "bin");
 
         // prepare installer icon
-        File iconTarget = getConfig_IconFile(rootDir, params);
+        File iconTarget = getConfig_IconFile(binDir, params);
         File icon = LinuxAppBundler.ICON_PNG.fetchFrom(params);
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             if (icon == null || !icon.exists()) {
@@ -343,10 +336,10 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             // prepare desktop shortcut
             try (Writer w = Files.newBufferedWriter(
-                    getConfig_DesktopShortcutFile(rootDir,
+                    getConfig_DesktopShortcutFile(binDir,
                             addLauncher).toPath())) {
                 String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(rootDir,
+                        getConfig_DesktopShortcutFile(binDir,
                         addLauncher).getName(),
                         I18N.getString("resource.menu-shortcut-descriptor"),
                         DEFAULT_DESKTOP_FILE_TEMPLATE, addLauncherData,
@@ -356,7 +349,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             }
 
             // prepare installer icon
-            iconTarget = getConfig_IconFile(rootDir, addLauncher);
+            iconTarget = getConfig_IconFile(binDir, addLauncher);
             icon = LinuxAppBundler.ICON_PNG.fetchFrom(addLauncher);
             if (icon == null || !icon.exists()) {
                 fetchResource(iconTarget.getName(),
@@ -488,7 +481,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                     int size = getSquareSizeOfImage(faIcon);
 
                     if (size > 0) {
-                        File target = new File(rootDir,
+                        File target = new File(binDir,
                                 APP_NAME.fetchFrom(params)
                                 + "_fa_" + faIcon.getName());
                         IOUtils.copyFile(faIcon, target);
@@ -533,7 +526,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
             if (addedEntry) {
                 try (Writer w = Files.newBufferedWriter(
-                        new File(rootDir, mimeInfoFile).toPath())) {
+                        new File(binDir, mimeInfoFile).toPath())) {
                     w.write(mimeInfo.toString());
                 }
                 data.put("FILE_ASSOCIATION_INSTALL", registrations.toString());
@@ -545,9 +538,9 @@ public class LinuxRpmBundler extends AbstractBundler {
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
             //prepare desktop shortcut
             try (Writer w = Files.newBufferedWriter(
-                    getConfig_DesktopShortcutFile(rootDir, params).toPath())) {
+                    getConfig_DesktopShortcutFile(binDir, params).toPath())) {
                 String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(rootDir,
+                        getConfig_DesktopShortcutFile(binDir,
                                                       params).getName(),
                         I18N.getString("resource.menu-shortcut-descriptor"),
                         DEFAULT_DESKTOP_FILE_TEMPLATE, data,
@@ -575,13 +568,14 @@ public class LinuxRpmBundler extends AbstractBundler {
     private Map<String, String> createReplacementData(
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
+        String launcher = LinuxAppImageBuilder.getLauncherRelativePath(params);
 
         data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_FS_NAME", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
         data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
         data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
-        data.put("APPLICATION_LAUNCHER_FILENAME", APP_NAME.fetchFrom(params));
+        data.put("APPLICATION_LAUNCHER_FILENAME", launcher);
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
         data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));

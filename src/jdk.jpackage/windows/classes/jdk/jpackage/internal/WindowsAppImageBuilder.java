@@ -76,6 +76,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private final Path appModsDir;
     private final Path runtimeDir;
     private final Path mdir;
+    private final Path binDir;
 
     private final Map<String, ? super Object> params;
 
@@ -125,6 +126,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
         this.mdir = runtimeDir.resolve("lib");
+        this.binDir = root.resolve("bin");
         Files.createDirectories(appDir);
         Files.createDirectories(runtimeDir);
     }
@@ -141,6 +143,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.appModsDir = null;
         this.runtimeDir = root;
         this.mdir = runtimeDir.resolve("lib");
+        this.binDir = null;
         Files.createDirectories(runtimeDir);
     }
 
@@ -229,16 +232,14 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
-        File rootFile = root.toFile();
-        if (!rootFile.isDirectory() && !rootFile.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(I18N.getString(
-                "error.cannot-create-output-dir"), rootFile.getAbsolutePath()));
+
+        try {
+            IOUtils.writableOutputDir(root);
+            IOUtils.writableOutputDir(binDir);
+        } catch (PackagerException pe) {
+            throw new RuntimeException(pe);
         }
-        if (!rootFile.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    rootFile.getAbsolutePath()));
-        }
+
         // create the .exe launchers
         createLauncherForEntryPoint(params);
 
@@ -247,7 +248,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         // copy in the needed libraries
         try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
-            Files.copy(is_lib, root.resolve(LIBRARY_NAME));
+            Files.copy(is_lib, binDir.resolve(LIBRARY_NAME));
         }
 
         copyMSVCDLLs();
@@ -272,7 +273,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                     p.toFile().getName().toLowerCase()))
                  .forEach(p -> {
                     try {
-                        Files.copy(p, root.resolve((p.toFile().getName())));
+                        Files.copy(p, binDir.resolve((p.toFile().getName())));
                     } catch (IOException e) {
                         ioe.set(e);
                     }
@@ -294,10 +295,10 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         if (REDIST_MSVCR_URL != null && REDIST_MSVCP_URL != null) {
             Files.copy(
                     REDIST_MSVCR_URL,
-                    root.resolve(REDIST_MSVCR.replaceAll("VS_VER", VS_VER)));
+                    binDir.resolve(REDIST_MSVCR.replaceAll("VS_VER", VS_VER)));
             Files.copy(
                     REDIST_MSVCP_URL,
-                    root.resolve(REDIST_MSVCP.replaceAll("VS_VER", VS_VER)));
+                    binDir.resolve(REDIST_MSVCP.replaceAll("VS_VER", VS_VER)));
             return true;
         }
 
@@ -369,8 +370,9 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         prepareExecutableProperties(params);
 
-        // Copy executable root folder
-        Path executableFile = root.resolve(getLauncherName(params));
+        // Copy executable to bin folder
+        Path executableFile = binDir.resolve(getLauncherName(params));
+
         try (InputStream is_launcher =
                 getResourceAsStream(getLauncherResourceName(params))) {
             writeEntry(is_launcher, executableFile);
@@ -418,7 +420,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         Files.copy(iconTarget.toPath(),
-                root.resolve(APP_NAME.fetchFrom(params) + ".ico"));
+                binDir.resolve(APP_NAME.fetchFrom(params) + ".ico"));
     }
 
     private void copyApplication(Map<String, ? super Object> params)

@@ -61,16 +61,9 @@ public abstract class AbstractImageBundler extends AbstractBundler {
     protected File createRoot(Map<String, ? super Object> params,
             File outputDirectory, boolean dependentTask, String name)
             throws PackagerException {
-        if (!outputDirectory.isDirectory() && !outputDirectory.mkdirs()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-create-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
-        if (!outputDirectory.canWrite()) {
-            throw new RuntimeException(MessageFormat.format(
-                    I18N.getString("error.cannot-write-to-output-dir"),
-                    outputDirectory.getAbsolutePath()));
-        }
+
+        IOUtils.writableOutputDir(outputDirectory.toPath());
+
         if (!dependentTask) {
             Log.verbose(MessageFormat.format(
                     I18N.getString("message.creating-app-bundle"),

@@ -22,7 +22,7 @@
  */
 
 import java.io.IOException;
-import java.io.File;
+import java.nio.file.Path;
 import java.io.InputStream;
 import java.io.FileInputStream;
 
@@ -67,15 +67,13 @@ public class JPackageCreateAppImageWinConsoleTest {
     };
 
     private static void checkSubsystem(boolean console) throws Exception {
-        String file = console ? OUTPUT_WIN_CONSOLE : OUTPUT;
-        file += File.separator;
-        file += NAME;
-        file += File.separator;
-        file += NAME + ".exe";
+        Path path = Path.of(console ? OUTPUT_WIN_CONSOLE : OUTPUT,
+                NAME, "bin", NAME + ".exe");
 
-        JPackageCreateAppImageBase.validate(file);
+        System.out.println("validate path: " + path.toString());
+        JPackageCreateAppImageBase.validate(path.toString());
 
-        try (InputStream inputStream = new FileInputStream(file)) {
+        try (InputStream inputStream = new FileInputStream(path.toString())) {
             byte [] bytes = new byte[BUFFER_SIZE];
             if (inputStream.read(bytes) != BUFFER_SIZE) {
                 throw new AssertionError("Wrong number of bytes read");
@@ -86,19 +84,23 @@ public class JPackageCreateAppImageWinConsoleTest {
             for (int i = 0;  i < (bytes.length - 4); i++) {
                 if (bytes[i] == 0x50 && bytes[i + 1] == 0x45 &&
                         bytes[i + 2] == 0x0 && bytes[i + 3] == 0x0) {
-                    i = i + 4 + 20 + 68; // Signature, File Header and subsystem offset.
+
+                    // Signature, File Header and subsystem offset.
+                    i = i + 4 + 20 + 68;
                     byte subsystem = bytes[i];
                     if (console) {
                         if (subsystem != CONSOLE_SUBSYSTEM) {
-                            throw new AssertionError("Unexpected subsystem: " + subsystem);
+                            throw new AssertionError("Unexpected subsystem: "
+                                    + subsystem);
                         } else {
-                            return; // done
+                            return;
                         }
                     } else {
                         if (subsystem != GUI_SUBSYSTEM) {
-                            throw new AssertionError("Unexpected subsystem: " + subsystem);
+                            throw new AssertionError("Unexpected subsystem: "
+                                    + subsystem);
                         } else {
-                            return; // done
+                            return;
                         }
                     }
                 }
@@ -117,7 +119,8 @@ public class JPackageCreateAppImageWinConsoleTest {
         JPackageHelper.executeCLI(true, cmd);
     }
 
-    private static void testCreateAppImageToolProvider(String [] cmd) throws Exception {
+    private static void testCreateAppImageToolProvider(String [] cmd)
+                throws Exception {
         JPackageHelper.executeToolProvider(true, cmd);
     }
 

@@ -22,9 +22,11 @@
  */
 
 import java.io.File;
+import java.nio.file.Path;
 
 /**
- * Helper class which contains functions to get different system dependent paths used by tests
+ * Helper class which contains functions to get different system
+ * dependent paths used by tests
  */
 public class JPackagePath {
 
@@ -33,10 +35,12 @@ public class JPackagePath {
     private static final String WIN_PROGRAM_FILES = "C:\\Program Files";
 
     // Path to Windows Start menu items
-    private static final String WIN_START_MENU = "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
+    private static final String WIN_START_MENU =
+            "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
 
     // Path to Windows public desktop location
-    private static final String WIN_PUBLIC_DESKTOP = "C:\\Users\\Public\\Desktop";
+    private static final String WIN_PUBLIC_DESKTOP =
+            "C:\\Users\\Public\\Desktop";
 
     // Return path to test src adjusted to location of caller
     public static String getTestSrcRoot() {
@@ -55,14 +59,12 @@ public class JPackagePath {
 
     public static String getApp(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + name
-                    + File.separator + name + ".exe";
+            return Path.of("output", name, "bin", name + ".exe").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + name + ".app"
-                    + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + name;
+            return Path.of("output", name + ".app",
+                    "Contents", "MacOS", name).toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + name + File.separator + name;
+            return Path.of("output", name, "bin", name).toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -75,63 +77,49 @@ public class JPackagePath {
 
     public static String getAppIcon(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + name + File.separator
-                    + name + ".ico";
+            return Path.of("output", name, "bin", name + ".ico").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + name + ".app"
-                    + File.separator + "Contents" + File.separator
-                    + "Resources" + File.separator + name + ".icns";
+            return Path.of("output", name + ".app",
+                    "Contents", "Resources", name + ".icns").toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + name + File.separator
-                    + "resources"+ File.separator + name + ".png";
+            return Path.of("output", name, "bin", name + ".png").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
     }
 
-    // Returns path to generate test application without --name argument
-    public static String getAppNoName() {
+    // Returns path to generate secondary launcher of given application
+    public static String getAppSL(String sl) {
+        return getAppSL("test", sl);
+    }
+
+    public static String getAppSL(String app, String sl) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "Hello" + File.separator + "Hello.exe";
+            return Path.of("output", app, "bin", sl + ".exe").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "Hello.app" + File.separator + "Contents"
-                    + File.separator + "MacOS" + File.separator + "Hello";
+            return Path.of("output", app + ".app",
+                    "Contents", "MacOS", sl).toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "Hello" + File.separator + "Hello";
+            return Path.of("output", app, "bin", sl).toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
     }
 
-    // Returns path to generate secondary launcher of test application
-    public static String getAppSL(String name) {
-        if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator
-                    + name + ".exe";
-        } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator
-                    + "Contents" + File.separator + "MacOS"
-                    + File.separator + name;
-        } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + name;
-        } else {
-            throw new AssertionError("Cannot detect platform");
-        }
-    }
-
-    // Returns path to app working directory (where test application generates its output)
+    // Returns path to app working directory
+    // (where test application generates its output)
     public static String getAppWorkingDir() {
         return getAppWorkingDir("test");
     }
 
     public static String getAppWorkingDir(String name) {
          if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + name + File.separator + "app";
+            return Path.of("output", name, "app").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + name + ".app"
-                    + File.separator + "Contents" + File.separator + "Java";
+            return Path.of("output", name + ".app",
+                    "Contents", "Java").toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + name + File.separator + "app";
+            return Path.of("output", name, "app").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -139,29 +127,17 @@ public class JPackagePath {
 
     // Returns path to test application cfg file
     public static String getAppCfg() {
-         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test" + File.separator + "app" + File.separator
-                    + "test.cfg";
-        } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator + "Contents"
-                    + File.separator + "Java" + File.separator + "test.cfg";
-        } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test" + File.separator + "app" + File.separator
-                    + "test.cfg";
-        } else {
-            throw new AssertionError("Cannot detect platform");
-        }
+        return getAppCfg("test");
     }
 
-    // Returns path to app working directory without --name (where test application generates its output)
-    public static String getAppWorkingDirNoName() {
+    public static String getAppCfg(String name) {
          if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "Hello" + File.separator + "app";
+            return Path.of("output", name, "app", name + ".cfg").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "Hello.app" + File.separator + "Contents"
-                    + File.separator + "Java";
+            return Path.of("output", name + ".app",
+                    "Contents", "Java", name + ".cfg").toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "Hello" + File.separator + "app";
+            return Path.of("output", name, "app", name + ".cfg").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -169,19 +145,19 @@ public class JPackagePath {
 
     // Returns path including executable to java in image runtime folder
     public static String getRuntimeJava() {
+        return getRuntimeJava("test");
+    }
+
+    public static String getRuntimeJava(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator
-                    + "bin" + File.separator + "java.exe";
+            return Path.of("output", name,
+                    "runtime", "bin", "java.exe").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app" + File.separator
-                    + "Contents" + File.separator
-                    + "runtime" + File.separator + "Contents" + File.separator
-                    + "Home" + File.separator + "bin" + File.separator + "java";
+            return Path.of("output", name + ".app", "Contents",
+                    "runtime", "Contents", "Home", "bin", "java").toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator
-                    + "bin" + File.separator + "java";
+            return Path.of("output", name,
+                    "runtime", "bin", "java").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -194,18 +170,18 @@ public class JPackagePath {
 
     // Returns path to bin folder in image runtime
     public static String getRuntimeBin() {
+        return getRuntimeBin("test");
+    }
+
+    public static String getRuntimeBin(String name) {
         if (JPackageHelper.isWindows()) {
-            return "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator + "bin";
+            return Path.of("output", name, "runtime", "bin").toString();
         } else if (JPackageHelper.isOSX()) {
-            return "output" + File.separator + "test.app"
-                    + File.separator + "Contents"
-                    + File.separator + "runtime"
-                    + File.separator + "Contents"
-                    + File.separator + "Home" + File.separator + "bin";
+            return Path.of("output", name + ".app",
+                    "Contents", "runtime",
+                    "Contents", "Home", "bin").toString();
         } else if (JPackageHelper.isLinux()) {
-            return "output" + File.separator + "test"
-                    + File.separator + "runtime" + File.separator + "bin";
+            return Path.of("output", name, "runtime", "bin").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -216,8 +192,8 @@ public class JPackagePath {
     }
 
     public static String getWinUserLocal() {
-        return System.getProperty("user.home") + File.separator + "AppData"
-                 + File.separator + "Local";
+        return Path.of(System.getProperty("user.home"),
+                "AppData", "Local").toString();
     }
 
     public static String getWinStartMenu() {
@@ -229,65 +205,77 @@ public class JPackagePath {
     }
 
     public static String getWinUserLocalStartMenu() {
-        return System.getProperty("user.home") + File.separator + "AppData"
-                + File.separator + "Roaming" + File.separator + "Microsoft"
-                + File.separator + "Windows" + File.separator + "Start Menu"
-                + File.separator + "Programs";
-
+        return Path.of(System.getProperty("user.home"), "AppData", "Roaming",
+                "Microsoft", "Windows", "Start Menu", "Programs").toString();
     }
 
     public static String getWinInstalledApp(String testName) {
-        return getWinProgramFiles() + File.separator + testName + File.separator
-                + testName + ".exe";
+        return Path.of(getWinProgramFiles(), testName,
+                testName + ".exe").toString();
     }
 
-    public static String getWinInstalledApp(String installDir, String testName) {
-        return getWinProgramFiles() + File.separator + installDir + File.separator
-                + testName + ".exe";
+    public static String getWinInstalledApp(String installDir,
+            String testName) {
+        return Path.of(getWinProgramFiles(), installDir, "bin",
+                testName + ".exe").toString();
     }
 
     public static String getOSXInstalledApp(String testName) {
-        return File.separator + "Applications" + File.separator + testName
-                + ".app" + File.separator + "Contents" + File.separator
-                + "MacOS" + File.separator + testName;
+        return File.separator + "Applications"
+                + File.separator + testName + ".app"
+                + File.separator + "Contents"
+                + File.separator + "MacOS"
+                + File.separator + testName;
     }
 
     public static String getLinuxInstalledApp(String testName) {
-        return File.separator + "opt" + File.separator + testName +
-                File.separator + testName;
+        return File.separator + "opt"
+                + File.separator + testName
+                + File.separator + testName;
     }
 
     public static String getOSXInstalledApp(String subDir, String testName) {
-        return File.separator + "Applications" + File.separator + subDir
-                + File.separator + testName + ".app" + File.separator
-                + "Contents" + File.separator + "MacOS" + File.separator
-                + testName;
+        return File.separator + "Applications"
+                + File.separator + subDir
+                + File.separator + testName + ".app"
+                + File.separator + "Contents"
+                + File.separator + "MacOS"
+                + File.separator + testName;
     }
 
     public static String getLinuxInstalledApp(String subDir, String testName) {
-        return File.separator + "opt" + File.separator + subDir + File.separator
-                + testName + File.separator + testName;
+        return File.separator + "opt"
+                + File.separator + subDir
+                + File.separator + testName
+                + File.separator + testName;
     }
 
     public static String getWinInstallFolder(String testName) {
-        return getWinProgramFiles() + File.separator + testName;
+        return getWinProgramFiles()
+                + File.separator + testName;
     }
 
     public static String getLinuxInstallFolder(String testName) {
-        return File.separator + "opt" + File.separator + testName;
+        return File.separator + "opt"
+                + File.separator + testName;
     }
 
     public static String getLinuxInstallFolder(String subDir, String testName) {
         if (testName == null) {
-            return File.separator + "opt" + File.separator + subDir;
+            return File.separator + "opt"
+                    + File.separator + subDir;
         } else {
-            return File.separator + "opt" + File.separator + subDir
+            return File.separator + "opt"
+                    + File.separator + subDir
                     + File.separator + testName;
         }
     }
 
     public static String getWinUserLocalInstalledApp(String testName) {
-        return getWinUserLocal() + File.separator + testName + File.separator + testName + ".exe";
+        return getWinUserLocal()
+                + File.separator + testName
+                + File.separator + "bin"
+                + File.separator + testName + ".exe";
     }
 
     public static String getWinUserLocalInstallFolder(String testName) {
@@ -296,7 +284,8 @@ public class JPackagePath {
 
     // Returs path to test license file
     public static String getLicenseFilePath() {
-        String path = JPackagePath.getTestSrcRoot() + File.separator + "resources"
+        String path = JPackagePath.getTestSrcRoot()
+                + File.separator + "resources"
                 + File.separator + "license.txt";
 
         return path;
@@ -304,7 +293,8 @@ public class JPackagePath {
 
     // Returns path to app folder of installed application
     public static String getWinInstalledAppFolder(String testName) {
-        return getWinProgramFiles() + File.separator + testName + File.separator
-                + "app";
+        return getWinProgramFiles()
+                + File.separator + testName
+                + File.separator + "app";
     }
 }

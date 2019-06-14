@@ -58,7 +58,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private final Path appDir;
     private final Path appModsDir;
     private final Path runtimeDir;
-    private final Path resourcesDir;
+    private final Path binDir;
     private final Path mdir;
 
     private final Map<String, ? super Object> params;
@@ -89,14 +89,13 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.appDir = root.resolve("app");
         this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
-        this.resourcesDir = root.resolve("resources");
+        this.binDir = root.resolve("bin");
         this.mdir = runtimeDir.resolve("lib");
         this.params = new HashMap<>();
         config.entrySet().stream().forEach(e -> params.put(
                 e.getKey().toString(), e.getValue()));
         Files.createDirectories(appDir);
         Files.createDirectories(runtimeDir);
-        Files.createDirectories(resourcesDir);
     }
 
     public LinuxAppImageBuilder(String appName, Path imageOutDir)
@@ -109,7 +108,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.appDir = null;
         this.appModsDir = null;
         this.runtimeDir = null;
-        this.resourcesDir = null;
+        this.binDir = null;
         this.mdir = null;
         this.params = new HashMap<>();
     }
@@ -151,13 +150,18 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         return new File(outDir, APP_NAME.fetchFrom(params));
     }
 
+    public static String getLauncherRelativePath(
+            Map<String, ? super Object> params) {
+        return "bin" + File.separator + APP_NAME.fetchFrom(params);
+    }
+
     public static String getLauncherName(Map<String, ? super Object> params) {
         return APP_NAME.fetchFrom(params);
     }
 
     public static String getLauncherCfgName(
             Map<String, ? super Object> params) {
-        return "app/" + APP_NAME.fetchFrom(params) + ".cfg";
+        return "app" + File.separator + APP_NAME.fetchFrom(params) + ".cfg";
     }
 
     @Override
@@ -174,12 +178,19 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
+        try {
+            IOUtils.writableOutputDir(root);
+            IOUtils.writableOutputDir(binDir);
+        } catch (PackagerException pe) {
+            throw new RuntimeException(pe);
+        }
+
         // create the primary launcher
         createLauncherForEntryPoint(params);
 
         // Copy library to the launcher folder
         try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
-            writeEntry(is_lib, root.resolve(LIBRARY_NAME));
+            writeEntry(is_lib, binDir.resolve(LIBRARY_NAME));
         }
 
         // create the additional launchers, if any
@@ -203,7 +214,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private void createLauncherForEntryPoint(
             Map<String, ? super Object> params) throws IOException {
         // Copy executable to Linux folder
-        Path executableFile = root.resolve(getLauncherName(params));
+        Path executableFile = binDir.resolve(getLauncherName(params));
         try (InputStream is_launcher =
                 getResourceAsStream("jpackageapplauncher")) {
             writeEntry(is_launcher, executableFile);
@@ -219,7 +230,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private void copyIcon() throws IOException {
         File icon = ICON_PNG.fetchFrom(params);
         if (icon != null) {
-            File iconTarget = new File(resourcesDir.toFile(),
+            File iconTarget = new File(binDir.toFile(),
                     APP_NAME.fetchFrom(params) + ".png");
             IOUtils.copyFile(icon, iconTarget);
         }

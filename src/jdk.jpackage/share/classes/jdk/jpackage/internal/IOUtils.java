@@ -280,4 +280,17 @@ public class IOUtils {
 
         return ret;
     }
+
+    static void writableOutputDir(Path outdir) throws PackagerException {
+        File file = outdir.toFile();
+
+        if (!file.isDirectory() && !file.mkdirs()) {
+            throw new PackagerException("error.cannot-create-output-dir",
+                    file.getAbsolutePath());
+        }
+        if (!file.canWrite()) {
+            throw new PackagerException("error.cannot-write-to-output-dir",
+                    file.getAbsolutePath());
+        }
+    }
 }

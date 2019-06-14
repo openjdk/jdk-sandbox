@@ -54,16 +54,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-dmg"),
                 APP_NAME.fetchFrom(params)));
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException(
-                    "error.cannot-create-output-dir",
-                    outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException(
-                    "error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
         try {

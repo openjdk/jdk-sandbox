@@ -135,16 +135,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-pkg"),
                 APP_NAME.fetchFrom(params)));
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException(
-                    "error.cannot-create-output-dir",
-                    outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException(
-                    "error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         File appImageDir = null;
         try {

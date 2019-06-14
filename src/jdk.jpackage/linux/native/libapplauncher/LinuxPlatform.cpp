@@ -76,7 +76,8 @@ TString LinuxPlatform::GetAppName() {
 }
 
 TString LinuxPlatform::GetPackageLauncherDirectory() {
-    return GetPackageRootDirectory();
+    return FilePath::IncludeTrailingSeparator(
+            GetPackageRootDirectory()) + _T("bin");
 }
 
 TString LinuxPlatform::GetPackageRuntimeBinDirectory() {
@@ -130,8 +131,16 @@ void LinuxPlatform::SetCurrentDirectory(TString Value) {
 }
 
 TString LinuxPlatform::GetPackageRootDirectory() {
+    TString result;
     TString filename = GetModuleFileName();
-    return FilePath::ExtractFilePath(filename);
+    TString binPath = FilePath::ExtractFilePath(filename);
+
+    size_t slash = binPath.find_last_of(TRAILING_PATHSEPARATOR);
+    if (slash != TString::npos) {
+        result = binPath.substr(0, slash);
+    }
+
+    return result;
 }
 
 TString LinuxPlatform::GetAppDataDirectory() {

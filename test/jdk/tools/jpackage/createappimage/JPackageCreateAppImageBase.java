@@ -23,6 +23,7 @@
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 public abstract class JPackageCreateAppImageBase {
     private static final String appOutput = JPackagePath.getAppOutputFile();
@@ -44,18 +45,27 @@ public abstract class JPackageCreateAppImageBase {
     }
 
     public static void validate(String app) throws Exception {
-        int retVal = JPackageHelper.execute(null, app);
-        if (retVal != 0) {
-            throw new AssertionError(
-                   "Test application exited with error: " + retVal);
+        Path outPath = Path.of(appWorkingDir, appOutput);
+        int retVal = JPackageHelper.execute(outPath.toFile(), app);
+
+        if (outPath.toFile().exists()) {
+             System.out.println("output contents: ");
+             System.out.println(Files.readString(outPath) + "\n");
+        } else {
+             System.out.println("no output file: " + outPath
+                   + " from command: " + app);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
-        if (!outfile.exists()) {
+        if (retVal != 0) {
+            throw new AssertionError(
+                "Test application (" + app + ") exited with error: " + retVal);
+        }
+
+        if (!outPath.toFile().exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
 
-        String output = Files.readString(outfile.toPath());
+        String output = Files.readString(outPath);
         String[] result = output.split("\n");
         validateResult(result);
     }

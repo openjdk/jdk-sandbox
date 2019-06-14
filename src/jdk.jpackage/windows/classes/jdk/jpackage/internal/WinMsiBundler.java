@@ -486,14 +486,8 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public File bundle(Map<String, ? super Object> params, File outdir)
             throws PackagerException {
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException("error.cannot-create-output-dir",
-                    outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException("error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         // validate we have valid tools before continuing
         String light = TOOL_LIGHT_EXECUTABLE.fetchFrom(params);
@@ -587,7 +581,8 @@ public class WinMsiBundler  extends AbstractBundler {
             xml.writeStartDocument();
             xml.writeStartElement("Include");
 
-            File launcher = new File(imageRootDir, WinAppBundler.getLauncherName(params));
+            File launcher = new File(imageRootDir,
+                    WinAppBundler.getLauncherRelativePath(params));
             if (launcher.exists()) {
                 String iconPath = launcher.getAbsolutePath().replace(".exe", ".ico");
                 if (MENU_HINT.fetchFrom(params)) {
@@ -608,7 +603,7 @@ public class WinMsiBundler  extends AbstractBundler {
                 Map<String, ? super Object> sl = addLaunchers.get(i);
                 if (SHORTCUT_HINT.fetchFrom(sl) || MENU_HINT.fetchFrom(sl)) {
                     File addLauncher = new File(imageRootDir,
-                            WinAppBundler.getLauncherName(sl));
+                            WinAppBundler.getLauncherRelativePath(sl));
                     String addLauncherPath
                             = relativePath(imageRootDir, addLauncher);
                     String addLauncherIconPath
@@ -741,8 +736,8 @@ public class WinMsiBundler  extends AbstractBundler {
 
         boolean needRegistryKey = !MSI_SYSTEM_WIDE.fetchFrom(params);
         File imageRootDir = WIN_APP_IMAGE.fetchFrom(params);
-        File launcherFile =
-                new File(imageRootDir, WinAppBundler.getLauncherName(params));
+        File launcherFile = new File(imageRootDir,
+                WinAppBundler.getLauncherRelativePath(params));
 
         // Find out if we need to use registry. We need it if
         //  - we doing user level install as file can not serve as KeyPath
@@ -814,7 +809,7 @@ public class WinMsiBundler  extends AbstractBundler {
             for (int i = 0; i < addLaunchers.size(); i++) {
                 Map<String, ? super Object> sl = addLaunchers.get(i);
                 File addLauncherFile = new File(imageRootDir,
-                        WinAppBundler.getLauncherName(sl));
+                        WinAppBundler.getLauncherRelativePath(sl));
                 if (f.equals(addLauncherFile)) {
                     if (SHORTCUT_HINT.fetchFrom(sl)) {
                         out.println(prefix

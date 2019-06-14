@@ -35,9 +35,10 @@ import java.nio.file.Files;
  */
 public class JPackageCreateAppImageNoNameTest {
     private static final String OUTPUT = "output";
-    private static final String app = JPackagePath.getAppNoName();
+    private static final String app = JPackagePath.getApp("Hello");
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDirNoName();
+    private static final String appWorkingDir =
+            JPackagePath.getAppWorkingDir("Hello");
 
     private static final String[] CMD = {
         "create-app-image",

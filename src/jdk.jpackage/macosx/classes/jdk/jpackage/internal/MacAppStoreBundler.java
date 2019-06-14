@@ -121,16 +121,8 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             File outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.building-bundle"), APP_NAME.fetchFrom(params)));
-        if (!outdir.isDirectory() && !outdir.mkdirs()) {
-            throw new PackagerException(
-                    "error.cannot-create-output-dir",
-                     outdir.getAbsolutePath());
-        }
-        if (!outdir.canWrite()) {
-            throw new PackagerException(
-                    "error.cannot-write-to-output-dir",
-                    outdir.getAbsolutePath());
-        }
+
+        IOUtils.writableOutputDir(outdir.toPath());
 
         // first, load in some overrides
         // icns needs @2 versions, so load in the @2 default
