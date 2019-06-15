@@ -107,8 +107,9 @@ public class JPackageCreateAppImageBundleIdentifierTest {
         File infoPList = new File(OUTPUT + File.separator + APP_NAME + ".app" +
                 File.separator + "Contents" + File.separator + "Info.plist");
 
-        DocumentBuilder b = DocumentBuilderFactory.newDefaultInstance()
-                                                         .newDocumentBuilder();
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newDefaultInstance();
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        DocumentBuilder b = dbf.newDocumentBuilder();
         org.w3c.dom.Document doc = b.parse(new FileInputStream(
                                                   infoPList.getAbsolutePath()));
 
