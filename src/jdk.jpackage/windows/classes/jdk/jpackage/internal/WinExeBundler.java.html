@@ -1,0 +1,240 @@
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head><meta charset="utf-8">
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="-1" />
+<!--
+   Note to customizers: the body of the webrev is IDed as SUNWwebrev
+   to allow easy overriding by users of webrev via the userContent.css
+   mechanism available in some browsers.
+
+   For example, to have all "removed" information be red instead of
+   brown, set a rule in your userContent.css file like:
+
+       body#SUNWwebrev span.removed { color: red ! important; }
+-->
+<style type="text/css" media="screen">
+body {
+    background-color: #eeeeee;
+}
+hr {
+    border: none 0;
+    border-top: 1px solid #aaa;
+    height: 1px;
+}
+div.summary {
+    font-size: .8em;
+    border-bottom: 1px solid #aaa;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+div.summary h2 {
+    margin-bottom: 0.3em;
+}
+div.summary table th {
+    text-align: right;
+    vertical-align: top;
+    white-space: nowrap;
+}
+span.lineschanged {
+    font-size: 0.7em;
+}
+span.oldmarker {
+    color: red;
+    font-size: large;
+    font-weight: bold;
+}
+span.newmarker {
+    color: green;
+    font-size: large;
+    font-weight: bold;
+}
+span.removed {
+    color: brown;
+}
+span.changed {
+    color: blue;
+}
+span.new {
+    color: blue;
+    font-weight: bold;
+}
+a.print { font-size: x-small; }
+
+</style>
+
+<style type="text/css" media="print">
+pre { font-size: 0.8em; font-family: courier, monospace; }
+span.removed { color: #444; font-style: italic }
+span.changed { font-weight: bold; }
+span.new { font-weight: bold; }
+span.newmarker { font-size: 1.2em; font-weight: bold; }
+span.oldmarker { font-size: 1.2em; font-weight: bold; }
+a.print {display: none}
+hr { border: none 0; border-top: 1px solid #aaa; height: 1px; }
+</style>
+
+<title>New src/jdk.jpackage/windows/classes/jdk/jpackage/internal/WinExeBundler.java</title>
+<body id="SUNWwebrev">
+<pre>
+   1 /*
+   2  * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   3  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+   4  *
+   5  * This code is free software; you can redistribute it and/or modify it
+   6  * under the terms of the GNU General Public License version 2 only, as
+   7  * published by the Free Software Foundation.  Oracle designates this
+   8  * particular file as subject to the "Classpath" exception as provided
+   9  * by Oracle in the LICENSE file that accompanied this code.
+  10  *
+  11  * This code is distributed in the hope that it will be useful, but WITHOUT
+  12  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  13  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+  14  * version 2 for more details (a copy is included in the LICENSE file that
+  15  * accompanied this code).
+  16  *
+  17  * You should have received a copy of the GNU General Public License version
+  18  * 2 along with this work; if not, write to the Free Software Foundation,
+  19  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+  20  *
+  21  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+  22  * or visit www.oracle.com if you need additional information or have any
+  23  * questions.
+  24  */
+  25 package jdk.jpackage.internal;
+  26 
+  27 import java.io.*;
+  28 import java.nio.file.Files;
+  29 import java.nio.file.Path;
+  30 import java.nio.file.Paths;
+  31 import java.text.MessageFormat;
+  32 import java.util.*;
+  33 
+  34 public class WinExeBundler extends AbstractBundler {
+  35 
+  36     static {
+  37         System.loadLibrary("jpackage");
+  38     }
+  39 
+  40     private static final ResourceBundle I18N = ResourceBundle.getBundle(
+  41             "jdk.jpackage.internal.resources.WinResources");
+  42 
+  43     public static final BundlerParamInfo&lt;WinAppBundler&gt; APP_BUNDLER
+  44             = new WindowsBundlerParam&lt;&gt;(
+  45                     "win.app.bundler",
+  46                     WinAppBundler.class,
+  47                     params -&gt; new WinAppBundler(),
+  48                     null);
+  49 
+  50     public static final BundlerParamInfo&lt;File&gt; EXE_IMAGE_DIR
+  51             = new WindowsBundlerParam&lt;&gt;(
+  52                     "win.exe.imageDir",
+  53                     File.class,
+  54                     params -&gt; {
+  55                         File imagesRoot = IMAGES_ROOT.fetchFrom(params);
+  56                         if (!imagesRoot.exists()) {
+  57                             imagesRoot.mkdirs();
+  58                         }
+  59                         return new File(imagesRoot, "win-exe.image");
+  60                     },
+  61                     (s, p) -&gt; null);
+  62 
+  63     private final static String EXE_WRAPPER_NAME = "msiwrapper.exe";
+  64 
+  65     @Override
+  66     public String getName() {
+  67         return getString("exe.bundler.name");
+  68     }
+  69 
+  70     @Override
+  71     public String getDescription() {
+  72         return getString("exe.bundler.description");
+  73     }
+  74 
+  75     @Override
+  76     public String getID() {
+  77         return "exe";
+  78     }
+  79 
+  80     @Override
+  81     public String getBundleType() {
+  82         return "INSTALLER";
+  83     }
+  84 
+  85     @Override
+  86     public Collection&lt;BundlerParamInfo&lt;?&gt;&gt; getBundleParameters() {
+  87         return new WinMsiBundler().getBundleParameters();
+  88     }
+  89 
+  90     @Override
+  91     public File execute(Map&lt;String, ? super Object&gt; params,
+  92             File outputParentDir) throws PackagerException {
+  93         return bundle(params, outputParentDir);
+  94     }
+  95 
+  96     @Override
+  97     public boolean supported(boolean platformInstaller) {
+  98         return (Platform.getPlatform() == Platform.WINDOWS);
+  99     }
+ 100 
+ 101     @Override
+ 102     public boolean validate(Map&lt;String, ? super Object&gt; params)
+ 103             throws UnsupportedPlatformException, ConfigException {
+ 104         return new WinMsiBundler().validate(params);
+ 105     }
+ 106 
+ 107     public File bundle(Map&lt;String, ? super Object&gt; params, File outdir)
+ 108             throws PackagerException {
+ 109 
+ 110         File exeImageDir = EXE_IMAGE_DIR.fetchFrom(params);
+ 111 
+ 112         // Write msi to temporary directory.
+ 113         File msi = new WinMsiBundler().bundle(params, exeImageDir);
+ 114 
+ 115         try {
+ 116             return buildEXE(msi, outdir);
+ 117         } catch (IOException ex) {
+ 118             Log.verbose(ex);
+ 119             throw new PackagerException(ex);
+ 120         }
+ 121     }
+ 122 
+ 123     private File buildEXE(File msi, File outdir)
+ 124             throws IOException {
+ 125 
+ 126         Log.verbose(MessageFormat.format(
+ 127                 getString("message.outputting-to-location"),
+ 128                 outdir.getAbsolutePath()));
+ 129 
+ 130         // Copy template msi wrapper next to msi file
+ 131         String exePath = msi.getAbsolutePath();
+ 132         exePath = exePath.substring(0, exePath.lastIndexOf('.')) + ".exe";
+ 133         try (InputStream is = getResourceAsStream(EXE_WRAPPER_NAME)) {
+ 134             Files.copy(is, Path.of(exePath));
+ 135         }
+ 136         // Embed msi in msi wrapper exe.
+ 137         embedMSI(exePath, msi.getAbsolutePath());
+ 138 
+ 139         Path dstExePath = Paths.get(outdir.getAbsolutePath(), Path.of(exePath).getFileName().toString());
+ 140         Files.deleteIfExists(dstExePath);
+ 141 
+ 142         Files.copy(Path.of(exePath), dstExePath);
+ 143 
+ 144         Log.verbose(MessageFormat.format(
+ 145                 getString("message.output-location"),
+ 146                 outdir.getAbsolutePath()));
+ 147 
+ 148         return dstExePath.toFile();
+ 149     }
+ 150 
+ 151     private static String getString(String key)
+ 152             throws MissingResourceException {
+ 153         return I18N.getString(key);
+ 154     }
+ 155 
+ 156     private static native int embedMSI(String exePath, String msiPath);
+ 157 }
+</pre></body></html>
