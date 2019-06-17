@@ -28,6 +28,8 @@
 #include <string>
 #include <windows.h>
 
+#include "ResourceEditor.h"
+#include "WinErrorHandling.h"
 #include "IconSwap.h"
 #include "VersionInfoSwap.h"
 #include "Utils.h"
@@ -70,6 +72,31 @@ extern "C" {
         if (vs.PatchExecutable()) {
             return 0;
         }
+
+        return 1;
+    }
+
+    /*
+     * Class:     jdk_jpackage_internal_WinExeBundler
+     * Method:    embedMSI
+     * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+     */
+    JNIEXPORT jint JNICALL Java_jdk_jpackage_internal_WinExeBundler_embedMSI(
+            JNIEnv *pEnv, jclass c, jstring jexePath, jstring jmsiPath) {
+
+        const wstring exePath = GetStringFromJString(pEnv, jexePath);
+        const wstring msiPath = GetStringFromJString(pEnv, jmsiPath);
+
+        JP_TRY;
+
+        ResourceEditor()
+            .id(L"msi")
+            .type(RT_RCDATA)
+            .apply(ResourceEditor::FileLock(exePath), msiPath);
+
+        return 0;
+
+        JP_CATCH_ALL;
 
         return 1;
     }
