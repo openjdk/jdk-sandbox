@@ -64,36 +64,18 @@ public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
-    private static final String APPIMAGE_MODE = "create-app-image";
-    private static final String INSTALLER_MODE = "create-installer";
-
+    private static final String IMAGE_PACKAGE_TYPE = "app-image";
     private static final String FA_EXTENSIONS = "extension";
     private static final String FA_CONTENT_TYPE = "mime-type";
     private static final String FA_DESCRIPTION = "description";
     private static final String FA_ICON = "icon";
-
-    static final BundlerParamInfo<Boolean> CREATE_APP_IMAGE =
-            new StandardBundlerParam<>(
-                    APPIMAGE_MODE,
-                    Boolean.class,
-                    p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s));
-
-    static final BundlerParamInfo<Boolean> CREATE_INSTALLER =
-            new StandardBundlerParam<>(
-                    INSTALLER_MODE,
-                    Boolean.class,
-                    p -> Boolean.FALSE,
-                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
-                            true : Boolean.valueOf(s));
 
     // regexp for parsing args (for example, for additional launchers)
     private static Pattern pattern = Pattern.compile(
           "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
 
     private DeployParams deployParams = null;
-    private BundlerType bundleType = null;
+    private String packageType = null;
 
     private int pos = 0;
     private List<String> argList = null;
@@ -106,15 +88,12 @@ public class Arguments {
     private boolean hasMainJar = false;
     private boolean hasMainClass = false;
     private boolean hasMainModule = false;
-    private boolean hasTargetFormat = false;
     public boolean userProvidedBuildRoot = false;
 
     private String buildRoot = null;
     private String mainJarPath = null;
 
     private static boolean runtimeInstaller = false;
-
-    private List<jdk.jpackage.internal.Bundler> platformBundlers = null;
 
     private List<AddLauncherArguments> addLaunchers = null;
 
@@ -140,7 +119,8 @@ public class Arguments {
         pos = 0;
 
         deployParams = new DeployParams();
-        bundleType = BundlerType.NONE;
+
+        packageType = null;
 
         allOptions = new ArrayList<>();
 
@@ -149,26 +129,9 @@ public class Arguments {
 
     // CLIOptions is public for DeployParamsTest
     public enum CLIOptions {
-        CREATE_APP_IMAGE(APPIMAGE_MODE, OptionCategories.MODE, () -> {
-            context().bundleType = BundlerType.IMAGE;
-            context().deployParams.setTargetFormat("image");
-            setOptionValue(APPIMAGE_MODE, true);
-        }),
-
-        CREATE_INSTALLER(INSTALLER_MODE, OptionCategories.MODE, () -> {
-            setOptionValue(INSTALLER_MODE, true);
-            context().bundleType = BundlerType.INSTALLER;
-            String format = "installer";
-            context().deployParams.setTargetFormat(format);
-        }),
-
-        INSTALLER_TYPE("installer-type", OptionCategories.PROPERTY, () -> {
-            String type = popArg();
-            if (BundlerType.INSTALLER.equals(context().bundleType)) {
-                context().deployParams.setTargetFormat(type);
-                context().hasTargetFormat = true;
-            }
-            setOptionValue("installer-type", type);
+        PACKAGE_TYPE("package-type", OptionCategories.PROPERTY, () -> {
+            context().packageType = popArg();
+            context().deployParams.setTargetFormat(context().packageType);
         }),
 
         INPUT ("input", "i", OptionCategories.PROPERTY, () -> {
@@ -499,11 +462,6 @@ public class Arguments {
                 }
             }
 
-            if (allOptions.isEmpty() || !allOptions.get(0).isMode()) {
-                // first argument should always be a mode.
-                throw new PackagerException("ERR_MissingMode");
-            }
-
             if (hasMainJar && !hasMainClass) {
                 // try to get main-class from manifest
                 String mainClass = getMainClassFromManifest();
@@ -513,14 +471,12 @@ public class Arguments {
                 }
             }
 
-            // display warning for arguments that are not supported
+            // display error for arguments that are not supported
             // for current configuration.
 
             validateArguments();
 
             addResources(deployParams, input);
-
-            deployParams.setBundleType(bundleType);
 
             List<Map<String, ? super Object>> launchersAsMap =
                     new ArrayList<>();
@@ -563,7 +519,8 @@ public class Arguments {
                 throw new PackagerException("ERR_NoJreInstallerName");
             }
 
-            return generateBundle(bp.getBundleParamsAsMap());
+            generateBundle(bp.getBundleParamsAsMap());
+            return true;
         } catch (Exception e) {
             if (Log.isVerbose()) {
                 Log.verbose(e);
@@ -582,14 +539,15 @@ public class Arguments {
     }
 
     private void validateArguments() throws PackagerException {
-        CLIOptions mode = allOptions.get(0);
-        boolean imageOnly = (mode == CLIOptions.CREATE_APP_IMAGE);
+        String packageType = deployParams.getTargetFormat();
+        String ptype = (packageType != null) ? packageType : "default";
+        boolean imageOnly = IMAGE_PACKAGE_TYPE.equals(packageType);
         boolean hasAppImage = allOptions.contains(
                 CLIOptions.PREDEFINED_APP_IMAGE);
         boolean hasRuntime = allOptions.contains(
                 CLIOptions.PREDEFINED_RUNTIME_IMAGE);
         boolean installerOnly = !imageOnly && hasAppImage;
-        boolean runtimeInstall = !imageOnly && hasRuntime && !hasAppImage &&
+        runtimeInstaller = !imageOnly && hasRuntime && !hasAppImage &&
                 !hasMainModule && !hasMainJar;
 
         for (CLIOptions option : allOptions) {
@@ -600,21 +558,26 @@ public class Arguments {
             }
             if (imageOnly) {
                 if (!ValidOptions.checkIfImageSupported(option)) {
-                    throw new PackagerException("ERR_NotImageOption",
-                        option.getIdWithPrefix());
+                    throw new PackagerException("ERR_InvalidTypeOption",
+                        option.getIdWithPrefix(), packageType);
                 }
-            } else if (installerOnly || runtimeInstall) {
+            } else if (installerOnly || runtimeInstaller) {
                 if (!ValidOptions.checkIfInstallerSupported(option)) {
-                    String key = runtimeInstaller ?
-                        "ERR_NoInstallerEntryPoint" : "ERR_NotInstallerOption";
-                    throw new PackagerException(key, option.getIdWithPrefix());
+                    if (runtimeInstaller) {
+                        throw new PackagerException("ERR_NoInstallerEntryPoint",
+                            option.getIdWithPrefix());
+                    } else {
+                        throw new PackagerException("ERR_InvalidTypeOption",
+                            option.getIdWithPrefix(), ptype);
+                   }
                 }
             }
         }
         if (installerOnly && hasRuntime) {
             // note --runtime-image is only for image or runtime installer.
-            throw new PackagerException("ERR_NotInstallerOption",
-                    CLIOptions.PREDEFINED_RUNTIME_IMAGE.getIdWithPrefix());
+            throw new PackagerException("ERR_InvalidTypeOption",
+                    CLIOptions.PREDEFINED_RUNTIME_IMAGE.getIdWithPrefix(),
+                    ptype);
         }
         if (hasMainJar && hasMainModule) {
             throw new PackagerException("ERR_BothMainJarAndModule");
@@ -624,30 +587,22 @@ public class Arguments {
         }
     }
 
-    private List<jdk.jpackage.internal.Bundler> getPlatformBundlers() {
+    private jdk.jpackage.internal.Bundler getPlatformBundler() {
+        String bundleType = (packageType == null ? "IMAGE" : "INSTALLER");
 
-        if (platformBundlers != null) {
-            return platformBundlers;
-        }
-
-        platformBundlers = new ArrayList<>();
         for (jdk.jpackage.internal.Bundler bundler :
-                Bundlers.createBundlersInstance().getBundlers(
-                        bundleType.toString())) {
-            if (hasTargetFormat && deployParams.getTargetFormat() != null &&
-                    !deployParams.getTargetFormat().equalsIgnoreCase(
-                    bundler.getID())) {
-                continue;
-            }
-            if (bundler.supported(runtimeInstaller)) {
-                 platformBundlers.add(bundler);
+                Bundlers.createBundlersInstance().getBundlers(bundleType)) {
+            if ((packageType == null) ||
+                     packageType.equalsIgnoreCase(bundler.getID())) {
+                 if (bundler.supported(runtimeInstaller)) {
+                     return bundler;
+                 }
             }
         }
-
-        return platformBundlers;
+        return null;
     }
 
-    private boolean generateBundle(Map<String,? super Object> params)
+    private void generateBundle(Map<String,? super Object> params)
             throws PackagerException {
 
         boolean bundleCreated = false;
@@ -659,67 +614,54 @@ public class Arguments {
         // The bundler.cleanup() below would not otherwise be able to
         // clean these extra (and unneeded) temp directories.
         StandardBundlerParam.TEMP_ROOT.fetchFrom(params);
-        List<jdk.jpackage.internal.Bundler> bundlers = getPlatformBundlers();
-        if (bundlers.isEmpty()) {
+
+        // determine what bundler to run
+        jdk.jpackage.internal.Bundler bundler = getPlatformBundler();
+
+        if (bundler == null) {
             throw new PackagerException("ERR_InvalidInstallerType",
-                    deployParams.getTargetFormat());
+                      deployParams.getTargetFormat());
         }
-        PackagerException pe = null;
-        for (jdk.jpackage.internal.Bundler bundler : bundlers) {
-            Map<String, ? super Object> localParams = new HashMap<>(params);
-            try {
-                if (bundler.validate(localParams)) {
-                    File result =
-                            bundler.execute(localParams, deployParams.outdir);
-                    if (!userProvidedBuildRoot) {
-                        bundler.cleanup(localParams);
-                    }
-                    if (result == null) {
-                        throw new PackagerException("MSG_BundlerFailed",
-                                bundler.getID(), bundler.getName());
-                    }
-                    bundleCreated = true; // at least one bundle was created
-                }
+
+        Map<String, ? super Object> localParams = new HashMap<>(params);
+        try {
+            bundler.validate(localParams);
+            File result = bundler.execute(localParams, deployParams.outdir);
+            if (!userProvidedBuildRoot) {
+                bundler.cleanup(localParams);
+            }
+            if (result == null) {
+                throw new PackagerException("MSG_BundlerFailed",
+                        bundler.getID(), bundler.getName());
+            }
+            Log.verbose(MessageFormat.format(
+                    I18N.getString("message.bundle-created"),
+                    bundler.getName()));
+        } catch (UnsupportedPlatformException upe) {
+            Log.debug(upe);
+            throw new PackagerException(upe,
+                    "MSG_BundlerPlatformException", bundler.getName());
+        } catch (ConfigException e) {
+            Log.debug(e);
+            if (e.getAdvice() != null)  {
+                throw new PackagerException(e, "MSG_BundlerConfigException",
+                        bundler.getName(), e.getMessage(), e.getAdvice());
+            } else {
+                throw new PackagerException(e,
+                       "MSG_BundlerConfigExceptionNoAdvice",
+                        bundler.getName(), e.getMessage());
+            }
+        } catch (RuntimeException re) {
+            Log.debug(re);
+            throw new PackagerException(re, "MSG_BundlerRuntimeException",
+                    bundler.getName(), re.toString());
+        } finally {
+            if (userProvidedBuildRoot) {
                 Log.verbose(MessageFormat.format(
-                        I18N.getString("message.bundle-created"),
-                        bundler.getName()));
-            } catch (UnsupportedPlatformException upe) {
-                Log.debug(upe);
-                if (pe == null) {
-                    pe = new PackagerException(upe,
-                            "MSG_BundlerPlatformException", bundler.getName());
-                }
-            } catch (ConfigException e) {
-                Log.debug(e);
-                if (pe == null) {
-                    pe = (e.getAdvice() != null) ?
-                            new PackagerException(e,
-                            "MSG_BundlerConfigException",
-                            bundler.getName(), e.getMessage(), e.getAdvice()) :
-                            new PackagerException(e,
-                           "MSG_BundlerConfigExceptionNoAdvice",
-                            bundler.getName(), e.getMessage());
-                }
-            } catch (RuntimeException re) {
-                Log.debug(re);
-                if (pe == null) {
-                    pe = new PackagerException(re,
-                            "MSG_BundlerRuntimeException",
-                            bundler.getName(), re.toString());
-                }
-            } finally {
-                if (userProvidedBuildRoot) {
-                    Log.verbose(MessageFormat.format(
-                            I18N.getString("message.debug-working-directory"),
-                            (new File(buildRoot)).getAbsolutePath()));
-                }
+                        I18N.getString("message.debug-working-directory"),
+                        (new File(buildRoot)).getAbsolutePath()));
             }
         }
-        if (pe != null) {
-            // throw packager exception only after trying all bundlers
-            throw pe;
-        }
-        return bundleCreated;
     }
 
     private void addResources(DeployParams deployParams,

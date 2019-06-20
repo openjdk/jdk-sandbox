@@ -62,8 +62,6 @@ class ValidOptions {
 
     // initializing list of mandatory arguments
     static {
-        options.put(CLIOptions.CREATE_APP_IMAGE.getId(), USE.ALL);
-        options.put(CLIOptions.CREATE_INSTALLER.getId(), USE.ALL);
         options.put(CLIOptions.NAME.getId(), USE.ALL);
         options.put(CLIOptions.VERSION.getId(), USE.ALL);
         options.put(CLIOptions.OUTPUT.getId(), USE.ALL);
@@ -75,6 +73,7 @@ class ValidOptions {
         options.put(CLIOptions.DESCRIPTION.getId(), USE.ALL);
         options.put(CLIOptions.VENDOR.getId(), USE.ALL);
         options.put(CLIOptions.COPYRIGHT.getId(), USE.ALL);
+        options.put(CLIOptions.PACKAGE_TYPE.getId(), USE.ALL);
 
         options.put(CLIOptions.INPUT.getId(), USE.LAUNCHER);
         options.put(CLIOptions.MODULE.getId(), USE.LAUNCHER);
@@ -87,7 +86,6 @@ class ValidOptions {
         options.put(CLIOptions.JAVA_OPTIONS.getId(), USE.LAUNCHER);
         options.put(CLIOptions.ADD_LAUNCHER.getId(), USE.LAUNCHER);
 
-        options.put(CLIOptions.INSTALLER_TYPE.getId(), USE.INSTALL);
         options.put(CLIOptions.LICENSE_FILE.getId(), USE.INSTALL);
         options.put(CLIOptions.INSTALL_DIR.getId(), USE.INSTALL);
         options.put(CLIOptions.PREDEFINED_APP_IMAGE.getId(), USE.INSTALL);

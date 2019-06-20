@@ -33,7 +33,6 @@
 public class JPackageCreateAppImageVerboseTest {
     private static final String OUTPUT = "output";
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -42,7 +41,6 @@ public class JPackageCreateAppImageVerboseTest {
     };
 
     private static final String[] CMD_VERBOSE = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

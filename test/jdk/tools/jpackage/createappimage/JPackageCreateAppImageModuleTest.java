@@ -35,7 +35,6 @@ public class JPackageCreateAppImageModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
-        "create-app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
         "--output", OUTPUT,
@@ -43,7 +42,6 @@ public class JPackageCreateAppImageModuleTest {
     };
 
     private static String [] commands = {
-        "create-app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
         "--output", OUTPUT,

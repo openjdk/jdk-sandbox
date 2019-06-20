@@ -41,12 +41,7 @@ public class BundleParams {
     // RelativeFileSet
     public static final String PARAM_APP_RESOURCES      = "appResources";
 
-    // BundlerType
-    public static final String PARAM_TYPE               = "type";
-
-    // String
-    public static final String PARAM_BUNDLE_FORMAT      = "bundleFormat";
-    // String
+    // String - Icon file name
     public static final String PARAM_ICON               = "icon";
 
     // String - Name of bundle file and native launcher
@@ -203,24 +198,6 @@ public class BundleParams {
 
     public void setName(String name) {
         putUnlessNull(PARAM_NAME, name);
-    }
-
-    @SuppressWarnings("deprecation")
-    public BundlerType getType() {
-        return fetchParam(BundlerType.class, PARAM_TYPE);
-    }
-
-    @SuppressWarnings("deprecation")
-    public void setType(BundlerType type) {
-        putUnlessNull(PARAM_TYPE, type);
-    }
-
-    public String getBundleFormat() {
-        return fetchParam(String.class, PARAM_BUNDLE_FORMAT);
-    }
-
-    public void setBundleFormat(String t) {
-        putUnlessNull(PARAM_BUNDLE_FORMAT, t);
     }
 
     public boolean getVerbose() {

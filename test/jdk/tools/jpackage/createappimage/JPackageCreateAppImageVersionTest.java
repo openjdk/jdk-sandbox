@@ -40,7 +40,6 @@ public class JPackageCreateAppImageVersionTest {
     private static final String VERSION_DEFAULT = "1.0";
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -49,7 +48,6 @@ public class JPackageCreateAppImageVersionTest {
    };
 
     private static final String[] CMD_VERSION = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

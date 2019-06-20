@@ -107,6 +107,8 @@ public class WinExeBundler extends AbstractBundler {
     public File bundle(Map<String, ? super Object> params, File outdir)
             throws PackagerException {
 
+        IOUtils.writableOutputDir(outdir.toPath());
+
         File exeImageDir = EXE_IMAGE_DIR.fetchFrom(params);
 
         // Write msi to temporary directory.

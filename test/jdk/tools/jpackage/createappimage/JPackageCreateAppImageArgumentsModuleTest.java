@@ -35,7 +35,6 @@ public class JPackageCreateAppImageArgumentsModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

@@ -44,7 +44,6 @@ public class JPackageCreateAppImageResourceTest {
             JPackagePath.getTestSrcRoot() + File.separator + "resources";
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--name", "icon",
         "--main-jar", "hello.jar",

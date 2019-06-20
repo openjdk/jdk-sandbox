@@ -61,8 +61,7 @@ public class JPackageCreateInstallerRuntimeBase {
         EXT = ext;
         OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         CMD = new String[]{
-            "create-installer",
-            "--installer-type", EXT,
+            "--package-type", EXT,
             "--output", "output",
             "--name", TEST_NAME,
             "--runtime-image", System.getProperty("java.home")};

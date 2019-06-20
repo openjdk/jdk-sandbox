@@ -40,14 +40,12 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String [] CMD1 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello",
         "--module-path", "input"};
 
     private static final String [] CMD2 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

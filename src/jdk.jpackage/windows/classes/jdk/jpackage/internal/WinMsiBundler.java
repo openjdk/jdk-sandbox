@@ -456,6 +456,7 @@ public class WinMsiBundler  extends AbstractBundler {
             File lfile = new File(licenseFile);
             File destFile = new File(CONFIG_ROOT.fetchFrom(params),
                     lfile.getName());
+
             IOUtils.copyFile(lfile, destFile);
             destFile.setWritable(true);
             ensureByMutationFileIsRTF(destFile);
@@ -666,8 +667,11 @@ public class WinMsiBundler  extends AbstractBundler {
             data.put("JpIsSystemWide", "yes");
         }
 
-        if (LICENSE_FILE.fetchFrom(params) != null) {
-            data.put("JpLicenseRtf", LICENSE_FILE.fetchFrom(params));
+        String licenseFile = LICENSE_FILE.fetchFrom(params);
+        if (licenseFile != null) {
+            String lname = new File(licenseFile).getName();
+            File destFile = new File(CONFIG_ROOT.fetchFrom(params), lname);
+            data.put("JpLicenseRtf", destFile.getAbsolutePath());
         }
 
         // Copy CA dll to include with installer

@@ -45,10 +45,9 @@ public class JPackageCreateAppImageErrorTest {
     private static final String EXPECTED1 =
             "Invalid Option: [--no-such-argument]";
     private static final String ARG2 = "--output";
-    private static final String EXPECTED2 = "Mode is not specified";
+    private static final String EXPECTED2 = "Missing argument:";
 
     private static final String [] CMD1 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -57,7 +56,6 @@ public class JPackageCreateAppImageErrorTest {
     private static final String EXP1 = "main jar does not exist";
 
     private static final String [] CMD2 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

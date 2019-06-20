@@ -52,8 +52,7 @@ public class DeployParams {
 
     final List<RelativeFileSet> resources = new ArrayList<>();
 
-    BundlerType bundleType = BundlerType.NONE;
-    String targetFormat = null; //means any
+    String targetFormat = null; // means app-image
     String licenseType;
     String copyright;
     String version;
@@ -250,10 +249,10 @@ public class DeployParams {
                 Arguments.CLIOptions.INPUT.getId()) != null);
         boolean hasModulePath = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE_PATH.getId()) != null);
-        boolean runtimeInstaller = (BundlerType.INSTALLER == getBundleType()) &&
+        boolean runtimeInstaller = targetFormat != null &&
                 !hasAppImage && !hasModule && !hasMain && hasRuntimeImage;
 
-        if (getBundleType() == BundlerType.IMAGE) {
+        if (targetFormat == null) {
             // Module application requires --runtime-image or --module-path
             if (hasModule) {
                 if (!hasModulePath && !hasRuntimeImage) {
@@ -266,7 +265,7 @@ public class DeployParams {
                            "ERR_MissingArgument", "--input");
                 }
             }
-        } else if (getBundleType() == BundlerType.INSTALLER) {
+        } else {
             if (!runtimeInstaller) {
                 if (hasModule) {
                     if (!hasModulePath && !hasRuntimeImage && !hasAppImage) {
@@ -342,14 +341,6 @@ public class DeployParams {
         return result;
     }
 
-    void setBundleType(BundlerType type) {
-        bundleType = type;
-    }
-
-    BundlerType getBundleType() {
-        return bundleType;
-    }
-
     void setTargetFormat(String t) {
         targetFormat = t;
     }
@@ -403,8 +394,6 @@ public class DeployParams {
 
         bundleParams.setApplicationClass(applicationClass);
         bundleParams.setAppVersion(version);
-        bundleParams.setType(bundleType);
-        bundleParams.setBundleFormat(targetFormat);
         bundleParams.setCopyright(copyright);
 
         bundleParams.setJvmargs(jvmargs);

@@ -41,7 +41,6 @@ public class JPackageCreateAppImageNoNameTest {
             JPackagePath.getAppWorkingDir("Hello");
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--main-jar", "hello.jar",

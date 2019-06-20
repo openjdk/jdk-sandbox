@@ -40,7 +40,6 @@ public class JPackageCreateAppImageTempRootTest {
     private static final String BUILD_ROOT_TB = "buildRootToolProvider";
 
     private static final String [] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -49,7 +48,6 @@ public class JPackageCreateAppImageTempRootTest {
     };
 
     private static final String [] CMD_BUILD_ROOT = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

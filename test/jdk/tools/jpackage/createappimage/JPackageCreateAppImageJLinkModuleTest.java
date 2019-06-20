@@ -38,7 +38,6 @@ public class JPackageCreateAppImageJLinkModuleTest {
     private static final String RUNTIME = "runtime";
 
     private static final String [] CMD = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.other/com.other.Other",

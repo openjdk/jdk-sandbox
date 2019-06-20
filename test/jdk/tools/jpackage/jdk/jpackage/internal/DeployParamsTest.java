@@ -102,6 +102,7 @@ public class DeployParamsTest {
         params.addResource(testRoot, new File(testRoot, "test.jar"));
         params.addBundleArgument(Arguments.CLIOptions.APPCLASS.getId(), "TestClass");
         params.addBundleArgument(Arguments.CLIOptions.MAIN_JAR.getId(), "test.jar");
+        params.addBundleArgument(Arguments.CLIOptions.INPUT.getId(), "input");
 
         return params;
     }

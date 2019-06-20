@@ -68,8 +68,7 @@ public class JPackageCreateInstallerBundleNameBase {
             OUTPUT = "output" + File.separator + BUNDLE_NAME + "-1.0." + EXT;
         }
         CMD = new String[]{
-            "create-installer",
-            "--installer-type", EXT,
+            "--package-type", EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,

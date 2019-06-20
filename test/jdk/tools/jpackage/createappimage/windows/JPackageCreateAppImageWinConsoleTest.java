@@ -48,7 +48,6 @@ public class JPackageCreateAppImageWinConsoleTest {
     private static final int CONSOLE_SUBSYSTEM = 3;
 
     private static final String [] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", NAME,
@@ -57,7 +56,6 @@ public class JPackageCreateAppImageWinConsoleTest {
     };
 
     private static final String [] CMD_WIN_CONSOLE = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT_WIN_CONSOLE,
         "--name", NAME,

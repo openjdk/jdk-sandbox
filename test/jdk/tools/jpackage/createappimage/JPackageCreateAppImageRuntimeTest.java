@@ -34,7 +34,6 @@
 public class JPackageCreateAppImageRuntimeTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD = {
-        "create-app-image",
         "--runtime-image", "runtime",
         "--input", "input",
         "--output", OUTPUT,

@@ -700,7 +700,12 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return (Platform.getPlatform() == Platform.LINUX);
+        if (Platform.getPlatform() == Platform.LINUX) {
+            if (testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int getSquareSizeOfImage(File f) {

@@ -35,7 +35,6 @@ public class JPackageCreateAppImageAtFilenameTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

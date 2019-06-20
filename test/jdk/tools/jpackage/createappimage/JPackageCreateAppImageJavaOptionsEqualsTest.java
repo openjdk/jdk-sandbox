@@ -42,7 +42,6 @@ public class JPackageCreateAppImageJavaOptionsEqualsTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--description", "the two options below should cause two app execution "
             + "Warnings with two lines output saying: "

@@ -40,7 +40,6 @@ public class JPackageCreateAppImageIconTest {
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",

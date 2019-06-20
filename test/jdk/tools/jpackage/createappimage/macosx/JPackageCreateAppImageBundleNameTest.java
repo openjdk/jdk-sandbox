@@ -49,7 +49,6 @@ public class JPackageCreateAppImageBundleNameTest {
     private static final String APP_NAME = "test";
 
     private static final String [] CMD_1 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,
@@ -58,7 +57,6 @@ public class JPackageCreateAppImageBundleNameTest {
     };
 
     private static final String [] CMD_2 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,

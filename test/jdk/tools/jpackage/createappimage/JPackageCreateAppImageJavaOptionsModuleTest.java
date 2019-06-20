@@ -35,7 +35,6 @@ public class JPackageCreateAppImageJavaOptionsModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -43,7 +42,6 @@ public class JPackageCreateAppImageJavaOptionsModuleTest {
         "--java-options", "TBD"};
 
     private static final String[] CMD2 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

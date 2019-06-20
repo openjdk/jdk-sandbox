@@ -50,7 +50,6 @@ public class JPackageCreateAppImageBundleIdentifierTest {
     private static final String MAIN_CLASS = "Hello";
 
     private static final String [] CMD_1 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,
@@ -59,7 +58,6 @@ public class JPackageCreateAppImageBundleIdentifierTest {
     };
 
     private static final String [] CMD_2 = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,

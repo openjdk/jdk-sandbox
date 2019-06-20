@@ -38,7 +38,6 @@ public class JPackageCreateAppImageModulePathTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -46,7 +45,6 @@ public class JPackageCreateAppImageModulePathTest {
     };
 
     private static final String [] CMD2 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -54,7 +52,6 @@ public class JPackageCreateAppImageModulePathTest {
     };
 
     private static final String [] CMD3 = {
-        "create-app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

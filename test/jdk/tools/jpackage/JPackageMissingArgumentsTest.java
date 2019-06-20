@@ -34,7 +34,6 @@
 public class JPackageMissingArgumentsTest {
     private static final String [] RESULT_1 = {"--output"};
     private static final String [] CMD_1 = {
-        "create-app-image",
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
@@ -43,7 +42,6 @@ public class JPackageMissingArgumentsTest {
 
     private static final String [] RESULT_2 = {"--input"};
     private static final String [] CMD_2 = {
-        "create-app-image",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
@@ -52,7 +50,7 @@ public class JPackageMissingArgumentsTest {
 
     private static final String [] RESULT_3 = {"--input", "--app-image"};
     private static final String [] CMD_3 = {
-        "create-installer",
+        "--package-type", "invalid-package-type",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
@@ -61,7 +59,6 @@ public class JPackageMissingArgumentsTest {
 
     private static final String [] RESULT_4 = {"main class was not specified"};
     private static final String [] CMD_4 = {
-        "create-app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
@@ -70,7 +67,6 @@ public class JPackageMissingArgumentsTest {
 
     private static final String [] RESULT_5 = {"--main-jar"};
     private static final String [] CMD_5 = {
-        "create-app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
@@ -79,7 +75,6 @@ public class JPackageMissingArgumentsTest {
 
     private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
     private static final String [] CMD_6 = {
-        "create-app-image",
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -88,7 +83,7 @@ public class JPackageMissingArgumentsTest {
     private static final String [] RESULT_7 = {"--module-path", "--runtime-image",
                                                "--app-image"};
     private static final String [] CMD_7 = {
-        "create-installer",
+        "--package-type", "invalid-package-type",
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -133,6 +128,7 @@ public class JPackageMissingArgumentsTest {
 
         output = JPackageHelper.executeCLI(false, CMD_7);
         validate(output, RESULT_7, true);
+
     }
 
     private static void testMissingArgToolProvider() throws Exception {

@@ -95,8 +95,7 @@ public class JPackageCreateInstallerWinUpgradeUUIDBase {
         EXT = ext;
         OUTPUT_1 = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         CMD_1 = new String[]{
-            "create-installer",
-            "--installer-type", EXT,
+            "--package-type", EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,
@@ -106,8 +105,7 @@ public class JPackageCreateInstallerWinUpgradeUUIDBase {
             "--win-upgrade-uuid", "F0B18E75-52AD-41A2-BC86-6BE4FCD50BEB"};
         OUTPUT_2 = "output" + File.separator + TEST_NAME + "-2.0." + EXT;
         CMD_2 = new String[]{
-            "create-installer",
-            "--installer-type", EXT,
+            "--package-type", EXT,
             "--input", "input",
             "--output", "output",
             "--name", TEST_NAME,

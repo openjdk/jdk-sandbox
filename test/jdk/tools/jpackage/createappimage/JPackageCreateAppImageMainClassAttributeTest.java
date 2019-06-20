@@ -40,7 +40,6 @@ public class JPackageCreateAppImageMainClassAttributeTest {
     private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String[] CMD = {
-        "create-app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

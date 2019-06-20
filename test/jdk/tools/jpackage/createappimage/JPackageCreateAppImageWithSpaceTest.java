@@ -37,7 +37,6 @@ public class JPackageCreateAppImageWithSpaceTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
-        "create-app-image",
         "--input", "input dir",
         "--output", OUTPUT,
         "--name", "test",
@@ -46,7 +45,6 @@ public class JPackageCreateAppImageWithSpaceTest {
     };
 
     private static final String [] CMD2 = {
-        "create-app-image",
         "--input", "input dir2",
         "--output", OUTPUT,
         "--name", "test",

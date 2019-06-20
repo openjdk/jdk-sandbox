@@ -210,8 +210,8 @@ public class JPackageHelper {
     public static String executeCLI(boolean retValZero, String... args) throws Exception {
         int retVal;
         File outfile = new File("output.log");
+        String[] command = getCommand(args);
         try {
-            String[] command = getCommand(args);
             retVal = execute(outfile, command);
         } catch (Exception ex) {
             if (outfile.exists()) {
@@ -223,6 +223,9 @@ public class JPackageHelper {
         String output = Files.readString(outfile.toPath());
         if (retValZero) {
             if (retVal != 0) {
+                System.err.println("command run:");
+                for (String s : command) { System.err.println(s); }
+                System.err.println("command output:");
                 System.err.println(output);
                 throw new AssertionError("jpackage exited with error: " + retVal);
             }

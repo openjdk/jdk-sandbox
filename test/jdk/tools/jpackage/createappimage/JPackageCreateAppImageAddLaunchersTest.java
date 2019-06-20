@@ -34,7 +34,6 @@
 public class JPackageCreateAppImageAddLaunchersTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD1 = {
-        "create-app-image",
         "--description", "Test non modular app with multiple add-launchers where one is modular app and other is non modular app",
         "--input", "input",
         "--output", OUTPUT,
@@ -47,7 +46,6 @@ public class JPackageCreateAppImageAddLaunchersTest {
         "--add-launcher", "test4=m1.properties"};
 
     private static final String [] CMD2 = {
-        "create-app-image",
         "--description", "Test modular app with multiple add-launchers where one is modular app and other is non modular app",
         "--input", "input",
         "--output", OUTPUT,

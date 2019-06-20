@@ -36,7 +36,7 @@ public class JPackageInvalidArgTest {
     private static final String ARG2 = "--output";
     private static final String RESULT1 =
             "Invalid Option: [--no-such-argument]";
-    private static final String RESULT2 = "Mode is not specified";
+    private static final String RESULT2 = "Missing argument:";
 
     private static void validate(String arg, String output) throws Exception {
         String[] result = output.split("\n");

@@ -858,7 +858,12 @@ public class LinuxDebBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return (Platform.getPlatform() == Platform.LINUX);
+        if (Platform.getPlatform() == Platform.LINUX) {
+            if (testTool(TOOL_DPKG, "1")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int getSquareSizeOfImage(File f) {
