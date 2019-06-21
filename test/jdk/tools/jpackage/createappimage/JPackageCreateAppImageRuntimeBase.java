@@ -57,7 +57,7 @@ import java.nio.file.Files;
         }
 
         String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         validateResult(result);
     }
 
@@ -73,7 +73,7 @@ import java.nio.file.Files;
         }
 
         String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 1) {
             throw new AssertionError("Unexpected number of lines: " + result.length);
         }

@@ -32,6 +32,7 @@
  * @build JPackageCreateInstallerMacOptionsBase
  * @requires (os.family == "mac")
  * @modules jdk.jpackage
+ * @ignore
  * @run main/othervm -Xmx512m JPackageCreateInstallerMacOptionsTest
  */
 public class JPackageCreateInstallerMacOptionsTest {

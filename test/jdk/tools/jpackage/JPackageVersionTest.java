@@ -36,7 +36,7 @@ public class JPackageVersionTest {
     private static final String RESULT = System.getProperty("java.version");
 
     private static void validate(String output) throws Exception {
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 1) {
             System.err.println(output);
             throw new AssertionError("Invalid number of lines in output: " + result.length);

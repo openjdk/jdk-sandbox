@@ -71,13 +71,13 @@ public class JPackageCreateAppImageJavaOptionsEqualsTest {
         }
 
         String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 4) {
             throw new AssertionError(
                    "Unexpected number of lines: " + result.length
                    + " - output: " + output);
         }
-        
+
         if (!result[0].startsWith("WARNING: Unknown module: me.mymodule.foo")){
             throw new AssertionError("Unexpected result[0]: " + result[0]);
         }

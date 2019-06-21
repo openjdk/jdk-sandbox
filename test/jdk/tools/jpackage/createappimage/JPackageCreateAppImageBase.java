@@ -21,7 +21,6 @@
  * questions.
  */
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -46,7 +45,7 @@ public abstract class JPackageCreateAppImageBase {
 
     public static void validate(String app) throws Exception {
         Path outPath = Path.of(appWorkingDir, appOutput);
-        int retVal = JPackageHelper.execute(outPath.toFile(), app);
+        int retVal = JPackageHelper.execute(null, app);
 
         if (outPath.toFile().exists()) {
              System.out.println("output contents: ");
@@ -66,7 +65,7 @@ public abstract class JPackageCreateAppImageBase {
         }
 
         String output = Files.readString(outPath);
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         validateResult(result);
     }
 

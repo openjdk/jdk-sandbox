@@ -46,7 +46,7 @@ public class JPackageCreateAppImageMainClassErrorTest {
         "--main-jar", "hello.jar"};
 
     private static void validate(String output) throws Exception {
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 2) {
             throw new AssertionError(
                    "Unexpected number of lines: " + result.length);

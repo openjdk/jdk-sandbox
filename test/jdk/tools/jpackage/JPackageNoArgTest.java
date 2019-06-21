@@ -37,7 +37,7 @@ public class JPackageNoArgTest {
             {"--help", "list of possible options"};
 
     private static void validate(String output) throws Exception {
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 2) {
             System.err.println(output);
             throw new AssertionError(

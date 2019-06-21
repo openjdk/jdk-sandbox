@@ -34,6 +34,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Arrays;
 
 import java.util.spi.ToolProvider;
 
@@ -525,6 +526,26 @@ public class JPackageHelper {
             }
         }
         return newAList.toArray(new String[0]);
+    }
+
+    public static String [] splitAndFilter(String output) {
+        if (output == null) {
+            return null;
+        }
+
+        String[] result = output.split("\n");
+        if (result == null || result.length == 0) {
+            return result;
+        }
+
+        List<String> origList = new ArrayList(Arrays.asList(result));
+        List<String> newlist = new ArrayList();
+        origList.stream().filter((str) ->
+                (!str.startsWith("Picked up"))).forEachOrdered((str) -> {
+            newlist.add(str);
+        });
+
+        return newlist.toArray(new String[newlist.size()]);
     }
 
     private static String quote(String in, boolean toolProvider) {

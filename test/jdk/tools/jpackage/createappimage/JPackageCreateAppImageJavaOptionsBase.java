@@ -119,7 +119,7 @@ public class JPackageCreateAppImageJavaOptionsBase {
         }
 
         String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         validateResult(result, expectedArgs);
     }
 
