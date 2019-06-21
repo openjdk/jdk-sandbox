@@ -627,9 +627,6 @@ public class Arguments {
         try {
             bundler.validate(localParams);
             File result = bundler.execute(localParams, deployParams.outdir);
-            if (!userProvidedBuildRoot) {
-                bundler.cleanup(localParams);
-            }
             if (result == null) {
                 throw new PackagerException("MSG_BundlerFailed",
                         bundler.getID(), bundler.getName());
@@ -660,6 +657,10 @@ public class Arguments {
                 Log.verbose(MessageFormat.format(
                         I18N.getString("message.debug-working-directory"),
                         (new File(buildRoot)).getAbsolutePath()));
+            } else {
+                // always clean up the temporary directory created
+                // when --temp-root option not used.
+                bundler.cleanup(localParams);
             }
         }
     }
