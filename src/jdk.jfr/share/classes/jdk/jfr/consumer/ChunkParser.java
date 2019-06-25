@@ -110,16 +110,12 @@ final class ChunkParser {
     }
 
     public void setParserFilter(InternalEventFilter filter) {
-    // Disable low level filter, since it doesn't work
-    // when a psrser is shared
-    //    this.eventFilter = filter;
-    //    updateParserFilters();
+        this.eventFilter = filter;
     }
 
     public InternalEventFilter getEventFilter() {
         return this.eventFilter;
     }
-
 
 
     /**

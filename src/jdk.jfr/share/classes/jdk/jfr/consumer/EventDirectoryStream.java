@@ -189,6 +189,7 @@ final class EventDirectoryStream implements EventStream {
                         chunkParser.setReuse(this.reuse);
                         chunkParser.setOrdered(this.ordered);
                         chunkParser.resetEventCache();
+                        chunkParser.setParserFilter(this.eventFilter);
                         chunkParser.updateEventParsers();
                         if (ordered) {
                             awaitnewEvent = processOrdered(awaitnewEvent);
