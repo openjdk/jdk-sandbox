@@ -81,7 +81,7 @@ public class RecordingStream implements AutoCloseable, EventStream {
         this.recording = new Recording();
         this.recording.setFlushInterval(Duration.ofMillis(1000));
         try {
-            this.stream = new EventDirectoryStream(acc);
+            this.stream = new EventDirectoryStream(acc, null);
         } catch (IOException ioe) {
             throw new IllegalStateException(ioe.getMessage());
         }

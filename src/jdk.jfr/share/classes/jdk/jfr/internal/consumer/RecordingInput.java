@@ -65,8 +65,8 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         }
     }
 
-    private final RandomAccessFile file;
-    private final String filename;
+    private RandomAccessFile file;
+    private String filename;
     private Block currentBlock = new Block();
     private Block previousBlock = new Block();
     private long position;
@@ -75,8 +75,16 @@ public final class RecordingInput implements DataInput, AutoCloseable {
 
     public RecordingInput(File f, int blockSize) throws IOException {
         this.blockSize = blockSize;
+        initialize(f);
+    }
+
+    private void initialize(File f) throws IOException {
         this.filename = f.getAbsolutePath().toString();
         this.file = new RandomAccessFile(f, "r");
+        this.position = 0;
+        this.size = -1;
+        this.currentBlock.reset();
+        this.previousBlock.reset();
         if (f.length() < 8) {
             throw new IOException("Not a valid Flight Recorder file. File length is only " + f.length() + " bytes.");
         }
@@ -335,19 +343,14 @@ public final class RecordingInput implements DataInput, AutoCloseable {
 
     // Purpose of this method is to reuse block cache from a
     // previous RecordingInput
-    public RecordingInput newFile(Path path) throws IOException  {
+    public void setFile(Path path) throws IOException  {
         try {
-            close();
+            file.close();
         } catch (IOException e) {
             // perhaps deleted
         }
-        RecordingInput input = new RecordingInput(path.toFile(), this.blockSize);
-        input.currentBlock = this.currentBlock;
-        input.currentBlock.reset();
-        input.previousBlock = this.previousBlock;
-        input.previousBlock.reset();
-
-        return input;
+        file = null;
+        initialize(path.toFile());
     }
 
 }
