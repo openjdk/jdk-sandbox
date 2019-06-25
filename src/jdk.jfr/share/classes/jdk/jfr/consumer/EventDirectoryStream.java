@@ -182,9 +182,8 @@ final class EventDirectoryStream implements EventStream {
             Path path = repositoryFiles.nextPath(startNanos);
             startNanos = repositoryFiles.getTimestamp(path) + 1;
             try (RecordingInput input = new RecordingInput(path.toFile())) {
+                chunkParser = new ChunkParser(input, this.reuse);
                 while (!isClosed()) {
-                    // chunkParser = chunkParser.nextChunkParser();
-                    chunkParser = new ChunkParser(input, this.reuse);
                     boolean awaitnewEvent = false;
                     while (!isClosed() && !chunkParser.isChunkFinished()) {
                         chunkParser.setReuse(this.reuse);
@@ -202,6 +201,7 @@ final class EventDirectoryStream implements EventStream {
                     path = repositoryFiles.nextPath(startNanos);
                     startNanos = repositoryFiles.getTimestamp(path) + 1;
                     input.setFile(path);
+                    chunkParser = chunkParser.newChunkParser();
                 }
             }
         }

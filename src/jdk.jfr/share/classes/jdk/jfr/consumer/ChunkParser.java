@@ -66,10 +66,13 @@ final class ChunkParser {
     private boolean resetEventCache;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
-        this(new ChunkHeader(input), null, 500);
+       this(new ChunkHeader(input), null, 500);
        this.reuse = reuse;
     }
 
+    public ChunkParser(ChunkParser previous) throws IOException {
+        this(new ChunkHeader(previous.input), null, 500);
+     }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
         this.input = header.getInput();
@@ -332,6 +335,10 @@ final class ChunkParser {
 
     public boolean isLastChunk() throws IOException {
         return chunkHeader.isLastChunk();
+    }
+
+    public ChunkParser newChunkParser() throws IOException {
+        return new ChunkParser(this);
     }
 
     public ChunkParser nextChunkParser() throws IOException {
