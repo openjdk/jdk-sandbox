@@ -53,7 +53,6 @@ final class EventFileStream implements EventStream {
         private RecordedEvent[] sortedList;
         private boolean ordered;
 
-
         public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
             this.input = input;
@@ -68,8 +67,8 @@ final class EventFileStream implements EventStream {
                 chunkParser.setReuse(reuse);
                 chunkParser.setOrdered(ordered);
                 chunkParser.resetEventCache();
+                chunkParser.setParserFilter(eventFilter);
                 chunkParser.updateEventParsers();
-
                 if (ordered) {
                     processOrdered();
                 } else {
@@ -78,6 +77,7 @@ final class EventFileStream implements EventStream {
                 if (chunkParser.isLastChunk()) {
                     return;
                 }
+                runFlushActions();
                 chunkParser = chunkParser.nextChunkParser();
             }
         }

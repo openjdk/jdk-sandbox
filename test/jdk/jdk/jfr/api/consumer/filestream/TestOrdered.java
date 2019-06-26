@@ -92,7 +92,7 @@ public class TestOrdered {
                 es.onEvent(e -> {
                     Instant endTime = e.getEndTime();
                     if (endTime.isBefore(timestamp.get())) {
-                        throw new Error("Events are not ordered! Reues = " + reuse);
+                        throw new Error("Events are not ordered! Reuse = " + reuse);
                     }
                     timestamp.set(endTime);
                 });
@@ -118,7 +118,7 @@ public class TestOrdered {
                 });
                 es.start();
                 if (!unoreded.get()) {
-                    throw new Exception("Expected at least some events to be out of order! Reues = " + reuse);
+                    throw new Exception("Expected at least some events to be out of order! Reuse = " + reuse);
                 }
             }
         }

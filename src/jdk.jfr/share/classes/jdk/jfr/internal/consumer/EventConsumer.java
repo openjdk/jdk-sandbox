@@ -78,6 +78,8 @@ abstract public class EventConsumer implements Runnable {
     private final static VarHandle dispatcherHandle;
     private final static VarHandle flushActionsHandle;
     private final static VarHandle closeActionsHandle;
+    private final static VarHandle orderedHandle;
+    private final static VarHandle reuseHandle;
     static {
         try {
             MethodHandles.Lookup l = MethodHandles.lookup();
@@ -86,6 +88,9 @@ abstract public class EventConsumer implements Runnable {
             dispatcherHandle = l.findVarHandle(EventConsumer.class, "dispatcher", LongMap.class);
             flushActionsHandle = l.findVarHandle(EventConsumer.class, "flushActions", Runnable[].class);
             closeActionsHandle = l.findVarHandle(EventConsumer.class, "closeActions", Runnable[].class);
+            orderedHandle = l.findVarHandle(EventConsumer.class, "ordered", boolean.class);
+            reuseHandle = l.findVarHandle(EventConsumer.class, "reuse", boolean.class);
+
         } catch (ReflectiveOperationException e) {
             throw new InternalError(e);
         }
@@ -100,6 +105,10 @@ abstract public class EventConsumer implements Runnable {
     private Runnable[] flushActions = new Runnable[0];
     // set by VarHandle
     private Runnable[] closeActions = new Runnable[0];
+
+    protected boolean ordered = true;
+
+    protected boolean reuse = true;
 
     protected InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
 
@@ -329,11 +338,11 @@ abstract public class EventConsumer implements Runnable {
     abstract public void close();
 
     public void setReuse(boolean reuse) {
-
+        reuseHandle.setVolatile(this, reuse);
     }
 
     public void setOrdered(boolean ordered) {
-
+        orderedHandle.setVolatile(this, ordered);
     }
 
 }

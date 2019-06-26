@@ -331,7 +331,7 @@ public class RecordingStream implements AutoCloseable, EventStream {
 
     @Override
     public void setReuse(boolean reuse) {
-        throw new UnsupportedOperationException("Unordered not implemented yet");
+        stream.setReuse(reuse);
     }
 
     @Override

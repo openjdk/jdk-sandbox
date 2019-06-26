@@ -54,6 +54,11 @@ import jdk.jfr.internal.consumer.ChunkHeader;
 import jdk.jfr.internal.consumer.EventConsumer;
 import jdk.jfr.internal.consumer.RecordingInput;
 
+/**
+ * Implementation of an {@code EventStream}} that operates against a directory
+ * with chunk files.
+ *
+ */
 final class EventDirectoryStream implements EventStream {
 
     private static final class RepositoryFiles {
@@ -67,7 +72,7 @@ final class EventDirectoryStream implements EventStream {
         }
 
         long getTimestamp(Path p) {
-            return  pathLookup.get(p);
+            return pathLookup.get(p);
         }
 
         Path nextPath(long startTimeNanos) {
@@ -168,9 +173,7 @@ final class EventDirectoryStream implements EventStream {
         private static final int DEFAULT_ARRAY_SIZE = 10_000;
         private final RepositoryFiles repositoryFiles;
         private ChunkParser chunkParser;
-        private boolean reuse = true;
         private RecordedEvent[] sortedList;
-        private boolean ordered = true;
 
         public ParserConsumer(AccessControlContext acc, Path p) throws IOException {
             super(acc);
@@ -200,6 +203,9 @@ final class EventDirectoryStream implements EventStream {
                     }
 
                     path = repositoryFiles.nextPath(startNanos);
+                    if (path == null) {
+                        return; // stream closed
+                    }
                     startNanos = repositoryFiles.getTimestamp(path) + 1;
                     input.setFile(path);
                     chunkParser = chunkParser.newChunkParser();

@@ -71,7 +71,7 @@ final class ChunkParser {
     }
 
     public ChunkParser(ChunkParser previous) throws IOException {
-        this(new ChunkHeader(previous.input), null, 500);
+        this(new ChunkHeader(previous.input), previous, 500);
      }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
