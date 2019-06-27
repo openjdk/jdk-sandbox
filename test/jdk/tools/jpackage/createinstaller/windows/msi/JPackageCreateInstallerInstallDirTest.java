@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerInstallDirBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerInstallDirTest
  */
 public class JPackageCreateInstallerInstallDirTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerInstallDirTest {
     private static final String EXT = "msi";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerInstallDirBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerInstallDirBase.run(TEST_NAME, EXT);
+        }
     }
 }

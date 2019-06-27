@@ -41,11 +41,6 @@ public interface Bundler {
     String getName();
 
     /**
-     * @return A more verbose description of the bundler.
-     */
-    String getDescription();
-
-    /**
      * @return Command line identifier of the bundler.  Should be unique.
      */
     String getID();
@@ -56,26 +51,18 @@ public interface Bundler {
     String getBundleType();
 
     /**
-     * The parameters that this bundler uses to generate it's bundle.
-     * @return immutable collection
-     */
-    Collection<BundlerParamInfo<?>> getBundleParameters();
-
-    /**
      * Determines if this bundler will execute with the given parameters.
      *
      * @param params The parameters to be validate.  Validation may modify
      *               the map, so if you are going to be using the same map
      *               across multiple bundlers you should pass in a deep copy.
      * @return true if valid
-     * @throws UnsupportedPlatformException If the bundler cannot run on this
-     *         platform (i.e. creating mac apps on windows)
      * @throws ConfigException If the configuration params are incorrect.  The
      *         exception may contain advice on how to modify the params map
      *         to make it valid.
      */
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException;
+            throws ConfigException;
 
     /**
      * Creates a bundle from existing content.
@@ -87,7 +74,7 @@ public interface Bundler {
      * It may or may not return a value, and it may or may not throw an
      * exception.  But any output should not be considered valid or sane.
      *
-     * @param params The parameters as specified by getBundleParameters.
+     * @param params The Bundle parameters,
      *               Keyed by the id from the ParamInfo.  Execution may
      *               modify the map, so if you are going to be using the
      *               same map across multiple bundlers you should pass

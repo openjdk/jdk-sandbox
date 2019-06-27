@@ -36,9 +36,8 @@ import java.util.List;
 
 /**
  * This file is direct copy of CommandLine.java in com.sun.tools.javac.main.
- * It should not be modified other than the package declaration above,
- * the copyright year and this comment.
  * It should track changes made to that file.
+ * It is modified only to remove content not used by jpackage
  */
 
 /**
@@ -82,54 +81,6 @@ class CommandLine {
                 newArgs.add(arg);
             }
         }
-    }
-
-    /**
-     * Process the given environment variable and appends any Win32-style
-     * command files for the specified command line arguments and return
-     * the resulting arguments. A command file argument
-     * is of the form '@file' where 'file' is the name of the file whose
-     * contents are to be parsed for additional arguments. The contents of
-     * the command file are parsed using StreamTokenizer and the original
-     * '@file' argument replaced with the resulting tokens. Recursive command
-     * files are not supported. The '@' character itself can be quoted with
-     * the sequence '@@'.
-     * @param envVariable the env variable to process
-     * @param args the arguments that may contain @files
-     * @return the arguments, with environment variable's content and expansion of @files
-     * @throws IOException if there is a problem reading any of the @files
-     * @throws UnmatchedQuote
-     */
-    public static List<String> parse(String envVariable, List<String> args)
-            throws IOException, UnmatchedQuote {
-
-        List<String> inArgs = new ArrayList<>();
-        appendParsedEnvVariables(inArgs, envVariable);
-        inArgs.addAll(args);
-        List<String> newArgs = new ArrayList<>();
-        appendParsedCommandArgs(newArgs, inArgs);
-        return newArgs;
-    }
-
-    /**
-     * Process the given environment variable and appends any Win32-style
-     * command files for the specified command line arguments and return
-     * the resulting arguments. A command file argument
-     * is of the form '@file' where 'file' is the name of the file whose
-     * contents are to be parsed for additional arguments. The contents of
-     * the command file are parsed using StreamTokenizer and the original
-     * '@file' argument replaced with the resulting tokens. Recursive command
-     * files are not supported. The '@' character itself can be quoted with
-     * the sequence '@@'.
-     * @param envVariable the env variable to process
-     * @param args the arguments that may contain @files
-     * @return the arguments, with environment variable's content and expansion of @files
-     * @throws IOException if there is a problem reading any of the @files
-     * @throws UnmatchedQuote
-     */
-    public static String[] parse(String envVariable, String[] args) throws IOException, UnmatchedQuote {
-        List<String> out = parse(envVariable, Arrays.asList(args));
-        return out.toArray(new String[out.size()]);
     }
 
     private static void loadCmdFile(String name, List<String> args) throws IOException {
@@ -247,77 +198,6 @@ class CommandLine {
 
                 ch = in.read();
             }
-        }
-    }
-
-    @SuppressWarnings("fallthrough")
-    private static void appendParsedEnvVariables(List<String> newArgs, String envVariable)
-            throws UnmatchedQuote {
-
-        if (envVariable == null) {
-            return;
-        }
-        String in = System.getenv(envVariable);
-        if (in == null || in.trim().isEmpty()) {
-            return;
-        }
-
-        final char NUL = (char)0;
-        final int len = in.length();
-
-        int pos = 0;
-        StringBuilder sb = new StringBuilder();
-        char quote = NUL;
-        char ch;
-
-        loop:
-        while (pos < len) {
-            ch = in.charAt(pos);
-            switch (ch) {
-                case '\"': case '\'':
-                    if (quote == NUL) {
-                        quote = ch;
-                    } else if (quote == ch) {
-                        quote = NUL;
-                    } else {
-                        sb.append(ch);
-                    }
-                    pos++;
-                    break;
-                case '\f': case '\n': case '\r': case '\t': case ' ':
-                    if (quote == NUL) {
-                        newArgs.add(sb.toString());
-                        sb.setLength(0);
-                        while (ch == '\f' || ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ') {
-                            pos++;
-                            if (pos >= len) {
-                                break loop;
-                            }
-                            ch = in.charAt(pos);
-                        }
-                        break;
-                    }
-                    // fall through
-                default:
-                    sb.append(ch);
-                    pos++;
-            }
-        }
-        if (sb.length() != 0) {
-            newArgs.add(sb.toString());
-        }
-        if (quote != NUL) {
-            throw new UnmatchedQuote(envVariable);
-        }
-    }
-
-    public static class UnmatchedQuote extends Exception {
-        private static final long serialVersionUID = 0;
-
-        public final String variableName;
-
-        UnmatchedQuote(String variable) {
-            this.variableName = variable;
         }
     }
 }

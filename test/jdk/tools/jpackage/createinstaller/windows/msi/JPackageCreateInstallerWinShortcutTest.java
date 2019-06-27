@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerWinShortcutBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerWinShortcutTest
  */
 public class JPackageCreateInstallerWinShortcutTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerWinShortcutTest {
     private static final String EXT = "msi";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerWinShortcutBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerWinShortcutBase.run(TEST_NAME, EXT);
+        }
     }
 }

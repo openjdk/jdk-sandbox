@@ -167,37 +167,28 @@ public class WinMsiBundler  extends AbstractBundler {
             + "C:\\Program Files (x86)\\WiX Toolset v3.7\\bin;"
             + "C:\\Program Files\\WiX Toolset v3.7\\bin";
 
-    public static final BundlerParamInfo<String> TOOL_CANDLE_EXECUTABLE =
-            new WindowsBundlerParam<>(
-            "win.msi.candle.exe",
-            String.class,
-            params -> {
-                for (String dirString : (System.getenv("PATH") +
-                        AUTODETECT_DIRS).split(";")) {
-                    File f = new File(dirString.replace("\"", ""), TOOL_CANDLE);
-                    if (f.isFile()) {
-                        return f.toString();
-                    }
-                }
-                return null;
-            },
-            null);
+    private static String getCandlePath() {
+        for (String dirString : (System.getenv("PATH")
+                + AUTODETECT_DIRS).split(";")) {
+            File f = new File(dirString.replace("\"", ""), TOOL_CANDLE);
+            if (f.isFile()) {
+                return f.toString();
+            }
+        }
+        return null;
+    }
 
-    public static final BundlerParamInfo<String> TOOL_LIGHT_EXECUTABLE =
-            new WindowsBundlerParam<>(
-            "win.msi.light.exe",
-            String.class,
-            params -> {
-                for (String dirString : (System.getenv("PATH") +
-                        AUTODETECT_DIRS).split(";")) {
-                    File f = new File(dirString.replace("\"", ""), TOOL_LIGHT);
-                    if (f.isFile()) {
-                        return f.toString();
-                    }
-                }
-                return null;
-            },
-            null);
+    private static String getLightPath() {
+        for (String dirString : (System.getenv("PATH")
+                + AUTODETECT_DIRS).split(";")) {
+            File f = new File(dirString.replace("\"", ""), TOOL_LIGHT);
+            if (f.isFile()) {
+                return f.toString();
+            }
+        }
+        return null;
+    }
+        
 
     public static final StandardBundlerParam<Boolean> MENU_HINT =
         new WindowsBundlerParam<>(
@@ -227,11 +218,6 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("msi.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "msi";
     }
@@ -242,28 +228,6 @@ public class WinMsiBundler  extends AbstractBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(WinAppBundler.getAppBundleParameters());
-        results.addAll(getMsiBundleParameters());
-        return results;
-    }
-
-    public static Collection<BundlerParamInfo<?>> getMsiBundleParameters() {
-        return Arrays.asList(
-                DESCRIPTION,
-                MENU_GROUP,
-                MENU_HINT,
-                PRODUCT_VERSION,
-                SHORTCUT_HINT,
-                MSI_SYSTEM_WIDE,
-                VENDOR,
-                LICENSE_FILE,
-                INSTALLDIR_CHOOSER
-        );
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
@@ -271,7 +235,15 @@ public class WinMsiBundler  extends AbstractBundler {
 
     @Override
     public boolean supported(boolean platformInstaller) {
-        return (Platform.getPlatform() == Platform.WINDOWS);
+        return isSupported();
+    }
+
+    public static boolean isSupported() {
+        try {
+            return validateWixTools();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static String findToolVersion(String toolName) {
@@ -297,9 +269,31 @@ public class WinMsiBundler  extends AbstractBundler {
         }
     }
 
+    public static boolean validateWixTools() {
+        String candleVersion = findToolVersion(getCandlePath());
+        String lightVersion = findToolVersion(getLightPath());
+
+        // WiX 3.0+ is required
+        String minVersion = "3.0";
+
+        if (VersionExtractor.isLessThan(candleVersion, minVersion)) {
+            Log.verbose(MessageFormat.format(
+                    I18N.getString("message.wrong-tool-version"),
+                    TOOL_CANDLE, candleVersion, minVersion));
+            return false;
+        }
+        if (VersionExtractor.isLessThan(lightVersion, minVersion)) {
+            Log.verbose(MessageFormat.format(
+                    I18N.getString("message.wrong-tool-version"),
+                    TOOL_LIGHT, lightVersion, minVersion));
+            return false;
+        }
+        return true;
+    }
+
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -307,36 +301,13 @@ public class WinMsiBundler  extends AbstractBundler {
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(params).validate(params);
-
-            String candleVersion =
-                    findToolVersion(TOOL_CANDLE_EXECUTABLE.fetchFrom(params));
-            String lightVersion =
-                    findToolVersion(TOOL_LIGHT_EXECUTABLE.fetchFrom(params));
-
-            // WiX 3.0+ is required
-            String minVersion = "3.0";
-            boolean bad = false;
-
-            if (VersionExtractor.isLessThan(candleVersion, minVersion)) {
-                Log.verbose(MessageFormat.format(
-                        I18N.getString("message.wrong-tool-version"),
-                        TOOL_CANDLE, candleVersion, minVersion));
-                bad = true;
-            }
-            if (VersionExtractor.isLessThan(lightVersion, minVersion)) {
-                Log.verbose(MessageFormat.format(
-                        I18N.getString("message.wrong-tool-version"),
-                        TOOL_LIGHT, lightVersion, minVersion));
-                bad = true;
-            }
-
-            if (bad){
+            if (!validateWixTools()){
                 throw new ConfigException(
                         I18N.getString("error.no-wix-tools"),
                         I18N.getString("error.no-wix-tools.advice"));
             }
 
+            String lightVersion = findToolVersion(getLightPath());
             if (!VersionExtractor.isLessThan(lightVersion, "3.6")) {
                 Log.verbose(I18N.getString("message.use-wix36-features"));
                 params.put(CAN_USE_WIX36.getID(), Boolean.TRUE);
@@ -491,8 +462,8 @@ public class WinMsiBundler  extends AbstractBundler {
         IOUtils.writableOutputDir(outdir.toPath());
 
         // validate we have valid tools before continuing
-        String light = TOOL_LIGHT_EXECUTABLE.fetchFrom(params);
-        String candle = TOOL_CANDLE_EXECUTABLE.fetchFrom(params);
+        String light = getLightPath();
+        String candle = getCandlePath();
         if (light == null || !new File(light).isFile() ||
             candle == null || !new File(candle).isFile()) {
             Log.verbose(MessageFormat.format(
@@ -1043,7 +1014,7 @@ public class WinMsiBundler  extends AbstractBundler {
         msiOut.getParentFile().mkdirs();
 
         List<String> commandLine = new ArrayList<>(Arrays.asList(
-                TOOL_CANDLE_EXECUTABLE.fetchFrom(params),
+                getCandlePath(),
                 "-nologo",
                 getConfig_ProjectFile(params).getAbsolutePath(),
                 "-ext", "WixUtilExtension",
@@ -1064,7 +1035,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
         commandLine = new ArrayList<>();
 
-        commandLine.add(TOOL_LIGHT_EXECUTABLE.fetchFrom(params));
+        commandLine.add(getLightPath());
 
         commandLine.add("-nologo");
         commandLine.add("-spdb");

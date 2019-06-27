@@ -113,34 +113,9 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.params = new HashMap<>();
     }
 
-    private Path destFile(String dir, String filename) {
-        return runtimeDir.resolve(dir).resolve(filename);
-    }
-
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
         Files.createDirectories(dstFile.getParent());
         Files.copy(in, dstFile);
-    }
-
-    private void writeSymEntry(Path dstFile, Path target) throws IOException {
-        Files.createDirectories(dstFile.getParent());
-        Files.createLink(dstFile, target);
-    }
-
-    /**
-     * chmod ugo+x file
-     */
-    private void setExecutable(Path file) {
-        try {
-            Set<PosixFilePermission> perms =
-                    Files.getPosixFilePermissions(file);
-            perms.add(PosixFilePermission.OWNER_EXECUTE);
-            perms.add(PosixFilePermission.GROUP_EXECUTE);
-            perms.add(PosixFilePermission.OTHERS_EXECUTE);
-            Files.setPosixFilePermissions(file, perms);
-        } catch (IOException ioe) {
-            throw new UncheckedIOException(ioe);
-        }
     }
 
     // it is static for the sake of sharing with "installer" bundlers
@@ -155,7 +130,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         return "bin" + File.separator + APP_NAME.fetchFrom(params);
     }
 
-    public static String getLauncherName(Map<String, ? super Object> params) {
+    private static String getLauncherName(Map<String, ? super Object> params) {
         return APP_NAME.fetchFrom(params);
     }
 

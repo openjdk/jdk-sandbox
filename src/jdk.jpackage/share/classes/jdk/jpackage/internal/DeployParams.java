@@ -53,71 +53,11 @@ public class DeployParams {
     final List<RelativeFileSet> resources = new ArrayList<>();
 
     String targetFormat = null; // means app-image
-    String licenseType;
-    String copyright;
-    String version;
-    String applicationClass;
-
-    // Java modules support
-    String addModules = null;
-    String limitModules = null;
-    String module = null;
 
     File outdir = null;
 
-
-    // list of jvm args
-    // (in theory string can contain spaces and need to be escaped
-    List<String> jvmargs = new LinkedList<>();
-
     // raw arguments to the bundler
     Map<String, ? super Object> bundlerArguments = new LinkedHashMap<>();
-
-    void setLicenseType(String licenseType) {
-        this.licenseType = licenseType;
-    }
-
-    void setCopyright(String copyright) {
-        this.copyright = copyright;
-    }
-
-    void setVersion(String version) {
-        this.version = version;
-    }
-
-    void addJvmArg(String v) {
-        jvmargs.add(v);
-    }
-
-    void addAddModule(String value) {
-        if (addModules == null) {
-            addModules = value;
-        }
-        else {
-            addModules += "," + value;
-        }
-    }
-
-    void addLimitModule(String value) {
-        if (limitModules == null) {
-            limitModules = value;
-        }
-        else {
-            limitModules += "," + value;
-        }
-    }
-
-    void setModule(String value) {
-        this.module = value;
-    }
-
-    void setApplicationClass(String applicationClass) {
-        this.applicationClass = applicationClass;
-    }
-
-    File getOutput() {
-        return outdir;
-    }
 
     public void setOutput(File output) {
         outdir = output;
@@ -329,18 +269,6 @@ public class DeployParams {
         }
     }
 
-    boolean validateForBundle() {
-        boolean result = false;
-
-        // Success
-        if (((applicationClass != null && !applicationClass.isEmpty()) ||
-            (module != null && !module.isEmpty()))) {
-            result = true;
-        }
-
-        return result;
-    }
-
     void setTargetFormat(String t) {
         targetFormat = t;
     }
@@ -392,24 +320,6 @@ public class DeployParams {
         // construct app resources relative to output folder!
         bundleParams.setAppResourcesList(resources);
 
-        bundleParams.setApplicationClass(applicationClass);
-        bundleParams.setAppVersion(version);
-        bundleParams.setCopyright(copyright);
-
-        bundleParams.setJvmargs(jvmargs);
-
-        if (addModules != null && !addModules.isEmpty()) {
-            bundleParams.setAddModules(addModules);
-        }
-
-        if (limitModules != null && !limitModules.isEmpty()) {
-            bundleParams.setLimitModules(limitModules);
-        }
-
-        if (module != null && !module.isEmpty()) {
-            bundleParams.setMainModule(module);
-        }
-
         Map<String, String> unescapedHtmlParams = new TreeMap<>();
         Map<String, String> escapedHtmlParams = new TreeMap<>();
 
@@ -425,10 +335,6 @@ public class DeployParams {
         bundleParams.addAllBundleParams(bundlerArguments);
 
         return bundleParams;
-    }
-
-    Map<String, ? super Object> getBundlerArguments() {
-        return this.bundlerArguments;
     }
 
     @Override

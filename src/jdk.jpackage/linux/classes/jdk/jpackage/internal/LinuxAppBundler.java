@@ -86,7 +86,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -103,10 +103,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     private boolean doValidate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
-        if (Platform.getPlatform() != Platform.LINUX) {
-            throw new UnsupportedPlatformException();
-        }
+            throws ConfigException {
 
         imageBundleValidation(params);
 
@@ -117,10 +114,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
     // that may skip calls to validate/bundle in this class!
     static File getRootDir(File outDir, Map<String, ? super Object> params) {
         return new File(outDir, APP_NAME.fetchFrom(params));
-    }
-
-    static String getLauncherCfgName(Map<String, ? super Object> params) {
-        return "app/" + APP_NAME.fetchFrom(params) +".cfg";
     }
 
     File doBundle(Map<String, ? super Object> params, File outputDirectory,
@@ -160,11 +153,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("app.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "linux.app";
     }
@@ -175,25 +163,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        return getAppBundleParameters();
-    }
-
-    static Collection<BundlerParamInfo<?>> getAppBundleParameters() {
-        return Arrays.asList(
-                APP_NAME,
-                APP_RESOURCES,
-                ARGUMENTS,
-                CLASSPATH,
-                JAVA_OPTIONS,
-                MAIN_CLASS,
-                MAIN_JAR,
-                VERSION,
-                VERBOSE
-        );
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
@@ -201,6 +170,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return (Platform.getPlatform() == Platform.LINUX);
+        return true;
     }
 }

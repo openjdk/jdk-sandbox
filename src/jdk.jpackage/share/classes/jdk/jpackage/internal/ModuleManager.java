@@ -62,12 +62,6 @@ final class ModuleManager {
         }
     }
 
-    List<ModFile> getModules() {
-        return getModules(EnumSet.of(SearchType.UnnamedJar,
-                SearchType.ModularJar, SearchType.Jmod,
-                SearchType.ExplodedModule));
-    }
-
     List<ModFile> getModules(EnumSet<SearchType> Search) {
         List<ModFile> result = new ArrayList<ModFile>();
 

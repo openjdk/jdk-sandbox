@@ -104,8 +104,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             (s, p) -> s);
 
     protected void validateAppImageAndBundeler(
-            Map<String, ? super Object> params)
-            throws ConfigException, UnsupportedPlatformException {
+            Map<String, ? super Object> params) throws ConfigException {
         if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
             File applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
             if (!applicationImage.exists()) {
@@ -150,21 +149,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
             return APP_BUNDLER.fetchFrom(params).doBundle(
                     params, appImageRoot, true);
         }
-    }
-
-    @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-
-        results.addAll(MacAppBundler.getAppBundleParameters());
-        results.addAll(Arrays.asList(
-                APP_BUNDLER,
-                CONFIG_ROOT,
-                APP_IMAGE_TEMP_ROOT,
-                PREDEFINED_APP_IMAGE
-        ));
-
-        return results;
     }
 
     @Override

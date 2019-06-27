@@ -54,11 +54,9 @@ public abstract class AbstractAppImageBuilder {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
-    private final Map<String, Object> properties;
     private final Path root;
 
-    public AbstractAppImageBuilder(Map<String, Object> properties, Path root) {
-        this.properties = properties;
+    public AbstractAppImageBuilder(Map<String, Object> unused, Path root) {
         this.root = root;
     }
 
@@ -70,10 +68,6 @@ public abstract class AbstractAppImageBuilder {
     public abstract void prepareJreFiles() throws IOException;
     public abstract Path getAppDir();
     public abstract Path getAppModsDir();
-
-    public Map<String, Object> getProperties() {
-        return this.properties;
-    }
 
     public Path getRoot() {
         return this.root;

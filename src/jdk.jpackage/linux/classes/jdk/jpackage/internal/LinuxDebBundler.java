@@ -219,7 +219,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -756,12 +756,6 @@ public class LinuxDebBundler extends AbstractBundler {
         return new File(rootDir, APP_NAME.fetchFrom(params) + ".png");
     }
 
-    private File getConfig_InitScriptFile(Map<String, ? super Object> params) {
-        return new File(LinuxAppBundler.getRootDir(
-                APP_IMAGE_ROOT.fetchFrom(params), params),
-                        BUNDLE_NAME.fetchFrom(params) + ".init");
-    }
-
     private File getConfig_ControlFile(Map<String, ? super Object> params) {
         return new File(CONFIG_DIR.fetchFrom(params), "control");
     }
@@ -815,11 +809,6 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("deb.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "deb";
     }
@@ -830,27 +819,6 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(LinuxAppBundler.getAppBundleParameters());
-        results.addAll(getDebBundleParameters());
-        return results;
-    }
-
-    public static Collection<BundlerParamInfo<?>> getDebBundleParameters() {
-        return Arrays.asList(
-                BUNDLE_NAME,
-                COPYRIGHT,
-                MENU_GROUP,
-                DESCRIPTION,
-                EMAIL,
-                ICON_PNG,
-                LICENSE_FILE,
-                VENDOR
-        );
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
@@ -858,6 +826,10 @@ public class LinuxDebBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
+        return isSupported();
+    }
+
+    public static boolean isSupported() {
         if (Platform.getPlatform() == Platform.LINUX) {
             if (testTool(TOOL_DPKG, "1")) {
                 return true;

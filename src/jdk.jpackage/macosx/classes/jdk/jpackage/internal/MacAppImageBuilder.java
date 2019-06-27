@@ -211,28 +211,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         Files.copy(in, dstFile);
     }
 
-    // chmod ugo+x file
-    private void setExecutable(Path file) {
-        try {
-            Set<PosixFilePermission> perms =
-                    Files.getPosixFilePermissions(file);
-            perms.add(PosixFilePermission.OWNER_EXECUTE);
-            perms.add(PosixFilePermission.GROUP_EXECUTE);
-            perms.add(PosixFilePermission.OTHERS_EXECUTE);
-            Files.setPosixFilePermissions(file, perms);
-        } catch (IOException ioe) {
-            throw new UncheckedIOException(ioe);
-        }
-    }
-
-    private static void createUtf8File(File file, String content)
-        throws IOException {
-        try (OutputStream fout = new FileOutputStream(file);
-             Writer output = new OutputStreamWriter(fout, "UTF-8")) {
-            output.write(content);
-        }
-    }
-
     public static boolean validCFBundleVersion(String v) {
         // CFBundleVersion (String - iOS, OS X) specifies the build version
         // number of the bundle, which identifies an iteration (released or

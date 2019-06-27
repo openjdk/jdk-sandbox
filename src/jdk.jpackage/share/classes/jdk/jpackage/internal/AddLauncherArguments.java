@@ -155,13 +155,6 @@ class AddLauncherArguments {
         }
     }
 
-    private void putUnlessNullOrEmpty(Map<String, ? super Object> params,
-            String param, Map<?, ?> value) {
-        if (value != null && !value.isEmpty()) {
-            params.put(param, value);
-        }
-    }
-
     static Map<String, ? super Object> merge(
             Map<String, ? super Object> original,
             Map<String, ? super Object> additional) {

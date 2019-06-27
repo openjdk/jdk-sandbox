@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerLicenseBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerLicenseTest
  */
 public class JPackageCreateInstallerLicenseTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerLicenseTest {
     private static final String EXT = "msi";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerLicenseBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerLicenseBase.run(TEST_NAME, EXT);
+        }
     }
 }

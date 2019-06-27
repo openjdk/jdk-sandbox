@@ -43,9 +43,8 @@ public class JPackageCreateAppImageAddLauncherModuleTest {
     public static void main(String[] args) throws Exception {
         JPackageHelper.createHelloModule();
         JPackageCreateAppImageAddLauncherBase.createSLProperties();
-        JPackageCreateAppImageAddLauncherBase.testCreateAppImage(CMD);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateAppImageAddLauncherBase.testCreateAppImageToolProvider(CMD);
+        JPackageCreateAppImageAddLauncherBase.testCreateAppImageToolProvider(
+                CMD);
     }
 
 }

@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerWinRegistryNameBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerWinRegistryNameTest
  */
 public class JPackageCreateInstallerWinRegistryNameTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerWinRegistryNameTest {
     private static final String EXT = "exe";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerWinRegistryNameBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerWinRegistryNameBase.run(TEST_NAME, EXT);
+        }
     }
 }

@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerWinDirChooserBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerWinDirChooserTest
  */
 public class JPackageCreateInstallerWinDirChooserTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerWinDirChooserTest {
     private static final String EXT = "exe";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerWinDirChooserBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerWinDirChooserBase.run(TEST_NAME, EXT);
+        }
     }
 }

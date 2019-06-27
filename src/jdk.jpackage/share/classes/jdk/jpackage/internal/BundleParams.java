@@ -108,30 +108,6 @@ public class BundleParams {
         this.params.putAll(params);
     }
 
-    public <T> T fetchParam(BundlerParamInfo<T> paramInfo) {
-        return paramInfo.fetchFrom(params);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> T fetchParamWithDefault(
-            Class<T> klass, T defaultValue, String... keys) {
-        for (String key : keys) {
-            Object o = params.get(key);
-            if (klass.isInstance(o)) {
-                return (T) o;
-            } else if (params.containsKey(key) && o == null) {
-                return null;
-            } else if (o != null) {
-                Log.debug("Bundle param " + key + " is not type " + klass);
-            }
-        }
-        return defaultValue;
-    }
-
-    public <T> T fetchParam(Class<T> klass, String... keys) {
-        return fetchParamWithDefault(klass, null, keys);
-    }
-
     // NOTE: we do not care about application parameters here
     // as they will be embeded into jar file manifest and
     // java launcher will take care of them!
@@ -140,80 +116,8 @@ public class BundleParams {
         return new HashMap<>(params);
     }
 
-    public void setJvmargs(List<String> jvmargs) {
-        putUnlessNullOrEmpty(JAVA_OPTIONS.getID(), jvmargs);
-    }
-
-    public void setAddModules(String value) {
-        putUnlessNull(StandardBundlerParam.ADD_MODULES.getID(), value);
-    }
-
-    public void setLimitModules(String value)  {
-        putUnlessNull(StandardBundlerParam.LIMIT_MODULES.getID(), value);
-    }
-
-    public void setModulePath(String value) {
-        putUnlessNull(StandardBundlerParam.MODULE_PATH.getID(), value);
-    }
-
-    public void setMainModule(String value) {
-        putUnlessNull(StandardBundlerParam.MODULE.getID(), value);
-    }
-
-    public String getApplicationID() {
-        return fetchParam(IDENTIFIER);
-    }
-
-    public String getApplicationClass() {
-        return fetchParam(MAIN_CLASS);
-    }
-
-    public void setApplicationClass(String applicationClass) {
-        putUnlessNull(PARAM_APPLICATION_CLASS, applicationClass);
-    }
-
-    public String getAppVersion() {
-        return fetchParam(VERSION);
-    }
-
-    public void setAppVersion(String version) {
-        putUnlessNull(PARAM_VERSION, version);
-    }
-
-    public String getDescription() {
-        return fetchParam(DESCRIPTION);
-    }
-
-    public void setDescription(String s) {
-        putUnlessNull(PARAM_DESCRIPTION, s);
-    }
-
-    public void setInstalldirChooser(Boolean b) {
-        putUnlessNull(PARAM_INSTALLDIR_CHOOSER, b);
-    }
-
     public String getName() {
-        return fetchParam(APP_NAME);
-    }
-
-    public void setName(String name) {
-        putUnlessNull(PARAM_NAME, name);
-    }
-
-    public boolean getVerbose() {
-        return fetchParam(VERBOSE);
-    }
-
-    public List<String> getJvmargs() {
-        return JAVA_OPTIONS.fetchFrom(params);
-    }
-
-    public jdk.jpackage.internal.RelativeFileSet getAppResource() {
-        return fetchParam(APP_RESOURCES);
-    }
-
-    public void setAppResource(jdk.jpackage.internal.RelativeFileSet fs) {
-        putUnlessNull(PARAM_APP_RESOURCES, fs);
+        return APP_NAME.fetchFrom(params);
     }
 
     public void setAppResourcesList(
@@ -221,114 +125,9 @@ public class BundleParams {
         putUnlessNull(APP_RESOURCES_LIST.getID(), rfs);
     }
 
-    public String getMainClassName() {
-        String applicationClass = getApplicationClass();
-
-        if (applicationClass == null) {
-            return null;
-        }
-
-        int idx = applicationClass.lastIndexOf(".");
-        if (idx >= 0) {
-            return applicationClass.substring(idx+1);
-        }
-        return applicationClass;
-    }
-
-    public String getCopyright() {
-        return fetchParam(COPYRIGHT);
-    }
-
-    public void setCopyright(String c) {
-        putUnlessNull(PARAM_COPYRIGHT, c);
-    }
-
-    private String mainJar = null;
-
-    // assuming that application was packaged according to the rules
-    // we must have application jar, i.e. jar where we embed launcher
-    // and have main application class listed as main class!
-    // If there are more than one, or none - it will be treated as an error
-
-    public String getMainApplicationJar() {
-        jdk.jpackage.internal.RelativeFileSet appResources = getAppResource();
-        if (mainJar != null) {
-            if (getApplicationClass() == null) try {
-                if (appResources != null) {
-                    File srcdir = appResources.getBaseDirectory();
-                    JarFile jf = new JarFile(new File(srcdir, mainJar));
-                    Manifest m = jf.getManifest();
-                    Attributes attrs = (m != null) ?
-                            m.getMainAttributes() : null;
-                    if (attrs != null) {
-                        setApplicationClass(
-                                attrs.getValue(Attributes.Name.MAIN_CLASS));
-                    }
-                }
-            } catch (IOException ignore) {
-            }
-            return mainJar;
-        }
-
-        String applicationClass = getApplicationClass();
-
-        if (appResources == null || applicationClass == null) {
-            return null;
-        }
-        File srcdir = appResources.getBaseDirectory();
-        for (String fname : appResources.getIncludedFiles()) {
-            JarFile jf;
-            try {
-                jf = new JarFile(new File(srcdir, fname));
-                Manifest m = jf.getManifest();
-                Attributes attrs = (m != null) ? m.getMainAttributes() : null;
-                if (attrs != null) {
-                    boolean javaMain = applicationClass.equals(
-                               attrs.getValue(Attributes.Name.MAIN_CLASS));
-
-                    if (javaMain) {
-                        mainJar = fname;
-                        return mainJar;
-                    }
-                }
-            } catch (IOException ignore) {
-            }
-        }
-        return null;
-    }
-
-    public String getVendor() {
-        return fetchParam(VENDOR);
-    }
-
-    public void setVendor(String vendor) {
-       putUnlessNull(PARAM_VENDOR, vendor);
-    }
-
-    public String getEmail() {
-        return fetchParam(String.class, PARAM_EMAIL);
-    }
-
-    public void setEmail(String email) {
-        putUnlessNull(PARAM_EMAIL, email);
-    }
-
-    public void putUnlessNull(String param, Object value) {
+    private void putUnlessNull(String param, Object value) {
         if (value != null) {
             params.put(param, value);
         }
     }
-
-    public void putUnlessNullOrEmpty(String param, Collection<?> value) {
-        if (value != null && !value.isEmpty()) {
-            params.put(param, value);
-        }
-    }
-
-    public void putUnlessNullOrEmpty(String param, Map<?,?> value) {
-        if (value != null && !value.isEmpty()) {
-            params.put(param, value);
-        }
-    }
-
 }

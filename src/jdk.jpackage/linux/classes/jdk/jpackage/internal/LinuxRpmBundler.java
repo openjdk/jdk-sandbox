@@ -174,7 +174,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -658,11 +658,6 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("rpm.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "rpm";
     }
@@ -673,26 +668,6 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(LinuxAppBundler.getAppBundleParameters());
-        results.addAll(getRpmBundleParameters());
-        return results;
-    }
-
-    public static Collection<BundlerParamInfo<?>> getRpmBundleParameters() {
-        return Arrays.asList(
-                BUNDLE_NAME,
-                MENU_GROUP,
-                DESCRIPTION,
-                LinuxAppBundler.ICON_PNG,
-                LICENSE_FILE,
-                LICENSE_TYPE,
-                VENDOR
-        );
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
@@ -700,6 +675,10 @@ public class LinuxRpmBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
+        return isSupported();
+    }
+
+    public static boolean isSupported() {
         if (Platform.getPlatform() == Platform.LINUX) {
             if (testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)) {
                 return true;

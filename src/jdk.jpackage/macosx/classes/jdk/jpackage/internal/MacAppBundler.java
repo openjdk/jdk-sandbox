@@ -240,7 +240,7 @@ public class MacAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             return doValidate(params);
         } catch (RuntimeException re) {
@@ -253,10 +253,7 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     private boolean doValidate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
-        if (Platform.getPlatform() != Platform.MAC) {
-            throw new UnsupportedPlatformException();
-        }
+            throws ConfigException {
 
         imageBundleValidation(params);
 
@@ -327,11 +324,6 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("app.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "mac.app";
     }
@@ -342,34 +334,6 @@ public class MacAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        return getAppBundleParameters();
-    }
-
-    public static Collection<BundlerParamInfo<?>> getAppBundleParameters() {
-        return Arrays.asList(
-                APP_NAME,
-                APP_RESOURCES,
-                ARGUMENTS,
-                BUNDLE_ID_SIGNING_PREFIX,
-                CLASSPATH,
-                DEVELOPER_ID_APP_SIGNING_KEY,
-                ICON_ICNS,
-                JAVA_OPTIONS,
-                MAC_CATEGORY,
-                MAC_CF_BUNDLE_IDENTIFIER,
-                MAC_CF_BUNDLE_NAME,
-                MAC_CF_BUNDLE_VERSION,
-                MAIN_CLASS,
-                MAIN_JAR,
-                SIGNING_KEYCHAIN,
-                VERSION,
-                VERBOSE
-        );
-    }
-
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
@@ -377,7 +341,7 @@ public class MacAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return Platform.getPlatform() == Platform.MAC;
+        return true;
     }
 
 }

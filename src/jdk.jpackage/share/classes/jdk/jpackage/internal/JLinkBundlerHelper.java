@@ -67,36 +67,6 @@ final class JLinkBundlerHelper {
     static final ToolProvider JLINK_TOOL =
             ToolProvider.findFirst("jlink").orElseThrow();
 
-    private JLinkBundlerHelper() {}
-
-    static String listOfPathToString(List<Path> value) {
-        String result = "";
-
-        for (Path path : value) {
-            if (result.length() > 0) {
-                result += File.pathSeparator;
-            }
-
-            result += path.toString();
-        }
-
-        return result;
-    }
-
-    static String setOfStringToString(Set<String> value) {
-        String result = "";
-
-        for (String element : value) {
-            if (result.length() > 0) {
-                result += ",";
-            }
-
-            result += element;
-        }
-
-        return result;
-    }
-
     static File getMainJar(Map<String, ? super Object> params) {
         File result = null;
         RelativeFileSet fileset =
@@ -315,8 +285,6 @@ final class JLinkBundlerHelper {
         static final String ALL_DEFAULT = "ALL-DEFAULT";
 
         private final Set<String> modules = new HashSet<>();
-        private enum Macros {None, AllModulePath, AllRuntime}
-
         ModuleHelper(List<Path> paths, Set<String> addModules,
                 Set<String> limitModules) {
             boolean addAllModulePath = false;

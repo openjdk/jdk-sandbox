@@ -75,11 +75,6 @@ public class BasicBundlers implements Bundlers {
         }
     }
 
-    @Override
-    public void loadDefaultBundlers() {
-        // no-op.  We now load all bundlers from module system.
-    }
-
     // Loads bundlers from the META-INF/services direct
     @Override
     public void loadBundlersFromServices(ClassLoader cl) {
@@ -87,10 +82,5 @@ public class BasicBundlers implements Bundlers {
         for (Bundler aLoader : loader) {
             bundlers.add(aLoader);
         }
-    }
-
-    @Override
-    public void loadBundler(Bundler bundler) {
-        bundlers.add(bundler);
     }
 }

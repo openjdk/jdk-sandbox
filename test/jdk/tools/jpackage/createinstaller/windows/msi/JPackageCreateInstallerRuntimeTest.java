@@ -34,7 +34,7 @@ import java.lang.invoke.MethodHandles;
  * @build JPackageCreateInstallerRuntimeBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerRuntimeTest
  */
 public class JPackageCreateInstallerRuntimeTest {
@@ -43,6 +43,8 @@ public class JPackageCreateInstallerRuntimeTest {
     private static final String EXT = "msi";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerRuntimeBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerRuntimeBase.run(TEST_NAME, EXT);
+        }
     }
 }

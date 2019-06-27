@@ -65,30 +65,32 @@ public class JPackageHelper {
         }
 
         // Figure out test src based on where we called
-        File testSrc = new File(System.getProperty("test.src") + File.separator + ".."
-                + File.separator + "apps");
-        if (testSrc.exists()) {
-            TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + "..";
+        TEST_SRC = System.getProperty("test.src");
+        Path root = Path.of(TEST_SRC);
+        Path apps = Path.of(TEST_SRC, "apps");
+        if (apps.toFile().exists()) {
+            // fine - test is at root
         } else {
-            testSrc = new File(System.getProperty("test.src") + File.separator
-                    + ".." + File.separator + ".." + File.separator + "apps");
-            if (testSrc.exists()) {
-                TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + ".."
-                        + File.separator + "..";
-            } else {
-                testSrc = new File(System.getProperty("test.src") + File.separator
-                        + ".." + File.separator + ".."  + File.separator + ".."
-                        + File.separator + "apps");
-                if (testSrc.exists()) {
-                    TEST_SRC_ROOT = System.getProperty("test.src") + File.separator + ".."
-                            + File.separator + ".." + File.separator + "..";
-                } else {
-                    TEST_SRC_ROOT = System.getProperty("test.src");
-                }
+             apps = Path.of(TEST_SRC, "..", "apps");
+             if (apps.toFile().exists()) {
+                 root = apps.getParent().normalize(); // test is 1 level down
+             } else {
+                 apps = Path.of(TEST_SRC, "..", "..", "apps");
+                 if (apps.toFile().exists()) {
+                     root = apps.getParent().normalize(); // 2 levels down
+                 } else {
+                     apps = Path.of(TEST_SRC, "..", "..", "..", "apps");
+                     if (apps.toFile().exists()) {
+                         root = apps.getParent().normalize(); // 3 levels down
+                     } else {
+                         // if we ever have tests more than three levels
+                         // down we need to add code here
+                         throw new RuntimeException("we should never get here");
+                     }
+                 }
             }
         }
-
-        TEST_SRC = System.getProperty("test.src");
+        TEST_SRC_ROOT = root.toString();
     }
 
     static final ToolProvider JPACKAGE_TOOL =
@@ -165,6 +167,7 @@ public class JPackageHelper {
             @Override
             public FileVisitResult visitFile(Path file,
                     BasicFileAttributes attr) throws IOException {
+                file.toFile().setWritable(true);
                 if (OS.startsWith("win")) {
                     try {
                         Files.setAttribute(file, "dos:readonly", false);

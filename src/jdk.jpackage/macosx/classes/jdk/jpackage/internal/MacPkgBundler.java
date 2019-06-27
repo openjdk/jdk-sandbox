@@ -488,39 +488,13 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("pkg.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "pkg";
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(MacAppBundler.getAppBundleParameters());
-        results.addAll(getPKGBundleParameters());
-        return results;
-    }
-
-    public Collection<BundlerParamInfo<?>> getPKGBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-
-        results.addAll(MacAppBundler.getAppBundleParameters());
-        results.addAll(Arrays.asList(
-                DEVELOPER_ID_INSTALLER_SIGNING_KEY,
-                INSTALLER_SUFFIX,
-                LICENSE_FILE,
-                SIGNING_KEYCHAIN));
-
-        return results;
-    }
-
-    @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -564,7 +538,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return Platform.getPlatform() == Platform.MAC;
+        return true;
     }
 
 }

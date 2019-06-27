@@ -147,45 +147,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         Files.createDirectories(runtimeDir);
     }
 
-    private Path destFile(String dir, String filename) {
-        return runtimeDir.resolve(dir).resolve(filename);
-    }
-
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
         Files.createDirectories(dstFile.getParent());
         Files.copy(in, dstFile);
     }
 
-    private void writeSymEntry(Path dstFile, Path target) throws IOException {
-        Files.createDirectories(dstFile.getParent());
-        Files.createLink(dstFile, target);
-    }
-
-    /**
-     * chmod ugo+x file
-     */
-    private void setExecutable(Path file) {
-        try {
-            Set<PosixFilePermission> perms =
-                Files.getPosixFilePermissions(file);
-            perms.add(PosixFilePermission.OWNER_EXECUTE);
-            perms.add(PosixFilePermission.GROUP_EXECUTE);
-            perms.add(PosixFilePermission.OTHERS_EXECUTE);
-            Files.setPosixFilePermissions(file, perms);
-        } catch (IOException ioe) {
-            throw new UncheckedIOException(ioe);
-        }
-    }
-
-    private static void createUtf8File(File file, String content)
-            throws IOException {
-        try (OutputStream fout = new FileOutputStream(file);
-             Writer output = new OutputStreamWriter(fout, "UTF-8")) {
-            output.write(content);
-        }
-    }
-
-    public static String getLauncherName(Map<String, ? super Object> params) {
+    private static String getLauncherName(Map<String, ? super Object> params) {
         return APP_NAME.fetchFrom(params) + ".exe";
     }
 
@@ -284,25 +251,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         if (e != null) {
             throw e;
         }
-    }
-
-    private boolean copyMSVCDLLs(String VS_VER) throws IOException {
-        final InputStream REDIST_MSVCR_URL = getResourceAsStream(
-                REDIST_MSVCR.replaceAll("VS_VER", VS_VER));
-        final InputStream REDIST_MSVCP_URL = getResourceAsStream(
-                REDIST_MSVCP.replaceAll("VS_VER", VS_VER));
-
-        if (REDIST_MSVCR_URL != null && REDIST_MSVCP_URL != null) {
-            Files.copy(
-                    REDIST_MSVCR_URL,
-                    binDir.resolve(REDIST_MSVCR.replaceAll("VS_VER", VS_VER)));
-            Files.copy(
-                    REDIST_MSVCP_URL,
-                    binDir.resolve(REDIST_MSVCP.replaceAll("VS_VER", VS_VER)));
-            return true;
-        }
-
-        return false;
     }
 
     private void validateValueAndPut(
@@ -415,6 +363,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                     }
                 }
             } finally {
+                executableFile.toFile().setExecutable(true);
                 executableFile.toFile().setReadOnly();
             }
         }

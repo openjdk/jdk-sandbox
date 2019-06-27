@@ -64,7 +64,6 @@ public class Arguments {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
-    private static final String IMAGE_PACKAGE_TYPE = "app-image";
     private static final String FA_EXTENSIONS = "extension";
     private static final String FA_CONTENT_TYPE = "mime-type";
     private static final String FA_DESCRIPTION = "description";
@@ -377,8 +376,7 @@ public class Arguments {
         }
 
         String getIdWithPrefix() {
-            String prefix = isMode() ? "" : "--";
-            return prefix + this.id;
+            return "--" + this.id;
         }
 
         String getShortIdWithPrefix() {
@@ -391,14 +389,6 @@ public class Arguments {
             } else {
                 defaultAction();
             }
-        }
-
-        boolean isMode() {
-            return category == OptionCategories.MODE;
-        }
-
-        OptionCategories getCategory() {
-            return category;
         }
 
         private void defaultAction() {
@@ -424,17 +414,12 @@ public class Arguments {
             context().pos++;
         }
 
-        private static void prevArg() {
-            context().pos--;
-        }
-
         private static boolean hasNextArg() {
             return context().pos < context().argList.size();
         }
     }
 
     enum OptionCategories {
-        MODE,
         MODULAR,
         PROPERTY,
         PLATFORM_MAC,
@@ -541,7 +526,7 @@ public class Arguments {
     private void validateArguments() throws PackagerException {
         String packageType = deployParams.getTargetFormat();
         String ptype = (packageType != null) ? packageType : "default";
-        boolean imageOnly = IMAGE_PACKAGE_TYPE.equals(packageType);
+        boolean imageOnly = (packageType == null);
         boolean hasAppImage = allOptions.contains(
                 CLIOptions.PREDEFINED_APP_IMAGE);
         boolean hasRuntime = allOptions.contains(
@@ -634,10 +619,6 @@ public class Arguments {
             Log.verbose(MessageFormat.format(
                     I18N.getString("message.bundle-created"),
                     bundler.getName()));
-        } catch (UnsupportedPlatformException upe) {
-            Log.debug(upe);
-            throw new PackagerException(upe,
-                    "MSG_BundlerPlatformException", bundler.getName());
         } catch (ConfigException e) {
             Log.debug(e);
             if (e.getAdvice() != null)  {
@@ -692,10 +673,6 @@ public class Arguments {
         fileNames.forEach(file -> deployParams.addResource(baseDir, file));
 
         deployParams.setClasspath();
-    }
-
-    static boolean isCLIOption(String arg) {
-        return toCLIOption(arg) != null;
     }
 
     static CLIOptions toCLIOption(String arg) {

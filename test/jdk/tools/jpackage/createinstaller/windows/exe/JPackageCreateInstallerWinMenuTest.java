@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerWinMenuBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerWinMenuTest
  */
 public class JPackageCreateInstallerWinMenuTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerWinMenuTest {
     private static final String EXT = "exe";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerWinMenuBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerWinMenuBase.run(TEST_NAME, EXT);
+        }
     }
 }

@@ -346,6 +346,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         pb = new ProcessBuilder(
                 hdiutil,
                 "detach",
+                "-force",
                 hdiUtilVerbosityFlag,
                 mountedRoot.getAbsolutePath());
         IOUtils.exec(pb);
@@ -411,39 +412,13 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("dmg.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "dmg";
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(MacAppBundler.getAppBundleParameters());
-        results.addAll(getDMGBundleParameters());
-        return results;
-    }
-
-    public Collection<BundlerParamInfo<?>> getDMGBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-
-        results.addAll(MacAppBundler.getAppBundleParameters());
-        results.addAll(Arrays.asList(
-                INSTALLER_SUFFIX,
-                LICENSE_FILE
-        ));
-
-        return results;
-    }
-
-
-    @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -471,6 +446,22 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        return Platform.getPlatform() == Platform.MAC;
+        return isSupported();
+    }
+
+    public final static String[] required =
+            {"/usr/bin/hdiutil", "/usr/bin/osascript"};
+    public static boolean isSupported() {
+        try {
+            for (String s : required) {
+                File f = new File(s);
+                if (!f.exists() || !f.canExecute()) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

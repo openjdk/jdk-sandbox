@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerTest
  */
 public class JPackageCreateInstallerTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerTest {
     private static final String EXT = "exe";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerBase.run(TEST_NAME, EXT);
+        }
     }
 }

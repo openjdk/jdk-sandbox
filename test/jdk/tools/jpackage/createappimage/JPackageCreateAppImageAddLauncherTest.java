@@ -45,8 +45,6 @@ public class JPackageCreateAppImageAddLauncherTest {
         JPackageHelper.createHelloImageJar();
         JPackageCreateAppImageAddLauncherBase.createSLProperties();
         JPackageCreateAppImageAddLauncherBase.testCreateAppImage(CMD);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageCreateAppImageAddLauncherBase.testCreateAppImageToolProvider(CMD);
     }
 
 }

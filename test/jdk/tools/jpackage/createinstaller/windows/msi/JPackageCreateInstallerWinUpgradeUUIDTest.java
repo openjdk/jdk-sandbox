@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerWinUpgradeUUIDBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerWinUpgradeUUIDTest
  */
 public class JPackageCreateInstallerWinUpgradeUUIDTest {
@@ -40,6 +40,8 @@ public class JPackageCreateInstallerWinUpgradeUUIDTest {
     private static final String EXT = "msi";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerWinUpgradeUUIDBase.run(TEST_NAME, EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerWinUpgradeUUIDBase.run(TEST_NAME, EXT);
+        }
     }
 }

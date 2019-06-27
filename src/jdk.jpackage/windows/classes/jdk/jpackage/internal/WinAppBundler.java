@@ -58,7 +58,7 @@ public class WinAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
             if (params == null) throw new ConfigException(
                     I18N.getString("error.parameters-null"),
@@ -77,10 +77,7 @@ public class WinAppBundler extends AbstractImageBundler {
     // to be used by chained bundlers, e.g. by EXE bundler to avoid
     // skipping validation if p.type does not include "image"
     private boolean doValidate(Map<String, ? super Object> p)
-            throws UnsupportedPlatformException, ConfigException {
-        if (Platform.getPlatform() != Platform.WINDOWS) {
-            throw new UnsupportedPlatformException();
-        }
+            throws ConfigException {
 
         imageBundleValidation(p);
 
@@ -156,14 +153,6 @@ public class WinAppBundler extends AbstractImageBundler {
         return "bin" + File.separator + getAppName(p) + ".exe";
     }
 
-    public static String getLauncherName(Map<String, ? super Object> p) {
-        return getAppName(p) + ".exe";
-    }
-
-    public static String getLauncherCfgName(Map<String, ? super Object> p) {
-        return "app" + File.separator + getAppName(p) +".cfg";
-    }
-
     public boolean bundle(Map<String, ? super Object> p, File outputDirectory)
             throws PackagerException {
         return doBundle(p, outputDirectory, false) != null;
@@ -210,11 +199,6 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("app.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "windows.app";
     }
@@ -225,26 +209,6 @@ public class WinAppBundler extends AbstractImageBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        return getAppBundleParameters();
-    }
-
-    public static Collection<BundlerParamInfo<?>> getAppBundleParameters() {
-        return Arrays.asList(
-                APP_NAME,
-                APP_RESOURCES,
-                ARGUMENTS,
-                CLASSPATH,
-                ICON_ICO,
-                JAVA_OPTIONS,
-                MAIN_CLASS,
-                MAIN_JAR,
-                VERSION,
-                VERBOSE
-            );
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return doBundle(params, outputParentDir, false);
@@ -252,7 +216,7 @@ public class WinAppBundler extends AbstractImageBundler {
 
     @Override
     public boolean supported(boolean platformInstaller) {
-        return (Platform.getPlatform() == Platform.WINDOWS);
+        return true;
     }
 
 }

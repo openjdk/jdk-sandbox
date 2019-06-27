@@ -254,47 +254,14 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public String getDescription() {
-        return I18N.getString("store.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "mac.appStore";
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-        results.addAll(getAppBundleParameters());
-        results.addAll(getMacAppStoreBundleParameters());
-        return results;
-    }
-
-    public Collection<BundlerParamInfo<?>> getMacAppStoreBundleParameters() {
-        Collection<BundlerParamInfo<?>> results = new LinkedHashSet<>();
-
-        results.addAll(getAppBundleParameters());
-        results.remove(DEVELOPER_ID_APP_SIGNING_KEY);
-        results.addAll(Arrays.asList(
-                INSTALLER_SUFFIX,
-                MAC_APP_STORE_APP_SIGNING_KEY,
-                MAC_APP_STORE_ENTITLEMENTS,
-                MAC_APP_STORE_PKG_SIGNING_KEY,
-                SIGNING_KEYCHAIN
-        ));
-
-        return results;
-    }
-
-    @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         try {
-            if (Platform.getPlatform() != Platform.MAC) {
-                throw new UnsupportedPlatformException();
-            }
-
             if (params == null) {
                 throw new ConfigException(
                         I18N.getString("error.parameters-null"),

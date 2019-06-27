@@ -68,11 +68,6 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
-    public String getDescription() {
-        return getString("exe.bundler.description");
-    }
-
-    @Override
     public String getID() {
         return "exe";
     }
@@ -83,11 +78,6 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
-    public Collection<BundlerParamInfo<?>> getBundleParameters() {
-        return new WinMsiBundler().getBundleParameters();
-    }
-
-    @Override
     public File execute(Map<String, ? super Object> params,
             File outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
@@ -95,12 +85,12 @@ public class WinExeBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean platformInstaller) {
-        return (Platform.getPlatform() == Platform.WINDOWS);
+        return WinMsiBundler.isSupported();
     }
 
     @Override
     public boolean validate(Map<String, ? super Object> params)
-            throws UnsupportedPlatformException, ConfigException {
+            throws ConfigException {
         return new WinMsiBundler().validate(params);
     }
 

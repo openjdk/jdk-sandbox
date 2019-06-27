@@ -70,10 +70,6 @@ class BundlerParamInfo<T> {
         return valueType;
     }
 
-    void setValueType(Class<T> valueType) {
-        this.valueType = valueType;
-    }
-
     boolean getIsDefaultValue() {
         return isDefaultValue;
     }
@@ -82,19 +78,9 @@ class BundlerParamInfo<T> {
         return defaultValueFunction;
     }
 
-    void setDefaultValueFunction(
-            Function<Map<String, ? super Object>, T> defaultValueFunction) {
-        this.defaultValueFunction = defaultValueFunction;
-    }
-
     BiFunction<String, Map<String, ? super Object>,T>
             getStringConverter() {
         return stringConverter;
-    }
-
-    void setStringConverter(BiFunction<String,
-            Map<String, ? super Object>, T> stringConverter) {
-        this.stringConverter = stringConverter;
     }
 
     @SuppressWarnings("unchecked")

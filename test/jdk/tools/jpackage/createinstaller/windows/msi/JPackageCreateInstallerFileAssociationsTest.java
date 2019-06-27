@@ -32,7 +32,7 @@
  * @build JPackageCreateInstallerFileAssociationsBase
  * @requires (os.family == "windows")
  * @modules jdk.jpackage
- * @ignore
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m JPackageCreateInstallerFileAssociationsTest
  */
 public class JPackageCreateInstallerFileAssociationsTest {
@@ -41,6 +41,9 @@ public class JPackageCreateInstallerFileAssociationsTest {
     private static final String TEST_EXT = "jptest1";
 
     public static void main(String[] args) throws Exception {
-        JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME, EXT, null, TEST_EXT);
+        if (jdk.jpackage.internal.WinMsiBundler.isSupported()) {
+            JPackageCreateInstallerFileAssociationsBase.run(TEST_NAME,
+                    EXT, null, TEST_EXT);
+        }
     }
 }

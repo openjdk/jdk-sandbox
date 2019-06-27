@@ -45,7 +45,7 @@ public class JPackageCreateAppImageErrorTest {
     private static final String EXPECTED1 =
             "Invalid Option: [--no-such-argument]";
     private static final String ARG2 = "--output";
-    private static final String EXPECTED2 = "Missing argument:";
+    private static final String EXPECTED2 = "--main-jar or --module";
 
     private static final String [] CMD1 = {
         "--input", "input",
