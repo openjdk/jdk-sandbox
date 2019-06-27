@@ -25,49 +25,29 @@
 
 package jdk.jfr.internal.consumer;
 
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
+import java.util.StringJoiner;
 
 public final class InternalEventFilter {
-    public static final InternalEventFilter ACCEPT_ALL = new InternalEventFilter();
-    private final Map<String, Long> thresholds = new HashMap<>();
-    private boolean acceptAll;
+    public static final InternalEventFilter ACCEPT_ALL = new InternalEventFilter(true, Map.of());
 
-    public static InternalEventFilter merge(Collection<InternalEventFilter> filters) {
-        for (InternalEventFilter ef : filters) {
-            if (ef.getAcceptAll()) {
-                return ACCEPT_ALL;
-            }
-        }
-        if (filters.size() == 1) {
-            return filters.iterator().next();
-        }
+    private final Map<String, Long> thresholds;
+    private final boolean acceptAll;
 
-        Set<String> eventNames = new HashSet<>();
-        for (InternalEventFilter ef : filters) {
-            eventNames.addAll(ef.thresholds.keySet());
-        }
-        InternalEventFilter result = new InternalEventFilter();
-        for (String eventName : eventNames) {
-            for (InternalEventFilter ef : filters) {
-                Long l = ef.thresholds.get(eventName);
-                if (l != null) {
-                    result.setThreshold(eventName, l.longValue());
-                }
-            }
-        }
-        return result;
+    public InternalEventFilter() {
+        this(false, new HashMap<>());
     }
 
-    private boolean getAcceptAll() {
-        return acceptAll;
+    // returns an instance that can be passed to
+    // another thread safely
+    public InternalEventFilter threadSafe() {
+        return new InternalEventFilter(acceptAll, thresholds);
     }
 
-    public void setAcceptAll() {
-        acceptAll = true;
+    private InternalEventFilter(boolean acceptAll, Map<String, Long> thresholds) {
+        this.acceptAll = acceptAll;
+        this.thresholds = thresholds;
     }
 
     public void setThreshold(String eventName, long nanos) {
@@ -82,7 +62,7 @@ public final class InternalEventFilter {
 
     public long getThreshold(String eventName) {
         if (acceptAll) {
-            return 0;
+            return 0L;
         }
         Long l = thresholds.get(eventName);
         if (l != null) {
@@ -90,17 +70,16 @@ public final class InternalEventFilter {
         }
         return -1;
     }
+
     public String toString() {
         if (acceptAll) {
             return "ACCEPT ALL";
         }
-        StringBuilder sb = new StringBuilder();
+
+        StringJoiner sb = new StringJoiner(", ");
         for (String key : thresholds.keySet().toArray(new String[0])) {
             Long value = thresholds.get(key);
-            sb.append(key);
-            sb.append(" = ");
-            sb.append(value.longValue() / 1_000_000);
-            sb.append(" ms");
+            sb.add(key + " = " + value);
         }
         return sb.toString();
     }

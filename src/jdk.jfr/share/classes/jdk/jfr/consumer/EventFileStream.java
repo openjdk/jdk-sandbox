@@ -82,7 +82,6 @@ final class EventFileStream implements EventStream {
             }
         }
 
-
         private void processOrdered() throws IOException {
             if (sortedList == null) {
                 sortedList = new RecordedEvent[DEFAULT_ARRAY_SIZE];
@@ -188,6 +187,7 @@ final class EventFileStream implements EventStream {
         eventConsumer.start(0);
     }
 
+    @Override
     public void setReuse(boolean reuse) {
         eventConsumer.setReuse(reuse);
     }

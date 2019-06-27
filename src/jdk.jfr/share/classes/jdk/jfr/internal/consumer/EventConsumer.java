@@ -110,7 +110,7 @@ abstract public class EventConsumer implements Runnable {
 
     protected boolean reuse = true;
 
-    protected InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
+    protected volatile InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
 
     private final AccessControlContext accessControlContext;
     private boolean started;
@@ -184,6 +184,7 @@ abstract public class EventConsumer implements Runnable {
         }
         if (removeConsumer) {
             EventDispatcher[] array = list.toArray(new EventDispatcher[list.size()]);
+            eventFilter = buildFilter(array);
             consumersHandle.setVolatile(this, array);
             dispatcherHandle.setVolatile(this, new LongMap<>()); // will reset
                                                                  // dispatch
@@ -221,8 +222,22 @@ abstract public class EventConsumer implements Runnable {
         add(new EventDispatcher(eventName, action));
     }
 
+    InternalEventFilter buildFilter(EventDispatcher[] dispatchers) {
+        InternalEventFilter ef = new InternalEventFilter();
+        for (EventDispatcher ed : dispatchers) {
+            String name = ed.eventName;
+            if (name == null) {
+                return InternalEventFilter.ACCEPT_ALL;
+            }
+            ef.setThreshold(name, 0);
+        }
+        return ef.threadSafe();
+    }
+
     private synchronized void add(EventDispatcher e) {
-        consumersHandle.setVolatile(this, merge(consumers, e));
+        EventDispatcher[] dispatchers = merge(consumers,e);
+        eventFilter = buildFilter(dispatchers);
+        consumersHandle.setVolatile(this, dispatchers);
         dispatcherHandle.setVolatile(this, new LongMap<>()); // will reset
     }
 

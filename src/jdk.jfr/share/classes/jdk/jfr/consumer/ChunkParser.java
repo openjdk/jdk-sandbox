@@ -367,17 +367,19 @@ final class ChunkParser {
         parsers.forEach(p -> {
             if (p instanceof EventParser) {
                 EventParser ep = (EventParser) p;
+                String name = ep.getEventType().getName();
                 ep.setOrdered(ordered);
                 ep.setReuse(reuse);
                 if (resetEventCache) {
                     ep.resetCache();
                 }
-                long threshold = eventFilter.getThreshold(ep.getEventType().getName());
+                long threshold = eventFilter.getThreshold(name);
                 if (threshold >= 0) {
                     ep.setEnabled(true);
                     ep.setThreshold(timeConverter.convertDurationNanos(threshold));
                 } else {
-                    ep.setThreshold(-1L);
+                    ep.setEnabled(false);
+                    ep.setThreshold(Long.MAX_VALUE);
                 }
             }
         });
