@@ -27,6 +27,7 @@ package jdk.jfr.consumer;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.security.AccessController;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Consumer;
@@ -44,9 +45,7 @@ public interface EventStream extends AutoCloseable {
      * @return an event stream, not {@code null}
      */
     public static EventStream openRepository(Path directory) throws IOException {
-        throw new UnsupportedOperationException("Not yet implemented");
-        // AccessControlContext acc = AccessController.getContext();
-        // return new EventDirectoryStream(acc);
+        return new EventDirectoryStream(AccessController.getContext(), directory);
     }
 
     /**
