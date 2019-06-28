@@ -23,9 +23,14 @@
  * questions.
  */
 
+#include <windows.h>
+#include <shellapi.h>
+
 #include "WinSysInfo.h"
 #include "FileUtils.h"
 #include "WinErrorHandling.h"
+
+#pragma comment(lib, "Shell32")
 
 namespace SysInfo {
 
@@ -111,6 +116,24 @@ HMODULE getCurrentModuleHandle()
 tstring getCurrentModulePath()
 {
     return getModulePath(getCurrentModuleHandle());
+}
+
+tstring_array getCommandArgs(CommandArgProgramNameMode progNameMode)
+{
+    int argc = 0;
+    tstring_array result;
+
+    LPWSTR *parsedArgs = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (parsedArgs == NULL) {
+        JP_THROW(SysError("CommandLineToArgvW failed", CommandLineToArgvW));
+    }
+    // the 1st element contains program name
+    for (int i = progNameMode == ExcludeProgramName ? 1 : 0; i < argc; i++) {
+        result.push_back(parsedArgs[i]);
+    }
+    LocalFree(parsedArgs);
+
+    return result;
 }
 
 namespace {

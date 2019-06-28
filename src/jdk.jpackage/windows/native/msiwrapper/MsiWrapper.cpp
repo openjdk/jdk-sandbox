@@ -1,13 +1,14 @@
+#include <algorithm>
 #include <windows.h>
 
-#include "WinSysInfo.h"
+#include "SysInfo.h"
 #include "FileUtils.h"
 #include "Executor.h"
 #include "Resources.h"
 #include "WinErrorHandling.h"
 
 
-int wmain(int argc, wchar_t *argv[])
+int __stdcall WinMain(HINSTANCE, HINSTANCE, LPSTR lpCmdLine, int nShowCmd)
 {
     JP_TRY;
 
@@ -26,12 +27,15 @@ int wmain(int argc, wchar_t *argv[])
     // Setup executor to run msiexec
     Executor msiExecutor(SysInfo::getWIPath());
     msiExecutor.arg(L"/i").arg(msiPath);
-    for (int i = 1; i < argc; ++i) {
-        msiExecutor.arg(argv[i]);
-    }
+    const auto args = SysInfo::getCommandArgs();
+    std::for_each(args.begin(), args.end(), [&msiExecutor] (const tstring& arg) {
+        msiExecutor.arg(arg);
+    });
 
     // Install msi file.
     return msiExecutor.execAndWaitForExit();
 
     JP_CATCH_ALL;
+
+    return -1;
 }

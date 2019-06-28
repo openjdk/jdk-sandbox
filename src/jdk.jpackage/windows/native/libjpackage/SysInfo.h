@@ -51,8 +51,20 @@ namespace SysInfo {
 
     /**
      * Returns absolute path to the current executable module.
-     */ 
+     */
     tstring getCurrentModulePath();
+
+    enum CommandArgProgramNameMode {
+        IncludeProgramName,
+        ExcludeProgramName
+    };
+    /**
+     * Retrieves the command-line arguments for the current process.
+     * With IncludeProgramName option returns result similar to argv/argc.
+     * With ExcludeProgramName option program name (the 1st element of command line)
+     * is excluded.
+     */
+    tstring_array getCommandArgs(CommandArgProgramNameMode progNameMode = ExcludeProgramName);
 
     /**
      * Returns value of environment variable with the given name.
