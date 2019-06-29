@@ -37,7 +37,6 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String [] CMD1 = {
         "--output", OUTPUT,
@@ -53,7 +52,7 @@ public class JPackageCreateAppImageModuleMainClassErrorTest {
 
     private static void validate(String buildOutput) throws Exception {
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         int retVal = JPackageHelper.execute(outfile, app);
         if (retVal != 0) {
             throw new AssertionError(

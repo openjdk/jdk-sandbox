@@ -37,7 +37,6 @@ import java.nio.file.Files;
 public class JPackageCreateAppImageJavaOptionsEqualsTest {
 
     private static final String app = JPackagePath.getApp();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String OUTPUT = "output";
 
@@ -57,7 +56,7 @@ public class JPackageCreateAppImageJavaOptionsEqualsTest {
     };
 
     private static void validate() throws Exception {
-        File outfile = new File(appWorkingDir + File.separator + "app.out");
+        File outfile = new File("app.out");
 
         int retVal = JPackageHelper.execute(outfile, app);
         if (retVal != 0) {

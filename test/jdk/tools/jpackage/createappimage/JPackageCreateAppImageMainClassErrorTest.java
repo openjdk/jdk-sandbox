@@ -37,7 +37,6 @@ public class JPackageCreateAppImageMainClassErrorTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String[] CMD = {
         "--input", "input",

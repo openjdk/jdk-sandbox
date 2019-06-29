@@ -30,7 +30,6 @@ public class JPackageCreateAppImageArgumentsBase {
 
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String ARGUMENT1 = "argument";
     private static final String ARGUMENT2 = "Some Arguments";
@@ -96,7 +95,7 @@ public class JPackageCreateAppImageArgumentsBase {
                     + retVal);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }

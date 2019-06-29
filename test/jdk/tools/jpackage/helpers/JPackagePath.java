@@ -106,25 +106,6 @@ public class JPackagePath {
         }
     }
 
-    // Returns path to app working directory
-    // (where test application generates its output)
-    public static String getAppWorkingDir() {
-        return getAppWorkingDir("test");
-    }
-
-    public static String getAppWorkingDir(String name) {
-         if (JPackageHelper.isWindows()) {
-            return Path.of("output", name, "app").toString();
-        } else if (JPackageHelper.isOSX()) {
-            return Path.of("output", name + ".app",
-                    "Contents", "Java").toString();
-        } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name, "app").toString();
-        } else {
-            throw new AssertionError("Cannot detect platform");
-        }
-    }
-
     // Returns path to test application cfg file
     public static String getAppCfg() {
         return getAppCfg("test");

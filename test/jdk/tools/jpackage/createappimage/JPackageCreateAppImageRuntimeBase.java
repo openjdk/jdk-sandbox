@@ -26,7 +26,6 @@ import java.nio.file.Files;
 
  public class JPackageCreateAppImageRuntimeBase {
     private static final String app = JPackagePath.getApp();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
     private static final String runtimeJava = JPackagePath.getRuntimeJava();
     private static final String runtimeJavaOutput = "javaOutput.txt";
     private static final String appOutput = JPackagePath.getAppOutputFile();
@@ -51,7 +50,7 @@ import java.nio.file.Files;
             throw new AssertionError("Test application exited with error: " + retVal);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
@@ -84,13 +83,17 @@ import java.nio.file.Files;
     }
 
     public static void testCreateAppImage(String [] cmd) throws Exception {
+System.out.println("----- current dir = " + System.getProperty("user.dir"));
         JPackageHelper.executeCLI(true, cmd);
+System.out.println("----- current dir = " + System.getProperty("user.dir"));
         validate();
         validateRuntime();
     }
 
     public static void testCreateAppImageToolProvider(String [] cmd) throws Exception {
+System.out.println("----- ToolProvider current dir = " + System.getProperty("user.dir"));
         JPackageHelper.executeToolProvider(true, cmd);
+System.out.println("----- ToolProvider current dir = " + System.getProperty("user.dir"));
         validate();
         validateRuntime();
     }

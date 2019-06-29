@@ -87,7 +87,6 @@ extern "C" {
             Package& package = Package::GetInstance();
             Macros::Initialize();
             package.SetCommandLineArguments(argc, argv);
-            platform.SetCurrentDirectory(package.GetPackageAppDirectory());
 
             switch (platform.GetAppCDSState()) {
                 case cdsDisabled:

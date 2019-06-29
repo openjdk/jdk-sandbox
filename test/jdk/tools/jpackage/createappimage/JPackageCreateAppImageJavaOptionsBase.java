@@ -30,7 +30,6 @@ public class JPackageCreateAppImageJavaOptionsBase {
 
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String ARGUMENT1 = "-Dparam1=Some Param 1";
     private static final String ARGUMENT2 = "-Dparam2=Some \"Param\" 2";
@@ -113,7 +112,7 @@ public class JPackageCreateAppImageJavaOptionsBase {
                     + retVal);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }

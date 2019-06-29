@@ -37,7 +37,6 @@ public class JPackageCreateAppImageIconTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static final String[] CMD = {
         "--input", "input",
@@ -69,7 +68,7 @@ public class JPackageCreateAppImageIconTest {
                    "Test application exited with error: " + retVal);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }

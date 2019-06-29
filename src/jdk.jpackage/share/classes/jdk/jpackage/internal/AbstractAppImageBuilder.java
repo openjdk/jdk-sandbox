@@ -221,7 +221,7 @@ public abstract class AbstractAppImageBuilder {
             Path modsDir = getAppModsDir();
             if (modsDir != null && modsDir.toFile().exists()) {
                 out.println("--module-path");
-                out.println(getAppDir().relativize(modsDir));
+                out.println("$APPDIR/app/" + getAppDir().relativize(modsDir));
             }
 
             out.println();

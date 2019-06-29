@@ -26,7 +26,6 @@ import java.nio.file.Path;
 
 public abstract class JPackageCreateAppImageBase {
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {
@@ -44,7 +43,7 @@ public abstract class JPackageCreateAppImageBase {
     }
 
     public static void validate(String app) throws Exception {
-        Path outPath = Path.of(appWorkingDir, appOutput);
+        Path outPath = Path.of(appOutput);
         int retVal = JPackageHelper.execute(null, app);
 
         if (outPath.toFile().exists()) {

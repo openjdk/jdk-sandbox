@@ -32,7 +32,6 @@ import java.util.List;
 public class JPackageCreateAppImageAddLauncherBase {
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir = JPackagePath.getAppWorkingDir();
 
     // Note: quotes in argument for add launcher is not support by test
     private static final String ARGUMENT1 = "argument 1";
@@ -50,7 +49,7 @@ public class JPackageCreateAppImageAddLauncherBase {
 
     private static void validateResult(List<String> args, List<String> vmArgs)
             throws Exception {
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }

@@ -38,8 +38,6 @@ public class JPackageCreateAppImageResourceTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp("icon");
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String appWorkingDir =
-            JPackagePath.getAppWorkingDir("icon");
     private static final String resourceDir = 
             JPackagePath.getTestSrcRoot() + File.separator + "resources";
 
@@ -73,7 +71,7 @@ public class JPackageCreateAppImageResourceTest {
                    "Test application exited with error: " + retVal);
         }
 
-        File outfile = new File(appWorkingDir + File.separator + appOutput);
+        File outfile = new File(appOutput);
         if (!outfile.exists()) {
             throw new AssertionError(appOutput + " was not created");
         }
