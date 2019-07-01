@@ -68,6 +68,7 @@ public abstract class AbstractAppImageBuilder {
     public abstract void prepareJreFiles() throws IOException;
     public abstract Path getAppDir();
     public abstract Path getAppModsDir();
+    public abstract String getRelativeModsDir();
 
     public Path getRoot() {
         return this.root;
@@ -219,9 +220,10 @@ public abstract class AbstractAppImageBuilder {
                 out.println(arg);
             }
             Path modsDir = getAppModsDir();
+
             if (modsDir != null && modsDir.toFile().exists()) {
                 out.println("--module-path");
-                out.println("$APPDIR/app/" + getAppDir().relativize(modsDir));
+                out.println("$APPDIR/" + getRelativeModsDir());
             }
 
             out.println();

@@ -191,12 +191,14 @@ public class IOUtils {
         InputStreamReader isr = new InputStreamReader(p.getInputStream());
         BufferedReader br = new BufferedReader(isr);
         String lineRead;
+        String output = "";
         while ((lineRead = br.readLine()) != null) {
             if (consumer != null) {
                 consumer.print(lineRead + '\n');
             } else {
                Log.verbose(lineRead);
             }
+            output += lineRead;
         }
         try {
             int ret = p.waitFor();
@@ -206,7 +208,8 @@ public class IOUtils {
                         + Arrays.toString(pb.command().toArray(new String[0]))
                         + " in " + (pb.directory() != null ?
                                 pb.directory().getAbsolutePath() :
-                                "unspecified directory"));
+                                "unspecified directory")
+                        + " output: " + output);
             }
         } catch (InterruptedException ex) {
         }

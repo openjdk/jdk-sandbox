@@ -76,6 +76,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     private final Path contentsDir;
     private final Path javaDir;
     private final Path javaModsDir;
+    private final String relativeModsDir;
     private final Path resourcesDir;
     private final Path macOSDir;
     private final Path runtimeDir;
@@ -175,6 +176,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         this.contentsDir = root.resolve("Contents");
         this.javaDir = contentsDir.resolve("Java");
         this.javaModsDir = javaDir.resolve("mods");
+        this.relativeModsDir = "Java/mods";
         this.resourcesDir = contentsDir.resolve("Resources");
         this.macOSDir = contentsDir.resolve("MacOS");
         this.runtimeDir = contentsDir.resolve("runtime");
@@ -197,6 +199,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         this.contentsDir = root.resolve("Contents");
         this.javaDir = null;
         this.javaModsDir = null;
+        this.relativeModsDir = null;
         this.resourcesDir = null;
         this.macOSDir = null;
         this.runtimeDir = this.root;
@@ -272,6 +275,11 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public Path getAppModsDir() {
         return javaModsDir;
+    }
+
+    @Override
+    public String getRelativeModsDir() {
+        return relativeModsDir;
     }
 
     @Override
