@@ -29,11 +29,13 @@ import jdk.jpackage.internal.Log;
 import jdk.jpackage.internal.CLIHelp;
 import java.io.PrintWriter;
 import java.util.ResourceBundle;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.MessageFormat;
 
 public class Main {
 
-    private static final ResourceBundle bundle = ResourceBundle.getBundle(
+    private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
 
     /**
@@ -73,6 +75,10 @@ public class Main {
             String[] newArgs;
             try {
                 newArgs = CommandLine.parse(args);
+            } catch (FileNotFoundException fnfe) {
+                Log.error(MessageFormat.format(I18N.getString(
+                        "ERR_CannotParseOptions"), fnfe.getMessage()));
+                return 1;
             } catch (IOException ioe) {
                 Log.error(ioe.getMessage());
                 return 1;

@@ -25,19 +25,22 @@
 
 package jdk.jpackage.main;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.File;
 import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * This file is direct copy of CommandLine.java in com.sun.tools.javac.main.
+ * This file was originally a copy of CommandLine.java in
+ * com.sun.tools.javac.main.
  * It should track changes made to that file.
- * It is modified only to remove content not used by jpackage
  */
 
 /**
@@ -84,6 +87,9 @@ class CommandLine {
     }
 
     private static void loadCmdFile(String name, List<String> args) throws IOException {
+        if (!Files.isReadable(Path.of(name))) {
+            throw new FileNotFoundException(name);
+        }
         try (Reader r = Files.newBufferedReader(Paths.get(name), Charset.defaultCharset())) {
             Tokenizer t = new Tokenizer(r);
             String s;
