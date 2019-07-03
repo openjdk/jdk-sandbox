@@ -34,6 +34,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -45,7 +47,7 @@ import jdk.jfr.internal.Repository;
 
 public final class RepositoryFiles {
     private final Path repostory;
-    private final SortedMap<Long, Path> pathSet = new TreeMap<>();
+    private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
     private volatile boolean closed;
 
@@ -57,8 +59,18 @@ public final class RepositoryFiles {
         return pathLookup.get(p);
     }
 
+    public Path lastPath() {
+        return nextPath(-1);
+    }
+
     public Path nextPath(long startTimeNanos) {
         while (!closed) {
+            if (startTimeNanos == -1) {
+                Entry<Long, Path> e =  pathSet.lastEntry();
+                if (e != null) {
+                    return e.getValue();
+                }
+            }
             SortedMap<Long, Path> after = pathSet.tailMap(startTimeNanos);
             if (!after.isEmpty()) {
                 Path path = after.get(after.firstKey());
@@ -147,4 +159,6 @@ public final class RepositoryFiles {
             pathSet.notify();
         }
     }
+
+
 }

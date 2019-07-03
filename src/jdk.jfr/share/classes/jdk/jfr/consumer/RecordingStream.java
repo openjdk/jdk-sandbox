@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -42,8 +43,8 @@ import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Utils;
 
 /**
- * An event stream produces events from a file, directory or a running JVM (Java
- * Virtual Machine).
+ * An recording stream produces events from a running JVM (Java Virtual
+ * Machine).
  */
 public class RecordingStream implements AutoCloseable, EventStream {
 
@@ -81,7 +82,7 @@ public class RecordingStream implements AutoCloseable, EventStream {
         this.recording = new Recording();
         this.recording.setFlushInterval(Duration.ofMillis(1000));
         try {
-            this.stream = new EventDirectoryStream(acc, null);
+            this.stream = new EventDirectoryStream(acc, null, null);
         } catch (IOException ioe) {
             throw new IllegalStateException(ioe.getMessage());
         }
@@ -156,7 +157,8 @@ public class RecordingStream implements AutoCloseable, EventStream {
      * The following example shows how to merge settings.
      *
      * <pre>
-     *     {@code
+     * {
+     *     &#64;code
      *     Map<String, String> settings = recording.getSettings();
      *     settings.putAll(additionalSettings);
      *     recordingStream.setSettings(settings);
@@ -214,8 +216,9 @@ public class RecordingStream implements AutoCloseable, EventStream {
     public EventSettings disable(Class<? extends Event> eventClass) {
         return recording.disable(eventClass);
     }
+
     /**
-     * Determines how far back data is kept for the stream if the stream can't
+     * Determines how far back data is kept for the stream, if the stream can't
      * keep up.
      * <p>
      * To control the amount of recording data stored on disk, the maximum
@@ -314,7 +317,7 @@ public class RecordingStream implements AutoCloseable, EventStream {
      * Determines how often events are made available for streaming.
      *
      * @param interval the interval at which events are made available to the
-     *        stream
+     *        stream, no {@code null}
      *
      * @throws IllegalArgumentException if <code>interval</code> is negative
      *
@@ -337,5 +340,10 @@ public class RecordingStream implements AutoCloseable, EventStream {
     @Override
     public void setOrdered(boolean ordered) {
         stream.setOrdered(ordered);
+    }
+
+    @Override
+    public void setStartTime(Instant startTime) {
+        stream.setStartTime(startTime);
     }
 }

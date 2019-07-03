@@ -38,49 +38,36 @@ import java.util.function.Consumer;
 public interface EventStream extends AutoCloseable {
 
     /**
-     * Creates a stream starting from the next written event in a disk
-     * repository.
+     * Creates a stream from a disk repository.
+     * <p>
+     * By default, the stream will start with the next event that is flushed by
+     * Flight Recorder.
      *
      * @param directory location of the disk repository, not {@code null}
+     *
      * @return an event stream, not {@code null}
+     *
+     * @throws IOException if a stream can't be opened, or an I/O error occurs
+     *         during reading
      */
     public static EventStream openRepository(Path directory) throws IOException {
-        return new EventDirectoryStream(AccessController.getContext(), directory);
+        return new EventDirectoryStream(AccessController.getContext(), directory, EventConsumer.NEXT_EVENT);
     }
 
     /**
-     * Creates an event stream starting from the first event in a file.
+     * Creates an event stream from a file.
+     * <p>
+     * By default, the stream will start with the first event in the file.
      *
      * @param file location of the file, not {@code null}
+     *
      * @return an event stream, not {@code null}
      *
-     * @throws IOException if a stream can't be opened,or an I/O error occurs
+     * @throws IOException if a stream can't be opened, or an I/O error occurs
      *         during reading
      */
     public static EventStream openFile(Path file) throws IOException {
-        return new EventFileStream(file);
-    }
-
-    /**
-     * Creates an event stream starting start time and end time in a file.
-     *
-     * @param file location of the file, not {@code null}
-     *
-     * @param the start start time for the stream, or {@code null} to get data
-     *        from the beginning of the
-     *
-     * @param the end end time for the stream, or {@code null} to get data until
-     *        the end.
-     *
-     * @throws IllegalArgumentException if {@code end} happens before
-     *         {@code start}
-     *
-     * @throws IOException if a stream can't be opened,or an I/O error occurs
-     *         during reading
-     */
-    public static EventStream openFile(Path file, Instant from, Instant to) throws IOException {
-        throw new UnsupportedOperationException("Not yet implemented");
-        // return new EventFileStream(file);
+        return new EventFileStream(file, null, null);
     }
 
     /**
@@ -95,6 +82,7 @@ public interface EventStream extends AutoCloseable {
      * Performs an action on all events in the stream with a specified name.
      *
      * @param eventName the name of the event, not {@code null}
+     *
      * @param action an action to be performed on each {@code RecordedEvent}
      *        that matches the event name, not {@code null}
      */
@@ -110,6 +98,9 @@ public interface EventStream extends AutoCloseable {
 
     /**
      * Performs an action when the event stream is closed.
+     * <p>
+     * If the stream is already closed, the action will be executed immediately
+     * in the current thread.
      *
      * @param action an action to be performed after the stream has been closed,
      *        not {@code null}
@@ -128,6 +119,7 @@ public interface EventStream extends AutoCloseable {
      * removed.
      *
      * @param action the action to remove, not {@code null}
+     *
      * @return {@code true} if the action was removed, {@code false} otherwise
      *
      * @see #onClose(Runnable)
@@ -138,35 +130,40 @@ public interface EventStream extends AutoCloseable {
     boolean remove(Object action);
 
     /**
-     * Hint that the event object in an {@link #onEvent(Consumer)} action
-     * may be reused.
+     * Specifies that the event object in an {@link #onEvent(Consumer)} action
+     * is to be reused.
      * <p>
      * If reuse is set to {@code true), a callback should not keep a reference
      * to the event object after the callback from {@code onEvent} has returned.
-     * <p>
-     * By default reuse is set to {@code true}
      *
-     * @param resuse if event objects can be reused between calls to {@code #onEvent(Consumer)}
+     * @param resuse if event objects can be reused between calls to
+     * {@code #onEvent(Consumer)}
      *
      */
     public void setReuse(boolean reuse);
 
     /**
-     * Orders events in chronological order aft the end timestamp
+     * Specifies that events arrives in chronological order, sorted by the time
+     * they were committed to the event stream.
      *
-     * TODO: WHAT ABOUT EVENTS THAT OCCUR WAY OUT OF ORDER
-     * <p>
-     * By default ordered is set to {@code true}
-     *
-     * @param ordered if event objects arrive in chronological order to {@code #onEvent(Consumer)}
+     * @param ordered if event objects arrive in chronological order to
+     *        {@code #onEvent(Consumer)}
      */
     public void setOrdered(boolean ordered);
 
     /**
-     * Starts processing events in the stream.
+     * Specifies start time of the event stream.
+     *
+     * @param startTime the start time, not {@code null}
+     *
+     * @throws IllegalStateException if the stream has already been started
+     */
+    public void setStartTime(Instant startTime);
+
+    /**
+     * Start processing events in the stream.
      * <p>
-     * All actions will performed on this stream will happen in the current
-     * thread.
+     * All actions performed on this stream will happen in the current thread.
      *
      * @throws IllegalStateException if the stream is already started or if it
      *         has been closed
@@ -174,11 +171,11 @@ public interface EventStream extends AutoCloseable {
     void start();
 
     /**
-     * Starts processing events in the stream asynchronously.
+     * Start processing events in the stream asynchronously.
      * <p>
      * All actions on this stream will be performed in a separate thread.
      *
-     * @throws IllegalStateException if the stream is already started or if it
+     * @throws IllegalStateException if the stream is already started, or if it
      *         has been closed
      */
     void startAsync();

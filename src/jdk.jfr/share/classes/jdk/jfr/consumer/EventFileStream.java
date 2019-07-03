@@ -30,12 +30,12 @@ import java.nio.file.Path;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import jdk.jfr.internal.consumer.EventConsumer;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
@@ -44,7 +44,7 @@ import jdk.jfr.internal.consumer.RecordingInput;
  */
 final class EventFileStream implements EventStream {
 
-    private final static class FileEventConsumer extends EventConsumer {
+    private final static class FileConsumer extends EventConsumer {
         private static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTime, e2.endTime);
         private static final int DEFAULT_ARRAY_SIZE = 100_000;
         private final RecordingInput input;
@@ -53,7 +53,7 @@ final class EventFileStream implements EventStream {
         private RecordedEvent[] sortedList;
         private boolean ordered;
 
-        public FileEventConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
+        public FileConsumer(AccessControlContext acc, RecordingInput input) throws IOException {
             super(acc);
             this.input = input;
         }
@@ -129,15 +129,17 @@ final class EventFileStream implements EventStream {
         public void close() {
 
         }
+
+
     }
 
     private final RecordingInput input;
-    private final FileEventConsumer eventConsumer;
+    private final FileConsumer eventConsumer;
 
-    public EventFileStream(Path path) throws IOException {
+    public EventFileStream(Path path, Instant from, Instant to) throws IOException {
         Objects.requireNonNull(path);
         input = new RecordingInput(path.toFile());
-        eventConsumer = new FileEventConsumer(AccessController.getContext(), input);
+        eventConsumer = new FileConsumer(AccessController.getContext(), input);
     }
 
     @Override
@@ -211,5 +213,10 @@ final class EventFileStream implements EventStream {
     @Override
     public void setOrdered(boolean ordered) {
         eventConsumer.setOrdered(ordered);
+    }
+
+    @Override
+    public void setStartTime(Instant startTime) {
+        eventConsumer.setStartTime(startTime);
     }
 }
