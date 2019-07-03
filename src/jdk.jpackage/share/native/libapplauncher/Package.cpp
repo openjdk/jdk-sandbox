@@ -78,9 +78,7 @@ void Package::Initialize() {
     // Main JAR.
     config->GetValue(keys[CONFIG_SECTION_APPLICATION],
             keys[CONFIG_MAINJAR_KEY], FBootFields->FMainJar);
-    FBootFields->FMainJar =
-            FilePath::IncludeTrailingSeparator(GetPackageAppDirectory())
-            + FilePath::FixPathForPlatform(FBootFields->FMainJar);
+    FBootFields->FMainJar = FilePath::FixPathForPlatform(FBootFields->FMainJar);
 
     // Main Module.
     config->GetValue(keys[CONFIG_SECTION_APPLICATION],

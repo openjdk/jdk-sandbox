@@ -461,7 +461,7 @@ public class Arguments {
 
             validateArguments();
 
-            addResources(deployParams, input);
+            addResources(deployParams, input, mainJarPath);
 
             List<Map<String, ? super Object>> launchersAsMap =
                     new ArrayList<>();
@@ -647,7 +647,7 @@ public class Arguments {
     }
 
     private void addResources(DeployParams deployParams,
-            String inputdir) throws PackagerException {
+            String inputdir, String mainJar) throws PackagerException {
 
         if (inputdir == null || inputdir.isEmpty()) {
             return;
@@ -672,7 +672,7 @@ public class Arguments {
         }
         fileNames.forEach(file -> deployParams.addResource(baseDir, file));
 
-        deployParams.setClasspath();
+        deployParams.setClasspath(mainJar);
     }
 
     static CLIOptions toCLIOption(String arg) {

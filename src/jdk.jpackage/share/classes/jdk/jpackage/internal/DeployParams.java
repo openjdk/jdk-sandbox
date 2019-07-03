@@ -112,12 +112,20 @@ public class DeployParams {
                 baseDir, new LinkedHashSet<>(expandFileset(file))));
     }
 
-    void setClasspath() {
-        String classpath = "";
+    void setClasspath(String mainJarPath) {
+        String classpath;
+        // we want main jar first on the classpath
+        if (mainJarPath != null) {
+            classpath = mainJarPath + File.pathSeparator;
+        } else {
+            classpath = "";
+        }
         for (RelativeFileSet resource : resources) {
              for (String file : resource.getIncludedFiles()) {
                  if (file.endsWith(".jar")) {
-                     classpath += file + File.pathSeparator;
+                     if (!file.equals(mainJarPath)) {
+                         classpath += file + File.pathSeparator;
+                     }
                  }
              }
         }

@@ -68,7 +68,6 @@ public abstract class AbstractAppImageBuilder {
     public abstract void prepareJreFiles() throws IOException;
     public abstract Path getAppDir();
     public abstract Path getAppModsDir();
-    public abstract String getRelativeModsDir();
 
     public Path getRoot() {
         return this.root;
@@ -173,7 +172,7 @@ public abstract class AbstractAppImageBuilder {
     }
 
     public void writeCfgFile(Map<String, ? super Object> params,
-            File cfgFileName, String runtimeLocation) throws IOException {
+            File cfgFileName) throws IOException {
         cfgFileName.delete();
         File mainJar = JLinkBundlerHelper.getMainJar(params);
         ModFile.ModType mainJarType = ModFile.ModType.Unknown;
@@ -189,9 +188,10 @@ public abstract class AbstractAppImageBuilder {
             out.println("[Application]");
             out.println("app.name=" + APP_NAME.fetchFrom(params));
             out.println("app.version=" + VERSION.fetchFrom(params));
-            out.println("app.runtime=" + runtimeLocation);
+            out.println("app.runtime=" + getCfgRuntimeDir());
             out.println("app.identifier=" + IDENTIFIER.fetchFrom(params));
-            out.println("app.classpath=" + CLASSPATH.fetchFrom(params));
+            out.println("app.classpath="
+                    + getCfgClassPath(CLASSPATH.fetchFrom(params)));
 
             // The main app is required to be a jar, modular or unnamed.
             if (mainModule != null &&
@@ -204,12 +204,12 @@ public abstract class AbstractAppImageBuilder {
                 // legacy way and the main class string must be
                 // of the format com/foo/Main
                 if (mainJar != null) {
-                    out.println("app.mainjar="
+                    out.println("app.mainjar=" + getCfgAppDir()
                             + mainJar.toPath().getFileName().toString());
                 }
                 if (mainClass != null) {
                     out.println("app.mainclass="
-                            + mainClass.replaceAll("\\.", "/"));
+                            + mainClass.replace("\\", "/"));
                 }
             }
 
@@ -223,7 +223,7 @@ public abstract class AbstractAppImageBuilder {
 
             if (modsDir != null && modsDir.toFile().exists()) {
                 out.println("--module-path");
-                out.println("$APPDIR/" + getRelativeModsDir());
+                out.println(getCfgAppDir().replace("\\","/") + "mods");
             }
 
             out.println();
@@ -241,4 +241,29 @@ public abstract class AbstractAppImageBuilder {
         }
     }
 
+    String getCfgAppDir() {
+        return "$APPDIR" + File.separator
+                + getAppDir().getFileName() + File.separator;
+    }
+
+    String getCfgRuntimeDir() {
+        return "$APPDIR" + File.separator + "runtime";
+    }
+
+    String getCfgClassPath(String classpath) {
+        String cfgAppDir = getCfgAppDir();
+
+        StringBuilder sb = new StringBuilder();
+        for (String path : classpath.split("[:;]")) {
+            if (path.length() > 0) {
+                sb.append(cfgAppDir);
+                sb.append(path);
+                sb.append(File.pathSeparator);
+            }
+        }
+        if (sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        return sb.toString();
+    }
 }

@@ -74,7 +74,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private final Path root;
     private final Path appDir;
     private final Path appModsDir;
-    private final String relativeModsDir;
     private final Path runtimeDir;
     private final Path mdir;
     private final Path binDir;
@@ -125,7 +124,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params));
         this.appDir = root.resolve("app");
         this.appModsDir = appDir.resolve("mods");
-        this.relativeModsDir = "app/mods";
         this.runtimeDir = root.resolve("runtime");
         this.mdir = runtimeDir.resolve("lib");
         this.binDir = root.resolve("bin");
@@ -143,7 +141,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.root = imageOutDir.resolve(jreName);
         this.appDir = null;
         this.appModsDir = null;
-        this.relativeModsDir = null;
         this.runtimeDir = root;
         this.mdir = runtimeDir.resolve("lib");
         this.binDir = null;
@@ -197,11 +194,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public Path getAppModsDir() {
         return appModsDir;
-    }
-
-    @Override
-    public String getRelativeModsDir() {
-        return relativeModsDir;
     }
 
     @Override
@@ -322,7 +314,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 StandardCopyOption.REPLACE_EXISTING);
 
         writeCfgFile(params, root.resolve(
-                getLauncherCfgName(params)).toFile(), "$APPDIR\\runtime");
+                getLauncherCfgName(params)).toFile());
 
         prepareExecutableProperties(params);
 

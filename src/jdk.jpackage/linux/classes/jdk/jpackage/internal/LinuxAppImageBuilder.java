@@ -57,7 +57,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private final Path root;
     private final Path appDir;
     private final Path appModsDir;
-    private final String relativeModsDir;
     private final Path runtimeDir;
     private final Path binDir;
     private final Path mdir;
@@ -89,7 +88,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(config));
         this.appDir = root.resolve("app");
         this.appModsDir = appDir.resolve("mods");
-        this.relativeModsDir = "app/mods";
         this.runtimeDir = root.resolve("runtime");
         this.binDir = root.resolve("bin");
         this.mdir = runtimeDir.resolve("lib");
@@ -109,7 +107,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.root = imageOutDir.resolve(appName);
         this.appDir = null;
         this.appModsDir = null;
-        this.relativeModsDir = null;
         this.runtimeDir = null;
         this.binDir = null;
         this.mdir = null;
@@ -150,11 +147,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     public Path getAppModsDir() {
         return appModsDir;
-    }
-
-    @Override
-    public String getRelativeModsDir() {
-        return relativeModsDir;
     }
 
     @Override
@@ -206,8 +198,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         executableFile.toFile().setExecutable(true, false);
         executableFile.toFile().setWritable(true, true);
 
-        writeCfgFile(params, root.resolve(getLauncherCfgName(params)).toFile(),
-                "$APPDIR/runtime");
+        writeCfgFile(params, root.resolve(getLauncherCfgName(params)).toFile());
     }
 
     private void copyIcon() throws IOException {

@@ -76,7 +76,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     private final Path contentsDir;
     private final Path javaDir;
     private final Path javaModsDir;
-    private final String relativeModsDir;
     private final Path resourcesDir;
     private final Path macOSDir;
     private final Path runtimeDir;
@@ -176,7 +175,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         this.contentsDir = root.resolve("Contents");
         this.javaDir = contentsDir.resolve("Java");
         this.javaModsDir = javaDir.resolve("mods");
-        this.relativeModsDir = "Java/mods";
         this.resourcesDir = contentsDir.resolve("Resources");
         this.macOSDir = contentsDir.resolve("MacOS");
         this.runtimeDir = contentsDir.resolve("runtime");
@@ -199,7 +197,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         this.contentsDir = root.resolve("Contents");
         this.javaDir = null;
         this.javaModsDir = null;
-        this.relativeModsDir = null;
         this.resourcesDir = null;
         this.macOSDir = null;
         this.runtimeDir = this.root;
@@ -278,11 +275,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public String getRelativeModsDir() {
-        return relativeModsDir;
-    }
-
-    @Override
     public void prepareApplicationFiles() throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
         // Generate PkgInfo
@@ -303,7 +295,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         executable.toFile().setExecutable(true, false);
         // generate main app launcher config file
         File cfg = new File(root.toFile(), getLauncherCfgName(params));
-        writeCfgFile(params, cfg, "$APPDIR/runtime");
+        writeCfgFile(params, cfg);
 
         // create additional app launcher(s) and config file(s)
         List<Map<String, ? super Object>> entryPoints =
@@ -321,7 +313,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
             // add config file for add launcher
             cfg = new File(root.toFile(), getLauncherCfgName(tmp));
-            writeCfgFile(tmp, cfg, "$APPDIR/runtime");
+            writeCfgFile(tmp, cfg);
         }
 
         // Copy class path entries to Java folder
@@ -489,7 +481,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 COPYRIGHT.fetchFrom(params) != null ?
                 COPYRIGHT.fetchFrom(params) : "Unknown");
         data.put("DEPLOY_LAUNCHER_NAME", getLauncherName(params));
-        data.put("DEPLOY_JAVA_RUNTIME_NAME", "$APPDIR/runtime");
+        data.put("DEPLOY_JAVA_RUNTIME_NAME", getCfgRuntimeDir());
         data.put("DEPLOY_BUNDLE_SHORT_VERSION",
                 VERSION.fetchFrom(params) != null ?
                 VERSION.fetchFrom(params) : "1.0.0");
@@ -539,14 +531,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         data.put("DEPLOY_LAUNCHER_CLASS", MAIN_CLASS.fetchFrom(params));
 
-        StringBuilder macroedPath = new StringBuilder();
-        for (String s : CLASSPATH.fetchFrom(params).split("[ ;:]+")) {
-            macroedPath.append(s);
-            macroedPath.append(":");
-        }
-        macroedPath.deleteCharAt(macroedPath.length() - 1);
-
-        data.put("DEPLOY_APP_CLASSPATH", macroedPath.toString());
+        data.put("DEPLOY_APP_CLASSPATH",
+                  getCfgClassPath(CLASSPATH.fetchFrom(params)));
 
         StringBuilder bundleDocumentTypes = new StringBuilder();
         StringBuilder exportedTypes = new StringBuilder();
