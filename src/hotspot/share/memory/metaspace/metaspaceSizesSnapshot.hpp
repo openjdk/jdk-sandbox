@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Twitter, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,18 +23,31 @@
  *
  */
 
-#ifndef SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP
-#define SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP
+#ifndef SHARE_MEMORY_METASPACE_METASPACESIZESSNAPSHOT_HPP
+#define SHARE_MEMORY_METASPACE_METASPACESIZESSNAPSHOT_HPP
 
-#include "jfr/leakprofiler/sampling/objectSampler.hpp"
-#include "jfr/leakprofiler/utilities/vmOperation.hpp"
+namespace metaspace {
 
-// Safepoint operation for stopping and destroying the leak profiler object sampler
-class StopOperation : public OldObjectVMOperation {
- public:
-  virtual void doit() {
-    ObjectSampler::destroy();
-  }
+class MetaspaceSizesSnapshot {
+public:
+  MetaspaceSizesSnapshot();
+
+  size_t used() const { return _used; }
+  size_t committed() const { return _committed; }
+  size_t non_class_used() const { return _non_class_used; }
+  size_t non_class_committed() const { return _non_class_committed; }
+  size_t class_used() const { return _class_used; }
+  size_t class_committed() const { return _class_committed; }
+
+private:
+  const size_t _used;
+  const size_t _committed;
+  const size_t _non_class_used;
+  const size_t _non_class_committed;
+  const size_t _class_used;
+  const size_t _class_committed;
 };
 
-#endif // SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP
+} // namespace metaspace
+
+#endif // SHARE_MEMORY_METASPACE_METASPACESIZESSNAPSHOT_HPP
