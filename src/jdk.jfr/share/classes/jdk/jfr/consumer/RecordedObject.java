@@ -73,7 +73,7 @@ public class RecordedObject {
 
             @Override
             public void sort(List<RecordedEvent> events) {
-               Collections.sort(events, (e1, e2) -> Long.compare(e1.endTime, e2.endTime));
+               Collections.sort(events, (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks));
             }
 
             @Override
@@ -96,8 +96,8 @@ public class RecordedObject {
     }
 
     final Object[] objects;
-    private final List<ValueDescriptor> descriptors;
-    private final TimeConverter timeConverter;
+    protected final List<ValueDescriptor> descriptors;
+    protected final TimeConverter timeConverter;
 
     // package private, not to be subclassed outside this package
     RecordedObject(List<ValueDescriptor> descriptors, Object[] objects, TimeConverter timeConverter) {
@@ -201,12 +201,16 @@ public class RecordedObject {
         return t;
     }
 
+    protected Object objectAt(int index) {
+        return objects[index];
+    }
+
     private Object getValue(String name, boolean allowUnsigned) {
         Objects.requireNonNull(name);
         int index = 0;
         for (ValueDescriptor v : descriptors) {
             if (name.equals(v.getName())) {
-                Object object = objects[index];
+                Object object = objectAt(index);
                 if (object == null) {
                     // error or missing
                     return null;

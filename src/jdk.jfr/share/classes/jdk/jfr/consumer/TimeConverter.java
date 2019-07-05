@@ -69,8 +69,4 @@ final class TimeConverter {
     public ZoneOffset getZoneOffset() {
         return zoneOffet;
     }
-
-    public long convertDurationNanos(long durationNanos) {
-        return (long) (durationNanos * divisor);
-    }
 }

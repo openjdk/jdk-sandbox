@@ -40,8 +40,7 @@ public interface EventStream extends AutoCloseable {
     /**
      * Creates a stream from a disk repository.
      * <p>
-     * By default, the stream will start with the next event that is flushed by
-     * Flight Recorder.
+     * By default, the stream starts with the next event flushed by Flight Recorder.
      *
      * @param directory location of the disk repository, not {@code null}
      *
@@ -57,7 +56,7 @@ public interface EventStream extends AutoCloseable {
     /**
      * Creates an event stream from a file.
      * <p>
-     * By default, the stream will start with the first event in the file.
+     * By default, the stream starts with the first event in the file.
      *
      * @param file location of the file, not {@code null}
      *

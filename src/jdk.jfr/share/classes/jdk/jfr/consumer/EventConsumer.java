@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -50,6 +51,7 @@ import jdk.jfr.internal.consumer.InternalEventFilter;
 abstract class EventConsumer implements Runnable {
 
     public final static Instant NEXT_EVENT = Instant.now();
+    public final static Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks);
 
     final static class EventDispatcher {
         public final static EventDispatcher[] NO_DISPATCHERS = new EventDispatcher[0];
@@ -208,10 +210,6 @@ abstract class EventConsumer implements Runnable {
     }
 
     public void dispatch(RecordedEvent e) {
-        if (e.endTime < startNanos) {
-            return;
-        }
-
         EventDispatcher[] consumerDispatch = dispatcher.get(e.getEventType().getId());
         if (consumerDispatch == null) {
             consumerDispatch = EventDispatcher.NO_DISPATCHERS;

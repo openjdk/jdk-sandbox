@@ -46,11 +46,14 @@ final class EventParser extends Parser {
     private final boolean hasDuration;
     private final List<ValueDescriptor> valueDescriptors;
     private final int startIndex;
-    private long thresholdTicks = -1;
+    private final int length;
+    private final RecordedEvent unorderedEvent;
     private boolean enabled = true;
     private RecordedEvent[] eventCache;
     private int index;
     private boolean ordered;
+    private long firstNanos;
+    private long thresholdNanos = -1;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
@@ -58,32 +61,36 @@ final class EventParser extends Parser {
         this.eventType = type;
         this.hasDuration = type.getField(FIELD_DURATION) != null;
         this.startIndex = hasDuration ? 2 : 1;
+        this.length = parsers.length - startIndex;
         this.valueDescriptors = type.getFields();
+        this.unorderedEvent = new RecordedEvent(eventType, valueDescriptors, new Object[length], 0L, 0L, timeConverter);
     }
 
     private RecordedEvent cachedEvent() {
-        if (index == eventCache.length) {
-            RecordedEvent[] cache = eventCache;
-            eventCache = new RecordedEvent[eventCache.length * 2];
-            System.arraycopy(cache, 0, eventCache, 0, cache.length);
-        }
-        RecordedEvent event = eventCache[index];
-        if (event == null) {
-            event = new RecordedEvent(eventType, valueDescriptors, new Object[parsers.length], 0L, 0L, timeConverter);
-            eventCache[index] = event;
-        }
         if (ordered) {
+            if (index == eventCache.length) {
+                RecordedEvent[] cache = eventCache;
+                eventCache = new RecordedEvent[eventCache.length * 2];
+                System.arraycopy(cache, 0, eventCache, 0, cache.length);
+            }
+            RecordedEvent event = eventCache[index];
+            if (event == null) {
+                event = new RecordedEvent(eventType, valueDescriptors, new Object[length], 0L, 0L, timeConverter);
+                eventCache[index] = event;
+            }
             index++;
+            return event;
+        } else {
+            return unorderedEvent;
         }
-        return event;
     }
 
     public EventType getEventType() {
         return eventType;
     }
 
-    public void setThreshold(long thresholdTicks) {
-        this.thresholdTicks = thresholdTicks;
+    public void setThresholdNanos(long thresholdNanos) {
+        this.thresholdNanos = thresholdNanos;
     }
 
     public void setEnabled(boolean enabled) {
@@ -100,46 +107,34 @@ final class EventParser extends Parser {
             long durationTicks = 0;
             if (hasDuration) {
                 durationTicks = input.readLong();
-                if (durationTicks < thresholdTicks) {
+                if (thresholdNanos > 0L) {
+                    if (timeConverter.convertTimespan(durationTicks) < thresholdNanos) {
+                        return null;
+                    }
+                }
+            }
+            long endTicks = startTicks + durationTicks;
+            if (firstNanos > 0L) {
+                if (timeConverter.convertTimestamp(endTicks) < firstNanos) {
                     return null;
                 }
             }
+
             if (eventCache != null) {
                 RecordedEvent event = cachedEvent();
+                event.startTimeTicks = startTicks;
+                event.endTimeTicks = endTicks;
                 Object[] values = event.objects;
-                for (int i = startIndex; i < parsers.length; i++) {
-                    values[i] = parsers[i].parse(input);
+                for (int i = 0; i < length; i++) {
+                    values[i] = parsers[startIndex + i].parse(input);
                 }
-                values[0] = startTicks;
-                if (hasDuration) {
-                    values[1] = Long.valueOf(durationTicks);
-                }
-                long startTime = timeConverter.convertTimestamp(startTicks);
-                if (hasDuration) {
-                    event.startTime = startTime;
-                    event.endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
-                    return event;
-                } else {
-                    event.startTime = startTime;
-                    event.endTime = startTime;
-                    return event;
-                }
+                return event;
             } else {
-                Object[] values = new Object[parsers.length];
-                for (int i = startIndex; i < parsers.length; i++) {
-                    values[i] = parsers[i].parse(input);
+                Object[] values = new Object[length];
+                for (int i = 0; i < length; i++) {
+                    values[i] = parsers[startIndex + i].parse(input);
                 }
-                values[0] = startTicks;
-                if (hasDuration) {
-                    values[1] = Long.valueOf(durationTicks);
-                }
-                long startTime = timeConverter.convertTimestamp(startTicks);
-                if (hasDuration) {
-                    long endTime = timeConverter.convertTimestamp(startTicks + durationTicks);
-                    return new RecordedEvent(eventType, valueDescriptors, values, startTime, endTime, timeConverter);
-                } else {
-                    return new RecordedEvent(eventType, valueDescriptors, values, startTime, startTime, timeConverter);
-                }
+                return new RecordedEvent(eventType, valueDescriptors, values, startTicks, endTicks, timeConverter);
             }
         }
         return null;
@@ -170,11 +165,15 @@ final class EventParser extends Parser {
         }
     }
 
+    public void setFirstNanos(long firstNanos) {
+        this.firstNanos = firstNanos;
+    }
+
     public void setOrdered(boolean ordered) {
         if (this.ordered == ordered) {
             return;
         }
-       this.ordered = ordered;
-       this.index = 0;
+        this.ordered = ordered;
+        this.index = 0;
     }
 }

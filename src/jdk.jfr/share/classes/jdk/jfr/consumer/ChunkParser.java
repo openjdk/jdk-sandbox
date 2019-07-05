@@ -64,6 +64,7 @@ final class ChunkParser {
     private boolean reuse;
     private boolean ordered;
     private boolean resetEventCache;
+    private long firstNanos;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
        this(new ChunkHeader(input), null, 500);
@@ -359,6 +360,17 @@ final class ChunkParser {
 
     // Need to call updateEventParsers() for
     // change to take effect
+    public void setFirstNanos(long firstNanos) {
+        long chunkStart = chunkHeader.getStartNanos();
+        // Optimization.
+        if (firstNanos < chunkStart - 1_000_000_000L) {
+            firstNanos = 0;
+        }
+        this.firstNanos = firstNanos;
+    }
+
+    // Need to call updateEventParsers() for
+    // change to take effect
     public void resetEventCache() {
         this.resetEventCache = true;
     }
@@ -370,16 +382,17 @@ final class ChunkParser {
                 String name = ep.getEventType().getName();
                 ep.setOrdered(ordered);
                 ep.setReuse(reuse);
+                ep.setFirstNanos(firstNanos);
                 if (resetEventCache) {
                     ep.resetCache();
                 }
                 long threshold = eventFilter.getThreshold(name);
                 if (threshold >= 0) {
                     ep.setEnabled(true);
-                    ep.setThreshold(timeConverter.convertDurationNanos(threshold));
+                    ep.setThresholdNanos(threshold);
                 } else {
                     ep.setEnabled(false);
-                    ep.setThreshold(Long.MAX_VALUE);
+                    ep.setThresholdNanos(Long.MAX_VALUE);
                 }
             }
         });

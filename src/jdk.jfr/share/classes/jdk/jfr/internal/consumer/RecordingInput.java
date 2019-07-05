@@ -40,9 +40,10 @@ public final class RecordingInput implements DataInput, AutoCloseable {
     private static final class Block {
         private byte[] bytes = new byte[0];
         private long blockPosition;
-        private int size;
+        private long blockPositionEnd;
+
         boolean contains(long position) {
-            return position >= blockPosition && position < blockPosition + size;
+            return position >= blockPosition && position < blockPositionEnd;
         }
 
         public void read(RandomAccessFile file, int amount) throws IOException {
@@ -51,7 +52,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
             if (amount > bytes.length) {
                 bytes = new byte[amount];
             }
-            this.size = amount;
+            this.blockPositionEnd = blockPosition + amount;
             file.readFully(bytes, 0 , amount);
         }
 
@@ -61,7 +62,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
 
         public void reset() {
            blockPosition = 0;
-           size = 0;
+           blockPositionEnd = 0;
         }
     }
 

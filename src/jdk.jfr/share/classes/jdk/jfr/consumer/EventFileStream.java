@@ -32,7 +32,6 @@ import java.security.AccessController;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -45,7 +44,6 @@ import jdk.jfr.internal.consumer.RecordingInput;
 final class EventFileStream implements EventStream {
 
     private final static class FileConsumer extends EventConsumer {
-        private static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTime, e2.endTime);
         private static final int DEFAULT_ARRAY_SIZE = 100_000;
         private final RecordingInput input;
         private ChunkParser chunkParser;

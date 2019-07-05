@@ -40,15 +40,15 @@ import jdk.jfr.internal.EventInstrumentation;
  */
 public final class RecordedEvent extends RecordedObject {
     private final EventType eventType;
-    long startTime;
-    long endTime;
+    long startTimeTicks;
+    long endTimeTicks;
 
     // package private
-    RecordedEvent(EventType type, List<ValueDescriptor> vds, Object[] values, long startTime, long endTime, TimeConverter timeConverter) {
+    RecordedEvent(EventType type, List<ValueDescriptor> vds, Object[] values, long startTimeTicks, long endTimeTicks, TimeConverter timeConverter) {
         super(vds, values, timeConverter);
         this.eventType = type;
-        this.startTime = startTime;
-        this.endTime = endTime;
+        this.startTimeTicks = startTimeTicks;
+        this.endTimeTicks = endTimeTicks;
     }
 
     /**
@@ -88,7 +88,7 @@ public final class RecordedEvent extends RecordedObject {
      * @return the start time, not {@code null}
      */
     public Instant getStartTime() {
-        return Instant.ofEpochSecond(0, startTime);
+        return Instant.ofEpochSecond(0, getStartTimeNanos());
     }
 
     /**
@@ -99,7 +99,7 @@ public final class RecordedEvent extends RecordedObject {
      * @return the end time, not {@code null}
      */
     public Instant getEndTime() {
-        return Instant.ofEpochSecond(0, endTime);
+        return Instant.ofEpochSecond(0, getEndTimeNanos());
     }
 
     /**
@@ -108,7 +108,7 @@ public final class RecordedEvent extends RecordedObject {
      * @return the duration in nanoseconds, not {@code null}
      */
     public Duration getDuration() {
-        return Duration.ofNanos(endTime - startTime);
+        return Duration.ofNanos(getEndTimeNanos() - getStartTimeNanos());
     }
 
     /**
@@ -119,5 +119,30 @@ public final class RecordedEvent extends RecordedObject {
     @Override
     public List<ValueDescriptor> getFields() {
         return getEventType().getFields();
+    }
+
+    protected final Object objectAt(int index) {
+        if (index == 0) {
+            return startTimeTicks;
+        }
+        if (hasDuration()) {
+            if (index == 1) {
+                return endTimeTicks - startTimeTicks;
+            }
+            return objects[index - 2];
+        }
+        return objects[index - 1];
+    }
+
+    private boolean hasDuration() {
+        return objects.length + 2 == descriptors.size();
+    }
+
+    private long getStartTimeNanos() {
+        return timeConverter.convertTimestamp(startTimeTicks);
+    }
+
+    private long getEndTimeNanos() {
+        return timeConverter.convertTimestamp(endTimeTicks);
     }
 }

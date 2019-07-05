@@ -47,7 +47,7 @@ final class EventDirectoryStream implements EventStream {
 
     static final class DirectoryConsumer extends EventConsumer {
 
-        private static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTime, e2.endTime);
+        private static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks);
         private static final int DEFAULT_ARRAY_SIZE = 10_000;
         private final RepositoryFiles repositoryFiles;
         private ChunkParser chunkParser;
@@ -78,6 +78,7 @@ final class EventDirectoryStream implements EventStream {
                     while (!isClosed() && !chunkParser.isChunkFinished()) {
                         chunkParser.setReuse(this.reuse);
                         chunkParser.setOrdered(this.ordered);
+                        chunkParser.setFirstNanos(startNanos);
                         chunkParser.resetEventCache();
                         chunkParser.setParserFilter(this.eventFilter);
                         chunkParser.updateEventParsers();
