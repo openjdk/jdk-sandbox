@@ -67,12 +67,12 @@ final class ChunkParser {
     private long firstNanos;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
-       this(new ChunkHeader(input), null, 500);
+       this(new ChunkHeader(input), null, 100);
        this.reuse = reuse;
     }
 
     public ChunkParser(ChunkParser previous) throws IOException {
-        this(new ChunkHeader(previous.input), previous, 500);
+        this(new ChunkHeader(previous.input), previous, 100);
      }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
