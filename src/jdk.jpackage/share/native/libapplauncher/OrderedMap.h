@@ -89,6 +89,7 @@ public:
 
     OrderedMap(const OrderedMap<key_type, mapped_type> &Value) {
         Append(Value);
+        FAllowDuplicates = Value.GetAllowDuplicates();
     }
 
     ~OrderedMap() {
@@ -97,6 +98,10 @@ public:
 
     void SetAllowDuplicates(bool Value) {
         FAllowDuplicates = Value;
+    }
+
+    bool GetAllowDuplicates() const {
+        return FAllowDuplicates;
     }
 
     iterator begin() {
@@ -214,6 +219,32 @@ public:
         return result;
     }
 
+    bool GetKey(int index, key_type &Value) {
+        if (index < 0 || index >= (int)FList.size()) {
+            return false;
+        }
+        container_type *item = FList.at(index);
+        if (item != NULL) {
+            Value = item->first;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool GetValue(int index, mapped_type &Value) {
+        if (index < 0 || index >= (int)FList.size()) {
+            return false;
+        }
+        container_type *item = FList.at(index);
+        if (item != NULL) {
+            Value = item->second;
+            return true;
+        }
+
+        return false;
+    }
+
     mapped_type &operator[](key_type Key) {
         container_type* item = FMap[Key];
         assert(item != NULL);
@@ -227,6 +258,7 @@ public:
 
     OrderedMap& operator= (OrderedMap &Value) {
         Clear();
+        FAllowDuplicates = Value.GetAllowDuplicates();
         Append(Value);
         return *this;
     }

@@ -58,6 +58,9 @@ void Package::Initialize() {
     FBootFields = new PackageBootFields();
     FDebugging = dsNone;
 
+    // Allow duplicates for Java options, so we can have multiple --add-exports
+    // or similar args.
+    FBootFields->FJavaOptions.SetAllowDuplicates(true);
     FBootFields->FPackageRootDirectory = platform.GetPackageRootDirectory();
     FBootFields->FPackageAppDirectory = platform.GetPackageAppDirectory();
     FBootFields->FPackageLauncherDirectory =

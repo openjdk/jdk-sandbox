@@ -40,6 +40,12 @@ public class JavaOptionsEqualsTest {
 
     private static final String OUTPUT = "output";
 
+    private static final String WARNING_1
+                                   = "WARNING: Unknown module: me.mymodule.foo";
+
+    private static final String WARNING_2
+                                   = "WARNING: Unknown module: other.mod.bar";
+
     private static final String[] CMD = {
         "--input", "input",
         "--description", "the two options below should cause two app execution "
@@ -70,6 +76,9 @@ public class JavaOptionsEqualsTest {
         }
 
         String output = Files.readString(outfile.toPath());
+        System.out.println("App output:");
+        System.out.print(output);
+
         String[] result = JPackageHelper.splitAndFilter(output);
         if (result.length != 4) {
             throw new AssertionError(
@@ -77,16 +86,17 @@ public class JavaOptionsEqualsTest {
                    + " - output: " + output);
         }
 
-        if (!result[0].startsWith("WARNING: Unknown module: me.mymodule.foo")){
-            throw new AssertionError("Unexpected result[0]: " + result[0]);
+        String nextWarning = WARNING_1;
+        if (!result[0].startsWith(nextWarning)){
+            nextWarning = WARNING_2;
+            if (!result[0].startsWith(WARNING_2)){
+                throw new AssertionError("Unexpected result[0]: " + result[0]);
+            } else {
+                nextWarning = WARNING_1;
+            }
         }
 
-        if (result[1].equals(result[0])) {
-            System.err.println("--- This is known bug JDK-8224486, remove this "
-                + "if/else block when JDK-8224486 is fixed");
-        } else
-
-        if (!result[1].startsWith("WARNING: Unknown module: other.mod.bar")) {
+        if (!result[1].startsWith(nextWarning)) {
             throw new AssertionError("Unexpected result[1]: " + result[1]);
         }
 

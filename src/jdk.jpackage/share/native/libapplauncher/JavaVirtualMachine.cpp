@@ -84,15 +84,30 @@ void JavaOptions::AppendValue(const TString Key) {
 }
 
 void JavaOptions::AppendValues(OrderedMap<TString, TString> Values) {
-    std::vector<TString> orderedKeys = Values.GetKeys();
+    if (Values.GetAllowDuplicates()) {
+        for (int i = 0; i < (int)Values.Count(); i++) {
+            TString name, value;
 
-    for (std::vector<TString>::const_iterator iterator = orderedKeys.begin();
-        iterator != orderedKeys.end(); iterator++) {
-        TString name = *iterator;
-        TString value;
+            bool bResult = Values.GetKey(i, name);
+            bResult &= Values.GetValue(i, value);
 
-        if (Values.GetValue(name, value) == true) {
-            AppendValue(name, value);
+            if (bResult) {
+                AppendValue(name, value);
+            }
+        }
+    } else { // In case we asked to add values from OrderedMap with allow
+        // duplicates set to false. Not used now, but should avoid possible
+        // bugs.
+        std::vector<TString> orderedKeys = Values.GetKeys();
+
+        for (std::vector<TString>::const_iterator iterator = orderedKeys.begin();
+            iterator != orderedKeys.end(); iterator++) {
+            TString name = *iterator;
+            TString value;
+
+            if (Values.GetValue(name, value) == true) {
+                AppendValue(name, value);
+            }
         }
     }
 }
