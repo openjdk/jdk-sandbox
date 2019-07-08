@@ -23,10 +23,13 @@
  */
 
 #include "precompiled.hpp"
+
 #include "memory/allocation.hpp"
+#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/commitLimit.hpp"
+#include "memory/metaspace/constants.hpp"
 #include "memory/metaspace/metachunk.hpp"
-#include "memory/metaspace/occupancyMap.hpp"
-#include "memory/metaspace/virtualSpaceNode.hpp"
+
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
@@ -50,123 +53,247 @@ size_t Metachunk::overhead() {
 
 // Metachunk methods
 
-Metachunk::Metachunk(ChunkIndex chunktype, bool is_class, size_t word_size,
-                     VirtualSpaceNode* container)
-    : Metabase<Metachunk>(word_size),
-    _container(container),
-    _top(NULL),
-    _sentinel(CHUNK_SENTINEL),
-    _chunk_type(chunktype),
-    _is_class(is_class),
-    _origin(origin_normal),
-    _use_count(0)
+void Metachunk::remove_from_list() {
+  if (_prev != NULL) {
+    _prev->set_next(_next);
+  }
+  if (_next != NULL) {
+    _next->set_prev(_prev);
+  }
+  _prev = _next = NULL;
+}
+
+
+// Create a chunk with a given level and a given commit size.
+Metachunk::Metachunk(chklvl_t level, size_t committed_words)
+  : _prev(NULL), _next(NULL)
+  , _level(level)
+  , _is_free(true)
+  , _committed_words(committed_words)
+  , _used_words(overhead())
+  , _abandoned_committed_words(0)
 {
-  _top = initial_top();
-  set_is_tagged_free(false);
 #ifdef ASSERT
   mangle(uninitMetaWordVal);
   verify();
 #endif
 }
 
-MetaWord* Metachunk::allocate(size_t word_size) {
+// expand the committed range of this chunk to hold at least word_size additional words;
+// Returns false if failed, which may be e.g. due to hitting a limit.
+bool Metachunk::expand_committed(size_t requested_word_size, bool& did_hit_commit_limit) {
+
+  assert(free_word_size_no_commit() >= requested_word_size, "why did you call me");
+
+  const size_t needed = (requested_word_size - free_word_size_no_commit()) * BytesPerWord;
+
+  const size_t alloc_granularity = (size_t)os::vm_allocation_granularity();
+
+  size_t min_expansion = align_up(needed * BytesPerWord, alloc_granularity);
+  size_t preferred_expansion = align_up(metachunk_commit_granularity, alloc_granularity);
+
+  const size_t bytes_left_in_chunk = free_word_size_total() * BytesPerWord;
+  if (preferred_expansion > bytes_left_in_chunk) {
+    // Do not commit beyond chunk limits
+    preferred_expansion = bytes_left_in_chunk;
+  }
+
+  if (min_expansion > preferred_expansion) {
+    preferred_expansion = min_expansion;
+
+  }
+
+  // We are not locked under the metaspace expand lock.
+  {
+    MutexLocker cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+    const size_t word_size_possible = CommitLimit::attempt_increase_committed(min_expansion, preferred_expansion);
+    if (word_size_possible < min_expansion) {
+      // No such luck.
+      did_hit_commit_limit = false;
+      return NULL;
+    }
+
+//blabla
+  }
+  //blabla
+
+
+}
+
+
+// Allocate from chunk.
+// This may fail and return NULL due to the following reasons:
+// - the chunk may be too small to hold the allocation (did_hit_commit_limit will be false).
+// - chunk needed to expand his commit top to hold the allocation, but that failed because we hit a
+//   limit (GC threshold or metaspace limit)  (did_hit_commit_limit will be true).
+// Returns pointer to allocation, or NULL.
+MetaWord* Metachunk::allocate(size_t requested_word_size, bool& did_hit_commit_limit) {
+
   MetaWord* result = NULL;
-  // If available, bump the pointer to allocate.
-  if (free_word_size() >= word_size) {
-    result = _top;
-    _top = _top + word_size;
+
+  // Can we fit this allocation into the chunk at all?
+  if (requested_word_size > free_word_size_total()) {
+    did_hit_commit_limit = false;
+    return NULL;
   }
+
+  // If yes, do we need to commit more pages?
+  if (requested_word_size > free_word_size_no_commit()) {
+    if (expand_committed(requested_word_size, did_hit_commit_limit) == false) {
+      return NULL;
+    }
+  }
+
+  assert(free_word_size_no_commit() >= requested_word_size, "Sanity");
+
+  result = base() + _used_words;
+  _used_words += requested_word_size;
+
+  assert(_used_words <= _committed_words, "Sanity");
+
   return result;
+
 }
 
-// _bottom points to the start of the chunk including the overhead.
-size_t Metachunk::used_word_size() const {
-  return pointer_delta(_top, bottom(), sizeof(MetaWord));
-}
 
-size_t Metachunk::free_word_size() const {
-  return pointer_delta(end(), _top, sizeof(MetaWord));
-}
+/////////////
+// Merging
 
-void Metachunk::print_on(outputStream* st) const {
-  st->print_cr("Metachunk:"
-               " bottom " PTR_FORMAT " top " PTR_FORMAT
-               " end " PTR_FORMAT " size " SIZE_FORMAT " (%s)",
-               p2i(bottom()), p2i(_top), p2i(end()), word_size(),
-               chunk_size_name(get_chunk_type()));
-  if (Verbose) {
-    st->print_cr("    used " SIZE_FORMAT " free " SIZE_FORMAT,
-                 used_word_size(), free_word_size());
+// Chunk merging means a chunk is merged with its buddy. The resulting
+//  chunk occupies the area of both former chunks (x marks the header):
+//
+// before:  |x      |x      |
+//
+// after:   |x              |
+//
+// The result chunk size is obviously double the size the merged chunks, and
+//  its level is one increased.
+//
+// The result chunk will be committed according to following rules:
+//  1) if the first chunk was completely committed, result chunk will be as far committed
+//     as the second chunk was committed
+//     (dash marks the committed area):
+//
+// before:  |-------|----   |
+//
+// after:   |------------   |
+//
+//    Obviously, this means that if the second chunk was completely committed, the
+//    result chunk will be completely committed too:
+//
+// before:  |-------|-------|
+//
+// after:   |---------------|
+//
+//  2) if the first chunk was not completely committed, result chunk will be as far committed
+//     as the first chunk, and will carry over the size of the committed area in
+//     "_abandoned_committed_words"
+//
+// before:  |---    |------ |
+//
+// after:   |---            |  with _abandoned_committed_words += sizeof(------)
+//
+// _abandoned_committed_words accumulates with each subsequent merge. After a sequence of merges,
+// it carries over the sum of all committed "abandoned" regions in the follower chunks.
+//
+//
+
+// Attempt to merge this chunk with its buddy.
+// This succeeds if:
+// - the chunk is not of the highest level (root chunks have no buddies).
+// - the buddy is free
+// If successful, a pointer to the new chunk is returned. !! In that case, the original this
+//   will be invalid; do not access it anymore!!
+// If failed, will return NULL.
+Metachunk* Metachunk::try_merge() {
+
+  DEBUG_ONLY(verify();)
+  assert(is_free(), "Can only merge free chunks.");
+
+  Metachunk* buddy = get_buddy_address();
+
+  if (buddy) {
+
+    DEBUG_ONLY(buddy->verify();)
+    assert(buddy->level() <= level(), "Weird geometry");
+
+    // Can only merge with buddy if it is not splintered and free.
+    if (buddy->level() == level() && buddy->is_free()) {
+
+      assert(buddy->word_size() == word_size(), "Sanity");
+
+      // find out who is the leader.
+      Metachunk* leader = this;
+      Metachunk* follower = buddy;
+      if (buddy < this) {
+        Metachunk* tmp = leader;
+        leader = follower;
+        follower = tmp;
+      }
+
+      assert(leader->base() + leader->word_size() == follower->base(),
+             "weird buddy address");
+
+      // Calc committed region of the merged chunk. See lengthy comment in header.
+      size_t merged_committed_words = 0;
+      size_t merged_abandoned_committed_words = 0;
+      if (leader->is_fully_committed()) {
+        merged_committed_words = leader->_committed_words + follower->_committed_words;
+        merged_abandoned_committed_words = follower->_abandoned_committed_words;
+      } else {
+        merged_committed_words = leader->_committed_words;
+        merged_abandoned_committed_words = follower->_committed_words + follower->_abandoned_committed_words;
+      }
+
+      Metachunk* const merged = leader;
+      merged->_level ++;
+      merged->_committed_words = merged_committed_words;
+      merged->_abandoned_committed_words = merged_abandoned_committed_words;
+
+      // Mark follower as invalid.
+      follower->remove_sentinel();
+
+      DEBUG_ONLY(merged->verify());
+
+      return merged;
+
+    }
+
   }
+
+  return NULL;
+
 }
+
 
 #ifdef ASSERT
 void Metachunk::mangle(juint word_value) {
   // Overwrite the payload of the chunk and not the links that
   // maintain list of chunks.
-  HeapWord* start = (HeapWord*)initial_top();
-  size_t size = word_size() - overhead();
-  Copy::fill_to_words(start, size, word_value);
+  assert(_words_committed >= overhead, "sanity");
+  size_t mangle_size = _words_committed - overhead();
+  Copy::fill_to_words((HeapWord*)start(), size, word_value);
 }
 
 void Metachunk::verify() const {
   assert(is_valid_sentinel(), "Chunk " PTR_FORMAT ": sentinel invalid", p2i(this));
-  const ChunkIndex chunk_type = get_chunk_type();
-  assert(is_valid_chunktype(chunk_type), "Chunk " PTR_FORMAT ": Invalid chunk type.", p2i(this));
-  if (chunk_type != HumongousIndex) {
-    assert(word_size() == get_size_for_nonhumongous_chunktype(chunk_type, is_class()),
-           "Chunk " PTR_FORMAT ": wordsize " SIZE_FORMAT " does not fit chunk type %s.",
-           p2i(this), word_size(), chunk_size_name(chunk_type));
-  }
-  assert(is_valid_chunkorigin(get_origin()), "Chunk " PTR_FORMAT ": Invalid chunk origin.", p2i(this));
-  assert(bottom() <= _top && _top <= (MetaWord*)end(),
-         "Chunk " PTR_FORMAT ": Chunk top out of chunk bounds.", p2i(this));
+  assert(is_valid_level(_level), "Invalid level (%d)", _level);
 
-  // For non-humongous chunks, starting address shall be aligned
-  // to its chunk size. Humongous chunks start address is
-  // aligned to specialized chunk size.
-  const size_t required_alignment =
-    (chunk_type != HumongousIndex ? word_size() : get_size_for_nonhumongous_chunktype(SpecializedIndex, is_class())) * sizeof(MetaWord);
+  // Starting address shall be aligned to chunk size.
+  const size_t required_alignment = word_size() * sizeof(MetaWord);
   assert(is_aligned((address)this, required_alignment),
-         "Chunk " PTR_FORMAT ": (size " SIZE_FORMAT ") not aligned to " SIZE_FORMAT ".",
+         "Chunk " PTR_FORMAT ": (size " SIZE_FORMAT ") not aligned correctly to " SIZE_FORMAT ".",
          p2i(this), word_size() * sizeof(MetaWord), required_alignment);
-}
 
+  assert(base() == (MetaWord*) this, "sanity");
+  assert(end() == base() + word_size(), "sanity");
+  assert(top() >= start() && top() <= end(), "sanity");
+  assert(commit_top() >= top() && commit_top() <= end(), "sanity");
+
+  assert(_container != NULL, "sanity");
+
+}
 #endif // ASSERT
-
-// Helper, returns a descriptive name for the given index.
-const char* chunk_size_name(ChunkIndex index) {
-  switch (index) {
-    case SpecializedIndex:
-      return "specialized";
-    case SmallIndex:
-      return "small";
-    case MediumIndex:
-      return "medium";
-    case HumongousIndex:
-      return "humongous";
-    default:
-      return "Invalid index";
-  }
-}
-
-#ifdef ASSERT
-void do_verify_chunk(Metachunk* chunk) {
-  guarantee(chunk != NULL, "Sanity");
-  // Verify chunk itself; then verify that it is consistent with the
-  // occupany map of its containing node.
-  chunk->verify();
-  VirtualSpaceNode* const vsn = chunk->container();
-  OccupancyMap* const ocmap = vsn->occupancy_map();
-  ocmap->verify_for_chunk(chunk);
-}
-#endif
-
-void do_update_in_use_info_for_chunk(Metachunk* chunk, bool inuse) {
-  chunk->set_is_tagged_free(!inuse);
-  OccupancyMap* const ocmap = chunk->container()->occupancy_map();
-  ocmap->set_region_in_use((MetaWord*)chunk, chunk->word_size(), inuse);
-}
 
 } // namespace metaspace
 

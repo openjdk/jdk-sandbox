@@ -193,9 +193,6 @@ class Metaspace : public AllStatic {
 
   static void verify_global_initialization();
 
-  static size_t first_chunk_word_size() { return _first_chunk_word_size; }
-  static size_t first_class_chunk_word_size() { return _first_class_chunk_word_size; }
-
   static size_t reserve_alignment()       { return _reserve_alignment; }
   static size_t reserve_alignment_words() { return _reserve_alignment / BytesPerWord; }
   static size_t commit_alignment()        { return _commit_alignment; }
@@ -230,73 +227,6 @@ class Metaspace : public AllStatic {
   static bool initialized() { return _initialized; }
 
 };
-
-// Manages the metaspace portion belonging to a class loader
-class ClassLoaderMetaspace : public CHeapObj<mtClass> {
-  friend class CollectedHeap; // For expand_and_allocate()
-  friend class ZCollectedHeap; // For expand_and_allocate()
-  friend class ShenandoahHeap; // For expand_and_allocate()
-  friend class Metaspace;
-  friend class MetaspaceUtils;
-  friend class metaspace::PrintCLDMetaspaceInfoClosure;
-  friend class VM_CollectForMetadataAllocation; // For expand_and_allocate()
-
- private:
-
-  void initialize(Mutex* lock, Metaspace::MetaspaceType type);
-
-  // Initialize the first chunk for a Metaspace.  Used for
-  // special cases such as the boot class loader, reflection
-  // class loader and anonymous class loader.
-  void initialize_first_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
-  metaspace::Metachunk* get_initialization_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
-
-  const Metaspace::MetaspaceType _space_type;
-  Mutex* const  _lock;
-  metaspace::SpaceManager* _vsm;
-  metaspace::SpaceManager* _class_vsm;
-
-  metaspace::SpaceManager* vsm() const { return _vsm; }
-  metaspace::SpaceManager* class_vsm() const { return _class_vsm; }
-  metaspace::SpaceManager* get_space_manager(Metaspace::MetadataType mdtype) {
-    assert(mdtype != Metaspace::MetadataTypeCount, "MetadaTypeCount can't be used as mdtype");
-    return mdtype == Metaspace::ClassType ? class_vsm() : vsm();
-  }
-
-  Mutex* lock() const { return _lock; }
-
-  MetaWord* expand_and_allocate(size_t size, Metaspace::MetadataType mdtype);
-
-  size_t class_chunk_size(size_t word_size);
-
-  // Adds to the given statistic object. Must be locked with CLD metaspace lock.
-  void add_to_statistics_locked(metaspace::ClassLoaderMetaspaceStatistics* out) const;
-
-  Metaspace::MetaspaceType space_type() const { return _space_type; }
-
- public:
-
-  ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType type);
-  ~ClassLoaderMetaspace();
-
-  // Allocate space for metadata of type mdtype. This is space
-  // within a Metachunk and is used by
-  //   allocate(ClassLoaderData*, size_t, bool, MetadataType, TRAPS)
-  MetaWord* allocate(size_t word_size, Metaspace::MetadataType mdtype);
-
-  size_t allocated_blocks_bytes() const;
-  size_t allocated_chunks_bytes() const;
-
-  void deallocate(MetaWord* ptr, size_t byte_size, bool is_class);
-
-  void print_on(outputStream* st) const;
-  // Debugging support
-  void verify();
-
-  // Adds to the given statistic object. Will lock with CLD metaspace lock.
-  void add_to_statistics(metaspace::ClassLoaderMetaspaceStatistics* out) const;
-
-}; // ClassLoaderMetaspace
 
 class MetaspaceUtils : AllStatic {
 

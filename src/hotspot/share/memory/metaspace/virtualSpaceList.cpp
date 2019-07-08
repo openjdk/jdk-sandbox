@@ -103,7 +103,7 @@ void VirtualSpaceList::purge(ChunkManager* chunk_manager) {
     // be needed soon.
     if (vsl->container_count() == 0 && vsl != current_virtual_space()) {
       log_trace(gc, metaspace, freelist)("Purging VirtualSpaceNode " PTR_FORMAT " (capacity: " SIZE_FORMAT
-                                         ", used: " SIZE_FORMAT ").", p2i(vsl), vsl->capacity_words_in_vs(), vsl->used_words_in_vs());
+                                         ", used: " SIZE_FORMAT ").", p2i(vsl), vsl->committed_words(), vsl->used_words());
       DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_vsnodes_purged));
       // Unlink it from the list
       if (prev_vsl == vsl) {

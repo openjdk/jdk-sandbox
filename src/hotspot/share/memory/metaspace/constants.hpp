@@ -21,43 +21,26 @@
  * questions.
  *
  */
-#include "precompiled.hpp"
 
-#include "logging/log.hpp"
-#include "logging/logStream.hpp"
-#include "memory/metaspace/chunkManager.hpp"
-#include "memory/metaspace/metachunk.hpp"
-#include "memory/metaspace/metaDebug.hpp"
-#include "memory/metaspace/metaspaceCommon.hpp"
-#include "memory/metaspace/spaceManager.hpp"
-#include "memory/metaspace/virtualSpaceList.hpp"
-#include "runtime/atomic.hpp"
-#include "runtime/init.hpp"
-#include "services/memoryService.hpp"
-#include "utilities/debug.hpp"
+#ifndef SHARE_MEMORY_METASPACE_CONSTANTS_HPP
+#define SHARE_MEMORY_METASPACE_CONSTANTS_HPP
+
 #include "utilities/globalDefinitions.hpp"
+#include "memory/metaspace/chunkLevel.hpp"
 
 namespace metaspace {
 
-SpaceManager::SpaceManager(ChunkManager* chunk_manager, const ChunkAllocSequence* alloc_sequence, Mutex* lock)
-  : _lock(lock)
-  , _chunk_manager(chunk_manager)
-  , _chunk_alloc_sequence(alloc_sequence)
-  , _first_chunk(NULL)
-  , _current_chunk(NULL)
-  , _block_freelist(NULL)
-  , _overhead_words(0)
-  , _capacity_words(0)
-  , _used_words(0)
-  , _num_chunks_by_type {}
-{
+// Constants to be used throughout metaspace
 
 
-}
+// The size for a VirtualSpaceNode (unless created differently).
+static size_t VSNODE_DEFAULT_BYTE_SIZE = MAX_CHUNK_BYTE_SIZE * 4;
 
 
-
+// When expanding the committed region of a metachunk (see Metachunk::allocate()), the preferred commit granularity, in bytes
+static size_t metachunk_commit_granularity = 16 * K;
 
 
 } // namespace metaspace
 
+#endif // SHARE_MEMORY_METASPACE_BLOCKFREELIST_HPP

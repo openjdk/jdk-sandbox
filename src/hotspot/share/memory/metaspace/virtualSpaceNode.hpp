@@ -35,128 +35,96 @@ class outputStream;
 namespace metaspace {
 
 class Metachunk;
-class ChunkManager;
-class OccupancyMap;
 
-// A VirtualSpaceList node.
+
+
+// A node in the VirtualSpaceList.
+//
+// VirtualSpaceNodes manage a single address range and a commit high water mark.
+//
+// The address range start and end are aligned to the highest Metachunk size (root chunk size)
+// and memory is only ever requested in units of one root chunk size.
+//
 class VirtualSpaceNode : public CHeapObj<mtClass> {
-  friend class VirtualSpaceList;
+
+  /////////////////////////////////
+  //
+  //  |---------------------     end()
+  //  |
+  //  |  (uncommitted)                  = words_uncommitted()
+  //  |
+  //  |---------------------     commit_top()
+  //  |
+  //  |  (committed unused)             = words_committed_unused()
+  //  |
+  //  |---------------------     top()
+  //  |
+  //  |  (committed used)               = words_used()
+  //  |
+  //  |
+  //  |
+  //  |--------------------      start()
+  //
 
   // Link to next VirtualSpaceNode
   VirtualSpaceNode* _next;
 
-  // Whether this node is contained in class or metaspace.
-  const bool _is_class;
-
-  // total in the VirtualSpace
   ReservedSpace _rs;
   VirtualSpace _virtual_space;
-  MetaWord* _top;
-  // count of chunks contained in this VirtualSpace
-  uintx _container_count;
 
-  OccupancyMap* _occupancy_map;
+  // Current allocated words
+  size_t _used_words;
 
-  // Convenience functions to access the _virtual_space
-  char* low()  const { return virtual_space()->low(); }
-  char* high() const { return virtual_space()->high(); }
-  char* low_boundary()  const { return virtual_space()->low_boundary(); }
-  char* high_boundary() const { return virtual_space()->high_boundary(); }
+  // Current committed words
+  size_t _committed_words;
 
-  // The first Metachunk will be allocated at the bottom of the
-  // VirtualSpace
-  Metachunk* first_chunk() { return (Metachunk*) bottom(); }
+  VirtualSpace* virtual_space() const { return _virtual_space; }
 
-  // Committed but unused space in the virtual space
-  size_t free_words_in_vs() const;
+  MetaWord* start() const {
+    assert(virtual_space()->low() == virtual_space()->low_boundary(), "sanity");
+    return (MetaWord*) virtual_space()->low_boundary();
+  }
 
-  // True if this node belongs to class metaspace.
-  bool is_class() const { return _is_class; }
+  // End of the used area.
+  MetaWord* top() const { return start() + _used_words; }
 
-  // Helper function for take_from_committed: allocate padding chunks
-  // until top is at the given address.
-  void allocate_padding_chunks_until_top_is_at(MetaWord* target_top);
+  // End of the committed area.
+  MetaWord* commit_top() const {
+    assert(virtual_space()->high() == start() + _committed_words, "sanity");
+    return start() + _committed_words;
+  }
 
- public:
+  // End of the reserved space; highest address in this node.
+  MetaWord* end() const { return virtual_space()->high_boundary(); }
 
-  VirtualSpaceNode(bool is_class, size_t byte_size);
-  VirtualSpaceNode(bool is_class, ReservedSpace rs) :
-    _next(NULL), _is_class(is_class), _rs(rs), _top(NULL), _container_count(0), _occupancy_map(NULL) {}
+public:
+
+  // Create a new empty node of the given size. Memory will be reserved but
+  // completely uncommitted.
+  VirtualSpaceNode(size_t wordsize);
+
+  // Create a new empty node spanning the given reserved space.
+  VirtualSpaceNode(ReservedSpace rs);
+
+  // Releases the node memory.
   ~VirtualSpaceNode();
 
-  // Convenience functions for logical bottom and end
-  MetaWord* bottom() const { return (MetaWord*) _virtual_space.low(); }
-  MetaWord* end() const { return (MetaWord*) _virtual_space.high(); }
+  // Allocate a root chunk from this node. Will fail and return NULL
+  // if the node is full.
+  Metachunk* allocate_root_chunk();
 
-  const OccupancyMap* occupancy_map() const { return _occupancy_map; }
-  OccupancyMap* occupancy_map() { return _occupancy_map; }
+  // Returns true if this node can be purged (all chunks are free).
+  bool can_be_purged() const;
 
-  bool contains(const void* ptr) { return ptr >= low() && ptr < high(); }
-
-  size_t reserved_words() const  { return _virtual_space.reserved_size() / BytesPerWord; }
-  size_t committed_words() const { return _virtual_space.actual_committed_size() / BytesPerWord; }
-
-  bool is_pre_committed() const { return _virtual_space.special(); }
-
-  // address of next available space in _virtual_space;
-  // Accessors
-  VirtualSpaceNode* next() { return _next; }
-  void set_next(VirtualSpaceNode* v) { _next = v; }
-
-  void set_top(MetaWord* v) { _top = v; }
-
-  // Accessors
-  VirtualSpace* virtual_space() const { return (VirtualSpace*) &_virtual_space; }
-
-  // Returns true if "word_size" is available in the VirtualSpace
-  bool is_available(size_t word_size) { return word_size <= pointer_delta(end(), _top, sizeof(MetaWord)); }
-
-  MetaWord* top() const { return _top; }
-  void inc_top(size_t word_size) { _top += word_size; }
-
-  uintx container_count() { return _container_count; }
-  void inc_container_count();
-  void dec_container_count();
-
-  // used and capacity in this single entry in the list
-  size_t used_words_in_vs() const;
-  size_t capacity_words_in_vs() const;
-
-  bool initialize();
-
-  // get space from the virtual space
-  Metachunk* take_from_committed(size_t chunk_word_size);
-
-  // Allocate a chunk from the virtual space and return it.
-  Metachunk* get_chunk_vs(size_t chunk_word_size);
-
-  // Expands the committed space by at least min_words words.
-  bool expand_by(size_t min_words, size_t preferred_words);
-
-  // In preparation for deleting this node, remove all the chunks
-  // in the node from any freelist.
+  // Purge this node: remove all the chunks in the node from the given chunk manager.
+  // Assumption: all chunks are free (see can_be_purged()).
   void purge(ChunkManager* chunk_manager);
 
-  // If an allocation doesn't fit in the current node a new node is created.
-  // Allocate chunks out of the remaining committed space in this node
-  // to avoid wasting that memory.
-  // This always adds up because all the chunk sizes are multiples of
-  // the smallest chunk size.
-  void retire(ChunkManager* chunk_manager);
-
-  void print_on(outputStream* st) const                 { print_on(st, K); }
-  void print_on(outputStream* st, size_t scale) const;
-  void print_map(outputStream* st, bool is_class) const;
-
-  // Debug support
-  DEBUG_ONLY(void mangle();)
-  // Verify counters and basic structure. Slow mode: verify all chunks in depth and occupancy map.
+  // Verify counters and basic structure. Slow mode: verify all chunks in depth
   DEBUG_ONLY(void verify(bool slow);)
-  // Verify that all free chunks in this node are ideally merged
-  // (there should not be multiple small chunks where a large chunk could exist.)
-  DEBUG_ONLY(void verify_free_chunks_are_ideally_merged();)
 
 };
+
 
 } // namespace metaspace
 

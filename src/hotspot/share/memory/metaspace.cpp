@@ -32,7 +32,7 @@
 #include "memory/metaspace.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
-#include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/printCLDMetaspaceInfoClosure.hpp"
 #include "memory/metaspace/spaceManager.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
@@ -957,12 +957,6 @@ void MetaspaceUtils::verify_metrics() {
 
 // Metaspace methods
 
-size_t Metaspace::_first_chunk_word_size = 0;
-size_t Metaspace::_first_class_chunk_word_size = 0;
-
-size_t Metaspace::_commit_alignment = 0;
-size_t Metaspace::_reserve_alignment = 0;
-
 VirtualSpaceList* Metaspace::_space_list = NULL;
 VirtualSpaceList* Metaspace::_class_space_list = NULL;
 
@@ -1178,12 +1172,9 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
   assert(rs.size() >= CompressedClassSpaceSize,
          SIZE_FORMAT " != " SIZE_FORMAT, rs.size(), CompressedClassSpaceSize);
   assert(using_class_space(), "Must be using class space");
-  _class_space_list = new VirtualSpaceList(rs);
-  _chunk_manager_class = new ChunkManager(true/*is_class*/);
+  _class_space_list = new VirtualSpaceList("class space list", rs);
+  _chunk_manager_class = new ChunkManager("class space chunk manager", _class_space_list);
 
-  if (!_class_space_list->initialization_succeeded()) {
-    vm_exit_during_initialization("Failed to setup compressed class space virtual space list.");
-  }
 }
 
 #endif
@@ -1200,7 +1191,12 @@ void Metaspace::ergo_initialize() {
   }
 
   _commit_alignment  = page_size;
-  _reserve_alignment = MAX2(page_size, (size_t)os::vm_allocation_granularity());
+
+  // Reserve alignment: all Metaspace memory mappings are to be aligned to the size of a root chunk.
+  assert(is_aligned_to((int)MAX_CHUNK_BYTE_SIZE, os::vm_allocation_granularity()),
+      "root chunk size must be a multiple of alloc granularity");
+
+  _reserve_alignment = MAX2(page_size, (size_t)MAX_CHUNK_BYTE_SIZE);
 
   // Do not use FLAG_SET_ERGO to update MaxMetaspaceSize, since this will
   // override if MaxMetaspaceSize was set on the command line or not.
@@ -1246,7 +1242,7 @@ void Metaspace::ergo_initialize() {
 }
 
 void Metaspace::global_initialize() {
-  MetaspaceGC::initialize();
+  MetaspaceGC::initialize(); // <- since we do not prealloc init chunks anymore is this still needed?
 
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
@@ -1262,10 +1258,10 @@ void Metaspace::global_initialize() {
   if (DynamicDumpSharedSpaces && !UseSharedSpaces) {
     vm_exit_during_initialization("DynamicDumpSharedSpaces is unsupported when base CDS archive is not loaded", NULL);
   }
-
-  if (!DumpSharedSpaces && !UseSharedSpaces)
 #endif // INCLUDE_CDS
-  {
+
+  // Initialize class space:
+  if (CDS_ONLY(!DumpSharedSpaces && !UseSharedSpaces) NOT_CDS(true)) {
 #ifdef _LP64
     if (using_class_space()) {
       char* base = (char*)align_up(Universe::heap()->reserved_region().end(), _reserve_alignment);
@@ -1274,27 +1270,9 @@ void Metaspace::global_initialize() {
 #endif // _LP64
   }
 
-  // Initialize these before initializing the VirtualSpaceList
-  _first_chunk_word_size = InitialBootClassLoaderMetaspaceSize / BytesPerWord;
-  _first_chunk_word_size = align_word_size_up(_first_chunk_word_size);
-  // Make the first class chunk bigger than a medium chunk so it's not put
-  // on the medium chunk list.   The next chunk will be small and progress
-  // from there.  This size calculated by -version.
-  _first_class_chunk_word_size = MIN2((size_t)MediumChunk*6,
-                                     (CompressedClassSpaceSize/BytesPerWord)*2);
-  _first_class_chunk_word_size = align_word_size_up(_first_class_chunk_word_size);
-  // Arbitrarily set the initial virtual space to a multiple
-  // of the boot class loader size.
-  size_t word_size = VIRTUALSPACEMULTIPLIER * _first_chunk_word_size;
-  word_size = align_up(word_size, Metaspace::reserve_alignment_words());
-
-  // Initialize the list of virtual spaces.
-  _space_list = new VirtualSpaceList(word_size);
-  _chunk_manager_metadata = new ChunkManager(false/*metaspace*/);
-
-  if (!_space_list->initialization_succeeded()) {
-    vm_exit_during_initialization("Unable to setup metadata virtual space list.", NULL);
-  }
+  // Initialize non-class virtual space list, and its chunk manager:
+  _space_list = new VirtualSpaceList("Non-Class VirtualSpaceList");
+  _chunk_manager_metadata = new ChunkManager("Non-Class ChunkManager", _space_list);
 
   _tracer = new MetaspaceTracer();
 
@@ -1458,174 +1436,6 @@ bool Metaspace::contains_non_shared(const void* ptr) {
   }
 
   return get_space_list(NonClassType)->contains(ptr);
-}
-
-// ClassLoaderMetaspace
-
-ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType type)
-  : _space_type(type)
-  , _lock(lock)
-  , _vsm(NULL)
-  , _class_vsm(NULL)
-{
-  initialize(lock, type);
-}
-
-ClassLoaderMetaspace::~ClassLoaderMetaspace() {
-  Metaspace::assert_not_frozen();
-  DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_metaspace_deaths));
-  delete _vsm;
-  if (Metaspace::using_class_space()) {
-    delete _class_vsm;
-  }
-}
-
-void ClassLoaderMetaspace::initialize_first_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype) {
-  Metachunk* chunk = get_initialization_chunk(type, mdtype);
-  if (chunk != NULL) {
-    // Add to this manager's list of chunks in use and make it the current_chunk().
-    get_space_manager(mdtype)->add_chunk(chunk, true);
-  }
-}
-
-Metachunk* ClassLoaderMetaspace::get_initialization_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype) {
-  size_t chunk_word_size = get_space_manager(mdtype)->get_initial_chunk_size(type);
-
-  // Get a chunk from the chunk freelist
-  Metachunk* chunk = Metaspace::get_chunk_manager(mdtype)->chunk_freelist_allocate(chunk_word_size);
-
-  if (chunk == NULL) {
-    chunk = Metaspace::get_space_list(mdtype)->get_new_chunk(chunk_word_size,
-                                                  get_space_manager(mdtype)->medium_chunk_bunch());
-  }
-
-  return chunk;
-}
-
-void ClassLoaderMetaspace::initialize(Mutex* lock, Metaspace::MetaspaceType type) {
-  Metaspace::verify_global_initialization();
-
-  DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_metaspace_births));
-
-  // Allocate SpaceManager for metadata objects.
-  _vsm = new SpaceManager(Metaspace::NonClassType, type, lock);
-
-  if (Metaspace::using_class_space()) {
-    // Allocate SpaceManager for classes.
-    _class_vsm = new SpaceManager(Metaspace::ClassType, type, lock);
-  }
-
-  MutexLocker cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-
-  // Allocate chunk for metadata objects
-  initialize_first_chunk(type, Metaspace::NonClassType);
-
-  // Allocate chunk for class metadata objects
-  if (Metaspace::using_class_space()) {
-    initialize_first_chunk(type, Metaspace::ClassType);
-  }
-}
-
-MetaWord* ClassLoaderMetaspace::allocate(size_t word_size, Metaspace::MetadataType mdtype) {
-  Metaspace::assert_not_frozen();
-
-  DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_allocs));
-
-  // Don't use class_vsm() unless UseCompressedClassPointers is true.
-  if (Metaspace::is_class_space_allocation(mdtype)) {
-    return  class_vsm()->allocate(word_size);
-  } else {
-    return  vsm()->allocate(word_size);
-  }
-}
-
-MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace::MetadataType mdtype) {
-  Metaspace::assert_not_frozen();
-  size_t delta_bytes = MetaspaceGC::delta_capacity_until_GC(word_size * BytesPerWord);
-  assert(delta_bytes > 0, "Must be");
-
-  size_t before = 0;
-  size_t after = 0;
-  bool can_retry = true;
-  MetaWord* res;
-  bool incremented;
-
-  // Each thread increments the HWM at most once. Even if the thread fails to increment
-  // the HWM, an allocation is still attempted. This is because another thread must then
-  // have incremented the HWM and therefore the allocation might still succeed.
-  do {
-    incremented = MetaspaceGC::inc_capacity_until_GC(delta_bytes, &after, &before, &can_retry);
-    res = allocate(word_size, mdtype);
-  } while (!incremented && res == NULL && can_retry);
-
-  if (incremented) {
-    Metaspace::tracer()->report_gc_threshold(before, after,
-                                  MetaspaceGCThresholdUpdater::ExpandAndAllocate);
-    log_trace(gc, metaspace)("Increase capacity to GC from " SIZE_FORMAT " to " SIZE_FORMAT, before, after);
-  }
-
-  return res;
-}
-
-size_t ClassLoaderMetaspace::allocated_blocks_bytes() const {
-  return (vsm()->used_words() +
-      (Metaspace::using_class_space() ? class_vsm()->used_words() : 0)) * BytesPerWord;
-}
-
-size_t ClassLoaderMetaspace::allocated_chunks_bytes() const {
-  return (vsm()->capacity_words() +
-      (Metaspace::using_class_space() ? class_vsm()->capacity_words() : 0)) * BytesPerWord;
-}
-
-void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_class) {
-  Metaspace::assert_not_frozen();
-  assert(!SafepointSynchronize::is_at_safepoint()
-         || Thread::current()->is_VM_thread(), "should be the VM thread");
-
-  DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_external_deallocs));
-
-  MutexLocker ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
-
-  if (is_class && Metaspace::using_class_space()) {
-    class_vsm()->deallocate(ptr, word_size);
-  } else {
-    vsm()->deallocate(ptr, word_size);
-  }
-}
-
-size_t ClassLoaderMetaspace::class_chunk_size(size_t word_size) {
-  assert(Metaspace::using_class_space(), "Has to use class space");
-  return class_vsm()->calc_chunk_size(word_size);
-}
-
-void ClassLoaderMetaspace::print_on(outputStream* out) const {
-  // Print both class virtual space counts and metaspace.
-  if (Verbose) {
-    vsm()->print_on(out);
-    if (Metaspace::using_class_space()) {
-      class_vsm()->print_on(out);
-    }
-  }
-}
-
-void ClassLoaderMetaspace::verify() {
-  vsm()->verify();
-  if (Metaspace::using_class_space()) {
-    class_vsm()->verify();
-  }
-}
-
-void ClassLoaderMetaspace::add_to_statistics_locked(ClassLoaderMetaspaceStatistics* out) const {
-  assert_lock_strong(lock());
-  vsm()->add_to_statistics_locked(&out->nonclass_sm_stats());
-  if (Metaspace::using_class_space()) {
-    class_vsm()->add_to_statistics_locked(&out->class_sm_stats());
-  }
-}
-
-void ClassLoaderMetaspace::add_to_statistics(ClassLoaderMetaspaceStatistics* out) const {
-  MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
-  add_to_statistics_locked(out);
 }
 
 /////////////// Unit tests ///////////////
