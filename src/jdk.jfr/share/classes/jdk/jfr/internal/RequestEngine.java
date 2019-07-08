@@ -263,6 +263,7 @@ public final class RequestEngine {
             if (r_delta >= r_period) {
                 r_delta = 0;
                 MetadataRepository.getInstance().flush();
+                Utils.notifyFlush();
             }
             long left = (r_period - r_delta);
             if (left < 0) {

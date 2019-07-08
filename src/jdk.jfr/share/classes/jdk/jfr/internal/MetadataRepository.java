@@ -263,6 +263,7 @@ public final class MetadataRepository {
     // to storeDescriptorInJVM
     synchronized void setOutput(String filename) {
         jvm.setOutput(filename);
+        Utils.notifyFlush();
         flushMetadata = false;
         unregisterUnloaded();
         if (unregistered) {

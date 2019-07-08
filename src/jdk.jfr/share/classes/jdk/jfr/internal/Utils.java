@@ -65,17 +65,17 @@ import jdk.jfr.internal.settings.ThresholdSetting;
 
 public final class Utils {
 
+    private static final Object flushObject = new Object();
     private static final String INFINITY = "infinity";
-
-    private static Boolean SAVE_GENERATED;
-
     public static final String EVENTS_PACKAGE_NAME = "jdk.jfr.events";
     public static final String INSTRUMENT_PACKAGE_NAME = "jdk.jfr.internal.instrument";
     public static final String HANDLERS_PACKAGE_NAME = "jdk.jfr.internal.handlers";
     public static final String REGISTER_EVENT = "registerEvent";
     public static final String ACCESS_FLIGHT_RECORDER = "accessFlightRecorder";
-
     private final static String LEGACY_EVENT_NAME_PREFIX = "com.oracle.jdk.";
+
+    private static Boolean SAVE_GENERATED;
+
 
     public static void checkAccessFlightRecorder() throws SecurityException {
         SecurityManager sm = System.getSecurityManager();
@@ -595,10 +595,28 @@ public final class Utils {
         String idText = recording == null ? "" :  "-id-" + Long.toString(recording.getId());
         return "hotspot-" + "pid-" + pid + idText + "-" + date + ".jfr";
     }
+
     public static void takeNap(long millis) {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
         }
+    }
+
+    public static void notifyFlush() {
+        synchronized (flushObject) {
+            flushObject.notifyAll();
+        }
+    }
+
+    public static void waitFlush(long timeOut) {
+        synchronized (flushObject) {
+            try {
+                flushObject.wait(timeOut);
+            } catch (InterruptedException e) {
+                // OK
+            }
+        }
+
     }
 }

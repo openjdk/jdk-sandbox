@@ -67,19 +67,19 @@ final class ChunkParser {
     private long firstNanos;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
-       this(new ChunkHeader(input), null, 100);
+       this(new ChunkHeader(input), null, 1000);
        this.reuse = reuse;
     }
 
     public ChunkParser(ChunkParser previous) throws IOException {
-        this(new ChunkHeader(previous.input), previous, 100);
+        this(new ChunkHeader(previous.input), previous, 1000);
      }
 
     private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
         this.input = header.getInput();
         this.chunkHeader = header;
         if (previous == null) {
-            this.pollInterval = 500;
+            this.pollInterval = 1000;
             this.constantLookups = new LongMap<>();
             this.previousMetadata = null;
         } else {
@@ -201,7 +201,7 @@ final class ChunkParser {
             if (chunkHeader.isFinished()) {
                 return true;
             }
-            Utils.takeNap(pollInterval);
+            Utils.waitFlush(pollInterval);
         }
     }
 
