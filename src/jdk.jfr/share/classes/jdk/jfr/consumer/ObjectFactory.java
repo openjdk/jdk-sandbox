@@ -25,9 +25,6 @@
 
 package jdk.jfr.consumer;
 
-import java.util.List;
-
-import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.Type;
 
 /**
@@ -65,10 +62,10 @@ abstract class ObjectFactory<T> {
         return null;
     }
 
-    private final List<ValueDescriptor> valueDescriptors;
+    private final ObjectContext objectContext;
 
-    ObjectFactory(Type type) {
-        this.valueDescriptors = type.getFields();
+    ObjectFactory(Type type, TimeConverter timeConverter) {
+        this.objectContext = new ObjectContext(null, type.getFields(), timeConverter);
     }
 
     T createObject(long id, Object value) {
@@ -76,10 +73,10 @@ abstract class ObjectFactory<T> {
             return null;
         }
         if (value instanceof Object[]) {
-            return createTyped(valueDescriptors, id, (Object[]) value);
+            return createTyped(objectContext, id, (Object[]) value);
         }
         throw new InternalError("Object factory must have struct type. Type was " + value.getClass().getName());
     }
 
-    abstract T createTyped(List<ValueDescriptor> valueDescriptors, long id, Object[] values);
+    abstract T createTyped(ObjectContext objectContextm, long id, Object[] values);
 }

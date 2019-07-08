@@ -25,9 +25,6 @@
 
 package jdk.jfr.consumer;
 
-import java.util.List;
-
-import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.Type;
 
 /**
@@ -38,18 +35,18 @@ import jdk.jfr.internal.Type;
 public final class RecordedThread extends RecordedObject {
 
     static ObjectFactory<RecordedThread> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedThread>(type) {
+        return new ObjectFactory<RecordedThread>(type, timeConverter) {
             @Override
-            RecordedThread createTyped(List<ValueDescriptor> desc, long id, Object[] object) {
-                return new RecordedThread(desc, id, object, timeConverter);
+            RecordedThread createTyped(ObjectContext objectContext, long id, Object[] values) {
+                return new RecordedThread(objectContext, id, values);
             }
         };
     }
 
     private final long uniqueId;
 
-    private RecordedThread(List<ValueDescriptor> descriptors, long id, Object[] values,  TimeConverter timeConverter) {
-        super(descriptors, values, timeConverter);
+    private RecordedThread(ObjectContext objectContext, long id, Object[] values) {
+        super(objectContext, values);
         this.uniqueId = id;
     }
 

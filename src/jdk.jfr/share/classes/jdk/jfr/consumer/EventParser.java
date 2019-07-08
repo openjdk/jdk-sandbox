@@ -54,6 +54,7 @@ final class EventParser extends Parser {
     private boolean ordered;
     private long firstNanos;
     private long thresholdNanos = -1;
+    private ObjectContext objectContext;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
@@ -63,7 +64,8 @@ final class EventParser extends Parser {
         this.startIndex = hasDuration ? 2 : 1;
         this.length = parsers.length - startIndex;
         this.valueDescriptors = type.getFields();
-        this.unorderedEvent = new RecordedEvent(eventType, valueDescriptors, new Object[length], 0L, 0L, timeConverter);
+        this.objectContext = new ObjectContext(type, valueDescriptors, timeConverter);
+        this.unorderedEvent = new RecordedEvent(objectContext, new Object[length], 0L, 0L);
     }
 
     private RecordedEvent cachedEvent() {
@@ -75,7 +77,7 @@ final class EventParser extends Parser {
             }
             RecordedEvent event = eventCache[index];
             if (event == null) {
-                event = new RecordedEvent(eventType, valueDescriptors, new Object[length], 0L, 0L, timeConverter);
+                event = new RecordedEvent(objectContext, new Object[length], 0L, 0L);
                 eventCache[index] = event;
             }
             index++;
@@ -134,7 +136,7 @@ final class EventParser extends Parser {
                 for (int i = 0; i < length; i++) {
                     values[i] = parsers[startIndex + i].parse(input);
                 }
-                return new RecordedEvent(eventType, valueDescriptors, values, startTicks, endTicks, timeConverter);
+                return new RecordedEvent(objectContext, values, startTicks, endTicks);
             }
         }
         return null;

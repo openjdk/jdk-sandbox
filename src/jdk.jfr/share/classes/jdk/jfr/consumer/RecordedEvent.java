@@ -39,14 +39,12 @@ import jdk.jfr.internal.EventInstrumentation;
  * @since 9
  */
 public final class RecordedEvent extends RecordedObject {
-    private final EventType eventType;
     long startTimeTicks;
     long endTimeTicks;
 
     // package private
-    RecordedEvent(EventType type, List<ValueDescriptor> vds, Object[] values, long startTimeTicks, long endTimeTicks, TimeConverter timeConverter) {
-        super(vds, values, timeConverter);
-        this.eventType = type;
+    RecordedEvent(ObjectContext objectContext, Object[] values, long startTimeTicks, long endTimeTicks) {
+        super(objectContext, values);
         this.startTimeTicks = startTimeTicks;
         this.endTimeTicks = endTimeTicks;
     }
@@ -77,7 +75,7 @@ public final class RecordedEvent extends RecordedObject {
      * @return the event type, not {@code null}
      */
     public EventType getEventType() {
-        return eventType;
+        return objectContext.eventType;
     }
 
     /**
@@ -118,7 +116,7 @@ public final class RecordedEvent extends RecordedObject {
      */
     @Override
     public List<ValueDescriptor> getFields() {
-        return getEventType().getFields();
+        return objectContext.fields;
     }
 
     protected final Object objectAt(int index) {
@@ -135,14 +133,14 @@ public final class RecordedEvent extends RecordedObject {
     }
 
     private boolean hasDuration() {
-        return objects.length + 2 == descriptors.size();
+        return objects.length + 2 == objectContext.fields.size();
     }
 
     private long getStartTimeNanos() {
-        return timeConverter.convertTimestamp(startTimeTicks);
+        return objectContext.timeConverter.convertTimestamp(startTimeTicks);
     }
 
     private long getEndTimeNanos() {
-        return timeConverter.convertTimestamp(endTimeTicks);
+        return objectContext.timeConverter.convertTimestamp(endTimeTicks);
     }
 }
