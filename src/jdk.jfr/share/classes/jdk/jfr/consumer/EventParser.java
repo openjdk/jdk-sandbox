@@ -48,13 +48,14 @@ final class EventParser extends Parser {
     private final int startIndex;
     private final int length;
     private final RecordedEvent unorderedEvent;
+    private final ObjectContext objectContext;
+
     private boolean enabled = true;
     private RecordedEvent[] eventCache;
     private int index;
     private boolean ordered;
     private long firstNanos;
     private long thresholdNanos = -1;
-    private ObjectContext objectContext;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
         this.timeConverter = timeConverter;
@@ -104,42 +105,43 @@ final class EventParser extends Parser {
     }
 
     public RecordedEvent parse(RecordingInput input) throws IOException {
-        if (enabled) {
-            long startTicks = input.readLong();
-            long durationTicks = 0;
-            if (hasDuration) {
-                durationTicks = input.readLong();
-                if (thresholdNanos > 0L) {
-                    if (timeConverter.convertTimespan(durationTicks) < thresholdNanos) {
-                        return null;
-                    }
-                }
-            }
-            long endTicks = startTicks + durationTicks;
-            if (firstNanos > 0L) {
-                if (timeConverter.convertTimestamp(endTicks) < firstNanos) {
+        if (!enabled) {
+            return null;
+        }
+
+        long startTicks = input.readLong();
+        long durationTicks = 0;
+        if (hasDuration) {
+            durationTicks = input.readLong();
+            if (thresholdNanos > 0L) {
+                if (timeConverter.convertTimespan(durationTicks) < thresholdNanos) {
                     return null;
                 }
             }
-
-            if (eventCache != null) {
-                RecordedEvent event = cachedEvent();
-                event.startTimeTicks = startTicks;
-                event.endTimeTicks = endTicks;
-                Object[] values = event.objects;
-                for (int i = 0; i < length; i++) {
-                    values[i] = parsers[startIndex + i].parse(input);
-                }
-                return event;
-            } else {
-                Object[] values = new Object[length];
-                for (int i = 0; i < length; i++) {
-                    values[i] = parsers[startIndex + i].parse(input);
-                }
-                return new RecordedEvent(objectContext, values, startTicks, endTicks);
+        }
+        long endTicks = startTicks + durationTicks;
+        if (firstNanos > 0L) {
+            if (timeConverter.convertTimestamp(endTicks) < firstNanos) {
+                return null;
             }
         }
-        return null;
+
+        if (eventCache != null) {
+            RecordedEvent event = cachedEvent();
+            event.startTimeTicks = startTicks;
+            event.endTimeTicks = endTicks;
+            Object[] values = event.objects;
+            for (int i = 0; i < values.length; i++) {
+                values[i] = parsers[startIndex + i].parse(input);
+            }
+            return event;
+        }
+
+        Object[] values = new Object[length];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = parsers[startIndex + i].parse(input);
+        }
+        return new RecordedEvent(objectContext, values, startTicks, endTicks);
     }
 
     @Override
