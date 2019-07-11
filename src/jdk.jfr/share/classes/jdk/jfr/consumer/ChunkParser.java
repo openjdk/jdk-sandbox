@@ -256,17 +256,16 @@ final class ChunkParser {
                     }
                     for (int j = 0; j < count; j++) {
                         long key = input.readLong();
-//                      Object resolved = lookup.getCurrent(key);
-// Disable cache        Object resolved = lookup.getResolved(key);
-//                      if (resolved == null) {
+                      Object resolved = lookup.getPreviousResolved(key);
+                      if (resolved == null) {
                             Object v = parser.parse(input);
                             logConstant(key, v, false);
                             lookup.getLatestPool().put(key, v);
-//                        } else {
-//                            parser.skip(input);
-//                            logConstant(key, resolved, true);
-// Disable cache            lookup.getLatestPool().putResolved(key, resolved);
-//                        }
+                        } else {
+                            parser.skip(input);
+                            logConstant(key, resolved, true);
+                            lookup.getLatestPool().putResolved(key, resolved);
+                        }
                     }
                 } catch (Exception e) {
                     throw new IOException("Error parsing constant pool type " + getName(id) + " at position " + input.position() + " at check point between [" + lastCP + ", " + lastCP + size + "]",

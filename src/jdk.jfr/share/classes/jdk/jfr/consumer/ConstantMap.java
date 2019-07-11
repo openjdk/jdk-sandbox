@@ -174,8 +174,8 @@ final class ConstantMap {
     }
 
     public void putResolved(long id, Object object) {
-        objects.setId(id, RESOLUTION_FINISHED);
         objects.put(id, object);
+        objects.setId(id, RESOLUTION_FINISHED);
     }
 
     public void setAllResolved(boolean allResolved) {

@@ -22,7 +22,7 @@ final class ConstantLookup {
     }
 
     public void newPool() {
-     //   previous = current;
+        previous = current;
         current = new ConstantMap(current.factory, current.name);
      //   previous =  new ConstantMap(); // disable cache
     }
