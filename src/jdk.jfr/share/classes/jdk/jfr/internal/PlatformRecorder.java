@@ -58,6 +58,7 @@ import jdk.jfr.internal.instrument.JDKEvents;
 
 public final class PlatformRecorder {
 
+
     private final List<PlatformRecording> recordings = new ArrayList<>();
     private final static List<SecureRecorderListener> changeListeners = new ArrayList<>();
     private final Repository repository;
@@ -417,11 +418,10 @@ public final class PlatformRecorder {
     }
 
     private void writeMetaEvents() {
-
         if (activeRecordingEvent.isEnabled()) {
+            ActiveRecordingEvent event = ActiveRecordingEvent.EVENT.get();
             for (PlatformRecording r : getRecordings()) {
                 if (r.getState() == RecordingState.RUNNING && r.shouldWriteMetadataEvent()) {
-                    ActiveRecordingEvent event = new ActiveRecordingEvent();
                     event.id = r.getId();
                     event.name = r.getName();
                     WriteableUserPath p = r.getDestination();

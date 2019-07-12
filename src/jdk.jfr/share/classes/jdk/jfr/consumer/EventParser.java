@@ -101,7 +101,7 @@ final class EventParser extends Parser {
     }
 
     public boolean isEnabled() {
-        return this.enabled;
+        return enabled;
     }
 
     public RecordedEvent parse(RecordingInput input) throws IOException {
@@ -110,16 +110,16 @@ final class EventParser extends Parser {
         }
 
         long startTicks = input.readLong();
-        long durationTicks = 0;
+        long endTicks = startTicks;
         if (hasDuration) {
-            durationTicks = input.readLong();
+            long durationTicks = input.readLong();
             if (thresholdNanos > 0L) {
                 if (timeConverter.convertTimespan(durationTicks) < thresholdNanos) {
                     return null;
                 }
             }
+            endTicks += durationTicks;
         }
-        long endTicks = startTicks + durationTicks;
         if (firstNanos > 0L) {
             if (timeConverter.convertTimestamp(endTicks) < firstNanos) {
                 return null;

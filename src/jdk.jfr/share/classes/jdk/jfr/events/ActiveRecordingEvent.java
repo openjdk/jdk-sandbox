@@ -40,6 +40,13 @@ import jdk.jfr.internal.Type;
 @StackTrace(false)
 public final class ActiveRecordingEvent extends AbstractJDKEvent {
 
+    public static final ThreadLocal<ActiveRecordingEvent> EVENT = new ThreadLocal<ActiveRecordingEvent>() {
+        @Override
+        protected ActiveRecordingEvent initialValue() {
+            return new ActiveRecordingEvent();
+        }
+    };
+
     @Label("Id")
     public long id;
 

@@ -210,10 +210,14 @@ public final class MetadataRepository {
     }
 
     public synchronized List<EventControl> getEventControls() {
-        List<EventControl> controls = new ArrayList<>();
+        List<Class<? extends jdk.internal.event.Event>> eventClasses = jvm.getAllEventClasses();
+        ArrayList<EventControl> controls = new ArrayList<>(eventClasses.size() + nativeControls.size());
         controls.addAll(nativeControls);
-        for (EventHandler eh : getEventHandlers()) {
-            controls.add(eh.getEventControl());
+        for (Class<? extends jdk.internal.event.Event> clazz : eventClasses) {
+            EventHandler eh = Utils.getHandler(clazz);
+            if (eh != null) {
+                controls.add(eh.getEventControl());
+            }
         }
         return controls;
     }
@@ -319,4 +323,8 @@ public final class MetadataRepository {
         }
         this.flushMetadata = false;
     }
+
+
+
+
 }

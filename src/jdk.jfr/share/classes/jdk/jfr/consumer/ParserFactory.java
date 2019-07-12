@@ -204,10 +204,11 @@ final class ParserFactory {
         @Override
         public Object parse(RecordingInput input) throws IOException {
             long l = input.readLong();
-            if (l != last) {
-                last = l;
-                lastLongObject = Long.valueOf(l);
+            if (l == last) {
+                return lastLongObject;
             }
+            last = l;
+            lastLongObject = Long.valueOf(l);
             return lastLongObject;
         }
 
