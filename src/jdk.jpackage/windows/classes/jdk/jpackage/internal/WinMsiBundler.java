@@ -1039,8 +1039,9 @@ public class WinMsiBundler  extends AbstractBundler {
 
         commandLine.add("-nologo");
         commandLine.add("-spdb");
-        commandLine.add("-sice:60");
-                // ignore warnings due to "missing launcguage info" (ICE60)
+        if (!MSI_SYSTEM_WIDE.fetchFrom(params)) {
+            commandLine.add("-sice:ICE91");
+        }
         commandLine.add(candleOut.getAbsolutePath());
         commandLine.add("-ext");
         commandLine.add("WixUtilExtension");
