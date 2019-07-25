@@ -176,8 +176,6 @@ public:
     virtual MessageResponse ShowResponseMessage(TString title,
            TString description) = 0;
 
-    virtual void SetCurrentDirectory(TString Value) = 0;
-
     // Caller must free result using delete[].
     virtual TCHAR* ConvertStringToFileSystemString(TCHAR* Source,
             bool &release) = 0;

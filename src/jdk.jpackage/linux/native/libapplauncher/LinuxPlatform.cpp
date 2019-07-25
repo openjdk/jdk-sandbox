@@ -126,10 +126,6 @@ TString LinuxPlatform::GetModuleFileName() {
     return result;
 }
 
-void LinuxPlatform::SetCurrentDirectory(TString Value) {
-    chdir(PlatformString(Value).toPlatformString());
-}
-
 TString LinuxPlatform::GetPackageRootDirectory() {
     TString result;
     TString filename = GetModuleFileName();

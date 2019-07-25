@@ -49,7 +49,6 @@ public:
     virtual TCHAR* ConvertFileSystemStringToString(
             TCHAR* Source, bool &release);
 
-    virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
     virtual TString GetBundledJavaLibraryFileName(TString RuntimePath);

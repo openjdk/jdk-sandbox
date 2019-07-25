@@ -47,7 +47,6 @@ public:
     virtual MessageResponse ShowResponseMessage(TString title,
             TString description);
 
-    virtual void SetCurrentDirectory(TString Value);
     virtual TString GetPackageRootDirectory();
     virtual TString GetAppDataDirectory();
     virtual TString GetAppName();

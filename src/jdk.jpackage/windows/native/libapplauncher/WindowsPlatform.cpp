@@ -171,10 +171,6 @@ TCHAR* WindowsPlatform::ConvertFileSystemStringToString(TCHAR* Source,
     return NULL;
 }
 
-void WindowsPlatform::SetCurrentDirectory(TString Value) {
-    _wchdir(Value.data());
-}
-
 TString WindowsPlatform::GetPackageRootDirectory() {
     TString result;
     TString filename = GetModuleFileName();

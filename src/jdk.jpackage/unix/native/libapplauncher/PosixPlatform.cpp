@@ -94,10 +94,6 @@ MessageResponse PosixPlatform::ShowResponseMessage(TString title,
     return result;
 }
 
-void PosixPlatform::SetCurrentDirectory(TString Value) {
-    chdir(StringToFileSystemString(Value));
-}
-
 Module PosixPlatform::LoadLibrary(TString FileName) {
     return dlopen(StringToFileSystemString(FileName), RTLD_LAZY);
 }
@@ -310,7 +306,9 @@ TProcessID PosixProcess::GetProcessID() {
 
 void PosixProcess::SetInput(TString Value) {
     if (FInputHandle != 0) {
-        write(FInputHandle, Value.data(), Value.size());
+        if (write(FInputHandle, Value.data(), Value.size()) < 0) {
+            throw Exception(_T("Internal Error - write failed"));
+        }
     }
 }
 

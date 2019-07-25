@@ -198,10 +198,6 @@ TCHAR* MacPlatform::ConvertFileSystemStringToString(TCHAR* Source,
     return result;
 }
 
-void MacPlatform::SetCurrentDirectory(TString Value) {
-    chdir(PlatformString(Value).toPlatformString());
-}
-
 TString MacPlatform::GetPackageRootDirectory() {
     NSBundle *mainBundle = [NSBundle mainBundle];
     NSString *mainBundlePath = [mainBundle bundlePath];
