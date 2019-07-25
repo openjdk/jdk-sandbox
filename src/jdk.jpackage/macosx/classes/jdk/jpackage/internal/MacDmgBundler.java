@@ -61,7 +61,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         try {
             appImageDir.mkdirs();
 
-            if (prepareAppBundle(params, true) != null &&
+            if (prepareAppBundle(params) != null &&
                     prepareConfigFiles(params)) {
                 File configScript = getConfig_Script(params);
                 if (configScript.exists()) {

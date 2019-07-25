@@ -138,9 +138,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         IOUtils.writableOutputDir(outdir.toPath());
 
-        File appImageDir = null;
         try {
-            appImageDir = prepareAppBundle(params, false);
+            File appImageDir = prepareAppBundle(params);
 
             if (appImageDir != null && prepareConfigFiles(params)) {
 

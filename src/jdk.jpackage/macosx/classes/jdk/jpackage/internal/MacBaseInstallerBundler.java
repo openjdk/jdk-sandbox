@@ -134,21 +134,17 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
         }
     }
 
-    protected File prepareAppBundle(Map<String, ? super Object> params,
-            boolean pkg) throws PackagerException {
+    protected File prepareAppBundle(Map<String, ? super Object> params)
+            throws PackagerException {
         File predefinedImage =
                 StandardBundlerParam.getPredefinedAppImage(params);
         if (predefinedImage != null) {
             return predefinedImage;
         }
         File appImageRoot = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
-        if (pkg) {
-            // create pkg in dmg
-            return new MacPkgBundler().bundle(params, appImageRoot);
-        } else {
-            return APP_BUNDLER.fetchFrom(params).doBundle(
-                    params, appImageRoot, true);
-        }
+
+        return APP_BUNDLER.fetchFrom(params).doBundle(
+                params, appImageRoot, true);
     }
 
     @Override

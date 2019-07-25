@@ -140,7 +140,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             }
             // first, make sure we don't use the local signing key
             params.put(DEVELOPER_ID_APP_SIGNING_KEY.getID(), null);
-            File appLocation = prepareAppBundle(params, false);
+            File appLocation = prepareAppBundle(params);
 
             prepareEntitlements(params);
 

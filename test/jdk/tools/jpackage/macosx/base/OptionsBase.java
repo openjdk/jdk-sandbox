@@ -51,9 +51,11 @@ public class OptionsBase {
                 try(var br = new BufferedReader(new FileReader(log))) {
                     var line = br.lines().reduce((a, b) -> b).orElse(null)
                             .split("\t");
-                    disk = line[0].trim();
-                    testPkg(line[2].trim() + File.separator + TEST_NAME +
-                            "-1.0.pkg");
+                    if ((line.length < 3) || !line[2].contains(TEST_NAME)) {
+                        throw new AssertionError(
+                                "expected attach output to contain test name: "
+                                + TEST_NAME);
+                    }
                 }
             } finally {
                 if (disk != null) {
