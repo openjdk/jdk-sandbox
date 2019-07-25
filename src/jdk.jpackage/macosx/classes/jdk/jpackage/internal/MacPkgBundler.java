@@ -327,7 +327,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         String[] lines = cplData.split("\n");
         try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(
                 cpl.toPath()))) {
-            boolean skip = false; // Used to skip Java.runtime bundle, since
+            int skip = 0;
+            // Used to skip Java.runtime bundle, since
             // pkgbuild with --root will find two bundles app and Java runtime.
             // We cannot generate component proprty list when using
             // --component argument.
@@ -337,11 +338,11 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                     out.println("<false/>");
                     i++;
                 } else if (lines[i].trim().equals("<key>ChildBundles</key>")) {
-                    skip = true;
-                } else if (skip && lines[i].trim().equals("</array>")) {
-                    skip = false;
+                    ++skip;
+                } else if ((skip > 0) && lines[i].trim().equals("</array>")) {
+                    --skip;
                 } else {
-                    if (!skip) {
+                    if (skip == 0) {
                         out.println(lines[i]);
                     }
                 }
