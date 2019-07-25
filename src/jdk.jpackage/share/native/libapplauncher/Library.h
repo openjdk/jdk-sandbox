@@ -43,7 +43,13 @@
 using namespace std;
 
 // Private typedef for function pointer casting
+
+#if defined(_WIN32) && !defined(_WIN64)
+#define LAUNCH_FUNC "_JLI_Launch@56"
+#else
 #define LAUNCH_FUNC "JLI_Launch"
+#endif
+
 
 typedef int (JNICALL *JAVA_CREATE)(int argc, char ** argv,
         int jargc, const char** jargv,
