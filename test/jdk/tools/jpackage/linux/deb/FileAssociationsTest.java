@@ -33,7 +33,7 @@
  * @requires (os.family == "linux")
  * @modules jdk.jpackage
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m FileAssociationsTest
+ * @run main/othervm/timeout=360 -Xmx512m FileAssociationsTest
  */
 public class FileAssociationsTest {
     private static final String TEST_NAME = "FileAssociationsTest";

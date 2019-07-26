@@ -33,7 +33,7 @@
  * @requires (os.family == "linux")
  * @modules jdk.jpackage
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=240 -Xmx512m PackageDepsTest
+ * @run main/othervm/timeout=420 -Xmx512m PackageDepsTest
  */
 public class PackageDepsTest {
     private static final String TEST_NAME = "PackageDepsTest";

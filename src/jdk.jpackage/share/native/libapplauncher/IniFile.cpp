@@ -189,7 +189,7 @@ bool IniFile::GetSection(const TString SectionName,
     bool result = false;
 
     if (FMap.ContainsKey(SectionName) == true) {
-        IniSectionData* section;
+        IniSectionData* section = NULL;
 
         if (FMap.GetValue(SectionName, section) == true && section != NULL) {
             OrderedMap<TString, TString> data = section->GetData();

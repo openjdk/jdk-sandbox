@@ -33,7 +33,7 @@
  * @requires (os.family == "linux")
  * @modules jdk.jpackage
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m BundleNameTest
+ * @run main/othervm/timeout=360 -Xmx512m BundleNameTest
  */
 public class BundleNameTest {
     private static final String TEST_NAME = "BundleNameTest";
