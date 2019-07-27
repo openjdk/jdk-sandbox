@@ -79,12 +79,12 @@ public class LicenseTypeBase {
         }
     }
 
-    private static void init(String name, String ext) {
+    private static void init(String name, String ext) throws Exception {
         TEST_NAME = name;
         EXT = ext;
         JP_LICENSE_TYPE = "JP_LICENSE_TYPE";
         if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1.x86_64." + EXT;
+            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
         } else {
             OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         }

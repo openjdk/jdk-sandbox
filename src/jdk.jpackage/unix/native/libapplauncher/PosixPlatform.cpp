@@ -208,10 +208,6 @@ bool PosixProcess::ReadOutput() {
         } else if (count == 0) {
             // break;
         } else {
-            if (buffer[count - 1] == EOF) {
-                buffer[count - 1] = '\0';
-            }
-
             std::list<TString> output = Helpers::StringToArray(buffer);
             FOutput.splice(FOutput.end(), output, output.begin(), output.end());
             result = true;

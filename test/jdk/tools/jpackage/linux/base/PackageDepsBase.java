@@ -101,13 +101,13 @@ public class PackageDepsBase {
         }
     }
 
-    private static void init(String name, String ext) {
+    private static void init(String name, String ext) throws Exception {
         TEST_NAME = name;
         DEP_NAME = name + "Dep";
         EXT = ext;
         if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1.x86_64." + EXT;
-            OUTPUT_DEP = "output" + File.separator + DEP_NAME + "-1.0-1.x86_64." + EXT;
+            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
+            OUTPUT_DEP = "output" + File.separator + DEP_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
         } else {
             OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
             OUTPUT_DEP = "output" + File.separator + DEP_NAME + "-1.0." + EXT;

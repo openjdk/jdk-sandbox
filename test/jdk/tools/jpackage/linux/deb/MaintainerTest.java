@@ -33,7 +33,7 @@
  * @requires (os.family == "linux")
  * @modules jdk.jpackage
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m MaintainerTest
+ * @run main/othervm/timeout=360 -Xmx512m MaintainerTest
  */
 public class MaintainerTest {
     private static final String TEST_NAME = "MaintainerTest";

@@ -79,7 +79,7 @@ public class MaintainerBase {
         }
     }
 
-    private static void init(String name, String ext) {
+    private static void init(String name, String ext) throws Exception {
         TEST_NAME = name;
         EMAIL = "jpackage-test@java.com";
         EXT = ext;

@@ -200,7 +200,8 @@ public class LinuxDebBundler extends AbstractBundler {
     private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
             "template.desktop";
 
-    public final static String TOOL_DPKG = "dpkg-deb";
+    private final static String TOOL_DPKG_DEB = "dpkg-deb";
+    private final static String TOOL_DPKG = "dpkg";
 
     public static boolean testTool(String toolName, String minVersion) {
         try {
@@ -231,6 +232,11 @@ public class LinuxDebBundler extends AbstractBundler {
 
             // NOTE: Can we validate that the required tools are available
             // before we start?
+            if (!testTool(TOOL_DPKG_DEB, "1")){
+                throw new ConfigException(MessageFormat.format(
+                        I18N.getString("error.tool-not-found"), TOOL_DPKG_DEB),
+                        I18N.getString("error.tool-not-found.advice"));
+            }
             if (!testTool(TOOL_DPKG, "1")){
                 throw new ConfigException(MessageFormat.format(
                         I18N.getString("error.tool-not-found"), TOOL_DPKG),
@@ -354,12 +360,13 @@ public class LinuxDebBundler extends AbstractBundler {
 
     }
 
-    private String getArch() {
-        String arch = System.getProperty("os.arch");
-        if ("i386".equals(arch))
-            return "i386";
-        else
-            return "amd64";
+    private static String getDebArch() throws IOException {
+        try (var baos = new ByteArrayOutputStream();
+                var ps = new PrintStream(baos)) {
+            var pb = new ProcessBuilder(TOOL_DPKG, "--print-architecture");
+            IOUtils.exec(pb, false, ps);
+            return baos.toString().split("\n", 2)[0];
+        }
     }
 
     private long getInstalledSizeKB(Map<String, ? super Object> params) {
@@ -717,7 +724,7 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     private Map<String, String> createReplacementData(
-            Map<String, ? super Object> params) {
+            Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
         String launcher = LinuxAppImageBuilder.getLauncherRelativePath(params);
 
@@ -734,7 +741,7 @@ public class LinuxDebBundler extends AbstractBundler {
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_COPYRIGHT", COPYRIGHT.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TEXT", LICENSE_TEXT.fetchFrom(params));
-        data.put("APPLICATION_ARCH", getArch());
+        data.put("APPLICATION_ARCH", getDebArch());
         data.put("APPLICATION_INSTALLED_SIZE",
                 Long.toString(getInstalledSizeKB(params)));
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
@@ -791,7 +798,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
         // run dpkg
         ProcessBuilder pb = new ProcessBuilder(
-                "fakeroot", TOOL_DPKG, "-b",
+                "fakeroot", TOOL_DPKG_DEB, "-b",
                 FULL_PACKAGE_NAME.fetchFrom(params),
                 outFile.getAbsolutePath());
         pb = pb.directory(DEB_IMAGE_DIR.fetchFrom(params).getParentFile());
@@ -831,7 +838,7 @@ public class LinuxDebBundler extends AbstractBundler {
 
     public static boolean isSupported() {
         if (Platform.getPlatform() == Platform.LINUX) {
-            if (testTool(TOOL_DPKG, "1")) {
+            if (testTool(TOOL_DPKG_DEB, "1")) {
                 return true;
             }
         }

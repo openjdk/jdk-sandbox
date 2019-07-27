@@ -33,7 +33,7 @@
  * @requires (os.family == "linux")
  * @modules jdk.jpackage
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m LicenseTest
+ * @run main/othervm/timeout=360 -Xmx512m LicenseTest
  */
 public class LicenseTest {
     private static final String TEST_NAME = "LicenseTest";

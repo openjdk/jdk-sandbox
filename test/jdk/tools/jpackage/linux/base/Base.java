@@ -22,6 +22,7 @@
  */
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,11 +58,21 @@ public class Base {
         }
     }
 
-    private static void init(String name, String ext) {
+    static String getRpmArch() throws Exception {
+        File out = File.createTempFile("rpmbuild", ".out");
+        out.deleteOnExit();
+        int code = JPackageHelper.execute(out, "rpmbuild", "-E=%{_target_cpu}");
+        if (code != 0) {
+            throw new AssertionError("Error: unable to get rpm arch");
+        }
+        return Files.readAllLines(out.toPath()).get(0);
+    }
+
+    private static void init(String name, String ext) throws Exception {
         TEST_NAME = name;
         EXT = ext;
         if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1.x86_64." + EXT;
+            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + getRpmArch() + "." + EXT;
         } else {
             OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
         }
