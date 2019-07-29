@@ -469,7 +469,7 @@ public class LinuxDebBundler extends AbstractBundler {
             installScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
             installScripts.append("/");
             installScripts.append(data.get("APPLICATION_FS_NAME"));
-            installScripts.append("/");
+            installScripts.append("/bin/");
             installScripts.append(
                     addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
             installScripts.append(".desktop\n");
@@ -480,7 +480,7 @@ public class LinuxDebBundler extends AbstractBundler {
             removeScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
             removeScripts.append("/");
             removeScripts.append(data.get("APPLICATION_FS_NAME"));
-            removeScripts.append("/");
+            removeScripts.append("/bin/");
             removeScripts.append(
                     addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
             removeScripts.append(".desktop\n");
