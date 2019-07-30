@@ -61,7 +61,7 @@ public class Base {
     static String getRpmArch() throws Exception {
         File out = File.createTempFile("rpmbuild", ".out");
         out.deleteOnExit();
-        int code = JPackageHelper.execute(out, "rpmbuild", "-E=%{_target_cpu}");
+        int code = JPackageHelper.execute(out, "rpmbuild", "--eval=%{_target_cpu}");
         if (code != 0) {
             throw new AssertionError("Error: unable to get rpm arch");
         }

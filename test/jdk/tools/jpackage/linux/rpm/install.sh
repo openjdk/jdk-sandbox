@@ -1,4 +1,4 @@
-ARCH=$(rpmbuild -E='%{_target_cpu}')
+ARCH=$(rpmbuild --eval='%{_target_cpu}')
 sudo rpm --install fileassociationstest-1.0-1.${ARCH}.rpm
 sudo rpm --install installdirtest-1.0-1.${ARCH}.rpm
 sudo rpm --install licensetest-1.0-1.${ARCH}.rpm
