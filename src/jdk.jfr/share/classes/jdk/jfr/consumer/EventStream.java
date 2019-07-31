@@ -50,7 +50,7 @@ public interface EventStream extends AutoCloseable {
      *         during reading
      */
     public static EventStream openRepository(Path directory) throws IOException {
-        return new EventDirectoryStream(AccessController.getContext(), directory, EventConsumer.NEXT_EVENT);
+        return new EventDirectoryStream(AccessController.getContext(), directory, AbstractEventStream.NEXT_EVENT);
     }
 
     /**

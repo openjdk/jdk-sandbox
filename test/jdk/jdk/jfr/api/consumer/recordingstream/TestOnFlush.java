@@ -43,12 +43,12 @@ public class TestOnFlush {
     }
 
     public static void main(String... args) throws Exception {
-        testOnFLushNull();
+        testOnFlushNull();
         testOneEvent();
         testNoEvent();
     }
 
-    private static void testOnFLushNull() {
+    private static void testOnFlushNull() {
         try (RecordingStream rs = new RecordingStream()) {
            try {
                rs.onFlush(null);

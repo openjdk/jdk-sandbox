@@ -66,7 +66,7 @@ public final class RepositoryFiles {
     public Path nextPath(long startTimeNanos) {
         while (!closed) {
             if (startTimeNanos == -1) {
-                Entry<Long, Path> e =  pathSet.lastEntry();
+                Entry<Long, Path> e = pathSet.lastEntry();
                 if (e != null) {
                     return e.getValue();
                 }
@@ -106,17 +106,16 @@ public final class RepositoryFiles {
         boolean foundNew = false;
         List<Path> added = new ArrayList<>();
         Set<Path> current = new HashSet<>();
-        if (!Files.exists(repo)) {
-            // Repository removed, probably due to shutdown
-            return true;
-        }
-        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(repo, "*.jfr")) {
+        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(repo)) {
             for (Path p : dirStream) {
                 if (!pathLookup.containsKey(p)) {
-                    added.add(p);
-                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "New file found: " + p.toAbsolutePath());
+                    String s = p.toString();
+                    if (s.endsWith(".jfr")) {
+                        added.add(p);
+                        Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "New file found: " + p.toAbsolutePath());
+                    }
+                    current.add(p);
                 }
-                current.add(p);
             }
         }
         List<Path> removed = new ArrayList<>();
@@ -159,6 +158,5 @@ public final class RepositoryFiles {
             pathSet.notify();
         }
     }
-
 
 }

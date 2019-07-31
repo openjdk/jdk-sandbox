@@ -360,7 +360,8 @@ public final class SecuritySupport {
     }
 
     public static boolean exists(SafePath safePath) throws IOException {
-        return doPrivilegedIOWithReturn(() -> Files.exists(safePath.toPath()));
+        // Files.exist(path) is allocation intensive
+        return doPrivilegedIOWithReturn(() -> safePath.toPath().toFile().exists());
     }
 
     public static boolean isDirectory(SafePath safePath) throws IOException {

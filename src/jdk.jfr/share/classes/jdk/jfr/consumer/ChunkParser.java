@@ -121,6 +121,8 @@ final class ChunkParser {
 
     /**
      * Reads an event and returns null when segment or chunk ends.
+     *
+     * @param awaitNewEvents wait for new data.
      */
     public RecordedEvent readStreamingEvent(boolean awaitNewEvents) throws IOException {
         long absoluteChunkEnd = chunkHeader.getEnd();
@@ -192,7 +194,9 @@ final class ChunkParser {
     }
 
     private boolean awaitUpdatedHeader(long absoluteChunkEnd) throws IOException {
-        Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Waiting for more data (streaming). Read so far: " + chunkHeader.getChunkSize() + " bytes");
+        if (Logger.shouldLog(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO)) {
+            Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Waiting for more data (streaming). Read so far: " + chunkHeader.getChunkSize() + " bytes");
+        }
         while (true) {
             chunkHeader.refresh();
             if (absoluteChunkEnd != chunkHeader.getEnd()) {
@@ -209,7 +213,7 @@ final class ChunkParser {
         long thisCP = chunkHeader.getConstantPoolPosition() + chunkHeader.getAbsoluteChunkStart();
         long lastCP = -1;
         long delta = -1;
-        boolean log = Logger.shouldLog(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE);
+        boolean logTrace = Logger.shouldLog(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE);
         while (thisCP != abortCP && delta != 0) {
             input.position(thisCP);
             lastCP = thisCP;
@@ -226,9 +230,11 @@ final class ChunkParser {
             int poolCount = input.readInt();
             final long logLastCP = lastCP;
             final long logDelta = delta;
-            Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE, () -> {
-                return "New constant pool: startPosition=" + logLastCP + ", size=" + size + ", deltaToNext=" + logDelta + ", flush=" + flush + ", poolCount=" + poolCount;
-            });
+            if (logTrace) {
+                Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE, () -> {
+                    return "New constant pool: startPosition=" + logLastCP + ", size=" + size + ", deltaToNext=" + logDelta + ", flush=" + flush + ", poolCount=" + poolCount;
+                });
+            }
             for (int i = 0; i < poolCount; i++) {
                 long id = input.readLong(); // type id
                 ConstantLookup lookup = constantLookups.get(id);
@@ -251,7 +257,7 @@ final class ChunkParser {
                     if (count == 0) {
                         throw new InternalError("Pool " + type.getName() + " must contain at least one element ");
                     }
-                    if (log) {
+                    if (logTrace) {
                         Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.TRACE, "Constant Pool " + i + ": " + type.getName());
                     }
                     for (int j = 0; j < count; j++) {
