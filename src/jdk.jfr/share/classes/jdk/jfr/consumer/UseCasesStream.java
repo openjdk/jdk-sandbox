@@ -33,12 +33,13 @@ import java.nio.file.Paths;
 import java.text.ParseException;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.Deque;
 
 import jdk.jfr.Configuration;
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
 
-class UseCasesStream {
+final class UseCasesStream {
 
     //
     // Use case: Out-of-the-Box Experience
@@ -90,18 +91,16 @@ class UseCasesStream {
         try (RecordingStream rs = new RecordingStream(Configuration.getConfiguration("default"))) {
             rs.setMaxAge(Duration.ofMinutes(5));
             rs.setMaxSize(1000_000_000L);
-            // es.setParallel(true);
-            // es.setReuse(true);
-            // es.consume(e -> producer.send(new ProducerRecord<String,
-            // String>("topic",
-            // e.getString("key"), e.getString("value"))));
+            rs.setOrdered(false);
+            rs.setReuse(true); // default
+            // rs.consume(e -> producer.send(new
+            // ProducerRecord<String,String>("topic", e.getString("key"),
+            // e.getString("value"))));
             rs.start();
         }
         // Write primitive values to XML
         try (RecordingStream rs = new RecordingStream(Configuration.getConfiguration("deafult"))) {
             try (PrintWriter p = new PrintWriter(new FileWriter("recording.xml"))) {
-                // es.setParallel(false);
-                // es.setReuse(true);
                 p.println("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>");
                 p.println("<events>");
                 rs.onEvent(e -> {
@@ -123,8 +122,7 @@ class UseCasesStream {
     // Use case: Repository Access
     //
     // - Read the disk repository from another process, for example a side car
-    // in
-    // Docker container
+    // in aDocker container
     // - Be able to configure flush interval from command line or jcmd.
     // - Graceful shutdown
     //
@@ -153,13 +151,12 @@ class UseCasesStream {
     // - Low overhead
     //
     public static void tooling() throws IOException, ParseException {
-        ArrayDeque<Double> measurements = new ArrayDeque<>();
+        Deque<Double> measurements = new ArrayDeque<>();
         try (RecordingStream rs = new RecordingStream(Configuration.getConfiguration("profile"))) {
             rs.setInterval(Duration.ofSeconds(1));
             rs.setMaxAge(Duration.ofMinutes(1));
-            // rs.setOrdered(true);
-            // rs.setReuse(false);
-            // rs.setParallel(true);
+            rs.setOrdered(true); // default
+            rs.setReuse(false);
             rs.onEvent("jdk.CPULoad", e -> {
                 double d = e.getDouble("totalMachine");
                 measurements.addFirst(d);
@@ -179,15 +176,15 @@ class UseCasesStream {
     // - Filter out relevant events to minimize disk overhead and allocation
     // pressure
     // - Avoid impact from other recordings
-    // - Avoid Heisenberg effects, in particular self-recursion
+    // - Avoid observer effect, in particular self-recursion
     //
     // Non-goals: one-liner
     //
     public static void lowImpact() throws InterruptedException, IOException, ParseException {
         try (RecordingStream rs = new RecordingStream()) {
-            rs.enable("jdk.JavaMonitorEnter#threshold").withThreshold(Duration.ofMillis(10));
-            rs.enable("jdk.ExceptionThrow#enabled");
-            // ep.setReuse(true);
+            rs.setReuse(true); // default
+            rs.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(10));
+            rs.enable("jdk.ExceptionThrow");
             rs.onEvent("jdk.JavaMonitorEnter", System.out::println);
             rs.onEvent("jdk.ExceptionThrow", System.out::println);
             rs.start();
