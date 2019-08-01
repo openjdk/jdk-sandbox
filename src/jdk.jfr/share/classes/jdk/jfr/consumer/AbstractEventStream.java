@@ -40,6 +40,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import jdk.jfr.EventType;
+import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
@@ -311,7 +312,7 @@ abstract class AbstractEventStream implements Runnable {
 
     public AbstractEventStream(AccessControlContext acc) throws IOException {
         this.accessControlContext = acc;
-        // Create thread object in constructor to ensure caller has permission
+        // Create thread object in constructor to ensure caller has
         // permission before constructing object
         thread = new Thread(this);
         thread.setDaemon(true);
@@ -329,7 +330,7 @@ abstract class AbstractEventStream implements Runnable {
     }
 
     private void execute() {
-        // JVM.getJVM().exclude(Thread.currentThread());
+        JVM.getJVM().exclude(Thread.currentThread());
         try {
             updateStartNanos();
             process();

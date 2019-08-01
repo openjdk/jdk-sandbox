@@ -253,6 +253,4 @@ public final class RecordingFile implements Closeable {
             throw new IOException("Stream Closed");
         }
     }
-
-
 }

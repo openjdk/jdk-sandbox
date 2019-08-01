@@ -43,27 +43,44 @@ import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Utils;
 
 /**
- * An recording stream produces events from a running JVM (Java Virtual
+ * A recording stream produces events from the current JVM (Java Virtual
  * Machine).
+ * <p>
+ * The following example records events using the default configuration and
+ * prints the Garbage Collection, CPU Load and JVM Information event.
+ *
+ * <pre>
+ * <code>
+ * var c = Configuration.getConfiguration("default");
+ * try (var rs = new RecordingStream(c)) {
+ *     rs.onEvent("jdk.GarbageCollection", System.out::println);
+ *     rs.onEvent("jdk.CPULoad", System.out::println);
+ *     rs.onEvent("jdk.JVMInformation", System.out::println);
+ *     rs.start();
+ *   }
+ * }
+ * </code>
+ * </pre>
+ *
  */
-public class RecordingStream implements AutoCloseable, EventStream {
+public final class RecordingStream implements AutoCloseable, EventStream {
 
     private final Recording recording;
     private final EventDirectoryStream stream;
 
     /**
-     * Creates an event stream for this JVM (Java Virtual Machine).
+     * Creates an event stream for the current JVM (Java Virtual Machine).
      * <p>
      * The following example shows how to create a recording stream that prints
      * CPU usage and information about garbage collections.
      *
      * <pre>
      * <code>
-     * try (RecordingStream  r = new RecordingStream()) {
-     *   r.enable("jdk.GarbageCollection");
-     *   r.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
-     *   r.onEvent(System.out::println);
-     *   r.start();
+     * try (var rs = new RecordingStream()) {
+     *   rs.enable("jdk.GarbageCollection");
+     *   rs.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
+     *   rs.onEvent(System.out::println);
+     *   rs.start();
      * }
      * </code>
      * </pre>
@@ -96,10 +113,10 @@ public class RecordingStream implements AutoCloseable, EventStream {
      *
      * <pre>
      * <code>
-     * Configuration c = Configuration.getConfiguration("default");
-     * try (RecordingStream  r = new RecordingStream(c)) {
-     *   r.onEvent(System.out::println);
-     *   r.start();
+     * var c = Configuration.getConfiguration("default");
+     * try (RecordingStream rs = new RecordingStream(c)) {
+     *   rs.onEvent(System.out::println);
+     *   rs.start();
      * }
      * </code>
      * </pre>
@@ -142,27 +159,20 @@ public class RecordingStream implements AutoCloseable, EventStream {
     /**
      * Replaces all settings for this recording stream
      * <p>
-     * The following example shows how to set event settings for a recording.
+     * The following example records 20 second using the "default" configuration
+     * and then changes to settings for the "profile" configuration.
      *
      * <pre>
      * <code>
-     *     Map{@literal <}String, String{@literal >} settings = new HashMap{@literal <}{@literal >}();
-     *     settings.putAll(EventSettings.enabled("jdk.CPUSample").withPeriod(Duration.ofSeconds(2)).toMap());
-     *     settings.putAll(EventSettings.enabled(MyEvent.class).withThreshold(Duration.ofSeconds(2)).withoutStackTrace().toMap());
-     *     settings.put("jdk.ExecutionSample#period", "10 ms");
-     *     recordingStream.setSettings(settings);
+     *     var defaultConfiguration = Configuration.getConfiguration("default");
+     *     var profileConfiguration = Configuration.getConfiguration("profile");
+     *     try (var rs = new RecordingStream(defaultConfiguration) {
+     *        rs.startAsync();
+     *        Thread.sleep(20_000);
+     *        rs.setSettings(profileConfiguration.getSettings());
+     *        Thread.sleep(20_000);
+     *     }
      * </code>
-     * </pre>
-     *
-     * The following example shows how to merge settings.
-     *
-     * <pre>
-     * {
-     *     &#64;code
-     *     Map<String, String> settings = recording.getSettings();
-     *     settings.putAll(additionalSettings);
-     *     recordingStream.setSettings(settings);
-     * }
      * </pre>
      *
      * @param settings the settings to set, not {@code null}
