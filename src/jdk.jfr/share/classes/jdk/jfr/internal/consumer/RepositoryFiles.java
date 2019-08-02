@@ -44,15 +44,16 @@ import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
 import jdk.jfr.internal.Repository;
+import jdk.jfr.internal.SecuritySupport.SafePath;
 
 public final class RepositoryFiles {
-    private final Path repostory;
+    private final Path repository;
     private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
     private volatile boolean closed;
 
-    public RepositoryFiles(Path repostory) {
-        this.repostory = repostory;
+    public RepositoryFiles(SafePath repository) {
+        this.repository = repository.toPath();
     }
 
     public long getTimestamp(Path p) {
@@ -71,14 +72,17 @@ public final class RepositoryFiles {
                     return e.getValue();
                 }
             }
-            SortedMap<Long, Path> after = pathSet.tailMap(startTimeNanos);
-            if (!after.isEmpty()) {
-                Path path = after.get(after.firstKey());
-                Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + startTimeNanos);
-                return path;
+            Long f = pathSet.floorKey(startTimeNanos);
+            if (f != null) {
+                SortedMap<Long, Path> after = pathSet.tailMap(f);
+                if (!after.isEmpty()) {
+                    Path path = after.get(after.firstKey());
+                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + startTimeNanos);
+                    return path;
+                }
             }
             try {
-                if (updatePaths(repostory)) {
+                if (updatePaths(repository)) {
                     continue;
                 }
             } catch (IOException e) {

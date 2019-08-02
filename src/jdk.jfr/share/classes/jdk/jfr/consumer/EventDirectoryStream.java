@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.consumer.RecordingInput;
 import jdk.jfr.internal.consumer.RepositoryFiles;
 
@@ -58,7 +59,7 @@ final class EventDirectoryStream implements EventStream {
 
         public DirectoryStream(AccessControlContext acc, Path p) throws IOException {
             super(acc);
-            repositoryFiles = new RepositoryFiles(p);
+            repositoryFiles = new RepositoryFiles(new SafePath(p));
         }
 
         @Override
@@ -98,7 +99,9 @@ final class EventDirectoryStream implements EventStream {
                         }
                         runFlushActions();
                     }
-
+                    if (isClosed()) {
+                        return;
+                    }
                     path = repositoryFiles.nextPath(chunkStartNanos);
                     if (path == null) {
                         return; // stream closed

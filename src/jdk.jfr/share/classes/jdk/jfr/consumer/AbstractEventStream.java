@@ -332,7 +332,6 @@ abstract class AbstractEventStream implements Runnable {
     private void execute() {
         JVM.getJVM().exclude(Thread.currentThread());
         try {
-            updateStartNanos();
             process();
         } catch (IOException e) {
             if (!isClosed()) {
@@ -342,19 +341,6 @@ abstract class AbstractEventStream implements Runnable {
             logException(e);
         } finally {
             Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Execution of stream ended.");
-        }
-    }
-
-    // User setting overrides default
-    private void updateStartNanos() {
-        if (configuration.getStartTime() != null) {
-            StreamConfiguration c = new StreamConfiguration(configuration);
-            try {
-                c.setStartNanos(c.getStartTime().toEpochMilli() * 1_000_000L);
-            } catch (ArithmeticException ae) {
-                c.setStartNanos(Long.MAX_VALUE);
-            }
-            updateConfiguration(c);
         }
     }
 
@@ -522,6 +508,9 @@ abstract class AbstractEventStream implements Runnable {
                 throw new IllegalStateException("Event stream can only be started once");
             }
             StreamConfiguration c = new StreamConfiguration(configuration);
+            if (c.getStartTime() != null) {
+                startNanos= c.getStartTime().toEpochMilli() * 1_000_000L;
+            }
             c.setStartNanos(startNanos);
             c.setStarted(true);
             updateConfiguration(c);
