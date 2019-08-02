@@ -32,22 +32,44 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Consumer;
 
+import jdk.jfr.internal.Repository;
+
 /**
  * Represents a stream of event that actions can be performed up on.
  */
 public interface EventStream extends AutoCloseable {
 
     /**
+     * Creates a stream from the disk repository of the current Java Virtual
+     * Machine (JVM).
+     * <p>
+     * By default, the stream starts with the next event flushed by Flight
+     * Recorder.
+     *
+     * @return an event stream, not {@code null}
+     *
+     * @throws IOException if a stream can't be opened, or an I/O error occurs
+     *         when trying to access the repository
+     */
+    public static EventStream openRepository() throws IOException {
+        Repository r = Repository.getRepository();
+        r.ensureRepository();
+        Path path = r.getRepositoryPath().toPath();
+        return new EventDirectoryStream(AccessController.getContext(), path, AbstractEventStream.NEXT_EVENT);
+    }
+
+    /**
      * Creates a stream from a disk repository.
      * <p>
-     * By default, the stream starts with the next event flushed by Flight Recorder.
+     * By default, the stream starts with the next event flushed by Flight
+     * Recorder.
      *
      * @param directory location of the disk repository, not {@code null}
      *
      * @return an event stream, not {@code null}
      *
-     * @throws IOException if a stream can't be opened, or an I/O error occurs
-     *         during reading
+      * @throws IOException if a stream can't be opened, or an I/O error occurs
+     *         when trying to access the repository
      */
     public static EventStream openRepository(Path directory) throws IOException {
         return new EventDirectoryStream(AccessController.getContext(), directory, AbstractEventStream.NEXT_EVENT);
