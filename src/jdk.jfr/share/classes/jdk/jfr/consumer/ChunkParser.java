@@ -403,4 +403,8 @@ final class ChunkParser {
         });
         resetEventCache = false;
     }
+
+    public long getChunkDuration() {
+        return chunkHeader.getDurationNanos();
+    }
 }

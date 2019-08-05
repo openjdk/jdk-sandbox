@@ -34,7 +34,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.SortedMap;
@@ -61,23 +60,43 @@ public final class RepositoryFiles {
     }
 
     public Path lastPath() {
-        return nextPath(-1);
+        // Wait for chunks
+        while (!closed) {
+            try {
+                if (updatePaths(repository)) {
+                    break;
+                }
+            } catch (IOException e) {
+                // ignore, not yet available
+            }
+        }
+        if (closed) {
+            return null;
+        }
+        // Pick the last
+        return pathSet.lastEntry().getValue();
+    }
+
+    public Path firstPath(long startTimeNanos) {
+        return path(startTimeNanos, true);
     }
 
     public Path nextPath(long startTimeNanos) {
+        return path(startTimeNanos, false);
+    }
+
+    private Path path(long timestamp, boolean first) {
         while (!closed) {
-            if (startTimeNanos == -1) {
-                Entry<Long, Path> e = pathSet.lastEntry();
-                if (e != null) {
-                    return e.getValue();
-                }
+            Long time = timestamp;
+            if (first) {
+                // Pick closest chunk before timestamp
+                time = pathSet.floorKey(timestamp);
             }
-            Long f = pathSet.floorKey(startTimeNanos);
-            if (f != null) {
-                SortedMap<Long, Path> after = pathSet.tailMap(f);
+            if (time != null) {
+                SortedMap<Long, Path> after = pathSet.tailMap(time);
                 if (!after.isEmpty()) {
                     Path path = after.get(after.firstKey());
-                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + startTimeNanos);
+                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + timestamp);
                     return path;
                 }
             }

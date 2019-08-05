@@ -68,16 +68,16 @@ final class EventDirectoryStream implements EventStream {
             chunkStartNanos = c1.getStartNanos();
             Path path;
             if (c1.getStartTime() == AbstractEventStream.NEXT_EVENT) {
-                // TODO: Need to skip forward to the next event
-                // For now, use the last chunk.
+                // TODO: Need to wait for next segment to arrive and then
+                // use first event, but this will do for.
                 path = repositoryFiles.lastPath();
             } else {
-                path = repositoryFiles.nextPath(chunkStartNanos);
+                path = repositoryFiles.firstPath(chunkStartNanos);
             }
             if (path == null) { // closed
                 return;
             }
-            chunkStartNanos = repositoryFiles.getTimestamp(path) + 1;
+            chunkStartNanos = repositoryFiles.getTimestamp(path);
             try (RecordingInput input = new RecordingInput(path.toFile())) {
                 chunkParser = new ChunkParser(input, c1.getReuse());
                 while (!isClosed()) {
@@ -102,11 +102,12 @@ final class EventDirectoryStream implements EventStream {
                     if (isClosed()) {
                         return;
                     }
-                    path = repositoryFiles.nextPath(chunkStartNanos);
+                    long durationNanos = chunkParser.getChunkDuration();
+                    path = repositoryFiles.nextPath(chunkStartNanos + durationNanos);
                     if (path == null) {
                         return; // stream closed
                     }
-                    chunkStartNanos = repositoryFiles.getTimestamp(path) + 1;
+                    chunkStartNanos = repositoryFiles.getTimestamp(path);
                     input.setFile(path);
                     chunkParser = chunkParser.newChunkParser();
                 }
