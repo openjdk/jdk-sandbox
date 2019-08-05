@@ -59,7 +59,7 @@ final class EventDirectoryStream implements EventStream {
 
         public DirectoryStream(AccessControlContext acc, Path p) throws IOException {
             super(acc);
-            repositoryFiles = new RepositoryFiles(new SafePath(p));
+            repositoryFiles = new RepositoryFiles(p == null ? null : new SafePath(p));
         }
 
         @Override

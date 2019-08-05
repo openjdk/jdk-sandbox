@@ -53,7 +53,7 @@ public final class RepositoryFiles {
     private volatile boolean closed;
 
     public RepositoryFiles(SafePath repository) {
-        this.repository = repository.toPath();
+        this.repository = repository == null ? null : repository.toPath();
     }
 
     public long getTimestamp(Path p) {
