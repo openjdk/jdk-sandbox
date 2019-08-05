@@ -121,6 +121,7 @@ public final class EventInstrumentation {
     private final boolean untypedEventHandler;
     private boolean guardHandlerReference;
     private Class<?> superClass;
+    private final static boolean streamingCommit = !SecuritySupport.getBooleanProperty("jfr.instrument.streaming");
 
     EventInstrumentation(Class<?> superClass, byte[] bytes, long id) {
         this.superClass = superClass;
@@ -364,7 +365,39 @@ public final class EventInstrumentation {
         });
 
         // MyEvent#commit() - Java event writer
-        updateMethod(METHOD_COMMIT, methodVisitor -> {
+        if (streamingCommit) {
+            updateMethod(METHOD_COMMIT, methodVisitor -> {
+                // if (shouldCommit()) {
+                methodVisitor.visitCode();
+                methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+                methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, getInternalClassName(), METHOD_EVENT_SHOULD_COMMIT.getName(), METHOD_EVENT_SHOULD_COMMIT.getDescriptor(), false);
+                Label end = new Label();
+                methodVisitor.visitJumpInsn(Opcodes.IFEQ, end);
+                methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+                methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+                //   startTime = EventHandler.timestamp() - duration;
+                methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, TYPE_EVENT_HANDLER.getInternalName(), METHOD_TIME_STAMP.getName(),
+                        METHOD_TIME_STAMP.getDescriptor(), false);
+                methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+                methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
+                methodVisitor.visitInsn(Opcodes.LSUB);
+                methodVisitor.visitFieldInsn(Opcodes.PUTFIELD, getInternalClassName(), FIELD_START_TIME, "J");
+                //   eventHandlerX.write(...);
+                getEventHandler(methodVisitor);
+                methodVisitor.visitTypeInsn(Opcodes.CHECKCAST, eventHandlerXInternalName);
+                for (FieldInfo fi : fieldInfos) {
+                    methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+                    methodVisitor.visitFieldInsn(Opcodes.GETFIELD, fi.internalClassName, fi.fieldName, fi.fieldDescriptor);
+                }
+                methodVisitor.visitMethodInsn(Opcodes.INVOKEVIRTUAL, eventHandlerXInternalName, writeMethod.getName(), writeMethod.getDescriptor(), false);
+                // }
+                methodVisitor.visitLabel(end);
+                methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+                methodVisitor.visitInsn(Opcodes.RETURN);
+                methodVisitor.visitEnd();
+            });
+        } else {
+            updateMethod(METHOD_COMMIT, methodVisitor -> {
                 // if (!isEnable()) {
                 // return;
                 // }
@@ -431,6 +464,7 @@ public final class EventInstrumentation {
                 methodVisitor.visitInsn(Opcodes.RETURN);
                 methodVisitor.visitEnd();
             });
+        }
 
         // MyEvent#shouldCommit()
         updateMethod(METHOD_EVENT_SHOULD_COMMIT, methodVisitor -> {
