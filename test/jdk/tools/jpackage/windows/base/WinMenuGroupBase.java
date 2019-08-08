@@ -75,7 +75,7 @@ public class WinMenuGroupBase {
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
             "--win-menu",
-            "--win-menu-group", TEST_NAME};
+            "--win-menu-group", TEST_NAME + "_MenuGroup"};
     }
 
     public static void run(String name, String ext) throws Exception {

@@ -22,6 +22,15 @@
  */
 
 /*
+ * Test both --file-associations and --install-dir parameters.
+ * Output of the test should be FileAssociationsInstallDirTest-1.0.exe installer.
+ * For the expected behavior and suggested testing see descriptions of 
+ * FileAssociationsTest and InstallDirTest tests.
+ * Note: file association suffix is ".jptest3" and not ".jptest1" as in 
+ * FileAssociationsTest test.
+ */
+ 
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

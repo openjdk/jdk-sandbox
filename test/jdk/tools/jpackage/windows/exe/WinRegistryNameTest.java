@@ -22,6 +22,17 @@
  */
 
 /*
+ * Test both --file-associations and --win-registry-name parameters.
+ * Output of the test should be WinRegistryNameTest-1.0.exe installer.
+ * The output installer should provide the same functionality as 
+ * installer from FileAssociationsTest.java test with the following 
+ * differences:
+ *  - file association should work for files with with ".jptest2" suffix.
+ *  - file association config should be saved in Windows Registry 
+ *  not under "JPWINTESTREGISTRYNAME" key.
+ */
+
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

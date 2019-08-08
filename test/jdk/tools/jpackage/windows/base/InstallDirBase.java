@@ -74,7 +74,7 @@ public class InstallDirBase {
         TEST_NAME = name;
         EXT = ext;
         OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
-        INSTALL_DIR = "TestVendor\\JPackageCreateInstallerInstallDirTestDir";
+        INSTALL_DIR = "TestVendor" + File.separator + TEST_NAME;
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",

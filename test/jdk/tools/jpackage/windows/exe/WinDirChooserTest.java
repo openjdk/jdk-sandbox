@@ -22,6 +22,14 @@
  */
 
 /*
+ * Test --win-dir-chooser parameter.
+ * Output of the test should be WinDirChooserTest-1.0.exe installer.
+ * The output installer should provide the same functionality as the default 
+ * installer (see description of the default installer in Test.java) plus 
+ * provide an option for user to change the default installation directory.
+ */
+
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

@@ -22,6 +22,14 @@
  */
 
 /*
+ * Test --win-shortcut parameter.
+ * Output of the test should be WinShortcutTest-1.0.exe installer.
+ * The output installer should provide the same functionality as the default installer 
+ * (see description of the default installer in Test.java) plus install 
+ * application shortcut on the desktop.
+ */
+
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

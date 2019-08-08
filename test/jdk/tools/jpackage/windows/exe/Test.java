@@ -22,6 +22,16 @@
  */
 
 /*
+ * Test defaults for exe installer.
+ * Output of the test should be Test-1.0.exe installer.
+ * The installer should not have license text. It should not have an option 
+ * to change the default installation directory.
+ * Test application should be installed in %ProgramFiles%\Test directory.
+ * Installer should install test app for all users (machine wide).
+ * Installer should create a shortcut for application launcher in Windows Menu.
+ */
+
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

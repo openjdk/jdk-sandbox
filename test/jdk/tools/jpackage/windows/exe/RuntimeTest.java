@@ -24,6 +24,16 @@
 import java.lang.invoke.MethodHandles;
 
 /*
+ * Test --runtime-image parameter.
+ * Output of the test should be RuntimeTest-1.0.exe installer.
+ * The installer should install Java Runtime without an application.
+ * Installation directory should not have "app" subfolder and should not have 
+ * an application launcher.
+ * No shortcuts should be created in Windows Menu.
+ * Java runtime should be installed in %ProgramFiles%\RuntimeTest directory.
+ */
+
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers

@@ -22,6 +22,15 @@
  */
 
 /*
+ * Test --win-per-user-install, --win-menu, --win-menu-group parameters.
+ * Output of the test should be WinPerUserInstallTest-1.0.exe installer.
+ * The output installer should provide the same functionality as the default installer 
+ * (see description of the default installer in Test.java) plus it should 
+ * create application menu in Windows Menu and installation should be per 
+ * user and not machine wide.
+ */
+            
+/*
  * @test
  * @summary jpackage create installer test
  * @library ../../helpers
