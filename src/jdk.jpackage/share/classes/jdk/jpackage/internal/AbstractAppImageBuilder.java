@@ -241,6 +241,10 @@ public abstract class AbstractAppImageBuilder {
         }
     }
 
+    File getRuntimeImageDir(File runtimeImageTop) {
+        return runtimeImageTop;
+    }
+
     String getCfgAppDir() {
         return "$APPDIR" + File.separator
                 + getAppDir().getFileName() + File.separator;

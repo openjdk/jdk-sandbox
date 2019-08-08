@@ -355,6 +355,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         sign();
     }
 
+    @Override
+    File getRuntimeImageDir(File runtimeImageTop) {
+        File home = new File(runtimeImageTop, "Contents/Home");
+        return (home.exists() ? home : runtimeImageTop);
+    }
+
     private void copyRuntimeFiles() throws IOException {
         // Generate Info.plist
         writeInfoPlist(contentsDir.resolve("Info.plist").toFile());

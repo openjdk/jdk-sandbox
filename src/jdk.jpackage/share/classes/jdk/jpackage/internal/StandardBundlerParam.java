@@ -503,17 +503,18 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             Map<String, ? super Object> params,
             AbstractAppImageBuilder appBuilder)
             throws IOException , ConfigException {
-        File image = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
-        if (!image.exists()) {
+        File topImage = PREDEFINED_RUNTIME_IMAGE.fetchFrom(params);
+        if (!topImage.exists()) {
             throw new ConfigException(
                     MessageFormat.format(I18N.getString(
                     "message.runtime-image-dir-does-not-exist"),
                     PREDEFINED_RUNTIME_IMAGE.getID(),
-                    image.toString()),
+                    topImage.toString()),
                     MessageFormat.format(I18N.getString(
                     "message.runtime-image-dir-does-not-exist.advice"),
                     PREDEFINED_RUNTIME_IMAGE.getID()));
         }
+        File image = appBuilder.getRuntimeImageDir(topImage);
         // copy whole runtime, need to skip jmods and src.zip
         final List<String> excludes = Arrays.asList("jmods", "src.zip");
         IOUtils.copyRecursive(image.toPath(), appBuilder.getRoot(), excludes);
