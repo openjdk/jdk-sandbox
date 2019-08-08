@@ -46,13 +46,15 @@ import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 
 public final class RepositoryFiles {
-    private final Path repository;
+    private final FileAccess fileAccess;
     private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
     private volatile boolean closed;
+    private Path repository;
 
-    public RepositoryFiles(SafePath repository) {
+    public RepositoryFiles(FileAccess fileAccess, SafePath repository) {
         this.repository = repository == null ? null : repository.toPath();
+        this.fileAccess = fileAccess;
     }
 
     public long getTimestamp(Path p) {
@@ -63,7 +65,7 @@ public final class RepositoryFiles {
         // Wait for chunks
         while (!closed) {
             try {
-                if (updatePaths(repository)) {
+                if (updatePaths()) {
                     break;
                 }
             } catch (IOException e) {
@@ -101,7 +103,7 @@ public final class RepositoryFiles {
                 }
             }
             try {
-                if (updatePaths(repository)) {
+                if (updatePaths()) {
                     continue;
                 }
             } catch (IOException e) {
@@ -122,14 +124,18 @@ public final class RepositoryFiles {
         return null;
     }
 
-    private boolean updatePaths(Path repo) throws IOException {
-        if (repo == null) {
-            repo = Repository.getRepository().getRepositoryPath().toPath();
+    private boolean updatePaths() throws IOException {
+        if (repository == null) {
+            SafePath p = Repository.getRepository().getRepositoryPath();
+            if (p == null) {
+                return false;
+            }
+            repository = p.toPath();
         }
         boolean foundNew = false;
         List<Path> added = new ArrayList<>();
         Set<Path> current = new HashSet<>();
-        try (DirectoryStream<Path> dirStream = Files.newDirectoryStream(repo)) {
+        try (DirectoryStream<Path> dirStream = fileAccess.newDirectoryStream(repository)) {
             for (Path p : dirStream) {
                 if (!pathLookup.containsKey(p)) {
                     String s = p.toString();
@@ -169,7 +175,7 @@ public final class RepositoryFiles {
     }
 
     private long readStartTime(Path p) throws IOException {
-        try (RecordingInput in = new RecordingInput(p.toFile(), 100)) {
+        try (RecordingInput in = new RecordingInput(p.toFile(), fileAccess, 100)) {
             ChunkHeader c = new ChunkHeader(in);
             return c.getStartNanos();
         }

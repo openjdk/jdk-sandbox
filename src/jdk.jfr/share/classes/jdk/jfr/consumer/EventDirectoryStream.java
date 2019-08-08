@@ -36,6 +36,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import jdk.jfr.internal.SecuritySupport.SafePath;
+import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 import jdk.jfr.internal.consumer.RepositoryFiles;
 
@@ -44,7 +46,7 @@ import jdk.jfr.internal.consumer.RepositoryFiles;
  * with chunk files.
  *
  */
-final class EventDirectoryStream implements EventStream {
+class EventDirectoryStream implements EventStream {
 
     static final class DirectoryStream extends AbstractEventStream {
 
@@ -52,34 +54,38 @@ final class EventDirectoryStream implements EventStream {
         private static final int DEFAULT_ARRAY_SIZE = 10_000;
 
         private final RepositoryFiles repositoryFiles;
-
+        private final boolean active;
+        private final FileAccess fileAccess;
         private ChunkParser chunkParser;
         private RecordedEvent[] sortedList;
         protected long chunkStartNanos;
 
-        public DirectoryStream(AccessControlContext acc, Path p) throws IOException {
-            super(acc);
-            repositoryFiles = new RepositoryFiles(p == null ? null : new SafePath(p));
+        public DirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
+            super(acc, active);
+            this.fileAccess = fileAccess;
+            this.active = active;
+            repositoryFiles = new RepositoryFiles(fileAccess, p == null ? null : new SafePath(p));
         }
 
         @Override
         public void process() throws IOException {
-            StreamConfiguration c1 = configuration;
-            chunkStartNanos = c1.getStartNanos();
+            final StreamConfiguration c1 = configuration;
             Path path;
-            if (c1.getStartTime() == AbstractEventStream.NEXT_EVENT) {
-                // TODO: Need to wait for next segment to arrive and then
-                // use first event, but this will do for.
-                path = repositoryFiles.lastPath();
+            boolean validStartTime = active || c1.getStartTime() != null;
+            if (validStartTime) {
+                path = repositoryFiles.firstPath(c1.getStartNanos());
             } else {
-                path = repositoryFiles.firstPath(chunkStartNanos);
+                path = repositoryFiles.lastPath();
             }
             if (path == null) { // closed
                 return;
             }
             chunkStartNanos = repositoryFiles.getTimestamp(path);
-            try (RecordingInput input = new RecordingInput(path.toFile())) {
+            try (RecordingInput input = new RecordingInput(path.toFile(), fileAccess)) {
                 chunkParser = new ChunkParser(input, c1.getReuse());
+                long segmentStart = chunkParser.getStartNanos() + chunkParser.getChunkDuration();
+                long start = validStartTime ? c1.getStartNanos() : segmentStart;
+                long end = c1.getEndTime() != null ? c1.getEndNanos() : Long.MAX_VALUE;
                 while (!isClosed()) {
                     boolean awaitnewEvent = false;
                     while (!isClosed() && !chunkParser.isChunkFinished()) {
@@ -87,7 +93,8 @@ final class EventDirectoryStream implements EventStream {
                         boolean ordered = c2.getOrdered();
                         chunkParser.setReuse(c2.getReuse());
                         chunkParser.setOrdered(ordered);
-                        chunkParser.setFirstNanos(c2.getStartNanos());
+                        chunkParser.setFirstNanos(start);
+                        chunkParser.setLastNanos(end);
                         chunkParser.resetEventCache();
                         chunkParser.setParserFilter(c2.getFilter());
                         chunkParser.updateEventParsers();
@@ -98,7 +105,13 @@ final class EventDirectoryStream implements EventStream {
                             awaitnewEvent = processUnordered(awaitnewEvent);
                         }
                         runFlushActions();
+                        if (segmentStart > end) {
+                            close();
+                            return;
+                        }
                     }
+
+
                     if (isClosed()) {
                         return;
                     }
@@ -110,10 +123,11 @@ final class EventDirectoryStream implements EventStream {
                     chunkStartNanos = repositoryFiles.getTimestamp(path);
                     input.setFile(path);
                     chunkParser = chunkParser.newChunkParser();
+                    // No need filter when we reach new chunk
+                    // start = 0;
                 }
             }
         }
-
 
         private boolean processOrdered(boolean awaitNewEvents) throws IOException {
             if (sortedList == null) {
@@ -169,9 +183,8 @@ final class EventDirectoryStream implements EventStream {
 
     private final AbstractEventStream eventStream;
 
-    public EventDirectoryStream(AccessControlContext acc, Path p, Instant startTime) throws IOException {
-        eventStream = new DirectoryStream(acc, p);
-        eventStream.setStartTime(startTime);
+    public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess access, boolean active) throws IOException {
+        eventStream = new DirectoryStream(acc, p, access, active);
     }
 
     @Override
@@ -187,12 +200,12 @@ final class EventDirectoryStream implements EventStream {
 
     @Override
     public void start() {
-        start(Instant.now().toEpochMilli() * 1000 * 1000L);
+        start(Utils.timeToNanos(Instant.now()));
     }
 
     @Override
     public void startAsync() {
-        startAsync(Instant.now().toEpochMilli() * 1000 * 1000L);
+        startAsync(Utils.timeToNanos(Instant.now()));
     }
 
     @Override
@@ -246,6 +259,12 @@ final class EventDirectoryStream implements EventStream {
         eventStream.setStartTime(startTime);
     }
 
+    @Override
+    public void setEndTime(Instant endTime) {
+        eventStream.setEndTime(endTime);
+    }
+
+
     public void start(long startNanos) {
         eventStream.start(startNanos);
     }
@@ -253,4 +272,6 @@ final class EventDirectoryStream implements EventStream {
     public void startAsync(long startNanos) {
         eventStream.startAsync(startNanos);
     }
+
+
 }

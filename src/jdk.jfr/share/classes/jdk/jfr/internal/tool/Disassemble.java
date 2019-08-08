@@ -41,6 +41,7 @@ import java.util.Deque;
 import java.util.List;
 
 import jdk.jfr.internal.consumer.ChunkHeader;
+import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 final class Disassemble extends Command {
@@ -163,7 +164,7 @@ final class Disassemble extends Command {
     }
 
     private List<Long> findChunkSizes(Path p) throws IOException {
-        try (RecordingInput input = new RecordingInput(p.toFile())) {
+        try (RecordingInput input = new RecordingInput(p.toFile(), FileAccess.UNPRIVILIGED)) {
             List<Long> sizes = new ArrayList<>();
             ChunkHeader ch = new ChunkHeader(input);
             sizes.add(ch.getSize());

@@ -39,6 +39,7 @@ import jdk.jfr.EventType;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.consumer.ChunkHeader;
+import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
@@ -81,7 +82,7 @@ public final class RecordingFile implements Closeable {
      */
     public RecordingFile(Path file) throws IOException {
         this.file = file.toFile();
-        this.input = new RecordingInput(this.file);
+        this.input = new RecordingInput(this.file, FileAccess.UNPRIVILIGED);
         findNext();
     }
 
@@ -134,7 +135,7 @@ public final class RecordingFile implements Closeable {
         MetadataDescriptor previous = null;
         List<EventType> types = new ArrayList<>();
         HashSet<Long> foundIds = new HashSet<>();
-        try (RecordingInput ri = new RecordingInput(file)) {
+        try (RecordingInput ri = new RecordingInput(file, FileAccess.UNPRIVILIGED)) {
             ChunkHeader ch = new ChunkHeader(ri);
             aggregateEventTypeForChunk(ch, null, types, foundIds);
             while (!ch.isLastChunk()) {
@@ -150,7 +151,7 @@ public final class RecordingFile implements Closeable {
         MetadataDescriptor previous = null;
         List<Type> types = new ArrayList<>();
         HashSet<Long> foundIds = new HashSet<>();
-        try (RecordingInput ri = new RecordingInput(file)) {
+        try (RecordingInput ri = new RecordingInput(file, FileAccess.UNPRIVILIGED)) {
             ChunkHeader ch = new ChunkHeader(ri);
             ch.awaitFinished();
             aggregateTypeForChunk(ch, null, types, foundIds);

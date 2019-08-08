@@ -41,6 +41,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.internal.PlatformRecording;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.consumer.FileAccess;
 
 /**
  * A recording stream produces events from the current JVM (Java Virtual
@@ -99,7 +100,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         this.recording = new Recording();
         this.recording.setFlushInterval(Duration.ofMillis(1000));
         try {
-            this.stream = new EventDirectoryStream(acc, null, null);
+            this.stream = new EventDirectoryStream(acc, null, FileAccess.PRIVILIGED, true);
         } catch (IOException ioe) {
             throw new IllegalStateException(ioe.getMessage());
         }
@@ -355,5 +356,10 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     @Override
     public void setStartTime(Instant startTime) {
         stream.setStartTime(startTime);
+    }
+
+    @Override
+    public void setEndTime(Instant endTime) {
+        stream.setStartTime(endTime);
     }
 }

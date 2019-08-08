@@ -43,6 +43,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -618,5 +619,9 @@ public final class Utils {
             }
         }
 
+    }
+
+    public static long timeToNanos(Instant timestamp) {
+        return timestamp.getEpochSecond() * 1_000_000_000L + timestamp.getNano();
     }
 }

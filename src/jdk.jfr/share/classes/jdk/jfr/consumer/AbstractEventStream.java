@@ -45,6 +45,7 @@ import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
 import jdk.jfr.internal.LongMap;
+import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.consumer.InternalEventFilter;
 
 /*
@@ -71,10 +72,11 @@ abstract class AbstractEventStream implements Runnable {
         private boolean reuse = true;
         private boolean ordered = true;
         private Instant startTime = null;
+        private Instant endTime = null;
         private boolean started = false;
         private long startNanos = 0;
+        private long endNanos = Long.MAX_VALUE;
         private LongMap<EventDispatcher[]> dispatcherLookup = new LongMap<>();
-
         private boolean changed = false;
 
         public StreamConfiguration(StreamConfiguration configuration) {
@@ -86,8 +88,10 @@ abstract class AbstractEventStream implements Runnable {
             this.reuse = configuration.reuse;
             this.ordered = configuration.ordered;
             this.startTime = configuration.startTime;
+            this.endTime = configuration.endTime;
             this.started = configuration.started;
             this.startNanos = configuration.startNanos;
+            this.endNanos = configuration.endNanos;
             this.dispatcherLookup = configuration.dispatcherLookup;
         }
 
@@ -197,15 +201,26 @@ abstract class AbstractEventStream implements Runnable {
             changed = true;
             return this;
         }
+        public StreamConfiguration setEndTime(Instant endTime) {
+            this.endTime = endTime;
+            this.endNanos = Utils.timeToNanos(endTime);
+            changed = true;
+            return this;
+        }
 
         final public StreamConfiguration setStartTime(Instant startTime) {
             this.startTime = startTime;
+            this.startNanos = Utils.timeToNanos(startTime);
             changed = true;
             return this;
         }
 
         final public Instant getStartTime() {
             return startTime;
+        }
+
+        public Object getEndTime() {
+            return endTime;
         }
 
         final public boolean isStarted() {
@@ -243,6 +258,10 @@ abstract class AbstractEventStream implements Runnable {
             return startNanos;
         }
 
+        final public long getEndNanos() {
+            return endNanos;
+        }
+
         final public InternalEventFilter getFilter() {
             return eventFilter;
         }
@@ -264,12 +283,18 @@ abstract class AbstractEventStream implements Runnable {
             sb.append("Started: ").append(started).append("\n");
             sb.append("Start Time: ").append(startTime).append("\n");
             sb.append("Start Nanos: ").append(startNanos).append("\n");
+            sb.append("End Time: ").append(endTime).append("\n");
+            sb.append("End Nanos: ").append(endNanos).append("\n");
             return sb.toString();
         }
 
         private EventDispatcher[] getDispatchers() {
             return dispatchers;
         }
+
+
+
+
     }
 
     final static class EventDispatcher {
@@ -296,22 +321,22 @@ abstract class AbstractEventStream implements Runnable {
         }
     }
 
-    public final static Instant NEXT_EVENT = Instant.now();
     public final static Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks);
 
     private final static EventDispatcher[] NO_DISPATCHERS = new EventDispatcher[0];
     private final AccessControlContext accessControlContext;
     private final Thread thread;
-
-    // Update bu updateConfiguration()
+    private final boolean active;
+    // Update by updateConfiguration()
     protected StreamConfiguration configuration = new StreamConfiguration();
 
     // Cache the last event type and dispatch.
     private EventType lastEventType;
     private EventDispatcher[] lastEventDispatch;
 
-    public AbstractEventStream(AccessControlContext acc) throws IOException {
+    public AbstractEventStream(AccessControlContext acc, boolean active) throws IOException {
         this.accessControlContext = acc;
+        this.active = active;
         // Create thread object in constructor to ensure caller has
         // permission before constructing object
         thread = new Thread(this);
@@ -460,16 +485,21 @@ abstract class AbstractEventStream implements Runnable {
         if (configuration.isStarted()) {
             throw new IllegalStateException("Stream is already started");
         }
-        if (startTime == null) {
-            return;
-        }
         if (startTime.isBefore(Instant.EPOCH)) {
             startTime = Instant.EPOCH;
         }
         updateConfiguration(new StreamConfiguration(configuration).setStartTime(startTime));
     }
 
-    private boolean updateConfiguration(StreamConfiguration newConfiguration) {
+    public final void setEndTime(Instant endTime) {
+    if (configuration.isStarted()) {
+        throw new IllegalStateException("Stream is already started");
+    }
+    updateConfiguration(new StreamConfiguration(configuration).setEndTime(endTime));
+}
+
+
+    protected boolean updateConfiguration(StreamConfiguration newConfiguration) {
         // Changes to the configuration must be serialized, so make
         // sure that we have the monitor
         Thread.holdsLock(this);
@@ -490,32 +520,27 @@ abstract class AbstractEventStream implements Runnable {
     }
 
     public final void startAsync(long startNanos) {
-        synchronized (this) {
-            if (configuration.isStarted()) {
-                throw new IllegalStateException("Event stream can only be started once");
-            }
-            StreamConfiguration c = new StreamConfiguration(configuration);
-            c.setStartNanos(startNanos);
-            c.setStarted(true);
-            updateConfiguration(c);
-        }
+        startInternal(startNanos);
         thread.start();
     }
 
     public final void start(long startNanos) {
+        startInternal(startNanos);
+        run();
+    }
+
+    private void startInternal(long startNanos) {
         synchronized (this) {
             if (configuration.isStarted()) {
                 throw new IllegalStateException("Event stream can only be started once");
             }
             StreamConfiguration c = new StreamConfiguration(configuration);
-            if (c.getStartTime() != null) {
-                startNanos= c.getStartTime().toEpochMilli() * 1_000_000L;
+            if (active) {
+                c.setStartNanos(startNanos);
             }
-            c.setStartNanos(startNanos);
             c.setStarted(true);
             updateConfiguration(c);
         }
-        run();
     }
 
     public final void awaitTermination(Duration timeout) {
@@ -534,4 +559,5 @@ abstract class AbstractEventStream implements Runnable {
     }
 
     abstract public void close();
+
 }

@@ -55,6 +55,7 @@ final class EventParser extends Parser {
     private int index;
     private boolean ordered;
     private long firstNanos;
+    private long lastNanos = Long.MAX_VALUE;
     private long thresholdNanos = -1;
 
     EventParser(TimeConverter timeConverter, EventType type, Parser[] parsers) {
@@ -120,8 +121,12 @@ final class EventParser extends Parser {
             }
             endTicks += durationTicks;
         }
-        if (firstNanos > 0L) {
-            if (timeConverter.convertTimestamp(endTicks) < firstNanos) {
+        if (firstNanos != 0L || lastNanos != Long.MAX_VALUE) {
+            long eventEnd = timeConverter.convertTimestamp(endTicks);
+            if (eventEnd < firstNanos) {
+                return null;
+            }
+            if (eventEnd > lastNanos) {
                 return null;
             }
         }
@@ -173,6 +178,10 @@ final class EventParser extends Parser {
         this.firstNanos = firstNanos;
     }
 
+    public void setLastNanos(long lastNanos) {
+        this.lastNanos = lastNanos;
+    }
+
     public void setOrdered(boolean ordered) {
         if (this.ordered == ordered) {
             return;
@@ -180,4 +189,5 @@ final class EventParser extends Parser {
         this.ordered = ordered;
         this.index = 0;
     }
+
 }

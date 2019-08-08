@@ -64,24 +64,25 @@ public final class RecordingInput implements DataInput, AutoCloseable {
             blockPositionEnd = 0;
         }
     }
-
+    private final int blockSize;
+    private final FileAccess fileAccess;
     private RandomAccessFile file;
     private String filename;
     private Block currentBlock = new Block();
     private Block previousBlock = new Block();
     private long position;
-    private final int blockSize;
     private long size = -1; // Fail fast if setSize(...) has not been called
                             // before parsing
 
-    public RecordingInput(File f, int blockSize) throws IOException {
+    public RecordingInput(File f, FileAccess fileAccess, int blockSize) throws IOException {
         this.blockSize = blockSize;
+        this.fileAccess = fileAccess;
         initialize(f);
     }
 
     private void initialize(File f) throws IOException {
         this.filename = f.getAbsolutePath().toString();
-        this.file = new RandomAccessFile(f, "r");
+        this.file = fileAccess.openRAF(f, "r");
         this.position = 0;
         this.size = -1;
         this.currentBlock.reset();
@@ -91,8 +92,8 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         }
     }
 
-    public RecordingInput(File f) throws IOException {
-        this(f, DEFAULT_BLOCK_SIZE);
+    public RecordingInput(File f, FileAccess fileAccess) throws IOException {
+        this(f, fileAccess, DEFAULT_BLOCK_SIZE);
     }
 
     public void positionPhysical(long position) throws IOException {

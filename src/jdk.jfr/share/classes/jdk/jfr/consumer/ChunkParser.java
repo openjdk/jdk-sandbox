@@ -64,7 +64,8 @@ final class ChunkParser {
     private boolean reuse;
     private boolean ordered;
     private boolean resetEventCache;
-    private long firstNanos;
+    private long firstNanos = 0;
+    private long lastNanos = Long.MAX_VALUE;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
        this(new ChunkHeader(input), null, 1000);
@@ -117,7 +118,6 @@ final class ChunkParser {
     public InternalEventFilter getEventFilter() {
         return this.eventFilter;
     }
-
 
     /**
      * Reads an event and returns null when segment or chunk ends.
@@ -373,6 +373,10 @@ final class ChunkParser {
         }
         this.firstNanos = firstNanos;
     }
+    public void setLastNanos(long lastNanos) {
+        this.lastNanos = lastNanos;
+    }
+
 
     // Need to call updateEventParsers() for
     // change to take effect
@@ -388,6 +392,7 @@ final class ChunkParser {
                 ep.setOrdered(ordered);
                 ep.setReuse(reuse);
                 ep.setFirstNanos(firstNanos);
+                ep.setLastNanos(lastNanos);
                 if (resetEventCache) {
                     ep.resetCache();
                 }
@@ -407,4 +412,10 @@ final class ChunkParser {
     public long getChunkDuration() {
         return chunkHeader.getDurationNanos();
     }
+
+    public long getStartNanos() {
+        return chunkHeader.getStartNanos();
+    }
+
+
 }

@@ -125,7 +125,7 @@ public final class ChunkHeader {
             byte fileState2 =  input.readPhysicalByte();
             if (fileState1 == fileState2) { // valid header
                 finished = fileState1 == 0;
-                if (constantPoolPosition != 0 && metadataPosition != 0) {
+                if (metadataPosition != 0) {
                     Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Setting input size to " + (absoluteChunkStart + chunkSize));
                     if (finished) {
                         // This assumes that the whole recording

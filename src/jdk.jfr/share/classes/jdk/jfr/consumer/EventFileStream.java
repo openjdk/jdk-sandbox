@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
@@ -52,17 +53,32 @@ final class EventFileStream implements EventStream {
         private RecordedEvent[] sortedList;
 
         public FileStream(AccessControlContext acc, Path path) throws IOException {
-            super(acc);
-            this.input = new RecordingInput(path.toFile());
+            super(acc, false);
+            this.input = new RecordingInput(path.toFile(), FileAccess.UNPRIVILIGED);
 ;        }
 
         @Override
         public void process() throws IOException {
-            StreamConfiguration c1 = configuration;
+            final StreamConfiguration c1 = configuration;
+            long start = 0;
+            long end = Long.MAX_VALUE;
+            if (c1.getStartTime() != null) {
+                start = c1.getStartNanos();
+            }
+            if (c1.getEndTime() != null) {
+                end = c1.getEndNanos();
+            }
+
             chunkParser = new ChunkParser(input, c1.getReuse());
             while (!isClosed()) {
+                if (chunkParser.getStartNanos() > end) {
+                    close();
+                    return;
+                }
                 StreamConfiguration c2 = configuration;
                 boolean ordered = c2.getOrdered();
+                chunkParser.setFirstNanos(start);
+                chunkParser.setLastNanos(end);
                 chunkParser.setReuse(c2.getReuse());
                 chunkParser.setOrdered(ordered);
                 chunkParser.resetEventCache();
@@ -206,5 +222,10 @@ final class EventFileStream implements EventStream {
     @Override
     public void setStartTime(Instant startTime) {
         eventStream.setStartTime(startTime);
+    }
+
+    @Override
+    public void setEndTime(Instant endTime) {
+        eventStream.setEndTime(endTime);
     }
 }
