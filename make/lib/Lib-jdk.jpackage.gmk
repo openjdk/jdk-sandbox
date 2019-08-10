@@ -88,7 +88,7 @@ ifeq ($(call isTargetOs, windows), true)
       SRC := $(TOPDIR)/src/jdk.jpackage/$(OPENJDK_TARGET_OS)/native/msiwrapper, \
       EXTRA_FILES := $(addprefix $(TOPDIR)/src/jdk.jpackage/$(OPENJDK_TARGET_OS)/native/libjpackage/, \
           FileUtils.cpp Log.cpp WinSysInfo.cpp tstrings.cpp WinErrorHandling.cpp ErrorHandling.cpp), \
-      CFLAGS := $(CXXFLAGS_JDKEXE) \
+      CFLAGS := $(CXXFLAGS_JDKEXE) -MT \
           $(addprefix -I$(TOPDIR)/src/jdk.jpackage/$(OPENJDK_TARGET_OS)/native/, msiwrapper libjpackage), \
       CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
       LDFLAGS := $(LDFLAGS_JDKEXE), \
