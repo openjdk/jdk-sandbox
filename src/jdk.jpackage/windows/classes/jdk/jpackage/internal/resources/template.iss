@@ -26,7 +26,7 @@ OutputBaseFilename=INSTALLER_FILE_NAME
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=APPLICATION_INSTALL_PRIVILEGE
-SetupIconFile=INSTALLER_NAME\bin\LAUNCHER_NAME.ico
+SetupIconFile=INSTALLER_NAME\LAUNCHER_NAME.ico
 UninstallDisplayIcon={app}\LAUNCHER_NAME.ico
 UninstallDisplayName=INSTALLER_NAME
 WizardImageStretch=No
@@ -38,21 +38,21 @@ FILE_ASSOCIATIONS
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "INSTALLER_NAME\bin\LAUNCHER_NAME.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "INSTALLER_NAME\LAUNCHER_NAME.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "INSTALLER_NAME\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\INSTALLER_NAME"; Filename: "{app}\bin\LAUNCHER_NAME.exe"; IconFilename: "{app}\bin\LAUNCHER_NAME.ico"; Check: APPLICATION_MENU_SHORTCUT()
-Name: "{commondesktop}\INSTALLER_NAME"; Filename: "{app}\bin\LAUNCHER_NAME.exe";  IconFilename: "{app}\bin\LAUNCHER_NAME.ico"; Check: APPLICATION_DESKTOP_SHORTCUT()
+Name: "{group}\INSTALLER_NAME"; Filename: "{app}\LAUNCHER_NAME.exe"; IconFilename: "{app}\LAUNCHER_NAME.ico"; Check: APPLICATION_MENU_SHORTCUT()
+Name: "{commondesktop}\INSTALLER_NAME"; Filename: "{app}\LAUNCHER_NAME.exe";  IconFilename: "{app}\LAUNCHER_NAME.ico"; Check: APPLICATION_DESKTOP_SHORTCUT()
 ADD_LAUNCHERS
 
 [Run]
-Filename: "{app}\bin\RUN_FILENAME.exe"; Parameters: "-Xappcds:generatecache"; Check: APPLICATION_APP_CDS_INSTALL()
-Filename: "{app}\bin\RUN_FILENAME.exe"; Description: "{cm:LaunchProgram,INSTALLER_NAME}"; Flags: nowait postinstall skipifsilent; Check: APPLICATION_NOT_SERVICE()
-Filename: "{app}\bin\RUN_FILENAME.exe"; Parameters: "-install -svcName ""INSTALLER_NAME"" -svcDesc ""APPLICATION_DESCRIPTION"" -mainExe ""APPLICATION_LAUNCHER_FILENAME"" START_ON_INSTALL RUN_AT_STARTUP"; Check: APPLICATION_SERVICE()
+Filename: "{app}\RUN_FILENAME.exe"; Parameters: "-Xappcds:generatecache"; Check: APPLICATION_APP_CDS_INSTALL()
+Filename: "{app}\RUN_FILENAME.exe"; Description: "{cm:LaunchProgram,INSTALLER_NAME}"; Flags: nowait postinstall skipifsilent; Check: APPLICATION_NOT_SERVICE()
+Filename: "{app}\RUN_FILENAME.exe"; Parameters: "-install -svcName ""INSTALLER_NAME"" -svcDesc ""APPLICATION_DESCRIPTION"" -mainExe ""APPLICATION_LAUNCHER_FILENAME"" START_ON_INSTALL RUN_AT_STARTUP"; Check: APPLICATION_SERVICE()
 
 [UninstallRun]
-Filename: "{app}\bin\RUN_FILENAME.exe "; Parameters: "-uninstall -svcName INSTALLER_NAME STOP_ON_UNINSTALL"; Check: APPLICATION_SERVICE()
+Filename: "{app}\RUN_FILENAME.exe "; Parameters: "-uninstall -svcName INSTALLER_NAME STOP_ON_UNINSTALL"; Check: APPLICATION_SERVICE()
 
 [Code]
 function returnTrue(): Boolean;

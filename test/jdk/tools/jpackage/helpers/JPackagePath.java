@@ -59,7 +59,7 @@ public class JPackagePath {
 
     public static String getApp(String name) {
         if (JPackageHelper.isWindows()) {
-            return Path.of("output", name, "bin", name + ".exe").toString();
+            return Path.of("output", name, name + ".exe").toString();
         } else if (JPackageHelper.isOSX()) {
             return Path.of("output", name + ".app",
                     "Contents", "MacOS", name).toString();
@@ -77,7 +77,7 @@ public class JPackagePath {
 
     public static String getAppIcon(String name) {
         if (JPackageHelper.isWindows()) {
-            return Path.of("output", name, "bin", name + ".ico").toString();
+            return Path.of("output", name, name + ".ico").toString();
         } else if (JPackageHelper.isOSX()) {
             return Path.of("output", name + ".app",
                     "Contents", "Resources", name + ".icns").toString();
@@ -95,7 +95,7 @@ public class JPackagePath {
 
     public static String getAppSL(String app, String sl) {
         if (JPackageHelper.isWindows()) {
-            return Path.of("output", app, "bin", sl + ".exe").toString();
+            return Path.of("output", app, sl + ".exe").toString();
         } else if (JPackageHelper.isOSX()) {
             return Path.of("output", app + ".app",
                     "Contents", "MacOS", sl).toString();
@@ -197,7 +197,7 @@ public class JPackagePath {
 
     public static String getWinInstalledApp(String installDir,
             String testName) {
-        return Path.of(getWinProgramFiles(), installDir, "bin",
+        return Path.of(getWinProgramFiles(), installDir,
                 testName + ".exe").toString();
     }
 
@@ -255,7 +255,6 @@ public class JPackagePath {
     public static String getWinUserLocalInstalledApp(String testName) {
         return getWinUserLocal()
                 + File.separator + testName
-                + File.separator + "bin"
                 + File.separator + testName + ".exe";
     }
 

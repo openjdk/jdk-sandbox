@@ -66,7 +66,7 @@ public class WinConsoleTest {
 
     private static void checkSubsystem(boolean console) throws Exception {
         Path path = Path.of(console ? OUTPUT_WIN_CONSOLE : OUTPUT,
-                NAME, "bin", NAME + ".exe");
+                NAME, NAME + ".exe");
 
         System.out.println("validate path: " + path.toString());
         Base.validate(path.toString());

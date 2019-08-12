@@ -126,7 +126,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
         this.mdir = runtimeDir.resolve("lib");
-        this.binDir = root.resolve("bin");
+        this.binDir = root;
         Files.createDirectories(appDir);
         Files.createDirectories(runtimeDir);
     }

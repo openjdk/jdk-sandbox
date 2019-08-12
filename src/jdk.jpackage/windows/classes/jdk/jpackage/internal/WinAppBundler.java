@@ -150,7 +150,7 @@ public class WinAppBundler extends AbstractImageBundler {
 
     public static String getLauncherRelativePath(
             Map<String, ? super Object> p) {
-        return "bin" + File.separator + getAppName(p) + ".exe";
+        return getAppName(p) + ".exe";
     }
 
     public boolean bundle(Map<String, ? super Object> p, File outputDirectory)

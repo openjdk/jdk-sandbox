@@ -151,8 +151,7 @@ TString WindowsPlatform::GetPackageAppDirectory() {
 }
 
 TString WindowsPlatform::GetPackageLauncherDirectory() {
-    return  FilePath::IncludeTrailingSeparator(
-            GetPackageRootDirectory()) + _T("bin");
+    return  GetPackageRootDirectory();
 }
 
 TString WindowsPlatform::GetPackageRuntimeBinDirectory() {
@@ -174,14 +173,7 @@ TCHAR* WindowsPlatform::ConvertFileSystemStringToString(TCHAR* Source,
 TString WindowsPlatform::GetPackageRootDirectory() {
     TString result;
     TString filename = GetModuleFileName();
-    TString binPath = FilePath::ExtractFilePath(filename);
-
-    size_t slash = binPath.find_last_of(TRAILING_PATHSEPARATOR);
-    if (slash != TString::npos) {
-        result = binPath.substr(0, slash);
-    }
-
-    return result;
+    return FilePath::ExtractFilePath(filename);
 }
 
 TString WindowsPlatform::GetAppDataDirectory() {
