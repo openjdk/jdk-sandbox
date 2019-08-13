@@ -180,6 +180,8 @@ public class Arguments {
 
         VERSION ("app-version", OptionCategories.PROPERTY),
 
+        RELEASE ("linux-app-release", OptionCategories.PROPERTY),
+
         JAVA_OPTIONS ("java-options", OptionCategories.PROPERTY, () -> {
             List<String> args = getArgumentList(popArg());
             args.forEach(a -> setOptionValue("java-options", a));

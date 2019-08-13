@@ -1,5 +1,6 @@
 Package: APPLICATION_PACKAGE
 Version: APPLICATION_VERSION
+Release: APPLICATION_RELEASE
 Section: unknown
 Maintainer: APPLICATION_MAINTAINER
 Priority: optional

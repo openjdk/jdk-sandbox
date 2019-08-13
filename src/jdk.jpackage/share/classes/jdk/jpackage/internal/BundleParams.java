@@ -72,6 +72,9 @@ public class BundleParams {
     // String - Application version. Format may differ for different bundlers
     public static final String PARAM_VERSION            = "appVersion";
 
+    // String - Application release. Used on Linux.
+    public static final String PARAM_RELEASE            = "appRelease";
+
     // String - Optional application description. Used by MSI and on Linux
     public static final String PARAM_DESCRIPTION        = "description";
 

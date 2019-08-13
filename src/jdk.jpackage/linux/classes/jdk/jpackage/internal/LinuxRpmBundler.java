@@ -575,6 +575,7 @@ public class LinuxRpmBundler extends AbstractBundler {
         data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
         data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
         data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
+        data.put("APPLICATION_RELEASE", RELEASE.fetchFrom(params));
         data.put("APPLICATION_LAUNCHER_FILENAME", launcher);
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));

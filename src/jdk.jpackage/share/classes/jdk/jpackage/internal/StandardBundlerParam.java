@@ -70,6 +70,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MainResources");
     private static final String JAVABASEJMOD = "java.base.jmod";
+    private final static String DEFAULT_VERSION = "1.0";
+    private final static String DEFAULT_RELEASE = "1";
 
     StandardBundlerParam(String id, Class<T> valueType,
             Function<Map<String, ? super Object>, T> defaultValueFunction,
@@ -256,7 +258,15 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.VERSION.getId(),
                     String.class,
-                    params -> I18N.getString("param.version.default"),
+                    params -> DEFAULT_VERSION,
+                    (s, p) -> s
+            );
+
+    static final StandardBundlerParam<String> RELEASE =
+            new StandardBundlerParam<>(
+                    Arguments.CLIOptions.RELEASE.getId(),
+                    String.class,
+                    params -> DEFAULT_RELEASE,
                     (s, p) -> s
             );
 

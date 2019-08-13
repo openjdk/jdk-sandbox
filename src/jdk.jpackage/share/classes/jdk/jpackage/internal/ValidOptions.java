@@ -126,6 +126,7 @@ class ValidOptions {
             options.put(CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
                         USE.INSTALL);
             options.put(CLIOptions.LINUX_MENU_GROUP.getId(), USE.INSTALL);
+            options.put(CLIOptions.RELEASE.getId(), USE.INSTALL);
         }
     }
 
