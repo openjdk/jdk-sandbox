@@ -26,7 +26,6 @@ package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,8 +51,8 @@ public final class RepositoryFiles {
     private volatile boolean closed;
     private Path repository;
 
-    public RepositoryFiles(FileAccess fileAccess, SafePath repository) {
-        this.repository = repository == null ? null : repository.toPath();
+    public RepositoryFiles(FileAccess fileAccess, Path repository) {
+        this.repository = repository;
         this.fileAccess = fileAccess;
     }
 
@@ -62,66 +61,71 @@ public final class RepositoryFiles {
     }
 
     public Path lastPath() {
-        // Wait for chunks
+        if (waitForPaths()) {
+            return pathSet.lastEntry().getValue();
+        }
+        return null; // closed
+    }
+
+    public Path firstPath(long startTimeNanos) {
+        if (waitForPaths()) {
+            // Pick closest chunk before timestamp
+            Long time = pathSet.floorKey(startTimeNanos);
+            if (time != null) {
+                startTimeNanos = time;
+            }
+            return path(startTimeNanos);
+        }
+        return null; // closed
+    }
+
+    private boolean waitForPaths() {
         while (!closed) {
             try {
                 if (updatePaths()) {
                     break;
                 }
             } catch (IOException e) {
-                // ignore, not yet available
-            }
-        }
-        if (closed) {
-            return null;
-        }
-        // Pick the last
-        return pathSet.lastEntry().getValue();
-    }
-
-    public Path firstPath(long startTimeNanos) {
-        return path(startTimeNanos, true);
-    }
-
-    public Path nextPath(long startTimeNanos) {
-        return path(startTimeNanos, false);
-    }
-
-    private Path path(long timestamp, boolean first) {
-        while (!closed) {
-            Long time = timestamp;
-            if (first) {
-                // Pick closest chunk before timestamp
-                time = pathSet.floorKey(timestamp);
-            }
-            if (time != null) {
-                SortedMap<Long, Path> after = pathSet.tailMap(time);
-                if (!after.isEmpty()) {
-                    Path path = after.get(after.firstKey());
-                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + timestamp);
-                    return path;
-                }
-            }
-            try {
-                if (updatePaths()) {
-                    continue;
-                }
-            } catch (IOException e) {
                 Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "IOException during repository file scan " + e.getMessage());
                 // This can happen if a chunk is being removed
                 // between the file was discovered and an instance
-                // of an EventSet was constructed. Just ignore,
-                // and retry later.
+                // was accessed, or if new file has been written yet
+                // Just ignore, and retry later.
             }
-            try {
-                synchronized (pathSet) {
-                    pathSet.wait(1000);
-                }
-            } catch (InterruptedException e) {
-                // ignore
+            nap();
+        }
+        return !closed;
+    }
+
+    public Path nextPath(long startTimeNanos) {
+        return path(startTimeNanos);
+    }
+
+    private Path path(long timestamp) {
+        if (closed) {
+            return null;
+        }
+        while (true) {
+            SortedMap<Long, Path> after = pathSet.tailMap(timestamp);
+            if (!after.isEmpty()) {
+                Path path = after.get(after.firstKey());
+                Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + timestamp);
+                return path;
+            }
+            if (!waitForPaths()) {
+                return null; // closed
             }
         }
-        return null;
+    }
+
+    private void nap() {
+        try {
+            synchronized (pathSet) {
+                pathSet.wait(1000);
+            }
+        } catch (InterruptedException e) {
+            // ignore
+        }
     }
 
     private boolean updatePaths() throws IOException {
@@ -163,7 +167,7 @@ public final class RepositoryFiles {
         for (Path p : added) {
             // Only add files that have a complete header
             // as the JVM may be in progress writing the file
-            long size = Files.size(p);
+            long size = fileAccess.fileSize(p);
             if (size >= ChunkHeader.HEADER_SIZE) {
                 long startNanos = readStartTime(p);
                 pathSet.put(startNanos, p);

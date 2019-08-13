@@ -34,6 +34,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import jdk.jfr.internal.SecuritySupport;
 import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.consumer.FileAccess;
 
@@ -60,7 +61,7 @@ public interface EventStream extends AutoCloseable {
      */
     public static EventStream openRepository() throws IOException {
         Utils.checkAccessFlightRecorder();
-        return new EventDirectoryStream(AccessController.getContext(), null, FileAccess.PRIVILIGED, false);
+        return new EventDirectoryStream(AccessController.getContext(), null, SecuritySupport.PRIVILIGED, false);
     }
 
     /**

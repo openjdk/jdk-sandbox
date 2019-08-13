@@ -35,7 +35,6 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import jdk.jfr.internal.SecuritySupport.SafePath;
 import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
@@ -64,7 +63,7 @@ class EventDirectoryStream implements EventStream {
             super(acc, active);
             this.fileAccess = fileAccess;
             this.active = active;
-            repositoryFiles = new RepositoryFiles(fileAccess, p == null ? null : new SafePath(p));
+            repositoryFiles = new RepositoryFiles(fileAccess, p     );
         }
 
         @Override

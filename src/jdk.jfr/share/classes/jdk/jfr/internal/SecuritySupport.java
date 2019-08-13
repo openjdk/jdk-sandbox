@@ -38,6 +38,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ReflectPermission;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,6 +66,7 @@ import jdk.jfr.FlightRecorder;
 import jdk.jfr.FlightRecorderListener;
 import jdk.jfr.FlightRecorderPermission;
 import jdk.jfr.Recording;
+import jdk.jfr.internal.consumer.FileAccess;
 
 /**
  * Contains JFR code that does
@@ -75,7 +77,7 @@ public final class SecuritySupport {
     private final static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
     private final static Module JFR_MODULE = Event.class.getModule();
     public  final static SafePath JFC_DIRECTORY = getPathInProperty("java.home", "lib/jfr");
-
+    public final static FileAccess PRIVILIGED = new Privileged();
     static final SafePath USER_HOME = getPathInProperty("user.home", null);
     static final SafePath JAVA_IO_TMPDIR = getPathInProperty("java.io.tmpdir", null);
 
@@ -150,7 +152,7 @@ public final class SecuritySupport {
      * a malicious provider.
      *
      */
-    public static final class SafePath {
+    public static final class SafePath implements Comparable<SafePath> {
         private final Path path;
         private final String text;
 
@@ -168,8 +170,17 @@ public final class SecuritySupport {
             return path;
         }
 
+        public File toFile() {
+            return path.toFile();
+        }
+
         public String toString() {
             return text;
+        }
+
+        @Override
+        public int compareTo(SafePath that) {
+            return that.text.compareTo(this.text);
         }
     }
 
@@ -436,4 +447,32 @@ public final class SecuritySupport {
     public static SafePath getAbsolutePath(SafePath path) throws IOException {
         return new SafePath(doPrivilegedIOWithReturn((()-> path.toPath().toAbsolutePath())));
     }
+
+    private final static class Privileged extends FileAccess {
+        @Override
+        public RandomAccessFile openRAF(File f, String mode) throws IOException {
+            return doPrivilegedIOWithReturn( () -> new RandomAccessFile(f, mode));
+        }
+
+        @Override
+        public  DirectoryStream<Path> newDirectoryStream(Path directory)  throws IOException  {
+            return doPrivilegedIOWithReturn( () -> Files.newDirectoryStream(directory));
+        }
+
+        @Override
+        public  String getAbsolutePath(File f) throws IOException {
+            return doPrivilegedIOWithReturn( () ->f.getAbsolutePath());
+        }
+        @Override
+        public long length(File f) throws IOException {
+            return doPrivilegedIOWithReturn( () ->f.length());
+        }
+
+        @Override
+        public  long fileSize(Path p) throws IOException {
+            return doPrivilegedIOWithReturn( () ->Files.size(p));
+        }
+    }
+
+
 }

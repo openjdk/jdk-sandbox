@@ -81,13 +81,13 @@ public final class RecordingInput implements DataInput, AutoCloseable {
     }
 
     private void initialize(File f) throws IOException {
-        this.filename = f.getAbsolutePath().toString();
+        this.filename = fileAccess.getAbsolutePath(f);
         this.file = fileAccess.openRAF(f, "r");
         this.position = 0;
         this.size = -1;
         this.currentBlock.reset();
-        this.previousBlock.reset();
-        if (f.length() < 8) {
+        previousBlock.reset();
+        if (fileAccess.length(f) < 8) {
             throw new IOException("Not a valid Flight Recorder file. File length is only " + f.length() + " bytes.");
         }
     }
