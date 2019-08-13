@@ -34,7 +34,6 @@ import java.time.Duration;
 import java.time.Instant;
 
 import jdk.jfr.Event;
-import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.EventStream;
 import jdk.test.lib.process.OutputAnalyzer;
@@ -47,13 +46,13 @@ import jdk.test.lib.process.ProcessTools;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
+ *
  * @run main/othervm jdk.jfr.api.consumer.security.TestStreamingRemote
  */
 public class TestStreamingRemote {
 
     private static final String SUCCESS = "Success!";
 
-    @Name("Test")
     public static class TestEvent extends Event {
     }
 
@@ -82,7 +81,7 @@ public class TestStreamingRemote {
             e.commit();
             String[] c = new String[4];
             c[0] = "-Djava.security.manager";
-            c[1] = "-Djava.security.policy=" + escape(policy.toString());
+            c[1] = "-Djava.security.policy=" + escapeBackslashes(policy.toString());
             c[2] = Test.class.getName();
             c[3] = repository;
             OutputAnalyzer oa = ProcessTools.executeTestJvm(c);
@@ -91,34 +90,27 @@ public class TestStreamingRemote {
     }
 
     private static Path createPolicyFile(String repository) throws IOException {
-        Path p = Paths.get("permission.policy").toAbsolutePath();
-        try (PrintWriter pw = new PrintWriter(p.toFile())) {
+        Path policy = Paths.get("permission.policy").toAbsolutePath();
+        try (PrintWriter pw = new PrintWriter(policy.toFile())) {
             pw.println("grant {");
             // All the files and directories the contained in path
-            String dir = escape(repository);
-            String contents = escape(repository + File.separatorChar + "-");
-            pw.println("   permission java.io.FilePermission \"" + dir + "\", \"read\";");
-            pw.println("   permission java.io.FilePermission \"" + contents + "\", \"read\";");
+            String dir = escapeBackslashes(repository);
+            String contents = escapeBackslashes(repository + File.separatorChar + "-");
+            pw.println("  permission java.io.FilePermission \"" + dir + "\", \"read\";");
+            pw.println("  permission java.io.FilePermission \"" + contents + "\", \"read\";");
             pw.println("};");
             pw.println();
         }
-        System.out.println("Permission file: " + p);
-        for (String line : Files.readAllLines(p)) {
+        System.out.println("Permission file: " + policy);
+        for (String line : Files.readAllLines(policy)) {
             System.out.println(line);
         }
         System.out.println();
-        return p;
+        return policy;
     }
 
-    // Double quote needed for Windows
-    private static String escape(String text) {
-        StringBuilder sb = new StringBuilder();
-        for (char c : text.toCharArray()) {
-            if (c == '\\') {
-                sb.append(c);
-            }
-            sb.append(c);
-        }
-        return sb.toString();
+    // Needed for Windows
+    private static String escapeBackslashes(String text) {
+        return text.replace("\\", "\\\\");
     }
 }

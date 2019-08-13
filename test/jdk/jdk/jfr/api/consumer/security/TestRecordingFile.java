@@ -24,12 +24,9 @@
  */
 package jdk.jfr.api.consumer.security;
 
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordingFile;
-import jdk.test.lib.jfr.EventNames;
 
 /**
  * @test
@@ -37,29 +34,17 @@ import jdk.test.lib.jfr.EventNames;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run driver jdk.jfr.api.consumer.security.TestRecordingFile$Dumper
+ *
+ * @run driver jdk.jfr.api.consumer.security.DriverRecordingDumper
+ *      test-recording-file.jfr
  * @run main/othervm/secure=java.lang.SecurityManager/java.security.policy=no-permission.policy
  *      jdk.jfr.api.consumer.security.TestRecordingFile
- *
+ *      test-recording-file.jfr
  */
 public class TestRecordingFile {
-    public final static Path DUMP_FILE = Paths.get("dump.jfr");
-
-    public static class Dumper {
-        public static void main(String... args) throws Exception {
-            try (Recording r = new Recording()) {
-                // Enable JVM event, no write permission needed
-                r.enable(EventNames.JVMInformation);
-                r.start();
-                r.stop();
-                r.dump(DUMP_FILE);
-            }
-        }
-    }
-
     public static void main(String... args) throws Exception {
         try {
-            RecordingFile.readAllEvents(DUMP_FILE);
+            RecordingFile.readAllEvents(Paths.get(args[0]));
             throw new AssertionError("Expected SecurityException");
         } catch (SecurityException se) {
             // OK, as expected

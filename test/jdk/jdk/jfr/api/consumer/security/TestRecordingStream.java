@@ -37,6 +37,7 @@ import jdk.test.lib.jfr.EventNames;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
+ *
  * @run main/othervm/secure=java.lang.SecurityManager/java.security.policy=local-streaming.policy
  *      jdk.jfr.api.consumer.security.TestStreamingLocal
  */

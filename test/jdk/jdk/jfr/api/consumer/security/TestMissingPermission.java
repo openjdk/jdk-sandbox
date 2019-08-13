@@ -36,6 +36,7 @@ import jdk.jfr.consumer.RecordingStream;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
+ *
  * @run main/othervm/secure=java.lang.SecurityManager/java.security.policy=no-permission.policy
  *      jdk.jfr.api.consumer.security.TestMissingPermission
  */
@@ -49,7 +50,7 @@ public class TestMissingPermission {
     private static void testRecordingStream() throws IOException {
         try {
             try (EventStream es = EventStream.openRepository()) {
-                fail();
+                throw new AssertionError("Should not be able to create EventStream without FlightRecorderPermission");
             }
         } catch (SecurityException se) {
             // OK, as expected
@@ -59,14 +60,10 @@ public class TestMissingPermission {
     private static void testOpenRepository() throws IOException {
         try {
             try (RecordingStream es = new RecordingStream()) {
-                fail();
+                throw new AssertionError("Should not be able to create RecordingStream without FlightRecorderPermission");
             }
         } catch (SecurityException se) {
             // OK, as expected
         }
-    }
-
-    private static void fail() {
-        throw new AssertionError("Should not be able to create EventStream with FlightRecorderPermission");
     }
 }
