@@ -188,7 +188,7 @@ public class WinMsiBundler  extends AbstractBundler {
         }
         return null;
     }
-        
+
 
     public static final StandardBundlerParam<Boolean> MENU_HINT =
         new WindowsBundlerParam<>(
@@ -918,20 +918,44 @@ public class WinMsiBundler  extends AbstractBundler {
                     "  <Directory Name=\"AppData\" Id=\"LocalAppDataFolder\">");
             }
 
+            // reset counters
+            compId = 0;
+            id = 0;
+
             // We should get valid folder or subfolders
             String installDir = WINDOWS_INSTALL_DIR.fetchFrom(params);
             String [] installDirs = installDir.split(Pattern.quote("\\"));
             for (int i = 0; i < (installDirs.length - 1); i++)  {
                 out.println("   <Directory Id=\"SUBDIR" + i + "\" Name=\""
                     + installDirs[i] + "\">");
+                if (!MSI_SYSTEM_WIDE.fetchFrom(params)) {
+                    out.println("   <Component Id=\"comp" + (compId++)
+                        + "\" DiskId=\"1\""
+                        + " Guid=\"" + UUID.randomUUID().toString() + "\""
+                        + " Win64=\"yes\""
+                        + ">");
+                    out.println("<CreateFolder/>");
+                    // has to be under HKCU to make WiX happy
+                    out.println("    <RegistryKey Root=\"HKCU\" "
+                        + " Key=\"Software\\" + VENDOR.fetchFrom(params) + "\\"
+                        + APP_NAME.fetchFrom(params) + "\""
+                        + (CAN_USE_WIX36.fetchFrom(params) ?
+                        ">" : " Action=\"createAndRemoveOnUninstall\">"));
+                    out.println("     <RegistryValue Name=\"Version\" Value=\""
+                        + VERSION.fetchFrom(params)
+                        + "\" Type=\"string\" KeyPath=\"yes\"/>");
+                    out.println("   </RegistryKey>");
+                    out.println("   <RemoveFolder Id=\"RemoveDir"
+                        + (id++) + "\" Directory=\"SUBDIR" + i
+                        + "\" On=\"uninstall\" />");
+                    out.println("</Component>");
+                }
             }
 
             out.println("   <Directory Id=\"APPLICATIONFOLDER\" Name=\""
                     + installDirs[installDirs.length - 1] + "\">");
 
             // dynamic part
-            id = 0;
-            compId = 0; // reset counters
             walkFileTree(params, WIN_APP_IMAGE.fetchFrom(params), out, "    ");
 
             // closing
