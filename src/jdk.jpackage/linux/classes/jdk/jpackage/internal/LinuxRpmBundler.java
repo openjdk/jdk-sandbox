@@ -29,8 +29,6 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -40,6 +38,17 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
 
+/**
+ * There are two command line options to configure license information for RPM
+ * packaging: --linux-rpm-license-type and --license-file. Value of
+ * --linux-rpm-license-type command line option configures "License:" section
+ * of RPM spec. Value of --license-file command line option specifies a license
+ * file to be added to the package. License file is a sort of documentation file
+ * but it will be installed even if user selects an option to install the
+ * package without documentation. --linux-rpm-license-type is the primary option
+ * to set license information. --license-file makes little sense in case of RPM
+ * packaging.
+ */
 public class LinuxRpmBundler extends AbstractBundler {
 
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
@@ -269,31 +278,6 @@ public class LinuxRpmBundler extends AbstractBundler {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
-    }
-
-    private String getLicenseFileString(Map<String, ? super Object> params)
-            throws IOException {
-        StringBuilder sb = new StringBuilder();
-
-        String licenseStr = LICENSE_FILE.fetchFrom(params);
-        if (licenseStr != null) {
-            File licenseFile = new File(licenseStr);
-            File rootDir =
-                    LinuxAppBundler.getRootDir(RPM_IMAGE_DIR.fetchFrom(params),
-                            params);
-            File target = new File(rootDir + File.separator + "app"
-                    + File.separator + licenseFile.getName());
-            Files.copy(licenseFile.toPath(), target.toPath());
-
-            sb.append("%license ");
-            sb.append(LINUX_INSTALL_DIR.fetchFrom(params));
-            sb.append("/");
-            sb.append(APP_NAME.fetchFrom(params));
-            sb.append("/app/");
-            sb.append(licenseFile.getName());
-        }
-
-        return sb.toString();
     }
 
     private boolean prepareProjectConfig(Map<String, ? super Object> params)
@@ -583,7 +567,13 @@ public class LinuxRpmBundler extends AbstractBundler {
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_SUMMARY", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));
-        data.put("APPLICATION_LICENSE_FILE", getLicenseFileString(params));
+
+        String licenseFile = LICENSE_FILE.fetchFrom(params);
+        if (licenseFile == null) {
+            licenseFile = "";
+        }
+        data.put("APPLICATION_LICENSE_FILE", licenseFile);
+
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
         data.put("PACKAGE_DEPENDENCIES",
                 deps.isEmpty() ? "" : "Requires: " + deps);

@@ -43,7 +43,7 @@ public class LicenseTypeBase {
     private static final String infoResult = "infoResult.txt";
     private static void validatePackage() throws Exception {
         int retVal = JPackageHelper.execute(new File(infoResult),"rpm",
-                "--query", "--package", "--info", OUTPUT.toLowerCase());
+                "-qp", "--queryformat", "%{license}", OUTPUT.toLowerCase());
         if (retVal != 0) {
             throw new AssertionError("rpm exited with error: " + retVal);
         }
@@ -54,7 +54,7 @@ public class LicenseTypeBase {
         }
 
         String output = Files.readString(outfile.toPath());
-        if (!output.contains(JP_LICENSE_TYPE)) {
+        if (!output.equals(JP_LICENSE_TYPE)) {
             throw new AssertionError("Unexpected result: " + output);
         }
     }

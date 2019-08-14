@@ -22,6 +22,8 @@
  */
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,13 +50,57 @@ public class LicenseBase {
         String app = JPackagePath.getLinuxInstalledApp(TEST_NAME);
         JPackageInstallerHelper.validateApp(app);
 
+        if (EXT.equals("rpm")) {
+            verifyInstallRpm();
+        }
+    }
+
+    private static File getRpmLicenseFileInstallLocation() throws Exception {
+        final String infoResult = "infoResult.txt";
+        int retVal = JPackageHelper.execute(new File(infoResult), "rpm",
+                "--eval", "%{_defaultlicensedir}");
+        if (retVal != 0) {
+            throw new AssertionError("rpm exited with error: " + retVal);
+        }
+
+        final String rootLicenseDir = Files.readString(Path.of(infoResult)).replaceAll(
+                "(\\r|\\n)", "");
+
+        retVal = JPackageHelper.execute(new File(infoResult), "rpm",
+                "-qp", "--queryformat", "%{name}-%{version}",
+                OUTPUT.toLowerCase());
+        if (retVal != 0) {
+            throw new AssertionError("rpm exited with error: " + retVal);
+        }
+
+        final String testPackageName = Files.readString(Path.of(infoResult));
+
+        return Path.of(rootLicenseDir, testPackageName, new File(
+                JPackagePath.getLicenseFilePath()).getName()).toFile();
+    }
+
+    private static void verifyInstallRpm() throws Exception {
+        final File licenseFile = getRpmLicenseFileInstallLocation();
+        if (!licenseFile.exists()) {
+            throw new AssertionError(
+                    "Error: " + licenseFile.getAbsolutePath() + " not found");
+        }
     }
 
     private static void verifyUnInstall() throws Exception {
         String folderPath = JPackagePath.getLinuxInstallFolder(TEST_NAME);
         File folder = new File(folderPath);
         if (folder.exists()) {
-            throw new AssertionError("Error: " + folder.getAbsolutePath() + " exist");
+            throw new AssertionError(
+                    "Error: " + folder.getAbsolutePath() + " exist");
+        }
+
+        if (EXT.equals("rpm")) {
+            final File licenseFileFolder = getRpmLicenseFileInstallLocation().getParentFile();
+            if (folder.exists()) {
+                throw new AssertionError(
+                        "Error: " + licenseFileFolder.getAbsolutePath() + " exist");
+            }
         }
     }
 

@@ -210,9 +210,7 @@ public class JPackagePath {
     }
 
     public static String getLinuxInstalledApp(String testName) {
-        return File.separator + "opt"
-                + File.separator + testName
-                + File.separator + testName;
+        return Path.of("/opt", testName, "bin", testName).toString();
     }
 
     public static String getOSXInstalledApp(String subDir, String testName) {

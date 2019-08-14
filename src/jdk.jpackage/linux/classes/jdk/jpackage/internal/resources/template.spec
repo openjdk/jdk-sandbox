@@ -29,9 +29,14 @@ APPLICATION_DESCRIPTION
 rm -rf %{buildroot}
 mkdir -p %{buildroot}INSTALLATION_DIRECTORY
 cp -r %{_sourcedir}/APPLICATION_FS_NAME %{buildroot}INSTALLATION_DIRECTORY
-
+%if "xAPPLICATION_LICENSE_FILE" != x
+  %define license_install_file %{_defaultlicensedir}/%{name}-%{version}/%{basename:APPLICATION_LICENSE_FILE}
+  install -d -m 755 %{buildroot}%{dirname:%{license_install_file}}
+  install -m 644 APPLICATION_LICENSE_FILE %{buildroot}%{license_install_file}
+%endif
+ 
 %files
-APPLICATION_LICENSE_FILE
++%{?license_install_file:%license %{license_install_file}}
 INSTALLATION_DIRECTORY/APPLICATION_FS_NAME
 
 %post
