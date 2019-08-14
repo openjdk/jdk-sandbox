@@ -36,7 +36,7 @@ cp -r %{_sourcedir}/APPLICATION_FS_NAME %{buildroot}INSTALLATION_DIRECTORY
 %endif
  
 %files
-+%{?license_install_file:%license %{license_install_file}}
+%{?license_install_file:%license %{license_install_file}}
 INSTALLATION_DIRECTORY/APPLICATION_FS_NAME
 
 %post
