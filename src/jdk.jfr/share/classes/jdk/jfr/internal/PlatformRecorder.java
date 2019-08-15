@@ -357,6 +357,18 @@ public final class PlatformRecorder {
         MetadataRepository.getInstance().setSettings(list);
     }
 
+    public synchronized void rotateIfRecordingToDisk() {
+        boolean disk = false;
+        for (PlatformRecording s : getRecordings()) {
+            if (RecordingState.RUNNING == s.getState() && s.isToDisk()) {
+                disk = true;
+            }
+        }
+        if (disk) {
+            rotateDisk();
+        }
+    }
+
     synchronized void rotateDisk() {
         Instant now = Instant.now();
         RepositoryChunk newChunk = repository.newChunk(now);
@@ -571,4 +583,7 @@ public final class PlatformRecorder {
         target.setStopTime(endTime);
         target.setInternalDuration(Duration.between(startTime, endTime));
     }
+
+
+
 }
