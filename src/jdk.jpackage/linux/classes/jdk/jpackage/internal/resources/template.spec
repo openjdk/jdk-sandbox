@@ -37,7 +37,10 @@ cp -r %{_sourcedir}/APPLICATION_FS_NAME %{buildroot}INSTALLATION_DIRECTORY
  
 %files
 %{?license_install_file:%license %{license_install_file}}
-INSTALLATION_DIRECTORY/APPLICATION_FS_NAME
+# If installation directory for the application is /a/b/c, we want only root 
+# component of the path (/a) in the spec file to make sure all subdirectories
+# are owned by the package.
+%(echo INSTALLATION_DIRECTORY/APPLICATION_FS_NAME | sed -e "s|\(^/[^/]\{1,\}\).*$|\1|")
 
 %post
 if [ "RUNTIME_INSTALLER" != "true" ]; then
