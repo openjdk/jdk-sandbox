@@ -48,8 +48,8 @@ public final class RepositoryFiles {
     private final FileAccess fileAccess;
     private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
+    private final Path repository;
     private volatile boolean closed;
-    private Path repository;
 
     public RepositoryFiles(FileAccess fileAccess, Path repository) {
         this.repository = repository;
@@ -129,17 +129,21 @@ public final class RepositoryFiles {
     }
 
     private boolean updatePaths() throws IOException {
-        if (repository == null) {
-            SafePath p = Repository.getRepository().getRepositoryPath();
-            if (p == null) {
-                return false;
-            }
-            repository = p.toPath();
-        }
         boolean foundNew = false;
-        List<Path> added = new ArrayList<>();
-        Set<Path> current = new HashSet<>();
-        try (DirectoryStream<Path> dirStream = fileAccess.newDirectoryStream(repository)) {
+        Path repoPath = repository;
+        if (repoPath == null) {
+            // Always get the latest repository if 'jcmd JFR.configure
+            // repositorypath=...' has been executed
+            SafePath sf = Repository.getRepository().getRepositoryPath();
+            if (sf == null) {
+                return false; // not initialized
+            }
+            repoPath = sf.toPath();
+        }
+
+        try (DirectoryStream<Path> dirStream = fileAccess.newDirectoryStream(repoPath)) {
+            List<Path> added = new ArrayList<>();
+            Set<Path> current = new HashSet<>();
             for (Path p : dirStream) {
                 if (!pathLookup.containsKey(p)) {
                     String s = p.toString();
@@ -150,32 +154,32 @@ public final class RepositoryFiles {
                     current.add(p);
                 }
             }
-        }
-        List<Path> removed = new ArrayList<>();
-        for (Path p : pathLookup.keySet()) {
-            if (!current.contains(p)) {
-                removed.add(p);
+            List<Path> removed = new ArrayList<>();
+            for (Path p : pathLookup.keySet()) {
+                if (!current.contains(p)) {
+                    removed.add(p);
+                }
             }
-        }
 
-        for (Path remove : removed) {
-            Long time = pathLookup.get(remove);
-            pathSet.remove(time);
-            pathLookup.remove(remove);
-        }
-        Collections.sort(added, (p1, p2) -> p1.compareTo(p2));
-        for (Path p : added) {
-            // Only add files that have a complete header
-            // as the JVM may be in progress writing the file
-            long size = fileAccess.fileSize(p);
-            if (size >= ChunkHeader.HEADER_SIZE) {
-                long startNanos = readStartTime(p);
-                pathSet.put(startNanos, p);
-                pathLookup.put(p, startNanos);
-                foundNew = true;
+            for (Path remove : removed) {
+                Long time = pathLookup.get(remove);
+                pathSet.remove(time);
+                pathLookup.remove(remove);
             }
+            Collections.sort(added, (p1, p2) -> p1.compareTo(p2));
+            for (Path p : added) {
+                // Only add files that have a complete header
+                // as the JVM may be in progress writing the file
+                long size = fileAccess.fileSize(p);
+                if (size >= ChunkHeader.HEADER_SIZE) {
+                    long startNanos = readStartTime(p);
+                    pathSet.put(startNanos, p);
+                    pathLookup.put(p, startNanos);
+                    foundNew = true;
+                }
+            }
+            return foundNew;
         }
-        return foundNew;
     }
 
     private long readStartTime(Path p) throws IOException {
