@@ -327,7 +327,7 @@ abstract class AbstractEventStream implements Runnable {
     private final AccessControlContext accessControlContext;
     private final Thread thread;
     private final boolean active;
-    // Update by updateConfiguration()
+    // Updated by updateConfiguration()
     protected StreamConfiguration configuration = new StreamConfiguration();
 
     // Cache the last event type and dispatch.
