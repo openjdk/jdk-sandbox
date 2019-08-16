@@ -140,6 +140,13 @@ public class LinuxDebBundler extends AbstractBundler {
                     + EMAIL.fetchFrom(params) + ">",
             (s, p) -> s);
 
+    public static final BundlerParamInfo<String> SECTION = 
+            new StandardBundlerParam<>(
+            Arguments.CLIOptions.LINUX_CATEGORY.getId(),
+            String.class,
+            params -> "misc",
+            (s, p) -> s);
+    
     public static final BundlerParamInfo<String> LICENSE_TEXT =
             new StandardBundlerParam<> (
             "linux.deb.licenseText",
@@ -735,6 +742,7 @@ public class LinuxDebBundler extends AbstractBundler {
         data.put("APPLICATION_MAINTAINER", MAINTAINER.fetchFrom(params));
         data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
         data.put("APPLICATION_RELEASE", RELEASE.fetchFrom(params));
+        data.put("APPLICATION_SECTION", SECTION.fetchFrom(params));
         data.put("APPLICATION_LAUNCHER_FILENAME", launcher);
         data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
         data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));

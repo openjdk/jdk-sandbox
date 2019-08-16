@@ -325,6 +325,9 @@ public class Arguments {
         LINUX_DEB_MAINTAINER ("linux-deb-maintainer",
                 OptionCategories.PLATFORM_LINUX),
 
+        LINUX_CATEGORY ("linux-app-category",
+                OptionCategories.PLATFORM_LINUX),
+
         LINUX_RPM_LICENSE_TYPE ("linux-rpm-license-type",
                 OptionCategories.PLATFORM_LINUX),
 

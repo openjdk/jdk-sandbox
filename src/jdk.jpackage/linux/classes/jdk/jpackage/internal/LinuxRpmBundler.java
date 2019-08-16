@@ -124,6 +124,13 @@ public class LinuxRpmBundler extends AbstractBundler {
                 params -> I18N.getString("param.license-type.default"),
                 (s, p) -> s
         );
+    
+    public static final BundlerParamInfo<String> GROUP = 
+            new StandardBundlerParam<>(
+            Arguments.CLIOptions.LINUX_CATEGORY.getId(),
+            String.class,
+            params -> null,
+            (s, p) -> s);
 
     public static final BundlerParamInfo<String> XDG_FILE_PREFIX =
             new StandardBundlerParam<> (
@@ -571,6 +578,12 @@ public class LinuxRpmBundler extends AbstractBundler {
             licenseFile = "";
         }
         data.put("APPLICATION_LICENSE_FILE", licenseFile);
+
+        String group = GROUP.fetchFrom(params);
+        if (group == null) {
+            group = "";
+        }
+        data.put("APPLICATION_GROUP", group);
 
         String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
         data.put("PACKAGE_DEPENDENCIES",

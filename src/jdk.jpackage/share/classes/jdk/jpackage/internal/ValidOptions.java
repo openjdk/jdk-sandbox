@@ -122,6 +122,7 @@ class ValidOptions {
         if (Platform.getPlatform() == Platform.LINUX) {
             options.put(CLIOptions.LINUX_BUNDLE_NAME.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_DEB_MAINTAINER.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_CATEGORY.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_RPM_LICENSE_TYPE.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
                         USE.INSTALL);

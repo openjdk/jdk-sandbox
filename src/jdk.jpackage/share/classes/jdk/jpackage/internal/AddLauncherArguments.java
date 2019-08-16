@@ -106,6 +106,9 @@ class AddLauncherArguments {
         putUnlessNull(bundleParams, CLIOptions.RELEASE.getId(),
                 getOptionValue(CLIOptions.RELEASE));
 
+        putUnlessNull(bundleParams, CLIOptions.LINUX_CATEGORY.getId(),
+                getOptionValue(CLIOptions.LINUX_CATEGORY));
+
         putUnlessNull(bundleParams,
                 CLIOptions.WIN_CONSOLE_HINT.getId(),
                 getOptionValue(CLIOptions.WIN_CONSOLE_HINT));
