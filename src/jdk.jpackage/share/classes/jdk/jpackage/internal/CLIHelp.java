@@ -46,7 +46,7 @@ public class CLIHelp {
         if (noArgs) {
             Log.info(I18N.getString("MSG_Help_no_args"));
         } else {
-            Platform platform = (Log.isDebug()) ?
+            Platform platform = (Log.isVerbose()) ?
                     Platform.UNKNOWN : Platform.getPlatform();
             String types;
             String pLaunchOptions;

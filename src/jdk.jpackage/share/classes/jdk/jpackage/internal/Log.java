@@ -41,12 +41,16 @@ public class Log {
         private PrintWriter out = null;
         private PrintWriter err = null;
 
-        public Logger(boolean v) {
-            verbose = v;
+        // verbose defaults to true unless environment variable JPACKAGE_DEBUG
+        // is set to true.
+        // Then it is only set to true by using --verbose jpackage option
+        
+        public Logger() {
+            verbose = ("true".equals(System.getenv("JPACKAGE_DEBUG")));
         }
 
-        public void setVerbose(boolean v) {
-            verbose = v;
+        public void setVerbose() {
+            verbose = true;
         }
 
         public boolean isVerbose() {
@@ -85,43 +89,26 @@ public class Log {
         }
 
         public void verbose(Throwable t) {
-            if (out != null && (Log.debug || verbose)) {
+            if (out != null && verbose) {
                 t.printStackTrace(out);
-            } else if (Log.debug || verbose) {
+            } else if (verbose) {
                 t.printStackTrace(System.out);
             }
         }
 
         public void verbose(String msg) {
-            if (out != null && (Log.debug || verbose)) {
+            if (out != null && verbose) {
                 out.println(msg);
-            } else if (Log.debug || verbose) {
-                System.out.println(msg);
-            }
-        }
-
-        public void debug(String msg) {
-            if (out != null && Log.debug) {
-                out.println(msg);
-            } else if (Log.debug) {
+            } else if (verbose) {
                 System.out.println(msg);
             }
         }
     }
 
     private static Logger delegate = null;
-    private static boolean debug =
-            "true".equals(System.getenv("JPACKAGE_DEBUG"));
 
-    public static void setLogger(Logger l) {
-        delegate = l;
-        if (l == null) {
-            delegate = new Logger(false);
-        }
-    }
-
-    public static Logger getLogger() {
-        return delegate;
+    public static void setLogger(Logger logger) {
+        delegate = (logger != null) ? logger : new Logger();
     }
 
     public static void flush() {
@@ -142,18 +129,14 @@ public class Log {
         }
     }
 
-    public static void setVerbose(boolean v) {
+    public static void setVerbose() {
         if (delegate != null) {
-            delegate.setVerbose(v);
+            delegate.setVerbose();
         }
     }
 
     public static boolean isVerbose() {
-        if (delegate != null) {
-            return delegate.isVerbose();
-        }
-
-        return false; // Off by default
+        return (delegate != null) ? delegate.isVerbose() : false;
     }
 
     public static void verbose(String msg) {
@@ -166,30 +149,5 @@ public class Log {
         if (delegate != null) {
            delegate.verbose(t);
         }
-    }
-
-    public static void debug(String msg) {
-        if (delegate != null) {
-           delegate.debug(msg);
-        }
-    }
-
-    public static void debug(Throwable t) {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            try (PrintStream ps = new PrintStream(baos)) {
-                t.printStackTrace(ps);
-            }
-            debug(baos.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static boolean isDebug() {
-        return debug;
-    }
-
-    public static void setDebug(boolean debug) {
-        Log.debug = debug;
     }
 }

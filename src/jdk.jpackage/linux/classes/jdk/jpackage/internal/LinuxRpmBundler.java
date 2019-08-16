@@ -141,9 +141,7 @@ public class LinuxRpmBundler extends AbstractBundler {
 
                     return (vendor + "-" + appName).replaceAll("\\s", "");
                 } catch (Exception e) {
-                    if (Log.isDebug()) {
-                        e.printStackTrace();
-                    }
+                    Log.verbose(e);
                 }
                 return "unknown-MimeInfo.xml";
             },

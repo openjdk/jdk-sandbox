@@ -184,7 +184,7 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
                 Log.error("Found more than one key matching '"  + key + "'");
                 return null;
             }
-            Log.debug("Using key '" + matchedKey + "'");
+            Log.verbose("Using key '" + matchedKey + "'");
             return matchedKey;
         } catch (IOException ioe) {
             Log.verbose(ioe);

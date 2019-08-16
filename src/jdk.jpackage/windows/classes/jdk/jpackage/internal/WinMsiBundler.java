@@ -262,9 +262,7 @@ public class WinMsiBundler  extends AbstractBundler {
                     toolName, version));
             return version;
         } catch (Exception e) {
-            if (Log.isDebug()) {
-                Log.verbose(e);
-            }
+            Log.verbose(e);
             return null;
         }
     }

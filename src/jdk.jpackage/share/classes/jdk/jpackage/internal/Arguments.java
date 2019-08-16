@@ -114,7 +114,7 @@ public class Arguments {
         for (String arg : args) {
             argList.add(arg);
         }
-        Log.debug ("\njpackage argument list: \n" + argList + "\n");
+        Log.verbose ("\njpackage argument list: \n" + argList + "\n");
         pos = 0;
 
         deployParams = new DeployParams();
@@ -158,7 +158,7 @@ public class Arguments {
 
         VERBOSE ("verbose", OptionCategories.PROPERTY, () -> {
             setOptionValue("verbose", true);
-            Log.setVerbose(true);
+            Log.setVerbose();
         }),
 
         RESOURCE_DIR("resource-dir",
@@ -622,7 +622,7 @@ public class Arguments {
                     I18N.getString("message.bundle-created"),
                     bundler.getName()));
         } catch (ConfigException e) {
-            Log.debug(e);
+            Log.verbose(e);
             if (e.getAdvice() != null)  {
                 throw new PackagerException(e, "MSG_BundlerConfigException",
                         bundler.getName(), e.getMessage(), e.getAdvice());
@@ -632,7 +632,7 @@ public class Arguments {
                         bundler.getName(), e.getMessage());
             }
         } catch (RuntimeException re) {
-            Log.debug(re);
+            Log.verbose(re);
             throw new PackagerException(re, "MSG_BundlerRuntimeException",
                     bundler.getName(), re.toString());
         } finally {

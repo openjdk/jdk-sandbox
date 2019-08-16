@@ -789,7 +789,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                             Files.setPosixFilePermissions(path, pfp);
                         }
                     } catch (IOException e) {
-                        Log.debug(e);
+                        Log.verbose(e);
                     }
                 })
                 .filter(p -> Files.isRegularFile(p) &&

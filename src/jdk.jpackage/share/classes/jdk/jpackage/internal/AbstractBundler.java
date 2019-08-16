@@ -182,7 +182,7 @@ public abstract class AbstractBundler implements Bundler {
             IOUtils.deleteRecursive(
                     StandardBundlerParam.TEMP_ROOT.fetchFrom(params));
         } catch (IOException e) {
-            Log.debug(e.getMessage());
+            Log.verbose(e.getMessage());
         }
     }
 }

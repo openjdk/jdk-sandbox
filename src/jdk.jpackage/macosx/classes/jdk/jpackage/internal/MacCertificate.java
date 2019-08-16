@@ -112,7 +112,7 @@ final class MacCertificate {
                     "MMM dd kk:mm:ss yyyy z", Locale.ENGLISH);
             result = df.parse(output);
         } catch (IOException | ParseException ex) {
-            Log.debug(ex);
+            Log.verbose(ex);
         }
 
         return result;

@@ -497,7 +497,6 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         File applicationImage = null;
         if (PREDEFINED_APP_IMAGE.fetchFrom(params) != null) {
             applicationImage = PREDEFINED_APP_IMAGE.fetchFrom(params);
-            Log.debug("Using App Image from " + applicationImage);
             if (!applicationImage.exists()) {
                 throw new RuntimeException(
                         MessageFormat.format(I18N.getString(

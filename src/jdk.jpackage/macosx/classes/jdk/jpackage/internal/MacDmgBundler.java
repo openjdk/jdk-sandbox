@@ -272,7 +272,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         protoDMG.getParentFile().mkdirs();
         finalDMG.getParentFile().mkdirs();
 
-        String hdiUtilVerbosityFlag = Log.isDebug() ? "-verbose" : "-quiet";
+        String hdiUtilVerbosityFlag = VERBOSE.fetchFrom(params) ?
+                "-verbose" : "-quiet";
 
         // create temp image
         ProcessBuilder pb = new ProcessBuilder(

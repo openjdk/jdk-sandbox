@@ -46,8 +46,7 @@ public class Main {
      */
     public static void main(String... args) throws Exception {
         // Create logger with default system.out and system.err
-        Log.Logger logger = new Log.Logger(false);
-        Log.setLogger(logger);
+        Log.setLogger(null);
 
         int status = new jdk.jpackage.main.Main().execute(args);
         System.exit(status);
@@ -63,7 +62,7 @@ public class Main {
      */
     public int execute(PrintWriter out, PrintWriter err, String... args) {
         // Create logger with provided streams
-        Log.Logger logger = new Log.Logger(false);
+        Log.Logger logger = new Log.Logger();
         logger.setPrintWriter(out, err);
         Log.setLogger(logger);
 
