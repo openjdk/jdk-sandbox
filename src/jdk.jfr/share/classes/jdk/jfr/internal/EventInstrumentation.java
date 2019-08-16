@@ -430,18 +430,18 @@ public final class EventInstrumentation {
                 // }
                 methodVisitor.visitLabel(durationalEvent);
                 methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-                methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
-                methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
-                methodVisitor.visitInsn(Opcodes.LCONST_0);
-                methodVisitor.visitInsn(Opcodes.LCMP);
-                methodVisitor.visitJumpInsn(Opcodes.IFNE, commit);
-                methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+ //             methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
+ //             methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_DURATION, "J");
+ //             methodVisitor.visitInsn(Opcodes.LCONST_0);
+ //             methodVisitor.visitInsn(Opcodes.LCMP);
+ //             methodVisitor.visitJumpInsn(Opcodes.IFNE, commit);
+ //             methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
                 methodVisitor.visitMethodInsn(Opcodes.INVOKESTATIC, TYPE_EVENT_HANDLER.getInternalName(), METHOD_TIME_STAMP.getName(), METHOD_TIME_STAMP.getDescriptor(), false);
                 methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
                 methodVisitor.visitFieldInsn(Opcodes.GETFIELD, getInternalClassName(), FIELD_START_TIME, "J");
                 methodVisitor.visitInsn(Opcodes.LSUB);
                 methodVisitor.visitFieldInsn(Opcodes.PUTFIELD, getInternalClassName(), FIELD_DURATION, "J");
-                methodVisitor.visitLabel(commit);
+              methodVisitor.visitLabel(commit);
                 // if (shouldCommit()) {
                 methodVisitor.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
                 methodVisitor.visitVarInsn(Opcodes.ALOAD, 0);
