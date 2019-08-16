@@ -78,8 +78,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private final Path mdir;
     private final Path binDir;
 
-    private final Map<String, ? super Object> params;
-
     public static final BundlerParamInfo<Boolean> REBRAND_EXECUTABLE =
             new WindowsBundlerParam<>(
             "win.launcher.rebrand",
@@ -112,14 +110,12 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
             (s, p) -> (s == null
             || "null".equalsIgnoreCase(s)) ? true : Boolean.valueOf(s));
 
-    public WindowsAppImageBuilder(Map<String, Object> config, Path imageOutDir)
+    public WindowsAppImageBuilder(Map<String, Object> params, Path imageOutDir)
             throws IOException {
-        super(config,
-                imageOutDir.resolve(APP_NAME.fetchFrom(config) + "/runtime"));
+        super(params,
+                imageOutDir.resolve(APP_NAME.fetchFrom(params) + "/runtime"));
 
         Objects.requireNonNull(imageOutDir);
-
-        this.params = config;
 
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params));
         this.appDir = root.resolve("app");
@@ -137,7 +133,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
         Objects.requireNonNull(imageOutDir);
 
-        this.params = null;
         this.root = imageOutDir.resolve(jreName);
         this.appDir = null;
         this.appModsDir = null;
@@ -197,7 +192,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareApplicationFiles() throws IOException {
+    public void prepareApplicationFiles(Map<String, ? super Object> params)
+            throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
         try {
@@ -230,7 +226,8 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareJreFiles() throws IOException {}
+    public void prepareJreFiles(Map<String, ? super Object> params)
+        throws IOException {}
 
     private void copyMSVCDLLs() throws IOException {
         AtomicReference<IOException> ioe = new AtomicReference<>();
@@ -269,6 +266,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     protected void prepareExecutableProperties(
            Map<String, ? super Object> params) throws IOException {
+
         Map<String, String> data = new HashMap<>();
 
         // mapping Java parameters in strings for version resource
@@ -297,9 +295,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private void createLauncherForEntryPoint(
             Map<String, ? super Object> params) throws IOException {
 
-        File launcherIcon = ICON_ICO.fetchFrom(params);
-        File icon = launcherIcon != null ?
-                launcherIcon : ICON_ICO.fetchFrom(params);
+        File icon = ICON_ICO.fetchFrom(params);
         File iconTarget = getConfig_AppIcon(params);
 
         InputStream in = locateResource(

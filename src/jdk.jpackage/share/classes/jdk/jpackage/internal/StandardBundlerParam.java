@@ -543,7 +543,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             }
         }
 
-        appBuilder.prepareApplicationFiles();
+        appBuilder.prepareApplicationFiles(params);
     }
 
     static void extractMainClassInfoFromAppResources(

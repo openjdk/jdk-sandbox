@@ -187,7 +187,7 @@ final class JLinkBundlerHelper {
         runJLink(outputDir, modulePath, validModules, limitModules,
                 new HashMap<String,String>(), bindServices);
 
-        imageBuilder.prepareApplicationFiles();
+        imageBuilder.prepareApplicationFiles(params);
     }
 
 

@@ -64,8 +64,10 @@ public abstract class AbstractAppImageBuilder {
         return ResourceLocator.class.getResourceAsStream(name);
     }
 
-    public abstract void prepareApplicationFiles() throws IOException;
-    public abstract void prepareJreFiles() throws IOException;
+    public abstract void prepareApplicationFiles(
+            Map<String, ? super Object> params) throws IOException;
+    public abstract void prepareJreFiles(
+            Map<String, ? super Object> params) throws IOException;
     public abstract Path getAppDir();
     public abstract Path getAppModsDir();
 

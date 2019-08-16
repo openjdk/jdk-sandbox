@@ -61,8 +61,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private final Path binDir;
     private final Path mdir;
 
-    private final Map<String, ? super Object> params;
-
     public static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
             "icon.png",
@@ -78,22 +76,19 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             },
             (s, p) -> new File(s));
 
-    public LinuxAppImageBuilder(Map<String, Object> config, Path imageOutDir)
+    public LinuxAppImageBuilder(Map<String, Object> params, Path imageOutDir)
             throws IOException {
-        super(config,
-                imageOutDir.resolve(APP_NAME.fetchFrom(config) + "/runtime"));
+        super(params,
+                imageOutDir.resolve(APP_NAME.fetchFrom(params) + "/runtime"));
 
         Objects.requireNonNull(imageOutDir);
 
-        this.root = imageOutDir.resolve(APP_NAME.fetchFrom(config));
+        this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params));
         this.appDir = root.resolve("app");
         this.appModsDir = appDir.resolve("mods");
         this.runtimeDir = root.resolve("runtime");
         this.binDir = root.resolve("bin");
         this.mdir = runtimeDir.resolve("lib");
-        this.params = new HashMap<>();
-        config.entrySet().stream().forEach(e -> params.put(
-                e.getKey().toString(), e.getValue()));
         Files.createDirectories(appDir);
         Files.createDirectories(runtimeDir);
     }
@@ -110,7 +105,6 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         this.runtimeDir = null;
         this.binDir = null;
         this.mdir = null;
-        this.params = new HashMap<>();
     }
 
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
@@ -150,7 +144,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareApplicationFiles() throws IOException {
+    public void prepareApplicationFiles(Map<String, ? super Object> params)
+            throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
         try {
@@ -177,14 +172,15 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         // Copy class path entries to Java folder
-        copyApplication();
+        copyApplication(params);
 
         // Copy icon to Resources folder
-        copyIcon();
+        copyIcon(params);
     }
 
     @Override
-    public void prepareJreFiles() throws IOException {}
+    public void prepareJreFiles(Map<String, ? super Object> params)
+            throws IOException {}
 
     private void createLauncherForEntryPoint(
             Map<String, ? super Object> params) throws IOException {
@@ -201,7 +197,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         writeCfgFile(params, root.resolve(getLauncherCfgName(params)).toFile());
     }
 
-    private void copyIcon() throws IOException {
+    private void copyIcon(Map<String, ? super Object> params)
+            throws IOException {
         File icon = ICON_PNG.fetchFrom(params);
         if (icon != null) {
             File iconTarget = new File(binDir.toFile(),
@@ -210,7 +207,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    private void copyApplication() throws IOException {
+    private void copyApplication(Map<String, ? super Object> params)
+            throws IOException {
         for (RelativeFileSet appResources :
                 APP_RESOURCES_LIST.fetchFrom(params)) {
             if (appResources == null) {

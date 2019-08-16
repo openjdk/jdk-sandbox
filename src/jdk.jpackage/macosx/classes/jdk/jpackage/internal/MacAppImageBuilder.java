@@ -82,8 +82,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     private final Path runtimeRoot;
     private final Path mdir;
 
-    private final Map<String, ? super Object> params;
-
     private static List<String> keyChains;
 
     public static final BundlerParamInfo<Boolean>
@@ -163,14 +161,13 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     null : Boolean.valueOf(s)
         );
 
-    public MacAppImageBuilder(Map<String, Object> config, Path imageOutDir)
+    public MacAppImageBuilder(Map<String, Object> params, Path imageOutDir)
             throws IOException {
-        super(config, imageOutDir.resolve(APP_NAME.fetchFrom(config)
+        super(params, imageOutDir.resolve(APP_NAME.fetchFrom(params)
                 + ".app/Contents/runtime/Contents/Home"));
 
         Objects.requireNonNull(imageOutDir);
 
-        this.params = config;
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params) + ".app");
         this.contentsDir = root.resolve("Contents");
         this.javaDir = contentsDir.resolve("Java");
@@ -186,13 +183,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         Files.createDirectories(runtimeDir);
     }
 
-    public MacAppImageBuilder(Map<String, Object> config, String jreName,
+    public MacAppImageBuilder(Map<String, Object> params, String jreName,
             Path imageOutDir) throws IOException {
         super(null, imageOutDir.resolve(jreName + "/Contents/Home"));
 
         Objects.requireNonNull(imageOutDir);
 
-        this.params = config;
         this.root = imageOutDir.resolve(jreName );
         this.contentsDir = root.resolve("Contents");
         this.javaDir = null;
@@ -275,7 +271,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
     }
 
     @Override
-    public void prepareApplicationFiles() throws IOException {
+    public void prepareApplicationFiles(Map<String, ? super Object> params)
+            throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
         // Generate PkgInfo
         File pkgInfoFile = new File(contentsDir.toFile(), "PkgInfo");
@@ -317,7 +314,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         // Copy class path entries to Java folder
-        copyClassPathEntries(javaDir);
+        copyClassPathEntries(javaDir, params);
 
         /*********** Take care of "config" files *******/
         File icon = ICON_ICNS.fetchFrom(params);
@@ -345,14 +342,15 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             }
         }
 
-        copyRuntimeFiles();
-        sign();
+        copyRuntimeFiles(params);
+        sign(params);
     }
 
     @Override
-    public void prepareJreFiles() throws IOException {
-        copyRuntimeFiles();
-        sign();
+    public void prepareJreFiles(Map<String, ? super Object> params)
+            throws IOException {
+        copyRuntimeFiles(params);
+        sign(params);
     }
 
     @Override
@@ -361,13 +359,14 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         return (home.exists() ? home : runtimeImageTop);
     }
 
-    private void copyRuntimeFiles() throws IOException {
+    private void copyRuntimeFiles(Map<String, ? super Object> params)
+            throws IOException {
         // Generate Info.plist
-        writeInfoPlist(contentsDir.resolve("Info.plist").toFile());
+        writeInfoPlist(contentsDir.resolve("Info.plist").toFile(), params);
 
         // generate java runtime info.plist
         writeRuntimeInfoPlist(
-                runtimeDir.resolve("Contents/Info.plist").toFile());
+                runtimeDir.resolve("Contents/Info.plist").toFile(), params);
 
         // copy library
         Path runtimeMacOSDir = Files.createDirectories(
@@ -382,7 +381,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         Files.copy(jli, runtimeMacOSDir.resolve("libjli.dylib"));
     }
 
-    private void sign() throws IOException {
+    private void sign(Map<String, ? super Object> params) throws IOException {
         if (Optional.ofNullable(
                 SIGN_BUNDLE.fetchFrom(params)).orElse(Boolean.TRUE)) {
             try {
@@ -413,7 +412,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         return "Contents/Java/" + APP_NAME.fetchFrom(params) + ".cfg";
     }
 
-    private void copyClassPathEntries(Path javaDirectory) throws IOException {
+    private void copyClassPathEntries(Path javaDirectory,
+            Map<String, ? super Object> params) throws IOException {
         List<RelativeFileSet> resourcesList =
                 APP_RESOURCES_LIST.fetchFrom(params);
         if (resourcesList == null) {
@@ -449,7 +449,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    private void writeRuntimeInfoPlist(File file) throws IOException {
+    private void writeRuntimeInfoPlist(File file,
+            Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
         String identifier = StandardBundlerParam.isRuntimeInstaller(params) ?
                 MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) :
@@ -471,7 +472,8 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
     }
 
-    private void writeInfoPlist(File file) throws IOException {
+    private void writeInfoPlist(File file, Map<String, ? super Object> params)
+            throws IOException {
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.preparing-info-plist"), file.getAbsolutePath()));
 
