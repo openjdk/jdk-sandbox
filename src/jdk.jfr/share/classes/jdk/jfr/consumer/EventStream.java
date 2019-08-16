@@ -203,14 +203,13 @@ public interface EventStream extends AutoCloseable {
      * <p>
      * The end time must be set before the stream is started.
      * <p>
-     * When the end time is reached the stream is terminated.
+     * When the end time is reached the stream is closed.
      *
      * @param endTime the end time, not {@code null}
      *
      * @throws IllegalStateException if the stream has already been started
      */
     public void setEndTime(Instant endTime);
-
 
     /**
      * Start processing events in the stream.
