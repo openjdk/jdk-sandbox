@@ -80,6 +80,7 @@ public class WinShortcutBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
+            "--win-console",
             "--win-shortcut"};
     }
 
