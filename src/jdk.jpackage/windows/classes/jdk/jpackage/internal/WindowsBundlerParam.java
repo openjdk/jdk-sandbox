@@ -62,7 +62,7 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
 
     static final BundlerParamInfo<String> APP_REGISTRY_NAME =
             new StandardBundlerParam<> (
-            Arguments.CLIOptions.WIN_REGISTRY_NAME.getId(),
+            "win.registryName",
             String.class,
             params -> {
                 String nm = APP_NAME.fetchFrom(params);

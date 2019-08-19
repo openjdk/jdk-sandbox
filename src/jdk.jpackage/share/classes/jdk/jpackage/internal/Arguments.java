@@ -310,8 +310,6 @@ public class Arguments {
             setOptionValue("win-dir-chooser", true);
         }),
 
-        WIN_REGISTRY_NAME ("win-registry-name", OptionCategories.PLATFORM_WIN),
-
         WIN_UPGRADE_UUID ("win-upgrade-uuid",
                 OptionCategories.PLATFORM_WIN),
 

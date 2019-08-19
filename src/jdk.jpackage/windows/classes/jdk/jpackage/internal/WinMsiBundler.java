@@ -810,9 +810,7 @@ public class WinMsiBundler  extends AbstractBundler {
         if (launcherSet) {
             List<Map<String, ? super Object>> fileAssociations =
                 FILE_ASSOCIATIONS.fetchFrom(params);
-            String regName = APP_REGISTRY_NAME.fetchFrom(params);
             Set<String> defaultedMimes = new TreeSet<>();
-            int count = 0;
             for (Map<String, ? super Object> fa : fileAssociations) {
                 String description = FA_DESCRIPTION.fetchFrom(fa);
                 List<String> extensions = FA_EXTENSIONS.fetchFrom(fa);
@@ -822,15 +820,12 @@ public class WinMsiBundler  extends AbstractBundler {
                 String mime = (mimeTypes == null ||
                     mimeTypes.isEmpty()) ? null : mimeTypes.get(0);
 
+                String entryName = APP_REGISTRY_NAME.fetchFrom(params) + "File";
+
                 if (extensions == null) {
                     Log.verbose(I18N.getString(
                           "message.creating-association-with-null-extension"));
 
-                    String entryName = regName + "File";
-                    if (count > 0) {
-                        entryName += "." + count;
-                    }
-                    count++;
                     out.print(prefix + "   <ProgId Id='" + entryName
                             + "' Description='" + description + "'");
                     if (icon != null && icon.exists()) {
@@ -840,11 +835,8 @@ public class WinMsiBundler  extends AbstractBundler {
                     out.println(" />");
                 } else {
                     for (String ext : extensions) {
-                        String entryName = regName + "File";
-                        if (count > 0) {
-                            entryName += "." + count;
-                        }
-                        count++;
+
+                        entryName = ext.toUpperCase() + "File";
 
                         out.print(prefix + "   <ProgId Id='" + entryName
                                 + "' Description='" + description + "'");
@@ -855,29 +847,24 @@ public class WinMsiBundler  extends AbstractBundler {
                         }
                         out.println(">");
 
-                        if (extensions == null) {
-                            Log.verbose(I18N.getString(
-                            "message.creating-association-with-null-extension"));
+                        out.print(prefix + "    <Extension Id='"
+                                + ext + "' Advertise='no'");
+                        if (mime == null) {
+                            out.println(">");
                         } else {
-                            out.print(prefix + "    <Extension Id='"
-                                    + ext + "' Advertise='no'");
-                            if (mime == null) {
-                                out.println(">");
-                            } else {
-                                out.println(" ContentType='" + mime + "'>");
-                                if (!defaultedMimes.contains(mime)) {
-                                    out.println(prefix
-                                            + "      <MIME ContentType='"
-                                            + mime + "' Default='yes' />");
-                                    defaultedMimes.add(mime);
-                                }
+                            out.println(" ContentType='" + mime + "'>");
+                            if (!defaultedMimes.contains(mime)) {
+                                out.println(prefix
+                                        + "      <MIME ContentType='"
+                                        + mime + "' Default='yes' />");
+                                defaultedMimes.add(mime);
                             }
-                            out.println(prefix
-                                    + "      <Verb Id='open' Command='Open' "
-                                    + "TargetFile='" + LAUNCHER_ID
-                                    + "' Argument='\"%1\"' />");
-                            out.println(prefix + "    </Extension>");
                         }
+                        out.println(prefix
+                                + "      <Verb Id='open' Command='Open' "
+                                + "TargetFile='" + LAUNCHER_ID
+                                + "' Argument='\"%1\"' />");
+                        out.println(prefix + "    </Extension>");
                         out.println(prefix + "   </ProgId>");
                     }
                 }

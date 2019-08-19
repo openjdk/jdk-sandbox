@@ -115,7 +115,7 @@ public class FileAssociationsBase {
         try (PrintWriter out = new PrintWriter(new BufferedWriter(
                 new FileWriter("fa.properties")))) {
             out.println("extension=" + TEST_EXT);
-            out.println("mime-type=application/" + TEST_EXT);
+            out.println("mime-type=application/x-jpackage-" + TEST_EXT);
             out.println("description=jpackage test extention");
         }
     }
