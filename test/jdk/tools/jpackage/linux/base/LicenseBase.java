@@ -50,8 +50,15 @@ public class LicenseBase {
         String app = JPackagePath.getLinuxInstalledApp(TEST_NAME);
         JPackageInstallerHelper.validateApp(app);
 
+        File licenseFile = null;
         if (EXT.equals("rpm")) {
-            verifyInstallRpm();
+            licenseFile = getRpmLicenseFileInstallLocation();
+        } else if (EXT.equals("deb")) {
+            licenseFile = getDebLicenseFileInstallLocation();
+        }
+        if (!licenseFile.exists()) {
+            throw new AssertionError(
+                    "Error: " + licenseFile.getAbsolutePath() + " not found");
         }
     }
 
@@ -67,8 +74,8 @@ public class LicenseBase {
                 "(\\r|\\n)", "");
 
         retVal = JPackageHelper.execute(new File(infoResult), "rpm",
-                "-qp", "--queryformat", "%{name}-%{version}",
-                OUTPUT.toLowerCase());
+                "-q", "--queryformat", "%{name}-%{version}",
+                TEST_NAME.toLowerCase());
         if (retVal != 0) {
             throw new AssertionError("rpm exited with error: " + retVal);
         }
@@ -79,12 +86,9 @@ public class LicenseBase {
                 JPackagePath.getLicenseFilePath()).getName()).toFile();
     }
 
-    private static void verifyInstallRpm() throws Exception {
-        final File licenseFile = getRpmLicenseFileInstallLocation();
-        if (!licenseFile.exists()) {
-            throw new AssertionError(
-                    "Error: " + licenseFile.getAbsolutePath() + " not found");
-        }
+    private static File getDebLicenseFileInstallLocation() throws Exception {
+        return Path.of("/usr", "share", "doc", TEST_NAME.toLowerCase(),
+                "copyright").toFile();
     }
 
     private static void verifyUnInstall() throws Exception {
@@ -97,6 +101,12 @@ public class LicenseBase {
 
         if (EXT.equals("rpm")) {
             final File licenseFileFolder = getRpmLicenseFileInstallLocation().getParentFile();
+            if (folder.exists()) {
+                throw new AssertionError(
+                        "Error: " + licenseFileFolder.getAbsolutePath() + " exist");
+            }
+        } else if (EXT.equals("deb")) {
+            final File licenseFileFolder = getDebLicenseFileInstallLocation().getParentFile();
             if (folder.exists()) {
                 throw new AssertionError(
                         "Error: " + licenseFileFolder.getAbsolutePath() + " exist");

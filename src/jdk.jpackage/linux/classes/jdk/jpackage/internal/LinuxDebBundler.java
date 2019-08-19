@@ -28,12 +28,15 @@ package jdk.jpackage.internal;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.ICON_PNG;
@@ -140,13 +143,13 @@ public class LinuxDebBundler extends AbstractBundler {
                     + EMAIL.fetchFrom(params) + ">",
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> SECTION = 
+    public static final BundlerParamInfo<String> SECTION =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.LINUX_CATEGORY.getId(),
             String.class,
             params -> "misc",
             (s, p) -> s);
-    
+
     public static final BundlerParamInfo<String> LICENSE_TEXT =
             new StandardBundlerParam<> (
             "linux.deb.licenseText",
@@ -155,13 +158,26 @@ public class LinuxDebBundler extends AbstractBundler {
                 try {
                     String licenseFile = LICENSE_FILE.fetchFrom(params);
                     if (licenseFile != null) {
-                        return Files.readString(new File(licenseFile).toPath());
+                        StringBuilder contentBuilder = new StringBuilder();
+                        try (Stream<String> stream = Files.lines(Path.of(
+                                licenseFile), StandardCharsets.UTF_8)) {
+                            stream.forEach(s -> contentBuilder.append(s).append(
+                                    "\n"));
+                        }
+                        return contentBuilder.toString();
                     }
                 } catch (Exception e) {
                     Log.verbose(e);
                 }
                 return "Unknown";
             },
+            (s, p) -> s);
+
+    public static final BundlerParamInfo<String> COPYRIGHT_FILE =
+            new StandardBundlerParam<>(
+            Arguments.CLIOptions.LINUX_DEB_COPYRIGHT_FILE.getId(),
+            String.class,
+            params -> null,
             (s, p) -> s);
 
     public static final BundlerParamInfo<String> XDG_FILE_PREFIX =
@@ -715,16 +731,23 @@ public class LinuxDebBundler extends AbstractBundler {
         }
         setPermissions(getConfig_PostrmFile(params), "rwxr-xr-x");
 
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_CopyrightFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_CopyrightFile(params).getName(),
-                    I18N.getString("resource.deb-copyright-file"),
-                    DEFAULT_COPYRIGHT_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
+        getConfig_CopyrightFile(params).getParentFile().mkdirs();
+        String customCopyrightFile = COPYRIGHT_FILE.fetchFrom(params);
+        if (customCopyrightFile != null) {
+            IOUtils.copyFile(new File(customCopyrightFile),
+                    getConfig_CopyrightFile(params));
+        } else {
+            try (Writer w = Files.newBufferedWriter(
+                    getConfig_CopyrightFile(params).toPath())) {
+                String content = preprocessTextResource(
+                        getConfig_CopyrightFile(params).getName(),
+                        I18N.getString("resource.copyright-file"),
+                        DEFAULT_COPYRIGHT_TEMPLATE,
+                        data,
+                        VERBOSE.fetchFrom(params),
+                        RESOURCE_DIR.fetchFrom(params));
+                w.write(content);
+            }
         }
 
         return true;
@@ -793,7 +816,8 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     private File getConfig_CopyrightFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "copyright");
+        return Path.of(DEB_IMAGE_DIR.fetchFrom(params).getAbsolutePath(), "usr",
+                "share", "doc", BUNDLE_NAME.fetchFrom(params), "copyright").toFile();
     }
 
     private File buildDeb(Map<String, ? super Object> params,
