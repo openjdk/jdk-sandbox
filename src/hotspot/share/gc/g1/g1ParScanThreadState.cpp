@@ -38,12 +38,13 @@
 #include "runtime/prefetch.inline.hpp"
 
 G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
+                                           G1RedirtyCardsQueueSet* rdcqs,
                                            uint worker_id,
                                            size_t young_cset_length,
                                            size_t optional_cset_length)
   : _g1h(g1h),
     _refs(g1h->task_queue(worker_id)),
-    _rdcq(&g1h->redirty_cards_queue_set()),
+    _rdcq(rdcqs),
     _ct(g1h->card_table()),
     _closures(NULL),
     _plab_allocator(NULL),
@@ -196,10 +197,10 @@ HeapWord* G1ParScanThreadState::allocate_in_next_plab(G1HeapRegionAttr const reg
   }
 }
 
-G1HeapRegionAttr G1ParScanThreadState::next_region_attr(G1HeapRegionAttr const region_attr, markOop const m, uint& age) {
+G1HeapRegionAttr G1ParScanThreadState::next_region_attr(G1HeapRegionAttr const region_attr, markWord const m, uint& age) {
   if (region_attr.is_young()) {
-    age = !m->has_displaced_mark_helper() ? m->age()
-                                          : m->displaced_mark_helper()->age();
+    age = !m.has_displaced_mark_helper() ? m.age()
+                                         : m.displaced_mark_helper().age();
     if (age < _tenuring_threshold) {
       return region_attr;
     }
@@ -223,7 +224,7 @@ void G1ParScanThreadState::report_promotion_event(G1HeapRegionAttr const dest_at
 
 oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr const region_attr,
                                                  oop const old,
-                                                 markOop const old_mark) {
+                                                 markWord const old_mark) {
   const size_t word_sz = old->size();
   HeapRegion* const from_region = _g1h->heap_region_containing(old);
   // +1 to make the -1 indexes valid...
@@ -281,18 +282,18 @@ oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr const region_a
     Copy::aligned_disjoint_words((HeapWord*) old, obj_ptr, word_sz);
 
     if (dest_attr.is_young()) {
-      if (age < markOopDesc::max_age) {
+      if (age < markWord::max_age) {
         age++;
       }
-      if (old_mark->has_displaced_mark_helper()) {
+      if (old_mark.has_displaced_mark_helper()) {
         // In this case, we have to install the mark word first,
         // otherwise obj looks to be forwarded (the old mark word,
         // which contains the forward pointer, was copied)
         obj->set_mark_raw(old_mark);
-        markOop new_mark = old_mark->displaced_mark_helper()->set_age(age);
-        old_mark->set_displaced_mark_helper(new_mark);
+        markWord new_mark = old_mark.displaced_mark_helper().set_age(age);
+        old_mark.set_displaced_mark_helper(new_mark);
       } else {
-        obj->set_mark_raw(old_mark->set_age(age));
+        obj->set_mark_raw(old_mark.set_age(age));
       }
       _age_table.add(age, word_sz);
     } else {
@@ -336,7 +337,7 @@ G1ParScanThreadState* G1ParScanThreadStateSet::state_for_worker(uint worker_id) 
   assert(worker_id < _n_workers, "out of bounds access");
   if (_states[worker_id] == NULL) {
     _states[worker_id] =
-      new G1ParScanThreadState(_g1h, worker_id, _young_cset_length, _optional_cset_length);
+      new G1ParScanThreadState(_g1h, _rdcqs, worker_id, _young_cset_length, _optional_cset_length);
   }
   return _states[worker_id];
 }
@@ -376,7 +377,7 @@ void G1ParScanThreadStateSet::record_unused_optional_region(HeapRegion* hr) {
   }
 }
 
-oop G1ParScanThreadState::handle_evacuation_failure_par(oop old, markOop m) {
+oop G1ParScanThreadState::handle_evacuation_failure_par(oop old, markWord m) {
   assert(_g1h->is_in_cset(old), "Object " PTR_FORMAT " should be in the CSet", p2i(old));
 
   oop forward_ptr = old->forward_to_atomic(old, m, memory_order_relaxed);
@@ -407,10 +408,12 @@ oop G1ParScanThreadState::handle_evacuation_failure_par(oop old, markOop m) {
   }
 }
 G1ParScanThreadStateSet::G1ParScanThreadStateSet(G1CollectedHeap* g1h,
+                                                 G1RedirtyCardsQueueSet* rdcqs,
                                                  uint n_workers,
                                                  size_t young_cset_length,
                                                  size_t optional_cset_length) :
     _g1h(g1h),
+    _rdcqs(rdcqs),
     _states(NEW_C_HEAP_ARRAY(G1ParScanThreadState*, n_workers, mtGC)),
     _surviving_young_words_total(NEW_C_HEAP_ARRAY(size_t, young_cset_length, mtGC)),
     _young_cset_length(young_cset_length),

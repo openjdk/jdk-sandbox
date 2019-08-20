@@ -350,9 +350,9 @@ void ShenandoahBarrierSetAssembler::resolve_forward_pointer_not_null(MacroAssemb
   Label done;
   __ movptr(tmp, Address(dst, oopDesc::mark_offset_in_bytes()));
   __ notptr(tmp);
-  __ testb(tmp, markOopDesc::marked_value);
+  __ testb(tmp, markWord::marked_value);
   __ jccb(Assembler::notZero, done);
-  __ orptr(tmp, markOopDesc::marked_value);
+  __ orptr(tmp, markWord::marked_value);
   __ notptr(tmp);
   __ mov(dst, tmp);
   __ bind(done);
@@ -807,8 +807,15 @@ void ShenandoahBarrierSetAssembler::gen_load_reference_barrier_stub(LIR_Assemble
   __ mov(tmp1, res);
   __ shrptr(tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ movptr(tmp2, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
+#ifdef _LP64
   __ movbool(tmp2, Address(tmp2, tmp1, Address::times_1));
   __ testbool(tmp2);
+#else
+  // On x86_32, C1 register allocator can give us the register without 8-bit support.
+  // Do the full-register access and test to avoid compilation failures.
+  __ movptr(tmp2, Address(tmp2, tmp1, Address::times_1));
+  __ testptr(tmp2, 0xFF);
+#endif
   __ jcc(Assembler::zero, *stub->continuation());
 
   // Test if object is resolved.
@@ -816,10 +823,16 @@ void ShenandoahBarrierSetAssembler::gen_load_reference_barrier_stub(LIR_Assemble
   // Test if both lowest bits are set. We trick it by negating the bits
   // then test for both bits clear.
   __ notptr(tmp1);
-  __ testb(tmp1, markOopDesc::marked_value);
+#ifdef _LP64
+  __ testb(tmp1, markWord::marked_value);
+#else
+  // On x86_32, C1 register allocator can give us the register without 8-bit support.
+  // Do the full-register access and test to avoid compilation failures.
+  __ testptr(tmp1, markWord::marked_value);
+#endif
   __ jccb(Assembler::notZero, slow_path);
   // Clear both lower bits. It's still inverted, so set them, and then invert back.
-  __ orptr(tmp1, markOopDesc::marked_value);
+  __ orptr(tmp1, markWord::marked_value);
   __ notptr(tmp1);
   // At this point, tmp1 contains the decoded forwarding pointer.
   __ mov(res, tmp1);
@@ -898,8 +911,8 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
   // arg0 : object to be resolved
 
   __ save_live_registers_no_oop_map(true);
-  __ load_parameter(0, c_rarg0);
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier), c_rarg0);
+  __ load_parameter(0, LP64_ONLY(c_rarg0) NOT_LP64(rax));
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier), LP64_ONLY(c_rarg0) NOT_LP64(rax));
   __ restore_live_registers_except_rax(true);
 
   __ epilogue();
@@ -950,10 +963,10 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   // Test if both lowest bits are set. We trick it by negating the bits
   // then test for both bits clear.
   __ notptr(tmp2);
-  __ testb(tmp2, markOopDesc::marked_value);
+  __ testb(tmp2, markWord::marked_value);
   __ jccb(Assembler::notZero, slow_path);
   // Clear both lower bits. It's still inverted, so set them, and then invert back.
-  __ orptr(tmp2, markOopDesc::marked_value);
+  __ orptr(tmp2, markWord::marked_value);
   __ notptr(tmp2);
   // At this point, tmp2 contains the decoded forwarding pointer.
   __ mov(rax, tmp2);

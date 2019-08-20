@@ -143,7 +143,6 @@ void MemAllocator::Allocation::verify_before() {
   // Clear unhandled oops for memory allocation.  Memory allocation might
   // not take out a lock if from tlab, so clear here.
   Thread* THREAD = _thread;
-  CHECK_UNHANDLED_OOPS_ONLY(THREAD->clear_unhandled_oops();)
   assert(!HAS_PENDING_EXCEPTION, "Should not allocate with exception pending");
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
@@ -388,7 +387,7 @@ oop MemAllocator::finish(HeapWord* mem) const {
     oopDesc::set_mark_raw(mem, _klass->prototype_header());
   } else {
     // May be bootstrapping
-    oopDesc::set_mark_raw(mem, markOopDesc::prototype());
+    oopDesc::set_mark_raw(mem, markWord::prototype());
   }
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-NULL, for
