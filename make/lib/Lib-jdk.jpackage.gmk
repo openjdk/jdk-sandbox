@@ -73,7 +73,7 @@ ifeq ($(call isTargetOs, windows), true)
       SYMBOLS_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libwixhelper, \
       OPTIMIZATION := LOW, \
       CFLAGS := $(CXXFLAGS_JDKLIB), \
-      CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE, \
+      CFLAGS_windows := -EHsc -DUNICODE -D_UNICODE -MT, \
       LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK), \
       LIBS := $(LIBCXX), \
       LIBS_windows := msi.lib Shlwapi.lib User32.lib, \
