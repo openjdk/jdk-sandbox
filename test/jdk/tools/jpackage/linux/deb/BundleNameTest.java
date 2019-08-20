@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=360 -Xmx512m BundleNameTest
  */
 public class BundleNameTest {
-    private static final String TEST_NAME = "BundleNameTest";
+    private static final String TEST_NAME = "bundlenametest";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {

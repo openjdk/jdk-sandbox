@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=360 -Xmx512m LicenseTest
  */
 public class LicenseTest {
-    private static final String TEST_NAME = "LicenseTest";
+    private static final String TEST_NAME = "licensetest";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {

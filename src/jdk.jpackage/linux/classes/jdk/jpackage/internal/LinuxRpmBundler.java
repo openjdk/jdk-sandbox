@@ -449,7 +449,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                             .append(LINUX_INSTALL_DIR.fetchFrom(params))
                             .append("/")
                             .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/")
+                            .append("/bin/")
                             .append(mimeInfoFile)
                             .append("\n");
 
@@ -457,7 +457,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                             .append(LINUX_INSTALL_DIR.fetchFrom(params))
                             .append("/")
                             .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/")
+                            .append("/bin/")
                             .append(mimeInfoFile)
                             .append("\n");
                     addedEntry = true;

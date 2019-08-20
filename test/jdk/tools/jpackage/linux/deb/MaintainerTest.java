@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=360 -Xmx512m MaintainerTest
  */
 public class MaintainerTest {
-    private static final String TEST_NAME = "MaintainerTest";
+    private static final String TEST_NAME = "maintainertest";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {

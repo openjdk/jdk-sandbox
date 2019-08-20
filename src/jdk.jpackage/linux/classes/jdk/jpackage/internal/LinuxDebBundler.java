@@ -29,8 +29,13 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
+
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
@@ -315,19 +320,22 @@ public class LinuxDebBundler extends AbstractBundler {
     private boolean prepareProto(Map<String, ? super Object> params)
             throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(params);
-        File appDir = null;
 
         // we either have an application image or need to build one
         if (appImage != null) {
-            appDir = new File(APP_IMAGE_ROOT.fetchFrom(params),
-                APP_NAME.fetchFrom(params));
             // copy everything from appImage dir into appDir/name
-            IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
+            IOUtils.copyRecursive(appImage.toPath(),
+                    getConfig_RootDirectory(params).toPath());
         } else {
-            appDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
+            File bundleDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
                     APP_IMAGE_ROOT.fetchFrom(params), true);
+            if (bundleDir == null) {
+                return false;
+            }
+            Files.move(bundleDir.toPath(), getConfig_RootDirectory(
+                    params).toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-        return appDir != null;
+        return true;
     }
 
     public File bundle(Map<String, ? super Object> params,
@@ -355,6 +363,7 @@ public class LinuxDebBundler extends AbstractBundler {
             imageDir.mkdirs();
             configDir.mkdirs();
             if (prepareProto(params) && prepareProjectConfig(params)) {
+                adjustPermissionsRecursive(imageDir);
                 return buildDeb(params, outdir);
             }
             return null;
@@ -412,11 +421,38 @@ public class LinuxDebBundler extends AbstractBundler {
         return count;
     }
 
+    private void adjustPermissionsRecursive(File dir) throws IOException {
+        Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file,
+                    BasicFileAttributes attrs)
+                    throws IOException {
+                if (file.endsWith(".so") || !Files.isExecutable(file)) {
+                    setPermissions(file.toFile(), "rw-r--r--");
+                } else if (Files.isExecutable(file)) {
+                    setPermissions(file.toFile(), "rwxr-xr-x");
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult postVisitDirectory(Path dir, IOException e)
+                    throws IOException {
+                if (e == null) {
+                    setPermissions(dir.toFile(), "rwxr-xr-x");
+                    return FileVisitResult.CONTINUE;
+                } else {
+                    // directory iteration failed
+                    throw e;
+                }
+            }
+        });
+    }
+
     private boolean prepareProjectConfig(Map<String, ? super Object> params)
             throws IOException {
         Map<String, String> data = createReplacementData(params);
-        File rootDir = LinuxAppBundler.getRootDir(APP_IMAGE_ROOT.fetchFrom(
-                params), params);
+        File rootDir = getConfig_RootDirectory(params);
         File binDir = new File(rootDir, "bin");
 
         File iconTarget = getConfig_IconFile(binDir, params);
@@ -576,7 +612,7 @@ public class LinuxDebBundler extends AbstractBundler {
                             .append(LINUX_INSTALL_DIR.fetchFrom(params))
                             .append("/")
                             .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/")
+                            .append("/bin/")
                             .append(mimeInfoFile)
                             .append("\n");
 
@@ -584,7 +620,7 @@ public class LinuxDebBundler extends AbstractBundler {
                             .append(LINUX_INSTALL_DIR.fetchFrom(params))
                             .append("/")
                             .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/")
+                            .append("/bin/")
                             .append(mimeInfoFile)
                             .append("\n");
                     addedEntry = true;
@@ -759,7 +795,8 @@ public class LinuxDebBundler extends AbstractBundler {
         String launcher = LinuxAppImageBuilder.getLauncherRelativePath(params);
 
         data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
-        data.put("APPLICATION_FS_NAME", APP_NAME.fetchFrom(params));
+        data.put("APPLICATION_FS_NAME",
+                getConfig_RootDirectory(params).getName());
         data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
         data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
         data.put("APPLICATION_MAINTAINER", MAINTAINER.fetchFrom(params));
@@ -776,9 +813,8 @@ public class LinuxDebBundler extends AbstractBundler {
         data.put("APPLICATION_ARCH", getDebArch());
         data.put("APPLICATION_INSTALLED_SIZE",
                 Long.toString(getInstalledSizeKB(params)));
-        String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
-        data.put("PACKAGE_DEPENDENCIES",
-                deps.isEmpty() ? "" : "Depends: " + deps);
+        data.put("PACKAGE_DEPENDENCIES", LINUX_PACKAGE_DEPENDENCIES.fetchFrom(
+                params));
         data.put("RUNTIME_INSTALLER", "" +
                 StandardBundlerParam.isRuntimeInstaller(params));
 
@@ -818,6 +854,12 @@ public class LinuxDebBundler extends AbstractBundler {
     private File getConfig_CopyrightFile(Map<String, ? super Object> params) {
         return Path.of(DEB_IMAGE_DIR.fetchFrom(params).getAbsolutePath(), "usr",
                 "share", "doc", BUNDLE_NAME.fetchFrom(params), "copyright").toFile();
+    }
+
+    private File getConfig_RootDirectory(
+            Map<String, ? super Object> params) {
+        return Path.of(APP_IMAGE_ROOT.fetchFrom(params).getAbsolutePath(),
+                BUNDLE_NAME.fetchFrom(params)).toFile();
     }
 
     private File buildDeb(Map<String, ? super Object> params,

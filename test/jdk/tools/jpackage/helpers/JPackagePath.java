@@ -223,10 +223,7 @@ public class JPackagePath {
     }
 
     public static String getLinuxInstalledApp(String subDir, String testName) {
-        return File.separator + "opt"
-                + File.separator + subDir
-                + File.separator + testName
-                + File.separator + testName;
+        return Path.of("/opt", subDir, testName, "bin", testName).toString();
     }
 
     public static String getWinInstallFolder(String testName) {

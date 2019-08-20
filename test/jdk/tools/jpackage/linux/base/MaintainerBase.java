@@ -53,9 +53,18 @@ public class MaintainerBase {
             throw new AssertionError(infoResult + " was not created");
         }
 
-        String output = Files.readString(outfile.toPath());
-        if (!output.contains("Maintainer: " + EMAIL)) {
-            throw new AssertionError("Unexpected result: " + output);
+        boolean maintainerFound = false;
+        for (String line: Files.readAllLines(outfile.toPath())) {
+            if (line.matches("^[ ]*Maintainer:.*$")) {
+                maintainerFound = true;
+                if (!line.contains(EMAIL)) {
+                    throw new AssertionError("Unexpected result: " + line);
+                }
+            }
+        }
+        
+        if (!maintainerFound) {
+            throw new AssertionError("Maintainer field not found");
         }
     }
 

@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=360 -Xmx512m InstallDirTest
  */
 public class InstallDirTest {
-    private static final String TEST_NAME = "InstallDirTest";
+    private static final String TEST_NAME = "installdirtest";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {

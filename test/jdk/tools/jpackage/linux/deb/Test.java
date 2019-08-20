@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=300 -Xmx512m Test
  */
 public class Test {
-    private static final String TEST_NAME = "Test";
+    private static final String TEST_NAME = "test";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {

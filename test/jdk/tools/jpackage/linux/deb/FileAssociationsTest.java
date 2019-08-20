@@ -36,7 +36,7 @@
  * @run main/othervm/timeout=360 -Xmx512m FileAssociationsTest
  */
 public class FileAssociationsTest {
-    private static final String TEST_NAME = "FileAssociationsTest";
+    private static final String TEST_NAME = "fileassociationstest";
     private static final String EXT = "deb";
 
     public static void main(String[] args) throws Exception {
