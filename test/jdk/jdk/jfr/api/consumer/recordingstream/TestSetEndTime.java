@@ -24,6 +24,8 @@
  */
 package jdk.jfr.api.consumer.recordingstream;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -33,6 +35,8 @@ import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.StackTrace;
 import jdk.jfr.consumer.EventStream;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
 
 /**
  * @test
@@ -54,25 +58,45 @@ public final class TestSetEndTime {
         try (Recording r = new Recording()) {
             r.setFlushInterval(Duration.ofSeconds(1));
             r.start();
-            Instant start = Instant.now();
-            System.out.println("Instant.start() = " + start);
-            Thread.sleep(2000);
             Mark event1 = new Mark();
             event1.before = true;
-            event1.commit();
-            Thread.sleep(2000);
-            Instant end = Instant.now();
-            System.out.println("Instant.end() = " + end);
-            Thread.sleep(2000);
+            advanceClock();
+            event1.commit(); // start time
+
             Mark event2 = new Mark();
+            event2.begin();  // end time
+            advanceClock();
+          //  event2.end();
+            Thread.sleep(100);
             event2.before = false;
             event2.commit();
+
+            Path p = Paths.get("recording.jfr");
+            r.dump(p);
+            Instant start = null;
+            Instant end = null;
+            for (RecordedEvent e : RecordingFile.readAllEvents(p)) {
+                if (e.getBoolean("before")) {
+                    start = e.getStartTime();
+                    System.out.println("Start: " + start);
+                }
+                if (!e.getBoolean("before")) {
+                    end = e.getStartTime();
+                    System.out.println("End  : " + end);
+                }
+            }
+
             AtomicBoolean error = new AtomicBoolean(true);
             try (EventStream d = EventStream.openRepository()) {
-                d.setStartTime(start); // needed so we don't start after end time
+                d.setStartTime(start);
                 d.setEndTime(end);
                 d.onEvent(e -> {
                     System.out.println(e);
+                    System.out.println("Event:");
+                    System.out.println(e.getStartTime());
+                    System.out.println(e.getEndTime());
+                    System.out.println(e.getBoolean("before"));
+                    System.out.println();
                     boolean before = e.getBoolean("before");
                     if (before) {
                         error.set(false);
@@ -85,6 +109,14 @@ public final class TestSetEndTime {
                     throw new Exception("Found unexpected event!");
                 }
             }
+        }
+    }
+
+    private static void advanceClock() {
+        // Wait for some clock movement with
+        // java.time clock resolution.
+        Instant now = Instant.now();
+        while (Instant.now().equals(now)) {
         }
     }
 }
