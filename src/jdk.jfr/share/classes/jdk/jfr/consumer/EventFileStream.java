@@ -77,6 +77,7 @@ final class EventFileStream implements EventStream {
                 }
                 StreamConfiguration c2 = configuration;
                 boolean ordered = c2.getOrdered();
+                chunkParser.setFlushOperation(flushOperation);
                 chunkParser.setFirstNanos(start);
                 chunkParser.setLastNanos(end);
                 chunkParser.setReuse(c2.getReuse());
@@ -90,7 +91,6 @@ final class EventFileStream implements EventStream {
                 } else {
                     processUnordered();
                 }
-                runFlushActions();
                 if (chunkParser.isLastChunk()) {
                     return;
                 }

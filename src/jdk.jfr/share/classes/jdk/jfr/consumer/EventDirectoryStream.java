@@ -90,6 +90,7 @@ class EventDirectoryStream implements EventStream {
                     while (!isClosed() && !chunkParser.isChunkFinished()) {
                         final StreamConfiguration c2 = configuration;
                         boolean ordered = c2.getOrdered();
+                        chunkParser.setFlushOperation(flushOperation);
                         chunkParser.setReuse(c2.getReuse());
                         chunkParser.setOrdered(ordered);
                         chunkParser.setFirstNanos(start);
@@ -103,7 +104,6 @@ class EventDirectoryStream implements EventStream {
                         } else {
                             awaitnewEvent = processUnordered(awaitnewEvent);
                         }
-                        runFlushActions();
                         if (segmentStart > end) {
                             close();
                             return;

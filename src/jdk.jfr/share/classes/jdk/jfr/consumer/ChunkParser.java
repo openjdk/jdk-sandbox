@@ -66,6 +66,7 @@ final class ChunkParser {
     private boolean resetEventCache;
     private long firstNanos = 0;
     private long lastNanos = Long.MAX_VALUE;
+    private Runnable flushOperation;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
        this(new ChunkHeader(input), null, 1000);
@@ -176,8 +177,8 @@ final class ChunkParser {
                 throw new IOException("Event can't have zero size");
             }
             long typeId = input.readLong();
-            // Skip metadata and constant pool events (id = 0, id = 1)
-            if (typeId > CONSTANT_POOL_TYPE_ID) {
+
+            if (typeId != 0) { // Not metadata event
                 Parser p = parsers.get(typeId);
                 if (p instanceof EventParser) {
                     EventParser ep = (EventParser) p;
@@ -187,10 +188,25 @@ final class ChunkParser {
                         return event;
                     }
                 }
+                if (typeId == 1 && flushOperation != null) { // checkpoint event
+                    parseCheckpoint();
+                }
             }
             input.position(pos + size);
         }
         return null;
+    }
+
+    private void parseCheckpoint() throws IOException {
+        // Content has been parsed previously. This
+        // is for triggering flsuh
+        input.readLong(); // timestamp
+        input.readLong(); // duration
+        input.readLong(); // delta
+        boolean flush = input.readBoolean();
+        if (flush) {
+            flushOperation.run();
+        }
     }
 
     private boolean awaitUpdatedHeader(long absoluteChunkEnd) throws IOException {
@@ -357,6 +373,10 @@ final class ChunkParser {
         this.reuse = resue;
     }
 
+    public void setFlushOperation(Runnable flushOperation) {
+        this.flushOperation = flushOperation;
+    }
+
     // Need to call updateEventParsers() for
     // change to take effect
     public void setOrdered(boolean ordered) {
@@ -373,10 +393,10 @@ final class ChunkParser {
         }
         this.firstNanos = firstNanos;
     }
+
     public void setLastNanos(long lastNanos) {
         this.lastNanos = lastNanos;
     }
-
 
     // Need to call updateEventParsers() for
     // change to take effect

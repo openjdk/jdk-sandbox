@@ -327,6 +327,8 @@ abstract class AbstractEventStream implements Runnable {
     private final AccessControlContext accessControlContext;
     private final Thread thread;
     private final boolean active;
+    protected final Runnable flushOperation = () -> runFlushActions();
+
     // Updated by updateConfiguration()
     protected StreamConfiguration configuration = new StreamConfiguration();
 
