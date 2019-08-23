@@ -129,7 +129,7 @@ final class UseCasesStream {
     public static void repositoryAccess() throws IOException, InterruptedException {
         Path repository = Paths.get("c:\\repository").toAbsolutePath();
         String command = new String();
-        command += "java -XX:StartFlightRecording:flush=2s";
+        command += "java -XX:StartFlightRecording:flush-interval=2s";
         command += "-XX:FlightRecorderOption:repository=" + repository + " Application";
         Process myProcess = Runtime.getRuntime().exec(command);
         try (RecordingStream rs = new RecordingStream()) {

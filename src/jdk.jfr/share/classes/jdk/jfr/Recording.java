@@ -433,7 +433,7 @@ public final class Recording implements Closeable {
     /**
      * Returns how often events are made available for streaming purposes.
      *
-     * @return the desired stream interval, or {@code null} if no interval has been set
+     * @return the flush interval, or {@code null} if no interval has been set
      */
     public Duration getFlushInterval() {
         return internal.getFlushInterval();
