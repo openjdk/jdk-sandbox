@@ -229,6 +229,21 @@ final class DCmdStart extends AbstractDCmd {
             print("Use jcmd " + getPid() + " JFR." + cmd + " " + recordingspecifier + " " + fileOption + "to copy recording data to file.");
             println();
         }
+        if ("monitor".equals(name)) {
+            try {
+                Monitor.start();
+            } catch (IOException e) {
+                throw new DCmdException("COuld not start monitor", e);
+            }
+        }
+        if ("health".equals(name)) {
+            try {
+                Health.start();
+            } catch (Exception e) {
+                throw new DCmdException("Could not start healt", e);
+            }
+        }
+
         return getResult();
     }
 
