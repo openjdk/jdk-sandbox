@@ -125,8 +125,8 @@ public class TestStart {
                     rs.start(); // must not deadlock
                 } catch (IllegalStateException ise) {
                     if (!ISE.get())  {
-                        startedTwice.countDown();
                         ISE.set(true);
+                        startedTwice.countDown();
                     }
                 }
             });
