@@ -49,6 +49,7 @@ import jdk.jfr.internal.consumer.RecordingInput;
  */
 final class ChunkParser {
     private static final long CONSTANT_POOL_TYPE_ID = 1;
+    private static final String CHUNKHEADER = "jdk.types.ChunkHeader";
     private final RecordingInput input;
     private final ChunkHeader chunkHeader;
     private final MetadataDescriptor metadata;
@@ -256,13 +257,16 @@ final class ChunkParser {
                 ConstantLookup lookup = constantLookups.get(id);
                 Type type = typeMap.get(id);
                 if (lookup == null) {
-                    Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Found constant pool(" + id + ") that is never used");
                     if (type == null) {
                         throw new IOException(
                                 "Error parsing constant pool type " + getName(id) + " at position " + input.position() + " at check point between [" + lastCP + ", " + lastCP + size + "]");
                     }
+                    if (type.getName() != CHUNKHEADER) {
+                        Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Found constant pool(" + id + ") that is never used");
+                    }
                     ConstantMap pool = new ConstantMap(ObjectFactory.create(type, timeConverter), type.getName());
-                    constantLookups.put(type.getId(), new ConstantLookup(pool, type));
+                    lookup = new ConstantLookup(pool, type);
+                    constantLookups.put(type.getId(), lookup);
                 }
                 Parser parser = parsers.get(id);
                 if (parser == null) {
@@ -278,8 +282,8 @@ final class ChunkParser {
                     }
                     for (int j = 0; j < count; j++) {
                         long key = input.readLong();
-                      Object resolved = lookup.getPreviousResolved(key);
-                      if (resolved == null) {
+                        Object resolved = lookup.getPreviousResolved(key);
+                        if (resolved == null) {
                             Object v = parser.parse(input);
                             logConstant(key, v, false);
                             lookup.getLatestPool().put(key, v);

@@ -99,7 +99,7 @@ void JfrSerializerRegistration::invoke(JfrCheckpointWriter& writer) const {
   }
 }
 
-void  JfrSerializerRegistration::on_rotation() const {
+void JfrSerializerRegistration::on_rotation() const {
   _serializer->on_rotation();
 }
 
@@ -147,23 +147,27 @@ void JfrTypeManager::notify_types_on_rotation() {
 }
 
 void JfrTypeManager::write_type_set() {
-  // can safepoint here because of Module_lock
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  JfrCheckpointWriter writer(true, true, Thread::current());
+  JfrCheckpointWriter writer;
   TypeSet set;
   set.serialize(writer);
 }
 
 void JfrTypeManager::write_type_set_for_unloaded_classes() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  JfrCheckpointWriter writer(false, true, Thread::current());
+  JfrCheckpointWriter writer;
+  const JfrCheckpointContext ctx = writer.context();
   ClassUnloadTypeSet class_unload_set;
   class_unload_set.serialize(writer);
+  if (!Jfr::is_recording()) {
+    // discard anything written
+    writer.set_context(ctx);
+  }
 }
 
 size_t JfrTypeManager::flush_type_set() {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  JfrCheckpointWriter writer(true, true, Thread::current());
+  JfrCheckpointWriter writer;
   FlushTypeSet flush;
   flush.serialize(writer);
   return flush.elements();
@@ -172,18 +176,18 @@ size_t JfrTypeManager::flush_type_set() {
 void JfrTypeManager::create_thread_checkpoint(Thread* t) {
   assert(t != NULL, "invariant");
   JfrThreadConstant type_thread(t);
-  JfrCheckpointWriter writer(false, true, t);
+  JfrCheckpointWriter writer(t);
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
   // create and install a checkpoint blob
-  t->jfr_thread_local()->set_thread_checkpoint(writer.checkpoint_blob());
+  t->jfr_thread_local()->set_thread_checkpoint(writer.move());
   assert(t->jfr_thread_local()->has_thread_checkpoint(), "invariant");
 }
 
 void JfrTypeManager::write_thread_checkpoint(Thread* t) {
   assert(t != NULL, "invariant");
   JfrThreadConstant type_thread(t);
-  JfrCheckpointWriter writer(false, true, t);
+  JfrCheckpointWriter writer(t);
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
 }
@@ -208,7 +212,7 @@ static bool register_type(JfrTypeId id, bool permit_cache, JfrSerializer* serial
   assert(!types.in_list(registration), "invariant");
   DEBUG_ONLY(assert_not_registered_twice(id, types);)
   if (Jfr::is_recording()) {
-    JfrCheckpointWriter writer(false, true, Thread::current());
+    JfrCheckpointWriter writer;
     registration->invoke(writer);
   }
   types.prepend(registration);

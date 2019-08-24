@@ -25,7 +25,9 @@
 #include "precompiled.hpp"
 #include "jfrfiles/jfrEventClasses.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
+#include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
+#include "jfr/leakprofiler/sampling/objectSampler.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/jfrMetadataEvent.hpp"
@@ -273,16 +275,15 @@ class WriteSubsystemCheckpointEvent : public WriteSubsystem<ContentFunctor> {
 
 template <typename Functor>
 static void write_flush_event(Functor& f) {
-  if (!Functor::is_event_enabled()) {
-    return;
+  if (Functor::is_event_enabled()) {
+    typename Functor::EventType e(UNTIMED);
+    e.set_starttime(f.start_time());
+    e.set_endtime(f.end_time());
+    e.set_flushId(flushpoint_id);
+    e.set_elements(f.elements());
+    e.set_size(f.size());
+    e.commit();
   }
-  typename Functor::EventType e(UNTIMED);
-  e.set_starttime(f.start_time());
-  e.set_endtime(f.end_time());
-  e.set_flushId(flushpoint_id);
-  e.set_elements(f.elements());
-  e.set_size(f.size());
-  e.commit();
 }
 
 template <typename Functor>
@@ -434,18 +435,16 @@ void JfrRecorderService::rotate(int msgs) {
     vm_error = true;
     prepare_for_vm_error_rotation();
   }
+  if (!_storage.control().to_disk()) {
+    in_memory_rotation();
+  } else if (vm_error) {
+    vm_error_rotation();
+  } else {
+    chunk_rotation();
+  }
   if (msgs & (MSGBIT(MSG_STOP))) {
     stop();
   }
-  if (!_storage.control().to_disk()) {
-    in_memory_rotation();
-    return;
-  }
-  if (vm_error) {
-    vm_error_rotation();
-    return;
-  }
-  chunk_rotation();
 }
 
 void JfrRecorderService::prepare_for_vm_error_rotation() {
@@ -630,24 +629,28 @@ void JfrRecorderService::flush(int msgs) {
   Flush fl(_chunkwriter, flushpoint);
   invoke_with_flush_event(fl);
   write_thread_local_buffer(_chunkwriter);
+  _checkpoint_manager.flush();
   _repository.flush_chunk();
 }
 
 //
 // pre-safepoint write sequence
 //
-//  write checkpoint epoch transition list->
-//    write stack trace checkpoint ->
-//      write string pool checkpoint ->
-//        notify about pending rotation ->
-//          write storage
+//  write stack trace checkpoint ->
+//    write string pool checkpoint ->
+//      notify about pending rotation ->
+//        write storage
 //
 void JfrRecorderService::pre_safepoint_write() {
   assert(_chunkwriter.is_valid(), "invariant");
-  _checkpoint_manager.write_epoch_transition_mspace();
   flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, false);
   if (_string_pool.modified()) {
     flush_stringpool_checkpoint(_string_pool, _chunkwriter);
+  }
+  if (LeakProfiler::is_running()) {
+    // Exclusive access to the object sampler instance.
+    // The sampler is released (unlocked) later in post_safepoint_write.
+    ObjectSampleCheckpoint::rotate(ObjectSampler::acquire(), _stack_trace_repository);
   }
   _checkpoint_manager.notify_types_on_rotation();
   _storage.write();
@@ -656,11 +659,6 @@ void JfrRecorderService::pre_safepoint_write() {
 void JfrRecorderService::invoke_safepoint_write() {
   JfrVMOperation<JfrRecorderService, &JfrRecorderService::safepoint_write> safepoint_task(*this);
   VMThread::execute(&safepoint_task);
-}
-
-static void write_object_sample_stacktrace(JfrStackTraceRepository& stack_trace_repository) {
-  WriteObjectSampleStacktrace object_sample_stacktrace(stack_trace_repository);
-  object_sample_stacktrace.process();
 }
 
 //
@@ -676,10 +674,13 @@ static void write_object_sample_stacktrace(JfrStackTraceRepository& stack_trace_
 //
 void JfrRecorderService::safepoint_write() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  write_object_sample_stacktrace(_stack_trace_repository);
+
   flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, true);
   if (_string_pool.modified()) {
     flush_stringpool_checkpoint_safepoint(_string_pool, _chunkwriter);
+  }
+  if (LeakProfiler::is_running()) {
+    ObjectSampleCheckpoint::resolve_sampled_objects();
   }
   _storage.write_at_safepoint();
   _checkpoint_manager.notify_threads();
@@ -702,6 +703,11 @@ void JfrRecorderService::post_safepoint_write() {
   // already tagged artifacts for the previous epoch. We can accomplish this concurrently
   // with threads now tagging artifacts in relation to the new, now updated, epoch and remain outside of a safepoint.
   _checkpoint_manager.write_type_set();
+  if (LeakProfiler::is_running()) {
+    // The object sampler instance was exclusively acquired and locked in pre_safepoint_write.
+    // Note: There is a dependency on write_type_set() above, ensure the release is subsequent.
+    ObjectSampler::release();
+  }
   // serialize any outstanding checkpoint memory
   _checkpoint_manager.write();
   // serialize the metadata descriptor event and close out the chunk
@@ -723,7 +729,6 @@ void JfrRecorderService::finalize_current_chunk_on_vm_error() {
   // Do not attempt safepoint dependent operations during emergency dump.
   // Optimistically write tagged artifacts.
   _checkpoint_manager.shift_epoch();
-  _checkpoint_manager.write_type_set();
   // update time
   _chunkwriter.time_stamp_chunk_now();
   post_safepoint_write();

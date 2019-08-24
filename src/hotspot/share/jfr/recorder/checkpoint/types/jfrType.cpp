@@ -305,10 +305,10 @@ class TypeSetSerialization {
   bool _flushpoint;
  public:
   explicit TypeSetSerialization(bool class_unload, bool flushpoint) : _elements(0), _class_unload(class_unload), _flushpoint(flushpoint) {}
-  void write(JfrCheckpointWriter& writer, JfrCheckpointWriter* leakp_writer) {
+  void write(JfrCheckpointWriter& writer) {
     MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
     MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
-    _elements = JfrTypeSet::serialize(&writer, leakp_writer, _class_unload, _flushpoint);
+    _elements = JfrTypeSet::serialize(&writer, _class_unload, _flushpoint);
   }
   size_t elements() const {
     return _elements;
@@ -317,19 +317,17 @@ class TypeSetSerialization {
 
 void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(true, false);
+  type_set.write(writer);
   if (LeakProfiler::is_running()) {
-    JfrCheckpointWriter leakp_writer(false, true, Thread::current());
-    type_set.write(writer, &leakp_writer);
-    ObjectSampleCheckpoint::install(leakp_writer, true, true);
+    ObjectSampleCheckpoint::on_type_set_unload(writer);
     return;
   }
-  type_set.write(writer, NULL);
 };
 
 void FlushTypeSet::serialize(JfrCheckpointWriter& writer) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   TypeSetSerialization type_set(false, true);
-  type_set.write(writer, NULL);
+  type_set.write(writer);
   _elements = type_set.elements();
 }
 
@@ -339,13 +337,7 @@ size_t FlushTypeSet::elements() const {
 
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(false, false);
-  if (LeakProfiler::is_suspended()) {
-    JfrCheckpointWriter leakp_writer(false, true, Thread::current());
-    type_set.write(writer, &leakp_writer);
-    ObjectSampleCheckpoint::install(leakp_writer, false, true);
-    return;
-  }
-  type_set.write(writer, NULL);
+  type_set.write(writer);
 };
 
 void ThreadStateConstant::serialize(JfrCheckpointWriter& writer) {

@@ -38,6 +38,39 @@ const u4 STACK_DEPTH_DEFAULT = 64;
 const u4 MIN_STACK_DEPTH = 1;
 const u4 MAX_STACK_DEPTH = 2048;
 
+inline int compare_traceid(const traceid& lhs, const traceid& rhs) {
+  return lhs > rhs ? 1 : (lhs < rhs) ? -1 : 0;
+}
+
+inline int sort_traceid(traceid* lhs, traceid* rhs) {
+  return compare_traceid(*lhs, *rhs);
+}
+
+class JfrTraceFlag {
+ private:
+  mutable jshort _flags;
+ public:
+  JfrTraceFlag() : _flags(0) {}
+  bool is_set(jshort flag) const {
+    return (_flags & flag) != 0;
+  }
+
+  jshort flags() const {
+    return _flags;
+  }
+
+  void set_flags(jshort flags) const {
+    _flags = flags;
+  }
+
+  jbyte* flags_addr() const {
+    return (jbyte*)&_flags;
+  }
+  jbyte* meta_addr() const {
+    return ((jbyte*)&_flags) + 1;
+  }
+};
+
 enum EventStartTime {
   UNTIMED,
   TIMED

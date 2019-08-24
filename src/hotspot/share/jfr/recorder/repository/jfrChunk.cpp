@@ -32,6 +32,10 @@
 #include "runtime/os.inline.hpp"
 #include "runtime/thread.inline.hpp"
 
+static const char* const MAGIC = "FLR";
+static const u2 JFR_VERSION_MAJOR = 2;
+static const u2 JFR_VERSION_MINOR = 0;
+
 static const u1 GUARD = 0xff;
 
 static jlong nanos_now() {
@@ -64,6 +68,29 @@ void JfrChunk::reset() {
   }
   _last_checkpoint_offset = _last_metadata_offset = 0;
   _generation = 1;
+}
+
+const char* JfrChunk::magic() const {
+  return MAGIC;
+}
+
+u2 JfrChunk::major_version() const {
+  return JFR_VERSION_MAJOR;
+}
+
+u2 JfrChunk::minor_version() const {
+  return JFR_VERSION_MINOR;
+}
+
+u2 JfrChunk::capabilities() const {
+  // chunk capabilities, CompressedIntegers etc
+  static bool compressed_integers = JfrOptionSet::compressed_integers();
+  return compressed_integers;
+}
+
+int64_t JfrChunk::cpu_frequency() const {
+  static const jlong frequency = JfrTime::frequency();
+  return frequency;
 }
 
 void JfrChunk::set_last_checkpoint_offset(int64_t offset) {
@@ -190,3 +217,8 @@ u1 JfrChunk::generation() const {
   return this_generation;
 }
 
+u1 JfrChunk::next_generation() const {
+  assert(_generation > 0, "invariant");
+  const u1 next_gen = _generation;
+  return GUARD == next_gen ? 1 : next_gen;
+}

@@ -134,13 +134,28 @@ class Entry : public JfrBasicHashtableEntry<T> {
   typedef IdType ID;
   void init() { _id = 0; }
   ID id() const { return _id; }
-  void set_id(ID id) { _id = id; }
+  void set_id(ID id) const { _id = id; }
   void set_value(const T& value) { this->set_literal(value); }
   T& value() const { return *const_cast<Entry*>(this)->literal_addr();}
   const T* value_addr() const { return const_cast<Entry*>(this)->literal_addr(); }
-
  private:
-  ID _id;
+  mutable ID _id;
+};
+
+template <typename T, typename IdType>
+class ListEntry : public Entry<T, IdType> {
+ public:
+  void init() { Entry<T, IdType>::init(); _list_next = NULL; _serialized = false; _unloading = false; }
+  const ListEntry<T, IdType>* list_next() const { return _list_next; }
+  void set_list_next(const ListEntry<T, IdType>* next) const { _list_next = next; }
+  bool is_serialized() const { return _serialized; }
+  void set_serialized() const { _serialized = true; }
+  bool is_unloading() const { return _unloading; }
+  void set_unloading() const { _unloading = true; }
+ private:
+  mutable const ListEntry<T, IdType>* _list_next;
+  mutable bool _serialized;
+  mutable bool _unloading;
 };
 
 template <typename T, typename IdType, template <typename, typename> class Entry,
@@ -190,6 +205,7 @@ class HashTableHost : public JfrBasicHashtable<T> {
   void free_entry(HashEntry* entry) {
     assert(entry != NULL, "invariant");
     JfrBasicHashtable<T>::unlink_entry(entry);
+    _callback->unlink(entry);
     FREE_C_HEAP_ARRAY(char, entry);
   }
 

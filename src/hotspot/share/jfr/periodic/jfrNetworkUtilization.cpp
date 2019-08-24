@@ -198,7 +198,7 @@ void JfrNetworkUtilization::send_events() {
   }
 
   if (write_type) {
-    JfrCheckpointWriter writer(false, true, Thread::current());
+    JfrCheckpointWriter writer;
     write_interface_types(writer);
   }
   static bool is_serializer_registered = false;

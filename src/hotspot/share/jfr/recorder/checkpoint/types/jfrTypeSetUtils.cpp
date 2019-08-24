@@ -28,15 +28,21 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 
-JfrSymbolId::JfrSymbolId() : _sym_table(new SymbolTable(this)), _cstring_table(new CStringTable(this)), _symbol_id_counter(0) {
+JfrSymbolId::JfrSymbolId() :
+  _sym_table(new SymbolTable(this)),
+  _cstring_table(new CStringTable(this)),
+  _sym_list(NULL),
+  _cstring_list(NULL),
+  _symbol_id_counter(0),
+  _class_unload(false) {
   assert(_sym_table != NULL, "invariant");
   assert(_cstring_table != NULL, "invariant");
-  initialize();
 }
 
-void JfrSymbolId::initialize() {
+JfrSymbolId::~JfrSymbolId() {
   clear();
-  assert(_symbol_id_counter == 0, "invariant");
+  delete _sym_table;
+  delete _cstring_table;
 }
 
 void JfrSymbolId::clear() {
@@ -51,12 +57,14 @@ void JfrSymbolId::clear() {
     _cstring_table->clear_entries();
   }
   assert(!_cstring_table->has_entries(), "invariant");
+
+  _sym_list = NULL;
+  _cstring_list = NULL;
   _symbol_id_counter = 0;
 }
 
-JfrSymbolId::~JfrSymbolId() {
-  delete _sym_table;
-  delete _cstring_table;
+void JfrSymbolId::set_class_unload(bool class_unload) {
+  _class_unload = class_unload;
 }
 
 traceid JfrSymbolId::mark_unsafe_anonymous_klass_name(const Klass* k) {
@@ -79,7 +87,7 @@ traceid JfrSymbolId::mark_unsafe_anonymous_klass_name(const Klass* k) {
 }
 
 const JfrSymbolId::SymbolEntry* JfrSymbolId::map_symbol(const Symbol* symbol) const {
-  return _sym_table->lookup_only(symbol, (uintptr_t)const_cast<Symbol*>(symbol)->identity_hash());
+  return _sym_table->lookup_only(symbol, (uintptr_t)symbol->identity_hash());
 }
 
 const JfrSymbolId::SymbolEntry* JfrSymbolId::map_symbol(uintptr_t hash) const {
@@ -90,10 +98,13 @@ const JfrSymbolId::CStringEntry* JfrSymbolId::map_cstring(uintptr_t hash) const 
   return _cstring_table->lookup_only(NULL, hash);
 }
 
-void JfrSymbolId::assign_id(SymbolEntry* entry) {
+void JfrSymbolId::assign_id(const SymbolEntry* entry) {
   assert(entry != NULL, "invariant");
+  const_cast<Symbol*>(entry->literal())->increment_refcount();
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_symbol_id_counter);
+  entry->set_list_next(_sym_list);
+  _sym_list = entry;
 }
 
 bool JfrSymbolId::equals(const Symbol* query, uintptr_t hash, const SymbolEntry* entry) {
@@ -103,10 +114,17 @@ bool JfrSymbolId::equals(const Symbol* query, uintptr_t hash, const SymbolEntry*
   return true;
 }
 
-void JfrSymbolId::assign_id(CStringEntry* entry) {
+void JfrSymbolId::unlink(const SymbolEntry* entry) {
+  assert(entry != NULL, "invariant");
+  const_cast<Symbol*>(entry->literal())->decrement_refcount();
+}
+
+void JfrSymbolId::assign_id(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_symbol_id_counter);
+  entry->set_list_next(_cstring_list);
+  _cstring_list = entry;
 }
 
 bool JfrSymbolId::equals(const char* query, uintptr_t hash, const CStringEntry* entry) {
@@ -116,6 +134,13 @@ bool JfrSymbolId::equals(const char* query, uintptr_t hash, const CStringEntry* 
   return true;
 }
 
+void JfrSymbolId::unlink(const CStringEntry* entry) {
+  assert(entry != NULL, "invariant");
+  if (entry->id() != 1) {
+    FREE_C_HEAP_ARRAY(char, entry->literal());
+  }
+}
+
 traceid JfrSymbolId::mark(const Klass* k) {
   assert(k != NULL, "invariant");
   traceid symbol_id = 0;
@@ -123,7 +148,7 @@ traceid JfrSymbolId::mark(const Klass* k) {
     symbol_id = mark_unsafe_anonymous_klass_name(k);
   }
   if (0 == symbol_id) {
-    const Symbol* const sym = k->name();
+    Symbol* const sym = k->name();
     if (sym != NULL) {
       symbol_id = mark(sym);
     }
@@ -134,18 +159,26 @@ traceid JfrSymbolId::mark(const Klass* k) {
 
 traceid JfrSymbolId::mark(const Symbol* symbol) {
   assert(symbol != NULL, "invariant");
-  return mark(symbol, (uintptr_t)const_cast<Symbol*>(symbol)->identity_hash());
+  return mark(symbol, (uintptr_t)symbol->identity_hash());
 }
 
 traceid JfrSymbolId::mark(const Symbol* data, uintptr_t hash) {
   assert(data != NULL, "invariant");
   assert(_sym_table != NULL, "invariant");
-  return _sym_table->id(data, hash);
+  const SymbolEntry& entry = _sym_table->lookup_put(data, hash);
+  if (_class_unload) {
+    entry.set_unloading();
+  }
+  return entry.id();
 }
 
 traceid JfrSymbolId::mark(const char* str, uintptr_t hash) {
   assert(str != NULL, "invariant");
-  return _cstring_table->id(str, hash);
+  const CStringEntry& entry = _cstring_table->lookup_put(str, hash);
+  if (_class_unload) {
+    entry.set_unloading();
+  }
+  return entry.id();
 }
 
 bool JfrSymbolId::is_unsafe_anonymous_klass(const Klass* k) {
@@ -181,7 +214,8 @@ const char* JfrSymbolId::create_unsafe_anonymous_klass_symbol(const InstanceKlas
   sprintf(hash_buf, "/" UINTX_FORMAT, hashcode);
   const size_t hash_len = strlen(hash_buf);
   const size_t result_len = ik->name()->utf8_length();
-  anonymous_symbol = NEW_RESOURCE_ARRAY(char, result_len + hash_len + 1);
+  anonymous_symbol = NEW_C_HEAP_ARRAY(char, result_len + hash_len + 1, mtTracing);
+  assert(anonymous_symbol != NULL, "invariant");
   ik->name()->as_klass_external_name(anonymous_symbol, (int)result_len + 1);
   assert(strlen(anonymous_symbol) == result_len, "invariant");
   strcpy(anonymous_symbol + result_len, hash_buf);
@@ -196,32 +230,38 @@ uintptr_t JfrSymbolId::regular_klass_name_hash_code(const Klass* k) {
   return (uintptr_t)const_cast<Symbol*>(sym)->identity_hash();
 }
 
-JfrArtifactSet::JfrArtifactSet(bool current_epoch) : _symbol_id(new JfrSymbolId()),
+static void preload_bootstrap_loader_name(JfrSymbolId* symbol_id) {
+  assert(symbol_id != NULL, "invariant");
+  assert(!symbol_id->has_entries(), "invariant");
+  symbol_id->mark((const char*)&BOOTSTRAP_LOADER_NAME, 0); // pre-load "bootstrap" into id 1
+}
+
+JfrArtifactSet::JfrArtifactSet(bool class_unload) : _symbol_id(new JfrSymbolId()),
                                                      _klass_list(NULL),
-                                                     _total_count(0),
-                                                     _current_epoch(current_epoch) {
-  initialize(current_epoch);
+                                                     _total_count(0) {
+  preload_bootstrap_loader_name(_symbol_id);
+  initialize(class_unload);
   assert(_klass_list != NULL, "invariant");
 }
 
 static const size_t initial_class_list_size = 200;
-void JfrArtifactSet::initialize(bool current_epoch) {
+
+void JfrArtifactSet::initialize(bool class_unload) {
   assert(_symbol_id != NULL, "invariant");
-  _symbol_id->initialize();
-  assert(!_symbol_id->has_entries(), "invariant");
-  _symbol_id->mark(BOOTSTRAP_LOADER_NAME, 0); // pre-load "bootstrap"
+  _symbol_id->set_class_unload(class_unload);
   _total_count = 0;
-  _current_epoch = current_epoch;
   // resource allocation
   _klass_list = new GrowableArray<const Klass*>(initial_class_list_size, false, mtTracing);
 }
 
 JfrArtifactSet::~JfrArtifactSet() {
   clear();
+  delete _symbol_id;
 }
 
 void JfrArtifactSet::clear() {
   _symbol_id->clear();
+  preload_bootstrap_loader_name(_symbol_id);
   // _klass_list will be cleared by a ResourceMark
 }
 
@@ -275,4 +315,3 @@ void JfrArtifactSet::register_klass(const Klass* k) {
 size_t JfrArtifactSet::total_count() const {
   return _total_count;
 }
-

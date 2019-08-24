@@ -26,12 +26,14 @@
 #define SHARE_JFR_LEAKPROFILER_SAMPLING_OBJECTSAMPLE_HPP
 
 #include "jfr/recorder/checkpoint/jfrCheckpointBlob.hpp"
+#include "jfr/recorder/stacktrace/jfrStackTrace.hpp"
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "utilities/ticks.hpp"
+
 /*
  * Handle for diagnosing Java memory leaks.
  *
@@ -39,17 +41,22 @@
  * allocated, the thread and the stack trace.
  */
 class ObjectSample : public JfrCHeapObj {
+  friend class CheckpointInstall;
+  friend class ObjectResolver;
+  friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class SampleList;
  private:
   ObjectSample* _next;
   ObjectSample* _previous;
+  mutable const JfrStackTrace* _stack_trace;
   JfrCheckpointBlobHandle _thread_cp;
   JfrCheckpointBlobHandle _klass_cp;
   oop _object;
   Ticks _allocation_time;
   traceid _stack_trace_id;
   traceid _thread_id;
+  mutable traceid _klass_id;
   int _index;
   size_t _span;
   size_t _allocated;
@@ -72,20 +79,29 @@ class ObjectSample : public JfrCHeapObj {
 
   void reset() {
     set_stack_trace_id(0);
-    set_stack_trace_hash(0),
+    set_stack_trace_hash(0);
+    _klass_id = 0;
     release_references();
     _dead = false;
+  }
+
+  ~ObjectSample() {
+    if (_stack_trace != NULL) {
+      delete _stack_trace;
+    }
   }
 
  public:
   ObjectSample() : _next(NULL),
                    _previous(NULL),
+                   _stack_trace(NULL),
                    _thread_cp(),
                    _klass_cp(),
                    _object(NULL),
                    _allocation_time(),
                    _stack_trace_id(0),
                    _thread_id(0),
+                   _klass_id(0),
                    _index(0),
                    _span(0),
                    _allocated(0),
@@ -174,7 +190,7 @@ class ObjectSample : public JfrCHeapObj {
     return _heap_used_at_last_gc;
   }
 
-  bool has_stack_trace() const {
+  bool has_stack_trace_id() const {
     return stack_trace_id() != 0;
   }
 
@@ -192,6 +208,14 @@ class ObjectSample : public JfrCHeapObj {
 
   void set_stack_trace_hash(unsigned int hash) {
     _stack_trace_hash = hash;
+  }
+
+  const JfrStackTrace* stack_trace() const {
+    return _stack_trace;
+  }
+
+  void set_stack_trace(const JfrStackTrace* trace) const {
+    _stack_trace = trace;
   }
 
   bool has_thread() const {

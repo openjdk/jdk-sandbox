@@ -46,6 +46,7 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   bool open();
   int64_t close();
   int64_t current_chunk_start_nanos() const;
+  int64_t write_chunk_header_checkpoint(bool flushpoint);
 
  public:
   JfrChunkWriter();

@@ -45,13 +45,19 @@ class JfrChunk : public JfrCHeapObj {
 
   JfrChunk();
   ~JfrChunk();
+  void reset();
+
+  const char* magic() const;
+  u2 major_version() const;
+  u2 minor_version() const;
+  int64_t cpu_frequency() const;
+  u2 capabilities() const;
 
   void update_start_ticks();
   void update_start_nanos();
   void save_current_and_update_start_ticks();
   void save_current_and_update_start_nanos();
 
-  void reset();
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
 
@@ -78,6 +84,7 @@ class JfrChunk : public JfrCHeapObj {
 
   int64_t duration() const;
   u1 generation() const;
+  u1 next_generation() const;
 };
 
 #endif // SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP

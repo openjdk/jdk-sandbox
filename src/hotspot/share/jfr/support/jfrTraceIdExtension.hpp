@@ -41,41 +41,23 @@
 #define REMOVE_ID(k) JfrTraceId::remove(k);
 #define RESTORE_ID(k) JfrTraceId::restore(k);
 
-class JfrTraceFlag {
- private:
-  mutable jbyte _flags;
- public:
-  JfrTraceFlag() : _flags(0) {}
-  explicit JfrTraceFlag(jbyte flags) : _flags(flags) {}
-  void set_flag(jbyte flag) const {
-    _flags |= flag;
-  }
-  void clear_flag(jbyte flag) const {
-    _flags &= (~flag);
-  }
-  jbyte flags() const { return _flags; }
-  bool is_set(jbyte flag) const {
-    return (_flags & flag) != 0;
-  }
-  jbyte* const flags_addr() const {
-    return &_flags;
-  }
-};
-
 #define DEFINE_TRACE_FLAG mutable JfrTraceFlag _trace_flags
 
 #define DEFINE_TRACE_FLAG_ACCESSOR                 \
-  void set_trace_flag(jbyte flag) const {          \
-    _trace_flags.set_flag(flag);                   \
-  }                                                \
-  jbyte trace_flags() const {                      \
-    return _trace_flags.flags();                   \
-  }                                                \
-  bool is_trace_flag_set(jbyte flag) const {       \
+  bool is_trace_flag_set(jshort flag) const {      \
     return _trace_flags.is_set(flag);              \
   }                                                \
-  jbyte* const trace_flags_addr() const {          \
+  jshort trace_flags() const {                     \
+    return _trace_flags.flags();                   \
+  }                                                \
+  void set_trace_flags(jshort flags) const {       \
+    _trace_flags.set_flags(flags);                 \
+  }                                                \
+  jbyte* trace_flags_addr() const {                \
     return _trace_flags.flags_addr();              \
+  }                                                \
+  jbyte* trace_meta_addr() const {                 \
+    return _trace_flags.meta_addr();               \
   }
 
 #endif // SHARE_JFR_SUPPORT_JFRTRACEIDEXTENSION_HPP

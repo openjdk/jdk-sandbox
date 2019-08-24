@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,20 @@
  *
  */
 
-#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
-#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP
+#define SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP
 
-#include "jfr/utilities/jfrAllocation.hpp"
+#include "runtime/vmOperations.hpp"
 
-class JfrCheckpointWriter;
-
-class JfrTypeSet : AllStatic {
+class OldObjectVMOperation : public VM_Operation {
  public:
-  static size_t serialize(JfrCheckpointWriter* writer, bool class_unload, bool flushpoint);
+  Mode evaluation_mode() const {
+    return _safepoint;
+  }
+
+  VMOp_Type type() const {
+    return VMOp_JFROldObject;
+  }
 };
 
-#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#endif // SHARE_JFR_LEAKPROFILER_UTILITIES_VMOPERATION_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,16 +22,25 @@
  *
  */
 
-#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
-#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_CHAINS_PATHTOGCROOTSOPERATION_HPP
+#define SHARE_JFR_LEAKPROFILER_CHAINS_PATHTOGCROOTSOPERATION_HPP
 
-#include "jfr/utilities/jfrAllocation.hpp"
+#include "jfr/leakprofiler/utilities/vmOperation.hpp"
 
-class JfrCheckpointWriter;
+class EdgeStore;
+class ObjectSampler;
 
-class JfrTypeSet : AllStatic {
+// Safepoint operation for finding paths to gc roots
+class PathToGcRootsOperation : public OldObjectVMOperation {
+ private:
+  ObjectSampler* _sampler;
+  EdgeStore* const _edge_store;
+  const int64_t _cutoff_ticks;
+  const bool _emit_all;
+
  public:
-  static size_t serialize(JfrCheckpointWriter* writer, bool class_unload, bool flushpoint);
+  PathToGcRootsOperation(ObjectSampler* sampler, EdgeStore* edge_store, int64_t cutoff, bool emit_all);
+  virtual void doit();
 };
 
-#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#endif // SHARE_JFR_LEAKPROFILER_CHAINS_PATHTOGCROOTSOPERATION_HPP

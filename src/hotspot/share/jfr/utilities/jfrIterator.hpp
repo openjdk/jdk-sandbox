@@ -40,14 +40,6 @@ class StopOnNullCondition : public AllStatic {
   }
 };
 
-template <typename Node>
-class StopOnEmptyCondition : public AllStatic {
-public:
-  static bool has_next(const Node* node) {
-    return node != NULL && !node->empty();
-  }
-};
-
 template <typename List, template <typename> class ContinuationPredicate>
 class Navigator {
  public:
@@ -91,12 +83,6 @@ class NavigatorStopOnNull : public Navigator<List, StopOnNullCondition> {
   NavigatorStopOnNull(List& list, jfr_iter_direction direction = forward) : Navigator<List, StopOnNullCondition>(list, direction) {}
 };
 
-template <typename List>
-class NavigatorStopOnEmpty : public Navigator<List, StopOnEmptyCondition> {
-public:
-  NavigatorStopOnEmpty(List& list, jfr_iter_direction direction = forward) : Navigator<List, StopOnEmptyCondition>(list, direction) {}
-};
-
 template<typename List, template <typename> class Navigator, typename AP = StackObj>
 class IteratorHost : public AP {
  private:
@@ -116,12 +102,6 @@ template<typename List, typename AP = StackObj>
 class StopOnNullIterator : public IteratorHost<List, NavigatorStopOnNull, AP> {
  public:
   StopOnNullIterator(List& list, jfr_iter_direction direction = forward) : IteratorHost<List, NavigatorStopOnNull, AP>(list, direction) {}
-};
-
-template<typename List, typename AP = StackObj>
-class StopOnEmptyIterator : public IteratorHost<List, NavigatorStopOnEmpty, AP> {
-public:
-  StopOnEmptyIterator(List& list, jfr_iter_direction direction = forward) : IteratorHost<List, NavigatorStopOnEmpty, AP>(list, direction) {}
 };
 
 #endif // SHARE_JFR_UTILITIES_JFRITERATOR_HPP

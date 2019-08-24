@@ -25,13 +25,13 @@
 #include "precompiled.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
+#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/periodic/jfrThreadCPULoadEvent.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/recorder/storage/jfrStorage.hpp"
-#include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/os.hpp"
@@ -136,7 +136,9 @@ void JfrThreadLocal::on_exit(Thread* t) {
   assert(!tl->is_dead(), "invariant");
   if (JfrRecorder::is_recording()) {
     if (t->is_Java_thread() && !tl->is_excluded()) {
-      send_java_thread_end_events(tl->thread_id(), (JavaThread*)t);
+      JavaThread* const jt = (JavaThread*)t;
+      ObjectSampleCheckpoint::on_thread_exit(jt);
+      send_java_thread_end_events(tl->thread_id(), jt);
     }
   }
   release(tl, Thread::current()); // because it could be that Thread::current() != t
@@ -165,9 +167,7 @@ JfrBuffer* JfrThreadLocal::install_java_buffer() const {
 
 JfrStackFrame* JfrThreadLocal::install_stackframes() const {
   assert(_stackframes == NULL, "invariant");
-  _stackdepth = (u4)JfrOptionSet::stackdepth();
-  guarantee(_stackdepth > 0, "Stackdepth must be > 0");
-  _stackframes = NEW_C_HEAP_ARRAY(JfrStackFrame, _stackdepth, mtTracing);
+  _stackframes = NEW_C_HEAP_ARRAY(JfrStackFrame, stackdepth(), mtTracing);
   return _stackframes;
 }
 
@@ -187,4 +187,8 @@ void JfrThreadLocal::exclude(Thread* t) {
 void JfrThreadLocal::include(Thread* t) {
   assert(t != NULL, "invariant");
   t->jfr_thread_local()->_excluded = false;
+}
+
+u4 JfrThreadLocal::stackdepth() const {
+  return _stackdepth != 0 ? _stackdepth : (u4)JfrOptionSet::stackdepth();
 }
