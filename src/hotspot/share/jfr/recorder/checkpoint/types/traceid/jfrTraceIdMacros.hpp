@@ -88,9 +88,11 @@
 
 // predicates
 #define USED_THIS_EPOCH(ptr)                      (TRACE_ID_PREDICATE(ptr, (TRANSIENT_BIT | IN_USE_THIS_EPOCH_BIT)))
+#define NOT_USED_THIS_EPOCH(ptr)                  (!USED_THIS_EPOCH(ptr))
 #define USED_PREV_EPOCH(ptr)                      (TRACE_ID_PREDICATE(ptr, (TRANSIENT_BIT | IN_USE_PREV_EPOCH_BIT)))
 #define USED_ANY_EPOCH(ptr)                       (TRACE_ID_PREDICATE(ptr, (TRANSIENT_BIT | USED_EPOCH_2_BIT | USED_EPOCH_1_BIT)))
 #define METHOD_USED_THIS_EPOCH(kls)               (TRACE_ID_PREDICATE(kls, (TRANSIENT_BIT | METHOD_IN_USE_THIS_EPOCH_BIT)))
+#define METHOD_NOT_USED_THIS_EPOCH(kls)           (!METHOD_USED_THIS_EPOCH(kls))
 #define METHOD_USED_PREV_EPOCH(kls)               (TRACE_ID_PREDICATE(kls, (TRANSIENT_BIT | METHOD_IN_USE_PREV_EPOCH_BIT)))
 #define METHOD_USED_ANY_EPOCH(kls)                (TRACE_ID_PREDICATE(kls, (TRANSIENT_BIT | METHOD_IN_USE_PREV_EPOCH_BIT | METHOD_IN_USE_THIS_EPOCH_BIT)))
 #define METHOD_AND_CLASS_USED_THIS_EPOCH(kls)     (TRACE_ID_PREDICATE(kls, (TRANSIENT_BIT | METHOD_AND_CLASS_IN_USE_THIS_EPOCH_BITS)))
@@ -124,6 +126,8 @@
 #define SET_TRANSIENT(ptr)                        (TRACE_ID_META_TAG(ptr, USED_BIT))
 #define IS_SERIALIZED(ptr)                        (TRACE_ID_PREDICATE(ptr, SERIALIZED_BIT))
 #define IS_NOT_SERIALIZED(ptr)                    (!IS_SERIALIZED(ptr))
+#define SHOULD_TAG(ptr)                           ((IS_NOT_SERIALIZED(ptr)) || (NOT_USED_THIS_EPOCH(ptr)))
+#define SHOULD_TAG_KLASS_METHOD(ptr)              ((IS_NOT_SERIALIZED(ptr)) || (METHOD_NOT_USED_THIS_EPOCH(ptr)))
 #define SET_SERIALIZED(ptr)                       (TRACE_ID_META_TAG(ptr, (USED_BIT << 1)))
 #define CLEAR_SERIALIZED(ptr)                     (TRACE_ID_META_CLEAR(ptr, (~(USED_BIT << 1 | USED_BIT))))
 #define IS_METHOD_SERIALIZED(method)              (METHOD_FLAG_PREDICATE(method, SERIALIZED_BIT))
