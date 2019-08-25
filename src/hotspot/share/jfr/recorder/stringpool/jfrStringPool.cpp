@@ -57,7 +57,7 @@ static void inc_store_generation() {
 static void set_serialized_generation() {
   set_value(OrderAccess::load_acquire(&store_generation), &serialized_generation);
 }
-bool JfrStringPool::modified() {
+bool JfrStringPool::is_modified() {
   return serialized_generation != OrderAccess::load_acquire(&store_generation);
 }
 JfrStringPool& JfrStringPool::instance() {

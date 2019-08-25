@@ -55,6 +55,8 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   bool initialize();
   static void destroy();
 
+  bool is_modified() const;
+
   size_t write_impl(JfrChunkWriter& cw, bool clear);
   static void write_metadata(JfrCheckpointWriter& cpw);
   traceid write(JfrCheckpointWriter& cpw, traceid id, unsigned int hash);

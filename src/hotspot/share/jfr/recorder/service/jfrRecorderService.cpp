@@ -295,9 +295,7 @@ static u4 invoke(Functor& f) {
 template <typename Functor>
 static u4 invoke_with_flush_event(Functor& f) {
   const u4 elements = invoke(f);
-  if (elements != 0) {
-    write_flush_event(f);
-  }
+  write_flush_event(f);
   return elements;
 }
 
@@ -610,8 +608,10 @@ size_t JfrRecorderService::flush() {
     return total_elements;
   }
   total_elements += storage_elements;
-  total_elements += flush_stacktrace(_stack_trace_repository, _chunkwriter);
-  if (_string_pool.modified()) {
+  if (_stack_trace_repository.is_modified()) {
+    total_elements += flush_stacktrace(_stack_trace_repository, _chunkwriter);
+  }
+  if (_string_pool.is_modified()) {
     total_elements += flush_stringpool(_string_pool, _chunkwriter);
   }
   total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
@@ -622,14 +622,13 @@ void JfrRecorderService::flush(int msgs) {
   assert(_chunkwriter.is_valid(), "invariant");
   ResourceMark rm;
   HandleMark hm;
-  reset_thread_local_buffer();
-  ++flushpoint_id;
   write_metadata_in_flushpoint = (msgs & MSGBIT(MSG_FLUSHPOINT_METADATA));
+  ++flushpoint_id;
+  reset_thread_local_buffer();
   FlushFunctor flushpoint(*this);
   Flush fl(_chunkwriter, flushpoint);
   invoke_with_flush_event(fl);
   write_thread_local_buffer(_chunkwriter);
-  _checkpoint_manager.flush();
   _repository.flush_chunk();
 }
 
@@ -643,8 +642,10 @@ void JfrRecorderService::flush(int msgs) {
 //
 void JfrRecorderService::pre_safepoint_write() {
   assert(_chunkwriter.is_valid(), "invariant");
-  flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, false);
-  if (_string_pool.modified()) {
+  if (_stack_trace_repository.is_modified()) {
+    flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, false);
+  }
+  if (_string_pool.is_modified()) {
     flush_stringpool_checkpoint(_string_pool, _chunkwriter);
   }
   if (LeakProfiler::is_running()) {
@@ -674,9 +675,8 @@ void JfrRecorderService::invoke_safepoint_write() {
 //
 void JfrRecorderService::safepoint_write() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-
   flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, true);
-  if (_string_pool.modified()) {
+  if (_string_pool.is_modified()) {
     flush_stringpool_checkpoint_safepoint(_string_pool, _chunkwriter);
   }
   if (LeakProfiler::is_running()) {

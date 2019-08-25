@@ -408,7 +408,9 @@ void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
 }
 
 size_t JfrCheckpointManager::flush_type_set() {
-  return JfrTypeManager::flush_type_set();
+  const size_t elements = JfrTypeManager::flush_type_set();
+  flush();
+  return elements;
 }
 
 void JfrCheckpointManager::create_thread_checkpoint(Thread* t) {

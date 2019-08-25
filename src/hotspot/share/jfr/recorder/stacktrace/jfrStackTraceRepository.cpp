@@ -70,6 +70,12 @@ void JfrStackTraceRepository::destroy() {
   _instance = NULL;
 }
 
+static traceid last_id = 0;
+
+bool JfrStackTraceRepository::is_modified() const {
+  return last_id != _next_id;
+}
+
 size_t JfrStackTraceRepository::write_impl(JfrChunkWriter& sw, bool clear) {
   MutexLocker lock(JfrStacktrace_lock, Mutex::_no_safepoint_check_flag);
   assert(_entries > 0, "invariant");
@@ -92,6 +98,7 @@ size_t JfrStackTraceRepository::write_impl(JfrChunkWriter& sw, bool clear) {
     memset(_table, 0, sizeof(_table));
     _entries = 0;
   }
+  last_id = _next_id;
   return count;
 }
 
