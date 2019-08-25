@@ -26,7 +26,7 @@
 #define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 
 #include "memory/allocation.hpp"
-#include "jfr/utilities/jfrTypes.hpp"
+#include "runtime/orderAccess.hpp"
 
 #define USED_BIT 1
 #define METHOD_USED_BIT (USED_BIT << 2)
@@ -44,6 +44,8 @@ class JfrTraceIdEpoch : AllStatic {
   friend class JfrCheckpointManager;
  private:
   static bool _epoch_state;
+  static bool volatile _klass_tagged_in_epoch;
+
   static void shift_epoch();
 
  public:
@@ -85,6 +87,20 @@ class JfrTraceIdEpoch : AllStatic {
 
   static traceid method_and_class_in_use_prev_epoch_bits() {
     return _epoch_state ? METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS :  METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS;
+  }
+
+  static bool is_klass_tagged_in_epoch() {
+    if (OrderAccess::load_acquire(&_klass_tagged_in_epoch)) {
+      OrderAccess::release_store(&_klass_tagged_in_epoch, false);
+      return true;
+    }
+    return false;
+  }
+
+  static void set_klass_tagged_in_epoch() {
+    if (!OrderAccess::load_acquire(&_klass_tagged_in_epoch)) {
+      OrderAccess::release_store(&_klass_tagged_in_epoch, true);
+    }
   }
 };
 

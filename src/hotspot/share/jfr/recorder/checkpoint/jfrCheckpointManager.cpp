@@ -407,6 +407,10 @@ void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
   JfrTypeManager::write_type_set_for_unloaded_classes();
 }
 
+bool JfrCheckpointManager::is_type_set_checkpoint_required() const {
+  return JfrTraceIdEpoch::is_klass_tagged_in_epoch();
+}
+
 size_t JfrCheckpointManager::flush_type_set() {
   const size_t elements = JfrTypeManager::flush_type_set();
   flush();

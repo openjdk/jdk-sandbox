@@ -28,8 +28,9 @@
 #include "classfile/classLoaderData.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
-#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdMacros.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdMacros.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/instanceKlass.hpp"
@@ -57,7 +58,11 @@ inline traceid JfrTraceId::get(const Thread* t) {
 
 inline traceid JfrTraceId::use(const Klass* klass) {
   assert(klass != NULL, "invariant");
-  return set_used_and_get(klass);
+  const traceid id = set_used_and_get(klass);
+  if (IS_NOT_SERIALIZED(klass)) {
+    JfrTraceIdEpoch::set_klass_tagged_in_epoch();
+  }
+  return id;
 }
 
 inline traceid JfrTraceId::use(const Method* method) {
@@ -71,6 +76,9 @@ inline traceid JfrTraceId::use(const Klass* klass, const Method* method) {
   SET_METHOD_FLAG_USED_THIS_EPOCH(method);
   SET_METHOD_AND_CLASS_USED_THIS_EPOCH(klass);
   assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
+  if (IS_NOT_SERIALIZED(klass)) {
+    JfrTraceIdEpoch::set_klass_tagged_in_epoch();
+  }
   return (METHOD_ID(klass, method));
 }
 

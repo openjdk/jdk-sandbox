@@ -31,6 +31,8 @@
 // The regular epoch shift happens only during a safepoint.
 // The fence is there only for the emergency dump case which happens outside of safepoint.
 bool JfrTraceIdEpoch::_epoch_state = false;
+bool volatile JfrTraceIdEpoch::_klass_tagged_in_epoch = false;
+
 void JfrTraceIdEpoch::shift_epoch() {
   _epoch_state = !_epoch_state;
   if (!SafepointSynchronize::is_at_safepoint()) {

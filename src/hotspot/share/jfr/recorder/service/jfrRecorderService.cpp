@@ -614,7 +614,9 @@ size_t JfrRecorderService::flush() {
   if (_string_pool.is_modified()) {
     total_elements += flush_stringpool(_string_pool, _chunkwriter);
   }
-  total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
+  if (_checkpoint_manager.is_type_set_checkpoint_required()) {
+    total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
+  }
   return total_elements;
 }
 

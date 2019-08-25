@@ -95,6 +95,7 @@ class JfrCheckpointManager : public JfrCHeapObj {
 
  public:
   void register_service_thread(const Thread* t);
+  bool is_type_set_checkpoint_required() const;
   size_t flush_type_set();
   static void write_type_set_for_unloaded_classes();
   static void create_thread_checkpoint(Thread* t);
