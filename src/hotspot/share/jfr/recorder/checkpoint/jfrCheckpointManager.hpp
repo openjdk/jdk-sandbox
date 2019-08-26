@@ -68,7 +68,10 @@ class JfrCheckpointManager : public JfrCHeapObj {
   void unlock();
   DEBUG_ONLY(bool is_locked() const;)
 
+  JfrCheckpointMspace* lookup(Buffer* old) const;
+
   static Buffer* lease_buffer(Thread* t, size_t size = 0);
+  static Buffer* lease_buffer(Buffer* old, Thread* t, size_t size = 0);
   static Buffer* flush(Buffer* old, size_t used, size_t requested, Thread* t);
 
   size_t clear();
@@ -77,6 +80,7 @@ class JfrCheckpointManager : public JfrCHeapObj {
   size_t flush();
   size_t write_epoch_transition_mspace();
   size_t write_types();
+  size_t write_threads();
   size_t write_metadata_event();
   void write_type_set();
   void shift_epoch();

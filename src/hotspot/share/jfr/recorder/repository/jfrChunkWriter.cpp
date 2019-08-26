@@ -183,14 +183,14 @@ class JfrChunkHeadWriter : public StackObj {
   }
 };
 
-static void write_checkpoint_header(JfrChunkWriter& cw, int64_t event_offset, bool flushpoint) {
+static void write_checkpoint_header(JfrChunkWriter& cw, int64_t event_offset, u1 mode) {
   const int64_t delta = cw.last_checkpoint_offset() == 0 ? 0 : cw.last_checkpoint_offset() - event_offset;
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
   cw.write<u8>(JfrTicks::now().value());
   cw.write<u8>(0); // duration
   cw.write<u8>(delta); // to previous checkpoint
-  cw.write<bool>(flushpoint);
+  cw.write<u1>(mode);
   cw.write<u4>(1); // pool count
   cw.write<u8>(TYPE_CHUNKHEADER);
   cw.write<u4>(1); // count
@@ -201,7 +201,8 @@ static void write_checkpoint_header(JfrChunkWriter& cw, int64_t event_offset, bo
 int64_t JfrChunkWriter::write_chunk_header_checkpoint(bool flushpoint) {
   assert(this->has_valid_fd(), "invariant");
   const int64_t event_size_offset = current_offset();
-  write_checkpoint_header(*this, event_size_offset, flushpoint);
+  const u1 mode = flushpoint ? FLUSH | HEADER : HEADER;
+  write_checkpoint_header(*this, event_size_offset, mode);
   const int64_t start_offset = current_offset();
   JfrChunkHeadWriter head(this, start_offset, false);
   head.write_magic();

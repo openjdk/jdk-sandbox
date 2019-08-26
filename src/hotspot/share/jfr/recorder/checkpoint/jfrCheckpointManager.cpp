@@ -181,8 +181,20 @@ BufferPtr JfrCheckpointManager::lease_buffer(Thread* thread, size_t size /* 0 */
   return lease_free(size, manager._free_list_mspace, lease_retry, thread);
 }
 
+JfrCheckpointMspace* JfrCheckpointManager::lookup(BufferPtr old) const {
+  assert(old != NULL, "invariant");
+  return _free_list_mspace->in_free_list(old) ? _free_list_mspace : _epoch_transition_mspace;
+}
+
+BufferPtr JfrCheckpointManager::lease_buffer(BufferPtr old, Thread* thread, size_t size /* 0 */) {
+  assert(old != NULL, "invariant");
+  JfrCheckpointMspace* mspace = instance().lookup(old);
+  assert(mspace != NULL, "invariant");
+  return lease_free(size, mspace, lease_retry, thread);
+}
+
 /*
-* If the buffer was a "lease" from the free list, release back.
+* If the buffer was a "lease", release back.
 *
 * The buffer is effectively invalidated for the thread post-return,
 * and the caller should take means to ensure that it is not referenced.
@@ -202,7 +214,7 @@ BufferPtr JfrCheckpointManager::flush(BufferPtr old, size_t used, size_t request
     return NULL;
   }
   // migration of in-flight information
-  BufferPtr const new_buffer = lease_buffer(thread, used + requested);
+  BufferPtr const new_buffer = lease_buffer(old, thread, used + requested);
   if (new_buffer != NULL) {
     migrate_outstanding_writes(old, new_buffer, used, requested);
   }
@@ -213,8 +225,8 @@ BufferPtr JfrCheckpointManager::flush(BufferPtr old, size_t used, size_t request
 // offsets into the JfrCheckpointEntry
 static const juint starttime_offset = sizeof(jlong);
 static const juint duration_offset = starttime_offset + sizeof(jlong);
-static const juint flushpoint_offset = duration_offset + sizeof(jlong);
-static const juint types_offset = flushpoint_offset + sizeof(juint);
+static const juint mode_offset = duration_offset + sizeof(jlong);
+static const juint types_offset = mode_offset + sizeof(juint);
 static const juint payload_offset = types_offset + sizeof(juint);
 
 template <typename Return>
@@ -234,6 +246,10 @@ static jlong duration(const u1* data) {
   return read_data<jlong>(data + duration_offset);
 }
 
+static u1 mode(const u1* data) {
+  return read_data<u1>(data + mode_offset);
+}
+
 static juint number_of_types(const u1* data) {
   return read_data<juint>(data + types_offset);
 }
@@ -241,11 +257,11 @@ static juint number_of_types(const u1* data) {
 static void write_checkpoint_header(JfrChunkWriter& cw, int64_t offset_prev_cp_event, const u1* data) {
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
-  cw.write<u8>(starttime(data));
-  cw.write<u8>(duration(data));
-  cw.write<u8>(offset_prev_cp_event);
-  cw.write<bool>(false); // not a flushpoint
-  cw.write<juint>(number_of_types(data));
+  cw.write(starttime(data));
+  cw.write(duration(data));
+  cw.write(offset_prev_cp_event);
+  cw.write(mode(data));
+  cw.write(number_of_types(data));
 }
 
 static void write_checkpoint_content(JfrChunkWriter& cw, const u1* data, size_t size) {
@@ -350,19 +366,34 @@ size_t JfrCheckpointManager::flush() {
   return wo.processed();
 }
 
-size_t JfrCheckpointManager::write_types() {
-  ResourceMark rm;
-  HandleMark hm;
-  Thread* const t = Thread::current();
-  // Optimization here is to write the types directly into the epoch transition mspace
-  // because the caller will immediately serialize and reset this mspace.
-  JfrBuffer* const buffer = _epoch_transition_mspace->free_tail();
+// Optimization for write_types() and write_threads() is to write
+// directly into the epoch transition mspace because we will immediately
+// serialize and reset this mspace post-write.
+static JfrBuffer* get_epoch_transition_buffer(JfrCheckpointMspace* mspace, Thread* t) {
+  assert(mspace != NULL, "invariant");
+  JfrBuffer* const buffer = mspace->free_head();
   assert(buffer != NULL, "invariant");
   buffer->acquire(t);
   buffer->set_lease();
   DEBUG_ONLY(assert_free_lease(buffer);)
-  JfrCheckpointWriter writer(t, buffer);
+  return buffer;
+}
+
+size_t JfrCheckpointManager::write_types() {
+  ResourceMark rm;
+  HandleMark hm;
+  Thread* const t = Thread::current();
+  JfrCheckpointWriter writer(t, get_epoch_transition_buffer(_epoch_transition_mspace, t), STATICS);
   JfrTypeManager::write_types(writer);
+  return writer.used_size();
+}
+
+size_t JfrCheckpointManager::write_threads() {
+  ResourceMark rm;
+  HandleMark hm;
+  Thread* const t = Thread::current();
+  JfrCheckpointWriter writer(t, get_epoch_transition_buffer(_epoch_transition_mspace, t), THREADS);
+  JfrTypeManager::write_threads(writer);
   return writer.used_size();
 }
 
@@ -372,6 +403,7 @@ size_t JfrCheckpointManager::write_epoch_transition_mspace() {
 
 size_t JfrCheckpointManager::write_constants() {
   write_types();
+  write_threads();
   return write_epoch_transition_mspace();
 }
 

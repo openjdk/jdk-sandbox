@@ -60,6 +60,7 @@ class JfrCheckpointWriter : public JfrCheckpointWriterBase {
   JfrTicks _time;
   int64_t _offset;
   u4 _count;
+  JfrCheckpointMode _mode;
   bool _header;
 
   u4 count() const;
@@ -67,10 +68,10 @@ class JfrCheckpointWriter : public JfrCheckpointWriterBase {
   void increment();
   const u1* session_data(size_t* size, bool move = false, const JfrCheckpointContext* ctx = NULL);
   void release();
-  JfrCheckpointWriter(Thread* t, JfrBuffer* buffer);
+  JfrCheckpointWriter(Thread* t, JfrBuffer* buffer, JfrCheckpointMode mode = NORMAL);
  public:
-  JfrCheckpointWriter();
-  JfrCheckpointWriter(Thread* t, bool header = true);
+  JfrCheckpointWriter(JfrCheckpointMode mode = NORMAL);
+  JfrCheckpointWriter(Thread* t, bool header = true, JfrCheckpointMode mode = NORMAL);
   ~JfrCheckpointWriter();
   void write_type(JfrTypeId type_id);
   void write_count(u4 nof_entries);

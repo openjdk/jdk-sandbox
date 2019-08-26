@@ -141,6 +141,23 @@ void JfrTypeManager::write_types(JfrCheckpointWriter& writer) {
   }
 }
 
+static void serialize_threads(JfrCheckpointWriter& writer) {
+  JfrThreadConstantSet thread_set;
+  writer.write_type(TYPE_THREAD);
+  thread_set.serialize(writer);
+}
+
+static void serialize_thread_groups(JfrCheckpointWriter& writer) {
+  JfrThreadGroupConstant thread_group_set;
+  writer.write_type(TYPE_THREADGROUP);
+  thread_group_set.serialize(writer);
+}
+
+void JfrTypeManager::write_threads(JfrCheckpointWriter& writer) {
+  serialize_threads(writer);
+  serialize_thread_groups(writer);
+}
+
 void JfrTypeManager::notify_types_on_rotation() {
   const Iterator iter(types);
   while (iter.has_next()) {
@@ -180,7 +197,7 @@ void JfrTypeManager::create_thread_checkpoint(Thread* t) {
   ResourceMark rm(t);
   HandleMark hm(t);
   JfrThreadConstant type_thread(t);
-  JfrCheckpointWriter writer(t);
+  JfrCheckpointWriter writer(t, true, THREADS);
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
   // create and install a checkpoint blob
@@ -193,7 +210,7 @@ void JfrTypeManager::write_thread_checkpoint(Thread* t) {
   ResourceMark rm(t);
   HandleMark hm(t);
   JfrThreadConstant type_thread(t);
-  JfrCheckpointWriter writer(t);
+  JfrCheckpointWriter writer(t, true, THREADS);
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
 }
@@ -227,10 +244,6 @@ static bool register_type(JfrTypeId id, bool permit_cache, JfrSerializer* serial
 
 bool JfrTypeManager::initialize() {
   SerializerRegistrationGuard guard;
-
-  // register non-safepointing type serialization
-  register_type(TYPE_THREADGROUP, false, new JfrThreadGroupConstant());
-  register_type(TYPE_THREAD, false, new JfrThreadConstantSet());
   register_type(TYPE_FLAGVALUEORIGIN, true, new FlagValueOriginConstant());
   register_type(TYPE_INFLATECAUSE, true, new MonitorInflateCauseConstant());
   register_type(TYPE_GCCAUSE, true, new GCCauseConstant());
@@ -247,7 +260,6 @@ bool JfrTypeManager::initialize() {
   register_type(TYPE_CODEBLOBTYPE, true, new CodeBlobTypeConstant());
   register_type(TYPE_VMOPERATIONTYPE, true, new VMOperationTypeConstant());
   register_type(TYPE_THREADSTATE, true, new ThreadStateConstant());
-
   return true;
 }
 
