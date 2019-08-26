@@ -48,6 +48,15 @@ import jdk.jfr.internal.consumer.RecordingInput;
  *
  */
 final class ChunkParser {
+    // Checkpoint that finishes a flush segment
+    static final byte CHECKPOINT_FLUSH_MASK = 1;
+    // Checkpoint contains chunk header information in the first pool
+    static final byte CHECKPOINT_CHUNK_HEADER_MASK = 2;
+    // Checkpoint contains only statics that will not change from chunk to chunk
+    static final byte CHECKPOINT_STATICS_MASK = 4;
+    // Checkpoint contains thread realted information
+    static final byte CHECKPOINT_THREADS_MASK = 8;
+
     private static final long CONSTANT_POOL_TYPE_ID = 1;
     private static final String CHUNKHEADER = "jdk.types.ChunkHeader";
     private final RecordingInput input;
@@ -204,8 +213,8 @@ final class ChunkParser {
         input.readLong(); // timestamp
         input.readLong(); // duration
         input.readLong(); // delta
-        boolean flush = input.readBoolean();
-        if (flush) {
+        byte c = input.readByte();
+        if ((c & CHECKPOINT_FLUSH_MASK)== 1) {
             flushOperation.run();
         }
     }
