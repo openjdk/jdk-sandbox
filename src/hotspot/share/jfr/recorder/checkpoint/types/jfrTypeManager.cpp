@@ -30,6 +30,8 @@
 #include "jfr/recorder/checkpoint/types/jfrTypeManager.hpp"
 #include "jfr/utilities/jfrDoublyLinkedList.hpp"
 #include "jfr/utilities/jfrIterator.hpp"
+#include "memory/resourceArea.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/exceptions.hpp"
@@ -175,6 +177,8 @@ size_t JfrTypeManager::flush_type_set() {
 
 void JfrTypeManager::create_thread_checkpoint(Thread* t) {
   assert(t != NULL, "invariant");
+  ResourceMark rm(t);
+  HandleMark hm(t);
   JfrThreadConstant type_thread(t);
   JfrCheckpointWriter writer(t);
   writer.write_type(TYPE_THREAD);
@@ -186,6 +190,8 @@ void JfrTypeManager::create_thread_checkpoint(Thread* t) {
 
 void JfrTypeManager::write_thread_checkpoint(Thread* t) {
   assert(t != NULL, "invariant");
+  ResourceMark rm(t);
+  HandleMark hm(t);
   JfrThreadConstant type_thread(t);
   JfrCheckpointWriter writer(t);
   writer.write_type(TYPE_THREAD);

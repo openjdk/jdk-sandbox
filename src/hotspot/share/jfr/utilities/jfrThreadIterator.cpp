@@ -29,7 +29,7 @@
 
 static bool thread_inclusion_predicate(Thread* t) {
   assert(t != NULL, "invariant");
-  return !(t->jfr_thread_local()->is_excluded() || t->jfr_thread_local()->is_dead());
+  return !t->jfr_thread_local()->is_dead();
 }
 
 static bool java_thread_inclusion_predicate(JavaThread* jt) {

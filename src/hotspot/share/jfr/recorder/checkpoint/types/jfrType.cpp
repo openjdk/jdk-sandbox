@@ -38,7 +38,6 @@
 #include "jfr/recorder/checkpoint/types/jfrThreadGroup.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
 #include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
-#include "jfr/support/jfrThreadLocal.hpp"
 #include "jfr/utilities/jfrThreadIterator.hpp"
 #include "memory/metaspaceGCThresholdUpdater.hpp"
 #include "memory/referenceType.hpp"
@@ -90,24 +89,18 @@ class JfrCheckpointThreadClosure : public ThreadClosure {
   void do_thread(Thread* t);
 };
 
-// Requires a ResourceMark for get_thread_name/as_utf8
 void JfrCheckpointThreadClosure::do_thread(Thread* t) {
   assert(t != NULL, "invariant");
-  const JfrThreadLocal* const tl = t->jfr_thread_local();
-  assert(tl != NULL, "invariant");
-  assert(!tl->is_dead(), "invariant");
-  assert(!tl->is_excluded(), "invariant");
   ++_count;
-  _writer.write_key(tl->thread_id());
-  _writer.write(t->name());
-  const OSThread* const os_thread = t->osthread();
-  _writer.write<traceid>(os_thread != NULL ? os_thread->thread_id() : 0);
+  _writer.write_key(JfrThreadId::jfr_id(t));
+  const char* const name = JfrThreadName::name(t);
+  _writer.write(name);
+  _writer.write<traceid>(JfrThreadId::os_id(t));
   if (t->is_Java_thread()) {
+    _writer.write(name);
+    _writer.write(JfrThreadId::id(t));
     JavaThread* const jt = (JavaThread*)t;
-    _writer.write(jt->name());
-    _writer.write(java_lang_Thread::thread_id(jt->threadObj()));
     _writer.write(JfrThreadGroup::thread_group_id(jt, _curthread));
-    // since we are iterating threads during a safepoint, also issue notification
     return;
   }
   _writer.write((const char*)NULL); // java name
@@ -347,17 +340,15 @@ void ThreadStateConstant::serialize(JfrCheckpointWriter& writer) {
 void JfrThreadConstant::serialize(JfrCheckpointWriter& writer) {
   assert(_thread != NULL, "invariant");
   assert(_thread == Thread::current(), "invariant");
-  ResourceMark rm(_thread);
-  HandleMark hm(_thread);
-  const char* const thread_name = _thread->name();
   writer.write_count(1);
-  writer.write_key(_thread->jfr_thread_local()->thread_id());
-  writer.write(thread_name);
-  writer.write((traceid)_thread->osthread()->thread_id());
+  writer.write_key(JfrThreadId::jfr_id(_thread));
+  const char* const name = JfrThreadName::name(_thread);
+  writer.write(name);
+  writer.write(JfrThreadId::os_id(_thread));
   if (_thread->is_Java_thread()) {
+    writer.write(name);
+    writer.write(JfrThreadId::id(_thread));
     JavaThread* const jt = (JavaThread*)_thread;
-    writer.write(jt->name());
-    writer.write(java_lang_Thread::thread_id(jt->threadObj()));
     const traceid thread_group_id = JfrThreadGroup::thread_group_id(jt, jt);
     writer.write(thread_group_id);
     JfrThreadGroup::serialize(&writer, thread_group_id);

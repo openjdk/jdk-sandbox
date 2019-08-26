@@ -23,9 +23,13 @@
 */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
+#include "jfr/support/jfrThreadLocal.hpp"
 #include "jvmtifiles/jvmti.h"
+#include "runtime/osThread.hpp"
+#include "runtime/thread.hpp"
 
 struct jvmti_thread_state {
   u8 id;
@@ -80,3 +84,33 @@ void JfrThreadState::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
+const char* JfrThreadName::name(const Thread* t) {
+  assert(t != NULL, "invariant");
+  if (!t->is_Java_thread()) {
+    return t->name();
+  }
+  assert(t->is_Java_thread(), "invariant");
+  const JavaThread* const jt = (JavaThread*)t;
+  return jt->get_thread_name_string();
+}
+
+traceid JfrThreadId::id(const Thread* t) {
+  assert(t != NULL, "invariant");
+  if (!t->is_Java_thread()) {
+    return os_id(t);
+  }
+  const JavaThread* const jt = (JavaThread*)t;
+  const oop thread_obj = jt->threadObj();
+  return thread_obj != NULL ? java_lang_Thread::thread_id(thread_obj) : 0;
+}
+
+traceid JfrThreadId::os_id(const Thread* t) {
+  assert(t != NULL, "invariant");
+  const OSThread* const os_thread = t->osthread();
+  return os_thread != NULL ? os_thread->thread_id() : 0;
+}
+
+traceid JfrThreadId::jfr_id(const Thread* t) {
+  assert(t != NULL, "invariant");
+  return t->jfr_thread_local()->thread_id();
+}
