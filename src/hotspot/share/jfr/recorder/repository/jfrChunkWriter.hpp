@@ -58,7 +58,7 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   void set_last_metadata_offset(int64_t offset);
   bool is_initial_flushpoint_for_chunk() const;
   bool has_metadata() const;
-  void time_stamp_chunk_now();
+  void set_time_stamp();
 };
 
 #endif // SHARE_JFR_RECORDER_REPOSITORY_JFRCHUNKWRITER_HPP

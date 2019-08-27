@@ -25,9 +25,7 @@
 #ifndef SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP
 #define SHARE_VM_JFR_RECORDER_REPOSITORY_JFRRCHUNK_HPP
 
-#include "jni.h"
 #include "jfr/utilities/jfrAllocation.hpp"
-#include "jfr/utilities/jfrTypes.hpp"
 
 class JfrChunk : public JfrCHeapObj {
   friend class JfrChunkWriter;
@@ -72,11 +70,11 @@ class JfrChunk : public JfrCHeapObj {
   int64_t previous_start_nanos() const;
   int64_t last_chunk_duration() const;
 
-  void update_time_to_now();
+  void set_time_stamp();
+  void update();
+
   void set_path(const char* path);
   const char* path() const;
-
-  void update();
 
   bool is_started() const;
   bool is_finished() const;

@@ -25,12 +25,9 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/repository/jfrChunk.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/utilities/jfrTime.hpp"
-#include "jfr/utilities/jfrTimeConverter.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/os.hpp"
 #include "runtime/os.inline.hpp"
 
 static const int64_t MAGIC_OFFSET = 0;
@@ -47,16 +44,6 @@ static const int64_t CPU_FREQUENCY_OFFSET = START_TICKS_OFFSET + SLOT_SIZE;
 static const int64_t GENERATION_OFFSET = CPU_FREQUENCY_OFFSET + SLOT_SIZE;
 static const int64_t CAPABILITY_OFFSET = GENERATION_OFFSET + 2;
 static const int64_t HEADER_SIZE = CAPABILITY_OFFSET + 2;
-static const int64_t RESERVE_SIZE = GENERATION_OFFSET - (4 * SIZE_OFFSET);
-
-static const u1 COMPLETE = 0;
-static const u1 GUARD = 0xff;
-static const u1 PAD = 0;
-
-typedef NoOwnershipAdapter JfrHeadBuffer; // stack local array as buffer
-typedef StreamWriterHost<JfrHeadBuffer, StackObj> JfrBufferedHeadWriter;
-typedef WriterHost<BigEndianEncoder, BigEndianEncoder, JfrBufferedHeadWriter> JfrHeadWriterBase;
-
 
 static fio_fd open_chunk(const char* path) {
   return path != NULL ? os::open(path, O_CREAT | O_RDWR, S_IREAD | S_IWRITE) : invalid_fd;
@@ -247,9 +234,9 @@ void JfrChunkWriter::set_path(const char* path) {
   _chunk->set_path(path);
 }
 
-void JfrChunkWriter::time_stamp_chunk_now() {
+void JfrChunkWriter::set_time_stamp() {
   assert(_chunk != NULL, "invariant");
-  _chunk->update_time_to_now();
+  _chunk->set_time_stamp();
 }
 
 int64_t JfrChunkWriter::size_written() const {

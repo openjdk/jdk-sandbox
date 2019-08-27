@@ -409,7 +409,7 @@ void JfrRecorderService::safepoint_clear() {
   _string_pool.clear();
   _storage.clear();
   _checkpoint_manager.shift_epoch();
-  _chunkwriter.time_stamp_chunk_now();
+  _chunkwriter.set_time_stamp();
 }
 
 void JfrRecorderService::post_safepoint_clear() {
@@ -687,7 +687,7 @@ void JfrRecorderService::safepoint_write() {
   _storage.write_at_safepoint();
   _checkpoint_manager.notify_threads();
   _checkpoint_manager.shift_epoch();
-  _chunkwriter.time_stamp_chunk_now();
+  _chunkwriter.set_time_stamp();
 }
 
 //
@@ -732,7 +732,7 @@ void JfrRecorderService::finalize_current_chunk_on_vm_error() {
   // Optimistically write tagged artifacts.
   _checkpoint_manager.shift_epoch();
   // update time
-  _chunkwriter.time_stamp_chunk_now();
+  _chunkwriter.set_time_stamp();
   post_safepoint_write();
 }
 

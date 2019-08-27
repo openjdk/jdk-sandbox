@@ -23,20 +23,11 @@
  */
 
 #include "precompiled.hpp"
-#include "jfr/dcmd/jfrDcmds.hpp"
-#include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/repository/jfrChunk.hpp"
-#include "jfr/recorder/repository/jfrChunkWriter.hpp"
+#include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/utilities/jfrTimeConverter.hpp"
-#include "logging/log.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/os.inline.hpp"
-#include "runtime/thread.inline.hpp"
-
-static const char* const MAGIC = "FLR";
-static const u2 JFR_VERSION_MAJOR = 2;
-static const u2 JFR_VERSION_MINOR = 0;
-
-static const u1 GUARD = 0xff;
 
 static jlong nanos_now() {
   return os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;
@@ -143,7 +134,7 @@ void JfrChunk::save_current_and_update_start_nanos() {
   update_start_nanos();
 }
 
-void JfrChunk::update_time_to_now() {
+void JfrChunk::set_time_stamp() {
   save_current_and_update_start_nanos();
   save_current_and_update_start_ticks();
 }
