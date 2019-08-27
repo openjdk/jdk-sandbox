@@ -76,8 +76,8 @@ enum EventStartTime {
   TIMED
 };
 
-enum JfrCheckpointMode : u1 {
-  NORMAL,
+enum JfrCheckpointType : u1 {
+  GENERIC,
   FLUSH,
   HEADER,
   STATICS = 4,

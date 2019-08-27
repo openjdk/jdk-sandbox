@@ -225,8 +225,8 @@ BufferPtr JfrCheckpointManager::flush(BufferPtr old, size_t used, size_t request
 // offsets into the JfrCheckpointEntry
 static const juint starttime_offset = sizeof(jlong);
 static const juint duration_offset = starttime_offset + sizeof(jlong);
-static const juint mode_offset = duration_offset + sizeof(jlong);
-static const juint types_offset = mode_offset + sizeof(juint);
+static const juint checkpoint_type_offset = duration_offset + sizeof(jlong);
+static const juint types_offset = checkpoint_type_offset + sizeof(juint);
 static const juint payload_offset = types_offset + sizeof(juint);
 
 template <typename Return>
@@ -246,8 +246,8 @@ static jlong duration(const u1* data) {
   return read_data<jlong>(data + duration_offset);
 }
 
-static u1 mode(const u1* data) {
-  return read_data<u1>(data + mode_offset);
+static u1 checkpoint_type(const u1* data) {
+  return read_data<u1>(data + checkpoint_type_offset);
 }
 
 static juint number_of_types(const u1* data) {
@@ -260,7 +260,7 @@ static void write_checkpoint_header(JfrChunkWriter& cw, int64_t offset_prev_cp_e
   cw.write(starttime(data));
   cw.write(duration(data));
   cw.write(offset_prev_cp_event);
-  cw.write(mode(data));
+  cw.write(checkpoint_type(data));
   cw.write(number_of_types(data));
 }
 
