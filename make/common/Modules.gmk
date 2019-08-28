@@ -64,6 +64,7 @@ BOOT_MODULES += \
     jdk.management.jfr \
     jdk.management.agent \
     jdk.net \
+    jdk.nio.mapmode \
     jdk.sctp \
     jdk.unsupported \
     #

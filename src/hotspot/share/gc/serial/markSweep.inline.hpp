@@ -28,7 +28,7 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "gc/serial/markSweep.hpp"
 #include "memory/universe.hpp"
-#include "oops/markOop.inline.hpp"
+#include "oops/markWord.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -40,7 +40,7 @@ inline void MarkSweep::mark_object(oop obj) {
   markWord mark = obj->mark_raw();
   obj->set_mark_raw(markWord::prototype().set_marked());
 
-  if (mark.must_be_preserved(obj)) {
+  if (obj->mark_must_be_preserved(mark)) {
     preserve_mark(obj, mark);
   }
 }

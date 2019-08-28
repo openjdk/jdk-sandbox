@@ -28,7 +28,7 @@
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
 #include "oops/access.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/macros.hpp"
@@ -313,6 +313,11 @@ class oopDesc {
   inline markWord displaced_mark_raw() const;
   inline void     set_displaced_mark_raw(markWord m);
 
+  // Checks if the mark word needs to be preserved
+  inline bool mark_must_be_preserved() const;
+  inline bool mark_must_be_preserved(markWord m) const;
+  inline bool mark_must_be_preserved_for_promotion_failure(markWord m) const;
+
   static bool has_klass_gap();
 
   // for code generation
@@ -326,8 +331,6 @@ class oopDesc {
   // for error reporting
   static void* load_klass_raw(oop obj);
   static void* load_oop_raw(oop obj, int offset);
-  static bool  is_valid(oop obj);
-  static oop   oop_or_null(address addr);
 };
 
 #endif // SHARE_OOPS_OOP_HPP

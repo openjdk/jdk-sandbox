@@ -253,6 +253,8 @@ class LibraryCallKit : public GraphKit {
   static bool klass_needs_init_guard(Node* kls);
   bool inline_unsafe_allocate();
   bool inline_unsafe_newArray(bool uninitialized);
+  bool inline_unsafe_writeback0();
+  bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
   bool inline_native_currentThread();
 
@@ -755,6 +757,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
 #endif
   case vmIntrinsics::_currentTimeMillis:        return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeMillis), "currentTimeMillis");
   case vmIntrinsics::_nanoTime:                 return inline_native_time_funcs(CAST_FROM_FN_PTR(address, os::javaTimeNanos), "nanoTime");
+  case vmIntrinsics::_writeback0:               return inline_unsafe_writeback0();
+  case vmIntrinsics::_writebackPreSync0:        return inline_unsafe_writebackSync0(true);
+  case vmIntrinsics::_writebackPostSync0:       return inline_unsafe_writebackSync0(false);
   case vmIntrinsics::_allocateInstance:         return inline_unsafe_allocate();
   case vmIntrinsics::_copyMemory:               return inline_unsafe_copyMemory();
   case vmIntrinsics::_getLength:                return inline_native_getLength();
@@ -2848,6 +2853,55 @@ bool LibraryCallKit::klass_needs_init_guard(Node* kls) {
   return !ik->is_initialized();
 }
 
+//----------------------------inline_unsafe_writeback0-------------------------
+// public native void Unsafe.writeback0(long address)
+bool LibraryCallKit::inline_unsafe_writeback0() {
+  if (!Matcher::has_match_rule(Op_CacheWB)) {
+    return false;
+  }
+#ifndef PRODUCT
+  assert(Matcher::has_match_rule(Op_CacheWBPreSync), "found match rule for CacheWB but not CacheWBPreSync");
+  assert(Matcher::has_match_rule(Op_CacheWBPostSync), "found match rule for CacheWB but not CacheWBPostSync");
+  ciSignature* sig = callee()->signature();
+  assert(sig->type_at(0)->basic_type() == T_LONG, "Unsafe_writeback0 address is long!");
+#endif
+  null_check_receiver();  // null-check, then ignore
+  Node *addr = argument(1);
+  addr = new CastX2PNode(addr);
+  addr = _gvn.transform(addr);
+  Node *flush = new CacheWBNode(control(), memory(TypeRawPtr::BOTTOM), addr);
+  flush = _gvn.transform(flush);
+  set_memory(flush, TypeRawPtr::BOTTOM);
+  return true;
+}
+
+//----------------------------inline_unsafe_writeback0-------------------------
+// public native void Unsafe.writeback0(long address)
+bool LibraryCallKit::inline_unsafe_writebackSync0(bool is_pre) {
+  if (is_pre && !Matcher::has_match_rule(Op_CacheWBPreSync)) {
+    return false;
+  }
+  if (!is_pre && !Matcher::has_match_rule(Op_CacheWBPostSync)) {
+    return false;
+  }
+#ifndef PRODUCT
+  assert(Matcher::has_match_rule(Op_CacheWB),
+         (is_pre ? "found match rule for CacheWBPreSync but not CacheWB"
+                : "found match rule for CacheWBPostSync but not CacheWB"));
+
+#endif
+  null_check_receiver();  // null-check, then ignore
+  Node *sync;
+  if (is_pre) {
+    sync = new CacheWBPreSyncNode(control(), memory(TypeRawPtr::BOTTOM));
+  } else {
+    sync = new CacheWBPostSyncNode(control(), memory(TypeRawPtr::BOTTOM));
+  }
+  sync = _gvn.transform(sync);
+  set_memory(sync, TypeRawPtr::BOTTOM);
+  return true;
+}
+
 //----------------------------inline_unsafe_allocate---------------------------
 // public native Object Unsafe.allocateInstance(Class<?> cls);
 bool LibraryCallKit::inline_unsafe_allocate() {
@@ -3976,7 +4030,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   // Get the hash value and check to see that it has been properly assigned.
   // We depend on hash_mask being at most 32 bits and avoid the use of
   // hash_mask_in_place because it could be larger than 32 bits in a 64-bit
-  // vm: see markOop.hpp.
+  // vm: see markWord.hpp.
   Node *hash_mask      = _gvn.intcon(markWord::hash_mask);
   Node *hash_shift     = _gvn.intcon(markWord::hash_shift);
   Node *hshifted_header= _gvn.transform(new URShiftXNode(header, hash_shift));

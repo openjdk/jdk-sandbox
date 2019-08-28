@@ -74,6 +74,7 @@
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/generationSpec.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/locationPrinter.inline.hpp"
 #include "gc/shared/oopStorageParState.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
@@ -2490,6 +2491,10 @@ void G1CollectedHeap::print_all_rsets() {
 }
 #endif // PRODUCT
 
+bool G1CollectedHeap::print_location(outputStream* st, void* addr) const {
+  return BlockLocationPrinter<G1CollectedHeap>::print_location(st, addr);
+}
+
 G1HeapSummary G1CollectedHeap::create_g1_heap_summary() {
 
   size_t eden_used_bytes = _eden.used_bytes();
@@ -3988,8 +3993,8 @@ private:
       g1h->clear_region_attr(r);
 
       if (r->is_young()) {
-        assert(r->young_index_in_cset() != -1 && (uint)r->young_index_in_cset() < g1h->collection_set()->young_region_length(),
-               "Young index %d is wrong for region %u of type %s with %u young regions",
+        assert(r->young_index_in_cset() != 0 && (uint)r->young_index_in_cset() <= g1h->collection_set()->young_region_length(),
+               "Young index %u is wrong for region %u of type %s with %u young regions",
                r->young_index_in_cset(),
                r->hrm_index(),
                r->get_type_str(),
@@ -4008,7 +4013,7 @@ private:
                          true  /* locked */);
       } else {
         r->uninstall_surv_rate_group();
-        r->set_young_index_in_cset(-1);
+        r->clear_young_index_in_cset();
         r->set_evacuation_failed(false);
         // When moving a young gen region to old gen, we "allocate" that whole region
         // there. This is in addition to any already evacuated objects. Notify the
@@ -4381,7 +4386,7 @@ public:
   virtual bool do_heap_region(HeapRegion* r) {
     assert(r->in_collection_set(), "Region %u must have been in collection set", r->hrm_index());
     G1CollectedHeap::heap()->clear_region_attr(r);
-    r->set_young_index_in_cset(-1);
+    r->clear_young_index_in_cset();
     return false;
   }
 };
