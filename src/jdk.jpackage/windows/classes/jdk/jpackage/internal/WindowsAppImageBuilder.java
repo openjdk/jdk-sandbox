@@ -299,7 +299,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         File iconTarget = getConfig_AppIcon(params);
 
         InputStream in = locateResource(
-                APP_NAME.fetchFrom(params) + ".ico",
+                iconTarget.getName(),
                 "icon",
                 TEMPLATE_APP_ICON,
                 icon,

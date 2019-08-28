@@ -26,24 +26,17 @@
 package jdk.jpackage.internal;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.StandardCopyOption;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
-import java.util.Set;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -53,6 +46,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String LIBRARY_NAME = "libapplauncher.so";
+    private final static String DEFAULT_ICON = "java32.png";
 
     private final Path root;
     private final Path appDir;
@@ -199,12 +193,19 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private void copyIcon(Map<String, ? super Object> params)
             throws IOException {
+
         File icon = ICON_PNG.fetchFrom(params);
-        if (icon != null) {
-            File iconTarget = new File(binDir.toFile(),
-                    APP_NAME.fetchFrom(params) + ".png");
-            IOUtils.copyFile(icon, iconTarget);
-        }
+        File iconTarget = binDir.resolve(APP_NAME.fetchFrom(params) + ".png").toFile();
+
+        InputStream in = locateResource(
+                iconTarget.getName(),
+                "icon",
+                DEFAULT_ICON,
+                icon,
+                VERBOSE.fetchFrom(params),
+                RESOURCE_DIR.fetchFrom(params));
+
+        Files.copy(in, iconTarget.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
 
     private void copyApplication(Map<String, ? super Object> params)
