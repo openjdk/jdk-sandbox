@@ -96,15 +96,21 @@ public class LinuxDebBundler extends AbstractBundler {
                 return s;
             });
 
-    public static final BundlerParamInfo<String> FULL_PACKAGE_NAME =
-            new StandardBundlerParam<> (
-            "linux.deb.fullPackageName",
-            String.class,
-            params -> BUNDLE_NAME.fetchFrom(params) + "-"
-                    + VERSION.fetchFrom(params),
-            (s, p) -> s);
+    private static final BundlerParamInfo<String> FULL_PACKAGE_NAME =
+            new StandardBundlerParam<>(
+                    "linux.deb.fullPackageName", String.class, params -> {
+                        try {
+                            return BUNDLE_NAME.fetchFrom(params)
+                            + "_" + VERSION.fetchFrom(params)
+                            + "-" + RELEASE.fetchFrom(params)
+                            + "_" + getDebArch();
+                        } catch (IOException ex) {
+                            Log.verbose(ex);
+                            return null;
+                        }
+                    }, (s, p) -> s);
 
-    public static final BundlerParamInfo<File> DEB_IMAGE_DIR =
+    private static final BundlerParamInfo<File> DEB_IMAGE_DIR =
             new StandardBundlerParam<>(
             "linux.deb.imageDir",
             File.class,

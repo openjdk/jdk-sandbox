@@ -62,11 +62,7 @@ public class BundleNameBase {
         TEST_NAME = name;
         BUNDLE_NAME = "jpackage-test-bundle-name";
         EXT = ext;
-        if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + BUNDLE_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
-        } else {
-            OUTPUT = "output" + File.separator + BUNDLE_NAME + "-1.0." + EXT;
-        }
+        OUTPUT = Base.getBundlePath(BUNDLE_NAME, EXT);
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",

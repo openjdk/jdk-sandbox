@@ -83,11 +83,7 @@ public class LicenseTypeBase {
         TEST_NAME = name;
         EXT = ext;
         JP_LICENSE_TYPE = "JP_LICENSE_TYPE";
-        if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
-        } else {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
-        }
+        OUTPUT = Base.getBundlePath(TEST_NAME, EXT);
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",

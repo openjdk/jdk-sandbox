@@ -62,7 +62,6 @@ public class MaintainerBase {
                 }
             }
         }
-
         if (!maintainerFound) {
             throw new AssertionError("Maintainer field not found");
         }
@@ -92,7 +91,7 @@ public class MaintainerBase {
         TEST_NAME = name;
         EMAIL = "jpackage-test@java.com";
         EXT = ext;
-        OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
+        OUTPUT = Base.getBundlePath(TEST_NAME, EXT);
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",

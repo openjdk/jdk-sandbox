@@ -23,6 +23,7 @@
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -58,24 +59,37 @@ public class Base {
         }
     }
 
-    static String getRpmArch() throws Exception {
-        File out = File.createTempFile("rpmbuild", ".out");
+    private static String getArch(String[] commandLine) throws Exception {
+        File out = File.createTempFile(commandLine[0], ".out");
         out.deleteOnExit();
-        int code = JPackageHelper.execute(out, "rpmbuild", "--eval=%{_target_cpu}");
+        int code = JPackageHelper.execute(out, commandLine);
         if (code != 0) {
-            throw new AssertionError("Error: unable to get rpm arch");
+            throw new AssertionError("Error: unable to get arch");
         }
-        return Files.readAllLines(out.toPath()).get(0);
+        return Files.readString(out.toPath()).strip();
+    }
+
+    static String getBundlePath(String basename, String ext) throws Exception {
+        return getBundlePath(basename, "1.0", "1", ext);
+    }
+
+    static String getBundlePath(String basename, String version, String release, String ext)
+            throws Exception {
+        String name;
+        if (ext.equals("rpm")) {
+            String arch = getArch(new String[] { "rpmbuild", "--eval=%{_target_cpu}" });
+            name = basename + "-" + version + "-" + release + "." + arch;
+        } else {
+            String arch = getArch(new String[] { "dpkg", "--print-architecture" });
+            name = basename + "_" + version + "-" + release + "_" + arch;
+        }
+        return Path.of("output", name + "." + ext).toString();
     }
 
     private static void init(String name, String ext) throws Exception {
         TEST_NAME = name;
         EXT = ext;
-        if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + getRpmArch() + "." + EXT;
-        } else {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
-        }
+        OUTPUT = getBundlePath(TEST_NAME, EXT);
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",

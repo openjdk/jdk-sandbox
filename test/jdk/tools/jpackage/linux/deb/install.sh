@@ -1,8 +1,9 @@
-sudo dpkg -i test-1.0.deb
-sudo dpkg -i fileassociationstest-1.0.deb
-sudo dpkg -i licensetest-1.0.deb
-sudo dpkg -i installdirtest-1.0.deb
-sudo dpkg -i jpackage-test-bundle-name-1.0.deb
-sudo dpkg -i maintainertest-1.0.deb
-sudo dpkg -i packagedepstestdep-1.0.deb
-sudo dpkg -i packagedepstest-1.0.deb
+ARCH=$(dpkg --print-architecture)
+sudo dpkg -i test_1.0-*_${ARCH}.deb
+sudo dpkg -i fileassociationstest_1.0-*_${ARCH}.deb
+sudo dpkg -i licensetest_1.0-*_${ARCH}.deb
+sudo dpkg -i installdirtest_1.0-*_${ARCH}.deb
+sudo dpkg -i jpackage-test-bundle-name_1.0-*_${ARCH}.deb
+sudo dpkg -i maintainertest_1.0-*_${ARCH}.deb
+sudo dpkg -i packagedepstestdep_1.0-*_${ARCH}.deb
+sudo dpkg -i packagedepstest_1.0-*_${ARCH}.deb

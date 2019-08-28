@@ -105,13 +105,8 @@ public class PackageDepsBase {
         TEST_NAME = name;
         DEP_NAME = name + "Dep";
         EXT = ext;
-        if (EXT.equals("rpm")) {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
-            OUTPUT_DEP = "output" + File.separator + DEP_NAME + "-1.0-1." + Base.getRpmArch() + "." + EXT;
-        } else {
-            OUTPUT = "output" + File.separator + TEST_NAME + "-1.0." + EXT;
-            OUTPUT_DEP = "output" + File.separator + DEP_NAME + "-1.0." + EXT;
-        }
+        OUTPUT = Base.getBundlePath(TEST_NAME, EXT);
+        OUTPUT_DEP = Base.getBundlePath(DEP_NAME, EXT);
         CMD = new String[]{
             "--package-type", EXT,
             "--input", "input",
