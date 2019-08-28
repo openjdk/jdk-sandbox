@@ -418,7 +418,7 @@ void StackTraceInstall::install_to_sample(ObjectSample* sample, const JfrStackTr
   assert(stack_trace != NULL, "invariant");
   DEBUG_ONLY(validate_stack_trace(sample, stack_trace));
   JfrStackTrace* const sample_trace = const_cast<JfrStackTrace*>(sample->stack_trace());
-  if (sample_trace != NULL) {
+  if (sample_trace != NULL && sample_trace->id() != stack_trace->id()) {
     *sample_trace = *stack_trace; // copy
   } else {
     sample->set_stack_trace(new JfrStackTrace(stack_trace->id(), *stack_trace, NULL)); // new

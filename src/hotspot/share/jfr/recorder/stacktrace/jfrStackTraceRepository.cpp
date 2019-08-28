@@ -27,6 +27,7 @@
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/stacktrace/jfrStackTraceRepository.hpp"
+#include "jfr/support/jfrThreadLocal.hpp"
 #include "runtime/mutexLocker.hpp"
 
 static JfrStackTraceRepository* _instance = NULL;
@@ -158,19 +159,12 @@ traceid JfrStackTraceRepository::record(Thread* thread, int skip /* 0 */) {
   }
   assert(frames != NULL, "invariant");
   assert(tl->stackframes() == frames, "invariant");
-  return instance().record_for((JavaThread*)thread, skip,frames, tl->stackdepth());
+  return instance().record_for((JavaThread*)thread, skip, frames, tl->stackdepth());
 }
 
 traceid JfrStackTraceRepository::record_for(JavaThread* thread, int skip, JfrStackFrame *frames, u4 max_frames) {
   JfrStackTrace stacktrace(frames, max_frames);
   return stacktrace.record_safe(thread, skip) ? add(stacktrace) : 0;
-}
-
-traceid JfrStackTraceRepository::add(const JfrStackTrace* stacktrace, JavaThread* thread) {
-  assert(stacktrace != NULL, "invariant");
-  assert(thread != NULL, "invariant");
-  assert(stacktrace->hash() != 0, "invariant");
-  return add(*stacktrace);
 }
 
 traceid JfrStackTraceRepository::add(const JfrStackTrace& stacktrace) {
@@ -181,6 +175,20 @@ traceid JfrStackTraceRepository::add(const JfrStackTrace& stacktrace) {
   }
   assert(tid != 0, "invariant");
   return tid;
+}
+
+traceid JfrStackTraceRepository::record_and_cache(JavaThread* thread, int skip /* 0 */) {
+  JfrThreadLocal* const tl = thread->jfr_thread_local();
+  assert(tl != NULL, "invariant");
+  if (tl->has_cached_stack_trace()) {
+    return tl->cached_stack_trace_id();
+  }
+  JfrStackTrace stacktrace(tl->stackframes(), tl->stackdepth());
+  stacktrace.record_safe(thread, skip);
+  assert(stacktrace.hash() != 0, "invariant");
+  const traceid id = instance().add(stacktrace);
+  tl->set_cached_stack_trace_id(id, stacktrace.hash());
+  return id;
 }
 
 traceid JfrStackTraceRepository::add_trace(const JfrStackTrace& stacktrace) {
@@ -217,17 +225,3 @@ const JfrStackTrace* JfrStackTraceRepository::lookup(unsigned int hash, traceid 
   assert(trace->id() == id, "invariant");
   return trace;
 }
-
-bool JfrStackTraceRepository::fill_stacktrace_for(JavaThread* thread, JfrStackTrace* stacktrace, int skip) {
-  assert(thread == Thread::current(), "invariant");
-  assert(stacktrace != NULL, "invariant");
-  JfrThreadLocal* const tl = thread->jfr_thread_local();
-  assert(tl != NULL, "invariant");
-  const unsigned int cached_stacktrace_hash = tl->cached_stack_trace_hash();
-  if (cached_stacktrace_hash != 0) {
-    stacktrace->set_hash(cached_stacktrace_hash);
-    return true;
-  }
-  return stacktrace->record_safe(thread, skip);
-}
-

@@ -32,7 +32,6 @@ typedef u8 traceid;
 
 class BoolObjectClosure;
 class JavaThread;
-class JfrStackTrace;
 class OopClosure;
 class ObjectSample;
 class SampleList;
@@ -61,13 +60,9 @@ class ObjectSampler : public CHeapObj<mtTracing> {
   static bool is_created();
   static void destroy();
 
-  // Stacktrace
-  static void fill_stacktrace(JfrStackTrace* stacktrace, JavaThread* thread);
-  traceid stacktrace_id(const JfrStackTrace* stacktrace, JavaThread* thread);
-
   // Sampling
   static void sample(HeapWord* object, size_t size, JavaThread* thread);
-  void add(HeapWord* object, size_t size, traceid thread_id, JfrStackTrace* stacktrace, JavaThread* thread);
+  void add(HeapWord* object, size_t size, traceid thread_id, JavaThread* thread);
   void scavenge();
   void remove_dead(ObjectSample* sample);
 

@@ -37,6 +37,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   friend class FlushStackTraceRepository;
   friend class JfrRecorder;
   friend class JfrRecorderService;
+  friend class JfrThreadSampleClosure;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class StackTraceInstall;
@@ -64,14 +65,13 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   size_t clear();
 
   traceid add_trace(const JfrStackTrace& stacktrace);
-  static traceid add(const JfrStackTrace* stacktrace, JavaThread* thread);
+  static traceid add(const JfrStackTrace& stacktrace);
   traceid record_for(JavaThread* thread, int skip, JfrStackFrame* frames, u4 max_frames);
   const JfrStackTrace* lookup(unsigned int hash, traceid id) const;
-  static bool fill_stacktrace_for(JavaThread* thread, JfrStackTrace* stacktrace, int skip);
 
  public:
-  static traceid add(const JfrStackTrace& stacktrace);
   static traceid record(Thread* thread, int skip = 0);
+  static traceid record_and_cache(JavaThread* thread, int skip = 0);
 };
 
 #endif // SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACEREPOSITORY_HPP
