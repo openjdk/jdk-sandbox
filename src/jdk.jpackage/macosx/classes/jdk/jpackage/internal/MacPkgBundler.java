@@ -55,7 +55,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MacResources");
 
-    private static final String DEFAULT_BACKGROUND_IMAGE = "background_pkg.png";
+    private static final String DEFAULT_BACKGROUND_IMAGE = "background_dmg.png";
 
     private static final String TEMPLATE_PREINSTALL_SCRIPT =
             "preinstall.template";

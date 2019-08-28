@@ -66,7 +66,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
     private final static String REDIST_MSVCR = "vcruntimeVS_VER.dll";
     private final static String REDIST_MSVCP = "msvcpVS_VER.dll";
 
-    private final static String TEMPLATE_APP_ICON ="javalogo_white_48.ico";
+    private final static String TEMPLATE_APP_ICON ="java48.ico";
 
     private static final String EXECUTABLE_PROPERTIES_TEMPLATE =
             "WinLauncher.template";

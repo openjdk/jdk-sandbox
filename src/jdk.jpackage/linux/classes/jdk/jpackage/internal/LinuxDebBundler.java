@@ -215,7 +215,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 (s, p) -> s
         );
 
-    private final static String DEFAULT_ICON = "javalogo_white_32.png";
+    private final static String DEFAULT_ICON = "java32.png";
     private final static String DEFAULT_CONTROL_TEMPLATE = "template.control";
     private final static String DEFAULT_PRERM_TEMPLATE = "template.prerm";
     private final static String DEFAULT_PREINSTALL_TEMPLATE =

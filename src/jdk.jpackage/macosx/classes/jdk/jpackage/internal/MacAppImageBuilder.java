@@ -65,7 +65,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             "jdk.jpackage.internal.resources.MacResources");
 
     private static final String LIBRARY_NAME = "libapplauncher.dylib";
-    private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
+    private static final String TEMPLATE_BUNDLE_ICON = "java.icns";
     private static final String OS_TYPE_CODE = "APPL";
     private static final String TEMPLATE_INFO_PLIST_LITE =
             "Info-lite.plist.template";

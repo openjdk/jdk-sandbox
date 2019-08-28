@@ -44,7 +44,7 @@ public class MacAppBundler extends AbstractImageBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MacResources");
 
-    private static final String TEMPLATE_BUNDLE_ICON = "GenericApp.icns";
+    private static final String TEMPLATE_BUNDLE_ICON = "java.icns";
 
     public static Map<String, String> getMacCategories() {
         Map<String, String> map = new HashMap<>();

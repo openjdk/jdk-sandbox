@@ -45,8 +45,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     private static final ResourceBundle I18N = ResourceBundle.getBundle(
             "jdk.jpackage.internal.resources.MacResources");
 
-    private static final String TEMPLATE_BUNDLE_ICON_HIDPI =
-            "GenericAppHiDPI.icns";
+    private static final String TEMPLATE_BUNDLE_ICON_HIDPI = "java.icns";
     private final static String DEFAULT_ENTITLEMENTS =
             "MacAppStore.entitlements";
     private final static String DEFAULT_INHERIT_ENTITLEMENTS =

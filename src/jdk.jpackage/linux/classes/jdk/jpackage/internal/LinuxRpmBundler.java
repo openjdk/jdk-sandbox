@@ -154,7 +154,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             },
             (s, p) -> s);
 
-    private final static String DEFAULT_ICON = "javalogo_white_32.png";
+    private final static String DEFAULT_ICON = "java32.png";
     private final static String DEFAULT_SPEC_TEMPLATE = "template.spec";
     private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
             "template.desktop";
