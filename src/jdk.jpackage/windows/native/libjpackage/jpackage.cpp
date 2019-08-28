@@ -45,7 +45,8 @@ extern "C" {
      * Method:    iconSwap
      * Signature: (Ljava/lang/String;Ljava/lang/String;)I
      */
-    JNIEXPORT jint JNICALL Java_jdk_jpackage_internal_WindowsAppImageBuilder_iconSwap(
+    JNIEXPORT jint JNICALL
+            Java_jdk_jpackage_internal_WindowsAppImageBuilder_iconSwap(
             JNIEnv *pEnv, jclass c, jstring jIconTarget, jstring jLauncher) {
         wstring iconTarget = GetStringFromJString(pEnv, jIconTarget);
         wstring launcher = GetStringFromJString(pEnv, jLauncher);
@@ -62,10 +63,13 @@ extern "C" {
      * Method:    versionSwap
      * Signature: (Ljava/lang/String;Ljava/lang/String;)I
      */
-    JNIEXPORT jint JNICALL Java_jdk_jpackage_internal_WindowsAppImageBuilder_versionSwap(
-            JNIEnv *pEnv, jclass c, jstring jExecutableProperties, jstring jLauncher) {
+    JNIEXPORT jint JNICALL
+            Java_jdk_jpackage_internal_WindowsAppImageBuilder_versionSwap(
+            JNIEnv *pEnv, jclass c, jstring jExecutableProperties,
+            jstring jLauncher) {
 
-        wstring executableProperties = GetStringFromJString(pEnv, jExecutableProperties);
+        wstring executableProperties = GetStringFromJString(pEnv,
+                jExecutableProperties);
         wstring launcher = GetStringFromJString(pEnv, jLauncher);
 
         VersionInfoSwap vs(executableProperties, launcher);
@@ -101,7 +105,8 @@ extern "C" {
         return 1;
     }
 
-    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) {
+    BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
+            LPVOID lpvReserved) {
         return TRUE;
     }
 

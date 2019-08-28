@@ -102,7 +102,7 @@ class ValidOptions {
             options.put(CLIOptions.WIN_DIR_CHOOSER.getId(), USE.INSTALL);
             options.put(CLIOptions.WIN_UPGRADE_UUID.getId(), USE.INSTALL);
             options.put(CLIOptions.WIN_PER_USER_INSTALLATION.getId(),
-                        USE.INSTALL);
+                    USE.INSTALL);
         }
 
         if (Platform.getPlatform() == Platform.MAC) {
@@ -110,22 +110,23 @@ class ValidOptions {
             options.put(CLIOptions.MAC_BUNDLE_NAME.getId(), USE.ALL);
             options.put(CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(), USE.ALL);
             options.put(CLIOptions.MAC_BUNDLE_SIGNING_PREFIX.getId(),
-                        USE.ALL);
+                    USE.ALL);
             options.put(CLIOptions.MAC_SIGNING_KEY_NAME.getId(), USE.ALL);
             options.put(CLIOptions.MAC_SIGNING_KEYCHAIN.getId(), USE.ALL);
             options.put(CLIOptions.MAC_APP_STORE_CATEGORY.getId(), USE.ALL);
             options.put(CLIOptions.MAC_APP_STORE_ENTITLEMENTS.getId(),
-                        USE.ALL);
+                    USE.ALL);
         }
 
         if (Platform.getPlatform() == Platform.LINUX) {
             options.put(CLIOptions.LINUX_BUNDLE_NAME.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_DEB_MAINTAINER.getId(), USE.INSTALL);
-            options.put(CLIOptions.LINUX_DEB_COPYRIGHT_FILE.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_DEB_COPYRIGHT_FILE.getId(),
+                    USE.INSTALL);
             options.put(CLIOptions.LINUX_CATEGORY.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_RPM_LICENSE_TYPE.getId(), USE.INSTALL);
             options.put(CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
-                        USE.INSTALL);
+                    USE.INSTALL);
             options.put(CLIOptions.LINUX_MENU_GROUP.getId(), USE.INSTALL);
             options.put(CLIOptions.RELEASE.getId(), USE.INSTALL);
         }

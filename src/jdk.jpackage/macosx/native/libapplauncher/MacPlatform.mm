@@ -464,7 +464,8 @@ std::map<TString, TString> MacPlatform::GetKeys() {
                 _T("app.version")));
         keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINJAR_KEY,
                 _T("JavaMainJarName")));
-        keys.insert(std::map<TString, TString>::value_type(CONFIG_MAINMODULE_KEY,
+        keys.insert(std::map<TString,
+                TString>::value_type(CONFIG_MAINMODULE_KEY,
                 _T("JavaMainModuleName")));
         keys.insert(std::map<TString, TString>::value_type(
                 CONFIG_MAINCLASSNAME_KEY, _T("JavaMainClassName")));
@@ -474,7 +475,8 @@ std::map<TString, TString> MacPlatform::GetKeys() {
                 _T("CFBundleName")));
         keys.insert(std::map<TString, TString>::value_type(JAVA_RUNTIME_KEY,
                 _T("JavaRuntime")));
-        keys.insert(std::map<TString, TString>::value_type(JPACKAGE_APP_DATA_DIR,
+        keys.insert(std::map<TString,
+                TString>::value_type(JPACKAGE_APP_DATA_DIR,
                 _T("CFBundleIdentifier")));
 
         keys.insert(std::map<TString, TString>::value_type(CONFIG_SPLASH_KEY,

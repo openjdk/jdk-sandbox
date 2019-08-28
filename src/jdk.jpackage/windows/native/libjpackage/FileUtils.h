@@ -43,13 +43,15 @@ namespace FileUtils {
     // returns false if the path does not exist
     bool isDirectory(const tstring &filePath);
 
-    //checks if the specified directory is not empty
-    //returns true if the path is an existing directory and it contains at least one file other than "." or "..".
+    // checks if the specified directory is not empty
+    // returns true if the path is an existing directory and
+    // it contains at least one file other than "." or "..".
     bool isDirectoryNotEmpty(const tstring &dirPath);
 
     // returns directory part of the path.
     // returns empty string if the path contains only filename.
-    // if the path ends with slash/backslash, returns removeTrailingSlashes(path).
+    // if the path ends with slash/backslash,
+    // returns removeTrailingSlashes(path).
     tstring dirname(const tstring &path);
 
     // returns basename part of the path
@@ -73,18 +75,24 @@ namespace FileUtils {
     // removes trailing slashes and backslashes in the path if any
     tstring removeTrailingSlash(const tstring& path);
 
-    // Creates a file with unique name in the specified base directory, throws an exception if operation fails
+    // Creates a file with unique name in the specified base directory,
+    // throws an exception if operation fails
     // path is constructed as <prefix><random number><suffix>.
     // The function fails and throws exception if 'path' doesn't exist.
-    tstring createTempFile(const tstring &prefix = _T(""), const tstring &suffix = _T(".tmp"), const tstring &path=SysInfo::getTempDir());
+    tstring createTempFile(const tstring &prefix = _T(""),
+            const tstring &suffix = _T(".tmp"),
+            const tstring &path=SysInfo::getTempDir());
 
-    // Creates a directory with unique name in the specified base directory, throws an exception if operation fails
+    // Creates a directory with unique name in the specified base directory,
+    // throws an exception if operation fails
     // path is constructed as <prefix><random number><suffix>
     // The function fails and throws exception if 'path' doesn't exist.
-    tstring createTempDirectory(const tstring &prefix = _T(""), const tstring &suffix = _T(".tmp"), const tstring &basedir=SysInfo::getTempDir());
+    tstring createTempDirectory(const tstring &prefix = _T(""),
+            const tstring &suffix = _T(".tmp"),
+            const tstring &basedir=SysInfo::getTempDir());
 
-    // If the file referenced with "prototype" parameter DOES NOT exist, the return
-    // value is the given path. No new files created.
+    // If the file referenced with "prototype" parameter DOES NOT exist,
+    // the return value is the given path. No new files created.
     // Otherwise the function creates another file in the same directory as
     // the given file with the same suffix and with the basename from the
     // basename of the given file with some random chars appended to ensure
@@ -97,11 +105,15 @@ namespace FileUtils {
     // all subdirectories created by this function call.
     void createDirectory(const tstring &path, tstring_array* createdDirs=0);
 
-    // copies file from fromPath to toPath. Creates output directory if doesn't exist.
-    void copyFile(const tstring& fromPath, const tstring& toPath, bool failIfExists);
+    // copies file from fromPath to toPath.
+    // Creates output directory if doesn't exist.
+    void copyFile(const tstring& fromPath, const tstring& toPath,
+            bool failIfExists);
 
-    // moves file from fromPath to toPath. Creates output directory if doesn't exist.
-    void moveFile(const tstring& fromPath, const tstring& toPath, bool failIfExists);
+    // moves file from fromPath to toPath.
+    // Creates output directory if doesn't exist.
+    void moveFile(const tstring& fromPath, const tstring& toPath,
+            bool failIfExists);
 
     // Throws exception if fails to delete specified 'path'.
     // Exits normally if 'path' doesn't exist or it has been deleted.
@@ -131,10 +143,12 @@ namespace FileUtils {
     // 'dirPath' directory.
     // Doesn't abort iteration over files if the given directory after the
     // first failure to delete a file.
-    bool deleteFilesInDirectory(const tstring &dirPath, const std::nothrow_t &) throw();
+    bool deleteFilesInDirectory(const tstring &dirPath,
+            const std::nothrow_t &) throw();
     // Like deleteFilesInDirectory, but deletes subdirectories as well
     void deleteDirectoryRecursive(const tstring &dirPath);
-    bool deleteDirectoryRecursive(const tstring &dirPath, const std::nothrow_t &) throw();
+    bool deleteDirectoryRecursive(const tstring &dirPath,
+            const std::nothrow_t &) throw();
 
     class DirectoryCallback {
     public:
@@ -201,9 +215,12 @@ namespace FileUtils {
         tstring_array items;
     };
 
-    // Returns array of all the files/sub-folders from the given directory, empty array if basedir is not a directory. The returned
-    // array is ordered from top down (i.e. dirs are listed first followed by subfolders and files).
-    // Order of subfolders and files is undefined but usually they are sorted by names.
+    // Returns array of all the files/sub-folders from the given directory,
+    // empty array if basedir is not a directory. The returned
+    // array is ordered from top down (i.e. dirs are listed first followed
+    // by subfolders and files).
+    // Order of subfolders and files is undefined
+    // but usually they are sorted by names.
     inline tstring_array listAllContents(const tstring& basedir) {
         return DirectoryIterator(basedir).findItems();
     }
@@ -240,7 +257,8 @@ namespace FileUtils {
         Directory() {
         }
 
-        Directory(const tstring &parent, const tstring &subdir) : parent(parent), subdir(subdir)  {
+        Directory(const tstring &parent,
+                const tstring &subdir) : parent(parent), subdir(subdir)  {
         }
 
         operator tstring () const {
@@ -313,11 +331,13 @@ namespace FileUtils {
             return *this;
         }
 
-        // Schedule empty directory for deletion with empty roots (up to Directory.parent).
+        // Schedule empty directory for deletion with empty roots
+        // (up to Directory.parent).
         Deleter& appendEmptyDirectory(const Directory& dir);
 
         // Schedule empty directory for deletion without roots.
-        // This is a particular case of appendEmptyDirectory(const Directory& dir)
+        // This is a particular case of
+        // appendEmptyDirectory(const Directory& dir)
         // with Directory(dirname(path), basename(path)).
         Deleter& appendEmptyDirectory(const tstring& path);
 

@@ -38,8 +38,9 @@ public:
 
     // returns string "system error <errCode> (error_description)"
     // in UNICODE is not defined, the string returned is utf8-encoded
-    static std::wstring getSysErrorMessage(DWORD errCode = GetLastError(), HMODULE moduleHandle = NULL);
-    
+    static std::wstring getSysErrorMessage(DWORD errCode = GetLastError(),
+            HMODULE moduleHandle = NULL);
+
     // returns string "COM error 0x<hr> (error_description)"
     // in UNICODE is not defined, the string returned is utf8-encoded
     static std::wstring getComErrorMessage(HRESULT hr);

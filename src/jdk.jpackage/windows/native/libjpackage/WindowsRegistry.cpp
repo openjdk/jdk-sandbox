@@ -44,8 +44,10 @@ extern "C" {
      * Method:    readDwordValue
      * Signature: (ILjava/lang/String;Ljava/lang/String;I)I
      */
-    JNIEXPORT jint JNICALL Java_jdk_jpackage_internal_WindowsRegistry_readDwordValue(
-            JNIEnv *pEnv, jclass c, jint key, jstring jSubKey, jstring jValue, jint defaultValue) {
+    JNIEXPORT jint JNICALL
+            Java_jdk_jpackage_internal_WindowsRegistry_readDwordValue(
+            JNIEnv *pEnv, jclass c, jint key, jstring jSubKey,
+            jstring jValue, jint defaultValue) {
         jint jResult = defaultValue;
 
         if (key != jdk_jpackage_internal_WindowsRegistry_HKEY_LOCAL_MACHINE) {
@@ -78,7 +80,8 @@ extern "C" {
      * Method:    openRegistryKey
      * Signature: (ILjava/lang/String;)J
      */
-    JNIEXPORT jlong JNICALL Java_jdk_jpackage_internal_WindowsRegistry_openRegistryKey(
+    JNIEXPORT jlong JNICALL
+            Java_jdk_jpackage_internal_WindowsRegistry_openRegistryKey(
             JNIEnv *pEnv, jclass c, jint key, jstring jSubKey) {
         if (key != jdk_jpackage_internal_WindowsRegistry_HKEY_LOCAL_MACHINE) {
             return 0;
@@ -100,16 +103,18 @@ extern "C" {
      * Method:    enumRegistryValue
      * Signature: (JI)Ljava/lang/String;
      */
-    JNIEXPORT jstring JNICALL Java_jdk_jpackage_internal_WindowsRegistry_enumRegistryValue(
+    JNIEXPORT jstring JNICALL
+            Java_jdk_jpackage_internal_WindowsRegistry_enumRegistryValue(
             JNIEnv *pEnv, jclass c, jlong lKey, jint jIndex) {
         HKEY hKey = (HKEY)lKey;
-        TCHAR valueName[VALUE_NAME_SIZE] = {0}; // Max value name size per MSDN plus NULL
+        TCHAR valueName[VALUE_NAME_SIZE] = {0}; // Max size per MSDN plus NULL
         DWORD cchValueName = VALUE_NAME_SIZE;
-        LSTATUS status = RegEnumValue(hKey, (DWORD)jIndex, valueName, &cchValueName,
-                                      NULL, NULL, NULL, NULL);
+        LSTATUS status = RegEnumValue(hKey, (DWORD)jIndex, valueName,
+                &cchValueName, NULL, NULL, NULL, NULL);
         if (status == ERROR_SUCCESS) {
             size_t chLength = 0;
-            if (StringCchLength(valueName, VALUE_NAME_SIZE, &chLength) == S_OK) {
+            if (StringCchLength(valueName, VALUE_NAME_SIZE, &chLength)
+                    == S_OK) {
                 return GetJStringFromString(pEnv, valueName, (jsize)chLength);
             }
         }
@@ -122,7 +127,8 @@ extern "C" {
      * Method:    closeRegistryKey
      * Signature: (J)V
      */
-    JNIEXPORT void JNICALL Java_jdk_jpackage_internal_WindowsRegistry_closeRegistryKey(
+    JNIEXPORT void JNICALL
+            Java_jdk_jpackage_internal_WindowsRegistry_closeRegistryKey(
             JNIEnv *pEnc, jclass c, jlong lKey) {
         HKEY hKey = (HKEY)lKey;
         RegCloseKey(hKey);
@@ -133,8 +139,9 @@ extern "C" {
      * Method:    comparePaths
      * Signature: (Ljava/lang/String;Ljava/lang/String;)Z
      */
-     JNIEXPORT jboolean JNICALL Java_jdk_jpackage_internal_WindowsRegistry_comparePaths(
-             JNIEnv *pEnv, jclass c, jstring jPath1, jstring jPath2) {
+     JNIEXPORT jboolean JNICALL
+            Java_jdk_jpackage_internal_WindowsRegistry_comparePaths(
+            JNIEnv *pEnv, jclass c, jstring jPath1, jstring jPath2) {
          wstring path1 = GetStringFromJString(pEnv, jPath1);
          wstring path2 = GetStringFromJString(pEnv, jPath2);
 

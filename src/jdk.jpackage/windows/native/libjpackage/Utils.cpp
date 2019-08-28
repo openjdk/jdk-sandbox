@@ -41,7 +41,8 @@ wstring GetStringFromJString(JNIEnv *pEnv, jstring jstr) {
     return wstr;
 }
 
-jstring GetJStringFromString(JNIEnv *pEnv, const jchar *unicodeChars, jsize len) {
+jstring GetJStringFromString(JNIEnv *pEnv,
+            const jchar *unicodeChars, jsize len) {
     return pEnv->NewString(unicodeChars, len);
 }
 
@@ -64,7 +65,8 @@ wstring GetLongPath(wstring path) {
             delete [] pBuffer;
             pBuffer = new TCHAR[dwResult];
             if (pBuffer != NULL) {
-                DWORD dwResult2 = GetLongPathName(path.c_str(), pBuffer, dwResult);
+                DWORD dwResult2 =
+                        GetLongPathName(path.c_str(), pBuffer, dwResult);
                 if (dwResult2 == (dwResult - 1)) {
                     result = wstring(pBuffer);
                 }

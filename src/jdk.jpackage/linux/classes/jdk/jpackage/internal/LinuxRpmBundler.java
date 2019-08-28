@@ -124,8 +124,8 @@ public class LinuxRpmBundler extends AbstractBundler {
                 params -> I18N.getString("param.license-type.default"),
                 (s, p) -> s
         );
-    
-    public static final BundlerParamInfo<String> GROUP = 
+
+    public static final BundlerParamInfo<String> GROUP =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.LINUX_CATEGORY.getId(),
             String.class,

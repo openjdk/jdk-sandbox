@@ -124,7 +124,8 @@ final class WindowsRegistry {
     private static native void closeRegistryKey(long lKey);
 
     /**
-     * Compares two Windows paths regardless case and if paths are short or long.
+     * Compares two Windows paths regardless case and if paths
+     * are short or long.
      *
      * @param path1 path to compare
      * @param path2 path to compare

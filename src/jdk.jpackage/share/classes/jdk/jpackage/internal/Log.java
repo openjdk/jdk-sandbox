@@ -44,7 +44,7 @@ public class Log {
         // verbose defaults to true unless environment variable JPACKAGE_DEBUG
         // is set to true.
         // Then it is only set to true by using --verbose jpackage option
-        
+
         public Logger() {
             verbose = ("true".equals(System.getenv("JPACKAGE_DEBUG")));
         }

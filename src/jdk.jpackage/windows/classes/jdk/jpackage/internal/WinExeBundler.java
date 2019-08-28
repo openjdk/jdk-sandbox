@@ -128,7 +128,8 @@ public class WinExeBundler extends AbstractBundler {
         // Embed msi in msi wrapper exe.
         embedMSI(exePath, msi.getAbsolutePath());
 
-        Path dstExePath = Paths.get(outdir.getAbsolutePath(), Path.of(exePath).getFileName().toString());
+        Path dstExePath = Paths.get(outdir.getAbsolutePath(),
+                Path.of(exePath).getFileName().toString());
         Files.deleteIfExists(dstExePath);
 
         Files.copy(Path.of(exePath), dstExePath);

@@ -322,7 +322,7 @@ public class Arguments {
 
         LINUX_DEB_MAINTAINER ("linux-deb-maintainer",
                 OptionCategories.PLATFORM_LINUX),
-        
+
         LINUX_DEB_COPYRIGHT_FILE ("linux-deb-copyright-file",
                 OptionCategories.PLATFORM_LINUX),
 

@@ -24,9 +24,9 @@
 /*
  * Test --win-menu and --win-menu-group parameters.
  * Output of the test should be WinMenuGroupTest-1.0.exe installer.
- * The output installer should provide the same functionality as the default 
- * installer (see description of the default installer in Test.java) plus 
- * it should create a shortcut for application launcher in Windows Menu in 
+ * The output installer should provide the same functionality as the default
+ * installer (see description of the default installer in Test.java) plus
+ * it should create a shortcut for application launcher in Windows Menu in
  * "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\WinMenuGroupTest_MenuGroup" folder.
  */
 

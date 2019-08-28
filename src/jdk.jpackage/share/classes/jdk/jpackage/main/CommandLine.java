@@ -71,7 +71,8 @@ class CommandLine {
         return newArgs.toArray(new String[newArgs.size()]);
     }
 
-    private static void appendParsedCommandArgs(List<String> newArgs, List<String> args) throws IOException {
+    private static void appendParsedCommandArgs(List<String> newArgs,
+            List<String> args) throws IOException {
         for (String arg : args) {
             if (arg.length() > 1 && arg.charAt(0) == '@') {
                 arg = arg.substring(1);
@@ -86,11 +87,13 @@ class CommandLine {
         }
     }
 
-    private static void loadCmdFile(String name, List<String> args) throws IOException {
+    private static void loadCmdFile(String name, List<String> args)
+            throws IOException {
         if (!Files.isReadable(Path.of(name))) {
             throw new FileNotFoundException(name);
         }
-        try (Reader r = Files.newBufferedReader(Paths.get(name), Charset.defaultCharset())) {
+        try (Reader r = Files.newBufferedReader(Paths.get(name),
+                Charset.defaultCharset())) {
             Tokenizer t = new Tokenizer(r);
             String s;
             while ((s = t.nextToken()) != null) {
@@ -149,7 +152,9 @@ class CommandLine {
                             switch (ch) {
                                 case '\n':
                                 case '\r':
-                                    while (ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '\f') {
+                                    while (ch == ' ' || ch == '\n'
+                                            || ch == '\r' || ch == '\t'
+                                            || ch == '\f') {
                                         ch = in.read();
                                     }
                                     continue;

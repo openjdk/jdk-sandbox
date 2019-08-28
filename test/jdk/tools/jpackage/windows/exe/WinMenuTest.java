@@ -24,7 +24,7 @@
 /*
  * Test --win-menu parameter.
  * Output of the test should be WinMenuTest-1.0.exe installer.
- * The output installer should provide the same functionality as the default 
+ * The output installer should provide the same functionality as the default
  * installer (see description of the default installer in Test.java).
  */
 

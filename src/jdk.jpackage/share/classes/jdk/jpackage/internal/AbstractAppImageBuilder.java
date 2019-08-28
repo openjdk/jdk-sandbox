@@ -46,7 +46,7 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 /*
  * AbstractAppImageBuilder
  *     This is sub-classed by each of the platform dependent AppImageBuilder
- * classes, and contains resource processing code common to all platforms. 
+ * classes, and contains resource processing code common to all platforms.
  */
 
 public abstract class AbstractAppImageBuilder {

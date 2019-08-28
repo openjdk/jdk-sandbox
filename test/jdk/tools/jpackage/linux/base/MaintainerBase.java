@@ -62,7 +62,7 @@ public class MaintainerBase {
                 }
             }
         }
-        
+
         if (!maintainerFound) {
             throw new AssertionError("Maintainer field not found");
         }

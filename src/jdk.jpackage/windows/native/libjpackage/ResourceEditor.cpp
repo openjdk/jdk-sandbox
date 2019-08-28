@@ -33,7 +33,7 @@
 ResourceEditor::FileLock::FileLock(const std::wstring& binaryPath) {
     h = BeginUpdateResource(binaryPath.c_str(), FALSE);
     if (NULL == h) {
-        JP_THROW(SysError(tstrings::any() << "BeginUpdateResource(" 
+        JP_THROW(SysError(tstrings::any() << "BeginUpdateResource("
                     << binaryPath << ") failed", BeginUpdateResource));
     }
 
@@ -43,7 +43,7 @@ ResourceEditor::FileLock::FileLock(const std::wstring& binaryPath) {
 
 ResourceEditor::FileLock::~FileLock() {
     if (!EndUpdateResource(h, theDiscard)) {
-        JP_NO_THROW(JP_THROW(SysError(tstrings::any() 
+        JP_NO_THROW(JP_THROW(SysError(tstrings::any()
             << "EndUpdateResource(" << h << ") failed.", EndUpdateResource)));
     }
 }
@@ -91,7 +91,7 @@ ResourceEditor& ResourceEditor::id(LPCWSTR v) {
 }
 
 
-ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary, 
+ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary,
                             std::istream& srcStream, std::streamsize size) {
 
     typedef std::vector<BYTE> ByteArray;
@@ -102,10 +102,10 @@ ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary,
                                             std::istreambuf_iterator<char>());
     } else {
         buf.resize(size_t(size));
-        srcStream.read(reinterpret_cast<char*>(buf.data()), size); 
+        srcStream.read(reinterpret_cast<char*>(buf.data()), size);
     }
 
-    auto reply = UpdateResource(dstBinary.get(), theTypePtr, theIdPtr, lang, 
+    auto reply = UpdateResource(dstBinary.get(), theTypePtr, theIdPtr, lang,
                                 buf.data(), static_cast<DWORD>(buf.size()));
     if (reply == FALSE) {
         JP_THROW(SysError("UpdateResource() failed", UpdateResource));
@@ -115,7 +115,7 @@ ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary,
 }
 
 
-ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary, 
+ResourceEditor& ResourceEditor::apply(const FileLock& dstBinary,
                                                 const std::wstring& srcFile) {
     std::ifstream input(srcFile, std::ios_base::binary);
     input.exceptions(std::ios::failbit | std::ios::badbit);

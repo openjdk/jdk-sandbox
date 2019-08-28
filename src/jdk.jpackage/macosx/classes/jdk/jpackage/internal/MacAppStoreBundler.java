@@ -56,24 +56,24 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             "mac.signing-key-app",
             String.class,
             params -> {
-                    String result = MacBaseInstallerBundler.findKey(
-                            "3rd Party Mac Developer Application: " +
-                                    SIGNING_KEY_USER.fetchFrom(params),
-                            SIGNING_KEYCHAIN.fetchFrom(params),
+                String result = MacBaseInstallerBundler.findKey(
+                        "3rd Party Mac Developer Application: " +
+                        SIGNING_KEY_USER.fetchFrom(params),
+                        SIGNING_KEYCHAIN.fetchFrom(params),
+                        VERBOSE.fetchFrom(params));
+                if (result != null) {
+                    MacCertificate certificate = new MacCertificate(result,
                             VERBOSE.fetchFrom(params));
-                    if (result != null) {
-                        MacCertificate certificate = new MacCertificate(result,
-                                VERBOSE.fetchFrom(params));
 
-                        if (!certificate.isValid()) {
-                            Log.error(MessageFormat.format(
-                                    I18N.getString("error.certificate.expired"),
-                                    result));
-                        }
+                    if (!certificate.isValid()) {
+                        Log.error(MessageFormat.format(
+                                I18N.getString("error.certificate.expired"),
+                                result));
                     }
+                }
 
-                    return result;
-                },
+                return result;
+            },
             (s, p) -> s);
 
     public static final BundlerParamInfo<String> MAC_APP_STORE_PKG_SIGNING_KEY =
@@ -81,25 +81,25 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
             "mac.signing-key-pkg",
             String.class,
             params -> {
-                    String result = MacBaseInstallerBundler.findKey(
-                            "3rd Party Mac Developer Installer: " +
-                                    SIGNING_KEY_USER.fetchFrom(params),
-                            SIGNING_KEYCHAIN.fetchFrom(params),
-                            VERBOSE.fetchFrom(params));
+                String result = MacBaseInstallerBundler.findKey(
+                        "3rd Party Mac Developer Installer: " +
+                        SIGNING_KEY_USER.fetchFrom(params),
+                        SIGNING_KEYCHAIN.fetchFrom(params),
+                        VERBOSE.fetchFrom(params));
 
-                    if (result != null) {
-                        MacCertificate certificate = new MacCertificate(
-                                result, VERBOSE.fetchFrom(params));
+                if (result != null) {
+                    MacCertificate certificate = new MacCertificate(
+                            result, VERBOSE.fetchFrom(params));
 
-                        if (!certificate.isValid()) {
-                            Log.error(MessageFormat.format(
-                                    I18N.getString("error.certificate.expired"),
-                                    result));
-                        }
+                    if (!certificate.isValid()) {
+                        Log.error(MessageFormat.format(
+                                I18N.getString("error.certificate.expired"),
+                                result));
                     }
+                }
 
-                    return result;
-                },
+                return result;
+            },
             (s, p) -> s);
 
     public static final StandardBundlerParam<File> MAC_APP_STORE_ENTITLEMENTS  =

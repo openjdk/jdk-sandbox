@@ -388,6 +388,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
 
     private static native int iconSwap(String iconTarget, String launcher);
 
-    private static native int versionSwap(String executableProperties, String launcher);
+    private static native int versionSwap(String executableProperties,
+            String launcher);
 
 }

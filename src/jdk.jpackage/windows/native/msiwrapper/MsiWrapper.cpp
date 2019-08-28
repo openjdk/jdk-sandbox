@@ -28,7 +28,8 @@ int __stdcall WinMain(HINSTANCE, HINSTANCE, LPSTR lpCmdLine, int nShowCmd)
     Executor msiExecutor(SysInfo::getWIPath());
     msiExecutor.arg(L"/i").arg(msiPath);
     const auto args = SysInfo::getCommandArgs();
-    std::for_each(args.begin(), args.end(), [&msiExecutor] (const tstring& arg) {
+    std::for_each(args.begin(), args.end(),
+            [&msiExecutor] (const tstring& arg) {
         msiExecutor.arg(arg);
     });
 

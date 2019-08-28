@@ -91,7 +91,7 @@ public:
     ResourceEditor& apply(const FileLock& dstBinary, std::istream& srcStream, std::streamsize size=0);
 
     /**
-     * Relaces resource configured in the given binary with contents of 
+     * Relaces resource configured in the given binary with contents of
      * the given binary file.
      */
     ResourceEditor& apply(const FileLock& dstBinary, const std::wstring& srcFile);

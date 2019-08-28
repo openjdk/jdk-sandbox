@@ -23,12 +23,12 @@
 
 /*
  * Test both --win-upgrade-uuid and --app-version parameters.
- * Output of the test should be WinUpgradeUUIDTest-1.0.exe 
+ * Output of the test should be WinUpgradeUUIDTest-1.0.exe
  * and WinUpgradeUUIDTest-2.0.exe installers.
- * Both output installers should provide the same functionality as the default 
- * installer (see description of the default installer in Test.java) but have 
+ * Both output installers should provide the same functionality as the default
+ * installer (see description of the default installer in Test.java) but have
  * the same product code and different versions.
- * Running WinUpgradeUUIDTest-2.0.exe installer should automatically 
+ * Running WinUpgradeUUIDTest-2.0.exe installer should automatically
  * uninstall older version of the test application previously installed with
  * WinUpgradeUUIDTest-1.0.exe installer.
  */

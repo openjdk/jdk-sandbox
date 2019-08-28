@@ -126,7 +126,8 @@ public class LinuxAppBundler extends AbstractImageBundler {
     }
 
     private File doAppBundle(Map<String, ? super Object> params,
-            File outputDirectory, boolean dependentTask) throws PackagerException {
+            File outputDirectory, boolean dependentTask)
+            throws PackagerException {
         try {
             File rootDirectory = createRoot(params, outputDirectory,
                     dependentTask, APP_NAME.fetchFrom(params));

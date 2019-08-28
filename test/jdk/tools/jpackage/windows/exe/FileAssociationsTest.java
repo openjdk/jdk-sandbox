@@ -24,15 +24,15 @@
 /*
  * Test --file-associations parameter.
  * Output of the test should be FileAssociationsTest-1.0.exe installer.
- * The output installer should provide the same functionality as the default 
- * installer (see description of the default installer in Test.java) plus 
+ * The output installer should provide the same functionality as the default
+ * installer (see description of the default installer in Test.java) plus
  * configure file associations.
- * After installation files with ".jptest1" suffix should be associated with 
+ * After installation files with ".jptest1" suffix should be associated with
  * the test app.
  *
- * Suggested test scenario is to create empty file with ".jptest1" suffix, 
- * double click on it and make sure that test application was launched in 
- * response to double click event with the path to test .jptest1 file 
+ * Suggested test scenario is to create empty file with ".jptest1" suffix,
+ * double click on it and make sure that test application was launched in
+ * response to double click event with the path to test .jptest1 file
  * on the commend line.
  */
 

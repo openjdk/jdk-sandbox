@@ -24,9 +24,9 @@
 /*
  * Test --license-file parameter.
  * Output of the test should be LicenseTest-1.0.exe installer.
- * The output installer should provide the same functionality as the default 
- * installer (see description of the default installer in Test.java) plus 
- * should display license text matching contents of 
+ * The output installer should provide the same functionality as the default
+ * installer (see description of the default installer in Test.java) plus
+ * should display license text matching contents of
  * test/jdk/tools/jpackage/resources/license.txt file from OpenJDK repo.
  */
 

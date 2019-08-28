@@ -30,18 +30,20 @@
 #include "tstrings.h"
 
 
-/* Default logger (Logger::defaultLogger()) writes log messages to the default log file.
+/* Default logger (Logger::defaultLogger()) writes log messages to
+ * the default log file.
  * Common scenario:
  *   - main() function configures default logger:
  *       FileLogAppender appender(_T("my_log_filename.log"));
  *       Logger::defaultLogger().setAppender(appender);
  *       Logger::defaultLogger().setLogLevel(LOG_INFO);
- * If the default file name and log level are not set, _T("jusched.log")/LOG_TRACE are used.
+ * If the default file name and log level are not set,
+ *  _T("jusched.log")/LOG_TRACE are used.
  *
  * Logger fileName specifies only file name,
- * full path for the log file depends on the platform (usually value of the TMP env. var)
+ * full path for the log file depends on the platform
+ * (usually value of the TMP env. var)
  */
-
 
 struct LogEvent {
     SYSTEMTIME ts;
@@ -75,7 +77,7 @@ public:
 class TeeLogAppender: public LogAppender {
 public:
     TeeLogAppender(LogAppender* first, LogAppender* second):
-                                                first(first), second(second) {
+            first(first), second(second) {
     }
     virtual ~TeeLogAppender() {
     }
@@ -131,20 +133,22 @@ public:
     void setLogLevel(LogLevel logLevel);
 
     bool isLoggable(LogLevel logLevel) const ;
-    void log(LogLevel logLevel, LPCTSTR fileName, int lineNum, LPCTSTR funcName, const tstring& message) const;
     void log(LogLevel logLevel, LPCTSTR fileName, int lineNum,
-                    LPCTSTR funcName, const tstrings::any& message) const {
+            LPCTSTR funcName, const tstring& message) const;
+    void log(LogLevel logLevel, LPCTSTR fileName, int lineNum,
+            LPCTSTR funcName, const tstrings::any& message) const {
         return log(logLevel, fileName, lineNum, funcName, message.tstr());
     }
     void log(LogLevel logLevel, LPCTSTR fileName, int lineNum,
-                    LPCTSTR funcName, tstring::const_pointer message) const {
+            LPCTSTR funcName, tstring::const_pointer message) const {
         return log(logLevel, fileName, lineNum, funcName, tstring(message));
     }
 
     // internal class for scope tracing
     class ScopeTracer {
     public:
-        ScopeTracer(Logger &logger, LogLevel logLevel, LPCTSTR fileName, int lineNum, LPCTSTR funcName, const tstring& scopeName);
+        ScopeTracer(Logger &logger, LogLevel logLevel, LPCTSTR fileName,
+                int lineNum, LPCTSTR funcName, const tstring& scopeName);
         ~ScopeTracer();
 
     private:

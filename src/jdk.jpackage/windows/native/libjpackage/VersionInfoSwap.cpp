@@ -52,7 +52,8 @@ using namespace std;
  * the existing version resource will be replaced with new one.
  */
 
-VersionInfoSwap::VersionInfoSwap(wstring executableProperties, wstring launcher) {
+VersionInfoSwap::VersionInfoSwap(wstring executableProperties,
+        wstring launcher) {
     m_executableProperties = executableProperties;
     m_launcher = launcher;
 }

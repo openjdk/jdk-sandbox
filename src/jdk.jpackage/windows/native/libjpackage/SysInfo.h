@@ -61,10 +61,12 @@ namespace SysInfo {
     /**
      * Retrieves the command-line arguments for the current process.
      * With IncludeProgramName option returns result similar to argv/argc.
-     * With ExcludeProgramName option program name (the 1st element of command line)
+     * With ExcludeProgramName option program name
+     *  (the 1st element of command line)
      * is excluded.
      */
-    tstring_array getCommandArgs(CommandArgProgramNameMode progNameMode = ExcludeProgramName);
+    tstring_array getCommandArgs(
+            CommandArgProgramNameMode progNameMode = ExcludeProgramName);
 
     /**
      * Returns value of environment variable with the given name.
@@ -79,7 +81,7 @@ namespace SysInfo {
      * other error occurred reading the value.
      */
     tstring getEnvVariable(const std::nothrow_t&, const tstring& name,
-                                            const tstring& defValue=tstring());
+            const tstring& defValue=tstring());
 
     /**
      * Returns 'true' if environment variable with the given name is set.

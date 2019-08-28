@@ -61,7 +61,7 @@ std::wstring Executor::args() const {
 
 int Executor::execAndWaitForExit() const {
     UniqueHandle h = startProcess();
-    
+
     const DWORD res = ::WaitForSingleObject(h.get(), INFINITE);
     if (WAIT_FAILED ==  res) {
         JP_THROW(SysError("WaitForSingleObject() failed", WaitForSingleObject));
@@ -80,7 +80,7 @@ int Executor::execAndWaitForExit() const {
 
     LOG_TRACE(tstrings::any() << "Process with PID=" << processId
                                 << " terminated. Exit code=" << exitCode);
-    
+
     return static_cast<int>(exitCode);
 }
 

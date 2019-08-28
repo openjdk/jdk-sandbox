@@ -98,8 +98,7 @@ StderrLogAppender::StderrLogAppender() {
 
 
 /*static*/
-Logger& Logger::defaultLogger()
-{
+Logger& Logger::defaultLogger() {
     Logger* reply = reinterpret_cast<Logger*>(defaultLoggerMemory);
 
     if (!reply->appender) {
@@ -121,9 +120,10 @@ Logger& Logger::defaultLogger()
         std::memcpy(moduleName, mname.c_str(), mname.size());
         moduleName[mname.size()] = TCHAR(0);
 
-        // if JPACKAGE_DEBUG environment variable is NOT set to "true" disable 
+        // if JPACKAGE_DEBUG environment variable is NOT set to "true" disable
         // logging.
-        if (SysInfo::getEnvVariable(std::nothrow, L"JPACKAGE_DEBUG") != L"true") {
+        if (SysInfo::getEnvVariable(std::nothrow,
+                L"JPACKAGE_DEBUG") != L"true") {
             reply->appender = &nopLogApender;
         }
 
@@ -134,31 +134,27 @@ Logger& Logger::defaultLogger()
 }
 
 Logger::Logger(LogAppender& appender, LogLevel logLevel)
-    : level(logLevel), appender(&appender)
-{
+        : level(logLevel), appender(&appender) {
 }
 
-void Logger::setLogLevel(LogLevel logLevel)
-{
+void Logger::setLogLevel(LogLevel logLevel) {
     level = logLevel;
 }
 
-Logger::~Logger()
-{
+Logger::~Logger() {
 }
 
 
-bool Logger::isLoggable(LogLevel logLevel) const
-{
+bool Logger::isLoggable(LogLevel logLevel) const {
     return logLevel >= level;
 }
 
-void Logger::log(LogLevel logLevel, LPCTSTR fileName, int lineNum, LPCTSTR funcName, const tstring& message) const
-{
+void Logger::log(LogLevel logLevel, LPCTSTR fileName, int lineNum,
+        LPCTSTR funcName, const tstring& message) const {
     LogEvent logEvent;
 
-    // [YYYY/MM/DD HH:MM:SS.ms, <module> (PID: processID, TID: threadID), fileName:lineNum (funcName)]
-    // <tab>LEVEL: message
+    // [YYYY/MM/DD HH:MM:SS.ms, <module> (PID: processID, TID: threadID),
+    // fileName:lineNum (funcName)] <tab>LEVEL: message
     GetLocalTime(&logEvent.ts);
 
     logEvent.pid = GetCurrentProcessId();
@@ -177,8 +173,9 @@ void Logger::log(LogLevel logLevel, LPCTSTR fileName, int lineNum, LPCTSTR funcN
 void StderrLogAppender::append(const LogEvent& v)
 {
     const tstring out = tstrings::unsafe_format(format,
-        unsigned(v.ts.wYear), unsigned(v.ts.wMonth), unsigned(v.ts.wDay),                       // date
-        unsigned(v.ts.wHour), unsigned(v.ts.wMinute), unsigned(v.ts.wSecond), unsigned(v.ts.wMilliseconds), // time
+        unsigned(v.ts.wYear), unsigned(v.ts.wMonth), unsigned(v.ts.wDay),
+        unsigned(v.ts.wHour), unsigned(v.ts.wMinute), unsigned(v.ts.wSecond),
+                unsigned(v.ts.wMilliseconds),
         v.moduleName.c_str(), v.pid, v.tid,
         v.fileName.c_str(), v.lineNum, v.funcName.c_str(),
         v.logLevel.c_str(),
@@ -189,11 +186,14 @@ void StderrLogAppender::append(const LogEvent& v)
 
 
 // Logger::ScopeTracer
-Logger::ScopeTracer::ScopeTracer(Logger &logger, LogLevel logLevel, LPCTSTR fileName, int lineNum, LPCTSTR funcName, const tstring& scopeName)
-    : log(logger), level(logLevel), file(fileName), line(lineNum), func(funcName), scope(scopeName), needLog(logger.isLoggable(logLevel))
-{
+Logger::ScopeTracer::ScopeTracer(Logger &logger, LogLevel logLevel,
+        LPCTSTR fileName, int lineNum, LPCTSTR funcName,
+        const tstring& scopeName) : log(logger), level(logLevel),
+        file(fileName), line(lineNum),
+        func(funcName), scope(scopeName), needLog(logger.isLoggable(logLevel)) {
     if (needLog) {
-        log.log(level, file.c_str(), line, func.c_str(), tstrings::any() << "Entering " << scope);
+        log.log(level, file.c_str(), line, func.c_str(),
+                tstrings::any() << "Entering " << scope);
     }
 }
 
@@ -202,6 +202,7 @@ Logger::ScopeTracer::~ScopeTracer() {
         // we don't know what line is end of scope at, so specify line 0
         // and add note about line when the scope begins
         log.log(level, file.c_str(), 0, func.c_str(),
-            tstrings::any() << "Exiting " << scope << " (entered at " << FileUtils::basename(file) << ":" << line << ")");
+                tstrings::any() << "Exiting " << scope << " (entered at "
+                << FileUtils::basename(file) << ":" << line << ")");
     }
 }

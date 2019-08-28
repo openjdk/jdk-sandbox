@@ -81,7 +81,8 @@ TString LinuxPlatform::GetPackageLauncherDirectory() {
 }
 
 TString LinuxPlatform::GetPackageRuntimeBinDirectory() {
-    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory()) + _T("runtime/bin");
+    return FilePath::IncludeTrailingSeparator(GetPackageRootDirectory())
+            + _T("runtime/bin");
 }
 
 void LinuxPlatform::ShowMessage(TString title, TString description) {
@@ -1017,8 +1018,8 @@ XMLNode* FindXMLChild(XMLNode* root, const TCHAR* name) {
     return FindXMLChild(root->_next, name);
 }
 
-/* Search for an attribute with the given name and returns the contents. Returns NULL if
- * attribute is not found
+/* Search for an attribute with the given name and returns the contents.
+ * Returns NULL if attribute is not found
  */
 TCHAR* FindXMLAttribute(XMLAttribute* attr, const TCHAR* name) {
     if (attr == NULL) return NULL;

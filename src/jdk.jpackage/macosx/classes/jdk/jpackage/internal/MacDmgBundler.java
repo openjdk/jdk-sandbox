@@ -134,7 +134,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             }
 
             File licFile = new File(licFileStr);
-            byte[] licenseContentOriginal = Files.readAllBytes(licFile.toPath());
+            byte[] licenseContentOriginal =
+                    Files.readAllBytes(licFile.toPath());
             String licenseInBase64 =
                     Base64.getEncoder().encodeToString(licenseContentOriginal);
 

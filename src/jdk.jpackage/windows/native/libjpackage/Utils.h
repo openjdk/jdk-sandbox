@@ -32,7 +32,8 @@
 using namespace std;
 
 wstring GetStringFromJString(JNIEnv *pEnv, jstring jstr);
-jstring GetJStringFromString(JNIEnv *pEnv, const jchar *unicodeChars, jsize len);
+jstring GetJStringFromString(JNIEnv *pEnv, const jchar *unicodeChars,
+        jsize len);
 
 wstring GetLongPath(wstring path);
 

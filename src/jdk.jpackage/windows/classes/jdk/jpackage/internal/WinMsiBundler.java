@@ -421,7 +421,8 @@ public class WinMsiBundler  extends AbstractBundler {
 
         String licenseFile = LICENSE_FILE.fetchFrom(params);
         if (licenseFile != null) {
-            // need to copy license file to the working directory and convert to rtf if needed
+            // need to copy license file to the working directory
+            // and convert to rtf if needed
             File lfile = new File(licenseFile);
             File destFile = new File(CONFIG_ROOT.fetchFrom(params),
                     lfile.getName());
@@ -554,7 +555,8 @@ public class WinMsiBundler  extends AbstractBundler {
             File launcher = new File(imageRootDir,
                     WinAppBundler.getLauncherRelativePath(params));
             if (launcher.exists()) {
-                String iconPath = launcher.getAbsolutePath().replace(".exe", ".ico");
+                String iconPath = launcher.getAbsolutePath().replace(
+                        ".exe", ".ico");
                 if (MENU_HINT.fetchFrom(params)) {
                     xml.writeStartElement("Icon");
                     xml.writeAttribute("Id", "StartMenuIcon.exe");
@@ -628,7 +630,8 @@ public class WinMsiBundler  extends AbstractBundler {
         data.put("JpAppVendor", VENDOR.fetchFrom(params));
         data.put("JpAppVersion", PRODUCT_VERSION.fetchFrom(params));
 
-        data.put("JpConfigDir", CONFIG_ROOT.fetchFrom(params).getAbsolutePath());
+        data.put("JpConfigDir",
+                CONFIG_ROOT.fetchFrom(params).getAbsolutePath());
 
         File imageRootDir = WIN_APP_IMAGE.fetchFrom(params);
 
@@ -649,7 +652,8 @@ public class WinMsiBundler  extends AbstractBundler {
             String fname = "wixhelper.dll";
             try (InputStream is = getResourceAsStream(fname)) {
                 Files.copy(is, Paths.get(
-                        CONFIG_ROOT.fetchFrom(params).getAbsolutePath(), fname));
+                        CONFIG_ROOT.fetchFrom(params).getAbsolutePath(),
+                        fname));
             }
         }
 
@@ -658,7 +662,8 @@ public class WinMsiBundler  extends AbstractBundler {
             String fname = "MsiInstallerStrings_" + loc + ".wxl";
             try (InputStream is = getResourceAsStream(fname)) {
                 Files.copy(is, Paths.get(
-                        CONFIG_ROOT.fetchFrom(params).getAbsolutePath(), fname));
+                        CONFIG_ROOT.fetchFrom(params).getAbsolutePath(),
+                        fname));
             }
         }
 

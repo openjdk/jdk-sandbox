@@ -105,10 +105,11 @@ HMODULE getCurrentModuleHandle()
     // get module handle for the address of this function
     LPCWSTR address = reinterpret_cast<LPCWSTR>(getCurrentModuleHandle);
     HMODULE hmodule = NULL;
-    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            address, &hmodule))
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+            | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, address, &hmodule))
     {
-        JP_THROW(SysError(tstrings::any() << "GetModuleHandleExW failed", GetModuleHandleExW));
+        JP_THROW(SysError(tstrings::any() << "GetModuleHandleExW failed",
+                GetModuleHandleExW));
     }
     return hmodule;
 }

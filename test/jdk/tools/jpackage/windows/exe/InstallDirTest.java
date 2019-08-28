@@ -24,9 +24,9 @@
 /*
  * Test --install-dir parameter.
  * Output of the test should be InstallDirTest-1.0.exe installer.
- * The output installer should provide the same functionality as the default 
- * installer (see description of the default installer in Test.java) but 
- * install test app in %ProgramFiles%\TestVendor\InstallDirTest instead of 
+ * The output installer should provide the same functionality as the default
+ * installer (see description of the default installer in Test.java) but
+ * install test app in %ProgramFiles%\TestVendor\InstallDirTest instead of
  * %ProgramFiles%\InstallDirTest directory.
  */
 

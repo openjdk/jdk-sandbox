@@ -41,9 +41,12 @@
 
 class Resource {
 public:
-    // name and type can be specified by string id, by integer id (RT_* constants or MAKEINTRESOURCE)
-    Resource(LPCWSTR name, LPCWSTR type, HINSTANCE module = SysInfo::getCurrentModuleHandle());
-    Resource(UINT id, LPCWSTR type, HINSTANCE module = SysInfo::getCurrentModuleHandle());
+    // name and type can be specified by string id,
+    // by integer id (RT_* constants or MAKEINTRESOURCE)
+    Resource(LPCWSTR name, LPCWSTR type,
+            HINSTANCE module = SysInfo::getCurrentModuleHandle());
+    Resource(UINT id, LPCWSTR type,
+            HINSTANCE module = SysInfo::getCurrentModuleHandle());
 
     bool available() const;
 
@@ -61,9 +64,9 @@ public:
 
 private:
     std::wstring nameStr;
-    LPCWSTR namePtr;    // can be integer (MAKEINTRESOURCE) value or point to nameStr.c_str()
+    LPCWSTR namePtr;    // can be integer value or point to nameStr.c_str()
     std::wstring typeStr;
-    LPCWSTR typePtr;    // can be integer (MAKEINTRESOURCE) value or point to nameStr.c_str()
+    LPCWSTR typePtr;    // can be integer value or point to nameStr.c_str()
     HINSTANCE instance;
 
     void init(LPCWSTR name, LPCWSTR type, HINSTANCE module);

@@ -38,13 +38,13 @@ std::string makeMessage(const std::string& msg, const char* label,
 
     HMODULE hmodule = NULL;
     if (c) {
-        GetModuleHandleEx(
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            reinterpret_cast<LPCTSTR>(c),
-            &hmodule);
+        GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+                | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                reinterpret_cast<LPCTSTR>(c), &hmodule);
 
         if (!hmodule) {
-            LOG_WARNING(tstrings::any() << "GetModuleHandleEx() failed for " << c << " address.");
+            LOG_WARNING(tstrings::any() << "GetModuleHandleEx() failed for "
+                    << c << " address.");
         }
     }
     if (hmodule || !c) {
@@ -64,9 +64,9 @@ std::wstring getSystemMessageDescription(DWORD messageId, HMODULE moduleHandle) 
 
     while (true) {
         DWORD res = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER
-                                        | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS
-                                        | (moduleHandle != NULL ? FORMAT_MESSAGE_FROM_HMODULE : 0),
-                                    moduleHandle, messageId, 0, (LPWSTR)&pMsg, 0, NULL);
+                | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS
+                | (moduleHandle != NULL ? FORMAT_MESSAGE_FROM_HMODULE : 0),
+                moduleHandle, messageId, 0, (LPWSTR)&pMsg, 0, NULL);
         if (res > 0) {
             // replace all non-printed chars with space
             for (DWORD i=0; i<res; i++) {
@@ -104,8 +104,9 @@ std::wstring getSystemMessageDescription(DWORD messageId, HMODULE moduleHandle) 
 
 
 SysError::SysError(const tstrings::any& msg, const void* caller, DWORD ec,
-                                                            const char* label):
-        std::runtime_error(makeMessage(msg.str(), label, caller, ec)) {
+        const char* label):
+
+std::runtime_error(makeMessage(msg.str(), label, caller, ec)) {
 }
 
 std::wstring SysError::getSysErrorMessage(DWORD errCode, HMODULE moduleHandle) {
@@ -121,5 +122,6 @@ std::wstring SysError::getComErrorMessage(HRESULT hr) {
     if(HRESULT_FACILITY(hr) == FACILITY_WIN32) {
         hr = HRESULT_CODE(hr);
     }
-    return tstrings::format(_T("COM error 0x%08X (%s)"), hrOrig, getSystemMessageDescription(hr, NULL));
+    return tstrings::format(_T("COM error 0x%08X (%s)"), hrOrig,
+            getSystemMessageDescription(hr, NULL));
 }

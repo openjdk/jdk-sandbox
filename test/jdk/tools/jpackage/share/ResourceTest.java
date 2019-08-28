@@ -38,7 +38,7 @@ public class ResourceTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp("icon");
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String resourceDir = 
+    private static final String resourceDir =
             JPackagePath.getTestSrcRoot() + File.separator + "resources";
 
     private static final String[] CMD = {

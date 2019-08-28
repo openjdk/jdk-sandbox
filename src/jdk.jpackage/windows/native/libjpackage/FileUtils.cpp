@@ -62,7 +62,8 @@ bool isFileExists(const tstring &filePath) {
 
 namespace {
 bool isDirectoryAttrs(const DWORD attrs) {
-    return attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    return attrs != INVALID_FILE_ATTRIBUTES
+            && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 } // namespace
 
@@ -77,8 +78,7 @@ bool isDirectoryNotEmpty(const tstring &dirPath) {
     return FALSE == PathIsDirectoryEmpty(dirPath.c_str());
 }
 
-tstring dirname(const tstring &path)
-{
+tstring dirname(const tstring &path) {
     tstring::size_type pos = path.find_last_of(_T("\\/"));
     if (pos != tstring::npos) {
         pos = path.find_last_not_of(_T("\\/"), pos); // skip trailing slashes
@@ -149,8 +149,10 @@ tstring normalizePath(tstring v) {
 namespace {
 
 bool createNewFile(const tstring& path) {
-    HANDLE h = CreateFile(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-    // if the file exists => h == INVALID_HANDLE_VALUE & GetLastError returns ERROR_FILE_EXISTS
+    HANDLE h = CreateFile(path.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW,
+            FILE_ATTRIBUTE_NORMAL, NULL);
+    // if the file exists => h == INVALID_HANDLE_VALUE & GetLastError
+    // returns ERROR_FILE_EXISTS
     if (h != INVALID_HANDLE_VALUE) {
         CloseHandle(h);
         LOG_TRACE(tstrings::any() << "Created [" << path << "] file");
@@ -161,8 +163,8 @@ bool createNewFile(const tstring& path) {
 
 } // namespace
 
-tstring createTempFile(const tstring &prefix, const tstring &suffix, const tstring &path)
-{
+tstring createTempFile(const tstring &prefix, const tstring &suffix,
+        const tstring &path) {
     const tstring invalidChars = reservedFilenameChars();
 
     if (prefix.find_first_of(invalidChars) != tstring::npos) {
@@ -177,7 +179,8 @@ tstring createTempFile(const tstring &prefix, const tstring &suffix, const tstri
 
     // do no more than 100 attempts
     for (int i=0; i<100; i++) {
-        const tstring filePath = mkpath() << path << (prefix + (tstrings::any() << (rnd + i)).tstr() + suffix);
+        const tstring filePath = mkpath() << path << (prefix
+                + (tstrings::any() << (rnd + i)).tstr() + suffix);
         if (createNewFile(filePath)) {
             return filePath;
         }
@@ -189,7 +192,8 @@ tstring createTempFile(const tstring &prefix, const tstring &suffix, const tstri
                                                     << path << ") failed");
 }
 
-tstring createTempDirectory(const tstring &prefix, const tstring &suffix, const tstring &basedir) {
+tstring createTempDirectory(const tstring &prefix, const tstring &suffix,
+        const tstring &basedir) {
     const tstring filePath = createTempFile(prefix, suffix, basedir);
     // delete the file and create directory with the same name
     deleteFile(filePath);
@@ -203,12 +207,13 @@ tstring createUniqueFile(const tstring &prototype) {
     }
 
     return createTempFile(replaceSuffix(basename(prototype)),
-                                        suffix(prototype), dirname(prototype));
+            suffix(prototype), dirname(prototype));
 }
 
 namespace {
 
-void createDir(const tstring path, LPSECURITY_ATTRIBUTES saAttr, tstring_array* createdDirs=0) {
+void createDir(const tstring path, LPSECURITY_ATTRIBUTES saAttr,
+        tstring_array* createdDirs=0) {
     if (CreateDirectory(path.c_str(), saAttr)) {
         LOG_TRACE(tstrings::any() << "Created [" << path << "] directory");
         if (createdDirs) {
@@ -218,8 +223,8 @@ void createDir(const tstring path, LPSECURITY_ATTRIBUTES saAttr, tstring_array* 
         const DWORD createDirectoryErr = GetLastError();
         // if saAttr is specified, fail even if the directory exists
         if (saAttr != NULL || !isDirectory(path)) {
-            JP_THROW(SysError(tstrings::any() << "CreateDirectory(" << path << ") failed",
-                                    CreateDirectory, createDirectoryErr));
+            JP_THROW(SysError(tstrings::any() << "CreateDirectory("
+                << path << ") failed", CreateDirectory, createDirectoryErr));
         }
     }
 }
@@ -238,28 +243,29 @@ void createDirectory(const tstring &path, tstring_array* createdDirs) {
 }
 
 
-void copyFile(const tstring& fromPath, const tstring& toPath, bool failIfExists) {
+void copyFile(const tstring& fromPath, const tstring& toPath,
+        bool failIfExists) {
     createDirectory(dirname(toPath));
-    if (!CopyFile(fromPath.c_str(), toPath.c_str(), (failIfExists ? TRUE : FALSE))) {
+    if (!CopyFile(fromPath.c_str(), toPath.c_str(),
+            (failIfExists ? TRUE : FALSE))) {
         JP_THROW(SysError(tstrings::any()
-                    << "CopyFile(" << fromPath << ", " << toPath << ", "
-                                    << failIfExists << ") failed", CopyFile));
+                << "CopyFile(" << fromPath << ", " << toPath << ", "
+                << failIfExists << ") failed", CopyFile));
     }
     LOG_TRACE(tstrings::any() << "Copied [" << fromPath << "] file to ["
-                                                            << toPath << "]");
+            << toPath << "]");
 }
 
 
 namespace {
 
 void moveFileImpl(const tstring& fromPath, const tstring& toPath,
-                                                                DWORD flags) {
+        DWORD flags) {
     const bool isDir = isDirectory(fromPath);
     if (!MoveFileEx(fromPath.c_str(), toPath.empty() ? NULL : toPath.c_str(),
-                                                                    flags)) {
+            flags)) {
         JP_THROW(SysError(tstrings::any() << "MoveFileEx(" << fromPath
-                        << ", " << toPath << ", " << flags << ") failed",
-                                                                MoveFileEx));
+                << ", " << toPath << ", " << flags << ") failed", MoveFileEx));
     }
 
     const bool onReboot = 0 != (flags & MOVEFILE_DELAY_UNTIL_REBOOT);
@@ -291,8 +297,8 @@ void moveFileImpl(const tstring& fromPath, const tstring& toPath,
 } // namespace
 
 
-void moveFile(const tstring& fromPath, const tstring& toPath, bool failIfExists)
-{
+void moveFile(const tstring& fromPath, const tstring& toPath,
+        bool failIfExists) {
     createDirectory(dirname(toPath));
 
     DWORD flags = MOVEFILE_COPY_ALLOWED;
@@ -307,7 +313,7 @@ void deleteFile(const tstring &path)
 {
     if (!deleteFile(path, std::nothrow)) {
         JP_THROW(SysError(tstrings::any()
-                        << "DeleteFile(" << path << ") failed", DeleteFile));
+                << "DeleteFile(" << path << ") failed", DeleteFile));
     }
 }
 
@@ -509,7 +515,7 @@ namespace {
 
 struct FindFileDeleter {
     typedef HANDLE pointer;
-    
+
     void operator()(HANDLE h) {
         if (h && h != INVALID_HANDLE_VALUE) {
             FindClose(h);
@@ -526,10 +532,13 @@ void iterateDirectory(const tstring &dirPath, DirectoryCallback& callback)
     WIN32_FIND_DATA findData;
     UniqueFindFileHandle h(FindFirstFile(searchString.c_str(), &findData));
     if (h.get() == INVALID_HANDLE_VALUE) {
-        // GetLastError() == ERROR_FILE_NOT_FOUND is OK - no files in the directory
-        // ERROR_PATH_NOT_FOUND is returned if the parent directory does not exist
+        // GetLastError() == ERROR_FILE_NOT_FOUND is OK
+        // - no files in the directory
+        // ERROR_PATH_NOT_FOUND is returned
+        // if the parent directory does not exist
         if (GetLastError() != ERROR_FILE_NOT_FOUND) {
-            JP_THROW(SysError(tstrings::any() << "FindFirstFile(" << dirPath << ") failed", FindFirstFile));
+            JP_THROW(SysError(tstrings::any() << "FindFirstFile("
+                    << dirPath << ") failed", FindFirstFile));
         }
         return;
     }
@@ -550,7 +559,8 @@ void iterateDirectory(const tstring &dirPath, DirectoryCallback& callback)
 
     // expect GetLastError() == ERROR_NO_MORE_FILES
     if (GetLastError() != ERROR_NO_MORE_FILES) {
-        JP_THROW(SysError(tstrings::any() << "FindNextFile(" << dirPath << ") failed", FindNextFile));
+        JP_THROW(SysError(tstrings::any() << "FindNextFile("
+                << dirPath << ") failed", FindNextFile));
     }
 }
 
@@ -584,9 +594,9 @@ bool DirectoryIterator::onDirectory(const tstring& path) {
     }
     if (theRecurse) {
         DirectoryIterator(path).recurse(theRecurse)
-                                    .withFiles(theWithFiles)
-                                    .withFolders(theWithFolders)
-                                    .findItems(items);
+                .withFiles(theWithFiles)
+                .withFolders(theWithFolders)
+                .findItems(items);
     }
     return true;
 }
@@ -656,27 +666,24 @@ Deleter& Deleter::appendEmptyDirectory(const Directory& dir) {
 }
 
 Deleter& Deleter::appendEmptyDirectory(const tstring& path) {
-    paths.push_back(std::make_pair(path,
-                                DeleterFunctor::EmptyDirectory));
+    paths.push_back(std::make_pair(path, DeleterFunctor::EmptyDirectory));
     return *this;
 }
 
 Deleter& Deleter::appendAllFilesInDirectory(const tstring& path) {
-    paths.push_back(std::make_pair(path,
-                                DeleterFunctor::FilesInDirectory));
+    paths.push_back(std::make_pair(path, DeleterFunctor::FilesInDirectory));
     return *this;
 }
 
 Deleter& Deleter::appendRecursiveDirectory(const tstring& path) {
-    paths.push_back(std::make_pair(path,
-                            DeleterFunctor::RecursiveDirectory));
+    paths.push_back(std::make_pair(path, DeleterFunctor::RecursiveDirectory));
     return *this;
 }
 
 
 FileWriter::FileWriter(const tstring& path): dstPath(path) {
     tmpFile = FileUtils::createTempFile(_T("jds"), _T(".tmp"),
-                                                    FileUtils::dirname(path));
+            FileUtils::dirname(path));
 
     cleaner.appendFile(tmpFile);
 

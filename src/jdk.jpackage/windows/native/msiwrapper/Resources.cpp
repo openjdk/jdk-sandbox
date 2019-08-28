@@ -61,7 +61,8 @@ void Resource::init(LPCTSTR name, LPCTSTR type, HINSTANCE module) {
 }
 
 std::string Resource::getErrMsg(const std::string &descr) const {
-    return (tstrings::any() << descr << " (name='" << nameStr << "', type='" << typeStr << "')").str();
+    return (tstrings::any() << descr << " (name='" << nameStr <<
+            "', type='" << typeStr << "')").str();
 }
 
 HRSRC Resource::findResource() const {
@@ -76,7 +77,8 @@ HRSRC Resource::findResource() const {
 
 LPVOID Resource::getPtr(DWORD &size) const
 {
-    // LoadString returns the same result if value is zero-length or if if the value does not exists,
+    // LoadString returns the same result if value is zero-length or
+    // if if the value does not exists,
     // so wee need to ensure the stringtable exists
     HRSRC resInfo = findResource();
     if (resInfo == NULL) {
@@ -94,9 +96,12 @@ LPVOID Resource::getPtr(DWORD &size) const
     }
 
     if (typePtr == RT_STRING) {
-        // string resources are stored in stringtables and need special handling
-        // The simplest way (while we don't need handle resource locale) is LoadString
-        // But this adds dependency on user32.dll, so implement custom string extraction
+        // string resources are stored in stringtables and
+        // need special handling
+        // The simplest way (while we don't need handle resource locale)
+        // is LoadString
+        // But this adds dependency on user32.dll,
+        // so implement custom string extraction
 
         // number in the block (namePtr is an integer)
         size_t num = size_t(namePtr) & 0xf;

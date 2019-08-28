@@ -83,8 +83,9 @@ void PrintError() {
     LPVOID message = NULL;
     DWORD error = GetLastError();
 
-    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-            FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
+            | FORMAT_MESSAGE_FROM_SYSTEM
+            | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
             (LPTSTR) & message, 0, NULL) != 0) {
         printf("%S", (LPTSTR) message);
@@ -184,9 +185,9 @@ bool ChangeIcon(wstring iconTarget, wstring launcher) {
     free(lpid);
     CloseHandle(icon);
 
-    if (!UpdateResource(update, RT_GROUP_ICON,
-            MAKEINTRESOURCE(1), language, &lpgid[0],
-            (sizeof (WORD) * 3) + (sizeof (GRPICONDIRENTRY) * lpgid->idCount))) {
+    if (!UpdateResource(update, RT_GROUP_ICON, MAKEINTRESOURCE(1),
+            language, &lpgid[0], (sizeof (WORD) * 3)
+            + (sizeof (GRPICONDIRENTRY) * lpgid->idCount))) {
         free(lpgid);
         PrintError();
         return false;

@@ -32,7 +32,7 @@
 
 struct WndHandleDeleter {
     typedef HANDLE pointer;
-    
+
     void operator()(HANDLE h) {
         ::CloseHandle(h);
     }

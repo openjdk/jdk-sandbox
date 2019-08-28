@@ -89,14 +89,18 @@ namespace tstrings {
     tstring unsafe_format(tstring::const_pointer format, ...);
 
     enum CompareType {CASE_SENSITIVE, IGNORE_CASE};
-    bool equals(const tstring& a, const tstring& b, const CompareType ct=CASE_SENSITIVE);
-    bool startsWith(const tstring &str, const tstring &substr, const CompareType ct=CASE_SENSITIVE);
-    bool endsWith(const tstring &str, const tstring &substr, const CompareType ct=CASE_SENSITIVE);
+    bool equals(const tstring& a, const tstring& b,
+            const CompareType ct=CASE_SENSITIVE);
+    bool startsWith(const tstring &str, const tstring &substr,
+            const CompareType ct=CASE_SENSITIVE);
+    bool endsWith(const tstring &str, const tstring &substr,
+            const CompareType ct=CASE_SENSITIVE);
 
     enum SplitType {ST_ALL, ST_EXCEPT_EMPTY_STRING};
     void split(tstring_array &strVector, const tstring &str,
-              const tstring &delimiter, const SplitType st = ST_ALL);
-    inline tstring_array split(const tstring &str, const tstring &delimiter, const SplitType st = ST_ALL) {
+            const tstring &delimiter, const SplitType st = ST_ALL);
+    inline tstring_array split(const tstring &str, const tstring &delimiter,
+            const SplitType st = ST_ALL) {
         tstring_array result;
         split(result, str, delimiter, st);
         return result;
@@ -125,13 +129,16 @@ namespace tstrings {
 
     tstring toLower(const tstring& str);
 
-    tstring replace(const tstring &str, const tstring &search, const tstring &replace);
+    tstring replace(const tstring &str, const tstring &search,
+            const tstring &replace);
 }
 
 
 namespace tstrings {
-    inline std::string toUtf8(const std::string& utf8str) { return utf8str; }
-    
+    inline std::string toUtf8(const std::string& utf8str) {
+        return utf8str;
+    }
+
 #ifdef TSTRINGS_WITH_WCHAR
     // conversion to Utf8
     std::string toUtf8(const std::wstring& utf16str);
@@ -139,10 +146,14 @@ namespace tstrings {
     // conversion to Utf16
     std::wstring toUtf16(const std::string& utf8str);
 
-    inline std::wstring fromUtf8(const std::string& utf8str) { return toUtf16(utf8str); }
+    inline std::wstring fromUtf8(const std::string& utf8str) {
+        return toUtf16(utf8str);
+    }
 
 #else
-    inline std::string fromUtf8(const std::string& utf8str) { return utf8str; }
+    inline std::string fromUtf8(const std::string& utf8str) {
+        return utf8str;
+    }
 #endif
 } // namespace tstrings
 
