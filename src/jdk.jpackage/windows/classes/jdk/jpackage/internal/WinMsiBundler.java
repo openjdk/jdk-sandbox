@@ -240,10 +240,17 @@ public class WinMsiBundler  extends AbstractBundler {
 
     public static boolean isSupported() {
         try {
-            return validateWixTools();
+            validateWixTools();
+            return true;
+        } catch (ConfigException ce) {
+            Log.error(ce.getMessage());
+            if (ce.getAdvice() != null) {
+                Log.error(ce.getAdvice());
+            }
         } catch (Exception e) {
-            return false;
+            Log.error(e.getMessage());
         }
+        return false;
     }
 
     private static String findToolVersion(String toolName) {
@@ -267,26 +274,32 @@ public class WinMsiBundler  extends AbstractBundler {
         }
     }
 
-    public static boolean validateWixTools() {
+    public static void validateWixTools() throws ConfigException{
         String candleVersion = findToolVersion(getCandlePath());
         String lightVersion = findToolVersion(getLightPath());
 
         // WiX 3.0+ is required
         String minVersion = "3.0";
+        if (candleVersion == null || lightVersion == null) {
+            throw new ConfigException(
+                    I18N.getString("error.no-wix-tools"),
+                    I18N.getString("error.no-wix-tools.advice"));
+        }
 
         if (VersionExtractor.isLessThan(candleVersion, minVersion)) {
-            Log.verbose(MessageFormat.format(
+            throw new ConfigException(
+                    MessageFormat.format(
                     I18N.getString("message.wrong-tool-version"),
-                    TOOL_CANDLE, candleVersion, minVersion));
-            return false;
+                    TOOL_CANDLE, candleVersion, minVersion),
+                    I18N.getString("error.no-wix-tools.advice"));
         }
         if (VersionExtractor.isLessThan(lightVersion, minVersion)) {
-            Log.verbose(MessageFormat.format(
+            throw new ConfigException(
+                    MessageFormat.format(
                     I18N.getString("message.wrong-tool-version"),
-                    TOOL_LIGHT, lightVersion, minVersion));
-            return false;
+                    TOOL_LIGHT, lightVersion, minVersion),
+                    I18N.getString("error.no-wix-tools.advice"));
         }
-        return true;
     }
 
     @Override
@@ -299,11 +312,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
-            if (!validateWixTools()){
-                throw new ConfigException(
-                        I18N.getString("error.no-wix-tools"),
-                        I18N.getString("error.no-wix-tools.advice"));
-            }
+            validateWixTools();
 
             String lightVersion = findToolVersion(getLightPath());
             if (!VersionExtractor.isLessThan(lightVersion, "3.6")) {
