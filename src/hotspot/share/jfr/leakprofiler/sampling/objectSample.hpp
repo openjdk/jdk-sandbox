@@ -56,7 +56,6 @@ class ObjectSample : public JfrCHeapObj {
   Ticks _allocation_time;
   traceid _stack_trace_id;
   traceid _thread_id;
-  mutable traceid _klass_id;
   int _index;
   size_t _span;
   size_t _allocated;
@@ -80,7 +79,6 @@ class ObjectSample : public JfrCHeapObj {
   void reset() {
     set_stack_trace_id(0);
     set_stack_trace_hash(0);
-    _klass_id = 0;
     release_references();
     _dead = false;
   }
@@ -101,7 +99,6 @@ class ObjectSample : public JfrCHeapObj {
                    _allocation_time(),
                    _stack_trace_id(0),
                    _thread_id(0),
-                   _klass_id(0),
                    _index(0),
                    _span(0),
                    _allocated(0),

@@ -177,18 +177,15 @@ traceid JfrStackTraceRepository::add(const JfrStackTrace& stacktrace) {
   return tid;
 }
 
-traceid JfrStackTraceRepository::record_and_cache(JavaThread* thread, int skip /* 0 */) {
+void JfrStackTraceRepository::record_and_cache(JavaThread* thread, int skip /* 0 */) {
+  assert(thread != NULL, "invariant");
   JfrThreadLocal* const tl = thread->jfr_thread_local();
   assert(tl != NULL, "invariant");
-  if (tl->has_cached_stack_trace()) {
-    return tl->cached_stack_trace_id();
-  }
+  assert(!tl->has_cached_stack_trace(), "invariant");
   JfrStackTrace stacktrace(tl->stackframes(), tl->stackdepth());
   stacktrace.record_safe(thread, skip);
   assert(stacktrace.hash() != 0, "invariant");
-  const traceid id = instance().add(stacktrace);
-  tl->set_cached_stack_trace_id(id, stacktrace.hash());
-  return id;
+  tl->set_cached_stack_trace_id(instance().add(stacktrace), stacktrace.hash());
 }
 
 traceid JfrStackTraceRepository::add_trace(const JfrStackTrace& stacktrace) {

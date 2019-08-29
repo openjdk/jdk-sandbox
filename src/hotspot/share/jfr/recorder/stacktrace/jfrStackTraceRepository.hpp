@@ -40,7 +40,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   friend class JfrThreadSampleClosure;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
-  friend class StackTraceInstall;
+  friend class StackTraceResolver;
   friend class StackTraceWrite;
   friend class WriteStackTraceRepository;
 
@@ -71,7 +71,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
 
  public:
   static traceid record(Thread* thread, int skip = 0);
-  static traceid record_and_cache(JavaThread* thread, int skip = 0);
+  static void record_and_cache(JavaThread* thread, int skip = 0);
 };
 
 #endif // SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACEREPOSITORY_HPP

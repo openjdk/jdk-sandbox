@@ -439,14 +439,22 @@ void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
   JfrTypeManager::write_type_set_for_unloaded_classes();
 }
 
-bool JfrCheckpointManager::is_type_set_checkpoint_required() const {
+bool JfrCheckpointManager::is_type_set_required() {
   return JfrTraceIdEpoch::is_klass_tagged_in_epoch();
+}
+
+bool JfrCheckpointManager::is_constant_set_required() {
+  return JfrTypeManager::is_new_constant_registered();
 }
 
 size_t JfrCheckpointManager::flush_type_set() {
   const size_t elements = JfrTypeManager::flush_type_set();
   flush();
   return elements;
+}
+
+void JfrCheckpointManager::flush_constant_set() {
+  flush();
 }
 
 void JfrCheckpointManager::create_thread_checkpoint(Thread* t) {

@@ -614,8 +614,11 @@ size_t JfrRecorderService::flush() {
   if (_string_pool.is_modified()) {
     total_elements += flush_stringpool(_string_pool, _chunkwriter);
   }
-  if (_checkpoint_manager.is_type_set_checkpoint_required()) {
+  if (_checkpoint_manager.is_type_set_required()) {
     total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
+  } else if (_checkpoint_manager.is_constant_set_required()) {
+    // don't tally this, it is only in order to flush the waiting constants
+    _checkpoint_manager.flush_constant_set();
   }
   return total_elements;
 }
@@ -653,7 +656,7 @@ void JfrRecorderService::pre_safepoint_write() {
   if (LeakProfiler::is_running()) {
     // Exclusive access to the object sampler instance.
     // The sampler is released (unlocked) later in post_safepoint_write.
-    ObjectSampleCheckpoint::rotate(ObjectSampler::acquire(), _stack_trace_repository);
+    ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
   }
   _checkpoint_manager.notify_types_on_rotation();
   _storage.write();
@@ -680,9 +683,6 @@ void JfrRecorderService::safepoint_write() {
   flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, true);
   if (_string_pool.is_modified()) {
     flush_stringpool_checkpoint_safepoint(_string_pool, _chunkwriter);
-  }
-  if (LeakProfiler::is_running()) {
-    ObjectSampleCheckpoint::resolve_sampled_objects();
   }
   _storage.write_at_safepoint();
   _checkpoint_manager.notify_threads();

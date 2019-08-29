@@ -106,28 +106,28 @@ static bool has_thread_exited(traceid tid) {
   return unloaded_thread_id_set != NULL && predicate(unloaded_thread_id_set, tid);
 }
 
-static GrowableArray<traceid>* unloaded_set = NULL;
+static GrowableArray<traceid>* unloaded_klass_set = NULL;
 
-static void sort_unloaded_set() {
-  if (unloaded_set != NULL) {
-    sort_array(unloaded_set);
+static void sort_unloaded_klass_set() {
+  if (unloaded_klass_set != NULL) {
+    sort_array(unloaded_klass_set);
   }
 }
 
-static void add_to_unloaded_set(traceid klass_id) {
-  if (unloaded_set == NULL) {
-    unloaded_set = c_heap_allocate_array<traceid>();
+static void add_to_unloaded_klass_set(traceid klass_id) {
+  if (unloaded_klass_set == NULL) {
+    unloaded_klass_set = c_heap_allocate_array<traceid>();
   }
-  unloaded_set->append(klass_id);
+  unloaded_klass_set->append(klass_id);
 }
 
 void ObjectSampleCheckpoint::on_klass_unload(const Klass* k) {
   assert(k != NULL, "invariant");
-  add_to_unloaded_set(TRACE_ID(k));
+  add_to_unloaded_klass_set(TRACE_ID(k));
 }
 
 static bool is_klass_unloaded(traceid klass_id) {
-  return unloaded_set != NULL && predicate(unloaded_set, klass_id);
+  return unloaded_klass_set != NULL && predicate(unloaded_klass_set, klass_id);
 }
 
 static GrowableArray<traceid>* id_set = NULL;
@@ -164,15 +164,12 @@ static void do_samples(ObjectSample* sample, const ObjectSample* const end, Proc
 }
 
 template <typename Processor>
-static void iterate_samples(Processor& processor, bool all = false, bool update_last_resolved = false) {
+static void iterate_samples(Processor& processor, bool all = false) {
   ObjectSampler* const sampler = ObjectSampler::sampler();
   assert(sampler != NULL, "invariant");
   ObjectSample* const last = sampler->last();
   assert(last != NULL, "invariant");
   do_samples(last, all ? NULL : sampler->last_resolved(), processor);
-  if (update_last_resolved) {
-    sampler->set_last_resolved(last);
-  }
 }
 
 void ObjectSampleCheckpoint::on_thread_exit(JavaThread* jt) {
@@ -182,66 +179,41 @@ void ObjectSampleCheckpoint::on_thread_exit(JavaThread* jt) {
   }
 }
 
-class CheckpointInstall {
+class CheckpointBlobInstaller {
  private:
   const JfrCheckpointBlobHandle& _cp;
  public:
-  CheckpointInstall(const JfrCheckpointBlobHandle& cp) : _cp(cp) {}
+  CheckpointBlobInstaller(const JfrCheckpointBlobHandle& cp) : _cp(cp) {}
   void sample_do(ObjectSample* sample) {
-    assert(sample != NULL, "invariant");
     if (!sample->is_dead()) {
       sample->set_klass_checkpoint(_cp);
     }
   }
 };
 
-static void install_blob(JfrCheckpointWriter& writer) {
+static void install_checkpoint_blob(JfrCheckpointWriter& writer) {
   assert(writer.has_data(), "invariant");
   const JfrCheckpointBlobHandle h_cp = writer.copy();
-  CheckpointInstall install(h_cp);
-  iterate_samples(install, true, false);
+  CheckpointBlobInstaller installer(h_cp);
+  iterate_samples(installer, true);
 }
 
 void ObjectSampleCheckpoint::on_type_set_unload(JfrCheckpointWriter& writer) {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   assert(LeakProfiler::is_running(), "invariant");
   if (writer.has_data() && ObjectSampler::sampler()->last() != NULL) {
-    install_blob(writer);
+    install_checkpoint_blob(writer);
   }
 }
 
-class ObjectResolver {
- public:
-  ObjectResolver() {}
-  void sample_do(ObjectSample* sample) {
-    assert(sample != NULL, "invariant");
-    const traceid klass_id = sample->_klass_id;
-    if (klass_id != 0 || sample->is_dead() || is_klass_unloaded(klass_id)) {
-      return;
-    }
-    sample->_klass_id = JfrTraceId::use(sample->klass());
-  }
-};
-
-void ObjectSampleCheckpoint::resolve_sampled_objects() {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  assert(LeakProfiler::is_running(), "invariant");
-  if (ObjectSampler::sampler()->last() == NULL) {
-    return;
-  }
-  ObjectResolver resolver;
-  iterate_samples(resolver, false, true);
-}
-
-class SampleMark {
+class SampleMarker {
  private:
   ObjectSampleMarker& _marker;
   jlong _last_sweep;
   int _count;
  public:
-  SampleMark(ObjectSampleMarker& marker, jlong last_sweep) : _marker(marker), _last_sweep(last_sweep), _count(0) {}
+  SampleMarker(ObjectSampleMarker& marker, jlong last_sweep) : _marker(marker), _last_sweep(last_sweep), _count(0) {}
   void sample_do(ObjectSample* sample) {
-    assert(sample != NULL, "invariant");
     if (sample->is_alive_and_older_than(_last_sweep)) {
       _marker.mark(sample->object());
       ++_count;
@@ -257,17 +229,9 @@ int ObjectSampleCheckpoint::save_mark_words(const ObjectSampler* sampler, Object
   if (sampler->last() == NULL) {
     return 0;
   }
-  SampleMark mark(marker, emit_all ? max_jlong : sampler->last_sweep().value());
-  iterate_samples(mark, true, false);
-  return mark.count();
-}
-
-void ObjectSampleCheckpoint::tag(const ObjectSample* sample) {
-  assert(sample != NULL, "invariant");
-  const traceid klass_id = sample->_klass_id;
-  if (should_process(sample->_klass_id)) {
-    JfrTraceId::use(sample->klass());
-  }
+  SampleMarker sample_marker(marker, emit_all ? max_jlong : sampler->last_sweep().value());
+  iterate_samples(sample_marker, true);
+  return sample_marker.count();
 }
 
 #ifdef ASSERT
@@ -368,13 +332,12 @@ static bool stack_trace_precondition(const ObjectSample* sample) {
   return sample->has_stack_trace_id() && !sample->is_dead();
 }
 
-class Tagger {
+class StackTraceTagger {
  private:
   JfrStackTraceRepository& _stack_trace_repo;
  public:
-  Tagger(JfrStackTraceRepository& stack_trace_repo) : _stack_trace_repo(stack_trace_repo) {}
+  StackTraceTagger(JfrStackTraceRepository& stack_trace_repo) : _stack_trace_repo(stack_trace_repo) {}
   void sample_do(ObjectSample* sample) {
-    ObjectSampleCheckpoint::tag(sample);
     if (stack_trace_precondition(sample)) {
       assert(sample->stack_trace_id() == sample->stack_trace()->id(), "invariant");
       ObjectSampleCheckpoint::tag(sample->stack_trace(), NULL);
@@ -382,22 +345,21 @@ class Tagger {
   }
 };
 
-static void tag_old_traces(ObjectSample* last_resolved, JfrStackTraceRepository& stack_trace_repo) {
+static void tag_old_stack_traces(ObjectSample* last_resolved, JfrStackTraceRepository& stack_trace_repo) {
   assert(last_resolved != NULL, "invariant");
   assert(stack_trace_id_set != NULL, "invariant");
   assert(stack_trace_id_set->is_empty(), "invariant");
-  Tagger tagger(stack_trace_repo);
+  StackTraceTagger tagger(stack_trace_repo);
   do_samples(last_resolved, NULL, tagger);
 }
 
-class StackTraceInstall {
+class StackTraceResolver {
  private:
   JfrStackTraceRepository& _stack_trace_repo;
  public:
-  StackTraceInstall(JfrStackTraceRepository& stack_trace_repo) : _stack_trace_repo(stack_trace_repo) {}
+  StackTraceResolver(JfrStackTraceRepository& stack_trace_repo) : _stack_trace_repo(stack_trace_repo) {}
   void install_to_sample(ObjectSample* sample, const JfrStackTrace* stack_trace);
   void sample_do(ObjectSample* sample) {
-    ObjectSampleCheckpoint::tag(sample);
     if (stack_trace_precondition(sample)) {
       install_to_sample(sample, _stack_trace_repo.lookup(sample->stack_trace_hash(), sample->stack_trace_id()));
     }
@@ -405,53 +367,57 @@ class StackTraceInstall {
 };
 
 #ifdef ASSERT
-static void validate_stack_trace(const ObjectSample* sample, const JfrStackTrace* trace) {
+static void validate_stack_trace(const ObjectSample* sample, const JfrStackTrace* stack_trace) {
   assert(sample != NULL, "invariant");
-  assert(trace != NULL, "invariant");
-  assert(trace->hash() == sample->stack_trace_hash(), "invariant");
-  assert(trace->id() == sample->stack_trace_id(), "invariant");
+  assert(!sample->is_dead(), "invariant");
+  assert(stack_trace != NULL, "invariant");
+  assert(stack_trace->hash() == sample->stack_trace_hash(), "invariant");
+  assert(stack_trace->id() == sample->stack_trace_id(), "invariant");
 }
 #endif
 
-void StackTraceInstall::install_to_sample(ObjectSample* sample, const JfrStackTrace* stack_trace) {
-  assert(sample != NULL, "invariant");
-  assert(stack_trace != NULL, "invariant");
+void StackTraceResolver::install_to_sample(ObjectSample* sample, const JfrStackTrace* stack_trace) {
   DEBUG_ONLY(validate_stack_trace(sample, stack_trace));
-  JfrStackTrace* const sample_trace = const_cast<JfrStackTrace*>(sample->stack_trace());
-  if (sample_trace != NULL && sample_trace->id() != stack_trace->id()) {
-    *sample_trace = *stack_trace; // copy
+  JfrStackTrace* const sample_stack_trace = const_cast<JfrStackTrace*>(sample->stack_trace());
+  if (sample_stack_trace != NULL) {
+    if (sample_stack_trace->id() != stack_trace->id()) {
+      *sample_stack_trace = *stack_trace; // copy
+    }
   } else {
     sample->set_stack_trace(new JfrStackTrace(stack_trace->id(), *stack_trace, NULL)); // new
   }
   assert(sample->stack_trace() != NULL, "invariant");
 }
 
-static void install_new_stack_traces(JfrStackTraceRepository& stack_trace_repo) {
-  StackTraceInstall stack_trace_install(stack_trace_repo);
-  iterate_samples(stack_trace_install);
-  stack_trace_id_set->clear();
-}
-
 static void allocate_traceid_working_sets() {
   const int set_size = JfrOptionSet::old_object_queue_size();
   stack_trace_id_set = resource_allocate_array<traceid>(set_size);
   id_set = resource_allocate_array<traceid>(set_size);
-  sort_unloaded_set();
+  sort_unloaded_klass_set();
+}
+
+static void resolve_stack_traces(JfrStackTraceRepository& stack_trace_repo) {
+  StackTraceResolver stack_trace_resolver(stack_trace_repo);
+  iterate_samples(stack_trace_resolver);
 }
 
 // caller needs ResourceMark
-void ObjectSampleCheckpoint::rotate(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
+void ObjectSampleCheckpoint::on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   assert(LeakProfiler::is_running(), "invariant");
-  if (sampler->last() == NULL) {
+  const ObjectSample* const last = sampler->last();
+  if (last == NULL) {
     // nothing to process
     return;
   }
-  allocate_traceid_working_sets();
-  install_new_stack_traces(stack_trace_repo);
   ObjectSample* const last_resolved = const_cast<ObjectSample*>(sampler->last_resolved());
   if (last_resolved != NULL) {
-    tag_old_traces(last_resolved, stack_trace_repo);
+    allocate_traceid_working_sets();
+    tag_old_stack_traces(last_resolved, stack_trace_repo);
+  }
+  if (last != last_resolved) {
+    resolve_stack_traces(stack_trace_repo);
+    sampler->set_last_resolved(last);
   }
 }
 
@@ -516,30 +482,28 @@ static void write_blobs(const ObjectSample* sample, JfrCheckpointWriter& writer)
   write_klass_blob(sample, writer);
 }
 
-class CheckpointWrite {
+class CheckpointBlobWriter {
  private:
   const ObjectSampler* _sampler;
   JfrCheckpointWriter& _writer;
   const jlong _last_sweep;
  public:
-  CheckpointWrite(const ObjectSampler* sampler, JfrCheckpointWriter& writer, jlong last_sweep) :
+  CheckpointBlobWriter(const ObjectSampler* sampler, JfrCheckpointWriter& writer, jlong last_sweep) :
     _sampler(sampler), _writer(writer), _last_sweep(last_sweep) {}
   void sample_do(ObjectSample* sample) {
-    assert(sample != NULL, "invariant");
     if (sample->is_alive_and_older_than(_last_sweep)) {
       write_blobs(sample, _writer);
     }
   }
 };
 
-class CheckpointStateReset {
+class CheckpointBlobStateReset {
  private:
   const ObjectSampler* _sampler;
   const jlong _last_sweep;
  public:
-  CheckpointStateReset(const ObjectSampler* sampler, jlong last_sweep) : _sampler(sampler), _last_sweep(last_sweep) {}
+  CheckpointBlobStateReset(const ObjectSampler* sampler, jlong last_sweep) : _sampler(sampler), _last_sweep(last_sweep) {}
   void sample_do(ObjectSample* sample) {
-    assert(sample != NULL, "invariant");
     if (sample->is_alive_and_older_than(_last_sweep)) {
       reset_blob_write_state(sample);
     }
@@ -547,32 +511,33 @@ class CheckpointStateReset {
 };
 
 static void reset_write_state_for_blobs(const ObjectSampler* sampler, jlong last_sweep) {
-  CheckpointStateReset state_reset(sampler, last_sweep);
-  iterate_samples(state_reset, true, false);
+  CheckpointBlobStateReset state_reset(sampler, last_sweep);
+  iterate_samples(state_reset, true);
 }
 
 static void write_sample_blobs(const ObjectSampler* sampler, jlong last_sweep, Thread* thread) {
   JfrCheckpointWriter writer(thread, false);
-  CheckpointWrite checkpoint_write(sampler, writer, last_sweep);
-  iterate_samples(checkpoint_write, true, false);
+  CheckpointBlobWriter cbw(sampler, writer, last_sweep);
+  iterate_samples(cbw, true);
   reset_write_state_for_blobs(sampler, last_sweep);
 }
 
-class StackTraceWrite {
+class StackTraceWriter {
  private:
   JfrStackTraceRepository& _stack_trace_repo;
   JfrCheckpointWriter& _writer;
   const jlong _last_sweep;
   int _count;
  public:
-  StackTraceWrite(JfrStackTraceRepository& stack_trace_repo, JfrCheckpointWriter& writer, jlong last_sweep) :
+  StackTraceWriter(JfrStackTraceRepository& stack_trace_repo, JfrCheckpointWriter& writer, jlong last_sweep) :
     _stack_trace_repo(stack_trace_repo), _writer(writer), _last_sweep(last_sweep), _count(0) {}
   void sample_do(ObjectSample* sample) {
-    ObjectSampleCheckpoint::tag(sample);
-    if (stack_trace_precondition(sample) && sample->is_alive_and_older_than(_last_sweep)) {
-      assert(sample->stack_trace_id() == sample->stack_trace()->id(), "invariant");
-      if (ObjectSampleCheckpoint::tag(sample->stack_trace(), &_writer)) {
-        ++_count;
+    if (sample->is_alive_and_older_than(_last_sweep)) {
+      if (stack_trace_precondition(sample)) {
+        assert(sample->stack_trace_id() == sample->stack_trace()->id(), "invariant");
+        if (ObjectSampleCheckpoint::tag(sample->stack_trace(), &_writer)) {
+          ++_count;
+        }
       }
     }
   }
@@ -584,12 +549,12 @@ class StackTraceWrite {
 static void write_and_tag_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepository& repo, jlong last_sweep, Thread* thread) {
   assert(sampler != NULL, "invariant");
   allocate_traceid_working_sets();
-  install_new_stack_traces(repo);
+  resolve_stack_traces(repo);
   JfrCheckpointWriter writer(thread);
   const JfrCheckpointContext ctx = writer.context();
   writer.write_type(TYPE_STACKTRACE);
   const jlong count_offset = writer.reserve(sizeof(u4));
-  StackTraceWrite sw(repo, writer, last_sweep);
+  StackTraceWriter sw(repo, writer, last_sweep);
   do_samples(sampler->last(), NULL, sw);
   if (sw.count() == 0) {
     writer.set_context(ctx);

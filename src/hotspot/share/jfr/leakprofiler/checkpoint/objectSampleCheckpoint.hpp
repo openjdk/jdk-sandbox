@@ -43,9 +43,7 @@ class ObjectSampleCheckpoint : AllStatic {
   static void on_klass_unload(const Klass* k);
   static void on_type_set_unload(JfrCheckpointWriter& writer);
   static void on_thread_exit(JavaThread* jt);
-  static void resolve_sampled_objects();
-  static void rotate(const ObjectSampler* sampler, JfrStackTraceRepository& repo);
-  static void tag(const ObjectSample* sample);
+  static void on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& repo);
   static bool tag(const JfrStackTrace* trace, JfrCheckpointWriter* writer = NULL);
   static int save_mark_words(const ObjectSampler* sampler, ObjectSampleMarker& marker, bool emit_all);
   static void write(const ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);

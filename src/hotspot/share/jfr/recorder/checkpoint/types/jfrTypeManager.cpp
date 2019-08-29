@@ -134,11 +134,15 @@ void JfrTypeManager::clear() {
   }
 }
 
+static bool new_registration = false;
+
 void JfrTypeManager::write_types(JfrCheckpointWriter& writer) {
+  SerializerRegistrationGuard guard;
   const Iterator iter(types);
   while (iter.has_next()) {
     iter.next()->invoke(writer);
   }
+  new_registration = false;
 }
 
 static void serialize_threads(JfrCheckpointWriter& writer) {
@@ -235,8 +239,9 @@ static bool register_type(JfrTypeId id, bool permit_cache, JfrSerializer* serial
   assert(!types.in_list(registration), "invariant");
   DEBUG_ONLY(assert_not_registered_twice(id, types);)
   if (Jfr::is_recording()) {
-    JfrCheckpointWriter writer;
+    JfrCheckpointWriter writer(STATICS);
     registration->invoke(writer);
+    new_registration = true;
   }
   types.prepend(registration);
   return true;
@@ -267,4 +272,13 @@ bool JfrTypeManager::initialize() {
 bool JfrSerializer::register_serializer(JfrTypeId id, bool permit_cache, JfrSerializer* serializer) {
   SerializerRegistrationGuard guard;
   return register_type(id, permit_cache, serializer);
+}
+
+bool JfrTypeManager::is_new_constant_registered() {
+  if (new_registration) {
+    SerializerRegistrationGuard guard;
+    new_registration = false;
+    return true;
+  }
+  return false;
 }

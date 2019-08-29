@@ -69,7 +69,7 @@ class JfrStackTrace : public JfrCHeapObj {
   friend class ObjectSampler;
   friend class OSThreadSampler;
   friend class ProcessStackTrace;
-  friend class StackTraceInstall;
+  friend class StackTraceResolver;
   friend class StackTraceWrite;
 
  private:
