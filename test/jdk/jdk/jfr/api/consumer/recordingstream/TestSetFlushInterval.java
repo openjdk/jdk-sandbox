@@ -42,7 +42,7 @@ public class TestSetFlushInterval {
     public static void main(String... args) throws Exception {
         Duration expectedDuration = Duration.ofMillis(1001);
         try (RecordingStream r = new RecordingStream()) {
-            r.setInterval(expectedDuration);
+            r.setFlushInterval(expectedDuration);
             r.enable(EventNames.ActiveRecording);
             r.onEvent(e -> {
                 System.out.println(e);

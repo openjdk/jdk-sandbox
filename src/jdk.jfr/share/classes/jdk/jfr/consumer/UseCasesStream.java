@@ -153,7 +153,7 @@ final class UseCasesStream {
     public static void tooling() throws IOException, ParseException {
         Deque<Double> measurements = new ArrayDeque<>();
         try (RecordingStream rs = new RecordingStream(Configuration.getConfiguration("profile"))) {
-            rs.setInterval(Duration.ofSeconds(1));
+            rs.setFlushInterval(Duration.ofSeconds(1));
             rs.setMaxAge(Duration.ofMinutes(1));
             rs.setOrdered(true); // default
             rs.setReuse(false);
@@ -188,7 +188,6 @@ final class UseCasesStream {
             rs.onEvent("jdk.JavaMonitorEnter", System.out::println);
             rs.onEvent("jdk.ExceptionThrow", System.out::println);
             rs.start();
-            ;
         }
     }
 }

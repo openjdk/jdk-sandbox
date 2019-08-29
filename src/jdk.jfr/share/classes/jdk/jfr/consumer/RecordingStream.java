@@ -334,8 +334,8 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      *
      * @throws IllegalStateException if the stream is closed
      */
-    public void setInterval(Duration duration) {
-        recording.setFlushInterval(duration);
+    public void setFlushInterval(Duration interval) {
+        recording.setFlushInterval(interval);
     }
 
     @Override
