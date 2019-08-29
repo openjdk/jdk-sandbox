@@ -187,7 +187,7 @@ abstract class AbstractEventStream implements Runnable {
                 }
                 ef.setThreshold(name, 0);
             }
-            return ef.threadSafe();
+            return ef;
         }
 
         final public StreamConfiguration setReuse(boolean reuse) {
@@ -342,7 +342,6 @@ abstract class AbstractEventStream implements Runnable {
         // Create thread object in constructor to ensure caller has
         // permission before constructing object
         thread = new Thread(this);
-        thread.setDaemon(true);
     }
 
     public final void run() {

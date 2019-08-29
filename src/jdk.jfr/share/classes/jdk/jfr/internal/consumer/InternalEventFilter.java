@@ -39,12 +39,6 @@ public final class InternalEventFilter {
         this(false, new HashMap<>());
     }
 
-    // returns an instance that can be passed to
-    // another thread safely
-    public InternalEventFilter threadSafe() {
-        return new InternalEventFilter(acceptAll, thresholds);
-    }
-
     private InternalEventFilter(boolean acceptAll, Map<String, Long> thresholds) {
         this.acceptAll = acceptAll;
         this.thresholds = thresholds;
