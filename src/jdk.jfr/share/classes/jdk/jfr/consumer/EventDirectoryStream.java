@@ -63,7 +63,7 @@ class EventDirectoryStream implements EventStream {
             super(acc, active);
             this.fileAccess = fileAccess;
             this.active = active;
-            repositoryFiles = new RepositoryFiles(fileAccess, p     );
+            repositoryFiles = new RepositoryFiles(fileAccess, p);
         }
 
         @Override
@@ -104,7 +104,7 @@ class EventDirectoryStream implements EventStream {
                         } else {
                             awaitnewEvent = processUnordered(awaitnewEvent);
                         }
-                        if (segmentStart > end) {
+                        if (chunkParser.getStartNanos() + chunkParser.getChunkDuration() > end) {
                             close();
                             return;
                         }
