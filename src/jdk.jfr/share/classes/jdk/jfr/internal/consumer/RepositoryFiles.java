@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.SortedMap;
@@ -109,7 +110,9 @@ public final class RepositoryFiles {
             SortedMap<Long, Path> after = pathSet.tailMap(timestamp);
             if (!after.isEmpty()) {
                 Path path = after.get(after.firstKey());
-                Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + timestamp);
+                if (Logger.shouldLog(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE)) {
+                    Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.TRACE, "Return path " + path + " for start time nanos " + timestamp);
+                }
                 return path;
             }
             if (!waitForPaths()) {
