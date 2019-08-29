@@ -345,10 +345,17 @@ class StackTraceTagger {
   }
 };
 
+static bool written = false;
+
 static void tag_old_stack_traces(ObjectSample* last_resolved, JfrStackTraceRepository& stack_trace_repo) {
   assert(last_resolved != NULL, "invariant");
   assert(stack_trace_id_set != NULL, "invariant");
   assert(stack_trace_id_set->is_empty(), "invariant");
+  if (written) {
+    // written -> retagged
+    written = false;
+    return;
+  }
   StackTraceTagger tagger(stack_trace_repo);
   do_samples(last_resolved, NULL, tagger);
 }
@@ -529,6 +536,7 @@ static void write_stack_traces(ObjectSampler* sampler, JfrStackTraceRepository& 
     return;
   }
   writer.write_count((u4)sw.count(), count_offset);
+  written = true;
 }
 
 void ObjectSampleCheckpoint::write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {

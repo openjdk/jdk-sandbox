@@ -594,7 +594,7 @@ class RootSystemType : public JfrSerializer {
 };
 
 class RootType : public JfrSerializer {
-public:
+ public:
   void serialize(JfrCheckpointWriter& writer) {
     const u4 nof_root_types = OldObjectRoot::_number_of_types;
     writer.write_count(nof_root_types);
