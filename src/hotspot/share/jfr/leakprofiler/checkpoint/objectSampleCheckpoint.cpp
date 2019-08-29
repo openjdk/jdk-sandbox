@@ -396,62 +396,26 @@ static void allocate_traceid_working_sets() {
   sort_unloaded_klass_set();
 }
 
-static void resolve_stack_traces(JfrStackTraceRepository& stack_trace_repo) {
-  StackTraceResolver stack_trace_resolver(stack_trace_repo);
-  iterate_samples(stack_trace_resolver);
+static void resolve_stack_traces(ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo, const ObjectSample* last_resolved) {
+  assert(sampler != NULL, "invariant");
+  const ObjectSample* const last = sampler->last();
+  if (last != last_resolved) {
+    StackTraceResolver stack_trace_resolver(stack_trace_repo);
+    iterate_samples(stack_trace_resolver);
+    sampler->set_last_resolved(last);
+  }
 }
 
 // caller needs ResourceMark
 void ObjectSampleCheckpoint::on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   assert(LeakProfiler::is_running(), "invariant");
-  const ObjectSample* const last = sampler->last();
-  if (last == NULL) {
-    // nothing to process
-    return;
-  }
   ObjectSample* const last_resolved = const_cast<ObjectSample*>(sampler->last_resolved());
   if (last_resolved != NULL) {
     allocate_traceid_working_sets();
     tag_old_stack_traces(last_resolved, stack_trace_repo);
   }
-  if (last != last_resolved) {
-    resolve_stack_traces(stack_trace_repo);
-    sampler->set_last_resolved(last);
-  }
-}
-
-class RootSystemType : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer) {
-    const u4 nof_root_systems = OldObjectRoot::_number_of_systems;
-    writer.write_count(nof_root_systems);
-    for (u4 i = 0; i < nof_root_systems; ++i) {
-      writer.write_key(i);
-      writer.write(OldObjectRoot::system_description((OldObjectRoot::System)i));
-    }
-  }
-};
-
-class RootType : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer) {
-    const u4 nof_root_types = OldObjectRoot::_number_of_types;
-    writer.write_count(nof_root_types);
-    for (u4 i = 0; i < nof_root_types; ++i) {
-      writer.write_key(i);
-      writer.write(OldObjectRoot::type_description((OldObjectRoot::Type)i));
-    }
-  }
-};
-
-static void register_serializers() {
-  static bool is_registered = false;
-  if (!is_registered) {
-    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTSYSTEM, true, new RootSystemType());
-    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTTYPE, true, new RootType());
-    is_registered = true;
-  }
+  resolve_stack_traces(sampler, stack_trace_repo, last_resolved);
 }
 
 static void reset_blob_write_state(const ObjectSample* sample) {
@@ -546,16 +510,20 @@ class StackTraceWriter {
   }
 };
 
-static void write_and_tag_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepository& repo, jlong last_sweep, Thread* thread) {
+static void write_stack_traces(ObjectSampler* sampler, JfrStackTraceRepository& repo, jlong last_sweep, Thread* thread) {
   assert(sampler != NULL, "invariant");
-  allocate_traceid_working_sets();
-  resolve_stack_traces(repo);
+  ObjectSample* const last_resolved = const_cast<ObjectSample*>(sampler->last_resolved());
+  if (last_resolved == NULL) {
+    // no old traces
+    return;
+  }
   JfrCheckpointWriter writer(thread);
   const JfrCheckpointContext ctx = writer.context();
   writer.write_type(TYPE_STACKTRACE);
   const jlong count_offset = writer.reserve(sizeof(u4));
+  allocate_traceid_working_sets();
   StackTraceWriter sw(repo, writer, last_sweep);
-  do_samples(sampler->last(), NULL, sw);
+  do_samples(last_resolved, NULL, sw);
   if (sw.count() == 0) {
     writer.set_context(ctx);
     return;
@@ -563,14 +531,14 @@ static void write_and_tag_stack_traces(const ObjectSampler* sampler, JfrStackTra
   writer.write_count((u4)sw.count(), count_offset);
 }
 
-void ObjectSampleCheckpoint::write(const ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {
+void ObjectSampleCheckpoint::write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {
   assert(sampler != NULL, "invariant");
   assert(edge_store != NULL, "invariant");
   assert(thread != NULL, "invariant");
-  register_serializers();
   // sample set is predicated on time of last sweep
   const jlong last_sweep = emit_all ? max_jlong : sampler->last_sweep().value();
-  write_and_tag_stack_traces(sampler, JfrStackTraceRepository::instance(), last_sweep, thread);
+  JfrStackTraceRepository& repo = JfrStackTraceRepository::instance();
+  write_stack_traces(sampler, repo, last_sweep, thread);
   write_sample_blobs(sampler, last_sweep, thread);
   // write reference chains
   if (!edge_store->is_empty()) {

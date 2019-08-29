@@ -33,6 +33,7 @@
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
 #include "jfr/leakprofiler/utilities/rootType.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOop.hpp"
+#include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/writers/jfrTypeWriterHost.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -580,11 +581,45 @@ void ObjectSampleWriter::write(const StoredEdge* edge) {
   }
 }
 
+class RootSystemType : public JfrSerializer {
+ public:
+  void serialize(JfrCheckpointWriter& writer) {
+    const u4 nof_root_systems = OldObjectRoot::_number_of_systems;
+    writer.write_count(nof_root_systems);
+    for (u4 i = 0; i < nof_root_systems; ++i) {
+      writer.write_key(i);
+      writer.write(OldObjectRoot::system_description((OldObjectRoot::System)i));
+    }
+  }
+};
+
+class RootType : public JfrSerializer {
+public:
+  void serialize(JfrCheckpointWriter& writer) {
+    const u4 nof_root_types = OldObjectRoot::_number_of_types;
+    writer.write_count(nof_root_types);
+    for (u4 i = 0; i < nof_root_types; ++i) {
+      writer.write_key(i);
+      writer.write(OldObjectRoot::type_description((OldObjectRoot::Type)i));
+    }
+  }
+};
+
+static void register_serializers() {
+  static bool is_registered = false;
+  if (!is_registered) {
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTSYSTEM, true, new RootSystemType());
+    JfrSerializer::register_serializer(TYPE_OLDOBJECTROOTTYPE, true, new RootType());
+    is_registered = true;
+  }
+}
+
 ObjectSampleWriter::ObjectSampleWriter(JfrCheckpointWriter& writer, EdgeStore* store) :
   _writer(writer),
   _store(store) {
   assert(store != NULL, "invariant");
   assert(!store->is_empty(), "invariant");
+  register_serializers();
   sample_infos = NULL;
   ref_infos = NULL;
   array_infos = NULL;

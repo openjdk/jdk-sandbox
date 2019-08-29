@@ -54,8 +54,6 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   bool initialize();
   static void destroy();
 
-  bool is_modified() const;
-
   size_t write_impl(JfrChunkWriter& cw, bool clear);
   static void write_metadata(JfrCheckpointWriter& cpw);
   traceid write(JfrCheckpointWriter& cpw, traceid id, unsigned int hash);
@@ -66,6 +64,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   static traceid add(const JfrStackTrace& stacktrace);
   traceid record_for(JavaThread* thread, int skip, JfrStackFrame* frames, u4 max_frames);
   const JfrStackTrace* lookup(unsigned int hash, traceid id) const;
+  bool is_modified() const;
 
  public:
   static traceid record(Thread* thread, int skip = 0);

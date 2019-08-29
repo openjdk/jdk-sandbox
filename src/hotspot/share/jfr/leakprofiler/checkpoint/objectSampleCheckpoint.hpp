@@ -46,7 +46,7 @@ class ObjectSampleCheckpoint : AllStatic {
   static void on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& repo);
   static bool tag(const JfrStackTrace* trace, JfrCheckpointWriter* writer = NULL);
   static int save_mark_words(const ObjectSampler* sampler, ObjectSampleMarker& marker, bool emit_all);
-  static void write(const ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);
+  static void write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);
 };
 
 #endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLECHECKPOINT_HPP
