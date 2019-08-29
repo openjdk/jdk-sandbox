@@ -46,6 +46,7 @@ import jdk.jfr.StackTrace;
 import jdk.jfr.Threshold;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.RequestEngine.RequestHook;
+import jdk.jfr.internal.consumer.RepositoryFiles;
 import jdk.jfr.internal.handlers.EventHandler;
 
 public final class MetadataRepository {
@@ -267,7 +268,9 @@ public final class MetadataRepository {
     // to storeDescriptorInJVM
     synchronized void setOutput(String filename) {
         jvm.setOutput(filename);
-        Utils.notifyFlush();
+        if (filename != null) {
+            RepositoryFiles.notifyNewFile();
+        }
         flushMetadata = false;
         unregisterUnloaded();
         if (unregistered) {

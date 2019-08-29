@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.SortedMap;
@@ -46,15 +45,24 @@ import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 
 public final class RepositoryFiles {
+    private static final Object WAIT_OBJECT = new Object();
+    public static void notifyNewFile() {
+        synchronized (WAIT_OBJECT) {
+            WAIT_OBJECT.notifyAll();
+        }
+    }
+
     private final FileAccess fileAccess;
     private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
     private final Path repository;
     private volatile boolean closed;
+    private final Object waitObject;
 
     public RepositoryFiles(FileAccess fileAccess, Path repository) {
         this.repository = repository;
         this.fileAccess = fileAccess;
+        this.waitObject = repository == null ? WAIT_OBJECT : new Object();
     }
 
     public long getTimestamp(Path p) {
@@ -123,8 +131,8 @@ public final class RepositoryFiles {
 
     private void nap() {
         try {
-            synchronized (pathSet) {
-                pathSet.wait(1000);
+            synchronized (waitObject) {
+                waitObject.wait(1000);
             }
         } catch (InterruptedException e) {
             // ignore
@@ -193,10 +201,9 @@ public final class RepositoryFiles {
     }
 
     public void close() {
-        synchronized (pathSet) {
+        synchronized (waitObject) {
             this.closed = true;
-            pathSet.notify();
+            waitObject.notify();
         }
     }
-
 }
