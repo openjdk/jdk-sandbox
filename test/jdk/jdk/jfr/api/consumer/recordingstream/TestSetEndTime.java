@@ -59,14 +59,14 @@ public final class TestSetEndTime {
             r.setFlushInterval(Duration.ofSeconds(1));
             r.start();
             Mark event1 = new Mark();
+            event1.begin();  // start time
             event1.before = true;
             advanceClock();
-            event1.commit(); // start time
+            event1.commit();
 
             Mark event2 = new Mark();
             event2.begin();  // end time
             advanceClock();
-          //  event2.end();
             Thread.sleep(100);
             event2.before = false;
             event2.commit();
@@ -85,7 +85,7 @@ public final class TestSetEndTime {
                     System.out.println("End  : " + end);
                 }
             }
-
+            System.out.println("===================");
             AtomicBoolean error = new AtomicBoolean(true);
             try (EventStream d = EventStream.openRepository()) {
                 d.setStartTime(start);
