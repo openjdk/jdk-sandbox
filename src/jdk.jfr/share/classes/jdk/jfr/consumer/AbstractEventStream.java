@@ -330,7 +330,7 @@ abstract class AbstractEventStream implements Runnable {
     protected final Runnable flushOperation = () -> runFlushActions();
 
     // Updated by updateConfiguration()
-    protected StreamConfiguration configuration = new StreamConfiguration();
+    protected volatile StreamConfiguration configuration = new StreamConfiguration();
 
     // Cache the last event type and dispatch.
     private EventType lastEventType;
@@ -501,16 +501,13 @@ abstract class AbstractEventStream implements Runnable {
 
 
     protected boolean updateConfiguration(StreamConfiguration newConfiguration) {
-        // Changes to the configuration must be serialized, so make
+        // Changes to the configuration must happen one at a time, so make
         // sure that we have the monitor
         Thread.holdsLock(this);
         if (newConfiguration.hasChanged()) {
-            // Publish objects indirectly held by new configuration object
+            // Publish objects held by configuration object
             VarHandle.releaseFence();
             configuration = newConfiguration;
-            // Publish the field reference. Making the field volatile
-            // would be an alternative, but it is repeatedly read.
-            VarHandle.releaseFence();
             return true;
         }
         return false;
