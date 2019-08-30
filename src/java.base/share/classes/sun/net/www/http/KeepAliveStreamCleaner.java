@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,8 @@ import java.util.LinkedList;
 import sun.net.NetProperties;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class is used to cleanup any remaining data that may be on a KeepAliveStream
@@ -78,6 +80,8 @@ class KeepAliveStreamCleaner
 
     }
 
+    final ReentrantLock queueLock = new ReentrantLock();
+    final Condition waiter = queueLock.newCondition();
 
     @Override
     public boolean offer(KeepAliveCleanerEntry e) {
@@ -94,11 +98,12 @@ class KeepAliveStreamCleaner
 
         do {
             try {
-                synchronized(this) {
+                queueLock.lock();
+                try {
                     long before = System.currentTimeMillis();
                     long timeout = TIMEOUT;
                     while ((kace = poll()) == null) {
-                        this.wait(timeout);
+                        waiter.wait(timeout);
 
                         long after = System.currentTimeMillis();
                         long elapsed = after - before;
@@ -110,6 +115,8 @@ class KeepAliveStreamCleaner
                         before = after;
                         timeout -= elapsed;
                     }
+                } finally {
+                    queueLock.unlock();
                 }
 
                 if(kace == null)
@@ -118,7 +125,9 @@ class KeepAliveStreamCleaner
                 KeepAliveStream kas = kace.getKeepAliveStream();
 
                 if (kas != null) {
-                    synchronized(kas) {
+                    final ReentrantLock readLock = kas.readLock();
+                    readLock.lock();
+                    try {
                         HttpClient hc = kace.getHttpClient();
                         try {
                             if (hc != null && !hc.isInKeepAliveCache()) {
@@ -147,6 +156,8 @@ class KeepAliveStreamCleaner
                         } finally {
                             kas.setClosed();
                         }
+                    } finally {
+                        readLock.unlock();
                     }
                 }
             } catch (InterruptedException ie) { }

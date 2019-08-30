@@ -225,7 +225,7 @@ public class NTLMAuthentication extends AuthenticationInfo {
      * @return true if all goes well, false if no headers were set.
      */
     @Override
-    public synchronized boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
+    public boolean setHeaders(HttpURLConnection conn, HeaderParser p, String raw) {
 
         try {
             String response;

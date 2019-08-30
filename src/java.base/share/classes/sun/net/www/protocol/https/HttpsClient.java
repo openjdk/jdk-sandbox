@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,18 +42,14 @@ import java.security.cert.*;
 import java.util.Objects;
 import java.util.StringTokenizer;
 import java.util.Vector;
-
-import javax.security.auth.x500.X500Principal;
-
+import java.util.concurrent.locks.Lock;
 import javax.net.ssl.*;
 import sun.net.www.http.HttpClient;
 import sun.net.www.protocol.http.AuthenticatorKeys;
 import sun.net.www.protocol.http.HttpURLConnection;
 import sun.security.action.*;
-
 import sun.security.util.HostnameChecker;
 import sun.security.ssl.SSLSocketImpl;
-
 import sun.util.logging.PlatformLogger;
 import static sun.net.www.protocol.http.HttpURLConnection.TunnelState.*;
 
@@ -208,7 +204,7 @@ final class HttpsClient extends HttpClient
      * Use New to get new HttpsClient. This constructor is meant to be
      * used only by New method. New properly checks for URL spoofing.
      *
-     * @param URL https URL with which a connection must be established
+     * @param url https URL with which a connection must be established
      */
     private HttpsClient(SSLSocketFactory sf, URL url)
     throws IOException
@@ -341,8 +337,10 @@ final class HttpsClient extends HttpClient
                 boolean compatible = ((ret.proxy != null && ret.proxy.equals(p)) ||
                     (ret.proxy == null && p == Proxy.NO_PROXY))
                      && Objects.equals(ret.getAuthenticatorKey(), ak);
+                Lock lock = ret.clientLock;
                 if (compatible) {
-                    synchronized (ret) {
+                    lock.lock();
+                    try {
                         ret.cachedHttpClient = true;
                         assert ret.inCache;
                         ret.inCache = false;
@@ -351,18 +349,23 @@ final class HttpsClient extends HttpClient
                         if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("KeepAlive stream retrieved from the cache, " + ret);
                         }
+                    } finally {
+                        lock.unlock();
                     }
                 } else {
                     // We cannot return this connection to the cache as it's
                     // KeepAliveTimeout will get reset. We simply close the connection.
                     // This should be fine as it is very rare that a connection
                     // to the same host will not use the same proxy.
-                    synchronized(ret) {
+                    lock.lock();
+                    try {
                         if (logger.isLoggable(PlatformLogger.Level.FINEST)) {
                             logger.finest("Not returning this connection to cache: " + ret);
                         }
                         ret.inCache = false;
                         ret.closeServer();
+                    } finally {
+                        lock.unlock();
                     }
                     ret = null;
                 }
