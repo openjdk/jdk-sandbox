@@ -52,9 +52,9 @@ public final class ChunkHeader {
     private final RecordingInput input;
     private final long id;
     private long absoluteEventStart;
-    private long chunkSize;
-    private long constantPoolPosition;
-    private long metadataPosition;
+    private long chunkSize = 0;
+    private long constantPoolPosition = 0;
+    private long metadataPosition = 0;
     private long durationNanos;
     private long absoluteChunkEnd;
     private boolean isFinished;

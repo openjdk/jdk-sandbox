@@ -67,7 +67,7 @@ class EventDirectoryStream implements EventStream {
         }
 
         @Override
-        public void process() throws IOException {
+        public void process() throws Exception {
             final StreamConfiguration c1 = configuration;
             Path path;
             boolean validStartTime = active || c1.getStartTime() != null;
@@ -270,6 +270,12 @@ class EventDirectoryStream implements EventStream {
 
     public void startAsync(long startNanos) {
         eventStream.startAsync(startNanos);
+    }
+
+    @Override
+    public void onError(Consumer<Throwable> action) {
+        // TODO Auto-generated method stub
+
     }
 
 

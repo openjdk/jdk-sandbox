@@ -41,7 +41,7 @@ public abstract class RecordingInternals {
                 Class<?> c = RecordedObject.class;
                 Class.forName(c.getName(), true, c.getClassLoader());
             } catch (ClassNotFoundException e) {
-                new InternalError("shuld not happen");
+                throw new InternalError("Should not happen");
             }
         }
         return INSTANCE;

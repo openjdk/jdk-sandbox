@@ -66,8 +66,12 @@ abstract class AbstractEventStream implements Runnable {
 
         private Runnable[] flushActions = NO_ACTIONS;
         private Runnable[] closeActions = NO_ACTIONS;
+        private Runnable[] errorActions = NO_ACTIONS;
+
         private EventDispatcher[] dispatchers = NO_DISPATCHERS;
         private InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
+        private LongMap<EventDispatcher[]> dispatcherLookup = new LongMap<>();
+        private boolean changedConfiguration = false;
         private boolean closed = false;
         private boolean reuse = true;
         private boolean ordered = true;
@@ -76,8 +80,6 @@ abstract class AbstractEventStream implements Runnable {
         private boolean started = false;
         private long startNanos = 0;
         private long endNanos = Long.MAX_VALUE;
-        private LongMap<EventDispatcher[]> dispatcherLookup = new LongMap<>();
-        private boolean changed = false;
 
         public StreamConfiguration(StreamConfiguration configuration) {
             this.flushActions = configuration.flushActions;
@@ -122,9 +124,14 @@ abstract class AbstractEventStream implements Runnable {
             return this;
         }
 
+        public StreamConfiguration addErrorAction(Runnable action) {
+            errorActions = add(errorActions, action);
+            return this;
+        }
+
         final public StreamConfiguration setClosed(boolean closed) {
             this.closed = closed;
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
 
@@ -154,7 +161,7 @@ abstract class AbstractEventStream implements Runnable {
             if (modified) {
                 eventFilter = buildFilter(result);
                 dispatcherLookup = new LongMap<>();
-                changed = true;
+                changedConfiguration = true;
             }
             return result;
         }
@@ -165,7 +172,7 @@ abstract class AbstractEventStream implements Runnable {
                 if (array[i] != action) {
                     list.add(array[i]);
                 } else {
-                    changed = true;
+                    changedConfiguration = true;
                 }
             }
             return list.toArray(array);
@@ -174,7 +181,7 @@ abstract class AbstractEventStream implements Runnable {
         private <T> T[] add(T[] array, T object) {
             List<T> list = new ArrayList<>(Arrays.asList(array));
             list.add(object);
-            changed = true;
+            changedConfiguration = true;
             return list.toArray(array);
         }
 
@@ -192,26 +199,27 @@ abstract class AbstractEventStream implements Runnable {
 
         final public StreamConfiguration setReuse(boolean reuse) {
             this.reuse = reuse;
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
 
         final public StreamConfiguration setOrdered(boolean ordered) {
             this.ordered = ordered;
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
+
         public StreamConfiguration setEndTime(Instant endTime) {
             this.endTime = endTime;
             this.endNanos = Utils.timeToNanos(endTime);
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
 
         final public StreamConfiguration setStartTime(Instant startTime) {
             this.startTime = startTime;
             this.startNanos = Utils.timeToNanos(startTime);
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
 
@@ -229,17 +237,17 @@ abstract class AbstractEventStream implements Runnable {
 
         final public StreamConfiguration setStartNanos(long startNanos) {
             this.startNanos = startNanos;
-            changed = true;
+            changedConfiguration = true;
             return this;
         }
 
         final public void setStarted(boolean started) {
             this.started = started;
-            changed = true;
+            changedConfiguration = true;
         }
 
         final public boolean hasChanged() {
-            return changed;
+            return changedConfiguration;
         }
 
         final public boolean getReuse() {
@@ -291,10 +299,6 @@ abstract class AbstractEventStream implements Runnable {
         private EventDispatcher[] getDispatchers() {
             return dispatchers;
         }
-
-
-
-
     }
 
     final static class EventDispatcher {
@@ -329,7 +333,7 @@ abstract class AbstractEventStream implements Runnable {
     private final boolean active;
     protected final Runnable flushOperation = () -> runFlushActions();
 
-    // Updated by updateConfiguration()
+    // Modified by updateConfiguration()
     protected volatile StreamConfiguration configuration = new StreamConfiguration();
 
     // Cache the last event type and dispatch.
@@ -352,32 +356,20 @@ abstract class AbstractEventStream implements Runnable {
                 return null;
             }
         }, accessControlContext);
-
     }
 
     private void execute() {
         JVM.getJVM().exclude(Thread.currentThread());
         try {
             process();
-        } catch (IOException e) {
-            if (!isClosed()) {
-                logException(e);
-            }
         } catch (Exception e) {
-            logException(e);
+            defaultErrorHandler(e);
         } finally {
             Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Execution of stream ended.");
         }
     }
 
-    private void logException(Exception e) {
-        // FIXME: e.printStackTrace(); for debugging purposes,
-        // remove before before integration
-        e.printStackTrace();
-        Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Unexpected error processing stream. " + e.getMessage());
-    }
-
-    public abstract void process() throws IOException;
+    public abstract void process() throws Exception;
 
     protected final void clearLastDispatch() {
         lastEventDispatch = null;
@@ -407,9 +399,24 @@ abstract class AbstractEventStream implements Runnable {
             try {
                 ret[i].offer(event);
             } catch (Exception e) {
-                logException(e);
+                handleError(e);
             }
         }
+    }
+
+    protected final void handleError(Throwable e) {
+        StreamConfiguration c = configuration;
+        if (c.errorActions.length == 0) {
+            defaultErrorHandler(e);
+            return;
+        }
+        for (Runnable r : c.errorActions) {
+            r.run();
+        }
+    }
+
+    protected final void defaultErrorHandler(Throwable e) {
+        e.printStackTrace();
     }
 
     public final void runCloseActions() {
@@ -418,7 +425,7 @@ abstract class AbstractEventStream implements Runnable {
             try {
                 cas[i].run();
             } catch (Exception e) {
-                logException(e);
+                handleError(e);
             }
         }
     }
@@ -429,9 +436,10 @@ abstract class AbstractEventStream implements Runnable {
             try {
                 fas[i].run();
             } catch (Exception e) {
-                logException(e);
+                handleError(e);
             }
         }
+
     }
 
     // Purpose of synchronizing the following methods is
@@ -465,6 +473,10 @@ abstract class AbstractEventStream implements Runnable {
         updateConfiguration(new StreamConfiguration(configuration).addCloseAction(action));
     }
 
+    public final synchronized void addErrorAction(Runnable action) {
+        updateConfiguration(new StreamConfiguration(configuration).addErrorAction(action));
+    }
+
     public final synchronized void setClosed(boolean closed) {
         updateConfiguration(new StreamConfiguration(configuration).setClosed(closed));
     }
@@ -492,18 +504,17 @@ abstract class AbstractEventStream implements Runnable {
         updateConfiguration(new StreamConfiguration(configuration).setStartTime(startTime));
     }
 
-    public final void setEndTime(Instant endTime) {
-    if (configuration.isStarted()) {
-        throw new IllegalStateException("Stream is already started");
+    public final synchronized void setEndTime(Instant endTime) {
+        if (configuration.isStarted()) {
+            throw new IllegalStateException("Stream is already started");
+        }
+        updateConfiguration(new StreamConfiguration(configuration).setEndTime(endTime));
     }
-    updateConfiguration(new StreamConfiguration(configuration).setEndTime(endTime));
-}
-
 
     protected boolean updateConfiguration(StreamConfiguration newConfiguration) {
-        // Changes to the configuration must happen one at a time, so make
-        // sure that we have the monitor
-        Thread.holdsLock(this);
+        if (!Thread.holdsLock(this)) {
+            throw new InternalError("Modification of configuration without proper lock");
+        }
         if (newConfiguration.hasChanged()) {
             // Publish objects held by configuration object
             VarHandle.releaseFence();
@@ -527,18 +538,16 @@ abstract class AbstractEventStream implements Runnable {
         run();
     }
 
-    private void startInternal(long startNanos) {
-        synchronized (this) {
-            if (configuration.isStarted()) {
-                throw new IllegalStateException("Event stream can only be started once");
-            }
-            StreamConfiguration c = new StreamConfiguration(configuration);
-            if (active) {
-                c.setStartNanos(startNanos);
-            }
-            c.setStarted(true);
-            updateConfiguration(c);
+    private synchronized void startInternal(long startNanos) {
+        if (configuration.isStarted()) {
+            throw new IllegalStateException("Event stream can only be started once");
         }
+        StreamConfiguration c = new StreamConfiguration(configuration);
+        if (active) {
+            c.setStartNanos(startNanos);
+        }
+        c.setStarted(true);
+        updateConfiguration(c);
     }
 
     public final void awaitTermination(Duration timeout) {

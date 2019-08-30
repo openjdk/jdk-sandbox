@@ -228,4 +228,10 @@ final class EventFileStream implements EventStream {
     public void setEndTime(Instant endTime) {
         eventStream.setEndTime(endTime);
     }
+
+    @Override
+    public void onError(Consumer<Throwable> action) {
+        // TODO Auto-generated method stub
+
+    }
 }

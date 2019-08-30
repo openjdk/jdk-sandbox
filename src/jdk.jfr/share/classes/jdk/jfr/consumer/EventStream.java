@@ -133,6 +133,21 @@ public interface EventStream extends AutoCloseable {
     void onFlush(Runnable action);
 
     /**
+     * Performs an action if an exception occurs when processing the stream.
+     * <p>
+     * if an error handler has not been added to the stream, an exception stack
+     * trace is printed to standard error.
+     * <p>
+     * Adding an error handler overrides the default behavior. If multiple error
+     * handlers have been added, they will be executed in the order they were
+     * added.
+     *
+     * @param action an action to be performed if an exception occurs, not
+     *        {@code null}
+     */
+    void onError(Consumer<Throwable> action);
+
+    /**
      * Performs an action when the event stream is closed.
      * <p>
      * If the stream is already closed, the action will be executed immediately

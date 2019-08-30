@@ -362,4 +362,9 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     public void setEndTime(Instant endTime) {
         stream.setStartTime(endTime);
     }
+
+    @Override
+    public void onError(Consumer<Throwable> action) {
+        stream.onError(action);
+    }
 }
