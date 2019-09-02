@@ -29,7 +29,6 @@
 #include "jfr/utilities/jfrTypes.hpp"
 
 class frame;
-class InstanceKlass;
 class JavaThread;
 class JfrCheckpointWriter;
 class JfrChunkWriter;
@@ -38,14 +37,14 @@ class Method;
 class JfrStackFrame {
   friend class ObjectSampleCheckpoint;
  private:
-  mutable InstanceKlass* _klass;
+  const Method* _method;
   traceid _methodid;
   mutable int _line;
   int _bci;
   u1 _type;
 
  public:
-  JfrStackFrame(const traceid& id, int bci, int type, InstanceKlass* klass);
+  JfrStackFrame(const traceid& id, int bci, int type, const Method* method);
   JfrStackFrame(const traceid& id, int bci, int type, int lineno);
 
   bool equals(const JfrStackFrame& rhs) const;
@@ -69,7 +68,6 @@ class JfrStackTrace : public JfrCHeapObj {
   friend class ObjectSampler;
   friend class OSThreadSampler;
   friend class StackTraceResolver;
-
  private:
   const JfrStackTrace* _next;
   JfrStackFrame* _frames;
@@ -102,14 +100,12 @@ class JfrStackTrace : public JfrCHeapObj {
   bool full_stacktrace() const { return _reached_root; }
 
   JfrStackTrace(traceid id, const JfrStackTrace& trace, const JfrStackTrace* next);
-  void operator=(const JfrStackTrace& trace);
-
- public:
   JfrStackTrace(JfrStackFrame* frames, u4 max_frames);
   ~JfrStackTrace();
+
+ public:
   unsigned int hash() const { return _hash; }
   traceid id() const { return _id; }
-  u4 number_of_frames() const { return _nr_of_frames; }
 };
 
 #endif // SHARE_JFR_RECORDER_STACKTRACE_JFRSTACKTRACE_HPP

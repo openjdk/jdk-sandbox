@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,19 +23,45 @@
  */
 
 #include "precompiled.hpp"
-#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
-#include "runtime/safepoint.hpp"
-#include "runtime/orderAccess.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 
-// Alternating epochs on each rotation allow for concurrent tagging.
-// The regular epoch shift happens only during a safepoint.
-// The fence is there only for the emergency dump case which happens outside of safepoint.
-bool JfrTraceIdEpoch::_epoch_state = false;
-bool volatile JfrTraceIdEpoch::_tag_state = false;
+JfrBlob::JfrBlob(const u1* checkpoint, size_t size) :
+  _data(JfrCHeapObj::new_array<u1>(size)),
+  _next(),
+  _size(size),
+  _written(false) {
+  assert(_data != NULL, "invariant");
+  memcpy(const_cast<u1*>(_data), checkpoint, size);
+}
 
-void JfrTraceIdEpoch::shift_epoch() {
-  _epoch_state = !_epoch_state;
-  if (!SafepointSynchronize::is_at_safepoint()) {
-    OrderAccess::fence();
+JfrBlob::~JfrBlob() {
+  JfrCHeapObj::free(const_cast<u1*>(_data), _size);
+}
+
+void JfrBlob::reset_write_state() const {
+  if (!_written) {
+    return;
   }
+  _written = false;
+  if (_next.valid()) {
+    _next->reset_write_state();
+  }
+}
+
+void JfrBlob::set_next(const JfrBlobHandle& ref) {
+  if (_next == ref) {
+    return;
+  }
+  assert(_next != ref, "invariant");
+  if (_next.valid()) {
+    _next->set_next(ref);
+    return;
+  }
+  _next = ref;
+}
+
+JfrBlobHandle JfrBlob::make(const u1* data, size_t size) {
+  const JfrBlob* const blob = new JfrBlob(data, size);
+  assert(blob != NULL, "invariant");
+  return JfrBlobReference::make(blob);
 }

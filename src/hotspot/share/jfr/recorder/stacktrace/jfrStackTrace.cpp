@@ -39,11 +39,11 @@ static void copy_frames(JfrStackFrame** lhs_frames, u4 length, const JfrStackFra
   }
 }
 
-JfrStackFrame::JfrStackFrame(const traceid& id, int bci, int type, InstanceKlass* k) :
-  _klass(k), _methodid(id), _line(0), _bci(bci), _type(type) {}
+JfrStackFrame::JfrStackFrame(const traceid& id, int bci, int type, const Method* method) :
+  _method(method), _methodid(id), _line(0), _bci(bci), _type(type) {}
 
 JfrStackFrame::JfrStackFrame(const traceid& id, int bci, int type, int lineno) :
-  _klass(NULL), _methodid(id), _line(lineno), _bci(bci), _type(type) {}
+  _method(NULL), _methodid(id), _line(lineno), _bci(bci), _type(type) {}
 
 JfrStackTrace::JfrStackTrace(JfrStackFrame* frames, u4 max_frames) :
   _next(NULL),
@@ -75,26 +75,6 @@ JfrStackTrace::~JfrStackTrace() {
   if (_frames_ownership && _frames != NULL) {
     FREE_C_HEAP_ARRAY(JfrStackFrame, _frames);
   }
-}
-
-void JfrStackTrace::operator=(const JfrStackTrace& trace) {
-  assert(_next == NULL, "invariant");
-  assert(_frames_ownership, "invariant");
-
-  if (_id == trace._id) {
-    assert(_hash == trace._hash, "invariant");
-    assert(_nr_of_frames == trace._nr_of_frames, "invariant");
-    return;
-  }
-  _next = NULL;
-  _id = trace._id;
-  _hash = trace._hash;
-  _nr_of_frames = trace._nr_of_frames;
-  _max_frames = trace._max_frames;
-  _reached_root = trace._reached_root;
-  _lineno = trace._lineno;
-  _written = false;
-  copy_frames(&_frames, trace._nr_of_frames, trace._frames);
 }
 
 template <typename Writer>
@@ -220,7 +200,7 @@ bool JfrStackTrace::record_thread(JavaThread& thread, frame& frame) {
     const int lineno = method->line_number_from_bci(bci);
     // Can we determine if it's inlined?
     _hash = (_hash << 2) + (unsigned int)(((size_t)mid >> 2) + (bci << 4) + type);
-    _frames[count] = JfrStackFrame(mid, bci, type, method->constants()->pool_holder());
+    _frames[count] = JfrStackFrame(mid, bci, type, method);
     st.samples_next();
     count++;
   }
@@ -231,12 +211,9 @@ bool JfrStackTrace::record_thread(JavaThread& thread, frame& frame) {
 }
 
 void JfrStackFrame::resolve_lineno() const {
-  assert(_klass, "no klass pointer");
+  assert(_method, "no method pointer");
   assert(_line == 0, "already have linenumber");
-  const int id_num = _methodid & METHOD_ID_NUM_MASK;
-  const Method* const method = _klass->method_with_orig_idnum(id_num);
-  assert(method != NULL, "invariant");
-  _line = method->line_number_from_bci(_bci);
+  _line = _method->line_number_from_bci(_bci);
 }
 
 void JfrStackTrace::resolve_linenos() const {
@@ -275,7 +252,7 @@ bool JfrStackTrace::record_safe(JavaThread* thread, int skip) {
     }
     // Can we determine if it's inlined?
     _hash = (_hash << 2) + (unsigned int)(((size_t)mid >> 2) + (bci << 4) + type);
-    _frames[count] = JfrStackFrame(mid, bci, type, method->constants()->pool_holder());
+    _frames[count] = JfrStackFrame(mid, bci, type, method);
     vfs.next();
     count++;
   }

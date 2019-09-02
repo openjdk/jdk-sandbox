@@ -30,7 +30,6 @@
 #include "gc/shared/gcName.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcWhen.hpp"
-#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
@@ -293,15 +292,17 @@ void VMOperationTypeConstant::serialize(JfrCheckpointWriter& writer) {
 
 class TypeSetSerialization {
  private:
+  JfrCheckpointWriter* _leakp_writer;
   size_t _elements;
   bool _class_unload;
   bool _flushpoint;
  public:
-  explicit TypeSetSerialization(bool class_unload, bool flushpoint) : _elements(0), _class_unload(class_unload), _flushpoint(flushpoint) {}
+  TypeSetSerialization(bool class_unload, bool flushpoint, JfrCheckpointWriter* leakp_writer = NULL) :
+    _leakp_writer(leakp_writer), _elements(0), _class_unload(class_unload), _flushpoint(flushpoint) {}
   void write(JfrCheckpointWriter& writer) {
     MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
     MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
-    _elements = JfrTypeSet::serialize(&writer, _class_unload, _flushpoint);
+   _elements = JfrTypeSet::serialize(&writer, _leakp_writer, _class_unload, _flushpoint);
   }
   size_t elements() const {
     return _elements;
@@ -311,10 +312,6 @@ class TypeSetSerialization {
 void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(true, false);
   type_set.write(writer);
-  if (LeakProfiler::is_running()) {
-    ObjectSampleCheckpoint::on_type_set_unload(writer);
-    return;
-  }
 };
 
 void FlushTypeSet::serialize(JfrCheckpointWriter& writer) {
@@ -328,8 +325,10 @@ size_t FlushTypeSet::elements() const {
   return _elements;
 }
 
+TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
+
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set(false, false);
+  TypeSetSerialization type_set(false, false, _leakp_writer);
   type_set.write(writer);
 };
 

@@ -124,7 +124,10 @@ class VMOperationTypeConstant : public JfrSerializer {
 };
 
 class TypeSet : public JfrSerializer {
+ private:
+  JfrCheckpointWriter* _leakp_writer;
  public:
+  explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
   void serialize(JfrCheckpointWriter& writer);
 };
 

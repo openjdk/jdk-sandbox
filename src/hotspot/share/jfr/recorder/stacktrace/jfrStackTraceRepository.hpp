@@ -40,7 +40,7 @@ class JfrStackTraceRepository : public JfrCHeapObj {
   friend class JfrThreadSampleClosure;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
-  friend class StackTraceResolver;
+  friend class StackTraceBlobInstaller;
 
  private:
   static const u4 TABLE_SIZE = 2053;

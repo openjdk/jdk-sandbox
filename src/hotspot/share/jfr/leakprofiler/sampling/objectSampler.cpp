@@ -113,10 +113,10 @@ static traceid get_thread_id(JavaThread* thread) {
   if (tl->is_excluded()) {
     return 0;
   }
-  if (!tl->has_thread_checkpoint()) {
-    JfrCheckpointManager::create_thread_checkpoint(thread);
+  if (!tl->has_thread_blob()) {
+    JfrCheckpointManager::create_thread_blob(thread);
   }
-  assert(tl->has_thread_checkpoint(), "invariant");
+  assert(tl->has_thread_blob(), "invariant");
   return tl->thread_id();
 }
 
@@ -148,7 +148,7 @@ void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, Java
   assert(obj != NULL, "invariant");
   assert(thread_id != 0, "invariant");
   assert(thread != NULL, "invariant");
-  assert(thread->jfr_thread_local()->has_thread_checkpoint(), "invariant");
+  assert(thread->jfr_thread_local()->has_thread_blob(), "invariant");
 
   if (_dead_samples) {
     scavenge();
@@ -174,7 +174,7 @@ void ObjectSampler::add(HeapWord* obj, size_t allocated, traceid thread_id, Java
   sample->set_thread_id(thread_id);
 
   const JfrThreadLocal* const tl = thread->jfr_thread_local();
-  sample->set_thread_checkpoint(tl->thread_checkpoint());
+  sample->set_thread(tl->thread_blob());
 
   const unsigned int stacktrace_hash = tl->cached_stack_trace_hash();
   if (stacktrace_hash != 0) {

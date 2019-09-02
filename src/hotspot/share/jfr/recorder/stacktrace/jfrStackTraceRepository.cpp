@@ -184,8 +184,10 @@ void JfrStackTraceRepository::record_and_cache(JavaThread* thread, int skip /* 0
   assert(!tl->has_cached_stack_trace(), "invariant");
   JfrStackTrace stacktrace(tl->stackframes(), tl->stackdepth());
   stacktrace.record_safe(thread, skip);
-  assert(stacktrace.hash() != 0, "invariant");
-  tl->set_cached_stack_trace_id(instance().add(stacktrace), stacktrace.hash());
+  const unsigned int hash = stacktrace.hash();
+  if (hash != 0) {
+    tl->set_cached_stack_trace_id(instance().add(stacktrace), hash);
+  }
 }
 
 traceid JfrStackTraceRepository::add_trace(const JfrStackTrace& stacktrace) {

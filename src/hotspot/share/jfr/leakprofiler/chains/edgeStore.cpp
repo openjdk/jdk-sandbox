@@ -55,13 +55,13 @@ bool EdgeStore::is_empty() const {
   return !_edges->has_entries();
 }
 
-void EdgeStore::assign_id(EdgeEntry* entry) {
+void EdgeStore::link(EdgeEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_edge_id_counter);
 }
 
-bool EdgeStore::equals(const Edge& query, uintptr_t hash, const EdgeEntry* entry) {
+bool EdgeStore::equals(uintptr_t hash, const EdgeEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
   return true;
@@ -80,22 +80,21 @@ bool EdgeStore::contains(const oop* reference) const {
 
 StoredEdge* EdgeStore::get(const oop* reference) const {
   assert(reference != NULL, "invariant");
-  const StoredEdge e(NULL, reference);
-  EdgeEntry* const entry = _edges->lookup_only(e, (uintptr_t)reference);
+  EdgeEntry* const entry = _edges->lookup_only((uintptr_t)reference);
   return entry != NULL ? entry->literal_addr() : NULL;
 }
 
 StoredEdge* EdgeStore::put(const oop* reference) {
   assert(reference != NULL, "invariant");
   const StoredEdge e(NULL, reference);
-  assert(NULL == _edges->lookup_only(e, (uintptr_t)reference), "invariant");
-  EdgeEntry& entry = _edges->put(e, (uintptr_t)reference);
+  assert(NULL == _edges->lookup_only((uintptr_t)reference), "invariant");
+  EdgeEntry& entry = _edges->put((uintptr_t)reference, e);
   return entry.literal_addr();
 }
 
 traceid EdgeStore::get_id(const Edge* edge) const {
   assert(edge != NULL, "invariant");
-  EdgeEntry* const entry = _edges->lookup_only(*edge, (uintptr_t)edge->reference());
+  EdgeEntry* const entry = _edges->lookup_only((uintptr_t)edge->reference());
   assert(entry != NULL, "invariant");
   return entry->id();
 }

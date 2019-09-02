@@ -61,7 +61,7 @@ inline traceid JfrTraceId::get(const Thread* t) {
 inline traceid JfrTraceId::use(const Klass* klass) {
   assert(klass != NULL, "invariant");
   if (SHOULD_TAG(klass)) {
-    JfrTraceIdEpoch::set_klass_tagged_in_epoch();
+    JfrTraceIdEpoch::set_changed_tag_state();
     return set_used_and_get(klass);
   }
   assert(USED_THIS_EPOCH(klass), "invariant");
@@ -76,12 +76,20 @@ inline traceid JfrTraceId::use(const Method* method) {
 inline traceid JfrTraceId::use(const Klass* klass, const Method* method) {
   assert(klass != NULL, "invariant");
   assert(method != NULL, "invariant");
-  SET_METHOD_FLAG_USED_THIS_EPOCH(method);
+  bool changed_tag_state = false;
   if (SHOULD_TAG_KLASS_METHOD(klass)) {
-    JfrTraceIdEpoch::set_klass_tagged_in_epoch();
     SET_METHOD_AND_CLASS_USED_THIS_EPOCH(klass);
+    changed_tag_state = true;
   }
   assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
+  if (METHOD_FLAG_NOT_USED_THIS_EPOCH(method)) {
+    SET_METHOD_FLAG_USED_THIS_EPOCH(method);
+    changed_tag_state = true;
+  }
+  assert(METHOD_FLAG_USED_THIS_EPOCH(method), "invariant");
+  if (changed_tag_state) {
+    JfrTraceIdEpoch::set_changed_tag_state();
+  }
   return (METHOD_ID(klass, method));
 }
 
@@ -98,6 +106,13 @@ inline traceid JfrTraceId::use(const PackageEntry* package) {
 inline traceid JfrTraceId::use(const ClassLoaderData* cld) {
   assert(cld != NULL, "invariant");
   return cld->is_unsafe_anonymous() ? 0 : set_used_and_get(cld);
+}
+
+inline void JfrTraceId::set_leakp(const Klass* klass, const Method* method) {
+  assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
+  assert(METHOD_FLAG_USED_THIS_EPOCH(method), "invariant");
+  SET_LEAKP(klass);
+  SET_METHOD_LEAKP(method);
 }
 
 inline bool JfrTraceId::in_visible_set(const Klass* klass) {

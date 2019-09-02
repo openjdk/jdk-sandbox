@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/writers/jfrBigEndianWriter.hpp"
 
 JfrCheckpointFlush::JfrCheckpointFlush(Type* old, size_t used, size_t requested, Thread* t) :
@@ -101,7 +102,7 @@ JfrCheckpointWriter::~JfrCheckpointWriter() {
   assert(this->used_size() > sizeof(JfrCheckpointEntry), "invariant");
   const int64_t size = this->current_offset();
   assert(size + this->start_pos() == this->current_pos(), "invariant");
-  write_checkpoint_header(const_cast<u1*>(this->start_pos()), size, _time, _type, count());
+  write_checkpoint_header(const_cast<u1*>(this->start_pos()), size, _time, (u4)_type, count());
   release();
 }
 
@@ -159,7 +160,7 @@ const u1* JfrCheckpointWriter::session_data(size_t* size, bool move /* false */,
   }
   *size = this->used_size();
   assert(this->start_pos() + *size == this->current_pos(), "invariant");
-  write_checkpoint_header(const_cast<u1*>(this->start_pos()), this->used_offset(), _time, _type, count());
+  write_checkpoint_header(const_cast<u1*>(this->start_pos()), this->used_offset(), _time, (u4)_type, count());
   _header = false; // the header is already written
   if (move) {
     this->seek(_offset);
@@ -182,16 +183,16 @@ bool JfrCheckpointWriter::has_data() const {
   return this->used_size() > sizeof(JfrCheckpointEntry);
 }
 
-JfrCheckpointBlobHandle JfrCheckpointWriter::copy(const JfrCheckpointContext* ctx /* 0 */) {
+JfrBlobHandle JfrCheckpointWriter::copy(const JfrCheckpointContext* ctx /* 0 */) {
   size_t size = 0;
   const u1* data = session_data(&size, false, ctx);
-  return JfrCheckpointBlob::make(data, size);
+  return JfrBlob::make(data, size);
 }
 
-JfrCheckpointBlobHandle JfrCheckpointWriter::move(const JfrCheckpointContext* ctx /* 0 */) {
+JfrBlobHandle JfrCheckpointWriter::move(const JfrCheckpointContext* ctx /* 0 */) {
   size_t size = 0;
   const u1* data = session_data(&size, true, ctx);
-  JfrCheckpointBlobHandle blob = JfrCheckpointBlob::make(data, size);
+  JfrBlobHandle blob = JfrBlob::make(data, size);
   if (ctx != NULL) {
     const_cast<JfrCheckpointContext*>(ctx)->count = 0;
     set_context(*ctx);

@@ -172,13 +172,13 @@ class JfrChunkHeadWriter : public StackObj {
 
 static void write_checkpoint_header(JfrChunkWriter& cw, int64_t event_offset, bool flushpoint) {
   const int64_t delta = cw.last_checkpoint_offset() == 0 ? 0 : cw.last_checkpoint_offset() - event_offset;
-  const u1 checkpoint_type = flushpoint ? FLUSH | HEADER : HEADER;
+  const u4 checkpoint_type = flushpoint ? (u4)(FLUSH | HEADER) : (u4)HEADER;
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
   cw.write<u8>(JfrTicks::now().value());
   cw.write<u8>(0); // duration
   cw.write<u8>(delta); // to previous checkpoint
-  cw.write<u1>(checkpoint_type);
+  cw.write<u4>(checkpoint_type);
   cw.write<u4>(1); // pool count
   cw.write<u8>(TYPE_CHUNKHEADER);
   cw.write<u4>(1); // count

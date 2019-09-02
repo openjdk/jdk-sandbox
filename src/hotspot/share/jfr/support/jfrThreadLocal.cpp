@@ -46,7 +46,7 @@ JfrThreadLocal::JfrThreadLocal() :
   _shelved_buffer(NULL),
   _stackframes(NULL),
   _trace_id(JfrTraceId::assign_thread_id()),
-  _thread_cp(),
+  _thread(),
   _data_lost(0),
   _stack_trace_id(max_julong),
   _user_time(0),
@@ -63,17 +63,17 @@ u8 JfrThreadLocal::add_data_lost(u8 value) {
   return _data_lost;
 }
 
-bool JfrThreadLocal::has_thread_checkpoint() const {
-  return _thread_cp.valid();
+bool JfrThreadLocal::has_thread_blob() const {
+  return _thread.valid();
 }
 
-void JfrThreadLocal::set_thread_checkpoint(const JfrCheckpointBlobHandle& ref) {
-  assert(!_thread_cp.valid(), "invariant");
-  _thread_cp = ref;
+void JfrThreadLocal::set_thread_blob(const JfrBlobHandle& ref) {
+  assert(!_thread.valid(), "invariant");
+  _thread = ref;
 }
 
-const JfrCheckpointBlobHandle& JfrThreadLocal::thread_checkpoint() const {
-  return _thread_cp;
+const JfrBlobHandle& JfrThreadLocal::thread_blob() const {
+  return _thread;
 }
 
 static void send_java_thread_start_event(JavaThread* jt) {

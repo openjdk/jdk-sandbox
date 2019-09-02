@@ -40,7 +40,7 @@ class JfrTypeManager : public AllStatic {
   static void write_type_set();
   static void write_type_set_for_unloaded_classes();
   static size_t flush_type_set();
-  static void create_thread_checkpoint(Thread* t);
+  static void create_thread_blob(Thread* t);
   static void write_thread_checkpoint(Thread* t);
 };
 

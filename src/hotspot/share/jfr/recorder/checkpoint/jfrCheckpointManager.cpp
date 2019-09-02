@@ -254,12 +254,12 @@ static juint number_of_types(const u1* data) {
   return read_data<juint>(data + types_offset);
 }
 
-static void write_checkpoint_header(JfrChunkWriter& cw, int64_t offset_prev_cp_event, const u1* data) {
+static void write_checkpoint_header(JfrChunkWriter& cw, int64_t delta_to_last_checkpoint, const u1* data) {
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
   cw.write(starttime(data));
   cw.write(duration(data));
-  cw.write(offset_prev_cp_event);
+  cw.write(delta_to_last_checkpoint);
   cw.write(checkpoint_type(data));
   cw.write(number_of_types(data));
 }
@@ -273,9 +273,9 @@ static size_t write_checkpoint_event(JfrChunkWriter& cw, const u1* data) {
   assert(data != NULL, "invariant");
   const int64_t event_begin = cw.current_offset();
   const int64_t last_checkpoint_event = cw.last_checkpoint_offset();
-  const int64_t delta = last_checkpoint_event == 0 ? 0 : last_checkpoint_event - event_begin;
+  const int64_t delta_to_last_checkpoint = last_checkpoint_event == 0 ? 0 : last_checkpoint_event - event_begin;
   const int64_t checkpoint_size = total_size(data);
-  write_checkpoint_header(cw, delta, data);
+  write_checkpoint_header(cw, delta_to_last_checkpoint, data);
   write_checkpoint_content(cw, data, checkpoint_size);
   const int64_t event_size = cw.current_offset() - event_begin;
   cw.write_padded_at_offset<u4>(event_size, event_begin);
@@ -440,7 +440,7 @@ void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
 }
 
 bool JfrCheckpointManager::is_type_set_required() {
-  return JfrTraceIdEpoch::is_klass_tagged_in_epoch();
+  return JfrTraceIdEpoch::has_changed_tag_state();
 }
 
 bool JfrCheckpointManager::is_constant_set_required() {
@@ -457,8 +457,8 @@ void JfrCheckpointManager::flush_constant_set() {
   flush();
 }
 
-void JfrCheckpointManager::create_thread_checkpoint(Thread* t) {
-  JfrTypeManager::create_thread_checkpoint(t);
+void JfrCheckpointManager::create_thread_blob(Thread* t) {
+  JfrTypeManager::create_thread_blob(t);
 }
 
 void JfrCheckpointManager::write_thread_checkpoint(Thread* t) {

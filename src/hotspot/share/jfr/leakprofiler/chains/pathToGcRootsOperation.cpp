@@ -43,7 +43,6 @@
 #include "jfr/leakprofiler/utilities/granularTimer.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
-
 #include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/globalDefinitions.hpp"

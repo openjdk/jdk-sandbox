@@ -25,8 +25,8 @@
 #ifndef SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTWRITER_HPP
 #define SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTWRITER_HPP
 
-#include "jfr/recorder/checkpoint/jfrCheckpointBlob.hpp"
 #include "jfr/recorder/storage/jfrBuffer.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 #include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "jfr/writers/jfrEventWriterHost.inline.hpp"
@@ -80,8 +80,8 @@ class JfrCheckpointWriter : public JfrCheckpointWriterBase {
   const JfrCheckpointContext context() const;
   void set_context(const JfrCheckpointContext ctx);
   bool has_data() const;
-  JfrCheckpointBlobHandle copy(const JfrCheckpointContext* ctx = NULL);
-  JfrCheckpointBlobHandle move(const JfrCheckpointContext* ctx = NULL);
+  JfrBlobHandle copy(const JfrCheckpointContext* ctx = NULL);
+  JfrBlobHandle move(const JfrCheckpointContext* ctx = NULL);
 };
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTWRITER_HPP

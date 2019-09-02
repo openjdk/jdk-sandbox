@@ -137,26 +137,24 @@ class FieldTable : public ResourceObj {
             typename,
             size_t>
   friend class HashTableHost;
-  typedef HashTableHost<const ObjectSampleFieldInfo*, traceid, Entry, FieldTable, 109> FieldInfoTable;
+  typedef HashTableHost<const ObjectSampleFieldInfo*, traceid, JfrHashtableEntry, FieldTable, 109> FieldInfoTable;
  public:
   typedef FieldInfoTable::HashEntry FieldInfoEntry;
 
  private:
   static traceid _field_id_counter;
   FieldInfoTable* _table;
+  const ObjectSampleFieldInfo* _lookup;
 
-  void assign_id(FieldInfoEntry* entry) {
+  void link(FieldInfoEntry* entry) {
     assert(entry != NULL, "invariant");
     entry->set_id(++_field_id_counter);
   }
 
-  bool equals(const ObjectSampleFieldInfo* query, uintptr_t hash, const FieldInfoEntry* entry) {
+  bool equals(uintptr_t hash, const FieldInfoEntry* entry) {
     assert(hash == entry->hash(), "invariant");
-    assert(query != NULL, "invariant");
-    const ObjectSampleFieldInfo* stored = entry->literal();
-    assert(stored != NULL, "invariant");
-    assert(stored->_field_name_symbol->identity_hash() == query->_field_name_symbol->identity_hash(), "invariant");
-    return stored->_field_modifiers == query->_field_modifiers;
+    assert(_lookup != NULL, "invariant");
+    return entry->literal()->_field_modifiers == _lookup->_field_modifiers;
   }
 
   void unlink(FieldInfoEntry* entry) {
@@ -165,7 +163,7 @@ class FieldTable : public ResourceObj {
   }
 
  public:
-  FieldTable() : _table(new FieldInfoTable(this)) {}
+  FieldTable() : _table(new FieldInfoTable(this)), _lookup(NULL) {}
   ~FieldTable() {
     assert(_table != NULL, "invariant");
     delete _table;
@@ -173,8 +171,8 @@ class FieldTable : public ResourceObj {
 
   traceid store(const ObjectSampleFieldInfo* field_info) {
     assert(field_info != NULL, "invariant");
-    const FieldInfoEntry& entry =_table->lookup_put(field_info,
-                                                    field_info->_field_name_symbol->identity_hash());
+    _lookup = field_info;
+    const FieldInfoEntry& entry = _table->lookup_put(field_info->_field_name_symbol->identity_hash(), field_info);
     return entry.id();
   }
 

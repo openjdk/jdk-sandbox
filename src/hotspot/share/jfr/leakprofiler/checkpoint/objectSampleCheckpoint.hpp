@@ -31,6 +31,7 @@ class EdgeStore;
 class Klass;
 class JavaThread;
 class JfrCheckpointWriter;
+class JfrStackFrame;
 class JfrStackTrace;
 class JfrStackTraceRepository;
 class ObjectSample;
@@ -39,14 +40,20 @@ class ObjectSampler;
 class Thread;
 
 class ObjectSampleCheckpoint : AllStatic {
+  friend class EventEmitter;
+  friend class PathToGcRootsOperation;
+  friend class StackTraceBlobInstaller;
+ private:
+  static int save_mark_words(const ObjectSampler* sampler, ObjectSampleMarker& marker, bool emit_all);
+  static void tag(const JfrStackFrame& frame, traceid method_id);
+  static void write_stacktrace(const JfrStackTrace* trace, JfrCheckpointWriter& writer);
+  static void write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);
  public:
   static void on_klass_unload(const Klass* k);
+  static void on_type_set(JfrCheckpointWriter& writer);
   static void on_type_set_unload(JfrCheckpointWriter& writer);
   static void on_thread_exit(JavaThread* jt);
   static void on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& repo);
-  static bool tag(const JfrStackTrace* trace, JfrCheckpointWriter* writer = NULL);
-  static int save_mark_words(const ObjectSampler* sampler, ObjectSampleMarker& marker, bool emit_all);
-  static void write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);
 };
 
 #endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLECHECKPOINT_HPP

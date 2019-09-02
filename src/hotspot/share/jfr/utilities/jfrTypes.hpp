@@ -52,37 +52,12 @@ inline int sort_traceid(traceid* lhs, traceid* rhs) {
   return compare_traceid(*lhs, *rhs);
 }
 
-class JfrTraceFlag {
- private:
-  mutable jshort _flags;
- public:
-  JfrTraceFlag() : _flags(0) {}
-  bool is_set(jshort flag) const {
-    return (_flags & flag) != 0;
-  }
-
-  jshort flags() const {
-    return _flags;
-  }
-
-  void set_flags(jshort flags) const {
-    _flags = flags;
-  }
-
-  jbyte* flags_addr() const {
-    return (jbyte*)&_flags;
-  }
-  jbyte* meta_addr() const {
-    return ((jbyte*)&_flags) + 1;
-  }
-};
-
 enum EventStartTime {
   UNTIMED,
   TIMED
 };
 
-enum JfrCheckpointType : u1 {
+enum JfrCheckpointType {
   GENERIC,
   FLUSH,
   HEADER,

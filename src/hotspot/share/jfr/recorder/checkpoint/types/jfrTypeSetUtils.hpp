@@ -126,33 +126,111 @@ class SerializePredicate<const Method*> {
   }
 };
 
-template <typename T>
+template <typename T, bool leakp>
 class SymbolPredicate {
   bool _class_unload;
  public:
   SymbolPredicate(bool class_unload) : _class_unload(class_unload) {}
   bool operator()(T const& value) {
     assert(value != NULL, "invariant");
-    return _class_unload ? value->is_unloading() : !value->is_serialized();
+    if (_class_unload) {
+      return leakp ? value->is_leakp() : value->is_unloading();
+    }
+    return leakp ? value->is_leakp() : !value->is_serialized();
   }
 };
 
+template <bool leakp>
 class MethodUsedPredicate {
   bool _current_epoch;
 public:
   MethodUsedPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(const Klass* klass) {
-    return _current_epoch ? METHOD_USED_THIS_EPOCH(klass) : METHOD_USED_PREV_EPOCH(klass);
+    if (_current_epoch) {
+      return leakp ? IS_LEAKP(klass) : METHOD_USED_THIS_EPOCH(klass);
+    }
+    return  leakp ? IS_LEAKP(klass) : METHOD_USED_PREV_EPOCH(klass);
   }
 };
 
+template <bool leakp>
 class MethodFlagPredicate {
   bool _current_epoch;
  public:
   MethodFlagPredicate(bool current_epoch) : _current_epoch(current_epoch) {}
   bool operator()(const Method* method) {
-    return _current_epoch ? METHOD_FLAG_USED_THIS_EPOCH(method) : METHOD_FLAG_USED_PREV_EPOCH(method);
+    if (_current_epoch) {
+      return leakp ? IS_METHOD_LEAKP_USED(method) : METHOD_FLAG_USED_THIS_EPOCH(method);
+    }
+    return leakp ? IS_METHOD_LEAKP_USED(method) : METHOD_FLAG_USED_PREV_EPOCH(method);
   }
+};
+
+template <typename T>
+class LeakPredicate {
+ public:
+  LeakPredicate(bool class_unload) {}
+  bool operator()(T const& value) {
+    return IS_LEAKP(value);
+  }
+};
+
+template <>
+class LeakPredicate<const Method*> {
+ public:
+  LeakPredicate(bool class_unload) {}
+  bool operator()(const Method* method) {
+    assert(method != NULL, "invariant");
+    return IS_METHOD_LEAKP_USED(method);
+  }
+};
+
+template <typename T, int compare(const T&, const T&)>
+class UniquePredicate {
+ private:
+  GrowableArray<T> _seen;
+ public:
+   UniquePredicate(bool) : _seen() {}
+   bool operator()(T const& value) {
+     bool not_unique;
+     _seen.template find_sorted<T, compare>(value, not_unique);
+     if (not_unique) {
+       return false;
+     }
+     _seen.template insert_sorted<compare>(value);
+     return true;
+   }
+};
+
+template <typename T, int compare(const T&, const T&)>
+class CompositeLeakPredicate {
+  LeakPredicate<T> _leak_predicate;
+  UniquePredicate<T, compare> _unique;
+ public:
+  CompositeLeakPredicate(bool class_unload) : _leak_predicate(class_unload), _unique(class_unload) {}
+  bool operator()(T const& value) {
+    return _leak_predicate(value) && _unique(value);
+  }
+};
+
+template <typename T, typename IdType>
+class ListEntry : public JfrHashtableEntry<T, IdType> {
+ public:
+  ListEntry(uintptr_t hash, const T& data) : JfrHashtableEntry<T, IdType>(hash, data),
+    _list_next(NULL), _serialized(false), _unloading(false), _leakp(false) {}
+  const ListEntry<T, IdType>* list_next() const { return _list_next; }
+  void set_list_next(const ListEntry<T, IdType>* next) const { _list_next = next; }
+  bool is_serialized() const { return _serialized; }
+  void set_serialized() const { _serialized = true; }
+  bool is_unloading() const { return _unloading; }
+  void set_unloading() const { _unloading = true; }
+  bool is_leakp() const { return _leakp; }
+  void set_leakp() const { _leakp = true; }
+ private:
+  mutable const ListEntry<T, IdType>* _list_next;
+  mutable bool _serialized;
+  mutable bool _unloading;
+  mutable bool _leakp;
 };
 
 class JfrSymbolId : public JfrCHeapObj {
@@ -160,6 +238,7 @@ class JfrSymbolId : public JfrCHeapObj {
   friend class HashTableHost;
   typedef HashTableHost<const Symbol*, traceid, ListEntry, JfrSymbolId> SymbolTable;
   typedef HashTableHost<const char*, traceid, ListEntry, JfrSymbolId> CStringTable;
+  friend class JfrArtifactSet;
  public:
   typedef SymbolTable::HashEntry SymbolEntry;
   typedef CStringTable::HashEntry CStringEntry;
@@ -172,11 +251,11 @@ class JfrSymbolId : public JfrCHeapObj {
   bool _class_unload;
 
   // hashtable(s) callbacks
-  void assign_id(const SymbolEntry* entry);
-  bool equals(const Symbol* query, uintptr_t hash, const SymbolEntry* entry);
+  void link(const SymbolEntry* entry);
+  bool equals(uintptr_t hash, const SymbolEntry* entry);
   void unlink(const SymbolEntry* entry);
-  void assign_id(const CStringEntry* entry);
-  bool equals(const char* query, uintptr_t hash, const CStringEntry* entry);
+  void link(const CStringEntry* entry);
+  bool equals(uintptr_t hash, const CStringEntry* entry);
   void unlink(const CStringEntry* entry);
 
   template <typename Functor, typename T>
@@ -189,50 +268,21 @@ class JfrSymbolId : public JfrCHeapObj {
     }
   }
 
- public:
-  static bool is_unsafe_anonymous_klass(const Klass* k);
-  static const char* create_unsafe_anonymous_klass_symbol(const InstanceKlass* ik, uintptr_t& hashcode);
-  static uintptr_t unsafe_anonymous_klass_name_hash_code(const InstanceKlass* ik);
-  static uintptr_t regular_klass_name_hash_code(const Klass* k);
+  traceid mark_unsafe_anonymous_klass_name(const InstanceKlass* k, bool leakp);
+  bool is_unsafe_anonymous_klass(const Klass* k);
+  uintptr_t unsafe_anonymous_klass_name_hash(const InstanceKlass* ik);
 
+ public:
   JfrSymbolId();
   ~JfrSymbolId();
 
   void clear();
   void set_class_unload(bool class_unload);
 
-  traceid mark_unsafe_anonymous_klass_name(const Klass* k);
-  traceid mark(const Symbol* sym, uintptr_t hash);
-  traceid mark(const Klass* k);
-  traceid mark(const Symbol* symbol);
-  traceid mark(const char* str, uintptr_t hash);
-
-  const SymbolEntry* map_symbol(const Symbol* symbol) const;
-  const SymbolEntry* map_symbol(uintptr_t hash) const;
-  const CStringEntry* map_cstring(uintptr_t hash) const;
-
-  template <typename Functor>
-  void symbol(Functor& functor, const Klass* k) {
-    if (is_unsafe_anonymous_klass(k)) {
-      return;
-    }
-    functor(map_symbol(regular_klass_name_hash_code(k)));
-  }
-
-  template <typename Functor>
-  void symbol(Functor& functor, const Method* method) {
-    assert(method != NULL, "invariant");
-    functor(map_symbol((uintptr_t)method->name()->identity_hash()));
-    functor(map_symbol((uintptr_t)method->signature()->identity_hash()));
-  }
-
-  template <typename Functor>
-  void cstring(Functor& functor, const Klass* k) {
-    if (!is_unsafe_anonymous_klass(k)) {
-      return;
-    }
-    functor(map_cstring(unsafe_anonymous_klass_name_hash_code((const InstanceKlass*)k)));
-  }
+  traceid mark(uintptr_t hash, const Symbol* sym, bool leakp);
+  traceid mark(const Klass* k, bool leakp);
+  traceid mark(const Symbol* symbol, bool leakp);
+  traceid mark(uintptr_t hash, const char* str, bool leakp);
 
   template <typename Functor>
   void iterate_symbols(Functor& functor) {
@@ -278,11 +328,11 @@ class JfrArtifactSet : public JfrCHeapObj {
   void clear();
 
 
-  traceid mark(const Symbol* sym, uintptr_t hash);
-  traceid mark(const Klass* klass);
-  traceid mark(const Symbol* symbol);
-  traceid mark(const char* const str, uintptr_t hash);
-  traceid mark_unsafe_anonymous_klass_name(const Klass* klass);
+  traceid mark(uintptr_t hash, const Symbol* sym, bool leakp);
+  traceid mark(const Klass* klass, bool leakp);
+  traceid mark(const Symbol* symbol, bool leakp);
+  traceid mark(uintptr_t hash, const char* const str, bool leakp);
+  traceid mark_unsafe_anonymous_klass_name(const Klass* klass, bool leakp);
 
   const JfrSymbolId::SymbolEntry* map_symbol(const Symbol* symbol) const;
   const JfrSymbolId::SymbolEntry* map_symbol(uintptr_t hash) const;

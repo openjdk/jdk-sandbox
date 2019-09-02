@@ -58,7 +58,7 @@ class StoredEdge : public Edge {
 };
 
 class EdgeStore : public CHeapObj<mtTracing> {
-  typedef HashTableHost<StoredEdge, traceid, Entry, EdgeStore> EdgeHashTable;
+  typedef HashTableHost<StoredEdge, traceid, JfrHashtableEntry, EdgeStore> EdgeHashTable;
   typedef EdgeHashTable::HashEntry EdgeEntry;
   template <typename,
             typename,
@@ -74,8 +74,8 @@ class EdgeStore : public CHeapObj<mtTracing> {
   EdgeHashTable* _edges;
 
   // Hash table callbacks
-  void assign_id(EdgeEntry* entry);
-  bool equals(const Edge& query, uintptr_t hash, const EdgeEntry* entry);
+  void link(EdgeEntry* entry);
+  bool equals(uintptr_t hash, const EdgeEntry* entry);
   void unlink(EdgeEntry* entry);
 
   StoredEdge* get(const oop* reference) const;

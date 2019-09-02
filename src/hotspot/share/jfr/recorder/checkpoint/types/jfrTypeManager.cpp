@@ -24,6 +24,8 @@
 
 #include "precompiled.hpp"
 #include "jfr/jfr.hpp"
+#include "jfr/leakprofiler/leakProfiler.hpp"
+#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
@@ -42,7 +44,7 @@ class JfrSerializerRegistration : public JfrCHeapObj {
   JfrSerializerRegistration* _next;
   JfrSerializerRegistration* _prev;
   JfrSerializer* _serializer;
-  mutable JfrCheckpointBlobHandle _cache;
+  mutable JfrBlobHandle _cache;
   JfrTypeId _id;
   bool _permit_cache;
 
@@ -171,9 +173,17 @@ void JfrTypeManager::notify_types_on_rotation() {
 
 void JfrTypeManager::write_type_set() {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  if (!LeakProfiler::is_running()) {
+    JfrCheckpointWriter writer;
+    TypeSet set;
+    set.serialize(writer);
+    return;
+  }
+  JfrCheckpointWriter leakp_writer;
   JfrCheckpointWriter writer;
-  TypeSet set;
+  TypeSet set(&leakp_writer);
   set.serialize(writer);
+  ObjectSampleCheckpoint::on_type_set(leakp_writer);
 }
 
 void JfrTypeManager::write_type_set_for_unloaded_classes() {
@@ -182,6 +192,9 @@ void JfrTypeManager::write_type_set_for_unloaded_classes() {
   const JfrCheckpointContext ctx = writer.context();
   ClassUnloadTypeSet class_unload_set;
   class_unload_set.serialize(writer);
+  if (LeakProfiler::is_running()) {
+    ObjectSampleCheckpoint::on_type_set_unload(writer);
+  }
   if (!Jfr::is_recording()) {
     // discard anything written
     writer.set_context(ctx);
@@ -196,7 +209,7 @@ size_t JfrTypeManager::flush_type_set() {
   return flush.elements();
 }
 
-void JfrTypeManager::create_thread_checkpoint(Thread* t) {
+void JfrTypeManager::create_thread_blob(Thread* t) {
   assert(t != NULL, "invariant");
   ResourceMark rm(t);
   HandleMark hm(t);
@@ -205,8 +218,8 @@ void JfrTypeManager::create_thread_checkpoint(Thread* t) {
   writer.write_type(TYPE_THREAD);
   type_thread.serialize(writer);
   // create and install a checkpoint blob
-  t->jfr_thread_local()->set_thread_checkpoint(writer.move());
-  assert(t->jfr_thread_local()->has_thread_checkpoint(), "invariant");
+  t->jfr_thread_local()->set_thread_blob(writer.move());
+  assert(t->jfr_thread_local()->has_thread_blob(), "invariant");
 }
 
 void JfrTypeManager::write_thread_checkpoint(Thread* t) {

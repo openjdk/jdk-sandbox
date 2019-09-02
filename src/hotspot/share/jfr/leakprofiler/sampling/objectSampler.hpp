@@ -75,7 +75,6 @@ class ObjectSampler : public CHeapObj<mtTracing> {
 
  public:
   static ObjectSampler* sampler();
-
   // For operations that require exclusive access (non-safepoint)
   static ObjectSampler* acquire();
   static void release();

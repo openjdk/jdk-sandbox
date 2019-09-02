@@ -44,7 +44,7 @@ class JfrTraceIdEpoch : AllStatic {
   friend class JfrCheckpointManager;
  private:
   static bool _epoch_state;
-  static bool volatile _klass_tagged_in_epoch;
+  static bool volatile _tag_state;
 
   static void shift_epoch();
 
@@ -89,17 +89,17 @@ class JfrTraceIdEpoch : AllStatic {
     return _epoch_state ? METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS :  METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS;
   }
 
-  static bool is_klass_tagged_in_epoch() {
-    if (OrderAccess::load_acquire(&_klass_tagged_in_epoch)) {
-      OrderAccess::release_store(&_klass_tagged_in_epoch, false);
+  static bool has_changed_tag_state() {
+    if (OrderAccess::load_acquire(&_tag_state)) {
+      OrderAccess::release_store(&_tag_state, false);
       return true;
     }
     return false;
   }
 
-  static void set_klass_tagged_in_epoch() {
-    if (!OrderAccess::load_acquire(&_klass_tagged_in_epoch)) {
-      OrderAccess::release_store(&_klass_tagged_in_epoch, true);
+  static void set_changed_tag_state() {
+    if (!OrderAccess::load_acquire(&_tag_state)) {
+      OrderAccess::release_store(&_tag_state, true);
     }
   }
 };
