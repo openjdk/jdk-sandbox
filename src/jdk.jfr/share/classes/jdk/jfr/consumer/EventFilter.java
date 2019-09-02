@@ -79,5 +79,4 @@ final class EventFilter {
     Duration getThreshold() {
         return threshold;
     }
-
 }

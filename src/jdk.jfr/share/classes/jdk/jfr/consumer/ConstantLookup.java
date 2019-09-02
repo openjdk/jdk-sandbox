@@ -38,5 +38,4 @@ final class ConstantLookup {
     public Object getCurrent(long key) {
         return current.get(key);
     }
-
 }

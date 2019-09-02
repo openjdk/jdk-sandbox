@@ -47,13 +47,14 @@ import jdk.jfr.internal.Utils;
  * A recording stream produces events from the current JVM (Java Virtual
  * Machine).
  * <p>
- * The following example records events using the default configuration and
- * prints the Garbage Collection, CPU Load and JVM Information event.
+ * The following example, shows how to record events using the default
+ * configuration and print the Garbage Collection, CPU Load and JVM Information
+ * event to standard out.
  *
  * <pre>
  * <code>
- * var c = Configuration.getConfiguration("default");
- * try (var rs = new RecordingStream(c)) {
+ * Configuration c = Configuration.getConfiguration("default");
+ * try (RecordingStream rs = new RecordingStream(c)) {
  *     rs.onEvent("jdk.GarbageCollection", System.out::println);
  *     rs.onEvent("jdk.CPULoad", System.out::println);
  *     rs.onEvent("jdk.JVMInformation", System.out::println);
@@ -67,24 +68,10 @@ import jdk.jfr.internal.Utils;
 public final class RecordingStream implements AutoCloseable, EventStream {
 
     private final Recording recording;
-    private final EventDirectoryStream stream;
+    private final EventDirectoryStream directoryStream;
 
     /**
      * Creates an event stream for the current JVM (Java Virtual Machine).
-     * <p>
-     * The following example shows how to create a recording stream that prints
-     * CPU usage and information about garbage collections.
-     *
-     * <pre>
-     * <code>
-     * try (var rs = new RecordingStream()) {
-     *   rs.enable("jdk.GarbageCollection");
-     *   rs.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
-     *   rs.onEvent(System.out::println);
-     *   rs.start();
-     * }
-     * </code>
-     * </pre>
      *
      * @throws IllegalStateException if Flight Recorder can't be created (for
      *         example, if the Java Virtual Machine (JVM) lacks Flight Recorder
@@ -100,8 +87,9 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         this.recording = new Recording();
         this.recording.setFlushInterval(Duration.ofMillis(1000));
         try {
-            this.stream = new EventDirectoryStream(acc, null, SecuritySupport.PRIVILIGED, true);
+            this.directoryStream = new EventDirectoryStream(acc, null, SecuritySupport.PRIVILIGED, true);
         } catch (IOException ioe) {
+            this.recording.close();
             throw new IllegalStateException(ioe.getMessage());
         }
     }
@@ -274,56 +262,6 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         recording.setMaxSize(maxSize);
     }
 
-    @Override
-    public void onEvent(String eventName, Consumer<RecordedEvent> action) {
-        stream.onEvent(eventName, action);
-    }
-
-    @Override
-    public void onEvent(Consumer<RecordedEvent> action) {
-        stream.onEvent(action);
-    }
-
-    @Override
-    public void onFlush(Runnable action) {
-        stream.onFlush(action);
-    }
-
-    @Override
-    public void onClose(Runnable action) {
-        stream.onClose(action);
-    }
-
-    @Override
-    public void close() {
-        recording.close();
-        stream.close();
-    }
-
-    @Override
-    public boolean remove(Object action) {
-        return stream.remove(action);
-    }
-
-    @Override
-    public void start() {
-        PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);
-        long startNanos = pr.start();
-        stream.start(startNanos);
-    }
-
-    @Override
-    public void startAsync() {
-        PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);
-        long startNanos = pr.start();
-        stream.startAsync(startNanos);
-    }
-
-    @Override
-    public void awaitTermination(Duration timeout) {
-        stream.awaitTermination(timeout);
-    }
-
     /**
      * Determines how often events are made available for streaming.
      *
@@ -339,32 +277,82 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     }
 
     @Override
-    public void awaitTermination() {
-        stream.awaitTermination();
-    }
-
-    @Override
     public void setReuse(boolean reuse) {
-        stream.setReuse(reuse);
+        directoryStream.setReuse(reuse);
     }
 
     @Override
     public void setOrdered(boolean ordered) {
-        stream.setOrdered(ordered);
+        directoryStream.setOrdered(ordered);
     }
 
     @Override
     public void setStartTime(Instant startTime) {
-        stream.setStartTime(startTime);
+        directoryStream.setStartTime(startTime);
     }
 
     @Override
     public void setEndTime(Instant endTime) {
-        stream.setStartTime(endTime);
+        directoryStream.setStartTime(endTime);
+    }
+
+    @Override
+    public void onEvent(String eventName, Consumer<RecordedEvent> action) {
+        directoryStream.onEvent(eventName, action);
+    }
+
+    @Override
+    public void onEvent(Consumer<RecordedEvent> action) {
+        directoryStream.onEvent(action);
+    }
+
+    @Override
+    public void onFlush(Runnable action) {
+        directoryStream.onFlush(action);
+    }
+
+    @Override
+    public void onClose(Runnable action) {
+        directoryStream.onClose(action);
     }
 
     @Override
     public void onError(Consumer<Throwable> action) {
-        stream.onError(action);
+        directoryStream.onError(action);
+    }
+
+    @Override
+    public void close() {
+        recording.close();
+        directoryStream.close();
+    }
+
+    @Override
+    public boolean remove(Object action) {
+        return directoryStream.remove(action);
+    }
+
+    @Override
+    public void start() {
+        PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);
+        long startNanos = pr.start();
+        directoryStream.start(startNanos);
+    }
+
+    @Override
+    public void startAsync() {
+        PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);
+        long startNanos = pr.start();
+        directoryStream.startAsync(startNanos);
+    }
+
+    @Override
+    public void awaitTermination(Duration timeout) {
+        directoryStream.awaitTermination(timeout);
+    }
+
+    @Override
+    public void awaitTermination() {
+        directoryStream.awaitTermination();
     }
 }

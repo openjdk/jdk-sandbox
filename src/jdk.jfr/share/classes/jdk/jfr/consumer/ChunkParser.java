@@ -74,8 +74,8 @@ final class ChunkParser {
     private boolean reuse;
     private boolean ordered;
     private boolean resetEventCache;
-    private long firstNanos = 0;
-    private long lastNanos = Long.MAX_VALUE;
+    private long filterStart = 0;
+    private long filterEnd = Long.MAX_VALUE;
     private Runnable flushOperation;
 
     public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
@@ -398,17 +398,17 @@ final class ChunkParser {
 
     // Need to call updateEventParsers() for
     // change to take effect
-    public void setFirstNanos(long firstNanos) {
+    public void setFilterStart(long filterStart) {
         long chunkStart = chunkHeader.getStartNanos();
         // Optimization.
-        if (firstNanos < chunkStart - 1_000_000_000L) {
-            firstNanos = 0;
+        if (filterStart < chunkStart - 1_000_000_000L) {
+            filterStart = 0;
         }
-        this.firstNanos = firstNanos;
+        this.filterStart = filterStart;
     }
 
-    public void setLastNanos(long lastNanos) {
-        this.lastNanos = lastNanos;
+    public void setFilterEnd(long filterEnd) {
+        this.filterEnd = filterEnd;
     }
 
     // Need to call updateEventParsers() for
@@ -424,8 +424,8 @@ final class ChunkParser {
                 String name = ep.getEventType().getName();
                 ep.setOrdered(ordered);
                 ep.setReuse(reuse);
-                ep.setFirstNanos(firstNanos);
-                ep.setLastNanos(lastNanos);
+                ep.setFilterStart(filterStart);
+                ep.setFilterEnd(filterEnd);
                 if (resetEventCache) {
                     ep.resetCache();
                 }

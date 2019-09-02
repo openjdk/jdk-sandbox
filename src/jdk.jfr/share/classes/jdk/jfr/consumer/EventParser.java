@@ -174,12 +174,12 @@ final class EventParser extends Parser {
         }
     }
 
-    public void setFirstNanos(long firstNanos) {
-        this.filterStart = firstNanos;
+    public void setFilterStart(long filterStart) {
+        this.filterStart = filterStart;
     }
 
-    public void setLastNanos(long lastNanos) {
-        this.filterEnd = lastNanos;
+    public void setFilterEnd(long filterEnd) {
+        this.filterEnd = filterEnd;
     }
 
     public void setOrdered(boolean ordered) {

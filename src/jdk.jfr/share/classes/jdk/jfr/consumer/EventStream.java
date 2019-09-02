@@ -103,7 +103,7 @@ public interface EventStream extends AutoCloseable {
      *         {@code checkRead} method denies read access to the file
      */
     public static EventStream openFile(Path file) throws IOException {
-        return new EventFileStream(file, null, null);
+        return new EventFileStream(AccessController.getContext(), file);
     }
 
     /**

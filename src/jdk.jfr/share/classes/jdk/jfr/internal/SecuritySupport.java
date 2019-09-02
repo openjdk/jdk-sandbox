@@ -436,7 +436,7 @@ public final class SecuritySupport {
         });
     }
 
-    static Thread createThreadWitNoPermissions(String threadName, Runnable runnable) {
+    public static Thread createThreadWitNoPermissions(String threadName, Runnable runnable) {
         return doPrivilegedWithReturn(() -> new Thread(runnable, threadName), new Permission[0]);
     }
 
