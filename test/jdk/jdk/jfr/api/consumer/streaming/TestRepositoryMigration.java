@@ -28,16 +28,18 @@ public class TestRepositoryMigration {
 
     public static void main(String... args) throws Exception {
         Path newRepository = Paths.get("new-repository");
-        CountDownLatch events = new CountDownLatch(2);
+        CountDownLatch event1 = new CountDownLatch(1);
+        CountDownLatch event2 = new CountDownLatch(1);
+
         try (EventStream es = EventStream.openRepository()) {
             es.setStartTime(Instant.EPOCH);
             es.onEvent(e -> {
                 System.out.println(e);
                 if (e.getInt("id") == 1) {
-                    events.countDown();
+                    event1.countDown();
                 }
                 if (e.getInt("id") == 2) {
-                    events.countDown();
+                    event2.countDown();
                 }
             });
             es.startAsync();
@@ -48,20 +50,21 @@ public class TestRepositoryMigration {
                 MigrationEvent e1 = new MigrationEvent();
                 e1.id = 1;
                 e1.commit();
-               JcmdHelper.jcmd("JFR.configure", "repositorypath=" + newRepository.toAbsolutePath());
+                event1.await();
+                JcmdHelper.jcmd("JFR.configure", "repositorypath=" + newRepository.toAbsolutePath());
                 // Chunk in new repository
                 MigrationEvent e2 = new MigrationEvent();
                 e2.id = 2;
                 e2.commit();
                 r.stop();
-                events.await();
+                event2.await();
                 // Verify that it happened in new repository
                 if (!Files.exists(newRepository)) {
                     throw new AssertionError("Could not find repository " + newRepository);
                 }
                 System.out.println("Listing contents in new repository:");
-                boolean empty= true;
-                for (Path p: Files.newDirectoryStream(newRepository)) {
+                boolean empty = true;
+                for (Path p : Files.newDirectoryStream(newRepository)) {
                     System.out.println(p.toAbsolutePath());
                     empty = false;
                 }
