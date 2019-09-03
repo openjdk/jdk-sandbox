@@ -308,8 +308,7 @@ void ObjectSampleCheckpoint::tag(const JfrStackFrame& frame, traceid method_id) 
   if (is_processed(method_id) || is_klass_unloaded(method_id)) {
     return;
   }
-  assert(frame._method != NULL, "invariant");
-  JfrTraceId::set_leakp(frame._method->method_holder(), frame._method);
+  JfrTraceId::set_leakp(frame._method);
 }
 
 void ObjectSampleCheckpoint::write_stacktrace(const JfrStackTrace* trace, JfrCheckpointWriter& writer) {

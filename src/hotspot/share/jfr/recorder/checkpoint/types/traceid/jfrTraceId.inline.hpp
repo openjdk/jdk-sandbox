@@ -108,7 +108,10 @@ inline traceid JfrTraceId::use(const ClassLoaderData* cld) {
   return cld->is_unsafe_anonymous() ? 0 : set_used_and_get(cld);
 }
 
-inline void JfrTraceId::set_leakp(const Klass* klass, const Method* method) {
+inline void JfrTraceId::set_leakp(const Method* method) {
+  assert(method != NULL, "invariant");
+  const Klass* const klass = method->method_holder();
+  assert(klass != NULL, "invariant");
   assert(METHOD_AND_CLASS_USED_THIS_EPOCH(klass), "invariant");
   assert(METHOD_FLAG_USED_THIS_EPOCH(method), "invariant");
   SET_LEAKP(klass);
