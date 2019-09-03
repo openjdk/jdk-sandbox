@@ -98,7 +98,7 @@ bool JfrRecorderThread::start(JfrCheckpointManager* cp_manager, JfrPostBox* post
   instanceHandle h_thread_oop(THREAD, (instanceOop)result.get_jobject());
   assert(h_thread_oop.not_null(), "invariant");
   // attempt thread start
-  Thread* const t = start_thread(h_thread_oop, recorderthread_entry, THREAD);
+  const Thread* const t = start_thread(h_thread_oop, recorderthread_entry,THREAD);
   if (!HAS_PENDING_EXCEPTION) {
     Jfr::exclude_thread(t);
     cp_manager->register_service_thread(t);

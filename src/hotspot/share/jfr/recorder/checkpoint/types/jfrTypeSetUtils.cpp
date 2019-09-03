@@ -88,22 +88,11 @@ void JfrSymbolId::unlink(const SymbolEntry* entry) {
   const_cast<Symbol*>(entry->literal())->decrement_refcount();
 }
 
-static const char* resource_str_to_c_heap_str(const char* resource_str) {
-  assert(resource_str != NULL, "invariant");
-  const size_t length = strlen(resource_str);
-  char* const c_string = JfrCHeapObj::new_array<char>(length + 1);
-  assert(c_string != NULL, "invariant");
-  strncpy(c_string, resource_str, length + 1);
-  return c_string;
-}
-
 void JfrSymbolId::link(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_symbol_id_counter);
   entry->set_list_next(_cstring_list);
-  const char* const resource_str = entry->literal();
-  const_cast<CStringEntry*>(entry)->set_literal(resource_str_to_c_heap_str(resource_str));
   _cstring_list = entry;
 }
 
@@ -116,7 +105,7 @@ bool JfrSymbolId::equals(uintptr_t hash, const CStringEntry* entry) {
 void JfrSymbolId::unlink(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   if (entry->id() != 1) {
-    JfrCHeapObj::free(const_cast<char*>(entry->literal()), 0);
+    JfrCHeapObj::free(const_cast<char*>(entry->literal()), strlen(entry->literal() + 1));
   }
 }
 
@@ -196,8 +185,7 @@ static const char* create_unsafe_anonymous_klass_symbol(const InstanceKlass* ik,
   sprintf(hash_buf, "/" UINTX_FORMAT, hash);
   const size_t hash_len = strlen(hash_buf);
   const size_t result_len = ik->name()->utf8_length();
-  anonymous_symbol = NEW_RESOURCE_ARRAY(char, result_len + hash_len + 1);
-  assert(anonymous_symbol != NULL, "invariant");
+  anonymous_symbol = JfrCHeapObj::new_array<char>(result_len + hash_len + 1);
   ik->name()->as_klass_external_name(anonymous_symbol, (int)result_len + 1);
   assert(strlen(anonymous_symbol) == result_len, "invariant");
   strcpy(anonymous_symbol + result_len, hash_buf);
@@ -222,7 +210,8 @@ traceid JfrSymbolId::mark_unsafe_anonymous_klass_name(const InstanceKlass* ik, b
     return last_anonymous_id;
   }
   last_anonymous_hash = hash;
-  last_anonymous_id = mark(hash, create_unsafe_anonymous_klass_symbol(ik, hash), leakp);
+  const CStringEntry* const entry = _cstring_table->lookup_only(hash);
+  last_anonymous_id = entry != NULL ? entry->id() : mark(hash, create_unsafe_anonymous_klass_symbol(ik, hash), leakp);
   return last_anonymous_id;
 }
 

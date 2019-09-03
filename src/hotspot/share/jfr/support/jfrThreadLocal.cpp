@@ -179,12 +179,12 @@ ByteSize JfrThreadLocal::java_event_writer_offset() {
   return in_ByteSize(offset_of(JfrThreadLocal, _java_event_writer));
 }
 
-void JfrThreadLocal::exclude(Thread* t) {
+void JfrThreadLocal::exclude(const Thread* t) {
   assert(t != NULL, "invariant");
   t->jfr_thread_local()->_excluded = true;
 }
 
-void JfrThreadLocal::include(Thread* t) {
+void JfrThreadLocal::include(const Thread* t) {
   assert(t != NULL, "invariant");
   t->jfr_thread_local()->_excluded = false;
 }

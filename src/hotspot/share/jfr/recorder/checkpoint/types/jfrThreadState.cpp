@@ -23,7 +23,6 @@
 */
 
 #include "precompiled.hpp"
-#include "classfile/javaClasses.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"

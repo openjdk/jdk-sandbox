@@ -216,10 +216,11 @@ class JfrThreadLocal {
   void set_thread_blob(const JfrBlobHandle& handle);
   const JfrBlobHandle& thread_blob() const;
 
+  static void exclude(const Thread* t);
+  static void include(const Thread* t);
+
   static void on_start(Thread* t);
   static void on_exit(Thread* t);
-  static void exclude(Thread* t);
-  static void include(Thread* t);
 
   // Code generation
   static ByteSize trace_id_offset();

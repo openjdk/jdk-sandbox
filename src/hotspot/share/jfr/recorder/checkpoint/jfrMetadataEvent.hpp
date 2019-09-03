@@ -37,6 +37,8 @@ class JfrChunkWriter;
 //
 class JfrMetadataEvent : AllStatic {
  public:
+  static void lock();
+  static void unlock();
   static void write(JfrChunkWriter& writer);
   static void update(jbyteArray metadata);
 };

@@ -29,11 +29,21 @@
 #include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
 
 static jbyteArray _metadata_blob = NULL;
 static u8 metadata_id = 0;
 static u8 last_written_metadata_id = 0;
+static Semaphore metadata_mutex_semaphore(1);
+
+void JfrMetadataEvent::lock() {
+  metadata_mutex_semaphore.wait();
+}
+
+void JfrMetadataEvent::unlock() {
+  metadata_mutex_semaphore.signal();
+}
 
 static void write_metadata_blob(JfrChunkWriter& chunkwriter, jbyteArray metadata_blob) {
   if (metadata_blob != NULL) {

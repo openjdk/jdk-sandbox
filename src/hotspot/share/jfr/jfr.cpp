@@ -71,15 +71,15 @@ void Jfr::on_thread_exit(Thread* t) {
   JfrThreadLocal::on_exit(t);
 }
 
-void Jfr::exclude_thread(Thread* t) {
+void Jfr::exclude_thread(const Thread* t) {
   JfrThreadLocal::exclude(t);
 }
 
-void Jfr::include_thread(Thread* t) {
+void Jfr::include_thread(const Thread* t) {
   JfrThreadLocal::include(t);
 }
 
-bool Jfr::is_excluded(Thread* t) {
+bool Jfr::is_excluded(const Thread* t) {
   return t != NULL && t->jfr_thread_local()->is_excluded();
 }
 

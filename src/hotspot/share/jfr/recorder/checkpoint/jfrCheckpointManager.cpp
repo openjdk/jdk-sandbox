@@ -194,11 +194,11 @@ BufferPtr JfrCheckpointManager::lease_buffer(BufferPtr old, Thread* thread, size
 }
 
 /*
-* If the buffer was a "lease", release back.
-*
-* The buffer is effectively invalidated for the thread post-return,
-* and the caller should take means to ensure that it is not referenced.
-*/
+ * If the buffer was a lease, release back.
+ *
+ * The buffer is effectively invalidated for the thread post-return,
+ * and the caller should take means to ensure that it is not referenced.
+ */
 static void release(BufferPtr const buffer, Thread* thread) {
   DEBUG_ONLY(assert_release(buffer);)
   buffer->clear_lease();
@@ -335,25 +335,15 @@ void JfrCheckpointManager::synchronize_epoch() {
   _checkpoint_epoch_state = JfrTraceIdEpoch::epoch();
 }
 
-void JfrCheckpointManager::shift_epoch() {
-  debug_only(const u1 current_epoch = JfrTraceIdEpoch::current();)
-  JfrTraceIdEpoch::shift_epoch();
-  assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
-}
-
-typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
-size_t JfrCheckpointManager::clear() {
-  DiscardOperation discarder(mutexed); // mutexed discard mode
-  process_free_list(discarder, _free_list_mspace);
-  process_free_list(discarder, _epoch_transition_mspace);
-  synchronize_epoch();
-  return discarder.elements();
-}
 
 size_t JfrCheckpointManager::write() {
   const size_t processed = write_mspace<MutexedWriteOp, CompositeOperation>(_free_list_mspace, _chunkwriter);
   synchronize_epoch();
   return processed;
+}
+
+size_t JfrCheckpointManager::write_epoch_transition_mspace() {
+  return write_mspace<ExclusiveOp, CompositeOperation>(_epoch_transition_mspace, _chunkwriter);
 }
 
 typedef MutexedWriteOp<WriteOperation> FlushOperation;
@@ -364,6 +354,15 @@ size_t JfrCheckpointManager::flush() {
   assert(_free_list_mspace->is_full_empty(), "invariant");
   process_free_list(fo, _free_list_mspace);
   return wo.processed();
+}
+
+typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
+size_t JfrCheckpointManager::clear() {
+  DiscardOperation discarder(mutexed); // mutexed discard mode
+  process_free_list(discarder, _free_list_mspace);
+  process_free_list(discarder, _epoch_transition_mspace);
+  synchronize_epoch();
+  return discarder.elements();
 }
 
 // Optimization for write_types() and write_threads() is to write
@@ -396,11 +395,6 @@ size_t JfrCheckpointManager::write_threads() {
   JfrTypeManager::write_threads(writer);
   return writer.used_size();
 }
-
-size_t JfrCheckpointManager::write_epoch_transition_mspace() {
-  return write_mspace<ExclusiveOp, CompositeOperation>(_epoch_transition_mspace, _chunkwriter);
-}
-
 size_t JfrCheckpointManager::write_constants() {
   write_types();
   write_threads();
@@ -464,3 +458,10 @@ void JfrCheckpointManager::create_thread_blob(Thread* t) {
 void JfrCheckpointManager::write_thread_checkpoint(Thread* t) {
   JfrTypeManager::write_thread_checkpoint(t);
 }
+
+void JfrCheckpointManager::shift_epoch() {
+  debug_only(const u1 current_epoch = JfrTraceIdEpoch::current();)
+  JfrTraceIdEpoch::shift_epoch();
+  assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
+}
+
