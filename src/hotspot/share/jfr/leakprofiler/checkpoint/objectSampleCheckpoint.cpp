@@ -270,7 +270,7 @@ static void allocate_traceid_working_set() {
   id_set = new GrowableArray<traceid>(JfrOptionSet::old_object_queue_size());
 }
 
-static void resolve_stack_traces(ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
+static void resolve_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   const ObjectSample* const last = sampler->last();
   if (last != sampler->last_resolved()) {
@@ -281,7 +281,7 @@ static void resolve_stack_traces(ObjectSampler* sampler, JfrStackTraceRepository
 }
 
 // caller needs ResourceMark
-void ObjectSampleCheckpoint::on_rotation(ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
+void ObjectSampleCheckpoint::on_rotation(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   assert(LeakProfiler::is_running(), "invariant");
   resolve_stack_traces(sampler, stack_trace_repo);
@@ -387,7 +387,7 @@ static void write_sample_blobs(const ObjectSampler* sampler, bool emit_all, Thre
   iterate_samples(cbw, true);
 }
 
-void ObjectSampleCheckpoint::write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {
+void ObjectSampleCheckpoint::write(const ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread) {
   assert(sampler != NULL, "invariant");
   assert(edge_store != NULL, "invariant");
   assert(thread != NULL, "invariant");
