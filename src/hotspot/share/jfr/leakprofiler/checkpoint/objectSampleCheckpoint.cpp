@@ -110,7 +110,13 @@ static void add_to_unloaded_klass_set(traceid klass_id) {
   if (unloaded_klass_set == NULL) {
     unloaded_klass_set = c_heap_allocate_array<traceid>();
   }
-  add(unloaded_klass_set, klass_id);
+  unloaded_klass_set->append(klass_id);
+}
+
+static void sort_unloaded_klass_set() {
+  if (unloaded_klass_set != NULL && unloaded_klass_set->length() > 1) {
+    unloaded_klass_set->sort(sort_traceid);
+  }
 }
 
 void ObjectSampleCheckpoint::on_klass_unload(const Klass* k) {
@@ -212,6 +218,13 @@ inline void BlobCache::unlink(BlobEntry* entry) const {
   assert(entry != NULL, "invariant");
 }
 
+static GrowableArray<traceid>* id_set = NULL;
+
+static void prepare_for_resolution() {
+  id_set = new GrowableArray<traceid>(JfrOptionSet::old_object_queue_size());
+  sort_unloaded_klass_set();
+}
+
 static bool stack_trace_precondition(const ObjectSample* sample) {
   assert(sample != NULL, "invariant");
   return sample->has_stack_trace_id() && !sample->is_dead();
@@ -224,15 +237,18 @@ class StackTraceBlobInstaller {
   const JfrStackTrace* resolve(const ObjectSample* sample);
   void install(ObjectSample* sample);
  public:
-  StackTraceBlobInstaller(const JfrStackTraceRepository& stack_trace_repo) :
-    _stack_trace_repo(stack_trace_repo),
-    _cache(JfrOptionSet::old_object_queue_size()) {}
+  StackTraceBlobInstaller(const JfrStackTraceRepository& stack_trace_repo);
   void sample_do(ObjectSample* sample) {
     if (stack_trace_precondition(sample)) {
       install(sample);
     }
   }
 };
+
+StackTraceBlobInstaller::StackTraceBlobInstaller(const JfrStackTraceRepository& stack_trace_repo) :
+  _stack_trace_repo(stack_trace_repo), _cache(JfrOptionSet::old_object_queue_size()) {
+  prepare_for_resolution();
+}
 
 const JfrStackTrace* StackTraceBlobInstaller::resolve(const ObjectSample* sample) {
   return _stack_trace_repo.lookup(sample->stack_trace_hash(), sample->stack_trace_id());
@@ -264,17 +280,10 @@ void StackTraceBlobInstaller::install(ObjectSample* sample) {
   sample->set_stacktrace(blob);
 }
 
-static GrowableArray<traceid>* id_set = NULL;
-
-static void allocate_traceid_working_set() {
-  id_set = new GrowableArray<traceid>(JfrOptionSet::old_object_queue_size());
-}
-
-static void resolve_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
+static void install_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   const ObjectSample* const last = sampler->last();
   if (last != sampler->last_resolved()) {
-    allocate_traceid_working_set();
     StackTraceBlobInstaller installer(stack_trace_repo);
     iterate_samples(installer);
   }
@@ -284,7 +293,7 @@ static void resolve_stack_traces(const ObjectSampler* sampler, JfrStackTraceRepo
 void ObjectSampleCheckpoint::on_rotation(const ObjectSampler* sampler, JfrStackTraceRepository& stack_trace_repo) {
   assert(sampler != NULL, "invariant");
   assert(LeakProfiler::is_running(), "invariant");
-  resolve_stack_traces(sampler, stack_trace_repo);
+  install_stack_traces(sampler, stack_trace_repo);
 }
 
 static traceid get_klass_id(traceid method_id) {
@@ -400,47 +409,63 @@ void ObjectSampleCheckpoint::write(const ObjectSampler* sampler, EdgeStore* edge
   }
 }
 
-class BlobInstaller {
- private:
-  const JfrBlobHandle& _blob;
- public:
-  BlobInstaller(const JfrBlobHandle& blob) : _blob(blob) {}
-  void sample_do(ObjectSample* sample) {
-    if (!sample->is_dead()) {
-      sample->set_type_set(_blob);
-    }
-  }
-};
-
 static void clear_unloaded_klass_set() {
   if (unloaded_klass_set != NULL && unloaded_klass_set->is_nonempty()) {
     unloaded_klass_set->clear();
   }
 }
 
-static void install_blob(JfrCheckpointWriter& writer, bool copy = false) {
+// A linked list of saved type set blobs for the epoch.
+// The link consist of a reference counted handle.
+static JfrBlobHandle saved_type_set_blobs;
+
+static void release_state_for_previous_epoch() {
+  // decrements the reference count and the list is reinitialized
+  saved_type_set_blobs = JfrBlobHandle();
+  clear_unloaded_klass_set();
+}
+
+class BlobInstaller {
+ public:
+  ~BlobInstaller() {
+    release_state_for_previous_epoch();
+  }
+  void sample_do(ObjectSample* sample) {
+    if (!sample->is_dead()) {
+      sample->set_type_set(saved_type_set_blobs);
+    }
+  }
+};
+
+static void install_type_set_blobs() {
+  BlobInstaller installer;
+  iterate_samples(installer);
+}
+
+static void save_type_set_blob(JfrCheckpointWriter& writer, bool copy = false) {
   assert(writer.has_data(), "invariant");
   const JfrBlobHandle blob = copy ? writer.copy() : writer.move();
-  BlobInstaller installer(blob);
-  iterate_samples(installer);
+  if (saved_type_set_blobs.valid()) {
+    saved_type_set_blobs->set_next(blob);
+  } else {
+    saved_type_set_blobs = blob;
+  }
 }
 
 void ObjectSampleCheckpoint::on_type_set(JfrCheckpointWriter& writer) {
   assert(LeakProfiler::is_running(), "invariant");
   const ObjectSample* last = ObjectSampler::sampler()->last();
   if (writer.has_data() && last != NULL) {
-    install_blob(writer);
+    save_type_set_blob(writer);
+    install_type_set_blobs();
     ObjectSampler::sampler()->set_last_resolved(last);
   }
-  // Only happens post chunk rotation and we would not have hit another class unload safepoint.
-  // Therefore it is safe to release the set of unloaded classes tracked during the previous epoch.
-  clear_unloaded_klass_set();
 }
 
 void ObjectSampleCheckpoint::on_type_set_unload(JfrCheckpointWriter& writer) {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   assert(LeakProfiler::is_running(), "invariant");
   if (writer.has_data() && ObjectSampler::sampler()->last() != NULL) {
-    install_blob(writer, true);
+    save_type_set_blob(writer, true);
   }
 }
