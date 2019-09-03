@@ -97,24 +97,31 @@ static traceid artifact_id(const T* ptr) {
   return TRACE_ID(ptr);
 }
 
-static traceid package_id(KlassPtr klass) {
+static traceid package_id(KlassPtr klass, bool leakp) {
   assert(klass != NULL, "invariant");
   PkgPtr pkg_entry = klass->package();
-  return pkg_entry != NULL ? artifact_id(pkg_entry) : 0;
+  if (pkg_entry == NULL) {
+    return 0;
+  }
+  if (leakp) {
+    SET_LEAKP(pkg_entry);
+  }
+  // package implicitly tagged already
+  return artifact_id(pkg_entry);
 }
 
 static traceid module_id(PkgPtr pkg, bool leakp) {
   assert(pkg != NULL, "invariant");
   ModPtr module_entry = pkg->module();
-  if (module_entry != NULL && module_entry->is_named()) {
-    if (leakp) {
-      SET_LEAKP(module_entry);
-    } else {
-      SET_TRANSIENT(module_entry);
-    }
-    return artifact_id(module_entry);
+  if (module_entry == NULL || !module_entry->is_named()) {
+    return 0;
   }
-  return 0;
+  if (leakp) {
+    SET_LEAKP(module_entry);
+  } else {
+    SET_TRANSIENT(module_entry);
+  }
+  return artifact_id(module_entry);
 }
 
 static traceid method_id(KlassPtr klass, MethodPtr method) {
@@ -149,41 +156,6 @@ static void set_serialized(const T* ptr) {
   assert(IS_SERIALIZED(ptr), "invariant");
 }
 
-template <typename T>
-void tag_leakp_artifact(T const& value) {
-  assert(value != NULL, "invariant");
-  SET_LEAKP(value);
-  assert(IS_LEAKP(value), "invariant");
-}
-
-static void tag_leakp_klass_artifacts(KlassPtr k) {
-  assert(k != NULL, "invariant");
-  PkgPtr pkg = k->package();
-  if (pkg != NULL) {
-    tag_leakp_artifact(pkg);
-    ModPtr module = pkg->module();
-    if (module != NULL) {
-      tag_leakp_artifact(module);
-    }
-  }
-  CldPtr cld = k->class_loader_data();
-  assert(cld != NULL, "invariant");
-  if (!cld->is_unsafe_anonymous()) {
-    tag_leakp_artifact(cld);
-  }
-}
-
-class TagLeakpKlassArtifact {
- public:
-  TagLeakpKlassArtifact(bool class_unload) {}
-  bool operator()(KlassPtr klass) {
-    if (IS_LEAKP(klass)) {
-      tag_leakp_klass_artifacts(klass);
-    }
-    return true;
-  }
-};
-
 /*
  * In C++03, functions used as template parameters must have external linkage;
  * this restriction was removed in C++11. Change back to "static" and
@@ -203,7 +175,7 @@ static int write_klass(JfrCheckpointWriter* writer, KlassPtr klass, bool leakp) 
     theklass = obj_arr_klass->bottom_klass();
   }
   if (theklass->is_instance_klass()) {
-    pkg_id = package_id(theklass);
+    pkg_id = package_id(theklass, leakp);
   } else {
     assert(theklass->is_typeArray_klass(), "invariant");
   }
@@ -286,9 +258,8 @@ typedef JfrArtifactCallbackHost<KlassPtr, KlassWriterRegistration> KlassCallback
 typedef LeakPredicate<KlassPtr> LeakKlassPredicate;
 typedef JfrPredicatedTypeWriterImplHost<KlassPtr, LeakKlassPredicate, write__klass__leakp> LeakKlassWriterImpl;
 typedef JfrTypeWriterHost<LeakKlassWriterImpl, TYPE_CLASS> LeakKlassWriter;
-typedef CompositeFunctor<KlassPtr, TagLeakpKlassArtifact, LeakKlassWriter> LeakpKlassArtifactTagging;
 
-typedef CompositeFunctor<KlassPtr, LeakpKlassArtifactTagging, KlassWriter> CompositeKlassWriter;
+typedef CompositeFunctor<KlassPtr, LeakKlassWriter, KlassWriter> CompositeKlassWriter;
 typedef CompositeFunctor<KlassPtr, CompositeKlassWriter, KlassArtifactRegistrator> CompositeKlassWriterRegistration;
 typedef JfrArtifactCallbackHost<KlassPtr, CompositeKlassWriterRegistration> CompositeKlassCallback;
 
@@ -303,10 +274,8 @@ static bool write_klasses() {
     _subsystem_callback = &callback;
     do_klasses();
   } else {
-    TagLeakpKlassArtifact tagging(_class_unload);
     LeakKlassWriter lkw(_leakp_writer, _artifacts, _class_unload);
-    LeakpKlassArtifactTagging lpkat(&tagging, &lkw);
-    CompositeKlassWriter ckw(&lpkat, &kw);
+    CompositeKlassWriter ckw(&lkw, &kw);
     CompositeKlassWriterRegistration ckwr(&ckw, &reg);
     CompositeKlassCallback callback(&ckwr);
     _subsystem_callback = &callback;
