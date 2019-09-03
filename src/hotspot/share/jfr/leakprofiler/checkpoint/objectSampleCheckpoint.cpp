@@ -240,8 +240,6 @@ const JfrStackTrace* StackTraceBlobInstaller::resolve(const ObjectSample* sample
 
 #ifdef ASSERT
 static void validate_stack_trace(const ObjectSample* sample, const JfrStackTrace* stack_trace) {
-  assert(sample != NULL, "invariant");
-  assert(!sample->is_dead(), "invariant");
   assert(!sample->has_stacktrace(), "invariant");
   assert(stack_trace != NULL, "invariant");
   assert(stack_trace->hash() == sample->stack_trace_hash(), "invariant");
@@ -255,7 +253,7 @@ void StackTraceBlobInstaller::install(ObjectSample* sample) {
     sample->set_stacktrace(blob);
     return;
   }
-  const JfrStackTrace* stack_trace = resolve(sample);
+  const JfrStackTrace* const stack_trace = resolve(sample);
   DEBUG_ONLY(validate_stack_trace(sample, stack_trace));
   JfrCheckpointWriter writer;
   writer.write_type(TYPE_STACKTRACE);
@@ -304,11 +302,11 @@ static bool is_processed(traceid id) {
   return mutable_predicate(id_set, id);
 }
 
-void ObjectSampleCheckpoint::tag(const JfrStackFrame& frame, traceid method_id) {
+void ObjectSampleCheckpoint::add_to_leakp_set(const Method* method, traceid method_id) {
   if (is_processed(method_id) || is_klass_unloaded(method_id)) {
     return;
   }
-  JfrTraceId::set_leakp(frame._method);
+  JfrTraceId::set_leakp(method);
 }
 
 void ObjectSampleCheckpoint::write_stacktrace(const JfrStackTrace* trace, JfrCheckpointWriter& writer) {
@@ -317,15 +315,11 @@ void ObjectSampleCheckpoint::write_stacktrace(const JfrStackTrace* trace, JfrChe
   writer.write(trace->id());
   writer.write((u1)!trace->_reached_root);
   writer.write(trace->_nr_of_frames);
-  traceid last_id = 0;
   // JfrStackFrames
   for (u4 i = 0; i < trace->_nr_of_frames; ++i) {
-    trace->_frames[i].write(writer);
-    const traceid method_id = trace->_frames[i]._methodid;
-    if (method_id != last_id) {
-      tag(trace->_frames[i], method_id);
-      last_id = method_id;
-    }
+    const JfrStackFrame& frame = trace->_frames[i];
+    frame.write(writer);
+    add_to_leakp_set(frame._method, frame._methodid);
   }
 }
 

@@ -28,12 +28,12 @@
 #include "memory/allocation.hpp"
 
 class EdgeStore;
-class Klass;
 class JavaThread;
 class JfrCheckpointWriter;
-class JfrStackFrame;
 class JfrStackTrace;
 class JfrStackTraceRepository;
+class Klass;
+class Method;
 class ObjectSample;
 class ObjectSampleMarker;
 class ObjectSampler;
@@ -44,8 +44,8 @@ class ObjectSampleCheckpoint : AllStatic {
   friend class PathToGcRootsOperation;
   friend class StackTraceBlobInstaller;
  private:
+  static void add_to_leakp_set(const Method* method, traceid method_id);
   static int save_mark_words(const ObjectSampler* sampler, ObjectSampleMarker& marker, bool emit_all);
-  static void tag(const JfrStackFrame& frame, traceid method_id);
   static void write_stacktrace(const JfrStackTrace* trace, JfrCheckpointWriter& writer);
   static void write(ObjectSampler* sampler, EdgeStore* edge_store, bool emit_all, Thread* thread);
  public:
@@ -57,3 +57,4 @@ class ObjectSampleCheckpoint : AllStatic {
 };
 
 #endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLECHECKPOINT_HPP
+
