@@ -53,6 +53,13 @@ typedef const Symbol* SymbolPtr;
 typedef const JfrSymbolId::SymbolEntry* SymbolEntryPtr;
 typedef const JfrSymbolId::CStringEntry* CStringEntryPtr;
 
+static JfrCheckpointWriter* _writer = NULL;
+static JfrCheckpointWriter* _leakp_writer = NULL;
+static JfrArtifactSet* _artifacts = NULL;
+static JfrArtifactClosure* _subsystem_callback = NULL;
+static bool _class_unload = false;
+static bool _flushpoint = false;
+
 // incremented on each rotation
 static u8 checkpoint_id = 1;
 
@@ -63,13 +70,6 @@ static u8 checkpoint_id = 1;
 static traceid create_symbol_id(traceid artifact_id) {
   return artifact_id != 0 ? CREATE_SYMBOL_ID(artifact_id) : 0;
 }
-
-static JfrCheckpointWriter* _writer = NULL;
-static JfrCheckpointWriter* _leakp_writer = NULL;
-static bool _class_unload = false;
-static bool _flushpoint = false;
-static JfrArtifactSet* _artifacts = NULL;
-static JfrArtifactClosure* _subsystem_callback = NULL;
 
 static bool current_epoch() {
   return _class_unload || _flushpoint;
@@ -156,7 +156,7 @@ void tag_leakp_artifact(T const& value) {
   assert(IS_LEAKP(value), "invariant");
 }
 
-static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
+static void tag_leakp_klass_artifacts(KlassPtr k) {
   assert(k != NULL, "invariant");
   PkgPtr pkg = k->package();
   if (pkg != NULL) {
@@ -174,12 +174,11 @@ static void tag_leakp_klass_artifacts(KlassPtr k, bool class_unload) {
 }
 
 class TagLeakpKlassArtifact {
-  bool _class_unload;
-public:
-  TagLeakpKlassArtifact(bool class_unload) : _class_unload(class_unload) {}
+ public:
+  TagLeakpKlassArtifact(bool class_unload) {}
   bool operator()(KlassPtr klass) {
     if (IS_LEAKP(klass)) {
-      tag_leakp_klass_artifacts(klass, _class_unload);
+      tag_leakp_klass_artifacts(klass);
     }
     return true;
   }

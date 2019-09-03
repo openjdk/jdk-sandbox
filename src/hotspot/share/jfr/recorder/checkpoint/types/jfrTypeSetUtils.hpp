@@ -185,34 +185,6 @@ class LeakPredicate<const Method*> {
   }
 };
 
-template <typename T, int compare(const T&, const T&)>
-class UniquePredicate {
- private:
-  GrowableArray<T> _seen;
- public:
-   UniquePredicate(bool) : _seen() {}
-   bool operator()(T const& value) {
-     bool not_unique;
-     _seen.template find_sorted<T, compare>(value, not_unique);
-     if (not_unique) {
-       return false;
-     }
-     _seen.template insert_sorted<compare>(value);
-     return true;
-   }
-};
-
-template <typename T, int compare(const T&, const T&)>
-class CompositeLeakPredicate {
-  LeakPredicate<T> _leak_predicate;
-  UniquePredicate<T, compare> _unique;
- public:
-  CompositeLeakPredicate(bool class_unload) : _leak_predicate(class_unload), _unique(class_unload) {}
-  bool operator()(T const& value) {
-    return _leak_predicate(value) && _unique(value);
-  }
-};
-
 template <typename T, typename IdType>
 class ListEntry : public JfrHashtableEntry<T, IdType> {
  public:
