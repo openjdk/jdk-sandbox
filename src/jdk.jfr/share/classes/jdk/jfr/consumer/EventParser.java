@@ -50,9 +50,10 @@ final class EventParser extends Parser {
     private final RecordedEvent unorderedEvent;
     private final ObjectContext objectContext;
 
+    private RecordedEvent[] cached;
+    private int cacheIndex;
+
     private boolean enabled = true;
-    private RecordedEvent[] eventCache;
-    private int index;
     private boolean ordered;
     private long filterStart;
     private long filterEnd = Long.MAX_VALUE;
@@ -72,17 +73,17 @@ final class EventParser extends Parser {
 
     private RecordedEvent cachedEvent() {
         if (ordered) {
-            if (index == eventCache.length) {
-                RecordedEvent[] cache = eventCache;
-                eventCache = new RecordedEvent[eventCache.length * 2];
-                System.arraycopy(cache, 0, eventCache, 0, cache.length);
+            if (cacheIndex == cached.length) {
+                RecordedEvent[] old = cached;
+                cached = new RecordedEvent[cached.length * 2];
+                System.arraycopy(old, 0, cached, 0, old.length);
             }
-            RecordedEvent event = eventCache[index];
+            RecordedEvent event = cached[cacheIndex];
             if (event == null) {
                 event = new RecordedEvent(objectContext, new Object[length], 0L, 0L);
-                eventCache[index] = event;
+                cached[cacheIndex] = event;
             }
-            index++;
+            cacheIndex++;
             return event;
         } else {
             return unorderedEvent;
@@ -131,7 +132,7 @@ final class EventParser extends Parser {
             }
         }
 
-        if (eventCache != null) {
+        if (cached != null) {
             RecordedEvent event = cachedEvent();
             event.startTimeTicks = startTicks;
             event.endTimeTicks = endTicks;
@@ -155,11 +156,11 @@ final class EventParser extends Parser {
     }
 
     public void resetCache() {
-        index = 0;
+        cacheIndex = 0;
     }
 
     public boolean hasReuse() {
-        return eventCache != null;
+        return cached != null;
     }
 
     public void setReuse(boolean reuse) {
@@ -167,10 +168,10 @@ final class EventParser extends Parser {
             return;
         }
         if (reuse) {
-            eventCache = new RecordedEvent[2];
-            index = 0;
+            cached = new RecordedEvent[2];
+            cacheIndex = 0;
         } else {
-            eventCache = null;
+            cached = null;
         }
     }
 
@@ -187,7 +188,6 @@ final class EventParser extends Parser {
             return;
         }
         this.ordered = ordered;
-        this.index = 0;
+        this.cacheIndex = 0;
     }
-
 }

@@ -3,7 +3,6 @@ package jdk.jfr.consumer;
 import jdk.jfr.internal.Type;
 
 final class ConstantLookup {
-
     private final Type type;
     private ConstantMap current;
     private ConstantMap previous = ConstantMap.EMPTY;
@@ -24,7 +23,6 @@ final class ConstantLookup {
     public void newPool() {
         previous = current;
         current = new ConstantMap(current.factory, current.name);
-     //   previous =  new ConstantMap(); // disable cache
     }
 
     public Object getPreviousResolved(long key) {

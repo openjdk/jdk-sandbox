@@ -45,19 +45,19 @@ final class ObjectContext {
         this.timeConverter = timeConverter;
     }
 
-    private ObjectContext(ObjectContext parent, ValueDescriptor desc) {
+    private ObjectContext(ObjectContext parent, ValueDescriptor descriptor) {
         this.eventType = parent.eventType;
         this.contextLookup = parent.contextLookup;
         this.timeConverter = parent.timeConverter;
-        this.fields = desc.getFields();
+        this.fields = descriptor.getFields();
     }
 
-    public ObjectContext getInstance(ValueDescriptor desc) {
-        ObjectContext h = contextLookup.get(desc);
-        if (h == null) {
-            h = new ObjectContext(this, desc);
-            contextLookup.put(desc, h);
+    public ObjectContext getInstance(ValueDescriptor descriptor) {
+        ObjectContext context = contextLookup.get(descriptor);
+        if (context == null) {
+            context = new ObjectContext(this, descriptor);
+            contextLookup.put(descriptor, context);
         }
-        return h;
+        return context;
     }
 }

@@ -50,7 +50,11 @@ public class TestAwaitTermination {
         try (RecordingStream r = new RecordingStream()) {
             r.startAsync();
             var c = CompletableFuture.runAsync(() -> {
-                r.awaitTermination();
+                try {
+                    r.awaitTermination();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             });
             r.close();
             c.get();
@@ -61,7 +65,11 @@ public class TestAwaitTermination {
         try (RecordingStream r = new RecordingStream()) {
             r.startAsync();
             var c = CompletableFuture.runAsync(() -> {
-                r.awaitTermination(Duration.ofMillis(10));
+                try {
+                    r.awaitTermination(Duration.ofMillis(10));
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             });
             c.get();
             r.close();

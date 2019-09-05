@@ -43,7 +43,7 @@ final class EventFileStream extends AbstractEventStream {
     private ChunkParser chunkParser;
     private RecordedEvent[] sortedList;
 
-    public EventFileStream(AccessControlContext acc, Path path) throws IOException {
+    EventFileStream(AccessControlContext acc, Path path) throws IOException {
         super(acc, false);
         Objects.requireNonNull(path);
         this.input = new RecordingInput(path.toFile(), FileAccess.UNPRIVILIGED);
@@ -71,7 +71,7 @@ final class EventFileStream extends AbstractEventStream {
     }
 
     @Override
-    public void process() throws IOException {
+    protected void process() throws IOException {
         StreamConfiguration c = configuration;
         long start = 0;
         long end = Long.MAX_VALUE;
@@ -98,11 +98,11 @@ final class EventFileStream extends AbstractEventStream {
             chunkParser.resetEventCache();
             chunkParser.setParserFilter(c.getFiler());
             chunkParser.updateEventParsers();
-            clearLastDispatch();
+            c.clearDispatchCache();
             if (ordered) {
-                processOrdered();
+                processOrdered(c);
             } else {
-                processUnordered();
+                processUnordered(c);
             }
             if (chunkParser.isLastChunk()) {
                 return;
@@ -111,7 +111,7 @@ final class EventFileStream extends AbstractEventStream {
         }
     }
 
-    private void processOrdered() throws IOException {
+    private void processOrdered(StreamConfiguration c) throws IOException {
         if (sortedList == null) {
             sortedList = new RecordedEvent[10_000];
         }
@@ -122,7 +122,7 @@ final class EventFileStream extends AbstractEventStream {
             if (event == null) {
                 Arrays.sort(sortedList, 0, index, END_TIME);
                 for (int i = 0; i < index; i++) {
-                    dispatch(sortedList[i]);
+                    dispatch(c, sortedList[i]);
                 }
                 return;
             }
@@ -135,13 +135,13 @@ final class EventFileStream extends AbstractEventStream {
         }
     }
 
-    private void processUnordered() throws IOException {
+    private void processUnordered(StreamConfiguration c) throws IOException {
         while (!isClosed()) {
             RecordedEvent event = chunkParser.readEvent();
             if (event == null) {
                 return;
             }
-            dispatch(event);
+            dispatch(c, event);
         }
     }
 }

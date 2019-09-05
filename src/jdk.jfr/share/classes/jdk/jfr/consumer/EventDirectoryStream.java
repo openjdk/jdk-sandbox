@@ -50,7 +50,7 @@ final class EventDirectoryStream extends AbstractEventStream {
     private long chunkStartNanos;
     private RecordedEvent[] sortedList;
 
-    public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
+    EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
         super(acc, active);
         this.fileAccess = Objects.requireNonNull(fileAccess);
         this.active = active;
@@ -75,7 +75,7 @@ final class EventDirectoryStream extends AbstractEventStream {
     }
 
     @Override
-    public void process() throws Exception {
+    protected void process() throws Exception {
         StreamConfiguration c = configuration;
         Path path;
         boolean validStartTime = active || c.getStartTime() != null;
@@ -106,11 +106,11 @@ final class EventDirectoryStream extends AbstractEventStream {
                     chunkParser.resetEventCache();
                     chunkParser.setParserFilter(c.getFilter());
                     chunkParser.updateEventParsers();
-                    clearLastDispatch();
+                    c.clearDispatchCache();
                     if (ordered) {
-                        awaitnewEvent = processOrdered(awaitnewEvent);
+                        awaitnewEvent = processOrdered(c, awaitnewEvent);
                     } else {
-                        awaitnewEvent = processUnordered(awaitnewEvent);
+                        awaitnewEvent = processUnordered(c, awaitnewEvent);
                     }
                     if (chunkParser.getStartNanos() + chunkParser.getChunkDuration() > filterEnd) {
                         close();
@@ -135,7 +135,7 @@ final class EventDirectoryStream extends AbstractEventStream {
         }
     }
 
-    private boolean processOrdered(boolean awaitNewEvents) throws IOException {
+    private boolean processOrdered(StreamConfiguration c, boolean awaitNewEvents) throws IOException {
         if (sortedList == null) {
             sortedList = new RecordedEvent[100_000];
         }
@@ -164,18 +164,18 @@ final class EventDirectoryStream extends AbstractEventStream {
             Arrays.sort(sortedList, 0, index, END_TIME);
         }
         for (int i = 0; i < index; i++) {
-            dispatch(sortedList[i]);
+            dispatch(c, sortedList[i]);
         }
         return awaitNewEvents;
     }
 
-    private boolean processUnordered(boolean awaitNewEvents) throws IOException {
+    private boolean processUnordered(StreamConfiguration c, boolean awaitNewEvents) throws IOException {
         while (true) {
             RecordedEvent e = chunkParser.readStreamingEvent(awaitNewEvents);
             if (e == null) {
                 return true;
             } else {
-                dispatch(e);
+                dispatch(c, e);
             }
         }
     }

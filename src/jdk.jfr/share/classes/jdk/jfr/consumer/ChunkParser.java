@@ -54,7 +54,7 @@ final class ChunkParser {
     static final byte CHECKPOINT_CHUNK_HEADER_MASK = 2;
     // Checkpoint contains only statics that will not change from chunk to chunk
     static final byte CHECKPOINT_STATICS_MASK = 4;
-    // Checkpoint contains thread realted information
+    // Checkpoint contains thread related information
     static final byte CHECKPOINT_THREADS_MASK = 8;
 
     private static final long CONSTANT_POOL_TYPE_ID = 1;
@@ -209,7 +209,7 @@ final class ChunkParser {
 
     private void parseCheckpoint() throws IOException {
         // Content has been parsed previously. This
-        // is for triggering flsuh
+        // is to trigger flush
         input.readLong(); // timestamp
         input.readLong(); // duration
         input.readLong(); // delta
@@ -449,6 +449,4 @@ final class ChunkParser {
     public long getStartNanos() {
         return chunkHeader.getStartNanos();
     }
-
-
 }

@@ -36,7 +36,6 @@ final class StringParser extends Parser {
     private final static Charset UTF8 = Charset.forName("UTF-8");
     private final static Charset LATIN1 = Charset.forName("ISO-8859-1");
 
-
     final static class CharsetParser extends Parser {
         private final Charset charset;
         private int lastSize;

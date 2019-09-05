@@ -347,12 +347,12 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     }
 
     @Override
-    public void awaitTermination(Duration timeout) {
+    public void awaitTermination(Duration timeout) throws InterruptedException {
         directoryStream.awaitTermination(timeout);
     }
 
     @Override
-    public void awaitTermination() {
+    public void awaitTermination() throws InterruptedException {
         directoryStream.awaitTermination();
     }
 }

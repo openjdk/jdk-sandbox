@@ -173,10 +173,11 @@ public interface EventStream extends AutoCloseable {
      *
      * @return {@code true} if the action was removed, {@code false} otherwise
      *
-     * @see #onClose(Runnable)
-     * @see #onFlush(Runnable)
      * @see #onEvent(Consumer)
      * @see #onEvent(String, Consumer)
+     * @see #onFlush(Runnable)
+     * @see #onClose(Runnable)
+     * @see #onError(Consumer)
      */
     boolean remove(Object action);
 
@@ -252,16 +253,21 @@ public interface EventStream extends AutoCloseable {
      *
      * @param timeout the maximum time to wait, not {@code null}
      *
-     * @see #start()
-     * @see #startAsync()
-     */
-    void awaitTermination(Duration timeout);
-
-    /**
-     * Blocks the current thread until the stream is finished or closed.
+     * @throws IllegalArgumentException if timeout is negative
+     * @throws InterruptedException
      *
      * @see #start()
      * @see #startAsync()
      */
-    void awaitTermination();
+    void awaitTermination(Duration timeout) throws InterruptedException;
+
+    /**
+     * Blocks the current thread until the stream is finished or closed.
+     *
+     * @throws InterruptedException
+     *
+     * @see #start()
+     * @see #startAsync()
+     */
+    void awaitTermination() throws InterruptedException;
 }
