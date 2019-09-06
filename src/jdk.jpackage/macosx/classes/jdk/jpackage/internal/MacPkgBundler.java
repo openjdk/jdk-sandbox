@@ -165,11 +165,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 APP_NAME.fetchFrom(params) + "-app.pkg");
     }
 
-    private File getPackages_DaemonPackage(Map<String, ? super Object> params) {
-        return new File(PACKAGES_ROOT.fetchFrom(params),
-                APP_NAME.fetchFrom(params) + "-daemon.pkg");
-    }
-
     private File getConfig_DistributionXMLFile(
             Map<String, ? super Object> params) {
         return new File(CONFIG_ROOT.fetchFrom(params), "distribution.dist");
@@ -191,10 +186,6 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     private String getAppIdentifier(Map<String, ? super Object> params) {
         return IDENTIFIER.fetchFrom(params);
-    }
-
-    private String getDaemonIdentifier(Map<String, ? super Object> params) {
-        return IDENTIFIER.fetchFrom(params) + ".daemon";
     }
 
     private void preparePackageScripts(Map<String, ? super Object> params)
