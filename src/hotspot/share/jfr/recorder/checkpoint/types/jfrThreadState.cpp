@@ -23,6 +23,7 @@
 */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
@@ -83,16 +84,6 @@ void JfrThreadState::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-const char* JfrThreadName::name(const Thread* t) {
-  assert(t != NULL, "invariant");
-  if (!t->is_Java_thread()) {
-    return t->name();
-  }
-  assert(t->is_Java_thread(), "invariant");
-  const JavaThread* const jt = (JavaThread*)t;
-  return jt->get_thread_name_string();
-}
-
 traceid JfrThreadId::id(const Thread* t) {
   assert(t != NULL, "invariant");
   if (!t->is_Java_thread()) {
@@ -112,4 +103,28 @@ traceid JfrThreadId::os_id(const Thread* t) {
 traceid JfrThreadId::jfr_id(const Thread* t) {
   assert(t != NULL, "invariant");
   return t->jfr_thread_local()->thread_id();
+}
+
+// caller needs ResourceMark
+const char* get_java_thread_name(const Thread* t) {
+  assert(t != NULL, "invariant");
+  assert(t->is_Java_thread(), "invariant");
+  const JavaThread* const jt = ((JavaThread*)t);
+  const char* name_str = "<no-name - thread name unresolved>";
+  const oop thread_obj = jt->threadObj();
+  if (thread_obj != NULL) {
+    const oop name = java_lang_Thread::name(thread_obj);
+    if (name != NULL) {
+      name_str = java_lang_String::as_utf8_string(name);
+    }
+  } else if (jt->is_attaching_via_jni()) { // workaround for 6412693 - see 6404306
+    name_str = "<no-name - thread is attaching>";
+  }
+  assert(name_str != NULL, "unexpected NULL thread name");
+  return name_str;
+}
+
+const char* JfrThreadName::name(const Thread* t) {
+  assert(t != NULL, "invariant");
+  return t->is_Java_thread() ? get_java_thread_name(t) : t->name();
 }

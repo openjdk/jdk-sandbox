@@ -28,21 +28,28 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 
+static JfrSymbolId::CStringEntry* bootstrap = NULL;
+
 JfrSymbolId::JfrSymbolId() :
   _sym_table(new SymbolTable(this)),
   _cstring_table(new CStringTable(this)),
   _sym_list(NULL),
   _cstring_list(NULL),
-  _symbol_id_counter(0),
+  _symbol_id_counter(1),
   _class_unload(false) {
   assert(_sym_table != NULL, "invariant");
   assert(_cstring_table != NULL, "invariant");
+  bootstrap = new CStringEntry(0, (const char*)&BOOTSTRAP_LOADER_NAME);
+  assert(bootstrap != NULL, "invariant");
+  bootstrap->set_id(1);
+  _cstring_list = bootstrap;
 }
 
 JfrSymbolId::~JfrSymbolId() {
   clear();
   delete _sym_table;
   delete _cstring_table;
+  delete bootstrap;
 }
 
 void JfrSymbolId::clear() {
@@ -60,7 +67,11 @@ void JfrSymbolId::clear() {
 
   _sym_list = NULL;
   _cstring_list = NULL;
-  _symbol_id_counter = 0;
+  _symbol_id_counter = 1;
+
+  assert(bootstrap != NULL, "invariant");
+  bootstrap->reset();
+  _cstring_list = bootstrap;
 }
 
 void JfrSymbolId::set_class_unload(bool class_unload) {
@@ -104,9 +115,15 @@ bool JfrSymbolId::equals(uintptr_t hash, const CStringEntry* entry) {
 
 void JfrSymbolId::unlink(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
-  if (entry->id() != 1) {
-    JfrCHeapObj::free(const_cast<char*>(entry->literal()), strlen(entry->literal() + 1));
+  JfrCHeapObj::free(const_cast<char*>(entry->literal()), strlen(entry->literal() + 1));
+}
+
+traceid JfrSymbolId::bootstrap_name(bool leakp) {
+  assert(bootstrap != NULL, "invariant");
+  if (leakp) {
+    bootstrap->set_leakp();
   }
+  return 1;
 }
 
 traceid JfrSymbolId::mark(const Symbol* symbol, bool leakp) {
@@ -232,12 +249,6 @@ traceid JfrSymbolId::mark(const Klass* k, bool leakp) {
   return symbol_id;
 }
 
-static void preload_bootstrap_loader_name(JfrSymbolId* symbol_id) {
-  assert(symbol_id != NULL, "invariant");
-  assert(!symbol_id->has_entries(), "invariant");
-  symbol_id->mark(1, (const char*)&BOOTSTRAP_LOADER_NAME, false); // pre-load "bootstrap" into id 1
-}
-
 static void reset_symbol_caches() {
   last_anonymous_hash = 0;
   last_symbol_hash = 0;
@@ -247,7 +258,6 @@ static void reset_symbol_caches() {
 JfrArtifactSet::JfrArtifactSet(bool class_unload) : _symbol_id(new JfrSymbolId()),
                                                      _klass_list(NULL),
                                                      _total_count(0) {
-  preload_bootstrap_loader_name(_symbol_id);
   initialize(class_unload);
   assert(_klass_list != NULL, "invariant");
 }
@@ -270,8 +280,11 @@ JfrArtifactSet::~JfrArtifactSet() {
 void JfrArtifactSet::clear() {
   reset_symbol_caches();
   _symbol_id->clear();
-  preload_bootstrap_loader_name(_symbol_id);
   // _klass_list will be cleared by a ResourceMark
+}
+
+traceid JfrArtifactSet::bootstrap_name(bool leakp) {
+  return _symbol_id->bootstrap_name(leakp);
 }
 
 traceid JfrArtifactSet::mark_unsafe_anonymous_klass_name(const Klass* klass, bool leakp) {

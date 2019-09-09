@@ -191,6 +191,9 @@ class ListEntry : public JfrHashtableEntry<T, IdType> {
   ListEntry(uintptr_t hash, const T& data) : JfrHashtableEntry<T, IdType>(hash, data),
     _list_next(NULL), _serialized(false), _unloading(false), _leakp(false) {}
   const ListEntry<T, IdType>* list_next() const { return _list_next; }
+  void reset() const {
+    _list_next = NULL; _serialized = false; _unloading = false; _leakp = false;
+  }
   void set_list_next(const ListEntry<T, IdType>* next) const { _list_next = next; }
   bool is_serialized() const { return _serialized; }
   void set_serialized() const { _serialized = true; }
@@ -255,6 +258,7 @@ class JfrSymbolId : public JfrCHeapObj {
   traceid mark(const Klass* k, bool leakp);
   traceid mark(const Symbol* symbol, bool leakp);
   traceid mark(uintptr_t hash, const char* str, bool leakp);
+  traceid bootstrap_name(bool leakp);
 
   template <typename Functor>
   void iterate_symbols(Functor& functor) {
@@ -305,6 +309,7 @@ class JfrArtifactSet : public JfrCHeapObj {
   traceid mark(const Symbol* symbol, bool leakp);
   traceid mark(uintptr_t hash, const char* const str, bool leakp);
   traceid mark_unsafe_anonymous_klass_name(const Klass* klass, bool leakp);
+  traceid bootstrap_name(bool leakp);
 
   const JfrSymbolId::SymbolEntry* map_symbol(const Symbol* symbol) const;
   const JfrSymbolId::SymbolEntry* map_symbol(uintptr_t hash) const;

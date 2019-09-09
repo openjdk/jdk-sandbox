@@ -91,6 +91,10 @@ static traceid mark_symbol(Symbol* symbol, bool leakp) {
   return symbol != NULL ? create_symbol_id(_artifacts->mark(symbol, leakp)) : 0;
 }
 
+static traceid get_bootstrap_name(bool leakp) {
+  return create_symbol_id(_artifacts->bootstrap_name(leakp));
+}
+
 template <typename T>
 static traceid artifact_id(const T* ptr) {
   assert(ptr != NULL, "invariant");
@@ -492,7 +496,7 @@ static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp
     // (primordial) boot class loader
     writer->write(artifact_id(cld)); // class loader instance id
     writer->write((traceid)0);  // class loader type id (absence of)
-    writer->write(create_symbol_id(1)); // 1 maps to synthetic name -> "bootstrap"
+    writer->write(get_bootstrap_name(leakp)); // maps to synthetic name -> "bootstrap"
   } else {
     writer->write(artifact_id(cld)); // class loader instance id
     writer->write(artifact_id(class_loader_klass)); // class loader type id

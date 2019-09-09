@@ -83,7 +83,7 @@
 #define METHOD_FLAG_TAG(method, bits)             (set_bits(bits, (method)->trace_flags_addr()))
 #define METHOD_META_TAG(method, bits)             (set_meta_bits(bits, (method)->trace_meta_addr()))
 #define METHOD_FLAG_CLEAR(method, bits)           (clear_bits_cas(bits, (method)->trace_flags_addr()))
-#define METHOD_META_CLEAR(method, bits)           (clear_meta_bits(bits, (method)->trace_meta_addr()))
+#define METHOD_META_CLEAR(method, bits)           (set_meta_mask(bits, (method)->trace_meta_addr()))
 
 // predicates
 #define USED_THIS_EPOCH(ptr)                      (TRACE_ID_PREDICATE(ptr, (TRANSIENT_BIT | IN_USE_THIS_EPOCH_BIT)))
@@ -120,6 +120,7 @@
 #define EVENT_KLASS_MASK(kls)                     (TRACE_ID_RAW(kls) & EVENT_BITS)
 
 // meta
+#define META_MASK                                 (~(SERIALIZED_META_BIT | TRANSIENT_META_BIT | LEAKP_META_BIT))
 #define SET_LEAKP(ptr)                            (TRACE_ID_META_TAG(ptr, LEAKP_META_BIT))
 #define IS_LEAKP(ptr)                             (TRACE_ID_PREDICATE(ptr, LEAKP_BIT))
 #define SET_TRANSIENT(ptr)                        (TRACE_ID_META_TAG(ptr, TRANSIENT_META_BIT))
@@ -128,13 +129,13 @@
 #define SHOULD_TAG(ptr)                           (NOT_USED_THIS_EPOCH(ptr))
 #define SHOULD_TAG_KLASS_METHOD(ptr)              (METHOD_NOT_USED_THIS_EPOCH(ptr))
 #define SET_SERIALIZED(ptr)                       (TRACE_ID_META_TAG(ptr, SERIALIZED_META_BIT))
-#define CLEAR_SERIALIZED(ptr)                     (TRACE_ID_META_CLEAR(ptr, (~(SERIALIZED_META_BIT | TRANSIENT_META_BIT | LEAKP_META_BIT))))
+#define CLEAR_SERIALIZED(ptr)                     (TRACE_ID_META_CLEAR(ptr, META_MASK))
 #define IS_METHOD_SERIALIZED(method)              (METHOD_FLAG_PREDICATE(method, SERIALIZED_BIT))
 #define IS_METHOD_LEAKP_USED(method)              (METHOD_FLAG_PREDICATE(method, LEAKP_BIT))
 #define METHOD_NOT_SERIALIZED(method)             (!(IS_METHOD_SERIALIZED(method)))
 #define SET_METHOD_LEAKP(method)                  (METHOD_META_TAG(method, LEAKP_META_BIT))
 #define SET_METHOD_SERIALIZED(method)             (METHOD_META_TAG(method, SERIALIZED_META_BIT))
-#define CLEAR_METHOD_SERIALIZED(method)           (METHOD_META_CLEAR(method, (SERIALIZED_META_BIT | LEAKP_META_BIT)))
+#define CLEAR_METHOD_SERIALIZED(method)           (METHOD_META_CLEAR(method, META_MASK))
 #define CLEAR_LEAKP(ptr)                          (TRACE_ID_META_CLEAR(ptr, (~(LEAKP_META_BIT))))
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDMACROS_HPP

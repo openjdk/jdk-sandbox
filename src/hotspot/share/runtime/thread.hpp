@@ -979,7 +979,6 @@ class CompilerThread;
 typedef void (*ThreadFunction)(JavaThread*, TRAPS);
 
 class JavaThread: public Thread {
-  friend class JfrThreadName;
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class WhiteBox;
