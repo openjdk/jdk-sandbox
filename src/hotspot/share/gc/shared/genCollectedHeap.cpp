@@ -56,6 +56,7 @@
 #include "gc/shared/workgroup.hpp"
 #include "memory/filemap.hpp"
 #include "memory/metaspaceCounters.hpp"
+#include "memory/metaspace/metaspaceSizesSnapshot.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
@@ -686,7 +687,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
     ClassLoaderDataGraph::purge();
-    MetaspaceUtils::verify_metrics();
+    DEBUG_ONLY(MetaspaceUtils::verify(false);)
     // Resize the metaspace capacity after full collections
     MetaspaceGC::compute_new_size();
     update_full_collections_completed();

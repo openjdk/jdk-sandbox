@@ -27,7 +27,7 @@
 
 #if INCLUDE_NMT
 
-#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "oops/instanceKlass.hpp"
 #include "services/memBaseline.hpp"
 #include "services/nmtCommon.hpp"
@@ -114,7 +114,7 @@ class MemSummaryReporter : public MemReporterBase {
   void report_summary_of_type(MEMFLAGS type, MallocMemory* malloc_memory,
     VirtualMemory* virtual_memory);
 
-  void report_metadata(Metaspace::MetadataType type) const;
+  void report_metadata(metaspace::MetadataType type) const;
 };
 
 /*
@@ -189,7 +189,7 @@ class MemSummaryDiffReporter : public MemReporterBase {
 
   void print_metaspace_diff(const MetaspaceSnapshot* current_ms,
                             const MetaspaceSnapshot* early_ms) const;
-  void print_metaspace_diff(Metaspace::MetadataType type,
+  void print_metaspace_diff(metaspace::MetadataType type,
     const MetaspaceSnapshot* current_ms, const MetaspaceSnapshot* early_ms) const;
 };
 

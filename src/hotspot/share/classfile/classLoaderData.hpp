@@ -27,7 +27,6 @@
 
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
-#include "memory/metaspace.hpp"
 #include "oops/oopHandle.hpp"
 #include "oops/weakHandle.hpp"
 #include "runtime/atomic.hpp"
@@ -62,6 +61,10 @@ class ModuleEntryTable;
 class PackageEntryTable;
 class DictionaryEntry;
 class Dictionary;
+
+namespace metaspace {
+  class ClassLoaderMetaspace;
+}
 
 // ClassLoaderData class
 
@@ -113,7 +116,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   OopHandle _class_loader;    // The instance of java/lang/ClassLoader associated with
                               // this ClassLoaderData
 
-  ClassLoaderMetaspace * volatile _metaspace;  // Meta-space where meta-data defined by the
+  metaspace::ClassLoaderMetaspace* volatile _metaspace;  // Meta-space where meta-data defined by the
                                     // classes in the class loader are allocated.
   Mutex* _metaspace_lock;  // Locks the metaspace for allocations and setup.
   bool _unloading;         // true if this class loader goes away
@@ -223,7 +226,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   bool is_alive() const;
 
   // Accessors
-  ClassLoaderMetaspace* metaspace_or_null() const { return _metaspace; }
+  metaspace::ClassLoaderMetaspace* metaspace_or_null() const { return _metaspace; }
 
   static ClassLoaderData* the_null_class_loader_data() {
     return _the_null_class_loader_data;
@@ -256,7 +259,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   // The Metaspace is created lazily so may be NULL.  This
   // method will allocate a Metaspace if needed.
-  ClassLoaderMetaspace* metaspace_non_null();
+  metaspace::ClassLoaderMetaspace* metaspace_non_null();
 
   inline oop class_loader() const;
 

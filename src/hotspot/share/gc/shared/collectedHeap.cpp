@@ -37,6 +37,7 @@
 #include "gc/shared/memAllocator.hpp"
 #include "logging/log.hpp"
 #include "memory/metaspace.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/instanceMirrorKlass.hpp"
@@ -105,18 +106,18 @@ MetaspaceSummary CollectedHeap::create_metaspace_summary() {
       MetaspaceUtils::used_bytes(),
       MetaspaceUtils::reserved_bytes());
   const MetaspaceSizes data_space(
-      MetaspaceUtils::committed_bytes(Metaspace::NonClassType),
-      MetaspaceUtils::used_bytes(Metaspace::NonClassType),
-      MetaspaceUtils::reserved_bytes(Metaspace::NonClassType));
+      MetaspaceUtils::committed_bytes(metaspace::NonClassType),
+      MetaspaceUtils::used_bytes(metaspace::NonClassType),
+      MetaspaceUtils::reserved_bytes(metaspace::NonClassType));
   const MetaspaceSizes class_space(
-      MetaspaceUtils::committed_bytes(Metaspace::ClassType),
-      MetaspaceUtils::used_bytes(Metaspace::ClassType),
-      MetaspaceUtils::reserved_bytes(Metaspace::ClassType));
+      MetaspaceUtils::committed_bytes(metaspace::ClassType),
+      MetaspaceUtils::used_bytes(metaspace::ClassType),
+      MetaspaceUtils::reserved_bytes(metaspace::ClassType));
 
   const MetaspaceChunkFreeListSummary& ms_chunk_free_list_summary =
-    MetaspaceUtils::chunk_free_list_summary(Metaspace::NonClassType);
+    MetaspaceUtils::chunk_free_list_summary(metaspace::NonClassType);
   const MetaspaceChunkFreeListSummary& class_chunk_free_list_summary =
-    MetaspaceUtils::chunk_free_list_summary(Metaspace::ClassType);
+    MetaspaceUtils::chunk_free_list_summary(metaspace::ClassType);
 
   return MetaspaceSummary(MetaspaceGC::capacity_until_GC(), meta_space, data_space, class_space,
                           ms_chunk_free_list_summary, class_chunk_free_list_summary);
@@ -255,7 +256,7 @@ void CollectedHeap::collect_as_vm_thread(GCCause::Cause cause) {
 
 MetaWord* CollectedHeap::satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                             size_t word_size,
-                                                            Metaspace::MetadataType mdtype) {
+                                                            metaspace::MetadataType mdtype) {
   uint loop_count = 0;
   uint gc_count = 0;
   uint full_gc_count = 0;

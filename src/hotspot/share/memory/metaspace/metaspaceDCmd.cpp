@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP and/or its affiliates.
+ * Copyright (c) 2018, 2019 SAP and/or its affiliates.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  *
  */
 #include "precompiled.hpp"
-#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceReport.hpp"
 #include "memory/metaspace/metaspaceDCmd.hpp"
 #include "memory/resourceArea.hpp"
 #include "services/diagnosticCommand.hpp"
@@ -89,12 +89,12 @@ void MetaspaceDCmd::execute(DCmdSource source, TRAPS) {
   } else {
     // Full mode. Requires safepoint.
     int flags = 0;
-    if (_show_loaders.value())         flags |= MetaspaceUtils::rf_show_loaders;
-    if (_show_classes.value())         flags |= MetaspaceUtils::rf_show_classes;
-    if (_by_chunktype.value())         flags |= MetaspaceUtils::rf_break_down_by_chunktype;
-    if (_by_spacetype.value())         flags |= MetaspaceUtils::rf_break_down_by_spacetype;
-    if (_show_vslist.value())          flags |= MetaspaceUtils::rf_show_vslist;
-    if (_show_vsmap.value())           flags |= MetaspaceUtils::rf_show_vsmap;
+    if (_show_loaders.value())         flags |= MetaspaceReporter::rf_show_loaders;
+    if (_show_classes.value())         flags |= MetaspaceReporter::rf_show_classes;
+    if (_by_chunktype.value())         flags |= MetaspaceReporter::rf_break_down_by_chunktype;
+    if (_by_spacetype.value())         flags |= MetaspaceReporter::rf_break_down_by_spacetype;
+    if (_show_vslist.value())          flags |= MetaspaceReporter::rf_show_vslist;
+    if (_show_vsmap.value())           flags |= MetaspaceReporter::rf_show_vsmap;
     VM_PrintMetadata op(output(), scale, flags);
     VMThread::execute(&op);
   }

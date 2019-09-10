@@ -98,15 +98,15 @@ void MetaspaceCounters::update_performance_counters() {
 MetaspacePerfCounters* CompressedClassSpaceCounters::_perf_counters = NULL;
 
 size_t CompressedClassSpaceCounters::used() {
-  return MetaspaceUtils::used_bytes(Metaspace::ClassType);
+  return MetaspaceUtils::used_bytes(metaspace::ClassType);
 }
 
 size_t CompressedClassSpaceCounters::capacity() {
-  return MetaspaceUtils::committed_bytes(Metaspace::ClassType);
+  return MetaspaceUtils::committed_bytes(metaspace::ClassType);
 }
 
 size_t CompressedClassSpaceCounters::max_capacity() {
-  return MetaspaceUtils::reserved_bytes(Metaspace::ClassType);
+  return MetaspaceUtils::reserved_bytes(metaspace::ClassType);
 }
 
 void CompressedClassSpaceCounters::update_performance_counters() {

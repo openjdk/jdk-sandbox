@@ -1059,7 +1059,7 @@ void PSParallelCompact::post_compact()
 
   // Delete metaspaces for unloaded class loaders and clean up loader_data graph
   ClassLoaderDataGraph::purge();
-  MetaspaceUtils::verify_metrics();
+  DEBUG_ONLY(MetaspaceUtils::verify(false);)
 
   heap->prune_scavengable_nmethods();
 

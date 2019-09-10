@@ -60,7 +60,7 @@ void GCTracer::send_reference_stats_event(ReferenceType type, size_t count) cons
   }
 }
 
-void GCTracer::send_metaspace_chunk_free_list_summary(GCWhen::Type when, Metaspace::MetadataType mdtype,
+void GCTracer::send_metaspace_chunk_free_list_summary(GCWhen::Type when, metaspace::MetadataType mdtype,
                                                       const MetaspaceChunkFreeListSummary& summary) const {
   EventMetaspaceChunkFreeListSummary e;
   if (e.should_commit()) {

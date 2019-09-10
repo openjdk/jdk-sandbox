@@ -1613,6 +1613,12 @@ const size_t minimumSymbolTableSize = 1024;
           "class pointers are used")                                        \
           range(1*M, 3*G)                                                   \
                                                                             \
+  product(ccstr, MetaspaceReclaimStrategy, "balanced",                      \
+          "options: balanced, aggressive, none")                            \
+                                                                            \
+  product(bool, MetaspaceAlwaysUseClassSpace, false,                        \
+          "If true, use class space exclusively.")                          \
+                                                                            \
   manageable(uintx, MinHeapFreeRatio, 40,                                   \
           "The minimum percentage of heap free after GC to avoid expansion."\
           " For most GCs this applies to the old generation. In G1 and"     \

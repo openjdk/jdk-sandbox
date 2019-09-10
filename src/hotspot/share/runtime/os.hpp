@@ -416,6 +416,8 @@ class os: AllStatic {
   static void    make_polling_page_readable();
 
   // Check if pointer points to readable memory (by 4-byte read access)
+  // !! Unreliable before VM initialization! Use CanUseSafeFetch32() to test
+  //    if this function is reliable !!
   static bool    is_readable_pointer(const void* p);
   static bool    is_readable_range(const void* from, const void* to);
 

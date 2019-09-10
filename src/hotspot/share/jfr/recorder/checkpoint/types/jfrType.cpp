@@ -40,7 +40,8 @@
 #include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
 #include "jfr/writers/jfrJavaEventWriter.hpp"
-#include "memory/metaspaceGCThresholdUpdater.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
@@ -194,11 +195,11 @@ void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void MetadataTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = Metaspace::MetadataTypeCount;
+  static const u4 nof_entries = metaspace::MetadataTypeCount;
   writer.write_count(nof_entries);
   for (u4 i = 0; i < nof_entries; ++i) {
     writer.write_key(i);
-    writer.write(Metaspace::metadata_type_name((Metaspace::MetadataType)i));
+    writer.write(metaspace::describe_mdtype((metaspace::MetadataType)i));
   }
 }
 

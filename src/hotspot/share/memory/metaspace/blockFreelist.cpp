@@ -43,10 +43,11 @@ BlockFreelist::~BlockFreelist() {
 }
 
 void BlockFreelist::return_block(MetaWord* p, size_t word_size) {
-  assert(word_size >= SmallBlocks::small_block_min_size(), "never return dark matter");
+  assert(word_size >= SmallBlocks::small_block_min_word_size(),
+         "attempting to return dark matter (" SIZE_FORMAT ").", word_size);
 
   Metablock* free_chunk = ::new (p) Metablock(word_size);
-  if (word_size < SmallBlocks::small_block_max_size()) {
+  if (word_size < SmallBlocks::small_block_max_word_size()) {
     small_blocks()->return_block(free_chunk, word_size);
   } else {
   dictionary()->return_chunk(free_chunk);
@@ -56,10 +57,10 @@ void BlockFreelist::return_block(MetaWord* p, size_t word_size) {
 }
 
 MetaWord* BlockFreelist::get_block(size_t word_size) {
-  assert(word_size >= SmallBlocks::small_block_min_size(), "never get dark matter");
+  assert(word_size >= SmallBlocks::small_block_min_word_size(), "never get dark matter");
 
   // Try small_blocks first.
-  if (word_size < SmallBlocks::small_block_max_size()) {
+  if (word_size < SmallBlocks::small_block_max_word_size()) {
     // Don't create small_blocks() until needed.  small_blocks() allocates the small block list for
     // this space manager.
     MetaWord* new_block = (MetaWord*) small_blocks()->get_block(word_size);
@@ -89,7 +90,7 @@ MetaWord* BlockFreelist::get_block(size_t word_size) {
   MetaWord* new_block = (MetaWord*)free_block;
   assert(block_size >= word_size, "Incorrect size of block from freelist");
   const size_t unused = block_size - word_size;
-  if (unused >= SmallBlocks::small_block_min_size()) {
+  if (unused >= SmallBlocks::small_block_min_word_size()) {
     return_block(new_block + word_size, unused);
   }
 

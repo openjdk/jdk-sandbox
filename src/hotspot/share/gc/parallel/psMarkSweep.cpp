@@ -251,7 +251,7 @@ bool PSMarkSweep::invoke_no_policy(bool clear_all_softrefs) {
 
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
     ClassLoaderDataGraph::purge();
-    MetaspaceUtils::verify_metrics();
+    DEBUG_ONLY(MetaspaceUtils::verify(false);)
 
     BiasedLocking::restore_marks();
     heap->prune_scavengable_nmethods();

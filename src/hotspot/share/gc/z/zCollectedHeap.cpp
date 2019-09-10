@@ -33,6 +33,8 @@
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/universe.hpp"
 #include "runtime/mutexLocker.hpp"
 
@@ -145,7 +147,7 @@ HeapWord* ZCollectedHeap::mem_allocate(size_t size, bool* gc_overhead_limit_was_
 
 MetaWord* ZCollectedHeap::satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                              size_t size,
-                                                             Metaspace::MetadataType mdtype) {
+                                                             metaspace::MetadataType mdtype) {
   MetaWord* result;
 
   // Start asynchronous GC

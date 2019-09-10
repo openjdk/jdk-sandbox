@@ -30,6 +30,7 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/objectCountEventSender.hpp"
 #include "gc/shared/referenceProcessorStats.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/os.hpp"
@@ -116,9 +117,9 @@ void GCTracer::report_gc_heap_summary(GCWhen::Type when, const GCHeapSummary& he
 void GCTracer::report_metaspace_summary(GCWhen::Type when, const MetaspaceSummary& summary) const {
   send_meta_space_summary_event(when, summary);
 
-  send_metaspace_chunk_free_list_summary(when, Metaspace::NonClassType, summary.metaspace_chunk_free_list_summary());
+  send_metaspace_chunk_free_list_summary(when, metaspace::NonClassType, summary.metaspace_chunk_free_list_summary());
   if (UseCompressedClassPointers) {
-    send_metaspace_chunk_free_list_summary(when, Metaspace::ClassType, summary.class_chunk_free_list_summary());
+    send_metaspace_chunk_free_list_summary(when, metaspace::ClassType, summary.class_chunk_free_list_summary());
   }
 }
 

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, SAP SE. All rights reserved.
+ * Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +23,11 @@
  */
 
 #include "precompiled.hpp"
+
 #include "memory/allocation.inline.hpp"
-#include "memory/metaspace.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
+#include "memory/metaspace.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
@@ -33,28 +36,25 @@
 using namespace metaspace;
 
 
+
 // Test the cheerful multitude of metaspace-contains-functions.
-class MetaspaceIsMetaspaceObjTest : public ::testing::Test {
+class MetaspaceIsMetaspaceObjTest {
   Mutex* _lock;
   ClassLoaderMetaspace* _ms;
 
 public:
 
   MetaspaceIsMetaspaceObjTest() : _lock(NULL), _ms(NULL) {}
-
-  virtual void SetUp() {
-  }
-
-  virtual void TearDown() {
+  ~MetaspaceIsMetaspaceObjTest() {
     delete _ms;
     delete _lock;
   }
 
-  void do_test(Metaspace::MetadataType mdType) {
+  void do_test(MetadataType mdType) {
     _lock = new Mutex(Monitor::native, "gtest-IsMetaspaceObjTest-lock", false, Monitor::_safepoint_check_never);
     {
       MutexLocker ml(_lock, Mutex::_no_safepoint_check_flag);
-      _ms = new ClassLoaderMetaspace(_lock, Metaspace::StandardMetaspaceType);
+      _ms = new ClassLoaderMetaspace(_lock, StandardMetaspaceType);
     }
 
     const MetaspaceObj* p = (MetaspaceObj*) _ms->allocate(42, mdType);
@@ -66,18 +66,15 @@ public:
     const MetaspaceObj* p_misaligned = (MetaspaceObj*)((address)p) + 1;
     ASSERT_FALSE(MetaspaceObj::is_valid(p_misaligned));
 
-    // Test VirtualSpaceList::contains and find_enclosing_space
-    VirtualSpaceList* list = Metaspace::space_list();
-    if (mdType == Metaspace::ClassType && Metaspace::using_class_space()) {
-      list = Metaspace::class_space_list();
-    }
-    ASSERT_TRUE(list->contains(p));
-    VirtualSpaceNode* const n = list->find_enclosing_space(p);
-    ASSERT_TRUE(n != NULL);
-    ASSERT_TRUE(n->contains(p));
+    // Test VirtualSpaceList::contains
+    const VirtualSpaceList* const vslist =
+        (mdType == ClassType && Metaspace::using_class_space()) ?
+         VirtualSpaceList::vslist_class() : VirtualSpaceList::vslist_nonclass();
 
-    // A misaligned pointer shall be recognized by list::contains
-    ASSERT_TRUE(list->contains((address)p) + 1);
+    ASSERT_TRUE(vslist->contains((MetaWord*)p));
+
+    // A misaligned pointer shall still be recognized by list::contains
+    ASSERT_TRUE(vslist->contains((MetaWord*)((address)p) + 1));
 
     // Now for some bogus values
     ASSERT_FALSE(MetaspaceObj::is_valid((MetaspaceObj*)NULL));
@@ -105,11 +102,13 @@ public:
 
 };
 
-TEST_VM_F(MetaspaceIsMetaspaceObjTest, non_class_space) {
-  do_test(Metaspace::NonClassType);
+TEST_VM(metaspace, is_metaspace_obj_non_class) {
+  MetaspaceIsMetaspaceObjTest test;
+  test.do_test(NonClassType);
 }
 
-TEST_VM_F(MetaspaceIsMetaspaceObjTest, class_space) {
-  do_test(Metaspace::ClassType);
+TEST_VM(metaspace, is_metaspace_obj_class) {
+  MetaspaceIsMetaspaceObjTest test;
+  test.do_test(ClassType);
 }
 

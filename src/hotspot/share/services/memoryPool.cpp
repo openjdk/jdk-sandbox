@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -211,10 +212,10 @@ CompressedKlassSpacePool::CompressedKlassSpacePool() :
   MemoryPool("Compressed Class Space", NonHeap, 0, CompressedClassSpaceSize, true, false) { }
 
 size_t CompressedKlassSpacePool::used_in_bytes() {
-  return MetaspaceUtils::used_bytes(Metaspace::ClassType);
+  return MetaspaceUtils::used_bytes(metaspace::ClassType);
 }
 
 MemoryUsage CompressedKlassSpacePool::get_memory_usage() {
-  size_t committed = MetaspaceUtils::committed_bytes(Metaspace::ClassType);
+  size_t committed = MetaspaceUtils::committed_bytes(metaspace::ClassType);
   return MemoryUsage(initial_size(), used_in_bytes(), committed, max_size());
 }

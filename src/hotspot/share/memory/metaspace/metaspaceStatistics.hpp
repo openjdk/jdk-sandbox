@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019 SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,162 +26,135 @@
 #ifndef SHARE_MEMORY_METASPACE_METASPACESTATISTICS_HPP
 #define SHARE_MEMORY_METASPACE_METASPACESTATISTICS_HPP
 
+#include "memory/metaspace.hpp"             // for MetadataType enum
+#include "memory/metaspace/chunkLevel.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "memory/metaspace.hpp" // for MetadataType enum
-#include "memory/metaspace/metachunk.hpp" // for ChunkIndex enum
 
 class outputStream;
 
 namespace metaspace {
 
-// Contains statistics for a number of free chunks.
-class FreeChunksStatistics {
-  uintx _num;         // Number of chunks
-  size_t _cap;        // Total capacity, in words
 
-public:
-  FreeChunksStatistics();
+// Contains statistics for one or multiple ChunkManager.
+struct cm_stats_t {
 
-  void reset();
+  // How many chunks per level are checked in.
+  int num_chunks[chklvl::NUM_CHUNK_LEVELS];
 
-  uintx num() const { return _num; }
-  size_t cap() const { return _cap; }
+  // Size, in words, of the sum of all committed areas in this chunk manager, per level.
+  size_t committed_word_size[chklvl::NUM_CHUNK_LEVELS];
 
-  void add(uintx n, size_t s);
-  void add(const FreeChunksStatistics& other);
-  void print_on(outputStream* st, size_t scale) const;
+  cm_stats_t() : num_chunks(), committed_word_size() {}
 
-}; // end: FreeChunksStatistics
+  void add(const cm_stats_t& other);
 
+  // Returns total word size of all chunks in this manager.
+  size_t total_word_size() const;
 
-// Contains statistics for a ChunkManager.
-class ChunkManagerStatistics {
-
-  FreeChunksStatistics _chunk_stats[NumberOfInUseLists];
-
-public:
-
-  // Free chunk statistics, by chunk index.
-  const FreeChunksStatistics& chunk_stats(ChunkIndex index) const   { return _chunk_stats[index]; }
-  FreeChunksStatistics& chunk_stats(ChunkIndex index)               { return _chunk_stats[index]; }
-
-  void reset();
-  size_t total_capacity() const;
+  // Returns total committed word size of all chunks in this manager.
+  size_t total_committed_word_size() const;
 
   void print_on(outputStream* st, size_t scale) const;
+
+  DEBUG_ONLY(void verify() const;)
 
 }; // ChunkManagerStatistics
 
-// Contains statistics for a number of chunks in use.
-// Each chunk has a used and free portion; however, there are current chunks (serving
-// potential future metaspace allocations) and non-current chunks. Unused portion of the
-// former is counted as free, unused portion of the latter counts as waste.
-class UsedChunksStatistics {
-  uintx _num;     // Number of chunks
-  size_t _cap;    // Total capacity in words.
-  size_t _used;   // Total used area, in words
-  size_t _free;   // Total free area (unused portions of current chunks), in words
-  size_t _waste;  // Total waste area (unused portions of non-current chunks), in words
-  size_t _overhead; // Total sum of chunk overheads, in words.
+// Contains statistics for one or multiple chunks in use.
+struct in_use_chunk_stats_t {
 
-public:
+  // Number of chunks
+  int num;
 
-  UsedChunksStatistics();
+  // Note:
+  // capacity = committed + uncommitted
+  //            committed = used + free + waste
 
-  void reset();
+  // Capacity (total sum of all chunk sizes) in words.
+  // May contain committed and uncommitted space.
+  size_t word_size;
 
-  uintx num() const { return _num; }
+  // Total committed area, in words.
+  size_t committed_words;
 
-  // Total capacity, in words
-  size_t cap() const { return _cap; }
+  // Total used area, in words.
+  size_t used_words;
 
-  // Total used area, in words
-  size_t used() const { return _used; }
+  // Total free committed area, in words.
+  size_t free_words;
 
-  // Total free area (unused portions of current chunks), in words
-  size_t free() const { return _free; }
+  // Total waste committed area, in words.
+  size_t waste_words;
 
-  // Total waste area (unused portions of non-current chunks), in words
-  size_t waste() const { return _waste; }
+  in_use_chunk_stats_t()
+    : num(0), word_size(0), committed_words(0),
+      used_words(0), free_words(0), waste_words(0)
+  {}
 
-  // Total area spent in overhead (chunk headers), in words
-  size_t overhead() const { return _overhead; }
+  void add(const in_use_chunk_stats_t& other) {
+    num += other.num;
+    word_size += other.word_size;
+    committed_words += other.committed_words;
+    used_words += other.used_words;
+    free_words += other.free_words;
+    waste_words += other.waste_words;
 
-  void add_num(uintx n) { _num += n; }
-  void add_cap(size_t s) { _cap += s; }
-  void add_used(size_t s) { _used += s; }
-  void add_free(size_t s) { _free += s; }
-  void add_waste(size_t s) { _waste += s; }
-  void add_overhead(size_t s) { _overhead += s; }
-
-  void add(const UsedChunksStatistics& other);
+  }
 
   void print_on(outputStream* st, size_t scale) const;
 
-#ifdef ASSERT
-  void check_sanity() const;
-#endif
+  DEBUG_ONLY(void verify() const;)
 
 }; // UsedChunksStatistics
 
 // Class containing statistics for one or more space managers.
-class SpaceManagerStatistics {
+struct  sm_stats_t {
 
-  UsedChunksStatistics _chunk_stats[NumberOfInUseLists];
-  uintx _free_blocks_num;
-  size_t _free_blocks_cap_words;
+  // chunk statistics by chunk level
+  in_use_chunk_stats_t stats[chklvl::NUM_CHUNK_LEVELS];
+  uintx free_blocks_num;
+  size_t free_blocks_word_size;
 
-public:
+  sm_stats_t()
+    : stats(),
+      free_blocks_num(0),
+      free_blocks_word_size(0)
+  {}
 
-  SpaceManagerStatistics();
+  void add(const sm_stats_t& other);
 
-  // Chunk statistics by chunk index
-  const UsedChunksStatistics& chunk_stats(ChunkIndex index) const   { return _chunk_stats[index]; }
-  UsedChunksStatistics& chunk_stats(ChunkIndex index)               { return _chunk_stats[index]; }
+  void print_on(outputStream* st, size_t scale = K,  bool detailed = true) const;
 
-  uintx free_blocks_num () const                                    { return _free_blocks_num; }
-  size_t free_blocks_cap_words () const                             { return _free_blocks_cap_words; }
+  in_use_chunk_stats_t totals() const;
 
-  void reset();
-
-  void add_free_blocks_info(uintx num, size_t cap);
-
-  // Returns total chunk statistics over all chunk types.
-  UsedChunksStatistics totals() const;
-
-  void add(const SpaceManagerStatistics& other);
-
-  void print_on(outputStream* st, size_t scale,  bool detailed) const;
+  DEBUG_ONLY(void verify() const;)
 
 }; // SpaceManagerStatistics
 
-class ClassLoaderMetaspaceStatistics {
+// Statistics for one or multiple ClassLoaderMetaspace objects
+struct clms_stats_t {
 
-  SpaceManagerStatistics _sm_stats[Metaspace::MetadataTypeCount];
+  sm_stats_t sm_stats_nonclass;
+  sm_stats_t sm_stats_class;
 
-public:
+  clms_stats_t() : sm_stats_nonclass(), sm_stats_class() {}
 
-  ClassLoaderMetaspaceStatistics();
-
-  const SpaceManagerStatistics& sm_stats(Metaspace::MetadataType mdType) const { return _sm_stats[mdType]; }
-  SpaceManagerStatistics& sm_stats(Metaspace::MetadataType mdType)             { return _sm_stats[mdType]; }
-
-  const SpaceManagerStatistics& nonclass_sm_stats() const { return sm_stats(Metaspace::NonClassType); }
-  SpaceManagerStatistics& nonclass_sm_stats()             { return sm_stats(Metaspace::NonClassType); }
-  const SpaceManagerStatistics& class_sm_stats() const    { return sm_stats(Metaspace::ClassType); }
-  SpaceManagerStatistics& class_sm_stats()                { return sm_stats(Metaspace::ClassType); }
-
-  void reset();
-
-  void add(const ClassLoaderMetaspaceStatistics& other);
-
-  // Returns total space manager statistics for both class and non-class metaspace
-  SpaceManagerStatistics totals() const;
+  void add(const clms_stats_t& other) {
+    sm_stats_nonclass.add(other.sm_stats_nonclass);
+    sm_stats_class.add(other.sm_stats_class);
+  }
 
   void print_on(outputStream* st, size_t scale, bool detailed) const;
+
+  // Returns total space manager statistics for both class and non-class metaspace
+  sm_stats_t totals() const;
+
+
+  DEBUG_ONLY(void verify() const;)
 
 }; // ClassLoaderMetaspaceStatistics
 
 } // namespace metaspace
 
 #endif // SHARE_MEMORY_METASPACE_METASPACESTATISTICS_HPP
+

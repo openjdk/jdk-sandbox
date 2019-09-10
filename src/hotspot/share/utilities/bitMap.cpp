@@ -609,7 +609,7 @@ void BitMap::clear_large() {
 // then modifications in and to the left of the _bit_ being
 // currently sampled will not be seen. Note also that the
 // interval [leftOffset, rightOffset) is right open.
-bool BitMap::iterate(BitMapClosure* blk, idx_t leftOffset, idx_t rightOffset) {
+bool BitMap::iterate(BitMapClosure* blk, idx_t leftOffset, idx_t rightOffset) const {
   verify_range(leftOffset, rightOffset);
 
   idx_t startIndex = word_index(leftOffset);

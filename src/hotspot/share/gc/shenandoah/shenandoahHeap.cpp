@@ -69,7 +69,9 @@
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
 #endif
 
-#include "memory/metaspace.hpp"
+
+#include "memory/metaspace/classLoaderMetaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -876,7 +878,7 @@ HeapWord* ShenandoahHeap::mem_allocate(size_t size,
 
 MetaWord* ShenandoahHeap::satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                              size_t size,
-                                                             Metaspace::MetadataType mdtype) {
+                                                             metaspace::MetadataType mdtype) {
   MetaWord* result;
 
   // Inform metaspace OOM to GC heuristics if class unloading is possible.
@@ -1994,7 +1996,6 @@ void ShenandoahHeap::stw_unload_classes(bool full_gc) {
   }
   // Resize and verify metaspace
   MetaspaceGC::compute_new_size();
-  MetaspaceUtils::verify_metrics();
 }
 
 // Process leftover weak oops: update them, if needed or assert they do not

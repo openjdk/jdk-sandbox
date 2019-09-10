@@ -59,6 +59,8 @@
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metadataFactory.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -72,6 +74,8 @@
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
+
+using metaspace::ClassLoaderMetaspace;
 
 ClassLoaderData * ClassLoaderData::_the_null_class_loader_data = NULL;
 
@@ -759,13 +763,13 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
     if ((metaspace = _metaspace) == NULL) {
       if (this == the_null_class_loader_data()) {
         assert (class_loader() == NULL, "Must be");
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::BootMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::BootMetaspaceType);
       } else if (is_unsafe_anonymous()) {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::UnsafeAnonymousMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::UnsafeAnonymousMetaspaceType);
       } else if (class_loader()->is_a(SystemDictionary::reflect_DelegatingClassLoader_klass())) {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::ReflectionMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::ReflectionMetaspaceType);
       } else {
-        metaspace = new ClassLoaderMetaspace(_metaspace_lock, Metaspace::StandardMetaspaceType);
+        metaspace = new ClassLoaderMetaspace(_metaspace_lock, metaspace::StandardMetaspaceType);
       }
       // Ensure _metaspace is stable, since it is examined without a lock
       OrderAccess::release_store(&_metaspace, metaspace);
@@ -956,9 +960,11 @@ void ClassLoaderData::verify() {
   guarantee(cl != NULL || this == ClassLoaderData::the_null_class_loader_data() || is_unsafe_anonymous(), "must be");
 
   // Verify the integrity of the allocated space.
+#ifdef ASSERT
   if (metaspace_or_null() != NULL) {
-    metaspace_or_null()->verify();
+    metaspace_or_null()->verify(false);
   }
+#endif
 
   for (Klass* k = _klasses; k != NULL; k = k->next_link()) {
     guarantee(k->class_loader_data() == this, "Must be the same");

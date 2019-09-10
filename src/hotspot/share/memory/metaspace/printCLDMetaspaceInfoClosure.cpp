@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019 SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +25,10 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "memory/metaspace/printCLDMetaspaceInfoClosure.hpp"
 #include "memory/metaspace/printMetaspaceInfoKlassClosure.hpp"
-#include "memory/metaspaceShared.hpp"
+#include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -80,7 +82,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
   }
 
   // Collect statistics for this class loader metaspace
-  ClassLoaderMetaspaceStatistics this_cld_stat;
+  clms_stats_t this_cld_stat;
   msp->add_to_statistics(&this_cld_stat);
 
   // And add it to the running totals

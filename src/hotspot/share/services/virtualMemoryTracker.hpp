@@ -28,7 +28,7 @@
 #if INCLUDE_NMT
 
 #include "memory/allocation.hpp"
-#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "services/allocationSite.hpp"
 #include "services/nmtCommon.hpp"
 #include "utilities/linkedlist.hpp"
@@ -420,25 +420,25 @@ class VirtualMemoryTracker : AllStatic {
 
 class MetaspaceSnapshot : public ResourceObj {
 private:
-  size_t  _reserved_in_bytes[Metaspace::MetadataTypeCount];
-  size_t  _committed_in_bytes[Metaspace::MetadataTypeCount];
-  size_t  _used_in_bytes[Metaspace::MetadataTypeCount];
-  size_t  _free_in_bytes[Metaspace::MetadataTypeCount];
+  size_t  _reserved_in_bytes[metaspace::MetadataTypeCount];
+  size_t  _committed_in_bytes[metaspace::MetadataTypeCount];
+  size_t  _used_in_bytes[metaspace::MetadataTypeCount];
+  size_t  _free_in_bytes[metaspace::MetadataTypeCount];
 
 public:
   MetaspaceSnapshot();
-  size_t reserved_in_bytes(Metaspace::MetadataType type)   const { assert_valid_metadata_type(type); return _reserved_in_bytes[type]; }
-  size_t committed_in_bytes(Metaspace::MetadataType type)  const { assert_valid_metadata_type(type); return _committed_in_bytes[type]; }
-  size_t used_in_bytes(Metaspace::MetadataType type)       const { assert_valid_metadata_type(type); return _used_in_bytes[type]; }
-  size_t free_in_bytes(Metaspace::MetadataType type)       const { assert_valid_metadata_type(type); return _free_in_bytes[type]; }
+  size_t reserved_in_bytes(metaspace::MetadataType type)   const { assert_valid_metadata_type(type); return _reserved_in_bytes[type]; }
+  size_t committed_in_bytes(metaspace::MetadataType type)  const { assert_valid_metadata_type(type); return _committed_in_bytes[type]; }
+  size_t used_in_bytes(metaspace::MetadataType type)       const { assert_valid_metadata_type(type); return _used_in_bytes[type]; }
+  size_t free_in_bytes(metaspace::MetadataType type)       const { assert_valid_metadata_type(type); return _free_in_bytes[type]; }
 
   static void snapshot(MetaspaceSnapshot& s);
 
 private:
-  static void snapshot(Metaspace::MetadataType type, MetaspaceSnapshot& s);
+  static void snapshot(metaspace::MetadataType type, MetaspaceSnapshot& s);
 
-  static void assert_valid_metadata_type(Metaspace::MetadataType type) {
-    assert(type == Metaspace::ClassType || type == Metaspace::NonClassType,
+  static void assert_valid_metadata_type(metaspace::MetadataType type) {
+    assert(type == metaspace::ClassType || type == metaspace::NonClassType,
       "Invalid metadata type");
   }
 };

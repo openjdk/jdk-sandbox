@@ -25,6 +25,7 @@
 #ifndef SHARE_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
 #define SHARE_MEMORY_METASPACECHUNKFREELISTSUMMARY_HPP
 
+#include "utilities/globalDefinitions.hpp"
 
 class MetaspaceChunkFreeListSummary {
   size_t _num_specialized_chunks;

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, SAP SE. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +22,33 @@
  * questions.
  *
  */
-
-#ifndef SHARE_MEMORY_METASPACEGCTHRESHOLDUPDATER_HPP
-#define SHARE_MEMORY_METASPACEGCTHRESHOLDUPDATER_HPP
-
-#include "memory/allocation.hpp"
+#include "precompiled.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "utilities/debug.hpp"
 
-class MetaspaceGCThresholdUpdater : public AllStatic {
- public:
-  enum Type {
-    ComputeNewSize,
-    ExpandAndAllocate,
-    Last
-  };
+namespace metaspace {
 
-  static const char* to_string(MetaspaceGCThresholdUpdater::Type updater) {
-    switch (updater) {
-      case ComputeNewSize:
-        return "compute_new_size";
-      case ExpandAndAllocate:
-        return "expand_and_allocate";
-      default:
-        assert(false, "Got bad updater: %d", (int) updater);
-        return NULL;
-    };
+const char* describe_spacetype(MetaspaceType st) {
+  const char* s = NULL;
+  switch (st) {
+    case StandardMetaspaceType: s = "Standard"; break;
+    case BootMetaspaceType: s = "Boot"; break;
+    case UnsafeAnonymousMetaspaceType: s = "UnsafeAnonymous"; break;
+    case ReflectionMetaspaceType: s = "Reflection"; break;
+    default: ShouldNotReachHere();
   }
-};
+  return s;
+}
 
-#endif // SHARE_MEMORY_METASPACEGCTHRESHOLDUPDATER_HPP
+const char* describe_mdtype(MetadataType md) {
+  const char* s = NULL;
+  switch (md) {
+    case NonClassType: s = "nonclass"; break;
+    case ClassType: s = "class"; break;
+    default: ShouldNotReachHere();
+  }
+  return s;
+}
+
+} // namespace metaspace
+

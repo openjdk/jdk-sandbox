@@ -38,6 +38,7 @@
 #include "memory/filemap.hpp"
 #include "memory/heapShared.inline.hpp"
 #include "memory/iterator.inline.hpp"
+#include "memory/metaspace.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -1369,7 +1370,7 @@ char* FileMapInfo::map_region(int i, char** top_ret) {
   assert(!HeapShared::is_heap_region(i), "sanity");
   CDSFileMapRegion* si = space_at(i);
   size_t used = si->_used;
-  size_t alignment = os::vm_allocation_granularity();
+  size_t alignment = Metaspace::reserve_alignment();
   size_t size = align_up(used, alignment);
   char *requested_addr = region_addr(i);
 

@@ -28,6 +28,7 @@
 #include "memory/allocation.hpp"
 #include "memory/binaryTreeDictionary.hpp"
 #include "memory/metaspace/metablock.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class outputStream;
@@ -36,22 +37,27 @@ namespace metaspace {
 
 class SmallBlocks : public CHeapObj<mtClass> {
 
-  const static uint _small_block_max_size = sizeof(TreeChunk<Metablock,  FreeList<Metablock> >)/HeapWordSize;
+  const static uint _small_block_max_byte_size = sizeof(TreeChunk<Metablock,  FreeList<Metablock> >);
+  const static uint _small_block_max_word_size = _small_block_max_byte_size / BytesPerWord;
+  STATIC_ASSERT(_small_block_max_word_size * BytesPerWord == _small_block_max_byte_size);
+
   // Note: this corresponds to the imposed miminum allocation size, see SpaceManager::get_allocation_word_size()
-  const static uint _small_block_min_size = sizeof(Metablock)/HeapWordSize;
+  const static uint _small_block_min_byte_size = sizeof(Metablock);
+  const static uint _small_block_min_word_size = _small_block_min_byte_size / BytesPerWord;
+  STATIC_ASSERT(_small_block_min_word_size * BytesPerWord == _small_block_min_byte_size);
 
 private:
-  FreeList<Metablock> _small_lists[_small_block_max_size - _small_block_min_size];
+  FreeList<Metablock> _small_lists[_small_block_max_word_size - _small_block_min_word_size];
 
   FreeList<Metablock>& list_at(size_t word_size) {
-    assert(word_size >= _small_block_min_size, "There are no metaspace objects less than %u words", _small_block_min_size);
-    return _small_lists[word_size - _small_block_min_size];
+    assert(word_size >= _small_block_min_word_size, "There are no metaspace objects less than %u words", _small_block_min_word_size);
+    return _small_lists[word_size - _small_block_min_word_size];
   }
 
 public:
   SmallBlocks() {
-    for (uint i = _small_block_min_size; i < _small_block_max_size; i++) {
-      uint k = i - _small_block_min_size;
+    for (uint i = _small_block_min_word_size; i < _small_block_max_word_size; i++) {
+      uint k = i - _small_block_min_word_size;
       _small_lists[k].set_size(i);
     }
   }
@@ -62,8 +68,10 @@ public:
   // Returns the total number of all blocks across all block sizes.
   uintx total_num_blocks() const;
 
-  static uint small_block_max_size() { return _small_block_max_size; }
-  static uint small_block_min_size() { return _small_block_min_size; }
+  static uint small_block_max_byte_size() { return _small_block_max_byte_size; }
+  static uint small_block_max_word_size() { return _small_block_max_word_size; }
+  static uint small_block_min_byte_size() { return _small_block_min_byte_size; }
+  static uint small_block_min_word_size() { return _small_block_min_word_size; }
 
   MetaWord* get_block(size_t word_size) {
     if (list_at(word_size).count() > 0) {

@@ -30,7 +30,7 @@
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcName.hpp"
 #include "gc/shared/gcWhen.hpp"
-#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/referenceType.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ticks.hpp"
@@ -112,7 +112,7 @@ class GCTracer : public ResourceObj {
   void send_garbage_collection_event() const;
   void send_gc_heap_summary_event(GCWhen::Type when, const GCHeapSummary& heap_summary) const;
   void send_meta_space_summary_event(GCWhen::Type when, const MetaspaceSummary& meta_space_summary) const;
-  void send_metaspace_chunk_free_list_summary(GCWhen::Type when, Metaspace::MetadataType mdtype, const MetaspaceChunkFreeListSummary& summary) const;
+  void send_metaspace_chunk_free_list_summary(GCWhen::Type when, metaspace::MetadataType mdtype, const MetaspaceChunkFreeListSummary& summary) const;
   void send_reference_stats_event(ReferenceType type, size_t count) const;
   void send_phase_events(TimePartitions* time_partitions) const;
 };

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "memory/metaspace/classLoaderMetaspace.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
@@ -78,7 +79,7 @@ void ClassLoaderStatsClosure::do_cld(ClassLoaderData* cld) {
   }
   _total_classes += csc._num_classes;
 
-  ClassLoaderMetaspace* ms = cld->metaspace_or_null();
+  metaspace::ClassLoaderMetaspace* ms = cld->metaspace_or_null();
   if (ms != NULL) {
     if(cld->is_unsafe_anonymous()) {
       cls->_anon_chunk_sz += ms->allocated_chunks_bytes();

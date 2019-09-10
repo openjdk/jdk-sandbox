@@ -602,8 +602,8 @@ bool VirtualMemoryTracker::transition(NMT_TrackingLevel from, NMT_TrackingLevel 
 
 // Metaspace Support
 MetaspaceSnapshot::MetaspaceSnapshot() {
-  for (int index = (int)Metaspace::ClassType; index < (int)Metaspace::MetadataTypeCount; index ++) {
-    Metaspace::MetadataType type = (Metaspace::MetadataType)index;
+  for (int index = (int)metaspace::ClassType; index < (int)metaspace::MetadataTypeCount; index ++) {
+    metaspace::MetadataType type = (metaspace::MetadataType)index;
     assert_valid_metadata_type(type);
     _reserved_in_bytes[type]  = 0;
     _committed_in_bytes[type] = 0;
@@ -612,22 +612,22 @@ MetaspaceSnapshot::MetaspaceSnapshot() {
   }
 }
 
-void MetaspaceSnapshot::snapshot(Metaspace::MetadataType type, MetaspaceSnapshot& mss) {
+void MetaspaceSnapshot::snapshot(metaspace::MetadataType type, MetaspaceSnapshot& mss) {
   assert_valid_metadata_type(type);
 
   mss._reserved_in_bytes[type]   = MetaspaceUtils::reserved_bytes(type);
   mss._committed_in_bytes[type]  = MetaspaceUtils::committed_bytes(type);
   mss._used_in_bytes[type]       = MetaspaceUtils::used_bytes(type);
 
-  size_t free_in_bytes = (MetaspaceUtils::capacity_bytes(type) - MetaspaceUtils::used_bytes(type))
-                       + MetaspaceUtils::free_chunks_total_bytes(type)
-                       + MetaspaceUtils::free_in_vs_bytes(type);
+  size_t free_in_bytes = 0;// TODO fix(MetaspaceUtils::capacity_bytes(type) - MetaspaceUtils::used_bytes(type))
+                     //  + MetaspaceUtils::free_chunks_total_bytes(type)
+                     //  + MetaspaceUtils::free_in_vs_bytes(type);
   mss._free_in_bytes[type] = free_in_bytes;
 }
 
 void MetaspaceSnapshot::snapshot(MetaspaceSnapshot& mss) {
-  snapshot(Metaspace::ClassType, mss);
+  snapshot(metaspace::ClassType, mss);
   if (Metaspace::using_class_space()) {
-    snapshot(Metaspace::NonClassType, mss);
+    snapshot(metaspace::NonClassType, mss);
   }
 }

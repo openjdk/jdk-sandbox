@@ -28,6 +28,7 @@
 #include "utilities/align.hpp"
 #include "unittest.hpp"
 
+
 namespace {
   class MemoryReleaser {
     ReservedSpace* const _rs;
@@ -337,3 +338,6 @@ TEST_VM(VirtualSpace, disable_large_pages) {
   EXPECT_NO_FATAL_FAILURE(test_virtual_space_actual_committed_space(10 * M, 5 * M,  Commit));
   EXPECT_NO_FATAL_FAILURE(test_virtual_space_actual_committed_space(10 * M, 10 * M, Commit));
 }
+
+
+

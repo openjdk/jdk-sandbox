@@ -1114,7 +1114,7 @@ void Universe::verify(VerifyOption option, const char* prefix) {
 #endif
   if (should_verify_subset(Verify_MetaspaceUtils)) {
     log_debug(gc, verify)("MetaspaceUtils");
-    MetaspaceUtils::verify_free_chunks();
+    DEBUG_ONLY(MetaspaceUtils::verify(true);)
   }
   if (should_verify_subset(Verify_JNIHandles)) {
     log_debug(gc, verify)("JNIHandles");

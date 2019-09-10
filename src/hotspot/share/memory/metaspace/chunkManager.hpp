@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, SAP SE. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,173 +27,137 @@
 #define SHARE_MEMORY_METASPACE_CHUNKMANAGER_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/binaryTreeDictionary.hpp"
-#include "memory/freeList.hpp"
+#include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/metachunk.hpp"
-#include "memory/metaspace/metaspaceStatistics.hpp"
-#include "memory/metaspaceChunkFreeListSummary.hpp"
-#include "utilities/globalDefinitions.hpp"
-
-class ChunkManagerTestAccessor;
 
 namespace metaspace {
 
-typedef class FreeList<Metachunk> ChunkList;
-typedef BinaryTreeDictionary<Metachunk, FreeList<Metachunk> > ChunkTreeDictionary;
+class VirtualSpaceList;
+class cm_stats_t;
 
-// Manages the global free lists of chunks.
+// class ChunkManager
+//
+// The ChunkManager has a central role. Callers request chunks from it.
+// It keeps the freelists for chunks. If the freelist is exhausted it
+// allocates new chunks from a connected VirtualSpaceList.
+//
 class ChunkManager : public CHeapObj<mtInternal> {
-  friend class ::ChunkManagerTestAccessor;
 
-  // Free list of chunks of different sizes.
-  //   SpecializedChunk
-  //   SmallChunk
-  //   MediumChunk
-  ChunkList _free_chunks[NumberOfFreeLists];
+  // A chunk manager is connected to a virtual space list which is used
+  // to allocate new root chunks when no free chunks are found.
+  VirtualSpaceList* const _vslist;
 
-  // Whether or not this is the class chunkmanager.
-  const bool _is_class;
+  // Name
+  const char* const _name;
 
-  // Return non-humongous chunk list by its index.
-  ChunkList* free_chunks(ChunkIndex index);
+  // Freelist
+  MetachunkListCluster _chunks;
 
-  // Returns non-humongous chunk list for the given chunk word size.
-  ChunkList* find_free_chunks_list(size_t word_size);
+  // Returns true if this manager contains the given chunk. Slow (walks free list) and
+  // only needed for verifications.
+  DEBUG_ONLY(bool contains_chunk(Metachunk* c) const;)
 
-  //   HumongousChunk
-  ChunkTreeDictionary _humongous_dictionary;
+  // Given a chunk we are about to handout to the caller, make sure it is committed
+  // according to constants::committed_words_on_fresh_chunks.
+  // May fail if we hit the commit limit.
+  static bool commit_chunk_before_handout(Metachunk* c);
 
-  // Returns the humongous chunk dictionary.
-  ChunkTreeDictionary* humongous_dictionary() { return &_humongous_dictionary; }
-  const ChunkTreeDictionary* humongous_dictionary() const { return &_humongous_dictionary; }
+  // Take a single chunk from the given freelist and adjust counters. Returns NULL
+  // if there is no fitting chunk for this level.
+  Metachunk* remove_first_chunk_at_level(chklvl_t l);
 
-  // Size, in metaspace words, of all chunks managed by this ChunkManager
-  size_t _free_chunks_total;
-  // Number of chunks in this ChunkManager
-  size_t _free_chunks_count;
+  // Given a chunk which must be outside of a freelist and must be free, split it to
+  // meet a target level and return it. Splinters are added to the freelist.
+  Metachunk* split_chunk_and_add_splinters(Metachunk* c, chklvl_t target_level);
 
-  // Update counters after a chunk was added or removed removed.
-  void account_for_added_chunk(const Metachunk* c);
-  void account_for_removed_chunk(const Metachunk* c);
+  // Uncommit all chunks equal or below the given level.
+  void uncommit_free_chunks(chklvl_t max_level);
 
-  // Given a pointer to a chunk, attempts to merge it with neighboring
-  // free chunks to form a bigger chunk. Returns true if successful.
-  bool attempt_to_coalesce_around_chunk(Metachunk* chunk, ChunkIndex target_chunk_type);
+public:
 
-  // Helper for chunk merging:
-  //  Given an address range with 1-n chunks which are all supposed to be
-  //  free and hence currently managed by this ChunkManager, remove them
-  //  from this ChunkManager and mark them as invalid.
-  // - This does not correct the occupancy map.
-  // - This does not adjust the counters in ChunkManager.
-  // - Does not adjust container count counter in containing VirtualSpaceNode.
-  // Returns number of chunks removed.
-  int remove_chunks_in_area(MetaWord* p, size_t word_size);
+  // Creates a chunk manager with a given name (which is for debug purposes only)
+  // and an associated space list which will be used to request new chunks from
+  // (see get_chunk())
+  ChunkManager(const char* name, VirtualSpaceList* space_list);
 
-  // Helper for chunk splitting: given a target chunk size and a larger free chunk,
-  // split up the larger chunk into n smaller chunks, at least one of which should be
-  // the target chunk of target chunk size. The smaller chunks, including the target
-  // chunk, are returned to the freelist. The pointer to the target chunk is returned.
-  // Note that this chunk is supposed to be removed from the freelist right away.
-  Metachunk* split_chunk(size_t target_chunk_word_size, Metachunk* chunk);
+  // Get a chunk and be smart about it.
+  // - 1) Attempt to find a free chunk of exactly the pref_level level
+  // - 2) Failing that, attempt to find a chunk smaller or equal the maximal level.
+  // - 3) Failing that, attempt to find a free chunk of larger size and split it.
+  // - 4) Failing that, attempt to allocate a new chunk from the connected virtual space.
+  // - Failing that, give up and return NULL.
+  // Note: this is not guaranteed to return a *committed* chunk. The chunk manager will
+  //   attempt to commit the returned chunk according to constants::committed_words_on_fresh_chunks;
+  //   but this may fail if we hit a commit limit. In that case, a partly uncommitted chunk
+  //   will be returned, and the commit is attempted again when we allocate from the chunk's
+  //   uncommitted area. See also Metachunk::allocate.
+  Metachunk* get_chunk(chklvl_t max_level, chklvl_t pref_level);
 
- public:
+  // Return a single chunk to the ChunkManager and adjust accounting. May merge chunk
+  //  with neighbors.
+  // Happens after a Classloader was unloaded and releases its metaspace chunks.
+  // !! Notes:
+  //    1) After this method returns, c may not be valid anymore. Do not access the chunk after this function returns.
+  //    2) This function will not remove c from its current chunk list. This has to be done by the caller prior to
+  //       calling this method.
+  void return_chunk(Metachunk* c);
 
-  ChunkManager(bool is_class);
+  // Return a single chunk to the freelist and adjust accounting. No merge is attempted.
+  void return_chunk_simple(Metachunk* c);
 
-  // Add or delete (return) a chunk to the global freelist.
-  Metachunk* chunk_freelist_allocate(size_t word_size);
+  // Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
+  // enlarge it in place by claiming its trailing buddy.
+  //
+  // This will only work if c is the leader of the buddy pair and the trailing buddy is free.
+  //
+  // If successful, the follower chunk will be removed from the freelists, the leader chunk c will
+  // double in size (level decreased by one).
+  //
+  // On success, true is returned, false otherwise.
+  bool attempt_enlarge_chunk(Metachunk* c);
 
-  // Map a size to a list index assuming that there are lists
-  // for special, small, medium, and humongous chunks.
-  ChunkIndex list_index(size_t size);
+  // Attempt to reclaim free areas in metaspace wholesale:
+  // - first, attempt to purge nodes of the backing virtual space. This can only be successful
+  //   if whole nodes are only containing free chunks, so it highly depends on fragmentation.
+  // - then, it will uncommit areas of free chunks according to the rules laid down in
+  //   settings (see settings.hpp).
+  void wholesale_reclaim();
 
-  // Map a given index to the chunk size.
-  size_t size_by_index(ChunkIndex index) const;
+  // Run verifications. slow=true: verify chunk-internal integrity too.
+  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify_locked(bool slow) const;)
 
-  bool is_class() const { return _is_class; }
+  // Returns the name of this chunk manager.
+  const char* name() const                  { return _name; }
 
-  // Convenience accessors.
-  size_t medium_chunk_word_size() const { return size_by_index(MediumIndex); }
-  size_t small_chunk_word_size() const { return size_by_index(SmallIndex); }
-  size_t specialized_chunk_word_size() const { return size_by_index(SpecializedIndex); }
+  // Returns total number of chunks
+  int total_num_chunks() const              { return _chunks.total_num_chunks(); }
 
-  // Take a chunk from the ChunkManager. The chunk is expected to be in
-  // the chunk manager (the freelist if non-humongous, the dictionary if
-  // humongous).
-  void remove_chunk(Metachunk* chunk);
+  // Returns number of words in all free chunks.
+  size_t total_word_size() const            { return _chunks.total_word_size(); }
 
-  // Return a single chunk of type index to the ChunkManager.
-  void return_single_chunk(Metachunk* chunk);
+  // Update statistics.
+  void add_to_statistics(cm_stats_t* out) const;
 
-  // Add the simple linked list of chunks to the freelist of chunks
-  // of type index.
-  void return_chunk_list(Metachunk* chunk);
+  void print_on(outputStream* st) const;
+  void print_on_locked(outputStream* st) const;
 
-  // Total of the space in the free chunks list
-  size_t free_chunks_total_words() const { return _free_chunks_total; }
-  size_t free_chunks_total_bytes() const { return free_chunks_total_words() * BytesPerWord; }
+private:
 
-  // Number of chunks in the free chunks list
-  size_t free_chunks_count() const { return _free_chunks_count; }
+  static ChunkManager* _chunkmanager_class;
+  static ChunkManager* _chunkmanager_nonclass;
 
-  // Remove from a list by size.  Selects list based on size of chunk.
-  Metachunk* free_chunks_get(size_t chunk_word_size);
+public:
 
-#define index_bounds_check(index)                                         \
-  assert(is_valid_chunktype(index), "Bad index: %d", (int) index)
+  static ChunkManager* chunkmanager_class() { return _chunkmanager_class; }
+  static ChunkManager* chunkmanager_nonclass() { return _chunkmanager_nonclass; }
 
-  size_t num_free_chunks(ChunkIndex index) const {
-    index_bounds_check(index);
-
-    if (index == HumongousIndex) {
-      return _humongous_dictionary.total_free_blocks();
-    }
-
-    ssize_t count = _free_chunks[index].count();
-    return count == -1 ? 0 : (size_t) count;
-  }
-
-  size_t size_free_chunks_in_bytes(ChunkIndex index) const {
-    index_bounds_check(index);
-
-    size_t word_size = 0;
-    if (index == HumongousIndex) {
-      word_size = _humongous_dictionary.total_size();
-    } else {
-      const size_t size_per_chunk_in_words = _free_chunks[index].size();
-      word_size = size_per_chunk_in_words * num_free_chunks(index);
-    }
-
-    return word_size * BytesPerWord;
-  }
-
-  MetaspaceChunkFreeListSummary chunk_free_list_summary() const {
-    return MetaspaceChunkFreeListSummary(num_free_chunks(SpecializedIndex),
-                                         num_free_chunks(SmallIndex),
-                                         num_free_chunks(MediumIndex),
-                                         num_free_chunks(HumongousIndex),
-                                         size_free_chunks_in_bytes(SpecializedIndex),
-                                         size_free_chunks_in_bytes(SmallIndex),
-                                         size_free_chunks_in_bytes(MediumIndex),
-                                         size_free_chunks_in_bytes(HumongousIndex));
-  }
-
-#ifdef ASSERT
-  // Debug support
-  // Verify free list integrity. slow=true: verify chunk-internal integrity too.
-  void verify(bool slow) const;
-  void locked_verify(bool slow) const;
-#endif
-
-  void locked_print_free_chunks(outputStream* st);
-
-  // Fill in current statistic values to the given statistics object.
-  void collect_statistics(ChunkManagerStatistics* out) const;
+  static void set_chunkmanager_class(ChunkManager* cm);
+  static void set_chunkmanager_nonclass(ChunkManager* cm);
 
 };
 
 } // namespace metaspace
-
 
 #endif // SHARE_MEMORY_METASPACE_CHUNKMANAGER_HPP

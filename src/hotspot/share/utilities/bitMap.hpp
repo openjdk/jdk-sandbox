@@ -195,6 +195,7 @@ class BitMap {
     return calc_size_in_words(size_in_bits) * BytesPerWord;
   }
 
+  // Size, in number of bits, of this map.
   idx_t size() const          { return _size; }
   idx_t size_in_words() const { return calc_size_in_words(size()); }
   idx_t size_in_bytes() const { return calc_size_in_bytes(size()); }
@@ -253,11 +254,11 @@ class BitMap {
   void clear_large();
   inline void clear();
 
-  // Iteration support.  Returns "true" if the iteration completed, false
+  // Iteration support [leftIndex, rightIndex).  Returns "true" if the iteration completed, false
   // if the iteration terminated early (because the closure "blk" returned
   // false).
-  bool iterate(BitMapClosure* blk, idx_t leftIndex, idx_t rightIndex);
-  bool iterate(BitMapClosure* blk) {
+  bool iterate(BitMapClosure* blk, idx_t leftIndex, idx_t rightIndex) const;
+  bool iterate(BitMapClosure* blk) const {
     // call the version that takes an interval
     return iterate(blk, 0, size());
   }
@@ -278,6 +279,9 @@ class BitMap {
   // Like "get_next_one_offset", except requires that "r_index" is
   // aligned to bitsizeof(bm_word_t).
   idx_t get_next_one_offset_aligned_right(idx_t l_index, idx_t r_index) const;
+
+  // Returns the number of bits set between [l_index, r_index) in the bitmap.
+  idx_t count_one_bits(idx_t l_index, idx_t r_index) const;
 
   // Returns the number of bits set in the bitmap.
   idx_t count_one_bits() const;

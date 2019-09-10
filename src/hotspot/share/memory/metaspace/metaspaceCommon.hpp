@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018, 2019, SAP SE. All rights reserved.
  * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,14 +34,6 @@ class outputStream;
 
 namespace metaspace {
 
-enum ChunkSizes {    // in words.
-  ClassSpecializedChunk = 128,
-  SpecializedChunk = 128,
-  ClassSmallChunk = 256,
-  SmallChunk = 512,
-  ClassMediumChunk = 4 * K,
-  MediumChunk = 8 * K
-};
 
 // Print a size, in words, scaled.
 void print_scaled_words(outputStream* st, size_t word_size, size_t scale = 0, int width = -1);
@@ -65,80 +58,6 @@ void print_percentage(outputStream* st, size_t total, size_t part);
          SIZE_FORMAT_HEX " is not aligned to "               \
          SIZE_FORMAT, (size_t)(uintptr_t)value, (alignment))
 
-// Internal statistics.
-#ifdef ASSERT
-struct  internal_statistics_t {
-  // Number of allocations.
-  uintx num_allocs;
-  // Number of times a ClassLoaderMetaspace was born...
-  uintx num_metaspace_births;
-  // ... and died.
-  uintx num_metaspace_deaths;
-  // Number of times VirtualSpaceListNodes were created...
-  uintx num_vsnodes_created;
-  // ... and purged.
-  uintx num_vsnodes_purged;
-  // Number of times we expanded the committed section of the space.
-  uintx num_committed_space_expanded;
-  // Number of deallocations
-  uintx num_deallocs;
-  // Number of deallocations triggered from outside ("real" deallocations).
-  uintx num_external_deallocs;
-  // Number of times an allocation was satisfied from deallocated blocks.
-  uintx num_allocs_from_deallocated_blocks;
-  // Number of times a chunk was added to the freelist
-  uintx num_chunks_added_to_freelist;
-  // Number of times a chunk was removed from the freelist
-  uintx num_chunks_removed_from_freelist;
-  // Number of chunk merges
-  uintx num_chunk_merges;
-  // Number of chunk splits
-  uintx num_chunk_splits;
-};
-extern internal_statistics_t g_internal_statistics;
-#endif
-
-// ChunkIndex defines the type of chunk.
-// Chunk types differ by size: specialized < small < medium, chunks
-// larger than medium are humongous chunks of varying size.
-enum ChunkIndex {
-  ZeroIndex = 0,
-  SpecializedIndex = ZeroIndex,
-  SmallIndex = SpecializedIndex + 1,
-  MediumIndex = SmallIndex + 1,
-  HumongousIndex = MediumIndex + 1,
-  NumberOfFreeLists = 3,
-  NumberOfInUseLists = 4
-};
-
-// Utility functions.
-size_t get_size_for_nonhumongous_chunktype(ChunkIndex chunk_type, bool is_class);
-ChunkIndex get_chunk_type_by_size(size_t size, bool is_class);
-
-ChunkIndex next_chunk_index(ChunkIndex i);
-ChunkIndex prev_chunk_index(ChunkIndex i);
-// Returns a descriptive name for a chunk type.
-const char* chunk_size_name(ChunkIndex index);
-
-// Verify chunk sizes.
-inline bool is_valid_chunksize(bool is_class, size_t size) {
-  const size_t reasonable_maximum_humongous_chunk_size = 1 * G;
-  return is_aligned(size, sizeof(MetaWord)) &&
-         size < reasonable_maximum_humongous_chunk_size &&
-         is_class ?
-             (size == ClassSpecializedChunk || size == ClassSmallChunk || size >= ClassMediumChunk) :
-             (size == SpecializedChunk || size == SmallChunk || size >= MediumChunk);
-}
-
-// Verify chunk type.
-inline bool is_valid_chunktype(ChunkIndex index) {
-  return index == SpecializedIndex || index == SmallIndex ||
-         index == MediumIndex || index == HumongousIndex;
-}
-
-inline bool is_valid_nonhumongous_chunktype(ChunkIndex index) {
-  return is_valid_chunktype(index) && index != HumongousIndex;
-}
 
 // Pretty printing helpers
 const char* classes_plural(uintx num);

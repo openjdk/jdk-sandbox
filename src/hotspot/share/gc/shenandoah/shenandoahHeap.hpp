@@ -32,6 +32,7 @@
 #include "gc/shenandoah/shenandoahLock.hpp"
 #include "gc/shenandoah/shenandoahEvacOOMHandler.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "services/memoryManager.hpp"
 
 class ConcurrentGCTimer;
@@ -588,7 +589,7 @@ public:
   HeapWord* mem_allocate(size_t size, bool* what);
   MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                size_t size,
-                                               Metaspace::MetadataType mdtype);
+                                               metaspace::MetadataType mdtype);
 
   void notify_mutator_alloc_words(size_t words, bool waste);
 
