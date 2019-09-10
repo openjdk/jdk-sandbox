@@ -20,27 +20,34 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
 package jdk.jpackage.test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * jpackage package type traits.
  */
 public enum PackageType {
-    WIN_MSI(".msi", "jdk.jpackage.internal.WinMsiBundler"),
-    WIN_EXE(".exe", "jdk.jpackage.internal.WinMsiBundler"),
-    LINUX_DEB(".deb", "jdk.jpackage.internal.LinuxDebBundler"),
-    LINUX_RPM(".rpm", "jdk.jpackage.internal.LinuxRpmBundler"),
-    OSX_DMG(".dmg", "jdk.jpackage.internal.MacDmgBundler"),
+    WIN_MSI(".msi",
+            Test.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
+    WIN_EXE(".exe",
+            Test.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
+    LINUX_DEB(".deb",
+            Test.isLinux() ? "jdk.jpackage.internal.LinuxDebBundler" : null),
+    LINUX_RPM(".rpm",
+            Test.isLinux() ? "jdk.jpackage.internal.LinuxRpmBundler" : null),
+    MAC_DMG(".dmg", Test.isOSX() ? "jdk.jpackage.internal.MacDmgBundler" : null),
+    MAC_PKG(".pkg", Test.isOSX() ? "jdk.jpackage.internal.MacPkgBundler" : null),
     IMAGE(null, null);
 
     PackageType(String bundleSuffix, String bundlerClass) {
         suffix = bundleSuffix;
-        if (bundlerClass != null) {
+        if (bundlerClass != null && !Inner.DISABLED_PACKAGERS.contains(getName())) {
             supported = isBundlerSupported(bundlerClass);
         } else {
             supported = false;
@@ -72,7 +79,7 @@ public enum PackageType {
 
     static PackageType fromSuffix(String packageFilename) {
         if (packageFilename != null) {
-            for (PackageType v: values()) {
+            for (PackageType v : values()) {
                 if (packageFilename.endsWith(v.getSuffix())) {
                     return v;
                 }
@@ -85,14 +92,32 @@ public enum PackageType {
         try {
             Class clazz = Class.forName(bundlerClass);
             Method isSupported = clazz.getDeclaredMethod("isSupported");
-            return ((Boolean)isSupported.invoke(clazz));
+            return ((Boolean) isSupported.invoke(clazz));
         } catch (ClassNotFoundException ex) {
             return false;
-        } catch (NoSuchMethodException|IllegalAccessException|InvocationTargetException ex) {
+        } catch (IllegalAccessException | InvocationTargetException ex) {
             throw new RuntimeException(ex);
+        } catch (NoSuchMethodException ex) {
+            // Not all bundler classes has isSupported() method.
+            return true;
         }
     }
 
     private final String suffix;
     private final boolean supported;
+
+    public final static Set<PackageType> LINUX = Set.of(LINUX_DEB, LINUX_RPM);
+    public final static Set<PackageType> WINDOWS = Set.of(WIN_EXE, WIN_MSI);
+    public final static Set<PackageType> MAC = Set.of(MAC_PKG, MAC_DMG);
+    public final static Set<PackageType> NATIVE = Stream.concat(
+            Stream.concat(LINUX.stream(), WINDOWS.stream()),
+            MAC.stream()).collect(Collectors.toUnmodifiableSet());
+
+    private final static class Inner {
+
+        private final static Set<String> DISABLED_PACKAGERS = Stream.of(
+                Optional.ofNullable(
+                        System.getProperty("jpackage.test.disabledPackagers")).orElse(
+                        "").split(",")).collect(Collectors.toUnmodifiableSet());
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,37 +21,30 @@
  * questions.
  */
 
+import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.PackageType;
 
-package jdk.jpackage.test;
+/**
+ * Test --win-menu parameter. Output of the test should be WinMenuTest-1.0.exe
+ * installer. The output installer should provide the same functionality as the
+ * default installer (see description of the default installer in
+ * SimplePackageTest.java).
+ */
 
+/*
+ * @test
+ * @summary jpackage with --win-menu
+ * @library ../helpers
+ * @requires (os.family == "windows")
+ * @modules jdk.jpackage/jdk.jpackage.internal
+ * @run main/othervm -Xmx512m WinMenuTest
+ */
 
-import java.io.File;
-import java.nio.file.Path;
-import java.util.spi.ToolProvider;
-
-public enum JavaTool {
-    JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar");
-
-    JavaTool(String name) {
-        this.name = name;
-        path = Path.of(System.getProperty("java.home"), "bin", name).toFile();
-        if (Test.isWindows()) {
-            path = new File(path.toString() + ".exe");
-        }
-        if (!path.exists()) {
-            throw new RuntimeException("Unable to find tool ["
-                    + name + "] at path=[" + path.getAbsolutePath() + "]");
-        }
+public class WinMenuTest {
+    public static void main(String[] args) {
+        new PackageTest()
+        .forTypes(PackageType.WINDOWS)
+        .configureHelloApp()
+        .addInitializer(cmd -> cmd.addArgument("--win-menu")).run();
     }
-
-    File getPath() {
-        return path;
-    }
-
-    ToolProvider asToolProvider() {
-        return ToolProvider.findFirst(name).orElse(null);
-    }
-
-    private File path;
-    private String name;
 }

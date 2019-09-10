@@ -22,13 +22,17 @@
  */
 package jdk.jpackage.test;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.spi.ToolProvider;
+import java.util.stream.Stream;
 
 public final class Executor extends CommandArguments<Executor> {
 
@@ -38,6 +42,17 @@ public final class Executor extends CommandArguments<Executor> {
 
     public Executor setExecutable(String v) {
         executable = v;
+        if (executable != null) {
+            toolProvider = null;
+        }
+        return this;
+    }
+
+    public Executor setToolProvider(ToolProvider v) {
+        toolProvider = v;
+        if (toolProvider != null) {
+            executable = null;
+        }
         return this;
     }
 
@@ -89,21 +104,29 @@ public final class Executor extends CommandArguments<Executor> {
             return assertExitCodeIs(0);
         }
 
-        int exitCode;
-        List<String> output;
+        final int exitCode;
+        private List<String> output;
     }
 
     public Result execute() {
+        if (toolProvider != null) {
+            return runToolProvider();
+        }
+
         try {
-            return executeImpl();
+            if (executable != null) {
+                return runExecutable();
+            }
         } catch (RuntimeException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
+
+        throw new IllegalStateException("No command to execute");
     }
 
-    private Result executeImpl() throws Exception {
+    private Result runExecutable() throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
         command.add(executable);
         command.addAll(args);
@@ -141,11 +164,41 @@ public final class Executor extends CommandArguments<Executor> {
         }
     }
 
-    public String getPrintableCommandLine() {
-        return "[" + executable + "]; args(" + args.size() + ")=" + Arrays.toString(
-                args.toArray());
+    private Result runToolProvider() {
+        StringWriter writer = new StringWriter();
+        PrintWriter pw = new PrintWriter(writer);
+
+        Test.trace("Execute " + getPrintableCommandLine() + "...");
+        Result reply = new Result(toolProvider.run(pw, pw, args.toArray(
+                String[]::new)));
+        Test.trace("Done. Exit code: " + reply.exitCode);
+
+        List lines = List.of(writer.toString().split("\\R", -1));
+
+        if (saveOutputType == SaveOutputType.FIRST_LINE) {
+            reply.output = Stream.of(lines).findFirst().get();
+        } else if (saveOutputType == SaveOutputType.FULL) {
+            reply.output = Collections.unmodifiableList(lines);
+        }
+        return reply;
     }
 
+    public String getPrintableCommandLine() {
+        String argsStr = String.format("; args(%d)=%s", args.size(),
+                Arrays.toString(args.toArray()));
+
+        if (toolProvider == null && executable == null) {
+            return "[null]; " + argsStr;
+        }
+
+        if (toolProvider != null) {
+            return String.format("tool provider=[%s]; ", toolProvider.name()) + argsStr;
+        }
+
+        return String.format("[%s]; ", executable) + argsStr;
+    }
+
+    private ToolProvider toolProvider;
     private String executable;
     private SaveOutputType saveOutputType;
     private Path directory;

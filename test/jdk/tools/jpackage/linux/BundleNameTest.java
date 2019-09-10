@@ -23,49 +23,45 @@
 
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
-import jdk.jpackage.test.Test;
 
 
 /**
- * Test --linux-app-release parameter. Output of the test should be
- * releasetest_1.0-Rc3_amd64.deb or releasetest-1.0-Rc3.amd64.rpm package
+ * Test --linux-bundle-name parameter. Output of the test should be
+ * quickbrownfox2_1.0-1_amd64.deb or quickbrownfox2-1.0-1.amd64.rpm package
  * bundle. The output package should provide the same functionality as the
  * default package.
  *
  * deb:
- * Version property of the package should end with -Rc3 substring.
+ * Package property of the package should be set to quickbrownfox2.
  *
  * rpm:
- * Release property of the package should be set to Rc3 value.
+ * Name property of the package should be set to quickbrownfox2.
  */
+
 
 /*
  * @test
- * @summary jpackage with --linux-app-release
+ * @summary jpackage with --linux-bundle-name
  * @library ../helpers
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m ReleaseTest
+ * @run main/othervm/timeout=360 -Xmx512m BundleNameTest
  */
-public class ReleaseTest {
+public class BundleNameTest {
 
     public static void main(String[] args) throws Exception {
-        final String RELEASE = "Rc3";
+        final String PACKAGE_NAME = "quickbrownfox2";
 
         new PackageTest()
         .forTypes(PackageType.LINUX)
         .configureHelloApp()
         .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-release", RELEASE);
+            cmd.addArguments("--linux-bundle-name", PACKAGE_NAME);
         })
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Release", RELEASE)
         .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Version", (propName, propValue) -> {
-            Test.assertTrue(propValue.endsWith("-" + RELEASE),
-                    String.format("Check value of %s property [%s] ends with %s",
-                            propName, propValue, RELEASE));
-        })
+        .addBundlePropertyVerifier("Package", PACKAGE_NAME)
+        .forTypes(PackageType.LINUX_RPM)
+        .addBundlePropertyVerifier("Name", PACKAGE_NAME)
         .run();
     }
 }

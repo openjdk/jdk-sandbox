@@ -25,19 +25,21 @@ package jdk.jpackage.test;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class LinuxHelper {
-    static String getRelease(JPackageCommand cmd) {
+    private static String getRelease(JPackageCommand cmd) {
         return cmd.getArgumentValue("--linux-app-release", () -> "1");
     }
 
-    static String getPackageName(JPackageCommand cmd) {
-        return cmd.name().toLowerCase();
+    public static String getPackageName(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.LINUX);
+        return cmd.getArgumentValue("--linux-bundle-name",
+                () -> cmd.name().toLowerCase());
     }
 
     static String getBundleName(JPackageCommand cmd) {
-        final String release = getRelease(cmd);
-        final String version = cmd.version();
+        cmd.verifyIsOfType(PackageType.LINUX);
 
         final PackageType packageType = cmd.packageType();
         String format = null;
@@ -50,19 +52,23 @@ public class LinuxHelper {
                 format = "%s-%s-%s.%s";
                 break;
         }
+
+        final String release = getRelease(cmd);
+        final String version = cmd.version();
+
         return String.format(format,
                 getPackageName(cmd), version, release, getPackageArch(packageType))
                 + packageType.getSuffix();
     }
 
-    static Path getLauncherPath(JPackageCommand cmd) {
-        final String launcherName = cmd.name();
+    public static Stream<Path> getPackageFiles(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.LINUX);
+
+        final PackageType packageType = cmd.packageType();
         final Path packageFile = cmd.outputBundle();
 
         Executor exec = new Executor();
         exec.saveOutput();
-        final PackageType packageType = PackageType.fromSuffix(
-                packageFile.toString());
         switch (packageType) {
             case LINUX_DEB:
                 exec.setExecutable("dpkg")
@@ -77,26 +83,33 @@ public class LinuxHelper {
                 break;
         }
 
-        final String launcherRelativePath = Path.of("/", "bin", launcherName).toString();
-        for (String line : exec.execute().assertExitCodeIsZero().getOutput()) {
-            if (line.endsWith(launcherRelativePath)) {
-                if (packageType == PackageType.LINUX_DEB) {
-                    // Typical text lines produced by dpkg look like:
-                    // drwxr-xr-x root/root         0 2019-08-30 05:30 ./opt/appcategorytest/runtime/lib/
-                    // -rw-r--r-- root/root    574912 2019-08-30 05:30 ./opt/appcategorytest/runtime/lib/libmlib_image.so
-                    // Need to skip all fields but absolute path to file.
-                    line = line.substring(line.indexOf(" ./") + 2);
-                }
-                return Path.of(line);
-            }
+        Stream<String> lines = exec.execute().assertExitCodeIsZero().getOutput().stream();
+        if (packageType == PackageType.LINUX_DEB) {
+            // Typical text lines produced by dpkg look like:
+            // drwxr-xr-x root/root         0 2019-08-30 05:30 ./opt/appcategorytest/runtime/lib/
+            // -rw-r--r-- root/root    574912 2019-08-30 05:30 ./opt/appcategorytest/runtime/lib/libmlib_image.so
+            // Need to skip all fields but absolute path to file.
+            lines = lines.map(line -> line.substring(line.indexOf(" ./") + 2));
         }
-
-        Test.assertUnexpected(String.format("Failed to find %s in %s package",
-                launcherName));
-        return null;
+        return lines.map(Path::of);
     }
 
-    public static String getDebBundleProperty(Path bundle, String fieldName) {
+    static Path getLauncherPath(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.LINUX);
+
+        final String launcherName = cmd.name();
+        final String launcherRelativePath = Path.of("/bin", launcherName).toString();
+
+        return getPackageFiles(cmd).filter(path -> path.toString().endsWith(
+                launcherRelativePath)).findFirst().or(() -> {
+            Test.assertUnexpected(String.format(
+                    "Failed to find %s in %s package", launcherName,
+                    getPackageName(cmd)));
+            return null;
+        }).get();
+    }
+
+    static String getDebBundleProperty(Path bundle, String fieldName) {
         return new Executor()
                 .saveFirstLineOfOutput()
                 .setExecutable("dpkg-deb")
@@ -105,7 +118,7 @@ public class LinuxHelper {
                 .assertExitCodeIsZero().getFirstLineOfOutput();
     }
 
-    public static String geRpmBundleProperty(Path bundle, String fieldName) {
+    static String geRpmBundleProperty(Path bundle, String fieldName) {
         return new Executor()
                 .saveFirstLineOfOutput()
                 .setExecutable("rpm")

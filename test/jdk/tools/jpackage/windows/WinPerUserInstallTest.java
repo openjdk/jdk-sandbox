@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,44 +24,33 @@
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
-
 /**
- * Test --linux-app-category parameter. Output of the test should be
- * appcategorytest_1.0-1_amd64.deb or appcategorytest-1.0-1.amd64.rpm package
- * bundle. The output package should provide the same functionality as the
- * default package.
- *
- * deb:
- * Section property of the package should be set to Foo value.
- *
- * rpm:
- * Group property of the package should be set to Foo value.
+ * Test --win-per-user-install, --win-menu, --win-menu-group parameters.
+ * Output of the test should be WinPerUserInstallTest-1.0.exe installer. The
+ * output installer should provide the same functionality as the default
+ * installer (see description of the default installer in
+ * SimplePackageTest.java) plus it should create application menu in Windows
+ * Menu and installation should be per user and not machine wide.
  */
-
 
 /*
  * @test
- * @summary jpackage with --linux-app-category
+ * @summary jpackage with --win-per-user-install, --win-menu, --win-menu-group
  * @library ../helpers
- * @requires (os.family == "linux")
+ * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m AppCategoryTest
+ * @run main/othervm -Xmx512m WinPerUserInstallTest
  */
-public class AppCategoryTest {
 
-    public static void main(String[] args) throws Exception {
-        final String CATEGORY = "Foo";
-
+public class WinPerUserInstallTest {
+    public static void main(String[] args) {
         new PackageTest()
-        .forTypes(PackageType.LINUX)
+        .forTypes(PackageType.WINDOWS)
         .configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-category", CATEGORY);
-        })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Section", CATEGORY)
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Group", CATEGORY)
+        .addInitializer(cmd -> cmd.addArguments(
+                "--win-menu",
+                "--win-menu-group", "WinPerUserInstallTest_MenuGroup",
+                "--win-per-user-install"))
         .run();
     }
 }

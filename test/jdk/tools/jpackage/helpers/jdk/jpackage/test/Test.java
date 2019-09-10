@@ -24,17 +24,22 @@ package jdk.jpackage.test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.nio.file.StandardWatchEventKinds;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
+import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Test {
 
-    static final Path TEST_SRC_ROOT = new Supplier<Path>() {
+    public static final Path TEST_SRC_ROOT = new Supplier<Path>() {
         @Override
         public Path get() {
             Path root = Path.of(System.getProperty("test.src"));
@@ -50,7 +55,7 @@ public class Test {
         }
     }.get();
 
-    static Path workDir() {
+    public static Path workDir() {
         return Path.of(".");
     }
 
@@ -60,6 +65,18 @@ public class Test {
 
     static Path defaultOutputDir() {
         return workDir().resolve("output");
+    }
+
+    static boolean isWindows() {
+        return (OS.contains("win"));
+    }
+
+    static boolean isOSX() {
+        return (OS.contains("mac"));
+    }
+
+    static boolean isLinux() {
+        return ((OS.contains("nix") || OS.contains("nux")));
     }
 
     static private void log(String v) {
@@ -83,12 +100,63 @@ public class Test {
         throw new AssertionError(v);
     }
 
-    static Path createTempDirectory() throws IOException {
+    public static Path createTempDirectory() throws IOException {
         return Files.createTempDirectory("jpackage_");
     }
 
-    static Path createTempFile(String suffix) throws IOException {
+    public static Path createTempFile(String suffix) throws IOException {
         return File.createTempFile("jpackage_", suffix).toPath();
+    }
+
+    public static void waitForFileCreated(Path fileToWaitFor,
+            long timeoutSeconds) throws IOException {
+
+        trace(String.format("Wait for file [%s] to be available", fileToWaitFor));
+
+        WatchService ws = FileSystems.getDefault().newWatchService();
+
+        Path watchDirectory = fileToWaitFor.toAbsolutePath().getParent();
+        watchDirectory.register(ws, ENTRY_CREATE, ENTRY_MODIFY);
+
+        long waitUntil = System.currentTimeMillis() + timeoutSeconds * 1000;
+        for (;;) {
+            long timeout = waitUntil - System.currentTimeMillis();
+            assertTrue(timeout > 0, String.format(
+                    "Check timeout value %d is positive", timeout));
+
+            WatchKey key = null;
+            try {
+                key = ws.poll(timeout, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            if (key == null) {
+                if (fileToWaitFor.toFile().exists()) {
+                    trace(String.format(
+                            "File [%s] is available after poll timeout expired",
+                            fileToWaitFor));
+                    return;
+                }
+                assertUnexpected(String.format("Timeout expired", timeout));
+            }
+
+            for (WatchEvent<?> event : key.pollEvents()) {
+                if (event.kind() == StandardWatchEventKinds.OVERFLOW) {
+                    continue;
+                }
+                Path contextPath = (Path) event.context();
+                if (Files.isSameFile(watchDirectory.resolve(contextPath),
+                        fileToWaitFor)) {
+                    trace(String.format("File [%s] is available", fileToWaitFor));
+                    return;
+                }
+            }
+
+            if (!key.reset()) {
+                assertUnexpected("Watch key invalidated");
+            }
+        }
     }
 
     private static String concatMessages(String msg, String msg2) {
@@ -132,6 +200,23 @@ public class Test {
                 actual, msg));
     }
 
+    public static void assertNull(Object value, String msg) {
+        if (value != null) {
+            error(concatMessages(String.format("Unexpected not null value [%s]",
+                    value), msg));
+        }
+
+        traceAssert(String.format("assertNull(): %s", msg));
+    }
+
+    public static void assertNotNull(Object value, String msg) {
+        if (value == null) {
+            error(concatMessages("Unexpected null value", msg));
+        }
+
+        traceAssert(String.format("assertNotNull(%s): %s", value, msg));
+    }
+
     public static void assertTrue(boolean actual, String msg) {
         if (!actual) {
             error(concatMessages("Unexpected FALSE", msg));
@@ -146,6 +231,40 @@ public class Test {
         }
 
         traceAssert(String.format("assertFalse(): %s", msg));
+    }
+
+    public static void assertPathExists(Path path, boolean exists) {
+        if (exists) {
+            assertTrue(path.toFile().exists(), String.format(
+                    "Check [%s] path exists", path));
+        } else {
+            assertFalse(path.toFile().exists(), String.format(
+                    "Check [%s] path doesn't exist", path));
+        }
+    }
+
+    public static void assertDirectoryExists(Path path, boolean exists) {
+        assertPathExists(path, exists);
+        if (exists) {
+            assertTrue(path.toFile().isDirectory(), String.format(
+                    "Check [%s] is a directory", path));
+        }
+    }
+
+    public static void assertFileExists(Path path, boolean exists) {
+        assertPathExists(path, exists);
+        if (exists) {
+            assertTrue(path.toFile().isFile(), String.format(
+                    "Check [%s] is a file", path));
+        }
+    }
+
+    public static void assertExecutableFileExists(Path path, boolean exists) {
+        assertFileExists(path, exists);
+        if (exists) {
+            assertTrue(path.toFile().canExecute(), String.format(
+                    "Check [%s] file is executable", path));
+        }
     }
 
     public static void assertUnexpected(String msg) {
@@ -167,4 +286,6 @@ public class Test {
                     "a"));
         }
     }
+
+    private static final String OS = System.getProperty("os.name").toLowerCase();
 }

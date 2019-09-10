@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,37 +21,31 @@
  * questions.
  */
 
+import jdk.jpackage.test.PackageTest;
 
-package jdk.jpackage.test;
+/**
+ * Simple platform specific packaging test. Output of the test should be
+ * simplepackagetest*.* package bundle.
+ *
+ * Windows:
+ *
+ * The installer should not have license text. It should not have an option
+ * to change the default installation directory.
+ * Test application should be installed in %ProgramFiles%\SimplePackageTest directory.
+ * Installer should install test app for all users (machine wide).
+ * Installer should create a shortcut for application launcher in Windows Menu.
+ */
 
+/*
+ * @test
+ * @summary Simple jpackage command run
+ * @library ../helpers
+ * @modules jdk.jpackage/jdk.jpackage.internal
+ * @run main/othervm/timeout=360 -Xmx512m SimplePackageTest
+ */
+public class SimplePackageTest {
 
-import java.io.File;
-import java.nio.file.Path;
-import java.util.spi.ToolProvider;
-
-public enum JavaTool {
-    JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar");
-
-    JavaTool(String name) {
-        this.name = name;
-        path = Path.of(System.getProperty("java.home"), "bin", name).toFile();
-        if (Test.isWindows()) {
-            path = new File(path.toString() + ".exe");
-        }
-        if (!path.exists()) {
-            throw new RuntimeException("Unable to find tool ["
-                    + name + "] at path=[" + path.getAbsolutePath() + "]");
-        }
+    public static void main(String[] args) throws Exception {
+        new PackageTest().configureHelloApp().run();
     }
-
-    File getPath() {
-        return path;
-    }
-
-    ToolProvider asToolProvider() {
-        return ToolProvider.findFirst(name).orElse(null);
-    }
-
-    private File path;
-    private String name;
 }

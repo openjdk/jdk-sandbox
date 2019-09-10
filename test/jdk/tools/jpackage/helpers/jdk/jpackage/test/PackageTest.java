@@ -23,11 +23,13 @@
 package jdk.jpackage.test;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -48,16 +50,32 @@ public final class PackageTest {
      * initialization includes:
      * <li>Set --input and --output parameters.
      * <li>Set --name parameter. Value of the parameter is the name of the first
-     * class with main function found in the callers stack.
-     * Defaults can be
+     * class with main function found in the callers stack. Defaults can be
      * overridden with custom initializers set with subsequent addInitializer()
      * function calls.
      */
     public PackageTest() {
+        action = DEFAULT_ACTION;
+        forTypes();
         setJPackageExitCode(0);
         handlers = new HashMap<>();
-        Arrays.asList(PackageType.values()).stream().forEach(
-                v -> handlers.put(v, new Handler(v)));
+        currentTypes.forEach(v -> handlers.put(v, new Handler(v)));
+    }
+
+    public PackageTest forTypes(PackageType... types) {
+        Collection<PackageType> newTypes;
+        if (types == null || types.length == 0) {
+            newTypes = PackageType.NATIVE;
+        } else {
+            newTypes = Set.of(types);
+        }
+        currentTypes = newTypes.stream().filter(type -> type.isSupported()).collect(
+                Collectors.toUnmodifiableSet());
+        return this;
+    }
+
+    public PackageTest forTypes(Collection<PackageType> types) {
+        return forTypes(types.toArray(PackageType[]::new));
     }
 
     public PackageTest setJPackageExitCode(int v) {
@@ -65,43 +83,71 @@ public final class PackageTest {
         return this;
     }
 
-    public PackageTest addInitializer(Consumer<JPackageCommand> v,
-            PackageType... types) {
-        normailize(types).forEach(
-                type -> handlers.get(type).addInitializer(v));
+    public PackageTest addInitializer(Consumer<JPackageCommand> v) {
+        currentTypes.stream().forEach(type -> handlers.get(type).addInitializer(
+                v));
         return this;
     }
 
     public PackageTest addBundleVerifier(
-            BiConsumer<JPackageCommand, Executor.Result> v, PackageType... types) {
-        normailize(types).forEach(
+            BiConsumer<JPackageCommand, Executor.Result> v) {
+        currentTypes.stream().forEach(
                 type -> handlers.get(type).addBundleVerifier(v));
         return this;
     }
 
-    public PackageTest addBundleVerifier(
-            Consumer<JPackageCommand> v, PackageType... types) {
-        return addBundleVerifier((cmd, unused) -> v.accept(cmd), types);
+    public PackageTest addBundleVerifier(Consumer<JPackageCommand> v) {
+        return addBundleVerifier((cmd, unused) -> v.accept(cmd));
     }
 
-    public PackageTest addInstallVerifier(Consumer<JPackageCommand> v,
-            PackageType... types) {
-        normailize(types).forEach(
+    public PackageTest addBundlePropertyVerifier(String propertyName,
+            BiConsumer<String, String> pred) {
+        return addBundleVerifier(cmd -> {
+            String propertyValue = null;
+            switch (cmd.packageType()) {
+                case LINUX_DEB:
+                    propertyValue = LinuxHelper.getDebBundleProperty(
+                            cmd.outputBundle(), propertyName);
+                    break;
+
+                case LINUX_RPM:
+                    propertyValue = LinuxHelper.geRpmBundleProperty(
+                            cmd.outputBundle(), propertyName);
+                    break;
+
+                default:
+                    throw new UnsupportedOperationException();
+            }
+
+            pred.accept(propertyName, propertyValue);
+        });
+    }
+
+    public PackageTest addBundlePropertyVerifier(String propertyName,
+            String expectedPropertyValue) {
+        return addBundlePropertyVerifier(propertyName, (unused, v) -> {
+            Test.assertEquals(expectedPropertyValue, v, String.format(
+                    "Check value of %s property is [%s]", propertyName, v));
+        });
+    }
+
+    public PackageTest addInstallVerifier(Consumer<JPackageCommand> v) {
+        currentTypes.stream().forEach(
                 type -> handlers.get(type).addInstallVerifier(v));
         return this;
     }
 
-    public PackageTest addUninstallVerifier(Consumer<JPackageCommand> v,
-            PackageType... types) {
-        normailize(types).forEach(
+    public PackageTest addUninstallVerifier(Consumer<JPackageCommand> v) {
+        currentTypes.stream().forEach(
                 type -> handlers.get(type).addUninstallVerifier(v));
         return this;
     }
 
-    public PackageTest configureHelloApp(PackageType... types) {
-        addInitializer(cmd -> cmd.setHelloApp(), types);
-        addInstallVerifier(cmd -> JPackageCommand.verifyHelloApp(
-                cmd.launcherInstallationPath()), types);
+    public PackageTest configureHelloApp() {
+        addInitializer(cmd -> HelloApp.addTo(cmd));
+        addInstallVerifier(cmd -> HelloApp.executeAndVerifyOutput(
+                cmd.launcherInstallationPath(), cmd.getAllArgumentValues(
+                "--arguments")));
         return this;
     }
 
@@ -111,6 +157,7 @@ public final class PackageTest {
                 .collect(Collectors.toList());
 
         if (supportedHandlers.isEmpty()) {
+            // No handlers with initializers found. Nothing to do.
             return;
         }
 
@@ -121,7 +168,7 @@ public final class PackageTest {
                 if (bundleOutputDir != null) {
                     cmd.setArgumentValue("--output", bundleOutputDir.toString());
                 }
-                setDefaultAppName(cmd);
+                cmd.setDefaultAppName();
                 return cmd;
             }
         };
@@ -129,9 +176,22 @@ public final class PackageTest {
         supportedHandlers.forEach(handler -> handler.accept(initializer.get()));
     }
 
+    public PackageTest setAction(Action value) {
+        action = value;
+        return this;
+    }
+
+    public Action getAction() {
+        return action;
+    }
+
     private class Handler implements Consumer<JPackageCommand> {
 
         Handler(PackageType type) {
+            if (!PackageType.NATIVE.contains(type)) {
+                throw new IllegalArgumentException(
+                        "Attempt to configure a test for image packaging");
+            }
             this.type = type;
             initializers = new ArrayList<>();
             bundleVerifiers = new ArrayList<>();
@@ -144,27 +204,19 @@ public final class PackageTest {
         }
 
         void addInitializer(Consumer<JPackageCommand> v) {
-            if (isSupported()) {
-                initializers.add(v);
-            }
+            initializers.add(v);
         }
 
         void addBundleVerifier(BiConsumer<JPackageCommand, Executor.Result> v) {
-            if (isSupported()) {
-                bundleVerifiers.add(v);
-            }
+            bundleVerifiers.add(v);
         }
 
         void addInstallVerifier(Consumer<JPackageCommand> v) {
-            if (isSupported()) {
-                installVerifiers.add(v);
-            }
+            installVerifiers.add(v);
         }
 
         void addUninstallVerifier(Consumer<JPackageCommand> v) {
-            if (isSupported()) {
-                uninstallVerifiers.add(v);
-            }
+            uninstallVerifiers.add(v);
         }
 
         @Override
@@ -176,16 +228,10 @@ public final class PackageTest {
                 case CREATE:
                     Executor.Result result = cmd.execute();
                     result.assertExitCodeIs(expectedJPackageExitCode);
-                    final File bundle = cmd.outputBundle().toFile();
-                    if (expectedJPackageExitCode == 0) {
-                        Test.assertTrue(bundle.exists(), String.format(
-                                "Check file [%s] exists", bundle));
-                    } else {
-                        Test.assertFalse(bundle.exists(), String.format(
-                                "Check file [%s] doesn't exist", bundle));
-                    }
-
-                    verifyPackageBundle(JPackageCommand.createImmutable(cmd), result);
+                    Test.assertFileExists(cmd.outputBundle(),
+                            expectedJPackageExitCode == 0);
+                    verifyPackageBundle(JPackageCommand.createImmutable(cmd),
+                            result);
                     break;
 
                 case VERIFY_INSTALLED:
@@ -193,27 +239,50 @@ public final class PackageTest {
                     break;
 
                 case VERIFY_UNINSTALLED:
-                    verifyPackageUninstalled(JPackageCommand.createImmutable(cmd));
+                    verifyPackageUninstalled(
+                            JPackageCommand.createImmutable(cmd));
                     break;
             }
         }
 
-        private void verifyPackageBundle(JPackageCommand cmd, Executor.Result result) {
+        private void verifyPackageBundle(JPackageCommand cmd,
+                Executor.Result result) {
             bundleVerifiers.stream().forEach(v -> v.accept(cmd, result));
         }
 
         private void verifyPackageInstalled(JPackageCommand cmd) {
-            verifyInstalledLauncher(cmd.launcherInstallationPath().toFile());
+            Test.trace(String.format("Verify installed: %s",
+                    cmd.getPrintableCommandLine()));
+            if (cmd.isRuntime()) {
+                Test.assertDirectoryExists(
+                        cmd.appInstallationDirectory().resolve("runtime"), false);
+                Test.assertDirectoryExists(
+                        cmd.appInstallationDirectory().resolve("app"), false);
+            }
+
+            Test.assertExecutableFileExists(cmd.launcherInstallationPath(),
+                    !cmd.isRuntime());
+
+            if (PackageType.WINDOWS.contains(cmd.packageType())) {
+                new WindowsHelper.AppVerifier(cmd);
+            }
+
             installVerifiers.stream().forEach(v -> v.accept(cmd));
         }
 
         private void verifyPackageUninstalled(JPackageCommand cmd) {
-            verifyUninstalledLauncher(cmd.launcherInstallationPath().toFile());
-            uninstallVerifiers.stream().forEach(v -> v.accept(cmd));
-        }
+            Test.trace(String.format("Verify uninstalled: %s",
+                    cmd.getPrintableCommandLine()));
+            if (!cmd.isRuntime()) {
+                Test.assertFileExists(cmd.launcherInstallationPath(), false);
+                Test.assertDirectoryExists(cmd.appInstallationDirectory(), false);
+            }
 
-        private boolean isSupported() {
-            return type.getName() != null && type.isSupported();
+            if (PackageType.WINDOWS.contains(cmd.packageType())) {
+                new WindowsHelper.AppVerifier(cmd);
+            }
+
+            uninstallVerifiers.stream().forEach(v -> v.accept(cmd));
         }
 
         private final PackageType type;
@@ -223,64 +292,29 @@ public final class PackageTest {
         private final List<Consumer<JPackageCommand>> uninstallVerifiers;
     }
 
-    private void setDefaultAppName(JPackageCommand cmd) {
-        StackTraceElement st[] = Thread.currentThread().getStackTrace();
-        for (StackTraceElement ste : st) {
-            if ("main".equals(ste.getMethodName())) {
-                String name = ste.getClassName();
-                name = name.substring(name.lastIndexOf('.') + 1);
-                cmd.addArguments("--name", name);
-                break;
-            }
-        }
-    }
-
-    private Stream<PackageType> normailize(PackageType[] types) {
-        if (types == null || types.length == 0) {
-            return Arrays.stream(PackageType.values());
-        }
-        return Arrays.stream(types).distinct();
-    }
-
-    private void verifyInstalledLauncher(File launcher) {
-        Test.assertTrue(launcher.isFile(), String.format(
-                "Check application launcher [%s] is a file", launcher));
-        Test.assertTrue(launcher.canExecute(), String.format(
-                "Check application launcher [%s] can be executed", launcher));
-    }
-
-    private void verifyUninstalledLauncher(File launcher) {
-        Test.assertFalse(launcher.exists(), String.format(
-                "Check application launcher [%s] is not installed", launcher));
-        File installDir = launcher.getParentFile().getParentFile();
-        Test.assertFalse(installDir.exists(), String.format(
-                "Check application installation directory [%s] is not available",
-                installDir));
-    }
-
+    private Collection<PackageType> currentTypes;
     private int expectedJPackageExitCode;
     private Map<PackageType, Handler> handlers;
+    private Action action;
 
     /**
      * Test action.
      */
-    static private enum Action {
+    static public enum Action {
         /**
          * Create bundle.
          */
         CREATE,
-
         /**
          * Verify bundle installed.
          */
         VERIFY_INSTALLED,
-
         /**
          * Verify bundle uninstalled.
          */
         VERIFY_UNINSTALLED
     };
-    private final static Action action;
+    private final static Action DEFAULT_ACTION;
     private final static File bundleOutputDir;
 
     static {
@@ -303,11 +337,11 @@ public final class PackageTest {
 
     static {
         if (System.getProperty("jpackage.verify.install") != null) {
-            action = Action.VERIFY_INSTALLED;
+            DEFAULT_ACTION = Action.VERIFY_INSTALLED;
         } else if (System.getProperty("jpackage.verify.uninstall") != null) {
-            action = Action.VERIFY_UNINSTALLED;
+            DEFAULT_ACTION = Action.VERIFY_UNINSTALLED;
         } else {
-            action = Action.CREATE;
+            DEFAULT_ACTION = Action.CREATE;
         }
     }
 }

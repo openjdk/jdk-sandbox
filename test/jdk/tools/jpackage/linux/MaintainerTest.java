@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,44 +27,37 @@ import jdk.jpackage.test.Test;
 
 
 /**
- * Test --linux-app-release parameter. Output of the test should be
- * releasetest_1.0-Rc3_amd64.deb or releasetest-1.0-Rc3.amd64.rpm package
- * bundle. The output package should provide the same functionality as the
+ * Test --linux-deb-maintainer parameter. Output of the test should be
+ * maintainertest_1.0-1_amd64.deb package bundle. The output package
+ * should provide the same functionality as the
  * default package.
- *
- * deb:
- * Version property of the package should end with -Rc3 substring.
- *
- * rpm:
- * Release property of the package should be set to Rc3 value.
+ * Value of Maintainer property of the package should contain
+ * jpackage-test@java.com email address.
  */
+
 
 /*
  * @test
- * @summary jpackage with --linux-app-release
+ * @summary jpackage with --linux-deb-maintainer
  * @library ../helpers
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m ReleaseTest
+ * @run main/othervm/timeout=360 -Xmx512m MaintainerTest
  */
-public class ReleaseTest {
+public class MaintainerTest {
 
     public static void main(String[] args) throws Exception {
-        final String RELEASE = "Rc3";
+        final String MAINTAINER = "jpackage-test@java.com";
 
-        new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
+        new PackageTest().forTypes(PackageType.LINUX_DEB).configureHelloApp()
         .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-release", RELEASE);
+            cmd.addArguments("--linux-deb-maintainer", MAINTAINER);
         })
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Release", RELEASE)
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Version", (propName, propValue) -> {
-            Test.assertTrue(propValue.endsWith("-" + RELEASE),
+        .addBundlePropertyVerifier("Maintainer", (propName, propValue) -> {
+            String lookupValue = "<" + MAINTAINER + ">";
+            Test.assertTrue(propValue.endsWith(lookupValue),
                     String.format("Check value of %s property [%s] ends with %s",
-                            propName, propValue, RELEASE));
+                            propName, propValue, lookupValue));
         })
         .run();
     }

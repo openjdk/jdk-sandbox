@@ -20,38 +20,27 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
-
 package jdk.jpackage.test;
 
-
-import java.io.File;
 import java.nio.file.Path;
-import java.util.spi.ToolProvider;
 
-public enum JavaTool {
-    JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar");
+public class MacHelper {
 
-    JavaTool(String name) {
-        this.name = name;
-        path = Path.of(System.getProperty("java.home"), "bin", name).toFile();
-        if (Test.isWindows()) {
-            path = new File(path.toString() + ".exe");
-        }
-        if (!path.exists()) {
-            throw new RuntimeException("Unable to find tool ["
-                    + name + "] at path=[" + path.getAbsolutePath() + "]");
-        }
+    static String getBundleName(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.MAC);
+        return String.format("%s-%s%s", getPackageName(cmd), cmd.version(),
+                cmd.packageType().getSuffix());
     }
 
-    File getPath() {
-        return path;
+    static Path getInstallationDirectory(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.MAC);
+        String installDir = Path.of(cmd.getArgumentValue("--install-dir",
+                () -> ""), cmd.name()).toString() + ".app";
+        return Path.of("/Applications", installDir);
     }
 
-    ToolProvider asToolProvider() {
-        return ToolProvider.findFirst(name).orElse(null);
+    private static String getPackageName(JPackageCommand cmd) {
+        return cmd.getArgumentValue("--mac-bundle-name",
+                () -> cmd.name().toLowerCase());
     }
-
-    private File path;
-    private String name;
 }

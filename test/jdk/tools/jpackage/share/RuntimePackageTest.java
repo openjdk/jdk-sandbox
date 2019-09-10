@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,46 +22,40 @@
  */
 
 import jdk.jpackage.test.PackageTest;
-import jdk.jpackage.test.PackageType;
-
 
 /**
- * Test --linux-app-category parameter. Output of the test should be
- * appcategorytest_1.0-1_amd64.deb or appcategorytest-1.0-1.amd64.rpm package
- * bundle. The output package should provide the same functionality as the
- * default package.
+ * Test --runtime-image parameter.
+ * Output of the test should be RuntimePackageTest*.* installer.
+ * The installer should install Java Runtime without an application.
+ * Installation directory should not have "app" subfolder and should not have
+ * an application launcher.
  *
- * deb:
- * Section property of the package should be set to Foo value.
  *
- * rpm:
- * Group property of the package should be set to Foo value.
+ * Windows:
+ *
+ * Java runtime should be installed in %ProgramFiles%\RuntimePackageTest directory.
  */
-
 
 /*
  * @test
- * @summary jpackage with --linux-app-category
+ * @summary jpackage with --runtime-image
  * @library ../helpers
- * @requires (os.family == "linux")
+ * @comment Temporary disable for Linux and OSX until functionality implemented
+ * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m AppCategoryTest
+ * @run main/othervm -Xmx512m RuntimePackageTest
  */
-public class AppCategoryTest {
+public class RuntimePackageTest {
 
-    public static void main(String[] args) throws Exception {
-        final String CATEGORY = "Foo";
-
+    public static void main(String[] args) {
         new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
         .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-category", CATEGORY);
+            cmd.addArguments("--runtime-image", System.getProperty("java.home"));
+            // Remove --input parameter from jpackage command line as we don't
+            // create input directory in the test and jpackage fails
+            // if --input references non existant directory.
+            cmd.setArgumentValue("--input", null);
         })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Section", CATEGORY)
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Group", CATEGORY)
         .run();
     }
 }
