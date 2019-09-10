@@ -34,13 +34,13 @@ class JfrCheckpointWriter;
 class JfrChunkWriter;
 
 class JfrStackTraceRepository : public JfrCHeapObj {
-  friend class FlushStackTraceRepository;
   friend class JfrRecorder;
   friend class JfrRecorderService;
   friend class JfrThreadSampleClosure;
   friend class ObjectSampleCheckpoint;
   friend class ObjectSampler;
   friend class StackTraceBlobInstaller;
+  friend class StackTraceRepository;
 
  private:
   static const u4 TABLE_SIZE = 2053;

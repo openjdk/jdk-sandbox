@@ -258,13 +258,6 @@ void JfrChunkWriter::set_last_checkpoint_offset(int64_t offset) {
   _chunk->set_last_checkpoint_offset(offset);
 }
 
-bool JfrChunkWriter::is_initial_flushpoint_for_chunk() const {
-  assert(_chunk != NULL, "invariant");
-  assert(_chunk->is_started(), "invariant");
-  assert(!_chunk->is_finished(), "invariant");
-  return _chunk->is_initial_flush();
-}
-
 void JfrChunkWriter::set_last_metadata_offset(int64_t offset) {
   assert(_chunk != NULL, "invariant");
   _chunk->set_last_metadata_offset(offset);

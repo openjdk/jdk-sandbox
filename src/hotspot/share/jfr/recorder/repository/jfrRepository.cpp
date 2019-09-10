@@ -171,7 +171,7 @@ void JfrRepository::flush(bool metadata, JavaThread* jt) {
   if (!_chunkwriter->is_valid()) {
     return;
   }
-  instance()._post_box.post((metadata || _chunkwriter->is_initial_flushpoint_for_chunk()) ? MSG_FLUSHPOINT_METADATA : MSG_FLUSHPOINT);
+  instance()._post_box.post((metadata || !_chunkwriter->has_metadata()) ? MSG_FLUSHPOINT_METADATA : MSG_FLUSHPOINT);
 }
 
 size_t JfrRepository::flush_chunk() {

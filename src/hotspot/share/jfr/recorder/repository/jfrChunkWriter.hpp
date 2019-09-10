@@ -56,7 +56,6 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
   void set_last_metadata_offset(int64_t offset);
-  bool is_initial_flushpoint_for_chunk() const;
   bool has_metadata() const;
   void set_time_stamp();
 };

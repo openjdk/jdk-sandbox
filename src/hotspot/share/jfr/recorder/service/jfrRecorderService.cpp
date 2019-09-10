@@ -137,13 +137,13 @@ class RotationLock : public StackObj {
 };
 
 template <typename E, typename Instance, size_t(Instance::*func)()>
-class ServiceFunctor {
+class Content {
  private:
   Instance& _instance;
   u4 _elements;
  public:
   typedef E EventType;
-  ServiceFunctor(Instance& instance) : _instance(instance), _elements(0) {}
+  Content(Instance& instance) : _instance(instance), _elements(0) {}
   bool process() {
     _elements = (u4)(_instance.*func)();
     return true;
@@ -151,31 +151,31 @@ class ServiceFunctor {
   u4 elements() const { return _elements; }
 };
 
-template <typename ContentFunctor>
-class WriteSubsystem : public StackObj {
+template <typename Content>
+class WriteContent : public StackObj {
  protected:
   const JfrTicks _start_time;
   JfrTicks _end_time;
   JfrChunkWriter& _cw;
-  ContentFunctor& _content_functor;
+  Content& _content;
   const int64_t _start_offset;
  public:
-  typedef typename ContentFunctor::EventType EventType;
+  typedef typename Content::EventType EventType;
 
-  WriteSubsystem(JfrChunkWriter& cw, ContentFunctor& functor) :
+  WriteContent(JfrChunkWriter& cw, Content& content) :
     _start_time(JfrTicks::now()),
     _end_time(),
     _cw(cw),
-    _content_functor(functor),
+    _content(content),
     _start_offset(_cw.current_offset()) {
     assert(_cw.is_valid(), "invariant");
   }
 
   bool process() {
     // invocation
-    _content_functor.process();
+    _content.process();
     _end_time = JfrTicks::now();
-    return 0 != _content_functor.elements();
+    return 0 != _content.elements();
   }
 
   const JfrTicks& start_time() const {
@@ -199,7 +199,7 @@ class WriteSubsystem : public StackObj {
   }
 
   u4 elements() const {
-    return (u4) _content_functor.elements();
+    return (u4) _content.elements();
   }
 
   u4 size() const {
@@ -229,7 +229,6 @@ class WriteSubsystem : public StackObj {
   void rewind() {
     _cw.seek(start_offset());
   }
-
 };
 
 static int64_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
@@ -248,17 +247,17 @@ static int64_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
   return number_of_elements_offset;
 }
 
-template <typename ContentFunctor>
-class WriteSubsystemCheckpointEvent : public WriteSubsystem<ContentFunctor> {
+template <typename Content>
+class WriteCheckpointEvent : public WriteContent<Content> {
  private:
   const u8 _type_id;
  public:
-  WriteSubsystemCheckpointEvent(JfrChunkWriter& cw, ContentFunctor& functor, u8 type_id) :
-    WriteSubsystem<ContentFunctor>(cw, functor), _type_id(type_id) {}
+  WriteCheckpointEvent(JfrChunkWriter& cw, Content& content, u8 type_id) :
+    WriteContent<Content>(cw, content), _type_id(type_id) {}
 
   bool process() {
     const int64_t num_elements_offset = write_checkpoint_event_prologue(this->_cw, _type_id);
-    if (!WriteSubsystem<ContentFunctor>::process()) {
+    if (!WriteContent<Content>::process()) {
       // nothing to do, rewind writer to start
       this->rewind();
       assert(this->current_offset() == this->start_offset(), "invariant");
@@ -274,6 +273,12 @@ class WriteSubsystemCheckpointEvent : public WriteSubsystem<ContentFunctor> {
 };
 
 template <typename Functor>
+static u4 invoke(Functor& f) {
+  f.process();
+  return f.elements();
+}
+
+template <typename Functor>
 static void write_flush_event(Functor& f) {
   if (Functor::is_event_enabled()) {
     typename Functor::EventType e(UNTIMED);
@@ -287,16 +292,121 @@ static void write_flush_event(Functor& f) {
 }
 
 template <typename Functor>
-static u4 invoke(Functor& f) {
-  f.process();
-  return f.elements();
-}
-
-template <typename Functor>
 static u4 invoke_with_flush_event(Functor& f) {
   const u4 elements = invoke(f);
   write_flush_event(f);
   return elements;
+}
+
+class StackTraceRepository : public StackObj {
+ private:
+  JfrStackTraceRepository& _repo;
+  JfrChunkWriter& _cw;
+  size_t _elements;
+  bool _clear;
+
+ public:
+  typedef EventFlushStacktrace EventType;
+  StackTraceRepository(JfrStackTraceRepository& repo, JfrChunkWriter& cw, bool clear) :
+    _repo(repo), _cw(cw), _elements(0), _clear(clear) {}
+  bool process() {
+    _elements = _repo.write(_cw, _clear);
+    return true;
+  }
+  size_t elements() const { return _elements; }
+  void reset() { _elements = 0; }
+};
+
+typedef WriteCheckpointEvent<StackTraceRepository> WriteStackTrace;
+
+static u4 flush_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter) {
+  StackTraceRepository str(stack_trace_repo, chunkwriter, false);
+  WriteStackTrace wst(chunkwriter, str, TYPE_STACKTRACE);
+  return invoke_with_flush_event(wst);
+}
+
+static u4 write_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter, bool clear) {
+  StackTraceRepository str(stack_trace_repo, chunkwriter, clear);
+  WriteStackTrace wst(chunkwriter, str, TYPE_STACKTRACE);
+  return invoke(wst);
+}
+
+typedef Content<EventFlushStorage, JfrStorage, &JfrStorage::write> Storage;
+typedef WriteContent<Storage> WriteStorage;
+
+static size_t flush_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
+  assert(chunkwriter.is_valid(), "invariant");
+  Storage fsf(storage);
+  WriteStorage fs(chunkwriter, fsf);
+  return invoke_with_flush_event(fs);
+}
+
+static size_t write_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
+  assert(chunkwriter.is_valid(), "invariant");
+  Storage fsf(storage);
+  WriteStorage fs(chunkwriter, fsf);
+  return invoke(fs);
+}
+
+typedef Content<EventFlushStringPool, JfrStringPool, &JfrStringPool::write> StringPool;
+typedef Content<EventFlushStringPool, JfrStringPool, &JfrStringPool::write_at_safepoint> StringPoolSafepoint;
+typedef WriteCheckpointEvent<StringPool> WriteStringPool;
+typedef WriteCheckpointEvent<StringPoolSafepoint> WriteStringPoolSafepoint;
+
+static u4 flush_stringpool(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
+  StringPool sp(string_pool);
+  WriteStringPool wsp(chunkwriter, sp, TYPE_STRING);
+  return invoke_with_flush_event(wsp);
+}
+
+static u4 write_stringpool(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
+  StringPool sp(string_pool);
+  WriteStringPool wsp(chunkwriter, sp, TYPE_STRING);
+  return invoke(wsp);
+}
+
+static u4 write_stringpool_safepoint(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
+  StringPoolSafepoint sps(string_pool);
+  WriteStringPoolSafepoint wsps(chunkwriter, sps, TYPE_STRING);
+  return invoke(wsps);
+}
+
+typedef Content<EventFlushTypeSet, JfrCheckpointManager, &JfrCheckpointManager::flush_type_set> FlushTypeSetFunctor;
+typedef WriteContent<FlushTypeSetFunctor> FlushTypeSet;
+
+static u4 flush_typeset(JfrCheckpointManager& checkpoint_manager, JfrChunkWriter& chunkwriter) {
+  FlushTypeSetFunctor flush_type_set(checkpoint_manager);
+  FlushTypeSet fts(chunkwriter, flush_type_set);
+  return invoke_with_flush_event(fts);
+}
+
+class MetadataEvent : public StackObj {
+ private:
+  JfrChunkWriter& _cw;
+ public:
+  typedef EventFlushMetadata EventType;
+  MetadataEvent(JfrChunkWriter& cw) : _cw(cw) {}
+  bool process() {
+    JfrMetadataEvent::write(_cw);
+    return true;
+  }
+  size_t elements() const { return 1; }
+};
+
+typedef WriteContent<MetadataEvent> WriteMetadata;
+
+static u4 flush_metadata(JfrChunkWriter& chunkwriter) {
+  assert(chunkwriter.is_valid(), "invariant");
+  MetadataEvent me(chunkwriter);
+  WriteMetadata wm(chunkwriter, me);
+  return invoke_with_flush_event(wm);
+}
+
+static u4 write_metadata(JfrChunkWriter& chunkwriter) {
+  assert(chunkwriter.is_valid(), "invariant");
+  MetadataEvent me(chunkwriter);
+  WriteMetadata wm(chunkwriter, me);
+  return invoke(wm);
 }
 
 template <typename Instance, void(Instance::*func)()>
@@ -310,37 +420,13 @@ class JfrVMOperation : public VM_Operation {
   Mode evaluation_mode() const { return _safepoint; } // default
 };
 
-class FlushStackTraceRepository : public StackObj {
- private:
-  JfrStackTraceRepository& _repo;
-  JfrChunkWriter& _cw;
-  size_t _elements;
-  bool _clear;
-
- public:
-  typedef EventFlushStacktrace EventType;
-  FlushStackTraceRepository(JfrStackTraceRepository& repo, JfrChunkWriter& cw, bool clear) :
-    _repo(repo), _cw(cw), _elements(0), _clear(clear) {}
-  bool process() {
-    _elements = _repo.write(_cw, _clear);
-    return true;
-  }
-  size_t elements() const { return _elements; }
-  void reset() { _elements = 0; }
-};
-
-class FlushMetadataEvent : public StackObj {
- private:
-  JfrChunkWriter& _cw;
- public:
-  typedef EventFlushMetadata EventType;
-  FlushMetadataEvent(JfrChunkWriter& cw) : _cw(cw) {}
-  bool process() {
-    JfrMetadataEvent::write(_cw);
-    return true;
-  }
-  size_t elements() const { return 1; }
-};
+JfrRecorderService::JfrRecorderService() :
+  _checkpoint_manager(JfrCheckpointManager::instance()),
+  _chunkwriter(JfrRepository::chunkwriter()),
+  _repository(JfrRepository::instance()),
+  _stack_trace_repository(JfrStackTraceRepository::instance()),
+  _storage(JfrStorage::instance()),
+  _string_pool(JfrStringPool::instance()) {}
 
 static bool recording = false;
 
@@ -352,14 +438,6 @@ static void set_recording_state(bool is_recording) {
 bool JfrRecorderService::is_recording() {
   return recording;
 }
-
-JfrRecorderService::JfrRecorderService() :
-  _checkpoint_manager(JfrCheckpointManager::instance()),
-  _chunkwriter(JfrRepository::chunkwriter()),
-  _repository(JfrRepository::instance()),
-  _stack_trace_repository(JfrStackTraceRepository::instance()),
-  _storage(JfrStorage::instance()),
-  _string_pool(JfrStringPool::instance()) {}
 
 void JfrRecorderService::start() {
   RotationLock rl(Thread::current());
@@ -394,15 +472,6 @@ void JfrRecorderService::invoke_safepoint_clear() {
   VMThread::execute(&safepoint_task);
 }
 
-//
-// safepoint clear sequence
-//
-//  clear stacktrace repository ->
-//    clear string pool ->
-//      clear storage ->
-//        shift epoch ->
-//          update time
-//
 void JfrRecorderService::safepoint_clear() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   _stack_trace_repository.clear();
@@ -416,11 +485,41 @@ void JfrRecorderService::post_safepoint_clear() {
   _checkpoint_manager.clear();
 }
 
+void JfrRecorderService::open_new_chunk(bool vm_error) {
+  JfrChunkRotation::on_rotation();
+  const bool valid_chunk = _repository.open_chunk(vm_error);
+  _storage.control().set_to_disk(valid_chunk);
+  if (valid_chunk) {
+    _checkpoint_manager.write_constants();
+  }
+}
+
 static void stop() {
   assert(JfrRecorderService::is_recording(), "invariant");
   log_debug(jfr, system)("Recording STOPPED");
   set_recording_state(false);
   assert(!JfrRecorderService::is_recording(), "invariant");
+}
+
+void JfrRecorderService::prepare_for_vm_error_rotation() {
+  if (!_chunkwriter.is_valid()) {
+    open_new_chunk(true);
+  }
+  _checkpoint_manager.register_service_thread(Thread::current());
+}
+
+void JfrRecorderService::vm_error_rotation() {
+  if (_chunkwriter.is_valid()) {
+    pre_safepoint_write();
+    // Do not attempt safepoint dependent operations during emergency dump.
+    // Optimistically write tagged artifacts.
+    _checkpoint_manager.shift_epoch();
+    // update time
+    _chunkwriter.set_time_stamp();
+    post_safepoint_write();
+    assert(!_chunkwriter.is_valid(), "invariant");
+    _repository.on_vm_error();
+  }
 }
 
 void JfrRecorderService::rotate(int msgs) {
@@ -445,34 +544,14 @@ void JfrRecorderService::rotate(int msgs) {
   }
 }
 
-void JfrRecorderService::prepare_for_vm_error_rotation() {
-  if (!_chunkwriter.is_valid()) {
-    open_new_chunk(true);
-  }
-  _checkpoint_manager.register_service_thread(Thread::current());
-}
-
-void JfrRecorderService::open_new_chunk(bool vm_error) {
-  JfrChunkRotation::on_rotation();
-  const bool valid_chunk = _repository.open_chunk(vm_error);
-  _storage.control().set_to_disk(valid_chunk);
-  if (valid_chunk) {
-    _checkpoint_manager.write_constants();
-  }
-}
-
 void JfrRecorderService::in_memory_rotation() {
   // currently running an in-memory recording
   assert(!_storage.control().to_disk(), "invariant");
   open_new_chunk();
   if (_chunkwriter.is_valid()) {
     // dump all in-memory buffer data to the newly created chunk
-    serialize_storage_from_in_memory_recording();
+    write_storage(_storage, _chunkwriter);
   }
-}
-
-void JfrRecorderService::serialize_storage_from_in_memory_recording() {
-  _storage.write();
 }
 
 void JfrRecorderService::chunk_rotation() {
@@ -493,69 +572,57 @@ void JfrRecorderService::write() {
   post_safepoint_write();
 }
 
-typedef ServiceFunctor<EventFlushStringPool, JfrStringPool, &JfrStringPool::write> FlushStringPoolFunctor;
-typedef ServiceFunctor<EventFlushStringPool, JfrStringPool, &JfrStringPool::write_at_safepoint> FlushStringPoolSafepointFunctor;
-typedef WriteSubsystemCheckpointEvent<FlushStackTraceRepository> FlushStackTraceCheckpoint;
-typedef WriteSubsystemCheckpointEvent<FlushStringPoolFunctor> FlushStringPoolCheckpoint;
-typedef WriteSubsystemCheckpointEvent<FlushStringPoolSafepointFunctor> FlushStringPoolCheckpointSafepoint;
-
-static u4 flush_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter, bool clear) {
-  FlushStackTraceRepository flush_stacktrace_repo(stack_trace_repo, chunkwriter, clear);
-  FlushStackTraceCheckpoint flush_stack_trace_checkpoint(chunkwriter, flush_stacktrace_repo, TYPE_STACKTRACE);
-  return invoke_with_flush_event(flush_stack_trace_checkpoint);
+void JfrRecorderService::pre_safepoint_write() {
+  assert(_chunkwriter.is_valid(), "invariant");
+  if (_stack_trace_repository.is_modified()) {
+    write_stacktrace(_stack_trace_repository, _chunkwriter, false);
+  }
+  if (_string_pool.is_modified()) {
+    write_stringpool(_string_pool, _chunkwriter);
+  }
+  if (LeakProfiler::is_running()) {
+    // Exclusive access to the object sampler instance.
+    // The sampler is released (unlocked) later in post_safepoint_write.
+    ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
+  }
+  _checkpoint_manager.notify_types_on_rotation();
+  write_storage(_storage, _chunkwriter);
 }
 
-static u4 flush_stacktrace(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter) {
-  return flush_stacktrace(stack_trace_repo, chunkwriter, false);
+void JfrRecorderService::invoke_safepoint_write() {
+  JfrVMOperation<JfrRecorderService, &JfrRecorderService::safepoint_write> safepoint_task(*this);
+  VMThread::execute(&safepoint_task);
 }
 
-static u4 flush_stacktrace_checkpoint(JfrStackTraceRepository& stack_trace_repo, JfrChunkWriter& chunkwriter, bool clear) {
-  FlushStackTraceRepository flush_stacktrace_repo(stack_trace_repo, chunkwriter, clear);
-  FlushStackTraceCheckpoint flush_stack_trace_checkpoint(chunkwriter, flush_stacktrace_repo, TYPE_STACKTRACE);
-  return invoke(flush_stack_trace_checkpoint);
+void JfrRecorderService::safepoint_write() {
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  write_stacktrace(_stack_trace_repository, _chunkwriter, true);
+  if (_string_pool.is_modified()) {
+    write_stringpool_safepoint(_string_pool, _chunkwriter);
+  }
+  _storage.write_at_safepoint();
+  _checkpoint_manager.notify_threads();
+  _checkpoint_manager.shift_epoch();
+  _chunkwriter.set_time_stamp();
 }
 
-static u4 flush_stringpool(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
-  FlushStringPoolFunctor flush_string_pool(string_pool);
-  FlushStringPoolCheckpoint flush_string_pool_checkpoint(chunkwriter, flush_string_pool, TYPE_STRING);
-  return invoke_with_flush_event(flush_string_pool_checkpoint);
-}
-
-static u4 flush_stringpool_checkpoint(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
-  FlushStringPoolFunctor flush_string_pool(string_pool);
-  FlushStringPoolCheckpoint flush_string_pool_checkpoint(chunkwriter, flush_string_pool, TYPE_STRING);
-  return invoke(flush_string_pool_checkpoint);
-}
-
-static u4 flush_stringpool_checkpoint_safepoint(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
-  FlushStringPoolSafepointFunctor flush_string_pool(string_pool);
-  FlushStringPoolCheckpointSafepoint flush_string_pool_checkpoint(chunkwriter, flush_string_pool, TYPE_STRING);
-  return invoke(flush_string_pool_checkpoint);
-}
-
-typedef ServiceFunctor<EventFlushTypeSet, JfrCheckpointManager, &JfrCheckpointManager::flush_type_set> FlushTypeSetFunctor;
-typedef WriteSubsystem<FlushTypeSetFunctor> FlushTypeSet;
-
-static u4 flush_typeset(JfrCheckpointManager& checkpoint_manager, JfrChunkWriter& chunkwriter) {
-  FlushTypeSetFunctor flush_type_set(checkpoint_manager);
-  FlushTypeSet fts(chunkwriter, flush_type_set);
-  return invoke_with_flush_event(fts);
-}
-
-typedef WriteSubsystem<FlushMetadataEvent> FlushMetadata;
-
-static u4 flush_metadata_event(JfrChunkWriter& chunkwriter) {
-  assert(chunkwriter.is_valid(), "invariant");
-  FlushMetadataEvent fme(chunkwriter);
-  FlushMetadata fm(chunkwriter, fme);
-  return invoke_with_flush_event(fm);
-}
-
-static u4 flush_metadata_event_checkpoint(JfrChunkWriter& chunkwriter) {
-  assert(chunkwriter.is_valid(), "invariant");
-  FlushMetadataEvent wme(chunkwriter);
-  FlushMetadata wm(chunkwriter, wme);
-  return invoke(wm);
+void JfrRecorderService::post_safepoint_write() {
+  assert(_chunkwriter.is_valid(), "invariant");
+  // During the safepoint tasks just completed, the system transitioned to a new epoch.
+  // Type tagging is epoch relative which entails we are able to write out the
+  // already tagged artifacts for the previous epoch. We can accomplish this concurrently
+  // with threads now tagging artifacts in relation to the new, now updated, epoch and remain outside of a safepoint.
+  _checkpoint_manager.write_type_set();
+  if (LeakProfiler::is_running()) {
+    // The object sampler instance was exclusively acquired and locked in pre_safepoint_write.
+    // Note: There is a dependency on write_type_set() above, ensure the release is subsequent.
+    ObjectSampler::release();
+  }
+  // serialize any outstanding checkpoint memory
+  _checkpoint_manager.write();
+  // serialize the metadata descriptor event and close out the chunk
+  write_metadata(_chunkwriter);
+  _repository.close_chunk();
 }
 
 static JfrBuffer* thread_local_buffer() {
@@ -583,25 +650,12 @@ static void write_thread_local_buffer(JfrChunkWriter& chunkwriter) {
   assert(buffer->empty(), "invariant");
 }
 
-typedef ServiceFunctor<EventFlushStorage, JfrStorage, &JfrStorage::write> FlushStorageFunctor;
-typedef WriteSubsystem<FlushStorageFunctor> FlushStorage;
-
-static size_t flush_storage(JfrStorage& storage, JfrChunkWriter& chunkwriter) {
-  assert(chunkwriter.is_valid(), "invariant");
-  FlushStorageFunctor fsf(storage);
-  FlushStorage fs(chunkwriter, fsf);
-  return invoke_with_flush_event(fs);
-}
-
-typedef ServiceFunctor<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
-typedef WriteSubsystem<FlushFunctor> Flush;
-
 static bool write_metadata_in_flushpoint = false;
 
 size_t JfrRecorderService::flush() {
   size_t total_elements = 0;
   if (write_metadata_in_flushpoint) {
-    total_elements = flush_metadata_event(_chunkwriter);
+    total_elements = flush_metadata(_chunkwriter);
   }
   const size_t storage_elements = flush_storage(_storage, _chunkwriter);
   if (0 == storage_elements) {
@@ -623,6 +677,9 @@ size_t JfrRecorderService::flush() {
   return total_elements;
 }
 
+typedef Content<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
+typedef WriteContent<FlushFunctor> Flush;
+
 void JfrRecorderService::flush(int msgs) {
   assert(_chunkwriter.is_valid(), "invariant");
   ResourceMark rm;
@@ -635,105 +692,6 @@ void JfrRecorderService::flush(int msgs) {
   invoke_with_flush_event(fl);
   write_thread_local_buffer(_chunkwriter);
   _repository.flush_chunk();
-}
-
-//
-// pre-safepoint write sequence
-//
-//  write stack trace checkpoint ->
-//    write string pool checkpoint ->
-//      notify about pending rotation ->
-//        write storage
-//
-void JfrRecorderService::pre_safepoint_write() {
-  assert(_chunkwriter.is_valid(), "invariant");
-  if (_stack_trace_repository.is_modified()) {
-    flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, false);
-  }
-  if (_string_pool.is_modified()) {
-    flush_stringpool_checkpoint(_string_pool, _chunkwriter);
-  }
-  if (LeakProfiler::is_running()) {
-    // Exclusive access to the object sampler instance.
-    // The sampler is released (unlocked) later in post_safepoint_write.
-    ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
-  }
-  _checkpoint_manager.notify_types_on_rotation();
-  _storage.write();
-}
-
-void JfrRecorderService::invoke_safepoint_write() {
-  JfrVMOperation<JfrRecorderService, &JfrRecorderService::safepoint_write> safepoint_task(*this);
-  VMThread::execute(&safepoint_task);
-}
-
-//
-// safepoint write sequence
-//
-// write object sample stacktraces ->
-//   write stacktrace repository ->
-//     write string pool ->
-//       write storage ->
-//         notify java threads ->
-//           shift_epoch ->
-//             update time
-//
-void JfrRecorderService::safepoint_write() {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  flush_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, true);
-  if (_string_pool.is_modified()) {
-    flush_stringpool_checkpoint_safepoint(_string_pool, _chunkwriter);
-  }
-  _storage.write_at_safepoint();
-  _checkpoint_manager.notify_threads();
-  _checkpoint_manager.shift_epoch();
-  _chunkwriter.set_time_stamp();
-}
-
-//
-// post-safepoint write sequence
-//
-//  write type set ->
-//    write checkpoints ->
-//      write metadata event ->
-//        close chunk
-//
-void JfrRecorderService::post_safepoint_write() {
-  assert(_chunkwriter.is_valid(), "invariant");
-  // During the safepoint tasks just completed, the system transitioned to a new epoch.
-  // Type tagging is epoch relative which entails we are able to write out the
-  // already tagged artifacts for the previous epoch. We can accomplish this concurrently
-  // with threads now tagging artifacts in relation to the new, now updated, epoch and remain outside of a safepoint.
-  _checkpoint_manager.write_type_set();
-  if (LeakProfiler::is_running()) {
-    // The object sampler instance was exclusively acquired and locked in pre_safepoint_write.
-    // Note: There is a dependency on write_type_set() above, ensure the release is subsequent.
-    ObjectSampler::release();
-  }
-  // serialize any outstanding checkpoint memory
-  _checkpoint_manager.write();
-  // serialize the metadata descriptor event and close out the chunk
-  flush_metadata_event_checkpoint(_chunkwriter);
-  _repository.close_chunk();
-}
-
-void JfrRecorderService::vm_error_rotation() {
-  if (_chunkwriter.is_valid()) {
-    finalize_current_chunk_on_vm_error();
-    assert(!_chunkwriter.is_valid(), "invariant");
-    _repository.on_vm_error();
-  }
-}
-
-void JfrRecorderService::finalize_current_chunk_on_vm_error() {
-  assert(_chunkwriter.is_valid(), "invariant");
-  pre_safepoint_write();
-  // Do not attempt safepoint dependent operations during emergency dump.
-  // Optimistically write tagged artifacts.
-  _checkpoint_manager.shift_epoch();
-  // update time
-  _chunkwriter.set_time_stamp();
-  post_safepoint_write();
 }
 
 void JfrRecorderService::process_full_buffers() {

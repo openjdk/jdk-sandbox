@@ -174,10 +174,6 @@ bool JfrChunk::is_finished() const {
   return 0 == _generation;
 }
 
-bool JfrChunk::is_initial_flush() const {
-  return 0 == _last_metadata_offset;
-}
-
 int64_t JfrChunk::duration() const {
   assert(_last_update_nanos >= _start_nanos, "invariant");
   return _last_update_nanos - _start_nanos;

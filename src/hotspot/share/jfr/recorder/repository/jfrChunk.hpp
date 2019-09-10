@@ -78,7 +78,6 @@ class JfrChunk : public JfrCHeapObj {
 
   bool is_started() const;
   bool is_finished() const;
-  bool is_initial_flush() const;
 
   int64_t duration() const;
   u1 generation() const;
