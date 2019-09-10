@@ -175,5 +175,5 @@ void JfrRepository::flush(bool metadata, JavaThread* jt) {
 }
 
 size_t JfrRepository::flush_chunk() {
-  return _chunkwriter->flushpoint(true);
+  return _chunkwriter->flush_chunk(true);
 }

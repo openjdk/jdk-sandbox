@@ -42,7 +42,7 @@ class JfrChunkWriter : public JfrChunkWriterBase {
  private:
   JfrChunk* _chunk;
   void set_path(const char* path);
-  int64_t flushpoint(bool finalize);
+  int64_t flush_chunk(bool flushpoint);
   bool open();
   int64_t close();
   int64_t current_chunk_start_nanos() const;
@@ -56,6 +56,7 @@ class JfrChunkWriter : public JfrChunkWriterBase {
   int64_t last_checkpoint_offset() const;
   void set_last_checkpoint_offset(int64_t offset);
   void set_last_metadata_offset(int64_t offset);
+
   bool has_metadata() const;
   void set_time_stamp();
 };
