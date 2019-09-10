@@ -154,7 +154,7 @@ void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
     non_class_space_manager()->add_to_statistics(&out->sm_stats_nonclass);
   }
   if (class_space_manager() != NULL) {
-    class_space_manager()->add_to_statistics(&out->sm_stats_nonclass);
+    class_space_manager()->add_to_statistics(&out->sm_stats_class);
   }
 }
 
