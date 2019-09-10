@@ -52,9 +52,8 @@ bool Settings::_delete_nodes_on_purge = false;
 bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
-bool Settings::_always_use_class_space = false;
 
-void Settings::initialize(strategy_t strat, bool always_use_class_space) {
+void Settings::initialize(strategy_t strat) {
 
   switch (strat) {
   case strategy_no_reclaim:
@@ -131,7 +130,6 @@ void Settings::initialize(strategy_t strat, bool always_use_class_space) {
   // strategy. This is rather arbitrarily choosen.
   _enlarge_chunks_in_place = true;
   _enlarge_chunks_in_place_max_word_size = 256 * K;
-  _always_use_class_space = always_use_class_space;
 
 
   // Sanity checks.
@@ -165,7 +163,6 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - uncommit_on_purge: %d.", (int)uncommit_on_purge());
   st->print_cr(" - uncommit_on_purge_min_word_size: " SIZE_FORMAT ".", uncommit_on_purge_min_word_size());
 
-  st->print_cr(" - always_use_class_space: %d.", always_use_class_space());
 
 }
 

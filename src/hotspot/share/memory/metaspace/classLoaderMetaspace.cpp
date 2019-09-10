@@ -43,7 +43,7 @@ namespace metaspace {
 
 static bool use_class_space(bool is_class) {
   if (Metaspace::using_class_space()) {
-    if (is_class || Settings::always_use_class_space()) {
+    if (is_class) {
       return true;
     }
   }
@@ -69,7 +69,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
       "non-class sm");
 
   // If needed, initialize class spacemanager
-  if (Metaspace::using_class_space() || Settings::always_use_class_space()) {
+  if (Metaspace::using_class_space()) {
     _class_space_manager = new SpaceManager(
         ChunkManager::chunkmanager_class(),
         ChunkAllocSequence::alloc_sequence_by_space_type(space_type, true),

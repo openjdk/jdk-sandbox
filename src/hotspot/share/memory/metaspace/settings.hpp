@@ -84,14 +84,6 @@ class Settings : public AllStatic {
   // Must be a multiple of and not smaller than commit granularity.
   static size_t _uncommit_on_purge_min_word_size;
 
-  // experimental: If CompressedClassPointers is on, all allocations live in class space.
-  //
-  // This reduces fragmentation, number of chunks and waste by a moderate amount. It will shift all
-  // allocations to class space - also those not addressed by compressed pointers. For many use cases
-  // this may be a valid solution since their metaspace usage can usually be served with the default
-  // size of 1G compressed class space.
-  static bool _always_use_class_space;
-
 public:
 
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
@@ -125,12 +117,9 @@ public:
 
   };
 
-  static void initialize(strategy_t theme, bool always_use_class_space);
+  static void initialize(strategy_t theme);
 
   static void print_on(outputStream* st);
-
-  // Non-strategy-related settings
-  static bool always_use_class_space()                        { return _always_use_class_space; }
 
 };
 

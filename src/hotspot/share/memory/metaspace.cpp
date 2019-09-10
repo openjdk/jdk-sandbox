@@ -747,7 +747,7 @@ void Metaspace::ergo_initialize() {
   } else {
     vm_exit_during_initialization("Invalid value for MetaspaceReclaimStrategy: \"%s\".", MetaspaceReclaimStrategy);
   }
-  metaspace::Settings::initialize(strat, MetaspaceAlwaysUseClassSpace);
+  metaspace::Settings::initialize(strat);
 
   if (DumpSharedSpaces) {
     // Using large pages when dumping the shared archive is currently not implemented.
