@@ -34,6 +34,7 @@
 public class RuntimeModuleTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD = {
+        "--package-type", "app-image",
         "--runtime-image", "runtime",
         "--output", OUTPUT,
         "--name", "test",

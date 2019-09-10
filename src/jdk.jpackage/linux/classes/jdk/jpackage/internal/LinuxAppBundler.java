@@ -173,4 +173,10 @@ public class LinuxAppBundler extends AbstractImageBundler {
     public boolean supported(boolean runtimeInstaller) {
         return true;
     }
+
+    @Override
+    public boolean isDefault() {
+        return false;
+    }
+
 }

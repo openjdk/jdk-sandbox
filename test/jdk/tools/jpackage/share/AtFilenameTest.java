@@ -35,6 +35,7 @@ public class AtFilenameTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

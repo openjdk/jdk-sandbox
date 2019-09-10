@@ -238,6 +238,11 @@ public class WinMsiBundler  extends AbstractBundler {
         return isSupported();
     }
 
+    @Override
+    public boolean isDefault() {
+        return false;
+    }
+
     public static boolean isSupported() {
         try {
             validateWixTools();
@@ -1168,4 +1173,5 @@ public class WinMsiBundler  extends AbstractBundler {
         }
 
     }
+
 }

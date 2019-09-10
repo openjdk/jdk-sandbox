@@ -40,6 +40,7 @@ public class TempRootTest {
     private static final String BUILD_ROOT_TB = "buildRootToolProvider";
 
     private static final String [] CMD = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -48,6 +49,7 @@ public class TempRootTest {
     };
 
     private static final String [] CMD_BUILD_ROOT = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

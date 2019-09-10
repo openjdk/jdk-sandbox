@@ -38,6 +38,7 @@ public class JLinkModuleTest {
     private static final String RUNTIME = "runtime";
 
     private static final String [] CMD = {
+        "--package-type", "app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.other/com.other.Other",

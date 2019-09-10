@@ -35,6 +35,7 @@ public class ModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
+        "--package-type", "app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
         "--output", OUTPUT,
@@ -42,6 +43,7 @@ public class ModuleTest {
     };
 
     private static String [] commands = {
+        "--package-type", "app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
         "--output", OUTPUT,

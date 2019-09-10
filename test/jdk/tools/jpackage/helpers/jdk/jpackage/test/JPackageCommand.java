@@ -132,8 +132,9 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
 
     public PackageType packageType() {
         return getArgumentValue("--package-type",
-                () -> PackageType.IMAGE,
-                (v) -> PACKAGE_TYPES.get(v));
+                () -> PackageType.DEFAULT,
+                (v) -> ("app-image".equals(v)) ? PackageType.IMAGE :
+                     PACKAGE_TYPES.get(v));
     }
 
     public Path outputDir() {
@@ -173,6 +174,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         JPackageCommand cmd = new JPackageCommand();
         cmd.setDefaultInputOutput().setDefaultAppName();
         HelloApp.addTo(cmd);
+        (PackageType.IMAGE).applyTo(cmd);
         return cmd;
     }
 

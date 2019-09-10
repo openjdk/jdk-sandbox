@@ -323,4 +323,10 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
         //         Platform.getPlatform() == Platform.MAC);
         return false; // mac-app-store not yet supported
     }
+
+    @Override
+    public boolean isDefault() {
+        return false;
+    }
+
 }

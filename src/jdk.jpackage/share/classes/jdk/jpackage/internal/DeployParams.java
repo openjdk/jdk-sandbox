@@ -52,7 +52,7 @@ public class DeployParams {
 
     final List<RelativeFileSet> resources = new ArrayList<>();
 
-    String targetFormat = null; // means app-image
+    String targetFormat = null; // means default type for this platform
 
     File outdir = null;
 
@@ -197,10 +197,10 @@ public class DeployParams {
                 Arguments.CLIOptions.INPUT.getId()) != null);
         boolean hasModulePath = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE_PATH.getId()) != null);
-        boolean runtimeInstaller = targetFormat != null &&
+        boolean runtimeInstaller = !isTargetAppImage() &&
                 !hasAppImage && !hasModule && !hasMain && hasRuntimeImage;
 
-        if (targetFormat == null) {
+        if (isTargetAppImage()) {
             // Module application requires --runtime-image or --module-path
             if (hasModule) {
                 if (!hasModulePath && !hasRuntimeImage) {
@@ -283,6 +283,10 @@ public class DeployParams {
 
     String getTargetFormat() {
         return targetFormat;
+    }
+
+    boolean isTargetAppImage() {
+        return ("app-image".equals(targetFormat));
     }
 
     private static final Set<String> multi_args = new TreeSet<>(Arrays.asList(

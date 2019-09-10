@@ -74,7 +74,6 @@ public class Arguments {
           "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
 
     private DeployParams deployParams = null;
-    private String packageType = null;
 
     private int pos = 0;
     private List<String> argList = null;
@@ -119,8 +118,6 @@ public class Arguments {
 
         deployParams = new DeployParams();
 
-        packageType = null;
-
         allOptions = new ArrayList<>();
 
         addLaunchers = new ArrayList<>();
@@ -129,8 +126,7 @@ public class Arguments {
     // CLIOptions is public for DeployParamsTest
     public enum CLIOptions {
         PACKAGE_TYPE("package-type", OptionCategories.PROPERTY, () -> {
-            context().packageType = popArg();
-            context().deployParams.setTargetFormat(context().packageType);
+            context().deployParams.setTargetFormat(popArg());
         }),
 
         INPUT ("input", "i", OptionCategories.PROPERTY, () -> {
@@ -530,9 +526,9 @@ public class Arguments {
     }
 
     private void validateArguments() throws PackagerException {
-        String packageType = deployParams.getTargetFormat();
-        String ptype = (packageType != null) ? packageType : "default";
-        boolean imageOnly = (packageType == null);
+        String type = deployParams.getTargetFormat();
+        String ptype = (type != null) ? type : "default";
+        boolean imageOnly = deployParams.isTargetAppImage();
         boolean hasAppImage = allOptions.contains(
                 CLIOptions.PREDEFINED_APP_IMAGE);
         boolean hasRuntime = allOptions.contains(
@@ -550,7 +546,7 @@ public class Arguments {
             if (imageOnly) {
                 if (!ValidOptions.checkIfImageSupported(option)) {
                     throw new PackagerException("ERR_InvalidTypeOption",
-                        option.getIdWithPrefix(), packageType);
+                        option.getIdWithPrefix(), type);
                 }
             } else if (installerOnly || runtimeInstaller) {
                 if (!ValidOptions.checkIfInstallerSupported(option)) {
@@ -579,13 +575,20 @@ public class Arguments {
     }
 
     private jdk.jpackage.internal.Bundler getPlatformBundler() {
-        String bundleType = (packageType == null ? "IMAGE" : "INSTALLER");
+        boolean appImage = deployParams.isTargetAppImage();
+        String type = deployParams.getTargetFormat();
+        String bundleType = (appImage ?  "IMAGE" : "INSTALLER");
 
         for (jdk.jpackage.internal.Bundler bundler :
                 Bundlers.createBundlersInstance().getBundlers(bundleType)) {
-            if ((packageType == null) ||
-                     packageType.equalsIgnoreCase(bundler.getID())) {
-                 if (bundler.supported(runtimeInstaller)) {
+            if (type == null) {
+                 if (bundler.isDefault()
+                         && bundler.supported(runtimeInstaller)) {
+                     return bundler;
+                 }
+            } else {
+                 if ((appImage || type.equalsIgnoreCase(bundler.getID()))
+                         && bundler.supported(runtimeInstaller)) {
                      return bundler;
                  }
             }

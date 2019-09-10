@@ -40,6 +40,7 @@ public class AppVersionTest {
     private static final String VERSION_DEFAULT = "1.0";
 
     private static final String[] CMD = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -48,6 +49,7 @@ public class AppVersionTest {
    };
 
     private static final String[] CMD_VERSION = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

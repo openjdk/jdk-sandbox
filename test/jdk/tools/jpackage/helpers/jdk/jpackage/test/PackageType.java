@@ -43,6 +43,8 @@ public enum PackageType {
             Test.isLinux() ? "jdk.jpackage.internal.LinuxRpmBundler" : null),
     MAC_DMG(".dmg", Test.isOSX() ? "jdk.jpackage.internal.MacDmgBundler" : null),
     MAC_PKG(".pkg", Test.isOSX() ? "jdk.jpackage.internal.MacPkgBundler" : null),
+    DEFAULT(null, null),
+
     IMAGE(null, null);
 
     PackageType(String bundleSuffix, String bundlerClass) {
@@ -72,7 +74,7 @@ public enum PackageType {
 
     String getName() {
         if (suffix == null) {
-            return null;
+            return "app-image";
         }
         return suffix.substring(1);
     }

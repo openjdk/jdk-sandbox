@@ -37,6 +37,7 @@ public class WithSpaceTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
+        "--package-type", "app-image",
         "--input", "input dir",
         "--output", OUTPUT,
         "--name", "test",
@@ -45,6 +46,7 @@ public class WithSpaceTest {
     };
 
     private static final String [] CMD2 = {
+        "--package-type", "app-image",
         "--input", "input dir2",
         "--output", OUTPUT,
         "--name", "test",

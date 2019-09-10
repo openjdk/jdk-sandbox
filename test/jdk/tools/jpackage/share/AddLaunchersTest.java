@@ -35,6 +35,7 @@ public class AddLaunchersTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD1 = {
         "--description", "Test non modular app with multiple add-launchers where one is modular app and other is non modular app",
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",
@@ -47,6 +48,7 @@ public class AddLaunchersTest {
 
     private static final String [] CMD2 = {
         "--description", "Test modular app with multiple add-launchers where one is modular app and other is non modular app",
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

@@ -42,6 +42,7 @@ public class ResourceTest {
             JPackagePath.getTestSrcRoot() + File.separator + "resources";
 
     private static final String[] CMD = {
+        "--package-type", "app-image",
         "--input", "input",
         "--name", "icon",
         "--main-jar", "hello.jar",

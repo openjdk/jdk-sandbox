@@ -34,6 +34,7 @@
 public class MissingArgumentsTest {
     private static final String [] RESULT_1 = {"--output"};
     private static final String [] CMD_1 = {
+        "--package-type", "app-image",
         "--input", "input",
         "--name", "test",
         "--main-jar", "hello.jar",
@@ -42,6 +43,7 @@ public class MissingArgumentsTest {
 
     private static final String [] RESULT_2 = {"--input"};
     private static final String [] CMD_2 = {
+        "--package-type", "app-image",
         "--output", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
@@ -50,6 +52,7 @@ public class MissingArgumentsTest {
 
     private static final String [] RESULT_3 = {"--input", "--app-image"};
     private static final String [] CMD_3 = {
+        "--package-type", "app-image",
         "--package-type", "invalid-package-type",
         "--output", "output",
         "--name", "test",
@@ -59,6 +62,7 @@ public class MissingArgumentsTest {
 
     private static final String [] RESULT_4 = {"main class was not specified"};
     private static final String [] CMD_4 = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
@@ -67,6 +71,7 @@ public class MissingArgumentsTest {
 
     private static final String [] RESULT_5 = {"--main-jar"};
     private static final String [] CMD_5 = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", "output",
         "--name", "test",
@@ -75,6 +80,7 @@ public class MissingArgumentsTest {
 
     private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
     private static final String [] CMD_6 = {
+        "--package-type", "app-image",
         "--output", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

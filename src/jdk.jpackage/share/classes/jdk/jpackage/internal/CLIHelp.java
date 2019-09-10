@@ -54,29 +54,28 @@ public class CLIHelp {
             String pInstallDir;
             switch (platform) {
                 case MAC:
-                    types = "{\"pkg\", \"dmg\"}";
+                    types = "{\"app-image\", \"dmg\", \"pkg\"}";
                     pLaunchOptions = I18N.getString("MSG_Help_mac_launcher");
                     pInstallOptions = "";
                     pInstallDir
                             = I18N.getString("MSG_Help_mac_linux_install_dir");
                     break;
                 case LINUX:
-                    types = "{\"rpm\", \"deb\"}";
+                    types = "{\"app-image\", \"rpm\", \"deb\"}";
                     pLaunchOptions = "";
                     pInstallOptions = I18N.getString("MSG_Help_linux_install");
                     pInstallDir
                             = I18N.getString("MSG_Help_mac_linux_install_dir");
                     break;
                 case WINDOWS:
-                    types = "{\"exe\", \"msi\"}";
+                    types = "{\"app-image\", \"exe\", \"msi\"}";
                     pLaunchOptions = I18N.getString("MSG_Help_win_launcher");
                     pInstallOptions = I18N.getString("MSG_Help_win_install");
                     pInstallDir
                             = I18N.getString("MSG_Help_win_install_dir");
                     break;
                 default:
-                    types =
-                      "{\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}";
+                    types = "{\"app-image\", \"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}";
                     pLaunchOptions = I18N.getString("MSG_Help_win_launcher")
                             + I18N.getString("MSG_Help_mac_launcher");
                     pInstallOptions = I18N.getString("MSG_Help_win_install")

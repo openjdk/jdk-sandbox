@@ -117,4 +117,9 @@ public interface Bundler {
      * Returns "true" if this bundler is supported on current platform.
      */
     public boolean supported(boolean runtimeInstaller);
+
+    /**
+     * Returns "true" if this bundler is he default for the current platform.
+     */
+    public boolean isDefault();
 }

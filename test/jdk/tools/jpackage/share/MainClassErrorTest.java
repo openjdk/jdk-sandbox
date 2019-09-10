@@ -39,6 +39,7 @@ public class MainClassErrorTest {
     private static final String appOutput = JPackagePath.getAppOutputFile();
 
     private static final String[] CMD = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", "test",

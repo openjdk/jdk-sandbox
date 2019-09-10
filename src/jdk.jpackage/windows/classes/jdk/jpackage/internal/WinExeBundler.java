@@ -89,6 +89,11 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
+    public boolean isDefault() {
+        return true;
+    }
+
+    @Override
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         return new WinMsiBundler().validate(params);

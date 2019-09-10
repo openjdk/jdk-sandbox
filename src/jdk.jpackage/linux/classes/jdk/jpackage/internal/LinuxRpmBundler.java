@@ -702,4 +702,10 @@ public class LinuxRpmBundler extends AbstractBundler {
             return 0;
         }
     }
+
+    @Override
+    public boolean isDefault() {
+        return !LinuxDebBundler.isDebian();
+    }
+
 }

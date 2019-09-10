@@ -48,6 +48,7 @@ public class BundleNameTest {
     private static final String APP_NAME = "test";
 
     private static final String [] CMD_1 = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,
@@ -56,6 +57,7 @@ public class BundleNameTest {
     };
 
     private static final String [] CMD_2 = {
+        "--package-type", "app-image",
         "--input", "input",
         "--output", OUTPUT,
         "--name", APP_NAME,

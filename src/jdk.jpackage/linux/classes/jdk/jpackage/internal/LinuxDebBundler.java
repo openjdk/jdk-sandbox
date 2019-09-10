@@ -407,6 +407,19 @@ public class LinuxDebBundler extends AbstractBundler {
         }
     }
 
+    public static boolean isDebian() {
+        // we are just going to run "dpkg -s coreutils" and assume Debian
+        // or deritive if no error is returned.
+        var pb = new ProcessBuilder(TOOL_DPKG, "-s", "coreutils");
+        try {
+            int ret = pb.start().waitFor();
+            return (ret == 0);
+        } catch (IOException | InterruptedException e) {
+            // just fall thru
+        }
+        return false;
+    }
+
     private long getInstalledSizeKB(Map<String, ? super Object> params) {
         return getInstalledSizeKB(APP_IMAGE_ROOT.fetchFrom(params)) >> 10;
     }
@@ -939,4 +952,10 @@ public class LinuxDebBundler extends AbstractBundler {
             return 0;
         }
     }
+
+    @Override
+    public boolean isDefault() {
+        return isDebian();
+    }
+
 }

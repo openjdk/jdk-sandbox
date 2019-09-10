@@ -219,4 +219,9 @@ public class WinAppBundler extends AbstractImageBundler {
         return true;
     }
 
+    @Override
+    public boolean isDefault() {
+        return false;
+    }
+
 }

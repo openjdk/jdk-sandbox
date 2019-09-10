@@ -38,6 +38,7 @@ public class ModulePathTest {
     private static final String OUTPUT = "output";
 
     private static final String [] CMD1 = {
+        "--package-type", "app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -45,6 +46,7 @@ public class ModulePathTest {
     };
 
     private static final String [] CMD2 = {
+        "--package-type", "app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -52,6 +54,7 @@ public class ModulePathTest {
     };
 
     private static final String [] CMD3 = {
+        "--package-type", "app-image",
         "--output", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
