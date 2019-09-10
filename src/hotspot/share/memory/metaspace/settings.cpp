@@ -61,7 +61,7 @@ void Settings::initialize(strategy_t strat, bool always_use_class_space) {
 
     log_info(metaspace)("Initialized with strategy: no reclaim.");
 
-    _commit_granule_bytes = 64 * K;
+    _commit_granule_bytes = MAX2((size_t)os::vm_page_size(), 64 * K);
     _commit_granule_words = _commit_granule_bytes / BytesPerWord;
 
     _newborn_root_chunks_are_fully_committed = true;
@@ -83,7 +83,7 @@ void Settings::initialize(strategy_t strat, bool always_use_class_space) {
 
     // Set the granule size rather small; may increase
     // mapping fragmentation but also increase chance to uncommit.
-    _commit_granule_bytes = 16 * K;
+    _commit_granule_bytes = MAX2((size_t)os::vm_page_size(), 16 * K);
     _commit_granule_words = _commit_granule_bytes / BytesPerWord;
 
     _newborn_root_chunks_are_fully_committed = false;
@@ -106,7 +106,7 @@ void Settings::initialize(strategy_t strat, bool always_use_class_space) {
 
     log_info(metaspace)("Initialized with strategy: balanced reclaim.");
 
-    _commit_granule_bytes = 64 * K;
+    _commit_granule_bytes = MAX2((size_t)os::vm_page_size(), 64 * K);
     _commit_granule_words = _commit_granule_bytes / BytesPerWord;
 
     _newborn_root_chunks_are_fully_committed = false;
