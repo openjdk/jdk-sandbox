@@ -26,7 +26,7 @@ import jdk.jpackage.test.PackageType;
 
 
 /**
- * Test --linux-bundle-name parameter. Output of the test should be
+ * Test --linux-package-name parameter. Output of the test should be
  * quickbrownfox2_1.0-1_amd64.deb or quickbrownfox2-1.0-1.amd64.rpm package
  * bundle. The output package should provide the same functionality as the
  * default package.
@@ -41,7 +41,7 @@ import jdk.jpackage.test.PackageType;
 
 /*
  * @test
- * @summary jpackage with --linux-bundle-name
+ * @summary jpackage with --linux-package-name
  * @library ../helpers
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
@@ -56,7 +56,7 @@ public class BundleNameTest {
         .forTypes(PackageType.LINUX)
         .configureHelloApp()
         .addInitializer(cmd -> {
-            cmd.addArguments("--linux-bundle-name", PACKAGE_NAME);
+            cmd.addArguments("--linux-package-name", PACKAGE_NAME);
         })
         .forTypes(PackageType.LINUX_DEB)
         .addBundlePropertyVerifier("Package", PACKAGE_NAME)

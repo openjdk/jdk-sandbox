@@ -44,7 +44,7 @@ public class BundleIdentifierTest {
     private static final String OUTPUT = "output";
     private static final String app = JPackagePath.getApp();
     private static final String appOutput = JPackagePath.getAppOutputFile();
-    private static final String MAC_BUNDLE_IDENTIFIER = "TestBundleIdentifier";
+    private static final String MAC_PACKAGE_IDENTIFIER = "TestBundleIdentifier";
     private static final String APP_NAME = "test";
     private static final String MAIN_CLASS = "Hello";
 
@@ -64,7 +64,7 @@ public class BundleIdentifierTest {
         "--name", APP_NAME,
         "--main-jar", "hello.jar",
         "--main-class", MAIN_CLASS,
-        "--mac-bundle-identifier", MAC_BUNDLE_IDENTIFIER
+        "--mac-package-identifier", MAC_PACKAGE_IDENTIFIER
     };
 
     private static void validateResult(String[] result) throws Exception {
@@ -151,8 +151,8 @@ public class BundleIdentifierTest {
         JPackageHelper.deleteOutputFolder(OUTPUT);
         testCreateAppImageToolProvider(CMD_1, MAIN_CLASS, false);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        testCreateAppImage(CMD_2, MAC_BUNDLE_IDENTIFIER, true);
+        testCreateAppImage(CMD_2, MAC_PACKAGE_IDENTIFIER, true);
         JPackageHelper.deleteOutputFolder(OUTPUT);
-        testCreateAppImageToolProvider(CMD_2, MAC_BUNDLE_IDENTIFIER, true);
+        testCreateAppImageToolProvider(CMD_2, MAC_PACKAGE_IDENTIFIER, true);
     }
 }

@@ -63,7 +63,7 @@ public class BundleNameTest {
         "--name", APP_NAME,
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--mac-bundle-name", MAC_BUNDLE_NAME
+        "--mac-package-name", MAC_BUNDLE_NAME
     };
 
     private static void validateResult(String[] result) throws Exception {

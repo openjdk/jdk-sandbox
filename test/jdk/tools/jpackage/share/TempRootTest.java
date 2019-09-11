@@ -26,7 +26,7 @@ import java.io.File;
  /*
  * @test
  * @requires (os.family == "windows")
- * @summary jpackage create image to test --temp-root
+ * @summary jpackage create image to test --temp
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
@@ -55,7 +55,7 @@ public class TempRootTest {
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
-        "--temp-root", "TBD"};
+        "--temp", "TBD"};
 
     private static void validate(boolean retain) throws Exception {
         File br = new File(buildRoot);

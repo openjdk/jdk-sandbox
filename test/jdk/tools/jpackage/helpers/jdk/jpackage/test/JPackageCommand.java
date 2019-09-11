@@ -133,8 +133,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     public PackageType packageType() {
         return getArgumentValue("--package-type",
                 () -> PackageType.DEFAULT,
-                (v) -> ("app-image".equals(v)) ? PackageType.IMAGE :
-                     PACKAGE_TYPES.get(v));
+                (v) -> PACKAGE_TYPES.get(v));
     }
 
     public Path outputDir() {
@@ -173,8 +172,8 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     public static JPackageCommand helloAppImage() {
         JPackageCommand cmd = new JPackageCommand();
         cmd.setDefaultInputOutput().setDefaultAppName();
+        PackageType.IMAGE.applyTo(cmd);
         HelloApp.addTo(cmd);
-        (PackageType.IMAGE).applyTo(cmd);
         return cmd;
     }
 
@@ -359,7 +358,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
                 @Override
                 public Map<String, PackageType> get() {
                     Map<String, PackageType> reply = new HashMap<>();
-                    for (PackageType type : PackageType.NATIVE) {
+                    for (PackageType type : PackageType.values()) {
                         reply.put(type.getName(), type);
                     }
                     return reply;

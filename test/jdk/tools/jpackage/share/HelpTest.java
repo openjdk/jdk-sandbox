@@ -36,9 +36,9 @@ public class HelpTest {
     private static final String WINDOWS_HELP =
             "--win-dir-chooser";
     private static final String OSX_HELP =
-            "--mac-bundle-identifier";
+            "--mac-package-identifier";
     private static final String LINUX_HELP =
-            "--linux-bundle-name";
+            "--linux-package-name";
 
     private static void validate(String output1, String output2)
             throws Exception {

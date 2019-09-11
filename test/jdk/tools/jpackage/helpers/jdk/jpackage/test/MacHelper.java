@@ -40,7 +40,7 @@ public class MacHelper {
     }
 
     private static String getPackageName(JPackageCommand cmd) {
-        return cmd.getArgumentValue("--mac-bundle-name",
+        return cmd.getArgumentValue("--mac-package-name",
                 () -> cmd.name().toLowerCase());
     }
 }

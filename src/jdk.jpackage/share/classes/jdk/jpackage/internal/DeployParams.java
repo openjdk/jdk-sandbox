@@ -255,7 +255,7 @@ public class DeployParams {
             }
         }
 
-        // Validate temp-root
+        // Validate temp dir
         String root = (String)bundlerArguments.get(
                 Arguments.CLIOptions.TEMP_ROOT.getId());
         if (root != null) {

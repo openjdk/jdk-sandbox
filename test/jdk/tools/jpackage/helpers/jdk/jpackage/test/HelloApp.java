@@ -49,7 +49,6 @@ public class HelloApp {
                 cmd.addArguments("--main-class", mainClass);
             }
         });
-
         if (PackageType.WINDOWS.contains(cmd.packageType())) {
             cmd.addArguments("--win-console");
         }

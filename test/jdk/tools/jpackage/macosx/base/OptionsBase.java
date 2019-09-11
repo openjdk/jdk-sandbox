@@ -155,8 +155,8 @@ public class OptionsBase {
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",
-            "--mac-bundle-name", TEST_BUNDLE_NAME,
-            "--mac-bundle-identifier", TEST_BUNDLE_IDENTIFIER,
+            "--mac-package-name", TEST_BUNDLE_NAME,
+            "--mac-package-identifier", TEST_BUNDLE_IDENTIFIER,
             "--mac-app-store-category", TEST_CATECORY
         };
     }

@@ -34,7 +34,7 @@ public class LinuxHelper {
 
     public static String getPackageName(JPackageCommand cmd) {
         cmd.verifyIsOfType(PackageType.LINUX);
-        return cmd.getArgumentValue("--linux-bundle-name",
+        return cmd.getArgumentValue("--linux-package-name",
                 () -> cmd.name().toLowerCase());
     }
 

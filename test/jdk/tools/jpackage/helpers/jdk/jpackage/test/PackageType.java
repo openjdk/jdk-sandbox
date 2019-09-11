@@ -24,8 +24,11 @@ package jdk.jpackage.test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,11 +46,10 @@ public enum PackageType {
             Test.isLinux() ? "jdk.jpackage.internal.LinuxRpmBundler" : null),
     MAC_DMG(".dmg", Test.isOSX() ? "jdk.jpackage.internal.MacDmgBundler" : null),
     MAC_PKG(".pkg", Test.isOSX() ? "jdk.jpackage.internal.MacPkgBundler" : null),
-    DEFAULT(null, null),
+    IMAGE("app-image", null, null);
 
-    IMAGE(null, null);
-
-    PackageType(String bundleSuffix, String bundlerClass) {
+    PackageType(String packageName, String bundleSuffix, String bundlerClass) {
+        name  = packageName;
         suffix = bundleSuffix;
         if (bundlerClass != null && !Inner.DISABLED_PACKAGERS.contains(getName())) {
             supported = isBundlerSupported(bundlerClass);
@@ -58,6 +60,10 @@ public enum PackageType {
         if (suffix != null && supported) {
             Test.trace(String.format("Bundler %s supported", getName()));
         }
+    }
+    
+    PackageType(String bundleSuffix, String bundlerClass) {
+        this(bundleSuffix.substring(1), bundleSuffix, bundlerClass);
     }
 
     void applyTo(JPackageCommand cmd) {
@@ -73,10 +79,7 @@ public enum PackageType {
     }
 
     String getName() {
-        if (suffix == null) {
-            return "app-image";
-        }
-        return suffix.substring(1);
+        return name;
     }
 
     static PackageType fromSuffix(String packageFilename) {
@@ -105,6 +108,7 @@ public enum PackageType {
         }
     }
 
+    private String name;
     private final String suffix;
     private final boolean supported;
 
@@ -114,9 +118,25 @@ public enum PackageType {
     public final static Set<PackageType> NATIVE = Stream.concat(
             Stream.concat(LINUX.stream(), WINDOWS.stream()),
             MAC.stream()).collect(Collectors.toUnmodifiableSet());
-
+    
+    public final static PackageType DEFAULT = ((Supplier<PackageType>) () -> {
+        if (Test.isLinux()) {
+            return LINUX.stream().filter(v -> v.isSupported()).findFirst().orElseThrow();
+        }
+        
+        if (Test.isWindows()) {
+            return WIN_EXE;
+        }
+        
+        if (Test.isOSX()) {
+            return MAC_DMG;
+        }
+        
+        throw new IllegalStateException("Unknwon platform");
+    }).get();
+    
     private final static class Inner {
-
+        
         private final static Set<String> DISABLED_PACKAGERS = Stream.of(
                 Optional.ofNullable(
                         System.getProperty("jpackage.test.disabledPackagers")).orElse(

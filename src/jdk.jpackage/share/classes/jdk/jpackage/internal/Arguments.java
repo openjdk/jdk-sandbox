@@ -234,10 +234,10 @@ public class Arguments {
                 new AddLauncherArguments(name, filename));
         }),
 
-        TEMP_ROOT ("temp-root", OptionCategories.PROPERTY, () -> {
+        TEMP_ROOT ("temp", OptionCategories.PROPERTY, () -> {
             context().buildRoot = popArg();
             context().userProvidedBuildRoot = true;
-            setOptionValue("temp-root", context().buildRoot);
+            setOptionValue("temp", context().buildRoot);
         }),
 
         INSTALL_DIR ("install-dir", OptionCategories.PROPERTY),
@@ -265,15 +265,15 @@ public class Arguments {
             setOptionValue("mac-sign", true);
         }),
 
-        MAC_BUNDLE_NAME ("mac-bundle-name", OptionCategories.PLATFORM_MAC),
+        MAC_BUNDLE_NAME ("mac-package-name", OptionCategories.PLATFORM_MAC),
 
-        MAC_BUNDLE_IDENTIFIER("mac-bundle-identifier",
+        MAC_BUNDLE_IDENTIFIER("mac-package-identifier",
                     OptionCategories.PLATFORM_MAC),
 
         MAC_APP_STORE_CATEGORY ("mac-app-store-category",
                     OptionCategories.PLATFORM_MAC),
 
-        MAC_BUNDLE_SIGNING_PREFIX ("mac-bundle-signing-prefix",
+        MAC_BUNDLE_SIGNING_PREFIX ("mac-package-signing-prefix",
                     OptionCategories.PLATFORM_MAC),
 
         MAC_SIGNING_KEY_NAME ("mac-signing-key-user-name",
@@ -313,7 +313,7 @@ public class Arguments {
             setOptionValue("win-console", true);
         }),
 
-        LINUX_BUNDLE_NAME ("linux-bundle-name",
+        LINUX_BUNDLE_NAME ("linux-package-name",
                 OptionCategories.PLATFORM_LINUX),
 
         LINUX_DEB_MAINTAINER ("linux-deb-maintainer",
@@ -601,9 +601,9 @@ public class Arguments {
 
         boolean bundleCreated = false;
 
-        // the temp-root needs to be fetched from the params early,
+        // the temp dir needs to be fetched from the params early,
         // to prevent each copy of the params (such as may be used for
-        // additional launchers) from generating a separate temp-root when
+        // additional launchers) from generating a separate temp dir when
         // the default is used (the default is a new temp directory)
         // The bundler.cleanup() below would not otherwise be able to
         // clean these extra (and unneeded) temp directories.
@@ -649,7 +649,7 @@ public class Arguments {
                         (new File(buildRoot)).getAbsolutePath()));
             } else {
                 // always clean up the temporary directory created
-                // when --temp-root option not used.
+                // when --temp option not used.
                 bundler.cleanup(localParams);
             }
         }
