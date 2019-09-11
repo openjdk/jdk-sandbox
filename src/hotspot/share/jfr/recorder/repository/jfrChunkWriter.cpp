@@ -164,6 +164,8 @@ class JfrChunkHeadWriter : public StackObj {
         _writer->seek(GENERATION_OFFSET);
         write_guard();
         _writer->seek(offset);
+      } else {
+        _chunk->update_current_nanos();
       }
     }
     DEBUG_ONLY(assert_writer_position(_writer, offset);)
@@ -212,9 +214,6 @@ int64_t JfrChunkWriter::write_chunk_header_checkpoint(bool flushpoint) {
 
 int64_t JfrChunkWriter::flush_chunk(bool flushpoint) {
   assert(_chunk != NULL, "invariant");
-  if (flushpoint) {
-    _chunk->update_current_time();
-  }
   const int64_t sz_written = write_chunk_header_checkpoint(flushpoint);
   assert(size_written() == sz_written, "invariant");
   JfrChunkHeadWriter head(this, SIZE_OFFSET);

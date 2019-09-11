@@ -71,7 +71,7 @@ class JfrChunk : public JfrCHeapObj {
   int64_t last_chunk_duration() const;
 
   void set_time_stamp();
-  void update_current_time();
+  void update_current_nanos();
 
   void set_path(const char* path);
   const char* path() const;

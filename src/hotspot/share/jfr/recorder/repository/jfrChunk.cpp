@@ -120,7 +120,7 @@ void JfrChunk::update_start_nanos() {
   _start_nanos = _last_update_nanos = nanos_now();
 }
 
-void JfrChunk::update_current_time() {
+void JfrChunk::update_current_nanos() {
   _last_update_nanos = nanos_now();
 }
 
