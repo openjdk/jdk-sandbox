@@ -85,15 +85,20 @@ class SpaceManager : public CHeapObj<mtClass> {
   void create_block_freelist();
   void add_allocation_to_block_freelist(MetaWord* p, size_t word_size);
 
-  // The current chunk is too small to service an allocation request, and we cannot enlarge
-  // it in-place. Before we allocate a new chunk, take care of the remaining space in the
-  // current chunk by storing it in the deallocation freelist.
+  // The remaining committed free space in the current chunk is chopped up and stored in the block
+  // free list for later use. As a result, the current chunk will remain current but completely
+  // used up. This is a preparation for calling allocate_new_current_chunk().
   void retire_current_chunk();
 
   // Given a requested word size, will allocate a chunk large enough to at least fit that
-  // size, but may be larger according to the rules in the ChunkAllocSequence.
-  // Updates counters and adds the chunk to the head of the chunk list.
-  Metachunk* allocate_chunk_to_fit(size_t requested_word_size);
+  // size, but may be larger according to internal heuristics.
+  //
+  // On success, it will replace the current chunk with the newly allocated one, which will
+  // become the current chunk. The old current chunk should be retired beforehand.
+  //
+  // May fail if we could not allocate a new chunk. In that case the current chunk remains
+  // unchanged and false is returned.
+  bool allocate_new_current_chunk(size_t requested_word_size);
 
   // Prematurely returns a metaspace allocation to the _block_freelists
   // because it is not needed anymore (requires CLD lock to be active).

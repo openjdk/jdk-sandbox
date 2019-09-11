@@ -209,8 +209,12 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
 
     c = _vslist->allocate_root_chunk();
 
-    // This should always work. Note that getting the root chunk may not mean we committed memory.
-    assert(c != NULL, "Unexpected");
+    // This may have failed if the virtual space list is exhausted but it cannot be expanded
+    // by a new node (class space).
+    if (c == NULL) {
+      return NULL;
+    }
+
     assert(c->level() == chklvl::LOWEST_CHUNK_LEVEL, "Not a root chunk?");
 
     // Split this root chunk to the desired chunk size.

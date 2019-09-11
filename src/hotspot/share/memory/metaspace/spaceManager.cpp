@@ -81,17 +81,24 @@ static size_t get_net_allocation_word_size(size_t raw_word_size) {
 
 }
 
-
-
 // Given a requested word size, will allocate a chunk large enough to at least fit that
-// size, but may be larger according to the rules in the ChunkAllocSequence.
-// Updates counters and adds the chunk to the head of the chunk list.
-Metachunk* SpaceManager::allocate_chunk_to_fit(size_t requested_word_size) {
+// size, but may be larger according to internal heuristics.
+//
+// On success, it will replace the current chunk with the newly allocated one, which will
+// become the current chunk. The old current chunk should be retired beforehand.
+//
+// May fail if we could not allocate a new chunk. In that case the current chunk remains
+// unchanged and false is returned.
+bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   assert_lock_strong(lock());
 
   guarantee(requested_word_size < chklvl::MAX_CHUNK_WORD_SIZE,
             "Requested size too large (" SIZE_FORMAT ").", requested_word_size);
+
+  // If we have a current chunk, it should have been retired (almost empty) beforehand.
+  // See: retire_current_chunk().
+  assert(current_chunk() == NULL || current_chunk()->free_below_committed_words() <= 10, "Must retire chunk beforehand");
 
   const chklvl_t min_level = chklvl::level_fitting_word_size(requested_word_size);
   chklvl_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.size());
@@ -101,7 +108,12 @@ Metachunk* SpaceManager::allocate_chunk_to_fit(size_t requested_word_size) {
   }
 
   Metachunk* c = _chunk_manager->get_chunk(min_level, pref_level);
-  assert(c != NULL, "Could not get a chunk");
+  if (c == NULL) {
+    log_debug(metaspace)("SpaceManager %s: failed to allocate new chunk for requested word size " SIZE_FORMAT ".",
+                         _name, requested_word_size);
+    return false;
+  }
+
   assert(c->is_in_use(), "Wrong chunk state.");
   assert(c->level() <= min_level && c->level() >= pref_level, "Sanity");
 
@@ -144,9 +156,6 @@ SpaceManager::SpaceManager(ChunkManager* chunk_manager,
 SpaceManager::~SpaceManager() {
 
   MutexLocker fcl(lock(), Mutex::_no_safepoint_check_flag);
-
-  // Return all chunks to our chunk manager.
-  // Note: this destroys the _chunks list.
   Metachunk* c = _chunks.first();
   Metachunk* c2 = NULL;
   while(c) {
@@ -164,8 +173,9 @@ SpaceManager::~SpaceManager() {
 
 }
 
-// The current chunk is unable to service a request. The remainder of the chunk is
-// chopped into blocks and fed into the _block_freelists, in the hope of later reuse.
+// The remaining committed free space in the current chunk is chopped up and stored in the block
+// free list for later use. As a result, the current chunk will remain current but completely
+// used up. This is a preparation for calling allocate_new_current_chunk().
 void SpaceManager::retire_current_chunk() {
   assert_lock_strong(lock());
 
@@ -175,38 +185,24 @@ void SpaceManager::retire_current_chunk() {
   log_debug(metaspace)("SpaceManager %s: retiring chunk " METACHUNK_FULL_FORMAT ".",
                        _name, METACHUNK_FULL_FORMAT_ARGS(c));
 
-  // We can run into very rare situations where we would retire a completely empty chunk.
-  // This should be exceedingly rare: the chunk was created to fit a prior, smaller, allocation,
-  // and then the allocation did not go thru since we hit the commit limit, or was immediately
-  // immediately deallocated and that hit the fast path (see Metachunk::attempt_roll_back_allocation()).
-  // Then, that allocation was followed by a larger allocation which is too small for the still
-  // empty current chunk.
-  if (c->used_words() == 0) {
-    // (A)
-    log_trace(metaspace)("SpaceManager %s: ... completely empty, return to freelist: chunk" METACHUNK_FORMAT ".",
-                         _name, METACHUNK_FORMAT_ARGS(c));
+  // Side note:
+  // In theory it could happen that we are asked to retire a completely empty chunk. This may be the
+  // result of rolled back allocations (see deallocate in place) and a lot of luck.
+  // But since these cases should be exceedingly rare, we do not handle them special in order to keep
+  // the code simple.
 
-    // Remove the current chunk from our list and return it to the chunk manager.
-    _chunks.remove(c);
-    _chunk_manager->return_chunk(c);
-
-  } else {
-    // (B)
-    size_t raw_remaining_words = c->free_below_committed_words();
-    size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
-    if (net_remaining_words > 0) {
-      bool did_hit_limit = false;
-      MetaWord* ptr = c->allocate(net_remaining_words, &did_hit_limit);
-      assert(ptr != NULL && did_hit_limit == false, "Should have worked");
-      add_allocation_to_block_freelist(ptr, net_remaining_words);
-      _total_used_words_counter->increment_by(net_remaining_words);
-    }
+  size_t raw_remaining_words = c->free_below_committed_words();
+  size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
+  if (net_remaining_words > 0) {
+    bool did_hit_limit = false;
+    MetaWord* ptr = c->allocate(net_remaining_words, &did_hit_limit);
+    assert(ptr != NULL && did_hit_limit == false, "Should have worked");
+    add_allocation_to_block_freelist(ptr, net_remaining_words);
+    _total_used_words_counter->increment_by(net_remaining_words);
   }
 
   // After this operation: the current chunk should have (almost) no free committed space left.
-  // It could also be NULL, if we hit case (A) and returned the only chunk in this space manager.
-  assert(current_chunk() == NULL ||
-         current_chunk()->free_below_committed_words() <= highest_possible_delta_between_raw_and_net_size,
+  assert(current_chunk()->free_below_committed_words() <= highest_possible_delta_between_raw_and_net_size,
          "Chunk retiring did not work (current chunk " METACHUNK_FULL_FORMAT ").",
          METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
 
@@ -234,8 +230,11 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   // Allocate first chunk if needed.
   if (current_chunk() == NULL) {
-    Metachunk* c = allocate_chunk_to_fit(raw_word_size);
-    assert(c != NULL && _chunks.size() == 1 && c == current_chunk(), "Should be");
+    if (allocate_new_current_chunk(raw_word_size) == false) {
+      did_hit_limit = true;
+    } else {
+      assert(current_chunk() != NULL && current_chunk()->free_words() >= raw_word_size, "Sanity");
+    }
   }
 
   // 1) Attempt to allocate from the dictionary of deallocated blocks.
@@ -309,12 +308,14 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     DEBUG_ONLY(InternalStats::inc_num_chunks_retired();)
 
     // Allocate a new chunk.
-    Metachunk* c = allocate_chunk_to_fit(raw_word_size);
-    assert(c != NULL && _chunks.size() > 0 && c == current_chunk(), "Should be");
-
-    p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
-    log_trace(metaspace)("SpaceManager %s: .. allocated new chunk " CHKLVL_FORMAT " and taken from that.",
-                         _name, current_chunk()->level());
+    if (allocate_new_current_chunk(raw_word_size) == false) {
+      did_hit_limit = true;
+    } else {
+      assert(current_chunk() != NULL && current_chunk()->free_words() >= raw_word_size, "Sanity");
+      p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
+      log_trace(metaspace)("SpaceManager %s: .. allocated new chunk " CHKLVL_FORMAT " and taken from that.",
+                           _name, current_chunk()->level());
+    }
 
   }
 
@@ -324,12 +325,11 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     DEBUG_ONLY(InternalStats::inc_num_allocs_failed_limit();)
   } else {
     DEBUG_ONLY(InternalStats::inc_num_allocs();)
+    _total_used_words_counter->increment_by(raw_word_size);
   }
 
   log_trace(metaspace)("SpaceManager %s: returned " PTR_FORMAT ".",
                        _name, p2i(p));
-
-  _total_used_words_counter->increment_by(raw_word_size);
 
   return p;
 

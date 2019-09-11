@@ -87,7 +87,8 @@ public:
   // Allocate a root chunk from this list.
   // Note: this just returns a chunk whose memory is reserved; no memory is committed yet.
   // Hence, before using this chunk, it must be committed.
-  // Also, no limits are checked, since no committing takes place.
+  // May return NULL if vslist would need to be expanded to hold the new root node but
+  // the list cannot be expanded (in practice this means we reached CompressedClassSpaceSize).
   Metachunk* allocate_root_chunk();
 
   // Attempts to purge nodes. This will remove and delete nodes which only contain free chunks.
