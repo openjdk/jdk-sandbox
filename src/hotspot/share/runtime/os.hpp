@@ -466,8 +466,7 @@ class os: AllStatic {
   // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
   static intx current_thread_id();
   static int current_process_id();
-  // Implementation of java.lang.Thread.sleep for JavaThreads
-  static int sleep(JavaThread* thread, jlong ms);
+
   // Short standalone OS sleep routines suitable for slow path spin loop.
   // Ignores safepoints/suspension/Thread.interrupt() (so keep it short).
   // ms/ns = 0, will sleep for the least amount of time allowed by the OS.
@@ -742,6 +741,7 @@ class os: AllStatic {
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag, const NativeCallStack& stack);
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag);
 
+  // handles NULL pointers
   static void  free    (void *memblock);
   static char* strdup(const char *, MEMFLAGS flags = mtInternal);  // Like strdup
   // Like strdup, but exit VM when strdup() returns NULL
