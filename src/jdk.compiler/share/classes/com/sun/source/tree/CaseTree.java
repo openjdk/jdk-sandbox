@@ -61,11 +61,11 @@ public interface CaseTree extends Tree {
      * @return labels for this case
      * @since 12
      *
-     * @deprecated This method is modeling a case with multiple labels,
+     * @preview This method is modeling a case with multiple labels,
      * which is part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="12")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
     List<? extends ExpressionTree> getExpressions();
 
     /**
@@ -86,11 +86,11 @@ public interface CaseTree extends Tree {
      * @return case value or null
      * @since 12
      *
-     * @deprecated This method is modeling a rule case,
+     * @preview This method is modeling a rule case,
      * which is part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="12")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
     public default Tree getBody() {
         return null;
     }
@@ -101,11 +101,12 @@ public interface CaseTree extends Tree {
      * @return the kind of this case
      * @since 12
      *
-     * @deprecated This method is used to model a rule case,
+     * @preview This method is used to model a rule case,
      * which is part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="12")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
     public default CaseKind getCaseKind() {
         return CaseKind.STATEMENT;
     }
@@ -119,11 +120,12 @@ public interface CaseTree extends Tree {
      *
      * @since 12
      *
-     * @deprecated This enum is used to model a rule case,
+     * @preview This enum is used to model a rule case,
      * which is part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="12")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
     public enum CaseKind {
         /**
          * Case is in the form: {@code case <expression>: <statements>}.

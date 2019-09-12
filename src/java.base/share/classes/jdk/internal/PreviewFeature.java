@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,39 +23,38 @@
  * questions.
  */
 
-package com.sun.source.tree;
+package jdk.internal;
 
-import java.util.List;
+import java.lang.annotation.*;
 
 /**
- * A tree node for a {@code switch} expression.
- *
- * For example:
- * <pre>
- *   switch ( <em>expression</em> ) {
- *     <em>cases</em>
- *   }
- * </pre>
- *
- * @jls 15.29 Switch Expressions
- *
- * @since 12
- *
- * @preview This method is modeling switch expressions,
- * which are part of a preview feature and may be removed
- * if the preview feature is removed.
+ * Indicates the API declaration in question is associated with a
+ * <em>preview feature</em>. See JEP 12: "Preview Language and VM
+ * Features" (http://openjdk.java.net/jeps/12).
+ * @since 13
  */
-@jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
-public interface SwitchExpressionTree extends ExpressionTree {
+// Match the meaningful targets of java.lang.Deprecated, omit local
+// variables and parameter declarations
+@Target({ElementType.METHOD,
+         ElementType.CONSTRUCTOR,
+         ElementType.FIELD,
+         ElementType.PACKAGE,
+         ElementType.MODULE,
+         ElementType.TYPE})
+ // CLASS retention will hopefully be sufficient for the purposes at hand
+@Retention(RetentionPolicy.CLASS)
+// *Not* @Documented
+public @interface PreviewFeature {
     /**
-     * Returns the expression for the {@code switch} expression.
-     * @return the expression
+     * Name of the preview feature the annotated API is associated
+     * with.
      */
-    ExpressionTree getExpression();
+    public Feature feature();
 
-    /**
-     * Returns the cases for the {@code switch} expression.
-     * @return the cases
-     */
-    List<? extends CaseTree> getCases();
+    public boolean essentialAPI() default false;
+
+    public enum Feature {
+        SWITCH_EXPRESSIONS,
+        TEXT_BLOCKS;
+    }
 }

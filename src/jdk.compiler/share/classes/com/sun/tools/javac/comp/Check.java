@@ -93,6 +93,7 @@ public class Check {
     private final Source source;
     private final Target target;
     private final Profile profile;
+    private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
 
     // The set of lint options currently in effect. It is initialized
@@ -139,10 +140,12 @@ public class Check {
         syntheticNameChar = target.syntheticNameChar();
 
         profile = Profile.instance(context);
+        preview = Preview.instance(context);
 
         boolean verboseDeprecated = lint.isEnabled(LintCategory.DEPRECATION);
         boolean verboseRemoval = lint.isEnabled(LintCategory.REMOVAL);
         boolean verboseUnchecked = lint.isEnabled(LintCategory.UNCHECKED);
+        boolean verbosePreview = lint.isEnabled(LintCategory.PREVIEW);
         boolean enforceMandatoryWarnings = true;
 
         deprecationHandler = new MandatoryWarningHandler(log, verboseDeprecated,
@@ -153,6 +156,8 @@ public class Check {
                 enforceMandatoryWarnings, "unchecked", LintCategory.UNCHECKED);
         sunApiHandler = new MandatoryWarningHandler(log, false,
                 enforceMandatoryWarnings, "sunapi", null);
+        previewHandler = new MandatoryWarningHandler(log, verbosePreview,
+                enforceMandatoryWarnings, "preview", null);
 
         deferredLintHandler = DeferredLintHandler.instance(context);
     }
@@ -181,6 +186,10 @@ public class Check {
     /** A handler for messages about using proprietary API.
      */
     private MandatoryWarningHandler sunApiHandler;
+
+    /** A handler for messages about preview features.
+     */
+    private MandatoryWarningHandler previewHandler;
 
     /** A handler for deferred lint warnings.
      */
@@ -224,6 +233,27 @@ public class Check {
         }
     }
 
+    /** Warn about deprecated symbol.
+     *  @param pos        Position to be used for error reporting.
+     *  @param sym        The deprecated symbol.
+     */
+    void warnPreview(DiagnosticPosition pos, Symbol sym) {
+        if ((sym.flags() & PREVIEW_ESSENTIAL_API) != 0) {
+            previewHandler.report(pos, Warnings.IsPreview(sym));
+        } else {
+            warnPreview(pos, Warnings.IsPreview(sym));
+        }
+    }
+
+    /** Log a preview warning.
+     *  @param pos        Position to be used for error reporting.
+     *  @param msg        A Warning describing the problem.
+     */
+    public void warnPreview(DiagnosticPosition pos, Warning warnKey) {
+        if (!lint.isSuppressed(LintCategory.PREVIEW))
+            previewHandler.report(pos, warnKey);
+    }
+
     /** Warn about unchecked operation.
      *  @param pos        Position to be used for error reporting.
      *  @param msg        A string describing the problem.
@@ -262,6 +292,7 @@ public class Check {
         removalHandler.reportDeferredDiagnostic();
         uncheckedHandler.reportDeferredDiagnostic();
         sunApiHandler.reportDeferredDiagnostic();
+        previewHandler.reportDeferredDiagnostic();
     }
 
 
@@ -3287,6 +3318,16 @@ public class Check {
     void checkProfile(final DiagnosticPosition pos, final Symbol s) {
         if (profile != Profile.DEFAULT && (s.flags() & NOT_IN_PROFILE) != 0) {
             log.error(pos, Errors.NotInProfile(s, profile));
+        }
+    }
+
+    void checkPreview(DiagnosticPosition pos, Symbol s) {
+        if ((s.flags() & PREVIEW_API) != 0) {
+            if ((s.flags() & PREVIEW_ESSENTIAL_API) != 0 && !preview.isEnabled()) {
+                log.error(pos, Errors.IsPreview(s));
+            } else {
+                deferredLintHandler.report(() -> warnPreview(pos, s));
+            }
         }
     }
 

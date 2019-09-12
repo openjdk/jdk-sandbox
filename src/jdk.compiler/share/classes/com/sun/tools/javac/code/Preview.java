@@ -27,7 +27,7 @@ package com.sun.tools.javac.code;
 
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
-import com.sun.tools.javac.comp.Infer;
+import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
@@ -36,17 +36,11 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.Error;
 import com.sun.tools.javac.util.JCDiagnostic.SimpleDiagnosticPosition;
-import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.MandatoryWarningHandler;
-import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Options;
 
 import javax.tools.JavaFileObject;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 import static com.sun.tools.javac.main.Option.PREVIEW;
 
@@ -62,11 +56,8 @@ import static com.sun.tools.javac.main.Option.PREVIEW;
  */
 public class Preview {
 
-    /** flag: are preview featutres enabled */
+    /** flag: are preview features enabled */
     private final boolean enabled;
-
-    /** the diag handler to manage preview feature usage diagnostics */
-    private final MandatoryWarningHandler previewHandler;
 
     /** test flag: should all features be considered as preview features? */
     private final boolean forcePreview;
@@ -75,8 +66,7 @@ public class Preview {
     private final Map<Integer, Source> majorVersionToSource;
 
 
-    private final Lint lint;
-    private final Log log;
+    private final Check check;
 
     private static final Context.Key<Preview> previewKey = new Context.Key<>();
 
@@ -92,10 +82,7 @@ public class Preview {
         context.put(previewKey, this);
         Options options = Options.instance(context);
         enabled = options.isSet(PREVIEW);
-        log = Log.instance(context);
-        lint = Lint.instance(context);
-        this.previewHandler =
-                new MandatoryWarningHandler(log, lint.isEnabled(LintCategory.PREVIEW), true, "preview", LintCategory.PREVIEW);
+        check = Check.instance(context);
         forcePreview = options.isSet("forcePreview");
         majorVersionToSource = initMajorVersionToSourceMap();
     }
@@ -131,11 +118,9 @@ public class Preview {
     public void warnPreview(DiagnosticPosition pos, Feature feature) {
         Assert.check(isEnabled());
         Assert.check(isPreview(feature));
-        if (!lint.isSuppressed(LintCategory.PREVIEW)) {
-            previewHandler.report(pos, feature.isPlural() ?
+        check.warnPreview(pos, feature.isPlural() ?
                     Warnings.PreviewFeatureUsePlural(feature.nameFragment()) :
                     Warnings.PreviewFeatureUse(feature.nameFragment()));
-        }
     }
 
     /**
@@ -145,10 +130,8 @@ public class Preview {
      */
     public void warnPreview(JavaFileObject classfile, int majorVersion) {
         Assert.check(isEnabled());
-        if (!lint.isSuppressed(LintCategory.PREVIEW)) {
-            previewHandler.report(null,
+        check.warnPreview(null,
                     Warnings.PreviewFeatureUseClassfile(classfile, majorVersionToSource.get(majorVersion).name));
-        }
     }
 
     /**
@@ -200,10 +183,4 @@ public class Preview {
         return Errors.PreviewFeatureDisabledClassfile(classfile, majorVersionToSource.get(majorVersion).name);
     }
 
-    /**
-     * Report any deferred diagnostics.
-     */
-    public void reportDeferredDiagnostics() {
-        previewHandler.reportDeferredDiagnostic();
-    }
 }

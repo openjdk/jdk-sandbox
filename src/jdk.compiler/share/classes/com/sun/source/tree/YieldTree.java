@@ -37,11 +37,11 @@ package com.sun.source.tree;
  *
  * @since 13
  *
- * @deprecated This class is modeling yield from switch expressions,
+ * @preview This class is modeling yield from switch expressions,
  * which are part of a preview feature and may be removed if
  * the preview feature is removed.
  */
-@Deprecated(forRemoval=true, since="13")
+@jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
 public interface YieldTree extends StatementTree {
 
     /**

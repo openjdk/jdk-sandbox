@@ -361,13 +361,13 @@ public interface TreeVisitor<R,P> {
      * @return a result value
      * @since 12
      *
-     * @deprecated
+     * @preview
      * This method is modeling switch expressions,
      * which are part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="12")
-    @SuppressWarnings("removal")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
     R visitSwitchExpression(SwitchExpressionTree node, P p);
 
     /**
@@ -563,12 +563,12 @@ public interface TreeVisitor<R,P> {
      * @return a result value
      * @since 13
      *
-     * @deprecated
+     * @preview
      * This method is modeling yield statement,
      * which are part of a preview feature and may be removed
      * if the preview feature is removed.
      */
-    @Deprecated(forRemoval=true, since="13")
-    @SuppressWarnings("removal")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
     R visitYield(YieldTree node, P p);
 }

@@ -49,6 +49,14 @@ $(BUILDTOOLS_OUTPUTDIR)/gensrc/%.interim/module-info.java: \
 TARGETS += $(patsubst %, $(BUILDTOOLS_OUTPUTDIR)/gensrc/%/module-info.java, \
     $(INTERIM_LANGTOOLS_MODULES))
 
+$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim/jdk/internal/PreviewFeature.java: \
+    $(TOPDIR)/src/java.base/share/classes/jdk/internal/PreviewFeature.java
+	$(call LogInfo, Copying PreviewFeature.java)
+	$(call MakeDir, $(@D))
+	$(CP) $< $@
+
+TARGETS += $(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim/jdk/internal/PreviewFeature.java
+
 ################################################################################
 # Setup the rules to build interim langtools, which is compiled by the boot
 # javac and can be run on the boot jdk. This will be used to compile the rest of
@@ -72,6 +80,8 @@ define SetupInterimModule
       BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules/$1.interim, \
       ADD_JAVAC_FLAGS := --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules \
           $$(INTERIM_LANGTOOLS_ADD_EXPORTS) \
+          --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \
+          --add-exports java.base/jdk.internal=jdk.compiler.interim \
           -Xlint:-module, \
   ))
 

@@ -244,13 +244,13 @@ public interface Tree {
          *
          * @since 12
          *
-         * @deprecated
+         * @preview
          * This enum constant is modeling switch expressions,
          * which are part of a preview feature and may be removed
          * if the preview feature is removed.
          */
-        @Deprecated(forRemoval=true, since="12")
-        @SuppressWarnings("removal")
+        @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+        @SuppressWarnings("preview")
         SWITCH_EXPRESSION(SwitchExpressionTree.class),
 
         /**
@@ -663,13 +663,13 @@ public interface Tree {
          *
          * @since 13
          *
-         * @deprecated
+         * @preview
          * This enum constant is modeling yield statement,
          * which are part of a preview feature and may be removed
          * if the preview feature is removed.
          */
-        @Deprecated(forRemoval=true, since="13")
-        @SuppressWarnings("removal")
+        @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+        @SuppressWarnings("preview")
         YIELD(YieldTree.class);
 
 

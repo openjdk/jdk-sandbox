@@ -433,7 +433,7 @@ public class TypeEnter implements Completer {
         Type attribImportType(JCTree tree, Env<AttrContext> env) {
             Assert.check(completionEnabled);
             Lint prevLint = chk.setLint(allowDeprecationOnImport ?
-                    lint : lint.suppress(LintCategory.DEPRECATION, LintCategory.REMOVAL));
+                    lint : lint.suppress(LintCategory.DEPRECATION, LintCategory.REMOVAL, LintCategory.PREVIEW));
             try {
                 // To prevent deep recursion, suppress completion of some
                 // types.
@@ -1168,6 +1168,8 @@ public class TypeEnter implements Completer {
                                 sym.flags_field |= DEPRECATED_REMOVAL;
                             }
                         });
+            } else if (a.annotationType.type == syms.previewFeatureType) {
+                sym.flags_field |= Flags.PREVIEW_API;
             }
         }
     }

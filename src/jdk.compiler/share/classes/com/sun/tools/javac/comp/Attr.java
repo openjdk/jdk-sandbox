@@ -1486,7 +1486,7 @@ public class Attr extends JCTree.Visitor {
             // check that there are no duplicate case labels or default clauses.
             Set<Object> labels = new HashSet<>(); // The set of case labels.
             boolean hasDefault = false;      // Is there a default label?
-            @SuppressWarnings("removal")
+            @SuppressWarnings("preview")
             CaseKind caseKind = null;
             boolean wasError = false;
             for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
@@ -4092,6 +4092,7 @@ public class Attr extends JCTree.Visitor {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
                 chk.checkProfile(tree.pos(), sym);
+                chk.checkPreview(tree.pos(), sym);
             }
 
             // If symbol is a variable, check that its type and

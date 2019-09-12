@@ -1403,6 +1403,16 @@ public class ClassReader {
                             }
                         }
                     }
+                }  else if (proxy.type.tsym == syms.previewFeatureType.tsym) {
+                    for (Pair<Name, Attribute> v : proxy.values) {
+                        if (v.fst == names.essentialAPI && v.snd instanceof Attribute.Constant) {
+                            Attribute.Constant c = (Attribute.Constant)v.snd;
+                            if (c.type == syms.booleanType && ((Integer)c.value) != 0) {
+                                sym.flags_field |= PREVIEW_ESSENTIAL_API;
+                            }
+                        }
+                    }
+                    sym.flags_field |= PREVIEW_API;
                 }
                 proxies.append(proxy);
             }
