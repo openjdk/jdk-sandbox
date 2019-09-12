@@ -221,6 +221,15 @@ public class LinuxDebBundler extends AbstractBundler {
                 (s, p) -> s
         );
 
+    public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
+        new StandardBundlerParam<>(
+                Arguments.CLIOptions.LINUX_SHORTCUT_HINT.getId(),
+                Boolean.class,
+                params -> false,
+                (s, p) -> (s == null || "null".equalsIgnoreCase(s))
+                        ? false : Boolean.valueOf(s)
+        );
+
     private final static String DEFAULT_ICON = "java32.png";
     private final static String DEFAULT_CONTROL_TEMPLATE = "template.control";
     private final static String DEFAULT_PRERM_TEMPLATE = "template.prerm";
@@ -507,10 +516,11 @@ public class LinuxDebBundler extends AbstractBundler {
 
             if (!StandardBundlerParam.isRuntimeInstaller(params)) {
                 // prepare desktop shortcut
-                try (Writer w = Files.newBufferedWriter(
+                if (SHORTCUT_HINT.fetchFrom(params)) {
+                    try (Writer w = Files.newBufferedWriter(
                         getConfig_DesktopShortcutFile(
                                 binDir, addLauncher).toPath())) {
-                    String content = preprocessTextResource(
+                        String content = preprocessTextResource(
                             getConfig_DesktopShortcutFile(binDir,
                             addLauncher).getName(),
                             I18N.getString("resource.menu-shortcut-descriptor"),
@@ -518,7 +528,8 @@ public class LinuxDebBundler extends AbstractBundler {
                             addLauncherData,
                             VERBOSE.fetchFrom(params),
                             RESOURCE_DIR.fetchFrom(params));
-                    w.write(content);
+                        w.write(content);
+                    }
                 }
             }
 
@@ -707,10 +718,11 @@ public class LinuxDebBundler extends AbstractBundler {
         }
 
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            //prepare desktop shortcut
-            try (Writer w = Files.newBufferedWriter(
+            // prepare desktop shortcut
+            if (SHORTCUT_HINT.fetchFrom(params)) {
+                try (Writer w = Files.newBufferedWriter(
                     getConfig_DesktopShortcutFile(binDir, params).toPath())) {
-                String content = preprocessTextResource(
+                    String content = preprocessTextResource(
                         getConfig_DesktopShortcutFile(
                         binDir, params).getName(),
                         I18N.getString("resource.menu-shortcut-descriptor"),
@@ -718,7 +730,8 @@ public class LinuxDebBundler extends AbstractBundler {
                         data,
                         VERBOSE.fetchFrom(params),
                         RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
+                    w.write(content);
+                }
             }
         }
         // prepare control file

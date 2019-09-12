@@ -129,6 +129,7 @@ class ValidOptions {
                     USE.INSTALL);
             options.put(CLIOptions.LINUX_MENU_GROUP.getId(), USE.INSTALL);
             options.put(CLIOptions.RELEASE.getId(), USE.INSTALL);
+            options.put(CLIOptions.LINUX_SHORTCUT_HINT.getId(), USE.INSTALL);
         }
     }
 

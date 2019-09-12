@@ -492,14 +492,6 @@ public class WinMsiBundler  extends AbstractBundler {
         try {
             imageDir.mkdirs();
 
-            boolean menuShortcut = MENU_HINT.fetchFrom(params);
-            boolean desktopShortcut = SHORTCUT_HINT.fetchFrom(params);
-            if (!menuShortcut && !desktopShortcut) {
-                // both can not be false - user will not find the app
-                Log.verbose(I18N.getString("message.one-shortcut-required"));
-                params.put(MENU_HINT.getID(), true);
-            }
-
             prepareBasicProjectConfig(params);
             if (prepareProto(params)) {
                 wixVars = prepareWiXConfig(params);

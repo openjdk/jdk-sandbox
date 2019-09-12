@@ -33,7 +33,7 @@ import jdk.jpackage.test.PackageTest;
  * to change the default installation directory.
  * Test application should be installed in %ProgramFiles%\SimplePackageTest directory.
  * Installer should install test app for all users (machine wide).
- * Installer should create a shortcut for application launcher in Windows Menu.
+ * Installer should not create any shortcuts.
  */
 
 /*

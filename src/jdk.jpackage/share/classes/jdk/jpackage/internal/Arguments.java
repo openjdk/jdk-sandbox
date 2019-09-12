@@ -331,6 +331,11 @@ public class Arguments {
         LINUX_PACKAGE_DEPENDENCIES ("linux-package-deps",
                 OptionCategories.PLATFORM_LINUX),
 
+        LINUX_SHORTCUT_HINT ("linux-shortcut",
+                OptionCategories.PLATFORM_LINUX, () -> {
+            setOptionValue("linux-shortcut", true);
+        }),
+
         LINUX_MENU_GROUP ("linux-menu-group", OptionCategories.PLATFORM_LINUX);
 
         private final String id;

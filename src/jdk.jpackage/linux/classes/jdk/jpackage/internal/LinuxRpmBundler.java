@@ -154,6 +154,15 @@ public class LinuxRpmBundler extends AbstractBundler {
             },
             (s, p) -> s);
 
+    public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
+        new StandardBundlerParam<>(
+                Arguments.CLIOptions.LINUX_SHORTCUT_HINT.getId(),
+                Boolean.class,
+                params -> false,
+                (s, p) -> (s == null || "null".equalsIgnoreCase(s))
+                        ? false : Boolean.valueOf(s)
+        );
+
     private final static String DEFAULT_ICON = "java32.png";
     private final static String DEFAULT_SPEC_TEMPLATE = "template.spec";
     private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
@@ -324,17 +333,19 @@ public class LinuxRpmBundler extends AbstractBundler {
             addLauncherData.put("DESKTOP_MIMES", "");
 
             // prepare desktop shortcut
-            try (Writer w = Files.newBufferedWriter(
+            if (SHORTCUT_HINT.fetchFrom(params)) {
+                try (Writer w = Files.newBufferedWriter(
                     getConfig_DesktopShortcutFile(binDir,
                             addLauncher).toPath())) {
-                String content = preprocessTextResource(
+                    String content = preprocessTextResource(
                         getConfig_DesktopShortcutFile(binDir,
                         addLauncher).getName(),
                         I18N.getString("resource.menu-shortcut-descriptor"),
                         DEFAULT_DESKTOP_FILE_TEMPLATE, addLauncherData,
                         VERBOSE.fetchFrom(params),
                         RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
+                    w.write(content);
+                }
             }
 
             // prepare installer icon
@@ -525,17 +536,19 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
 
         if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            //prepare desktop shortcut
-            try (Writer w = Files.newBufferedWriter(
+            // prepare desktop shortcut
+            if (SHORTCUT_HINT.fetchFrom(params)) {
+                try (Writer w = Files.newBufferedWriter(
                     getConfig_DesktopShortcutFile(binDir, params).toPath())) {
-                String content = preprocessTextResource(
+                    String content = preprocessTextResource(
                         getConfig_DesktopShortcutFile(binDir,
-                                                      params).getName(),
-                        I18N.getString("resource.menu-shortcut-descriptor"),
+                                                          params).getName(),
+                    I18N.getString("resource.menu-shortcut-descriptor"),
                         DEFAULT_DESKTOP_FILE_TEMPLATE, data,
                         VERBOSE.fetchFrom(params),
                         RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
+                    w.write(content);
+                }
             }
         }
 
