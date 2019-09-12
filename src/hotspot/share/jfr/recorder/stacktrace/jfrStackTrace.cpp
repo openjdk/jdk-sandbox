@@ -72,7 +72,7 @@ JfrStackTrace::JfrStackTrace(traceid id, const JfrStackTrace& trace, const JfrSt
 }
 
 JfrStackTrace::~JfrStackTrace() {
-  if (_frames_ownership && _frames != NULL) {
+  if (_frames_ownership) {
     FREE_C_HEAP_ARRAY(JfrStackFrame, _frames);
   }
 }

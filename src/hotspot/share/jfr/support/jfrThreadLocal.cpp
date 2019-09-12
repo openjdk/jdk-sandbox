@@ -125,8 +125,7 @@ void JfrThreadLocal::release(JfrThreadLocal* tl, Thread* t) {
   if (tl->has_java_buffer()) {
     JfrStorage::release_thread_local(tl->java_buffer(), t);
   }
-  if (tl->_stackframes != NULL) {
-    FREE_C_HEAP_ARRAY(JfrStackFrame, tl->_stackframes);
+  FREE_C_HEAP_ARRAY(JfrStackFrame, tl->_stackframes);
   }
 }
 
