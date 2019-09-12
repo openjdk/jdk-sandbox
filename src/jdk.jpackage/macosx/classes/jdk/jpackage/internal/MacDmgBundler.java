@@ -217,11 +217,30 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         String typicalPaths[] = {"/Developer/Tools/SetFile",
                 "/usr/bin/SetFile", "/Developer/usr/bin/SetFile"};
 
+        String setFilePath = null;
         for (String path: typicalPaths) {
             File f = new File(path);
             if (f.exists() && f.canExecute()) {
-                return path;
+                setFilePath = path;
+                break;
             }
+        }
+
+        // Validate SetFile, if Xcode is not installed it will run, but exit with error
+        // code
+        if (setFilePath != null) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder(setFilePath, "-h");
+                Process p = pb.start();
+                int code = p.waitFor();
+                if (code == 0) {
+                    return setFilePath;
+                }
+            } catch (Exception ignored) {}
+
+            // No need for generic find attempt. We found it, but it does not work.
+            // Probably due to missing xcode.
+            return null;
         }
 
         // generic find attempt
@@ -340,8 +359,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 Log.verbose("Cannot enable custom icon using SetFile utility");
             }
         } else {
-            Log.verbose(
-                "Skip enabling custom icon as SetFile utility is not found");
+            Log.verbose(I18N.getString("message.setfile.dmg"));
         }
 
         // Detach the temporary image

@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -277,6 +275,20 @@ public class MacAppBundler extends AbstractImageBundler {
                 throw new ConfigException(
                         I18N.getString("error.explicit-sign-no-cert"),
                         I18N.getString("error.explicit-sign-no-cert.advice"));
+            }
+
+            // Signing will not work without Xcode with command line developer tools
+            try {
+                ProcessBuilder pb = new ProcessBuilder("xcrun", "--help");
+                Process p = pb.start();
+                int code = p.waitFor();
+                if (code != 0) {
+                    throw new ConfigException(
+                        I18N.getString("error.no.xcode.signing"),
+                        I18N.getString("error.no.xcode.signing.advice"));
+                }
+            } catch (IOException | InterruptedException ex) {
+                throw new ConfigException(ex);
             }
         }
 
