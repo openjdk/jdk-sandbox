@@ -541,7 +541,7 @@ void RootChunkArea::print_on(outputStream* st) const {
 // a given memory range. Memory range must be a multiple of root chunk size.
 RootChunkAreaLUT::RootChunkAreaLUT(const MetaWord* base, size_t word_size)
   : _base(base),
-    _num(word_size / chklvl::MAX_CHUNK_WORD_SIZE),
+    _num((int)(word_size / chklvl::MAX_CHUNK_WORD_SIZE)),
     _arr(NULL)
 {
   assert_is_aligned(word_size, chklvl::MAX_CHUNK_WORD_SIZE);

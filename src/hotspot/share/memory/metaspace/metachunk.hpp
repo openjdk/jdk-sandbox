@@ -391,11 +391,11 @@ public:
   // Returns size, in words, of committed space of all chunks in all list.
   // Note: walks lists.
   size_t total_committed_word_size() const {
-    size_t l = 0;
+    size_t sum = 0;
     for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
-      l += list_for_level(l)->committed_word_size();
+      sum += list_for_level(l)->committed_word_size();
     }
-    return l;
+    return sum;
   }
 
   DEBUG_ONLY(void verify(bool slow) const;)

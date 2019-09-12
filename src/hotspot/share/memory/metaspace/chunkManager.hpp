@@ -34,7 +34,7 @@
 namespace metaspace {
 
 class VirtualSpaceList;
-class cm_stats_t;
+struct cm_stats_t;
 
 // class ChunkManager
 //

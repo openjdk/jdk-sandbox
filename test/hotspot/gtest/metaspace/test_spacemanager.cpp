@@ -117,7 +117,7 @@ class SpaceManagerTest {
 
 
     size_t words_allocated() const        { return _words_allocated; }
-    size_t num_allocations() const        { return _num_allocations; }
+    int num_allocations() const           { return _num_allocations; }
 
     int index() const                     { return _index; }
 
@@ -573,7 +573,7 @@ static const ChunkAllocSequence* const g_refl_allocseq_nonclass =
 static RandSizeGenerator rgen_1K_no_outliers(1, 128);
 
 // generates sizes between 1 and 256 words, small chance of large outliers
-static RandSizeGenerator rgen_1K_some_huge_outliers(1, 256, 0.05, MAX_CHUNK_WORD_SIZE / 64, MAX_CHUNK_WORD_SIZE / 2);
+static RandSizeGenerator rgen_1K_some_huge_outliers(1, 256, 0.05f, MAX_CHUNK_WORD_SIZE / 64, MAX_CHUNK_WORD_SIZE / 2);
 
 // generates medium sized sizes
 static RandSizeGenerator rgen_32K_no_outliers(128, 0x4000);

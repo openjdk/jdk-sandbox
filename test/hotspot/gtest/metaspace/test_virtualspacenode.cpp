@@ -410,7 +410,7 @@ public:
     // To capture split-off chunks. Note: it is okay to use this here as a temp object.
     MetachunkListCluster freelist;
 
-    const int granules_per_root_chunk = c->word_size() / Settings::commit_granule_words();
+    const int granules_per_root_chunk = (int)(c->word_size() / Settings::commit_granule_words());
 
     for (int granules_to_commit = 0; granules_to_commit < granules_per_root_chunk; granules_to_commit ++) {
 

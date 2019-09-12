@@ -155,7 +155,7 @@ class RootChunkAreaLUT {
   // area this address falls into.
   int index_by_address(const MetaWord* p) const {
     DEBUG_ONLY(check_pointer(p);)
-    int idx = (p - base()) / chklvl::MAX_CHUNK_WORD_SIZE;
+    int idx = (int)((p - base()) / chklvl::MAX_CHUNK_WORD_SIZE);
     assert(idx >= 0 && idx < _num, "Sanity");
     return idx;
   }

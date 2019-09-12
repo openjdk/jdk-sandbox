@@ -83,18 +83,18 @@ using metaspace::chklvl::NUM_CHUNK_LEVELS;
 // A little mockup to mimick and test the CommitMask in various tests
 
 class TestMap {
-  const int _len;
+  const size_t _len;
   char* _arr;
 public:
-  TestMap(int len) : _len(len), _arr(NULL) {
+  TestMap(size_t len) : _len(len), _arr(NULL) {
     _arr = NEW_C_HEAP_ARRAY(char, len, mtInternal);
     memset(_arr, 0, _len);
   }
   ~TestMap() { FREE_C_HEAP_ARRAY(char, _arr); }
 
-  int get_num_set(int from, int to) const {
+  int get_num_set(size_t from, size_t to) const {
     int result = 0;
-    for(int i = from; i < to; i ++) {
+    for(size_t i = from; i < to; i ++) {
       if (_arr[i] > 0) {
         result ++;
       }
@@ -102,13 +102,13 @@ public:
     return result;
   }
 
-  int get_num_set() const { return get_num_set(0, _len); }
+  size_t get_num_set() const { return get_num_set(0, _len); }
 
-  void set_range(int from, int to) {
+  void set_range(size_t from, size_t to) {
     memset(_arr + from, 1, to - from);
   }
 
-  void clear_range(int from, int to) {
+  void clear_range(size_t from, size_t to) {
     memset(_arr + from, 0, to - from);
   }
 

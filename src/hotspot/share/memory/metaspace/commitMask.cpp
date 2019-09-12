@@ -29,6 +29,7 @@
 
 #include "memory/metaspace/commitMask.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "runtime/stubRoutines.hpp"
 
 #include "utilities/align.hpp"
@@ -61,10 +62,6 @@ void CommitMask::verify(bool slow, bool do_touch_test) const {
   assert_is_aligned(_base, _words_per_bit * BytesPerWord);
   assert_is_aligned(_word_size, _words_per_bit);
 
-  if (slow) {
-    assert(CanUseSafeFetch32, "We need SafeFetch for this test.");
-  }
-
   if (do_touch_test) {
     for (idx_t i = 0; i < size(); i ++) {
       const MetaWord* const p = _base + (i * _words_per_bit);
@@ -77,7 +74,7 @@ void CommitMask::verify(bool slow, bool do_touch_test) const {
           // Note: results may differ between platforms. On Linux, this should be true since
           // we uncommit memory by setting protection to PROT_NONE. We may have to look if
           // this works as expected on other platforms.
-          if (CanUseSafeFetch32() && TEST_UNCOMMITTED_REGION) {
+          if (TEST_UNCOMMITTED_REGION && CanUseSafeFetch32()) {
             assert(os::is_readable_pointer(p) == false,
                    "index %u, pointer " PTR_FORMAT ", should not be accessible.",
                    (unsigned)i, p2i(p));

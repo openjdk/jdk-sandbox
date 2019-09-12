@@ -39,7 +39,7 @@ class Mutex;
 
 namespace metaspace {
 
-class sm_stats_t;
+struct sm_stats_t;
 
 // The SpaceManager:
 // - keeps a list of chunks-in-use by the class loader, as well as a current chunk used

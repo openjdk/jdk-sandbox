@@ -168,7 +168,7 @@ int VirtualSpaceList::purge(MetachunkListCluster* freelists) {
       if (_first_node == vsn) {
         _first_node = next_vsn;
       }
-      DEBUG_ONLY(vsn = (VirtualSpaceNode*)0xdeadbeef;)
+      DEBUG_ONLY(vsn = (VirtualSpaceNode*)((uintptr_t)(0xdeadbeef));)
       if (prev_vsn != NULL) {
         prev_vsn->set_next(next_vsn);
       }

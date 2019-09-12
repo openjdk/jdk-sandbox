@@ -24,7 +24,9 @@
 
 
 #include "precompiled.hpp"
-#include "metaspace/metaspaceTestsCommon.hpp"
+#include "runtime/os.hpp"
+
+#include "metaspaceTestsCommon.hpp"
 
 static int get_random(int limit) { return os::random() % limit; }
 
@@ -43,8 +45,8 @@ class CommitMaskTest {
   // Return a random sub range within [_base.._base + word_size),
   // aligned to granule size
   const MetaWord* calc_random_subrange(size_t* p_word_size) {
-    size_t l1 = get_random(_word_size);
-    size_t l2 = get_random(_word_size);
+    size_t l1 = get_random((int)_word_size);
+    size_t l2 = get_random((int)_word_size);
     if (l1 > l2) {
       size_t l = l1;
       l1 = l2;

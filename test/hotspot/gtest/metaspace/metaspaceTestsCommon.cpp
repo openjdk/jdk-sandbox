@@ -29,6 +29,9 @@
 
 #include "utilities/globalDefinitions.hpp"
 
+#ifdef _WIN32
+#include <psapi.h>
+#endif
 
 void calc_random_range(size_t outer_range_len, range_t* out, size_t alignment) {
 

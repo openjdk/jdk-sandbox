@@ -31,6 +31,7 @@
 #include "logging/logStream.hpp"
 
 #include "memory/metaspace/chunkLevel.hpp"
+#include "memory/metaspace/settings.hpp"
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/debug.hpp"
