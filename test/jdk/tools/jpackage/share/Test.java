@@ -31,6 +31,7 @@
  * @modules jdk.jpackage
  * @run main/othervm -Xmx512m Test
  */
+
 public class Test {
     private static final String OUTPUT = "output";
 
