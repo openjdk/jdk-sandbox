@@ -95,7 +95,7 @@ public class TestThreadExclusion {
         }
         return threads;
     }
-    
+
     private static long[] getJavaThreadIds(LatchedThread[] threads) {
         long[] javaThreadIds = new long[threads.length];
         for (int i = 0; i < threads.length; ++i) {
