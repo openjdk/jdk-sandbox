@@ -121,7 +121,7 @@ public final class EventInstrumentation {
     private final boolean untypedEventHandler;
     private boolean guardHandlerReference;
     private Class<?> superClass;
-    private final static boolean streamingCommit = true; //!SecuritySupport.getBooleanProperty("jfr.instrument.streaming");
+    private final static boolean streamingCommit = false; //!SecuritySupport.getBooleanProperty("jfr.instrument.streaming");
 
     EventInstrumentation(Class<?> superClass, byte[] bytes, long id) {
         this.superClass = superClass;

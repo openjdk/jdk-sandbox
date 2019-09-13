@@ -47,7 +47,7 @@ import jdk.jfr.internal.Utils;
  * A recording stream produces events from the current JVM (Java Virtual
  * Machine).
  * <p>
- * The following example, shows how to record events using the default
+ * The following example shows how to record events using the default
  * configuration and print the Garbage Collection, CPU Load and JVM Information
  * event to standard out.
  *
@@ -110,7 +110,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * </code>
      * </pre>
      *
-     * @param configuration configuration that contains the settings to be use,
+     * @param configuration configuration that contains the settings to use,
      *        not {@code null}
      *
      * @throws IllegalStateException if Flight Recorder can't be created (for
@@ -146,16 +146,17 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     }
 
     /**
-     * Replaces all settings for this recording stream
+     * Replaces all settings for this recording stream.
      * <p>
-     * The following example records 20 second using the "default" configuration
-     * and then changes to settings for the "profile" configuration.
+     * The following example records 20 seconds using the "default" configuration
+     * and then changes settings to the "profile" configuration.
      *
      * <pre>
      * <code>
-     *     var defaultConfiguration = Configuration.getConfiguration("default");
-     *     var profileConfiguration = Configuration.getConfiguration("profile");
-     *     try (var rs = new RecordingStream(defaultConfiguration) {
+     *     Configuration defaultConfiguration = Configuration.getConfiguration("default");
+     *     Configuration profileConfiguration = Configuration.getConfiguration("profile");
+     *     try (RecordingStream rs = new RecordingStream(defaultConfiguration) {
+     *        rs.onEvent(System.out::println);
      *        rs.startAsync();
      *        Thread.sleep(20_000);
      *        rs.setSettings(profileConfiguration.getSettings());
@@ -165,6 +166,8 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * </pre>
      *
      * @param settings the settings to set, not {@code null}
+     *
+     * @see Recording#setSettings(Map)
      */
     public void setSettings(Map<String, String> settings) {
         recording.setSettings(settings);
@@ -217,8 +220,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     }
 
     /**
-     * Determines how far back data is kept for the stream, if the stream can't
-     * keep up.
+     * Determines how far back data is kept for the stream.
      * <p>
      * To control the amount of recording data stored on disk, the maximum
      * length of time to retain the data can be specified. Data stored on disk
@@ -241,8 +243,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
     }
 
     /**
-     * Determines how much data is kept in the disk repository if the stream
-     * can't keep up.
+     * Determines how much data is kept for the stream.
      * <p>
      * To control the amount of recording data that is stored on disk, the
      * maximum amount of data to retain can be specified. When the maximum limit

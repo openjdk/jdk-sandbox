@@ -77,7 +77,7 @@ void GetScreenDpi(HMONITOR hmon, float *dpiX, float *dpiY)
         HRESULT res = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED,
                                         &m_pDirect2dFactory);
         if (res == S_OK) {
-            m_pDirect2dFactory->GetDesktopDpi(dpiX, dpiY);
+           // m_pDirect2dFactory->GetDesktopDpi(dpiX, dpiY);
             m_pDirect2dFactory->Release();
         }
     }
