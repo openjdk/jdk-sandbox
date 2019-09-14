@@ -26,7 +26,6 @@
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
-#include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahTraversalGC.hpp"
@@ -42,7 +41,7 @@
 class ShenandoahBarrierSetC1;
 class ShenandoahBarrierSetC2;
 
-template <bool STOREVAL_WRITE_BARRIER>
+template <bool STOREVAL_EVAC_BARRIER>
 class ShenandoahUpdateRefsForOopClosure: public BasicOopIterateClosure {
 private:
   ShenandoahHeap* _heap;
@@ -51,7 +50,7 @@ private:
   template <class T>
   inline void do_oop_work(T* p) {
     oop o;
-    if (STOREVAL_WRITE_BARRIER) {
+    if (STOREVAL_EVAC_BARRIER) {
       o = _heap->evac_update_with_forwarded(p);
       if (!CompressedOops::is_null(o)) {
         _bs->enqueue(o);
@@ -76,7 +75,8 @@ ShenandoahBarrierSet::ShenandoahBarrierSet(ShenandoahHeap* heap) :
              NULL /* barrier_set_nmethod */,
              BarrierSet::FakeRtti(BarrierSet::ShenandoahBarrierSet)),
   _heap(heap),
-  _satb_mark_queue_set()
+  _satb_mark_queue_buffer_allocator("SATB Buffer Allocator", ShenandoahSATBBufferSize),
+  _satb_mark_queue_set(&_satb_mark_queue_buffer_allocator)
 {
 }
 
@@ -97,10 +97,10 @@ bool ShenandoahBarrierSet::is_aligned(HeapWord* hw) {
   return true;
 }
 
-template <class T, bool STOREVAL_WRITE_BARRIER>
+template <class T, bool STOREVAL_EVAC_BARRIER>
 void ShenandoahBarrierSet::write_ref_array_loop(HeapWord* start, size_t count) {
   assert(UseShenandoahGC && ShenandoahCloneBarrier, "should be enabled");
-  ShenandoahUpdateRefsForOopClosure<STOREVAL_WRITE_BARRIER> cl;
+  ShenandoahUpdateRefsForOopClosure<STOREVAL_EVAC_BARRIER> cl;
   T* dst = (T*) start;
   for (size_t i = 0; i < count; i++) {
     cl.do_oop(dst++);
@@ -114,15 +114,15 @@ void ShenandoahBarrierSet::write_ref_array(HeapWord* start, size_t count) {
   if (_heap->is_concurrent_traversal_in_progress()) {
     ShenandoahEvacOOMScope oom_evac_scope;
     if (UseCompressedOops) {
-      write_ref_array_loop<narrowOop, /* wb = */ true>(start, count);
+      write_ref_array_loop<narrowOop, /* evac = */ true>(start, count);
     } else {
-      write_ref_array_loop<oop,       /* wb = */ true>(start, count);
+      write_ref_array_loop<oop,       /* evac = */ true>(start, count);
     }
   } else {
     if (UseCompressedOops) {
-      write_ref_array_loop<narrowOop, /* wb = */ false>(start, count);
+      write_ref_array_loop<narrowOop, /* evac = */ false>(start, count);
     } else {
-      write_ref_array_loop<oop,       /* wb = */ false>(start, count);
+      write_ref_array_loop<oop,       /* evac = */ false>(start, count);
     }
   }
 }
@@ -207,10 +207,10 @@ void ShenandoahBarrierSet::write_region(MemRegion mr) {
   shenandoah_assert_correct(NULL, obj);
   if (_heap->is_concurrent_traversal_in_progress()) {
     ShenandoahEvacOOMScope oom_evac_scope;
-    ShenandoahUpdateRefsForOopClosure</* wb = */ true> cl;
+    ShenandoahUpdateRefsForOopClosure</* evac = */ true> cl;
     obj->oop_iterate(&cl);
   } else {
-    ShenandoahUpdateRefsForOopClosure</* wb = */ false> cl;
+    ShenandoahUpdateRefsForOopClosure</* evac = */ false> cl;
     obj->oop_iterate(&cl);
   }
 }
@@ -262,7 +262,7 @@ oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj) {
       ShenandoahHeapRegion* r = _heap->heap_region_containing(obj);
       assert(r->is_cset(), "sanity");
 
-      HeapWord* cur = (HeapWord*)obj + obj->size() + ShenandoahForwarding::word_size();
+      HeapWord* cur = (HeapWord*)obj + obj->size();
 
       size_t count = 0;
       while ((cur < r->top()) && ctx->is_marked(oop(cur)) && (count++ < max)) {
@@ -270,7 +270,7 @@ oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj) {
         if (oopDesc::equals_raw(cur_oop, resolve_forwarded_not_null(cur_oop))) {
           _heap->evacuate_object(cur_oop, thread);
         }
-        cur = cur + cur_oop->size() + ShenandoahForwarding::word_size();
+        cur = cur + cur_oop->size();
       }
     }
 
@@ -358,4 +358,17 @@ void ShenandoahBarrierSet::on_thread_detach(Thread *thread) {
       gclab->retire();
     }
   }
+}
+
+oop ShenandoahBarrierSet::oop_load_from_native_barrier(oop obj) {
+  if (CompressedOops::is_null(obj)) {
+    return NULL;
+  }
+
+  if (_heap->is_evacuation_in_progress() &&
+      !_heap->complete_marking_context()->is_marked(obj)) {
+    return NULL;
+  }
+
+  return load_reference_barrier_not_null(obj);
 }

@@ -960,23 +960,23 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
     if (at_safepoint) {
       BiasedLocking::revoke_at_safepoint(hobj);
     } else {
-      BiasedLocking::revoke_and_rebias(hobj, false, calling_thread);
+      BiasedLocking::revoke(hobj, calling_thread);
     }
 
     address owner = NULL;
     {
-      markOop mark = hobj()->mark();
+      markWord mark = hobj()->mark();
 
-      if (!mark->has_monitor()) {
+      if (!mark.has_monitor()) {
         // this object has a lightweight monitor
 
-        if (mark->has_locker()) {
-          owner = (address)mark->locker(); // save the address of the Lock word
+        if (mark.has_locker()) {
+          owner = (address)mark.locker(); // save the address of the Lock word
         }
         // implied else: no owner
       } else {
         // this object has a heavyweight monitor
-        mon = mark->monitor();
+        mon = mark.monitor();
 
         // The owner field of a heavyweight monitor may be NULL for no
         // owner, a JavaThread * or it may still be the address of the
@@ -1083,7 +1083,7 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
           // If the monitor has no owner, then a non-suspended contending
           // thread could potentially change the state of the monitor by
           // entering it. The JVM/TI spec doesn't allow this.
-          if (owning_thread == NULL && !at_safepoint &
+          if (owning_thread == NULL && !at_safepoint &&
               !pending_thread->is_thread_fully_suspended(true, &debug_bits)) {
             if (ret.owner != NULL) {
               destroy_jni_reference(calling_thread, ret.owner);

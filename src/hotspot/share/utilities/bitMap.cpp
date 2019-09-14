@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,8 +133,8 @@ void BitMap::reinitialize(const Allocator& allocator, idx_t new_size_in_bits, bo
   initialize(allocator, new_size_in_bits, clear);
 }
 
-ResourceBitMap::ResourceBitMap(idx_t size_in_bits)
-    : BitMap(allocate(ResourceBitMapAllocator(), size_in_bits), size_in_bits) {
+ResourceBitMap::ResourceBitMap(idx_t size_in_bits, bool clear)
+    : BitMap(allocate(ResourceBitMapAllocator(), size_in_bits, clear), size_in_bits) {
 }
 
 void ResourceBitMap::resize(idx_t new_size_in_bits) {

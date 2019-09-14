@@ -126,7 +126,6 @@ void JfrThreadLocal::release(JfrThreadLocal* tl, Thread* t) {
     JfrStorage::release_thread_local(tl->java_buffer(), t);
   }
   FREE_C_HEAP_ARRAY(JfrStackFrame, tl->_stackframes);
-  }
 }
 
 void JfrThreadLocal::on_exit(Thread* t) {
@@ -134,7 +133,7 @@ void JfrThreadLocal::on_exit(Thread* t) {
   JfrThreadLocal * const tl = t->jfr_thread_local();
   assert(!tl->is_dead(), "invariant");
   if (JfrRecorder::is_recording()) {
-    if (t->is_Java_thread() && !tl->is_excluded()) {
+    if (t->is_Java_thread()) {
       JavaThread* const jt = (JavaThread*)t;
       ObjectSampleCheckpoint::on_thread_exit(jt);
       send_java_thread_end_events(tl->thread_id(), jt);

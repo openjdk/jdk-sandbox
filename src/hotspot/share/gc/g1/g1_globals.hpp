@@ -25,7 +25,8 @@
 #ifndef SHARE_GC_G1_G1_GLOBALS_HPP
 #define SHARE_GC_G1_G1_GLOBALS_HPP
 
-#include <float.h> // for DBL_MAX
+#include "runtime/globals_shared.hpp"
+
 //
 // Defines all globals flags used by the garbage-first compiler.
 //
@@ -243,9 +244,6 @@
   product(uintx, G1MixedGCCountTarget, 8,                                   \
           "The target number of mixed GCs after a marking cycle.")          \
           range(0, max_uintx)                                               \
-                                                                            \
-  experimental(bool, G1PretouchAuxiliaryMemory, false,                      \
-          "Pre-touch large auxiliary data structures used by the GC.")      \
                                                                             \
   experimental(bool, G1EagerReclaimHumongousObjects, true,                  \
           "Try to reclaim dead large objects at every young GC.")           \

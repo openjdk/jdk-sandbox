@@ -27,7 +27,7 @@
 
 #include "gc/g1/g1HeapRegionAttr.hpp"
 #include "memory/iterator.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 
 class HeapRegion;
 class G1CollectedHeap;
@@ -73,9 +73,10 @@ public:
 
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.
 class G1ScanRSForOptionalClosure : public OopClosure {
+  G1CollectedHeap* _g1h;
   G1ScanCardClosure* _scan_cl;
 public:
-  G1ScanRSForOptionalClosure(G1ScanCardClosure* cl) : _scan_cl(cl) { }
+  G1ScanRSForOptionalClosure(G1CollectedHeap* g1h, G1ScanCardClosure* cl) : _g1h(g1h), _scan_cl(cl) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)          { do_oop_work(p); }

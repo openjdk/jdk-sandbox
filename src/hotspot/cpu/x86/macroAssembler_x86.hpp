@@ -317,6 +317,8 @@ class MacroAssembler: public Assembler {
   void load_mirror(Register mirror, Register method, Register tmp = rscratch2);
   void load_method_holder_cld(Register rresult, Register rmethod);
 
+  void load_method_holder(Register holder, Register method);
+
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
@@ -580,6 +582,11 @@ class MacroAssembler: public Assembler {
                            Register super_klass,
                            Register temp_reg,
                            Label& L_success);
+
+  void clinit_barrier(Register klass,
+                      Register thread,
+                      Label* L_fast_path = NULL,
+                      Label* L_slow_path = NULL);
 
   // method handles (JSR 292)
   Address argument_address(RegisterOrConstant arg_slot, int extra_slot_offset = 0);
@@ -975,6 +982,17 @@ class MacroAssembler: public Assembler {
                    XMMRegister msgtmp1, XMMRegister msgtmp2, XMMRegister msgtmp3, XMMRegister msgtmp4,
                    Register buf, Register state, Register ofs, Register limit, Register rsp, bool multi_block,
                    XMMRegister shuf_mask);
+private:
+  void roundEnc(XMMRegister key, int rnum);
+  void lastroundEnc(XMMRegister key, int rnum);
+  void roundDec(XMMRegister key, int rnum);
+  void lastroundDec(XMMRegister key, int rnum);
+  void ev_load_key(XMMRegister xmmdst, Register key, int offset, XMMRegister xmm_shuf_mask);
+
+public:
+  void aesecb_encrypt(Register source_addr, Register dest_addr, Register key, Register len);
+  void aesecb_decrypt(Register source_addr, Register dest_addr, Register key, Register len);
+
 #endif
 
   void fast_sha1(XMMRegister abcd, XMMRegister e0, XMMRegister e1, XMMRegister msg0,
@@ -1783,6 +1801,10 @@ public:
   void byte_array_inflate(Register src, Register dst, Register len,
                           XMMRegister tmp1, Register tmp2);
 
+#ifdef _LP64
+  void cache_wb(Address line);
+  void cache_wbsync(bool is_pre);
+#endif // _LP64
 };
 
 /**

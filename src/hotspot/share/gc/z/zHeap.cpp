@@ -41,6 +41,7 @@
 #include "gc/z/zTask.hpp"
 #include "gc/z/zThread.hpp"
 #include "gc/z/zTracer.inline.hpp"
+#include "gc/z/zVerify.hpp"
 #include "gc/z/zVirtualMemory.inline.hpp"
 #include "gc/z/zWorkers.inline.hpp"
 #include "logging/log.hpp"
@@ -63,7 +64,7 @@ ZHeap* ZHeap::_heap = NULL;
 
 ZHeap::ZHeap() :
     _workers(),
-    _object_allocator(_workers.nworkers()),
+    _object_allocator(),
     _page_allocator(heap_min_size(), heap_initial_size(), heap_max_size(), heap_max_reserve_size()),
     _page_table(),
     _forwarding_table(),
@@ -79,7 +80,7 @@ ZHeap::ZHeap() :
   _heap = this;
 
   // Update statistics
-  ZStatHeap::set_at_initialize(heap_max_size(), heap_max_reserve_size());
+  ZStatHeap::set_at_initialize(heap_min_size(), heap_max_size(), heap_max_reserve_size());
 }
 
 size_t ZHeap::heap_min_size() const {
@@ -113,8 +114,8 @@ size_t ZHeap::max_capacity() const {
   return _page_allocator.max_capacity();
 }
 
-size_t ZHeap::current_max_capacity() const {
-  return _page_allocator.current_max_capacity();
+size_t ZHeap::soft_max_capacity() const {
+  return _page_allocator.soft_max_capacity();
 }
 
 size_t ZHeap::capacity() const {
@@ -177,26 +178,20 @@ size_t ZHeap::unsafe_max_tlab_alloc() const {
 }
 
 bool ZHeap::is_in(uintptr_t addr) const {
-  if (addr < ZAddressReservedStart || addr >= ZAddressReservedEnd) {
-    return false;
-  }
+  // An address is considered to be "in the heap" if it points into
+  // the allocated part of a pages, regardless of which heap view is
+  // used. Note that an address with the finalizable metadata bit set
+  // is not pointing into a heap view, and therefore not considered
+  // to be "in the heap".
 
-  const ZPage* const page = _page_table.get(addr);
-  if (page != NULL) {
-    return page->is_in(addr);
+  if (ZAddress::is_in(addr)) {
+    const ZPage* const page = _page_table.get(addr);
+    if (page != NULL) {
+      return page->is_in(addr);
+    }
   }
 
   return false;
-}
-
-uintptr_t ZHeap::block_start(uintptr_t addr) const {
-  const ZPage* const page = _page_table.get(addr);
-  return page->block_start(addr);
-}
-
-bool ZHeap::block_is_obj(uintptr_t addr) const {
-  const ZPage* const page = _page_table.get(addr);
-  return page->block_is_obj(addr);
 }
 
 uint ZHeap::nconcurrent_worker_threads() const {
@@ -313,7 +308,7 @@ void ZHeap::mark_start() {
   _mark.start();
 
   // Update statistics
-  ZStatHeap::set_at_mark_start(capacity(), used());
+  ZStatHeap::set_at_mark_start(soft_max_capacity(), capacity(), used());
 }
 
 void ZHeap::mark(bool initial) {
@@ -324,45 +319,8 @@ void ZHeap::mark_flush_and_free(Thread* thread) {
   _mark.flush_and_free(thread);
 }
 
-class ZFixupPartialLoadsClosure : public ZRootsIteratorClosure {
-public:
-  virtual void do_oop(oop* p) {
-    ZBarrier::mark_barrier_on_root_oop_field(p);
-  }
-
-  virtual void do_oop(narrowOop* p) {
-    ShouldNotReachHere();
-  }
-};
-
-class ZFixupPartialLoadsTask : public ZTask {
-private:
-  ZThreadRootsIterator _thread_roots;
-
-public:
-  ZFixupPartialLoadsTask() :
-      ZTask("ZFixupPartialLoadsTask"),
-      _thread_roots() {}
-
-  virtual void work() {
-    ZFixupPartialLoadsClosure cl;
-    _thread_roots.oops_do(&cl);
-  }
-};
-
-void ZHeap::fixup_partial_loads() {
-  ZFixupPartialLoadsTask task;
-  _workers.run_parallel(&task);
-}
-
 bool ZHeap::mark_end() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
-
-  // C2 can generate code where a safepoint poll is inserted
-  // between a load and the associated load barrier. To handle
-  // this case we need to rescan the thread stack here to make
-  // sure such oops are marked.
-  fixup_partial_loads();
 
   // Try end marking
   if (!_mark.end()) {
@@ -372,6 +330,9 @@ bool ZHeap::mark_end() {
 
   // Enter mark completed phase
   ZGlobalPhase = ZPhaseMarkCompleted;
+
+  // Verify after mark
+  ZVerify::after_mark();
 
   // Update statistics
   ZStatSample(ZSamplerHeapUsedAfterMark, used());
@@ -501,11 +462,11 @@ void ZHeap::relocate() {
                                  used(), used_high(), used_low());
 }
 
-void ZHeap::object_iterate(ObjectClosure* cl, bool visit_referents) {
+void ZHeap::object_iterate(ObjectClosure* cl, bool visit_weaks) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  ZHeapIterator iter(visit_referents);
-  iter.objects_do(cl);
+  ZHeapIterator iter;
+  iter.objects_do(cl, visit_weaks);
 }
 
 void ZHeap::serviceability_initialize() {
@@ -551,40 +512,11 @@ void ZHeap::print_extended_on(outputStream* st) const {
   st->cr();
 }
 
-class ZVerifyRootsTask : public ZTask {
-private:
-  ZStatTimerDisable  _disable;
-  ZRootsIterator     _strong_roots;
-  ZWeakRootsIterator _weak_roots;
-
-public:
-  ZVerifyRootsTask() :
-      ZTask("ZVerifyRootsTask"),
-      _disable(),
-      _strong_roots(),
-      _weak_roots() {}
-
-  virtual void work() {
-    ZStatTimerDisable disable;
-    ZVerifyOopClosure cl;
-    _strong_roots.oops_do(&cl);
-    _weak_roots.oops_do(&cl);
-  }
-};
-
 void ZHeap::verify() {
   // Heap verification can only be done between mark end and
   // relocate start. This is the only window where all oop are
   // good and the whole heap is in a consistent state.
   guarantee(ZGlobalPhase == ZPhaseMarkCompleted, "Invalid phase");
 
-  {
-    ZVerifyRootsTask task;
-    _workers.run_parallel(&task);
-  }
-
-  {
-    ZVerifyObjectClosure cl;
-    object_iterate(&cl, false /* visit_referents */);
-  }
+  ZVerify::after_weak_processing();
 }

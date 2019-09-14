@@ -30,6 +30,7 @@
 #include "memory/metaspace.hpp"
 #include "oops/oopHandle.hpp"
 #include "oops/weakHandle.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
@@ -123,7 +124,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   bool _modified_oops;             // Card Table Equivalent (YC/CMS support)
   bool _accumulated_modified_oops; // Mod Union Equivalent (CMS support)
 
-  s2 _keep_alive;          // if this CLD is kept alive.
+  int _keep_alive;         // if this CLD is kept alive.
                            // Used for unsafe anonymous classes and the boot class
                            // loader. _keep_alive does not need to be volatile or
                            // atomic since there is one unique CLD per unsafe anonymous class.
@@ -159,7 +160,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   JFR_ONLY(DEFINE_TRACE_ID_FIELD;)
 
   void set_next(ClassLoaderData* next) { _next = next; }
-  ClassLoaderData* next() const        { return _next; }
+  ClassLoaderData* next() const        { return Atomic::load(&_next); }
 
   ClassLoaderData(Handle h_class_loader, bool is_unsafe_anonymous);
   ~ClassLoaderData();
@@ -205,16 +206,17 @@ class ClassLoaderData : public CHeapObj<mtClass> {
 
   // The "claim" is typically used to check if oops_do needs to be applied on
   // the CLD or not. Most GCs only perform strong marking during the marking phase.
-  enum {
-    _claim_none        = 0,
-    _claim_finalizable = 2,
-    _claim_strong      = 3
+  enum Claim {
+    _claim_none         = 0,
+    _claim_finalizable  = 2,
+    _claim_strong       = 3,
+    _claim_other        = 4
   };
   void clear_claim() { _claim = 0; }
+  void clear_claim(int claim);
   bool claimed() const { return _claim != 0; }
+  bool claimed(int claim) const { return (_claim & claim) == claim; }
   bool try_claim(int claim);
-  int get_claim() const { return _claim; }
-  void set_claim(int claim) { _claim = claim; }
 
   // Computes if the CLD is alive or not. This is safe to call in concurrent
   // contexts.

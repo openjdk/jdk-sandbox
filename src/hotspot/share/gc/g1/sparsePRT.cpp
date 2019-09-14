@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,14 +104,8 @@ RSHashTable::RSHashTable(size_t capacity) :
 }
 
 RSHashTable::~RSHashTable() {
-  if (_entries != NULL) {
-    FREE_C_HEAP_ARRAY(SparsePRTEntry, _entries);
-    _entries = NULL;
-  }
-  if (_buckets != NULL) {
-    FREE_C_HEAP_ARRAY(int, _buckets);
-    _buckets = NULL;
-  }
+  FREE_C_HEAP_ARRAY(SparsePRTEntry, _entries);
+  FREE_C_HEAP_ARRAY(int, _buckets);
 }
 
 void RSHashTable::clear() {
@@ -273,6 +267,19 @@ bool RSHashTableIter::has_next(size_t& card_index) {
   }
   // Otherwise, there were no entry.
   return false;
+}
+
+bool RSHashTableBucketIter::has_next(SparsePRTEntry*& entry) {
+  while (_bl_ind == RSHashTable::NullEntry)  {
+    if (_tbl_ind == (int)_rsht->capacity() - 1) {
+      return false;
+    }
+    _tbl_ind++;
+    _bl_ind = _rsht->_buckets[_tbl_ind];
+  }
+  entry = _rsht->entry(_bl_ind);
+  _bl_ind = entry->next_index();
+  return true;
 }
 
 bool RSHashTable::contains_card(RegionIdx_t region_index, CardIdx_t card_index) const {

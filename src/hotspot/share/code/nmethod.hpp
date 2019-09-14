@@ -212,6 +212,9 @@ class nmethod : public CompiledMethod {
   void* operator new(size_t size, int nmethod_size, int comp_level) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
+
+  bool try_transition(int new_state);
+
   // Returns true if this thread changed the state of the nmethod or
   // false if another thread performed the transition.
   bool make_not_entrant_or_zombie(int state);
@@ -339,7 +342,7 @@ class nmethod : public CompiledMethod {
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }
   bool  is_in_use() const                         { return _state <= in_use; }
-  bool  is_alive() const                          { return _state < zombie; }
+  bool  is_alive() const                          { return _state < unloaded; }
   bool  is_not_entrant() const                    { return _state == not_entrant; }
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
@@ -377,6 +380,7 @@ class nmethod : public CompiledMethod {
   void  make_unloaded();
 
   bool has_dependencies()                         { return dependencies_size() != 0; }
+  void print_dependencies()                       PRODUCT_RETURN;
   void flush_dependencies(bool delete_immediately);
   bool has_flushed_dependencies()                 { return _has_flushed_dependencies; }
   void set_has_flushed_dependencies()             {
@@ -391,6 +395,7 @@ class nmethod : public CompiledMethod {
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
   oop   oop_at(int index) const;
+  oop   oop_at_phantom(int index) const; // phantom reference
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -422,9 +427,6 @@ public:
   // Sweeper support
   long  stack_traversal_mark()                    { return _stack_traversal_mark; }
   void  set_stack_traversal_mark(long l)          { _stack_traversal_mark = l; }
-
-  // implicit exceptions support
-  address continuation_for_implicit_exception(address pc);
 
   // On-stack replacement support
   int   osr_entry_bci() const                     { assert(is_osr_method(), "wrong kind of nmethod"); return _entry_bci; }
@@ -474,7 +476,7 @@ public:
 
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
-  void oops_do(OopClosure* f, bool allow_zombie);
+  void oops_do(OopClosure* f, bool allow_dead);
 
   bool test_set_oops_do_mark();
   static void oops_do_marking_prologue();
@@ -505,18 +507,40 @@ public:
   void verify_scopes();
   void verify_interrupt_point(address interrupt_point);
 
+  // Disassemble this nmethod with additional debug information, e.g. information about blocks.
+  void decode2(outputStream* st) const;
+  void print_constant_pool(outputStream* st);
+
+  // Avoid hiding of parent's 'decode(outputStream*)' method.
+  void decode(outputStream* st) const { decode2(st); } // just delegate here.
+
   // printing support
   void print()                          const;
+  void print(outputStream* st)          const;
+  void print_code();
+
+#if defined(SUPPORT_DATA_STRUCTS)
+  // print output in opt build for disassembler library
   void print_relocations()                        PRODUCT_RETURN;
-  void print_pcs()                                PRODUCT_RETURN;
-  void print_scopes()                             PRODUCT_RETURN;
-  void print_dependencies()                       PRODUCT_RETURN;
-  void print_value_on(outputStream* st) const     PRODUCT_RETURN;
+  void print_pcs() { print_pcs_on(tty); }
+  void print_pcs_on(outputStream* st);
+  void print_scopes() { print_scopes_on(tty); }
+  void print_scopes_on(outputStream* st)          PRODUCT_RETURN;
+  void print_value_on(outputStream* st) const;
+  void print_handler_table();
+  void print_nul_chk_table();
+  void print_recorded_oops();
+  void print_recorded_metadata();
+
+  void print_oops(outputStream* st);     // oops from the underlying CodeBlob.
+  void print_metadata(outputStream* st); // metadata in metadata pool.
+#else
+  // void print_pcs()                             PRODUCT_RETURN;
+  void print_pcs()                                { return; }
+#endif
+
   void print_calls(outputStream* st)              PRODUCT_RETURN;
-  void print_handler_table()                      PRODUCT_RETURN;
-  void print_nul_chk_table()                      PRODUCT_RETURN;
-  void print_recorded_oops()                      PRODUCT_RETURN;
-  void print_recorded_metadata()                  PRODUCT_RETURN;
+  static void print_statistics()                  PRODUCT_RETURN;
 
   void maybe_print_nmethod(DirectiveSet* directive);
   void print_nmethod(bool print_code);
@@ -532,14 +556,21 @@ public:
 
   // Prints block-level comments, including nmethod specific block labels:
   virtual void print_block_comment(outputStream* stream, address block_begin) const {
+#if defined(SUPPORT_ASSEMBLY) || defined(SUPPORT_ABSTRACT_ASSEMBLY)
     print_nmethod_labels(stream, block_begin);
     CodeBlob::print_block_comment(stream, block_begin);
+#endif
   }
-  void print_nmethod_labels(outputStream* stream, address block_begin) const;
+  bool has_block_comment(address block_begin) {
+    return CodeBlob::has_block_comment(block_begin);
+  }
+  void print_nmethod_labels(outputStream* stream, address block_begin, bool print_section_labels=true) const;
+  const char* nmethod_section_label(address pos) const;
 
+  // returns whether this nmethod has code comments.
+  bool has_code_comment(address begin, address end);
   // Prints a comment for one native instruction (reloc info, pc desc)
   void print_code_comment_on(outputStream* st, int column, address begin, address end);
-  static void print_statistics() PRODUCT_RETURN;
 
   // Compiler task identification.  Note that all OSR methods
   // are numbered in an independent sequence if CICountOSR is true,

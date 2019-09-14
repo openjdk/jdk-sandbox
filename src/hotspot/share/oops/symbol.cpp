@@ -74,6 +74,13 @@ void Symbol::operator delete(void *p) {
   FreeHeap(p);
 }
 
+void Symbol::set_permanent() {
+  // This is called at a safepoint during dumping of a dynamic CDS archive.
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
+  _length_and_refcount =  pack_length_and_refcount(length(), PERM_REFCOUNT);
+}
+
+
 // ------------------------------------------------------------------
 // Symbol::starts_with
 //
@@ -387,7 +394,7 @@ bool Symbol::is_valid(Symbol* s) {
   if (!os::is_readable_range(s, s + 1)) return false;
 
   // Symbols are not allocated in Java heap.
-  if (Universe::heap()->is_in_reserved(s)) return false;
+  if (Universe::heap()->is_in(s)) return false;
 
   int len = s->utf8_length();
   if (len < 0) return false;

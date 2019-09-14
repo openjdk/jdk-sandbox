@@ -31,7 +31,8 @@
 #define __ masm->masm()->
 
 void LIR_OpShenandoahCompareAndSwap::emit_code(LIR_Assembler* masm) {
-  Register addr = _addr->as_register_lo();
+  NOT_LP64(assert(_addr->is_single_cpu(), "must be single");)
+  Register addr = _addr->is_single_cpu() ? _addr->as_register() : _addr->as_register_lo();
   Register newval = _new_value->as_register();
   Register cmpval = _cmp_value->as_register();
   Register tmp1 = _tmp1->as_register();
@@ -109,7 +110,10 @@ LIR_Opr ShenandoahBarrierSetC1::atomic_xchg_at_resolved(LIRAccess& access, LIRIt
   __ xchg(access.resolved_addr(), result, result, LIR_OprFact::illegalOpr);
 
   if (access.is_oop()) {
-    result = load_reference_barrier(access.gen(), result, access.access_emit_info(), true);
+    result = load_reference_barrier(access.gen(), result);
+    LIR_Opr tmp = gen->new_register(type);
+    __ move(result, tmp);
+    result = tmp;
     if (ShenandoahSATBBarrier) {
       pre_barrier(access.gen(), access.access_emit_info(), access.decorators(), LIR_OprFact::illegalOpr,
                   result /* pre_val */);

@@ -25,6 +25,8 @@
 #ifndef SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP
 #define SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP
 
+#include "runtime/atomic.hpp"
+
 inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
   if (THREAD == _owner || THREAD->is_lock_owned((address) _owner)) {
     return 1;
@@ -32,17 +34,17 @@ inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
   return 0;
 }
 
-inline markOop ObjectMonitor::header() const {
-  return _header;
+inline markWord ObjectMonitor::header() const {
+  return Atomic::load(&_header);
 }
 
-inline volatile markOop* ObjectMonitor::header_addr() {
+inline volatile markWord* ObjectMonitor::header_addr() {
   assert((intptr_t)this == (intptr_t)&_header, "sync code expects this");
   return &_header;
 }
 
-inline void ObjectMonitor::set_header(markOop hdr) {
-  _header = hdr;
+inline void ObjectMonitor::set_header(markWord hdr) {
+  Atomic::store(hdr, &_header);
 }
 
 inline jint ObjectMonitor::waiters() const {
@@ -54,14 +56,14 @@ inline void* ObjectMonitor::owner() const {
 }
 
 inline void ObjectMonitor::clear() {
-  assert(_header != NULL, "must be non-NULL");
+  assert(Atomic::load(&_header).value() != 0, "must be non-zero");
   assert(_contentions == 0, "must be 0: contentions=%d", _contentions);
   assert(_waiters == 0, "must be 0: waiters=%d", _waiters);
   assert(_recursions == 0, "must be 0: recursions=" INTPTR_FORMAT, _recursions);
   assert(_object != NULL, "must be non-NULL");
   assert(_owner == NULL, "must be NULL: owner=" INTPTR_FORMAT, p2i(_owner));
 
-  _header = NULL;
+  Atomic::store(markWord::zero(), &_header);
   _object = NULL;
 }
 
@@ -77,30 +79,13 @@ inline void ObjectMonitor::set_object(void* obj) {
   _object = obj;
 }
 
-inline bool ObjectMonitor::check(TRAPS) {
-  if (THREAD != _owner) {
-    if (THREAD->is_lock_owned((address) _owner)) {
-      _owner = THREAD;  // regain ownership of inflated monitor
-      assert (_recursions == 0, "invariant") ;
-    } else {
-      check_slow(THREAD);
-      return false;
-    }
-  }
-  return true;
-}
-
 // return number of threads contending for this monitor
 inline jint ObjectMonitor::contentions() const {
   return _contentions;
 }
 
-// Do NOT set _contentions = 0. There is a race such that _contentions could
-// be set while inflating prior to setting _owner
-// Just use Atomic::inc/dec and assert 0 when monitor put on free list
 inline void ObjectMonitor::set_owner(void* owner) {
   _owner = owner;
-  _recursions = 0;
 }
 
 #endif // SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP

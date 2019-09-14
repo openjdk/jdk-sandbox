@@ -585,7 +585,6 @@ void JfrRecorderService::pre_safepoint_write() {
     // The sampler is released (unlocked) later in post_safepoint_write.
     ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
   }
-  _checkpoint_manager.notify_types_on_rotation();
   write_storage(_storage, _chunkwriter);
 }
 
@@ -602,6 +601,7 @@ void JfrRecorderService::safepoint_write() {
   }
   _storage.write_at_safepoint();
   _checkpoint_manager.notify_threads();
+  _checkpoint_manager.notify_types_on_rotation();
   _checkpoint_manager.shift_epoch();
   _chunkwriter.set_time_stamp();
 }

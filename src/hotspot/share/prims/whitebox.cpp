@@ -38,6 +38,7 @@
 #include "gc/shared/genArguments.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "memory/filemap.hpp"
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/metadataFactory.hpp"
@@ -241,7 +242,6 @@ WB_END
 void TestReservedSpace_test();
 void TestReserveMemorySpecial_test();
 void TestVirtualSpace_test();
-void TestMetaspaceUtils_test();
 #endif
 
 WB_ENTRY(void, WB_RunMemoryUnitTests(JNIEnv* env, jobject o))
@@ -249,7 +249,6 @@ WB_ENTRY(void, WB_RunMemoryUnitTests(JNIEnv* env, jobject o))
   TestReservedSpace_test();
   TestReserveMemorySpecial_test();
   TestVirtualSpace_test();
-  TestMetaspaceUtils_test();
 #endif
 WB_END
 
@@ -517,7 +516,7 @@ WB_ENTRY(jlong, WB_DramReservedEnd(JNIEnv* env, jobject o))
       uint end_region = HeterogeneousHeapRegionManager::manager()->end_index_of_dram();
       return (jlong)(g1h->base() + (end_region + 1) * HeapRegion::GrainBytes - 1);
     } else {
-      return (jlong)g1h->base() + G1Arguments::heap_reserved_size_bytes();
+      return (jlong)g1h->base() + G1Arguments::heap_max_size_bytes();
     }
   }
 #endif // INCLUDE_G1GC
@@ -921,9 +920,9 @@ WB_ENTRY(void, WB_MakeMethodNotCompilable(JNIEnv* env, jobject o, jobject method
   CHECK_JNI_EXCEPTION(env);
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   if (is_osr) {
-    mh->set_not_osr_compilable(comp_level, true /* report */, "WhiteBox");
+    mh->set_not_osr_compilable("WhiteBox", comp_level);
   } else {
-    mh->set_not_compilable(comp_level, true /* report */, "WhiteBox");
+    mh->set_not_compilable("WhiteBox", comp_level);
   }
 WB_END
 
@@ -1138,27 +1137,29 @@ WB_ENTRY(void, WB_ClearMethodState(JNIEnv* env, jobject o, jobject method))
 WB_END
 
 template <typename T>
-static bool GetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, JVMFlag::Error (*TAt)(const char*, T*, bool, bool)) {
+static bool GetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, JVMFlag::Error (*TAt)(const JVMFlag*, T*)) {
   if (name == NULL) {
     return false;
   }
   ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
   const char* flag_name = env->GetStringUTFChars(name, NULL);
   CHECK_JNI_EXCEPTION_(env, false);
-  JVMFlag::Error result = (*TAt)(flag_name, value, true, true);
+  const JVMFlag* flag = JVMFlag::find_declared_flag(flag_name);
+  JVMFlag::Error result = (*TAt)(flag, value);
   env->ReleaseStringUTFChars(name, flag_name);
   return (result == JVMFlag::SUCCESS);
 }
 
 template <typename T>
-static bool SetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, JVMFlag::Error (*TAtPut)(const char*, T*, JVMFlag::Flags)) {
+static bool SetVMFlag(JavaThread* thread, JNIEnv* env, jstring name, T* value, JVMFlag::Error (*TAtPut)(JVMFlag* flag, T*, JVMFlag::Flags)) {
   if (name == NULL) {
     return false;
   }
   ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
   const char* flag_name = env->GetStringUTFChars(name, NULL);
   CHECK_JNI_EXCEPTION_(env, false);
-  JVMFlag::Error result = (*TAtPut)(flag_name, value, JVMFlag::INTERNAL);
+  JVMFlag* flag = JVMFlag::find_flag(flag_name);
+  JVMFlag::Error result = (*TAtPut)(flag, value, JVMFlag::INTERNAL);
   env->ReleaseStringUTFChars(name, flag_name);
   return (result == JVMFlag::SUCCESS);
 }
@@ -1193,22 +1194,22 @@ static jobject doubleBox(JavaThread* thread, JNIEnv* env, jdouble value) {
   return box(thread, env, vmSymbols::java_lang_Double(), vmSymbols::Double_valueOf_signature(), value);
 }
 
-static JVMFlag* getVMFlag(JavaThread* thread, JNIEnv* env, jstring name) {
+static const JVMFlag* getVMFlag(JavaThread* thread, JNIEnv* env, jstring name) {
   ThreadToNativeFromVM ttnfv(thread);   // can't be in VM when we call JNI
   const char* flag_name = env->GetStringUTFChars(name, NULL);
   CHECK_JNI_EXCEPTION_(env, NULL);
-  JVMFlag* result = JVMFlag::find_flag(flag_name, strlen(flag_name), true, true);
+  const JVMFlag* result = JVMFlag::find_declared_flag(flag_name);
   env->ReleaseStringUTFChars(name, flag_name);
   return result;
 }
 
 WB_ENTRY(jboolean, WB_IsConstantVMFlag(JNIEnv* env, jobject o, jstring name))
-  JVMFlag* flag = getVMFlag(thread, env, name);
+  const JVMFlag* flag = getVMFlag(thread, env, name);
   return (flag != NULL) && flag->is_constant_in_binary();
 WB_END
 
 WB_ENTRY(jboolean, WB_IsLockedVMFlag(JNIEnv* env, jobject o, jstring name))
-  JVMFlag* flag = getVMFlag(thread, env, name);
+  const JVMFlag* flag = getVMFlag(thread, env, name);
   return (flag != NULL) && !(flag->is_unlocked() || flag->is_unlocker());
 WB_END
 
@@ -1749,7 +1750,7 @@ WB_END
 
 WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
   oop obj_oop = JNIHandles::resolve(obj);
-  return (jboolean) obj_oop->mark()->has_monitor();
+  return (jboolean) obj_oop->mark().has_monitor();
 WB_END
 
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
@@ -1883,6 +1884,10 @@ WB_ENTRY(jboolean, WB_IsSharingEnabled(JNIEnv* env, jobject wb))
   return UseSharedSpaces;
 WB_END
 
+WB_ENTRY(jboolean, WB_CDSMemoryMappingFailed(JNIEnv* env, jobject wb))
+  return FileMapInfo::memory_mapping_failed();
+WB_END
+
 WB_ENTRY(jboolean, WB_IsShared(JNIEnv* env, jobject wb, jobject obj))
   oop obj_oop = JNIHandles::resolve(obj);
   return HeapShared::is_archived_object(obj_oop);
@@ -1906,6 +1911,15 @@ WB_ENTRY(jobject, WB_GetResolvedReferences(JNIEnv* env, jobject wb, jclass clazz
   } else {
     return NULL;
   }
+WB_END
+
+WB_ENTRY(void, WB_LinkClass(JNIEnv* env, jobject wb, jclass clazz))
+  Klass *k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  if (!k->is_instance_klass()) {
+    return;
+  }
+  InstanceKlass *ik = InstanceKlass::cast(k);
+  ik->link_class(THREAD); // may throw verification error
 WB_END
 
 WB_ENTRY(jboolean, WB_AreOpenArchiveHeapObjectsMapped(JNIEnv* env))
@@ -2342,10 +2356,12 @@ static JNINativeMethod methods[] = {
   {CC"isSharedClass",      CC"(Ljava/lang/Class;)Z",  (void*)&WB_IsSharedClass },
   {CC"areSharedStringsIgnored",           CC"()Z",    (void*)&WB_AreSharedStringsIgnored },
   {CC"getResolvedReferences", CC"(Ljava/lang/Class;)Ljava/lang/Object;", (void*)&WB_GetResolvedReferences},
+  {CC"linkClass",          CC"(Ljava/lang/Class;)V",  (void*)&WB_LinkClass},
   {CC"areOpenArchiveHeapObjectsMapped",   CC"()Z",    (void*)&WB_AreOpenArchiveHeapObjectsMapped},
   {CC"isCDSIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsCDSIncludedInVmBuild },
   {CC"isJFRIncludedInVmBuild",            CC"()Z",    (void*)&WB_IsJFRIncludedInVmBuild },
-  {CC"isJavaHeapArchiveSupported",      CC"()Z",      (void*)&WB_IsJavaHeapArchiveSupported },
+  {CC"isJavaHeapArchiveSupported",        CC"()Z",    (void*)&WB_IsJavaHeapArchiveSupported },
+  {CC"cdsMemoryMappingFailed",            CC"()Z",    (void*)&WB_CDSMemoryMappingFailed },
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
   {CC"handshakeWalkStack", CC"(Ljava/lang/Thread;Z)I", (void*)&WB_HandshakeWalkStack },

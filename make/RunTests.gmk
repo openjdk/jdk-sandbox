@@ -98,13 +98,15 @@ endif
 JTREG_FAILURE_HANDLER_DIR := $(TEST_IMAGE_DIR)/failure_handler
 JTREG_FAILURE_HANDLER := $(JTREG_FAILURE_HANDLER_DIR)/jtregFailureHandler.jar
 
+JTREG_FAILURE_HANDLER_TIMEOUT ?= 0
+
 ifneq ($(wildcard $(JTREG_FAILURE_HANDLER)), )
   JTREG_FAILURE_HANDLER_OPTIONS := \
       -timeoutHandlerDir:$(JTREG_FAILURE_HANDLER) \
       -observerDir:$(JTREG_FAILURE_HANDLER) \
       -timeoutHandler:jdk.test.failurehandler.jtreg.GatherProcessInfoTimeoutHandler \
       -observer:jdk.test.failurehandler.jtreg.GatherDiagnosticInfoObserver \
-      -timeoutHandlerTimeout:0
+      -timeoutHandlerTimeout:$(JTREG_FAILURE_HANDLER_TIMEOUT)
 endif
 
 GTEST_LAUNCHER_DIRS := $(patsubst %/gtestLauncher, %, \
@@ -185,12 +187,13 @@ define SetupAotModuleBody
 	)
 	$$(call ExecuteWithLog, $$@.check, \
 	    $$(FIXPATH) $$(JDK_UNDER_TEST)/bin/java \
-	        $$($1_VM_OPTIONS) -XX:+UnlockDiagnosticVMOptions \
+	        $$($1_VM_OPTIONS) -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions \
 	        -XX:+PrintAOT -XX:+UseAOTStrictLoading \
 	        -XX:AOTLibrary=$$@ -version \
 	         > $$@.verify-aot \
 	)
 
+  $1_AOT_OPTIONS += -XX:+UnlockExperimentalVMOptions
   $1_AOT_OPTIONS += -XX:AOTLibrary=$$($1_AOT_LIB)
   $1_AOT_TARGETS += $$($1_AOT_LIB)
 endef
@@ -275,10 +278,11 @@ $(eval $(call SetTestOpt,AOT_MODULES,JTREG))
 
 $(eval $(call SetTestOpt,JOBS,JTREG))
 $(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
+$(eval $(call SetTestOpt,FAILURE_HANDLER_TIMEOUT,JTREG))
 
 $(eval $(call ParseKeywordVariable, JTREG, \
-    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR TEST_MODE ASSERT VERBOSE RETAIN \
-        MAX_MEM, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR FAILURE_HANDLER_TIMEOUT \
+        TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM RUN_PROBLEM_LISTS, \
     STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS KEYWORDS \
         EXTRA_PROBLEM_LISTS AOT_MODULES, \
 ))
@@ -828,6 +832,7 @@ define SetupRunJtregTestBody
   endif
   JTREG_VERBOSE ?= fail,error,summary
   JTREG_RETAIN ?= fail,error
+  JTREG_RUN_PROBLEM_LISTS ?= false
 
   ifneq ($$($1_JTREG_MAX_MEM), 0)
     $1_JTREG_BASIC_OPTIONS += -vmoption:-Xmx$$($1_JTREG_MAX_MEM)
@@ -865,13 +870,19 @@ define SetupRunJtregTestBody
     $1_JTREG_BASIC_OPTIONS += -nativepath:$$($1_JTREG_NATIVEPATH)
   endif
 
+  ifeq ($$(JTREG_RUN_PROBLEM_LISTS), true)
+    JTREG_PROBLEM_LIST_PREFIX := -match:
+  else
+    JTREG_PROBLEM_LIST_PREFIX := -exclude:
+  endif
+
   ifneq ($$($1_JTREG_PROBLEM_LIST), )
-    $1_JTREG_BASIC_OPTIONS += $$(addprefix -exclude:, $$($1_JTREG_PROBLEM_LIST))
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$($1_JTREG_PROBLEM_LIST))
   endif
 
   ifneq ($$(JTREG_EXTRA_PROBLEM_LISTS), )
     # Accept both absolute paths as well as relative to the current test root.
-    $1_JTREG_BASIC_OPTIONS += $$(addprefix -exclude:, $$(wildcard \
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$(wildcard \
         $$(JTREG_EXTRA_PROBLEM_LISTS) \
         $$(addprefix $$($1_TEST_ROOT)/, $$(JTREG_EXTRA_PROBLEM_LISTS)) \
     ))
@@ -881,7 +892,8 @@ define SetupRunJtregTestBody
     $1_JTREG_BASIC_OPTIONS += -e:JIB_HOME=$$(JIB_HOME)
   endif
 
-  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_GRAAL_DIR=${TEST_IMAGE_DIR}/hotspot/jtreg/graal
+  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_DIR=$(TEST_IMAGE_DIR)
+  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_GRAAL_DIR=$(TEST_IMAGE_DIR)/hotspot/jtreg/graal
 
   ifneq ($$(JTREG_FAILURE_HANDLER_OPTIONS), )
     $1_JTREG_LAUNCHER_OPTIONS += -Djava.library.path="$(JTREG_FAILURE_HANDLER_DIR)"
@@ -1199,7 +1211,7 @@ ifeq ($(TEST_OPTS_JCOV), true)
     JCOV_REPORT_TITLE += Code filters: $(JCOV_FILTERS)<br>
   endif
   JCOV_REPORT_TITLE += Tests: $(TEST)
-	
+
   jcov-gen-report: jcov-stop-grabber
 	$(call LogWarn, Generating JCov report ...)
 	$(JAVA) -Xmx4g -jar $(JCOV_HOME)/lib/jcov.jar RepGen -sourcepath \

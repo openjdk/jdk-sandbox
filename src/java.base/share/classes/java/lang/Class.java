@@ -392,6 +392,10 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see       java.lang.Class#forName(String)
      * @see       java.lang.ClassLoader
+     *
+     * @jls 12.2 Loading of Classes and Interfaces
+     * @jls 12.3 Linking of Classes and Interfaces
+     * @jls 12.4 Initialization of Classes and Interfaces
      * @since     1.2
      */
     @CallerSensitive
@@ -438,6 +442,10 @@ public final class Class<T> implements java.io.Serializable,
      * <p> This method does not check whether the requested class is
      * accessible to its caller. </p>
      *
+     * <p> Note that this method throws errors related to loading and linking as
+     * specified in Sections 12.2 and 12.3 of <em>The Java Language
+     * Specification</em>.
+     *
      * @apiNote
      * This method returns {@code null} on failure rather than
      * throwing a {@link ClassNotFoundException}, as is done by
@@ -465,6 +473,8 @@ public final class Class<T> implements java.io.Serializable,
      *         in a module.</li>
      *         </ul>
      *
+     * @jls 12.2 Loading of Classes and Interfaces
+     * @jls 12.3 Linking of Classes and Interfaces
      * @since 9
      * @spec JPMS
      */
@@ -488,12 +498,20 @@ public final class Class<T> implements java.io.Serializable,
             cl = module.getClassLoader();
         }
 
+        Class<?> ret;
         if (cl != null) {
-            return cl.loadClass(module, name);
+            ret = cl.loadClass(module, name);
         } else {
-            return BootLoader.loadClass(module, name);
+            ret = BootLoader.loadClass(module, name);
         }
+        if (ret != null) {
+            // The loaded class should also be linked
+            linkClass(ret);
+        }
+        return ret;
     }
+
+    private static native void linkClass(Class<?> c);
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -917,7 +935,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p>If the superclass is a parameterized type, the {@code Type}
      * object returned must accurately reflect the actual type
-     * parameters used in the source code. The parameterized type
+     * arguments used in the source code. The parameterized type
      * representing the superclass is created if it had not been
      * created before. See the declaration of {@link
      * java.lang.reflect.ParameterizedType ParameterizedType} for the
@@ -999,7 +1017,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 9
      * @spec JPMS
-     * @jls 6.7  Fully Qualified Names
+     * @jls 6.7 Fully Qualified Names
      */
     public String getPackageName() {
         String pn = this.packageName;
@@ -1097,7 +1115,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p>If a superinterface is a parameterized type, the
      * {@code Type} object returned for it must accurately reflect
-     * the actual type parameters used in the source code. The
+     * the actual type arguments used in the source code. The
      * parameterized type representing each superinterface is created
      * if it had not been created before. See the declaration of
      * {@link java.lang.reflect.ParameterizedType ParameterizedType}
@@ -3421,6 +3439,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /** use serialVersionUID from JDK 1.1 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = 3206093459760846163L;
 
 
@@ -3440,6 +3459,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see java.io.ObjectStreamClass
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields =
         new ObjectStreamField[0];
 
@@ -3491,9 +3511,17 @@ public final class Class<T> implements java.io.Serializable,
      * Returns true if and only if this class was declared as an enum in the
      * source code.
      *
+     * Note that if an enum constant is declared with a class body,
+     * the class of that enum constant object is an anonymous class
+     * and <em>not</em> the class of the declaring enum type. The
+     * {@link Enum#getDeclaringClass} method of an enum constant can
+     * be used to get the class of the enum type declaring the
+     * constant.
+     *
      * @return true if and only if this class was declared as an enum in the
      *     source code
      * @since 1.5
+     * @jls 8.9.1 Enum Constants
      */
     public boolean isEnum() {
         // An enum must both directly extend java.lang.Enum and have
@@ -3910,7 +3938,8 @@ public final class Class<T> implements java.io.Serializable,
      *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
      *         denies access to the package of the returned class
      * @since 11
-     * @jvms 4.7.28 and 4.7.29 NestHost and NestMembers attributes
+     * @jvms 4.7.28 The {@code NestHost} Attribute
+     * @jvms 4.7.29 The {@code NestMembers} Attribute
      * @jvms 5.4.4 Access Control
      */
     @CallerSensitive

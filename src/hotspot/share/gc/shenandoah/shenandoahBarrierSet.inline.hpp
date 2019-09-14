@@ -25,6 +25,7 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSET_INLINE_HPP
 
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
@@ -65,7 +66,7 @@ template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
 inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_load_not_in_heap(T* addr) {
   oop value = Raw::oop_load_not_in_heap(addr);
-  value = ShenandoahBarrierSet::barrier_set()->load_reference_barrier(value);
+  value = ShenandoahBarrierSet::barrier_set()->oop_load_from_native_barrier(value);
   keep_alive_if_weak(decorators, value);
   return value;
 }
@@ -84,6 +85,13 @@ inline void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_st
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_store_in_heap_at(oop base, ptrdiff_t offset, oop value) {
   oop_store_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), value);
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+template <typename T>
+inline void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_store_not_in_heap(T* addr, oop value) {
+  shenandoah_assert_marked_if(NULL, value, !CompressedOops::is_null(value) && ShenandoahHeap::heap()->is_evacuation_in_progress());
+  Raw::oop_store(addr, value);
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
@@ -199,10 +207,10 @@ bool ShenandoahBarrierSet::arraycopy_loop_3(T* src, T* dst, size_t length, Klass
   switch (storeval_mode) {
     case NONE:
       return arraycopy_loop<T, CHECKCAST, SATB, NONE>(src, dst, length, bound, disjoint);
-    case READ_BARRIER:
-      return arraycopy_loop<T, CHECKCAST, SATB, READ_BARRIER>(src, dst, length, bound, disjoint);
-    case WRITE_BARRIER:
-      return arraycopy_loop<T, CHECKCAST, SATB, WRITE_BARRIER>(src, dst, length, bound, disjoint);
+    case RESOLVE_BARRIER:
+      return arraycopy_loop<T, CHECKCAST, SATB, RESOLVE_BARRIER>(src, dst, length, bound, disjoint);
+    case EVAC_BARRIER:
+      return arraycopy_loop<T, CHECKCAST, SATB, EVAC_BARRIER>(src, dst, length, bound, disjoint);
     default:
       ShouldNotReachHere();
       return true; // happy compiler
@@ -268,10 +276,10 @@ bool ShenandoahBarrierSet::arraycopy_element(T* cur_src, T* cur_dst, Klass* boun
       switch (STOREVAL_MODE) {
       case NONE:
         break;
-      case READ_BARRIER:
-      case WRITE_BARRIER:
-        // The write-barrier case cannot really happen. It's traversal-only and traversal
-        // doesn't currently use SATB. And even if it did, it would not be fatal to just do the normal RB here.
+      case RESOLVE_BARRIER:
+      case EVAC_BARRIER:
+        // The evac-barrier case cannot really happen. It's traversal-only and traversal
+        // doesn't currently use SATB. And even if it did, it would not be fatal to just do the normal resolve here.
         prev_obj = ShenandoahBarrierSet::resolve_forwarded_not_null(prev_obj);
       }
       if (!ctx->is_marked(prev_obj)) {
@@ -293,10 +301,10 @@ bool ShenandoahBarrierSet::arraycopy_element(T* cur_src, T* cur_dst, Klass* boun
     switch (STOREVAL_MODE) {
     case NONE:
       break;
-    case READ_BARRIER:
+    case RESOLVE_BARRIER:
       obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       break;
-    case WRITE_BARRIER:
+    case EVAC_BARRIER:
       if (_heap->in_collection_set(obj)) {
         oop forw = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
         if (oopDesc::equals_raw(forw, obj)) {
@@ -337,9 +345,9 @@ bool ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy
   ArrayCopyStoreValMode storeval_mode;
   if (heap->has_forwarded_objects()) {
     if (heap->is_concurrent_traversal_in_progress()) {
-      storeval_mode = WRITE_BARRIER;
+      storeval_mode = EVAC_BARRIER;
     } else if (heap->is_update_refs_in_progress()) {
-      storeval_mode = READ_BARRIER;
+      storeval_mode = RESOLVE_BARRIER;
     } else {
       assert(heap->is_idle() || heap->is_evacuation_in_progress(), "must not have anything in progress");
       storeval_mode = NONE; // E.g. during evac or outside cycle

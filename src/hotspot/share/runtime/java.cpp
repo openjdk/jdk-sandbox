@@ -43,6 +43,7 @@
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/dynamicArchive.hpp"
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/generateOopMap.hpp"
@@ -202,9 +203,6 @@ void print_bytecode_count() {
   }
 }
 
-AllocStats alloc_stats;
-
-
 
 // General statistics printing (profiling ...)
 void print_statistics() {
@@ -309,7 +307,7 @@ void print_statistics() {
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
   if (PrintCodeHeapAnalytics) {
-    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+    CompileBroker::print_heapinfo(NULL, "all", 4096); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);
   }
@@ -328,11 +326,6 @@ void print_statistics() {
   }
 
   print_bytecode_count();
-  if (PrintMallocStatistics) {
-    tty->print("allocation stats: ");
-    alloc_stats.print();
-    tty->cr();
-  }
 
   if (PrintSystemDictionaryAtExit) {
     ResourceMark rm;
@@ -377,7 +370,7 @@ void print_statistics() {
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
   if (PrintCodeHeapAnalytics) {
-    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+    CompileBroker::print_heapinfo(NULL, "all", 4096); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);
   }
@@ -497,6 +490,12 @@ void before_exit(JavaThread* thread) {
   // Terminate the signal thread
   // Note: we don't wait until it actually dies.
   os::terminate_signal_thread();
+
+#if INCLUDE_CDS
+  if (DynamicDumpSharedSpaces) {
+    DynamicArchive::dump();
+  }
+#endif
 
   print_statistics();
   Universe::heap()->print_tracing_info();

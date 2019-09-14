@@ -24,7 +24,6 @@
 #ifndef SHARE_LOGGING_LOGTAG_HPP
 #define SHARE_LOGGING_LOGTAG_HPP
 
-#include "logging/logTag_ext.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -66,6 +65,7 @@
   LOG_TAG(defaultmethods) \
   LOG_TAG(director) \
   LOG_TAG(dump) \
+  LOG_TAG(dynamic) \
   LOG_TAG(ergo) \
   LOG_TAG(event) \
   LOG_TAG(exceptions) \
@@ -82,6 +82,7 @@
   LOG_TAG(iklass) \
   LOG_TAG(init) \
   LOG_TAG(inlining) \
+  LOG_TAG(install) \
   LOG_TAG(interpreter) \
   LOG_TAG(itables) \
   LOG_TAG(jfr) \
@@ -170,13 +171,12 @@
   LOG_TAG(mirror) \
   LOG_TAG(verification) \
   LOG_TAG(verify) \
-  LOG_TAG(vmmonitor) \
+  LOG_TAG(vmmutex) \
   LOG_TAG(vmoperation) \
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
   LOG_TAG(vtablestubs) \
-  LOG_TAG(workgang) \
-  LOG_TAG_LIST_EXT
+  LOG_TAG(workgang)
 
 #define PREFIX_LOG_TAG(T) (LogTag::_##T)
 

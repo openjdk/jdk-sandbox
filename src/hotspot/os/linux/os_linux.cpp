@@ -84,6 +84,7 @@
 # include <sys/select.h>
 # include <pthread.h>
 # include <signal.h>
+# include <endian.h>
 # include <errno.h>
 # include <dlfcn.h>
 # include <stdio.h>
@@ -427,7 +428,7 @@ void os::init_system_properties_values() {
   const size_t bufsize =
     MAX2((size_t)MAXPATHLEN,  // For dll_dir & friends.
          (size_t)MAXPATHLEN + sizeof(EXTENSIONS_DIR) + sizeof(SYS_EXT_DIR) + sizeof(EXTENSIONS_DIR)); // extensions dir
-  char *buf = (char *)NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
+  char *buf = NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
 
   // sysclasspath, java_home, dll_dir
   {
@@ -476,10 +477,10 @@ void os::init_system_properties_values() {
     const char *v_colon = ":";
     if (v == NULL) { v = ""; v_colon = ""; }
     // That's +1 for the colon and +1 for the trailing '\0'.
-    char *ld_library_path = (char *)NEW_C_HEAP_ARRAY(char,
-                                                     strlen(v) + 1 +
-                                                     sizeof(SYS_EXT_DIR) + sizeof("/lib/") + sizeof(DEFAULT_LIBPATH) + 1,
-                                                     mtInternal);
+    char *ld_library_path = NEW_C_HEAP_ARRAY(char,
+                                             strlen(v) + 1 +
+                                             sizeof(SYS_EXT_DIR) + sizeof("/lib/") + sizeof(DEFAULT_LIBPATH) + 1,
+                                             mtInternal);
     sprintf(ld_library_path, "%s%s" SYS_EXT_DIR "/lib:" DEFAULT_LIBPATH, v, v_colon);
     Arguments::set_library_path(ld_library_path);
     FREE_C_HEAP_ARRAY(char, ld_library_path);
@@ -800,6 +801,73 @@ static void *thread_native_entry(Thread *thread) {
   return 0;
 }
 
+// On Linux, glibc places static TLS blocks (for __thread variables) on
+// the thread stack. This decreases the stack size actually available
+// to threads.
+//
+// For large static TLS sizes, this may cause threads to malfunction due
+// to insufficient stack space. This is a well-known issue in glibc:
+// http://sourceware.org/bugzilla/show_bug.cgi?id=11787.
+//
+// As a workaround, we call a private but assumed-stable glibc function,
+// __pthread_get_minstack() to obtain the minstack size and derive the
+// static TLS size from it. We then increase the user requested stack
+// size by this TLS size.
+//
+// Due to compatibility concerns, this size adjustment is opt-in and
+// controlled via AdjustStackSizeForTLS.
+typedef size_t (*GetMinStack)(const pthread_attr_t *attr);
+
+GetMinStack _get_minstack_func = NULL;
+
+static void get_minstack_init() {
+  _get_minstack_func =
+        (GetMinStack)dlsym(RTLD_DEFAULT, "__pthread_get_minstack");
+  log_info(os, thread)("Lookup of __pthread_get_minstack %s",
+                       _get_minstack_func == NULL ? "failed" : "succeeded");
+}
+
+// Returns the size of the static TLS area glibc puts on thread stacks.
+// The value is cached on first use, which occurs when the first thread
+// is created during VM initialization.
+static size_t get_static_tls_area_size(const pthread_attr_t *attr) {
+  size_t tls_size = 0;
+  if (_get_minstack_func != NULL) {
+    // Obtain the pthread minstack size by calling __pthread_get_minstack.
+    size_t minstack_size = _get_minstack_func(attr);
+
+    // Remove non-TLS area size included in minstack size returned
+    // by __pthread_get_minstack() to get the static TLS size.
+    // In glibc before 2.27, minstack size includes guard_size.
+    // In glibc 2.27 and later, guard_size is automatically added
+    // to the stack size by pthread_create and is no longer included
+    // in minstack size. In both cases, the guard_size is taken into
+    // account, so there is no need to adjust the result for that.
+    //
+    // Although __pthread_get_minstack() is a private glibc function,
+    // it is expected to have a stable behavior across future glibc
+    // versions while glibc still allocates the static TLS blocks off
+    // the stack. Following is glibc 2.28 __pthread_get_minstack():
+    //
+    // size_t
+    // __pthread_get_minstack (const pthread_attr_t *attr)
+    // {
+    //   return GLRO(dl_pagesize) + __static_tls_size + PTHREAD_STACK_MIN;
+    // }
+    //
+    //
+    // The following 'minstack_size > os::vm_page_size() + PTHREAD_STACK_MIN'
+    // if check is done for precaution.
+    if (minstack_size > (size_t)os::vm_page_size() + PTHREAD_STACK_MIN) {
+      tls_size = minstack_size - os::vm_page_size() - PTHREAD_STACK_MIN;
+    }
+  }
+
+  log_info(os, thread)("Stack size adjustment for TLS is " SIZE_FORMAT,
+                       tls_size);
+  return tls_size;
+}
+
 bool os::create_thread(Thread* thread, ThreadType thr_type,
                        size_t req_stack_size) {
   assert(thread->osthread() == NULL, "caller responsible");
@@ -825,7 +893,7 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
 
   // Calculate stack size if it's not specified by caller.
   size_t stack_size = os::Posix::get_initial_stack_size(thr_type, req_stack_size);
-  // In the Linux NPTL pthread implementation the guard size mechanism
+  // In glibc versions prior to 2.7 the guard size mechanism
   // is not implemented properly. The posix standard requires adding
   // the size of the guard pages to the stack size, instead Linux
   // takes the space out of 'stacksize'. Thus we adapt the requested
@@ -833,16 +901,26 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
   // behaviour. However, be careful not to end up with a size
   // of zero due to overflow. Don't add the guard page in that case.
   size_t guard_size = os::Linux::default_guard_size(thr_type);
-  if (stack_size <= SIZE_MAX - guard_size) {
-    stack_size += guard_size;
+  // Configure glibc guard page. Must happen before calling
+  // get_static_tls_area_size(), which uses the guard_size.
+  pthread_attr_setguardsize(&attr, guard_size);
+
+  size_t stack_adjust_size = 0;
+  if (AdjustStackSizeForTLS) {
+    // Adjust the stack_size for on-stack TLS - see get_static_tls_area_size().
+    stack_adjust_size += get_static_tls_area_size(&attr);
+  } else {
+    stack_adjust_size += guard_size;
+  }
+
+  stack_adjust_size = align_up(stack_adjust_size, os::vm_page_size());
+  if (stack_size <= SIZE_MAX - stack_adjust_size) {
+    stack_size += stack_adjust_size;
   }
   assert(is_aligned(stack_size, os::vm_page_size()), "stack_size not aligned");
 
   int status = pthread_attr_setstacksize(&attr, stack_size);
   assert_status(status == 0, status, "pthread_attr_setstacksize");
-
-  // Configure glibc guard page.
-  pthread_attr_setguardsize(&attr, os::Linux::default_guard_size(thr_type));
 
   ThreadState state;
 
@@ -1461,8 +1539,15 @@ void os::abort(bool dump_core, void* siginfo, const void* context) {
 }
 
 // Die immediately, no exit hook, no abort hook, no cleanup.
+// Dump a core file, if possible, for debugging.
 void os::die() {
-  ::abort();
+  if (TestUnresponsiveErrorHandler && !CreateCoredumpOnCrash) {
+    // For TimeoutInErrorHandlingTest.java, we just kill the VM
+    // and don't take the time to generate a core file.
+    os::signal_raise(SIGKILL);
+  } else {
+    ::abort();
+  }
 }
 
 // thread_id is kernel thread id (similar to Solaris LWP id)
@@ -1654,6 +1739,8 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   void * result = NULL;
   bool load_attempted = false;
 
+  log_info(os)("attempting shared library load of %s", filename);
+
   // Check whether the library to load might change execution rights
   // of the stack. If they are changed, the protection of the stack
   // guard pages will be lost. We need a safepoint to fix this.
@@ -1740,11 +1827,26 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     return NULL;
   }
 
+  if (elf_head.e_ident[EI_DATA] != LITTLE_ENDIAN_ONLY(ELFDATA2LSB) BIG_ENDIAN_ONLY(ELFDATA2MSB)) {
+    // handle invalid/out of range endianness values
+    if (elf_head.e_ident[EI_DATA] == 0 || elf_head.e_ident[EI_DATA] > 2) {
+      return NULL;
+    }
+
+#if defined(VM_LITTLE_ENDIAN)
+    // VM is LE, shared object BE
+    elf_head.e_machine = be16toh(elf_head.e_machine);
+#else
+    // VM is BE, shared object LE
+    elf_head.e_machine = le16toh(elf_head.e_machine);
+#endif
+  }
+
   typedef struct {
     Elf32_Half    code;         // Actual value as defined in elf.h
     Elf32_Half    compat_class; // Compatibility of archs at VM's sense
     unsigned char elf_class;    // 32 or 64 bit
-    unsigned char endianess;    // MSB or LSB
+    unsigned char endianness;   // MSB or LSB
     char*         name;         // String representation
   } arch_t;
 
@@ -1771,8 +1873,9 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_PPC64,       EM_PPC64,   ELFCLASS64, ELFDATA2MSB, (char*)"Power PC 64"},
     {EM_SH,          EM_SH,      ELFCLASS32, ELFDATA2MSB, (char*)"SuperH BE"},
 #endif
-    {EM_ARM,         EM_ARM,     ELFCLASS32,   ELFDATA2LSB, (char*)"ARM"},
-    {EM_S390,        EM_S390,    ELFCLASSNONE, ELFDATA2MSB, (char*)"IBM System/390"},
+    {EM_ARM,         EM_ARM,     ELFCLASS32, ELFDATA2LSB, (char*)"ARM"},
+    // we only support 64 bit z architecture
+    {EM_S390,        EM_S390,    ELFCLASS64, ELFDATA2MSB, (char*)"IBM System/390"},
     {EM_ALPHA,       EM_ALPHA,   ELFCLASS64, ELFDATA2LSB, (char*)"Alpha"},
     {EM_MIPS_RS3_LE, EM_MIPS_RS3_LE, ELFCLASS32, ELFDATA2LSB, (char*)"MIPSel"},
     {EM_MIPS,        EM_MIPS,    ELFCLASS32, ELFDATA2MSB, (char*)"MIPS"},
@@ -1818,7 +1921,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
         AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, S390, SH, __sparc
 #endif
 
-  // Identify compatability class for VM's architecture and library's architecture
+  // Identify compatibility class for VM's architecture and library's architecture
   // Obtain string descriptions for architectures
 
   arch_t lib_arch={elf_head.e_machine,0,elf_head.e_ident[EI_CLASS], elf_head.e_ident[EI_DATA], NULL};
@@ -1842,29 +1945,35 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     return NULL;
   }
 
-  if (lib_arch.endianess != arch_array[running_arch_index].endianess) {
-    ::snprintf(diag_msg_buf, diag_msg_max_length-1," (Possible cause: endianness mismatch)");
-    return NULL;
-  }
-
-#ifndef S390
-  if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
-    ::snprintf(diag_msg_buf, diag_msg_max_length-1," (Possible cause: architecture word width mismatch)");
-    return NULL;
-  }
-#endif // !S390
-
   if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
-    if (lib_arch.name!=NULL) {
+    if (lib_arch.name != NULL) {
       ::snprintf(diag_msg_buf, diag_msg_max_length-1,
-                 " (Possible cause: can't load %s-bit .so on a %s-bit platform)",
+                 " (Possible cause: can't load %s .so on a %s platform)",
                  lib_arch.name, arch_array[running_arch_index].name);
     } else {
       ::snprintf(diag_msg_buf, diag_msg_max_length-1,
-                 " (Possible cause: can't load this .so (machine code=0x%x) on a %s-bit platform)",
-                 lib_arch.code,
-                 arch_array[running_arch_index].name);
+                 " (Possible cause: can't load this .so (machine code=0x%x) on a %s platform)",
+                 lib_arch.code, arch_array[running_arch_index].name);
     }
+    return NULL;
+  }
+
+  if (lib_arch.endianness != arch_array[running_arch_index].endianness) {
+    ::snprintf(diag_msg_buf, diag_msg_max_length-1, " (Possible cause: endianness mismatch)");
+    return NULL;
+  }
+
+  // ELF file class/capacity : 0 - invalid, 1 - 32bit, 2 - 64bit
+  if (lib_arch.elf_class > 2 || lib_arch.elf_class < 1) {
+    ::snprintf(diag_msg_buf, diag_msg_max_length-1, " (Possible cause: invalid ELF file class)");
+    return NULL;
+  }
+
+  if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
+    ::snprintf(diag_msg_buf, diag_msg_max_length-1,
+               " (Possible cause: architecture word width mismatch, can't load %d-bit .so on a %d-bit platform)",
+               (int) lib_arch.elf_class * 32, arch_array[running_arch_index].elf_class * 32);
+    return NULL;
   }
 
   return NULL;
@@ -1874,8 +1983,19 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
                                 int ebuflen) {
   void * result = ::dlopen(filename, RTLD_LAZY);
   if (result == NULL) {
-    ::strncpy(ebuf, ::dlerror(), ebuflen - 1);
-    ebuf[ebuflen-1] = '\0';
+    const char* error_report = ::dlerror();
+    if (error_report == NULL) {
+      error_report = "dlerror returned no error description";
+    }
+    if (ebuf != NULL && ebuflen > 0) {
+      ::strncpy(ebuf, error_report, ebuflen-1);
+      ebuf[ebuflen-1]='\0';
+    }
+    Events::log(NULL, "Loading shared library %s failed, %s", filename, error_report);
+    log_info(os)("shared library load of %s failed, %s", filename, error_report);
+  } else {
+    Events::log(NULL, "Loaded shared library %s", filename);
+    log_info(os)("shared library load of %s was successful", filename);
   }
   return result;
 }
@@ -2560,16 +2680,7 @@ void os::print_jni_name_suffix_on(outputStream* st, int args_size) {
 ////////////////////////////////////////////////////////////////////////////////
 // sun.misc.Signal support
 
-static volatile jint sigint_count = 0;
-
 static void UserHandler(int sig, void *siginfo, void *context) {
-  // 4511530 - sem_post is serialized and handled by the manager thread. When
-  // the program is interrupted by Ctrl-C, SIGINT is sent to every thread. We
-  // don't want to flood the manager thread with sem_post requests.
-  if (sig == SIGINT && Atomic::add(1, &sigint_count) > 1) {
-    return;
-  }
-
   // Ctrl-C is pressed during error reporting, likely because the error
   // handler fails to abort. Let VM die immediately.
   if (sig == SIGINT && VMError::is_error_reported()) {
@@ -2642,7 +2753,6 @@ void os::signal_notify(int sig) {
 }
 
 static int check_pending_signals() {
-  Atomic::store(0, &sigint_count);
   for (;;) {
     for (int i = 0; i < NSIG + 1; i++) {
       jint n = pending_signals[i];
@@ -3450,6 +3560,7 @@ static bool linux_mprotect(char* addr, size_t size, int prot) {
   assert(addr == bottom, "sanity check");
 
   size = align_up(pointer_delta(addr, bottom, 1) + size, os::Linux::page_size());
+  Events::log(NULL, "Protecting memory [" INTPTR_FORMAT "," INTPTR_FORMAT "] with protection modes %x", p2i(bottom), p2i(bottom+size), prot);
   return ::mprotect(bottom, size, prot) == 0;
 }
 
@@ -4088,11 +4199,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int f
 // available (and not reserved for something else).
 
 char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
-  const int max_tries = 10;
-  char* base[max_tries];
-  size_t size[max_tries];
-  const size_t gap = 0x000000;
-
   // Assert only that the size is a multiple of the page size, since
   // that's all that mmap requires, and since that's all we really know
   // about at this low abstraction level.  If we need higher alignment,
@@ -4115,50 +4221,7 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
     anon_munmap(addr, bytes);
   }
 
-  int i;
-  for (i = 0; i < max_tries; ++i) {
-    base[i] = reserve_memory(bytes);
-
-    if (base[i] != NULL) {
-      // Is this the block we wanted?
-      if (base[i] == requested_addr) {
-        size[i] = bytes;
-        break;
-      }
-
-      // Does this overlap the block we wanted? Give back the overlapped
-      // parts and try again.
-
-      ptrdiff_t top_overlap = requested_addr + (bytes + gap) - base[i];
-      if (top_overlap >= 0 && (size_t)top_overlap < bytes) {
-        unmap_memory(base[i], top_overlap);
-        base[i] += top_overlap;
-        size[i] = bytes - top_overlap;
-      } else {
-        ptrdiff_t bottom_overlap = base[i] + bytes - requested_addr;
-        if (bottom_overlap >= 0 && (size_t)bottom_overlap < bytes) {
-          unmap_memory(requested_addr, bottom_overlap);
-          size[i] = bytes - bottom_overlap;
-        } else {
-          size[i] = bytes;
-        }
-      }
-    }
-  }
-
-  // Give back the unused reserved pieces.
-
-  for (int j = 0; j < i; ++j) {
-    if (base[j] != NULL) {
-      unmap_memory(base[j], size[j]);
-    }
-  }
-
-  if (i < max_tries) {
-    return requested_addr;
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
@@ -5153,6 +5216,10 @@ jint os::init_2(void) {
     jdk_misc_signal_init();
   }
 
+  if (AdjustStackSizeForTLS) {
+    get_minstack_init();
+  }
+
   // Check and sets minimum stack sizes against command line options
   if (Posix::set_minimum_stack_sizes() == JNI_ERR) {
     return JNI_ERR;
@@ -6116,6 +6183,10 @@ int os::compare_file_modified_times(const char* file1, const char* file2) {
     return filetime1.tv_nsec - filetime2.tv_nsec;
   }
   return diff;
+}
+
+bool os::supports_map_sync() {
+  return true;
 }
 
 /////////////// Unit tests ///////////////

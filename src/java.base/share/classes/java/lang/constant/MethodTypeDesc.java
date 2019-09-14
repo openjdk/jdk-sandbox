@@ -65,7 +65,9 @@ public interface MethodTypeDesc
      * @param returnDesc a {@linkplain ClassDesc} describing the return type
      * @param paramDescs {@linkplain ClassDesc}s describing the argument types
      * @return a {@linkplain MethodTypeDesc} describing the desired method type
-     * @throws NullPointerException if any argument is {@code null}
+     * @throws NullPointerException if any argument or its contents are {@code null}
+     * @throws IllegalArgumentException if any element of {@code paramDescs} is a
+     * {@link ClassDesc} for {@code void}
      */
     static MethodTypeDesc of(ClassDesc returnDesc, ClassDesc... paramDescs) {
         return new MethodTypeDescImpl(returnDesc, paramDescs);
@@ -141,8 +143,8 @@ public interface MethodTypeDesc
      * @param end the index after the last parameter to remove
      * @return a {@linkplain MethodTypeDesc} describing the desired method type
      * @throws IndexOutOfBoundsException if {@code start} is outside the half-open
-     * range {[0, parameterCount)}, or {@code end} is outside the closed range
-     * {@code [0, parameterCount]}
+     * range {@code [0, parameterCount)}, or {@code end} is outside the closed range
+     * {@code [0, parameterCount]}, or if {@code start > end}
      */
     MethodTypeDesc dropParameterTypes(int start, int end);
 
@@ -154,9 +156,11 @@ public interface MethodTypeDesc
      * @param paramTypes {@link ClassDesc}s describing the new parameter types
      *                   to insert
      * @return a {@linkplain MethodTypeDesc} describing the desired method type
-     * @throws NullPointerException if any argument is {@code null}
+     * @throws NullPointerException if any argument or its contents are {@code null}
      * @throws IndexOutOfBoundsException if {@code pos} is outside the closed
      * range {[0, parameterCount]}
+     * @throws IllegalArgumentException if any element of {@code paramTypes}
+     * is a {@link ClassDesc} for {@code void}
      */
     MethodTypeDesc insertParameterTypes(int pos, ClassDesc... paramTypes);
 

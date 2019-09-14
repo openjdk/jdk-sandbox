@@ -72,11 +72,11 @@
   template(ZMarkStart)                            \
   template(ZMarkEnd)                              \
   template(ZRelocateStart)                        \
+  template(ZVerify)                               \
   template(HandshakeOneThread)                    \
   template(HandshakeAllThreads)                   \
   template(HandshakeFallback)                     \
   template(EnableBiasedLocking)                   \
-  template(RevokeBias)                            \
   template(BulkRevokeBias)                        \
   template(PopulateDumpSharedSpace)               \
   template(JNIFunctionTableCopier)                \
@@ -114,6 +114,7 @@
   template(LinuxDllLoad)                          \
   template(RotateGCLog)                           \
   template(WhiteBoxOperation)                     \
+  template(JVMCIResizeCounters)                   \
   template(ClassLoaderStatsOperation)             \
   template(ClassLoaderHierarchyOperation)         \
   template(DumpHashtable)                         \
@@ -145,7 +146,6 @@ class VM_Operation: public CHeapObj<mtInternal> {
 
  private:
   Thread*         _calling_thread;
-  ThreadPriority  _priority;
   long            _timestamp;
   VM_Operation*   _next;
   VM_Operation*   _prev;
@@ -159,8 +159,7 @@ class VM_Operation: public CHeapObj<mtInternal> {
 
   // VM operation support (used by VM thread)
   Thread* calling_thread() const                 { return _calling_thread; }
-  ThreadPriority priority()                      { return _priority; }
-  void set_calling_thread(Thread* thread, ThreadPriority priority);
+  void set_calling_thread(Thread* thread);
 
   long timestamp() const              { return _timestamp; }
   void set_timestamp(long timestamp)  { _timestamp = timestamp; }

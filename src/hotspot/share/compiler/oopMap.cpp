@@ -379,12 +379,8 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           continue;
         }
 #ifdef ASSERT
-        // We can not verify the oop here if we are using ZGC, the oop
-        // will be bad in case we had a safepoint between a load and a
-        // load barrier.
-        if (!UseZGC &&
-            ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-             !Universe::heap()->is_in_or_null(*loc))) {
+        if ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
+            !Universe::heap()->is_in_or_null(*loc)) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);
@@ -511,7 +507,7 @@ void OopMapValue::print() const { print_on(tty); }
 
 void ImmutableOopMap::print_on(outputStream* st) const {
   OopMapValue omv;
-  st->print("ImmutableOopMap{");
+  st->print("ImmutableOopMap {");
   for(OopMapStream oms(this); !oms.is_done(); oms.next()) {
     omv = oms.current();
     omv.print_on(st);
@@ -523,44 +519,51 @@ void ImmutableOopMap::print() const { print_on(tty); }
 
 void OopMap::print_on(outputStream* st) const {
   OopMapValue omv;
-  st->print("OopMap{");
+  st->print("OopMap {");
   for(OopMapStream oms((OopMap*)this); !oms.is_done(); oms.next()) {
     omv = oms.current();
     omv.print_on(st);
   }
-  st->print("off=%d}", (int) offset());
+  // Print hex offset in addition.
+  st->print("off=%d/0x%x}", (int) offset(), (int) offset());
 }
 
 void OopMap::print() const { print_on(tty); }
 
 void ImmutableOopMapSet::print_on(outputStream* st) const {
   const ImmutableOopMap* last = NULL;
-  for (int i = 0; i < _count; ++i) {
+  const int len = count();
+
+  st->print_cr("ImmutableOopMapSet contains %d OopMaps", len);
+
+  for (int i = 0; i < len; i++) {
     const ImmutableOopMapPair* pair = pair_at(i);
     const ImmutableOopMap* map = pair->get_from(this);
     if (map != last) {
       st->cr();
       map->print_on(st);
-      st->print("pc offsets: ");
+      st->print(" pc offsets: ");
     }
     last = map;
     st->print("%d ", pair->pc_offset());
   }
+  st->cr();
 }
 
 void ImmutableOopMapSet::print() const { print_on(tty); }
 
 void OopMapSet::print_on(outputStream* st) const {
-  int i, len = om_count();
+  const int len = om_count();
 
-  st->print_cr("OopMapSet contains %d OopMaps\n",len);
+  st->print_cr("OopMapSet contains %d OopMaps", len);
 
-  for( i = 0; i < len; i++) {
+  for( int i = 0; i < len; i++) {
     OopMap* m = at(i);
     st->print_cr("#%d ",i);
     m->print_on(st);
     st->cr();
   }
+  st->cr();
 }
 
 void OopMapSet::print() const { print_on(tty); }
@@ -580,15 +583,17 @@ bool OopMap::equals(const OopMap* other) const {
 
 const ImmutableOopMap* ImmutableOopMapSet::find_map_at_offset(int pc_offset) const {
   ImmutableOopMapPair* pairs = get_pairs();
+  ImmutableOopMapPair* last  = NULL;
 
-  int i;
-  for (i = 0; i < _count; ++i) {
+  for (int i = 0; i < _count; ++i) {
     if (pairs[i].pc_offset() >= pc_offset) {
+      last = &pairs[i];
       break;
     }
   }
-  ImmutableOopMapPair* last = &pairs[i];
 
+  // Heal Coverity issue: potential index out of bounds access.
+  guarantee(last != NULL, "last may not be null");
   assert(last->pc_offset() == pc_offset, "oopmap not found");
   return last->get_from(this);
 }
@@ -727,7 +732,7 @@ ImmutableOopMapSet* ImmutableOopMapBuilder::build() {
   _required = heap_size();
 
   // We need to allocate a chunk big enough to hold the ImmutableOopMapSet and all of its ImmutableOopMaps
-  address buffer = (address) NEW_C_HEAP_ARRAY(unsigned char, _required, mtCode);
+  address buffer = NEW_C_HEAP_ARRAY(unsigned char, _required, mtCode);
   return generate_into(buffer);
 }
 

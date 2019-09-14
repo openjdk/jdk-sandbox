@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_SHARED_GC_GLOBALS_HPP
 #define SHARE_GC_SHARED_GC_GLOBALS_HPP
 
+#include "runtime/globals_shared.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_CMSGC
 #include "gc/cms/cms_globals.hpp"
@@ -679,12 +680,6 @@
   product(bool, DisableExplicitGC, false,                                   \
           "Ignore calls to System.gc()")                                    \
                                                                             \
-  product(bool, BindGCTaskThreadsToCPUs, false,                             \
-          "Bind GCTaskThreads to CPUs if possible")                         \
-                                                                            \
-  product(bool, UseGCTaskAffinity, false,                                   \
-          "Use worker affinity when asking for GCTasks")                    \
-                                                                            \
   product(bool, PrintGC, false,                                             \
           "Print message at garbage collection. "                           \
           "Deprecated, use -Xlog:gc instead.")                              \
@@ -712,6 +707,10 @@
           "to move")                                                        \
                                                                             \
   /* gc parameters */                                                       \
+  product(size_t, MinHeapSize, 0,                                           \
+          "Minimum heap size (in bytes); zero means use ergonomics")        \
+          constraint(MinHeapSizeConstraintFunc,AfterErgo)                   \
+                                                                            \
   product(size_t, InitialHeapSize, 0,                                       \
           "Initial heap size (in bytes); zero means use ergonomics")        \
           constraint(InitialHeapSizeConstraintFunc,AfterErgo)               \
@@ -719,6 +718,10 @@
   product(size_t, MaxHeapSize, ScaleForWordSize(96*M),                      \
           "Maximum heap size (in bytes)")                                   \
           constraint(MaxHeapSizeConstraintFunc,AfterErgo)                   \
+                                                                            \
+  manageable(size_t, SoftMaxHeapSize, 0,                                    \
+          "Soft limit for maximum heap size (in bytes)")                    \
+          constraint(SoftMaxHeapSizeConstraintFunc,AfterMemoryInit)         \
                                                                             \
   product(size_t, OldSize, ScaleForWordSize(4*M),                           \
           "Initial tenured generation size (in bytes)")                     \
@@ -808,12 +811,12 @@
                                                                             \
   product(uintx, MaxTenuringThreshold,    15,                               \
           "Maximum value for tenuring threshold")                           \
-          range(0, markOopDesc::max_age + 1)                                \
+          range(0, markWord::max_age + 1)                                   \
           constraint(MaxTenuringThresholdConstraintFunc,AfterErgo)          \
                                                                             \
   product(uintx, InitialTenuringThreshold,    7,                            \
           "Initial value for tenuring threshold")                           \
-          range(0, markOopDesc::max_age + 1)                                \
+          range(0, markWord::max_age + 1)                                   \
           constraint(InitialTenuringThresholdConstraintFunc,AfterErgo)      \
                                                                             \
   product(uintx, TargetSurvivorRatio,    50,                                \

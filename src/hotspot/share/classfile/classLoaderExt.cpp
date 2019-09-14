@@ -30,7 +30,6 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/klassFactory.hpp"
 #include "classfile/modules.hpp"
-#include "classfile/sharedPathsMiscInfo.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/allocation.inline.hpp"
@@ -56,13 +55,14 @@ bool ClassLoaderExt::_has_platform_classes = false;
 void ClassLoaderExt::append_boot_classpath(ClassPathEntry* new_entry) {
   if (UseSharedSpaces) {
     warning("Sharing is only supported for boot loader classes because bootstrap classpath has been appended");
-    FileMapInfo::current_info()->header()->set_has_platform_or_app_classes(false);
+    FileMapInfo::current_info()->set_has_platform_or_app_classes(false);
   }
   ClassLoader::add_to_boot_append_entries(new_entry);
 }
 
 void ClassLoaderExt::setup_app_search_path() {
-  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces,
+         "this function is only used at CDS dump time");
   _app_class_paths_start_index = ClassLoader::num_boot_classpath_entries();
   char* app_class_path = os::strdup(Arguments::get_appclasspath());
 
@@ -73,7 +73,6 @@ void ClassLoaderExt::setup_app_search_path() {
     trace_class_path("app loader class path (skipped)=", app_class_path);
   } else {
     trace_class_path("app loader class path=", app_class_path);
-    shared_paths_misc_info()->add_app_classpath(app_class_path);
     ClassLoader::setup_app_search_path(app_class_path);
   }
 }
@@ -92,7 +91,8 @@ void ClassLoaderExt::process_module_table(ModuleEntryTable* met, TRAPS) {
   }
 }
 void ClassLoaderExt::setup_module_paths(TRAPS) {
-  assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces,
+         "this function is only used with CDS dump time");
   _app_module_paths_start_index = ClassLoader::num_boot_classpath_entries() +
                               ClassLoader::num_app_classpath_entries();
   Handle system_class_loader (THREAD, SystemDictionary::java_system_loader());
@@ -210,8 +210,12 @@ void ClassLoaderExt::process_jar_manifest(ClassPathEntry* entry,
         char* libname = NEW_RESOURCE_ARRAY(char, libname_len + 1);
         int n = os::snprintf(libname, libname_len + 1, "%.*s%s", dir_len, dir_name, file_start);
         assert((size_t)n == libname_len, "Unexpected number of characters in string");
-        trace_class_path("library = ", libname);
-        ClassLoader::update_class_path_entry_list(libname, true, false);
+        if (ClassLoader::update_class_path_entry_list(libname, true, false, true /* from_class_path_attr */)) {
+          trace_class_path("library = ", libname);
+        } else {
+          trace_class_path("library (non-existent) = ", libname);
+          FileMapInfo::record_non_existent_class_path_entry(libname);
+        }
       }
 
       file_start = file_end;
@@ -220,14 +224,13 @@ void ClassLoaderExt::process_jar_manifest(ClassPathEntry* entry,
 }
 
 void ClassLoaderExt::setup_search_paths() {
-  shared_paths_misc_info()->record_app_offset();
   ClassLoaderExt::setup_app_search_path();
 }
 
 void ClassLoaderExt::record_result(const s2 classpath_index,
                                    InstanceKlass* result,
                                    TRAPS) {
-  assert(DumpSharedSpaces, "Sanity");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "Sanity");
 
   // We need to remember where the class comes from during dumping.
   oop loader = result->class_loader();
@@ -244,12 +247,6 @@ void ClassLoaderExt::record_result(const s2 classpath_index,
   }
   result->set_shared_classpath_index(classpath_index);
   result->set_class_loader_type(classloader_type);
-}
-
-void ClassLoaderExt::finalize_shared_paths_misc_info() {
-  if (!_has_app_classes) {
-    shared_paths_misc_info()->pop_app();
-  }
 }
 
 // Load the class of the given name from the location given by path. The path is specified by
@@ -301,8 +298,6 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
     tty->print_cr("Preload Error: Failed to load %s", class_name);
     return NULL;
   }
-  result->set_shared_classpath_index(UNREGISTERED_INDEX);
-  SystemDictionaryShared::set_shared_class_misc_info(result, stream);
   return result;
 }
 
@@ -339,7 +334,7 @@ ClassPathEntry* ClassLoaderExt::find_classpath_entry_from_cache(const char* path
   }
   ClassPathEntry* new_entry = NULL;
 
-  new_entry = create_class_path_entry(path, &st, false, false, CHECK_NULL);
+  new_entry = create_class_path_entry(path, &st, false, false, false, CHECK_NULL);
   if (new_entry == NULL) {
     return NULL;
   }

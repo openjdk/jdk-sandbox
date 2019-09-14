@@ -79,14 +79,13 @@ public:
 
   void mark_roots(ShenandoahPhaseTimings::Phase root_phase);
   void update_roots(ShenandoahPhaseTimings::Phase root_phase);
+  void update_thread_roots(ShenandoahPhaseTimings::Phase root_phase);
 
 // ---------- Weak references
 //
 private:
   void weak_refs_work(bool full_gc);
   void weak_refs_work_doit(bool full_gc);
-
-  void weak_roots_work();
 
 public:
   void preclean_weak_refs();

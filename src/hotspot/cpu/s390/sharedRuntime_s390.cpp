@@ -1518,7 +1518,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 int compile_id,
                                                 BasicType *in_sig_bt,
                                                 VMRegPair *in_regs,
-                                                BasicType ret_type) {
+                                                BasicType ret_type,
+                                                address critical_entry) {
 #ifdef COMPILER2
   int total_in_args = method->size_of_parameters();
   if (method->is_method_handle_intrinsic()) {
@@ -1554,7 +1555,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   ///////////////////////////////////////////////////////////////////////
 
   bool is_critical_native = true;
-  address native_func = method->critical_native_function();
+  address native_func = critical_entry;
   if (native_func == NULL) {
     native_func = method->native_function();
     is_critical_native = false;
@@ -1831,6 +1832,20 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   // Verified entry point (VEP)
   //---------------------------------------------------------------------
   wrapper_VEPStart = __ offset();
+
+  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+    Label L_skip_barrier;
+    Register klass = Z_R1_scratch;
+    // Notify OOP recorder (don't need the relocation)
+    AddressLiteral md = __ constant_metadata_address(method->method_holder());
+    __ load_const_optimized(klass, md.value());
+    __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+    __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+    __ z_br(klass);
+
+    __ bind(L_skip_barrier);
+  }
 
   __ save_return_pc();
   __ generate_stack_overflow_check(frame_size_in_bytes);  // Check before creating frame.
@@ -2696,10 +2711,32 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     // Fallthru to VEP. Duplicate LTG, but saved taken branch.
   }
 
-  address c2i_entry;
-  c2i_entry = gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  address c2i_entry = __ pc();
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+  // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
+  if (VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+
+    { // Bypass the barrier for non-static methods
+      __ testbit(Address(Z_method, Method::access_flags_offset()), JVM_ACC_STATIC_BIT);
+      __ z_bfalse(L_skip_barrier); // non-static
+    }
+
+    Register klass = Z_R11;
+    __ load_method_holder(klass, Z_method);
+    __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+    __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+    __ z_br(klass);
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
+  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
 // This function returns the adjust size (in number of words) to a c2i adapter
