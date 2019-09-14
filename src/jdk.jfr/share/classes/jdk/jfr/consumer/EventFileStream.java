@@ -62,7 +62,7 @@ final class EventFileStream extends AbstractEventStream {
     @Override
     public void close() {
         setClosed(true);
-        runCloseActions();
+        dispatcher().runCloseActions();
         try {
             input.close();
         } catch (IOException e) {
@@ -72,46 +72,40 @@ final class EventFileStream extends AbstractEventStream {
 
     @Override
     protected void process() throws IOException {
-        StreamConfiguration c = configuration;
+        Dispatcher disp = dispatcher();
         long start = 0;
         long end = Long.MAX_VALUE;
-        if (c.getStartTime() != null) {
-            start = c.getStartNanos();
+        if (disp.startTime != null) {
+            start = disp.startNanos;
         }
-        if (c.getEndTime() != null) {
-            end = c.getEndNanos();
+        if (disp.endTime != null) {
+            end = disp.endNanos;
         }
 
-        chunkParser = new ChunkParser(input, c.getReuse());
+        chunkParser = new ChunkParser(input, disp.parserConfiguration);
         while (!isClosed()) {
             if (chunkParser.getStartNanos() > end) {
                 close();
                 return;
             }
-            c = configuration;
-            boolean ordered = c.getOrdered();
+            disp = dispatcher();
+            disp.parserConfiguration.filterStart = start;
+            disp.parserConfiguration.filterEnd = end;
+            chunkParser.updateConfiguration(disp.parserConfiguration, true);
             chunkParser.setFlushOperation(getFlushOperation());
-            chunkParser.setFilterStart(start);
-            chunkParser.setFilterEnd(end);
-            chunkParser.setReuse(c.getReuse());
-            chunkParser.setOrdered(ordered);
-            chunkParser.resetEventCache();
-            chunkParser.setParserFilter(c.getFiler());
-            chunkParser.updateEventParsers();
-            c.clearDispatchCache();
-            if (ordered) {
-                processOrdered(c);
+            if (disp.parserConfiguration.ordered) {
+                processOrdered(disp);
             } else {
-                processUnordered(c);
+                processUnordered(disp);
             }
-            if (chunkParser.isLastChunk()) {
+            if (isClosed() || chunkParser.isLastChunk()) {
                 return;
             }
             chunkParser = chunkParser.nextChunkParser();
         }
     }
 
-    private void processOrdered(StreamConfiguration c) throws IOException {
+    private void processOrdered(Dispatcher c) throws IOException {
         if (sortedList == null) {
             sortedList = new RecordedEvent[10_000];
         }
@@ -122,7 +116,7 @@ final class EventFileStream extends AbstractEventStream {
             if (event == null) {
                 Arrays.sort(sortedList, 0, index, END_TIME);
                 for (int i = 0; i < index; i++) {
-                    dispatch(c, sortedList[i]);
+                    c.dispatch(sortedList[i]);
                 }
                 return;
             }
@@ -135,13 +129,13 @@ final class EventFileStream extends AbstractEventStream {
         }
     }
 
-    private void processUnordered(StreamConfiguration c) throws IOException {
+    private void processUnordered(Dispatcher c) throws IOException {
         while (!isClosed()) {
             RecordedEvent event = chunkParser.readEvent();
             if (event == null) {
                 return;
             }
-            dispatch(c, event);
+            c.dispatch(event);
         }
     }
 }

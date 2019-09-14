@@ -48,6 +48,28 @@ import jdk.jfr.internal.consumer.RecordingInput;
  *
  */
 final class ChunkParser {
+
+    static final class ParserConfiguration {
+        final boolean reuse;
+        final boolean ordered;
+        final InternalEventFilter eventFilter;
+
+        long filterStart;
+        long filterEnd;
+
+        public ParserConfiguration(long filterStart, long filterEnd, boolean reuse, boolean ordered, InternalEventFilter filter) {
+            this.filterStart = filterStart;
+            this.filterEnd = filterEnd;
+            this.reuse = reuse;
+            this.ordered = ordered;
+            this.eventFilter = filter;
+        }
+
+        public ParserConfiguration() {
+            this(0, Long.MAX_VALUE, false, false, InternalEventFilter.ACCEPT_ALL);
+        }
+    }
+
     // Checkpoint that finishes a flush segment
     static final byte CHECKPOINT_FLUSH_MASK = 1;
     // Checkpoint contains chunk header information in the first pool
@@ -70,24 +92,24 @@ final class ChunkParser {
     private LongMap<Type> typeMap;
     private LongMap<Parser> parsers;
     private boolean chunkFinished;
-    private InternalEventFilter eventFilter = InternalEventFilter.ACCEPT_ALL;
-    private boolean reuse;
-    private boolean ordered;
-    private boolean resetEventCache;
-    private long filterStart = 0;
-    private long filterEnd = Long.MAX_VALUE;
-    private Runnable flushOperation;
 
-    public ChunkParser(RecordingInput input, boolean reuse) throws IOException {
-       this(new ChunkHeader(input), null, 1000);
-       this.reuse = reuse;
+    private Runnable flushOperation;
+    private ParserConfiguration configuration;
+
+    public ChunkParser(RecordingInput input) throws IOException {
+        this(input, new ParserConfiguration());
+    }
+
+    public ChunkParser(RecordingInput input, ParserConfiguration pc) throws IOException {
+       this(new ChunkHeader(input), null, pc);
     }
 
     public ChunkParser(ChunkParser previous) throws IOException {
-        this(new ChunkHeader(previous.input), previous, 1000);
+        this(new ChunkHeader(previous.input), previous, new ParserConfiguration());
      }
 
-    private ChunkParser(ChunkHeader header, ChunkParser previous, long pollInterval) throws IOException {
+    private ChunkParser(ChunkHeader header, ChunkParser previous, ParserConfiguration pc) throws IOException {
+        this.configuration = pc;
         this.input = header.getInput();
         this.chunkHeader = header;
         if (previous == null) {
@@ -98,9 +120,7 @@ final class ChunkParser {
             this.constantLookups = previous.constantLookups;
             this.previousMetadata = previous.metadata;
             this.pollInterval = previous.pollInterval;
-            this.ordered = previous.ordered;
-            this.reuse = previous.reuse;
-            this.eventFilter = previous.eventFilter;
+            this.configuration = previous.configuration;
         }
         this.metadata = header.readMetadata(previousMetadata);
         this.timeConverter = new TimeConverter(chunkHeader, metadata.getGMTOffset());
@@ -108,7 +128,7 @@ final class ChunkParser {
             ParserFactory factory = new ParserFactory(metadata, constantLookups, timeConverter);
             parsers = factory.getParsers();
             typeMap = factory.getTypeMap();
-            updateEventParsers();
+            updateConfiguration();
         } else {
             parsers = previous.parsers;
             typeMap = previous.typeMap;
@@ -122,12 +142,37 @@ final class ChunkParser {
         input.position(chunkHeader.getEventStart());
     }
 
-    public void setParserFilter(InternalEventFilter filter) {
-        this.eventFilter = filter;
+    public ChunkParser nextChunkParser() throws IOException {
+        return new ChunkParser(chunkHeader.nextHeader(), this, configuration);
     }
 
-    public InternalEventFilter getEventFilter() {
-        return this.eventFilter;
+    private void updateConfiguration() {
+        updateConfiguration(configuration, false);
+    }
+
+    public void updateConfiguration(ParserConfiguration configuration, boolean resetEventCache) {
+        this.configuration = configuration;
+        parsers.forEach(p -> {
+            if (p instanceof EventParser) {
+                EventParser ep = (EventParser) p;
+                if (resetEventCache) {
+                    ep.resetCache();
+                }
+                String name = ep.getEventType().getName();
+                ep.setOrdered(configuration.ordered);
+                ep.setReuse(configuration.reuse);
+                ep.setFilterStart(configuration.filterStart);
+                ep.setFilterEnd(configuration.filterEnd);
+                long threshold = configuration.eventFilter.getThreshold(name);
+                if (threshold >= 0) {
+                    ep.setEnabled(true);
+                    ep.setThresholdNanos(threshold);
+                } else {
+                    ep.setEnabled(false);
+                    ep.setThresholdNanos(Long.MAX_VALUE);
+                }
+            }
+        });
     }
 
     /**
@@ -161,7 +206,7 @@ final class ChunkParser {
                 ParserFactory factory = new ParserFactory(metadata, constantLookups, timeConverter);
                 parsers = factory.getParsers();
                 typeMap = factory.getTypeMap();
-                updateEventParsers();
+                updateConfiguration();;
             }
             if (contantPosition != chunkHeader.getConstantPoolPosition()) {
                 Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Found new constant pool data. Filling up pools with new values");
@@ -372,74 +417,12 @@ final class ChunkParser {
         return new ChunkParser(this);
     }
 
-    public ChunkParser nextChunkParser() throws IOException {
-        return new ChunkParser(chunkHeader.nextHeader(), this, pollInterval);
-    }
-
     public boolean isChunkFinished() {
         return chunkFinished;
     }
 
-    // Need to call updateEventParsers() for
-    // change to take effect
-    public void setReuse(boolean resue) {
-        this.reuse = resue;
-    }
-
     public void setFlushOperation(Runnable flushOperation) {
         this.flushOperation = flushOperation;
-    }
-
-    // Need to call updateEventParsers() for
-    // change to take effect
-    public void setOrdered(boolean ordered) {
-        this.ordered = ordered;
-    }
-
-    // Need to call updateEventParsers() for
-    // change to take effect
-    public void setFilterStart(long filterStart) {
-        long chunkStart = chunkHeader.getStartNanos();
-        // Optimization.
-        if (filterStart < chunkStart - 1_000_000_000L) {
-            filterStart = 0;
-        }
-        this.filterStart = filterStart;
-    }
-
-    public void setFilterEnd(long filterEnd) {
-        this.filterEnd = filterEnd;
-    }
-
-    // Need to call updateEventParsers() for
-    // change to take effect
-    public void resetEventCache() {
-        this.resetEventCache = true;
-    }
-
-    public void updateEventParsers() {
-        parsers.forEach(p -> {
-            if (p instanceof EventParser) {
-                EventParser ep = (EventParser) p;
-                String name = ep.getEventType().getName();
-                ep.setOrdered(ordered);
-                ep.setReuse(reuse);
-                ep.setFilterStart(filterStart);
-                ep.setFilterEnd(filterEnd);
-                if (resetEventCache) {
-                    ep.resetCache();
-                }
-                long threshold = eventFilter.getThreshold(name);
-                if (threshold >= 0) {
-                    ep.setEnabled(true);
-                    ep.setThresholdNanos(threshold);
-                } else {
-                    ep.setEnabled(false);
-                    ep.setThresholdNanos(Long.MAX_VALUE);
-                }
-            }
-        });
-        resetEventCache = false;
     }
 
     public long getChunkDuration() {
@@ -449,4 +432,5 @@ final class ChunkParser {
     public long getStartNanos() {
         return chunkHeader.getStartNanos();
     }
+
 }

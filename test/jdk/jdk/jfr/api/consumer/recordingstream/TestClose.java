@@ -78,7 +78,7 @@ public class TestClose {
         RecordingStream r = new RecordingStream();
         AtomicLong count = new AtomicLong();
         r.onEvent(e -> {
-            if (count.incrementAndGet() == 100) {
+            if (count.incrementAndGet() > 100) {
                 streaming.countDown();
             }
         });

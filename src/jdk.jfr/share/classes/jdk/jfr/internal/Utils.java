@@ -601,6 +601,7 @@ public final class Utils {
         try {
             Thread.sleep(millis);
         } catch (InterruptedException e) {
+            // ok
         }
     }
 
