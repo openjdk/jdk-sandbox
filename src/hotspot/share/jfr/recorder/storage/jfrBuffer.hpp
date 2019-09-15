@@ -169,13 +169,11 @@ class JfrBuffer {
   bool excluded() const;
   void set_excluded();
   void clear_excluded();
-
 };
 
 class JfrAgeNode : public JfrBuffer {
  private:
   JfrBuffer* _retired;
-
  public:
   JfrAgeNode() : _retired(NULL) {}
   void set_retired_buffer(JfrBuffer* retired) {

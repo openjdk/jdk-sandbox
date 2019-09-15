@@ -25,18 +25,19 @@
 #ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 #define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEIDEPOCH_HPP
 
+#include "jfr/utilities/jfrTypes.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/orderAccess.hpp"
 
-#define USED_BIT 1
-#define METHOD_USED_BIT (USED_BIT << 2)
-#define EPOCH_1_SHIFT 0
-#define EPOCH_2_SHIFT 1
-#define USED_EPOCH_1_BIT (USED_BIT << EPOCH_1_SHIFT)
-#define USED_EPOCH_2_BIT (USED_BIT << EPOCH_2_SHIFT)
-#define METHOD_USED_EPOCH_1_BIT (METHOD_USED_BIT << EPOCH_1_SHIFT)
-#define METHOD_USED_EPOCH_2_BIT (METHOD_USED_BIT << EPOCH_2_SHIFT)
-#define METHOD_AND_CLASS_IN_USE_BITS (METHOD_USED_BIT | USED_BIT)
+#define USED_BIT                             1
+#define METHOD_USED_BIT                      (USED_BIT << 2)
+#define EPOCH_1_SHIFT                        0
+#define EPOCH_2_SHIFT                        1
+#define USED_EPOCH_1_BIT                     (USED_BIT << EPOCH_1_SHIFT)
+#define USED_EPOCH_2_BIT                     (USED_BIT << EPOCH_2_SHIFT)
+#define METHOD_USED_EPOCH_1_BIT              (METHOD_USED_BIT << EPOCH_1_SHIFT)
+#define METHOD_USED_EPOCH_2_BIT              (METHOD_USED_BIT << EPOCH_2_SHIFT)
+#define METHOD_AND_CLASS_IN_USE_BITS         (METHOD_USED_BIT | USED_BIT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_1_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_1_SHIFT)
 #define METHOD_AND_CLASS_IN_USE_EPOCH_2_BITS (METHOD_AND_CLASS_IN_USE_BITS << EPOCH_2_SHIFT)
 

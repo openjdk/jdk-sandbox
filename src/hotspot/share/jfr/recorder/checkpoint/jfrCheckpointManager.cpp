@@ -168,7 +168,7 @@ static BufferPtr lease_free(size_t size, JfrCheckpointMspace* mspace, size_t ret
 }
 
 bool JfrCheckpointManager::use_epoch_transition_mspace(const Thread* thread) const {
-  return _service_thread != thread && OrderAccess::load_acquire(&_checkpoint_epoch_state) != JfrTraceIdEpoch::epoch();
+  return _service_thread != thread && _checkpoint_epoch_state != JfrTraceIdEpoch::epoch();
 }
 
 static const size_t lease_retry = 10;
