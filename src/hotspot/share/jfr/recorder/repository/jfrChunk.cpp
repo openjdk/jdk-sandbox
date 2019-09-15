@@ -44,7 +44,7 @@ JfrChunk::JfrChunk() :
   _start_nanos(0),
   _previous_start_nanos(invalid_time),
   _last_update_nanos(0),
-  _last_checkpoint_offset(0),
+  _last_checkpoint_offset(0) {}
   _last_metadata_offset(0),
   _generation(1) {}
 

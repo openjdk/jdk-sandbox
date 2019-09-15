@@ -140,8 +140,6 @@ size_t JfrStackTraceRepository::clear() {
   const size_t processed = _entries;
   _entries = 0;
   return processed;
-}
-
 traceid JfrStackTraceRepository::record(Thread* thread, int skip /* 0 */) {
   assert(thread == Thread::current(), "invariant");
   JfrThreadLocal* const tl = thread->jfr_thread_local();

@@ -276,8 +276,6 @@ class TypeSetSerialization {
   TypeSetSerialization(bool class_unload, bool flushpoint, JfrCheckpointWriter* leakp_writer = NULL) :
     _leakp_writer(leakp_writer), _elements(0), _class_unload(class_unload), _flushpoint(flushpoint) {}
   void write(JfrCheckpointWriter& writer) {
-    MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
-    MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
    _elements = JfrTypeSet::serialize(&writer, _leakp_writer, _class_unload, _flushpoint);
   }
   size_t elements() const {
@@ -290,16 +288,17 @@ void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
   type_set.write(writer);
 };
 
+TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
+
 void FlushTypeSet::serialize(JfrCheckpointWriter& writer) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  TypeSetSerialization type_set(false, true);
-  type_set.write(writer);
+  TypeSetSerialization type_set(false);
+    type_set.write(writer, &leakp_writer);
   _elements = type_set.elements();
 }
 
 size_t FlushTypeSet::elements() const {
-  return _elements;
-}
+    return;
 
 TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
 

@@ -55,19 +55,19 @@ bool EdgeStore::is_empty() const {
   return !_edges->has_entries();
 }
 
-void EdgeStore::link(EdgeEntry* entry) {
+void EdgeStore::on_link(EdgeEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_edge_id_counter);
 }
 
-bool EdgeStore::equals(uintptr_t hash, const EdgeEntry* entry) {
+bool EdgeStore::on_equals(uintptr_t hash, const EdgeEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
   return true;
 }
 
-void EdgeStore::unlink(EdgeEntry* entry) {
+void EdgeStore::on_unlink(EdgeEntry* entry) {
   assert(entry != NULL, "invariant");
   // nothing
 }

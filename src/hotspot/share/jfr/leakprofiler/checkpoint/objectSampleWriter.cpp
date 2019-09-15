@@ -146,18 +146,18 @@ class FieldTable : public ResourceObj {
   FieldInfoTable* _table;
   const ObjectSampleFieldInfo* _lookup;
 
-  void link(FieldInfoEntry* entry) {
+  void on_link(FieldInfoEntry* entry) {
     assert(entry != NULL, "invariant");
     entry->set_id(++_field_id_counter);
   }
 
-  bool equals(uintptr_t hash, const FieldInfoEntry* entry) {
+  bool on_equals(uintptr_t hash, const FieldInfoEntry* entry) {
     assert(hash == entry->hash(), "invariant");
     assert(_lookup != NULL, "invariant");
     return entry->literal()->_field_modifiers == _lookup->_field_modifiers;
   }
 
-  void unlink(FieldInfoEntry* entry) {
+  void on_unlink(FieldInfoEntry* entry) {
     assert(entry != NULL, "invariant");
     // nothing
   }

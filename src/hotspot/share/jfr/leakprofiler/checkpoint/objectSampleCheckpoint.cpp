@@ -181,9 +181,9 @@ class BlobCache {
   JfrBlobHandle get(const ObjectSample* sample);
   void put(const ObjectSample* sample, const JfrBlobHandle& blob);
   // Hash table callbacks
-  void link(const BlobEntry* entry) const;
-  bool equals(uintptr_t hash, const BlobEntry* entry) const;
-  void unlink(BlobEntry* entry) const;
+  void on_link(const BlobEntry* entry) const;
+  bool on_equals(uintptr_t hash, const BlobEntry* entry) const;
+  void on_unlink(BlobEntry* entry) const;
 };
 
 JfrBlobHandle BlobCache::get(const ObjectSample* sample) {
@@ -202,19 +202,19 @@ void BlobCache::put(const ObjectSample* sample, const JfrBlobHandle& blob) {
   _table.put(sample->stack_trace_hash(), blob);
 }
 
-inline void BlobCache::link(const BlobEntry* entry) const {
+inline void BlobCache::on_link(const BlobEntry* entry) const {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(_lookup_id);
 }
 
-inline bool BlobCache::equals(uintptr_t hash, const BlobEntry* entry) const {
+inline bool BlobCache::on_equals(uintptr_t hash, const BlobEntry* entry) const {
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
   return entry->id() == _lookup_id;
 }
 
-inline void BlobCache::unlink(BlobEntry* entry) const {
+inline void BlobCache::on_unlink(BlobEntry* entry) const {
   assert(entry != NULL, "invariant");
 }
 

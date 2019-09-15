@@ -173,6 +173,9 @@ void JfrTypeManager::notify_types_on_rotation() {
 
 void JfrTypeManager::write_type_set() {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  // can safepoint here because of Module_lock
+  MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
+  MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
   if (!LeakProfiler::is_running()) {
     JfrCheckpointWriter writer;
     TypeSet set;

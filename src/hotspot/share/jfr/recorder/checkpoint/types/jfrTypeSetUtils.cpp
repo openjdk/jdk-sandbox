@@ -78,7 +78,7 @@ void JfrSymbolId::set_class_unload(bool class_unload) {
   _class_unload = class_unload;
 }
 
-void JfrSymbolId::link(const SymbolEntry* entry) {
+void JfrSymbolId::on_link(const SymbolEntry* entry) {
   assert(entry != NULL, "invariant");
   const_cast<Symbol*>(entry->literal())->increment_refcount();
   assert(entry->id() == 0, "invariant");
@@ -87,19 +87,18 @@ void JfrSymbolId::link(const SymbolEntry* entry) {
   _sym_list = entry;
 }
 
-bool JfrSymbolId::equals(uintptr_t hash, const SymbolEntry* entry) {
+bool JfrSymbolId::on_equals(uintptr_t hash, const SymbolEntry* entry) {
   // query might be NULL
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
   return true;
 }
 
-void JfrSymbolId::unlink(const SymbolEntry* entry) {
   assert(entry != NULL, "invariant");
   const_cast<Symbol*>(entry->literal())->decrement_refcount();
 }
 
-void JfrSymbolId::link(const CStringEntry* entry) {
+void JfrSymbolId::on_link(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->id() == 0, "invariant");
   entry->set_id(++_symbol_id_counter);
@@ -107,13 +106,13 @@ void JfrSymbolId::link(const CStringEntry* entry) {
   _cstring_list = entry;
 }
 
-bool JfrSymbolId::equals(uintptr_t hash, const CStringEntry* entry) {
+bool JfrSymbolId::on_equals(uintptr_t hash, const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   assert(entry->hash() == hash, "invariant");
   return true;
 }
 
-void JfrSymbolId::unlink(const CStringEntry* entry) {
+void JfrSymbolId::on_unlink(const CStringEntry* entry) {
   assert(entry != NULL, "invariant");
   JfrCHeapObj::free(const_cast<char*>(entry->literal()), strlen(entry->literal() + 1));
 }
