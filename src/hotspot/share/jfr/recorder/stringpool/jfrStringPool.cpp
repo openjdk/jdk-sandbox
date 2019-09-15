@@ -44,22 +44,32 @@ static JfrStringPool* _instance = NULL;
 static uint64_t store_generation = 0;
 static uint64_t serialized_generation = 0;
 
-inline void set_value(uint64_t value, uint64_t* const dest) {
+inline void set_generation(uint64_t value, uint64_t* const dest) {
   assert(dest != NULL, "invariant");
-  const uint64_t current = OrderAccess::load_acquire(dest);
-  if (value != current) {
-    OrderAccess::release_store(dest, value);
+  OrderAccess::release_store(dest, value);
+}
+static void increment_store_generation() {
+  const uint64_t current_serialized = OrderAccess::load_acquire(&serialized_generation);
+  const uint64_t current_stored = OrderAccess::load_acquire(&store_generation);
+  if (current_serialized == current_stored) {
+    set_generation(current_serialized + 1, &store_generation);
   }
 }
-static void inc_store_generation() {
-  set_value(OrderAccess::load_acquire(&serialized_generation) + 1, &store_generation);
+
+static bool increment_serialized_generation() {
+  const uint64_t current_stored = OrderAccess::load_acquire(&store_generation);
+  const uint64_t current_serialized = OrderAccess::load_acquire(&serialized_generation);
+  if (current_stored != current_serialized) {
+    set_generation(current_stored, &serialized_generation);
+    return true;
+  }
+  return false;
 }
-static void set_serialized_generation() {
-  set_value(OrderAccess::load_acquire(&store_generation), &serialized_generation);
-}
+
 bool JfrStringPool::is_modified() {
-  return serialized_generation != OrderAccess::load_acquire(&store_generation);
+  return increment_serialized_generation();
 }
+
 JfrStringPool& JfrStringPool::instance() {
   return *_instance;
 }
@@ -150,13 +160,16 @@ BufferPtr JfrStringPool::lease_buffer(Thread* thread, size_t size /* 0 */) {
 bool JfrStringPool::add(bool epoch, jlong id, jstring string, JavaThread* jt) {
   assert(jt != NULL, "invariant");
   const bool current_epoch = JfrTraceIdEpoch::epoch();
-  if (current_epoch == epoch) {
+  if (current_epoch != epoch) {
+    return current_epoch;
+  }
+  {
     JfrStringPoolWriter writer(jt);
     writer.write(id);
     writer.write(string);
     writer.inc_nof_strings();
-    inc_store_generation();
   }
+  increment_store_generation();
   return current_epoch;
 }
 
@@ -201,7 +214,6 @@ typedef CompositeOperation<ExclusiveWriteOperation, StringPoolReleaseOperation> 
 typedef CompositeOperation<ExclusiveDiscardOperation, StringPoolReleaseOperation> StringPoolDiscardOperation;
 
 size_t JfrStringPool::write() {
-  set_serialized_generation();
   Thread* const thread = Thread::current();
   WriteOperation wo(_chunkwriter, thread);
   ExclusiveWriteOperation ewo(wo);
@@ -218,7 +230,7 @@ size_t JfrStringPool::write_at_safepoint() {
 }
 
 size_t JfrStringPool::clear() {
-  set_serialized_generation();
+  increment_serialized_generation();
   DiscardOperation discard_operation;
   ExclusiveDiscardOperation edo(discard_operation);
   StringPoolReleaseOperation spro(_free_list_mspace, Thread::current(), false);

@@ -26,6 +26,7 @@
 #define SHARE_JFR_UTILITIES_JFRTYPES_HPP
 
 #include "jfrfiles/jfrEventIds.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 typedef u8 traceid;
 typedef int fio_fd;
