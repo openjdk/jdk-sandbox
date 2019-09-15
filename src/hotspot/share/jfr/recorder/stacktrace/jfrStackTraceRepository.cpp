@@ -77,7 +77,10 @@ bool JfrStackTraceRepository::is_modified() const {
   return last_id != _next_id;
 }
 
-size_t JfrStackTraceRepository::write_impl(JfrChunkWriter& sw, bool clear) {
+size_t JfrStackTraceRepository::write(JfrChunkWriter& sw, bool clear) {
+  if (_entries == 0) {
+    return 0;
+  }
   MutexLocker lock(JfrStacktrace_lock, Mutex::_no_safepoint_check_flag);
   assert(_entries > 0, "invariant");
   int count = 0;
@@ -103,26 +106,6 @@ size_t JfrStackTraceRepository::write_impl(JfrChunkWriter& sw, bool clear) {
   return count;
 }
 
-size_t JfrStackTraceRepository::write(JfrChunkWriter& sw, bool clear) {
-  return _entries > 0 ? write_impl(sw, clear) : 0;
-}
-
-traceid JfrStackTraceRepository::write(JfrCheckpointWriter& writer, traceid id, unsigned int hash) {
-  assert(JfrStacktrace_lock->owned_by_self(), "invariant");
-  const JfrStackTrace* const trace = lookup(hash, id);
-  assert(trace != NULL, "invariant");
-  assert(trace->hash() == hash, "invariant");
-  assert(trace->id() == id, "invariant");
-  trace->write(writer);
-  return id;
-}
-
-void JfrStackTraceRepository::write_metadata(JfrCheckpointWriter& writer) {
-  JfrFrameType fct;
-  writer.write_type(TYPE_FRAMETYPE);
-  fct.serialize(writer);
-}
-
 size_t JfrStackTraceRepository::clear() {
   MutexLocker lock(JfrStacktrace_lock, Mutex::_no_safepoint_check_flag);
   if (_entries == 0) {
@@ -140,6 +123,8 @@ size_t JfrStackTraceRepository::clear() {
   const size_t processed = _entries;
   _entries = 0;
   return processed;
+}
+
 traceid JfrStackTraceRepository::record(Thread* thread, int skip /* 0 */) {
   assert(thread == Thread::current(), "invariant");
   JfrThreadLocal* const tl = thread->jfr_thread_local();

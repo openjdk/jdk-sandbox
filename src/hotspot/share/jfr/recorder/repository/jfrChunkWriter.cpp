@@ -26,7 +26,6 @@
 #include "jfr/recorder/repository/jfrChunk.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/utilities/jfrTime.hpp"
-#include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
 

@@ -94,6 +94,7 @@ bool JfrSymbolId::on_equals(uintptr_t hash, const SymbolEntry* entry) {
   return true;
 }
 
+void JfrSymbolId::on_unlink(const SymbolEntry* entry) {
   assert(entry != NULL, "invariant");
   const_cast<Symbol*>(entry->literal())->decrement_refcount();
 }

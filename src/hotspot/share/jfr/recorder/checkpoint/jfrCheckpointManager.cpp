@@ -41,7 +41,7 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/mutexLocker.hpp"
+#include "runtime/mutex.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/safepoint.hpp"
@@ -378,18 +378,18 @@ static JfrBuffer* get_epoch_transition_buffer(JfrCheckpointMspace* mspace, Threa
 }
 
 size_t JfrCheckpointManager::write_types() {
-  ResourceMark rm;
-  HandleMark hm;
   Thread* const t = Thread::current();
+  ResourceMark rm(t);
+  HandleMark hm(t);
   JfrCheckpointWriter writer(t, get_epoch_transition_buffer(_epoch_transition_mspace, t), STATICS);
   JfrTypeManager::write_types(writer);
   return writer.used_size();
 }
 
 size_t JfrCheckpointManager::write_threads() {
-  ResourceMark rm;
-  HandleMark hm;
   Thread* const t = Thread::current();
+  ResourceMark rm(t);
+  HandleMark hm(t);
   JfrCheckpointWriter writer(t, get_epoch_transition_buffer(_epoch_transition_mspace, t), THREADS);
   JfrTypeManager::write_threads(writer);
   return writer.used_size();
@@ -428,7 +428,6 @@ void JfrCheckpointManager::write_type_set() {
 }
 
 void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
-  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   JfrTypeManager::write_type_set_for_unloaded_classes();
 }
 
@@ -463,4 +462,3 @@ void JfrCheckpointManager::shift_epoch() {
   JfrTraceIdEpoch::shift_epoch();
   assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
 }
-

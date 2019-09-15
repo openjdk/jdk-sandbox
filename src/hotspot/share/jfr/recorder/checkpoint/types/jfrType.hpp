@@ -27,13 +27,11 @@
 
 #include "jfr/metadata/jfrSerializer.hpp"
 
-class JfrThreadConstantSet : public JfrSerializer {
+class TypeSet : public JfrSerializer {
+ private:
+  JfrCheckpointWriter* _leakp_writer;
  public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class JfrThreadGroupConstant : public JfrSerializer {
- public:
+  explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
   void serialize(JfrCheckpointWriter& writer);
 };
 
@@ -48,6 +46,7 @@ class FlushTypeSet : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
   size_t elements() const;
 };
+
 class FlagValueOriginConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
@@ -113,11 +112,13 @@ class VMOperationTypeConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class TypeSet : public JfrSerializer {
- private:
-  JfrCheckpointWriter* _leakp_writer;
+class JfrThreadConstantSet : public JfrSerializer {
  public:
-  explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
+  void serialize(JfrCheckpointWriter& writer);
+};
+
+class JfrThreadGroupConstant : public JfrSerializer {
+ public:
   void serialize(JfrCheckpointWriter& writer);
 };
 

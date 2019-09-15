@@ -29,6 +29,10 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/os.inline.hpp"
 
+static const char* const MAGIC = "FLR";
+static const u2 JFR_VERSION_MAJOR = 2;
+static const u2 JFR_VERSION_MINOR = 0;
+
 static jlong nanos_now() {
   return os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;
 }
@@ -44,7 +48,7 @@ JfrChunk::JfrChunk() :
   _start_nanos(0),
   _previous_start_nanos(invalid_time),
   _last_update_nanos(0),
-  _last_checkpoint_offset(0) {}
+  _last_checkpoint_offset(0),
   _last_metadata_offset(0),
   _generation(1) {}
 

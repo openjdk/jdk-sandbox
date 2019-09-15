@@ -172,10 +172,6 @@ void JfrTypeManager::notify_types_on_rotation() {
 }
 
 void JfrTypeManager::write_type_set() {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  // can safepoint here because of Module_lock
-  MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
-  MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
   if (!LeakProfiler::is_running()) {
     JfrCheckpointWriter writer;
     TypeSet set;
@@ -190,7 +186,6 @@ void JfrTypeManager::write_type_set() {
 }
 
 void JfrTypeManager::write_type_set_for_unloaded_classes() {
-  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   JfrCheckpointWriter writer;
   const JfrCheckpointContext ctx = writer.context();
   ClassUnloadTypeSet class_unload_set;
@@ -205,7 +200,6 @@ void JfrTypeManager::write_type_set_for_unloaded_classes() {
 }
 
 size_t JfrTypeManager::flush_type_set() {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrCheckpointWriter writer;
   FlushTypeSet flush;
   flush.serialize(writer);
