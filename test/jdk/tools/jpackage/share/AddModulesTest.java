@@ -36,7 +36,7 @@ public class AddModulesTest {
 
     private static final String [] CMD1 = {
         "--package-type", "app-image",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
@@ -45,7 +45,7 @@ public class AddModulesTest {
 
     private static final String [] CMD2 = {
         "--package-type", "app-image",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
@@ -54,7 +54,7 @@ public class AddModulesTest {
 
     private static final String [] CMD3 = {
         "--package-type", "app-image",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",

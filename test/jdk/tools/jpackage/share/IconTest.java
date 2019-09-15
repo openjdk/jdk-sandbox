@@ -45,7 +45,7 @@ public class IconTest {
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--icon", getIconPath(),
-        "--output", OUTPUT};
+        "--dest", OUTPUT};
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {

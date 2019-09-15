@@ -48,7 +48,7 @@ public class ResourceTest {
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--resource-dir", resourceDir,
-        "--output", OUTPUT};
+        "--dest", OUTPUT};
 
     private static void validateResult(String[] result) throws Exception {
         if (result.length != 2) {

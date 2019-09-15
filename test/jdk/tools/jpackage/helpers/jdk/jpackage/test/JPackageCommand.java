@@ -137,7 +137,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     public Path outputDir() {
-        return getArgumentValue("--output", () -> Test.defaultOutputDir(), Path::of);
+        return getArgumentValue("--dest", () -> Test.defaultOutputDir(), Path::of);
     }
 
     public Path inputDir() {
@@ -159,7 +159,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     public JPackageCommand setDefaultInputOutput() {
         verifyMutable();
         addArguments("--input", Test.defaultInputDir().toString());
-        addArguments("--output", Test.defaultOutputDir().toString());
+        addArguments("--dest", Test.defaultOutputDir().toString());
         return this;
     }
 
@@ -274,7 +274,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     /**
      * Returns path to application image directory.
      *
-     * E.g. if --output is set to `foo` and --name is set to `bar` the function
+     * E.g. if --dest is set to `foo` and --name is set to `bar` the function
      * will return `foo/bar` path.
      *
      * @throws IllegalArgumentException is command is doing platform packaging

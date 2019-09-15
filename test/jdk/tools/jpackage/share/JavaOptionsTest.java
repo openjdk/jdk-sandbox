@@ -37,7 +37,7 @@ public class JavaOptionsTest {
     private static final String[] CMD = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
@@ -46,7 +46,7 @@ public class JavaOptionsTest {
     private static final String[] CMD2 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",

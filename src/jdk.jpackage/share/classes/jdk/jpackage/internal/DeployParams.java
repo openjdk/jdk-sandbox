@@ -179,10 +179,6 @@ public class DeployParams {
     }
 
     public void validate() throws PackagerException {
-        if (outdir == null) {
-            throw new PackagerException("ERR_MissingArgument", "--output");
-        }
-
         boolean hasModule = (bundlerArguments.get(
                 Arguments.CLIOptions.MODULE.getId()) != null);
         boolean hasAppImage = (bundlerArguments.get(
@@ -329,7 +325,7 @@ public class DeployParams {
     BundleParams getBundleParams() {
         BundleParams bundleParams = new BundleParams();
 
-        // construct app resources relative to output folder!
+        // construct app resources relative to destination folder!
         bundleParams.setAppResourcesList(resources);
 
         Map<String, String> unescapedHtmlParams = new TreeMap<>();

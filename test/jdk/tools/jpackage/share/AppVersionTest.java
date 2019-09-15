@@ -42,7 +42,7 @@ public class AppVersionTest {
     private static final String[] CMD = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
@@ -51,7 +51,7 @@ public class AppVersionTest {
     private static final String[] CMD_VERSION = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",

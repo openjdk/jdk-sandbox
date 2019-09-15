@@ -44,13 +44,13 @@ public class ErrorTest {
     private static final String ARG1 = "--no-such-argument";
     private static final String EXPECTED1 =
             "Invalid Option: [--no-such-argument]";
-    private static final String ARG2 = "--output";
+    private static final String ARG2 = "--dest";
     private static final String EXPECTED2 = "--main-jar or --module";
 
     private static final String [] CMD1 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "non-existant.jar",
     };
@@ -59,7 +59,7 @@ public class ErrorTest {
     private static final String [] CMD2 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
     };
@@ -86,7 +86,7 @@ public class ErrorTest {
 
         validate(JPackageHelper.executeToolProvider(false,
             "--package-type", "app-image", ARG1), EXPECTED1, true);
-        validate(JPackageHelper.executeToolProvider(false, 
+        validate(JPackageHelper.executeToolProvider(false,
             "--package-type", "app-image", ARG2), EXPECTED2, true);
 
         JPackageHelper.deleteOutputFolder(OUTPUT);

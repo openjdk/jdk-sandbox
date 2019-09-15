@@ -38,7 +38,7 @@ public class ModuleTest {
         "--package-type", "app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
     };
 
@@ -46,7 +46,7 @@ public class ModuleTest {
         "--package-type", "app-image",
         "--module-path", "module",
         "--module", "com.other/com.other.Other",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--add-modules", "TBD",
     };

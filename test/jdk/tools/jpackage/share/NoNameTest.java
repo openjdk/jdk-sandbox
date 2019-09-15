@@ -41,7 +41,7 @@ public class NoNameTest {
     private static final String[] CMD = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
     };

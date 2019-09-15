@@ -37,7 +37,7 @@ public class RuntimeTest {
         "--package-type", "app-image",
         "--runtime-image", "runtime",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",

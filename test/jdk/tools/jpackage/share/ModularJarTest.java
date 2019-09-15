@@ -37,7 +37,7 @@ public class ModularJarTest {
     private static final String [] CMD1 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "com.hello.jar",
         "--main-class", "com.hello.Hello",
@@ -45,7 +45,7 @@ public class ModularJarTest {
 
     private static final String [] CMD2 = {
         "--package-type", "app-image",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input/com.hello.jar",

@@ -151,7 +151,7 @@ public class OptionsBase {
         CMD = new String[] {
             "--package-type", EXT,
             "--input", "input",
-            "--output", "output",
+            "--dest", "output",
             "--name", TEST_NAME,
             "--main-jar", "hello.jar",
             "--main-class", "Hello",

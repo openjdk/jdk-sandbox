@@ -51,7 +51,7 @@ public class BundleIdentifierTest {
     private static final String [] CMD_1 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", APP_NAME,
         "--main-jar", "hello.jar",
         "--main-class", MAIN_CLASS
@@ -60,7 +60,7 @@ public class BundleIdentifierTest {
     private static final String [] CMD_2 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", APP_NAME,
         "--main-jar", "hello.jar",
         "--main-class", MAIN_CLASS,

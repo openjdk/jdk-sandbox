@@ -48,7 +48,7 @@ public final class PackageTest {
     /**
      * Default test configuration for jpackage command. Default jpackage command
      * initialization includes:
-     * <li>Set --input and --output parameters.
+     * <li>Set --input and --dest parameters.
      * <li>Set --name parameter. Value of the parameter is the name of the first
      * class with main function found in the callers stack. Defaults can be
      * overridden with custom initializers set with subsequent addInitializer()
@@ -166,7 +166,7 @@ public final class PackageTest {
             public JPackageCommand get() {
                 JPackageCommand cmd = new JPackageCommand().setDefaultInputOutput();
                 if (bundleOutputDir != null) {
-                    cmd.setArgumentValue("--output", bundleOutputDir.toString());
+                    cmd.setArgumentValue("--dest", bundleOutputDir.toString());
                 }
                 cmd.setDefaultAppName();
                 return cmd;

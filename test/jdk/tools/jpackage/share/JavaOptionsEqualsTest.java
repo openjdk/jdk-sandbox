@@ -52,7 +52,7 @@ public class JavaOptionsEqualsTest {
         "--description", "the two options below should cause two app execution "
             + "Warnings with two lines output saying: "
             + "WARNING: Unknown module: <module-name>",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",

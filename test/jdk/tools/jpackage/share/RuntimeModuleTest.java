@@ -36,7 +36,7 @@ public class RuntimeModuleTest {
     private static final String [] CMD = {
         "--package-type", "app-image",
         "--runtime-image", "runtime",
-        "--output", OUTPUT,
+        "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input"};

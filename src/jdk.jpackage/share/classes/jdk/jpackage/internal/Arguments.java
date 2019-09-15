@@ -29,6 +29,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,6 +122,9 @@ public class Arguments {
         allOptions = new ArrayList<>();
 
         addLaunchers = new ArrayList<>();
+
+        output = Paths.get("").toAbsolutePath().toString();
+        deployParams.setOutput(new File(output));
     }
 
     // CLIOptions is public for DeployParamsTest
@@ -134,12 +138,12 @@ public class Arguments {
             setOptionValue("input", context().input);
         }),
 
-        OUTPUT ("output", "o", OptionCategories.PROPERTY, () -> {
+        OUTPUT ("dest", "d", OptionCategories.PROPERTY, () -> {
             context().output = popArg();
             context().deployParams.setOutput(new File(context().output));
         }),
 
-        DESCRIPTION ("description", "d", OptionCategories.PROPERTY),
+        DESCRIPTION ("description", OptionCategories.PROPERTY),
 
         VENDOR ("vendor", OptionCategories.PROPERTY),
 

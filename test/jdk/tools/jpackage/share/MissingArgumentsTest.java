@@ -32,65 +32,56 @@
  */
 
 public class MissingArgumentsTest {
-    private static final String [] RESULT_1 = {"--output"};
+    private static final String [] RESULT_1 = {"--input"};
     private static final String [] CMD_1 = {
         "--package-type", "app-image",
-        "--input", "input",
+        "--dest", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
     };
 
-    private static final String [] RESULT_2 = {"--input"};
+    private static final String [] RESULT_2 = {"--input", "--app-image"};
     private static final String [] CMD_2 = {
         "--package-type", "app-image",
-        "--output", "output",
+        "--package-type", "invalid-package-type",
+        "--dest", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
     };
 
-    private static final String [] RESULT_3 = {"--input", "--app-image"};
+    private static final String [] RESULT_3 = {"main class was not specified"};
     private static final String [] CMD_3 = {
         "--package-type", "app-image",
-        "--package-type", "invalid-package-type",
-        "--output", "output",
+        "--input", "input",
+        "--dest", "output",
         "--name", "test",
         "--main-jar", "hello.jar",
-        "--main-class", "Hello",
     };
 
-    private static final String [] RESULT_4 = {"main class was not specified"};
+    private static final String [] RESULT_4 = {"--main-jar"};
     private static final String [] CMD_4 = {
         "--package-type", "app-image",
         "--input", "input",
-        "--output", "output",
-        "--name", "test",
-        "--main-jar", "hello.jar",
-    };
-
-    private static final String [] RESULT_5 = {"--main-jar"};
-    private static final String [] CMD_5 = {
-        "--package-type", "app-image",
-        "--input", "input",
-        "--output", "output",
+        "--dest", "output",
         "--name", "test",
         "--main-class", "Hello",
     };
 
-    private static final String [] RESULT_6 = {"--module-path", "--runtime-image"};
-    private static final String [] CMD_6 = {
+    private static final String [] RESULT_5 = {"--module-path", "--runtime-image"};
+    private static final String [] CMD_5 = {
         "--package-type", "app-image",
-        "--output", "output",
+        "--dest", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
     };
 
-    private static final String [] RESULT_7 = {"--module-path", "--runtime-image",
+    private static final String [] RESULT_6 = {"--module-path", "--runtime-image",
                                                "--app-image"};
-    private static final String [] CMD_7 = {
+    private static final String [] CMD_6 = {
         "--package-type", "invalid-package-type",
-        "--output", "output",
+        "--dest", "output",
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
     };
@@ -121,19 +112,16 @@ public class MissingArgumentsTest {
         validate(output, RESULT_2, true);
 
         output = JPackageHelper.executeCLI(false, CMD_3);
-        validate(output, RESULT_3, true);
+        validate(output, RESULT_3, false);
 
         output = JPackageHelper.executeCLI(false, CMD_4);
-        validate(output, RESULT_4, false);
+        validate(output, RESULT_4, true);
 
         output = JPackageHelper.executeCLI(false, CMD_5);
         validate(output, RESULT_5, true);
 
         output = JPackageHelper.executeCLI(false, CMD_6);
         validate(output, RESULT_6, true);
-
-        output = JPackageHelper.executeCLI(false, CMD_7);
-        validate(output, RESULT_7, true);
 
     }
 
@@ -145,19 +133,16 @@ public class MissingArgumentsTest {
         validate(output, RESULT_2, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_3);
-        validate(output, RESULT_3, true);
+        validate(output, RESULT_3, false);
 
         output = JPackageHelper.executeToolProvider(false, CMD_4);
-        validate(output, RESULT_4, false);
+        validate(output, RESULT_4, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_5);
         validate(output, RESULT_5, true);
 
         output = JPackageHelper.executeToolProvider(false, CMD_6);
         validate(output, RESULT_6, true);
-
-        output = JPackageHelper.executeToolProvider(false, CMD_7);
-        validate(output, RESULT_7, true);
     }
 
     public static void main(String[] args) throws Exception {
