@@ -23,62 +23,57 @@
  * questions.
  */
 
-package jdk.jfr.api.consumer.streaming;
+package jdk.jfr.api.consumer.filestream;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicLong;
 
 import jdk.jfr.Event;
+import jdk.jfr.Recording;
 import jdk.jfr.consumer.EventStream;
 
 /**
  * @test
- * @summary Verifies that it is possible to stream contents from a file
+ * @summary Verifies that it is possible to stream contents from a multichunked file
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm jdk.jfr.api.consumer.streaming.TestFromFile
+ * @run main/othervm jdk.jfr.api.consumer.filestream.TestMultipleChunk
  */
-public class TestFromFile {
+public class TestMultipleChunk {
 
     static class SnakeEvent extends Event {
         int id;
     }
 
     public static void main(String... args) throws Exception {
-//        Path path = Paths.get("./using-file.jfr");
-//        try (Recording r1 = new Recording()) {
-//            r1.start();
-//            emitSnakeEvent(1);
-//            emitSnakeEvent(2);
-//            emitSnakeEvent(3);
-//            // Force a chunk rotation
-//            try (Recording r2 = new Recording()) {
-//                r2.start();
-//                emitSnakeEvent(4);
-//                emitSnakeEvent(5);
-//                emitSnakeEvent(6);
-//                r2.stop();
-//            }
-//            r1.stop();
-//            r1.dump(path);
-//
-//            testIterator(path);
-//            testConsumer(path);
-//        }
-    }
-
-    static void testConsumer(Path path) throws Exception {
-        AtomicLong counter = new AtomicLong();
-        try (EventStream es = EventStream.openFile(path)) {
-            es.onEvent(e -> {
-                counter.incrementAndGet();
-            });
-            es.startAsync();
-            if (counter.get() != 6) {
-                throw new Exception("Expected 6 event, but got " + counter.get());
+        Path path = Paths.get("./using-file.jfr");
+        try (Recording r1 = new Recording()) {
+            r1.start();
+            emitSnakeEvent(1);
+            emitSnakeEvent(2);
+            emitSnakeEvent(3);
+            // Force a chunk rotation
+            try (Recording r2 = new Recording()) {
+                r2.start();
+                emitSnakeEvent(4);
+                emitSnakeEvent(5);
+                emitSnakeEvent(6);
+                r2.stop();
             }
-            es.awaitTermination();
+            r1.stop();
+            r1.dump(path);
+            AtomicLong counter = new AtomicLong();
+            try (EventStream es = EventStream.openFile(path)) {
+                es.onEvent(e -> {
+                    counter.incrementAndGet();
+                });
+                es.start();
+                if (counter.get() != 6) {
+                    throw new Exception("Expected 6 event, but got " + counter.get());
+                }
+            }
         }
     }
 
