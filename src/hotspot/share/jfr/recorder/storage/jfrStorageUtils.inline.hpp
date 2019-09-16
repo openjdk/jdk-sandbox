@@ -47,7 +47,7 @@ template <typename Operation>
 inline bool ConcurrentWriteOp<Operation>::process(typename Operation::Type* t) {
   const u1* const current_top = t->concurrent_top();
   const size_t unflushed_size = t->pos() - current_top;
-  if (unflushed_size == 0 || t->excluded()) {
+  if (unflushed_size == 0) {
     t->set_concurrent_top(current_top);
     return true;
   }
@@ -58,8 +58,7 @@ inline bool ConcurrentWriteOp<Operation>::process(typename Operation::Type* t) {
 
 template <typename Operation>
 inline bool ConcurrentWriteOpExcludeRetired<Operation>::process(typename Operation::Type* t) {
-  if (t->retired()) {
-    assert(t->empty(), "invariant");
+  if (t->retired() || t->excluded()) {
     return true;
   }
   return ConcurrentWriteOp<Operation>::process(t);
@@ -70,7 +69,7 @@ inline bool MutexedWriteOp<Operation>::process(typename Operation::Type* t) {
   assert(t != NULL, "invariant");
   const u1* const current_top = t->top();
   const size_t unflushed_size = t->pos() - current_top;
-  if (unflushed_size == 0 || t->excluded()) {
+  if (unflushed_size == 0) {
     return true;
   }
   const bool result = _operation.write(t, current_top, unflushed_size);

@@ -314,7 +314,7 @@ static void handle_registration_failure(BufferPtr buffer) {
   assert(buffer != NULL, "invariant");
   assert(buffer->retired(), "invariant");
   const size_t unflushed_size = buffer->unflushed_size();
-  buffer->reinitialize();
+  buffer->concurrent_reinitialization();
   log_registration_failure(unflushed_size);
 }
 

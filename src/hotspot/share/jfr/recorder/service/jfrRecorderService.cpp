@@ -237,14 +237,12 @@ static int64_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
   cw.write(JfrTicks::now());
-  cw.write((int64_t)0); // duration
+  cw.write<u8>(0); // duration
   cw.write(delta_to_last_checkpoint);
-  cw.write<bool>(false); // flushpoint
-  cw.write((u4)1); // nof types in this checkpoint
+  cw.write<u4>(GENERIC); // checkpoint type
+  cw.write<u4>(1); // nof types in this checkpoint
   cw.write(type_id);
-  const int64_t number_of_elements_offset = cw.current_offset();
-  cw.reserve(sizeof(u4));
-  return number_of_elements_offset;
+  return cw.reserve(sizeof(u4));
 }
 
 template <typename Content>
