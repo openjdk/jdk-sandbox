@@ -167,7 +167,9 @@ size_t JfrRepository::close_chunk() {
 
 void JfrRepository::flush(bool metadata, JavaThread* jt) {
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(jt));
-  assert(Jfr::is_recording(), "invariant");
+  if (!Jfr::is_recording()) {
+    return;
+  }
   if (!_chunkwriter->is_valid()) {
     return;
   }
