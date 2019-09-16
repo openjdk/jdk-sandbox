@@ -70,7 +70,7 @@ JfrJniMethodRegistration::JfrJniMethodRegistration(JNIEnv* env) {
       (char*)"getEventWriter", (char*)"()Ljava/lang/Object;", (void*)jfr_get_event_writer,
       (char*)"newEventWriter", (char*)"()Ljdk/jfr/internal/EventWriter;", (void*)jfr_new_event_writer,
       (char*)"flush", (char*)"(Ljdk/jfr/internal/EventWriter;II)Z", (void*)jfr_event_writer_flush,
-      (char*)"flush", (char*)"(ZS)V", (void*)jfr_flush,
+      (char*)"flush", (char*)"(Z)V", (void*)jfr_flush,
       (char*)"setRepositoryLocation", (char*)"(Ljava/lang/String;)V", (void*)jfr_set_repository_location,
       (char*)"abort", (char*)"(Ljava/lang/String;)V", (void*)jfr_abort,
       (char*)"getEpochAddress", (char*)"()J",(void*)jfr_get_epoch_address,

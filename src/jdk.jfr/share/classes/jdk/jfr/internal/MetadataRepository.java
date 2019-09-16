@@ -63,7 +63,6 @@ public final class MetadataRepository {
     private boolean unregistered;
     private long lastUnloaded = -1;
     private boolean flushMetadata;
-    private short flushCounter = 0;
 
     public MetadataRepository() {
         initializeJVMEventTypes();
@@ -280,7 +279,6 @@ public final class MetadataRepository {
         if (staleMetadata) {
             storeDescriptorInJVM();
         }
-        flushCounter = 0;
     }
 
     private void unregisterUnloaded() {
@@ -320,10 +318,7 @@ public final class MetadataRepository {
     }
 
     public synchronized void flush() {
-        jvm.flush(flushMetadata || flushCounter == 0, ++flushCounter);
-        if (flushCounter == Short.MAX_VALUE) {
-            flushCounter = 0;
-        }
+        jvm.flush(flushMetadata);
         this.flushMetadata = false;
     }
 

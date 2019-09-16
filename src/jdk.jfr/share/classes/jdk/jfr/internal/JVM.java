@@ -468,10 +468,8 @@ public final class JVM {
      *
      * @param includeMetadata {@code true} if metadata event should be written, {@code false}
      *        otherwise
-     * @param flushCounter the (flushCounter + 1= should be written to the chunk header, by default the
-     *        value in the chunk header should be {@code 1} and set {@code 0} once the chunk is complete.
      */
-    public native void flush(boolean includeMetadata, short flushCounter);
+    public native void flush(boolean includeMetadata);
     /**
      * Sets the location of the disk repository, to be used at an emergency
      * dump.
