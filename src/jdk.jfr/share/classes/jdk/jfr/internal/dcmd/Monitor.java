@@ -28,6 +28,8 @@ import java.io.IOException;
 import jdk.jfr.consumer.EventStream;
 import jdk.jfr.consumer.RecordingStream;
 
+// TODO: This file is to be deleted before integration
+
 public class Monitor {
 
     private static EventStream stream;

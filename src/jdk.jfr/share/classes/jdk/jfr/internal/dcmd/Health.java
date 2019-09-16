@@ -42,6 +42,8 @@ import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedStackTrace;
 import jdk.jfr.consumer.RecordingStream;
 
+// TODO: This file is to be deleted before integration
+
 /**
  *
  * HEALTH REPORT
