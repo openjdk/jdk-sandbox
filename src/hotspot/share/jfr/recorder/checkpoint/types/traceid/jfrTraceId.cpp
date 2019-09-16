@@ -44,7 +44,7 @@ static traceid atomic_inc(traceid volatile* const dest) {
   traceid compare_value;
   traceid exchange_value;
   do {
-    compare_value = Atomic::load(dest);
+    compare_value = *dest;
     exchange_value = compare_value + 1;
   } while (Atomic::cmpxchg(exchange_value, dest, compare_value) != compare_value);
   return exchange_value;

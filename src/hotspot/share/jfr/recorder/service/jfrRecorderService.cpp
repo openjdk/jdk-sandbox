@@ -59,7 +59,7 @@
 // set data iff *dest == NULL
 static bool try_set(void* const data, void** dest, bool clear) {
   assert(data != NULL, "invariant");
-  const void* const current = Atomic::load(dest);
+  const void* const current = *dest;
   if (current != NULL) {
     if (current != data) {
       // already set
