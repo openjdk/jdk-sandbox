@@ -33,7 +33,6 @@ class JfrChunkWriter;
 //
 // Metadata is continuously updated in Java as event classes are loaded / unloaded.
 // Using update(), Java stores a binary representation back to native.
-// This is for easy access on chunk finalization as well as having it readily available in the case of fatal error.
 //
 class JfrMetadataEvent : AllStatic {
  public:

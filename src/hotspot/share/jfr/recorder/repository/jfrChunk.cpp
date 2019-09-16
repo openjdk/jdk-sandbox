@@ -189,9 +189,6 @@ int64_t JfrChunk::last_metadata_offset() const {
 }
 
 void JfrChunk::set_last_metadata_offset(int64_t offset) {
-  if (0 == offset) {
-    return;
-  }
   assert(offset > _last_metadata_offset, "invariant");
   _last_metadata_offset = offset;
 }

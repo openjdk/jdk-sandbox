@@ -31,43 +31,38 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/thread.inline.hpp"
 
-static jbyteArray _metadata_blob = NULL;
+static jbyteArray metadata_blob = NULL;
 static u8 metadata_id = 0;
 static u8 last_written_metadata_id = 0;
 
-static void write_metadata_blob(JfrChunkWriter& chunkwriter, jbyteArray metadata_blob) {
-  if (metadata_blob != NULL) {
-    const typeArrayOop arr = (typeArrayOop)JfrJavaSupport::resolve_non_null(metadata_blob);
-    assert(arr != NULL, "invariant");
-    const int length = arr->length();
-    const Klass* const k = arr->klass();
-    assert(k != NULL && k->is_array_klass(), "invariant");
-    const TypeArrayKlass* const byte_arr_klass = TypeArrayKlass::cast(k);
-    const jbyte* const data_address = arr->byte_at_addr(0);
-    chunkwriter.write_unbuffered(data_address, length);
-  }
+static void write_metadata_blob(JfrChunkWriter& chunkwriter) {
+  assert(metadata_blob != NULL, "invariant");
+  const typeArrayOop arr = (typeArrayOop)JfrJavaSupport::resolve_non_null(metadata_blob);
+  assert(arr != NULL, "invariant");
+  const int length = arr->length();
+  const Klass* const k = arr->klass();
+  assert(k != NULL && k->is_array_klass(), "invariant");
+  const TypeArrayKlass* const byte_arr_klass = TypeArrayKlass::cast(k);
+  const jbyte* const data_address = arr->byte_at_addr(0);
+  chunkwriter.write_unbuffered(data_address, length);
 }
 
 void JfrMetadataEvent::write(JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
-  const jlong metadata_offset = chunkwriter.current_offset();
-  assert(chunkwriter.current_offset() == metadata_offset, "invariant");
-
   if (last_written_metadata_id == metadata_id && chunkwriter.has_metadata()) {
     return;
   }
-
   // header
-  chunkwriter.reserve(sizeof(u4));
+  const int64_t metadata_offset = chunkwriter.reserve(sizeof(u4));
   chunkwriter.write<u8>(EVENT_METADATA); // ID 0
   // time data
   chunkwriter.write(JfrTicks::now());
   chunkwriter.write((u8)0); // duration
   chunkwriter.write(metadata_id); // metadata id
-  write_metadata_blob(chunkwriter, _metadata_blob); // payload
+  write_metadata_blob(chunkwriter); // payload
   last_written_metadata_id = metadata_id;
   // fill in size of metadata descriptor event
-  const jlong size_written = chunkwriter.current_offset() - metadata_offset;
+  const int64_t size_written = chunkwriter.current_offset() - metadata_offset;
   chunkwriter.write_padded_at_offset((u4)size_written, metadata_offset);
   chunkwriter.set_last_metadata_offset(metadata_offset);
 }
@@ -76,10 +71,11 @@ void JfrMetadataEvent::update(jbyteArray metadata) {
   JavaThread* thread = (JavaThread*)Thread::current();
   assert(thread->is_Java_thread(), "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(thread));
-  if (_metadata_blob != NULL) {
-    JfrJavaSupport::destroy_global_jni_handle(_metadata_blob);
+  if (metadata_blob != NULL) {
+    JfrJavaSupport::destroy_global_jni_handle(metadata_blob);
   }
   const oop new_desc_oop = JfrJavaSupport::resolve_non_null(metadata);
-  _metadata_blob = new_desc_oop != NULL ? (jbyteArray)JfrJavaSupport::global_jni_handle(new_desc_oop, thread) : NULL;
+  assert(new_desc_oop != NULL, "invariant");
+  metadata_blob = (jbyteArray)JfrJavaSupport::global_jni_handle(new_desc_oop, thread);
   ++metadata_id;
 }
