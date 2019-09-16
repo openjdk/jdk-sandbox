@@ -25,9 +25,14 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/repository/jfrChunk.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
+#include "jfr/utilities/jfrTime.hpp"
 #include "jfr/utilities/jfrTimeConverter.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/os.inline.hpp"
+
+static const char* const MAGIC = "FLR";
+static const u2 JFR_VERSION_MAJOR = 2;
+static const u2 JFR_VERSION_MINOR = 0;
 
 static jlong nanos_now() {
   return os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;

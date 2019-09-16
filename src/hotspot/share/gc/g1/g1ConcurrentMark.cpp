@@ -37,12 +37,12 @@
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/g1/g1Trace.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcTimer.hpp"
-#include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/gcVMOperations.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
@@ -257,30 +257,38 @@ void G1CMMarkStack::set_empty() {
   _free_list = NULL;
 }
 
-G1CMRootRegions::G1CMRootRegions(uint const max_regions) :
-  _root_regions(NEW_C_HEAP_ARRAY(HeapRegion*, max_regions, mtGC)),
-  _max_regions(max_regions),
-  _num_root_regions(0),
-  _claimed_root_regions(0),
-  _scan_in_progress(false),
-  _should_abort(false) { }
-
-G1CMRootRegions::~G1CMRootRegions() {
-  FREE_C_HEAP_ARRAY(HeapRegion*, _max_regions);
+G1CMRootMemRegions::G1CMRootMemRegions(uint const max_regions) :
+    _root_regions(NULL),
+    _max_regions(max_regions),
+    _num_root_regions(0),
+    _claimed_root_regions(0),
+    _scan_in_progress(false),
+    _should_abort(false) {
+  _root_regions = new MemRegion[_max_regions];
+  if (_root_regions == NULL) {
+    vm_exit_during_initialization("Could not allocate root MemRegion set.");
+  }
 }
 
-void G1CMRootRegions::reset() {
+G1CMRootMemRegions::~G1CMRootMemRegions() {
+  delete[] _root_regions;
+}
+
+void G1CMRootMemRegions::reset() {
   _num_root_regions = 0;
 }
 
-void G1CMRootRegions::add(HeapRegion* hr) {
+void G1CMRootMemRegions::add(HeapWord* start, HeapWord* end) {
   assert_at_safepoint();
   size_t idx = Atomic::add((size_t)1, &_num_root_regions) - 1;
-  assert(idx < _max_regions, "Trying to add more root regions than there is space " SIZE_FORMAT, _max_regions);
-  _root_regions[idx] = hr;
+  assert(idx < _max_regions, "Trying to add more root MemRegions than there is space " SIZE_FORMAT, _max_regions);
+  assert(start != NULL && end != NULL && start <= end, "Start (" PTR_FORMAT ") should be less or equal to "
+         "end (" PTR_FORMAT ")", p2i(start), p2i(end));
+  _root_regions[idx].set_start(start);
+  _root_regions[idx].set_end(end);
 }
 
-void G1CMRootRegions::prepare_for_scan() {
+void G1CMRootMemRegions::prepare_for_scan() {
   assert(!scan_in_progress(), "pre-condition");
 
   _scan_in_progress = _num_root_regions > 0;
@@ -289,7 +297,7 @@ void G1CMRootRegions::prepare_for_scan() {
   _should_abort = false;
 }
 
-HeapRegion* G1CMRootRegions::claim_next() {
+const MemRegion* G1CMRootMemRegions::claim_next() {
   if (_should_abort) {
     // If someone has set the should_abort flag, we return NULL to
     // force the caller to bail out of their loop.
@@ -302,26 +310,26 @@ HeapRegion* G1CMRootRegions::claim_next() {
 
   size_t claimed_index = Atomic::add((size_t)1, &_claimed_root_regions) - 1;
   if (claimed_index < _num_root_regions) {
-    return _root_regions[claimed_index];
+    return &_root_regions[claimed_index];
   }
   return NULL;
 }
 
-uint G1CMRootRegions::num_root_regions() const {
+uint G1CMRootMemRegions::num_root_regions() const {
   return (uint)_num_root_regions;
 }
 
-void G1CMRootRegions::notify_scan_done() {
+void G1CMRootMemRegions::notify_scan_done() {
   MutexLocker x(RootRegionScan_lock, Mutex::_no_safepoint_check_flag);
   _scan_in_progress = false;
   RootRegionScan_lock->notify_all();
 }
 
-void G1CMRootRegions::cancel_scan() {
+void G1CMRootMemRegions::cancel_scan() {
   notify_scan_done();
 }
 
-void G1CMRootRegions::scan_finished() {
+void G1CMRootMemRegions::scan_finished() {
   assert(scan_in_progress(), "pre-condition");
 
   if (!_should_abort) {
@@ -333,7 +341,7 @@ void G1CMRootRegions::scan_finished() {
   notify_scan_done();
 }
 
-bool G1CMRootRegions::wait_until_scan_finished() {
+bool G1CMRootMemRegions::wait_until_scan_finished() {
   if (!scan_in_progress()) {
     return false;
   }
@@ -425,7 +433,7 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
     // Calculate the number of concurrent worker threads by scaling
     // the number of parallel GC threads.
     uint marking_thread_num = scale_concurrent_worker_threads(ParallelGCThreads);
-    FLAG_SET_ERGO(uint, ConcGCThreads, marking_thread_num);
+    FLAG_SET_ERGO(ConcGCThreads, marking_thread_num);
   }
 
   assert(ConcGCThreads > 0, "ConcGCThreads have been set.");
@@ -456,7 +464,7 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
                       mark_stack_size, MarkStackSizeMax);
       return;
     }
-    FLAG_SET_ERGO(size_t, MarkStackSize, mark_stack_size);
+    FLAG_SET_ERGO(MarkStackSize, mark_stack_size);
   } else {
     // Verify MarkStackSize is in range.
     if (FLAG_IS_CMDLINE(MarkStackSize)) {
@@ -875,14 +883,21 @@ uint G1ConcurrentMark::calc_active_marking_workers() {
   return result;
 }
 
-void G1ConcurrentMark::scan_root_region(HeapRegion* hr, uint worker_id) {
-  assert(hr->is_old() || (hr->is_survivor() && hr->next_top_at_mark_start() == hr->bottom()),
-         "Root regions must be old or survivor but region %u is %s", hr->hrm_index(), hr->get_type_str());
+void G1ConcurrentMark::scan_root_region(const MemRegion* region, uint worker_id) {
+#ifdef ASSERT
+  HeapWord* last = region->last();
+  HeapRegion* hr = _g1h->heap_region_containing(last);
+  assert(hr->is_old() || hr->next_top_at_mark_start() == hr->bottom(),
+         "Root regions must be old or survivor/eden but region %u is %s", hr->hrm_index(), hr->get_type_str());
+  assert(hr->next_top_at_mark_start() == region->start(),
+         "MemRegion start should be equal to nTAMS");
+#endif
+
   G1RootRegionScanClosure cl(_g1h, this, worker_id);
 
   const uintx interval = PrefetchScanIntervalInBytes;
-  HeapWord* curr = hr->next_top_at_mark_start();
-  const HeapWord* end = hr->top();
+  HeapWord* curr = region->start();
+  const HeapWord* end = region->end();
   while (curr < end) {
     Prefetch::read(curr, interval);
     oop obj = oop(curr);
@@ -902,11 +917,11 @@ public:
     assert(Thread::current()->is_ConcurrentGC_thread(),
            "this should only be done by a conc GC thread");
 
-    G1CMRootRegions* root_regions = _cm->root_regions();
-    HeapRegion* hr = root_regions->claim_next();
-    while (hr != NULL) {
-      _cm->scan_root_region(hr, worker_id);
-      hr = root_regions->claim_next();
+    G1CMRootMemRegions* root_regions = _cm->root_regions();
+    const MemRegion* region = root_regions->claim_next();
+    while (region != NULL) {
+      _cm->scan_root_region(region, worker_id);
+      region = root_regions->claim_next();
     }
   }
 };
@@ -2404,11 +2419,12 @@ void G1CMTask::drain_satb_buffers() {
     abort_marking_if_regular_check_fail();
   }
 
-  _draining_satb_buffers = false;
+  // Can't assert qset is empty here, even if not aborted.  If concurrent,
+  // some other thread might be adding to the queue.  If not concurrent,
+  // some other thread might have won the race for the last buffer, but
+  // has not yet decremented the count.
 
-  assert(has_aborted() ||
-         _cm->concurrent() ||
-         satb_mq_set.completed_buffers_num() == 0, "invariant");
+  _draining_satb_buffers = false;
 
   // again, this was a potentially expensive operation, decrease the
   // limits to get the regular clock call early
@@ -2571,7 +2587,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
   // and do_marking_step() is not being called serially.
   bool do_stealing = do_termination && !is_serial;
 
-  double diff_prediction_ms = _g1h->policy()->predictor().get_new_prediction(&_marking_step_diffs_ms);
+  double diff_prediction_ms = _g1h->policy()->predictor().get_new_prediction(&_marking_step_diff_ms);
   _time_target_ms = time_target_ms - diff_prediction_ms;
 
   // set up the variables that are used in the work-based scheme to
@@ -2813,7 +2829,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // Keep statistics of how well we did with respect to hitting
       // our target only if we actually timed out (if we aborted for
       // other reasons, then the results might get skewed).
-      _marking_step_diffs_ms.add(diff_ms);
+      _marking_step_diff_ms.add(diff_ms);
     }
 
     if (_cm->has_overflown()) {
@@ -2896,11 +2912,11 @@ G1CMTask::G1CMTask(uint worker_id,
   _elapsed_time_ms(0.0),
   _termination_time_ms(0.0),
   _termination_start_time_ms(0.0),
-  _marking_step_diffs_ms()
+  _marking_step_diff_ms()
 {
   guarantee(task_queue != NULL, "invariant");
 
-  _marking_step_diffs_ms.add(0.5);
+  _marking_step_diff_ms.add(0.5);
 }
 
 // These are formatting macros that are used below to ensure

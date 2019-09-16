@@ -195,7 +195,7 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
 // should be NULL before setting it.
 Klass::Klass(KlassID id) : _id(id),
                            _java_mirror(NULL),
-                           _prototype_header(markOopDesc::prototype()),
+                           _prototype_header(markWord::prototype()),
                            _shared_class_path_index(-1) {
   CDS_ONLY(_shared_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror = 0;)
@@ -525,7 +525,8 @@ void Klass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Klass::remove_unshareable_info() {
-  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+  assert (DumpSharedSpaces || DynamicDumpSharedSpaces,
+          "only called during CDS dump time");
   JFR_ONLY(REMOVE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
@@ -542,7 +543,7 @@ void Klass::remove_unshareable_info() {
 }
 
 void Klass::remove_java_mirror() {
-  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "only called during CDS dump time");
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
     log_trace(cds, unshareable)("remove java_mirror: %s", external_name());
@@ -566,6 +567,12 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   if (class_loader_data() == NULL) {
     // Restore class_loader_data to the null class loader data
     set_class_loader_data(loader_data);
+
+    // Workaround for suspected bug.  Make sure other threads see this assignment.
+    // This shouldn't be necessary but the compiler thread seems to be behind
+    // the times, even though this thread takes MethodCompileQueue_lock and the thread
+    // that doesn't see this value also takes that lock.
+    OrderAccess::fence();
 
     // Add to null class loader list first before creating the mirror
     // (same order as class file parsing)
@@ -743,9 +750,9 @@ void Klass::oop_print_on(oop obj, outputStream* st) {
 
   if (WizardMode) {
      // print header
-     obj->mark()->print_on(st);
+     obj->mark().print_on(st);
      st->cr();
-     st->print(BULLET"prototype_header: " INTPTR_FORMAT, p2i(_prototype_header));
+     st->print(BULLET"prototype_header: " INTPTR_FORMAT, _prototype_header.value());
      st->cr();
   }
 
@@ -766,7 +773,7 @@ void Klass::oop_print_value_on(oop obj, outputStream* st) {
 // Size Statistics
 void Klass::collect_statistics(KlassSizeStats *sz) const {
   sz->_klass_bytes = sz->count(this);
-  sz->_mirror_bytes = sz->count(java_mirror());
+  sz->_mirror_bytes = sz->count(java_mirror_no_keepalive());
   sz->_secondary_supers_bytes = sz->count_array(secondary_supers());
 
   sz->_ro_bytes += sz->_secondary_supers_bytes;

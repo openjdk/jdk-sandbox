@@ -114,12 +114,12 @@ class MutexedWriteOp {
 };
 
 template <typename Operation>
-class ExclusiveOp : public MutexedWriteOp<Operation> {
+class ExclusiveOp : private MutexedWriteOp<Operation> {
  public:
   typedef typename Operation::Type Type;
   ExclusiveOp(Operation& operation) : MutexedWriteOp<Operation>(operation) {}
   bool process(Type* t);
-  size_t size() const { return MutexedWriteOp<Operation>::size(); }
+  size_t processed() const { return MutexedWriteOp<Operation>::processed(); }
 };
 
 enum jfr_operation_mode {

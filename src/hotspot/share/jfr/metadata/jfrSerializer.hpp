@@ -70,9 +70,9 @@
 class JfrSerializer : public CHeapObj<mtTracing> {
  public:
   virtual ~JfrSerializer() {}
-  static bool register_serializer(JfrTypeId id, bool permit_cache, JfrSerializer* serializer);
-  virtual void serialize(JfrCheckpointWriter& writer) {}
   virtual void on_rotation() {}
+  static bool register_serializer(JfrTypeId id, bool permit_cache, JfrSerializer* serializer);
+  virtual void serialize(JfrCheckpointWriter& writer) = 0;
 };
 
 /*

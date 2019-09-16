@@ -172,6 +172,9 @@ int LIR_Assembler::check_icache() {
   return offset;
 }
 
+void LIR_Assembler::clinit_barrier(ciMethod* method) {
+  ShouldNotReachHere(); // not implemented
+}
 
 void LIR_Assembler::osr_entry() {
   // On-stack-replacement entry sequence (interpreter frame layout described in interpreter_sparc.cpp):
@@ -406,7 +409,7 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
 #ifdef ASSERT
     {
       ThreadInVMfromNative tiv(JavaThread::current());
-      assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(o)), "should be real oop");
+      assert(Universe::heap()->is_in(JNIHandles::resolve(o)), "should be real oop");
     }
 #endif
     int oop_index = __ oop_recorder()->find_index(o);

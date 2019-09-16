@@ -42,6 +42,7 @@ import java.util.function.Supplier;
 import org.graalvm.compiler.serviceprovider.SpeculationReasonGroup.SpeculationContextObject;
 
 import jdk.vm.ci.code.BytecodePosition;
+import jdk.vm.ci.code.VirtualObject;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
@@ -88,7 +89,15 @@ public final class GraalServices {
             synchronized (servicesCache) {
                 ArrayList<S> providersList = new ArrayList<>();
                 for (S provider : providers) {
-                    providersList.add(provider);
+                    /*
+                     * When building libgraal, we want providers that comes from the Graal community
+                     * and enterprise modules but not those available on the native-image class
+                     * path.
+                     */
+                    Module module = provider.getClass().getModule();
+                    if (module.isNamed()) {
+                        providersList.add(provider);
+                    }
                 }
                 providers = providersList;
                 servicesCache.put(service, providersList);
@@ -100,7 +109,7 @@ public final class GraalServices {
     }
 
     protected static <S> Iterable<S> load0(Class<S> service) {
-        Iterable<S> iterable = ServiceLoader.load(service, GraalServices.class.getClassLoader());
+        Iterable<S> iterable = ServiceLoader.load(service);
         return new Iterable<>() {
             @Override
             public Iterator<S> iterator() {
@@ -135,7 +144,9 @@ public final class GraalServices {
      * @param other all JVMCI packages will be opened to the module defining this class
      */
     static void openJVMCITo(Class<?> other) {
-        if (IS_IN_NATIVE_IMAGE) return;
+        if (IS_IN_NATIVE_IMAGE) {
+            return;
+        }
 
         Module jvmciModule = JVMCI_MODULE;
         Module otherModule = other.getModule();
@@ -518,5 +529,9 @@ public final class GraalServices {
      */
     public static double fma(double a, double b, double c) {
         return Math.fma(a, b, c);
+    }
+
+    public static VirtualObject createVirtualObject(ResolvedJavaType type, int id, boolean isAutoBox) {
+        return VirtualObject.get(type, id, isAutoBox);
     }
 }

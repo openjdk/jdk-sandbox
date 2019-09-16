@@ -92,10 +92,7 @@ class JfrBasicHashtable : public CHeapObj<mtTracing> {
     --_number_of_entries;
   }
   void free_buckets() {
-    if (NULL != _buckets) {
-      FREE_C_HEAP_ARRAY(Bucket, _buckets);
-      _buckets = NULL;
-    }
+    FREE_C_HEAP_ARRAY(Bucket, _buckets);
   }
   TableEntry* bucket(size_t i) { return _buckets[i].get_entry();}
   TableEntry** bucket_addr(size_t i) { return _buckets[i].entry_addr(); }
@@ -116,12 +113,12 @@ class AscendingId : public JfrCHeapObj  {
  public:
   AscendingId() : _id(0) {}
   // callbacks
-  void link(Entry* entry) {
+  void on_link(Entry* entry) {
     assert(entry != NULL, "invariant");
     assert(entry->id() == 0, "invariant");
     entry->set_id(++_id);
   }
-  bool equals(uintptr_t hash, const Entry* entry) {
+  bool on_equals(uintptr_t hash, const Entry* entry) {
     assert(entry->hash() == hash, "invariant");
     return true;
   }
@@ -187,7 +184,7 @@ class HashTableHost : public JfrBasicHashtable<T> {
   void free_entry(HashEntry* entry) {
     assert(entry != NULL, "invariant");
     JfrBasicHashtable<T>::unlink_entry(entry);
-    _callback->unlink(entry);
+    _callback->on_unlink(entry);
     delete entry;
   }
 
@@ -197,7 +194,7 @@ class HashTableHost : public JfrBasicHashtable<T> {
   HashEntry* new_entry(uintptr_t hash, const T& data);
   void add_entry(size_t index, HashEntry* new_entry) {
     assert(new_entry != NULL, "invariant");
-    _callback->link(new_entry);
+    _callback->on_link(new_entry);
     assert(new_entry->id() > 0, "invariant");
     JfrBasicHashtable<T>::add_entry(index, new_entry);
   }
@@ -215,7 +212,7 @@ template <typename T, typename IdType, template <typename, typename> class Entry
 Entry<T, IdType>* HashTableHost<T, IdType, Entry, Callback, TABLE_SIZE>::lookup_only(uintptr_t hash) {
   HashEntry* entry = (HashEntry*)this->bucket(index_for(hash));
   while (entry != NULL) {
-    if (entry->hash() == hash && _callback->equals(hash, entry)) {
+    if (entry->hash() == hash && _callback->on_equals(hash, entry)) {
       return entry;
     }
     entry = (HashEntry*)entry->next();

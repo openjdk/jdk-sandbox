@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2017, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,6 +79,21 @@ int LIR_Assembler::check_icache() {
   int offset = __ offset();
   __ inline_cache_check(receiver, Z_inline_cache);
   return offset;
+}
+
+void LIR_Assembler::clinit_barrier(ciMethod* method) {
+  assert(!method->holder()->is_not_initialized(), "initialization should have been started");
+
+  Label L_skip_barrier;
+  Register klass = Z_R1_scratch;
+
+  metadata2reg(method->holder()->constant_encoding(), klass);
+  __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+  __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+  __ z_br(klass);
+
+  __ bind(L_skip_barrier);
 }
 
 void LIR_Assembler::osr_entry() {
@@ -1970,7 +1985,6 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
       return;
     }
 
-    Label done;
     // Save outgoing arguments in callee saved registers (C convention) in case
     // a call to System.arraycopy is needed.
     Register callee_saved_src     = Z_R10;
@@ -2142,7 +2156,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
       store_parameter(src_klass, 0); // sub
       store_parameter(dst_klass, 1); // super
       emit_call_c(Runtime1::entry_for (Runtime1::slow_subtype_check_id));
-      CHECK_BAILOUT();
+      CHECK_BAILOUT2(cont, slow);
       // Sets condition code 0 for match (2 otherwise).
       __ branch_optimized(Assembler::bcondEqual, cont);
 
@@ -2201,7 +2215,7 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
         __ z_lg(Z_ARG5, Address(Z_ARG5, ObjArrayKlass::element_klass_offset()));
         __ z_lg(Z_ARG4, Address(Z_ARG5, Klass::super_check_offset_offset()));
         emit_call_c(copyfunc_addr);
-        CHECK_BAILOUT();
+        CHECK_BAILOUT2(cont, slow);
 
 #ifndef PRODUCT
         if (PrintC1Statistics) {
@@ -2556,7 +2570,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
       store_parameter(klass_RInfo, 0); // sub
       store_parameter(k_RInfo, 1);     // super
       emit_call_c(a); // Sets condition code 0 for match (2 otherwise).
-      CHECK_BAILOUT();
+      CHECK_BAILOUT2(profile_cast_failure, profile_cast_success);
       __ branch_optimized(Assembler::bcondNotEqual, *failure_target);
       // Fall through to success case.
     }
@@ -2639,7 +2653,7 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
     store_parameter(klass_RInfo, 0); // sub
     store_parameter(k_RInfo, 1);     // super
     emit_call_c(a); // Sets condition code 0 for match (2 otherwise).
-    CHECK_BAILOUT();
+    CHECK_BAILOUT3(profile_cast_success, profile_cast_failure, done);
     __ branch_optimized(Assembler::bcondNotEqual, *failure_target);
     // Fall through to success case.
 

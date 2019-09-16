@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -54,10 +54,11 @@ private:
                                     bool tosca_live,
                                     bool expand_call);
 
-  void resolve_forward_pointer(MacroAssembler* masm, Register dst);
-  void resolve_forward_pointer_not_null(MacroAssembler* masm, Register dst);
+  void resolve_forward_pointer(MacroAssembler* masm, Register dst, Register tmp = noreg);
+  void resolve_forward_pointer_not_null(MacroAssembler* masm, Register dst, Register tmp = noreg);
   void load_reference_barrier(MacroAssembler* masm, Register dst, Register tmp);
   void load_reference_barrier_not_null(MacroAssembler* masm, Register dst, Register tmp);
+  void load_reference_barrier_native(MacroAssembler* masm, Register dst, Register tmp);
 
   address generate_shenandoah_lrb(StubCodeGenerator* cgen);
 
@@ -70,23 +71,19 @@ public:
   void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);
   void gen_load_reference_barrier_stub(LIR_Assembler* ce, ShenandoahLoadReferenceBarrierStub* stub);
   void generate_c1_pre_barrier_runtime_stub(StubAssembler* sasm);
+  void generate_c1_load_reference_barrier_runtime_stub(StubAssembler* sasm);
 #endif
 
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
-                                  Register addr, Register count, RegSet saved_regs);
+                                  Register src, Register dst, Register count, RegSet saved_regs);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                   Register start, Register count, Register tmp, RegSet saved_regs);
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2);
-  virtual void tlab_allocate(MacroAssembler* masm, Register obj,
-                             Register var_size_in_bytes,
-                             int con_size_in_bytes,
-                             Register t1,
-                             Register t2,
-                             Label& slow_case);
-
+  virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
+                                             Register obj, Register tmp, Label& slowpath);
   void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
                    bool acquire, bool release, bool weak, bool is_cae, Register result);
 

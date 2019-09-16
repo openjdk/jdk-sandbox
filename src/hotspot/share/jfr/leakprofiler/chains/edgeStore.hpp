@@ -74,9 +74,9 @@ class EdgeStore : public CHeapObj<mtTracing> {
   EdgeHashTable* _edges;
 
   // Hash table callbacks
-  void link(EdgeEntry* entry);
-  bool equals(uintptr_t hash, const EdgeEntry* entry);
-  void unlink(EdgeEntry* entry);
+  void on_link(EdgeEntry* entry);
+  bool on_equals(uintptr_t hash, const EdgeEntry* entry);
+  void on_unlink(EdgeEntry* entry);
 
   StoredEdge* get(const oop* reference) const;
   StoredEdge* put(const oop* reference);

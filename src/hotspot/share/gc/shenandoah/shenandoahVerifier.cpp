@@ -138,7 +138,7 @@ private:
           // skip
           break;
         case ShenandoahVerifier::_verify_liveness_complete:
-          Atomic::add(obj->size() + ShenandoahForwarding::word_size(), &_ld[obj_reg->region_number()]);
+          Atomic::add((uint) obj->size(), &_ld[obj_reg->region_number()]);
           // fallthrough for fast failure for un-live regions:
         case ShenandoahVerifier::_verify_liveness_conservative:
           check(ShenandoahAsserts::_safe_oop, obj, obj_reg->has_live(),
@@ -458,7 +458,11 @@ public:
         ShenandoahVerifyOopClosure cl(&stack, _bitmap, _ld,
                                       ShenandoahMessageBuffer("%s, Roots", _label),
                                       _options);
-        _verifier->oops_do(&cl);
+        if (_heap->unload_classes()) {
+          _verifier->strong_roots_do(&cl);
+        } else {
+          _verifier->roots_do(&cl);
+        }
     }
 
     size_t processed = 0;
@@ -529,7 +533,7 @@ public:
 
   virtual void work_humongous(ShenandoahHeapRegion *r, ShenandoahVerifierStack& stack, ShenandoahVerifyOopClosure& cl) {
     size_t processed = 0;
-    HeapWord* obj = r->bottom() + ShenandoahForwarding::word_size();
+    HeapWord* obj = r->bottom();
     if (_heap->complete_marking_context()->is_marked((oop)obj)) {
       verify_and_follow(obj, stack, cl, &processed);
     }
@@ -543,12 +547,12 @@ public:
 
     // Bitmaps, before TAMS
     if (tams > r->bottom()) {
-      HeapWord* start = r->bottom() + ShenandoahForwarding::word_size();
+      HeapWord* start = r->bottom();
       HeapWord* addr = mark_bit_map->get_next_marked_addr(start, tams);
 
       while (addr < tams) {
         verify_and_follow(addr, stack, cl, &processed);
-        addr += ShenandoahForwarding::word_size();
+        addr += 1;
         if (addr < tams) {
           addr = mark_bit_map->get_next_marked_addr(addr, tams);
         }
@@ -558,11 +562,11 @@ public:
     // Size-based, after TAMS
     {
       HeapWord* limit = r->top();
-      HeapWord* addr = tams + ShenandoahForwarding::word_size();
+      HeapWord* addr = tams;
 
       while (addr < limit) {
         verify_and_follow(addr, stack, cl, &processed);
-        addr += oop(addr)->size() + ShenandoahForwarding::word_size();
+        addr += oop(addr)->size();
       }
     }
 
@@ -601,6 +605,23 @@ public:
     if (actual != _expected) {
       fatal("%s: Thread %s: expected gc-state %d, actual %d", _label, t->name(), _expected, actual);
     }
+  }
+};
+
+class ShenandoahGCStateResetter : public StackObj {
+private:
+  ShenandoahHeap* const _heap;
+  char _gc_state;
+
+public:
+  ShenandoahGCStateResetter() : _heap(ShenandoahHeap::heap()) {
+    _gc_state = _heap->gc_state();
+    _heap->_gc_state.clear();
+  }
+
+  ~ShenandoahGCStateResetter() {
+    _heap->_gc_state.set(_gc_state);
+    assert(_heap->gc_state() == _gc_state, "Should be restored");
   }
 };
 
@@ -652,6 +673,9 @@ void ShenandoahVerifier::verify_at_safepoint(const char *label,
       Threads::java_threads_do(&vtgcs);
     }
   }
+
+  // Deactivate barriers temporarily: Verifier wants plain heap accesses
+  ShenandoahGCStateResetter resetter;
 
   // Heap size checks
   {
@@ -940,15 +964,51 @@ public:
   void do_oop(oop* p)       { do_oop_work(p); }
 };
 
+class ShenandoahVerifyInToSpaceClosure : public OopClosure {
+private:
+  template <class T>
+  void do_oop_work(T* p) {
+    T o = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(o)) {
+      oop obj = CompressedOops::decode_not_null(o);
+      ShenandoahHeap* heap = ShenandoahHeap::heap_no_check();
+
+      if (!heap->marking_context()->is_marked(obj)) {
+        ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, NULL,
+                "Verify Roots In To-Space", "Should be marked", __FILE__, __LINE__);
+      }
+
+      if (heap->in_collection_set(obj)) {
+        ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, NULL,
+                "Verify Roots In To-Space", "Should not be in collection set", __FILE__, __LINE__);
+      }
+
+      oop fwd = (oop) ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
+      if (!oopDesc::equals_raw(obj, fwd)) {
+        ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, NULL,
+                "Verify Roots In To-Space", "Should not be forwarded", __FILE__, __LINE__);
+      }
+    }
+  }
+
+public:
+  void do_oop(narrowOop* p) { do_oop_work(p); }
+  void do_oop(oop* p)       { do_oop_work(p); }
+};
+
+void ShenandoahVerifier::verify_roots_in_to_space() {
+  ShenandoahRootVerifier verifier;
+  ShenandoahVerifyInToSpaceClosure cl;
+  verifier.oops_do(&cl);
+}
+
 void ShenandoahVerifier::verify_roots_no_forwarded() {
-  guarantee(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "only when nothing else happens");
   ShenandoahRootVerifier verifier;
   ShenandoahVerifyNoForwared cl;
   verifier.oops_do(&cl);
 }
 
 void ShenandoahVerifier::verify_roots_no_forwarded_except(ShenandoahRootVerifier::RootTypes types) {
-  guarantee(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "only when nothing else happens");
   ShenandoahRootVerifier verifier;
   verifier.excludes(types);
   ShenandoahVerifyNoForwared cl;

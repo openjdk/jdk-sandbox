@@ -46,6 +46,7 @@ class G1CMBitMap;
 class G1HotCardCache;
 class G1RemSetScanState;
 class G1ParScanThreadState;
+class G1ParScanThreadStateSet;
 class G1Policy;
 class G1ScanCardClosure;
 class HeapRegionClaimer;
@@ -66,6 +67,7 @@ private:
   G1Policy*              _g1p;
   G1HotCardCache*        _hot_card_cache;
 
+  void print_merge_heap_roots_stats();
 public:
 
   typedef CardTable::CardValue CardValue;
@@ -84,36 +86,38 @@ public:
            G1HotCardCache* hot_card_cache);
   ~G1RemSet();
 
-  // Scan all remembered sets of the collection set for references into the collection
-  // set.
-  // Further applies heap_region_codeblobs on the oops of the unmarked nmethods on the strong code
-  // roots list for each region in the collection set.
-  void scan_rem_set(G1ParScanThreadState* pss,
-                    uint worker_i,
-                    G1GCPhaseTimes::GCParPhases scan_phase,
-                    G1GCPhaseTimes::GCParPhases objcopy_phase,
-                    G1GCPhaseTimes::GCParPhases coderoots_phase);
+  // Scan all cards in the non-collection set regions that potentially contain
+  // references into the current whole collection set.
+  void scan_heap_roots(G1ParScanThreadState* pss,
+                       uint worker_id,
+                       G1GCPhaseTimes::GCParPhases scan_phase,
+                       G1GCPhaseTimes::GCParPhases objcopy_phase);
 
-  // Flush remaining refinement buffers for cross-region references to either evacuate references
-  // into the collection set or update the remembered set.
-  void update_rem_set(G1ParScanThreadState* pss, uint worker_i);
+  // Merge cards from various sources (remembered sets, hot card cache, log buffers)
+  // and calculate the cards that need to be scanned later (via scan_heap_roots()).
+  // If initial_evacuation is set, this is called during the initial evacuation.
+  void merge_heap_roots(bool initial_evacuation);
 
-  // Prepare for and cleanup after scanning the remembered sets.  Must be called
+  // Prepare for and cleanup after scanning the heap roots. Must be called
   // once before and after in sequential code.
-  void prepare_for_scan_rem_set();
-  void cleanup_after_scan_rem_set();
+  void prepare_for_scan_heap_roots();
+  // Cleans the card table from temporary duplicate detection information.
+  void cleanup_after_scan_heap_roots();
+  // Prepares the given region for heap root scanning.
+  void prepare_for_scan_heap_roots(uint region_idx);
 
-  G1RemSetScanState* scan_state() const { return _scan_state; }
+  // Do work for regions in the current increment of the collection set, scanning
+  // non-card based (heap) roots.
+  void scan_collection_set_regions(G1ParScanThreadState* pss,
+                                   uint worker_id,
+                                   G1GCPhaseTimes::GCParPhases scan_phase,
+                                   G1GCPhaseTimes::GCParPhases coderoots_phase,
+                                   G1GCPhaseTimes::GCParPhases objcopy_phase);
 
   // Refine the card corresponding to "card_ptr". Safe to be called concurrently
   // to the mutator.
   void refine_card_concurrently(CardValue* card_ptr,
                                 uint worker_i);
-
-  // Refine the card corresponding to "card_ptr", applying the given closure to
-  // all references found. Must only be called during gc.
-  // Returns whether the card has been scanned.
-  bool refine_card_during_gc(CardValue* card_ptr, G1ScanCardClosure* update_rs_cl);
 
   // Print accumulated summary info from the start of the VM.
   void print_summary_info();
@@ -126,61 +130,6 @@ public:
   // Rebuilds the remembered set by scanning from bottom to TARS for all regions
   // using the given work gang.
   void rebuild_rem_set(G1ConcurrentMark* cm, WorkGang* workers, uint worker_id_offset);
-};
-
-class G1ScanRSForRegionClosure : public HeapRegionClosure {
-  G1CollectedHeap* _g1h;
-  G1CardTable *_ct;
-
-  G1ParScanThreadState* _pss;
-  G1ScanCardClosure* _scan_objs_on_card_cl;
-
-  G1RemSetScanState* _scan_state;
-
-  G1GCPhaseTimes::GCParPhases _phase;
-
-  uint   _worker_i;
-
-  size_t _opt_refs_scanned;
-  size_t _opt_refs_memory_used;
-
-  size_t _cards_scanned;
-  size_t _cards_claimed;
-  size_t _cards_skipped;
-
-  Tickspan _rem_set_root_scan_time;
-  Tickspan _rem_set_trim_partially_time;
-
-  Tickspan _strong_code_root_scan_time;
-  Tickspan _strong_code_trim_partially_time;
-
-  void claim_card(size_t card_index, const uint region_idx_for_card);
-  void scan_card(MemRegion mr, uint region_idx_for_card);
-
-  void scan_opt_rem_set_roots(HeapRegion* r);
-  void scan_rem_set_roots(HeapRegion* r);
-  void scan_strong_code_roots(HeapRegion* r);
-public:
-  G1ScanRSForRegionClosure(G1RemSetScanState* scan_state,
-                           G1ScanCardClosure* scan_obj_on_card,
-                           G1ParScanThreadState* pss,
-                           G1GCPhaseTimes::GCParPhases phase,
-                           uint worker_i);
-
-  bool do_heap_region(HeapRegion* r);
-
-  Tickspan rem_set_root_scan_time() const { return _rem_set_root_scan_time; }
-  Tickspan rem_set_trim_partially_time() const { return _rem_set_trim_partially_time; }
-
-  Tickspan strong_code_root_scan_time() const { return _strong_code_root_scan_time;  }
-  Tickspan strong_code_root_trim_partially_time() const { return _strong_code_trim_partially_time; }
-
-  size_t cards_scanned() const { return _cards_scanned; }
-  size_t cards_claimed() const { return _cards_claimed; }
-  size_t cards_skipped() const { return _cards_skipped; }
-
-  size_t opt_refs_scanned() const { return _opt_refs_scanned; }
-  size_t opt_refs_memory_used() const { return _opt_refs_memory_used; }
 };
 
 #endif // SHARE_GC_G1_G1REMSET_HPP

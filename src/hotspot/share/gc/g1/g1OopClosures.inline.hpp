@@ -115,8 +115,7 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   // can't do because of races
   // assert(oopDesc::is_oop_or_null(obj), "expected an oop");
-  assert(check_obj_alignment(obj), "not oop aligned");
-  assert(g1h->is_in_reserved(obj), "must be in heap");
+  g1h->check_oop_location(obj);
 
   HeapRegion* from = g1h->heap_region_containing(p);
 
@@ -169,11 +168,14 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 
   check_obj_during_refinement(p, obj);
 
-  // We can not check for references from the collection set: the remembered sets
-  // may contain such entries and we do not filter them before.
+  assert(!_g1h->is_in_cset((HeapWord*)p),
+         "Oop originates from " PTR_FORMAT " (region: %u) which is in the collection set.",
+         p2i(p), _g1h->addr_to_region((HeapWord*)p));
 
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
+    // Since the source is always from outside the collection set, here we implicitly know
+    // that this is a cross-region reference too.
     prefetch_and_push(p, obj);
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
@@ -183,6 +185,13 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {
+  const G1HeapRegionAttr region_attr = _g1h->region_attr(p);
+  // Entries in the optional collection set may start to originate from the collection
+  // set after one or more increments. In this case, previously optional regions
+  // became actual collection set regions. Filter them out here.
+  if (region_attr.is_in_cset()) {
+    return;
+  }
   _scan_cl->do_oop_work(p);
   _scan_cl->trim_queue_partially();
 }
@@ -220,9 +229,9 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
   const G1HeapRegionAttr state = _g1h->region_attr(obj);
   if (state.is_in_cset()) {
     oop forwardee;
-    markOop m = obj->mark_raw();
-    if (m->is_marked()) {
-      forwardee = (oop) m->decode_pointer();
+    markWord m = obj->mark_raw();
+    if (m.is_marked()) {
+      forwardee = (oop) m.decode_pointer();
     } else {
       forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
     }

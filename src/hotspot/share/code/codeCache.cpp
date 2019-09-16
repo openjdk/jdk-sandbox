@@ -283,9 +283,9 @@ void CodeCache::initialize_heaps() {
 
   // Verify sizes and update flag values
   assert(non_profiled_size + profiled_size + non_nmethod_size == cache_size, "Invalid code heap sizes");
-  FLAG_SET_ERGO(uintx, NonNMethodCodeHeapSize, non_nmethod_size);
-  FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, profiled_size);
-  FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, non_profiled_size);
+  FLAG_SET_ERGO(NonNMethodCodeHeapSize, non_nmethod_size);
+  FLAG_SET_ERGO(ProfiledCodeHeapSize, profiled_size);
+  FLAG_SET_ERGO(NonProfiledCodeHeapSize, non_profiled_size);
 
   // If large page support is enabled, align code heaps according to large
   // page size to make sure that code cache is covered by large pages.
@@ -771,9 +771,10 @@ void CodeCache::purge_exception_caches() {
 uint8_t CodeCache::_unloading_cycle = 1;
 
 void CodeCache::increment_unloading_cycle() {
-  if (_unloading_cycle == 1) {
-    _unloading_cycle = 2;
-  } else {
+  // 2-bit value (see IsUnloadingState in nmethod.cpp for details)
+  // 0 is reserved for new methods.
+  _unloading_cycle = (_unloading_cycle + 1) % 4;
+  if (_unloading_cycle == 0) {
     _unloading_cycle = 1;
   }
 }
@@ -941,9 +942,9 @@ void CodeCache::initialize() {
     initialize_heaps();
   } else {
     // Use a single code heap
-    FLAG_SET_ERGO(uintx, NonNMethodCodeHeapSize, 0);
-    FLAG_SET_ERGO(uintx, ProfiledCodeHeapSize, 0);
-    FLAG_SET_ERGO(uintx, NonProfiledCodeHeapSize, 0);
+    FLAG_SET_ERGO(NonNMethodCodeHeapSize, 0);
+    FLAG_SET_ERGO(ProfiledCodeHeapSize, 0);
+    FLAG_SET_ERGO(NonProfiledCodeHeapSize, 0);
     ReservedCodeSpace rs = reserve_heap_memory(ReservedCodeCacheSize);
     add_heap(rs, "CodeCache", CodeBlobType::All);
   }
@@ -1304,7 +1305,7 @@ void CodeCache::report_codemem_full(int code_blob_type, bool print) {
 
     if (heap->full_count() == 0) {
       if (PrintCodeHeapAnalytics) {
-        CompileBroker::print_heapinfo(tty, "all", "4096"); // details, may be a lot!
+        CompileBroker::print_heapinfo(tty, "all", 4096); // details, may be a lot!
       }
     }
   }
@@ -1591,7 +1592,7 @@ void CodeCache::log_state(outputStream* st) {
 
 //---<  BEGIN  >--- CodeHeap State Analytics.
 
-void CodeCache::aggregate(outputStream *out, const char* granularity) {
+void CodeCache::aggregate(outputStream *out, size_t granularity) {
   FOR_ALL_ALLOCABLE_HEAPS(heap) {
     CodeHeapState::aggregate(out, (*heap), granularity);
   }

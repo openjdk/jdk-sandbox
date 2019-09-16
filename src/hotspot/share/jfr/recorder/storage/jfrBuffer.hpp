@@ -145,8 +145,6 @@ class JfrBuffer {
     return _identity;
   }
 
-  void clear_identity();
-
   void acquire(const void* id);
   bool try_acquire(const void* id);
   bool acquired_by(const void* id) const;
@@ -171,13 +169,11 @@ class JfrBuffer {
   bool excluded() const;
   void set_excluded();
   void clear_excluded();
-
 };
 
 class JfrAgeNode : public JfrBuffer {
  private:
   JfrBuffer* _retired;
-
  public:
   JfrAgeNode() : _retired(NULL) {}
   void set_retired_buffer(JfrBuffer* retired) {

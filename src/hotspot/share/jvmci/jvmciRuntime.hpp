@@ -74,7 +74,7 @@ public:
   void invalidate_nmethod_mirror(nmethod* nm);
 
   // Gets the mirror from nm's oops table.
-  oop get_nmethod_mirror(nmethod* nm);
+  oop get_nmethod_mirror(nmethod* nm, bool phantom_ref);
 
   // Sets the mirror in nm's oops table.
   void set_nmethod_mirror(nmethod* nm, oop mirror);
@@ -222,6 +222,7 @@ class JVMCIRuntime: public CHeapObj<mtJVMCI> {
                        int                       frame_words,
                        OopMapSet*                oop_map_set,
                        ExceptionHandlerTable*    handler_table,
+                       ImplicitExceptionTable* implicit_exception_table,
                        AbstractCompiler*         compiler,
                        DebugInformationRecorder* debug_info,
                        Dependencies*             dependencies,

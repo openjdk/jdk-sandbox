@@ -172,7 +172,6 @@ void JfrTypeManager::notify_types_on_rotation() {
 }
 
 void JfrTypeManager::write_type_set() {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   if (!LeakProfiler::is_running()) {
     JfrCheckpointWriter writer;
     TypeSet set;
@@ -187,7 +186,6 @@ void JfrTypeManager::write_type_set() {
 }
 
 void JfrTypeManager::write_type_set_for_unloaded_classes() {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrCheckpointWriter writer;
   const JfrCheckpointContext ctx = writer.context();
   ClassUnloadTypeSet class_unload_set;
@@ -202,7 +200,6 @@ void JfrTypeManager::write_type_set_for_unloaded_classes() {
 }
 
 size_t JfrTypeManager::flush_type_set() {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrCheckpointWriter writer;
   FlushTypeSet flush;
   flush.serialize(writer);
@@ -267,11 +264,9 @@ bool JfrTypeManager::initialize() {
   register_type(TYPE_GCCAUSE, true, new GCCauseConstant());
   register_type(TYPE_GCNAME, true, new GCNameConstant());
   register_type(TYPE_GCWHEN, true, new GCWhenConstant());
-  register_type(TYPE_G1HEAPREGIONTYPE, true, new G1HeapRegionTypeConstant());
   register_type(TYPE_GCTHRESHOLDUPDATER, true, new GCThresholdUpdaterConstant());
   register_type(TYPE_METADATATYPE, true, new MetadataTypeConstant());
   register_type(TYPE_METASPACEOBJECTTYPE, true, new MetaspaceObjectTypeConstant());
-  register_type(TYPE_G1YCTYPE, true, new G1YCTypeConstant());
   register_type(TYPE_REFERENCETYPE, true, new ReferenceTypeConstant());
   register_type(TYPE_NARROWOOPMODE, true, new NarrowOopModeConstant());
   register_type(TYPE_COMPILERPHASETYPE, true, new CompilerPhaseTypeConstant());

@@ -54,10 +54,6 @@
 #include "opto/compile.hpp"
 #include "opto/node.hpp"
 #endif
-#if INCLUDE_G1GC
-#include "gc/g1/g1HeapRegionTraceType.hpp"
-#include "gc/g1/g1YCTypes.hpp"
-#endif
 
 // Requires a ResourceMark for get_thread_name/as_utf8
 class JfrCheckpointThreadClosure : public ThreadClosure {
@@ -182,15 +178,6 @@ void GCWhenConstant::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-void G1HeapRegionTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = G1HeapRegionTraceType::G1HeapRegionTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1HeapRegionTraceType::to_string((G1HeapRegionTraceType::Type)i));
-  }
-}
-
 void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
   static const u4 nof_entries = MetaspaceGCThresholdUpdater::Last;
   writer.write_count(nof_entries);
@@ -216,17 +203,6 @@ void MetaspaceObjectTypeConstant::serialize(JfrCheckpointWriter& writer) {
     writer.write_key(i);
     writer.write(MetaspaceObj::type_name((MetaspaceObj::Type)i));
   }
-}
-
-void G1YCTypeConstant::serialize(JfrCheckpointWriter& writer) {
-#if INCLUDE_G1GC
-  static const u4 nof_entries = G1YCTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1YCTypeHelper::to_string((G1YCType)i));
-  }
-#endif
 }
 
 static const char* reference_type_to_string(ReferenceType rt) {
@@ -294,15 +270,13 @@ class TypeSetSerialization {
  private:
   JfrCheckpointWriter* _leakp_writer;
   size_t _elements;
-  bool _class_unload;
-  bool _flushpoint;
  public:
-  TypeSetSerialization(bool class_unload, bool flushpoint, JfrCheckpointWriter* leakp_writer = NULL) :
-    _leakp_writer(leakp_writer), _elements(0), _class_unload(class_unload), _flushpoint(flushpoint) {}
-  void write(JfrCheckpointWriter& writer) {
-    MutexLocker cld_lock(SafepointSynchronize::is_at_safepoint() ? NULL : ClassLoaderDataGraph_lock);
-    MutexLocker lock(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
-   _elements = JfrTypeSet::serialize(&writer, _leakp_writer, _class_unload, _flushpoint);
+  TypeSetSerialization(JfrCheckpointWriter* leakp_writer = NULL) :
+    _leakp_writer(leakp_writer), _elements(0) {}
+  void write(JfrCheckpointWriter& writer, bool class_unload, bool flushpoint) {
+    assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
+    assert_locked_or_safepoint(Module_lock);
+   _elements = JfrTypeSet::serialize(&writer, _leakp_writer, class_unload, flushpoint);
   }
   size_t elements() const {
     return _elements;
@@ -310,14 +284,16 @@ class TypeSetSerialization {
 };
 
 void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set(true, false);
-  type_set.write(writer);
+  TypeSetSerialization type_set;
+  type_set.write(writer, true, false);
 };
 
 void FlushTypeSet::serialize(JfrCheckpointWriter& writer) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  TypeSetSerialization type_set(false, true);
-  type_set.write(writer);
+  MutexLocker cld_lock(ClassLoaderDataGraph_lock);
+  MutexLocker module_lock(Module_lock);
+  TypeSetSerialization type_set;
+  type_set.write(writer, false, true);
   _elements = type_set.elements();
 }
 
@@ -328,8 +304,11 @@ size_t FlushTypeSet::elements() const {
 TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
 
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set(false, false, _leakp_writer);
-  type_set.write(writer);
+  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  MutexLocker cld_lock(ClassLoaderDataGraph_lock);
+  MutexLocker module_lock(Module_lock);
+  TypeSetSerialization type_set(_leakp_writer);
+  type_set.write(writer, false, false);
 };
 
 void ThreadStateConstant::serialize(JfrCheckpointWriter& writer) {

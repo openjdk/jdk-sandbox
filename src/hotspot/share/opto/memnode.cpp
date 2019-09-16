@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@
 #include "opto/narrowptrnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/regmask.hpp"
+#include "opto/rootnode.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
@@ -327,6 +328,24 @@ Node *MemNode::Ideal_common(PhaseGVN *phase, bool can_reshape) {
   Node *address = in(MemNode::Address);
   const Type *t_adr = phase->type(address);
   if (t_adr == Type::TOP)              return NodeSentinel; // caller will return NULL
+
+  if (can_reshape && is_unsafe_access() && (t_adr == TypePtr::NULL_PTR)) {
+    // Unsafe off-heap access with zero address. Remove access and other control users
+    // to not confuse optimizations and add a HaltNode to fail if this is ever executed.
+    assert(ctl != NULL, "unsafe accesses should be control dependent");
+    for (DUIterator_Fast imax, i = ctl->fast_outs(imax); i < imax; i++) {
+      Node* u = ctl->fast_out(i);
+      if (u != ctl) {
+        igvn->rehash_node_delayed(u);
+        int nb = u->replace_edge(ctl, phase->C->top());
+        --i, imax -= nb;
+      }
+    }
+    Node* frame = igvn->transform(new ParmNode(phase->C->start(), TypeFunc::FramePtr));
+    Node* halt = igvn->transform(new HaltNode(ctl, frame, "unsafe off-heap access with zero address"));
+    phase->C->root()->add_req(halt);
+    return this;
+  }
 
   if (can_reshape && igvn != NULL &&
       (igvn->_worklist.member(address) ||
@@ -908,14 +927,6 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
-#if INCLUDE_ZGC
-  if (UseZGC) {
-    if (bottom_type()->make_oopptr() != NULL) {
-      return NULL;
-    }
-  }
-#endif
-
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   AllocateNode* ld_alloc = AllocateNode::Ideal_allocation(ld_adr, phase, ld_off);
@@ -973,7 +984,7 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
     ld->set_req(0, ctl);
     ld->set_req(MemNode::Memory, mem);
     // load depends on the tests that validate the arraycopy
-    ld->_control_dependency = Pinned;
+    ld->_control_dependency = UnknownControl;
     return ld;
   }
   return NULL;
@@ -1424,8 +1435,6 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
     }
   }
 
-  bool load_boxed_phi = load_boxed_values && base_is_phi && (base->in(0) == mem->in(0));
-
   // Split through Phi (see original code in loopopts.cpp).
   assert(C->have_alias_type(t_oop), "instance should have alias type");
 
@@ -1566,7 +1575,8 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // pointer stores & cardmarks must stay on the same side of a SafePoint.
   if( ctrl != NULL && ctrl->Opcode() == Op_SafePoint &&
       phase->C->get_alias_index(phase->type(address)->is_ptr()) != Compile::AliasIdxRaw  &&
-      !addr_mark ) {
+      !addr_mark &&
+      (depends_only_on_test() || has_unknown_control_dependency())) {
     ctrl = ctrl->in(0);
     set_req(MemNode::Control,ctrl);
     progress = true;
@@ -2811,7 +2821,8 @@ const Type* SCMemProjNode::Value(PhaseGVN* phase) const
 LoadStoreNode::LoadStoreNode( Node *c, Node *mem, Node *adr, Node *val, const TypePtr* at, const Type* rt, uint required )
   : Node(required),
     _type(rt),
-    _adr_type(at)
+    _adr_type(at),
+    _has_barrier(false)
 {
   init_req(MemNode::Control, c  );
   init_req(MemNode::Memory , mem);
@@ -3104,16 +3115,6 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(0) && in(0)->is_top()) {
     return NULL;
   }
-
-#if INCLUDE_ZGC
-  if (UseZGC) {
-    if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
-      Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
-      set_req(MemBarNode::Precedent, load_node);
-      return this;
-    }
-  }
-#endif
 
   bool progress = false;
   // Eliminate volatile MemBars for scalar replaced objects.

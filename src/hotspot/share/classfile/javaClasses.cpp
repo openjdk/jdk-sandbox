@@ -64,6 +64,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/preserveException.hpp"
 #include "utilities/utf8.hpp"
@@ -198,7 +199,7 @@ void java_lang_String::compute_offsets() {
 #if INCLUDE_CDS
 void java_lang_String::serialize_offsets(SerializeClosure* f) {
   STRING_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
-  f->do_u4((u4*)&initialized);
+  f->do_bool(&initialized);
 }
 #endif
 
@@ -1566,7 +1567,7 @@ void java_lang_Class::compute_offsets() {
 
 #if INCLUDE_CDS
 void java_lang_Class::serialize_offsets(SerializeClosure* f) {
-  f->do_u4((u4*)&offsets_computed);
+  f->do_bool(&offsets_computed);
   f->do_u4((u4*)&_init_lock_offset);
 
   CLASS_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
@@ -2593,10 +2594,6 @@ void java_lang_StackTraceElement::fill_in(Handle element,
         source_file = NULL;
         java_lang_Class::set_source_file(java_class(), source_file);
       }
-      if (ShowHiddenFrames) {
-        source = vmSymbols::unknown_class_name();
-        source_file = StringTable::intern(source, CHECK);
-      }
     }
     java_lang_StackTraceElement::set_fileName(element(), source_file);
 
@@ -2634,11 +2631,7 @@ void java_lang_StackTraceElement::decode(Handle mirror, int method_id, int versi
     // via the previous versions list.
     holder = holder->get_klass_version(version);
     assert(holder != NULL, "sanity check");
-    Symbol* source = holder->source_file_name();
-    if (ShowHiddenFrames && source == NULL) {
-      source = vmSymbols::unknown_class_name();
-    }
-    filename = source;
+    filename = holder->source_file_name();
     line_number = Backtrace::get_line_number(method, bci);
   }
 }
@@ -2677,14 +2670,14 @@ void java_lang_StackFrameInfo::to_stack_trace_element(Handle stackFrame, Handle 
   Method* method = java_lang_StackFrameInfo::get_method(stackFrame, holder, CHECK);
 
   short version = stackFrame->short_field(_version_offset);
-  short bci = stackFrame->short_field(_bci_offset);
+  int bci = stackFrame->int_field(_bci_offset);
   Symbol* name = method->name();
   java_lang_StackTraceElement::fill_in(stack_trace_element, holder, method, version, bci, name, CHECK);
 }
 
 #define STACKFRAMEINFO_FIELDS_DO(macro) \
   macro(_memberName_offset,     k, "memberName",  object_signature, false); \
-  macro(_bci_offset,            k, "bci",         short_signature,  false)
+  macro(_bci_offset,            k, "bci",         int_signature,    false)
 
 void java_lang_StackFrameInfo::compute_offsets() {
   InstanceKlass* k = SystemDictionary::StackFrameInfo_klass();
@@ -4034,6 +4027,7 @@ private:
   int _page_size;
   bool _big_endian;
   bool _use_unaligned_access;
+  int _data_cache_line_flush_size;
 public:
   UnsafeConstantsFixup() {
     // round up values for all static final fields
@@ -4041,6 +4035,7 @@ public:
     _page_size = os::vm_page_size();
     _big_endian = LITTLE_ENDIAN_ONLY(false) BIG_ENDIAN_ONLY(true);
     _use_unaligned_access = UseUnalignedAccesses;
+    _data_cache_line_flush_size = (int)VM_Version::data_cache_line_flush_size();
   }
 
   void do_field(fieldDescriptor* fd) {
@@ -4057,6 +4052,8 @@ public:
       mirror->bool_field_put(fd->offset(), _big_endian);
     } else if (fd->name() == vmSymbols::use_unaligned_access_name()) {
       mirror->bool_field_put(fd->offset(), _use_unaligned_access);
+    } else if (fd->name() == vmSymbols::data_cache_line_flush_size_name()) {
+      mirror->int_field_put(fd->offset(), _data_cache_line_flush_size);
     } else {
       assert(false, "unexpected UnsafeConstants field");
     }
@@ -4155,6 +4152,14 @@ int java_nio_Buffer::_limit_offset;
 int java_util_concurrent_locks_AbstractOwnableSynchronizer::_owner_offset;
 int reflect_ConstantPool::_oop_offset;
 int reflect_UnsafeStaticFieldAccessorImpl::_base_offset;
+int java_lang_Integer_IntegerCache::_static_cache_offset;
+int java_lang_Long_LongCache::_static_cache_offset;
+int java_lang_Character_CharacterCache::_static_cache_offset;
+int java_lang_Short_ShortCache::_static_cache_offset;
+int java_lang_Byte_ByteCache::_static_cache_offset;
+int java_lang_Boolean::_static_TRUE_offset;
+int java_lang_Boolean::_static_FALSE_offset;
+
 
 
 #define STACKTRACEELEMENT_FIELDS_DO(macro) \
@@ -4216,6 +4221,7 @@ void java_lang_StackFrameInfo::set_version(oop element, short value) {
 }
 
 void java_lang_StackFrameInfo::set_bci(oop element, int value) {
+  assert(value >= 0 && value < max_jushort, "must be a valid bci value");
   element->int_field_put(_bci_offset, value);
 }
 
@@ -4314,6 +4320,192 @@ void java_util_concurrent_locks_AbstractOwnableSynchronizer::serialize_offsets(S
 }
 #endif
 
+#define INTEGER_CACHE_FIELDS_DO(macro) \
+  macro(_static_cache_offset, k, "cache", java_lang_Integer_array_signature, true)
+
+void java_lang_Integer_IntegerCache::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  INTEGER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+objArrayOop java_lang_Integer_IntegerCache::cache(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_cache_offset));
+}
+
+Symbol* java_lang_Integer_IntegerCache::symbol() {
+  return vmSymbols::java_lang_Integer_IntegerCache();
+}
+
+#if INCLUDE_CDS
+void java_lang_Integer_IntegerCache::serialize_offsets(SerializeClosure* f) {
+  INTEGER_CACHE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef INTEGER_CACHE_FIELDS_DO
+
+jint java_lang_Integer::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.i;
+}
+
+#define LONG_CACHE_FIELDS_DO(macro) \
+  macro(_static_cache_offset, k, "cache", java_lang_Long_array_signature, true)
+
+void java_lang_Long_LongCache::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  LONG_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+objArrayOop java_lang_Long_LongCache::cache(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_cache_offset));
+}
+
+Symbol* java_lang_Long_LongCache::symbol() {
+  return vmSymbols::java_lang_Long_LongCache();
+}
+
+#if INCLUDE_CDS
+void java_lang_Long_LongCache::serialize_offsets(SerializeClosure* f) {
+  LONG_CACHE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef LONG_CACHE_FIELDS_DO
+
+jlong java_lang_Long::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.j;
+}
+
+#define CHARACTER_CACHE_FIELDS_DO(macro) \
+  macro(_static_cache_offset, k, "cache", java_lang_Character_array_signature, true)
+
+void java_lang_Character_CharacterCache::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  CHARACTER_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+objArrayOop java_lang_Character_CharacterCache::cache(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_cache_offset));
+}
+
+Symbol* java_lang_Character_CharacterCache::symbol() {
+  return vmSymbols::java_lang_Character_CharacterCache();
+}
+
+#if INCLUDE_CDS
+void java_lang_Character_CharacterCache::serialize_offsets(SerializeClosure* f) {
+  CHARACTER_CACHE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef CHARACTER_CACHE_FIELDS_DO
+
+jchar java_lang_Character::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.c;
+}
+
+#define SHORT_CACHE_FIELDS_DO(macro) \
+  macro(_static_cache_offset, k, "cache", java_lang_Short_array_signature, true)
+
+void java_lang_Short_ShortCache::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  SHORT_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+objArrayOop java_lang_Short_ShortCache::cache(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_cache_offset));
+}
+
+Symbol* java_lang_Short_ShortCache::symbol() {
+  return vmSymbols::java_lang_Short_ShortCache();
+}
+
+#if INCLUDE_CDS
+void java_lang_Short_ShortCache::serialize_offsets(SerializeClosure* f) {
+  SHORT_CACHE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef SHORT_CACHE_FIELDS_DO
+
+jshort java_lang_Short::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.s;
+}
+
+#define BYTE_CACHE_FIELDS_DO(macro) \
+  macro(_static_cache_offset, k, "cache", java_lang_Byte_array_signature, true)
+
+void java_lang_Byte_ByteCache::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  BYTE_CACHE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+objArrayOop java_lang_Byte_ByteCache::cache(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_cache_offset));
+}
+
+Symbol* java_lang_Byte_ByteCache::symbol() {
+  return vmSymbols::java_lang_Byte_ByteCache();
+}
+
+#if INCLUDE_CDS
+void java_lang_Byte_ByteCache::serialize_offsets(SerializeClosure* f) {
+  BYTE_CACHE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef BYTE_CACHE_FIELDS_DO
+
+jbyte java_lang_Byte::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.b;
+}
+#define BOOLEAN_FIELDS_DO(macro) \
+  macro(_static_TRUE_offset, k, "TRUE", java_lang_Boolean_signature, true); \
+  macro(_static_FALSE_offset, k, "FALSE", java_lang_Boolean_signature, true)
+
+
+void java_lang_Boolean::compute_offsets(InstanceKlass *k) {
+  guarantee(k != NULL && k->is_initialized(), "must be loaded and initialized");
+  BOOLEAN_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+oop java_lang_Boolean::get_TRUE(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return base->obj_field(_static_TRUE_offset);
+}
+
+oop java_lang_Boolean::get_FALSE(InstanceKlass *ik) {
+  oop base = ik->static_field_base_raw();
+  return base->obj_field(_static_FALSE_offset);
+}
+
+Symbol* java_lang_Boolean::symbol() {
+  return vmSymbols::java_lang_Boolean();
+}
+
+#if INCLUDE_CDS
+void java_lang_Boolean::serialize_offsets(SerializeClosure* f) {
+  BOOLEAN_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef BOOLEAN_CACHE_FIELDS_DO
+
+jboolean java_lang_Boolean::value(oop obj) {
+   jvalue v;
+   java_lang_boxing_object::get_value(obj, &v);
+   return v.z;
+}
+
 static int member_offset(int hardcoded_offset) {
   return (hardcoded_offset * heapOopSize) + instanceOopDesc::base_offset_in_bytes();
 }
@@ -4353,9 +4545,6 @@ void JavaClasses::compute_offsets() {
   // BASIC_JAVA_CLASSES_DO_PART1 classes (java_lang_String and java_lang_Class)
   // earlier inside SystemDictionary::resolve_well_known_classes()
   BASIC_JAVA_CLASSES_DO_PART2(DO_COMPUTE_OFFSETS);
-
-  // generated interpreter code wants to know about the offsets we just computed:
-  AbstractAssembler::update_delayed_values();
 }
 
 #if INCLUDE_CDS

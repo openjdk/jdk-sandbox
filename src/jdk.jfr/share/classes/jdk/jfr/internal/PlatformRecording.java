@@ -134,7 +134,7 @@ public final class PlatformRecording implements AutoCloseable {
                     options.add("duration=" + Utils.formatTimespan(duration, ""));
                 }
                 if (destination != null) {
-                    options.add("filename=" + destination.getText());
+                    options.add("filename=" + destination.getRealPathText());
                 }
                 String optionText = options.toString();
                 if (optionText.length() != 0) {
@@ -169,7 +169,7 @@ public final class PlatformRecording implements AutoCloseable {
         if (dest != null) {
             try {
                 dumpStopped(dest);
-                Logger.log(LogTag.JFR, LogLevel.INFO, "Wrote recording \"" + getName() + "\" (" + getId() + ") to " + dest.getText());
+                Logger.log(LogTag.JFR, LogLevel.INFO, "Wrote recording \"" + getName() + "\" (" + getId() + ") to " + dest.getRealPathText());
                 notifyIfStateChanged(newState, oldState);
                 close(); // remove if copied out
             } catch(IOException e) {
@@ -322,7 +322,6 @@ public final class PlatformRecording implements AutoCloseable {
         PlatformRecording clone = recorder.newTemporaryRecording();
         clone.setShouldWriteActiveRecordingEvent(false);
         clone.setName(getName());
-        clone.setDestination(this.destination);
         clone.setToDisk(true);
         // We purposely don't clone settings here, since
         // a union a == a

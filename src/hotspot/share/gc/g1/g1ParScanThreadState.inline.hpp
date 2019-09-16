@@ -53,9 +53,9 @@ template <class T> void G1ParScanThreadState::do_oop_evac(T* p) {
     return;
   }
 
-  markOop m = obj->mark_raw();
-  if (m->is_marked()) {
-    obj = (oop) m->decode_pointer();
+  markWord m = obj->mark_raw();
+  if (m.is_marked()) {
+    obj = (oop) m.decode_pointer();
   } else {
     obj = copy_to_survivor_space(region_attr, obj, m);
   }
@@ -208,6 +208,8 @@ template <typename T>
 inline void G1ParScanThreadState::remember_root_into_optional_region(T* p) {
   oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
   uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _num_optional_regions);
   _oops_into_optional_regions[index].push_root(p);
 }
 
@@ -215,11 +217,16 @@ template <typename T>
 inline void G1ParScanThreadState::remember_reference_into_optional_region(T* p) {
   oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
   uint index = _g1h->heap_region_containing(o)->index_in_opt_cset();
+  assert(index < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT, index, _num_optional_regions);
   _oops_into_optional_regions[index].push_oop(p);
   DEBUG_ONLY(verify_ref(p);)
 }
 
 G1OopStarChunkedList* G1ParScanThreadState::oops_into_optional_region(const HeapRegion* hr) {
+  assert(hr->index_in_opt_cset() < _num_optional_regions,
+         "Trying to access optional region idx %u beyond " SIZE_FORMAT " " HR_FORMAT,
+         hr->index_in_opt_cset(), _num_optional_regions, HR_FORMAT_PARAMS(hr));
   return &_oops_into_optional_regions[hr->index_in_opt_cset()];
 }
 

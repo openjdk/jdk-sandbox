@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -195,6 +195,7 @@ public final class FilePermission extends Permission implements Serializable {
 //        return sb.toString();
 //    }
 
+    @java.io.Serial
     private static final long serialVersionUID = 7930732926638008763L;
 
     /**
@@ -440,8 +441,8 @@ public final class FilePermission extends Permission implements Serializable {
      * <p>A pathname containing an empty string represents an empty path.
      *
      * @implNote In this implementation, the
-     * {@code jdk.io.permissionsUseCanonicalPath} system property dictates how
-     * the {@code path} argument is processed and stored.
+     * {@systemProperty jdk.io.permissionsUseCanonicalPath} system property
+     * dictates how the {@code path} argument is processed and stored.
      * <P>
      * If the value of the system property is set to {@code true}, {@code path}
      * is canonicalized and stored as a String object named {@code cpath}.
@@ -1040,6 +1041,7 @@ public final class FilePermission extends Permission implements Serializable {
      * to a stream. The actions are serialized, and the superclass
      * takes care of the name.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream s)
         throws IOException
     {
@@ -1054,6 +1056,7 @@ public final class FilePermission extends Permission implements Serializable {
      * readObject is called to restore the state of the FilePermission from
      * a stream.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s)
          throws IOException, ClassNotFoundException
     {
@@ -1210,6 +1213,7 @@ final class FilePermissionCollection extends PermissionCollection
         return perms.elements();
     }
 
+    @java.io.Serial
     private static final long serialVersionUID = 2202956749081564585L;
 
     // Need to maintain serialization interoperability with earlier releases,
@@ -1220,6 +1224,7 @@ final class FilePermissionCollection extends PermissionCollection
      * @serialField permissions java.util.Vector
      *     A list of FilePermission objects.
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("permissions", Vector.class),
     };
@@ -1231,6 +1236,7 @@ final class FilePermissionCollection extends PermissionCollection
      * Writes the contents of the perms field out as a Vector for
      * serialization compatibility with earlier releases.
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         // Don't call out.defaultWriteObject()
 
@@ -1245,6 +1251,7 @@ final class FilePermissionCollection extends PermissionCollection
     /*
      * Reads in a Vector of FilePermissions and saves them in the perms field.
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream in)
         throws IOException, ClassNotFoundException
     {

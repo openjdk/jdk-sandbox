@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3130,6 +3130,33 @@ void MacroAssembler::check_klass_subtype(Register sub_klass,
   BLOCK_COMMENT("} check_klass_subtype");
 }
 
+void MacroAssembler::clinit_barrier(Register klass, Register thread, Label* L_fast_path, Label* L_slow_path) {
+  assert(L_fast_path != NULL || L_slow_path != NULL, "at least one is required");
+
+  Label L_fallthrough;
+  if (L_fast_path == NULL) {
+    L_fast_path = &L_fallthrough;
+  } else if (L_slow_path == NULL) {
+    L_slow_path = &L_fallthrough;
+  }
+
+  // Fast path check: class is fully initialized
+  z_cli(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+  z_bre(*L_fast_path);
+
+  // Fast path check: current thread is initializer thread
+  z_cg(thread, Address(klass, InstanceKlass::init_thread_offset()));
+  if (L_slow_path == &L_fallthrough) {
+    z_bre(*L_fast_path);
+  } else if (L_fast_path == &L_fallthrough) {
+    z_brne(*L_slow_path);
+  } else {
+    Unimplemented();
+  }
+
+  bind(L_fallthrough);
+}
+
 // Increment a counter at counter_address when the eq condition code is
 // set. Kills registers tmp1_reg and tmp2_reg and preserves the condition code.
 void MacroAssembler::increment_counter_eq(address counter_address, Register tmp1_reg, Register tmp2_reg) {
@@ -3171,15 +3198,15 @@ void MacroAssembler::biased_locking_enter(Register  obj_reg,
   // whether the epoch is still valid.
   // Note that the runtime guarantees sufficient alignment of JavaThread
   // pointers to allow age to be placed into low bits.
-  assert(markOopDesc::age_shift == markOopDesc::lock_bits + markOopDesc::biased_lock_bits,
+  assert(markWord::age_shift == markWord::lock_bits + markWord::biased_lock_bits,
          "biased locking makes assumptions about bit layout");
   z_lr(temp_reg, mark_reg);
-  z_nilf(temp_reg, markOopDesc::biased_lock_mask_in_place);
-  z_chi(temp_reg, markOopDesc::biased_lock_pattern);
+  z_nilf(temp_reg, markWord::biased_lock_mask_in_place);
+  z_chi(temp_reg, markWord::biased_lock_pattern);
   z_brne(cas_label);  // Try cas if object is not biased, i.e. cannot be biased locked.
 
   load_prototype_header(temp_reg, obj_reg);
-  load_const_optimized(temp2_reg, ~((int) markOopDesc::age_mask_in_place));
+  load_const_optimized(temp2_reg, ~((int) markWord::age_mask_in_place));
 
   z_ogr(temp_reg, Z_thread);
   z_xgr(temp_reg, mark_reg);
@@ -3205,7 +3232,7 @@ void MacroAssembler::biased_locking_enter(Register  obj_reg,
   // If the low three bits in the xor result aren't clear, that means
   // the prototype header is no longer biased and we have to revoke
   // the bias on this object.
-  z_tmll(temp_reg, markOopDesc::biased_lock_mask_in_place);
+  z_tmll(temp_reg, markWord::biased_lock_mask_in_place);
   z_brnaz(try_revoke_bias);
 
   // Biasing is still enabled for this data type. See whether the
@@ -3217,7 +3244,7 @@ void MacroAssembler::biased_locking_enter(Register  obj_reg,
   // that the current epoch is invalid in order to do this because
   // otherwise the manipulations it performs on the mark word are
   // illegal.
-  z_tmll(temp_reg, markOopDesc::epoch_mask_in_place);
+  z_tmll(temp_reg, markWord::epoch_mask_in_place);
   z_brnaz(try_rebias);
 
   //----------------------------------------------------------------------------
@@ -3227,8 +3254,8 @@ void MacroAssembler::biased_locking_enter(Register  obj_reg,
   // fails we will go in to the runtime to revoke the object's bias.
   // Note that we first construct the presumed unbiased header so we
   // don't accidentally blow away another thread's valid bias.
-  z_nilf(mark_reg, markOopDesc::biased_lock_mask_in_place | markOopDesc::age_mask_in_place |
-         markOopDesc::epoch_mask_in_place);
+  z_nilf(mark_reg, markWord::biased_lock_mask_in_place | markWord::age_mask_in_place |
+         markWord::epoch_mask_in_place);
   z_lgr(temp_reg, Z_thread);
   z_llgfr(mark_reg, mark_reg);
   z_ogr(temp_reg, mark_reg);
@@ -3260,7 +3287,7 @@ void MacroAssembler::biased_locking_enter(Register  obj_reg,
   // bias in the current epoch. In other words, we allow transfer of
   // the bias from one thread to another directly in this situation.
 
-  z_nilf(mark_reg, markOopDesc::biased_lock_mask_in_place | markOopDesc::age_mask_in_place | markOopDesc::epoch_mask_in_place);
+  z_nilf(mark_reg, markWord::biased_lock_mask_in_place | markWord::age_mask_in_place | markWord::epoch_mask_in_place);
   load_prototype_header(temp_reg, obj_reg);
   z_llgfr(mark_reg, mark_reg);
 
@@ -3321,9 +3348,9 @@ void MacroAssembler::biased_locking_exit(Register mark_addr, Register temp_reg, 
   BLOCK_COMMENT("biased_locking_exit {");
 
   z_lg(temp_reg, 0, mark_addr);
-  z_nilf(temp_reg, markOopDesc::biased_lock_mask_in_place);
+  z_nilf(temp_reg, markWord::biased_lock_mask_in_place);
 
-  z_chi(temp_reg, markOopDesc::biased_lock_pattern);
+  z_chi(temp_reg, markWord::biased_lock_pattern);
   z_bre(done);
   BLOCK_COMMENT("} biased_locking_exit");
 }
@@ -3336,7 +3363,7 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
 
   BLOCK_COMMENT("compiler_fast_lock_object {");
 
-  // Load markOop from oop into mark.
+  // Load markWord from oop into mark.
   z_lg(displacedHeader, 0, oop);
 
   if (try_bias) {
@@ -3345,13 +3372,13 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
 
   // Handle existing monitor.
   // The object has an existing monitor iff (mark & monitor_value) != 0.
-  guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
+  guarantee(Immediate::is_uimm16(markWord::monitor_value), "must be half-word");
   z_lr(temp, displacedHeader);
-  z_nill(temp, markOopDesc::monitor_value);
+  z_nill(temp, markWord::monitor_value);
   z_brne(object_has_monitor);
 
-  // Set mark to markOop | markOopDesc::unlocked_value.
-  z_oill(displacedHeader, markOopDesc::unlocked_value);
+  // Set mark to markWord | markWord::unlocked_value.
+  z_oill(displacedHeader, markWord::unlocked_value);
 
   // Load Compare Value application register.
 
@@ -3359,7 +3386,7 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
   z_stg(displacedHeader, BasicLock::displaced_header_offset_in_bytes(), box);
 
   // Memory Fence (in cmpxchgd)
-  // Compare object markOop with mark and if equal exchange scratch1 with object markOop.
+  // Compare object markWord with mark and if equal exchange scratch1 with object markWord.
 
   // If the compare-and-swap succeeded, then we found an unlocked object and we
   // have now locked it.
@@ -3370,7 +3397,7 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
   // We did not see an unlocked object so try the fast recursive case.
 
   z_sgr(currentHeader, Z_SP);
-  load_const_optimized(temp, (~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place));
+  load_const_optimized(temp, (~(os::vm_page_size()-1) | markWord::lock_mask_in_place));
 
   z_ngr(currentHeader, temp);
   //   z_brne(done);
@@ -3380,7 +3407,7 @@ void MacroAssembler::compiler_fast_lock_object(Register oop, Register box, Regis
   z_bru(done);
 
   Register zero = temp;
-  Register monitor_tagged = displacedHeader; // Tagged with markOopDesc::monitor_value.
+  Register monitor_tagged = displacedHeader; // Tagged with markWord::monitor_value.
   bind(object_has_monitor);
   // The object's monitor m is unlocked iff m->owner == NULL,
   // otherwise m->owner may contain a thread or a stack address.
@@ -3429,12 +3456,12 @@ void MacroAssembler::compiler_fast_unlock_object(Register oop, Register box, Reg
   // Handle existing monitor.
   // The object has an existing monitor iff (mark & monitor_value) != 0.
   z_lg(currentHeader, oopDesc::mark_offset_in_bytes(), oop);
-  guarantee(Immediate::is_uimm16(markOopDesc::monitor_value), "must be half-word");
-  z_nill(currentHeader, markOopDesc::monitor_value);
+  guarantee(Immediate::is_uimm16(markWord::monitor_value), "must be half-word");
+  z_nill(currentHeader, markWord::monitor_value);
   z_brne(object_has_monitor);
 
   // Check if it is still a light weight lock, this is true if we see
-  // the stack address of the basicLock in the markOop of the object
+  // the stack address of the basicLock in the markWord of the object
   // copy box to currentHeader such that csg does not kill it.
   z_lgr(currentHeader, box);
   z_csg(currentHeader, displacedHeader, 0, oop);
@@ -4339,12 +4366,17 @@ void MacroAssembler::resolve_oop_handle(Register result) {
   z_lg(result, 0, result);
 }
 
-void MacroAssembler::load_mirror(Register mirror, Register method) {
-  mem2reg_opt(mirror, Address(method, Method::const_offset()));
-  mem2reg_opt(mirror, Address(mirror, ConstMethod::constants_offset()));
+void MacroAssembler::load_mirror_from_const_method(Register mirror, Register const_method) {
+  mem2reg_opt(mirror, Address(const_method, ConstMethod::constants_offset()));
   mem2reg_opt(mirror, Address(mirror, ConstantPool::pool_holder_offset_in_bytes()));
   mem2reg_opt(mirror, Address(mirror, Klass::java_mirror_offset()));
   resolve_oop_handle(mirror);
+}
+
+void MacroAssembler::load_method_holder(Register holder, Register method) {
+  mem2reg_opt(holder, Address(method, Method::const_offset()));
+  mem2reg_opt(holder, Address(holder, ConstMethod::constants_offset()));
+  mem2reg_opt(holder, Address(holder, ConstantPool::pool_holder_offset_in_bytes()));
 }
 
 //---------------------------------------------------------------
@@ -5859,7 +5891,7 @@ bool MacroAssembler::load_const_from_toc(Register dst, AddressLiteral& a, Regist
   if (tocOffset == -1) return false;
   address tocPos    = tocOffset + code()->consts()->start();
   assert((address)code()->consts()->start() != NULL, "Please add CP address");
-
+  relocate(a.rspec());
   load_long_pcrelative(dst, tocPos);
   return true;
 }

@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zMark.inline.hpp"
 #include "gc/z/zMarkCache.inline.hpp"
@@ -132,6 +133,9 @@ public:
     // Update thread local address bad mask
     ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
 
+    // Mark invisible root
+    ZThreadLocalData::do_invisible_root(thread, ZBarrier::mark_barrier_on_invisible_root_oop_field);
+
     // Retire TLAB
     ZThreadLocalAllocBuffer::retire(thread);
   }
@@ -155,7 +159,7 @@ public:
   ZMarkRootsTask(ZMark* mark) :
       ZTask("ZMarkRootsTask"),
       _mark(mark),
-      _roots() {}
+      _roots(false /* visit_jvmti_weak_export */) {}
 
   virtual void work() {
     _roots.oops_do(&_cl);
@@ -338,7 +342,7 @@ void ZMark::mark_and_follow(ZMarkCache* cache, ZMarkStackEntry entry) {
     return;
   }
 
-  // Decode object address
+  // Decode object address and follow flag
   const uintptr_t addr = entry.object_address();
 
   if (!try_mark_object(cache, addr, finalizable)) {
@@ -347,7 +351,13 @@ void ZMark::mark_and_follow(ZMarkCache* cache, ZMarkStackEntry entry) {
   }
 
   if (is_array(addr)) {
-    follow_array_object(objArrayOop(ZOop::from_address(addr)), finalizable);
+    // Decode follow flag
+    const bool follow = entry.follow();
+
+    // The follow flag is currently only relevant for object arrays
+    if (follow) {
+      follow_array_object(objArrayOop(ZOop::from_address(addr)), finalizable);
+    }
   } else {
     follow_object(ZOop::from_address(addr), finalizable);
   }
@@ -632,14 +642,22 @@ public:
 
 class ZMarkConcurrentRootsTask : public ZTask {
 private:
-  ZConcurrentRootsIterator            _roots;
+  SuspendibleThreadSetJoiner          _sts_joiner;
+  ZConcurrentRootsIteratorClaimStrong _roots;
   ZMarkConcurrentRootsIteratorClosure _cl;
 
 public:
   ZMarkConcurrentRootsTask(ZMark* mark) :
       ZTask("ZMarkConcurrentRootsTask"),
-      _roots(true /* marking */),
-      _cl() {}
+      _sts_joiner(),
+      _roots(),
+      _cl() {
+    ClassLoaderDataGraph_lock->lock();
+  }
+
+  ~ZMarkConcurrentRootsTask() {
+    ClassLoaderDataGraph_lock->unlock();
+  }
 
   virtual void work() {
     _roots.oops_do(&_cl);

@@ -226,12 +226,12 @@ class JfrSymbolId : public JfrCHeapObj {
   bool _class_unload;
 
   // hashtable(s) callbacks
-  void link(const SymbolEntry* entry);
-  bool equals(uintptr_t hash, const SymbolEntry* entry);
-  void unlink(const SymbolEntry* entry);
-  void link(const CStringEntry* entry);
-  bool equals(uintptr_t hash, const CStringEntry* entry);
-  void unlink(const CStringEntry* entry);
+  void on_link(const SymbolEntry* entry);
+  bool on_equals(uintptr_t hash, const SymbolEntry* entry);
+  void on_unlink(const SymbolEntry* entry);
+  void on_link(const CStringEntry* entry);
+  bool on_equals(uintptr_t hash, const CStringEntry* entry);
+  void on_unlink(const CStringEntry* entry);
 
   template <typename Functor, typename T>
   void iterate(Functor& functor, const T* list) {

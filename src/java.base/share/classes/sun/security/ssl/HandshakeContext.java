@@ -46,9 +46,8 @@ import javax.crypto.SecretKey;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLHandshakeException;
 import javax.security.auth.x500.X500Principal;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
-import static sun.security.ssl.SupportedGroupsExtension.NamedGroupType.*;
+import sun.security.ssl.NamedGroup.NamedGroupSpec;
+import static sun.security.ssl.NamedGroup.NamedGroupSpec.*;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 
 abstract class HandshakeContext implements ConnectionContext {
@@ -102,6 +101,8 @@ abstract class HandshakeContext implements ConnectionContext {
     // Resumption
     boolean                                 isResumption;
     SSLSessionImpl                          resumingSession;
+    // Session is using stateless resumption
+    boolean                                 statelessResumption = false;
 
     final Queue<Map.Entry<Byte, ByteBuffer>> delegatedActions;
     volatile boolean                        taskDelegated = false;
@@ -282,8 +283,8 @@ abstract class HandshakeContext implements ConnectionContext {
             }
 
             boolean found = false;
-            Map<NamedGroupType, Boolean> cachedStatus =
-                    new EnumMap<>(NamedGroupType.class);
+            Map<NamedGroupSpec, Boolean> cachedStatus =
+                    new EnumMap<>(NamedGroupSpec.class);
             for (CipherSuite suite : enabledCipherSuites) {
                 if (suite.isAvailable() && suite.supports(protocol)) {
                     if (isActivatable(suite,
@@ -322,8 +323,8 @@ abstract class HandshakeContext implements ConnectionContext {
 
         List<CipherSuite> suites = new LinkedList<>();
         if (enabledProtocols != null && !enabledProtocols.isEmpty()) {
-            Map<NamedGroupType, Boolean> cachedStatus =
-                    new EnumMap<>(NamedGroupType.class);
+            Map<NamedGroupSpec, Boolean> cachedStatus =
+                    new EnumMap<>(NamedGroupSpec.class);
             for (CipherSuite suite : enabledCipherSuites) {
                 if (!suite.isAvailable()) {
                     continue;
@@ -508,7 +509,7 @@ abstract class HandshakeContext implements ConnectionContext {
 
     private static boolean isActivatable(CipherSuite suite,
             AlgorithmConstraints algorithmConstraints,
-            Map<NamedGroupType, Boolean> cachedStatus) {
+            Map<NamedGroupSpec, Boolean> cachedStatus) {
 
         if (algorithmConstraints.permits(
                 EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), suite.name, null)) {
@@ -517,31 +518,38 @@ abstract class HandshakeContext implements ConnectionContext {
                 return true;
             }
 
-            boolean available;
-            NamedGroupType groupType = suite.keyExchange.groupType;
-            if (groupType != NAMED_GROUP_NONE) {
-                Boolean checkedStatus = cachedStatus.get(groupType);
-                if (checkedStatus == null) {
-                    available = SupportedGroups.isActivatable(
-                            algorithmConstraints, groupType);
-                    cachedStatus.put(groupType, available);
+            // Is at least one of the group types available?
+            boolean groupAvailable, retval = false;
+            NamedGroupSpec[] groupTypes = suite.keyExchange.groupTypes;
+            for (NamedGroupSpec groupType : groupTypes) {
+                if (groupType != NAMED_GROUP_NONE) {
+                    Boolean checkedStatus = cachedStatus.get(groupType);
+                    if (checkedStatus == null) {
+                        groupAvailable = SupportedGroups.isActivatable(
+                                algorithmConstraints, groupType);
+                        cachedStatus.put(groupType, groupAvailable);
 
-                    if (!available &&
-                            SSLLogger.isOn && SSLLogger.isOn("verbose")) {
-                        SSLLogger.fine("No activated named group");
+                        if (!groupAvailable &&
+                                SSLLogger.isOn && SSLLogger.isOn("verbose")) {
+                            SSLLogger.fine(
+                                    "No activated named group in " + groupType);
+                        }
+                    } else {
+                        groupAvailable = checkedStatus;
                     }
-                } else {
-                    available = checkedStatus;
-                }
 
-                if (!available && SSLLogger.isOn && SSLLogger.isOn("verbose")) {
-                    SSLLogger.fine(
-                        "No active named group, ignore " + suite);
+                    retval |= groupAvailable;
+                } else {
+                    retval |= true;
                 }
-                return available;
-            } else {
-                return true;
             }
+
+            if (!retval && SSLLogger.isOn && SSLLogger.isOn("verbose")) {
+                SSLLogger.fine("No active named group(s), ignore " + suite);
+            }
+
+            return retval;
+
         } else if (SSLLogger.isOn && SSLLogger.isOn("verbose")) {
             SSLLogger.fine("Ignore disabled cipher suite: " + suite);
         }
@@ -551,7 +559,7 @@ abstract class HandshakeContext implements ConnectionContext {
 
     List<SNIServerName> getRequestedServerNames() {
         if (requestedServerNames == null) {
-            return Collections.<SNIServerName>emptyList();
+            return Collections.emptyList();
         }
         return requestedServerNames;
     }

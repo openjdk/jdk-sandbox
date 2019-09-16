@@ -249,6 +249,7 @@ class CodeStrings {
 private:
 #ifndef PRODUCT
   CodeString* _strings;
+  CodeString* _strings_last;
 #ifdef ASSERT
   // Becomes true after copy-out, forbids further use.
   bool _defunct; // Zero bit pattern is "valid", see memset call in decode_env::decode_env
@@ -262,6 +263,7 @@ private:
   void set_null_and_invalidate() {
 #ifndef PRODUCT
     _strings = NULL;
+    _strings_last = NULL;
 #ifdef ASSERT
     _defunct = true;
 #endif
@@ -272,6 +274,7 @@ public:
   CodeStrings() {
 #ifndef PRODUCT
     _strings = NULL;
+    _strings_last = NULL;
 #ifdef ASSERT
     _defunct = false;
 #endif
@@ -289,6 +292,7 @@ public:
   const char* add_string(const char * string) PRODUCT_RETURN_(return NULL;);
 
   void add_comment(intptr_t offset, const char * comment) PRODUCT_RETURN;
+  bool has_block_comment(intptr_t offset) const;
   void print_block_comment(outputStream* stream, intptr_t offset) const PRODUCT_RETURN;
   // MOVE strings from other to this; invalidate other.
   void assign(CodeStrings& other)  PRODUCT_RETURN;
@@ -296,6 +300,7 @@ public:
   void copy(CodeStrings& other)  PRODUCT_RETURN;
   // FREE strings; invalidate this.
   void free() PRODUCT_RETURN;
+
   // Guarantee that _strings are used at most once; assign and free invalidate a buffer.
   inline void check_valid() const {
 #ifdef ASSERT
@@ -377,6 +382,7 @@ class CodeBuffer: public StackObj {
 
   OopRecorder* _oop_recorder;
   CodeStrings  _code_strings;
+  bool         _collect_comments;      // Indicate if we need to collect block comments at all.
   OopRecorder  _default_oop_recorder;  // override with initialize_oop_recorder
   Arena*       _overflow_arena;
 
@@ -403,6 +409,15 @@ class CodeBuffer: public StackObj {
 #if INCLUDE_AOT
     _immutable_PIC   = false;
 #endif
+
+    // Collect block comments, but restrict collection to cases where a disassembly is output.
+    _collect_comments = ( PrintAssembly
+                       || PrintStubCode
+                       || PrintMethodHandleStubs
+                       || PrintInterpreter
+                       || PrintSignatureHandlers
+                       || UnlockDiagnosticVMOptions
+                        );
   }
 
   void initialize(address code_start, csize_t code_size) {
@@ -604,6 +619,23 @@ class CodeBuffer: public StackObj {
     }
   }
 
+  // Directly disassemble code buffer.
+  // Print the comment associated with offset on stream, if there is one.
+  virtual void print_block_comment(outputStream* stream, address block_begin) {
+#ifndef PRODUCT
+    intptr_t offset = (intptr_t)(block_begin - _total_start);  // I assume total_start is not correct for all code sections.
+    _code_strings.print_block_comment(stream, offset);
+#endif
+  }
+  bool has_block_comment(address block_begin) {
+#ifndef PRODUCT
+    intptr_t offset = (intptr_t)(block_begin - _total_start);  // I assume total_start is not correct for all code sections.
+    return _code_strings.has_block_comment(offset);
+#else
+    return false;
+#endif
+  }
+
   // Code generation
   void relocate(address at, RelocationHolder const& rspec, int format = 0) {
     _insts.relocate(at, rspec, format);
@@ -650,7 +682,8 @@ class CodeBuffer: public StackObj {
   void    decode();
   void    print();
 #endif
-
+  // Directly disassemble code buffer.
+  void    decode(address start, address end);
 
   // The following header contains architecture-specific implementations
 #include CPU_HEADER(codeBuffer)

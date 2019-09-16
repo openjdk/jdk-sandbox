@@ -39,8 +39,7 @@ struct InterfaceEntry {
   traceid id;
   uint64_t bytes_in;
   uint64_t bytes_out;
-  bool in_use;
-  bool written;
+  mutable bool written;
 };
 
 static GrowableArray<InterfaceEntry>* _interfaces = NULL;
@@ -72,7 +71,6 @@ static InterfaceEntry& new_entry(const NetworkInterface* iface, GrowableArray<In
   entry.id = ++interface_id;
   entry.bytes_in = iface->get_bytes_in();
   entry.bytes_out = iface->get_bytes_out();
-  entry.in_use = false;
   entry.written = false;
   return _interfaces->at(_interfaces->append(entry));
 }
@@ -110,44 +108,16 @@ static uint64_t rate_per_second(uint64_t current, uint64_t old, const JfrTickspa
   return ((current - old) * NANOSECS_PER_SEC) / interval.nanoseconds();
 }
 
-static bool get_interfaces(NetworkInterface** network_interfaces) {
-  const int ret_val = JfrOSInterface::network_utilization(network_interfaces);
-  if (ret_val == OS_ERR) {
-    log_debug(jfr, system)("Unable to generate network utilization events");
-    return false;
-  }
-  return ret_val != FUNCTIONALITY_NOT_IMPLEMENTED;
-}
-
-static void write_interface_types(JfrCheckpointWriter& writer) {
-    assert(_interfaces != NULL, "invariant");
-  writer.write_type(TYPE_NETWORKINTERFACENAME);
-    const JfrCheckpointContext ctx = writer.context();
-    const intptr_t count_offset = writer.reserve(sizeof(u4)); // Don't know how many yet
-    int active_interfaces = 0;
-    for (int i = 0; i < _interfaces->length(); ++i) {
-      InterfaceEntry& entry = _interfaces->at(i);
-    if (entry.in_use && !entry.written) {
-        entry.in_use = false;
-        entry.written = true;
-        writer.write_key(entry.id);
-        writer.write(entry.name);
-        ++active_interfaces;
-      }
-    }
-    if (active_interfaces == 0) {
-      // nothing to write, restore context
-      writer.set_context(ctx);
-      return;
-    }
-    writer.write_count(active_interfaces, count_offset);
-  }
 class JfrNetworkInterfaceName : public JfrSerializer {
  public:
+   void serialize(JfrCheckpointWriter& writer) {} // we write each constant lazily
+
    void on_rotation() {
      for (int i = 0; i < _interfaces->length(); ++i) {
-       InterfaceEntry& entry = _interfaces->at(i);
-       entry.written = false;
+       const InterfaceEntry& entry = _interfaces->at(i);
+       if (entry.written) {
+         entry.written = false;
+       }
      }
    }
 };
@@ -155,8 +125,29 @@ class JfrNetworkInterfaceName : public JfrSerializer {
 static bool register_network_interface_name_serializer() {
   assert(_interfaces != NULL, "invariant");
   return JfrSerializer::register_serializer(TYPE_NETWORKINTERFACENAME,
-                                            false, // disallow caching; we want a callback every rotation
-                                            new JfrNetworkInterfaceName());
+    false, // disallow caching; we want a callback every rotation
+    new JfrNetworkInterfaceName());
+}
+
+static void write_interface_constant(const InterfaceEntry& entry) {
+  if (entry.written) {
+    return;
+  }
+  JfrCheckpointWriter writer;
+  writer.write_type(TYPE_NETWORKINTERFACENAME);
+  writer.write_count(1);
+  writer.write_key(entry.id);
+  writer.write(entry.name);
+  entry.written = true;
+}
+
+static bool get_interfaces(NetworkInterface** network_interfaces) {
+  const int ret_val = JfrOSInterface::network_utilization(network_interfaces);
+  if (ret_val == OS_ERR) {
+    log_debug(jfr, system)("Unable to generate network utilization events");
+    return false;
+  }
+  return ret_val != FUNCTIONALITY_NOT_IMPLEMENTED;
 }
 
 void JfrNetworkUtilization::send_events() {
@@ -179,7 +170,7 @@ void JfrNetworkUtilization::send_events() {
       const uint64_t read_rate = rate_per_second(current_bytes_in, entry.bytes_in, interval);
       const uint64_t write_rate = rate_per_second(current_bytes_out, entry.bytes_out, interval);
       if (read_rate > 0 || write_rate > 0) {
-        entry.in_use = true;
+        write_interface_constant(entry);
         EventNetworkUtilization event(UNTIMED);
         event.set_starttime(cur_time);
         event.set_endtime(cur_time);
@@ -187,9 +178,6 @@ void JfrNetworkUtilization::send_events() {
         event.set_readRate(8 * read_rate);
         event.set_writeRate(8 * write_rate);
         event.commit();
-        if (!entry.written) {
-          write_type = true;
-        }
       }
       // update existing entry with new values
       entry.bytes_in = current_bytes_in;
@@ -197,10 +185,6 @@ void JfrNetworkUtilization::send_events() {
     }
   }
 
-  if (write_type) {
-    JfrCheckpointWriter writer;
-    write_interface_types(writer);
-  }
   static bool is_serializer_registered = false;
   if (!is_serializer_registered) {
     is_serializer_registered = register_network_interface_name_serializer();

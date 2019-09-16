@@ -27,6 +27,10 @@
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
+const u1 COMPLETE = 0;
+const u1 GUARD = 0xff;
+const u1 PAD = 0;
+
 class JfrChunk : public JfrCHeapObj {
   friend class JfrChunkWriter;
   friend class JfrChunkHeadWriter;

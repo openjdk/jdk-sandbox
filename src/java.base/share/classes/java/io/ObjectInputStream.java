@@ -447,8 +447,8 @@ public class ObjectInputStream
     }
 
     /**
-     * This method is called by trusted subclasses of ObjectOutputStream that
-     * constructed ObjectOutputStream using the protected no-arg constructor.
+     * This method is called by trusted subclasses of ObjectInputStream that
+     + constructed ObjectInputStream using the protected no-arg constructor.
      * The subclass is expected to provide an override method with the modifier
      * "final".
      *
@@ -1321,6 +1321,10 @@ public class ObjectInputStream
      * Provide access to the persistent fields read from the input stream.
      */
     public abstract static class GetField {
+        /**
+         * Constructor for subclasses to call.
+         */
+        public GetField() {}
 
         /**
          * Get the ObjectStreamClass that describes the fields in the stream.

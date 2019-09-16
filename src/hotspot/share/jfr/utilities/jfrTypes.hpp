@@ -26,16 +26,10 @@
 #define SHARE_JFR_UTILITIES_JFRTYPES_HPP
 
 #include "jfrfiles/jfrEventIds.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 typedef u8 traceid;
 typedef int fio_fd;
-
-const char* const MAGIC = "FLR";
-const u2 JFR_VERSION_MAJOR = 2;
-const u2 JFR_VERSION_MINOR = 0;
-const u1 COMPLETE = 0;
-const u1 GUARD = 0xff;
-const u1 PAD = 0;
 
 const int invalid_fd = -1;
 const jlong invalid_offset = -1;

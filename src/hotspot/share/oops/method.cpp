@@ -146,6 +146,12 @@ address Method::get_c2i_unverified_entry() {
   return adapter()->get_c2i_unverified_entry();
 }
 
+address Method::get_c2i_no_clinit_check_entry() {
+  assert(VM_Version::supports_fast_class_init_checks(), "");
+  assert(adapter() != NULL, "must have");
+  return adapter()->get_c2i_no_clinit_check_entry();
+}
+
 char* Method::name_and_sig_as_C_string() const {
   return name_and_sig_as_C_string(constants()->pool_holder(), name(), signature());
 }
@@ -704,6 +710,10 @@ bool Method::is_object_initializer() const {
    return name() == vmSymbols::object_initializer_name();
 }
 
+bool Method::needs_clinit_barrier() const {
+  return is_static() && !method_holder()->is_initialized();
+}
+
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
   int length = method->checked_exceptions_length();
   if (length == 0) {  // common case
@@ -818,11 +828,6 @@ void Method::clear_native_function() {
   clear_code();
 }
 
-address Method::critical_native_function() {
-  methodHandle mh(this);
-  return NativeLookup::lookup_critical_entry(mh);
-}
-
 
 void Method::set_signature_handler(address handler) {
   address* signature_handler =  signature_handler_addr();
@@ -831,16 +836,14 @@ void Method::set_signature_handler(address handler) {
 
 
 void Method::print_made_not_compilable(int comp_level, bool is_osr, bool report, const char* reason) {
+  assert(reason != NULL, "must provide a reason");
   if (PrintCompilation && report) {
     ttyLocker ttyl;
     tty->print("made not %scompilable on ", is_osr ? "OSR " : "");
     if (comp_level == CompLevel_all) {
       tty->print("all levels ");
     } else {
-      tty->print("levels ");
-      for (int i = (int)CompLevel_none; i <= comp_level; i++) {
-        tty->print("%d ", i);
-      }
+      tty->print("level %d ", comp_level);
     }
     this->print_short_name(tty);
     int size = this->code_size();
@@ -891,7 +894,7 @@ bool Method::is_not_compilable(int comp_level) const {
 }
 
 // call this when compiler finds that this method is not compilable
-void Method::set_not_compilable(int comp_level, bool report, const char* reason) {
+void Method::set_not_compilable(const char* reason, int comp_level, bool report) {
   if (is_always_compilable()) {
     // Don't mark a method which should be always compilable
     return;
@@ -922,7 +925,7 @@ bool Method::is_not_osr_compilable(int comp_level) const {
   return false;
 }
 
-void Method::set_not_osr_compilable(int comp_level, bool report, const char* reason) {
+void Method::set_not_osr_compilable(const char* reason, int comp_level, bool report) {
   print_made_not_compilable(comp_level, /*is_osr*/ true, report, reason);
   if (comp_level == CompLevel_all) {
     set_not_c1_osr_compilable();
@@ -958,22 +961,29 @@ void Method::clear_code(bool acquire_lock /* = true */) {
 void Method::unlink_method() {
   _code = NULL;
 
-  assert(DumpSharedSpaces, "dump time only");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "dump time only");
   // Set the values to what they should be at run time. Note that
   // this Method can no longer be executed during dump time.
   _i2i_entry = Interpreter::entry_for_cds_method(this);
   _from_interpreted_entry = _i2i_entry;
+
+  if (DynamicDumpSharedSpaces) {
+    assert(_from_compiled_entry != NULL, "sanity");
+  } else {
+    // TODO: Simplify the adapter trampoline allocation for static archiving.
+    //       Remove the use of CDSAdapterHandlerEntry.
+    CDSAdapterHandlerEntry* cds_adapter = (CDSAdapterHandlerEntry*)adapter();
+    constMethod()->set_adapter_trampoline(cds_adapter->get_adapter_trampoline());
+    _from_compiled_entry = cds_adapter->get_c2i_entry_trampoline();
+    assert(*((int*)_from_compiled_entry) == 0,
+           "must be NULL during dump time, to be initialized at run time");
+  }
 
   if (is_native()) {
     *native_function_addr() = NULL;
     set_signature_handler(NULL);
   }
   NOT_PRODUCT(set_compiled_invocation_count(0);)
-
-  CDSAdapterHandlerEntry* cds_adapter = (CDSAdapterHandlerEntry*)adapter();
-  constMethod()->set_adapter_trampoline(cds_adapter->get_adapter_trampoline());
-  _from_compiled_entry = cds_adapter->get_c2i_entry_trampoline();
-  assert(*((int*)_from_compiled_entry) == 0, "must be NULL during dump time, to be initialized at run time");
 
   set_method_data(NULL);
   clear_method_counters();
@@ -1036,7 +1046,7 @@ void Method::unlink_method() {
                                                               _c2i_entry ---------------------------------+->[c2i entry..]
  _i2i_entry  -------------+                                   _i2c_entry ---------------+-> [i2c entry..] |
  _from_interpreted_entry  |                                   _c2i_unverified_entry     |                 |
-         |                |                                                             |                 |
+         |                |                                   _c2i_no_clinit_check_entry|                 |
          |                |  (_cds_entry_table: CODE)                                   |                 |
          |                +->[0]: jmp _entry_table[0] --> (i2i_entry_for "zero_locals") |                 |
          |                |                               (allocated at run time)       |                 |
@@ -1908,7 +1918,6 @@ void BreakpointInfo::set(Method* method) {
   Thread *thread = Thread::current();
   *method->bcp_from(_bci) = Bytecodes::_breakpoint;
   method->incr_number_of_breakpoints(thread);
-  SystemDictionary::notice_modification();
   {
     // Deoptimize all dependents on this method
     HandleMark hm(thread);
@@ -2058,7 +2067,7 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
 #endif // PRODUCT
 };
 
-// Something that can't be mistaken for an address or a markOop
+// Something that can't be mistaken for an address or a markWord
 Method* const JNIMethodBlock::_free_method = (Method*)55;
 
 JNIMethodBlockNode::JNIMethodBlockNode(int num_methods) : _top(0), _next(NULL) {

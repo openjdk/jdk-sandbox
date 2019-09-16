@@ -386,6 +386,11 @@ class GraphKit : public Phase {
   // Check the null_seen bit.
   bool seems_never_null(Node* obj, ciProfileData* data, bool& speculating);
 
+  void guard_klass_being_initialized(Node* klass);
+  void guard_init_thread(Node* klass);
+
+  void clinit_barrier(ciInstanceKlass* ik, ciMethod* context);
+
   // Check for unique class for receiver at call
   ciKlass* profile_has_unique_klass() {
     ciCallProfile profile = method()->call_profile_at_bci(bci());
@@ -560,7 +565,7 @@ class GraphKit : public Phase {
     return store_to_memory(ctl, adr, val, bt,
                            C->get_alias_index(adr_type),
                            mo, require_atomic_access,
-                           unaligned, mismatched);
+                           unaligned, mismatched, unsafe);
   }
   // This is the base version which is given alias index
   // Return the new StoreXNode

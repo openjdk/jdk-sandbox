@@ -149,7 +149,7 @@ void VMOperationQueue::drain_list_oops_do(OopClosure* f) {
 
 //-----------------------------------------------------------------
 // High-level interface
-bool VMOperationQueue::add(VM_Operation *op) {
+void VMOperationQueue::add(VM_Operation *op) {
 
   HOTSPOT_VMOPS_REQUEST(
                    (char *) op->name(), strlen(op->name()),
@@ -157,13 +157,7 @@ bool VMOperationQueue::add(VM_Operation *op) {
 
   // Encapsulates VM queue policy. Currently, that
   // only involves putting them on the right list
-  if (op->evaluate_at_safepoint()) {
-    queue_add_back(SafepointPriority, op);
-    return true;
-  }
-
-  queue_add_back(MediumPriority, op);
-  return true;
+  queue_add_back(op->evaluate_at_safepoint() ? SafepointPriority : MediumPriority, op);
 }
 
 VM_Operation* VMOperationQueue::remove_next() {
@@ -394,7 +388,7 @@ static void post_vm_operation_event(EventExecuteVMOperation* event, VM_Operation
   // For concurrent vm operations, the thread id is set to 0 indicating thread is unknown.
   // This is because the caller thread could have exited already.
   event->set_caller(is_concurrent ? 0 : JFR_THREAD_ID(op->calling_thread()));
-  event->set_safepointId(evaluate_at_safepoint ? SafepointSynchronize::safepoint_counter() : 0);
+  event->set_safepointId(evaluate_at_safepoint ? SafepointSynchronize::safepoint_id() : 0);
   event->commit();
 }
 
@@ -683,7 +677,7 @@ void VMThread::execute(VM_Operation* op) {
     }
 
     // Setup VM_operations for execution
-    op->set_calling_thread(t, Thread::get_priority(t));
+    op->set_calling_thread(t);
 
     // It does not make sense to execute the epilogue, if the VM operation object is getting
     // deallocated by the VM thread.
@@ -702,16 +696,10 @@ void VMThread::execute(VM_Operation* op) {
     {
       VMOperationQueue_lock->lock_without_safepoint_check();
       log_debug(vmthread)("Adding VM operation: %s", op->name());
-      bool ok = _vm_queue->add(op);
+      _vm_queue->add(op);
       op->set_timestamp(os::javaTimeMillis());
       VMOperationQueue_lock->notify();
       VMOperationQueue_lock->unlock();
-      // VM_Operation got skipped
-      if (!ok) {
-        assert(concurrent, "can only skip concurrent tasks");
-        if (op->is_cheap_allocated()) delete op;
-        return;
-      }
     }
 
     if (!concurrent) {
@@ -738,7 +726,7 @@ void VMThread::execute(VM_Operation* op) {
         fatal("Nested VM operation %s requested by operation %s",
               op->name(), vm_operation()->name());
       }
-      op->set_calling_thread(prev_vm_operation->calling_thread(), prev_vm_operation->priority());
+      op->set_calling_thread(prev_vm_operation->calling_thread());
     }
 
     EventMark em("Executing %s VM operation: %s", prev_vm_operation ? "nested" : "", op->name());

@@ -155,10 +155,8 @@ RuntimeBlob::RuntimeBlob(
 }
 
 void CodeBlob::flush() {
-  if (_oop_maps) {
-    FREE_C_HEAP_ARRAY(unsigned char, _oop_maps);
-    _oop_maps = NULL;
-  }
+  FREE_C_HEAP_ARRAY(unsigned char, _oop_maps);
+  _oop_maps = NULL;
   _strings.free();
 }
 
@@ -183,8 +181,14 @@ void RuntimeBlob::trace_new_stub(RuntimeBlob* stub, const char* name1, const cha
     jio_snprintf(stub_id, sizeof(stub_id), "%s%s", name1, name2);
     if (PrintStubCode) {
       ttyLocker ttyl;
+      tty->print_cr("- - - [BEGIN] - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
       tty->print_cr("Decoding %s " INTPTR_FORMAT, stub_id, (intptr_t) stub);
-      Disassembler::decode(stub->code_begin(), stub->code_end());
+      Disassembler::decode(stub->code_begin(), stub->code_end(), tty);
+      if ((stub->oop_maps() != NULL) && AbstractDisassembler::show_structs()) {
+        tty->print_cr("- - - [OOP MAPS]- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
+        stub->oop_maps()->print();
+      }
+      tty->print_cr("- - - [END] - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -");
       tty->cr();
     }
     Forte::register_stub(stub_id, stub->code_begin(), stub->code_end());
@@ -263,6 +267,7 @@ void* BufferBlob::operator new(size_t s, unsigned size) throw() {
 }
 
 void BufferBlob::free(BufferBlob *blob) {
+  assert(blob != NULL, "caller must check for NULL");
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
   blob->flush();
   {

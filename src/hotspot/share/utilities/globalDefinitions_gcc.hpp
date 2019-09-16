@@ -250,12 +250,11 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define offsetof(klass,field) offset_of(klass,field)
 
 #if defined(_LP64) && defined(__APPLE__)
-#define JLONG_FORMAT           "%ld"
+#define JLONG_FORMAT          "%ld"
+#define JLONG_FORMAT_W(width) "%" #width "ld"
 #endif // _LP64 && __APPLE__
 
-#ifndef USE_LIBRARY_BASED_TLS_ONLY
-#define THREAD_LOCAL_DECL __thread
-#endif
+#define THREAD_LOCAL __thread
 
 // Inlining support
 #define NOINLINE     __attribute__ ((noinline))
