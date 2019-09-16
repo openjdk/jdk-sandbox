@@ -23,14 +23,17 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.AccessControlContext;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Objects;
 
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.internal.consumer.Dispatcher;
 import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 
@@ -38,12 +41,14 @@ import jdk.jfr.internal.consumer.RecordingInput;
  * Implementation of an event stream that operates against a recording file.
  *
  */
-final class EventFileStream extends AbstractEventStream {
+public final class EventFileStream extends AbstractEventStream {
+    private final static Comparator<? super RecordedEvent> EVENT_COMPARATOR = JdkJfrConsumer.instance().eventComparator();
+
     private final RecordingInput input;
     private ChunkParser chunkParser;
     private RecordedEvent[] sortedList;
 
-    EventFileStream(AccessControlContext acc, Path path) throws IOException {
+    public EventFileStream(AccessControlContext acc, Path path) throws IOException {
         super(acc, false);
         Objects.requireNonNull(path);
         this.input = new RecordingInput(path.toFile(), FileAccess.UNPRIVILIGED);
@@ -114,7 +119,7 @@ final class EventFileStream extends AbstractEventStream {
         while (true) {
             event = chunkParser.readEvent();
             if (event == null) {
-                Arrays.sort(sortedList, 0, index, END_TIME);
+                Arrays.sort(sortedList, 0, index, EVENT_COMPARATOR);
                 for (int i = 0; i < index; i++) {
                     c.dispatch(sortedList[i]);
                 }

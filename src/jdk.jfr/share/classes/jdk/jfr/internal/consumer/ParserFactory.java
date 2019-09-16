@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.util.ArrayList;

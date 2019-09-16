@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import static jdk.jfr.internal.EventInstrumentation.FIELD_DURATION;
 
@@ -32,6 +32,7 @@ import java.util.List;
 
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.consumer.Parser;
 import jdk.jfr.internal.consumer.RecordingInput;
 
@@ -39,7 +40,10 @@ import jdk.jfr.internal.consumer.RecordingInput;
  * Parses an event and returns a {@link RecordedEvent}.
  *
  */
-final class EventParser extends Parser {
+public final class EventParser extends Parser {
+
+    private static final JdkJfrConsumer PRIVATE_ACCESS = JdkJfrConsumer.instance();
+
     private final Parser[] parsers;
     private final EventType eventType;
     private final TimeConverter timeConverter;
@@ -68,7 +72,7 @@ final class EventParser extends Parser {
         this.length = parsers.length - startIndex;
         this.valueDescriptors = type.getFields();
         this.objectContext = new ObjectContext(type, valueDescriptors, timeConverter);
-        this.unorderedEvent = new RecordedEvent(objectContext, new Object[length], 0L, 0L);
+        this.unorderedEvent = PRIVATE_ACCESS.newRecordedEvent(objectContext, new Object[length], 0L, 0L);
     }
 
     private RecordedEvent cachedEvent() {
@@ -80,7 +84,7 @@ final class EventParser extends Parser {
             }
             RecordedEvent event = cached[cacheIndex];
             if (event == null) {
-                event = new RecordedEvent(objectContext, new Object[length], 0L, 0L);
+                event = PRIVATE_ACCESS.newRecordedEvent(objectContext, new Object[length], 0L, 0L);
                 cached[cacheIndex] = event;
             }
             cacheIndex++;
@@ -134,12 +138,18 @@ final class EventParser extends Parser {
 
         if (cached != null) {
             RecordedEvent event = cachedEvent();
-            event.startTimeTicks = startTicks;
-            event.endTimeTicks = endTicks;
-            Object[] values = event.objects;
+            PRIVATE_ACCESS.setStartTicks(event, startTicks);
+            PRIVATE_ACCESS.setEndTicks(event, endTicks);
+            Object[] values = PRIVATE_ACCESS.eventValues(event);
             for (int i = 0; i < values.length; i++) {
                 values[i] = parsers[startIndex + i].parse(input);
             }
+//            event.startTimeTicks = startTicks;
+//            event.endTimeTicks = endTicks;
+//            Object[] values = event.objects;
+//            for (int i = 0; i < values.length; i++) {
+//
+//            }
             return event;
         }
 
@@ -147,7 +157,7 @@ final class EventParser extends Parser {
         for (int i = 0; i < values.length; i++) {
             values[i] = parsers[startIndex + i].parse(input);
         }
-        return new RecordedEvent(objectContext, values, startTicks, endTicks);
+        return PRIVATE_ACCESS.newRecordedEvent(objectContext, values, startTicks, endTicks);
     }
 
     @Override

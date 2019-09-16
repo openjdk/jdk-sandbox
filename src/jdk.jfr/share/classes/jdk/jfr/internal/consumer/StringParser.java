@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -32,7 +32,7 @@ import jdk.jfr.internal.consumer.Parser;
 import jdk.jfr.internal.consumer.RecordingInput;
 import jdk.jfr.internal.consumer.StringEncoding;
 
-final class StringParser extends Parser {
+public final class StringParser extends Parser {
     private final static Charset UTF8 = Charset.forName("UTF-8");
     private final static Charset LATIN1 = Charset.forName("ISO-8859-1");
 

@@ -27,7 +27,7 @@ package jdk.jfr.consumer;
 
 import java.lang.reflect.Modifier;
 
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded frame in a stack trace.
@@ -35,19 +35,9 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedFrame extends RecordedObject {
-
-    static ObjectFactory<RecordedFrame> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedFrame>(type, timeConverter) {
-            @Override
-            RecordedFrame createTyped(ObjectContext objectContext, long id, Object[] values) {
-                return new RecordedFrame(objectContext, values);
-            }
-        };
-    }
-
     // package private
-    RecordedFrame(ObjectContext objectContext, Object[] objects) {
-        super(objectContext, objects);
+    RecordedFrame(ObjectContext objectContext, Object[] values) {
+        super(objectContext, values);
     }
 
     /**

@@ -49,9 +49,8 @@ import jdk.jfr.AnnotationElement;
 import jdk.jfr.SettingDescriptor;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.MetadataDescriptor.Element;
-import jdk.jfr.internal.consumer.Parser;
 import jdk.jfr.internal.consumer.RecordingInput;
-import jdk.jfr.internal.consumer.RecordingInternals;
+import jdk.jfr.internal.consumer.StringParser;
 
 /**
  * Parses metadata.
@@ -68,7 +67,7 @@ final class MetadataReader {
         this.input = input;
         int size = input.readInt();
         this.pool = new ArrayList<>(size);
-        Parser p = RecordingInternals.instance().newStringParser();
+        StringParser p = new StringParser(null, false);
         for (int i = 0; i < size; i++) {
             this.pool.add((String) p.parse(input));
         }

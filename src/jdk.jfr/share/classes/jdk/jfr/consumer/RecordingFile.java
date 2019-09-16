@@ -39,6 +39,7 @@ import jdk.jfr.EventType;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.consumer.ChunkHeader;
+import jdk.jfr.internal.consumer.ChunkParser;
 import jdk.jfr.internal.consumer.FileAccess;
 import jdk.jfr.internal.consumer.RecordingInput;
 

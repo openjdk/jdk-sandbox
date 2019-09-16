@@ -24,38 +24,40 @@
  */
 package jdk.jfr.internal.consumer;
 
-import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.consumer.RecordedObject;
-import jdk.jfr.consumer.RecordingFile;
-import jdk.jfr.internal.Type;
+import jdk.jfr.EventType;
+import jdk.jfr.ValueDescriptor;
 
-public abstract class RecordingInternals {
+public final class ObjectContext {
+    private final Map<ValueDescriptor, ObjectContext> contextLookup;
 
-    public static RecordingInternals instance() {
-        if (INSTANCE == null) {
-            // Force initialization
-            try {
-                Class<?> c = RecordedObject.class;
-                Class.forName(c.getName(), true, c.getClassLoader());
-            } catch (ClassNotFoundException e) {
-                throw new InternalError("Should not happen");
-            }
-        }
-        return INSTANCE;
+    public final EventType eventType;
+    public final List<ValueDescriptor> fields;
+    public final TimeConverter timeConverter;
+
+    public ObjectContext(EventType eventType, List<ValueDescriptor> fields, TimeConverter timeConverter) {
+        this.contextLookup = new HashMap<>();
+        this.eventType = eventType;
+        this.fields = fields;
+        this.timeConverter = timeConverter;
     }
 
-    public static RecordingInternals INSTANCE;
+    private ObjectContext(ObjectContext parent, ValueDescriptor descriptor) {
+        this.eventType = parent.eventType;
+        this.contextLookup = parent.contextLookup;
+        this.timeConverter = parent.timeConverter;
+        this.fields = descriptor.getFields();
+    }
 
-    public abstract boolean isLastEventInChunk(RecordingFile file);
-
-    public abstract Object getOffsetDataTime(RecordedObject event, String name);
-
-    public abstract List<Type> readTypes(RecordingFile file) throws IOException;
-
-    public abstract void sort(List<RecordedEvent> events);
-
-    public abstract Parser newStringParser();
+    public ObjectContext getInstance(ValueDescriptor descriptor) {
+        ObjectContext context = contextLookup.get(descriptor);
+        if (context == null) {
+            context = new ObjectContext(this, descriptor);
+            contextLookup.put(descriptor, context);
+        }
+        return context;
+    }
 }

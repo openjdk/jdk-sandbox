@@ -1,4 +1,4 @@
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -6,16 +6,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import jdk.jfr.EventType;
-import jdk.jfr.consumer.ChunkParser.ParserConfiguration;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.LongMap;
-import jdk.jfr.internal.consumer.InternalEventFilter;
+import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
 
-public final class Dispatcher {
+final class Dispatcher {
 
     public final static class EventDispatcher {
         final static EventDispatcher[] NO_DISPATCHERS = new EventDispatcher[0];
         final String eventName;
-        final Consumer<RecordedEvent> action;
+        public final Consumer<RecordedEvent> action;
 
         public EventDispatcher(Consumer<RecordedEvent> action) {
             this(null, action);

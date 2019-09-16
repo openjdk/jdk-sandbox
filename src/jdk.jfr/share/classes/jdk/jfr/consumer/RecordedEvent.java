@@ -32,6 +32,7 @@ import java.util.List;
 import jdk.jfr.EventType;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.EventInstrumentation;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded event.

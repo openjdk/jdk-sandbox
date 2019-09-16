@@ -36,6 +36,8 @@ import java.util.function.Consumer;
 
 import jdk.jfr.internal.SecuritySupport;
 import jdk.jfr.internal.Utils;
+import jdk.jfr.internal.consumer.EventDirectoryStream;
+import jdk.jfr.internal.consumer.EventFileStream;
 import jdk.jfr.internal.consumer.FileAccess;
 
 /**

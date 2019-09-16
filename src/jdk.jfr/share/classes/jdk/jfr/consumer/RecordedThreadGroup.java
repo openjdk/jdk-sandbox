@@ -25,7 +25,7 @@
 
 package jdk.jfr.consumer;
 
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded Java thread group.
@@ -33,17 +33,8 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedThreadGroup extends RecordedObject {
-
-    static ObjectFactory<RecordedThreadGroup> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedThreadGroup>(type, timeConverter) {
-            @Override
-            RecordedThreadGroup createTyped(ObjectContext objectContext, long id, Object[] values) {
-                return new RecordedThreadGroup(objectContext, values);
-            }
-        };
-    }
-
-    private RecordedThreadGroup(ObjectContext objectContext, Object[] values) {
+    // package private
+    RecordedThreadGroup(ObjectContext objectContext, Object[] values) {
         super(objectContext, values);
     }
 

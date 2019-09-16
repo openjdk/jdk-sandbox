@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.security.AccessControlContext;
@@ -31,11 +31,12 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
+import jdk.jfr.consumer.EventStream;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
@@ -53,11 +54,9 @@ import jdk.jfr.internal.SecuritySupport;
  * - security
  *
  */
-abstract class AbstractEventStream implements EventStream {
-
-    static final Comparator<? super RecordedEvent> END_TIME = (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks);
-
+public abstract class AbstractEventStream implements EventStream {
     private final static AtomicLong counter = new AtomicLong(1);
+
     private final Object terminated = new Object();
     private final boolean active;
     private final Runnable flushOperation = () -> dispatcher().runFlushActions();
@@ -216,14 +215,14 @@ abstract class AbstractEventStream implements EventStream {
         return closed;
     }
 
-    protected final void startAsync(long startNanos) {
+    public final void startAsync(long startNanos) {
         startInternal(startNanos);
         Runnable r = () -> run(accessControllerContext);
         thread = SecuritySupport.createThreadWitNoPermissions(nextThreadName(), r);
         thread.start();
     }
 
-    protected final void start(long startNanos) {
+    public final void start(long startNanos) {
         startInternal(startNanos);
         thread = Thread.currentThread();
         run(accessControllerContext);

@@ -23,27 +23,29 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.security.AccessControlContext;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Objects;
 
-import jdk.jfr.consumer.ChunkParser.ParserConfiguration;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.internal.Utils;
-import jdk.jfr.internal.consumer.FileAccess;
-import jdk.jfr.internal.consumer.RecordingInput;
-import jdk.jfr.internal.consumer.RepositoryFiles;
+import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
 
 /**
  * Implementation of an {@code EventStream}} that operates against a directory
  * with chunk files.
  *
  */
-final class EventDirectoryStream extends AbstractEventStream {
+public final class EventDirectoryStream extends AbstractEventStream {
+
+    private final static Comparator<? super RecordedEvent> EVENT_COMPARATOR = JdkJfrConsumer.instance().eventComparator();
+
     private final RepositoryFiles repositoryFiles;
     private final boolean active;
     private final FileAccess fileAccess;
@@ -52,7 +54,7 @@ final class EventDirectoryStream extends AbstractEventStream {
     private long chunkStartNanos;
     private RecordedEvent[] sortedList;
 
-    EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
+    public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
         super(acc, active);
         this.fileAccess = Objects.requireNonNull(fileAccess);
         this.active = active;
@@ -160,7 +162,7 @@ final class EventDirectoryStream extends AbstractEventStream {
         }
         // at least 2 events, sort them
         if (index > 1) {
-            Arrays.sort(sortedList, 0, index, END_TIME);
+            Arrays.sort(sortedList, 0, index, EVENT_COMPARATOR);
         }
         for (int i = 0; i < index; i++) {
             c.dispatch(sortedList[i]);

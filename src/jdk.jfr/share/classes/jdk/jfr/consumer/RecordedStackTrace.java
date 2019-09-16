@@ -29,7 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded stack trace.
@@ -37,17 +37,8 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedStackTrace extends RecordedObject {
-
-    static ObjectFactory<RecordedStackTrace> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedStackTrace>(type, timeConverter) {
-            @Override
-            RecordedStackTrace createTyped(ObjectContext objectContext, long id, Object[] values) {
-                return new RecordedStackTrace(objectContext, values);
-            }
-        };
-    }
-
-    private RecordedStackTrace(ObjectContext objectContext, Object[] values) {
+    // package private
+    RecordedStackTrace(ObjectContext objectContext, Object[] values) {
         super(objectContext, values);
     }
 

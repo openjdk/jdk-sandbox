@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
@@ -36,7 +36,7 @@ import jdk.jfr.internal.consumer.ChunkHeader;
 /**
  * Converts ticks to nanoseconds
  */
-final class TimeConverter {
+public final class TimeConverter {
     private final long startTicks;
     private final long startNanos;
     private final double divisor;

@@ -31,17 +31,18 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
+import jdk.jfr.internal.consumer.JdkJfrConsumer;
+import jdk.jfr.internal.consumer.ObjectFactory;
 import jdk.jfr.internal.PrivateAccess;
 import jdk.jfr.internal.Type;
-import jdk.jfr.internal.consumer.Parser;
-import jdk.jfr.internal.consumer.RecordingInternals;
+import jdk.jfr.internal.consumer.ObjectContext;
 import jdk.jfr.internal.tool.PrettyWriter;
 
 /**
@@ -57,7 +58,7 @@ import jdk.jfr.internal.tool.PrettyWriter;
 public class RecordedObject {
 
     static{
-        RecordingInternals.INSTANCE = new RecordingInternals() {
+        JdkJfrConsumer access = new JdkJfrConsumer() {
             public List<Type> readTypes(RecordingFile file) throws IOException {
                 return file.readTypes();
             }
@@ -72,15 +73,71 @@ public class RecordedObject {
             }
 
             @Override
-            public void sort(List<RecordedEvent> events) {
-               Collections.sort(events, (e1, e2) -> Long.compare(e1.endTimeTicks, e2.endTimeTicks));
+            public RecordedClass newRecordedClass(ObjectContext objectContext, long id, Object[] values) {
+                return new RecordedClass(objectContext, id, values);
             }
 
             @Override
-            public Parser newStringParser() {
-                return new StringParser(null, false);
+            public RecordedClassLoader newRecordedClassLoader(ObjectContext objectContext, long id, Object[] values) {
+                return new RecordedClassLoader(objectContext, id, values);
+            }
+
+            @Override
+            public Comparator<? super RecordedEvent> eventComparator() {
+                return new Comparator<RecordedEvent>()  {
+                    @Override
+                    public int compare(RecordedEvent e1, RecordedEvent e2) {
+                        return Long.compare(e1.endTimeTicks, e2.endTimeTicks);
+                    }
+                };
+            }
+
+            @Override
+            public RecordedStackTrace newRecordedStackTrace(ObjectContext objectContext, Object[] values) {
+                return new RecordedStackTrace(objectContext, values);
+            }
+
+            @Override
+            public RecordedThreadGroup newRecordedThreadGroup(ObjectContext objectContext, Object[] values) {
+                return new RecordedThreadGroup(objectContext, values);
+            }
+
+            @Override
+            public RecordedFrame newRecordedFrame(ObjectContext objectContext, Object[] values) {
+                return new RecordedFrame(objectContext, values);
+            }
+
+            @Override
+            public RecordedThread newRecordedThread(ObjectContext objectContext, long id, Object[] values) {
+                return new RecordedThread(objectContext, id, values);
+            }
+
+            @Override
+            public RecordedMethod newRecordedMethod(ObjectContext objectContext, Object[] values) {
+                return new RecordedMethod(objectContext, values);
+            }
+
+            @Override
+            public RecordedEvent newRecordedEvent(ObjectContext objectContext, Object[] values, long startTimeTicks, long endTimeTicks) {
+                return new RecordedEvent(objectContext, values, startTimeTicks, endTimeTicks);
+            }
+
+            @Override
+            public void setStartTicks(RecordedEvent event, long startTicks) {
+               event.startTimeTicks = startTicks;
+            }
+
+            @Override
+            public void setEndTicks(RecordedEvent event, long endTicks) {
+               event.endTimeTicks = endTicks;
+            }
+
+            @Override
+            public Object[] eventValues(RecordedEvent event) {
+                return event.objects;
             }
         };
+        JdkJfrConsumer.setAccess(access);
     }
 
     private final static class UnsignedValue {

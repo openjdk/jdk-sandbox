@@ -25,7 +25,7 @@
 
 package jdk.jfr.consumer;
 
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded Java class loader.
@@ -33,20 +33,10 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedClassLoader extends RecordedObject {
-
-    static ObjectFactory<RecordedClassLoader> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedClassLoader>(type, timeConverter) {
-            @Override
-            RecordedClassLoader createTyped(ObjectContext objectContext, long id, Object[] values) {
-                return new RecordedClassLoader(objectContext, id, values);
-            }
-        };
-    }
-
     private final long uniqueId;
 
     // package private
-    private RecordedClassLoader(ObjectContext objectContext, long id, Object[] values) {
+    RecordedClassLoader(ObjectContext objectContext, long id, Object[] values) {
         super(objectContext, values);
         this.uniqueId = id;
     }

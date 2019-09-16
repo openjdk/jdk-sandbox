@@ -25,7 +25,7 @@
 
 package jdk.jfr.consumer;
 
-import jdk.jfr.internal.Type;
+import jdk.jfr.internal.consumer.ObjectContext;
 
 /**
  * A recorded thread.
@@ -33,19 +33,10 @@ import jdk.jfr.internal.Type;
  * @since 9
  */
 public final class RecordedThread extends RecordedObject {
-
-    static ObjectFactory<RecordedThread> createFactory(Type type, TimeConverter timeConverter) {
-        return new ObjectFactory<RecordedThread>(type, timeConverter) {
-            @Override
-            RecordedThread createTyped(ObjectContext objectContext, long id, Object[] values) {
-                return new RecordedThread(objectContext, id, values);
-            }
-        };
-    }
-
     private final long uniqueId;
 
-    private RecordedThread(ObjectContext objectContext, long id, Object[] values) {
+    // package private
+    RecordedThread(ObjectContext objectContext, long id, Object[] values) {
         super(objectContext, values);
         this.uniqueId = id;
     }

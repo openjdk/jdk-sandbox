@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.jfr.consumer;
+package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.StringJoiner;
 
 import jdk.jfr.EventType;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedObject;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
@@ -38,16 +40,12 @@ import jdk.jfr.internal.LongMap;
 import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Type;
 import jdk.jfr.internal.Utils;
-import jdk.jfr.internal.consumer.ChunkHeader;
-import jdk.jfr.internal.consumer.InternalEventFilter;
-import jdk.jfr.internal.consumer.Parser;
-import jdk.jfr.internal.consumer.RecordingInput;
 
 /**
  * Parses a chunk.
  *
  */
-final class ChunkParser {
+public final class ChunkParser {
 
     static final class ParserConfiguration {
         final boolean reuse;
