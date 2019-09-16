@@ -94,6 +94,24 @@ final class Dispatcher {
             }
             cacheDispatchers = dispatchers;
         }
+        // Expected behavior if exception occurs in onEvent:
+        //
+        // Synchronous:
+        //  - User has added onError action:
+        //     Catch exception, call onError and continue with next event
+        //     Let Errors propagate to caller of EventStream::start
+        //  - Default action
+        //     Catch exception, e.printStackTrace() and continue with next event
+        //     Let Errors propagate to caller of EventStream::start
+        //
+        // Asynchronous
+        //  - User has added onError action
+        //     Catch exception, call onError and continue with next event
+        //     Let Errors propagate, shutdown thread and stream
+        //  - Default action
+        //    Catch exception, e.printStackTrace() and continue with next event
+        //    Let Errors propagate and shutdown thread and stream
+        //
         for (int i = 0; i < dispatchers.length; i++) {
             try {
                 dispatchers[i].offer(event);
