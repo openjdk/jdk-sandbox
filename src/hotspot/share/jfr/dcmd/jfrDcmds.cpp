@@ -349,7 +349,7 @@ JfrStartFlightRecordingDCmd::JfrStartFlightRecordingDCmd(outputStream* output,
   _filename("filename", "Resulting recording filename, e.g. \\\"" JFR_FILENAME_EXAMPLE "\\\"", "STRING", false),
   _maxage("maxage", "Maximum time to keep recorded data (on disk) in (s)econds, (m)inutes, (h)ours, or (d)ays, e.g. 60m, or 0 for no limit", "NANOTIME", false, "0"),
   _maxsize("maxsize", "Maximum amount of bytes to keep (on disk) in (k)B, (M)B or (G)B, e.g. 500M, or 0 for no limit", "MEMORY SIZE", false, "0"),
-  _flush_interval("flush-interval", "Minimum time before flushing buffers, measuared in (s)econds, e.g. 4 s, or 0 for flushing when a recording ends", "NANOTIME", false, "0"),
+  _flush_interval("flush-interval", "Minimum time before flushing buffers, measuared in (s)econds, e.g. 4 s, or 0 for flushing when a recording ends", "NANOTIME", false, "1s"),
   _dump_on_exit("dumponexit", "Dump running recording when JVM shuts down", "BOOLEAN", false),
   _path_to_gc_roots("path-to-gc-roots", "Collect path to GC roots", "BOOLEAN", false, "false") {
   _dcmdparser.add_dcmd_option(&_name);

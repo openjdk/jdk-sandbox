@@ -84,7 +84,7 @@ public final class PlatformRecording implements AutoCloseable {
     private TimerTask startTask;
     private AccessControlContext noDestinationDumpOnExitAccessControlContext;
     private boolean shuoldWriteActiveRecordingEvent = true;
-    private Duration flushInterval;
+    private Duration flushInterval = Duration.ofSeconds(1);
 
     PlatformRecording(PlatformRecorder recorder, long id) {
         // Typically the access control context is taken
