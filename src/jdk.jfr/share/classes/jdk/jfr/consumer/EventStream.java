@@ -86,13 +86,35 @@ import jdk.jfr.internal.consumer.FileAccess;
  * default behavior is to print the exception and its backtrace to the standard
  * error stream.
  * <p>
- * The following example demonstrates how an {@code EventStream} can be used to
- * listen to garbage collection and CPU Load events
+ * The following example shows how an {@code EventStream} can be used to
+ * listen to events on a JVM running Flight Recorder
+ * <pre>
+ * <code>
+ * try (EventStream es = EventStream.openRepository()) {
+ *   es.onEvent("jdk.CPULoad", event -> {
+ *     System.out.println("CPU Load " + event.getEndTime());
+ *     System.out.println(" Machine total: " + 100 * event.getFloat("machineTotal") + "%");
+ *     System.out.println(" JVM User: " + 100 * event.getFloat("jvmUser") + "%");
+ *     System.out.println(" JVM System: " + 100 * event.getFloat("jvmSystem") + "%");
+ *     System.out.println();
+ *     System.gc();
+ *   });
+ *   es.onEvent("jdk.GarbageCollection", event -> {
+ *     System.out.println("Garbage collection: " + event.getLong("gcId"));
+ *     System.out.println(" Cause: " + event.getString("cause"));
+ *     System.out.println(" Total pause: " + event.getDuration("sumOfPauses"));
+ *     System.out.println(" Longest pause: " + event.getDuration("longestPause"));
+ *     System.out.println();
+ *   });
+ *   es.start();
+ * }
+ * </code>
+ * </pre>
  * <p>
+ * To start recording together with the stream, see {@link RecordingStream}.
  *
  */
 public interface EventStream extends AutoCloseable {
-
     /**
      * Creates a stream from the repository of the current Java Virtual Machine
      * (JVM).
