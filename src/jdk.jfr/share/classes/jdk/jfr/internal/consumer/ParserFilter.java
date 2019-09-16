@@ -29,17 +29,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 
-public final class InternalEventFilter {
-    public static final InternalEventFilter ACCEPT_ALL = new InternalEventFilter(true, Map.of());
+public final class ParserFilter {
+    public static final ParserFilter ACCEPT_ALL = new ParserFilter(true, Map.of());
 
     private final Map<String, Long> thresholds;
     private final boolean acceptAll;
 
-    public InternalEventFilter() {
+    public ParserFilter() {
         this(false, new HashMap<>());
     }
 
-    private InternalEventFilter(boolean acceptAll, Map<String, Long> thresholds) {
+    private ParserFilter(boolean acceptAll, Map<String, Long> thresholds) {
         this.acceptAll = acceptAll;
         this.thresholds = thresholds;
     }

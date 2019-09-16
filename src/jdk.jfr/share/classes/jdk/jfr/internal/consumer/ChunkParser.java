@@ -50,12 +50,12 @@ public final class ChunkParser {
     static final class ParserConfiguration {
         final boolean reuse;
         final boolean ordered;
-        final InternalEventFilter eventFilter;
+        final ParserFilter eventFilter;
 
         long filterStart;
         long filterEnd;
 
-        public ParserConfiguration(long filterStart, long filterEnd, boolean reuse, boolean ordered, InternalEventFilter filter) {
+        public ParserConfiguration(long filterStart, long filterEnd, boolean reuse, boolean ordered, ParserFilter filter) {
             this.filterStart = filterStart;
             this.filterEnd = filterEnd;
             this.reuse = reuse;
@@ -64,7 +64,7 @@ public final class ChunkParser {
         }
 
         public ParserConfiguration() {
-            this(0, Long.MAX_VALUE, false, false, InternalEventFilter.ACCEPT_ALL);
+            this(0, Long.MAX_VALUE, false, false, ParserFilter.ACCEPT_ALL);
         }
     }
 

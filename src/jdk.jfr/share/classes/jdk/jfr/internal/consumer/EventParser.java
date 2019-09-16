@@ -138,18 +138,13 @@ public final class EventParser extends Parser {
 
         if (cached != null) {
             RecordedEvent event = cachedEvent();
-            PRIVATE_ACCESS.setStartTicks(event, startTicks);
-            PRIVATE_ACCESS.setEndTicks(event, endTicks);
-            Object[] values = PRIVATE_ACCESS.eventValues(event);
+            JdkJfrConsumer access = PRIVATE_ACCESS;
+            access.setStartTicks(event, startTicks);
+            access.setEndTicks(event, endTicks);
+            Object[] values = access.eventValues(event);
             for (int i = 0; i < values.length; i++) {
                 values[i] = parsers[startIndex + i].parse(input);
             }
-//            event.startTimeTicks = startTicks;
-//            event.endTimeTicks = endTicks;
-//            Object[] values = event.objects;
-//            for (int i = 0; i < values.length; i++) {
-//
-//            }
             return event;
         }
 

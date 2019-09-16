@@ -63,12 +63,12 @@ final class Dispatcher {
         this.endNanos = c.endNanos;
     }
 
-    private static InternalEventFilter buildFilter(EventDispatcher[] dispatchers) {
-        InternalEventFilter ef = new InternalEventFilter();
+    private static ParserFilter buildFilter(EventDispatcher[] dispatchers) {
+        ParserFilter ef = new ParserFilter();
         for (EventDispatcher ed : dispatchers) {
             String name = ed.eventName;
             if (name == null) {
-                return InternalEventFilter.ACCEPT_ALL;
+                return ParserFilter.ACCEPT_ALL;
             }
             ef.setThreshold(name, 0);
         }
