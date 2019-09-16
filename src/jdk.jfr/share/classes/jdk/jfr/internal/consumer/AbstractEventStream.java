@@ -205,7 +205,7 @@ public abstract class AbstractEventStream implements EventStream {
         }
     }
 
-    protected abstract void process() throws Exception;
+    protected abstract void process() throws IOException;
 
     protected final void setClosed(boolean closed) {
         this.closed = closed;
@@ -252,10 +252,7 @@ public abstract class AbstractEventStream implements EventStream {
             // This can happen if a chunk file is removed, or
             // a file is access that has been closed
             // This is "normal" behavior for streaming and the
-            // stream will be closed when this happens
-        } catch (Exception e) {
-            // TODO: Remove before integrating
-            e.printStackTrace();
+            // stream will be closed when this happens.
         } finally {
             Logger.log(LogTag.JFR_SYSTEM_STREAMING, LogLevel.DEBUG, "Execution of stream ended.");
             try {

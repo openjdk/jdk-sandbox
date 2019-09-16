@@ -79,7 +79,7 @@ public final class EventDirectoryStream extends AbstractEventStream {
     }
 
     @Override
-    protected void process() throws Exception {
+    protected void process() throws IOException {
         Dispatcher disp = dispatcher();
 
         Path path;
