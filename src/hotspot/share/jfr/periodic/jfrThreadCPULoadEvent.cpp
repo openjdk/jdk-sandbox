@@ -119,9 +119,6 @@ void JfrThreadCPULoadEvent::send_events() {
   while (iter.has_next()) {
     JavaThread* const jt = iter.next();
     assert(jt != NULL, "invariant");
-    if (jt->jfr_thread_local()->is_excluded()) {
-      continue;
-    }
     ++number_of_threads;
     EventThreadCPULoad event(UNTIMED);
     if (JfrThreadCPULoadEvent::update_event(event, jt, cur_wallclock_time, processor_count)) {
