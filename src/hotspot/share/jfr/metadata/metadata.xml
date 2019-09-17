@@ -1004,37 +1004,37 @@
     <Field type="string" name="state" label="State" />
   </Type>
 
-  <Event name="Flush" category="Flight Recorder" label="Flush" thread="false">
+  <Event name="Flush" category="Flight Recorder" label="Flush" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
   </Event>
 
-  <Event name="FlushStorage" category="Flight Recorder" label="Flush Storage" thread="false">
+  <Event name="FlushStorage" category="Flight Recorder" label="Flush Storage" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
   </Event>
 
-  <Event name="FlushStacktrace" category="Flight Recorder" label="Flush Stacktrace" thread="false">
+  <Event name="FlushStacktrace" category="Flight Recorder" label="Flush Stacktrace" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
   </Event>
 
-  <Event name="FlushStringPool" category="Flight Recorder" label="Flush String Pool" thread="false">
+  <Event name="FlushStringPool" category="Flight Recorder" label="Flush String Pool" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
   </Event>
 
-  <Event name="FlushMetadata" category="Flight Recorder" label="Flush Metadata" thread="false">
+  <Event name="FlushMetadata" category="Flight Recorder" label="Flush Metadata" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
   </Event>
 
-  <Event name="FlushTypeSet" category="Flight Recorder" label="Flush Type Set" thread="false">
+  <Event name="FlushTypeSet" category="Flight Recorder" label="Flush Type Set" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
