@@ -161,7 +161,6 @@ void JfrNetworkUtilization::send_events() {
   const JfrTicks cur_time = JfrTicks::now();
   const JfrTickspan interval = last_sample_instant == 0 ? cur_time - cur_time : cur_time - last_sample_instant;
   last_sample_instant = cur_time;
-  bool write_type = false;
   for (NetworkInterface *cur = network_interfaces; cur != NULL; cur = cur->next()) {
     InterfaceEntry& entry = get_entry(cur);
     if (interval.value() > 0) {
