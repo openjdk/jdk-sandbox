@@ -34,7 +34,6 @@
 #include "jfr/utilities/jfrIterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/exceptions.hpp"
 #include "runtime/semaphore.hpp"
@@ -164,7 +163,7 @@ void JfrTypeManager::write_threads(JfrCheckpointWriter& writer) {
   serialize_thread_groups(writer);
 }
 
-void JfrTypeManager::notify_types_on_rotation() {
+void JfrTypeManager::on_rotation() {
   const Iterator iter(types);
   while (iter.has_next()) {
     iter.next()->on_rotation();

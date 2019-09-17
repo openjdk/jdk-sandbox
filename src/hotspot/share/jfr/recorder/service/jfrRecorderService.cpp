@@ -598,9 +598,7 @@ void JfrRecorderService::safepoint_write() {
     write_stringpool_safepoint(_string_pool, _chunkwriter);
   }
   _storage.write_at_safepoint();
-  _checkpoint_manager.notify_threads();
-  _checkpoint_manager.notify_types_on_rotation();
-  _checkpoint_manager.shift_epoch();
+  _checkpoint_manager.on_rotation();
   _chunkwriter.set_time_stamp();
 }
 
@@ -616,8 +614,6 @@ void JfrRecorderService::post_safepoint_write() {
     // Note: There is a dependency on write_type_set() above, ensure the release is subsequent.
     ObjectSampler::release();
   }
-  // serialize any outstanding checkpoint memory
-  _checkpoint_manager.write();
   // serialize the metadata descriptor event and close out the chunk
   write_metadata(_chunkwriter);
   _repository.close_chunk();

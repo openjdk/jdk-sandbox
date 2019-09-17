@@ -419,12 +419,16 @@ void JfrCheckpointManager::notify_threads() {
   }
 }
 
-void JfrCheckpointManager::notify_types_on_rotation() {
-  JfrTypeManager::notify_types_on_rotation();
+void JfrCheckpointManager::on_rotation() {
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  JfrTypeManager::on_rotation();
+  notify_threads();
+  shift_epoch();
 }
 
 void JfrCheckpointManager::write_type_set() {
   JfrTypeManager::write_type_set();
+  write();
 }
 
 void JfrCheckpointManager::write_type_set_for_unloaded_classes() {

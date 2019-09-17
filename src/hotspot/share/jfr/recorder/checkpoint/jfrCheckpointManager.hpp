@@ -87,7 +87,7 @@ class JfrCheckpointManager : public JfrCHeapObj {
   void synchronize_epoch();
   bool use_epoch_transition_mspace(const Thread* t) const;
   void notify_threads();
-  void notify_types_on_rotation();
+  void on_rotation();
   bool is_type_set_required();
   bool is_constant_set_required();
 

@@ -36,7 +36,7 @@ class JfrTypeManager : public AllStatic {
   static bool is_new_constant_registered();
   static void write_types(JfrCheckpointWriter& writer);
   static void write_threads(JfrCheckpointWriter& writer);
-  static void notify_types_on_rotation();
+  static void on_rotation();
   static void write_type_set();
   static void write_type_set_for_unloaded_classes();
   static size_t flush_type_set();
