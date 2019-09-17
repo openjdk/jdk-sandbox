@@ -364,7 +364,7 @@ size_t JfrCheckpointManager::clear() {
   return discarder.elements();
 }
 
-// Optimization for write_types() and write_threads() is to write
+// Optimization for write_static_type_set() and write_threads() is to write
 // directly into the epoch transition mspace because we will immediately
 // serialize and reset this mspace post-write.
 static JfrBuffer* get_epoch_transition_buffer(JfrCheckpointMspace* mspace, Thread* t) {
@@ -377,12 +377,16 @@ static JfrBuffer* get_epoch_transition_buffer(JfrCheckpointMspace* mspace, Threa
   return buffer;
 }
 
-size_t JfrCheckpointManager::write_types() {
+bool JfrCheckpointManager::is_static_type_set_required() {
+  return JfrTypeManager::has_new_static_type();
+}
+
+size_t JfrCheckpointManager::write_static_type_set() {
   Thread* const t = Thread::current();
   ResourceMark rm(t);
   HandleMark hm(t);
   JfrCheckpointWriter writer(t, get_epoch_transition_buffer(_epoch_transition_mspace, t), STATICS);
-  JfrTypeManager::write_types(writer);
+  JfrTypeManager::write_static_types(writer);
   return writer.used_size();
 }
 
@@ -394,29 +398,17 @@ size_t JfrCheckpointManager::write_threads() {
   JfrTypeManager::write_threads(writer);
   return writer.used_size();
 }
-size_t JfrCheckpointManager::write_constants() {
-  write_types();
+
+size_t JfrCheckpointManager::write_static_type_set_and_threads() {
+  write_static_type_set();
   write_threads();
   return write_epoch_transition_mspace();
 }
 
-class JfrNotifyClosure : public ThreadClosure {
- public:
-  void do_thread(Thread* t) {
-    assert(t != NULL, "invariant");
-    assert(t->is_Java_thread(), "invariant");
-    assert_locked_or_safepoint(Threads_lock);
-    JfrJavaEventWriter::notify((JavaThread*)t);
-  }
-};
-
-void JfrCheckpointManager::notify_threads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  JfrNotifyClosure tc;
-  JfrJavaThreadIterator iter;
-  while (iter.has_next()) {
-    tc.do_thread(iter.next());
-  }
+void JfrCheckpointManager::shift_epoch() {
+  debug_only(const u1 current_epoch = JfrTraceIdEpoch::current();)
+    JfrTraceIdEpoch::shift_epoch();
+  assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
 }
 
 void JfrCheckpointManager::on_rotation() {
@@ -439,17 +431,13 @@ bool JfrCheckpointManager::is_type_set_required() {
   return JfrTraceIdEpoch::has_changed_tag_state();
 }
 
-bool JfrCheckpointManager::is_constant_set_required() {
-  return JfrTypeManager::is_new_constant_registered();
-}
-
 size_t JfrCheckpointManager::flush_type_set() {
   const size_t elements = JfrTypeManager::flush_type_set();
   flush();
   return elements;
 }
 
-void JfrCheckpointManager::flush_constant_set() {
+void JfrCheckpointManager::flush_static_type_set() {
   flush();
 }
 
@@ -461,8 +449,21 @@ void JfrCheckpointManager::write_thread_checkpoint(Thread* t) {
   JfrTypeManager::write_thread_checkpoint(t);
 }
 
-void JfrCheckpointManager::shift_epoch() {
-  debug_only(const u1 current_epoch = JfrTraceIdEpoch::current();)
-  JfrTraceIdEpoch::shift_epoch();
-  assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
+class JfrNotifyClosure : public ThreadClosure {
+ public:
+  void do_thread(Thread* t) {
+    assert(t != NULL, "invariant");
+    assert(t->is_Java_thread(), "invariant");
+    assert_locked_or_safepoint(Threads_lock);
+    JfrJavaEventWriter::notify((JavaThread*)t);
+  }
+};
+
+void JfrCheckpointManager::notify_threads() {
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  JfrNotifyClosure tc;
+  JfrJavaThreadIterator iter;
+  while (iter.has_next()) {
+    tc.do_thread(iter.next());
+  }
 }

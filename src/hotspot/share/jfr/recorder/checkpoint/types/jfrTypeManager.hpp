@@ -33,15 +33,15 @@ class JfrTypeManager : public AllStatic {
  public:
   static bool initialize();
   static void clear();
-  static bool is_new_constant_registered();
-  static void write_types(JfrCheckpointWriter& writer);
-  static void write_threads(JfrCheckpointWriter& writer);
   static void on_rotation();
-  static void write_type_set();
-  static void write_type_set_for_unloaded_classes();
-  static size_t flush_type_set();
+  static void write_threads(JfrCheckpointWriter& writer);
   static void create_thread_blob(Thread* t);
   static void write_thread_checkpoint(Thread* t);
+  static bool has_new_static_type();
+  static void write_static_types(JfrCheckpointWriter& writer);
+  static size_t flush_type_set();
+  static void write_type_set();
+  static void write_type_set_for_unloaded_classes();
 };
 
 #endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPEMANAGER_HPP

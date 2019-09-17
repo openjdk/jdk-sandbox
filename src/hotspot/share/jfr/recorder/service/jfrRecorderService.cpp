@@ -488,7 +488,7 @@ void JfrRecorderService::open_new_chunk(bool vm_error) {
   const bool valid_chunk = _repository.open_chunk(vm_error);
   _storage.control().set_to_disk(valid_chunk);
   if (valid_chunk) {
-    _checkpoint_manager.write_constants();
+    _checkpoint_manager.write_static_type_set_and_threads();
   }
 }
 
@@ -664,9 +664,9 @@ size_t JfrRecorderService::flush() {
   }
   if (_checkpoint_manager.is_type_set_required()) {
     total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
-  } else if (_checkpoint_manager.is_constant_set_required()) {
+  } else if (_checkpoint_manager.is_static_type_set_required()) {
     // don't tally this, it is only in order to flush the waiting constants
-    _checkpoint_manager.flush_constant_set();
+    _checkpoint_manager.flush_static_type_set();
   }
   return total_elements;
 }
