@@ -63,7 +63,6 @@ JfrJavaThreadIteratorAdapter::JfrJavaThreadIteratorAdapter() : _iter(), _next(ne
 JavaThread* JfrJavaThreadIteratorAdapter::next() {
   assert(has_next(), "invariant");
   Type* const temp = _next;
-  assert(java_thread_inclusion_predicate(temp), "invariant");
   _next = next_java_thread(_iter);
   assert(temp != _next, "invariant");
   return temp;
@@ -78,7 +77,6 @@ bool JfrNonJavaThreadIteratorAdapter::has_next() const {
 NonJavaThread* JfrNonJavaThreadIteratorAdapter::next() {
   assert(has_next(), "invariant");
   Type* const temp = _next;
-  assert(thread_inclusion_predicate(temp), "invariant");
   _next = next_non_java_thread(_iter);
   assert(temp != _next, "invariant");
   return temp;
