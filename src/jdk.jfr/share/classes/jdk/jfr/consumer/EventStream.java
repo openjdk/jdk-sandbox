@@ -52,10 +52,10 @@ import jdk.jfr.internal.consumer.FileAccess;
  * specific name, use {@link #onEvent(String, Consumer)} method.
  * <p>
  * By default, the same {@code RecordedEvent} object can be used for
- * representing two or more distinct events. The object can be delivered
- * multiple times to the same action as well as to other actions. If the life
- * span of the event object exceeds that of the action, the
- * {@link #setReuse(boolean)} method should be set to {@code false} so that a
+ * representing two or more distinct events. That object can be delivered
+ * multiple times to the same action as well as to other actions. To use an
+ * event object after the action is completed, the
+ * {@link #setReuse(boolean)} method should be set to {@code false} so a
  * new object is allocated for each event.
  * <p>
  * Events are delivered in batches. To receive a notification when a batch is
@@ -75,7 +75,7 @@ import jdk.jfr.internal.consumer.FileAccess;
  * start processing in the current thread, invoke the {@link #start()} method.
  * To process actions asynchronously in a separate thread, invoke the
  * {@link #startAsync()} method. To await completion of the stream, use the
- * awaitTermination {@link #awaitTermination()} or the {link
+ * awaitTermination {@link #awaitTermination()} or the
  * {@link #awaitTermination(Duration)} method.
  * <p>
  * When a stream ends it is automatically closed. To manually stop processing of
@@ -103,7 +103,6 @@ import jdk.jfr.internal.consumer.FileAccess;
  *     System.out.println(" JVM User: " + 100 * event.getFloat("jvmUser") + "%");
  *     System.out.println(" JVM System: " + 100 * event.getFloat("jvmSystem") + "%");
  *     System.out.println();
- *     System.gc();
  *   });
  *   es.onEvent("jdk.GarbageCollection", event -> {
  *     System.out.println("Garbage collection: " + event.getLong("gcId"));
