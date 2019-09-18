@@ -54,7 +54,7 @@ import jdk.jfr.internal.consumer.FileAccess;
  * By default, the same {@code RecordedEvent} object can be used for
  * representing two or more distinct events. The object can be delivered
  * multiple times to the same action as well as to other actions. If the life
- * cycle of the event object exceeds the scope of an action, the
+ * span of the event object exceeds that of the action, the
  * {@link #setReuse(boolean)} method should be set to {@code false} so that a
  * new object is allocated for each event.
  * <p>
@@ -76,8 +76,8 @@ import jdk.jfr.internal.consumer.FileAccess;
  * <p>
  * When a stream ends it is automatically closed. To manually stop processing of
  * events, close the stream by invoking the {@link #close()} method. A stream
- * can also be automatically closed in exceptional circumstances, for example
- * if the JVM that is being monitored exits. To receive a notification in any of
+ * can also be automatically closed in exceptional circumstances, for example if
+ * the JVM that is being monitored exits. To receive a notification in any of
  * these occasions, use the {@link #onClose(Runnable)} method to register an
  * action.
  * <p>
