@@ -204,9 +204,14 @@ int write__klass__leakp(JfrCheckpointWriter* writer, const void* k) {
   return write_klass(writer, klass, true);
 }
 
+static bool is_implied(const Klass* klass) {
+  assert(klass != NULL, "invariant");
+  return klass->is_subclass_of(SystemDictionary::ClassLoader_klass()) || klass == SystemDictionary::Object_klass();
+}
+
 static void do_implied(Klass* klass) {
   assert(klass != NULL, "invariant");
-  if (klass->is_subclass_of(SystemDictionary::ClassLoader_klass()) || klass == SystemDictionary::Object_klass()) {
+  if (is_implied(klass)) {
     if (_leakp_writer != NULL) {
       SET_LEAKP(klass);
     }
@@ -258,6 +263,16 @@ typedef JfrPredicatedTypeWriterImplHost<KlassPtr, KlassPredicate, write__klass> 
 typedef JfrTypeWriterHost<KlassWriterImpl, TYPE_CLASS> KlassWriter;
 typedef CompositeFunctor<KlassPtr, KlassWriter, KlassArtifactRegistrator> KlassWriterRegistration;
 typedef JfrArtifactCallbackHost<KlassPtr, KlassWriterRegistration> KlassCallback;
+
+template <>
+class LeakPredicate<const Klass*> {
+public:
+  LeakPredicate(bool class_unload) {}
+  bool operator()(const Klass* klass) {
+    assert(klass != NULL, "invariant");
+    return IS_LEAKP(klass) || is_implied(klass);
+  }
+};
 
 typedef LeakPredicate<KlassPtr> LeakKlassPredicate;
 typedef JfrPredicatedTypeWriterImplHost<KlassPtr, LeakKlassPredicate, write__klass__leakp> LeakKlassWriterImpl;
