@@ -51,8 +51,8 @@ import jdk.jfr.internal.consumer.FileAccess;
  * {@link #onEvent(Consumer)} method. To filter the stream for an event with a
  * specific name, use {@link #onEvent(String, Consumer)} method.
  * <p>
- * By default, the same {@code RecordedEvent} object can be used for
- * representing two or more distinct events. That object can be delivered
+ * By default, the same {@code RecordedEvent} object can be used to
+ * represent two or more distinct events. That object can be delivered
  * multiple times to the same action as well as to other actions. To use an
  * event object after the action is completed, the
  * {@link #setReuse(boolean)} method should be set to {@code false} so a
