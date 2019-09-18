@@ -117,7 +117,7 @@ const char* get_java_thread_name(const Thread* t) {
     if (name != NULL) {
       name_str = java_lang_String::as_utf8_string(name);
     }
-  } else if (jt->is_attaching_via_jni()) { // workaround for 6412693 - see 6404306
+  } else if (jt->is_attaching_via_jni()) {
     name_str = "<no-name - thread is attaching>";
   }
   assert(name_str != NULL, "unexpected NULL thread name");
