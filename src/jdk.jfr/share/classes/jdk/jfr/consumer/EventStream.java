@@ -63,9 +63,13 @@ import jdk.jfr.internal.consumer.FileAccess;
  * This is an opportunity to aggregate or push data to external systems while
  * the Java Virtual Machine (JVM) is preparing the next batch.
  * <p>
- * Events within a batch are sorted chronologically by their end time. If
- * ordering is not a concern, sorting can be disabled using the
- * {@link #setOrdered(boolean)} method.
+ * Events within a batch are sorted chronologically by their end time.
+ * Well-ordering of events is only maintained for events available to the JVM at
+ * the point of flush, i.e. for the set of events delivered as a unit in a
+ * single batch. Events delivered in a batch could therefore be out-of-order
+ * compared to events delivered in a previous batch, but never out-of-order with
+ * events within the same batch. If ordering is not a concern, sorting can be
+ * disabled using the {@link #setOrdered(boolean)} method.
  * <p>
  * To dispatch events to registered actions, the stream must be started. To
  * start processing in the current thread, invoke the {@link #start()} method.
