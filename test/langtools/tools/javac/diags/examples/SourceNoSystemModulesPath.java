@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,33 +21,7 @@
  * questions.
  */
 
-/* @test
- * @bug 4467968
- * @summary Tests whether wakeup makes the next select() call return immediately
- */
+// key: compiler.warn.source.no.system.modules.path
+// options: -source 9
 
-import java.io.IOException;
-import java.nio.channels.Selector;
-
-
-public class WakeupSpeed {
-
-    public static void main(String argv[]) throws Exception {
-        int waitTime = 4000;
-        Selector selector = Selector.open();
-        try {
-            selector.wakeup();
-
-            long t1 = System.currentTimeMillis();
-            selector.select(waitTime);
-            long t2 = System.currentTimeMillis();
-            long totalTime = t2 - t1;
-
-            if (totalTime > waitTime)
-                throw new RuntimeException("Test failed");
-        } finally {
-            selector.close();
-        }
-    }
-
-}
+class SourceNoSystemModulesPath { }
