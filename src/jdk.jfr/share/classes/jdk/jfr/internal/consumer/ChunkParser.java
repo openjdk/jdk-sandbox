@@ -48,14 +48,14 @@ import jdk.jfr.internal.Utils;
 public final class ChunkParser {
 
     static final class ParserConfiguration {
-        final boolean reuse;
-        final boolean ordered;
-        final ParserFilter eventFilter;
+        private final boolean reuse;
+        private final boolean ordered;
+        private final ParserFilter eventFilter;
 
         long filterStart;
         long filterEnd;
 
-        public ParserConfiguration(long filterStart, long filterEnd, boolean reuse, boolean ordered, ParserFilter filter) {
+        ParserConfiguration(long filterStart, long filterEnd, boolean reuse, boolean ordered, ParserFilter filter) {
             this.filterStart = filterStart;
             this.filterEnd = filterEnd;
             this.reuse = reuse;
@@ -66,16 +66,30 @@ public final class ChunkParser {
         public ParserConfiguration() {
             this(0, Long.MAX_VALUE, false, false, ParserFilter.ACCEPT_ALL);
         }
+
+        public boolean isOrdered() {
+            return ordered;
+        }
     }
 
-    // Checkpoint that finishes a flush segment
-    static final byte CHECKPOINT_FLUSH_MASK = 1;
-    // Checkpoint contains chunk header information in the first pool
-    static final byte CHECKPOINT_CHUNK_HEADER_MASK = 2;
-    // Checkpoint contains only statics that will not change from chunk to chunk
-    static final byte CHECKPOINT_STATICS_MASK = 4;
-    // Checkpoint contains thread related information
-    static final byte CHECKPOINT_THREADS_MASK = 8;
+    private enum CheckPointType {
+        // Checkpoint that finishes a flush segment
+        FLUSH(1),
+        // Checkpoint contains chunk header information in the first pool
+        CHUNK_HEADER(2),
+        // Checkpoint contains only statics that will not change from chunk to chunk
+        STATICS(4),
+        // Checkpoint contains thread related information
+        THREAD(8);
+        private final int mask;
+        private CheckPointType(int mask) {
+            this.mask = mask;
+        }
+
+        private boolean is(int flags) {
+            return (mask & flags) != 0;
+        }
+    }
 
     private static final long CONSTANT_POOL_TYPE_ID = 1;
     private static final String CHUNKHEADER = "jdk.types.ChunkHeader";
@@ -98,11 +112,11 @@ public final class ChunkParser {
         this(input, new ParserConfiguration());
     }
 
-    public ChunkParser(RecordingInput input, ParserConfiguration pc) throws IOException {
+    ChunkParser(RecordingInput input, ParserConfiguration pc) throws IOException {
        this(new ChunkHeader(input), null, pc);
     }
 
-    public ChunkParser(ChunkParser previous) throws IOException {
+    private ChunkParser(ChunkParser previous) throws IOException {
         this(new ChunkHeader(previous.input), previous, new ParserConfiguration());
      }
 
@@ -148,7 +162,7 @@ public final class ChunkParser {
         updateConfiguration(configuration, false);
     }
 
-    public void updateConfiguration(ParserConfiguration configuration, boolean resetEventCache) {
+    void updateConfiguration(ParserConfiguration configuration, boolean resetEventCache) {
         this.configuration = configuration;
         parsers.forEach(p -> {
             if (p instanceof EventParser) {
@@ -178,7 +192,7 @@ public final class ChunkParser {
      *
      * @param awaitNewEvents wait for new data.
      */
-    public RecordedEvent readStreamingEvent(boolean awaitNewEvents) throws IOException {
+    RecordedEvent readStreamingEvent(boolean awaitNewEvents) throws IOException {
         long absoluteChunkEnd = chunkHeader.getEnd();
         while (true) {
             RecordedEvent event = readEvent();
@@ -256,8 +270,8 @@ public final class ChunkParser {
         input.readLong(); // timestamp
         input.readLong(); // duration
         input.readLong(); // delta
-        byte c = input.readByte();
-        if ((c & CHECKPOINT_FLUSH_MASK)== 1) {
+        byte typeFlags = input.readByte();
+        if (CheckPointType.FLUSH.is(typeFlags)) {
             flushOperation.run();
         }
     }
@@ -411,7 +425,7 @@ public final class ChunkParser {
         return chunkHeader.isLastChunk();
     }
 
-    public ChunkParser newChunkParser() throws IOException {
+    ChunkParser newChunkParser() throws IOException {
         return new ChunkParser(this);
     }
 

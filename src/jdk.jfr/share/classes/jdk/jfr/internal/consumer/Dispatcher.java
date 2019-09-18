@@ -12,34 +12,35 @@ import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
 
 final class Dispatcher {
 
-    public final static class EventDispatcher {
-        final static EventDispatcher[] NO_DISPATCHERS = new EventDispatcher[0];
-        final String eventName;
-        public final Consumer<RecordedEvent> action;
+    final static class EventDispatcher {
+        private final static EventDispatcher[] NO_DISPATCHERS = new EventDispatcher[0];
 
-        public EventDispatcher(Consumer<RecordedEvent> action) {
-            this(null, action);
-        }
+        private final String eventName;
+        private final Consumer<RecordedEvent> action;
 
         public EventDispatcher(String eventName, Consumer<RecordedEvent> action) {
             this.eventName = eventName;
             this.action = action;
         }
 
-        public void offer(RecordedEvent event) {
+        private void offer(RecordedEvent event) {
             action.accept(event);
         }
 
-        public boolean accepts(EventType eventType) {
+        private boolean accepts(EventType eventType) {
             return (eventName == null || eventType.getName().equals(eventName));
+        }
+
+        public Consumer<RecordedEvent> getAction() {
+            return action;
         }
     }
 
-    final Consumer<Throwable>[] errorActions;
-    final Runnable[] flushActions;
-    final Runnable[] closeActions;
-    final EventDispatcher[] dispatchers;
-    final LongMap<EventDispatcher[]> dispatcherLookup = new LongMap<>();
+    private final Consumer<Throwable>[] errorActions;
+    private final Runnable[] flushActions;
+    private final Runnable[] closeActions;
+    private final EventDispatcher[] dispatchers;
+    private final LongMap<EventDispatcher[]> dispatcherLookup = new LongMap<>();
     final ParserConfiguration parserConfiguration;
     final Instant startTime;
     final Instant endTime;
@@ -63,6 +64,28 @@ final class Dispatcher {
         this.endNanos = c.endNanos;
     }
 
+    public void runFlushActions() {
+        Runnable[] flushActions = this.flushActions;
+        for (int i = 0; i < flushActions.length; i++) {
+            try {
+                flushActions[i].run();
+            } catch (Exception e) {
+                handleError(e);
+            }
+        }
+    }
+
+    public void runCloseActions() {
+        Runnable[] closeActions = this.closeActions;
+        for (int i = 0; i < closeActions.length; i++) {
+            try {
+                closeActions[i].run();
+            } catch (Exception e) {
+                handleError(e);
+            }
+        }
+    }
+
     private static ParserFilter buildFilter(EventDispatcher[] dispatchers) {
         ParserFilter ef = new ParserFilter();
         for (EventDispatcher ed : dispatchers) {
@@ -75,7 +98,7 @@ final class Dispatcher {
         return ef;
     }
 
-    protected final void dispatch(RecordedEvent event) {
+    void dispatch(RecordedEvent event) {
         EventType type = event.getEventType();
         EventDispatcher[] dispatchers = null;
         if (type == cacheEventType) {
@@ -121,7 +144,7 @@ final class Dispatcher {
         }
     }
 
-    public void handleError(Throwable e) {
+    private void handleError(Throwable e) {
         Consumer<?>[] consumers = this.errorActions;
         if (consumers.length == 0) {
             defaultErrorHandler(e);
@@ -134,29 +157,7 @@ final class Dispatcher {
         }
     }
 
-    public void runFlushActions() {
-        Runnable[] flushActions = this.flushActions;
-        for (int i = 0; i < flushActions.length; i++) {
-            try {
-                flushActions[i].run();
-            } catch (Exception e) {
-                handleError(e);
-            }
-        }
-    }
-
-    public void runCloseActions() {
-        Runnable[] closeActions = this.closeActions;
-        for (int i = 0; i < closeActions.length; i++) {
-            try {
-                closeActions[i].run();
-            } catch (Exception e) {
-                handleError(e);
-            }
-        }
-    }
-
-    void defaultErrorHandler(Throwable e) {
+    private void defaultErrorHandler(Throwable e) {
         e.printStackTrace();
     }
 }

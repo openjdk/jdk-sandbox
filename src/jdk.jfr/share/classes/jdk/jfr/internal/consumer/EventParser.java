@@ -40,7 +40,7 @@ import jdk.jfr.internal.consumer.RecordingInput;
  * Parses an event and returns a {@link RecordedEvent}.
  *
  */
-public final class EventParser extends Parser {
+final class EventParser extends Parser {
 
     private static final JdkJfrConsumer PRIVATE_ACCESS = JdkJfrConsumer.instance();
 
@@ -164,7 +164,7 @@ public final class EventParser extends Parser {
         cacheIndex = 0;
     }
 
-    public boolean hasReuse() {
+    private boolean hasReuse() {
         return cached != null;
     }
 

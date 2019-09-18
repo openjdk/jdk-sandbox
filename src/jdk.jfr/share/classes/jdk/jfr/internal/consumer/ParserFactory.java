@@ -53,6 +53,9 @@ final class ParserFactory {
         for (Type t : metadata.getTypes()) {
             types.put(t.getId(), t);
         }
+        // Add to separate list
+        // so createCompositeParser can throw
+        // IOException outside lambda
         List<Type> typeList = new ArrayList<>();
         types.forEach(typeList::add);
         for (Type t : typeList) {
@@ -61,7 +64,6 @@ final class ParserFactory {
                 if (t.isSimpleType()) { // Reduce to nested parser
                     parsers.put(t.getId(), cp.parsers[0]);
                 }
-
             }
         }
         // Override event types with event parsers
@@ -312,7 +314,7 @@ final class ParserFactory {
         }
     }
 
-    final static class CompositeParser extends Parser {
+    private final static class CompositeParser extends Parser {
         private final Parser[] parsers;
 
         public CompositeParser(Parser[] valueParsers) {
@@ -336,7 +338,7 @@ final class ParserFactory {
         }
     }
 
-    public static final class EventValueConstantParser extends Parser {
+    private static final class EventValueConstantParser extends Parser {
         private final ConstantLookup lookup;
         private Object lastValue = 0;
         private long lastKey = -1;
@@ -361,7 +363,7 @@ final class ParserFactory {
         }
     }
 
-    public static final class ConstantValueParser extends Parser {
+    private static final class ConstantValueParser extends Parser {
         private final ConstantLookup lookup;
         ConstantValueParser(ConstantLookup lookup) {
             this.lookup = lookup;

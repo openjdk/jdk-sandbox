@@ -30,7 +30,7 @@ import java.io.IOException;
 /**
  * Base class for parsing data from a {@link RecordingInput}.
  */
-public abstract class Parser {
+abstract class Parser {
     /**
      * Parses data from a {@link RecordingInput} and return an object.
      *

@@ -54,7 +54,7 @@ import jdk.jfr.internal.SecuritySupport;
  * - security
  *
  */
-public abstract class AbstractEventStream implements EventStream {
+abstract class AbstractEventStream implements EventStream {
     private final static AtomicLong counter = new AtomicLong(1);
 
     private final Object terminated = new Object();
@@ -68,7 +68,7 @@ public abstract class AbstractEventStream implements EventStream {
 
     private volatile boolean closed;
 
-    public AbstractEventStream(AccessControlContext acc, boolean active) throws IOException {
+    AbstractEventStream(AccessControlContext acc, boolean active) throws IOException {
         this.accessControllerContext = Objects.requireNonNull(acc);
         this.active = active;
     }

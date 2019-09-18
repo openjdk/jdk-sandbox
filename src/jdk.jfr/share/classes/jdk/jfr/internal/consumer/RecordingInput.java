@@ -74,7 +74,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
     private long size = -1; // Fail fast if setSize(...) has not been called
                             // before parsing
 
-    public RecordingInput(File f, FileAccess fileAccess, int blockSize) throws IOException {
+    RecordingInput(File f, FileAccess fileAccess, int blockSize) throws IOException {
         this.blockSize = blockSize;
         this.fileAccess = fileAccess;
         initialize(f);
@@ -96,15 +96,15 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         this(f, fileAccess, DEFAULT_BLOCK_SIZE);
     }
 
-    public void positionPhysical(long position) throws IOException {
+    void positionPhysical(long position) throws IOException {
         file.seek(position);
     }
 
-    public final byte readPhysicalByte() throws IOException {
+    byte readPhysicalByte() throws IOException {
         return file.readByte();
     }
 
-    public long readPhysicalLong() throws IOException {
+    long readPhysicalLong() throws IOException {
         return file.readLong();
     }
 
@@ -130,7 +130,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         readFully(dst, 0, dst.length);
     }
 
-    public final short readRawShort() throws IOException {
+    short readRawShort() throws IOException {
         // copied from java.io.Bits
         byte b0 = readByte();
         byte b1 = readByte();
@@ -138,18 +138,18 @@ public final class RecordingInput implements DataInput, AutoCloseable {
     }
 
     @Override
-    public final double readDouble() throws IOException {
+    public double readDouble() throws IOException {
         // copied from java.io.Bits
         return Double.longBitsToDouble(readRawLong());
     }
 
     @Override
-    public final float readFloat() throws IOException {
+    public float readFloat() throws IOException {
         // copied from java.io.Bits
         return Float.intBitsToFloat(readRawInt());
     }
 
-    public final int readRawInt() throws IOException {
+    int readRawInt() throws IOException {
         // copied from java.io.Bits
         byte b0 = readByte();
         byte b1 = readByte();
@@ -158,7 +158,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         return ((b3 & 0xFF)) + ((b2 & 0xFF) << 8) + ((b1 & 0xFF) << 16) + ((b0) << 24);
     }
 
-    public final long readRawLong() throws IOException {
+    long readRawLong() throws IOException {
         // copied from java.io.Bits
         byte b0 = readByte();
         byte b1 = readByte();
@@ -212,11 +212,12 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         return newPosition - blockSize / 2;
     }
 
-    public final long size() {
+    long size() {
         return size;
     }
 
-    public final void close() throws IOException {
+    @Override
+    public void close() throws IOException {
         file.close();
     }
 
@@ -284,69 +285,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         return (int) readLong();
     }
 
-    public long readLongExpanded() throws IOException {
-        final byte[] bytes = currentBlock.bytes;
-        final int index = (int) (position - currentBlock.blockPosition);
-
-        if (index + 8 < bytes.length && index >= 0) {
-            byte b0 = bytes[index];
-            if (b0 >= 0) {
-                position += 1;
-                return (b0 & 0x7FL);
-            }
-            int b1 = bytes[index + 1];
-            if (b1 >= 0) {
-                position += 2;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7);
-            }
-            int b2 = bytes[index + 2];
-            if (b2 >= 0) {
-                position += 3;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14);
-            }
-            int b3 = bytes[index + 3];
-            if (b3 >= 0) {
-                position += 4;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) + ((b3 & 0x7FL) << 21);
-            }
-            int b4 = bytes[index + 4];
-            if (b4 >= 0) {
-                position += 5;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) +
-                       ((b3 & 0x7FL) << 21) + ((b4 & 0x7FL) << 28);
-            }
-            int b5 = bytes[index + 5];
-            if (b5 >= 0) {
-                position += 6;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) +
-                       ((b3 & 0x7FL) << 21) + ((b4 & 0x7FL) << 28) + ((b5 & 0x7FL) << 35);
-            }
-            int b6 = bytes[index + 6];
-            if (b6 >= 0) {
-                position += 7;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) +
-                       ((b3 & 0x7FL) << 21) + ((b4 & 0x7FL) << 28) + ((b5 & 0x7FL) << 35) +
-                       ((b6 & 0x7FL) << 42);
-
-            }
-            int b7 = bytes[index + 7];
-            if (b7 >= 0) {
-                position += 8;
-                return (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) +
-                       ((b3 & 0x7FL) << 21) + ((b4 & 0x7FL) << 28) + ((b5 & 0x7FL) << 35) +
-                       ((b6 & 0x7FL) << 42) + ((b7 & 0x7FL) << 49);
-            }
-            int b8 = bytes[index + 8];// read last byte raw
-            position += 9;
-            long ret = (b0 & 0x7FL) + ((b1 & 0x7FL) << 7) + ((b2 & 0x7FL) << 14) +
-                   ((b3 & 0x7FL) << 21) + ((b4 & 0x7FL) << 28) + ((b5 & 0x7FL) << 35) +
-                   ((b6 & 0x7FL) << 42) + ((b7 & 0x7FL) << 49);
-            return ret + ((((long) (b8 & 0XFF)) << 56));
-        } else {
-            return readLongSlow();
-        }
-    }
-
+    @Override
     public long readLong() throws IOException {
         final byte[] bytes = currentBlock.bytes;
         final int index = (int) (position - currentBlock.blockPosition);

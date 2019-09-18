@@ -36,7 +36,7 @@ import jdk.jfr.internal.consumer.ChunkHeader;
 /**
  * Converts ticks to nanoseconds
  */
-public final class TimeConverter {
+final class TimeConverter {
     private final long startTicks;
     private final long startNanos;
     private final double divisor;

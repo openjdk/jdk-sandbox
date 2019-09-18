@@ -181,11 +181,4 @@ final class ConstantMap {
     public void setAllResolved(boolean allResolved) {
         this.allResolved = allResolved;
     }
-
-    public boolean isResolved(long id) {
-        if (objects.hasKey(id)) {
-            return objects.isSetId(id, RESOLUTION_FINISHED);
-        }
-        return false;
-    }
 }

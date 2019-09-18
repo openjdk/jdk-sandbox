@@ -45,8 +45,9 @@ public final class EventFileStream extends AbstractEventStream {
     private final static Comparator<? super RecordedEvent> EVENT_COMPARATOR = JdkJfrConsumer.instance().eventComparator();
 
     private final RecordingInput input;
-    private ChunkParser chunkParser;
-    private RecordedEvent[] sortedList;
+
+    private ChunkParser currentParser;
+    private RecordedEvent[] cacheSorted;
 
     public EventFileStream(AccessControlContext acc, Path path) throws IOException {
         super(acc, false);
@@ -87,56 +88,56 @@ public final class EventFileStream extends AbstractEventStream {
             end = disp.endNanos;
         }
 
-        chunkParser = new ChunkParser(input, disp.parserConfiguration);
+        currentParser = new ChunkParser(input, disp.parserConfiguration);
         while (!isClosed()) {
-            if (chunkParser.getStartNanos() > end) {
+            if (currentParser.getStartNanos() > end) {
                 close();
                 return;
             }
             disp = dispatcher();
             disp.parserConfiguration.filterStart = start;
             disp.parserConfiguration.filterEnd = end;
-            chunkParser.updateConfiguration(disp.parserConfiguration, true);
-            chunkParser.setFlushOperation(getFlushOperation());
-            if (disp.parserConfiguration.ordered) {
+            currentParser.updateConfiguration(disp.parserConfiguration, true);
+            currentParser.setFlushOperation(getFlushOperation());
+            if (disp.parserConfiguration.isOrdered()) {
                 processOrdered(disp);
             } else {
                 processUnordered(disp);
             }
-            if (isClosed() || chunkParser.isLastChunk()) {
+            if (isClosed() || currentParser.isLastChunk()) {
                 return;
             }
-            chunkParser = chunkParser.nextChunkParser();
+            currentParser = currentParser.nextChunkParser();
         }
     }
 
     private void processOrdered(Dispatcher c) throws IOException {
-        if (sortedList == null) {
-            sortedList = new RecordedEvent[10_000];
+        if (cacheSorted == null) {
+            cacheSorted = new RecordedEvent[10_000];
         }
         RecordedEvent event;
         int index = 0;
         while (true) {
-            event = chunkParser.readEvent();
+            event = currentParser.readEvent();
             if (event == null) {
-                Arrays.sort(sortedList, 0, index, EVENT_COMPARATOR);
+                Arrays.sort(cacheSorted, 0, index, EVENT_COMPARATOR);
                 for (int i = 0; i < index; i++) {
-                    c.dispatch(sortedList[i]);
+                    c.dispatch(cacheSorted[i]);
                 }
                 return;
             }
-            if (index == sortedList.length) {
-                RecordedEvent[] tmp = sortedList;
-                sortedList = new RecordedEvent[2 * tmp.length];
-                System.arraycopy(tmp, 0, sortedList, 0, tmp.length);
+            if (index == cacheSorted.length) {
+                RecordedEvent[] tmp = cacheSorted;
+                cacheSorted = new RecordedEvent[2 * tmp.length];
+                System.arraycopy(tmp, 0, cacheSorted, 0, tmp.length);
             }
-            sortedList[index++] = event;
+            cacheSorted[index++] = event;
         }
     }
 
     private void processUnordered(Dispatcher c) throws IOException {
         while (!isClosed()) {
-            RecordedEvent event = chunkParser.readEvent();
+            RecordedEvent event = currentParser.readEvent();
             if (event == null) {
                 return;
             }

@@ -40,12 +40,12 @@ import jdk.jfr.internal.Type;
 public abstract class ObjectFactory<T> {
     private static final JdkJfrConsumer PRIVATE_ACCESS = JdkJfrConsumer.instance();
 
-    public final static String TYPE_PREFIX_VERSION_1 = "com.oracle.jfr.types.";
-    public final static String TYPE_PREFIX_VERSION_2 = Type.TYPES_PREFIX;
+    private final static String TYPE_PREFIX_VERSION_1 = "com.oracle.jfr.types.";
+    private final static String TYPE_PREFIX_VERSION_2 = Type.TYPES_PREFIX;
     public final static String STACK_FRAME_VERSION_1 = TYPE_PREFIX_VERSION_1 + "StackFrame";
     public final static String STACK_FRAME_VERSION_2 = TYPE_PREFIX_VERSION_2 + "StackFrame";
 
-    public static ObjectFactory<?> create(Type type, TimeConverter timeConverter) {
+    static ObjectFactory<?> create(Type type, TimeConverter timeConverter) {
         switch (type.getName()) {
         case "java.lang.Thread":
             return createThreadFactory(type, timeConverter);
@@ -136,7 +136,7 @@ public abstract class ObjectFactory<T> {
 
     private final ObjectContext objectContext;
 
-    ObjectFactory(Type type, TimeConverter timeConverter) {
+    private ObjectFactory(Type type, TimeConverter timeConverter) {
         this.objectContext = new ObjectContext(null, type.getFields(), timeConverter);
     }
 

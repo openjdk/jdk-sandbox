@@ -279,7 +279,9 @@ public final class RequestEngine {
         return min;
     }
 
-    public static void setFlushInterval(long interval) {
+    static void setFlushInterval(long millis) {
+        // Don't accept shorter interval than 1 s.
+        long interval = millis < 1000 ? 1000  : millis;
         flushInterval = interval;
         if (interval < flushInterval) {
             synchronized (JVM.FILE_DELTA_CHANGE) {

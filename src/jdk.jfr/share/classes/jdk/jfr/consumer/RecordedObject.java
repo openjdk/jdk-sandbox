@@ -64,7 +64,7 @@ public class RecordedObject {
             }
 
             public boolean isLastEventInChunk(RecordingFile file) {
-                return file.isLastEventInChunk;
+                return file.isLastEventInChunk();
             }
 
             @Override
@@ -833,7 +833,7 @@ public class RecordedObject {
             case Timespan.NANOSECONDS:
                 return Duration.ofNanos(timespan);
             case Timespan.TICKS:
-                return Duration.ofNanos(objectContext.timeConverter.convertTimespan(timespan));
+                return Duration.ofNanos(objectContext.convertTimespan(timespan));
             }
             throw new IllegalArgumentException("Attempt to get " + v.getTypeName() + " field \"" + name + "\" with illegal timespan unit " + ts.value());
         }
@@ -906,7 +906,7 @@ public class RecordedObject {
             case Timestamp.MILLISECONDS_SINCE_EPOCH:
                 return Instant.ofEpochMilli(timestamp);
             case Timestamp.TICKS:
-                return Instant.ofEpochSecond(0, objectContext.timeConverter.convertTimestamp(timestamp));
+                return Instant.ofEpochSecond(0, objectContext.convertTimestamp(timestamp));
             }
             throw new IllegalArgumentException("Attempt to get " + v.getTypeName() + " field \"" + name + "\" with illegal timestamp unit " + ts.value());
         }
@@ -981,12 +981,12 @@ public class RecordedObject {
     }
 
     // package private for now. Used by EventWriter
-    OffsetDateTime getOffsetDateTime(String name) {
+    private OffsetDateTime getOffsetDateTime(String name) {
         Instant instant = getInstant(name);
         if (instant.equals(Instant.MIN)) {
             return OffsetDateTime.MIN;
         }
-        return OffsetDateTime.ofInstant(getInstant(name), objectContext.timeConverter.getZoneOffset());
+        return OffsetDateTime.ofInstant(getInstant(name), objectContext.getZoneOffset());
     }
 
     private static IllegalArgumentException newIllegalArgumentException(String name, String typeName) {

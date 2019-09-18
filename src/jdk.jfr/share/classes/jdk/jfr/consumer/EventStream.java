@@ -43,6 +43,9 @@ import jdk.jfr.internal.consumer.FileAccess;
 /**
  * Represents a stream of events.
  * <p>
+ * The EventStream interface is not to be implemented and future version may
+ * prevent this completely.
+ * <p>
  * A stream is a sequence of events and the way to interact with a stream is to
  * register actions.
  * <p>
@@ -174,7 +177,7 @@ public interface EventStream extends AutoCloseable {
      * @throws SecurityException if a security manager exists and its
      *         {@code checkRead} method denies read access to the file
      */
-    public static EventStream openFile(Path file) throws IOException {
+    static EventStream openFile(Path file) throws IOException {
         return new EventFileStream(AccessController.getContext(), file);
     }
 

@@ -138,10 +138,10 @@ public final class RecordedEvent extends RecordedObject {
     }
 
     private long getStartTimeNanos() {
-        return objectContext.timeConverter.convertTimestamp(startTimeTicks);
+        return objectContext.convertTimestamp(startTimeTicks);
     }
 
     private long getEndTimeNanos() {
-        return objectContext.timeConverter.convertTimestamp(endTimeTicks);
+        return objectContext.convertTimestamp(endTimeTicks);
     }
 }

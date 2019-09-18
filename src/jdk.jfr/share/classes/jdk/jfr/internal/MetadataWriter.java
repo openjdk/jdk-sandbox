@@ -53,7 +53,7 @@ import jdk.jfr.SettingDescriptor;
 import jdk.jfr.ValueDescriptor;
 import jdk.jfr.internal.MetadataDescriptor.Attribute;
 import jdk.jfr.internal.MetadataDescriptor.Element;
-import jdk.jfr.internal.consumer.StringEncoding;
+import jdk.jfr.internal.consumer.StringParser;
 
 /**
  * Class responsible for converting a list of types into a format that can be
@@ -94,10 +94,10 @@ final class MetadataWriter {
 
     private void writeString(DataOutput out, String s) throws IOException {
         if (s == null ) {
-            out.writeByte(StringEncoding.STRING_ENCODING_NULL);
+            out.writeByte(StringParser.Encoding.NULL.byteValue());
             return;
         }
-        out.writeByte(StringEncoding.STRING_ENCODING_CHAR_ARRAY); // encoding UTF-16
+        out.writeByte(StringParser.Encoding.CHAR_ARRAY.byteValue()); // encoding UTF-16
         int length = s.length();
         writeInt(out, length);
             for (int i = 0; i < length; i++) {

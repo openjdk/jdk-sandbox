@@ -24,6 +24,7 @@
  */
 package jdk.jfr.internal.consumer;
 
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +34,12 @@ import jdk.jfr.ValueDescriptor;
 
 public final class ObjectContext {
     private final Map<ValueDescriptor, ObjectContext> contextLookup;
+    private final TimeConverter timeConverter;
 
     public final EventType eventType;
     public final List<ValueDescriptor> fields;
-    public final TimeConverter timeConverter;
 
-    public ObjectContext(EventType eventType, List<ValueDescriptor> fields, TimeConverter timeConverter) {
+    ObjectContext(EventType eventType, List<ValueDescriptor> fields, TimeConverter timeConverter) {
         this.contextLookup = new HashMap<>();
         this.eventType = eventType;
         this.fields = fields;
@@ -59,5 +60,17 @@ public final class ObjectContext {
             contextLookup.put(descriptor, context);
         }
         return context;
+    }
+
+    public long convertTimestamp(long ticks) {
+        return timeConverter.convertTimestamp(ticks);
+    }
+
+    public long convertTimespan(long ticks) {
+        return timeConverter.convertTimespan(ticks);
+    }
+
+    public ZoneId getZoneOffset() {
+        return timeConverter.getZoneOffset();
     }
 }

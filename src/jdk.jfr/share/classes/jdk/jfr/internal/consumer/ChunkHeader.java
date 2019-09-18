@@ -34,8 +34,7 @@ import jdk.jfr.internal.MetadataDescriptor;
 import jdk.jfr.internal.Utils;
 
 public final class ChunkHeader {
-    public static final long HEADER_SIZE = 68;
-    public static final byte MARKED_FOR_DELETION = (byte) 255;
+    private static final long HEADER_SIZE = 68;
     private static final byte UPDATING_CHUNK_HEADER = (byte) 255;
     private static final long CHUNK_SIZE_POSITION = 8;
     private static final long DURATION_NANOS_POSITION = 40;
@@ -107,7 +106,8 @@ public final class ChunkHeader {
         refresh();
         input.position(absoluteEventStart);
     }
-    public void refresh() throws IOException {
+
+    void refresh() throws IOException {
         while (true) {
             byte fileState1;
             input.positionPhysical(absoluteChunkStart + FILE_STATE_POSITION);
@@ -279,4 +279,7 @@ public final class ChunkHeader {
         return absoluteEventStart;
     }
 
+    static long headerSize() {
+        return HEADER_SIZE;
+    }
 }

@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 
-public final class ParserFilter {
+final class ParserFilter {
     public static final ParserFilter ACCEPT_ALL = new ParserFilter(true, Map.of());
 
     private final Map<String, Long> thresholds;

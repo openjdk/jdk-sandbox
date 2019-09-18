@@ -28,15 +28,35 @@ package jdk.jfr.internal.consumer;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
-import jdk.jfr.internal.consumer.Parser;
-import jdk.jfr.internal.consumer.RecordingInput;
-import jdk.jfr.internal.consumer.StringEncoding;
-
 public final class StringParser extends Parser {
+
+    public enum Encoding {
+        NULL(0),
+        EMPTY_STRING(1),
+        CONSTANT_POOL(2),
+        UT8_BYTE_ARRAY(3),
+        CHAR_ARRAY(4),
+        LATIN1_BYTE_ARRAY(5);
+
+        private byte byteValue;
+
+        private Encoding(int byteValue) {
+            this.byteValue = (byte) byteValue;
+        }
+
+        public byte byteValue() {
+            return byteValue;
+        }
+
+        public boolean is(byte value) {
+            return value == byteValue;
+        }
+
+    }
     private final static Charset UTF8 = Charset.forName("UTF-8");
     private final static Charset LATIN1 = Charset.forName("ISO-8859-1");
 
-    final static class CharsetParser extends Parser {
+    private final static class CharsetParser extends Parser {
         private final Charset charset;
         private int lastSize;
         private byte[] buffer = new byte[16];
@@ -86,7 +106,7 @@ public final class StringParser extends Parser {
         }
     }
 
-    final static class CharArrayParser extends Parser {
+    private final static class CharArrayParser extends Parser {
         private char[] buffer = new char[16];
         private int lastSize = -1;
         private String lastString = null;
@@ -146,7 +166,7 @@ public final class StringParser extends Parser {
     @Override
     public Object parse(RecordingInput input) throws IOException {
         byte encoding = input.readByte();
-        if (encoding == StringEncoding.STRING_ENCODING_CONSTANT_POOL) {
+        if (Encoding.CONSTANT_POOL.is(encoding)) {
             long key = input.readLong();
             if (event) {
                 return stringLookup.getCurrentResolved(key);
@@ -154,19 +174,19 @@ public final class StringParser extends Parser {
                 return stringLookup.getCurrent(key);
             }
         }
-        if (encoding == StringEncoding.STRING_ENCODING_NULL) {
+        if (Encoding.NULL.is(encoding)) {
             return null;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_EMPTY_STRING) {
+        if (Encoding.EMPTY_STRING.is(encoding)) {
             return "";
         }
-        if (encoding == StringEncoding.STRING_ENCODING_CHAR_ARRAY) {
+        if (Encoding.CHAR_ARRAY.is(encoding)) {
             return charArrayParser.parse(input);
         }
-        if (encoding == StringEncoding.STRING_ENCODING_UTF8_BYTE_ARRAY) {
+        if (Encoding.UT8_BYTE_ARRAY.is(encoding)) {
             return utf8parser.parse(input);
         }
-        if (encoding == StringEncoding.STRING_ENCODING_LATIN1_BYTE_ARRAY) {
+        if (Encoding.LATIN1_BYTE_ARRAY.is(encoding)) {
             return latin1parser.parse(input);
         }
         throw new IOException("Unknown string encoding " + encoding);
@@ -175,25 +195,25 @@ public final class StringParser extends Parser {
     @Override
     public void skip(RecordingInput input) throws IOException {
         byte encoding = input.readByte();
-        if (encoding == StringEncoding.STRING_ENCODING_CONSTANT_POOL) {
+        if (Encoding.CONSTANT_POOL.is(encoding)) {
             input.readLong();
             return;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_EMPTY_STRING) {
+        if (Encoding.EMPTY_STRING.is(encoding)) {
             return;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_NULL) {
+        if (Encoding.NULL.is(encoding)) {
             return;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_CHAR_ARRAY) {
+        if (Encoding.CHAR_ARRAY.is(encoding)) {
             charArrayParser.skip(input);
             return;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_UTF8_BYTE_ARRAY) {
+        if (Encoding.UT8_BYTE_ARRAY.is(encoding)) {
             utf8parser.skip(input);
             return;
         }
-        if (encoding == StringEncoding.STRING_ENCODING_LATIN1_BYTE_ARRAY) {
+        if (Encoding.LATIN1_BYTE_ARRAY.is(encoding)) {
             latin1parser.skip(input);
             return;
         }

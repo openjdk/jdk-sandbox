@@ -59,24 +59,24 @@ public final class RepositoryFiles {
     private volatile boolean closed;
     private final Object waitObject;
 
-    public RepositoryFiles(FileAccess fileAccess, Path repository) {
+    RepositoryFiles(FileAccess fileAccess, Path repository) {
         this.repository = repository;
         this.fileAccess = fileAccess;
         this.waitObject = repository == null ? WAIT_OBJECT : new Object();
     }
 
-    public long getTimestamp(Path p) {
+    long getTimestamp(Path p) {
         return pathLookup.get(p);
     }
 
-    public Path lastPath() {
+    Path lastPath() {
         if (waitForPaths()) {
             return pathSet.lastEntry().getValue();
         }
         return null; // closed
     }
 
-    public Path firstPath(long startTimeNanos) {
+    Path firstPath(long startTimeNanos) {
         if (waitForPaths()) {
             // Pick closest chunk before timestamp
             Long time = pathSet.floorKey(startTimeNanos);
@@ -106,7 +106,7 @@ public final class RepositoryFiles {
         return !closed;
     }
 
-    public Path nextPath(long startTimeNanos) {
+    Path nextPath(long startTimeNanos) {
         return path(startTimeNanos);
     }
 
@@ -182,7 +182,7 @@ public final class RepositoryFiles {
                 // Only add files that have a complete header
                 // as the JVM may be in progress writing the file
                 long size = fileAccess.fileSize(p);
-                if (size >= ChunkHeader.HEADER_SIZE) {
+                if (size >= ChunkHeader.headerSize()) {
                     long startNanos = readStartTime(p);
                     pathSet.put(startNanos, p);
                     pathLookup.put(p, startNanos);
@@ -200,7 +200,7 @@ public final class RepositoryFiles {
         }
     }
 
-    public void close() {
+    void close() {
         synchronized (waitObject) {
             this.closed = true;
             waitObject.notify();

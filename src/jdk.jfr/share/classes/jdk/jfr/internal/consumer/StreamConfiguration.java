@@ -23,14 +23,14 @@ final class StreamConfiguration {
     long startNanos = 0;
     long endNanos = Long.MAX_VALUE;
 
-    volatile boolean changed = true;
+    private volatile boolean changed = true;
 
     public synchronized boolean remove(Object action) {
         boolean removed = false;
         removed |= flushActions.removeIf(e -> e == action);
         removed |= closeActions.removeIf(e -> e == action);
         removed |= errorActions.removeIf(e -> e == action);
-        removed |= eventActions.removeIf(e -> e.action == action);
+        removed |= eventActions.removeIf(e -> e.getAction() == action);
         if (removed) {
             changed = true;
         }
@@ -95,9 +95,5 @@ final class StreamConfiguration {
 
     public boolean hasChanged() {
         return changed;
-    }
-
-    public synchronized void clearChanged() {
-        changed = false;
     }
 }

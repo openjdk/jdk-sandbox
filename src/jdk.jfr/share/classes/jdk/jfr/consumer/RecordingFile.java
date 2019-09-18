@@ -63,7 +63,7 @@ import jdk.jfr.internal.consumer.RecordingInput;
  */
 public final class RecordingFile implements Closeable {
 
-    boolean isLastEventInChunk;
+    private boolean isLastEventInChunk;
     private final File file;
     private RecordingInput input;
     private ChunkParser chunkParser;
@@ -234,6 +234,12 @@ public final class RecordingFile implements Closeable {
     File getFile() {
         return file;
     }
+
+    // package protected
+    boolean isLastEventInChunk() {
+        return isLastEventInChunk;
+    }
+
 
     // either sets next to an event or sets eof to true
     private void findNext() throws IOException {
