@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
@@ -56,8 +57,9 @@ public final class RepositoryFiles {
     private final NavigableMap<Long, Path> pathSet = new TreeMap<>();
     private final Map<Path, Long> pathLookup = new HashMap<>();
     private final Path repository;
-    private volatile boolean closed;
     private final Object waitObject;
+
+    private volatile boolean closed;
 
     RepositoryFiles(FileAccess fileAccess, Path repository) {
         this.repository = repository;

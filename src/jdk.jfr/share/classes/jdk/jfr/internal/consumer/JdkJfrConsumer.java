@@ -22,6 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
 package jdk.jfr.internal.consumer;
 
 import java.io.IOException;
@@ -55,7 +56,6 @@ public abstract class JdkJfrConsumer {
         } catch (ClassNotFoundException e) {
             throw new InternalError("Should not happen");
         }
-
     }
 
     public static void setAccess(JdkJfrConsumer access) {

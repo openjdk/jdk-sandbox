@@ -43,23 +43,20 @@ import jdk.jfr.internal.consumer.FileAccess;
 /**
  * Represents a stream of events.
  * <p>
- * The EventStream interface is not to be implemented and future version may
- * prevent this completely.
- * <p>
  * A stream is a sequence of events and the way to interact with a stream is to
- * register actions.
+ * register actions. The {@code EventStream} interface is not to be implemented
+ * and future versions of the JDK may prevent this completely.
  * <p>
  * To receive a notification when an event arrives, register an action using the
  * {@link #onEvent(Consumer)} method. To filter the stream for an event with a
  * specific name, use {@link #onEvent(String, Consumer)} method.
- *
+ * <p>
  * By default, the same {@code RecordedEvent} object can be used for
  * representing two or more distinct events. The object can be delivered
  * multiple times to the same action as well as to other actions. If the life
- * cycle of the event object is needed outside the scope of an action, the
+ * cycle of the event object exceeds the scope of an action, the
  * {@link #setReuse(boolean)} method should be set to {@code false} so that a
  * new object is allocated for each event.
- *
  * <p>
  * Events are delivered in batches. To receive a notification when a batch is
  * complete, register an action using the {@link #onFlush(Runnable)} method.
@@ -78,10 +75,11 @@ import jdk.jfr.internal.consumer.FileAccess;
  * {@link #awaitTermination(Duration)} method.
  * <p>
  * When a stream ends it is automatically closed. To manually stop processing of
- * events, close the stream with the {@link #close()} method. A stream can also
- * be automatically closed in exceptional circumstances, for instance if the JVM
- * exits. To receive a notification in any of these occasions, use the
- * {@link #onClose(Runnable)} method to register an action.
+ * events, close the stream by invoking the {@link #close()} method. A stream
+ * can also be automatically closed in exceptional circumstances, for example
+ * if the JVM that is being monitored exits. To receive a notification in any of
+ * these occasions, use the {@link #onClose(Runnable)} method to register an
+ * action.
  * <p>
  * If an unexpected exception occurs in an action, it is possible to catch the
  * exception in an error handler. An error handler can be registered using the
@@ -89,8 +87,9 @@ import jdk.jfr.internal.consumer.FileAccess;
  * default behavior is to print the exception and its backtrace to the standard
  * error stream.
  * <p>
- * The following example shows how an {@code EventStream} can be used to
- * listen to events on a JVM running Flight Recorder
+ * The following example shows how an {@code EventStream} can be used to listen
+ * to events on a JVM running Flight Recorder
+ *
  * <pre>
  * <code>
  * try (EventStream es = EventStream.openRepository()) {
@@ -116,6 +115,7 @@ import jdk.jfr.internal.consumer.FileAccess;
  * <p>
  * To start recording together with the stream, see {@link RecordingStream}.
  *
+ * @since 14
  */
 public interface EventStream extends AutoCloseable {
     /**

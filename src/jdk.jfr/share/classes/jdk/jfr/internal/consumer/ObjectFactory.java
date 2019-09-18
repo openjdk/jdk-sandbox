@@ -70,7 +70,6 @@ public abstract class ObjectFactory<T> {
         return null;
     }
 
-
     private static ObjectFactory<RecordedClass> createClassFactory(Type type, TimeConverter timeConverter) {
         return new ObjectFactory<RecordedClass>(type, timeConverter) {
             @Override

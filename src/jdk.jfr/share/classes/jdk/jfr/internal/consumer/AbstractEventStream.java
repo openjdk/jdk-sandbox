@@ -45,14 +45,7 @@ import jdk.jfr.internal.SecuritySupport;
 
 /*
  * Purpose of this class is to simplify the implementation of
- * an event stream. In particular, it handles:
- *
- * - configuration storage
- * - atomic updates to a configuration
- * - dispatch mechanism
- * - error handling
- * - security
- *
+ * an event stream.
  */
 abstract class AbstractEventStream implements EventStream {
     private final static AtomicLong counter = new AtomicLong(1);

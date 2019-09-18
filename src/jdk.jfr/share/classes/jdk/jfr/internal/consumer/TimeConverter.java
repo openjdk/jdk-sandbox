@@ -49,15 +49,6 @@ final class TimeConverter {
         this.zoneOffet = zoneOfSet(rawOffset);
     }
 
-    private ZoneOffset zoneOfSet(int rawOffset) {
-        try {
-            return ZoneOffset.ofTotalSeconds(rawOffset / 1000);
-        } catch (DateTimeException dte) {
-            Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Could not create ZoneOffset from raw offset " + rawOffset);
-        }
-        return ZoneOffset.UTC;
-    }
-
     public long convertTimestamp(long ticks) {
         return startNanos + (long) ((ticks - startTicks) / divisor);
     }
@@ -68,5 +59,14 @@ final class TimeConverter {
 
     public ZoneOffset getZoneOffset() {
         return zoneOffet;
+    }
+
+    private ZoneOffset zoneOfSet(int rawOffset) {
+        try {
+            return ZoneOffset.ofTotalSeconds(rawOffset / 1000);
+        } catch (DateTimeException dte) {
+            Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Could not create ZoneOffset from raw offset " + rawOffset);
+        }
+        return ZoneOffset.UTC;
     }
 }

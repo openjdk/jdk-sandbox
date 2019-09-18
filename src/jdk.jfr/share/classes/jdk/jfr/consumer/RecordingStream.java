@@ -51,7 +51,6 @@ import jdk.jfr.internal.consumer.EventDirectoryStream;
  * The following example shows how to record events using the default
  * configuration and print the Garbage Collection, CPU Load and JVM Information
  * event to standard out.
- *
  * <pre>
  * <code>
  * Configuration c = Configuration.getConfiguration("default");
@@ -65,6 +64,7 @@ import jdk.jfr.internal.consumer.EventDirectoryStream;
  * </code>
  * </pre>
  *
+ * @since 14
  */
 public final class RecordingStream implements AutoCloseable, EventStream {
 
