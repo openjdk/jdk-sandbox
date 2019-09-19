@@ -50,7 +50,25 @@ class Metadebug : AllStatic {
       counter_ = 0;           \
 
 #define END_EVERY_NTH         } } }
+
+#define SOMETIMES(code) \
+    EVERY_NTH(VerifyMetaspaceInterval) \
+    { code } \
+    END_EVERY_NTH
+
+#define ASSERT_SOMETIMES(condition, ...) \
+		EVERY_NTH(VerifyMetaspaceInterval) \
+		assert( (condition), __VA_ARGS__); \
+		END_EVERY_NTH
+
+#else
+
+#define SOMETIMES(code)
+#define ASSERT_SOMETIMES(condition, ...)
+
 #endif // ASSERT
+
+
 
 } // namespace metaspace
 

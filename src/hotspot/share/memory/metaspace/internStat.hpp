@@ -66,6 +66,12 @@ class InternalStats : public AllStatic {
   /* ... and died. */                               \
   x(num_metaspace_deaths)                           \
                                                     \
+	/* Number of times a ClassLoaderMetaspace was */  \
+	/*  born for an anonymous class... */             \
+	x(num_anon_cld_births)                            \
+	/* ... and died. */                               \
+  x(num_anon_cld_deaths)                            \
+                                                    \
   /* Number of times VirtualSpaceNode were */       \
   /*  created...  */                                \
   x(num_vsnodes_created)                            \

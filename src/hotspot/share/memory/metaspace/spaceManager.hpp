@@ -133,8 +133,8 @@ public:
   // Update statistics. This walks all in-use chunks.
   void add_to_statistics(sm_stats_t* out) const;
 
-  // Run verifications. slow=true: verify chunk-internal integrity too.
-  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
+  DEBUG_ONLY(void verify_locked() const;)
 
 };
 

@@ -76,7 +76,7 @@ public:
   // Update statistics. This walks all in-use chunks.
   void add_to_statistics(clms_stats_t* out) const;
 
-  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify() const;)
 
   // TODO
   size_t allocated_blocks_bytes() const { return 0; }

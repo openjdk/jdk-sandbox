@@ -32,6 +32,7 @@
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -422,6 +423,8 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster* fr
 
 void RootChunkArea::verify(bool slow) const {
 
+  assert_lock_strong(MetaspaceExpand_lock);
+
   assert_is_aligned(_base, chklvl::MAX_CHUNK_BYTE_SIZE);
 
   // Iterate thru all chunks in this area. They must be ordered correctly,
@@ -433,7 +436,6 @@ void RootChunkArea::verify(bool slow) const {
     assrt_(_first_chunk->prev_in_vs() == NULL, "Sanity");
 
     const Metachunk* c = _first_chunk;
-    const Metachunk* c_last = NULL;
     const MetaWord* expected_next_base = _base;
     const MetaWord* const area_end = _base + word_size();
 
@@ -450,37 +452,10 @@ void RootChunkArea::verify(bool slow) const {
       assrt_(is_aligned(c->base(), c->word_size()),
              "misaligned chunk %d " METACHUNK_FORMAT ".", num_chunk, METACHUNK_FORMAT_ARGS(c));
 
-      const Metachunk* const successor = c->next_in_vs();
-      if (successor != NULL) {
-        assrt_(successor->prev_in_vs() == c,
-               "Chunk No. %d " METACHUNK_FORMAT " - vs link to successor " METACHUNK_FORMAT " broken.", num_chunk,
-               METACHUNK_FORMAT_ARGS(c), METACHUNK_FORMAT_ARGS(successor));
-        assrt_(c->end() == successor->base(),
-               "areas between neighbor chunks do not connect: "
-               "this chunk %d " METACHUNK_FORMAT " and successor chunk %d " METACHUNK_FORMAT ".",
-               num_chunk, METACHUNK_FORMAT_ARGS(c), num_chunk + 1, METACHUNK_FORMAT_ARGS(successor));
-      }
-
-      if (c_last != NULL) {
-        assrt_(c->prev_in_vs() == c_last,
-               "Chunk No. %d " METACHUNK_FORMAT " - vs backlink invalid.", num_chunk, METACHUNK_FORMAT_ARGS(c));
-        assrt_(c_last->end() == c->base(),
-               "areas between neighbor chunks do not connect: "
-               "previous chunk %d " METACHUNK_FORMAT " and this chunk %d " METACHUNK_FORMAT ".",
-               num_chunk - 1, METACHUNK_FORMAT_ARGS(c_last), num_chunk, METACHUNK_FORMAT_ARGS(c));
-      } else {
-        assrt_(c->prev_in_vs() == NULL,
-               "unexpected back link: chunk %d " METACHUNK_FORMAT ".",
-               num_chunk, METACHUNK_FORMAT_ARGS(c));
-        assrt_(c == _first_chunk,
-            "should be first: chunk %d " METACHUNK_FORMAT ".",
-            num_chunk, METACHUNK_FORMAT_ARGS(c));
-      }
-
-      c->verify(slow); // <- also checks alignment and level etc
+      c->verify_neighborhood();
+      c->verify(slow);
 
       expected_next_base = c->end();
-      c_last = c;
       num_chunk ++;
 
       c = c->next_in_vs();
@@ -492,6 +467,9 @@ void RootChunkArea::verify(bool slow) const {
 }
 
 void RootChunkArea::verify_area_is_ideally_merged() const {
+
+  assert_lock_strong(MetaspaceExpand_lock);
+
   int num_chunk = 0;
   for (const Metachunk* c = _first_chunk; c != NULL; c = c->next_in_vs()) {
     if (!c->is_root_chunk() && c->is_free()) {

@@ -206,6 +206,8 @@ void SpaceManager::retire_current_chunk() {
          "Chunk retiring did not work (current chunk " METACHUNK_FULL_FORMAT ").",
          METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
 
+  DEBUG_ONLY(verify_locked();)
+
 }
 
 // Allocate memory from Metaspace.
@@ -321,6 +323,8 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   assert(p != NULL || (p == NULL && did_hit_limit), "Sanity");
 
+  SOMETIMES(verify_locked();)
+
   if (p == NULL) {
     DEBUG_ONLY(InternalStats::inc_num_allocs_failed_limit();)
   } else {
@@ -362,6 +366,8 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
 
   add_allocation_to_block_freelist(p, raw_word_size);
 
+  DEBUG_ONLY(verify_locked();)
+
 }
 
 // Prematurely returns a metaspace allocation to the _block_freelists because it is not
@@ -395,18 +401,25 @@ void SpaceManager::add_to_statistics(sm_stats_t* out) const {
     out->free_blocks_word_size += block_freelist()->total_size();
   }
 
-  DEBUG_ONLY(out->verify();)
+  SOMETIMES(out->verify();)
 }
 
 #ifdef ASSERT
 
-void SpaceManager::verify(bool slow) const {
+void SpaceManager::verify_locked() const {
 
-  MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
+  assert_lock_strong(lock());
 
   assert(_chunk_alloc_sequence != NULL && _chunk_manager != NULL, "Sanity");
 
-  _chunks.verify(true);
+  _chunks.verify();
+
+}
+
+void SpaceManager::verify() const {
+
+  MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
+  verify_locked();
 
 }
 

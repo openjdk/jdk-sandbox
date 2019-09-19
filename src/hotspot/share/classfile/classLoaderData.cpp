@@ -962,7 +962,7 @@ void ClassLoaderData::verify() {
   // Verify the integrity of the allocated space.
 #ifdef ASSERT
   if (metaspace_or_null() != NULL) {
-    metaspace_or_null()->verify(false);
+    metaspace_or_null()->verify();
   }
 #endif
 

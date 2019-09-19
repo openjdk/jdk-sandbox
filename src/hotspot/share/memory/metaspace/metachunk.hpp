@@ -63,11 +63,12 @@ class Metachunk {
   // Used words.
   size_t _used_words;
 
-  // Guaranteed-to-be-committed-words, counted from base
+  // Size of the region, starting from base, which is guaranteed to be committed. In words.
+  //  The actual size of committed regions may be larger, but it may be fragmented.
+  //
   //  (This is a performance optimization. The underlying VirtualSpaceNode knows
   //  which granules are committed; but we want to avoid asking it unnecessarily
-  //  in Metachunk::allocate(), so we keep a limit until which we are guaranteed
-  //  to have committed memory under us.)
+  //  in Metachunk::allocate().)
   size_t _committed_words;
 
   chklvl_t _level; // aka size.
@@ -99,6 +100,10 @@ class Metachunk {
 
   // Furthermore, we keep, per chunk, information about the neighboring chunks.
   // This is needed to split and merge chunks.
+  //
+  // Note: These members can be modified concurrently while a chunk is alive and in use.
+  // This can happen if a neighboring chunk is added or removed.
+  // This means only read or modify these members under expand lock protection.
   Metachunk* _prev_in_vs;
   Metachunk* _next_in_vs;
 
@@ -107,6 +112,8 @@ class Metachunk {
   // Commit uncommitted section of the chunk.
   // Fails if we hit a commit limit.
   bool commit_up_to(size_t new_committed_words);
+
+  DEBUG_ONLY(static void assert_have_expand_lock();)
 
 public:
 
@@ -136,10 +143,10 @@ public:
   DEBUG_ONLY(bool in_list() const { return _prev != NULL || _next != NULL; })
 
   // Physical neighbors wiring
-  void set_prev_in_vs(Metachunk* c) { _prev_in_vs = c; }
-  Metachunk* prev_in_vs() const     { return _prev_in_vs; }
-  void set_next_in_vs(Metachunk* c) { _next_in_vs = c; }
-  Metachunk* next_in_vs() const     { return _next_in_vs; }
+  void set_prev_in_vs(Metachunk* c) { DEBUG_ONLY(assert_have_expand_lock()); _prev_in_vs = c; }
+  Metachunk* prev_in_vs() const     { DEBUG_ONLY(assert_have_expand_lock()); return _prev_in_vs; }
+  void set_next_in_vs(Metachunk* c) { DEBUG_ONLY(assert_have_expand_lock()); _next_in_vs = c; }
+  Metachunk* next_in_vs() const     { DEBUG_ONLY(assert_have_expand_lock()); return _next_in_vs; }
 
   bool is_free() const            { return _state == state_free; }
   bool is_in_use() const          { return _state == state_in_use; }
@@ -226,6 +233,8 @@ public:
   //// Debug stuff ////
 #ifdef ASSERT
   void verify(bool slow) const;
+  // Verifies linking with neighbors in virtual space. Needs expand lock protection.
+  void verify_neighborhood() const;
   void zap_header(uint8_t c = 0x17);
   void fill_with_pattern(MetaWord pattern, size_t word_size);
   void check_pattern(MetaWord pattern, size_t word_size);
@@ -313,7 +322,7 @@ public:
 
 #ifdef ASSERT
   bool contains(const Metachunk* c) const;
-  void verify(bool slow) const;
+  void verify() const;
 #endif
 
   // Returns size, in words, of committed space of all chunks in this list.

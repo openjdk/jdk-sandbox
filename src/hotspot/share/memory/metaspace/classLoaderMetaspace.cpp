@@ -78,8 +78,12 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
         "class sm");
   }
 
-  DEBUG_ONLY(InternalStats::inc_num_metaspace_births();)
-
+#ifdef ASSERT
+  InternalStats::inc_num_metaspace_births();
+  if (_space_type == metaspace::UnsafeAnonymousMetaspaceType) {
+    InternalStats::inc_num_anon_cld_births();
+  }
+#endif
 }
 
 ClassLoaderMetaspace::~ClassLoaderMetaspace() {
@@ -88,7 +92,12 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
   delete _non_class_space_manager;
   delete _class_space_manager;
 
-  DEBUG_ONLY(InternalStats::inc_num_metaspace_deaths();)
+#ifdef ASSERT
+  InternalStats::inc_num_metaspace_deaths();
+  if (_space_type == metaspace::UnsafeAnonymousMetaspaceType) {
+    InternalStats::inc_num_anon_cld_deaths();
+  }
+#endif
 
 }
 
@@ -159,13 +168,13 @@ void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
 }
 
 #ifdef ASSERT
-void ClassLoaderMetaspace::verify(bool slow) const {
+void ClassLoaderMetaspace::verify() const {
   check_valid_spacetype(_space_type);
   if (non_class_space_manager() != NULL) {
-    non_class_space_manager()->verify(slow);
+    non_class_space_manager()->verify();
   }
   if (class_space_manager() != NULL) {
-    class_space_manager()->verify(slow);
+    class_space_manager()->verify();
   }
 }
 #endif // ASSERT

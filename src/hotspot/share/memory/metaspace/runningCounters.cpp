@@ -31,8 +31,8 @@
 
 namespace metaspace {
 
-SizeAtomicCounter RunningCounters::_used_class_counter;
-SizeAtomicCounter RunningCounters::_used_nonclass_counter;
+SizeAtomicCounter RunningCounters::_used_class_counter("used-words-in-class-space");
+SizeAtomicCounter RunningCounters::_used_nonclass_counter("used-words-in-nonclass-space");
 
 // Return reserved size, in words, for Metaspace
 size_t RunningCounters::reserved_words() {

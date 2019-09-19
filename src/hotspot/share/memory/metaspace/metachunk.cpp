@@ -30,8 +30,10 @@
 #include "logging/log.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
+#include "runtime/mutexLocker.hpp"
 
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -51,6 +53,12 @@ char Metachunk::get_state_char() const {
   }
   return '?';
 }
+
+#ifdef ASSERT
+void Metachunk::assert_have_expand_lock() {
+  assert_lock_strong(MetaspaceExpand_lock);
+}
+#endif
 
 // Commit uncommitted section of the chunk.
 // Fails if we hit a commit limit.
@@ -222,6 +230,8 @@ MetaWord* Metachunk::allocate(size_t request_word_size, bool* p_did_hit_commit_l
 
   _used_words += request_word_size;
 
+  SOMETIMES(verify(false);)
+
   return p;
 
 }
@@ -275,74 +285,70 @@ void Metachunk::check_pattern(MetaWord pattern, size_t word_size) {
   }
 }
 
-volatile MetaWord dummy = 0;
 
-void Metachunk::verify(bool slow) const {
+// Verifies linking with neighbors in virtual space.
+// Can only be done under expand lock protection.
+void Metachunk::verify_neighborhood() const {
 
-  assert(!is_dead(), "dead chunk.");
+  assert_lock_strong(MetaspaceExpand_lock);
+  assert(!is_dead(), "Do not call on dead chunks.");
 
-  // Note: only call this on a life Metachunk.
-  chklvl::check_valid_level(level());
+  if (is_root_chunk()) {
 
-  assert(base() != NULL, "No base ptr");
-  assert(committed_words() >= used_words(),
-         "mismatch: committed: " SIZE_FORMAT ", used: " SIZE_FORMAT ".",
-         committed_words(), used_words());
-  assert(word_size() >= committed_words(),
-         "mismatch: word_size: " SIZE_FORMAT ", committed: " SIZE_FORMAT ".",
-         word_size(), committed_words());
+    // Root chunks are all alone in the world.
+    assert(next_in_vs() == NULL || prev_in_vs() == NULL, "Root chunks should have no neighbors");
 
-  // Test base pointer
-  assert(vsnode() != NULL, "No space");
-  vsnode()->check_pointer(base());
-  assert(base() != NULL, "Base pointer NULL");
+  } else {
 
-  // Neighbors shall be adjacent to us...
-  if (prev_in_vs() != NULL) {
-    assert(prev_in_vs()->end() == base() &&
-           prev_in_vs()->next_in_vs() == this,
-           "Chunk " METACHUNK_FORMAT ": broken link to left neighbor: " METACHUNK_FORMAT ".",
-           METACHUNK_FORMAT_ARGS(this), METACHUNK_FORMAT_ARGS(prev_in_vs()));
-  }
-
-  if (next_in_vs() != NULL) {
-    assert(end() == next_in_vs()->base() &&
-           next_in_vs()->prev_in_vs() == this,
-           "Chunk " METACHUNK_FORMAT ": broken link to right neighbor: " METACHUNK_FORMAT ".",
-           METACHUNK_FORMAT_ARGS(this), METACHUNK_FORMAT_ARGS(next_in_vs()));
-  }
-
-  // Starting address shall be aligned to chunk size.
-  const size_t required_alignment = word_size() * sizeof(MetaWord);
-  assert_is_aligned(base(), required_alignment);
-
-  if (!is_root_chunk()) {
+    // Non-root chunks have neighbors, at least one, possibly two.
 
     assert(next_in_vs() != NULL || prev_in_vs() != NULL,
            "A non-root chunk should have neighbors (chunk @" PTR_FORMAT
            ", base " PTR_FORMAT ", level " CHKLVL_FORMAT ".",
            p2i(this), p2i(base()), level());
 
-    // check buddy. Note: the chunk following us or preceeding us may
-    // be our buddy or a splintered part of it.
+    if (prev_in_vs() != NULL) {
+      assert(prev_in_vs()->end() == base(),
+             "Chunk " METACHUNK_FULL_FORMAT ": should be adjacent to predecessor: " METACHUNK_FULL_FORMAT ".",
+             METACHUNK_FULL_FORMAT_ARGS(this), METACHUNK_FULL_FORMAT_ARGS(prev_in_vs()));
+      assert(prev_in_vs()->next_in_vs() == this,
+             "Chunk " METACHUNK_FULL_FORMAT ": broken link to left neighbor: " METACHUNK_FULL_FORMAT " (" PTR_FORMAT ").",
+             METACHUNK_FULL_FORMAT_ARGS(this), METACHUNK_FULL_FORMAT_ARGS(prev_in_vs()), p2i(prev_in_vs()->next_in_vs()));
+    }
+
+    if (next_in_vs() != NULL) {
+      assert(end() == next_in_vs()->base(),
+             "Chunk " METACHUNK_FULL_FORMAT ": should be adjacent to successor: " METACHUNK_FULL_FORMAT ".",
+             METACHUNK_FULL_FORMAT_ARGS(this), METACHUNK_FULL_FORMAT_ARGS(next_in_vs()));
+      assert(next_in_vs()->prev_in_vs() == this,
+             "Chunk " METACHUNK_FULL_FORMAT ": broken link to right neighbor: " METACHUNK_FULL_FORMAT " (" PTR_FORMAT ").",
+             METACHUNK_FULL_FORMAT_ARGS(this), METACHUNK_FULL_FORMAT_ARGS(next_in_vs()), p2i(next_in_vs()->prev_in_vs()));
+    }
+
+    // One of the neighbors must be the buddy. It can be whole or splintered.
+
+    // The chunk following us or preceeding us may be our buddy or a splintered part of it.
     Metachunk* buddy = is_leader() ? next_in_vs() : prev_in_vs();
 
     assert(buddy != NULL, "Missing neighbor.");
-    assert(!buddy->is_dead(), "buddy dead.");
+    assert(!buddy->is_dead(), "Invalid buddy state.");
 
     // This neighbor is either or buddy (same level) or a splinter of our buddy - hence
-    // the level can never be smaller (larger chunk size).
+    // the level can never be smaller (aka the chunk size cannot be larger).
     assert(buddy->level() >= level(), "Wrong level.");
+
     if (buddy->level() == level()) {
 
-      // we have a direct, unsplintered buddy.
-      assert(buddy->is_leader() == !is_leader(), "Only one chunk can be leader in a pair");
+      // If the buddy is of the same size as us, it is unsplintered.
+      assert(buddy->is_leader() == !is_leader(),
+             "Only one chunk can be leader in a pair");
 
       // When direct buddies are neighbors, one or both should be in use, otherwise they should
       // have been merged.
 
-      // Since we call verify() from internal functions where we are about to merge or just did split,
-      // do not test this.
+      // But since we call this verification function from internal functions where we are about to merge or just did split,
+      // do not test this. We have RootChunkArea::verify_area_is_ideally_merged() for testing that.
+
       // assert(buddy->is_in_use() || is_in_use(), "incomplete merging?");
 
       if (is_leader()) {
@@ -352,15 +358,53 @@ void Metachunk::verify(bool slow) const {
         assert(buddy->end() == base(), "Sanity");
         assert(is_aligned(buddy->base(), word_size() * 2 * BytesPerWord), "Sanity");
       }
+
     } else {
+
       // Buddy, but splintered, and this is a part of it.
       if (is_leader()) {
         assert(buddy->base() == end(), "Sanity");
       } else {
         assert(buddy->end() > (base() - word_size()), "Sanity");
       }
+
     }
   }
+}
+
+volatile MetaWord dummy = 0;
+
+void Metachunk::verify(bool slow) const {
+
+  // Note. This should be called under CLD lock protection.
+
+  // We can verify everything except the _prev_in_vs/_next_in_vs pair.
+  // This is because neighbor chunks may be added concurrently, so we cannot rely
+  //  on the content of _next_in_vs/_prev_in_vs unless we have the expand lock.
+
+  assert(!is_dead(), "Do not call on dead chunks.");
+
+  // Note: only call this on a life Metachunk.
+  chklvl::check_valid_level(level());
+
+  assert(base() != NULL, "No base ptr");
+
+  assert(committed_words() >= used_words(),
+         "mismatch: committed: " SIZE_FORMAT ", used: " SIZE_FORMAT ".",
+         committed_words(), used_words());
+
+  assert(word_size() >= committed_words(),
+         "mismatch: word_size: " SIZE_FORMAT ", committed: " SIZE_FORMAT ".",
+         word_size(), committed_words());
+
+  // Test base pointer
+  assert(base() != NULL, "Base pointer NULL");
+  assert(vsnode() != NULL, "No space");
+  vsnode()->check_pointer(base());
+
+  // Starting address shall be aligned to chunk size.
+  const size_t required_alignment = word_size() * sizeof(MetaWord);
+  assert_is_aligned(base(), required_alignment);
 
   // If slow, test the committed area
   if (slow && _committed_words > 0) {
@@ -399,7 +443,7 @@ bool MetachunkList::contains(const Metachunk* c) const {
   return false;
 }
 
-void MetachunkList::verify(bool slow) const {
+void MetachunkList::verify() const {
   int num = 0;
   const Metachunk* last_c = NULL;
   for (const Metachunk* c = first(); c != NULL; c = c->next()) {
@@ -407,9 +451,7 @@ void MetachunkList::verify(bool slow) const {
     assert(c->prev() == last_c,
            "Broken link to predecessor. Chunk " METACHUNK_FULL_FORMAT ".",
            METACHUNK_FULL_FORMAT_ARGS(c));
-    if (slow) {
-      c->verify(false);
-    }
+    c->verify(false);
     last_c = c;
   }
   _num.check(num);
@@ -458,7 +500,7 @@ void MetachunkListCluster::verify(bool slow) const {
     }
 
     // Check each list.
-    list_for_level(l)->verify(slow);
+    list_for_level(l)->verify();
 
     num += list_for_level(l)->size();
     word_size += list_for_level(l)->size() * chklvl::word_size_for_level(l);
