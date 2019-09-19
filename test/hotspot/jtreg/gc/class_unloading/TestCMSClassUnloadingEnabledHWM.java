@@ -106,7 +106,14 @@ public class TestCMSClassUnloadingEnabledHWM {
       // Allocate past the MetaspaceSize limit.
       long metaspaceSize = Long.parseLong(args[0]);
       long allocationBeyondMetaspaceSize  = metaspaceSize * 2;
-      long metaspace = wb.allocateMetaspace(null, allocationBeyondMetaspaceSize);
+
+      // There is a max. value to how much metaspace can be allocated in one allocation.
+      final long max = 1024 * 1024 * 4;
+      while (allocationBeyondMetaspaceSize > 0) {
+        long s = max < allocationBeyondMetaspaceSize ? max : allocationBeyondMetaspaceSize;
+        wb.allocateMetaspace(null, s);
+        allocationBeyondMetaspaceSize -= s;
+      }
 
       // Wait for at least one GC to occur. The caller will parse the log files produced.
       GarbageCollectorMXBean cmsGCBean = getCMSGCBean();
@@ -114,7 +121,6 @@ public class TestCMSClassUnloadingEnabledHWM {
         Thread.sleep(100);
       }
 
-      wb.freeMetaspace(null, metaspace, metaspace);
     }
 
     private static GarbageCollectorMXBean getCMSGCBean() {

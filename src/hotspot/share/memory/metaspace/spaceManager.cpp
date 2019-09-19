@@ -93,8 +93,9 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   assert_lock_strong(lock());
 
-  guarantee(requested_word_size < chklvl::MAX_CHUNK_WORD_SIZE,
-            "Requested size too large (" SIZE_FORMAT ").", requested_word_size);
+  guarantee(requested_word_size <= chklvl::MAX_CHUNK_WORD_SIZE,
+            "Requested size too large (" SIZE_FORMAT ") - max allowed size per allocation is " SIZE_FORMAT ".",
+            requested_word_size, chklvl::MAX_CHUNK_WORD_SIZE);
 
   // If we have a current chunk, it should have been retired (almost empty) beforehand.
   // See: retire_current_chunk().
