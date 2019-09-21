@@ -56,8 +56,7 @@ public final class Repository {
         return instance;
     }
 
-    public synchronized void setBasePath(SafePath baseLocation) throws Exception {
-
+    public synchronized void setBasePath(SafePath baseLocation) throws IOException {
         if(baseLocation.equals(this.baseLocation)) {
             Logger.log(LogTag.JFR, LogLevel.INFO, "Same base repository path " + baseLocation.toString() + " is set");
             return;
