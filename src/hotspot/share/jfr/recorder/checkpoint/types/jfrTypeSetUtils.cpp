@@ -68,7 +68,6 @@ void JfrSymbolId::clear() {
   assert(!_cstring_table->has_entries(), "invariant");
 
   _sym_list = NULL;
-  _cstring_list = NULL;
   _symbol_id_counter = 1;
 
   _sym_query = NULL;
@@ -248,16 +247,19 @@ traceid JfrSymbolId::mark(const Klass* k, bool leakp) {
 }
 
 JfrArtifactSet::JfrArtifactSet(bool class_unload) : _symbol_id(new JfrSymbolId()),
-                                                     _klass_list(NULL),
-                                                     _total_count(0) {
+                                                    _klass_list(NULL),
+                                                    _total_count(0) {
   initialize(class_unload);
   assert(_klass_list != NULL, "invariant");
 }
 
 static const size_t initial_class_list_size = 200;
 
-void JfrArtifactSet::initialize(bool class_unload) {
+void JfrArtifactSet::initialize(bool class_unload, bool clear /* false */) {
   assert(_symbol_id != NULL, "invariant");
+  if (clear) {
+    _symbol_id->clear();
+  }
   _symbol_id->set_class_unload(class_unload);
   _total_count = 0;
   // resource allocation
@@ -265,12 +267,8 @@ void JfrArtifactSet::initialize(bool class_unload) {
 }
 
 JfrArtifactSet::~JfrArtifactSet() {
-  clear();
-  delete _symbol_id;
-}
-
-void JfrArtifactSet::clear() {
   _symbol_id->clear();
+  delete _symbol_id;
   // _klass_list will be cleared by a ResourceMark
 }
 

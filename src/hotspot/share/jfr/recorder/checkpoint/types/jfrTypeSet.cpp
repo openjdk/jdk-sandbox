@@ -824,6 +824,12 @@ static void write_symbols() {
   _artifacts->tally(sw);
 }
 
+static bool clear_artifacts = false;
+
+void JfrTypeSet::clear() {
+  clear_artifacts = true;
+}
+
 typedef Wrapper<KlassPtr, ClearArtifact> ClearKlassBits;
 typedef Wrapper<MethodPtr, ClearArtifact> ClearMethodFlag;
 typedef MethodIteratorHost<ClearMethodFlag, ClearKlassBits, false> ClearKlassAndMethods;
@@ -835,7 +841,7 @@ static size_t teardown() {
     assert(_writer != NULL, "invariant");
     ClearKlassAndMethods clear(_writer);
     _artifacts->iterate_klasses(clear);
-    _artifacts->clear();
+    JfrTypeSet::clear();
     ++checkpoint_id;
   }
   return total_count;
@@ -849,7 +855,8 @@ static void setup(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer
   if (_artifacts == NULL) {
     _artifacts = new JfrArtifactSet(class_unload);
   } else {
-    _artifacts->initialize(class_unload);
+    _artifacts->initialize(class_unload, clear_artifacts);
+    clear_artifacts = false;
   }
   assert(_artifacts != NULL, "invariant");
   assert(!_artifacts->has_klass_entries(), "invariant");

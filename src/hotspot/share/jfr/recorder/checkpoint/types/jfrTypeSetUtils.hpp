@@ -302,9 +302,7 @@ class JfrArtifactSet : public JfrCHeapObj {
   ~JfrArtifactSet();
 
   // caller needs ResourceMark
-  void initialize(bool class_unload);
-  void clear();
-
+  void initialize(bool class_unload, bool clear = false);
 
   traceid mark(uintptr_t hash, const Symbol* sym, bool leakp);
   traceid mark(const Klass* klass, bool leakp);

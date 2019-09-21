@@ -195,7 +195,7 @@ typedef JfrDoublyLinkedList<JfrSerializerRegistration> List;
 typedef StopOnNullIterator<const List> Iterator;
 static List types;
 
-void JfrTypeManager::clear() {
+void JfrTypeManager::destroy() {
   SerializerRegistrationGuard guard;
   Iterator iter(types);
   JfrSerializerRegistration* registration;
@@ -204,6 +204,11 @@ void JfrTypeManager::clear() {
     assert(registration != NULL, "invariant");
     delete registration;
   }
+}
+
+void JfrTypeManager::clear() {
+  TypeSet type_set;
+  type_set.clear();
 }
 
 void JfrTypeManager::on_rotation() {

@@ -357,6 +357,7 @@ size_t JfrCheckpointManager::flush() {
 
 typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
 size_t JfrCheckpointManager::clear() {
+  JfrTypeManager::clear();
   DiscardOperation discarder(mutexed); // mutexed discard mode
   process_free_list(discarder, _free_list_mspace);
   process_free_list(discarder, _epoch_transition_mspace);

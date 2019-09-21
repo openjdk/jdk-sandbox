@@ -33,6 +33,7 @@ class TypeSet : public JfrSerializer {
  public:
   explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
   void serialize(JfrCheckpointWriter& writer);
+  void clear();
 };
 
 class ClassUnloadTypeSet : public JfrSerializer {

@@ -303,6 +303,10 @@ size_t FlushTypeSet::elements() const {
 
 TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
 
+void TypeSet::clear() {
+  JfrTypeSet::clear();
+}
+
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   MutexLocker cld_lock(ClassLoaderDataGraph_lock);

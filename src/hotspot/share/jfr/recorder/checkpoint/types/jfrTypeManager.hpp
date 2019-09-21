@@ -32,6 +32,7 @@ class JfrCheckpointWriter;
 class JfrTypeManager : public AllStatic {
  public:
   static bool initialize();
+  static void destroy();
   static void clear();
   static void on_rotation();
   static void write_threads(JfrCheckpointWriter& writer);
