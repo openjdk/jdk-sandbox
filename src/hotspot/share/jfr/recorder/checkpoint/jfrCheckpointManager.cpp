@@ -84,7 +84,7 @@ JfrCheckpointManager::~JfrCheckpointManager() {
   if (_lock != NULL) {
     delete _lock;
   }
-  JfrTypeManager::clear();
+  JfrTypeManager::destroy();
 }
 
 static const size_t unlimited_mspace_size = 0;
