@@ -802,7 +802,6 @@ protected:
   static void SpinAcquire(volatile int * Lock, const char * Name);
   static void SpinRelease(volatile int * Lock);
   static void muxAcquire(volatile intptr_t * Lock, const char * Name);
-  static void muxAcquireW(volatile intptr_t * Lock, ParkEvent * ev);
   static void muxRelease(volatile intptr_t * Lock);
 };
 
@@ -1886,7 +1885,7 @@ class JavaThread: public Thread {
   void deoptimize();
   void make_zombies();
 
-  void deoptimized_wrt_marked_nmethods();
+  void deoptimize_marked_methods();
 
  public:
   // Returns the running thread as a JavaThread

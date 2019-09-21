@@ -2894,7 +2894,7 @@ void JavaThread::make_zombies() {
 #endif // PRODUCT
 
 
-void JavaThread::deoptimized_wrt_marked_nmethods() {
+void JavaThread::deoptimize_marked_methods() {
   if (!has_last_Java_frame()) return;
   // BiasedLocking needs an updated RegisterMap for the revoke monitors pass
   StackFrameStream fst(this, UseBiasedLocking);
@@ -2904,7 +2904,6 @@ void JavaThread::deoptimized_wrt_marked_nmethods() {
     }
   }
 }
-
 
 // If the caller is a NamedThread, then remember, in the current scope,
 // the given JavaThread in its _processed_thread field.
@@ -4638,13 +4637,6 @@ void Threads::metadata_handles_do(void f(Metadata*)) {
   threads_do(&handles_closure);
 }
 
-void Threads::deoptimized_wrt_marked_nmethods() {
-  ALL_JAVA_THREADS(p) {
-    p->deoptimized_wrt_marked_nmethods();
-  }
-}
-
-
 // Get count Java threads that are waiting to enter the specified monitor.
 GrowableArray<JavaThread*>* Threads::get_pending_threads(ThreadsList * t_list,
                                                          int count,
@@ -4996,65 +4988,6 @@ void Thread::muxAcquire(volatile intptr_t * Lock, const char * LockName) {
 
     while (Self->OnList != 0) {
       Self->park();
-    }
-  }
-}
-
-void Thread::muxAcquireW(volatile intptr_t * Lock, ParkEvent * ev) {
-  intptr_t w = Atomic::cmpxchg(LOCKBIT, Lock, (intptr_t)0);
-  if (w == 0) return;
-  if ((w & LOCKBIT) == 0 && Atomic::cmpxchg(w|LOCKBIT, Lock, w) == w) {
-    return;
-  }
-
-  ParkEvent * ReleaseAfter = NULL;
-  if (ev == NULL) {
-    ev = ReleaseAfter = ParkEvent::Allocate(NULL);
-  }
-  assert((intptr_t(ev) & LOCKBIT) == 0, "invariant");
-  for (;;) {
-    guarantee(ev->OnList == 0, "invariant");
-    int its = (os::is_MP() ? 100 : 0) + 1;
-
-    // Optional spin phase: spin-then-park strategy
-    while (--its >= 0) {
-      w = *Lock;
-      if ((w & LOCKBIT) == 0 && Atomic::cmpxchg(w|LOCKBIT, Lock, w) == w) {
-        if (ReleaseAfter != NULL) {
-          ParkEvent::Release(ReleaseAfter);
-        }
-        return;
-      }
-    }
-
-    ev->reset();
-    ev->OnList = intptr_t(Lock);
-    // The following fence() isn't _strictly necessary as the subsequent
-    // CAS() both serializes execution and ratifies the fetched *Lock value.
-    OrderAccess::fence();
-    for (;;) {
-      w = *Lock;
-      if ((w & LOCKBIT) == 0) {
-        if (Atomic::cmpxchg(w|LOCKBIT, Lock, w) == w) {
-          ev->OnList = 0;
-          // We call ::Release while holding the outer lock, thus
-          // artificially lengthening the critical section.
-          // Consider deferring the ::Release() until the subsequent unlock(),
-          // after we've dropped the outer lock.
-          if (ReleaseAfter != NULL) {
-            ParkEvent::Release(ReleaseAfter);
-          }
-          return;
-        }
-        continue;      // Interference -- *Lock changed -- Just retry
-      }
-      assert(w & LOCKBIT, "invariant");
-      ev->ListNext = (ParkEvent *) (w & ~LOCKBIT);
-      if (Atomic::cmpxchg(intptr_t(ev)|LOCKBIT, Lock, w) == w) break;
-    }
-
-    while (ev->OnList != 0) {
-      ev->park();
     }
   }
 }

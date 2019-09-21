@@ -182,6 +182,19 @@ public final class SecuritySupport {
         public int compareTo(SafePath that) {
             return that.text.compareTo(this.text);
         }
+
+        @Override
+        public boolean equals(Object other) {
+            if(other != null && other instanceof SafePath){
+                return this.toPath().equals(((SafePath) other).toPath());
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            return this.toPath().hashCode();
+        }
     }
 
     private interface RunnableWithCheckedException {
