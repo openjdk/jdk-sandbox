@@ -196,9 +196,10 @@ class StringPoolOp {
   size_t processed() { return _strings_processed; }
 };
 
-template <typename Type>
+template <typename T>
 class StringPoolDiscarderStub {
  public:
+  typedef T Type;
   bool write(Type* buffer, const u1* data, size_t size) {
     // stub only, discard happens at higher level
     return true;

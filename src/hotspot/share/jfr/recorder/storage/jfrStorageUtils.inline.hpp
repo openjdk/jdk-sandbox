@@ -57,14 +57,6 @@ inline bool ConcurrentWriteOp<Operation>::process(typename Operation::Type* t) {
 }
 
 template <typename Operation>
-inline bool ConcurrentWriteOpExcludeRetired<Operation>::process(typename Operation::Type* t) {
-  if (t->retired() || t->excluded()) {
-    return true;
-  }
-  return ConcurrentWriteOp<Operation>::process(t);
-}
-
-template <typename Operation>
 inline bool MutexedWriteOp<Operation>::process(typename Operation::Type* t) {
   assert(t != NULL, "invariant");
   const u1* const current_top = t->top();

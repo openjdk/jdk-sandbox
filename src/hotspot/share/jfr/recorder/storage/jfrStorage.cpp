@@ -601,12 +601,20 @@ BufferPtr JfrStorage::provision_large(BufferPtr cur, const u1* const cur_pos, si
 typedef UnBufferedWriteToChunk<JfrBuffer> WriteOperation;
 typedef MutexedWriteOp<WriteOperation> MutexedWriteOperation;
 typedef ConcurrentWriteOp<WriteOperation> ConcurrentWriteOperation;
-typedef ConcurrentWriteOpExcludeRetired<WriteOperation> ThreadLocalConcurrentWriteOperation;
+
+typedef Retired<JfrBuffer, true> NonRetired;
+typedef Excluded<JfrBuffer, true> NonExcluded;
+typedef CompositeOperation<NonRetired, NonExcluded, And> BufferPredicate;
+typedef PredicatedMutexedWriteOp<WriteOperation, BufferPredicate> ThreadLocalMutexedWriteOperation;
+typedef PredicatedConcurrentWriteOp<WriteOperation, BufferPredicate> ThreadLocalConcurrentWriteOperation;
 
 size_t JfrStorage::write() {
   const size_t full_elements = write_full();
   WriteOperation wo(_chunkwriter);
-  ThreadLocalConcurrentWriteOperation tlwo(wo);
+  NonRetired nr;
+  NonExcluded ne;
+  BufferPredicate bp(&nr, &ne);
+  ThreadLocalConcurrentWriteOperation tlwo(wo, bp);
   process_full_list(tlwo, _thread_local_mspace);
   ConcurrentWriteOperation cwo(wo);
   process_free_list(cwo, _global_mspace);
@@ -617,7 +625,11 @@ size_t JfrStorage::write_at_safepoint() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   WriteOperation wo(_chunkwriter);
   MutexedWriteOperation writer(wo); // mutexed write mode
-  process_full_list(writer, _thread_local_mspace);
+  NonRetired nr;
+  NonExcluded ne;
+  BufferPredicate bp(&nr, &ne);
+  ThreadLocalMutexedWriteOperation tlmwo(wo, bp);
+  process_full_list(tlmwo, _thread_local_mspace);
   assert(_transient_mspace->is_free_empty(), "invariant");
   process_full_list(writer, _transient_mspace);
   assert(_global_mspace->is_full_empty(), "invariant");

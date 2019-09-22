@@ -31,7 +31,21 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/thread.hpp"
 
-template <typename Operation, typename NextOperation>
+class Or {
+ public:
+  static bool evaluate(bool value) {
+    return !value;
+  }
+};
+
+class And {
+ public:
+  static bool evaluate(bool value) {
+    return value;
+  }
+};
+
+template <typename Operation, typename NextOperation, typename TruthFunction = And>
 class CompositeOperation {
  private:
   Operation* _op;
@@ -41,8 +55,9 @@ class CompositeOperation {
     assert(_op != NULL, "invariant");
   }
   typedef typename Operation::Type Type;
-  bool process(Type* t = NULL) {
-    return _next == NULL ? _op->process(t) : _op->process(t) && _next->process(t);
+  bool process(Type* t) {
+    const bool op_result = _op->process(t);
+    return _next == NULL ? op_result : TruthFunction::evaluate(op_result) ? _next->process(t) : op_result;
   }
   size_t elements() const {
     return _next == NULL ? _op->elements() : _op->elements() + _next->elements();
@@ -79,26 +94,24 @@ class DefaultDiscarder {
   size_t size() const { return _size; }
 };
 
-template <typename Operation>
-class ConcurrentWriteOp {
- private:
-  Operation& _operation;
+template <typename T, bool negation>
+class Retired {
  public:
-  typedef typename Operation::Type Type;
-  ConcurrentWriteOp(Operation& operation) : _operation(operation) {}
-  bool process(Type* t);
-  size_t elements() const { return _operation.elements(); }
-  size_t size() const { return _operation.size(); }
+  typedef typename T Type;
+  bool process(T* t) {
+    assert(t != NULL, "invariant");
+    return negation ? !t->retired() : t->retired();
+  }
 };
 
-template <typename Operation>
-class ConcurrentWriteOpExcludeRetired : private ConcurrentWriteOp<Operation> {
+template <typename T, bool negation>
+class Excluded {
  public:
-  typedef typename Operation::Type Type;
-  ConcurrentWriteOpExcludeRetired(Operation& operation) : ConcurrentWriteOp<Operation>(operation) {}
-  bool process(Type* t);
-  size_t elements() const { return ConcurrentWriteOp<Operation>::elements();}
-  size_t size() const { return ConcurrentWriteOp<Operation>::size(); }
+  typedef typename T Type;
+  bool process(T* t) {
+    assert(t != NULL, "invariant");
+    return negation ? !t->excluded() : t->excluded();
+  }
 };
 
 template <typename Operation>
@@ -111,6 +124,42 @@ class MutexedWriteOp {
   bool process(Type* t);
   size_t elements() const { return _operation.elements(); }
   size_t size() const { return _operation.size(); }
+};
+
+template <typename Operation, typename Predicate>
+class PredicatedMutexedWriteOp : public MutexedWriteOp<Operation> {
+ private:
+  Predicate& _predicate;
+ public:
+  PredicatedMutexedWriteOp(Operation& operation, Predicate& predicate) :
+    MutexedWriteOp(operation), _predicate(predicate) {}
+  bool process(Type* t) {
+    return _predicate.process(t) ? MutexedWriteOp<Operation>::process(t) : true;
+  }
+};
+
+template <typename Operation>
+class ConcurrentWriteOp {
+ private:
+  Operation& _operation;
+ public:
+  typedef typename Operation::Type Type;
+  ConcurrentWriteOp(Operation& operation) : _operation(operation) {}
+  bool process(Type* t);
+  size_t elements() const { return _operation.elements(); }
+  size_t size() const { return _operation.size(); }
+};
+
+template <typename Operation, typename Predicate>
+class PredicatedConcurrentWriteOp : public ConcurrentWriteOp<Operation> {
+ private:
+  Predicate& _predicate;
+ public:
+  PredicatedConcurrentWriteOp(Operation& operation, Predicate& predicate) :
+    ConcurrentWriteOp(operation), _predicate(predicate) {}
+  bool process(Type* t) {
+    return _predicate.process(t) ? ConcurrentWriteOp<Operation>::process(t) : true;
+  }
 };
 
 template <typename Operation>
