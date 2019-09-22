@@ -604,7 +604,7 @@ typedef ConcurrentWriteOp<WriteOperation> ConcurrentWriteOperation;
 
 typedef Retired<JfrBuffer, true> NonRetired;
 typedef Excluded<JfrBuffer, true> NonExcluded;
-typedef CompositeOperation<NonRetired, NonExcluded, And> BufferPredicate;
+typedef CompositeOperation<NonRetired, NonExcluded> BufferPredicate;
 typedef PredicatedMutexedWriteOp<WriteOperation, BufferPredicate> ThreadLocalMutexedWriteOperation;
 typedef PredicatedConcurrentWriteOp<WriteOperation, BufferPredicate> ThreadLocalConcurrentWriteOperation;
 

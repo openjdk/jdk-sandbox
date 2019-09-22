@@ -323,7 +323,7 @@ static size_t write_mspace(JfrCheckpointMspace* mspace, JfrChunkWriter& chunkwri
   WriteOperation wo(chunkwriter);
   WriterHost<WriteOperation> wh(wo);
   CheckpointReleaseOperation cro(mspace, Thread::current(), false);
-  CompositeOperation<WriterHost<WriteOperation>, CheckpointReleaseOperation, And> co(&wh, &cro);
+  CompositeOperation<WriterHost<WriteOperation>, CheckpointReleaseOperation, CompositeOperationAnd> co(&wh, &cro);
   assert(mspace->is_full_empty(), "invariant");
   process_free_list(co, mspace);
   return wo.processed();

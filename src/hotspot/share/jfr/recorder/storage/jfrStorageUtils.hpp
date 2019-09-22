@@ -31,21 +31,21 @@
 #include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/thread.hpp"
 
-class Or {
+class CompositeOperationOr {
  public:
   static bool evaluate(bool value) {
     return !value;
   }
 };
 
-class And {
+class CompositeOperationAnd {
  public:
   static bool evaluate(bool value) {
     return value;
   }
 };
 
-template <typename Operation, typename NextOperation, typename TruthFunction = And>
+template <typename Operation, typename NextOperation, typename TruthFunction = CompositeOperationAnd>
 class CompositeOperation {
  private:
   Operation* _op;
