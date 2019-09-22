@@ -132,7 +132,7 @@ class PredicatedMutexedWriteOp : public MutexedWriteOp<Operation> {
   Predicate& _predicate;
  public:
   PredicatedMutexedWriteOp(Operation& operation, Predicate& predicate) :
-    MutexedWriteOp(operation), _predicate(predicate) {}
+    MutexedWriteOp<Operation>(operation), _predicate(predicate) {}
   bool process(typename Operation::Type* t) {
     return _predicate.process(t) ? MutexedWriteOp<Operation>::process(t) : true;
   }
@@ -156,7 +156,7 @@ class PredicatedConcurrentWriteOp : public ConcurrentWriteOp<Operation> {
   Predicate& _predicate;
  public:
   PredicatedConcurrentWriteOp(Operation& operation, Predicate& predicate) :
-    ConcurrentWriteOp(operation), _predicate(predicate) {}
+    ConcurrentWriteOp<Operation>(operation), _predicate(predicate) {}
   bool process(typename Operation::Type* t) {
     return _predicate.process(t) ? ConcurrentWriteOp<Operation>::process(t) : true;
   }
