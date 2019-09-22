@@ -856,8 +856,8 @@ static void setup(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer
     _artifacts = new JfrArtifactSet(class_unload);
   } else {
     _artifacts->initialize(class_unload, clear_artifacts);
-    clear_artifacts = false;
   }
+  clear_artifacts = false;
   assert(_artifacts != NULL, "invariant");
   assert(!_artifacts->has_klass_entries(), "invariant");
 }
