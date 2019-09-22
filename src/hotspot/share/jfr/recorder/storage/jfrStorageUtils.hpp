@@ -97,8 +97,8 @@ class DefaultDiscarder {
 template <typename T, bool negation>
 class Retired {
  public:
-  typedef typename T Type;
-  bool process(T* t) {
+  typedef T Type;
+  bool process(Type* t) {
     assert(t != NULL, "invariant");
     return negation ? !t->retired() : t->retired();
   }
@@ -107,8 +107,8 @@ class Retired {
 template <typename T, bool negation>
 class Excluded {
  public:
-  typedef typename T Type;
-  bool process(T* t) {
+  typedef T Type;
+  bool process(Type* t) {
     assert(t != NULL, "invariant");
     return negation ? !t->excluded() : t->excluded();
   }
@@ -133,7 +133,7 @@ class PredicatedMutexedWriteOp : public MutexedWriteOp<Operation> {
  public:
   PredicatedMutexedWriteOp(Operation& operation, Predicate& predicate) :
     MutexedWriteOp(operation), _predicate(predicate) {}
-  bool process(Type* t) {
+  bool process(typename Operation::Type* t) {
     return _predicate.process(t) ? MutexedWriteOp<Operation>::process(t) : true;
   }
 };
@@ -157,7 +157,7 @@ class PredicatedConcurrentWriteOp : public ConcurrentWriteOp<Operation> {
  public:
   PredicatedConcurrentWriteOp(Operation& operation, Predicate& predicate) :
     ConcurrentWriteOp(operation), _predicate(predicate) {}
-  bool process(Type* t) {
+  bool process(typename Operation::Type* t) {
     return _predicate.process(t) ? ConcurrentWriteOp<Operation>::process(t) : true;
   }
 };
