@@ -32,7 +32,7 @@ import jdk.test.lib.jfr.EventNames;
 
 /**
  * @test
- * @summary Tests RecordingStrream::setFlushInterval
+ * @summary Tests RecordingStream::setFlushInterval
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
@@ -53,7 +53,8 @@ public class TestSetFlushInterval {
                     r.close();
                     return;
                 }
-                System.out.println("Flush interval not set, was " + duration+ ", but expected " + expectedDuration);
+                System.out.println("Flush interval not set, was " + duration +
+                                   ", but expected " + expectedDuration);
             });
             r.start();
         }

@@ -31,7 +31,7 @@ import jdk.jfr.consumer.EventStream;
 
 /**
  * @test
- * @summary Test that a event file stream can't be opened without permissions
+ * @summary Test that an event file stream can't be opened without permissions
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib

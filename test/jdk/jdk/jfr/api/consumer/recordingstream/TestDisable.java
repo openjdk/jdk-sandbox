@@ -37,7 +37,7 @@ import jdk.jfr.consumer.RecordingStream;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestConstructor
+ * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestDisable
  */
 public class TestDisable {
 

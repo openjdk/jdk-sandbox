@@ -35,7 +35,7 @@ import jdk.jfr.consumer.RecordingStream;
 
 /**
  * @test
- * @summary Tests RecordingStrream::setSettings
+ * @summary Tests RecordingStream::setSettings
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
@@ -46,6 +46,7 @@ public final class TestSetSettings {
     @Name("LateBloomer")
     private final static class LateBloomer extends Event {
     }
+
     private static CountDownLatch lateBloomer = new CountDownLatch(1);
 
     public static void main(String... args) throws Exception {

@@ -90,7 +90,7 @@ public class TestRepositoryProperty {
             r.start();
             String location = System.getProperty(JFR_REPOSITORY_LOCATION_PROPERTY);
             if (location == null) {
-                throw new AssertionError("Repository path should exit before JFR is initialized");
+                throw new AssertionError("Repository path should exist before JFR is initialized");
             }
             System.out.println("repository=" + location);
             Path p = Path.of(location);
@@ -104,7 +104,7 @@ public class TestRepositoryProperty {
     private static void testBeforeInitialization() {
         String location = System.getProperty(JFR_REPOSITORY_LOCATION_PROPERTY);
         if (location != null) {
-            throw new AssertionError("Repository path should exit before JFR is initialized");
+            throw new AssertionError("Repository path should not exist before JFR is initialized");
         }
     }
 }

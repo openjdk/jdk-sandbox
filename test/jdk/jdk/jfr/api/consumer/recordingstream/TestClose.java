@@ -54,6 +54,7 @@ public class TestClose {
     }
 
     private static void testCloseMySelf() throws Exception {
+        log("Entering testCloseMySelf()");
         CountDownLatch l1 = new CountDownLatch(1);
         CountDownLatch l2 = new CountDownLatch(1);
         RecordingStream r = new RecordingStream();
@@ -71,9 +72,11 @@ public class TestClose {
         c.commit();
         l1.countDown();
         l2.await();
+        log("Leaving testCloseMySelf()");
     }
 
     private static void testCloseStreaming() throws Exception {
+        log("Entering testCloseStreaming()");
         CountDownLatch streaming = new CountDownLatch(1);
         RecordingStream r = new RecordingStream();
         AtomicLong count = new AtomicLong();
@@ -92,24 +95,34 @@ public class TestClose {
         streaming.await();
         r.close();
         streamingLoop.cancel(true);
+        log("Leaving testCloseStreaming()");
     }
 
     private static void testCloseStarted() {
+        log("Entering testCloseStarted()");
         RecordingStream r = new RecordingStream();
         r.startAsync();
         r.close();
+        log("Leaving testCloseStarted()");
     }
 
     private static void testCloseUnstarted() {
+        log("Entering testCloseUnstarted()");
         RecordingStream r = new RecordingStream();
         r.close();
+        log("Leaving testCloseUnstarted()");
     }
 
     private static void testCloseTwice() {
+        log("Entering testCloseTwice()");
         RecordingStream r = new RecordingStream();
         r.startAsync();
         r.close();
         r.close();
+        log("Leaving testCloseTwice()");
     }
 
+    private static void log(String msg) {
+        System.out.println(msg);
+    }
 }

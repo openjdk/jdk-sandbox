@@ -61,6 +61,7 @@ public class TestOnEvent {
     }
 
     private static void testOnEventNull() {
+        log("Entering testOnEventNull()");
         try (RecordingStream rs = new RecordingStream()) {
            try {
                rs.onEvent(null);
@@ -83,9 +84,11 @@ public class TestOnEvent {
                // OK; as expected
            }
         }
+        log("Leaving testOnEventNull()");
      }
 
     private static void testTwoEventWithSameName() throws Exception {
+        log("Entering testTwoEventWithSameName()");
         CountDownLatch eventA = new CountDownLatch(2);
         try (RecordingStream r = new RecordingStream()) {
             r.onEvent("A", e -> {
@@ -99,9 +102,11 @@ public class TestOnEvent {
             a2.commit();
             eventA.await();
         }
+        log("Leaving testTwoEventWithSameName()");
     }
 
     private static void testNamedEvent() throws Exception {
+        log("Entering testNamedEvent()");
         try (RecordingStream r = new RecordingStream()) {
             CountDownLatch eventA = new CountDownLatch(1);
             CountDownLatch eventC = new CountDownLatch(1);
@@ -126,9 +131,11 @@ public class TestOnEvent {
             eventA.await();
             eventC.await();
         }
+        log("Leaving testNamedEvent()");
     }
 
     private static void testOnEvent() throws Exception {
+        log("Entering testOnEvent()");
         try (RecordingStream r = new RecordingStream()) {
             CountDownLatch event = new CountDownLatch(1);
             r.onEvent(e -> {
@@ -139,5 +146,10 @@ public class TestOnEvent {
             a.commit();
             event.await();
         }
+        log("Leaving testOnEvent()");
+    }
+
+    private static void log(String msg) {
+        System.out.println(msg);
     }
 }

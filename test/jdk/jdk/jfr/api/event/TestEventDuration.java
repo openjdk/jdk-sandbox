@@ -33,7 +33,7 @@ import jdk.test.lib.jfr.SimpleEvent;
 
 /**
  * @test
- * @summary Test s that a duration is recorded.
+ * @summary Tests that a duration is recorded.
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib

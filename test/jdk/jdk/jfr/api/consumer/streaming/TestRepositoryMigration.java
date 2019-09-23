@@ -68,6 +68,8 @@ public class TestRepositoryMigration {
                 }
             });
             es.startAsync();
+            System.out.println("Started es.startAsync()");
+
             try (Recording r = new Recording()) {
                 r.setFlushInterval(Duration.ofSeconds(1));
                 r.start();
@@ -76,6 +78,7 @@ public class TestRepositoryMigration {
                 e1.id = 1;
                 e1.commit();
                 event1.await();
+                System.out.println("Passed the event1.await()");
                 JcmdHelper.jcmd("JFR.configure", "repositorypath=" + newRepository.toAbsolutePath());
                 // Chunk in new repository
                 MigrationEvent e2 = new MigrationEvent();
@@ -83,6 +86,7 @@ public class TestRepositoryMigration {
                 e2.commit();
                 r.stop();
                 event2.await();
+                System.out.println("Passed the event2.await()");
                 // Verify that it happened in new repository
                 if (!Files.exists(newRepository)) {
                     throw new AssertionError("Could not find repository " + newRepository);

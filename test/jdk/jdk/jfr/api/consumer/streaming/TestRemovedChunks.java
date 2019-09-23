@@ -36,12 +36,12 @@ import jdk.jfr.consumer.RecordingStream;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm jdk.jfr.api.consumer.streaming.TestFilledChunks
+ * @run main/othervm jdk.jfr.api.consumer.streaming.TestRemovedChunks
  */
 public class TestRemovedChunks {
     private final static CountDownLatch parkLatch = new CountDownLatch(1);
     private final static CountDownLatch removalLatch = new CountDownLatch(1);
-    private final static CountDownLatch IfeelFineLatch = new CountDownLatch(1);
+    private final static CountDownLatch IFeelFineLatch = new CountDownLatch(1);
 
     static class DataEvent extends Event {
         double double1;
@@ -67,7 +67,7 @@ public class TestRemovedChunks {
 
             });
             s.onEvent(IFeelFine.class.getName(), e -> {
-                IfeelFineLatch.countDown();
+                IFeelFineLatch.countDown();
             });
             s.startAsync();
             emitData(15_000_000);
@@ -79,7 +79,7 @@ public class TestRemovedChunks {
             removalLatch.countDown();
             IFeelFine i = new IFeelFine();
             i.commit();
-            await(IfeelFineLatch);
+            await(IFeelFineLatch);
         }
 
     }

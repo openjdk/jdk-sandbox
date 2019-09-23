@@ -50,6 +50,7 @@ public class TestOnFlush {
     }
 
     private static void testOnFlushNull() {
+        log("Entering testOnFlushNull()");
         try (RecordingStream rs = new RecordingStream()) {
            try {
                rs.onFlush(null);
@@ -58,9 +59,11 @@ public class TestOnFlush {
                // OK; as expected
            }
         }
+        log("Leaving testOnFlushNull()");
      }
 
     private static void testNoEvent() throws Exception {
+        log("Entering testNoEvent()");
         CountDownLatch flush = new CountDownLatch(1);
         try (RecordingStream r = new RecordingStream()) {
             r.onFlush(() -> {
@@ -69,9 +72,11 @@ public class TestOnFlush {
             r.startAsync();
             flush.await();
         }
+        log("Leaving testNoEvent()");
     }
 
     private static void testOneEvent() throws InterruptedException {
+        log("Entering testOneEvent()");
         CountDownLatch flush = new CountDownLatch(1);
         try (RecordingStream r = new RecordingStream()) {
             r.onEvent(e -> {
@@ -85,5 +90,10 @@ public class TestOnFlush {
             e.commit();
             flush.await();
         }
+        log("Leaving testOneEvent()");
+    }
+
+    private static void log(String msg) {
+        System.out.println(msg);
     }
 }

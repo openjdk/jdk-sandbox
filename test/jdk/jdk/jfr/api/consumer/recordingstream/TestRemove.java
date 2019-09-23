@@ -56,6 +56,7 @@ public class TestRemove {
     }
 
     private static void testRemoveNull() {
+        log("Entering testRemoveNull()");
         try (RecordingStream rs = new RecordingStream()) {
            try {
                rs.remove(null);
@@ -64,9 +65,11 @@ public class TestRemove {
                // OK; as expected
            }
         }
+        log("Leaving testRemoveNull()");
      }
 
     private static void testRemoveOnEvent() throws Exception {
+        log("Entering testRemoveOnEvent()");
         try (RecordingStream rs = new RecordingStream()) {
             AtomicInteger counter = new AtomicInteger(0);
             CountDownLatch events = new CountDownLatch(2);
@@ -91,9 +94,11 @@ public class TestRemove {
                 throw new AssertionError("OnEvent handler not removed!");
             }
         }
+        log("Leaving testRemoveOnEvent()");
     }
 
     private static void testRemoveOnClose() {
+        log("Entering testRemoveOnClose()");
         try (RecordingStream rs = new RecordingStream()) {
             AtomicBoolean onClose = new AtomicBoolean(false);
             Runnable r = () -> {
@@ -106,9 +111,11 @@ public class TestRemove {
                 throw new AssertionError("onClose handler not removed!");
             }
         }
+        log("Leaving testRemoveOnClose()");
     }
 
     private static void testRemoveOnFlush() throws Exception {
+        log("Entering testRemoveOnFlush()");
         try (RecordingStream rs = new RecordingStream()) {
             AtomicInteger flushCount = new AtomicInteger(2);
             AtomicBoolean removeExecuted = new AtomicBoolean(false);
@@ -133,5 +140,10 @@ public class TestRemove {
                 throw new AssertionError("onFlush handler not removed!");
             }
         }
+        log("Leaving testRemoveOnFlush()");
+    }
+
+    private static void log(String msg) {
+        System.out.println(msg);
     }
 }

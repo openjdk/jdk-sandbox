@@ -77,6 +77,7 @@ public class TestStart {
     }
 
     private static void testStartTwice() throws Exception {
+        log("Entering testStartTwice()");
         CountDownLatch started = new CountDownLatch(1);
         try (RecordingStream rs = new RecordingStream()) {
             EventProducer t = new EventProducer();
@@ -98,9 +99,11 @@ public class TestStart {
                 // OK, as expected
             }
         }
+        log("Leaving testStartTwice()");
     }
 
     static void testStart() throws Exception {
+        log("Entering testStart()");
         CountDownLatch started = new CountDownLatch(1);
         try (RecordingStream rs = new RecordingStream()) {
             rs.onEvent(e -> {
@@ -114,9 +117,11 @@ public class TestStart {
             started.await();
             t.kill();
         }
+        log("Leaving testStart()");
     }
 
     static void testStartOnEvent() throws Exception {
+        log("Entering testStartOnEvent()");
         AtomicBoolean ISE = new AtomicBoolean(false);
         CountDownLatch startedTwice = new CountDownLatch(1);
         try (RecordingStream rs = new RecordingStream()) {
@@ -141,9 +146,11 @@ public class TestStart {
                 throw new AssertionError("Expected IllegalStateException");
             }
         }
+        log("Leaving testStartOnEvent()");
     }
 
     static void testStartClosed() {
+        log("Entering testStartClosed()");
         RecordingStream rs = new RecordingStream();
         rs.close();
         try {
@@ -152,6 +159,10 @@ public class TestStart {
         } catch (IllegalStateException ise) {
             // OK, as expected.
         }
+        log("Leaving testStartClosed()");
     }
 
+    private static void log(String msg) {
+        System.out.println(msg);
+    }
 }
