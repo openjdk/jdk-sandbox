@@ -30,18 +30,6 @@ import java.nio.file.Path;
  */
 public class JPackagePath {
 
-    // Path to Windows "Program Files" folder
-    // Probably better to figure this out programattically
-    private static final String WIN_PROGRAM_FILES = "C:\\Program Files";
-
-    // Path to Windows Start menu items
-    private static final String WIN_START_MENU =
-            "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs";
-
-    // Path to Windows public desktop location
-    private static final String WIN_PUBLIC_DESKTOP =
-            "C:\\Users\\Public\\Desktop";
-
     // Return path to test src adjusted to location of caller
     public static String getTestSrcRoot() {
         return JPackageHelper.TEST_SRC_ROOT;
@@ -58,16 +46,7 @@ public class JPackagePath {
     }
 
     public static String getApp(String name) {
-        if (JPackageHelper.isWindows()) {
-            return Path.of("output", name, name + ".exe").toString();
-        } else if (JPackageHelper.isOSX()) {
-            return Path.of("output", name + ".app",
-                    "Contents", "MacOS", name).toString();
-        } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name, "bin", name).toString();
-        } else {
-            throw new AssertionError("Cannot detect platform");
-        }
+        return getAppSL(name, name);
     }
 
     // Returns path to generate test application icon
@@ -82,7 +61,7 @@ public class JPackagePath {
             return Path.of("output", name + ".app",
                     "Contents", "Resources", name + ".icns").toString();
         } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name, "bin", name + ".png").toString();
+            return Path.of("output", name, "lib", name + ".png").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -118,7 +97,7 @@ public class JPackagePath {
             return Path.of("output", name + ".app",
                     "Contents", "Java", name + ".cfg").toString();
         } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name, "app", name + ".cfg").toString();
+            return Path.of("output", name, "lib", "app", name + ".cfg").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
@@ -131,17 +110,9 @@ public class JPackagePath {
 
     public static String getRuntimeJava(String name) {
         if (JPackageHelper.isWindows()) {
-            return Path.of("output", name,
-                    "runtime", "bin", "java.exe").toString();
-        } else if (JPackageHelper.isOSX()) {
-            return Path.of("output", name + ".app", "Contents",
-                    "runtime", "Contents", "Home", "bin", "java").toString();
-        } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name,
-                    "runtime", "bin", "java").toString();
-        } else {
-            throw new AssertionError("Cannot detect platform");
+            return Path.of(getRuntimeBin(name), "java.exe").toString();
         }
+        return Path.of(getRuntimeBin(name), "java").toString();
     }
 
     // Returns output file name generate by test application
@@ -162,43 +133,10 @@ public class JPackagePath {
                     "Contents", "runtime",
                     "Contents", "Home", "bin").toString();
         } else if (JPackageHelper.isLinux()) {
-            return Path.of("output", name, "runtime", "bin").toString();
+            return Path.of("output", name, "lib", "runtime", "bin").toString();
         } else {
             throw new AssertionError("Cannot detect platform");
         }
-    }
-
-    public static String getWinProgramFiles() {
-        return WIN_PROGRAM_FILES;
-    }
-
-    public static String getWinUserLocal() {
-        return Path.of(System.getProperty("user.home"),
-                "AppData", "Local").toString();
-    }
-
-    public static String getWinStartMenu() {
-        return WIN_START_MENU;
-    }
-
-    public static String getWinPublicDesktop() {
-        return WIN_PUBLIC_DESKTOP;
-    }
-
-    public static String getWinUserLocalStartMenu() {
-        return Path.of(System.getProperty("user.home"), "AppData", "Roaming",
-                "Microsoft", "Windows", "Start Menu", "Programs").toString();
-    }
-
-    public static String getWinInstalledApp(String testName) {
-        return Path.of(getWinProgramFiles(), testName,
-                testName + ".exe").toString();
-    }
-
-    public static String getWinInstalledApp(String installDir,
-            String testName) {
-        return Path.of(getWinProgramFiles(), installDir,
-                testName + ".exe").toString();
     }
 
     public static String getOSXInstalledApp(String testName) {
@@ -207,10 +145,6 @@ public class JPackagePath {
                 + File.separator + "Contents"
                 + File.separator + "MacOS"
                 + File.separator + testName;
-    }
-
-    public static String getLinuxInstalledApp(String testName) {
-        return Path.of("/opt", testName, "bin", testName).toString();
     }
 
     public static String getOSXInstalledApp(String subDir, String testName) {
@@ -222,41 +156,6 @@ public class JPackagePath {
                 + File.separator + testName;
     }
 
-    public static String getLinuxInstalledApp(String subDir, String testName) {
-        return Path.of("/opt", subDir, testName, "bin", testName).toString();
-    }
-
-    public static String getWinInstallFolder(String testName) {
-        return getWinProgramFiles()
-                + File.separator + testName;
-    }
-
-    public static String getLinuxInstallFolder(String testName) {
-        return File.separator + "opt"
-                + File.separator + testName;
-    }
-
-    public static String getLinuxInstallFolder(String subDir, String testName) {
-        if (testName == null) {
-            return File.separator + "opt"
-                    + File.separator + subDir;
-        } else {
-            return File.separator + "opt"
-                    + File.separator + subDir
-                    + File.separator + testName;
-        }
-    }
-
-    public static String getWinUserLocalInstalledApp(String testName) {
-        return getWinUserLocal()
-                + File.separator + testName
-                + File.separator + testName + ".exe";
-    }
-
-    public static String getWinUserLocalInstallFolder(String testName) {
-        return getWinUserLocal() + File.separator + testName;
-    }
-
     // Returs path to test license file
     public static String getLicenseFilePath() {
         String path = JPackagePath.getTestSrcRoot()
@@ -264,12 +163,5 @@ public class JPackagePath {
                 + File.separator + "license.txt";
 
         return path;
-    }
-
-    // Returns path to app folder of installed application
-    public static String getWinInstalledAppFolder(String testName) {
-        return getWinProgramFiles()
-                + File.separator + testName
-                + File.separator + "app";
     }
 }

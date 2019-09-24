@@ -48,12 +48,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private static final String LIBRARY_NAME = "libapplauncher.so";
     final static String DEFAULT_ICON = "java32.png";
 
-    private final Path root;
-    private final Path appDir;
-    private final Path appModsDir;
-    private final Path runtimeDir;
-    private final Path binDir;
-    private final Path mdir;
+    private final ApplicationLayout appLayout;
 
     public static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
@@ -70,35 +65,17 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             },
             (s, p) -> new File(s));
 
-    public LinuxAppImageBuilder(Map<String, Object> params, Path imageOutDir)
-            throws IOException {
-        super(params,
-                imageOutDir.resolve(APP_NAME.fetchFrom(params) + "/runtime"));
-
-        Objects.requireNonNull(imageOutDir);
-
-        this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params));
-        this.appDir = root.resolve("app");
-        this.appModsDir = appDir.resolve("mods");
-        this.runtimeDir = root.resolve("runtime");
-        this.binDir = root.resolve("bin");
-        this.mdir = runtimeDir.resolve("lib");
-        Files.createDirectories(appDir);
-        Files.createDirectories(runtimeDir);
+    private static ApplicationLayout createAppLayout(Map<String, Object> params,
+            Path imageOutDir) {
+        return ApplicationLayout.linuxApp().resolveAt(
+                imageOutDir.resolve(APP_NAME.fetchFrom(params)));
     }
 
-    public LinuxAppImageBuilder(String appName, Path imageOutDir)
+    public LinuxAppImageBuilder(Map<String, Object> params, Path imageOutDir)
             throws IOException {
-        super(null, imageOutDir.resolve(appName));
+        super(params, createAppLayout(params, imageOutDir).runtimeDirectory());
 
-        Objects.requireNonNull(imageOutDir);
-
-        this.root = imageOutDir.resolve(appName);
-        this.appDir = null;
-        this.appModsDir = null;
-        this.runtimeDir = null;
-        this.binDir = null;
-        this.mdir = null;
+        appLayout = createAppLayout(params, imageOutDir);
     }
 
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
@@ -110,19 +87,31 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         return APP_NAME.fetchFrom(params);
     }
 
-    public static String getLauncherCfgName(
-            Map<String, ? super Object> params) {
-        return "app" + File.separator + APP_NAME.fetchFrom(params) + ".cfg";
+    private Path getLauncherCfgPath(Map<String, ? super Object> params) {
+        return appLayout.appDirectory().resolve(
+                APP_NAME.fetchFrom(params) + ".cfg");
     }
 
     @Override
     public Path getAppDir() {
-        return appDir;
+        return appLayout.appDirectory();
     }
 
     @Override
     public Path getAppModsDir() {
-        return appModsDir;
+        return appLayout.appModsDirectory();
+    }
+
+    @Override
+    protected String getCfgAppDir() {
+        return Path.of("$APPDIR").resolve(
+                ApplicationLayout.linuxApp().appDirectory()).toString() + File.separator;
+    }
+
+    @Override
+    protected String getCfgRuntimeDir() {
+        return Path.of("$APPDIR").resolve(
+                ApplicationLayout.linuxApp().runtimeDirectory()).toString();
     }
 
     @Override
@@ -130,19 +119,20 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             throws IOException {
         Map<String, ? super Object> originalParams = new HashMap<>(params);
 
-        try {
-            IOUtils.writableOutputDir(root);
-            IOUtils.writableOutputDir(binDir);
-        } catch (PackagerException pe) {
-            throw new RuntimeException(pe);
-        }
+        appLayout.roots().stream().forEach(dir -> {
+            try {
+                IOUtils.writableOutputDir(dir);
+            } catch (PackagerException pe) {
+                throw new RuntimeException(pe);
+            }
+        });
 
         // create the primary launcher
         createLauncherForEntryPoint(params);
 
         // Copy library to the launcher folder
         try (InputStream is_lib = getResourceAsStream(LIBRARY_NAME)) {
-            writeEntry(is_lib, binDir.resolve(LIBRARY_NAME));
+            writeEntry(is_lib, appLayout.dllDirectory().resolve(LIBRARY_NAME));
         }
 
         // create the additional launchers, if any
@@ -166,8 +156,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private void createLauncherForEntryPoint(
             Map<String, ? super Object> params) throws IOException {
-        // Copy executable to Linux folder
-        Path executableFile = binDir.resolve(getLauncherName(params));
+        // Copy executable to launchers folder
+        Path executableFile = appLayout.launchersDirectory().resolve(getLauncherName(params));
         try (InputStream is_launcher =
                 getResourceAsStream("jpackageapplauncher")) {
             writeEntry(is_launcher, executableFile);
@@ -176,14 +166,15 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         executableFile.toFile().setExecutable(true, false);
         executableFile.toFile().setWritable(true, true);
 
-        writeCfgFile(params, root.resolve(getLauncherCfgName(params)).toFile());
+        writeCfgFile(params, getLauncherCfgPath(params).toFile());
     }
 
     private void copyIcon(Map<String, ? super Object> params)
             throws IOException {
 
         File icon = ICON_PNG.fetchFrom(params);
-        File iconTarget = binDir.resolve(APP_NAME.fetchFrom(params) + ".png").toFile();
+        File iconTarget = appLayout.destktopIntegrationDirectory().resolve(
+                APP_NAME.fetchFrom(params) + ".png").toFile();
 
         InputStream in = locateResource(
                 iconTarget.getName(),
@@ -205,7 +196,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             }
             File srcdir = appResources.getBaseDirectory();
             for (String fname : appResources.getIncludedFiles()) {
-                copyEntry(appDir, srcdir, fname);
+                copyEntry(appLayout.appDirectory(), srcdir, fname);
             }
         }
     }

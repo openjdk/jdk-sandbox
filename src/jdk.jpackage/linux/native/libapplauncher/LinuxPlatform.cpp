@@ -66,7 +66,7 @@ LinuxPlatform::~LinuxPlatform(void) {
 
 TString LinuxPlatform::GetPackageAppDirectory() {
     return FilePath::IncludeTrailingSeparator(
-            GetPackageRootDirectory()) + _T("app");
+            GetPackageRootDirectory()) + _T("lib/app");
 }
 
 TString LinuxPlatform::GetAppName() {

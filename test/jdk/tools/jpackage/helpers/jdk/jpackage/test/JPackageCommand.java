@@ -307,7 +307,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         if (PackageType.IMAGE == packageType()) {
             return null;
         }
-        return appInstallationDirectory().resolve("runtime");
+        return appInstallationDirectory().resolve(appRuntimePath(packageType()));
     }
 
     /**
@@ -388,8 +388,6 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     /**
      * Returns path to runtime directory relative to image directory.
      *
-     * Function will always return "runtime".
-     *
      * @throws IllegalArgumentException if command is configured for platform
      * packaging
      */
@@ -399,6 +397,13 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
             throw new IllegalArgumentException("Unexpected package type");
         }
 
+        return appRuntimePath(type);
+    }
+
+    private static Path appRuntimePath(PackageType type) {
+        if (PackageType.LINUX.contains(type)) {
+            return Path.of("lib/runtime");
+        }
         return Path.of("runtime");
     }
 
@@ -414,17 +419,18 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     private static boolean isFakeRuntime(Path runtimeDir, String msg) {
         final List<Path> criticalRuntimeFiles;
         if (Test.isWindows()) {
-            criticalRuntimeFiles = List.of(Path.of("server\\jvm.dll"));
+            criticalRuntimeFiles = List.of(Path.of("bin\\server\\jvm.dll"));
         } else if (Test.isLinux()) {
-            criticalRuntimeFiles = List.of(Path.of("server/libjvm.so"));
+            criticalRuntimeFiles = List.of(Path.of("lib/server/libjvm.so"));
         } else if (Test.isOSX()) {
-            criticalRuntimeFiles = List.of(Path.of("server/libjvm.dylib"));
+            criticalRuntimeFiles = List.of(Path.of("lib/server/libjvm.dylib"));
         } else {
             throw new IllegalArgumentException("Unknwon platform");
         }
 
-        if (criticalRuntimeFiles.stream().filter(v -> v.toFile().exists())
-                .findFirst().orElse(null) == null) {
+        if (criticalRuntimeFiles.stream().filter(
+                v -> runtimeDir.resolve(v).toFile().exists()).findFirst().orElse(
+                        null) == null) {
             // Fake runtime
             Test.trace(String.format(
                     "%s because application runtime directory [%s] is incomplete",

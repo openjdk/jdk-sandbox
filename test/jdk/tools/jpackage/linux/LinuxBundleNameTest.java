@@ -46,9 +46,9 @@ import jdk.jpackage.test.PackageType;
  * @library ../helpers
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m BundleNameTest
+ * @run main/othervm/timeout=360 -Xmx512m LinuxBundleNameTest
  */
-public class BundleNameTest {
+public class LinuxBundleNameTest {
 
     public static void main(String[] args) {
         final String PACKAGE_NAME = "quickbrownfox2";

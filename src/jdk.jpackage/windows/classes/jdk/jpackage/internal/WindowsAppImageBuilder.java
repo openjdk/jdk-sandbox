@@ -127,21 +127,6 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         Files.createDirectories(runtimeDir);
     }
 
-    public WindowsAppImageBuilder(String jreName, Path imageOutDir)
-            throws IOException {
-        super(null, imageOutDir.resolve(jreName));
-
-        Objects.requireNonNull(imageOutDir);
-
-        this.root = imageOutDir.resolve(jreName);
-        this.appDir = null;
-        this.appModsDir = null;
-        this.runtimeDir = root;
-        this.mdir = runtimeDir.resolve("lib");
-        this.binDir = null;
-        Files.createDirectories(runtimeDir);
-    }
-
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
         Files.createDirectories(dstFile.getParent());
         Files.copy(in, dstFile);

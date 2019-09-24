@@ -33,7 +33,7 @@ import java.util.Map;
  */
 final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
     enum PathRole {
-        RUNTIME, APP, LAUNCHERS_DIR, DESKTOP
+        RUNTIME, APP, LAUNCHERS, DESKTOP, APP_MODS, DLLS
     }
 
     ApplicationLayout(Map<Object, Path> paths) {
@@ -58,7 +58,14 @@ final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
      * Path to launchers directory.
      */
     Path launchersDirectory() {
-        return pathGroup().getPath(PathRole.LAUNCHERS_DIR);
+        return pathGroup().getPath(PathRole.LAUNCHERS);
+    }
+
+    /**
+     * Path to directory with dynamic libraries.
+     */
+    Path dllDirectory() {
+        return pathGroup().getPath(PathRole.DLLS);
     }
 
     /**
@@ -76,24 +83,33 @@ final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
     }
 
     /**
+     * Path to application mods directory.
+     */
+    Path appModsDirectory() {
+        return pathGroup().getPath(PathRole.APP_MODS);
+    }
+
+    /**
      * Path to directory with application's desktop integration files.
      */
     Path destktopIntegrationDirectory() {
         return pathGroup().getPath(PathRole.DESKTOP);
     }
 
-    static ApplicationLayout unixApp() {
+    static ApplicationLayout linuxApp() {
         return new ApplicationLayout(Map.of(
-                PathRole.LAUNCHERS_DIR, Path.of("bin"),
-                PathRole.APP, Path.of("app"),
-                PathRole.RUNTIME, Path.of("runtime"),
-                PathRole.DESKTOP, Path.of("bin")
+                PathRole.LAUNCHERS, Path.of("bin"),
+                PathRole.APP, Path.of("lib/app"),
+                PathRole.RUNTIME, Path.of("lib/runtime"),
+                PathRole.DESKTOP, Path.of("lib"),
+                PathRole.DLLS, Path.of("lib"),
+                PathRole.APP_MODS, Path.of("lib/app/mods")
         ));
     }
 
     static ApplicationLayout windowsApp() {
         return new ApplicationLayout(Map.of(
-                PathRole.LAUNCHERS_DIR, Path.of(""),
+                PathRole.LAUNCHERS, Path.of(""),
                 PathRole.APP, Path.of("app"),
                 PathRole.RUNTIME, Path.of("runtime"),
                 PathRole.DESKTOP, Path.of("")
@@ -105,7 +121,7 @@ final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
             return windowsApp();
         }
 
-        return unixApp();
+        return linuxApp();
     }
 
     static ApplicationLayout javaRuntime() {

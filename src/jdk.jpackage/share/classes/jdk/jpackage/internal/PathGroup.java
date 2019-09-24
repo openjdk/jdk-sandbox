@@ -24,16 +24,18 @@
  */
 package jdk.jpackage.internal;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 /**
@@ -52,8 +54,8 @@ final class PathGroup {
     /**
      * All configured entries.
      */
-    Collection<Path> paths() {
-        return entries.values();
+    List<Path> paths() {
+        return entries.values().stream().collect(Collectors.toList());
     }
 
     /**
@@ -61,14 +63,19 @@ final class PathGroup {
      */
     List<Path> roots() {
         // Sort by the number of path components in ascending order.
-        List<Path> sorted = paths().stream().sorted(
-                (a, b) -> a.getNameCount() - b.getNameCount()).collect(
+        List<Map.Entry<Path, Path>> sorted = normalizedPaths().stream().sorted(
+                (a, b) -> a.getKey().getNameCount() - b.getKey().getNameCount()).collect(
                         Collectors.toList());
 
-        return paths().stream().filter(
+        // Returns `true` if `a` is a parent of `b`
+        BiFunction<Map.Entry<Path, Path>, Map.Entry<Path, Path>, Boolean> isParentOrSelf = (a, b) -> {
+            return a == b || b.getKey().startsWith(a.getKey());
+        };
+
+        return sorted.stream().filter(
                 v -> v == sorted.stream().sequential().filter(
-                        v2 -> v == v2 || v2.endsWith(v)).findFirst().get()).collect(
-                        Collectors.toList());
+                        v2 -> isParentOrSelf.apply(v2, v)).findFirst().get()).map(
+                        v -> v.getValue()).collect(Collectors.toList());
     }
 
     long sizeInBytes() throws IOException {
@@ -132,49 +139,64 @@ final class PathGroup {
     private static void copy(boolean move, List<Map.Entry<Path, Path>> entries)
             throws IOException {
 
-        // Reorder entries. Entries with source entries with the least amount of
-        // descending entries found between source entries should go first.
-        entries.sort((e1, e2) -> e1.getKey().getNameCount() - e2.getKey().getNameCount());
+        // destination -> source file mapping
+        Map<Path, Path> actions = new HashMap<>();
+        for (var action: entries) {
+            Path src = action.getKey();
+            Path dst = action.getValue();
+            if (src.toFile().isDirectory()) {
+                Files.walk(src).forEach(path -> actions.put(dst.resolve(
+                        src.relativize(path)).toAbsolutePath().normalize(), path));
+            } else {
+                actions.put(dst.toAbsolutePath().normalize(), src);
+            }
+        }
 
-        for (var entry : entries.stream().sequential().filter(e -> {
-            return e == entries.stream().sequential().filter(e2 -> isDuplicate(e2, e)).findFirst().get();
-                }).collect(Collectors.toList())) {
-            Path src = entry.getKey();
-            Path dst = entry.getValue();
+        for (var action : actions.entrySet()) {
+            Path dst = action.getKey();
+            Path src = action.getValue();
 
-            if (src.equals(dst)) {
+            if (src.equals(dst) || !src.toFile().exists()) {
                 continue;
             }
 
-            Files.createDirectories(dst.getParent());
-            if (move) {
-                Files.move(src, dst);
-            } else if (src.toFile().isDirectory()) {
-                IOUtils.copyRecursive(src, dst);
+            if (src.toFile().isDirectory()) {
+                Files.createDirectories(dst);
             } else {
-                IOUtils.copyFile(src.toFile(), dst.toFile());
+                Files.createDirectories(dst.getParent());
+                if (move) {
+                    Files.move(src, dst);
+                } else {
+                    Files.copy(src, dst);
+                }
+            }
+        }
+
+        if (move) {
+            // Delete source dirs.
+            for (var entry: entries) {
+                File srcFile = entry.getKey().toFile();
+                if (srcFile.isDirectory()) {
+                    IOUtils.deleteRecursive(srcFile);
+                }
             }
         }
     }
 
-    private static boolean isDuplicate(Map.Entry<Path, Path> a,
-            Map.Entry<Path, Path> b) {
-        if (a == b || a.equals(b)) {
-            return true;
+    private static Map.Entry<Path, Path> normalizedPath(Path v) {
+        final Path normalized;
+        if (!v.isAbsolute()) {
+            normalized = Path.of("./").resolve(v.normalize());
+        } else {
+            normalized = v.normalize();
         }
 
-        if (b.getKey().getNameCount() < a.getKey().getNameCount()) {
-            return isDuplicate(b, a);
-        }
+        return Map.entry(normalized, v);
+    }
 
-        if (!a.getKey().endsWith(b.getKey())) {
-            return false;
-        }
-
-        Path relativeSrcPath = a.getKey().relativize(b.getKey());
-        Path relativeDstPath = a.getValue().relativize(b.getValue());
-
-        return relativeSrcPath.equals(relativeDstPath);
+    private List<Map.Entry<Path, Path>> normalizedPaths() {
+        return entries.values().stream().map(PathGroup::normalizedPath).collect(
+                Collectors.toList());
     }
 
     private final Map<Object, Path> entries;

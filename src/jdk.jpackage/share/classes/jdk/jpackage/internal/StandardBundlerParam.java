@@ -526,7 +526,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         File image = appBuilder.getRuntimeImageDir(topImage);
         // copy whole runtime, need to skip jmods and src.zip
         final List<String> excludes = Arrays.asList("jmods", "src.zip");
-        IOUtils.copyRecursive(image.toPath(), appBuilder.getRoot(), excludes);
+        IOUtils.copyRecursive(image.toPath(), appBuilder.getRuntimeRoot(), excludes);
 
         // if module-path given - copy modules to appDir/mods
         List<Path> modulePath =

@@ -254,7 +254,7 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         if (StandardBundlerParam.isRuntimeInstaller(params)) {
             return ApplicationLayout.javaRuntime();
         }
-        return ApplicationLayout.unixApp();
+        return ApplicationLayout.linuxApp();
     }
 
     private static void validateFileAssociations(

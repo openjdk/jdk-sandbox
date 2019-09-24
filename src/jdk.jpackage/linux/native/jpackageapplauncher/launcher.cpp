@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     {
         std::string programPath = GetProgramPath();
         std::string libraryName = dirname((char*)programPath.c_str());
-        libraryName += "/libapplauncher.so";
+        libraryName += "/../lib/libapplauncher.so";
         library = dlopen(libraryName.c_str(), RTLD_LAZY);
 
         if (library == NULL) {

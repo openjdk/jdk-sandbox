@@ -150,7 +150,7 @@ final class JLinkBundlerHelper {
                 StandardBundlerParam.ADD_MODULES.fetchFrom(params);
         Set<String> limitModules =
                 StandardBundlerParam.LIMIT_MODULES.fetchFrom(params);
-        Path outputDir = imageBuilder.getRoot();
+        Path outputDir = imageBuilder.getRuntimeRoot();
         File mainJar = getMainJar(params);
         ModFile.ModType mainJarType = ModFile.ModType.Unknown;
 

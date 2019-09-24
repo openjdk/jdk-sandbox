@@ -71,7 +71,7 @@ public abstract class AbstractAppImageBuilder {
     public abstract Path getAppDir();
     public abstract Path getAppModsDir();
 
-    public Path getRoot() {
+    public Path getRuntimeRoot() {
         return this.root;
     }
 
@@ -175,6 +175,7 @@ public abstract class AbstractAppImageBuilder {
 
     public void writeCfgFile(Map<String, ? super Object> params,
             File cfgFileName) throws IOException {
+        cfgFileName.getParentFile().mkdirs();
         cfgFileName.delete();
         File mainJar = JLinkBundlerHelper.getMainJar(params);
         ModFile.ModType mainJarType = ModFile.ModType.Unknown;
@@ -247,12 +248,12 @@ public abstract class AbstractAppImageBuilder {
         return runtimeImageTop;
     }
 
-    String getCfgAppDir() {
+    protected String getCfgAppDir() {
         return "$APPDIR" + File.separator
                 + getAppDir().getFileName() + File.separator;
     }
 
-    String getCfgRuntimeDir() {
+    protected String getCfgRuntimeDir() {
         return "$APPDIR" + File.separator + "runtime";
     }
 

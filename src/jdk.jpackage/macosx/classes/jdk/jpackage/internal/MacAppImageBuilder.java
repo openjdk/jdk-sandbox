@@ -183,25 +183,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         Files.createDirectories(runtimeDir);
     }
 
-    public MacAppImageBuilder(Map<String, Object> params, String jreName,
-            Path imageOutDir) throws IOException {
-        super(null, imageOutDir.resolve(jreName + "/Contents/Home"));
-
-        Objects.requireNonNull(imageOutDir);
-
-        this.root = imageOutDir.resolve(jreName );
-        this.contentsDir = root.resolve("Contents");
-        this.javaDir = null;
-        this.javaModsDir = null;
-        this.resourcesDir = null;
-        this.macOSDir = null;
-        this.runtimeDir = this.root;
-        this.runtimeRoot = runtimeDir.resolve("Contents/Home");
-        this.mdir = runtimeRoot.resolve("lib");
-
-        Files.createDirectories(runtimeDir);
-    }
-
     private void writeEntry(InputStream in, Path dstFile) throws IOException {
         Files.createDirectories(dstFile.getParent());
         Files.copy(in, dstFile);
