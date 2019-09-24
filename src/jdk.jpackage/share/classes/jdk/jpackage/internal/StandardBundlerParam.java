@@ -27,7 +27,10 @@ package jdk.jpackage.internal;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleDescriptor.Version;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,13 +39,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.HashSet;
@@ -51,7 +51,6 @@ import java.util.function.Function;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -258,7 +257,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.VERSION.getId(),
                     String.class,
-                    params -> DEFAULT_VERSION,
+                    params -> getDefaultAppVersion(params),
                     (s, p) -> s
             );
 
@@ -755,5 +754,31 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         }
 
         return result;
+    }
+
+    static String getDefaultAppVersion(Map<String, ? super Object> params) {
+        String appVersion = DEFAULT_VERSION;
+        boolean hasModule = params.containsKey(MODULE.getID());
+        if (hasModule) {
+            List<Path> modulePath = MODULE_PATH.fetchFrom(params);
+            if (!modulePath.isEmpty()) {
+                ModuleFinder finder = ModuleFinder.of(modulePath.toArray(new Path[0]));
+                String mainModule = JLinkBundlerHelper.getMainModule(params);
+                Optional<ModuleReference> omref = finder.find(mainModule);
+                if (omref.isPresent()) {
+                    ModuleDescriptor descriptor = omref.get().descriptor();
+                    Optional<Version> oversion = descriptor.version();
+                    if (oversion.isPresent()) {
+                        Log.verbose(MessageFormat.format(I18N.getString(
+                                "message.module-version"),
+                                oversion.get().toString(),
+                                mainModule));
+                        appVersion = oversion.get().toString();
+                    }
+                }
+            }
+        }
+
+        return appVersion;
     }
 }

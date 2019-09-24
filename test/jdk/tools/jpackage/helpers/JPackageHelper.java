@@ -372,15 +372,19 @@ public class JPackageHelper {
     }
 
     public static void createHelloModule() throws Exception {
-        createModule("Hello.java", "input", "hello", true);
+        createModule("Hello.java", "input", "hello", null, true);
+    }
+
+    public static void createHelloModule(String version) throws Exception {
+        createModule("Hello.java", "input", "hello", version, true);
     }
 
     public static void createOtherModule() throws Exception {
-        createModule("Other.java", "input-other", "other", false);
+        createModule("Other.java", "input-other", "other", null, false);
     }
 
     private static void createModule(String javaFile, String inputDir,
-            String aName, boolean createModularJar) throws Exception {
+            String aName, String version, boolean createModularJar) throws Exception {
         int retVal;
 
         File input = new File(inputDir);
@@ -427,6 +431,10 @@ public class JPackageHelper {
                 args.add("--create");
                 args.add("--file");
                 args.add(inputDir + File.separator + "com." + aName + ".jar");
+                if (version != null) {
+                    args.add("--module-version");
+                    args.add(version);
+                }
                 args.add("-C");
                 args.add("module" + File.separator + "com." + aName);
                 args.add(".");
