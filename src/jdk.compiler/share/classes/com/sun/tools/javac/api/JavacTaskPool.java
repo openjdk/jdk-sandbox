@@ -257,6 +257,7 @@ public class JavacTaskPool {
                 ((ReusableJavaCompiler)ReusableJavaCompiler.instance(this)).clear();
                 Types.instance(this).newRound();
                 Check.instance(this).newRound();
+                Check.instance(this).clear(); //clear mandatory warning handlers
                 Modules.instance(this).newRound();
                 Annotate.instance(this).newRound();
                 CompileStates.instance(this).clear();

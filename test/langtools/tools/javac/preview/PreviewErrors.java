@@ -25,59 +25,64 @@
  * @test
  * @bug 8226585
  * @summary Verify behavior w.r.t. preview feature API errors and warnings
- * @library /tools/lib
+ * @library /tools/lib /tools/javac/lib
  * @modules
  *      java.base/jdk.internal
  *      jdk.compiler/com.sun.tools.javac.api
+ *      jdk.compiler/com.sun.tools.javac.file
  *      jdk.compiler/com.sun.tools.javac.main
+ *      jdk.compiler/com.sun.tools.javac.util
  * @build toolbox.ToolBox toolbox.JavacTask
+ * @build combo.ComboTestHelper
  * @compile --enable-preview -source ${jdk.version} PreviewErrors.java
  * @run main/othervm --enable-preview PreviewErrors
  */
-
-import toolbox.JavacTask;
-import toolbox.Task;
-import toolbox.TestRunner;
-import toolbox.ToolBox;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+
+import combo.ComboInstance;
+import combo.ComboParameter;
+import combo.ComboTask;
+import combo.ComboTestHelper;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
+import javax.tools.Diagnostic;
+
 import jdk.internal.PreviewFeature;
 
-public class PreviewErrors extends TestRunner {
+import toolbox.JavacTask;
+import toolbox.ToolBox;
+
+public class PreviewErrors extends ComboInstance<PreviewErrors> {
 
     protected ToolBox tb;
 
     PreviewErrors() {
-        super(System.err);
+        super();
         tb = new ToolBox();
     }
 
     public static void main(String... args) throws Exception {
-        PreviewErrors t = new PreviewErrors();
-        t.runTests();
+        new ComboTestHelper<PreviewErrors>()
+                .withDimension("ESSENTIAL", (x, essential) -> x.essential = essential, EssentialAPI.values())
+                .withDimension("PREVIEW", (x, preview) -> x.preview = preview, Preview.values())
+                .withDimension("LINT", (x, lint) -> x.lint = lint, Lint.values())
+                .withDimension("SUPPRESS", (x, suppress) -> x.suppress = suppress, Suppress.values())
+                .run(PreviewErrors::new);
     }
 
-    /**
-     * Run all methods annotated with @Test, and throw an exception if any
-     * errors are reported..
-     *
-     * @throws Exception if any errors occurred
-     */
-    protected void runTests() throws Exception {
-        runTests(m -> new Object[] { Paths.get(m.getName()) });
-    }
+    private EssentialAPI essential;
+    private Preview preview;
+    private Lint lint;
+    private Suppress suppress;
 
-    Path[] findJavaFiles(Path... paths) throws IOException {
-        return tb.findJavaFiles(paths);
-    }
-
-    @Test
-    public void essentialApi(Path base) throws Exception {
+    @Override
+    public void doWork() throws IOException {
+        Path base = Paths.get(".");
         Path src = base.resolve("src");
         Path srcJavaBase = src.resolve("java.base");
         Path classes = base.resolve("classes");
@@ -85,110 +90,95 @@ public class PreviewErrors extends TestRunner {
 
         Files.createDirectories(classesJavaBase);
 
-        Path srcTest = src.resolve("test");
-        Path classesTest = classes.resolve("test");
+        tb.writeJavaFiles(srcJavaBase,
+                          """
+                          package java.lang;
+                          public class Extra {
+                              @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.${preview}
+                                                           ${essential})
+                              public static void test() { }
+                          }
+                          """.replace("${preview}", PreviewFeature.Feature.values()[0].name())
+                             .replace("${essential}", essential.expand(null)));
 
-        Files.createDirectories(classesTest);
+        new JavacTask(tb)
+                .outdir(classesJavaBase)
+                .options("--patch-module", "java.base=" + srcJavaBase.toString())
+                .files(tb.findJavaFiles(srcJavaBase))
+                .run()
+                .writeAll();
 
-        for (EssentialAPI essential : EssentialAPI.values()) {
-            tb.writeJavaFiles(srcJavaBase,
-                              """
-                              package java.lang;
-                              public class Extra {
-                                  @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.${preview}
-                                                               ${essential})
-                                  public static void test() { }
-                              }
-                              """.replace("${preview}", PreviewFeature.Feature.values()[0].name())
-                                 .replace("${essential}", essential.code()));
+        ComboTask task = newCompilationTask()
+                .withSourceFromTemplate("""
+                                        package test;
+                                        public class Test {
+                                            #{SUPPRESS}
+                                            public void test() {
+                                                Extra.test();
+                                            }
+                                        }
+                                        """)
+                .withOption("-XDrawDiagnostics")
+                .withOption("--patch-module")
+                .withOption("java.base=" + classesJavaBase.toString())
+                .withOption("-source")
+                .withOption(String.valueOf(Runtime.version().feature()));
+        if (preview.expand(null)!= null) {
+            task = task.withOption(preview.expand(null));
+        }
 
-            new JavacTask(tb)
-                    .outdir(classesJavaBase)
-                    .options("--patch-module", "java.base=" + srcJavaBase.toString())
-                    .files(findJavaFiles(srcJavaBase))
-                    .run()
-                    .writeAll();
+        if (lint.expand(null) != null) {
+            task = task.withOption(lint.expand(null));
+        }
 
-            for (Preview preview : Preview.values()) {
-                for (Lint lint : Lint.values()) {
-                    for (Suppress suppress : Suppress.values()) {
-                        tb.writeJavaFiles(srcTest,
-                                          """
-                                          package test;
-                                          public class Test {
-                                              ${suppress}
-                                              public void test() {
-                                                  Extra.test();
-                                              }
-                                          }
-                                          """.replace("${suppress}", suppress.code()));
-
-                        List<String> options = new ArrayList<>();
-
-                        options.add("-XDrawDiagnostics");
-                        options.add("--patch-module");
-                        options.add("java.base=" + classesJavaBase.toString());
-                        options.add("-source");
-                        options.add(String.valueOf(Runtime.version().feature()));
-
-                        if (preview.opt() != null) {
-                            options.add(preview.opt());
-                        }
-
-                        if (lint.opt() != null) {
-                            options.add(lint.opt());
-                        }
-                        List<String> output;
-                        List<String> expected;
-                        Task.Expect expect;
-
-                        if (essential == EssentialAPI.YES) {
-                            if (preview == Preview.YES) {
-                                if (lint == Lint.ENABLE_PREVIEW) {
-                                    expected = List.of("Test.java:5:14: compiler.warn.is.preview: test()",
-                                                       "1 warning");
-                                } else {
-                                    expected = List.of("- compiler.note.preview.filename: Test.java",
-                                                       "- compiler.note.preview.recompile");
-                                }
-                                expect = Task.Expect.SUCCESS;
-                            } else {
-                                expected = List.of("Test.java:5:14: compiler.err.is.preview: test()",
-                                                   "1 error");
-                                expect = Task.Expect.FAIL;
-                            }
+        task.generate(result -> {
+                Set<String> actual = Arrays.stream(Diagnostic.Kind.values())
+                                            .flatMap(kind -> result.diagnosticsForKind(kind).stream())
+                                            .map(d -> d.getLineNumber() + ":" + d.getColumnNumber() + ":" + d.getCode())
+                                            .collect(Collectors.toSet());
+                Set<String> expected;
+                boolean ok;
+                if (essential == EssentialAPI.YES) {
+                    if (preview == Preview.YES) {
+                        if (lint == Lint.ENABLE_PREVIEW) {
+                            expected = Set.of("5:14:compiler.warn.is.preview");
                         } else {
-                            if (suppress == Suppress.YES) {
-                                expected = List.of("");
-                            } else if ((preview == Preview.YES && (lint == Lint.NONE || lint == Lint.DISABLE_PREVIEW)) ||
-                                       (preview == Preview.NO && lint == Lint.DISABLE_PREVIEW)) {
-                                expected = List.of("- compiler.note.preview.filename: Test.java",
-                                                   "- compiler.note.preview.recompile");
-                            } else {
-                                expected = List.of("Test.java:5:14: compiler.warn.is.preview: test()",
-                                                   "1 warning");
-                            }
-                            expect = Task.Expect.SUCCESS;
+                            expected = Set.of("-1:-1:compiler.note.preview.filename",
+                                              "-1:-1:compiler.note.preview.recompile");
                         }
-
-                        output = new JavacTask(tb)
-                                .outdir(classesTest)
-                                .options(options)
-                                .files(findJavaFiles(srcTest))
-                                .run(expect)
-                                .writeAll()
-                                .getOutputLines(Task.OutputKind.DIRECT);
-
-                        if (!expected.equals(output)) {
-                            throw new IllegalStateException("Unexpected output for " + essential + ", " + preview + ", " + lint + ", " + suppress + ": " + output);
-                        }
+                        ok = true;
+                    } else {
+                        expected = Set.of("5:14:compiler.err.is.preview");
+                        ok = false;
+                    }
+                } else {
+                    if (suppress == Suppress.YES) {
+                        expected = Set.of();
+                    } else if ((preview == Preview.YES && (lint == Lint.NONE || lint == Lint.DISABLE_PREVIEW)) ||
+                               (preview == Preview.NO && lint == Lint.DISABLE_PREVIEW)) {
+                        expected = Set.of("-1:-1:compiler.note.preview.filename",
+                                          "-1:-1:compiler.note.preview.recompile");
+                    } else {
+                        expected = Set.of("5:14:compiler.warn.is.preview");
+                    }
+                    ok = true;
+                }
+                if (ok) {
+                    if (!result.get().iterator().hasNext()) {
+                        throw new IllegalStateException("Did not succeed as expected.");
+                    }
+                } else {
+                    if (result.get().iterator().hasNext()) {
+                        throw new IllegalStateException("Succeed unexpectedly.");
                     }
                 }
-            }
-        }
+                if (!expected.equals(actual)) {
+                    throw new IllegalStateException("Unexpected output for " + essential + ", " + preview + ", " + lint + ", " + suppress + ": " + actual.toString());
+                }
+            });
     }
 
-    public enum EssentialAPI {
+    public enum EssentialAPI implements ComboParameter {
         YES(", essentialAPI=true"),
         NO(", essentialAPI=false");
 
@@ -198,12 +188,12 @@ public class PreviewErrors extends TestRunner {
             this.code = code;
         }
 
-        public String code() {
+        public String expand(String optParameter) {
             return code;
         }
     }
 
-    public enum Preview {
+    public enum Preview implements ComboParameter {
         YES("--enable-preview"),
         NO(null);
 
@@ -213,12 +203,12 @@ public class PreviewErrors extends TestRunner {
             this.opt = opt;
         }
 
-        public String opt() {
+        public String expand(String optParameter) {
             return opt;
         }
     }
 
-    public enum Lint {
+    public enum Lint implements ComboParameter {
         NONE(null),
         ENABLE_PREVIEW("-Xlint:preview"),
         DISABLE_PREVIEW("-Xlint:-preview");
@@ -229,12 +219,12 @@ public class PreviewErrors extends TestRunner {
             this.opt = opt;
         }
 
-        public String opt() {
+        public String expand(String optParameter) {
             return opt;
         }
     }
 
-    public enum Suppress {
+    public enum Suppress implements ComboParameter {
         YES("@SuppressWarnings(\"preview\")"),
         NO("");
 
@@ -244,7 +234,7 @@ public class PreviewErrors extends TestRunner {
             this.code = code;
         }
 
-        public String code() {
+        public String expand(String optParameter) {
             return code;
         }
     }

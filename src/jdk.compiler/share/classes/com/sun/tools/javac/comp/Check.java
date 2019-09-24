@@ -465,6 +465,14 @@ public class Check {
         localClassNameIndexes.clear();
     }
 
+    public void clear() {
+        deprecationHandler.clear();
+        removalHandler.clear();
+        uncheckedHandler.clear();
+        sunApiHandler.clear();
+        previewHandler.clear();
+    }
+
     public void putCompiled(ClassSymbol csym) {
         compiled.put(Pair.of(csym.packge().modle, csym.flatname), csym);
     }
