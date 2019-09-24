@@ -24,7 +24,6 @@ package jdk.jpackage.test;
 
 import java.awt.Desktop;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,12 +41,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static jdk.jpackage.test.PackageType.LINUX_DEB;
 import static jdk.jpackage.test.PackageType.LINUX_RPM;
+import jdk.jpackage.test.Functional.ThrowingConsumer;
 
 /**
  * Instance of PackageTest is for configuring and running a single jpackage
  * command to produce platform specific package bundle.
  *
- * Provides methods hook up custom configuration of jpackage command and
+ * Provides methods to hook up custom configuration of jpackage command and
  * verification of the output bundle.
  */
 public final class PackageTest {
@@ -91,7 +91,7 @@ public final class PackageTest {
         return this;
     }
 
-    private PackageTest addInitializer(Consumer<JPackageCommand> v, String id) {
+    private PackageTest addInitializer(ThrowingConsumer<JPackageCommand> v, String id) {
         if (id != null) {
             if (namedInitializers.contains(id)) {
                 return this;
@@ -100,11 +100,11 @@ public final class PackageTest {
             namedInitializers.add(id);
         }
         currentTypes.stream().forEach(type -> handlers.get(type).addInitializer(
-                v));
+                ThrowingConsumer.toConsumer(v)));
         return this;
     }
 
-    public PackageTest addInitializer(Consumer<JPackageCommand> v) {
+    public PackageTest addInitializer(ThrowingConsumer<JPackageCommand> v) {
         return addInitializer(v, null);
     }
 
@@ -115,8 +115,9 @@ public final class PackageTest {
         return this;
     }
 
-    public PackageTest addBundleVerifier(Consumer<JPackageCommand> v) {
-        return addBundleVerifier((cmd, unused) -> v.accept(cmd));
+    public PackageTest addBundleVerifier(ThrowingConsumer<JPackageCommand> v) {
+        return addBundleVerifier(
+                (cmd, unused) -> ThrowingConsumer.toConsumer(v).accept(cmd));
     }
 
     public PackageTest addBundlePropertyVerifier(String propertyName,
@@ -157,15 +158,17 @@ public final class PackageTest {
         return this;
     }
 
-    public PackageTest addInstallVerifier(Consumer<JPackageCommand> v) {
+    public PackageTest addInstallVerifier(ThrowingConsumer<JPackageCommand> v) {
         currentTypes.stream().forEach(
-                type -> handlers.get(type).addInstallVerifier(v));
+                type -> handlers.get(type).addInstallVerifier(
+                        ThrowingConsumer.toConsumer(v)));
         return this;
     }
 
-    public PackageTest addUninstallVerifier(Consumer<JPackageCommand> v) {
+    public PackageTest addUninstallVerifier(ThrowingConsumer<JPackageCommand> v) {
         currentTypes.stream().forEach(
-                type -> handlers.get(type).addUninstallVerifier(v));
+                type -> handlers.get(type).addUninstallVerifier(
+                        ThrowingConsumer.toConsumer(v)));
         return this;
     }
 
@@ -180,31 +183,27 @@ public final class PackageTest {
             }
 
             Test.withTempFile(fa.getSuffix(), testFile -> {
+                testFile = testFile.toAbsolutePath().normalize();
                 if (PackageType.LINUX.contains(cmd.packageType())) {
                     LinuxHelper.initFileAssociationsTestFile(testFile);
                 }
 
-                try {
-                    final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
-                    Files.deleteIfExists(appOutput);
+                final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
+                Files.deleteIfExists(appOutput);
 
-                    Test.trace(String.format("Use desktop to open [%s] file",
-                            testFile));
-                    Desktop.getDesktop().open(testFile.toFile());
-                    Test.waitForFileCreated(appOutput, 7);
+                Test.trace(String.format("Use desktop to open [%s] file",
+                        testFile));
+                Desktop.getDesktop().open(testFile.toFile());
+                Test.waitForFileCreated(appOutput, 7);
 
-                    List<String> expectedArgs = new ArrayList<>(List.of(
-                            faLauncherDefaultArgs));
-                    expectedArgs.add(testFile.toString());
+                List<String> expectedArgs = new ArrayList<>(List.of(
+                        faLauncherDefaultArgs));
+                expectedArgs.add(testFile.toString());
 
-                    // Wait a little bit after file has been created to
-                    // make sure there are no pending writes into it.
-                    Thread.sleep(3000);
-                    HelloApp.verifyOutputFile(appOutput, expectedArgs.toArray(
-                            String[]::new));
-                } catch (IOException | InterruptedException ex) {
-                    throw new RuntimeException(ex);
-                }
+                // Wait a little bit after file has been created to
+                // make sure there are no pending writes into it.
+                Thread.sleep(3000);
+                HelloApp.verifyOutputFile(appOutput, expectedArgs.toArray(String[]::new));
             });
         });
 
@@ -345,11 +344,8 @@ public final class PackageTest {
             if (cmd.isRuntime()) {
                 Test.assertDirectoryExists(
                         cmd.appRuntimeInstallationDirectory(), false);
-                Test.assertDirectoryExists(
-                        cmd.appInstallationDirectory().resolve("app"), false);
             } else {
-                Test.assertExecutableFileExists(cmd.launcherInstallationPath(),
-                        true);
+                Test.assertExecutableFileExists(cmd.launcherInstallationPath(), true);
             }
 
             if (PackageType.WINDOWS.contains(cmd.packageType())) {
@@ -363,8 +359,8 @@ public final class PackageTest {
             Test.trace(String.format("Verify uninstalled: %s",
                     cmd.getPrintableCommandLine()));
             if (!cmd.isRuntime()) {
-                Test.assertFileExists(cmd.launcherInstallationPath(), false);
-                Test.assertDirectoryExists(cmd.appInstallationDirectory(), false);
+                Test.assertPathExists(cmd.launcherInstallationPath(), false);
+                Test.assertPathExists(cmd.appInstallationDirectory(), false);
             }
 
             if (PackageType.WINDOWS.contains(cmd.packageType())) {

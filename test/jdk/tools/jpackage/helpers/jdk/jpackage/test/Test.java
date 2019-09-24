@@ -22,7 +22,7 @@
  */
 package jdk.jpackage.test;
 
-import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -37,14 +37,18 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import jdk.jpackage.internal.IOUtils;
+import jdk.jpackage.test.Functional.ThrowingConsumer;
+import jdk.jpackage.test.Functional.ThrowingRunnable;
+import jdk.jpackage.test.Functional.ThrowingSupplier;
 
 final public class Test {
 
@@ -221,47 +225,41 @@ final public class Test {
         return Files.createTempFile(workDir(), TEMP_FILE_PREFIX, suffix);
     }
 
-    public static void withTempFile(String suffix, Consumer<Path> action) {
-        Path tempFile = null;
+    public static void withTempFile(String suffix, ThrowingConsumer<Path> action) {
+        final Path tempFile = ThrowingSupplier.toSupplier(() -> createTempFile(
+                suffix)).get();
         boolean keepIt = true;
         try {
-            tempFile = createTempFile(suffix);
-            action.accept(tempFile);
+            ThrowingConsumer.toConsumer(action).accept(tempFile);
             keepIt = false;
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
         } finally {
             if (tempFile != null && !keepIt) {
-                try {
-                    Files.deleteIfExists(tempFile);
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
+                ThrowingRunnable.toRunnable(() -> Files.deleteIfExists(tempFile)).run();
             }
         }
     }
 
-    public static void withTempDirectory(Consumer<Path> action) {
-        Path tempDir = null;
+    public static void withTempDirectory(ThrowingConsumer<Path> action) {
+        final Path tempDir = ThrowingSupplier.toSupplier(
+                () -> createTempDirectory()).get();
         boolean keepIt = true;
         try {
-            tempDir = createTempDirectory();
-            action.accept(tempDir);
+            ThrowingConsumer.toConsumer(action).accept(tempDir);
             keepIt = false;
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
         } finally {
-            try {
-                if (tempDir != null && tempDir.toFile().isDirectory() && !keepIt) {
-                    IOUtils.deleteRecursive(tempDir.toFile());
-                }
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+            if (tempDir != null && tempDir.toFile().isDirectory() && !keepIt) {
+                deleteDirectoryRecursive(tempDir);
             }
         }
     }
 
-    public static void waitForFileCreated(Path fileToWaitFor,
+    static void deleteDirectoryRecursive(Path path) {
+        ThrowingRunnable.toRunnable(() -> Files.walk(path).sorted(
+                Comparator.reverseOrder()).map(Path::toFile).forEach(
+                File::delete)).run();
+    }
+
+    static void waitForFileCreated(Path fileToWaitFor,
             long timeoutSeconds) throws IOException {
 
         trace(String.format("Wait for file [%s] to be available", fileToWaitFor));
@@ -437,9 +435,64 @@ final public class Test {
         }
     }
 
+    public static void assertReadableFileExists(Path path) {
+        assertFileExists(path, true);
+        assertTrue(path.toFile().canRead(), String.format(
+                "Check [%s] file is readable", path));
+     }
+
     public static void assertUnexpected(String msg) {
         currentTest.notifyAssert();
         error(concatMessages("Unexpected", msg));
+    }
+
+    public static void assertStringListEquals(List<String> expected,
+            List<String> actual, String msg) {
+        currentTest.notifyAssert();
+
+        if (expected.size() < actual.size()) {
+            // Actual string list is longer than expected
+            error(concatMessages(String.format(
+                    "Actual list is longer than expected by %d elements",
+                    actual.size() - expected.size()), msg));
+        }
+
+        if (actual.size() < expected.size()) {
+            // Actual string list is shorter than expected
+            error(concatMessages(String.format(
+                    "Actual list is longer than expected by %d elements",
+                    expected.size() - actual.size()), msg));
+        }
+
+        traceAssert(String.format("assertStringListEquals(): %s", msg));
+
+        String idxFieldFormat = Functional.identity(() -> {
+            int listSize = expected.size();
+            int width = 0;
+            while (listSize != 0) {
+                listSize = listSize / 10;
+                width++;
+            }
+            return "%" + width + "d";
+        }).get();
+
+        AtomicInteger counter = new AtomicInteger(0);
+        Iterator<String> actualIt = actual.iterator();
+        expected.stream().sequential().filter(expectedStr -> actualIt.hasNext()).forEach(expectedStr -> {
+            int idx = counter.incrementAndGet();
+            String actualStr = actualIt.next();
+
+            if ((actualStr != null && !actualStr.equals(expectedStr))
+                    || (expectedStr != null && !expectedStr.equals(actualStr))) {
+                error(concatMessages(String.format(
+                        "(" + idxFieldFormat + ") Expected [%s]. Actual [%s]",
+                        idx, expectedStr, actualStr), msg));
+            }
+
+            traceAssert(String.format(
+                    "assertStringListEquals(" + idxFieldFormat + ", %s)", idx,
+                    expectedStr));
+        });
     }
 
     private static PrintStream openLogStream() {
@@ -469,16 +522,13 @@ final public class Test {
         return "jpackage.test." + propertyName;
     }
 
-    static final Path LOG_FILE = new Supplier<Path>() {
-        @Override
-        public Path get() {
-            String val = getConfigProperty("logfile");
-            if (val == null) {
-                return null;
-            }
-            return Path.of(val);
+    static final Path LOG_FILE = Functional.identity(() -> {
+        String val = getConfigProperty("logfile");
+        if (val == null) {
+            return null;
         }
-    }.get();
+        return Path.of(val);
+    }).get();
 
     static {
         String val = getConfigProperty("suppress-logging");

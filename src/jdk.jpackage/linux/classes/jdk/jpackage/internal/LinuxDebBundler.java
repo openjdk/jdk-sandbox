@@ -141,13 +141,6 @@ public class LinuxDebBundler extends LinuxPackageBundler {
             },
             (s, p) -> s);
 
-    private static final BundlerParamInfo<String> COPYRIGHT_FILE =
-            new StandardBundlerParam<>(
-            Arguments.CLIOptions.LINUX_DEB_COPYRIGHT_FILE.getId(),
-            String.class,
-            params -> null,
-            (s, p) -> s);
-
     private final static String TOOL_DPKG_DEB = "dpkg-deb";
     private final static String TOOL_DPKG = "dpkg";
 
@@ -329,17 +322,9 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         debianFiles.add(new DebianFile(
                 configDir.resolve("postrm"),
                 "resource.deb-postrm-script").setExecutable());
-
-        getConfig_CopyrightFile(params).getParentFile().mkdirs();
-        String customCopyrightFile = COPYRIGHT_FILE.fetchFrom(params);
-        if (customCopyrightFile != null) {
-            IOUtils.copyFile(new File(customCopyrightFile),
-                    getConfig_CopyrightFile(params));
-        } else {
-            debianFiles.add(new DebianFile(
-                    getConfig_CopyrightFile(params).toPath(),
-                    "resource.copyright-file"));
-        }
+        debianFiles.add(new DebianFile(
+                getConfig_CopyrightFile(params).toPath(),
+                "resource.copyright-file"));
 
         for (DebianFile debianFile : debianFiles) {
             debianFile.create(data, params);

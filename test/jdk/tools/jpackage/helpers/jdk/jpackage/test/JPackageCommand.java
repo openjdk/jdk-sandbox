@@ -473,11 +473,11 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
                 .getPrintableCommandLine();
     }
 
-    void verifyIsOfType(Collection<PackageType> types) {
+    public void verifyIsOfType(Collection<PackageType> types) {
         verifyIsOfType(types.toArray(PackageType[]::new));
     }
 
-    void verifyIsOfType(PackageType ... types) {
+    public void verifyIsOfType(PackageType ... types) {
         if (!Arrays.asList(types).contains(packageType())) {
             throw new IllegalArgumentException("Unexpected package type");
         }
