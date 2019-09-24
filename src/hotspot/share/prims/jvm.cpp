@@ -773,7 +773,7 @@ JVM_ENTRY(jclass, JVM_FindPrimitiveClass(JNIEnv* env, const char* utf))
   JVMWrapper("JVM_FindPrimitiveClass");
   oop mirror = NULL;
   BasicType t = name2type(utf);
-  if (t != T_ILLEGAL && t != T_OBJECT && t != T_ARRAY) {
+  if (t != T_ILLEGAL && !is_reference_type(t)) {
     mirror = Universe::java_mirror(t);
   }
   if (mirror == NULL) {
@@ -1257,7 +1257,7 @@ JVM_ENTRY(jobject, JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls))
       protection_domain = method->method_holder()->protection_domain();
     }
 
-    if ((!oopDesc::equals(previous_protection_domain, protection_domain)) && (protection_domain != NULL)) {
+    if ((previous_protection_domain != protection_domain) && (protection_domain != NULL)) {
       local_array->push(protection_domain);
       previous_protection_domain = protection_domain;
     }
@@ -2974,7 +2974,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "timeout value is negative");
   }
 
-  if (Thread::is_interrupted (THREAD, true) && !HAS_PENDING_EXCEPTION) {
+  if (thread->is_interrupted(true) && !HAS_PENDING_EXCEPTION) {
     THROW_MSG(vmSymbols::java_lang_InterruptedException(), "sleep interrupted");
   }
 
@@ -3071,7 +3071,7 @@ JVM_ENTRY(void, JVM_Interrupt(JNIEnv* env, jobject jthread))
   bool is_alive = tlh.cv_internal_thread_to_JavaThread(jthread, &receiver, NULL);
   if (is_alive) {
     // jthread refers to a live JavaThread.
-    Thread::interrupt(receiver);
+    receiver->interrupt();
   }
 JVM_END
 
@@ -3084,7 +3084,7 @@ JVM_ENTRY(jboolean, JVM_IsInterrupted(JNIEnv* env, jobject jthread, jboolean cle
   bool is_alive = tlh.cv_internal_thread_to_JavaThread(jthread, &receiver, NULL);
   if (is_alive) {
     // jthread refers to a live JavaThread.
-    return (jboolean) Thread::is_interrupted(receiver, clear_interrupted != 0);
+    return (jboolean) receiver->is_interrupted(clear_interrupted != 0);
   } else {
     return JNI_FALSE;
   }
