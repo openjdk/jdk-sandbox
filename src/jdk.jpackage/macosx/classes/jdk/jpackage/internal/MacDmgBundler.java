@@ -94,8 +94,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_ACTUAL_VOLUME_NAME", volumeName);
         data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(params));
 
-        data.put("DEPLOY_INSTALL_LOCATION", "(path to desktop folder)");
-        data.put("DEPLOY_INSTALL_NAME", "Desktop");
+        data.put("DEPLOY_INSTALL_LOCATION", "(path to applications folder)");
+        data.put("DEPLOY_INSTALL_NAME", "Applications");
 
         try (Writer w = Files.newBufferedWriter(dmgSetup.toPath())) {
             w.write(preprocessTextResource(dmgSetup.getName(),
@@ -317,59 +317,74 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         IOUtils.exec(pb);
 
         File mountedRoot = new File(imagesRoot.getAbsolutePath(),
-                APP_NAME.fetchFrom(params));
+                    APP_NAME.fetchFrom(params));
 
-        // volume icon
-        File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
-        IOUtils.copyFile(getConfig_VolumeIcon(params),
-                volumeIconFile);
+        try {
+            // volume icon
+            File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
+            IOUtils.copyFile(getConfig_VolumeIcon(params),
+                    volumeIconFile);
 
-        pb = new ProcessBuilder("osascript",
-                getConfig_VolumeScript(params).getAbsolutePath());
-        IOUtils.exec(pb);
+            // background image
+            File bgdir = new File(mountedRoot, ".background");
+            bgdir.mkdirs();
+            IOUtils.copyFile(getConfig_VolumeBackground(params),
+                    new File(bgdir, "background.png"));
 
-        // Indicate that we want a custom icon
-        // NB: attributes of the root directory are ignored
-        // when creating the volume
-        // Therefore we have to do this after we mount image
-        String setFileUtility = findSetFileUtility();
-        if (setFileUtility != null) {
+            // Indicate that we want a custom icon
+            // NB: attributes of the root directory are ignored
+            // when creating the volume
+            // Therefore we have to do this after we mount image
+            String setFileUtility = findSetFileUtility();
+            if (setFileUtility != null) {
                 //can not find utility => keep going without icon
-            try {
-                volumeIconFile.setWritable(true);
-                // The "creator" attribute on a file is a legacy attribute
-                // but it seems Finder excepts these bytes to be
-                // "icnC" for the volume icon
-                // http://endrift.com/blog/2010/06/14/dmg-files-volume-icons-cli
-                // (might not work on Mac 10.13 with old XCode)
-                pb = new ProcessBuilder(
-                        setFileUtility,
-                        "-c", "icnC",
-                        volumeIconFile.getAbsolutePath());
-                IOUtils.exec(pb);
-                volumeIconFile.setReadOnly();
+                try {
+                    volumeIconFile.setWritable(true);
+                    // The "creator" attribute on a file is a legacy attribute
+                    // but it seems Finder excepts these bytes to be
+                    // "icnC" for the volume icon
+                    // http://endrift.com/blog/2010/06/14/dmg-files-volume-icons-cli
+                    // (might not work on Mac 10.13 with old XCode)
+                    pb = new ProcessBuilder(
+                            setFileUtility,
+                            "-c", "icnC",
+                            volumeIconFile.getAbsolutePath());
+                    IOUtils.exec(pb);
+                    volumeIconFile.setReadOnly();
 
-                pb = new ProcessBuilder(
-                        setFileUtility,
-                        "-a", "C",
-                        mountedRoot.getAbsolutePath());
+                    pb = new ProcessBuilder(
+                            setFileUtility,
+                            "-a", "C",
+                            mountedRoot.getAbsolutePath());
+                    IOUtils.exec(pb);
+                } catch (IOException ex) {
+                    Log.error(ex.getMessage());
+                    Log.verbose("Cannot enable custom icon using SetFile utility");
+                }
+            } else {
+                Log.verbose(I18N.getString("message.setfile.dmg"));
+            }
+
+            // We will not consider setting background image and creating link to
+            // /Application folder in DMG as critical error, since it can fail in
+            // headless enviroment.
+            try {
+                pb = new ProcessBuilder("osascript",
+                        getConfig_VolumeScript(params).getAbsolutePath());
                 IOUtils.exec(pb);
             } catch (IOException ex) {
-                Log.error(ex.getMessage());
-                Log.verbose("Cannot enable custom icon using SetFile utility");
+                Log.verbose(ex);
             }
-        } else {
-            Log.verbose(I18N.getString("message.setfile.dmg"));
+        } finally {
+            // Detach the temporary image
+            pb = new ProcessBuilder(
+                    hdiutil,
+                    "detach",
+                    "-force",
+                    hdiUtilVerbosityFlag,
+                    mountedRoot.getAbsolutePath());
+            IOUtils.exec(pb);
         }
-
-        // Detach the temporary image
-        pb = new ProcessBuilder(
-                hdiutil,
-                "detach",
-                "-force",
-                hdiUtilVerbosityFlag,
-                mountedRoot.getAbsolutePath());
-        IOUtils.exec(pb);
 
         // Compress it to a new image
         pb = new ProcessBuilder(
