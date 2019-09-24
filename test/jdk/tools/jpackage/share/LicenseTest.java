@@ -110,9 +110,7 @@ public class LicenseTest {
     }
 
     private static Path debLicenseFile(JPackageCommand cmd) {
-        final Path licensePath = Path.of("/usr", "share", "doc",
-                LinuxHelper.getPackageName(cmd), "copyright");
-        return licensePath;
+        return cmd.appInstallationDirectory().resolve("share/doc/copyright");
     }
 
     private static void verifyLicenseFileInLinuxPackage(JPackageCommand cmd,

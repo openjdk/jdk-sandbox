@@ -39,6 +39,7 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxPackageBundler.I18N;
@@ -363,8 +364,9 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
     private File getConfig_CopyrightFile(Map<String, ? super Object> params) {
         PlatformPackage thePackage = createMetaPackage(params);
-        return thePackage.sourceRoot().resolve(Path.of("usr/share/doc",
-                thePackage.name(), "copyright")).toFile();
+        return thePackage.sourceRoot().resolve(Path.of(".",
+                LINUX_INSTALL_DIR.fetchFrom(params), PACKAGE_NAME.fetchFrom(
+                params), "share/doc/copyright")).toFile();
     }
 
     private File buildDeb(Map<String, ? super Object> params,
