@@ -525,7 +525,7 @@ public class Arguments {
                 Log.error(msg1);
                 if (e.getCause() != null && e.getCause() != e) {
                     String msg2 = e.getCause().getMessage();
-                    if (!msg1.contains(msg2)) {
+                    if (msg2 != null && !msg1.contains(msg2)) {
                         Log.error(msg2);
                     }
                 }

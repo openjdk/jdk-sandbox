@@ -8,7 +8,7 @@
 # found in the current directory or the one specified with command line option.
 #
 # When jtreg jpackage tests are executed with jpackage.test.output
-# Java property set, produced package files (msi, exe, deb, rpm, etc.) will 
+# Java property set, produced package files (msi, exe, deb, rpm, etc.) will
 # be saved in the directory specified with this property.
 #
 # Usage example:
@@ -27,7 +27,7 @@
 
 #
 # When using with MSI installers, Cygwin shell from which this script is
-# executed should be started as administrator. Otherwise silent installation 
+# executed should be started as administrator. Otherwise silent installation
 # won't work.
 #
 

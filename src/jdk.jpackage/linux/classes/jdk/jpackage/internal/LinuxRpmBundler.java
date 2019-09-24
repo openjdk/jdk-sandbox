@@ -25,10 +25,9 @@
 
 package jdk.jpackage.internal;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -36,7 +35,6 @@ import java.util.regex.Pattern;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
-import static jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
 
 /**
  * There are two command line options to configure license information for RPM
@@ -49,28 +47,7 @@ import static jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
  * to set license information. --license-file makes little sense in case of RPM
  * packaging.
  */
-public class LinuxRpmBundler extends AbstractBundler {
-
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.LinuxResources");
-
-    public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
-            new StandardBundlerParam<>(
-            "linux.app.bundler",
-            LinuxAppBundler.class,
-            params -> new LinuxAppBundler(),
-            null);
-
-    public static final BundlerParamInfo<File> RPM_IMAGE_DIR =
-            new StandardBundlerParam<>(
-            "linux.rpm.imageDir",
-            File.class,
-            params -> {
-                File imagesRoot = IMAGES_ROOT.fetchFrom(params);
-                if (!imagesRoot.exists()) imagesRoot.mkdirs();
-                return new File(imagesRoot, "linux-rpm.image");
-            },
-            (s, p) -> new File(s));
+public class LinuxRpmBundler extends LinuxPackageBundler {
 
     // Fedora rules for package naming are used here
     // https://fedoraproject.org/wiki/Packaging:NamingGuidelines?rd=Packaging/NamingGuidelines
@@ -80,10 +57,10 @@ public class LinuxRpmBundler extends AbstractBundler {
     //
     // abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._+
     //
-    private static final Pattern RPM_BUNDLE_NAME_PATTERN =
+    private static final Pattern RPM_PACKAGE_NAME_PATTERN =
             Pattern.compile("[a-z\\d\\+\\-\\.\\_]+", Pattern.CASE_INSENSITIVE);
 
-    public static final BundlerParamInfo<String> BUNDLE_NAME =
+    public static final BundlerParamInfo<String> PACKAGE_NAME =
             new StandardBundlerParam<> (
             Arguments.CLIOptions.LINUX_BUNDLE_NAME.getId(),
             String.class,
@@ -97,7 +74,7 @@ public class LinuxRpmBundler extends AbstractBundler {
                 return nm;
             },
             (s, p) -> {
-                if (!RPM_BUNDLE_NAME_PATTERN.matcher(s).matches()) {
+                if (!RPM_PACKAGE_NAME_PATTERN.matcher(s).matches()) {
                     String msgKey = "error.invalid-value-for-package-name";
                     throw new IllegalArgumentException(
                             new ConfigException(MessageFormat.format(
@@ -107,14 +84,6 @@ public class LinuxRpmBundler extends AbstractBundler {
 
                 return s;
             }
-        );
-
-    public static final BundlerParamInfo<String> MENU_GROUP =
-        new StandardBundlerParam<>(
-                Arguments.CLIOptions.LINUX_MENU_GROUP.getId(),
-                String.class,
-                params -> I18N.getString("param.menu-group.default"),
-                (s, p) -> s
         );
 
     public static final BundlerParamInfo<String> LICENSE_TYPE =
@@ -132,41 +101,7 @@ public class LinuxRpmBundler extends AbstractBundler {
             params -> null,
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> XDG_FILE_PREFIX =
-            new StandardBundlerParam<> (
-            "linux.xdg-prefix",
-            String.class,
-            params -> {
-                try {
-                    String vendor;
-                    if (params.containsKey(VENDOR.getID())) {
-                        vendor = VENDOR.fetchFrom(params);
-                    } else {
-                        vendor = "jpackage";
-                    }
-                    String appName = APP_NAME.fetchFrom(params);
-
-                    return (vendor + "-" + appName).replaceAll("\\s", "");
-                } catch (Exception e) {
-                    Log.verbose(e);
-                }
-                return "unknown-MimeInfo.xml";
-            },
-            (s, p) -> s);
-
-    public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
-        new StandardBundlerParam<>(
-                Arguments.CLIOptions.LINUX_SHORTCUT_HINT.getId(),
-                Boolean.class,
-                params -> false,
-                (s, p) -> (s == null || "null".equalsIgnoreCase(s))
-                        ? false : Boolean.valueOf(s)
-        );
-
-    private final static String DEFAULT_ICON = "java32.png";
     private final static String DEFAULT_SPEC_TEMPLATE = "template.spec";
-    private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
-            "template.desktop";
 
     public final static String TOOL_RPMBUILD = "rpmbuild";
     public final static double TOOL_RPMBUILD_MIN_VERSION = 4.0d;
@@ -195,430 +130,72 @@ public class LinuxRpmBundler extends AbstractBundler {
         }
     }
 
+    public LinuxRpmBundler() {
+        super(PACKAGE_NAME);
+    }
+
     @Override
-    public boolean validate(Map<String, ? super Object> params)
+    public void doValidate(Map<String, ? super Object> params)
             throws ConfigException {
-        try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
+        if (params == null) throw new ConfigException(
+                I18N.getString("error.parameters-null"),
+                I18N.getString("error.parameters-null.advice"));
 
-            // run basic validation to ensure requirements are met
-            // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(params).validate(params);
-
-            // validate presense of required tools
-            if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
-                throw new ConfigException(
-                    MessageFormat.format(
-                        I18N.getString("error.cannot-find-rpmbuild"),
-                        TOOL_RPMBUILD_MIN_VERSION),
-                    MessageFormat.format(
-                        I18N.getString("error.cannot-find-rpmbuild.advice"),
-                        TOOL_RPMBUILD_MIN_VERSION));
-            }
-
-            // only one mime type per association, at least one file extension
-            List<Map<String, ? super Object>> associations =
-                    FILE_ASSOCIATIONS.fetchFrom(params);
-            if (associations != null) {
-                for (int i = 0; i < associations.size(); i++) {
-                    Map<String, ? super Object> assoc = associations.get(i);
-                    List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
-                    if (mimes == null || mimes.isEmpty()) {
-                        String msgKey =
-                                "error.no-content-types-for-file-association";
-                        throw new ConfigException(
-                                MessageFormat.format(I18N.getString(msgKey), i),
-                                I18N.getString(msgKey + ".advice"));
-                    } else if (mimes.size() > 1) {
-                        String msgKey =
-                                "error.no-content-types-for-file-association";
-                        throw new ConfigException(
-                                MessageFormat.format(I18N.getString(msgKey), i),
-                                I18N.getString(msgKey + ".advice"));
-                    }
-                }
-            }
-
-            // bundle name has some restrictions
-            // the string converter will throw an exception if invalid
-            BUNDLE_NAME.getStringConverter().apply(
-                    BUNDLE_NAME.fetchFrom(params), params);
-
-            return true;
-        } catch (RuntimeException re) {
-            if (re.getCause() instanceof ConfigException) {
-                throw (ConfigException) re.getCause();
-            } else {
-                throw new ConfigException(re);
-            }
+        // validate presense of required tools
+        if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
+            throw new ConfigException(
+                MessageFormat.format(
+                    I18N.getString("error.cannot-find-rpmbuild"),
+                    TOOL_RPMBUILD_MIN_VERSION),
+                MessageFormat.format(
+                    I18N.getString("error.cannot-find-rpmbuild.advice"),
+                    TOOL_RPMBUILD_MIN_VERSION));
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> params)
-            throws PackagerException, IOException {
-        File appImage = StandardBundlerParam.getPredefinedAppImage(params);
-        File appDir = null;
+    @Override
+    protected File buildPackageBundle(
+            Map<String, String> replacementData,
+            Map<String, ? super Object> params, File outputParentDir) throws
+            PackagerException, IOException {
 
-        // we either have an application image or need to build one
-        if (appImage != null) {
-            appDir = new File(RPM_IMAGE_DIR.fetchFrom(params),
-                APP_NAME.fetchFrom(params));
-            // copy everything from appImage dir into appDir/name
-            IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
-        } else {
-            appDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
-                    RPM_IMAGE_DIR.fetchFrom(params), true);
-        }
-        return appDir != null;
-    }
-
-    public File bundle(Map<String, ? super Object> params,
-            File outdir) throws PackagerException {
-
-        IOUtils.writableOutputDir(outdir.toPath());
-
-        File imageDir = RPM_IMAGE_DIR.fetchFrom(params);
-        try {
-
-            imageDir.mkdirs();
-
-            if (prepareProto(params) && prepareProjectConfig(params)) {
-                return buildRPM(params, outdir);
-            }
-            return null;
-        } catch (IOException ex) {
-            Log.verbose(ex);
-            throw new PackagerException(ex);
-        }
-    }
-
-    private boolean prepareProjectConfig(Map<String, ? super Object> params)
-            throws IOException {
-        Map<String, String> data = createReplacementData(params);
-        File rootDir =
-            LinuxAppBundler.getRootDir(RPM_IMAGE_DIR.fetchFrom(params), params);
-        File binDir = new File(rootDir, "bin");
-
-        // prepare installer icon
-        File iconTarget = getConfig_IconFile(binDir, params);
-        File icon = LinuxAppBundler.ICON_PNG.fetchFrom(params);
-        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            if (icon == null || !icon.exists()) {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        DEFAULT_ICON,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            } else {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        icon,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            }
-        }
-
-        StringBuilder installScripts = new StringBuilder();
-        StringBuilder removeScripts = new StringBuilder();
-        for (Map<String, ? super Object> addLauncher :
-                ADD_LAUNCHERS.fetchFrom(params)) {
-            Map<String, String> addLauncherData =
-                    createReplacementData(addLauncher);
-            addLauncherData.put("APPLICATION_FS_NAME",
-                    data.get("APPLICATION_FS_NAME"));
-            addLauncherData.put("DESKTOP_MIMES", "");
-
-            // prepare desktop shortcut
-            if (SHORTCUT_HINT.fetchFrom(params)) {
-                try (Writer w = Files.newBufferedWriter(
-                    getConfig_DesktopShortcutFile(binDir,
-                            addLauncher).toPath())) {
-                    String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(binDir,
-                        addLauncher).getName(),
-                        I18N.getString("resource.menu-shortcut-descriptor"),
-                        DEFAULT_DESKTOP_FILE_TEMPLATE, addLauncherData,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-                    w.write(content);
-                }
-            }
-
-            // prepare installer icon
-            iconTarget = getConfig_IconFile(binDir, addLauncher);
-            icon = LinuxAppBundler.ICON_PNG.fetchFrom(addLauncher);
-            if (icon == null || !icon.exists()) {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        DEFAULT_ICON,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            } else {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        icon,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            }
-
-            // post copying of desktop icon
-            installScripts.append("xdg-desktop-menu install --novendor ");
-            installScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
-            installScripts.append("/");
-            installScripts.append(data.get("APPLICATION_FS_NAME"));
-            installScripts.append("/bin/");
-            installScripts.append(addLauncherData.get(
-                    "APPLICATION_LAUNCHER_FILENAME"));
-            installScripts.append(".desktop\n");
-
-            // preun cleanup of desktop icon
-            removeScripts.append("xdg-desktop-menu uninstall --novendor ");
-            removeScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
-            removeScripts.append("/");
-            removeScripts.append(data.get("APPLICATION_FS_NAME"));
-            removeScripts.append("/bin/");
-            removeScripts.append(addLauncherData.get(
-                    "APPLICATION_LAUNCHER_FILENAME"));
-            removeScripts.append(".desktop\n");
-
-        }
-        data.put("ADD_LAUNCHERS_INSTALL", installScripts.toString());
-        data.put("ADD_LAUNCHERS_REMOVE", removeScripts.toString());
-
-        StringBuilder cdsScript = new StringBuilder();
-
-        data.put("APP_CDS_CACHE", cdsScript.toString());
-
-        List<Map<String, ? super Object>> associations =
-                FILE_ASSOCIATIONS.fetchFrom(params);
-        data.put("FILE_ASSOCIATION_INSTALL", "");
-        data.put("FILE_ASSOCIATION_REMOVE", "");
-        data.put("DESKTOP_MIMES", "");
-        if (associations != null) {
-            String mimeInfoFile = XDG_FILE_PREFIX.fetchFrom(params)
-                    + "-MimeInfo.xml";
-            StringBuilder mimeInfo = new StringBuilder(
-                "<?xml version=\"1.0\"?>\n<mime-info xmlns="
-                +"'http://www.freedesktop.org/standards/shared-mime-info'>\n");
-            StringBuilder registrations = new StringBuilder();
-            StringBuilder deregistrations = new StringBuilder();
-            StringBuilder desktopMimes = new StringBuilder("MimeType=");
-            boolean addedEntry = false;
-
-            for (Map<String, ? super Object> assoc : associations) {
-                //  <mime-type type="application/x-vnd.awesome">
-                //    <comment>Awesome document</comment>
-                //    <glob pattern="*.awesome"/>
-                //    <glob pattern="*.awe"/>
-                //  </mime-type>
-
-                if (assoc == null) {
-                    continue;
-                }
-
-                String description = FA_DESCRIPTION.fetchFrom(assoc);
-                File faIcon = FA_ICON.fetchFrom(assoc);
-                List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
-                if (extensions == null) {
-                    Log.verbose(I18N.getString(
-                        "message.creating-association-with-null-extension"));
-                }
-
-                List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
-                if (mimes == null || mimes.isEmpty()) {
-                    continue;
-                }
-                String thisMime = mimes.get(0);
-                String dashMime = thisMime.replace('/', '-');
-
-                mimeInfo.append("  <mime-type type='")
-                        .append(thisMime)
-                        .append("'>\n");
-                if (description != null && !description.isEmpty()) {
-                    mimeInfo.append("    <comment>")
-                            .append(description)
-                            .append("</comment>\n");
-                }
-
-                if (extensions != null) {
-                    for (String ext : extensions) {
-                        mimeInfo.append("    <glob pattern='*.")
-                                .append(ext)
-                                .append("'/>\n");
-                    }
-                }
-
-                mimeInfo.append("  </mime-type>\n");
-                if (!addedEntry) {
-                    registrations.append("xdg-mime install ")
-                            .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                            .append("/")
-                            .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/bin/")
-                            .append(mimeInfoFile)
-                            .append("\n");
-
-                    deregistrations.append("xdg-mime uninstall ")
-                            .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                            .append("/")
-                            .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/bin/")
-                            .append(mimeInfoFile)
-                            .append("\n");
-                    addedEntry = true;
-                } else {
-                    desktopMimes.append(";");
-                }
-                desktopMimes.append(thisMime);
-
-                if (faIcon != null && faIcon.exists()) {
-                    int size = getSquareSizeOfImage(faIcon);
-
-                    if (size > 0) {
-                        File target = new File(binDir,
-                                APP_NAME.fetchFrom(params)
-                                + "_fa_" + faIcon.getName());
-                        IOUtils.copyFile(faIcon, target);
-
-                        // xdg-icon-resource install --context mimetypes
-                        // --size 64 awesomeapp_fa_1.png
-                        // application-x.vnd-awesome
-                        registrations.append(
-                                "xdg-icon-resource install "
-                                + "--context mimetypes --size ")
-                                .append(size)
-                                .append(" ")
-                                .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                                .append("/")
-                                .append(data.get("APPLICATION_FS_NAME"))
-                                .append("/")
-                                .append(target.getName())
-                                .append(" ")
-                                .append(dashMime)
-                                .append("\n");
-
-                        // xdg-icon-resource uninstall --context mimetypes
-                        // --size 64 awesomeapp_fa_1.png
-                        // application-x.vnd-awesome
-                        deregistrations.append(
-                                "xdg-icon-resource uninstall "
-                                + "--context mimetypes --size ")
-                                .append(size)
-                                .append(" ")
-                                .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                                .append("/")
-                                .append(data.get("APPLICATION_FS_NAME"))
-                                .append("/")
-                                .append(target.getName())
-                                .append(" ")
-                                .append(dashMime)
-                                .append("\n");
-                    }
-                }
-            }
-            mimeInfo.append("</mime-info>");
-
-            if (addedEntry) {
-                try (Writer w = Files.newBufferedWriter(
-                        new File(binDir, mimeInfoFile).toPath())) {
-                    w.write(mimeInfo.toString());
-                }
-                data.put("FILE_ASSOCIATION_INSTALL", registrations.toString());
-                data.put("FILE_ASSOCIATION_REMOVE", deregistrations.toString());
-                data.put("DESKTOP_MIMES", desktopMimes.toString());
-            }
-        }
-
-        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            // prepare desktop shortcut
-            if (SHORTCUT_HINT.fetchFrom(params)) {
-                try (Writer w = Files.newBufferedWriter(
-                    getConfig_DesktopShortcutFile(binDir, params).toPath())) {
-                    String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(binDir,
-                                                          params).getName(),
-                    I18N.getString("resource.menu-shortcut-descriptor"),
-                        DEFAULT_DESKTOP_FILE_TEMPLATE, data,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-                    w.write(content);
-                }
-            }
-        }
+        Path specFile = specFile(params);
 
         // prepare spec file
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_SpecFile(params).toPath())) {
+        Files.createDirectories(specFile.getParent());
+        try (Writer w = Files.newBufferedWriter(specFile)) {
             String content = preprocessTextResource(
-                    getConfig_SpecFile(params).getName(),
+                    specFile.getFileName().toString(),
                     I18N.getString("resource.rpm-spec-file"),
-                    DEFAULT_SPEC_TEMPLATE, data,
+                    DEFAULT_SPEC_TEMPLATE, replacementData,
                     VERBOSE.fetchFrom(params),
                     RESOURCE_DIR.fetchFrom(params));
             w.write(content);
         }
 
-        return true;
+        return buildRPM(params, outputParentDir);
     }
 
-    private Map<String, String> createReplacementData(
+    @Override
+    protected Map<String, String> createReplacementData(
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
-        String launcher = LinuxAppImageBuilder.getLauncherRelativePath(params);
 
-        data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
-        data.put("APPLICATION_FS_NAME", APP_NAME.fetchFrom(params));
-        data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
-        data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
-        data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
-        data.put("APPLICATION_RELEASE", RELEASE.fetchFrom(params));
-        data.put("APPLICATION_LAUNCHER_FILENAME", launcher);
-        data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
-        data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
-        data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
-        data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
+        data.put("APPLICATION_DIRECTORY", Path.of(LINUX_INSTALL_DIR.fetchFrom(
+                params), PACKAGE_NAME.fetchFrom(params)).toString());
         data.put("APPLICATION_SUMMARY", APP_NAME.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));
+        data.put("APPLICATION_LICENSE_FILE", Optional.ofNullable(
+                LICENSE_FILE.fetchFrom(params)).orElse(""));
+        data.put("APPLICATION_GROUP", Optional.ofNullable(
+                GROUP.fetchFrom(params)).orElse(""));
 
-        String licenseFile = LICENSE_FILE.fetchFrom(params);
-        if (licenseFile == null) {
-            licenseFile = "";
-        }
-        data.put("APPLICATION_LICENSE_FILE", licenseFile);
-
-        String group = GROUP.fetchFrom(params);
-        if (group == null) {
-            group = "";
-        }
-        data.put("APPLICATION_GROUP", group);
-
-        String deps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params);
-        data.put("PACKAGE_DEPENDENCIES",
-                deps.isEmpty() ? "" : "Requires: " + deps);
-        data.put("RUNTIME_INSTALLER", "" +
-                StandardBundlerParam.isRuntimeInstaller(params));
         return data;
     }
 
-    private File getConfig_DesktopShortcutFile(File rootDir,
-            Map<String, ? super Object> params) {
-        return new File(rootDir, APP_NAME.fetchFrom(params) + ".desktop");
-    }
-
-    private File getConfig_IconFile(File rootDir,
-            Map<String, ? super Object> params) {
-        return new File(rootDir, APP_NAME.fetchFrom(params) + ".png");
-    }
-
-    private File getConfig_SpecFile(Map<String, ? super Object> params) {
-        return new File(RPM_IMAGE_DIR.fetchFrom(params),
-                APP_NAME.fetchFrom(params) + ".spec");
+    private Path specFile(Map<String, ? super Object> params) {
+        return TEMP_ROOT.fetchFrom(params).toPath().resolve(Path.of("SPECS",
+                PACKAGE_NAME.fetchFrom(params) + ".spec"));
     }
 
     private File buildRPM(Map<String, ? super Object> params,
@@ -627,22 +204,19 @@ public class LinuxRpmBundler extends AbstractBundler {
                 "message.outputting-bundle-location"),
                 outdir.getAbsolutePath()));
 
-        File broot = new File(TEMP_ROOT.fetchFrom(params), "rmpbuildroot");
-
-        outdir.mkdirs();
+        PlatformPackage thePackage = createMetaPackage(params);
 
         //run rpmbuild
         ProcessBuilder pb = new ProcessBuilder(
                 TOOL_RPMBUILD,
-                "-bb", getConfig_SpecFile(params).getAbsolutePath(),
-                "--define", "%_sourcedir "
-                        + RPM_IMAGE_DIR.fetchFrom(params).getAbsolutePath(),
+                "-bb", specFile(params).toAbsolutePath().toString(),
+                "--define", String.format("%%_sourcedir %s", thePackage.sourceRoot()),
                 // save result to output dir
-                "--define", "%_rpmdir " + outdir.getAbsolutePath(),
+                "--define", String.format("%%_rpmdir %s", outdir.getAbsolutePath()),
                 // do not use other system directories to build as current user
-                "--define", "%_topdir " + broot.getAbsolutePath()
+                "--define", String.format("%%_topdir %s",
+                        TEMP_ROOT.fetchFrom(params).toPath().toAbsolutePath())
         );
-        pb = pb.directory(RPM_IMAGE_DIR.fetchFrom(params));
         IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(
@@ -678,42 +252,13 @@ public class LinuxRpmBundler extends AbstractBundler {
     }
 
     @Override
-    public String getBundleType() {
-        return "INSTALLER";
-    }
-
-    @Override
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
-        return bundle(params, outputParentDir);
-    }
-
-    @Override
     public boolean supported(boolean runtimeInstaller) {
-        return isSupported();
-    }
-
-    public static boolean isSupported() {
         if (Platform.getPlatform() == Platform.LINUX) {
             if (testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)) {
                 return true;
             }
         }
         return false;
-    }
-
-    public int getSquareSizeOfImage(File f) {
-        try {
-            BufferedImage bi = ImageIO.read(f);
-            if (bi.getWidth() == bi.getHeight()) {
-                return bi.getWidth();
-            } else {
-                return 0;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return 0;
-        }
     }
 
     @Override

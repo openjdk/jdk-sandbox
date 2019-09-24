@@ -22,8 +22,11 @@
  */
 package jdk.jpackage.test;
 
-import java.io.File;
+import java.io.BufferedOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,11 +36,17 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import jdk.jpackage.internal.IOUtils;
 
-public class Test {
+final public class Test {
 
     public static final Path TEST_SRC_ROOT = new Supplier<Path>() {
         @Override
@@ -55,6 +64,62 @@ public class Test {
         }
     }.get();
 
+    private static class Instance implements AutoCloseable {
+        Instance(String args[]) {
+            assertCount = 0;
+
+            name = enclosingMainMethodClass().getSimpleName();
+            extraLogStream = openLogStream();
+
+            currentTest = this;
+
+            log(String.format("[ RUN      ] %s", name));
+        }
+
+        @Override
+        public void close() {
+            log(String.format("%s %s; checks=%d",
+                    success ? "[       OK ]" : "[  FAILED  ]", name, assertCount));
+
+            if (extraLogStream != null) {
+                extraLogStream.close();
+            }
+        }
+
+        void notifyAssert() {
+            assertCount++;
+        }
+
+        void notifySuccess() {
+            success = true;
+        }
+
+        private int assertCount;
+        private boolean success;
+        private final String name;
+        private final PrintStream extraLogStream;
+    }
+
+    public static void run(String args[], TestBody action) {
+        if (currentTest != null) {
+            throw new IllegalStateException(
+                    "Unexpeced nested or concurrent Test.run() call");
+        }
+
+        try (Instance instance = new Instance(args)) {
+            action.run();
+            instance.notifySuccess();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            currentTest = null;
+        }
+    }
+
+    public static interface TestBody {
+        public void run() throws Exception;
+    }
+
     public static Path workDir() {
         return Path.of(".");
     }
@@ -65,6 +130,20 @@ public class Test {
 
     static Path defaultOutputDir() {
         return workDir().resolve("output");
+    }
+
+    static Class enclosingMainMethodClass() {
+        StackTraceElement st[] = Thread.currentThread().getStackTrace();
+        for (StackTraceElement ste : st) {
+            if ("main".equals(ste.getMethodName())) {
+                try {
+                    return Class.forName(ste.getClassName());
+                } catch (ClassNotFoundException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+        return null;
     }
 
     static boolean isWindows() {
@@ -80,7 +159,39 @@ public class Test {
     }
 
     static private void log(String v) {
-        System.err.println(v);
+        System.out.println(v);
+        if (currentTest != null && currentTest.extraLogStream != null) {
+            currentTest.extraLogStream.println(v);
+        }
+    }
+
+    public static Class getTestClass () {
+        return enclosingMainMethodClass();
+    }
+
+    public static void createPropertiesFile(Path propsFilename,
+            Collection<Map.Entry<String, String>> props) {
+        trace(String.format("Create [%s] properties file...",
+                propsFilename.toAbsolutePath().normalize()));
+        try {
+            Files.write(propsFilename, props.stream().peek(e -> trace(
+                    String.format("%s=%s", e.getKey(), e.getValue()))).map(
+                    e -> String.format("%s=%s", e.getKey(), e.getValue())).collect(
+                            Collectors.toList()));
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+        trace("Done");
+    }
+
+    public static void createPropertiesFile(Path propsFilename,
+            Map.Entry<String, String>... props) {
+        createPropertiesFile(propsFilename, List.of(props));
+    }
+
+    public static void createPropertiesFile(Path propsFilename,
+            Map<String, String> props) {
+        createPropertiesFile(propsFilename, props.entrySet());
     }
 
     public static void trace(String v) {
@@ -100,12 +211,54 @@ public class Test {
         throw new AssertionError(v);
     }
 
+    private static final String TEMP_FILE_PREFIX = null;
+
     public static Path createTempDirectory() throws IOException {
-        return Files.createTempDirectory("jpackage_");
+        return Files.createTempDirectory(workDir(), TEMP_FILE_PREFIX);
     }
 
     public static Path createTempFile(String suffix) throws IOException {
-        return File.createTempFile("jpackage_", suffix).toPath();
+        return Files.createTempFile(workDir(), TEMP_FILE_PREFIX, suffix);
+    }
+
+    public static void withTempFile(String suffix, Consumer<Path> action) {
+        Path tempFile = null;
+        boolean keepIt = true;
+        try {
+            tempFile = createTempFile(suffix);
+            action.accept(tempFile);
+            keepIt = false;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            if (tempFile != null && !keepIt) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+    }
+
+    public static void withTempDirectory(Consumer<Path> action) {
+        Path tempDir = null;
+        boolean keepIt = true;
+        try {
+            tempDir = createTempDirectory();
+            action.accept(tempDir);
+            keepIt = false;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        } finally {
+            try {
+                if (tempDir != null && tempDir.toFile().isDirectory() && !keepIt) {
+                    IOUtils.deleteRecursive(tempDir.toFile());
+                }
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
     }
 
     public static void waitForFileCreated(Path fileToWaitFor,
@@ -166,7 +319,8 @@ public class Test {
         return msg;
     }
 
-    public static void assertEquals(int expected, int actual, String msg) {
+    public static void assertEquals(long expected, long actual, String msg) {
+        currentTest.notifyAssert();
         if (expected != actual) {
             error(concatMessages(String.format(
                     "Expected [%d]. Actual [%d]", expected, actual),
@@ -176,21 +330,8 @@ public class Test {
         traceAssert(String.format("assertEquals(%d): %s", expected, msg));
     }
 
-    public static void assertEquals(String expected, String actual, String msg) {
-        if (expected == null && actual == null) {
-            return;
-        }
-
-        if (actual == null || !expected.equals(actual)) {
-            error(concatMessages(String.format(
-                    "Expected [%s]. Actual [%s]", expected, actual),
-                    msg));
-        }
-
-        traceAssert(String.format("assertEquals(%s): %s", expected, msg));
-    }
-
-    public static void assertNotEquals(int expected, int actual, String msg) {
+    public static void assertNotEquals(long expected, long actual, String msg) {
+        currentTest.notifyAssert();
         if (expected == actual) {
             error(concatMessages(String.format("Unexpected [%d] value", actual),
                     msg));
@@ -200,7 +341,33 @@ public class Test {
                 actual, msg));
     }
 
+    public static void assertEquals(String expected, String actual, String msg) {
+        currentTest.notifyAssert();
+        if ((actual != null && !actual.equals(expected))
+                || (expected != null && !expected.equals(actual))) {
+            error(concatMessages(String.format(
+                    "Expected [%s]. Actual [%s]", expected, actual),
+                    msg));
+        }
+
+        traceAssert(String.format("assertEquals(%s): %s", expected, msg));
+    }
+
+    public static void assertNotEquals(String expected, String actual, String msg) {
+        currentTest.notifyAssert();
+        if ((actual != null && !actual.equals(expected))
+                || (expected != null && !expected.equals(actual))) {
+
+            traceAssert(String.format("assertNotEquals(%s, %s): %s", expected,
+                actual, msg));
+            return;
+        }
+
+        error(concatMessages(String.format("Unexpected [%s] value", actual), msg));
+    }
+
     public static void assertNull(Object value, String msg) {
+        currentTest.notifyAssert();
         if (value != null) {
             error(concatMessages(String.format("Unexpected not null value [%s]",
                     value), msg));
@@ -210,6 +377,7 @@ public class Test {
     }
 
     public static void assertNotNull(Object value, String msg) {
+        currentTest.notifyAssert();
         if (value == null) {
             error(concatMessages("Unexpected null value", msg));
         }
@@ -218,6 +386,7 @@ public class Test {
     }
 
     public static void assertTrue(boolean actual, String msg) {
+        currentTest.notifyAssert();
         if (!actual) {
             error(concatMessages("Unexpected FALSE", msg));
         }
@@ -226,6 +395,7 @@ public class Test {
     }
 
     public static void assertFalse(boolean actual, String msg) {
+        currentTest.notifyAssert();
         if (actual) {
             error(concatMessages("Unexpected TRUE", msg));
         }
@@ -268,22 +438,65 @@ public class Test {
     }
 
     public static void assertUnexpected(String msg) {
+        currentTest.notifyAssert();
         error(concatMessages("Unexpected", msg));
     }
+
+    private static PrintStream openLogStream() {
+        if (LOG_FILE == null) {
+            return null;
+        }
+
+        try {
+            return new PrintStream(new FileOutputStream(LOG_FILE.toFile(), true));
+        } catch (FileNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static Instance currentTest;
 
     private static final boolean TRACE;
     private static final boolean TRACE_ASSERTS;
 
+    static final boolean VERBOSE_JPACKAGE;
+
+    static String getConfigProperty(String propertyName) {
+        return System.getProperty(getConfigPropertyName(propertyName));
+    }
+
+    static String getConfigPropertyName(String propertyName) {
+        return "jpackage.test." + propertyName;
+    }
+
+    static final Path LOG_FILE = new Supplier<Path>() {
+        @Override
+        public Path get() {
+            String val = getConfigProperty("logfile");
+            if (val == null) {
+                return null;
+            }
+            return Path.of(val);
+        }
+    }.get();
+
     static {
-        String val = System.getProperty("jpackage.test.suppress-logging");
+        String val = getConfigProperty("suppress-logging");
         if (val == null) {
             TRACE = true;
             TRACE_ASSERTS = true;
+            VERBOSE_JPACKAGE = true;
+        } else if ("all".equals(val.toLowerCase())) {
+            TRACE = false;
+            TRACE_ASSERTS = false;
+            VERBOSE_JPACKAGE = false;
         } else {
             Set<String> logOptions = Set.of(val.toLowerCase().split(","));
             TRACE = !(logOptions.contains("trace") || logOptions.contains("t"));
             TRACE_ASSERTS = !(logOptions.contains("assert") || logOptions.contains(
                     "a"));
+            VERBOSE_JPACKAGE = !(logOptions.contains("jpackage") || logOptions.contains(
+                    "jp"));
         }
     }
 

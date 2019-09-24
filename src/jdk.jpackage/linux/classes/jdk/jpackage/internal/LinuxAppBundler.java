@@ -110,12 +110,6 @@ public class LinuxAppBundler extends AbstractImageBundler {
         return true;
     }
 
-    // it is static for the sake of sharing with "installer" bundlers
-    // that may skip calls to validate/bundle in this class!
-    static File getRootDir(File outDir, Map<String, ? super Object> params) {
-        return new File(outDir, APP_NAME.fetchFrom(params));
-    }
-
     File doBundle(Map<String, ? super Object> params, File outputDirectory,
             boolean dependentTask) throws PackagerException {
         if (StandardBundlerParam.isRuntimeInstaller(params)) {

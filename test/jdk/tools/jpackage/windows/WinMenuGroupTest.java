@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -40,16 +41,18 @@ import jdk.jpackage.test.PackageType;
  * @library ../helpers
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m WinMenuGroupTest
+ * @run main/othervm/timeout=360 -Xmx512m WinMenuGroupTest
  */
 
 public class WinMenuGroupTest {
     public static void main(String[] args) {
-        new PackageTest()
-        .forTypes(PackageType.WINDOWS)
-        .configureHelloApp()
-        .addInitializer(cmd -> cmd.addArguments(
-                "--win-menu", "--win-menu-group", "WinMenuGroupTest_MenuGroup"))
-        .run();
+        Test.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.WINDOWS)
+            .configureHelloApp()
+            .addInitializer(cmd -> cmd.addArguments(
+                    "--win-menu", "--win-menu-group", "WinMenuGroupTest_MenuGroup"))
+            .run();
+        });
     }
 }

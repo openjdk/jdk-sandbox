@@ -22,48 +22,51 @@
  */
 
 import java.nio.file.Path;
-import java.util.Optional;
 import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.JPackageCommand;
 
 /**
- * Test --runtime-image parameter.
- * Output of the test should be RuntimePackageTest*.* installer.
- * The installer should install Java Runtime without an application.
- * Installation directory should not have "app" subfolder and should not have
- * an application launcher.
- *
- *
- * Windows:
- *
- * Java runtime should be installed in %ProgramFiles%\RuntimePackageTest directory.
+ * Test --app-image parameter. The output installer should provide the same
+ * functionality as the default installer (see description of the default
+ * installer in SimplePackageTest.java)
  */
 
 /*
  * @test
- * @summary jpackage with --runtime-image
+ * @summary jpackage with --app-image
  * @library ../helpers
- * @comment Temporary disable for Linux and OSX until functionality implemented
- * @requires (os.family != "mac")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m RuntimePackageTest
+ * @run main/othervm/timeout=360 -Xmx512m AppImagePackageTest
  */
-public class RuntimePackageTest {
+public class AppImagePackageTest {
 
     public static void main(String[] args) {
         Test.run(args, () -> {
-            new PackageTest()
-            .addInitializer(cmd -> {
-                cmd.addArguments("--runtime-image", Optional.ofNullable(
-                        JPackageCommand.DEFAULT_RUNTIME_IMAGE).orElse(Path.of(
-                                System.getProperty("java.home"))));
-                // Remove --input parameter from jpackage command line as we don't
-                // create input directory in the test and jpackage fails
-                // if --input references non existant directory.
+            Path appimageOutput = Path.of("appimage");
+
+            JPackageCommand appImageCmd = JPackageCommand.helloAppImage()
+                    .setArgumentValue("--dest", appimageOutput)
+                    .addArguments("--package-type", "app-image");
+
+            PackageTest packageTest = new PackageTest();
+            if (packageTest.getAction() == PackageTest.Action.CREATE) {
+                appImageCmd.execute();
+            }
+
+            packageTest.addInitializer(cmd -> {
+                Path appimageInput = appimageOutput.resolve(appImageCmd.name());
+
+                if (PackageType.MAC.contains(cmd.packageType())) {
+                    // Why so complicated on macOS?
+                    appimageInput = Path.of(appimageInput.toString() + ".app");
+                    cmd.addArguments("--identifier", appImageCmd.name());
+                }
+
+                cmd.addArguments("--app-image", appimageInput);
                 cmd.removeArgument("--input");
-            })
-            .run();
+            }).addBundleDesktopIntegrationVerifier(false).run();
         });
     }
 }

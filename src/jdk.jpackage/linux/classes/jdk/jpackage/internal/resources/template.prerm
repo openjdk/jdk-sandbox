@@ -1,5 +1,5 @@
 #!/bin/sh
-# prerm script for APPLICATION_NAME
+# prerm script for APPLICATION_PACKAGE
 #
 # see: dh_installdeb(1)
 
@@ -17,14 +17,11 @@ set -e
 # the debian-policy package
 
 
+UTILITY_SCRIPTS
+
 case "$1" in
     remove|upgrade|deconfigure)
-        if [ "RUNTIME_INSTALLER" != "true" ]; then
-            echo Removing shortcut
-ADD_LAUNCHERS_REMOVE
-            xdg-desktop-menu uninstall --novendor INSTALLATION_DIRECTORY/APPLICATION_FS_NAME/APPLICATION_LAUNCHER_FILENAME.desktop
-FILE_ASSOCIATION_REMOVE
-        fi
+DESKTOP_COMMANDS_UNINSTALL
     ;;
 
     failed-upgrade)

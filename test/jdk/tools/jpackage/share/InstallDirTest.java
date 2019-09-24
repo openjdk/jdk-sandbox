@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -57,32 +58,32 @@ import jdk.jpackage.test.PackageType;
  */
 public class InstallDirTest {
 
-    public static void main(String[] args) throws Exception {
-        final Map<PackageType, String> INSTALL_DIRS = new Supplier<Map<PackageType, String>>() {
+    public static void main(String[] args) {
+        final Map<PackageType, Path> INSTALL_DIRS = new Supplier<Map<PackageType, Path>>() {
             @Override
-            public Map<PackageType, String> get() {
-                Map<PackageType, String> reply = new HashMap<>();
-                reply.put(PackageType.WIN_MSI, Path.of("TestVendor",
-                        "InstallDirTest1234").toString());
+            public Map<PackageType, Path> get() {
+                Map<PackageType, Path> reply = new HashMap<>();
+                reply.put(PackageType.WIN_MSI, Path.of(
+                        "TestVendor\\InstallDirTest1234"));
                 reply.put(PackageType.WIN_EXE, reply.get(PackageType.WIN_MSI));
 
-                reply.put(PackageType.LINUX_DEB,
-                        Path.of("/opt", "jpackage").toString());
+                reply.put(PackageType.LINUX_DEB, Path.of("/opt/jpackage"));
                 reply.put(PackageType.LINUX_RPM,
                         reply.get(PackageType.LINUX_DEB));
 
-                reply.put(PackageType.MAC_PKG, Path.of("/Application",
-                        "jpackage").toString());
+                reply.put(PackageType.MAC_PKG, Path.of("/Application/jpackage"));
                 reply.put(PackageType.MAC_DMG, reply.get(PackageType.MAC_PKG));
 
                 return reply;
             }
         }.get();
 
-        new PackageTest().configureHelloApp()
-                .addInitializer(cmd -> {
-                    cmd.addArguments("--install-dir", INSTALL_DIRS.get(
-                            cmd.packageType()));
-                }).run();
+        Test.run(args, () -> {
+            new PackageTest().configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--install-dir", INSTALL_DIRS.get(
+                        cmd.packageType()));
+            }).run();
+        });
     }
 }

@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -41,29 +42,31 @@ import jdk.jpackage.test.PackageType;
  * @library ../helpers
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m WinUpgradeUUIDTest
+ * @run main/othervm/timeout=360 -Xmx512m WinUpgradeUUIDTest
  */
 
 public class WinUpgradeUUIDTest {
     public static void main(String[] args) {
-        PackageTest test = init();
-        if (test.getAction() != PackageTest.Action.VERIFY_INSTALLED) {
-            test.run();
-        }
+        Test.run(args, () -> {
+            PackageTest test = init();
+            if (test.getAction() != PackageTest.Action.VERIFY_INSTALL) {
+                test.run();
+            }
 
-        test = init();
-        test.addInitializer(cmd -> {
-            cmd.setArgumentValue("--app-version", "2.0");
-            cmd.setArgumentValue("--arguments", "bar");
+            test = init();
+            test.addInitializer(cmd -> {
+                cmd.setArgumentValue("--app-version", "2.0");
+                cmd.setArgumentValue("--arguments", "bar");
+            });
+            test.run();
         });
-        test.run();
     }
 
     private static PackageTest init() {
         return new PackageTest()
-        .forTypes(PackageType.WINDOWS)
-        .configureHelloApp()
-        .addInitializer(cmd -> cmd.addArguments("--win-upgrade-uuid",
-                "F0B18E75-52AD-41A2-BC86-6BE4FCD50BEB"));
+            .forTypes(PackageType.WINDOWS)
+            .configureHelloApp()
+            .addInitializer(cmd -> cmd.addArguments("--win-upgrade-uuid",
+                    "F0B18E75-52AD-41A2-BC86-6BE4FCD50BEB"));
     }
 }

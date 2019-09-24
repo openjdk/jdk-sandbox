@@ -37,24 +37,26 @@ import jdk.jpackage.test.JPackageCommand;
  * @library ../helpers
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m WinConsoleTest
+ * @run main/othervm/timeout=360 -Xmx512m WinConsoleTest
  */
 public class WinConsoleTest {
 
-    public static void main(String[] args) throws IOException {
-        JPackageCommand cmd = JPackageCommand.helloAppImage();
-        final Path launcherPath = cmd.appImage().resolve(
-                cmd.launcherPathInAppImage());
+    public static void main(String[] args) {
+        Test.run(args, () -> {
+            JPackageCommand cmd = JPackageCommand.helloAppImage();
+            final Path launcherPath = cmd.appImage().resolve(
+                    cmd.launcherPathInAppImage());
 
-        IOUtils.deleteRecursive(cmd.outputDir().toFile());
-        cmd.execute().assertExitCodeIsZero();
-        HelloApp.executeAndVerifyOutput(launcherPath);
-        checkSubsystem(launcherPath, false);
+            IOUtils.deleteRecursive(cmd.outputDir().toFile());
+            cmd.execute().assertExitCodeIsZero();
+            HelloApp.executeLauncherAndVerifyOutput(cmd);
+            checkSubsystem(launcherPath, false);
 
-        IOUtils.deleteRecursive(cmd.outputDir().toFile());
-        cmd.addArgument("--win-console").execute().assertExitCodeIsZero();
-        HelloApp.executeAndVerifyOutput(launcherPath);
-        checkSubsystem(launcherPath, true);
+            IOUtils.deleteRecursive(cmd.outputDir().toFile());
+            cmd.addArgument("--win-console").execute().assertExitCodeIsZero();
+            HelloApp.executeLauncherAndVerifyOutput(cmd);
+            checkSubsystem(launcherPath, true);
+        });
     }
 
     private static void checkSubsystem(Path path, boolean isConsole) throws

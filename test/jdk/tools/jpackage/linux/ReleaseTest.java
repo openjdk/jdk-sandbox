@@ -21,8 +21,8 @@
  * questions.
  */
 
-import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.Test;
 
 
@@ -49,23 +49,25 @@ import jdk.jpackage.test.Test;
  */
 public class ReleaseTest {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final String RELEASE = "Rc3";
 
-        new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-release", RELEASE);
-        })
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Release", RELEASE)
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Version", (propName, propValue) -> {
-            Test.assertTrue(propValue.endsWith("-" + RELEASE),
-                    String.format("Check value of %s property [%s] ends with %s",
-                            propName, propValue, RELEASE));
-        })
-        .run();
+        Test.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.LINUX)
+            .configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--linux-app-release", RELEASE);
+            })
+            .forTypes(PackageType.LINUX_RPM)
+            .addBundlePropertyVerifier("Release", RELEASE)
+            .forTypes(PackageType.LINUX_DEB)
+            .addBundlePropertyVerifier("Version", (propName, propValue) -> {
+                Test.assertTrue(propValue.endsWith("-" + RELEASE),
+                        String.format("Check value of %s property [%s] ends with %s",
+                                propName, propValue, RELEASE));
+            })
+            .run();
+        });
     }
 }

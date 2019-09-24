@@ -79,21 +79,7 @@ public class IOUtils {
     }
 
     public static void copyRecursive(Path src, Path dest) throws IOException {
-        Files.walkFileTree(src, new SimpleFileVisitor<Path>() {
-            @Override
-            public FileVisitResult preVisitDirectory(final Path dir,
-                    final BasicFileAttributes attrs) throws IOException {
-                Files.createDirectories(dest.resolve(src.relativize(dir)));
-                return FileVisitResult.CONTINUE;
-            }
-
-            @Override
-            public FileVisitResult visitFile(final Path file,
-                    final BasicFileAttributes attrs) throws IOException {
-                Files.copy(file, dest.resolve(src.relativize(file)));
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        copyRecursive(src, dest, List.of());
     }
 
     public static void copyRecursive(Path src, Path dest,
@@ -146,23 +132,6 @@ public class IOUtils {
             destFile.setReadOnly();
         }
         destFile.setReadable(true, false);
-    }
-
-    public static long getFolderSize(File folder) {
-        long foldersize = 0;
-
-        File[] children = folder.listFiles();
-        if (children != null) {
-            for (File f : children) {
-                if (f.isDirectory()) {
-                    foldersize += getFolderSize(f);
-                } else {
-                    foldersize += f.length();
-                }
-            }
-        }
-
-        return foldersize;
     }
 
     // run "launcher paramfile" in the directory where paramfile is kept

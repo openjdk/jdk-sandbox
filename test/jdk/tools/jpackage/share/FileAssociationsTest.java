@@ -21,32 +21,26 @@
  * questions.
  */
 
-import java.awt.Desktop;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import jdk.jpackage.test.HelloApp;
-import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.Test;
+import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.FileAssociations;
 
 /**
- * Test --file-associations parameter.
- * Output of the test should be fileassociationstest*.* installer.
- * The output installer should provide the same functionality as the default
- * installer (see description of the default installer in SimplePackageTest.java)
- * plus configure file associations.
- * After installation files with ".jptest1" suffix should be associated with
- * the test app.
+ * Test --file-associations parameter. Output of the test should be
+ * fileassociationstest*.* installer. The output installer should provide the
+ * same functionality as the default installer (see description of the default
+ * installer in SimplePackageTest.java) plus configure file associations. After
+ * installation files with ".jptest1" and ".jptest2" suffixes should be
+ * associated with the test app.
  *
  * Suggested test scenario is to create empty file with ".jptest1" suffix,
  * double click on it and make sure that test application was launched in
- * response to double click event with the path to test .jptest1 file
- * on the commend line.
+ * response to double click event with the path to test .jptest1 file on the
+ * commend line. The same applies to ".jptest2" suffix.
  *
- * On Linux use "echo > foo.jptest1" and not "touch foo.jptest1" to create
- * test file as empty files are always interpreted as plain text and will not
- * be opened with the test app. This is a known bug.
+ * On Linux use "echo > foo.jptest1" and not "touch foo.jptest1" to create test
+ * file as empty files are always interpreted as plain text and will not be
+ * opened with the test app. This is a known bug.
  */
 
 /*
@@ -57,67 +51,22 @@ import jdk.jpackage.test.Test;
  * @run main/othervm/timeout=360 -Xmx512m FileAssociationsTest
  */
 public class FileAssociationsTest {
-    public static void main(String[] args) throws Exception {
-        new PackageTest().configureHelloApp()
-        .addInitializer(cmd -> {
-            initFaPropsFile();
-            cmd.addArguments("--file-associations", FA_PROPS_FILE.toString());
-        })
-        .addInstallVerifier(cmd -> {
-            Path testFile = null;
-            try {
-                testFile = Test.createTempFile("." + FA_SUFFIX);
-                // Write something in test file.
-                // On Ubuntu and Oracle Linux empty files are considered
-                // plain text. Seems like a system bug.
-                //
-                // [asemenyu@spacewalk ~]$ rm gg.jptest1
-                // $ touch foo.jptest1
-                // $ xdg-mime query filetype foo.jptest1
-                // text/plain
-                // $ echo > foo.jptest1
-                // $ xdg-mime query filetype foo.jptest1
-                // application/x-jpackage-jptest1
-                //
-                Files.write(testFile, Arrays.asList(""));
+    public static void main(String[] args) {
+        Test.run(args, () -> {
+            PackageTest packageTest = new PackageTest();
 
-                final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
-                Files.deleteIfExists(appOutput);
-
-                Test.trace(String.format("Use desktop to open [%s] file", testFile));
-                Desktop.getDesktop().open(testFile.toFile());
-                Test.waitForFileCreated(appOutput, 7);
-
-                // Wait a little bit after file has been created to
-                // make sure there are no pending writes into it.
-                Thread.sleep(3000);
-                HelloApp.verifyOutputFile(appOutput, testFile.toString());
-            } catch (IOException | InterruptedException ex) {
-                throw new RuntimeException(ex);
-            } finally {
-                if (testFile != null) {
-                    try {
-                        Files.deleteIfExists(testFile);
-                    } catch (IOException ex) {
-                        throw new RuntimeException(ex);
-                    }
-                }
-            }
-        })
-        .run();
+            applyFileAssociations(packageTest, new FileAssociations("jptest1"));
+            applyFileAssociations(packageTest,
+                    new FileAssociations("jptest2").setFilename("fa2"));
+            packageTest.run();
+        });
     }
 
-    private static void initFaPropsFile() {
-        try {
-            Files.write(FA_PROPS_FILE, Arrays.asList(
-                "extension=" + FA_SUFFIX,
-                "mime-type=application/x-jpackage-" + FA_SUFFIX,
-                "description=jpackage test extention"));
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+    private static void applyFileAssociations(PackageTest test,
+            FileAssociations fa) {
+        test.addInitializer(cmd -> {
+            fa.createFile();
+            cmd.addArguments("--file-associations", fa.getPropertiesFile());
+        }).addHelloAppFileAssociationsVerifier(fa);
     }
-
-    private final static String FA_SUFFIX = "jptest1";
-    private final static Path FA_PROPS_FILE = Test.workDir().resolve("fa.properties");
 }

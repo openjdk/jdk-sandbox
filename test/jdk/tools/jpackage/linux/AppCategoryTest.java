@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -49,19 +50,21 @@ import jdk.jpackage.test.PackageType;
  */
 public class AppCategoryTest {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final String CATEGORY = "Foo";
 
-        new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-app-category", CATEGORY);
-        })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Section", CATEGORY)
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Group", CATEGORY)
-        .run();
+        Test.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.LINUX)
+            .configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--linux-app-category", CATEGORY);
+            })
+            .forTypes(PackageType.LINUX_DEB)
+            .addBundlePropertyVerifier("Section", CATEGORY)
+            .forTypes(PackageType.LINUX_RPM)
+            .addBundlePropertyVerifier("Group", CATEGORY)
+            .run();
+        });
     }
 }

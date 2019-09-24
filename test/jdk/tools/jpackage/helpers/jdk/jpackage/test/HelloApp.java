@@ -30,31 +30,36 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import java.util.function.Consumer;
 
 public class HelloApp {
+
+    private static final String MAIN_CLASS = "Hello";
+    private static final String JAR_FILENAME = "hello.jar";
+    private static final Consumer<JPackageCommand> CREATE_JAR_ACTION = (cmd) -> {
+        new JarBuilder()
+                .setOutputJar(cmd.inputDir().resolve(JAR_FILENAME).toFile())
+                .setMainClass(MAIN_CLASS)
+                .addSourceFile(Test.TEST_SRC_ROOT.resolve(
+                        Path.of("apps", "image", MAIN_CLASS + ".java")))
+                .create();
+    };
+
     static void addTo(JPackageCommand cmd) {
-        cmd.addAction(new Runnable() {
-            @Override
-            public void run() {
-                String mainClass = "Hello";
-                Path jar = cmd.inputDir().resolve("hello.jar");
-                new JarBuilder()
-                        .setOutputJar(jar.toFile())
-                        .setMainClass(mainClass)
-                        .addSourceFile(Test.TEST_SRC_ROOT.resolve(
-                                Path.of("apps", "image", mainClass + ".java")))
-                        .create();
-                cmd.addArguments("--main-jar", jar.getFileName().toString());
-                cmd.addArguments("--main-class", mainClass);
-            }
-        });
+        cmd.addAction(CREATE_JAR_ACTION);
+        cmd.addArguments("--main-jar", JAR_FILENAME);
+        cmd.addArguments("--main-class", MAIN_CLASS);
         if (PackageType.WINDOWS.contains(cmd.packageType())) {
             cmd.addArguments("--win-console");
         }
     }
 
-    public static void verifyOutputFile(Path outputFile, String ... args) {
+    static void verifyOutputFile(Path outputFile, String... args) {
+        if (!outputFile.isAbsolute()) {
+            verifyOutputFile(outputFile.toAbsolutePath().normalize(), args);
+            return;
+        }
+
         Test.assertFileExists(outputFile, true);
 
         List<String> output = null;
@@ -87,9 +92,35 @@ public class HelloApp {
                 counter.incrementAndGet(), outputFile)));
     }
 
+    public static void executeLauncherAndVerifyOutput(JPackageCommand cmd) {
+        final Path launcherPath;
+        if (cmd.packageType() == PackageType.IMAGE) {
+            launcherPath = cmd.appImage().resolve(cmd.launcherPathInAppImage());
+            if (cmd.isFakeRuntimeInAppImage(String.format(
+                    "Not running [%s] launcher from application image",
+                    launcherPath))) {
+                return;
+            }
+        } else {
+            launcherPath = cmd.launcherInstallationPath();
+            if (cmd.isFakeRuntimeInstalled(String.format(
+                    "Not running [%s] launcher", launcherPath))) {
+                return;
+            }
+        }
+
+        executeAndVerifyOutput(launcherPath, cmd.getAllArgumentValues(
+                "--arguments"));
+    }
+
     public static void executeAndVerifyOutput(Path helloAppLauncher,
             String... defaultLauncherArgs) {
         File outputFile = Test.workDir().resolve(OUTPUT_FILENAME).toFile();
+        try {
+            Files.deleteIfExists(outputFile.toPath());
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
         new Executor()
                 .setDirectory(outputFile.getParentFile().toPath())
                 .setExecutable(helloAppLauncher.toString())
@@ -99,5 +130,5 @@ public class HelloApp {
         verifyOutputFile(outputFile.toPath(), defaultLauncherArgs);
     }
 
-    public final static String OUTPUT_FILENAME = "appOutput.txt";
+    final static String OUTPUT_FILENAME = "appOutput.txt";
 }

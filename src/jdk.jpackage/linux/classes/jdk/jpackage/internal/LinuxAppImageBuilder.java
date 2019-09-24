@@ -46,7 +46,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String LIBRARY_NAME = "libapplauncher.so";
-    private final static String DEFAULT_ICON = "java32.png";
+    final static String DEFAULT_ICON = "java32.png";
 
     private final Path root;
     private final Path appDir;
@@ -106,19 +106,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
         Files.copy(in, dstFile);
     }
 
-    // it is static for the sake of sharing with "installer" bundlers
-    // that may skip calls to validate/bundle in this class!
-    public static File getRootDir(File outDir,
-            Map<String, ? super Object> params) {
-        return new File(outDir, APP_NAME.fetchFrom(params));
-    }
-
-    public static String getLauncherRelativePath(
-            Map<String, ? super Object> params) {
-        return "bin" + File.separator + APP_NAME.fetchFrom(params);
-    }
-
-    private static String getLauncherName(Map<String, ? super Object> params) {
+    public static String getLauncherName(Map<String, ? super Object> params) {
         return APP_NAME.fetchFrom(params);
     }
 

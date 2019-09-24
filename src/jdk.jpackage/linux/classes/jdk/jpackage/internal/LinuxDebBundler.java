@@ -25,15 +25,12 @@
 
 package jdk.jpackage.internal;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 
 import java.nio.file.attribute.PosixFilePermission;
@@ -44,21 +41,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
-import static jdk.jpackage.internal.LinuxAppBundler.ICON_PNG;
-import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
-import static jdk.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
+import static jdk.jpackage.internal.LinuxPackageBundler.I18N;
 
-public class LinuxDebBundler extends AbstractBundler {
-
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-                    "jdk.jpackage.internal.resources.LinuxResources");
-
-    public static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
-            new StandardBundlerParam<>(
-            "linux.app.bundler",
-            LinuxAppBundler.class,
-            params -> new LinuxAppBundler(),
-            (s, p) -> null);
+public class LinuxDebBundler extends LinuxPackageBundler {
 
     // Debian rules for package naming are used here
     // https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Source
@@ -68,10 +53,10 @@ public class LinuxDebBundler extends AbstractBundler {
     // They must be at least two characters long and
     // must start with an alphanumeric character.
     //
-    private static final Pattern DEB_BUNDLE_NAME_PATTERN =
+    private static final Pattern DEB_PACKAGE_NAME_PATTERN =
             Pattern.compile("^[a-z][a-z\\d\\+\\-\\.]+");
 
-    public static final BundlerParamInfo<String> BUNDLE_NAME =
+    private static final BundlerParamInfo<String> PACKAGE_NAME =
             new StandardBundlerParam<> (
             Arguments.CLIOptions.LINUX_BUNDLE_NAME.getId(),
             String.class,
@@ -85,7 +70,7 @@ public class LinuxDebBundler extends AbstractBundler {
                 return nm;
             },
             (s, p) -> {
-                if (!DEB_BUNDLE_NAME_PATTERN.matcher(s).matches()) {
+                if (!DEB_PACKAGE_NAME_PATTERN.matcher(s).matches()) {
                     throw new IllegalArgumentException(new ConfigException(
                             MessageFormat.format(I18N.getString(
                             "error.invalid-value-for-package-name"), s),
@@ -100,7 +85,7 @@ public class LinuxDebBundler extends AbstractBundler {
             new StandardBundlerParam<>(
                     "linux.deb.fullPackageName", String.class, params -> {
                         try {
-                            return BUNDLE_NAME.fetchFrom(params)
+                            return PACKAGE_NAME.fetchFrom(params)
                             + "_" + VERSION.fetchFrom(params)
                             + "-" + RELEASE.fetchFrom(params)
                             + "_" + getDebArch();
@@ -110,43 +95,14 @@ public class LinuxDebBundler extends AbstractBundler {
                         }
                     }, (s, p) -> s);
 
-    private static final BundlerParamInfo<File> DEB_IMAGE_DIR =
-            new StandardBundlerParam<>(
-            "linux.deb.imageDir",
-            File.class,
-            params -> {
-                File imagesRoot = IMAGES_ROOT.fetchFrom(params);
-                if (!imagesRoot.exists()) imagesRoot.mkdirs();
-                return new File(new File(imagesRoot, "linux-deb.image"),
-                        FULL_PACKAGE_NAME.fetchFrom(params));
-            },
-            (s, p) -> new File(s));
-
-    public static final BundlerParamInfo<File> APP_IMAGE_ROOT =
-            new StandardBundlerParam<>(
-            "linux.deb.imageRoot",
-            File.class,
-            params -> {
-                File imageDir = DEB_IMAGE_DIR.fetchFrom(params);
-                return new File(imageDir, LINUX_INSTALL_DIR.fetchFrom(params));
-            },
-            (s, p) -> new File(s));
-
-    public static final BundlerParamInfo<File> CONFIG_DIR =
-            new StandardBundlerParam<>(
-            "linux.deb.configDir",
-            File.class,
-            params ->  new File(DEB_IMAGE_DIR.fetchFrom(params), "DEBIAN"),
-            (s, p) -> new File(s));
-
-    public static final BundlerParamInfo<String> EMAIL =
+    private static final BundlerParamInfo<String> EMAIL =
             new StandardBundlerParam<> (
             Arguments.CLIOptions.LINUX_DEB_MAINTAINER.getId(),
             String.class,
             params -> "Unknown",
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> MAINTAINER =
+    private static final BundlerParamInfo<String> MAINTAINER =
             new StandardBundlerParam<> (
             BundleParams.PARAM_MAINTAINER,
             String.class,
@@ -154,14 +110,14 @@ public class LinuxDebBundler extends AbstractBundler {
                     + EMAIL.fetchFrom(params) + ">",
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> SECTION =
+    private static final BundlerParamInfo<String> SECTION =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.LINUX_CATEGORY.getId(),
             String.class,
             params -> "misc",
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> LICENSE_TEXT =
+    private static final BundlerParamInfo<String> LICENSE_TEXT =
             new StandardBundlerParam<> (
             "linux.deb.licenseText",
             String.class,
@@ -184,64 +140,12 @@ public class LinuxDebBundler extends AbstractBundler {
             },
             (s, p) -> s);
 
-    public static final BundlerParamInfo<String> COPYRIGHT_FILE =
+    private static final BundlerParamInfo<String> COPYRIGHT_FILE =
             new StandardBundlerParam<>(
             Arguments.CLIOptions.LINUX_DEB_COPYRIGHT_FILE.getId(),
             String.class,
             params -> null,
             (s, p) -> s);
-
-    public static final BundlerParamInfo<String> XDG_FILE_PREFIX =
-            new StandardBundlerParam<> (
-            "linux.xdg-prefix",
-            String.class,
-            params -> {
-                try {
-                    String vendor;
-                    if (params.containsKey(VENDOR.getID())) {
-                        vendor = VENDOR.fetchFrom(params);
-                    } else {
-                        vendor = "jpackage";
-                    }
-                    String appName = APP_NAME.fetchFrom(params);
-
-                    return (appName + "-" + vendor).replaceAll("\\s", "");
-                } catch (Exception e) {
-                    Log.verbose(e);
-                }
-                return "unknown-MimeInfo.xml";
-            },
-            (s, p) -> s);
-
-    public static final BundlerParamInfo<String> MENU_GROUP =
-        new StandardBundlerParam<>(
-                Arguments.CLIOptions.LINUX_MENU_GROUP.getId(),
-                String.class,
-                params -> I18N.getString("param.menu-group.default"),
-                (s, p) -> s
-        );
-
-    public static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
-        new StandardBundlerParam<>(
-                Arguments.CLIOptions.LINUX_SHORTCUT_HINT.getId(),
-                Boolean.class,
-                params -> false,
-                (s, p) -> (s == null || "null".equalsIgnoreCase(s))
-                        ? false : Boolean.valueOf(s)
-        );
-
-    private final static String DEFAULT_ICON = "java32.png";
-    private final static String DEFAULT_CONTROL_TEMPLATE = "template.control";
-    private final static String DEFAULT_PRERM_TEMPLATE = "template.prerm";
-    private final static String DEFAULT_PREINSTALL_TEMPLATE =
-            "template.preinst";
-    private final static String DEFAULT_POSTRM_TEMPLATE = "template.postrm";
-    private final static String DEFAULT_POSTINSTALL_TEMPLATE =
-            "template.postinst";
-    private final static String DEFAULT_COPYRIGHT_TEMPLATE =
-            "template.copyright";
-    private final static String DEFAULT_DESKTOP_FILE_TEMPLATE =
-            "template.desktop";
 
     private final static String TOOL_DPKG_DEB = "dpkg-deb";
     private final static String TOOL_DPKG = "dpkg";
@@ -261,131 +165,43 @@ public class LinuxDebBundler extends AbstractBundler {
         return true;
     }
 
+    public LinuxDebBundler() {
+        super(PACKAGE_NAME);
+    }
+
     @Override
-    public boolean validate(Map<String, ? super Object> params)
+    public void doValidate(Map<String, ? super Object> params)
             throws ConfigException {
-        try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
-
-            //run basic validation to ensure requirements are met
-            //we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(params).validate(params);
-
-            // NOTE: Can we validate that the required tools are available
-            // before we start?
-            if (!testTool(TOOL_DPKG_DEB, "1")){
-                throw new ConfigException(MessageFormat.format(
-                        I18N.getString("error.tool-not-found"), TOOL_DPKG_DEB),
-                        I18N.getString("error.tool-not-found.advice"));
-            }
-            if (!testTool(TOOL_DPKG, "1")){
-                throw new ConfigException(MessageFormat.format(
-                        I18N.getString("error.tool-not-found"), TOOL_DPKG),
-                        I18N.getString("error.tool-not-found.advice"));
-            }
+        // NOTE: Can we validate that the required tools are available
+        // before we start?
+        if (!testTool(TOOL_DPKG_DEB, "1")){
+            throw new ConfigException(MessageFormat.format(
+                    I18N.getString("error.tool-not-found"), TOOL_DPKG_DEB),
+                    I18N.getString("error.tool-not-found.advice"));
+        }
+        if (!testTool(TOOL_DPKG, "1")){
+            throw new ConfigException(MessageFormat.format(
+                    I18N.getString("error.tool-not-found"), TOOL_DPKG),
+                    I18N.getString("error.tool-not-found.advice"));
+        }
 
 
-            // Show warning is license file is missing
-            String licenseFile = LICENSE_FILE.fetchFrom(params);
-            if (licenseFile == null) {
-                Log.verbose(I18N.getString("message.debs-like-licenses"));
-            }
-
-            // only one mime type per association, at least one file extention
-            List<Map<String, ? super Object>> associations =
-                    FILE_ASSOCIATIONS.fetchFrom(params);
-            if (associations != null) {
-                for (int i = 0; i < associations.size(); i++) {
-                    Map<String, ? super Object> assoc = associations.get(i);
-                    List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
-                    if (mimes == null || mimes.isEmpty()) {
-                        String msgKey =
-                            "error.no-content-types-for-file-association";
-                        throw new ConfigException(
-                                MessageFormat.format(I18N.getString(msgKey), i),
-                                I18N.getString(msgKey + ".advise"));
-
-                    } else if (mimes.size() > 1) {
-                        String msgKey =
-                            "error.too-many-content-types-for-file-association";
-                        throw new ConfigException(
-                                MessageFormat.format(I18N.getString(msgKey), i),
-                                I18N.getString(msgKey + ".advise"));
-                    }
-                }
-            }
-
-            // bundle name has some restrictions
-            // the string converter will throw an exception if invalid
-            BUNDLE_NAME.getStringConverter().apply(
-                    BUNDLE_NAME.fetchFrom(params), params);
-
-            return true;
-        } catch (RuntimeException re) {
-            if (re.getCause() instanceof ConfigException) {
-                throw (ConfigException) re.getCause();
-            } else {
-                throw new ConfigException(re);
-            }
+        // Show warning is license file is missing
+        String licenseFile = LICENSE_FILE.fetchFrom(params);
+        if (licenseFile == null) {
+            Log.verbose(I18N.getString("message.debs-like-licenses"));
         }
     }
 
-    private boolean prepareProto(Map<String, ? super Object> params)
-            throws PackagerException, IOException {
-        File appImage = StandardBundlerParam.getPredefinedAppImage(params);
+    @Override
+    protected File buildPackageBundle(
+            Map<String, String> replacementData,
+            Map<String, ? super Object> params, File outputParentDir) throws
+            PackagerException, IOException {
 
-        // we either have an application image or need to build one
-        if (appImage != null) {
-            // copy everything from appImage dir into appDir/name
-            IOUtils.copyRecursive(appImage.toPath(),
-                    getConfig_RootDirectory(params).toPath());
-        } else {
-            File bundleDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
-                    APP_IMAGE_ROOT.fetchFrom(params), true);
-            if (bundleDir == null) {
-                return false;
-            }
-            Files.move(bundleDir.toPath(), getConfig_RootDirectory(
-                    params).toPath(), StandardCopyOption.REPLACE_EXISTING);
-        }
-        return true;
-    }
-
-    public File bundle(Map<String, ? super Object> params,
-            File outdir) throws PackagerException {
-
-        IOUtils.writableOutputDir(outdir.toPath());
-
-        // we want to create following structure
-        //   <package-name>
-        //        DEBIAN
-        //          control   (file with main package details)
-        //          menu      (request to create menu)
-        //          ... other control files if needed ....
-        //        opt  (by default)
-        //          AppFolder (this is where app image goes)
-        //             launcher executable
-        //             app
-        //             runtime
-
-        File imageDir = DEB_IMAGE_DIR.fetchFrom(params);
-        File configDir = CONFIG_DIR.fetchFrom(params);
-
-        try {
-
-            imageDir.mkdirs();
-            configDir.mkdirs();
-            if (prepareProto(params) && prepareProjectConfig(params)) {
-                adjustPermissionsRecursive(imageDir);
-                return buildDeb(params, outdir);
-            }
-            return null;
-        } catch (IOException ex) {
-            Log.verbose(ex);
-            throw new PackagerException(ex);
-        }
+        prepareProjectConfig(replacementData, params);
+        adjustPermissionsRecursive(createMetaPackage(params).sourceRoot().toFile());
+        return buildDeb(params, outputParentDir);
     }
 
     /*
@@ -429,26 +245,6 @@ public class LinuxDebBundler extends AbstractBundler {
         return false;
     }
 
-    private long getInstalledSizeKB(Map<String, ? super Object> params) {
-        return getInstalledSizeKB(APP_IMAGE_ROOT.fetchFrom(params)) >> 10;
-    }
-
-    private long getInstalledSizeKB(File dir) {
-        long count = 0;
-        File[] children = dir.listFiles();
-        if (children != null) {
-            for (File file : children) {
-                if (file.isFile()) {
-                    count += file.length();
-                }
-                else if (file.isDirectory()) {
-                    count += getInstalledSizeKB(file);
-                }
-            }
-        }
-        return count;
-    }
-
     private void adjustPermissionsRecursive(File dir) throws IOException {
         Files.walkFileTree(dir.toPath(), new SimpleFileVisitor<Path>() {
             @Override
@@ -477,327 +273,61 @@ public class LinuxDebBundler extends AbstractBundler {
         });
     }
 
-    private boolean prepareProjectConfig(Map<String, ? super Object> params)
-            throws IOException {
-        Map<String, String> data = createReplacementData(params);
-        File rootDir = getConfig_RootDirectory(params);
-        File binDir = new File(rootDir, "bin");
+    private class DebianFile {
 
-        File iconTarget = getConfig_IconFile(binDir, params);
-        File icon = ICON_PNG.fetchFrom(params);
-        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            // prepare installer icon
-            if (icon == null || !icon.exists()) {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        DEFAULT_ICON,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            } else {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        icon,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            }
+        DebianFile(Path dstFilePath, String comment) {
+            this.dstFilePath = dstFilePath;
+            this.comment = comment;
         }
 
-        StringBuilder installScripts = new StringBuilder();
-        StringBuilder removeScripts = new StringBuilder();
-        for (Map<String, ? super Object> addLauncher :
-                ADD_LAUNCHERS.fetchFrom(params)) {
-            Map<String, String> addLauncherData =
-                    createReplacementData(addLauncher);
-            addLauncherData.put("APPLICATION_FS_NAME",
-                    data.get("APPLICATION_FS_NAME"));
-            addLauncherData.put("DESKTOP_MIMES", "");
-
-            if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-                // prepare desktop shortcut
-                if (SHORTCUT_HINT.fetchFrom(params)) {
-                    try (Writer w = Files.newBufferedWriter(
-                        getConfig_DesktopShortcutFile(
-                                binDir, addLauncher).toPath())) {
-                        String content = preprocessTextResource(
-                            getConfig_DesktopShortcutFile(binDir,
-                            addLauncher).getName(),
-                            I18N.getString("resource.menu-shortcut-descriptor"),
-                            DEFAULT_DESKTOP_FILE_TEMPLATE,
-                            addLauncherData,
-                            VERBOSE.fetchFrom(params),
-                            RESOURCE_DIR.fetchFrom(params));
-                        w.write(content);
-                    }
-                }
-            }
-
-            // prepare installer icon
-            iconTarget = getConfig_IconFile(binDir, addLauncher);
-            icon = ICON_PNG.fetchFrom(addLauncher);
-            if (icon == null || !icon.exists()) {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        DEFAULT_ICON,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            } else {
-                fetchResource(iconTarget.getName(),
-                        I18N.getString("resource.menu-icon"),
-                        icon,
-                        iconTarget,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-            }
-
-            // postinst copying of desktop icon
-            installScripts.append(
-                    "        xdg-desktop-menu install --novendor ");
-            installScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
-            installScripts.append("/");
-            installScripts.append(data.get("APPLICATION_FS_NAME"));
-            installScripts.append("/bin/");
-            installScripts.append(
-                    addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
-            installScripts.append(".desktop\n");
-
-            // postrm cleanup of desktop icon
-            removeScripts.append(
-                    "        xdg-desktop-menu uninstall --novendor ");
-            removeScripts.append(LINUX_INSTALL_DIR.fetchFrom(params));
-            removeScripts.append("/");
-            removeScripts.append(data.get("APPLICATION_FS_NAME"));
-            removeScripts.append("/bin/");
-            removeScripts.append(
-                    addLauncherData.get("APPLICATION_LAUNCHER_FILENAME"));
-            removeScripts.append(".desktop\n");
-        }
-        data.put("ADD_LAUNCHERS_INSTALL", installScripts.toString());
-        data.put("ADD_LAUNCHERS_REMOVE", removeScripts.toString());
-
-        List<Map<String, ? super Object>> associations =
-                FILE_ASSOCIATIONS.fetchFrom(params);
-        data.put("FILE_ASSOCIATION_INSTALL", "");
-        data.put("FILE_ASSOCIATION_REMOVE", "");
-        data.put("DESKTOP_MIMES", "");
-        if (associations != null) {
-            String mimeInfoFile = XDG_FILE_PREFIX.fetchFrom(params)
-                    + "-MimeInfo.xml";
-            StringBuilder mimeInfo = new StringBuilder(
-                "<?xml version=\"1.0\"?>\n<mime-info xmlns="
-                + "'http://www.freedesktop.org/standards/shared-mime-info'>\n");
-            StringBuilder registrations = new StringBuilder();
-            StringBuilder deregistrations = new StringBuilder();
-            StringBuilder desktopMimes = new StringBuilder("MimeType=");
-            boolean addedEntry = false;
-
-            for (Map<String, ? super Object> assoc : associations) {
-                //  <mime-type type="application/x-vnd.awesome">
-                //    <comment>Awesome document</comment>
-                //    <glob pattern="*.awesome"/>
-                //    <glob pattern="*.awe"/>
-                //  </mime-type>
-
-                if (assoc == null) {
-                    continue;
-                }
-
-                String description = FA_DESCRIPTION.fetchFrom(assoc);
-                File faIcon = FA_ICON.fetchFrom(assoc);
-                List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
-                if (extensions == null) {
-                    Log.error(I18N.getString(
-                          "message.creating-association-with-null-extension"));
-                }
-
-                List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
-                if (mimes == null || mimes.isEmpty()) {
-                    continue;
-                }
-                String thisMime = mimes.get(0);
-                String dashMime = thisMime.replace('/', '-');
-
-                mimeInfo.append("  <mime-type type='")
-                        .append(thisMime)
-                        .append("'>\n");
-                if (description != null && !description.isEmpty()) {
-                    mimeInfo.append("    <comment>")
-                            .append(description)
-                            .append("</comment>\n");
-                }
-
-                if (extensions != null) {
-                    for (String ext : extensions) {
-                        mimeInfo.append("    <glob pattern='*.")
-                                .append(ext)
-                                .append("'/>\n");
-                    }
-                }
-
-                mimeInfo.append("  </mime-type>\n");
-                if (!addedEntry) {
-                    registrations.append("        xdg-mime install ")
-                            .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                            .append("/")
-                            .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/bin/")
-                            .append(mimeInfoFile)
-                            .append("\n");
-
-                    deregistrations.append("        xdg-mime uninstall ")
-                            .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                            .append("/")
-                            .append(data.get("APPLICATION_FS_NAME"))
-                            .append("/bin/")
-                            .append(mimeInfoFile)
-                            .append("\n");
-                    addedEntry = true;
-                } else {
-                    desktopMimes.append(";");
-                }
-                desktopMimes.append(thisMime);
-
-                if (faIcon != null && faIcon.exists()) {
-                    int size = getSquareSizeOfImage(faIcon);
-
-                    if (size > 0) {
-                        File target = new File(binDir,
-                                APP_NAME.fetchFrom(params)
-                                + "_fa_" + faIcon.getName());
-                        IOUtils.copyFile(faIcon, target);
-
-                        // xdg-icon-resource install --context mimetypes
-                        // --size 64 awesomeapp_fa_1.png
-                        // application-x.vnd-awesome
-                        registrations.append(
-                                "        xdg-icon-resource install "
-                                        + "--context mimetypes --size ")
-                                .append(size)
-                                .append(" ")
-                                .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                                .append("/")
-                                .append(data.get("APPLICATION_FS_NAME"))
-                                .append("/")
-                                .append(target.getName())
-                                .append(" ")
-                                .append(dashMime)
-                                .append("\n");
-
-                        // x dg-icon-resource uninstall --context mimetypes
-                        // --size 64 awesomeapp_fa_1.png
-                        // application-x.vnd-awesome
-                        deregistrations.append(
-                                "        xdg-icon-resource uninstall "
-                                        + "--context mimetypes --size ")
-                                .append(size)
-                                .append(" ")
-                                .append(LINUX_INSTALL_DIR.fetchFrom(params))
-                                .append("/")
-                                .append(data.get("APPLICATION_FS_NAME"))
-                                .append("/")
-                                .append(target.getName())
-                                .append(" ")
-                                .append(dashMime)
-                                .append("\n");
-                    }
-                }
-            }
-            mimeInfo.append("</mime-info>");
-
-            if (addedEntry) {
-                try (Writer w = Files.newBufferedWriter(
-                        new File(binDir, mimeInfoFile).toPath())) {
-                    w.write(mimeInfo.toString());
-                }
-                data.put("FILE_ASSOCIATION_INSTALL", registrations.toString());
-                data.put("FILE_ASSOCIATION_REMOVE", deregistrations.toString());
-                data.put("DESKTOP_MIMES", desktopMimes.toString());
-            }
+        DebianFile setExecutable() {
+            permissions = "rwxr-xr-x";
+            return this;
         }
 
-        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
-            // prepare desktop shortcut
-            if (SHORTCUT_HINT.fetchFrom(params)) {
-                try (Writer w = Files.newBufferedWriter(
-                    getConfig_DesktopShortcutFile(binDir, params).toPath())) {
-                    String content = preprocessTextResource(
-                        getConfig_DesktopShortcutFile(
-                        binDir, params).getName(),
-                        I18N.getString("resource.menu-shortcut-descriptor"),
-                        DEFAULT_DESKTOP_FILE_TEMPLATE,
+        void create(Map<String, String> data, Map<String, ? super Object> params)
+                throws IOException {
+            Files.createDirectories(dstFilePath.getParent());
+            try (Writer w = Files.newBufferedWriter(dstFilePath)) {
+                String content = preprocessTextResource(
+                        dstFilePath.getFileName().toString(),
+                        I18N.getString(comment),
+                        "template." + dstFilePath.getFileName().toString(),
                         data,
                         VERBOSE.fetchFrom(params),
                         RESOURCE_DIR.fetchFrom(params));
-                    w.write(content);
-                }
+                w.write(content);
+            }
+            if (permissions != null) {
+                setPermissions(dstFilePath.toFile(), permissions);
             }
         }
-        // prepare control file
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_ControlFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_ControlFile(params).getName(),
-                    I18N.getString("resource.deb-control-file"),
-                    DEFAULT_CONTROL_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
 
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_PreinstallFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_PreinstallFile(params).getName(),
-                    I18N.getString("resource.deb-preinstall-script"),
-                    DEFAULT_PREINSTALL_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
-        setPermissions(getConfig_PreinstallFile(params), "rwxr-xr-x");
+        private final Path dstFilePath;
+        private final String comment;
+        private String permissions;
+    }
 
-        try (Writer w = Files.newBufferedWriter(
-                    getConfig_PrermFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_PrermFile(params).getName(),
-                    I18N.getString("resource.deb-prerm-script"),
-                    DEFAULT_PRERM_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
-        setPermissions(getConfig_PrermFile(params), "rwxr-xr-x");
+    private void prepareProjectConfig(Map<String, String> data,
+            Map<String, ? super Object> params) throws IOException {
 
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_PostinstallFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_PostinstallFile(params).getName(),
-                    I18N.getString("resource.deb-postinstall-script"),
-                    DEFAULT_POSTINSTALL_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
-        setPermissions(getConfig_PostinstallFile(params), "rwxr-xr-x");
-
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_PostrmFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getConfig_PostrmFile(params).getName(),
-                    I18N.getString("resource.deb-postrm-script"),
-                    DEFAULT_POSTRM_TEMPLATE,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
-        setPermissions(getConfig_PostrmFile(params), "rwxr-xr-x");
+        Path configDir = createMetaPackage(params).sourceRoot().resolve("DEBIAN");
+        List<DebianFile> debianFiles = new ArrayList<>();
+        debianFiles.add(new DebianFile(
+                configDir.resolve("control"),
+                "resource.deb-control-file"));
+        debianFiles.add(new DebianFile(
+                configDir.resolve("preinst"),
+                "resource.deb-preinstall-script").setExecutable());
+        debianFiles.add(new DebianFile(
+                configDir.resolve("prerm"),
+                "resource.deb-prerm-script").setExecutable());
+        debianFiles.add(new DebianFile(
+                configDir.resolve("postinst"),
+                "resource.deb-postinstall-script").setExecutable());
+        debianFiles.add(new DebianFile(
+                configDir.resolve("postrm"),
+                "resource.deb-postrm-script").setExecutable());
 
         getConfig_CopyrightFile(params).getParentFile().mkdirs();
         String customCopyrightFile = COPYRIGHT_FILE.fetchFrom(params);
@@ -805,93 +335,36 @@ public class LinuxDebBundler extends AbstractBundler {
             IOUtils.copyFile(new File(customCopyrightFile),
                     getConfig_CopyrightFile(params));
         } else {
-            try (Writer w = Files.newBufferedWriter(
-                    getConfig_CopyrightFile(params).toPath())) {
-                String content = preprocessTextResource(
-                        getConfig_CopyrightFile(params).getName(),
-                        I18N.getString("resource.copyright-file"),
-                        DEFAULT_COPYRIGHT_TEMPLATE,
-                        data,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
-            }
+            debianFiles.add(new DebianFile(
+                    getConfig_CopyrightFile(params).toPath(),
+                    "resource.copyright-file"));
         }
 
-        return true;
+        for (DebianFile debianFile : debianFiles) {
+            debianFile.create(data, params);
+        }
     }
 
-    private Map<String, String> createReplacementData(
+    @Override
+    protected Map<String, String> createReplacementData(
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
-        String launcher = LinuxAppImageBuilder.getLauncherRelativePath(params);
 
-        data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
-        data.put("APPLICATION_FS_NAME",
-                getConfig_RootDirectory(params).getName());
-        data.put("APPLICATION_PACKAGE", BUNDLE_NAME.fetchFrom(params));
-        data.put("APPLICATION_VENDOR", VENDOR.fetchFrom(params));
         data.put("APPLICATION_MAINTAINER", MAINTAINER.fetchFrom(params));
-        data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
-        data.put("APPLICATION_RELEASE", RELEASE.fetchFrom(params));
         data.put("APPLICATION_SECTION", SECTION.fetchFrom(params));
-        data.put("APPLICATION_LAUNCHER_FILENAME", launcher);
-        data.put("INSTALLATION_DIRECTORY", LINUX_INSTALL_DIR.fetchFrom(params));
-        data.put("XDG_PREFIX", XDG_FILE_PREFIX.fetchFrom(params));
-        data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
-        data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_COPYRIGHT", COPYRIGHT.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TEXT", LICENSE_TEXT.fetchFrom(params));
         data.put("APPLICATION_ARCH", getDebArch());
-        data.put("APPLICATION_INSTALLED_SIZE",
-                Long.toString(getInstalledSizeKB(params)));
-        data.put("PACKAGE_DEPENDENCIES", LINUX_PACKAGE_DEPENDENCIES.fetchFrom(
-                params));
-        data.put("RUNTIME_INSTALLER", "" +
-                StandardBundlerParam.isRuntimeInstaller(params));
+        data.put("APPLICATION_INSTALLED_SIZE", Long.toString(
+                createMetaPackage(params).sourceApplicationLayout().sizeInBytes() >> 10));
 
         return data;
     }
 
-    private File getConfig_DesktopShortcutFile(File rootDir,
-            Map<String, ? super Object> params) {
-        return new File(rootDir, APP_NAME.fetchFrom(params) + ".desktop");
-    }
-
-    private File getConfig_IconFile(File rootDir,
-            Map<String, ? super Object> params) {
-        return new File(rootDir, APP_NAME.fetchFrom(params) + ".png");
-    }
-
-    private File getConfig_ControlFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "control");
-    }
-
-    private File getConfig_PreinstallFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "preinst");
-    }
-
-    private File getConfig_PrermFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "prerm");
-    }
-
-    private File getConfig_PostinstallFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "postinst");
-    }
-
-    private File getConfig_PostrmFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_DIR.fetchFrom(params), "postrm");
-    }
-
     private File getConfig_CopyrightFile(Map<String, ? super Object> params) {
-        return Path.of(DEB_IMAGE_DIR.fetchFrom(params).getAbsolutePath(), "usr",
-                "share", "doc", BUNDLE_NAME.fetchFrom(params), "copyright").toFile();
-    }
-
-    private File getConfig_RootDirectory(
-            Map<String, ? super Object> params) {
-        return Path.of(APP_IMAGE_ROOT.fetchFrom(params).getAbsolutePath(),
-                BUNDLE_NAME.fetchFrom(params)).toFile();
+        PlatformPackage thePackage = createMetaPackage(params);
+        return thePackage.sourceRoot().resolve(Path.of("usr/share/doc",
+                thePackage.name(), "copyright")).toFile();
     }
 
     private File buildDeb(Map<String, ? super Object> params,
@@ -901,14 +374,13 @@ public class LinuxDebBundler extends AbstractBundler {
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.outputting-to-location"), outFile.getAbsolutePath()));
 
-        outFile.getParentFile().mkdirs();
+        PlatformPackage thePackage = createMetaPackage(params);
 
         // run dpkg
         ProcessBuilder pb = new ProcessBuilder(
                 "fakeroot", TOOL_DPKG_DEB, "-b",
-                FULL_PACKAGE_NAME.fetchFrom(params),
+                thePackage.sourceRoot().toString(),
                 outFile.getAbsolutePath());
-        pb = pb.directory(DEB_IMAGE_DIR.fetchFrom(params).getParentFile());
         IOUtils.exec(pb);
 
         Log.verbose(MessageFormat.format(I18N.getString(
@@ -928,42 +400,13 @@ public class LinuxDebBundler extends AbstractBundler {
     }
 
     @Override
-    public String getBundleType() {
-        return "INSTALLER";
-    }
-
-    @Override
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
-        return bundle(params, outputParentDir);
-    }
-
-    @Override
     public boolean supported(boolean runtimeInstaller) {
-        return isSupported();
-    }
-
-    public static boolean isSupported() {
         if (Platform.getPlatform() == Platform.LINUX) {
             if (testTool(TOOL_DPKG_DEB, "1")) {
                 return true;
             }
         }
         return false;
-    }
-
-    public int getSquareSizeOfImage(File f) {
-        try {
-            BufferedImage bi = ImageIO.read(f);
-            if (bi.getWidth() == bi.getHeight()) {
-                return bi.getWidth();
-            } else {
-                return 0;
-            }
-        } catch (Exception e) {
-            Log.verbose(e);
-            return 0;
-        }
     }
 
     @Override

@@ -1,5 +1,5 @@
 #!/bin/sh
-# preinst script for APPLICATION_NAME
+# preinst script for APPLICATION_PACKAGE
 #
 # see: dh_installdeb(1)
 

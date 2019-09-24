@@ -22,7 +22,11 @@
  */
 package jdk.jpackage.test;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,9 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * jpackage command line with prerequisite actions. Prerequisite actions can be
@@ -45,14 +49,14 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         actions = new ArrayList<>();
     }
 
-    static JPackageCommand createImmutable(JPackageCommand v) {
+    JPackageCommand createImmutableCopy() {
         JPackageCommand reply = new JPackageCommand();
         reply.immutable = true;
-        reply.args.addAll(v.args);
+        reply.args.addAll(args);
         return reply;
     }
 
-    public void setArgumentValue(String argName, String newValue) {
+    public JPackageCommand setArgumentValue(String argName, String newValue) {
         verifyMutable();
 
         String prevArg = null;
@@ -67,7 +71,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
                     it.previous();
                     it.remove();
                 }
-                return;
+                return this;
             }
             prevArg = value;
         }
@@ -75,6 +79,16 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         if (newValue != null) {
             addArguments(argName, newValue);
         }
+
+        return this;
+    }
+
+    public JPackageCommand setArgumentValue(String argName, Path newValue) {
+        return setArgumentValue(argName, newValue.toString());
+    }
+
+    public JPackageCommand removeArgument(String argName) {
+        return setArgumentValue(argName, (String)null);
     }
 
     public boolean hasArgument(String argName) {
@@ -130,6 +144,10 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         return values.toArray(String[]::new);
     }
 
+    public JPackageCommand addArguments(String name, Path value) {
+        return addArguments(name, value.toString());
+    }
+
     public PackageType packageType() {
         return getArgumentValue("--package-type",
                 () -> PackageType.DEFAULT,
@@ -153,17 +171,54 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     public boolean isRuntime() {
-        return getArgumentValue("--runtime-image", () -> false, v -> true);
+        return  hasArgument("--runtime-image")
+                && !hasArgument("--main-jar")
+                && !hasArgument("--module")
+                && !hasArgument("--app-image");
     }
 
     public JPackageCommand setDefaultInputOutput() {
-        verifyMutable();
-        addArguments("--input", Test.defaultInputDir().toString());
-        addArguments("--dest", Test.defaultOutputDir().toString());
+        addArguments("--input", Test.defaultInputDir());
+        addArguments("--dest", Test.defaultOutputDir());
         return this;
     }
 
-    JPackageCommand addAction(Runnable action) {
+    public JPackageCommand setFakeRuntime() {
+        verifyMutable();
+
+        try {
+            Path fakeRuntimeDir = Test.workDir().resolve("fake_runtime");
+            Files.createDirectories(fakeRuntimeDir);
+
+            if (Test.isWindows() || Test.isLinux()) {
+                // Needed to make WindowsAppBundler happy as it copies MSVC dlls
+                // from `bin` directory.
+                // Need to make the code in rpm spec happy as it assumes there is
+                // always something in application image.
+                fakeRuntimeDir.resolve("bin").toFile().mkdir();
+            }
+
+            Path bulk = fakeRuntimeDir.resolve(Path.of("bin", "bulk"));
+
+            // Mak sure fake runtime takes some disk space.
+            // Package bundles with 0KB size are unexpected and considered
+            // an error by PackageTest.
+            Files.createDirectories(bulk.getParent());
+            try (FileOutputStream out = new FileOutputStream(bulk.toFile())) {
+                byte[] bytes = new byte[4 * 1024];
+                new SecureRandom().nextBytes(bytes);
+                out.write(bytes);
+            }
+
+            addArguments("--runtime-image", fakeRuntimeDir);
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+
+        return this;
+    }
+
+    JPackageCommand addAction(Consumer<JPackageCommand> action) {
         verifyMutable();
         actions.add(action);
         return this;
@@ -184,15 +239,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     JPackageCommand setDefaultAppName() {
-        StackTraceElement st[] = Thread.currentThread().getStackTrace();
-        for (StackTraceElement ste : st) {
-            if ("main".equals(ste.getMethodName())) {
-                String name = ste.getClassName();
-                name = Stream.of(name.split("[.$]")).reduce((f, l) -> l).get();
-                addArguments("--name", name);
-                break;
-            }
-        }
+        addArguments("--name", Test.enclosingMainMethodClass().getSimpleName());
         return this;
     }
 
@@ -227,6 +274,12 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         }
 
         if (PackageType.LINUX.contains(type)) {
+            if (isRuntime()) {
+                // Not fancy, but OK.
+                return Path.of(getArgumentValue("--install-dir", () -> "/opt"),
+                        LinuxHelper.getPackageName(this));
+            }
+
             // Launcher is in "bin" subfolder of the installation directory.
             return launcherInstallationPath().getParent().getParent();
         }
@@ -240,6 +293,21 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         }
 
         throw new IllegalArgumentException("Unexpected package type");
+    }
+
+    /**
+     * Returns path where application's Java runtime will be installed.
+     * If the command will package Java run-time only, still returns path to
+     * runtime subdirectory.
+     *
+     * E.g. on Linux for app named `Foo` the function will return
+     * `/opt/foo/runtime`
+     */
+    public Path appRuntimeInstallationDirectory() {
+        if (PackageType.IMAGE == packageType()) {
+            return null;
+        }
+        return appInstallationDirectory().resolve("runtime");
     }
 
     /**
@@ -317,15 +385,79 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         throw new IllegalArgumentException("Unexpected package type");
     }
 
+    /**
+     * Returns path to runtime directory relative to image directory.
+     *
+     * Function will always return "runtime".
+     *
+     * @throws IllegalArgumentException if command is configured for platform
+     * packaging
+     */
+    public Path appRuntimeDirectoryInAppImage() {
+        final PackageType type = packageType();
+        if (PackageType.IMAGE != type) {
+            throw new IllegalArgumentException("Unexpected package type");
+        }
+
+        return Path.of("runtime");
+    }
+
+    public boolean isFakeRuntimeInAppImage(String msg) {
+        return isFakeRuntime(appImage().resolve(
+                appRuntimeDirectoryInAppImage()), msg);
+    }
+
+    public boolean isFakeRuntimeInstalled(String msg) {
+        return isFakeRuntime(appRuntimeInstallationDirectory(), msg);
+    }
+
+    private static boolean isFakeRuntime(Path runtimeDir, String msg) {
+        final List<Path> criticalRuntimeFiles;
+        if (Test.isWindows()) {
+            criticalRuntimeFiles = List.of(Path.of("server\\jvm.dll"));
+        } else if (Test.isLinux()) {
+            criticalRuntimeFiles = List.of(Path.of("server/libjvm.so"));
+        } else if (Test.isOSX()) {
+            criticalRuntimeFiles = List.of(Path.of("server/libjvm.dylib"));
+        } else {
+            throw new IllegalArgumentException("Unknwon platform");
+        }
+
+        if (criticalRuntimeFiles.stream().filter(v -> v.toFile().exists())
+                .findFirst().orElse(null) == null) {
+            // Fake runtime
+            Test.trace(String.format(
+                    "%s because application runtime directory [%s] is incomplete",
+                    msg, runtimeDir));
+            return true;
+        }
+        return false;
+    }
+
     public Executor.Result execute() {
         verifyMutable();
         if (actions != null) {
-            actions.stream().forEach(r -> r.run());
+            actions.stream().forEach(r -> r.accept(this));
         }
+
         return new Executor()
                 .setExecutable(JavaTool.JPACKAGE)
-                .addArguments(args)
+                .dumpOtput()
+                .addArguments(new JPackageCommand().addArguments(
+                                args).adjustArgumentsBeforeExecution().args)
                 .execute();
+    }
+
+    private JPackageCommand adjustArgumentsBeforeExecution() {
+        if (!hasArgument("--runtime-image") && !hasArgument("--app-image") && DEFAULT_RUNTIME_IMAGE != null) {
+            addArguments("--runtime-image", DEFAULT_RUNTIME_IMAGE);
+        }
+
+        if (!hasArgument("--verbose") && Test.VERBOSE_JPACKAGE) {
+            addArgument("--verbose");
+        }
+
+        return this;
     }
 
     String getPrintableCommandLine() {
@@ -350,7 +482,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         return !immutable;
     }
 
-    private final List<Runnable> actions;
+    private final List<Consumer<JPackageCommand>> actions;
     private boolean immutable;
 
     private final static Map<String, PackageType> PACKAGE_TYPES
@@ -364,4 +496,20 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
                     return reply;
                 }
             }.get();
+
+    public final static Path DEFAULT_RUNTIME_IMAGE;
+
+    static {
+        // Set the property to the path of run-time image to speed up
+        // building app images and platform bundles by avoiding running jlink
+        // The value of the property will be automativcally appended to
+        // jpackage command line if the command line doesn't have
+        // `--runtime-image` parameter set.
+        String val = Test.getConfigProperty("runtime-image");
+        if (val != null) {
+            DEFAULT_RUNTIME_IMAGE = Path.of(val);
+        } else {
+            DEFAULT_RUNTIME_IMAGE = null;
+        }
+    }
 }

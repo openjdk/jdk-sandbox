@@ -22,19 +22,26 @@
  */
 package jdk.jpackage.test;
 
+import java.awt.Desktop;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import static jdk.jpackage.test.PackageType.LINUX_DEB;
+import static jdk.jpackage.test.PackageType.LINUX_RPM;
 
 /**
  * Instance of PackageTest is for configuring and running a single jpackage
@@ -59,6 +66,7 @@ public final class PackageTest {
         forTypes();
         setJPackageExitCode(0);
         handlers = new HashMap<>();
+        namedInitializers = new HashSet<>();
         currentTypes.forEach(v -> handlers.put(v, new Handler(v)));
     }
 
@@ -79,14 +87,25 @@ public final class PackageTest {
     }
 
     public PackageTest setJPackageExitCode(int v) {
-        expectedJPackageExitCode = 0;
+        expectedJPackageExitCode = v;
+        return this;
+    }
+
+    private PackageTest addInitializer(Consumer<JPackageCommand> v, String id) {
+        if (id != null) {
+            if (namedInitializers.contains(id)) {
+                return this;
+            }
+
+            namedInitializers.add(id);
+        }
+        currentTypes.stream().forEach(type -> handlers.get(type).addInitializer(
+                v));
         return this;
     }
 
     public PackageTest addInitializer(Consumer<JPackageCommand> v) {
-        currentTypes.stream().forEach(type -> handlers.get(type).addInitializer(
-                v));
-        return this;
+        return addInitializer(v, null);
     }
 
     public PackageTest addBundleVerifier(
@@ -111,7 +130,7 @@ public final class PackageTest {
                     break;
 
                 case LINUX_RPM:
-                    propertyValue = LinuxHelper.geRpmBundleProperty(
+                    propertyValue = LinuxHelper.getRpmBundleProperty(
                             cmd.outputBundle(), propertyName);
                     break;
 
@@ -131,6 +150,13 @@ public final class PackageTest {
         });
     }
 
+    public PackageTest addBundleDesktopIntegrationVerifier(boolean integrated) {
+        forTypes(LINUX_DEB, () -> {
+            LinuxHelper.addDebBundleDesktopIntegrationVerifier(this, integrated);
+        });
+        return this;
+    }
+
     public PackageTest addInstallVerifier(Consumer<JPackageCommand> v) {
         currentTypes.stream().forEach(
                 type -> handlers.get(type).addInstallVerifier(v));
@@ -143,11 +169,70 @@ public final class PackageTest {
         return this;
     }
 
+    public PackageTest addHelloAppFileAssociationsVerifier(FileAssociations fa,
+            String... faLauncherDefaultArgs) {
+
+        addInitializer(cmd -> HelloApp.addTo(cmd), "HelloApp");
+        addInstallVerifier(cmd -> {
+            if (cmd.isFakeRuntimeInstalled(
+                    "Not running file associations test")) {
+                return;
+            }
+
+            Test.withTempFile(fa.getSuffix(), testFile -> {
+                if (PackageType.LINUX.contains(cmd.packageType())) {
+                    LinuxHelper.initFileAssociationsTestFile(testFile);
+                }
+
+                try {
+                    final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
+                    Files.deleteIfExists(appOutput);
+
+                    Test.trace(String.format("Use desktop to open [%s] file",
+                            testFile));
+                    Desktop.getDesktop().open(testFile.toFile());
+                    Test.waitForFileCreated(appOutput, 7);
+
+                    List<String> expectedArgs = new ArrayList<>(List.of(
+                            faLauncherDefaultArgs));
+                    expectedArgs.add(testFile.toString());
+
+                    // Wait a little bit after file has been created to
+                    // make sure there are no pending writes into it.
+                    Thread.sleep(3000);
+                    HelloApp.verifyOutputFile(appOutput, expectedArgs.toArray(
+                            String[]::new));
+                } catch (IOException | InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+        });
+
+        forTypes(PackageType.LINUX, () -> {
+            LinuxHelper.addFileAssociationsVerifier(this, fa);
+        });
+
+        return this;
+    }
+
+    private void forTypes(Collection<PackageType> types, Runnable action) {
+        Set<PackageType> oldTypes = Set.of(currentTypes.toArray(
+                PackageType[]::new));
+        try {
+            forTypes(types);
+            action.run();
+        } finally {
+            forTypes(oldTypes);
+        }
+    }
+
+    private void forTypes(PackageType type, Runnable action) {
+        forTypes(List.of(type), action);
+    }
+
     public PackageTest configureHelloApp() {
-        addInitializer(cmd -> HelloApp.addTo(cmd));
-        addInstallVerifier(cmd -> HelloApp.executeAndVerifyOutput(
-                cmd.launcherInstallationPath(), cmd.getAllArgumentValues(
-                "--arguments")));
+        addInitializer(cmd -> HelloApp.addTo(cmd), "HelloApp");
+        addInstallVerifier(HelloApp::executeLauncherAndVerifyOutput);
         return this;
     }
 
@@ -230,23 +315,27 @@ public final class PackageTest {
                     result.assertExitCodeIs(expectedJPackageExitCode);
                     Test.assertFileExists(cmd.outputBundle(),
                             expectedJPackageExitCode == 0);
-                    verifyPackageBundle(JPackageCommand.createImmutable(cmd),
-                            result);
+                    verifyPackageBundle(cmd.createImmutableCopy(), result);
                     break;
 
-                case VERIFY_INSTALLED:
-                    verifyPackageInstalled(JPackageCommand.createImmutable(cmd));
+                case VERIFY_INSTALL:
+                    verifyPackageInstalled(cmd.createImmutableCopy());
                     break;
 
-                case VERIFY_UNINSTALLED:
-                    verifyPackageUninstalled(
-                            JPackageCommand.createImmutable(cmd));
+                case VERIFY_UNINSTALL:
+                    verifyPackageUninstalled(cmd.createImmutableCopy());
                     break;
             }
         }
 
         private void verifyPackageBundle(JPackageCommand cmd,
                 Executor.Result result) {
+            if (PackageType.LINUX.contains(cmd.packageType())) {
+                Test.assertNotEquals(0L, LinuxHelper.getInstalledPackageSizeKB(
+                        cmd), String.format(
+                                "Check installed size of [%s] package in KB is not zero",
+                                LinuxHelper.getPackageName(cmd)));
+            }
             bundleVerifiers.stream().forEach(v -> v.accept(cmd, result));
         }
 
@@ -255,13 +344,13 @@ public final class PackageTest {
                     cmd.getPrintableCommandLine()));
             if (cmd.isRuntime()) {
                 Test.assertDirectoryExists(
-                        cmd.appInstallationDirectory().resolve("runtime"), false);
+                        cmd.appRuntimeInstallationDirectory(), false);
                 Test.assertDirectoryExists(
                         cmd.appInstallationDirectory().resolve("app"), false);
+            } else {
+                Test.assertExecutableFileExists(cmd.launcherInstallationPath(),
+                        true);
             }
-
-            Test.assertExecutableFileExists(cmd.launcherInstallationPath(),
-                    !cmd.isRuntime());
 
             if (PackageType.WINDOWS.contains(cmd.packageType())) {
                 new WindowsHelper.AppVerifier(cmd);
@@ -295,6 +384,7 @@ public final class PackageTest {
     private Collection<PackageType> currentTypes;
     private int expectedJPackageExitCode;
     private Map<PackageType, Handler> handlers;
+    private Set<String> namedInitializers;
     private Action action;
 
     /**
@@ -308,40 +398,45 @@ public final class PackageTest {
         /**
          * Verify bundle installed.
          */
-        VERIFY_INSTALLED,
+        VERIFY_INSTALL,
         /**
          * Verify bundle uninstalled.
          */
-        VERIFY_UNINSTALLED
+        VERIFY_UNINSTALL;
+
+        @Override
+        public String toString() {
+            return name().toLowerCase().replace('_', '-');
+        }
     };
     private final static Action DEFAULT_ACTION;
     private final static File bundleOutputDir;
 
     static {
-        final String JPACKAGE_TEST_OUTPUT = "jpackage.test.output";
-
-        String val = System.getProperty(JPACKAGE_TEST_OUTPUT);
+        final String propertyName = "output";
+        String val = Test.getConfigProperty(propertyName);
         if (val == null) {
             bundleOutputDir = null;
         } else {
             bundleOutputDir = new File(val).getAbsoluteFile();
 
-            Test.assertTrue(bundleOutputDir.isDirectory(), String.format(
-                    "Check value of %s property [%s] references a directory",
-                    JPACKAGE_TEST_OUTPUT, bundleOutputDir));
-            Test.assertTrue(bundleOutputDir.canWrite(), String.format(
-                    "Check value of %s property [%s] references writable directory",
-                    JPACKAGE_TEST_OUTPUT, bundleOutputDir));
+            if (!bundleOutputDir.isDirectory()) {
+                throw new IllegalArgumentException(String.format(
+                        "Invalid value of %s sytem property: [%s]. Should be existing directory",
+                        Test.getConfigPropertyName(propertyName),
+                        bundleOutputDir));
+            }
         }
     }
 
     static {
-        if (System.getProperty("jpackage.verify.install") != null) {
-            DEFAULT_ACTION = Action.VERIFY_INSTALLED;
-        } else if (System.getProperty("jpackage.verify.uninstall") != null) {
-            DEFAULT_ACTION = Action.VERIFY_UNINSTALLED;
-        } else {
-            DEFAULT_ACTION = Action.CREATE;
-        }
+        final String propertyName = "action";
+        String action = Optional.ofNullable(Test.getConfigProperty(propertyName)).orElse(
+                Action.CREATE.toString()).toLowerCase();
+        DEFAULT_ACTION = Stream.of(Action.values()).filter(
+                a -> a.toString().equals(action)).findFirst().orElseThrow(
+                        () -> new IllegalArgumentException(String.format(
+                                "Unrecognized value of %s property: [%s]",
+                                Test.getConfigPropertyName(propertyName), action)));
     }
 }

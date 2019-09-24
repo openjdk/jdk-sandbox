@@ -97,7 +97,7 @@ public class WindowsHelper {
 
         private void verifyStartMenuShortcut() {
             boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
-            if (cmd.hasArgument("--win-menu") || !cmd.hasArgument("--win-shortcut")) {
+            if (cmd.hasArgument("--win-menu")) {
                 if (isUserLocalInstall(cmd)) {
                     verifyUserLocalStartMenuShortcut(appInstalled);
                     verifySystemStartMenuShortcut(false);
@@ -129,12 +129,11 @@ public class WindowsHelper {
         }
 
         private void verifyFileAssociationsRegistry() {
-            Path faFile = cmd.getArgumentValue("--file-associations",
-                    () -> (Path) null, Path::of);
-            if (faFile == null) {
-                return;
-            }
+            Stream.of(cmd.getAllArgumentValues("--file-associations")).map(
+                    Path::of).forEach(this::verifyFileAssociationsRegistry);
+        }
 
+        private void verifyFileAssociationsRegistry(Path faFile) {
             boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
             try {
                 Test.trace(String.format(

@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 
 /**
@@ -45,7 +46,12 @@ import jdk.jpackage.test.PackageTest;
  */
 public class SimplePackageTest {
 
-    public static void main(String[] args) throws Exception {
-        new PackageTest().configureHelloApp().run();
+    public static void main(String[] args) {
+        Test.run(args, () -> {
+            new PackageTest()
+            .configureHelloApp()
+            .addBundleDesktopIntegrationVerifier(false)
+            .run();
+        });
     }
 }

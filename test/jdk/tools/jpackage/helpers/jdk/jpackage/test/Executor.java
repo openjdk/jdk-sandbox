@@ -31,7 +31,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public final class Executor extends CommandArguments<Executor> {
@@ -75,6 +78,11 @@ public final class Executor extends CommandArguments<Executor> {
         return this;
     }
 
+    public Executor dumpOtput() {
+        saveOutputType = SaveOutputType.DUMP;
+        return this;
+    }
+
     public class Result {
 
         Result(int exitCode) {
@@ -82,7 +90,7 @@ public final class Executor extends CommandArguments<Executor> {
         }
 
         public String getFirstLineOfOutput() {
-            return output.get(0).trim();
+            return output.get(0);
         }
 
         public List<String> getOutput() {
@@ -126,6 +134,14 @@ public final class Executor extends CommandArguments<Executor> {
         throw new IllegalStateException("No command to execute");
     }
 
+    public String executeAndGetFirstLineOfOutput() {
+        return saveFirstLineOfOutput().execute().assertExitCodeIsZero().getFirstLineOfOutput();
+    }
+
+    public List<String> executeAndGetOutput() {
+        return saveOutput().execute().assertExitCodeIsZero().getOutput();
+    }
+
     private Result runExecutable() throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
         command.add(executable);
@@ -134,10 +150,16 @@ public final class Executor extends CommandArguments<Executor> {
         ProcessBuilder builder = new ProcessBuilder(command);
         StringBuilder sb = new StringBuilder(getPrintableCommandLine());
         if (saveOutputType != SaveOutputType.NONE) {
-            outputFile = Test.createTempFile(".out");
             builder.redirectErrorStream(true);
-            builder.redirectOutput(outputFile.toFile());
-            sb.append(String.format("; redirect output to [%s]", outputFile));
+
+            if (saveOutputType == SaveOutputType.DUMP) {
+                builder.inheritIO();
+                sb.append("; redirect output to stdout");
+            } else {
+                outputFile = Test.createTempFile(".out");
+                builder.redirectOutput(outputFile.toFile());
+                sb.append(String.format("; redirect output to [%s]", outputFile));
+            }
         }
         if (directory != null) {
             builder.directory(directory.toFile());
@@ -150,8 +172,10 @@ public final class Executor extends CommandArguments<Executor> {
             Result reply = new Result(process.waitFor());
             Test.trace("Done. Exit code: " + reply.exitCode);
             if (saveOutputType == SaveOutputType.FIRST_LINE) {
+                // If the command produced no ouput, save null in 'result.output' list.
                 reply.output = Arrays.asList(
-                        Files.readAllLines(outputFile).stream().findFirst().get());
+                        Files.readAllLines(outputFile).stream().findFirst().orElse(
+                                null));
             } else if (saveOutputType == SaveOutputType.FULL) {
                 reply.output = Collections.unmodifiableList(Files.readAllLines(
                         outputFile));
@@ -184,18 +208,28 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public String getPrintableCommandLine() {
-        String argsStr = String.format("; args(%d)=%s", args.size(),
-                Arrays.toString(args.toArray()));
-
+        final String exec;
+        String format = "[%s](%d)";
         if (toolProvider == null && executable == null) {
-            return "[null]; " + argsStr;
+            exec = "<null>";
+        } else if (toolProvider != null) {
+            format = "tool provider " + format;
+            exec = toolProvider.name();
+        } else {
+            exec = executable;
         }
 
-        if (toolProvider != null) {
-            return String.format("tool provider=[%s]; ", toolProvider.name()) + argsStr;
-        }
+        return String.format(format, printCommandLine(exec, args),
+                args.size() + 1);
+    }
 
-        return String.format("[%s]; ", executable) + argsStr;
+    private static String printCommandLine(String executable, List<String> args) {
+        // Want command line printed in a way it can be easily copy/pasted
+        // to be executed manally
+        Pattern regex = Pattern.compile("\\s");
+        return Stream.concat(Stream.of(executable), args.stream()).map(
+                v -> (v.isEmpty() || regex.matcher(v).find()) ? "\"" + v + "\"" : v).collect(
+                        Collectors.joining(" "));
     }
 
     private ToolProvider toolProvider;
@@ -204,6 +238,6 @@ public final class Executor extends CommandArguments<Executor> {
     private Path directory;
 
     private static enum SaveOutputType {
-        NONE, FULL, FIRST_LINE
+        NONE, FULL, FIRST_LINE, DUMP
     };
 }

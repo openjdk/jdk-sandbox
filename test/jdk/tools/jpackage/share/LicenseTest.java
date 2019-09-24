@@ -24,10 +24,13 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.io.File;
+import java.util.List;
+import java.util.Arrays;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import jdk.jpackage.test.JPackageCommand;
-import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.LinuxHelper;
 import jdk.jpackage.test.Executor;
 import jdk.jpackage.test.Test;
@@ -64,42 +67,42 @@ import jdk.jpackage.test.Test;
  * @run main/othervm/timeout=360 -Xmx512m LicenseTest
  */
 public class LicenseTest {
-    public static void main(String[] args) throws Exception {
-        new PackageTest().configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--license-file", LICENSE_FILE.toString());
-        })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundleVerifier(cmd -> {
-            verifyLicenseFileInLinuxPackage(cmd, debLicenseFile(cmd));
-        })
-        .addInstallVerifier(cmd -> {
-            verifyLicenseFileInstalledLinux(debLicenseFile(cmd));
-        })
-        .addUninstallVerifier(cmd -> {
-            verifyLicenseFileNotInstalledLinux(debLicenseFile(cmd));
-        })
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundleVerifier(cmd -> {
-            verifyLicenseFileInLinuxPackage(cmd,rpmLicenseFile(cmd));
-        })
-        .addInstallVerifier(cmd -> {
-            verifyLicenseFileInstalledLinux(rpmLicenseFile(cmd));
-        })
-        .addUninstallVerifier(cmd -> {
-            verifyLicenseFileNotInstalledLinux(rpmLicenseFile(cmd));
-        })
-        .run();
-    }
+    public static void main(String[] args) {
+        Test.run(args, () -> {
+            new PackageTest().configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--license-file", LICENSE_FILE);
+            })
+            .forTypes(PackageType.LINUX_DEB)
+            .addBundleVerifier(cmd -> {
+                verifyLicenseFileInLinuxPackage(cmd, debLicenseFile(cmd));
+            })
+            .addInstallVerifier(cmd -> {
+                verifyLicenseFileInstalledDebian(debLicenseFile(cmd));
+            })
+            .addUninstallVerifier(cmd -> {
+                verifyLicenseFileNotInstalledLinux(debLicenseFile(cmd));
+            })
+            .forTypes(PackageType.LINUX_RPM)
+            .addBundleVerifier(cmd -> {
+                verifyLicenseFileInLinuxPackage(cmd,rpmLicenseFile(cmd));
+            })
+            .addInstallVerifier(cmd -> {
+                verifyLicenseFileInstalledRpm(rpmLicenseFile(cmd));
+            })
+            .addUninstallVerifier(cmd -> {
+                verifyLicenseFileNotInstalledLinux(rpmLicenseFile(cmd));
+            })
+            .run();
+        });
+     }
 
     private static Path rpmLicenseFile(JPackageCommand cmd) {
         final Path licenseRoot = Path.of(
                 new Executor()
                 .setExecutable("rpm")
                 .addArguments("--eval", "%{_defaultlicensedir}")
-                .saveFirstLineOfOutput()
-                .execute()
-                .assertExitCodeIsZero().getFirstLineOfOutput());
+                .executeAndGetFirstLineOfOutput());
         final Path licensePath = licenseRoot.resolve(String.format("%s-%s",
                 LinuxHelper.getPackageName(cmd), cmd.version())).resolve(
                 LICENSE_FILE.getFileName());
@@ -120,7 +123,7 @@ public class LicenseTest {
                         expectedLicensePath, LinuxHelper.getPackageName(cmd)));
     }
 
-    private static void verifyLicenseFileInstalledLinux(Path licenseFile) {
+    private static void verifyLicenseFileInstalledRpm(Path licenseFile) {
         Test.assertTrue(Files.isReadable(licenseFile), String.format(
                 "Check license file [%s] is readable", licenseFile));
         try {
@@ -128,6 +131,35 @@ public class LicenseTest {
                     Files.readAllLines(LICENSE_FILE)), String.format(
                     "Check contents of package license file [%s] are the same as contents of source license file [%s]",
                     licenseFile, LICENSE_FILE));
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static void verifyLicenseFileInstalledDebian(Path licenseFile) {
+        Test.assertTrue(Files.isReadable(licenseFile), String.format(
+                "Check license file [%s] is readable", licenseFile));
+
+        Function<List<String>, List<String>> stripper = (lines) -> Arrays.asList(
+                String.join("\n", lines).stripTrailing().split("\n"));
+
+        try {
+            List<String> actualLines = Files.readAllLines(licenseFile).stream().dropWhile(
+                    line -> !line.startsWith("License:")).collect(
+                            Collectors.toList());
+            // Remove leading `License:` followed by the whitespace from the first text line.
+            actualLines.set(0, actualLines.get(0).split("\\s+", 2)[1]);
+
+            actualLines = stripper.apply(actualLines);
+
+            Test.assertNotEquals(0, String.join("\n", actualLines).length(),
+                    "Check stripped license text is not empty");
+
+            Test.assertTrue(actualLines.equals(
+                    stripper.apply(Files.readAllLines(LICENSE_FILE))),
+                    String.format(
+                            "Check subset of package license file [%s] is a match of the source license file [%s]",
+                            licenseFile, LICENSE_FILE));
         } catch (IOException ex) {
             throw new RuntimeException(ex);
         }

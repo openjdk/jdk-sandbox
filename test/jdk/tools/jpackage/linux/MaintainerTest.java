@@ -46,19 +46,21 @@ import jdk.jpackage.test.Test;
  */
 public class MaintainerTest {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final String MAINTAINER = "jpackage-test@java.com";
 
-        new PackageTest().forTypes(PackageType.LINUX_DEB).configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-deb-maintainer", MAINTAINER);
-        })
-        .addBundlePropertyVerifier("Maintainer", (propName, propValue) -> {
-            String lookupValue = "<" + MAINTAINER + ">";
-            Test.assertTrue(propValue.endsWith(lookupValue),
-                    String.format("Check value of %s property [%s] ends with %s",
-                            propName, propValue, lookupValue));
-        })
-        .run();
+        Test.run(args, () -> {
+            new PackageTest().forTypes(PackageType.LINUX_DEB).configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--linux-deb-maintainer", MAINTAINER);
+            })
+            .addBundlePropertyVerifier("Maintainer", (propName, propValue) -> {
+                String lookupValue = "<" + MAINTAINER + ">";
+                Test.assertTrue(propValue.endsWith(lookupValue),
+                        String.format("Check value of %s property [%s] ends with %s",
+                                propName, propValue, lookupValue));
+            })
+            .run();
+        });
     }
 }

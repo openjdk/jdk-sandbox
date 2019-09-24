@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -38,14 +39,16 @@ import jdk.jpackage.test.PackageType;
  * @library ../helpers
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m WinDirChooserTest
+ * @run main/othervm/timeout=360 -Xmx512m WinDirChooserTest
  */
 
 public class WinDirChooserTest {
     public static void main(String[] args) {
-        new PackageTest()
-        .forTypes(PackageType.WINDOWS)
-        .configureHelloApp()
-        .addInitializer(cmd -> cmd.addArgument("--win-dir-chooser")).run();
+        Test.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.WINDOWS)
+            .configureHelloApp()
+            .addInitializer(cmd -> cmd.addArgument("--win-dir-chooser")).run();
+        });
     }
 }

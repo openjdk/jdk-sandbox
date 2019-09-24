@@ -24,8 +24,6 @@ package jdk.jpackage.test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -61,7 +59,7 @@ public enum PackageType {
             Test.trace(String.format("Bundler %s supported", getName()));
         }
     }
-    
+
     PackageType(String bundleSuffix, String bundlerClass) {
         this(bundleSuffix.substring(1), bundleSuffix, bundlerClass);
     }
@@ -96,15 +94,13 @@ public enum PackageType {
     private static boolean isBundlerSupported(String bundlerClass) {
         try {
             Class clazz = Class.forName(bundlerClass);
-            Method isSupported = clazz.getDeclaredMethod("isSupported");
-            return ((Boolean) isSupported.invoke(clazz));
+            Method supported = clazz.getMethod("supported", boolean.class);
+            return ((Boolean) supported.invoke(clazz.newInstance(), true));
         } catch (ClassNotFoundException ex) {
             return false;
-        } catch (IllegalAccessException | InvocationTargetException ex) {
+        } catch (InstantiationException | NoSuchMethodException
+                | IllegalAccessException | InvocationTargetException ex) {
             throw new RuntimeException(ex);
-        } catch (NoSuchMethodException ex) {
-            // Not all bundler classes has isSupported() method.
-            return true;
         }
     }
 
@@ -118,28 +114,28 @@ public enum PackageType {
     public final static Set<PackageType> NATIVE = Stream.concat(
             Stream.concat(LINUX.stream(), WINDOWS.stream()),
             MAC.stream()).collect(Collectors.toUnmodifiableSet());
-    
+
     public final static PackageType DEFAULT = ((Supplier<PackageType>) () -> {
         if (Test.isLinux()) {
             return LINUX.stream().filter(v -> v.isSupported()).findFirst().orElseThrow();
         }
-        
+
         if (Test.isWindows()) {
             return WIN_EXE;
         }
-        
+
         if (Test.isOSX()) {
             return MAC_DMG;
         }
-        
+
         throw new IllegalStateException("Unknwon platform");
     }).get();
-    
+
     private final static class Inner {
-        
+
         private final static Set<String> DISABLED_PACKAGERS = Stream.of(
                 Optional.ofNullable(
-                        System.getProperty("jpackage.test.disabledPackagers")).orElse(
+                        Test.getConfigProperty("disabledPackagers")).orElse(
                         "").split(",")).collect(Collectors.toUnmodifiableSet());
     }
 }

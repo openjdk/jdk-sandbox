@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -56,26 +57,28 @@ public class PackageDepsTest {
     // produced by jtreg tests install/uninstall packages in the right order.
     static class APackageDepsTestPrereq {
 
-        public static void main(String[] args) throws Exception {
+        public static void main(String[] args) {
             new PackageTest().forTypes(PackageType.LINUX).configureHelloApp().run();
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final String PREREQ_PACKAGE_NAME = "apackagedepstestprereq";
 
-        APackageDepsTestPrereq.main(args);
+        Test.run(args, () -> {
+            APackageDepsTestPrereq.main(args);
 
-        new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-package-deps", PREREQ_PACKAGE_NAME);
-        })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Depends", PREREQ_PACKAGE_NAME)
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Requires", PREREQ_PACKAGE_NAME)
-        .run();
+            new PackageTest()
+            .forTypes(PackageType.LINUX)
+            .configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--linux-package-deps", PREREQ_PACKAGE_NAME);
+            })
+            .forTypes(PackageType.LINUX_DEB)
+            .addBundlePropertyVerifier("Depends", PREREQ_PACKAGE_NAME)
+            .forTypes(PackageType.LINUX_RPM)
+            .addBundlePropertyVerifier("Requires", PREREQ_PACKAGE_NAME)
+            .run();
+        });
     }
 }

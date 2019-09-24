@@ -21,6 +21,7 @@
  * questions.
  */
 
+import jdk.jpackage.test.Test;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -49,19 +50,21 @@ import jdk.jpackage.test.PackageType;
  */
 public class BundleNameTest {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         final String PACKAGE_NAME = "quickbrownfox2";
 
-        new PackageTest()
-        .forTypes(PackageType.LINUX)
-        .configureHelloApp()
-        .addInitializer(cmd -> {
-            cmd.addArguments("--linux-package-name", PACKAGE_NAME);
-        })
-        .forTypes(PackageType.LINUX_DEB)
-        .addBundlePropertyVerifier("Package", PACKAGE_NAME)
-        .forTypes(PackageType.LINUX_RPM)
-        .addBundlePropertyVerifier("Name", PACKAGE_NAME)
-        .run();
+        Test.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.LINUX)
+            .configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.addArguments("--linux-package-name", PACKAGE_NAME);
+            })
+            .forTypes(PackageType.LINUX_DEB)
+            .addBundlePropertyVerifier("Package", PACKAGE_NAME)
+            .forTypes(PackageType.LINUX_RPM)
+            .addBundlePropertyVerifier("Name", PACKAGE_NAME)
+            .run();
+        });
     }
 }

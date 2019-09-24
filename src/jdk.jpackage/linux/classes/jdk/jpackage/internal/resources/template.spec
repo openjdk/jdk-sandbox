@@ -4,7 +4,7 @@ Version: APPLICATION_VERSION
 Release: APPLICATION_RELEASE
 License: APPLICATION_LICENSE_TYPE
 Vendor: APPLICATION_VENDOR
-Prefix: INSTALLATION_DIRECTORY
+Prefix: %{dirname:APPLICATION_DIRECTORY}
 Provides: APPLICATION_PACKAGE
 %if "xAPPLICATION_GROUP" != x
 Group: APPLICATION_GROUP
@@ -12,7 +12,9 @@ Group: APPLICATION_GROUP
 
 Autoprov: 0
 Autoreq: 0
-PACKAGE_DEPENDENCIES
+%if "xPACKAGE_DEPENDENCIES" != x
+Requires: PACKAGE_DEPENDENCIES
+%endif
 
 #avoid ARCH subfolder
 %define _rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
@@ -31,8 +33,8 @@ APPLICATION_DESCRIPTION
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}INSTALLATION_DIRECTORY
-cp -r %{_sourcedir}/APPLICATION_FS_NAME %{buildroot}INSTALLATION_DIRECTORY
+install -d -m 755 %{buildroot}APPLICATION_DIRECTORY
+cp -r %{_sourcedir}APPLICATION_DIRECTORY/* %{buildroot}APPLICATION_DIRECTORY
 %if "xAPPLICATION_LICENSE_FILE" != x
   %define license_install_file %{_defaultlicensedir}/%{name}-%{version}/%{basename:APPLICATION_LICENSE_FILE}
   install -d -m 755 %{buildroot}%{dirname:%{license_install_file}}
@@ -40,24 +42,20 @@ cp -r %{_sourcedir}/APPLICATION_FS_NAME %{buildroot}INSTALLATION_DIRECTORY
 %endif
 
 %files
-%{?license_install_file:%license %{license_install_file}}
+%if "xAPPLICATION_LICENSE_FILE" != x
+  %license %{license_install_file}
+  %{dirname:%{license_install_file}}
+%endif
 # If installation directory for the application is /a/b/c, we want only root
 # component of the path (/a) in the spec file to make sure all subdirectories
 # are owned by the package.
-%(echo INSTALLATION_DIRECTORY/APPLICATION_FS_NAME | sed -e "s|\(^/[^/]\{1,\}\).*$|\1|")
+%(echo APPLICATION_DIRECTORY | sed -e "s|\(^/[^/]\{1,\}\).*$|\1|")
 
 %post
-if [ "RUNTIME_INSTALLER" != "true" ]; then
-ADD_LAUNCHERS_INSTALL
-    xdg-desktop-menu install --novendor INSTALLATION_DIRECTORY/APPLICATION_FS_NAME/APPLICATION_LAUNCHER_FILENAME.desktop
-FILE_ASSOCIATION_INSTALL
-fi
+DESKTOP_COMMANDS_INSTALL
 
 %preun
-if [ "RUNTIME_INSTALLER" != "true" ]; then
-ADD_LAUNCHERS_REMOVE
-    xdg-desktop-menu uninstall --novendor INSTALLATION_DIRECTORY/APPLICATION_FS_NAME/APPLICATION_LAUNCHER_FILENAME.desktop
-FILE_ASSOCIATION_REMOVE
-fi
+UTILITY_SCRIPTS
+DESKTOP_COMMANDS_UNINSTALL
 
 %clean
