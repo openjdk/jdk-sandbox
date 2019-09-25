@@ -133,6 +133,27 @@ public class AddLauncherBase {
         validate(includeArgs, name);
     }
 
+    public static void testCreateAppImage(String [] cmd,
+            ArrayList<String> argList, ArrayList <String> optionList) 
+            throws Exception {
+        JPackageHelper.executeCLI(true, cmd);
+        int retVal = JPackageHelper.execute(null, app);
+        if (retVal != 0) {
+            throw new AssertionError("Test application " + app
+                    + " exited with error: " + retVal);
+        }
+        validateResult(argList, optionList);
+        String name = "test4";
+
+        String app2 = JPackagePath.getAppSL(name);
+        retVal = JPackageHelper.execute(null, app2);
+        if (retVal != 0) {
+            throw new AssertionError("Test application " + app2
+                    +  " exited with error: " + retVal);
+        }
+        validateResult(arguments, vmArguments);
+    }
+
     public static void createSLProperties() throws Exception {
         arguments.add(ARGUMENT1);
         arguments.add(ARGUMENT2);

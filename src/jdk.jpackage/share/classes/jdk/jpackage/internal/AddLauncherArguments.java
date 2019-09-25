@@ -57,6 +57,7 @@ import jdk.jpackage.internal.Arguments.CLIOptions;
  * arguments
  * java-options
  * win-console
+ * linux-app-category
  *
  */
 class AddLauncherArguments {
@@ -117,15 +118,18 @@ class AddLauncherArguments {
         putUnlessNull(bundleParams, CLIOptions.ICON.getId(),
                 (value == null) ? null : new File(value));
 
-        String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
-        putUnlessNullOrEmpty(bundleParams,
-                CLIOptions.ARGUMENTS.getId(),
-                Arguments.getArgumentList(argumentStr));
+        // "arguments" and "java-options" even if value is null:
+        if (allArgs.containsKey(CLIOptions.ARGUMENTS.getId())) {
+            String argumentStr = getOptionValue(CLIOptions.ARGUMENTS);
+            bundleParams.put(CLIOptions.ARGUMENTS.getId(),
+                    Arguments.getArgumentList(argumentStr));
+        }
 
-        String jvmargsStr = getOptionValue(CLIOptions.JAVA_OPTIONS);
-        putUnlessNullOrEmpty(bundleParams,
-                CLIOptions.JAVA_OPTIONS.getId(),
-                Arguments.getArgumentList(jvmargsStr));
+        if (allArgs.containsKey(CLIOptions.JAVA_OPTIONS.getId())) {
+            String jvmargsStr = getOptionValue(CLIOptions.JAVA_OPTIONS);
+            bundleParams.put(CLIOptions.JAVA_OPTIONS.getId(),
+                    Arguments.getArgumentList(jvmargsStr));
+        }
     }
 
     private String getOptionValue(CLIOptions option) {
@@ -154,22 +158,24 @@ class AddLauncherArguments {
         }
     }
 
-    private void putUnlessNullOrEmpty(Map<String, ? super Object> params,
-            String param, Collection<?> value) {
-        if (value != null && !value.isEmpty()) {
-            params.put(param, value);
-        }
-    }
-
     static Map<String, ? super Object> merge(
             Map<String, ? super Object> original,
             Map<String, ? super Object> additional) {
         Map<String, ? super Object> tmp = new HashMap<>(original);
-        if (additional.containsKey("module")) {
-            tmp.remove("main-jar");
-            tmp.remove("main-class");
-        } else if (additional.containsKey("main-jar")) {
-            tmp.remove("module");
+        if (additional.containsKey(CLIOptions.MODULE.getId())) {
+            tmp.remove(CLIOptions.MAIN_JAR.getId());
+            tmp.remove(CLIOptions.APPCLASS.getId());
+        } else if (additional.containsKey(CLIOptions.MAIN_JAR.getId())) {
+            tmp.remove(CLIOptions.MODULE.getId());
+        }
+        if (additional.containsKey(CLIOptions.ARGUMENTS.getId())) {
+            // if add launcher properties file contains "arguments", even with
+            // null value, disregard the "arguments" from command line
+            tmp.remove(CLIOptions.ARGUMENTS.getId());
+        }
+        if (additional.containsKey(CLIOptions.JAVA_OPTIONS.getId())) {
+            // same thing for java-options
+            tmp.remove(CLIOptions.JAVA_OPTIONS.getId());
         }
         tmp.putAll(additional);
         return tmp;
