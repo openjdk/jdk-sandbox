@@ -54,10 +54,11 @@ bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
 
-void Settings::initialize(strategy_t strat) {
+bool Settings::_separate_micro_cld_allocations = false;
 
-  switch (strat) {
-  case strategy_no_reclaim:
+void Settings::ergo_initialize() {
+
+  if (strcmp(MetaspaceReclaimStrategy, "none") == 0) {
 
     log_info(metaspace)("Initialized with strategy: no reclaim.");
 
@@ -75,9 +76,7 @@ void Settings::initialize(strategy_t strat) {
     _uncommit_on_purge = false;
     _uncommit_on_purge_min_word_size = 3; // does not matter; should not be used resp. assert when used.
 
-    break;
-
-  case strategy_aggressive_reclaim:
+  } else if (strcmp(MetaspaceReclaimStrategy, "aggressive") == 0) {
 
     log_info(metaspace)("Initialized with strategy: aggressive reclaim.");
 
@@ -100,9 +99,7 @@ void Settings::initialize(strategy_t strat) {
     _uncommit_on_purge = true;
     _uncommit_on_purge_min_word_size = _commit_granule_words; // does not matter; should not be used resp. assert when used.
 
-    break;
-
-  case strategy_balanced_reclaim:
+  } else if (strcmp(MetaspaceReclaimStrategy, "balanced") == 0) {
 
     log_info(metaspace)("Initialized with strategy: balanced reclaim.");
 
@@ -123,7 +120,9 @@ void Settings::initialize(strategy_t strat) {
     _uncommit_on_purge = true;
     _uncommit_on_purge_min_word_size = _commit_granule_words;
 
-    break;
+  } else {
+
+    vm_exit_during_initialization("Invalid value for MetaspaceReclaimStrategy: \"%s\".", MetaspaceReclaimStrategy);
 
   }
 
@@ -132,6 +131,8 @@ void Settings::initialize(strategy_t strat) {
   _enlarge_chunks_in_place = true;
   _enlarge_chunks_in_place_max_word_size = 256 * K;
 
+  // Optionally, we can shepherd micro cld metaspace allocs to an own root chunk.
+  _separate_micro_cld_allocations = MetaspaceSeparateMicroCLDs;
 
   // Sanity checks.
   guarantee(commit_granule_words() <= chklvl::MAX_CHUNK_WORD_SIZE, "Too large granule size");

@@ -156,6 +156,21 @@ public:
   static void set_chunkmanager_class(ChunkManager* cm);
   static void set_chunkmanager_nonclass(ChunkManager* cm);
 
+  // If micro clds are kept separate...
+private:
+
+  static ChunkManager* _chunkmanager_microclds_class;
+  static ChunkManager* _chunkmanager_microclds_nonclass;
+
+public:
+
+  static ChunkManager* chunkmanager_microclds_class() { return _chunkmanager_microclds_class; }
+  static ChunkManager* chunkmanager_microclds_nonclass() { return _chunkmanager_microclds_nonclass; }
+
+  static void set_chunkmanager_microclds_class(ChunkManager* cm);
+  static void set_chunkmanager_microclds_nonclass(ChunkManager* cm);
+
+
 };
 
 } // namespace metaspace

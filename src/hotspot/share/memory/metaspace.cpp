@@ -716,6 +716,10 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
   ChunkManager* cm = new ChunkManager("class space chunk manager", vsl);
   ChunkManager::set_chunkmanager_class(cm);
 
+  if (metaspace::Settings::separate_micro_cld_allocations()) {
+    ChunkManager* cm2 = new ChunkManager("microcld class space chunk manager", vsl);
+    ChunkManager::set_chunkmanager_microclds_class(cm2);
+  }
 }
 
 
@@ -737,17 +741,7 @@ void Metaspace::print_compressed_class_space(outputStream* st, const char* reque
 void Metaspace::ergo_initialize() {
 
   // Must happen before using any setting from Settings::---
-  metaspace::Settings::strategy_t strat = metaspace::Settings::strategy_balanced_reclaim;
-  if (strcmp(MetaspaceReclaimStrategy, "balanced") == 0) {
-    strat = metaspace::Settings::strategy_balanced_reclaim;
-  } else if (strcmp(MetaspaceReclaimStrategy, "aggressive") == 0) {
-    strat = metaspace::Settings::strategy_aggressive_reclaim;
-  } else if (strcmp(MetaspaceReclaimStrategy, "none") == 0) {
-    strat = metaspace::Settings::strategy_no_reclaim;
-  } else {
-    vm_exit_during_initialization("Invalid value for MetaspaceReclaimStrategy: \"%s\".", MetaspaceReclaimStrategy);
-  }
-  metaspace::Settings::initialize(strat);
+  metaspace::Settings::ergo_initialize();
 
   if (DumpSharedSpaces) {
     // Using large pages when dumping the shared archive is currently not implemented.
@@ -840,10 +834,15 @@ void Metaspace::global_initialize() {
   }
 
   // Initialize non-class virtual space list, and its chunk manager:
-  VirtualSpaceList* vsl = new VirtualSpaceList("Non-Class VirtualSpaceList", CommitLimiter::globalLimiter());
+  VirtualSpaceList* vsl = new VirtualSpaceList("non-class virtualspacelist", CommitLimiter::globalLimiter());
   VirtualSpaceList::set_vslist_nonclass(vsl);
-  ChunkManager* cm = new ChunkManager("Non-Class ChunkManager", vsl);
+  ChunkManager* cm = new ChunkManager("non-class chunkmanager", vsl);
   ChunkManager::set_chunkmanager_nonclass(cm);
+
+  if (metaspace::Settings::separate_micro_cld_allocations()) {
+    ChunkManager* cm2 = new ChunkManager("microcld non-class chunk manager", vsl);
+    ChunkManager::set_chunkmanager_microclds_nonclass(cm2);
+  }
 
   _tracer = new MetaspaceTracer();
 

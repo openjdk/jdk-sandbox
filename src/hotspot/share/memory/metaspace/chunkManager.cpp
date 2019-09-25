@@ -425,6 +425,19 @@ void ChunkManager::set_chunkmanager_nonclass(ChunkManager* cm) {
   _chunkmanager_nonclass = cm;
 }
 
+ChunkManager* ChunkManager::_chunkmanager_microclds_class = NULL;
+ChunkManager* ChunkManager::_chunkmanager_microclds_nonclass = NULL;
+
+void ChunkManager::set_chunkmanager_microclds_class(ChunkManager* cm) {
+  assert(_chunkmanager_microclds_class == NULL, "Sanity");
+  _chunkmanager_microclds_class = cm;
+}
+
+void ChunkManager::set_chunkmanager_microclds_nonclass(ChunkManager* cm) {
+  assert(_chunkmanager_microclds_nonclass == NULL, "Sanity");
+  _chunkmanager_microclds_nonclass = cm;
+}
+
 
 // Update statistics.
 void ChunkManager::add_to_statistics(cm_stats_t* out) const {
