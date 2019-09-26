@@ -552,7 +552,9 @@ public class JPackageHelper {
         List<String> origList = new ArrayList(Arrays.asList(result));
         List<String> newlist = new ArrayList();
         origList.stream().filter((str) ->
-                (!str.startsWith("Picked up"))).forEachOrdered((str) -> {
+                (!str.startsWith("Picked up") &&
+                 !str.startsWith("WARNING: Using experimental")))
+                .forEachOrdered((str) -> {
             newlist.add(str);
         });
 

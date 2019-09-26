@@ -67,7 +67,7 @@ public class ErrorTest {
 
     private static void validate(String output, String expected, boolean single)
             throws Exception {
-        String[] result = output.split("\n");
+        String[] result = JPackageHelper.splitAndFilter(output);
         if (single && result.length != 1) {
             System.err.println(output);
             throw new AssertionError("Unexpected multiple lines of output: "

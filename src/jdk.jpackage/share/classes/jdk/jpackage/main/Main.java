@@ -70,6 +70,7 @@ public class Main {
     }
 
     private int execute(String... args) {
+        Log.info(I18N.getString("warning.experimental"));
         try {
             String[] newArgs;
             try {
