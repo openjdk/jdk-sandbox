@@ -54,7 +54,7 @@ import jdk.jfr.internal.consumer.EventDirectoryStream;
  * <pre>
  * <code>
  * Configuration c = Configuration.getConfiguration("default");
- * try (RecordingStream rs = new RecordingStream(c)) {
+ * try (var rs = new RecordingStream(c)) {
  *     rs.onEvent("jdk.GarbageCollection", System.out::println);
  *     rs.onEvent("jdk.CPULoad", System.out::println);
  *     rs.onEvent("jdk.JVMInformation", System.out::println);
@@ -104,7 +104,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * <pre>
      * <code>
      * var c = Configuration.getConfiguration("default");
-     * try (RecordingStream rs = new RecordingStream(c)) {
+     * try (var rs = new RecordingStream(c)) {
      *   rs.onEvent(System.out::println);
      *   rs.start();
      * }
@@ -156,7 +156,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * <code>
      *     Configuration defaultConfiguration = Configuration.getConfiguration("default");
      *     Configuration profileConfiguration = Configuration.getConfiguration("profile");
-     *     try (RecordingStream rs = new RecordingStream(defaultConfiguration) {
+     *     try (var rs = new RecordingStream(defaultConfiguration) {
      *        rs.onEvent(System.out::println);
      *        rs.startAsync();
      *        Thread.sleep(20_000);
@@ -234,7 +234,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * @param maxAge the length of time that data is kept, or {@code null} if
      *        infinite
      *
-     * @throws IllegalArgumentException if <code>maxAge</code> is negative
+     * @throws IllegalArgumentException if {@code maxAge} is negative
      *
      * @throws IllegalStateException if the recording is in the {@code CLOSED}
      *         state
@@ -256,7 +256,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      *
      * @param maxSize the amount of data to retain, {@code 0} if infinite
      *
-     * @throws IllegalArgumentException if <code>maxSize</code> is negative
+     * @throws IllegalArgumentException if {@code maxSize} is negative
      *
      * @throws IllegalStateException if the recording is in {@code CLOSED} state
      */
@@ -270,7 +270,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * @param interval the interval at which events are made available to the
      *        stream, no {@code null}
      *
-     * @throws IllegalArgumentException if <code>interval</code> is negative
+     * @throws IllegalArgumentException if {@code interval} is negative
      *
      * @throws IllegalStateException if the stream is closed
      */

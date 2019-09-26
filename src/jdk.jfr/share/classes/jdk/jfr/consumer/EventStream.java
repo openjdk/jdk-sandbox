@@ -96,7 +96,7 @@ import jdk.jfr.internal.consumer.FileAccess;
  *
  * <pre>
  * <code>
- * try (EventStream es = EventStream.openRepository()) {
+ * try (var es = EventStream.openRepository()) {
  *   es.onEvent("jdk.CPULoad", event -> {
  *     System.out.println("CPU Load " + event.getEndTime());
  *     System.out.println(" Machine total: " + 100 * event.getFloat("machineTotal") + "%");
@@ -241,6 +241,8 @@ public interface EventStream extends AutoCloseable {
 
     /**
      * Releases all resources associated with this stream.
+     * <p>
+     * Closing a previously closed stream has no effect.
      */
     void close();
 
