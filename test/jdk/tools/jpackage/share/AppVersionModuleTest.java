@@ -45,8 +45,8 @@ public class AppVersionModuleTest {
         "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input",
-   };
+        "--module-path", "input"
+    };
 
     private static final String[] CMD_CLI_VERSION = {
         "--package-type", "app-image",
@@ -55,7 +55,8 @@ public class AppVersionModuleTest {
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
         "--module-path", "input",
-        "--app-version", CLI_VERSION};
+        "--app-version", CLI_VERSION
+    };
 
     private static void validate(String version)
             throws Exception {
@@ -94,7 +95,8 @@ public class AppVersionModuleTest {
     }
 
     public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloModule(MODULE_VERSION);
+        JPackageHelper.createHelloModule(
+                new JPackageHelper.ModuleArgs(MODULE_VERSION, null));
         testVersion();
         testVersionToolProvider();
     }

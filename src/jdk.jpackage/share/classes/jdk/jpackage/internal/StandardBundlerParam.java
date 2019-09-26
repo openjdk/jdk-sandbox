@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Version;
-import java.lang.module.ModuleFinder;
-import java.lang.module.ModuleReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -758,24 +756,16 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static String getDefaultAppVersion(Map<String, ? super Object> params) {
         String appVersion = DEFAULT_VERSION;
-        boolean hasModule = params.containsKey(MODULE.getID());
-        if (hasModule) {
-            List<Path> modulePath = MODULE_PATH.fetchFrom(params);
-            if (!modulePath.isEmpty()) {
-                ModuleFinder finder = ModuleFinder.of(modulePath.toArray(new Path[0]));
-                String mainModule = JLinkBundlerHelper.getMainModule(params);
-                Optional<ModuleReference> omref = finder.find(mainModule);
-                if (omref.isPresent()) {
-                    ModuleDescriptor descriptor = omref.get().descriptor();
-                    Optional<Version> oversion = descriptor.version();
-                    if (oversion.isPresent()) {
-                        Log.verbose(MessageFormat.format(I18N.getString(
-                                "message.module-version"),
-                                oversion.get().toString(),
-                                mainModule));
-                        appVersion = oversion.get().toString();
-                    }
-                }
+
+        ModuleDescriptor descriptor = JLinkBundlerHelper.getMainModuleDescription(params);
+        if (descriptor != null) {
+            Optional<Version> oversion = descriptor.version();
+            if (oversion.isPresent()) {
+                Log.verbose(MessageFormat.format(I18N.getString(
+                        "message.module-version"),
+                        oversion.get().toString(),
+                        JLinkBundlerHelper.getMainModule(params)));
+                appVersion = oversion.get().toString();
             }
         }
 

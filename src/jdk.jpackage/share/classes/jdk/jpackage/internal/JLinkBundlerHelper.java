@@ -97,6 +97,19 @@ final class JLinkBundlerHelper {
             int index = mainModule.indexOf("/");
             if (index > 0) {
                 result = mainModule.substring(index + 1);
+            } else {
+                ModuleDescriptor descriptor =
+                        JLinkBundlerHelper.getMainModuleDescription(params);
+                if (descriptor != null) {
+                    Optional<String> mainClass = descriptor.mainClass();
+                    if (mainClass.isPresent()) {
+                        Log.verbose(MessageFormat.format(I18N.getString(
+                                    "message.module-class"),
+                                    mainClass.get(),
+                                    JLinkBundlerHelper.getMainModule(params)));
+                        result = mainClass.get();
+                    }
+                }
             }
         } else {
             RelativeFileSet fileset =
@@ -199,6 +212,23 @@ final class JLinkBundlerHelper {
 
             if (Files.exists(moduleNamePath)) {
                 return path;
+            }
+        }
+
+        return null;
+    }
+
+    static ModuleDescriptor getMainModuleDescription(Map<String, ? super Object> params) {
+        boolean hasModule = params.containsKey(StandardBundlerParam.MODULE.getID());
+        if (hasModule) {
+            List<Path> modulePath = StandardBundlerParam.MODULE_PATH.fetchFrom(params);
+            if (!modulePath.isEmpty()) {
+                ModuleFinder finder = ModuleFinder.of(modulePath.toArray(new Path[0]));
+                String mainModule = JLinkBundlerHelper.getMainModule(params);
+                Optional<ModuleReference> omref = finder.find(mainModule);
+                if (omref.isPresent()) {
+                    return omref.get().descriptor();
+                }
             }
         }
 

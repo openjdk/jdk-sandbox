@@ -51,6 +51,24 @@ public class JPackageHelper {
     private static final Path JAR;
     private static final Path JLINK;
 
+    public static class ModuleArgs {
+        private final String version;
+        private final String mainClass;
+
+        ModuleArgs(String version, String mainClass) {
+            this.version = version;
+            this.mainClass = mainClass;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public String getMainClass() {
+            return mainClass;
+        }
+    }
+
     static {
         if (OS.startsWith("win")) {
             JPACKAGE = BIN_DIR.resolve("jpackage.exe");
@@ -375,16 +393,16 @@ public class JPackageHelper {
         createModule("Hello.java", "input", "hello", null, true);
     }
 
-    public static void createHelloModule(String version) throws Exception {
-        createModule("Hello.java", "input", "hello", version, true);
+    public static void createHelloModule(ModuleArgs moduleArgs) throws Exception {
+        createModule("Hello.java", "input", "hello", moduleArgs, true);
     }
 
     public static void createOtherModule() throws Exception {
         createModule("Other.java", "input-other", "other", null, false);
     }
 
-    private static void createModule(String javaFile, String inputDir,
-            String aName, String version, boolean createModularJar) throws Exception {
+    private static void createModule(String javaFile, String inputDir, String aName,
+            ModuleArgs moduleArgs, boolean createModularJar) throws Exception {
         int retVal;
 
         File input = new File(inputDir);
@@ -431,9 +449,16 @@ public class JPackageHelper {
                 args.add("--create");
                 args.add("--file");
                 args.add(inputDir + File.separator + "com." + aName + ".jar");
-                if (version != null) {
-                    args.add("--module-version");
-                    args.add(version);
+                if (moduleArgs != null) {
+                    if (moduleArgs.getVersion() != null) {
+                        args.add("--module-version");
+                        args.add(moduleArgs.getVersion());
+                    }
+
+                    if (moduleArgs.getMainClass()!= null) {
+                        args.add("--main-class");
+                        args.add(moduleArgs.getMainClass());
+                    }
                 }
                 args.add("-C");
                 args.add("module" + File.separator + "com." + aName);
