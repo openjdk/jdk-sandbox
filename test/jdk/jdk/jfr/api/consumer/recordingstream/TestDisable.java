@@ -27,6 +27,7 @@ package jdk.jfr.api.consumer.recordingstream;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import jdk.jfr.Event;
 import jdk.jfr.consumer.RecordingStream;
@@ -48,6 +49,19 @@ public class TestDisable {
     }
 
     public static void main(String... args) throws Exception {
+        testDisableWithClass();
+        testDisableWithEventName();
+    }
+
+    private static void testDisableWithEventName() {
+        test(r -> r.disable(DisabledEvent.class.getName()));
+    }
+
+    private static void testDisableWithClass() {
+        test(r -> r.disable(DisabledEvent.class));
+    }
+
+    private static void test(Consumer<RecordingStream> disablement) {
         CountDownLatch twoEvent = new CountDownLatch(2);
         AtomicBoolean fail = new AtomicBoolean(false);
         try(RecordingStream r = new RecordingStream()) {
@@ -57,7 +71,7 @@ public class TestDisable {
                 }
                 twoEvent.countDown();
             });
-            r.disable(DisabledEvent.class.getName());
+            disablement.accept(r);
             r.startAsync();
             EnabledEvent e1 = new EnabledEvent();
             e1.commit();
@@ -65,9 +79,13 @@ public class TestDisable {
             d1.commit();
             EnabledEvent e2 = new EnabledEvent();
             e2.commit();
-            twoEvent.await();
+            try {
+                twoEvent.await();
+            } catch (InterruptedException ie) {
+                throw new RuntimeException("Unexpexpected interruption of thread", ie);
+            }
             if (fail.get()) {
-                throw new Exception("Should not receive a disabled event");
+                throw new RuntimeException("Should not receive a disabled event");
             }
         }
     }

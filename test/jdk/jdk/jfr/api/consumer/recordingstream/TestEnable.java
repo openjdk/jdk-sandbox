@@ -26,6 +26,7 @@
 package jdk.jfr.api.consumer.recordingstream;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 
 import jdk.jfr.Enabled;
 import jdk.jfr.Event;
@@ -46,16 +47,33 @@ public class TestEnable {
     }
 
     public static void main(String... args) throws Exception {
+        testEnableWithClass();
+        testEnableWithEventName();
+    }
+
+    private static void testEnableWithEventName() {
+        test(r -> r.enable(EnabledEvent.class.getName()));
+    }
+
+    private static void testEnableWithClass() {
+        test(r -> r.enable(EnabledEvent.class));
+    }
+
+    private static void test(Consumer<RecordingStream> enablement) {
         CountDownLatch event = new CountDownLatch(1);
         try (RecordingStream r = new RecordingStream()) {
             r.onEvent(e -> {
                 event.countDown();
             });
-            r.enable(EnabledEvent.class.getName());
+            enablement.accept(r);
             r.startAsync();
             EnabledEvent e = new EnabledEvent();
             e.commit();
-            event.await();
+            try {
+                event.await();
+            } catch (InterruptedException ie) {
+                throw new RuntimeException("Unexpected interruption of latch", ie);
+            }
         }
     }
 }
