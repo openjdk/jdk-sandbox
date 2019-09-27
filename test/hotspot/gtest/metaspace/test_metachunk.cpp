@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "metaspace/metaspaceTestsCommon.hpp"
-
+#include "runtime/mutexLocker.hpp"
 
 
 class MetachunkTest {
@@ -56,8 +56,12 @@ class MetachunkTest {
 
     if (c->next() != NULL) EXPECT_EQ(c->next()->prev(), c);
     if (c->prev() != NULL) EXPECT_EQ(c->prev()->next(), c);
-    if (c->next_in_vs() != NULL) EXPECT_EQ(c->next_in_vs()->prev_in_vs(), c);
-    if (c->prev_in_vs() != NULL) EXPECT_EQ(c->prev_in_vs()->next_in_vs(), c);
+
+    {
+      MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+      if (c->next_in_vs() != NULL) EXPECT_EQ(c->next_in_vs()->prev_in_vs(), c);
+      if (c->prev_in_vs() != NULL) EXPECT_EQ(c->prev_in_vs()->next_in_vs(), c);
+    }
 
     DEBUG_ONLY(c->verify(true);)
   }
