@@ -272,16 +272,20 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
     DEBUG_ONLY(InternalStats::inc_num_allocs_failed_chunk_too_small();)
 
-    // Under certain conditions we can just attempt to enlarge the chunk.
-    // - obviously, this only works for non-root chunks which are leader of their buddy pair.
-    // - only if doubling chunk size would actually help - if the requested size does not fit into
-    //     the enlarged chunk either, better just attempt to allocate a new fitting chunk.
-    // - below a certain chunk size to not blow up memory usage unnecessarily.
-    if (Settings::enlarge_chunks_in_place() &&
-        current_chunk()->is_root_chunk() == false &&
-        current_chunk()->is_leader() &&
-        current_chunk()->word_size() + current_chunk()->free_words() >= requested_word_size &&
-        current_chunk()->word_size() <= Settings::enlarge_chunks_in_place_max_word_size())
+    // Under certain conditions we can just attempt to enlarge the chunk - fusing it with its follower
+    // chunk to produce a chunk double the size (level decreased by 1).
+    // 0) only if it is not switched off
+    // 1) obviously, this only works for non-root chunks
+    // 2) ... which are leader of their buddy pair.
+    // 3) only if the requested allocation would fit into a thus enlarged chunk
+    // 4) do not grow memory faster than what the chunk allocation strategy would allow
+    // 5) as a safety feature, only below a certain limit
+    if (Settings::enlarge_chunks_in_place() &&              // 0
+        current_chunk()->is_root_chunk() == false &&        // 1
+        current_chunk()->is_leader() &&                     // 2
+        current_chunk()->word_size() + current_chunk()->free_words() >= requested_word_size &&      // 3
+        _chunk_alloc_sequence->get_next_chunk_level(_chunks.size()) <= current_chunk()->level() &&  // 4
+        current_chunk()->word_size() <= Settings::enlarge_chunks_in_place_max_word_size())          // 5
     {
 
       if (_chunk_manager->attempt_enlarge_chunk(current_chunk())) {
