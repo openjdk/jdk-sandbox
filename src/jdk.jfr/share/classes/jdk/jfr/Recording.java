@@ -418,7 +418,7 @@ public final class Recording implements Closeable {
          *
          * @param interval the interval at which events are made available for streaming.
          *
-         * @throws IllegalArgumentException if <code>interval</code> is negative
+         * @throws IllegalArgumentException if {@code interval} is negative
          *
          * @throws IllegalStateException if the recording is in the {@code CLOSED} state
          *
