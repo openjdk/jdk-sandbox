@@ -71,10 +71,10 @@ static const chklvl_t g_sequ_standard_nonclass[] = {
 };
 
 static const chklvl_t g_sequ_standard_class[] = {
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_4K,
+    chklvl::CHUNK_LEVEL_2K,
+    chklvl::CHUNK_LEVEL_2K,
+    chklvl::CHUNK_LEVEL_2K,
+    chklvl::CHUNK_LEVEL_2K,
     chklvl::CHUNK_LEVEL_32K,
     -1 // .. repeat last
 };
