@@ -128,7 +128,7 @@ void Settings::ergo_initialize() {
 
   // Since this has nothing to do with reclaiming, set it independently from the
   // strategy. This is rather arbitrarily choosen.
-  _enlarge_chunks_in_place = true;
+  _enlarge_chunks_in_place = MetaspaceEnlargeChunksInPlace;
   _enlarge_chunks_in_place_max_word_size = 256 * K;
 
   // Optionally, we can shepherd micro cld metaspace allocs to an own root chunk.
