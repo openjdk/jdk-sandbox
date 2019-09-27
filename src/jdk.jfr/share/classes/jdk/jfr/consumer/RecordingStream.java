@@ -192,7 +192,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * Disables event with the specified name.
      * <p>
      * If multiple events with same name (for example, the same class is loaded
-     * in different class loaders), then all events that match the name is
+     * in different class loaders), then all events that match the name are
      * disabled. To disable a specific class, use the {@link #disable(Class)}
      * method or a {@code String} representation of the event type ID.
      *

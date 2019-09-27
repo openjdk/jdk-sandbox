@@ -177,8 +177,8 @@ final class Dispatcher {
         }
         for (int i = 0; i < consumers.length; i++) {
             @SuppressWarnings("unchecked")
-            Consumer<Throwable> conusmer = (Consumer<Throwable>) consumers[i];
-            conusmer.accept(e);
+            Consumer<Throwable> consumer = (Consumer<Throwable>) consumers[i];
+            consumer.accept(e);
         }
     }
 
