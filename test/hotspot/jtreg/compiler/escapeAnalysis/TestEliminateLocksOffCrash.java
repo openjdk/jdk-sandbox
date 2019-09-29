@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,26 @@
 
 /*
  * @test
- * @bug 8029354
- * @library /test/lib
- * @run main/othervm OpenURL
+ * @bug 8227384
+ * @summary C2 compilation fails with "graph should be schedulable" when running with -XX:-EliminateLocks
+ *
+ * @run main/othervm -XX:-EliminateLocks TestEliminateLocksOffCrash
  */
 
-import java.net.*;
-import java.io.*;
-import jdk.test.lib.net.URIBuilder;
-import static java.net.Proxy.NO_PROXY;
+public class TestEliminateLocksOffCrash {
+    public static void main(String[] args) {
+        for (int i = 0; i < 20_000; i++) {
+            try {
+                test();
+            } catch (Exception e) {
+            }
+        }
+    }
 
-public class OpenURL {
-
-    public static void main (String[] args) throws Exception {
-
-        System.setSecurityManager(new SecurityManager());
-
-        try {
-            URL url = URIBuilder.newBuilder()
-                .scheme("http")
-                .userInfo("joe")
-                .loopback()
-                .path("/a/b")
-                .toURL();
-            System.out.println("URL: " + url);
-            HttpURLConnection urlc = (HttpURLConnection)url.openConnection(NO_PROXY);
-            InputStream is = urlc.getInputStream();
-            // error will throw exception other than SecurityException
-        } catch (SecurityException e) {
-            System.out.println("OK");
+    private static void test() throws Exception {
+        Object obj = new Object();
+        synchronized (obj) {
+            throw new Exception();
         }
     }
 }
