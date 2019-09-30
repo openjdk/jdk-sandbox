@@ -98,61 +98,6 @@ public class WinAppBundler extends AbstractImageBundler {
         return true;
     }
 
-    private static boolean usePredefineAppName(Map<String, ? super Object> p) {
-        return (PREDEFINED_APP_IMAGE.fetchFrom(p) != null);
-    }
-
-    private static String appName;
-    synchronized static String getAppName(
-            Map<String, ? super Object> p) {
-        // If we building from predefined app image, then we should use names
-        // from image and not from CLI.
-        if (usePredefineAppName(p)) {
-            if (appName == null) {
-                // Use WIN_APP_IMAGE here, since we already copy pre-defined
-                // image to WIN_APP_IMAGE
-                File appImageDir = WIN_APP_IMAGE.fetchFrom(p);
-
-                File appDir = new File(appImageDir.toString() + "\\app");
-                File [] files = appDir.listFiles(
-                        (File dir, String name) -> name.endsWith(".cfg"));
-                if (files == null || files.length == 0) {
-                    String name = APP_NAME.fetchFrom(p);
-                    Path exePath = appImageDir.toPath().resolve(name + ".exe");
-                    Path icoPath = appImageDir.toPath().resolve(name + ".ico");
-                    if (exePath.toFile().exists() &&
-                            icoPath.toFile().exists()) {
-                        return name;
-                    } else {
-                        throw new RuntimeException(MessageFormat.format(
-                                I18N.getString("error.cannot-find-launcher"),
-                                appImageDir));
-                    }
-                } else {
-                    appName = files[0].getName();
-                    int index = appName.indexOf(".");
-                    if (index != -1) {
-                        appName = appName.substring(0, index);
-                    }
-                    if (files.length > 1) {
-                        Log.error(MessageFormat.format(I18N.getString(
-                                "message.multiple-launchers"), appName));
-                    }
-                }
-                return appName;
-            } else {
-                return appName;
-            }
-        }
-
-        return APP_NAME.fetchFrom(p);
-    }
-
-    public static String getLauncherRelativePath(
-            Map<String, ? super Object> p) {
-        return getAppName(p) + ".exe";
-    }
-
     public boolean bundle(Map<String, ? super Object> p, File outputDirectory)
             throws PackagerException {
         return doBundle(p, outputDirectory, false) != null;

@@ -542,6 +542,25 @@ public class WinMsiBundler  extends AbstractBundler {
                 basedir.getAbsolutePath().length() + 1);
     }
 
+    private AppImageFile appImageFile = null;
+    private String[] getLaunchers( Map<String, ? super Object> params) {
+        try {
+            ArrayList<String> launchers = new ArrayList<String>();
+            if (appImageFile == null) {
+                appImageFile = AppImageFile.load(
+                        WIN_APP_IMAGE.fetchFrom(params).toPath());
+            }
+            launchers.add(appImageFile.getLauncherName());
+            launchers.addAll(appImageFile.getAddLauncherNames());
+            return launchers.toArray(new String[0]);
+        } catch (IOException ioe) {
+            Log.verbose(ioe.getMessage());
+        }
+        String [] launcherNames = new String [1];
+        launcherNames[0] = APP_NAME.fetchFrom(params);
+        return launcherNames;
+    }
+
     private void prepareIconsFile(
             Map<String, ? super Object> params) throws IOException {
 
@@ -558,39 +577,29 @@ public class WinMsiBundler  extends AbstractBundler {
             xml.writeStartDocument();
             xml.writeStartElement("Include");
 
-            File launcher = new File(imageRootDir,
-                    WinAppBundler.getLauncherRelativePath(params));
-            if (launcher.exists()) {
-                String iconPath = launcher.getAbsolutePath().replace(
-                        ".exe", ".ico");
-                if (MENU_HINT.fetchFrom(params)) {
-                    xml.writeStartElement("Icon");
-                    xml.writeAttribute("Id", "StartMenuIcon.exe");
-                    xml.writeAttribute("SourceFile", iconPath);
-                    xml.writeEndElement();
-                }
-                if (SHORTCUT_HINT.fetchFrom(params)) {
-                    xml.writeStartElement("Icon");
-                    xml.writeAttribute("Id", "DesktopIcon.exe");
-                    xml.writeAttribute("SourceFile", iconPath);
-                    xml.writeEndElement();
-                }
+            String[] launcherNames = getLaunchers(params);
+
+            File[] icons = new File[launcherNames.length];
+            for (int i=0; i<launcherNames.length; i++) {
+                icons[i] = new File(imageRootDir, launcherNames[i] + ".ico");
             }
 
-            for (int i = 0; i < addLaunchers.size(); i++) {
-                Map<String, ? super Object> sl = addLaunchers.get(i);
-                if (SHORTCUT_HINT.fetchFrom(sl) || MENU_HINT.fetchFrom(sl)) {
-                    File addLauncher = new File(imageRootDir,
-                            WinAppBundler.getLauncherRelativePath(sl));
-                    String addLauncherPath
-                            = relativePath(imageRootDir, addLauncher);
-                    String addLauncherIconPath
-                            = addLauncherPath.replace(".exe", ".ico");
+            for (int i = 0; i < icons.length; i++) {
+                if (icons[i].exists()) {
+                    String iconPath = icons[i].getAbsolutePath();
 
-                    xml.writeStartElement("Icon");
-                    xml.writeAttribute("Id", "Launcher" + i + ".exe");
-                    xml.writeAttribute("SourceFile", addLauncherIconPath);
-                    xml.writeEndElement();
+                    if (MENU_HINT.fetchFrom(params)) {
+                        xml.writeStartElement("Icon");
+                        xml.writeAttribute("Id", "StartMenuIcon.exe" + i);
+                        xml.writeAttribute("SourceFile", iconPath);
+                        xml.writeEndElement();
+                    }
+                    if (SHORTCUT_HINT.fetchFrom(params)) {
+                        xml.writeStartElement("Icon");
+                        xml.writeAttribute("Id", "DesktopIcon.exe" + i);
+                        xml.writeAttribute("SourceFile", iconPath);
+                        xml.writeEndElement();
+                    }
                 }
             }
 
@@ -718,21 +727,16 @@ public class WinMsiBundler  extends AbstractBundler {
         out.println(prefix + "  <RemoveFolder Id=\"RemoveDir"
                 + (id++) + "\" On=\"uninstall\" />");
 
-        boolean needRegistryKey = !MSI_SYSTEM_WIDE.fetchFrom(params);
+
         File imageRootDir = WIN_APP_IMAGE.fetchFrom(params);
-        File launcherFile = new File(imageRootDir,
-                WinAppBundler.getLauncherRelativePath(params));
 
         // Find out if we need to use registry. We need it if
         //  - we doing user level install as file can not serve as KeyPath
         //  - if we adding shortcut in this component
-
-        for (File f: files) {
-            boolean isLauncher = f.equals(launcherFile);
-            if (isLauncher) {
-                needRegistryKey = true;
-            }
-        }
+        boolean menuShortcut = MENU_HINT.fetchFrom(params);
+        boolean desktopShortcut = SHORTCUT_HINT.fetchFrom(params);
+        boolean needRegistryKey = !MSI_SYSTEM_WIDE.fetchFrom(params) ||
+                menuShortcut || desktopShortcut;
 
         if (needRegistryKey) {
             // has to be under HKCU to make WiX happy
@@ -748,21 +752,23 @@ public class WinMsiBundler  extends AbstractBundler {
             out.println(prefix + "   </RegistryKey>");
         }
 
-        boolean menuShortcut = MENU_HINT.fetchFrom(params);
-        boolean desktopShortcut = SHORTCUT_HINT.fetchFrom(params);
+        String[] launcherNames = getLaunchers(params);
 
+        File[] launcherFiles = new File[launcherNames.length];
+        for (int i=0; i<launcherNames.length; i++) {
+            launcherFiles[i] =
+                    new File(imageRootDir, launcherNames[i] + ".exe");
+        }
         Map<String, String> idToFileMap = new TreeMap<>();
         boolean launcherSet = false;
 
         for (File f : files) {
-            boolean isLauncher = f.equals(launcherFile);
+            boolean isMainLauncher =
+                    launcherFiles.length > 0 && f.equals(launcherFiles[0]);
 
-            launcherSet = launcherSet || isLauncher;
+            launcherSet = launcherSet || isMainLauncher;
 
-            boolean doShortcuts =
-                isLauncher && (menuShortcut || desktopShortcut);
-
-            String thisFileId = isLauncher ? LAUNCHER_ID : ("FileId" + (id++));
+            String thisFileId = isMainLauncher ? LAUNCHER_ID : ("FileId" + (id++));
             idToFileMap.put(f.getName(), thisFileId);
 
             out.println(prefix + "   <File Id=\"" +
@@ -770,48 +776,46 @@ public class WinMsiBundler  extends AbstractBundler {
                     + " Name=\"" + f.getName() + "\" "
                     + " Source=\"" + relativePath(imageRootDir, f) + "\""
                     + " ProcessorArchitecture=\"x64\"" + ">");
-            if (doShortcuts && desktopShortcut) {
+            if (isMainLauncher && desktopShortcut) {
                 out.println(prefix
                         + "  <Shortcut Id=\"desktopShortcut\" Directory="
                         + "\"DesktopFolder\""
-                        + " Name=\"" + APP_NAME.fetchFrom(params)
+                        + " Name=\"" + launcherNames[0]
                         + "\" WorkingDirectory=\"INSTALLDIR\""
-                        + " Advertise=\"no\" Icon=\"DesktopIcon.exe\""
+                        + " Advertise=\"no\" Icon=\"DesktopIcon.exe0\""
                         + " IconIndex=\"0\" />");
             }
-            if (doShortcuts && menuShortcut) {
+            if (isMainLauncher && menuShortcut) {
                 out.println(prefix
                         + "     <Shortcut Id=\"ExeShortcut\" Directory="
                         + "\"ProgramMenuDir\""
-                        + " Name=\"" + APP_NAME.fetchFrom(params)
-                        + "\" Advertise=\"no\" Icon=\"StartMenuIcon.exe\""
+                        + " Name=\"" + launcherNames[0]
+                        + "\" Advertise=\"no\" Icon=\"StartMenuIcon.exe0\""
                         + " IconIndex=\"0\" />");
             }
 
-            List<Map<String, ? super Object>> addLaunchers =
-                    ADD_LAUNCHERS.fetchFrom(params);
-            for (int i = 0; i < addLaunchers.size(); i++) {
-                Map<String, ? super Object> sl = addLaunchers.get(i);
-                File addLauncherFile = new File(imageRootDir,
-                        WinAppBundler.getLauncherRelativePath(sl));
-                if (f.equals(addLauncherFile)) {
-                    if (SHORTCUT_HINT.fetchFrom(sl)) {
+            // any additional launchers
+            for (int index = 1; index < launcherNames.length; index++ ) {
+
+                if (f.equals(launcherFiles[index])) {
+                    if (desktopShortcut) {
                         out.println(prefix
                                 + "  <Shortcut Id=\"desktopShortcut"
-                                + i + "\" Directory=\"DesktopFolder\""
-                                + " Name=\"" + APP_NAME.fetchFrom(sl)
+                                + index + "\" Directory=\"DesktopFolder\""
+                                + " Name=\"" + launcherNames[index]
                                 + "\" WorkingDirectory=\"INSTALLDIR\""
-                                + " Advertise=\"no\" Icon=\"Launcher"
-                                + i + ".exe\" IconIndex=\"0\" />");
+                                + " Advertise=\"no\" Icon=\"DesktopIcon.exe"
+                                + index + "\""
+                                + " IconIndex=\"0\" />");
                     }
-                    if (MENU_HINT.fetchFrom(sl)) {
+                    if (menuShortcut) {
                         out.println(prefix
-                                + "     <Shortcut Id=\"ExeShortcut"
-                                + i + "\" Directory=\"ProgramMenuDir\""
-                                + " Name=\"" + APP_NAME.fetchFrom(sl)
-                                + "\" Advertise=\"no\" Icon=\"Launcher"
-                                + i + ".exe\" IconIndex=\"0\" />");
-                        // Should we allow different menu groups?  Not for now.
+                            + "     <Shortcut Id=\"ExeShortcut"
+                            + index + "\" Directory=\"ProgramMenuDir\""
+                            + " Name=\"" + launcherNames[index]
+                            + "\" Advertise=\"no\" Icon=\"StartMenuIcon.exe"
+                            + index + "\""
+                            + " IconIndex=\"0\" />");
                     }
                 }
             }

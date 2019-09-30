@@ -187,6 +187,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         } catch (PackagerException pe) {
             throw new RuntimeException(pe);
         }
+        AppImageFile.save(root, params);
 
         // create the .exe launchers
         createLauncherForEntryPoint(params);
