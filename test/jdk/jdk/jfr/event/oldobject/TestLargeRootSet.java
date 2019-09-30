@@ -91,36 +91,37 @@ public class TestLargeRootSet {
 
     public static void main(String[] args) throws Exception {
         WhiteBox.setWriteAllObjectSamples(true);
-
-        List<RootThread> threads = new ArrayList<>();
-        try (Recording r = new Recording()) {
-            r.enable(EventNames.OldObjectSample).withStackTrace().with("cutoff", "infinity");
-            r.start();
-            CyclicBarrier cb = new CyclicBarrier(THREAD_COUNT + 1);
-            for (int i = 0; i < THREAD_COUNT; i++) {
-                RootThread t = new RootThread(cb);
-                t.start();
-                if (i % 10 == 0) {
-                    // Give threads some breathing room before starting next batch
-                    Thread.sleep(100);
+        while (true) {
+            List<RootThread> threads = new ArrayList<>();
+            try (Recording r = new Recording()) {
+                r.enable(EventNames.OldObjectSample).withStackTrace().with("cutoff", "infinity");
+                r.start();
+                CyclicBarrier cb = new CyclicBarrier(THREAD_COUNT + 1);
+                for (int i = 0; i < THREAD_COUNT; i++) {
+                    RootThread t = new RootThread(cb);
+                    t.start();
+                    if (i % 10 == 0) {
+                        // Give threads some breathing room before starting next batch
+                        Thread.sleep(100);
+                    }
+                    threads.add(t);
                 }
-                threads.add(t);
-            }
-            cb.await();
-            System.gc();
-            r.stop();
-            cb.await();
-            List<RecordedEvent> events = Events.fromRecording(r);
-            Events.hasEvents(events);
-            for (RecordedEvent e : events) {
-                RecordedObject ro = e.getValue("object");
-                RecordedClass rc = ro.getValue("type");
-                System.out.println(rc.getName());
-                if (rc.getName().equals(StackObject[].class.getName())) {
-                    return; // ok
+                cb.await();
+                System.gc();
+                r.stop();
+                cb.await();
+                List<RecordedEvent> events = Events.fromRecording(r);
+                Events.hasEvents(events);
+                for (RecordedEvent e : events) {
+                    RecordedObject ro = e.getValue("object");
+                    RecordedClass rc = ro.getValue("type");
+                    System.out.println(rc.getName());
+                    if (rc.getName().equals(StackObject[].class.getName())) {
+                        return; // ok
+                    }
                 }
+                // Asserts.fail("Could not find root object");
             }
-            Asserts.fail("Could not find root object");
         }
     }
 }
