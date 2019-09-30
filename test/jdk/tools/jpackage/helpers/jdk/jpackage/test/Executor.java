@@ -216,6 +216,10 @@ public final class Executor extends CommandArguments<Executor> {
         } else if (saveOutputType.contains(SaveOutputType.DUMP)) {
             builder.inheritIO();
             sb.append("; inherit I/O");
+        } else {
+            builder.redirectError(ProcessBuilder.Redirect.DISCARD);
+            builder.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+            sb.append("; discard I/O");
         }
         if (directory != null) {
             builder.directory(directory.toFile());

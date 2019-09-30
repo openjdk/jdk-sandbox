@@ -42,9 +42,6 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-        "jdk.jpackage.internal.resources.LinuxResources");
-
     private static final String LIBRARY_NAME = "libapplauncher.so";
     final static String DEFAULT_ICON = "java32.png";
 

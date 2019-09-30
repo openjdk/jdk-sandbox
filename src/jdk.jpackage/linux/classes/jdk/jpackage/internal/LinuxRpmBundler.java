@@ -32,6 +32,7 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
@@ -103,32 +104,9 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
 
     private final static String DEFAULT_SPEC_TEMPLATE = "template.spec";
 
+    public final static String TOOL_RPM = "rpm";
     public final static String TOOL_RPMBUILD = "rpmbuild";
-    public final static double TOOL_RPMBUILD_MIN_VERSION = 4.0d;
-
-    public static boolean testTool(String toolName, double minVersion) {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                PrintStream ps = new PrintStream(baos)) {
-            ProcessBuilder pb = new ProcessBuilder(toolName, "--version");
-            IOUtils.exec(pb, false, ps);
-                    //not interested in the above's output
-            String content = new String(baos.toByteArray());
-            Pattern pattern = Pattern.compile(" (\\d+\\.\\d+)");
-            Matcher matcher = pattern.matcher(content);
-
-            if (matcher.find()) {
-                String v = matcher.group(1);
-                double version = Double.parseDouble(v);
-                return minVersion <= version;
-            } else {
-               return false;
-            }
-        } catch (Exception e) {
-            Log.verbose(MessageFormat.format(I18N.getString(
-                    "message.test-for-tool"), toolName, e.getMessage()));
-            return false;
-        }
-    }
+    public final static String TOOL_RPMBUILD_MIN_VERSION = "4.0";
 
     public LinuxRpmBundler() {
         super(PACKAGE_NAME);
@@ -137,20 +115,26 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
     @Override
     public void doValidate(Map<String, ? super Object> params)
             throws ConfigException {
-        if (params == null) throw new ConfigException(
-                I18N.getString("error.parameters-null"),
-                I18N.getString("error.parameters-null.advice"));
+    }
 
-        // validate presense of required tools
-        if (!testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)){
-            throw new ConfigException(
-                MessageFormat.format(
-                    I18N.getString("error.cannot-find-rpmbuild"),
-                    TOOL_RPMBUILD_MIN_VERSION),
-                MessageFormat.format(
-                    I18N.getString("error.cannot-find-rpmbuild.advice"),
-                    TOOL_RPMBUILD_MIN_VERSION));
-        }
+    private static ToolValidator createRpmbuildToolValidator() {
+        Pattern pattern = Pattern.compile(" (\\d+\\.\\d+)");
+        return new ToolValidator(TOOL_RPMBUILD).setMinimalVersion(
+                TOOL_RPMBUILD_MIN_VERSION).setVersionParser(lines -> {
+                    String versionString = lines.limit(1).collect(
+                            Collectors.toList()).get(0);
+                    Matcher matcher = pattern.matcher(versionString);
+                    if (matcher.find()) {
+                        return matcher.group(1);
+                    }
+                    return null;
+                });
+    }
+
+    @Override
+    protected List<ToolValidator> getToolValidators(
+            Map<String, ? super Object> params) {
+        return List.of(createRpmbuildToolValidator());
     }
 
     @Override
@@ -193,6 +177,18 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         return data;
     }
 
+    @Override
+    protected void initLibProvidersLookup(
+            Map<String, ? super Object> params,
+            LibProvidersLookup libProvidersLookup) {
+        libProvidersLookup.setPackageLookup(file -> {
+            return Executor.of(TOOL_RPM,
+                "-q", "--queryformat", "%{name}\\n",
+                "-q", "--whatprovides", file.toString())
+                .saveOutput(true).executeExpectSuccess().getOutput().stream();
+        });
+    }
+
     private Path specFile(Map<String, ? super Object> params) {
         return TEMP_ROOT.fetchFrom(params).toPath().resolve(Path.of("SPECS",
                 PACKAGE_NAME.fetchFrom(params) + ".spec"));
@@ -207,17 +203,18 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         PlatformPackage thePackage = createMetaPackage(params);
 
         //run rpmbuild
-        ProcessBuilder pb = new ProcessBuilder(
+        Executor.of(
                 TOOL_RPMBUILD,
                 "-bb", specFile(params).toAbsolutePath().toString(),
-                "--define", String.format("%%_sourcedir %s", thePackage.sourceRoot()),
+                "--define", String.format("%%_sourcedir %s",
+                        thePackage.sourceRoot()),
                 // save result to output dir
-                "--define", String.format("%%_rpmdir %s", outdir.getAbsolutePath()),
+                "--define", String.format("%%_rpmdir %s",
+                        outdir.getAbsolutePath()),
                 // do not use other system directories to build as current user
                 "--define", String.format("%%_topdir %s",
                         TEMP_ROOT.fetchFrom(params).toPath().toAbsolutePath())
-        );
-        IOUtils.exec(pb);
+        ).executeExpectSuccess();
 
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.output-bundle-location"),
@@ -253,12 +250,7 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        if (Platform.getPlatform() == Platform.LINUX) {
-            if (testTool(TOOL_RPMBUILD, TOOL_RPMBUILD_MIN_VERSION)) {
-                return true;
-            }
-        }
-        return false;
+        return Platform.isLinux() && (createRpmbuildToolValidator().validate() == null);
     }
 
     @Override

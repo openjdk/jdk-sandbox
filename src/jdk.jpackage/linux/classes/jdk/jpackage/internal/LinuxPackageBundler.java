@@ -25,24 +25,12 @@
 package jdk.jpackage.internal;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Writer;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
@@ -57,9 +45,6 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 
 abstract class LinuxPackageBundler extends AbstractBundler {
-
-    protected static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.LinuxResources");
 
     private static final String DESKTOP_COMMANDS_INSTALL = "DESKTOP_COMMANDS_INSTALL";
     private static final String DESKTOP_COMMANDS_UNINSTALL = "DESKTOP_COMMANDS_UNINSTALL";
@@ -95,37 +80,47 @@ abstract class LinuxPackageBundler extends AbstractBundler {
     }
 
     private final BundlerParamInfo<String> packageName;
+    private boolean withFindNeededPackages;
 
     @Override
     final public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
-        try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
 
-            // run basic validation to ensure requirements are met
-            // we are not interested in return code, only possible exception
-            APP_BUNDLER.fetchFrom(params).validate(params);
+        // run basic validation to ensure requirements are met
+        // we are not interested in return code, only possible exception
+        APP_BUNDLER.fetchFrom(params).validate(params);
 
-            validateFileAssociations(FILE_ASSOCIATIONS.fetchFrom(params));
+        validateFileAssociations(FILE_ASSOCIATIONS.fetchFrom(params));
 
-            // If package name has some restrictions, the string converter will
-            // throw an exception if invalid
-            packageName.getStringConverter().apply(packageName.fetchFrom(params),
-                params);
+        // If package name has some restrictions, the string converter will
+        // throw an exception if invalid
+        packageName.getStringConverter().apply(packageName.fetchFrom(params),
+            params);
 
-            // Packaging specific validation
-            doValidate(params);
-
-            return true;
-        } catch (RuntimeException re) {
-            if (re.getCause() instanceof ConfigException) {
-                throw (ConfigException) re.getCause();
-            } else {
-                throw new ConfigException(re);
+        for (var validator: getToolValidators(params)) {
+            ConfigException ex = validator.validate();
+            if (ex != null) {
+                throw ex;
             }
         }
+
+        withFindNeededPackages = LibProvidersLookup.supported();
+        if (!withFindNeededPackages) {
+            final String advice;
+            if ("deb".equals(getID())) {
+                advice = "message.deb-ldd-not-available.advice";
+            } else {
+                advice = "message.rpm-ldd-not-available.advice";
+            }
+            // Let user know package dependencies will not be generated.
+            Log.error(String.format("%s\n%s", I18N.getString(
+                    "message.ldd-not-available"), I18N.getString(advice)));
+        }
+
+        // Packaging specific validation
+        doValidate(params);
+
+        return true;
     }
 
     @Override
@@ -168,13 +163,18 @@ abstract class LinuxPackageBundler extends AbstractBundler {
                 }
             }
 
+            if (!StandardBundlerParam.isRuntimeInstaller(params)) {
+                desktopIntegration = new DesktopIntegration(thePackage, params);
+            } else {
+                desktopIntegration = null;
+            }
+
             Map<String, String> data = createDefaultReplacementData(params);
-            if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            if (desktopIntegration != null) {
+                data.putAll(desktopIntegration.create());
+            } else {
                 Stream.of(DESKTOP_COMMANDS_INSTALL, DESKTOP_COMMANDS_UNINSTALL,
                         UTILITY_SCRIPTS).forEach(v -> data.put(v, ""));
-            } else {
-                data.putAll(
-                        new DesktopIntegration(thePackage, params).prepareForApplication());
             }
 
             data.putAll(createReplacementData(params));
@@ -187,6 +187,39 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         }
     }
 
+    private List<String> getListOfNeededPackages(
+            Map<String, ? super Object> params) throws IOException {
+
+        PlatformPackage thePackage = createMetaPackage(params);
+
+        final List<String> xdgUtilsPackage;
+        if (desktopIntegration != null) {
+            xdgUtilsPackage = desktopIntegration.requiredPackages();
+        } else {
+            xdgUtilsPackage = Collections.emptyList();
+        }
+
+        final List<String> neededLibPackages;
+        if (withFindNeededPackages) {
+            LibProvidersLookup lookup = new LibProvidersLookup();
+            initLibProvidersLookup(params, lookup);
+
+            neededLibPackages = lookup.execute(thePackage.sourceRoot());
+        } else {
+            neededLibPackages = Collections.emptyList();
+        }
+
+        // Merge all package lists together.
+        // Filter out empty names, sort and remove duplicates.
+        List<String> result = Stream.of(xdgUtilsPackage, neededLibPackages).flatMap(
+                List::stream).filter(Predicate.not(String::isEmpty)).sorted().distinct().collect(
+                Collectors.toList());
+
+        Log.verbose(String.format("Required packages: %s", result));
+
+        return result;
+    }
+
     private Map<String, String> createDefaultReplacementData(
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
@@ -196,13 +229,26 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         data.put("APPLICATION_VERSION", VERSION.fetchFrom(params));
         data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
         data.put("APPLICATION_RELEASE", RELEASE.fetchFrom(params));
-        data.put("PACKAGE_DEPENDENCIES", LINUX_PACKAGE_DEPENDENCIES.fetchFrom(
-                params));
+
+        String defaultDeps = String.join(", ", getListOfNeededPackages(params));
+        String customDeps = LINUX_PACKAGE_DEPENDENCIES.fetchFrom(params).strip();
+        if (!customDeps.isEmpty() && !defaultDeps.isEmpty()) {
+            customDeps = ", " + customDeps;
+        }
+        data.put("PACKAGE_DEFAULT_DEPENDENCIES", defaultDeps);
+        data.put("PACKAGE_CUSTOM_DEPENDENCIES", customDeps);
 
         return data;
     }
 
-    abstract void doValidate(Map<String, ? super Object> params)
+    abstract protected void initLibProvidersLookup(
+            Map<String, ? super Object> params,
+            LibProvidersLookup libProvidersLookup);
+
+    abstract protected List<ToolValidator> getToolValidators(
+            Map<String, ? super Object> params);
+
+    abstract protected void doValidate(Map<String, ? super Object> params)
             throws ConfigException;
 
     abstract protected Map<String, String> createReplacementData(
@@ -333,11 +379,21 @@ abstract class LinuxPackageBundler extends AbstractBundler {
                 iconFile = null;
             }
 
-            this.desktopFileData = Collections.unmodifiableMap(
+            desktopFileData = Collections.unmodifiableMap(
                     createDataForDesktopFile(params));
+
+            nestedIntegrations = launchers.stream().map(
+                    launcherParams -> new DesktopIntegration(thePackage,
+                            launcherParams)).collect(Collectors.toList());
         }
 
-        Map<String, String> prepareForApplication() throws IOException {
+        List<String> requiredPackages() {
+            return Stream.of(List.of(this), nestedIntegrations).flatMap(
+                    List::stream).map(DesktopIntegration::requiredPackagesSelf).flatMap(
+                    List::stream).distinct().collect(Collectors.toList());
+        }
+
+        Map<String, String> create() throws IOException {
             if (iconFile != null) {
                 // Create application icon file.
                 prepareSrcIconFile();
@@ -386,15 +442,12 @@ abstract class LinuxPackageBundler extends AbstractBundler {
                     data.get(DESKTOP_COMMANDS_INSTALL)));
             List<String> uninstallShellCmds = new ArrayList<>(Arrays.asList(
                     data.get(DESKTOP_COMMANDS_UNINSTALL)));
-            for (Map<String, ? super Object> params : launchers) {
-                DesktopIntegration integration = new DesktopIntegration(
-                        thePackage, params);
-
+            for (var integration: nestedIntegrations) {
                 if (!integration.associations.isEmpty()) {
                     needCleanupScripts = true;
                 }
 
-                Map<String, String> launcherData = integration.prepareForApplication();
+                Map<String, String> launcherData = integration.create();
 
                 installShellCmds.add(launcherData.get(DESKTOP_COMMANDS_INSTALL));
                 uninstallShellCmds.add(launcherData.get(
@@ -419,6 +472,13 @@ abstract class LinuxPackageBundler extends AbstractBundler {
             }
 
             return data;
+        }
+
+        private List<String> requiredPackagesSelf() {
+            if (desktopFile != null) {
+                return List.of("xdg-utils");
+            }
+            return Collections.emptyList();
         }
 
         private Map<String, String> createDataForDesktopFile(
@@ -557,6 +617,8 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         private final DesktopFile mimeInfoFile;
         private final DesktopFile desktopFile;
         private final DesktopFile iconFile;
+
+        final private List<DesktopIntegration> nestedIntegrations;
 
         private final Map<String, String> desktopFileData;
 
@@ -709,4 +771,6 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         return String.join(System.lineSeparator(), commands.stream().filter(
                 s -> s != null && !s.isEmpty()).collect(Collectors.toList()));
     }
+
+    private DesktopIntegration desktopIntegration;
 }

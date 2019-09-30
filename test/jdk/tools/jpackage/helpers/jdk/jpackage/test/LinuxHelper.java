@@ -191,7 +191,66 @@ public class LinuxHelper {
                 .executeAndGetFirstLineOfOutput();
     }
 
-    static void addDebBundleDesktopIntegrationVerifier(PackageTest test,
+    static void verifyPackageBundleEssential(JPackageCommand cmd) {
+        String packageName = LinuxHelper.getPackageName(cmd);
+        TKit.assertNotEquals(0L, LinuxHelper.getInstalledPackageSizeKB(
+                cmd), String.format(
+                        "Check installed size of [%s] package in KB is not zero",
+                        packageName));
+
+        final boolean checkPrerequisites;
+        if (cmd.isRuntime()) {
+            Path runtimeDir = cmd.appRuntimeInstallationDirectory();
+            Set<Path> expectedCriticalRuntimePaths = CRITICAL_RUNTIME_FILES.stream().map(
+                    runtimeDir::resolve).collect(Collectors.toSet());
+            Set<Path> actualCriticalRuntimePaths = getPackageFiles(cmd).filter(
+                    expectedCriticalRuntimePaths::contains).collect(
+                            Collectors.toSet());
+            checkPrerequisites = expectedCriticalRuntimePaths.equals(
+                    actualCriticalRuntimePaths);
+        } else {
+            checkPrerequisites = true;
+        }
+
+        List<String> prerequisites = LinuxHelper.getPrerequisitePackages(cmd);
+        if (checkPrerequisites) {
+            final String vitalPackage = "libc";
+            TKit.assertTrue(prerequisites.stream().filter(
+                    dep -> dep.contains(vitalPackage)).findAny().isPresent(),
+                    String.format(
+                            "Check [%s] package is in the list of required packages %s of [%s] package",
+                            vitalPackage, prerequisites, packageName));
+        } else {
+            TKit.trace(String.format(
+                    "Not cheking %s required packages of [%s] package",
+                    prerequisites, packageName));
+        }
+    }
+
+    static void addBundleDesktopIntegrationVerifier(PackageTest test,
+            boolean integrated) {
+        final String xdgUtils = "xdg-utils";
+
+        test.addBundleVerifier(cmd -> {
+            List<String> prerequisites = getPrerequisitePackages(cmd);
+            boolean xdgUtilsFound = prerequisites.contains(xdgUtils);
+            if (integrated) {
+                TKit.assertTrue(xdgUtilsFound, String.format(
+                        "Check [%s] is in the list of required packages %s",
+                        xdgUtils, prerequisites));
+            } else {
+                TKit.assertFalse(xdgUtilsFound, String.format(
+                        "Check [%s] is NOT in the list of required packages %s",
+                        xdgUtils, prerequisites));
+            }
+        });
+
+        test.forTypes(PackageType.LINUX_DEB, () -> {
+            addDebBundleDesktopIntegrationVerifier(test, integrated);
+        });
+    }
+
+    private static void addDebBundleDesktopIntegrationVerifier(PackageTest test,
             boolean integrated) {
         Function<List<String>, String> verifier = (lines) -> {
             // Lookup for xdg commands

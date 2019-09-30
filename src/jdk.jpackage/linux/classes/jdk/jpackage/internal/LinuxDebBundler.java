@@ -37,12 +37,14 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
-import static jdk.jpackage.internal.LinuxPackageBundler.I18N;
+
 
 public class LinuxDebBundler extends LinuxPackageBundler {
 
@@ -82,18 +84,29 @@ public class LinuxDebBundler extends LinuxPackageBundler {
                 return s;
             });
 
+    private final static String TOOL_DPKG_DEB = "dpkg-deb";
+    private final static String TOOL_DPKG = "dpkg";
+    private final static String TOOL_FAKEROOT = "fakeroot";
+
+    private final static String DEB_ARCH;
+    static {
+        String debArch;
+        try {
+            debArch = Executor.of(TOOL_DPKG, "--print-architecture").saveOutput(
+                    true).executeExpectSuccess().getOutput().get(0);
+        } catch (IOException ex) {
+            debArch = null;
+        }
+        DEB_ARCH = debArch;
+    }
+
     private static final BundlerParamInfo<String> FULL_PACKAGE_NAME =
             new StandardBundlerParam<>(
                     "linux.deb.fullPackageName", String.class, params -> {
-                        try {
-                            return PACKAGE_NAME.fetchFrom(params)
+                        return PACKAGE_NAME.fetchFrom(params)
                             + "_" + VERSION.fetchFrom(params)
                             + "-" + RELEASE.fetchFrom(params)
-                            + "_" + getDebArch();
-                        } catch (IOException ex) {
-                            Log.verbose(ex);
-                            return null;
-                        }
+                            + "_" + DEB_ARCH;
                     }, (s, p) -> s);
 
     private static final BundlerParamInfo<String> EMAIL =
@@ -126,38 +139,16 @@ public class LinuxDebBundler extends LinuxPackageBundler {
                 try {
                     String licenseFile = LICENSE_FILE.fetchFrom(params);
                     if (licenseFile != null) {
-                        StringBuilder contentBuilder = new StringBuilder();
-                        try (Stream<String> stream = Files.lines(Path.of(
-                                licenseFile), StandardCharsets.UTF_8)) {
-                            stream.forEach(s -> contentBuilder.append(s).append(
-                                    "\n"));
-                        }
-                        return contentBuilder.toString();
+                        return Files.lines(Path.of(licenseFile),
+                                StandardCharsets.UTF_8).collect(
+                                        Collectors.joining("\n"));
                     }
-                } catch (Exception e) {
+                } catch (IOException e) {
                     Log.verbose(e);
                 }
                 return "Unknown";
             },
             (s, p) -> s);
-
-    private final static String TOOL_DPKG_DEB = "dpkg-deb";
-    private final static String TOOL_DPKG = "dpkg";
-
-    public static boolean testTool(String toolName, String minVersion) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    toolName,
-                    "--version");
-            // not interested in the output
-            IOUtils.exec(pb, true, null);
-        } catch (Exception e) {
-            Log.verbose(MessageFormat.format(I18N.getString(
-                    "message.test-for-tool"), toolName, e.getMessage()));
-            return false;
-        }
-        return true;
-    }
 
     public LinuxDebBundler() {
         super(PACKAGE_NAME);
@@ -166,25 +157,18 @@ public class LinuxDebBundler extends LinuxPackageBundler {
     @Override
     public void doValidate(Map<String, ? super Object> params)
             throws ConfigException {
-        // NOTE: Can we validate that the required tools are available
-        // before we start?
-        if (!testTool(TOOL_DPKG_DEB, "1")){
-            throw new ConfigException(MessageFormat.format(
-                    I18N.getString("error.tool-not-found"), TOOL_DPKG_DEB),
-                    I18N.getString("error.tool-not-found.advice"));
-        }
-        if (!testTool(TOOL_DPKG, "1")){
-            throw new ConfigException(MessageFormat.format(
-                    I18N.getString("error.tool-not-found"), TOOL_DPKG),
-                    I18N.getString("error.tool-not-found.advice"));
-        }
 
-
-        // Show warning is license file is missing
-        String licenseFile = LICENSE_FILE.fetchFrom(params);
-        if (licenseFile == null) {
+        // Show warning if license file is missing
+        if (LICENSE_FILE.fetchFrom(params) == null) {
             Log.verbose(I18N.getString("message.debs-like-licenses"));
         }
+    }
+
+    @Override
+    protected List<ToolValidator> getToolValidators(
+            Map<String, ? super Object> params) {
+        return Stream.of(TOOL_DPKG_DEB, TOOL_DPKG, TOOL_FAKEROOT).map(
+                ToolValidator::new).collect(Collectors.toList());
     }
 
     @Override
@@ -196,6 +180,83 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         prepareProjectConfig(replacementData, params);
         adjustPermissionsRecursive(createMetaPackage(params).sourceRoot().toFile());
         return buildDeb(params, outputParentDir);
+    }
+
+    private static final Pattern PACKAGE_NAME_REGEX = Pattern.compile("^(^\\S+):");
+
+    @Override
+    protected void initLibProvidersLookup(
+            Map<String, ? super Object> params,
+            LibProvidersLookup libProvidersLookup) {
+
+        //
+        // `dpkg -S` command does glob pattern lookup. If not the absolute path
+        // to the file is specified it might return mltiple package names.
+        // Even for full paths multiple package names can be returned as
+        // it is OK for multiple packages to provide the same file. `/opt`
+        // directory is such an example. So we have to deal with multiple
+        // packages per file situation.
+        //
+        // E.g.: `dpkg -S libc.so.6` command reports three packages:
+        // libc6-x32: /libx32/libc.so.6
+        // libc6:amd64: /lib/x86_64-linux-gnu/libc.so.6
+        // libc6-i386: /lib32/libc.so.6
+        // `:amd64` is architecture suffix and can (should) be dropped.
+        // Still need to decide what package to choose from three.
+        // libc6-x32 and libc6-i386 both depend on libc6:
+        // $ dpkg -s libc6-x32
+        // Package: libc6-x32
+        // Status: install ok installed
+        // Priority: optional
+        // Section: libs
+        // Installed-Size: 10840
+        // Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+        // Architecture: amd64
+        // Source: glibc
+        // Version: 2.23-0ubuntu10
+        // Depends: libc6 (= 2.23-0ubuntu10)
+        //
+        // We can dive into tracking dependencies, but this would be overly
+        // complicated.
+        //
+        // For simplicity lets consider the following rules:
+        // 1. If there is one item in `dpkg -S` output, accept it.
+        // 2. If there are multiple items in `dpkg -S` output and there is at
+        //  least one item with the default arch suffix (DEB_ARCH),
+        //  accept only these items.
+        // 3. If there are multiple items in `dpkg -S` output and there are
+        //  no with the default arch suffix (DEB_ARCH), accept all items.
+        // So lets use this heuristics: don't accept packages for whom
+        //  `dpkg -p` command fails.
+        // 4. Arch suffix should be stripped from accepted package names.
+        //
+
+        libProvidersLookup.setPackageLookup(file -> {
+            Set<String> archPackages = new HashSet<>();
+            Set<String> otherPackages = new HashSet<>();
+
+            Executor.of(TOOL_DPKG, "-S", file.toString())
+                    .saveOutput(true).executeExpectSuccess()
+                    .getOutput().forEach(line -> {
+                        Matcher matcher = PACKAGE_NAME_REGEX.matcher(line);
+                        if (matcher.find()) {
+                            String name = matcher.group(1);
+                            if (name.endsWith(":" + DEB_ARCH)) {
+                                // Strip arch suffix
+                                name = name.substring(0,
+                                        name.length() - (DEB_ARCH.length() + 1));
+                                archPackages.add(name);
+                            } else {
+                                otherPackages.add(name);
+                            }
+                        }
+                    });
+
+            if (!archPackages.isEmpty()) {
+                return archPackages.stream();
+            }
+            return otherPackages.stream();
+        });
     }
 
     /*
@@ -217,23 +278,13 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
     }
 
-    private static String getDebArch() throws IOException {
-        try (var baos = new ByteArrayOutputStream();
-                var ps = new PrintStream(baos)) {
-            var pb = new ProcessBuilder(TOOL_DPKG, "--print-architecture");
-            IOUtils.exec(pb, false, ps);
-            return baos.toString().split("\n", 2)[0];
-        }
-    }
-
     public static boolean isDebian() {
         // we are just going to run "dpkg -s coreutils" and assume Debian
         // or deritive if no error is returned.
-        var pb = new ProcessBuilder(TOOL_DPKG, "-s", "coreutils");
         try {
-            int ret = pb.start().waitFor();
-            return (ret == 0);
-        } catch (IOException | InterruptedException e) {
+            Executor.of(TOOL_DPKG, "-s", "coreutils").executeExpectSuccess();
+            return true;
+        } catch (IOException e) {
             // just fall thru
         }
         return false;
@@ -340,7 +391,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         data.put("APPLICATION_SECTION", SECTION.fetchFrom(params));
         data.put("APPLICATION_COPYRIGHT", COPYRIGHT.fetchFrom(params));
         data.put("APPLICATION_LICENSE_TEXT", LICENSE_TEXT.fetchFrom(params));
-        data.put("APPLICATION_ARCH", getDebArch());
+        data.put("APPLICATION_ARCH", DEB_ARCH);
         data.put("APPLICATION_INSTALLED_SIZE", Long.toString(
                 createMetaPackage(params).sourceApplicationLayout().sizeInBytes() >> 10));
 
@@ -363,12 +414,16 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
         PlatformPackage thePackage = createMetaPackage(params);
 
+        List<String> cmdline = new ArrayList<>();
+        cmdline.addAll(List.of(TOOL_FAKEROOT, TOOL_DPKG_DEB));
+        if (Log.isVerbose()) {
+            cmdline.add("--verbose");
+        }
+        cmdline.addAll(List.of("-b", thePackage.sourceRoot().toString(),
+                outFile.getAbsolutePath()));
+
         // run dpkg
-        ProcessBuilder pb = new ProcessBuilder(
-                "fakeroot", TOOL_DPKG_DEB, "-b",
-                thePackage.sourceRoot().toString(),
-                outFile.getAbsolutePath());
-        IOUtils.exec(pb);
+        Executor.of(cmdline.toArray(String[]::new)).executeExpectSuccess();
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"), outFile.getAbsolutePath()));
@@ -388,17 +443,11 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
     @Override
     public boolean supported(boolean runtimeInstaller) {
-        if (Platform.getPlatform() == Platform.LINUX) {
-            if (testTool(TOOL_DPKG_DEB, "1")) {
-                return true;
-            }
-        }
-        return false;
+        return Platform.isLinux() && (new ToolValidator(TOOL_DPKG_DEB).validate() == null);
     }
 
     @Override
     public boolean isDefault() {
         return isDebian();
     }
-
 }

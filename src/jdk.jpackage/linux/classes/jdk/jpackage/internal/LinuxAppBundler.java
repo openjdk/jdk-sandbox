@@ -39,9 +39,6 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 
 public class LinuxAppBundler extends AbstractImageBundler {
 
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.jpackage.internal.resources.LinuxResources");
-
     static final BundlerParamInfo<File> ICON_PNG =
             new StandardBundlerParam<>(
             "icon.png",

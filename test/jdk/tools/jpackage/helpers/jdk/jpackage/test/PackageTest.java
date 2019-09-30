@@ -129,8 +129,8 @@ public final class PackageTest {
     }
 
     public PackageTest addBundleDesktopIntegrationVerifier(boolean integrated) {
-        forTypes(LINUX_DEB, () -> {
-            LinuxHelper.addDebBundleDesktopIntegrationVerifier(this, integrated);
+        forTypes(LINUX, () -> {
+            LinuxHelper.addBundleDesktopIntegrationVerifier(this, integrated);
         });
         return this;
     }
@@ -322,10 +322,7 @@ public final class PackageTest {
         private void verifyPackageBundle(JPackageCommand cmd,
                 Executor.Result result) {
             if (PackageType.LINUX.contains(cmd.packageType())) {
-                TKit.assertNotEquals(0L, LinuxHelper.getInstalledPackageSizeKB(
-                        cmd), String.format(
-                                "Check installed size of [%s] package in KB is not zero",
-                                LinuxHelper.getPackageName(cmd)));
+                LinuxHelper.verifyPackageBundleEssential(cmd);
             }
             bundleVerifiers.stream().forEach(v -> v.accept(cmd, result));
         }

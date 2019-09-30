@@ -24,6 +24,7 @@
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.LinuxHelper;
 
 
 /**
@@ -74,10 +75,14 @@ public class PackageDepsTest {
             .addInitializer(cmd -> {
                 cmd.addArguments("--linux-package-deps", PREREQ_PACKAGE_NAME);
             })
-            .forTypes(PackageType.LINUX_DEB)
-            .addBundlePropertyVerifier("Depends", PREREQ_PACKAGE_NAME)
-            .forTypes(PackageType.LINUX_RPM)
-            .addBundlePropertyVerifier("Requires", PREREQ_PACKAGE_NAME)
+            .forTypes(PackageType.LINUX)
+            .addBundleVerifier(cmd -> {
+                TKit.assertTrue(
+                        LinuxHelper.getPrerequisitePackages(cmd).contains(
+                                PREREQ_PACKAGE_NAME), String.format(
+                                "Check package depends on [%s] package",
+                                PREREQ_PACKAGE_NAME));
+            })
             .run();
         });
     }

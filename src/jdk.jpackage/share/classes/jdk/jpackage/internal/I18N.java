@@ -22,15 +22,36 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.jpackage.internal;
 
-/*
- * @test
- * @summary jpackage unit tests
- * @library ${jtreg.home}/lib/junit.jar
- * @run shell run_junit.sh
- *  jdk.jpackage.internal.PathGroupTest
- *  jdk.jpackage.internal.DeployParamsTest
- *  jdk.jpackage.internal.ApplicationLayoutTest
- *  jdk.jpackage.internal.ToolValidatorTest
- *  jdk.jpackage.internal.AppImageFileTest
- */
+import java.util.ResourceBundle;
+
+class I18N {
+
+    static String getString(String key) {
+        if (PLATFORM.containsKey(key)) {
+            return PLATFORM.getString(key);
+        }
+        return SHARED.getString(key);
+    }
+
+    private static final ResourceBundle SHARED = ResourceBundle.getBundle(
+            "jdk.jpackage.internal.resources.MainResources");
+
+    private static final ResourceBundle PLATFORM;
+
+    static {
+        if (Platform.isLinux()) {
+            PLATFORM = ResourceBundle.getBundle(
+                    "jdk.jpackage.internal.resources.LinuxResources");
+        } else if (Platform.isWindows()) {
+            PLATFORM = ResourceBundle.getBundle(
+                    "jdk.jpackage.internal.resources.WinResources");
+        } else if (Platform.isMac()) {
+            PLATFORM = ResourceBundle.getBundle(
+                    "jdk.jpackage.internal.resources.MacResources");
+        } else {
+            throw new IllegalStateException("Unknwon platform");
+        }
+    }
+}

@@ -34,6 +34,11 @@ public class ConfigException extends Exception {
         this.advice = advice;
     }
 
+    public ConfigException(String msg, String advice, Exception cause) {
+        super(msg, cause);
+        this.advice = advice;
+    }
+
     public ConfigException(Exception cause) {
         super(cause);
         this.advice = null;

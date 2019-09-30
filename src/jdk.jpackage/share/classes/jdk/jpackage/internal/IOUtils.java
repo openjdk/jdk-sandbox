@@ -26,8 +26,6 @@
 package jdk.jpackage.internal;
 
 import java.io.*;
-import java.net.URL;
-import java.util.Arrays;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -150,37 +148,20 @@ public class IOUtils {
         exec(pb, false, null);
     }
 
-    public static void exec(ProcessBuilder pb, boolean testForPresenseOnly,
+    static void exec(ProcessBuilder pb, boolean testForPresenseOnly,
             PrintStream consumer) throws IOException {
-        pb.redirectErrorStream(true);
-        Log.verbose("Running "
-                + Arrays.toString(pb.command().toArray(new String[0]))
-                + (pb.directory() != null ? (" in " + pb.directory()) : ""));
-        Process p = pb.start();
-        InputStreamReader isr = new InputStreamReader(p.getInputStream());
-        BufferedReader br = new BufferedReader(isr);
-        String lineRead;
-        String output = "";
-        while ((lineRead = br.readLine()) != null) {
+        List<String> output = new ArrayList<>();
+        Executor exec = Executor.of(pb).setOutputConsumer(lines -> {
+            lines.forEach(output::add);
             if (consumer != null) {
-                consumer.print(lineRead + '\n');
-            } else {
-               Log.verbose(lineRead);
+                output.forEach(consumer::println);
             }
-            output += lineRead;
-        }
-        try {
-            int ret = p.waitFor();
-            if (ret != 0 && !(testForPresenseOnly && ret != 127)) {
-                throw new IOException("Exec failed with code "
-                        + ret + " command ["
-                        + Arrays.toString(pb.command().toArray(new String[0]))
-                        + " in " + (pb.directory() != null ?
-                                pb.directory().getAbsolutePath() :
-                                "unspecified directory")
-                        + " output: " + output);
-            }
-        } catch (InterruptedException ex) {
+        });
+
+        if (testForPresenseOnly) {
+            exec.execute();
+        } else {
+            exec.executeExpectSuccess();
         }
     }
 
