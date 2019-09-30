@@ -28,6 +28,7 @@ package jdk.jfr.api.consumer.streaming;
 import java.util.concurrent.CountDownLatch;
 
 import jdk.jfr.Event;
+import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordingStream;
 
 /**
@@ -60,7 +61,7 @@ public class TestRemovedChunks {
     public static void main(String... args) throws Exception {
 
         try (RecordingStream s = new RecordingStream()) {
-            s.setMaxSize(20_000_000);
+            s.setMaxSize(5_000_000);
             s.onEvent(ParkStream.class.getName(), e -> {
                 parkLatch.countDown();
                 await(removalLatch);
@@ -70,18 +71,26 @@ public class TestRemovedChunks {
                 IFeelFineLatch.countDown();
             });
             s.startAsync();
-            emitData(15_000_000);
+            // Fill first chunk with data
+            emitData(1_000_000);
+            // Park stream
             ParkStream ps = new ParkStream();
             ps.commit();
             await(parkLatch);
-            // Try to force removal of chunk that is being streamed
-            emitData(50_000_000);
-            removalLatch.countDown();
+            // Rotate and emit data that exceeds maxSize
+            for (int i = 0; i< 10;i++) {
+                try (Recording r = new Recording()) {
+                    emitData(1_000_000);
+                }
+            }
+            // Emit final event
             IFeelFine i = new IFeelFine();
             i.commit();
+            // Wake up parked stream
+            removalLatch.countDown();
+            // Await event things gone bad
             await(IFeelFineLatch);
         }
-
     }
 
     private static void await(CountDownLatch latch) throws Error {
