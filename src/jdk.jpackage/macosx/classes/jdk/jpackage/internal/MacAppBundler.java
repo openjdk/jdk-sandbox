@@ -109,13 +109,6 @@ public class MacAppBundler extends AbstractImageBundler {
                     params -> null,
                     (s, p) -> s);
 
-    public static final BundlerParamInfo<String> MAC_CF_BUNDLE_IDENTIFIER =
-            new StandardBundlerParam<>(
-                    Arguments.CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(),
-                    String.class,
-                    IDENTIFIER::fetchFrom,
-                    (s, p) -> s);
-
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_VERSION =
             new StandardBundlerParam<>(
                     "mac.CFBundleVersion",

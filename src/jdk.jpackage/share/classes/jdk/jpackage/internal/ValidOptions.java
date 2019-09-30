@@ -69,7 +69,6 @@ class ValidOptions {
         options.put(CLIOptions.VERBOSE.getId(), USE.ALL);
         options.put(CLIOptions.PREDEFINED_RUNTIME_IMAGE.getId(), USE.ALL);
         options.put(CLIOptions.RESOURCE_DIR.getId(), USE.ALL);
-        options.put(CLIOptions.IDENTIFIER.getId(), USE.ALL);
         options.put(CLIOptions.DESCRIPTION.getId(), USE.ALL);
         options.put(CLIOptions.VENDOR.getId(), USE.ALL);
         options.put(CLIOptions.COPYRIGHT.getId(), USE.ALL);

@@ -25,9 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -37,10 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,6 +44,7 @@ import java.util.ResourceBundle;
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEY_USER;
+import static jdk.jpackage.internal.MacAppImageBuilder.MAC_CF_BUNDLE_IDENTIFIER;
 
 public class MacPkgBundler extends MacBaseInstallerBundler {
 
@@ -494,6 +490,13 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception
             validateAppImageAndBundeler(params);
+
+            if (MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params) == null) {
+                throw new ConfigException(
+                        I18N.getString("message.app-image-requires-identifier"),
+                        I18N.getString(
+                            "message.app-image-requires-identifier.advice"));
+            }
 
             // reject explicitly set sign to true and no valid signature key
             if (Optional.ofNullable(MacAppImageBuilder.

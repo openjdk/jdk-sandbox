@@ -32,9 +32,6 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
@@ -122,12 +119,6 @@ public abstract class MacBaseInstallerBundler extends AbstractBundler {
                         I18N.getString("message.app-image-requires-app-name"),
                         I18N.getString(
                             "message.app-image-requires-app-name.advice"));
-            }
-            if (IDENTIFIER.fetchFrom(params) == null) {
-                throw new ConfigException(
-                        I18N.getString("message.app-image-requires-identifier"),
-                        I18N.getString(
-                            "message.app-image-requires-identifier.advice"));
             }
         } else {
             APP_BUNDLER.fetchFrom(params).validate(params);

@@ -306,7 +306,7 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
 
     static final StandardBundlerParam<String> IDENTIFIER =
             new StandardBundlerParam<>(
-                    Arguments.CLIOptions.IDENTIFIER.getId(),
+                    "identifier.default",
                     String.class,
                     params -> {
                         String s = MAIN_CLASS.fetchFrom(params);

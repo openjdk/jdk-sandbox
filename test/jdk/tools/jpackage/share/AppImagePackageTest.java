@@ -61,7 +61,6 @@ public class AppImagePackageTest {
                 if (PackageType.MAC.contains(cmd.packageType())) {
                     // Why so complicated on macOS?
                     appimageInput = Path.of(appimageInput.toString() + ".app");
-                    cmd.addArguments("--identifier", appImageCmd.name());
                 }
 
                 cmd.addArguments("--app-image", appimageInput);

@@ -154,8 +154,6 @@ public class Arguments {
 
         NAME ("name", "n", OptionCategories.PROPERTY),
 
-        IDENTIFIER ("identifier", OptionCategories.PROPERTY),
-
         VERBOSE ("verbose", OptionCategories.PROPERTY, () -> {
             setOptionValue("verbose", true);
             Log.setVerbose();

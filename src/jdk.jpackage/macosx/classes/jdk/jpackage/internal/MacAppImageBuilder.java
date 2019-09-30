@@ -54,6 +54,11 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.*;
@@ -112,7 +117,16 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.MAC_BUNDLE_IDENTIFIER.getId(),
                     String.class,
-                    IDENTIFIER::fetchFrom,
+                    params -> {
+                        // Get identifier from app image if user provided
+                        // app image and did not provide the identifier via CLI.
+                        String identifier = extractBundleIdentifier(params);
+                        if (identifier != null) {
+                            return identifier;
+                        }
+
+                        return IDENTIFIER.fetchFrom(params);
+                    },
                     (s, p) -> s);
 
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_VERSION =
@@ -927,6 +941,41 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         return true;
+    }
+
+    private static String extractBundleIdentifier(Map<String, Object> params) {
+        if (PREDEFINED_APP_IMAGE.fetchFrom(params) == null) {
+            return null;
+        }
+
+        try {
+            File infoPList = new File(PREDEFINED_APP_IMAGE.fetchFrom(params) +
+                                      File.separator + "Contents" +
+                                      File.separator + "Info.plist");
+
+            DocumentBuilderFactory dbf
+                    = DocumentBuilderFactory.newDefaultInstance();
+            dbf.setFeature("http://apache.org/xml/features/" +
+                           "nonvalidating/load-external-dtd", false);
+            DocumentBuilder b = dbf.newDocumentBuilder();
+            org.w3c.dom.Document doc = b.parse(new FileInputStream(
+                    infoPList.getAbsolutePath()));
+
+            XPath xPath = XPathFactory.newInstance().newXPath();
+            // Query for the value of <string> element preceding <key>
+            // element with value equal to CFBundleIdentifier
+            String v = (String) xPath.evaluate(
+                    "//string[preceding-sibling::key = \"CFBundleIdentifier\"][1]",
+                    doc, XPathConstants.STRING);
+
+            if (v != null && !v.isEmpty()) {
+                return v;
+            }
+        } catch (Exception ex) {
+            Log.verbose(ex);
+        }
+
+        return null;
     }
 
 }
