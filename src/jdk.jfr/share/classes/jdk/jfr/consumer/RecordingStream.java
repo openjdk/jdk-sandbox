@@ -253,6 +253,8 @@ public final class RecordingStream implements AutoCloseable, EventStream {
      * <p>
      * If neither maximum limit or the maximum age is set, the size of the
      * recording may grow indefinitely.
+     * <p>
+     * The size is measured in bytes.
      *
      * @param maxSize the amount of data to retain, {@code 0} if infinite
      *
