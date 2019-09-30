@@ -26,7 +26,8 @@ import java.nio.file.Path;
 import jdk.jpackage.test.FileAssociations;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.PackageTest;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
+import jdk.jpackage.test.Annotations.Test;
 
 /**
  * Test --linux-shortcut parameter. Output of the test should be
@@ -48,50 +49,39 @@ import jdk.jpackage.test.Test;
  * @test
  * @summary jpackage with --linux-shortcut
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m ShortcutHintTest
- * @run main/othervm/timeout=360 -Xmx512m ShortcutHintTest testCustomIcon
- * @run main/othervm/timeout=360 -Xmx512m ShortcutHintTest testFileAssociations
- * @run main/othervm/timeout=360 -Xmx512m ShortcutHintTest testAdditionaltLaunchers
+ * @compile ShortcutHintTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=ShortcutHintTest
  */
 public class ShortcutHintTest {
 
-    public static void main(String[] args) {
-        Test.run(args, () -> {
-            if (args.length != 0) {
-                Test.getTestClass().getDeclaredMethod(args[0]).invoke(null);
-                return;
-            }
-
-            createTest(null).addInitializer(cmd -> {
-                cmd.addArgument("--linux-shortcut");
-            }).run();
-        });
+    @Test
+    public static void testBasic() {
+        createTest().addInitializer(cmd -> {
+            cmd.addArgument("--linux-shortcut");
+        }).run();
     }
 
-    private static PackageTest createTest(String name) {
-        PackageTest reply = new PackageTest()
+    private static PackageTest createTest() {
+        return new PackageTest()
                 .forTypes(PackageType.LINUX)
                 .configureHelloApp()
                 .addBundleDesktopIntegrationVerifier(true);
-        if (name != null) {
-            reply.addInitializer(cmd -> cmd.setArgumentValue("--name",
-                    String.format("%s8%s", Test.getTestClass().getSimpleName(),
-                            name)));
-        }
-        return reply;
+
     }
 
     /**
      * Adding `--icon` to jpackage command line should create desktop shortcut
      * even though `--linux-shortcut` is omitted.
      */
-    static void testCustomIcon() {
-        createTest(new Object() {
-        }.getClass().getEnclosingMethod().getName()).addInitializer(cmd -> {
+    @Test
+    public static void testCustomIcon() {
+        createTest().addInitializer(cmd -> {
             cmd.setFakeRuntime();
-            cmd.addArguments("--icon", Test.TEST_SRC_ROOT.resolve(
+            cmd.addArguments("--icon", TKit.TEST_SRC_ROOT.resolve(
                     "apps/dukeplug.png"));
         }).run();
     }
@@ -100,9 +90,9 @@ public class ShortcutHintTest {
      * Adding `--file-associations` to jpackage command line should create
      * desktop shortcut even though `--linux-shortcut` is omitted.
      */
-    static void testFileAssociations() {
-        createTest(new Object() {
-        }.getClass().getEnclosingMethod().getName()).addInitializer(cmd -> {
+    @Test
+    public static void testFileAssociations() {
+        createTest().addInitializer(cmd -> {
             cmd.setFakeRuntime();
 
             FileAssociations fa = new FileAssociations(
@@ -116,20 +106,20 @@ public class ShortcutHintTest {
      * Additional launcher with icon should create desktop shortcut even though
      * `--linux-shortcut` is omitted.
      */
-    static void testAdditionaltLaunchers() {
-        createTest(new Object() {
-        }.getClass().getEnclosingMethod().getName()).addInitializer(cmd -> {
+    @Test
+    public static void testAdditionaltLaunchers() {
+        createTest().addInitializer(cmd -> {
             cmd.setFakeRuntime();
 
             final String launcherName = "Foo";
-            final Path propsFile = Test.workDir().resolve(
+            final Path propsFile = TKit.workDir().resolve(
                     launcherName + ".properties");
 
             cmd.addArguments("--add-launcher", String.format("%s=%s",
                     launcherName, propsFile));
 
-            Test.createPropertiesFile(propsFile, Map.entry("icon",
-                    Test.TEST_SRC_ROOT.resolve("apps/dukeplug.png").toString()));
+            TKit.createPropertiesFile(propsFile, Map.entry("icon",
+                    TKit.TEST_SRC_ROOT.resolve("apps/dukeplug.png").toString()));
         }).run();
     }
 }

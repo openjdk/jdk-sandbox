@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 
 /**
@@ -41,13 +41,14 @@ import jdk.jpackage.test.PackageTest;
  * @test
  * @summary Simple jpackage command run
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m SimplePackageTest
  */
 public class SimplePackageTest {
 
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest()
             .configureHelloApp()
             .addBundleDesktopIntegrationVerifier(false)

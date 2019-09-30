@@ -34,14 +34,14 @@ public class FileAssociations {
     }
 
     public void createFile() {
-        Test.createPropertiesFile(file,
+        TKit.createPropertiesFile(file,
                 Map.entry("extension", suffixName),
                 Map.entry("mime-type", getMime()),
                 Map.entry("description", description));
     }
 
     final public FileAssociations setFilename(String v) {
-        file = Test.workDir().resolve(v + ".properties");
+        file = TKit.workDir().resolve(v + ".properties");
         return this;
     }
 

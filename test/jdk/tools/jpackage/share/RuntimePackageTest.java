@@ -23,7 +23,7 @@
 
 import java.nio.file.Path;
 import java.util.Optional;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.JPackageCommand;
 
@@ -44,6 +44,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @test
  * @summary jpackage with --runtime-image
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @comment Temporary disable for Linux and OSX until functionality implemented
  * @requires (os.family != "mac")
  * @modules jdk.jpackage/jdk.jpackage.internal
@@ -52,7 +53,7 @@ import jdk.jpackage.test.JPackageCommand;
 public class RuntimePackageTest {
 
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest()
             .addInitializer(cmd -> {
                 cmd.addArguments("--runtime-image", Optional.ofNullable(
@@ -61,7 +62,7 @@ public class RuntimePackageTest {
                 // Remove --input parameter from jpackage command line as we don't
                 // create input directory in the test and jpackage fails
                 // if --input references non existant directory.
-                cmd.removeArgument("--input");
+                cmd.removeArgumentWithValue("--input");
             })
             .run();
         });

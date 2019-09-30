@@ -25,33 +25,38 @@
 package jdk.jpackage.test;
 
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.spi.ToolProvider;
 
 public enum JavaTool {
-    JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar");
+    JAVA("java"), JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar"), JLINK("jlink");
 
     JavaTool(String name) {
         this.name = name;
-        path = Path.of(System.getProperty("java.home"), "bin", name).toFile();
-        if (Test.isWindows()) {
-            path = new File(path.toString() + ".exe");
-        }
-        if (!path.exists()) {
-            throw new RuntimeException("Unable to find tool ["
-                    + name + "] at path=[" + path.getAbsolutePath() + "]");
+        this.path = Path.of(System.getProperty("java.home")).resolve(
+                relativePathInJavaHome()).toAbsolutePath().normalize();
+        if (!path.toFile().exists()) {
+            throw new RuntimeException(String.format(
+                    "Unable to find tool [%s] at path=[%s]", name, path));
         }
     }
 
-    File getPath() {
+    Path getPath() {
         return path;
     }
 
-    ToolProvider asToolProvider() {
+    public ToolProvider asToolProvider() {
         return ToolProvider.findFirst(name).orElse(null);
     }
 
-    private File path;
+    Path relativePathInJavaHome() {
+        Path path = Path.of("bin", name);
+        if (TKit.isWindows()) {
+            path = path.getParent().resolve(path.getFileName().toString() + ".exe");
+        }
+        return path;
+    }
+
+    private Path path;
     private String name;
 }

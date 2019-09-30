@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -39,6 +39,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --win-menu and --win-menu-group
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m WinMenuGroupTest
@@ -46,7 +47,7 @@ import jdk.jpackage.test.PackageType;
 
 public class WinMenuGroupTest {
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest()
             .forTypes(PackageType.WINDOWS)
             .configureHelloApp()

@@ -25,38 +25,40 @@ import java.nio.file.Path;
 import java.io.InputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-
-import jdk.jpackage.internal.IOUtils;
-import jdk.jpackage.test.Test;
-import jdk.jpackage.test.HelloApp;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.JPackageCommand;
+import jdk.jpackage.test.Annotations.Test;
+import jdk.jpackage.test.Annotations.Parameter;
 
 /*
  * @test
  * @summary jpackage with --win-console
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
- * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m WinConsoleTest
+ * @modules jdk.jpackage
+ * @compile WinConsoleTest.java
+ *
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-before-run=jdk.jpackage.test.JPackageCommand.useToolProviderByDefault
+ *  --jpt-run=WinConsoleTest
+ *
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=WinConsoleTest
  */
 public class WinConsoleTest {
 
-    public static void main(String[] args) {
-        Test.run(args, () -> {
-            JPackageCommand cmd = JPackageCommand.helloAppImage();
-            final Path launcherPath = cmd.appImage().resolve(
-                    cmd.launcherPathInAppImage());
-
-            IOUtils.deleteRecursive(cmd.outputDir().toFile());
-            cmd.execute().assertExitCodeIsZero();
-            HelloApp.executeLauncherAndVerifyOutput(cmd);
-            checkSubsystem(launcherPath, false);
-
-            IOUtils.deleteRecursive(cmd.outputDir().toFile());
-            cmd.addArgument("--win-console").execute().assertExitCodeIsZero();
-            HelloApp.executeLauncherAndVerifyOutput(cmd);
-            checkSubsystem(launcherPath, true);
-        });
+    @Test
+    @Parameter("true")
+    @Parameter("false")
+    public static void test(boolean withWinConsole) throws IOException {
+        JPackageCommand cmd = JPackageCommand.helloAppImage();
+        if (!withWinConsole) {
+            cmd.removeArgument("--win-console");
+        }
+        cmd.executeAndAssertHelloAppImageCreated();
+        checkSubsystem(cmd.appImage().resolve(cmd.launcherPathInAppImage()),
+                withWinConsole);
     }
 
     private static void checkSubsystem(Path path, boolean isConsole) throws
@@ -69,7 +71,7 @@ public class WinConsoleTest {
 
         try (InputStream inputStream = new FileInputStream(path.toString())) {
             byte[] bytes = new byte[bufferSize];
-            Test.assertEquals(bufferSize, inputStream.read(bytes),
+            TKit.assertEquals(bufferSize, inputStream.read(bytes),
                     String.format("Check %d bytes were read from %s file",
                             bufferSize, path));
 
@@ -82,7 +84,7 @@ public class WinConsoleTest {
                     // Signature, File Header and subsystem offset.
                     i = i + 4 + 20 + 68;
                     byte subsystem = bytes[i];
-                    Test.assertEquals(expectedSubsystem, subsystem,
+                    TKit.assertEquals(expectedSubsystem, subsystem,
                             String.format("Check subsystem of PE [%s] file",
                                     path));
                     return;
@@ -90,7 +92,7 @@ public class WinConsoleTest {
             }
         }
 
-        Test.assertUnexpected(String.format(
+        TKit.assertUnexpected(String.format(
                 "Subsystem not found in PE header of [%s] file", path));
     }
 }

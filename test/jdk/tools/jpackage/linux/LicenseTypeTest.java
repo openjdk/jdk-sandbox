@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -39,6 +39,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --linux-rpm-license-type
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m LicenseTypeTest
@@ -48,7 +49,7 @@ public class LicenseTypeTest {
     public static void main(String[] args) {
         final String LICENSE_TYPE = "JP_LICENSE_TYPE";
 
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest().forTypes(PackageType.LINUX_RPM).configureHelloApp()
             .addInitializer(cmd -> {
                 cmd.addArguments("--linux-rpm-license-type", LICENSE_TYPE);

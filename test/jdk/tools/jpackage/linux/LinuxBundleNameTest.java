@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -44,6 +44,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --linux-package-name
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m LinuxBundleNameTest
@@ -53,7 +54,7 @@ public class LinuxBundleNameTest {
     public static void main(String[] args) {
         final String PACKAGE_NAME = "quickbrownfox2";
 
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest()
             .forTypes(PackageType.LINUX)
             .configureHelloApp()

@@ -21,105 +21,56 @@
  * questions.
  */
 
-import java.io.File;
 import java.nio.file.Files;
+import jdk.jpackage.internal.ApplicationLayout;
+import java.nio.file.Path;
+import jdk.jpackage.test.TKit;
+import jdk.jpackage.test.Functional;
+import jdk.jpackage.test.JPackageCommand;
 
 /*
  * @test
  * @summary jpackage create image to verify --icon
  * @library ../helpers
- * @build JPackageHelper
- * @build JPackagePath
- * @modules jdk.jpackage
+ * @build jdk.jpackage.test.*
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm -Xmx512m IconTest
  */
 public class IconTest {
-    private static final String OUTPUT = "output";
-    private static final String app = JPackagePath.getApp();
-    private static final String appOutput = JPackagePath.getAppOutputFile();
+    public static void main(String[] args) {
+        TKit.run(args, () -> {
+            JPackageCommand cmd = JPackageCommand.helloAppImage().addArguments("--icon", GOLDEN_ICON);
+            cmd.useToolProvider(true).executeAndAssertHelloAppImageCreated();
 
-    private static final String[] CMD = {
-        "--package-type", "app-image",
-        "--input", "input",
-        "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--icon", getIconPath(),
-        "--dest", OUTPUT};
+            Path iconPath = ApplicationLayout.platformAppImage().resolveAt(
+                    cmd.appImage()).destktopIntegrationDirectory().resolve(
+                    cmd.launcherPathInAppImage().getFileName().toString().replaceAll(
+                            "\\.[^.]*$", "") + ICON_SUFFIX);
 
-    private static void validateResult(String[] result) throws Exception {
-        if (result.length != 2) {
-            throw new AssertionError(
-                   "Unexpected number of lines: " + result.length);
-        }
-
-        if (!result[0].trim().equals("jpackage test application")) {
-            throw new AssertionError("Unexpected result[0]: " + result[0]);
-        }
-
-        if (!result[1].trim().equals("args.length: 0")) {
-            throw new AssertionError("Unexpected result[1]: " + result[1]);
-        }
+            TKit.assertFileExists(iconPath);
+            TKit.assertTrue(-1 == Files.mismatch(GOLDEN_ICON, iconPath),
+                    String.format(
+                            "Check application icon file [%s] is a copy of source icon file [%s]",
+                            iconPath, GOLDEN_ICON));
+        });
     }
 
-    private static void validate() throws Exception {
-        int retVal = JPackageHelper.execute(null, app);
-        if (retVal != 0) {
-            throw new AssertionError(
-                   "Test application exited with error: " + retVal);
+    private final static String ICON_SUFFIX = Functional.identity(() -> {
+        if (TKit.isOSX()) {
+            return ".icns";
         }
 
-        File outfile = new File(appOutput);
-        if (!outfile.exists()) {
-            throw new AssertionError(appOutput + " was not created");
+        if (TKit.isLinux()) {
+            return ".png";
         }
 
-        String output = Files.readString(outfile.toPath());
-        String[] result = output.split("\n");
-        validateResult(result);
-    }
-
-    private static void validateIcon() throws Exception {
-        File origIcon = new File(getIconPath());
-        File icon = new File(JPackagePath.getAppIcon());
-        if (origIcon.length() != icon.length()) {
-            System.err.println("origIcon.length(): " + origIcon.length());
-            System.err.println("icon.length(): " + icon.length());
-            throw new AssertionError("Icons size does not match");
-        }
-    }
-
-    private static void testIcon() throws Exception {
-        JPackageHelper.executeCLI(true, CMD);
-        validate();
-        validateIcon();
-    }
-
-    private static void testIconToolProvider() throws Exception {
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        JPackageHelper.executeToolProvider(true, CMD);
-        validate();
-        validateIcon();
-    }
-
-    private static String getIconPath() {
-        String ext = ".ico";
-        if (JPackageHelper.isOSX()) {
-            ext = ".icns";
-        } else if (JPackageHelper.isLinux()) {
-            ext = ".png";
+        if (TKit.isWindows()) {
+            return ".ico";
         }
 
-        String path = JPackagePath.getTestSrcRoot() + File.separator + "resources"
-                + File.separator + "icon" + ext;
+        throw TKit.throwUnknownPlatformError();
+    }).get();
 
-        return path;
-    }
-
-    public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloImageJar();
-        testIcon();
-        testIconToolProvider();
-    }
-
+    private final static Path GOLDEN_ICON = TKit.TEST_SRC_ROOT.resolve(Path.of(
+            "resources", "icon" + ICON_SUFFIX));
 }

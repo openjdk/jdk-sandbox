@@ -25,9 +25,10 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.Functional;
 
 /**
  * Test --install-dir parameter. Output of the test should be installdirtest*.*
@@ -53,32 +54,28 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --install-dir
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m InstallDirTest
  */
 public class InstallDirTest {
 
     public static void main(String[] args) {
-        final Map<PackageType, Path> INSTALL_DIRS = new Supplier<Map<PackageType, Path>>() {
-            @Override
-            public Map<PackageType, Path> get() {
-                Map<PackageType, Path> reply = new HashMap<>();
-                reply.put(PackageType.WIN_MSI, Path.of(
-                        "TestVendor\\InstallDirTest1234"));
-                reply.put(PackageType.WIN_EXE, reply.get(PackageType.WIN_MSI));
+        final Map<PackageType, Path> INSTALL_DIRS = Functional.identity(() -> {
+            Map<PackageType, Path> reply = new HashMap<>();
+            reply.put(PackageType.WIN_MSI, Path.of("TestVendor\\InstallDirTest1234"));
+            reply.put(PackageType.WIN_EXE, reply.get(PackageType.WIN_MSI));
 
-                reply.put(PackageType.LINUX_DEB, Path.of("/opt/jpackage"));
-                reply.put(PackageType.LINUX_RPM,
-                        reply.get(PackageType.LINUX_DEB));
+            reply.put(PackageType.LINUX_DEB, Path.of("/opt/jpackage"));
+            reply.put(PackageType.LINUX_RPM, reply.get(PackageType.LINUX_DEB));
 
-                reply.put(PackageType.MAC_PKG, Path.of("/Application/jpackage"));
-                reply.put(PackageType.MAC_DMG, reply.get(PackageType.MAC_PKG));
+            reply.put(PackageType.MAC_PKG, Path.of("/Application/jpackage"));
+            reply.put(PackageType.MAC_DMG, reply.get(PackageType.MAC_PKG));
 
-                return reply;
-            }
-        }.get();
+            return reply;
+        }).get();
 
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest().configureHelloApp()
             .addInitializer(cmd -> {
                 cmd.addArguments("--install-dir", INSTALL_DIRS.get(

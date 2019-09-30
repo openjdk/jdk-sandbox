@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.FileAssociations;
 
@@ -47,12 +47,13 @@ import jdk.jpackage.test.FileAssociations;
  * @test
  * @summary jpackage with --file-associations
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m FileAssociationsTest
  */
 public class FileAssociationsTest {
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             PackageTest packageTest = new PackageTest();
 
             applyFileAssociations(packageTest, new FileAssociations("jptest1"));

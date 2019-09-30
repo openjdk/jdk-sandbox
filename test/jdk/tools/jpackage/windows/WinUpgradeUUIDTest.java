@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -40,6 +40,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --win-upgrade-uuid and --app-version
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m WinUpgradeUUIDTest
@@ -47,7 +48,7 @@ import jdk.jpackage.test.PackageType;
 
 public class WinUpgradeUUIDTest {
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             PackageTest test = init();
             if (test.getAction() != PackageTest.Action.VERIFY_INSTALL) {
                 test.run();

@@ -29,7 +29,6 @@ import java.nio.file.Path;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 import java.util.ArrayList;
 import java.util.List;
-import jdk.jpackage.internal.IOUtils;
 
 
 /**
@@ -56,19 +55,13 @@ public final class JarBuilder {
         return this;
     }
 
-    public void create() {
-        try {
-            createImpl();
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public JarBuilder setModuleVersion(String v) {
+        moduleVersion = v;
+        return this;
     }
 
-    private void createImpl() throws Exception {
-        Path workDir = Test.createTempDirectory();
-        try {
+    public void create() {
+        TKit.withTempDirectory("jar-workdir", workDir -> {
             Executor.Result javacReply = new Executor()
                     .setExecutable(JavaTool.JAVAC)
                     .addArguments("-d", workDir.toString())
@@ -78,6 +71,10 @@ public final class JarBuilder {
             Executor jarExe = new Executor();
             jarExe.setExecutable(JavaTool.JAR).addArguments("-c", "-v", "-f",
                     tmpJar.toString());
+            if (moduleVersion != null) {
+                jarExe.addArguments(String.format("--module-version=%s",
+                        moduleVersion));
+            }
             if (mainClass != null) {
                 jarExe.addArguments("-e", mainClass);
             }
@@ -86,11 +83,10 @@ public final class JarBuilder {
             javacReply.assertExitCodeIsZero();
             outputJar.getParentFile().mkdirs();
             Files.copy(tmpJar, outputJar.toPath(), REPLACE_EXISTING);
-        } finally {
-            IOUtils.deleteRecursive(workDir.toFile());
-        }
+        });
     }
     private List<Path> sourceFiles;
     private File outputJar;
     private String mainClass;
+    private String moduleVersion;
 }

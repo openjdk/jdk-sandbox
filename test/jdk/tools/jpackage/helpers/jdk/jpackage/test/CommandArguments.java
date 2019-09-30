@@ -28,12 +28,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-class CommandArguments<T> {
+public class CommandArguments<T> {
 
     CommandArguments() {
         args = new ArrayList<>();
     }
-    List<String> args;
 
     final public T addArgument(String v) {
         args.add(v);
@@ -58,6 +57,10 @@ class CommandArguments<T> {
                 Collectors.toList()));
     }
 
+    final public List<String> getAllArguments() {
+        return List.copyOf(args);
+    }
+
     protected void verifyMutable() {
         if (!isMutable()) {
             throw new UnsupportedOperationException(
@@ -68,4 +71,6 @@ class CommandArguments<T> {
     protected boolean isMutable() {
         return true;
     }
+
+    protected List<String> args;
 }

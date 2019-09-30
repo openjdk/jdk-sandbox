@@ -34,7 +34,7 @@ import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.LinuxHelper;
 import jdk.jpackage.test.Executor;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 
 /**
  * Test --license-file parameter. Output of the test should be licensetest*.*
@@ -64,8 +64,11 @@ import jdk.jpackage.test.Test;
  * @test
  * @summary jpackage with --license-file
  * @library ../helpers
+ * @build jdk.jpackage.test.*
+ * @compile LicenseTest.java
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m LicenseTest testCommon
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=LicenseTest.testCommon
  */
 
 /*
@@ -73,20 +76,14 @@ import jdk.jpackage.test.Test;
  * @summary jpackage with --license-file
  * @library ../helpers
  * @modules jdk.jpackage/jdk.jpackage.internal
+ * @compile LicenseTest.java
  * @requires (os.family == "linux")
- * @run main/othervm/timeout=360 -Xmx512m LicenseTest testCustomDebianCopyright
- * @run main/othervm/timeout=360 -Xmx512m LicenseTest testCustomDebianCopyrightSubst
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=LicenseTest.testCustomDebianCopyright
+ *  --jpt-run=LicenseTest.testCustomDebianCopyrightSubst
  */
 
 public class LicenseTest {
-    public static void main(String[] args) {
-        Test.run(args, () -> {
-            String testFuncName = args[0];
-            Test.trace(String.format("Running %s...", testFuncName));
-            Test.getTestClass().getDeclaredMethod(testFuncName).invoke(null);
-        });
-    }
-
     public static void testCommon() {
         new PackageTest().configureHelloApp()
         .addInitializer(cmd -> {
@@ -97,7 +94,7 @@ public class LicenseTest {
             verifyLicenseFileInLinuxPackage(cmd, linuxLicenseFile(cmd));
         })
         .addInstallVerifier(cmd -> {
-            Test.assertReadableFileExists(linuxLicenseFile(cmd));
+            TKit.assertReadableFileExists(linuxLicenseFile(cmd));
         })
         .addUninstallVerifier(cmd -> {
             verifyLicenseFileNotInstalledLinux(linuxLicenseFile(cmd));
@@ -153,7 +150,7 @@ public class LicenseTest {
 
     private static void verifyLicenseFileInLinuxPackage(JPackageCommand cmd,
             Path expectedLicensePath) {
-        Test.assertTrue(LinuxHelper.getPackageFiles(cmd).filter(path -> path.equals(
+        TKit.assertTrue(LinuxHelper.getPackageFiles(cmd).filter(path -> path.equals(
                 expectedLicensePath)).findFirst().orElse(null) != null,
                 String.format("Check license file [%s] is in %s package",
                         expectedLicensePath, LinuxHelper.getPackageName(cmd)));
@@ -161,7 +158,7 @@ public class LicenseTest {
 
     private static void verifyLicenseFileInstalledRpm(Path licenseFile) throws
             IOException {
-        Test.assertStringListEquals(Files.readAllLines(LICENSE_FILE),
+        TKit.assertStringListEquals(Files.readAllLines(LICENSE_FILE),
                 Files.readAllLines(licenseFile), String.format(
                 "Check contents of package license file [%s] are the same as contents of source license file [%s]",
                 licenseFile, LICENSE_FILE));
@@ -178,17 +175,17 @@ public class LicenseTest {
 
         actualLines = DEBIAN_COPYRIGT_FILE_STRIPPER.apply(actualLines);
 
-        Test.assertNotEquals(0, String.join("\n", actualLines).length(),
+        TKit.assertNotEquals(0, String.join("\n", actualLines).length(),
                 "Check stripped license text is not empty");
 
-        Test.assertStringListEquals(DEBIAN_COPYRIGT_FILE_STRIPPER.apply(
+        TKit.assertStringListEquals(DEBIAN_COPYRIGT_FILE_STRIPPER.apply(
                 Files.readAllLines(LICENSE_FILE)), actualLines, String.format(
                 "Check subset of package license file [%s] is a match of the source license file [%s]",
                 licenseFile, LICENSE_FILE));
     }
 
     private static void verifyLicenseFileNotInstalledLinux(Path licenseFile) {
-        Test.assertPathExists(licenseFile.getParent(), false);
+        TKit.assertPathExists(licenseFile.getParent(), false);
     }
 
     private static class CustomDebianCopyrightTest {
@@ -233,7 +230,7 @@ public class LicenseTest {
         }
 
         void run() {
-            final Path srcLicenseFile = Test.workDir().resolve("license");
+            final Path srcLicenseFile = TKit.workDir().resolve("license");
             new PackageTest().configureHelloApp().forTypes(PackageType.LINUX_DEB)
             .addInitializer(cmd -> {
                 // Create source license file.
@@ -255,7 +252,7 @@ public class LicenseTest {
             })
             .addInstallVerifier(cmd -> {
                 Path installedLicenseFile = debLicenseFile(cmd);
-                Test.assertStringListEquals(expetedLicenseFileText(),
+                TKit.assertStringListEquals(expetedLicenseFileText(),
                         DEBIAN_COPYRIGT_FILE_STRIPPER.apply(Files.readAllLines(
                                 installedLicenseFile)), String.format(
                                 "Check contents of package license file [%s] are the same as contents of source license file [%s]",
@@ -268,10 +265,10 @@ public class LicenseTest {
         private String copyright;
         private String licenseText;
 
-        private final Path RESOURCE_DIR = Test.workDir().resolve("resources");
+        private final Path RESOURCE_DIR = TKit.workDir().resolve("resources");
     }
 
-    private static final Path LICENSE_FILE = Test.TEST_SRC_ROOT.resolve(
+    private static final Path LICENSE_FILE = TKit.TEST_SRC_ROOT.resolve(
             Path.of("resources", "license.txt"));
 
     private static final Function<List<String>, List<String>> DEBIAN_COPYRIGT_FILE_STRIPPER = (lines) -> Arrays.asList(

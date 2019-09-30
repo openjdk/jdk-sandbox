@@ -26,22 +26,14 @@ import java.awt.Desktop;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import static jdk.jpackage.test.PackageType.LINUX_DEB;
-import static jdk.jpackage.test.PackageType.LINUX_RPM;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
+import static jdk.jpackage.test.PackageType.*;
 
 /**
  * Instance of PackageTest is for configuring and running a single jpackage
@@ -123,30 +115,15 @@ public final class PackageTest {
     public PackageTest addBundlePropertyVerifier(String propertyName,
             BiConsumer<String, String> pred) {
         return addBundleVerifier(cmd -> {
-            String propertyValue = null;
-            switch (cmd.packageType()) {
-                case LINUX_DEB:
-                    propertyValue = LinuxHelper.getDebBundleProperty(
-                            cmd.outputBundle(), propertyName);
-                    break;
-
-                case LINUX_RPM:
-                    propertyValue = LinuxHelper.getRpmBundleProperty(
-                            cmd.outputBundle(), propertyName);
-                    break;
-
-                default:
-                    throw new UnsupportedOperationException();
-            }
-
-            pred.accept(propertyName, propertyValue);
+            pred.accept(propertyName,
+                    LinuxHelper.getBundleProperty(cmd, propertyName));
         });
     }
 
     public PackageTest addBundlePropertyVerifier(String propertyName,
             String expectedPropertyValue) {
         return addBundlePropertyVerifier(propertyName, (unused, v) -> {
-            Test.assertEquals(expectedPropertyValue, v, String.format(
+            TKit.assertEquals(expectedPropertyValue, v, String.format(
                     "Check value of %s property is [%s]", propertyName, v));
         });
     }
@@ -172,29 +149,36 @@ public final class PackageTest {
         return this;
     }
 
+    static void withTestFileAssociationsFile(FileAssociations fa, ThrowingConsumer<Path> consumer) {
+        final String testFileDefaultName = String.join(".", "test", fa.getSuffix());
+        TKit.withTempFile(testFileDefaultName, fa.getSuffix(), testFile -> {
+            if (TKit.isLinux()) {
+                LinuxHelper.initFileAssociationsTestFile(testFile);
+            }
+            consumer.accept(testFile);
+        });
+    }
+
     public PackageTest addHelloAppFileAssociationsVerifier(FileAssociations fa,
             String... faLauncherDefaultArgs) {
 
-        addInitializer(cmd -> HelloApp.addTo(cmd), "HelloApp");
+        addInitializer(cmd -> HelloApp.addTo(cmd, null), "HelloApp");
         addInstallVerifier(cmd -> {
             if (cmd.isFakeRuntimeInstalled(
                     "Not running file associations test")) {
                 return;
             }
 
-            Test.withTempFile(fa.getSuffix(), testFile -> {
+            withTestFileAssociationsFile(fa, testFile -> {
                 testFile = testFile.toAbsolutePath().normalize();
-                if (PackageType.LINUX.contains(cmd.packageType())) {
-                    LinuxHelper.initFileAssociationsTestFile(testFile);
-                }
 
                 final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
                 Files.deleteIfExists(appOutput);
 
-                Test.trace(String.format("Use desktop to open [%s] file",
+                TKit.trace(String.format("Use desktop to open [%s] file",
                         testFile));
                 Desktop.getDesktop().open(testFile.toFile());
-                Test.waitForFileCreated(appOutput, 7);
+                TKit.waitForFileCreated(appOutput, 7);
 
                 List<String> expectedArgs = new ArrayList<>(List.of(
                         faLauncherDefaultArgs));
@@ -203,7 +187,7 @@ public final class PackageTest {
                 // Wait a little bit after file has been created to
                 // make sure there are no pending writes into it.
                 Thread.sleep(3000);
-                HelloApp.verifyOutputFile(appOutput, expectedArgs.toArray(String[]::new));
+                HelloApp.verifyOutputFile(appOutput, expectedArgs);
             });
         });
 
@@ -214,7 +198,7 @@ public final class PackageTest {
         return this;
     }
 
-    private void forTypes(Collection<PackageType> types, Runnable action) {
+    PackageTest forTypes(Collection<PackageType> types, Runnable action) {
         Set<PackageType> oldTypes = Set.of(currentTypes.toArray(
                 PackageType[]::new));
         try {
@@ -223,14 +207,19 @@ public final class PackageTest {
         } finally {
             forTypes(oldTypes);
         }
+        return this;
     }
 
-    private void forTypes(PackageType type, Runnable action) {
-        forTypes(List.of(type), action);
+    PackageTest forTypes(PackageType type, Runnable action) {
+        return forTypes(List.of(type), action);
     }
 
     public PackageTest configureHelloApp() {
-        addInitializer(cmd -> HelloApp.addTo(cmd), "HelloApp");
+        return configureHelloApp(null);
+    }
+
+    public PackageTest configureHelloApp(String encodedName) {
+        addInitializer(cmd -> HelloApp.addTo(cmd, encodedName));
         addInstallVerifier(HelloApp::executeLauncherAndVerifyOutput);
         return this;
     }
@@ -312,8 +301,11 @@ public final class PackageTest {
                 case CREATE:
                     Executor.Result result = cmd.execute();
                     result.assertExitCodeIs(expectedJPackageExitCode);
-                    Test.assertFileExists(cmd.outputBundle(),
-                            expectedJPackageExitCode == 0);
+                    if (expectedJPackageExitCode == 0) {
+                        TKit.assertFileExists(cmd.outputBundle());
+                    } else {
+                        TKit.assertPathExists(cmd.outputBundle(), false);
+                    }
                     verifyPackageBundle(cmd.createImmutableCopy(), result);
                     break;
 
@@ -330,7 +322,7 @@ public final class PackageTest {
         private void verifyPackageBundle(JPackageCommand cmd,
                 Executor.Result result) {
             if (PackageType.LINUX.contains(cmd.packageType())) {
-                Test.assertNotEquals(0L, LinuxHelper.getInstalledPackageSizeKB(
+                TKit.assertNotEquals(0L, LinuxHelper.getInstalledPackageSizeKB(
                         cmd), String.format(
                                 "Check installed size of [%s] package in KB is not zero",
                                 LinuxHelper.getPackageName(cmd)));
@@ -339,13 +331,13 @@ public final class PackageTest {
         }
 
         private void verifyPackageInstalled(JPackageCommand cmd) {
-            Test.trace(String.format("Verify installed: %s",
+            TKit.trace(String.format("Verify installed: %s",
                     cmd.getPrintableCommandLine()));
             if (cmd.isRuntime()) {
-                Test.assertDirectoryExists(
+                TKit.assertPathExists(
                         cmd.appRuntimeInstallationDirectory(), false);
             } else {
-                Test.assertExecutableFileExists(cmd.launcherInstallationPath(), true);
+                TKit.assertExecutableFileExists(cmd.launcherInstallationPath());
             }
 
             if (PackageType.WINDOWS.contains(cmd.packageType())) {
@@ -356,11 +348,11 @@ public final class PackageTest {
         }
 
         private void verifyPackageUninstalled(JPackageCommand cmd) {
-            Test.trace(String.format("Verify uninstalled: %s",
+            TKit.trace(String.format("Verify uninstalled: %s",
                     cmd.getPrintableCommandLine()));
             if (!cmd.isRuntime()) {
-                Test.assertPathExists(cmd.launcherInstallationPath(), false);
-                Test.assertPathExists(cmd.appInstallationDirectory(), false);
+                TKit.assertPathExists(cmd.launcherInstallationPath(), false);
+                TKit.assertPathExists(cmd.appInstallationDirectory(), false);
             }
 
             if (PackageType.WINDOWS.contains(cmd.packageType())) {
@@ -410,16 +402,15 @@ public final class PackageTest {
 
     static {
         final String propertyName = "output";
-        String val = Test.getConfigProperty(propertyName);
+        String val = TKit.getConfigProperty(propertyName);
         if (val == null) {
             bundleOutputDir = null;
         } else {
             bundleOutputDir = new File(val).getAbsoluteFile();
 
             if (!bundleOutputDir.isDirectory()) {
-                throw new IllegalArgumentException(String.format(
-                        "Invalid value of %s sytem property: [%s]. Should be existing directory",
-                        Test.getConfigPropertyName(propertyName),
+                throw new IllegalArgumentException(String.format("Invalid value of %s sytem property: [%s]. Should be existing directory",
+                        TKit.getConfigPropertyName(propertyName),
                         bundleOutputDir));
             }
         }
@@ -427,12 +418,10 @@ public final class PackageTest {
 
     static {
         final String propertyName = "action";
-        String action = Optional.ofNullable(Test.getConfigProperty(propertyName)).orElse(
+        String action = Optional.ofNullable(TKit.getConfigProperty(propertyName)).orElse(
                 Action.CREATE.toString()).toLowerCase();
         DEFAULT_ACTION = Stream.of(Action.values()).filter(
-                a -> a.toString().equals(action)).findFirst().orElseThrow(
-                        () -> new IllegalArgumentException(String.format(
-                                "Unrecognized value of %s property: [%s]",
-                                Test.getConfigPropertyName(propertyName), action)));
+                a -> a.toString().equals(action)).findFirst().orElseThrow(() -> new IllegalArgumentException(String.format("Unrecognized value of %s property: [%s]",
+                                TKit.getConfigPropertyName(propertyName), action)));
     }
 }

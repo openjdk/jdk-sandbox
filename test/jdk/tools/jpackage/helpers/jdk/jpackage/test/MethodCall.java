@@ -22,30 +22,41 @@
  */
 package jdk.jpackage.test;
 
-import java.nio.file.Path;
-import java.util.Set;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import jdk.jpackage.test.Functional.ThrowingConsumer;
+import jdk.jpackage.test.Functional.ThrowingSupplier;
+import jdk.jpackage.test.TestInstance.TestDesc;
 
-public class MacHelper {
+class MethodCall implements ThrowingConsumer {
 
-    static String getBundleName(JPackageCommand cmd) {
-        cmd.verifyIsOfType(PackageType.MAC);
-        return String.format("%s-%s%s", getPackageName(cmd), cmd.version(),
-                cmd.packageType().getSuffix());
+    MethodCall(Method method, Object... args) {
+        this.method = method;
+        this.args = args;
     }
 
-    static Path getInstallationDirectory(JPackageCommand cmd) {
-        cmd.verifyIsOfType(PackageType.MAC);
-        String installDir = Path.of(cmd.getArgumentValue("--install-dir",
-                () -> ""), cmd.name()).toString() + ".app";
-        return Path.of("/Applications", installDir);
+    TestDesc createDescription() {
+        return TestDesc.create(method, args);
     }
 
-    private static String getPackageName(JPackageCommand cmd) {
-        return cmd.getArgumentValue("--mac-package-name",
-                () -> cmd.name());
+    Constructor getRequiredConstructor() throws NoSuchMethodException {
+        return MethodCall.getRequiredConstructor(method);
     }
 
-    static final Set<Path> CRITICAL_RUNTIME_FILES = Set.of(Path.of(
-            "Contents/Home/lib/server/libjvm.dylib"));
+    static Constructor getRequiredConstructor(Method method) throws
+            NoSuchMethodException {
+        if ((method.getModifiers() & Modifier.STATIC) == 0) {
+            return method.getDeclaringClass().getConstructor();
+        }
+        return null;
+    }
 
+    @Override
+    public void accept(Object thiz) throws Throwable {
+        method.invoke(thiz, args);
+    }
+
+    private final Object[] args;
+    private final Method method;
 }

@@ -67,7 +67,7 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     private static ApplicationLayout createAppLayout(Map<String, Object> params,
             Path imageOutDir) {
-        return ApplicationLayout.linuxApp().resolveAt(
+        return ApplicationLayout.linuxAppImage().resolveAt(
                 imageOutDir.resolve(APP_NAME.fetchFrom(params)));
     }
 
@@ -105,13 +105,13 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     @Override
     protected String getCfgAppDir() {
         return Path.of("$APPDIR").resolve(
-                ApplicationLayout.linuxApp().appDirectory()).toString() + File.separator;
+                ApplicationLayout.linuxAppImage().appDirectory()).toString() + File.separator;
     }
 
     @Override
     protected String getCfgRuntimeDir() {
         return Path.of("$APPDIR").resolve(
-                ApplicationLayout.linuxApp().runtimeDirectory()).toString();
+                ApplicationLayout.linuxAppImage().runtimeDirectory()).toString();
     }
 
     @Override

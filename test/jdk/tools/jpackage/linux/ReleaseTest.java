@@ -23,7 +23,7 @@
 
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.PackageTest;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 
 
 /**
@@ -43,6 +43,7 @@ import jdk.jpackage.test.Test;
  * @test
  * @summary jpackage with --linux-app-release
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m ReleaseTest
@@ -52,7 +53,7 @@ public class ReleaseTest {
     public static void main(String[] args) {
         final String RELEASE = "Rc3";
 
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest()
             .forTypes(PackageType.LINUX)
             .configureHelloApp()
@@ -63,7 +64,7 @@ public class ReleaseTest {
             .addBundlePropertyVerifier("Release", RELEASE)
             .forTypes(PackageType.LINUX_DEB)
             .addBundlePropertyVerifier("Version", (propName, propValue) -> {
-                Test.assertTrue(propValue.endsWith("-" + RELEASE),
+                TKit.assertTrue(propValue.endsWith("-" + RELEASE),
                         String.format("Check value of %s property [%s] ends with %s",
                                 propName, propValue, RELEASE));
             })

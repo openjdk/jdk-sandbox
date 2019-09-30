@@ -57,7 +57,7 @@ public class ApplicationLayoutTest {
     @Test
     public void testLinux() throws IOException {
         fillLinuxAppImage();
-        testApplicationLayout(ApplicationLayout.linuxApp());
+        testApplicationLayout(ApplicationLayout.linuxAppImage());
     }
 
     private void testApplicationLayout(ApplicationLayout layout) throws IOException {

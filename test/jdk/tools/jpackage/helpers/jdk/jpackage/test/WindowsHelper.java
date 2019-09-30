@@ -25,9 +25,7 @@ package jdk.jpackage.test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -83,16 +81,24 @@ public class WindowsHelper {
             return Path.of(cmd.name() + ".lnk");
         }
 
+        private void verifyShortcut(Path path, boolean exists) {
+            if (exists) {
+                TKit.assertFileExists(path);
+            } else {
+                TKit.assertPathExists(path, false);
+            }
+        }
+
         private void verifySystemDesktopShortcut(boolean exists) {
             Path dir = Path.of(queryRegistryValueCache(
                     SYSTEM_SHELL_FOLDERS_REGKEY, "Common Desktop"));
-            Test.assertFileExists(dir.resolve(desktopShortcutPath()), exists);
+            verifyShortcut(dir.resolve(desktopShortcutPath()), exists);
         }
 
         private void verifyUserLocalDesktopShortcut(boolean exists) {
             Path dir = Path.of(
                     queryRegistryValueCache(USER_SHELL_FOLDERS_REGKEY, "Desktop"));
-            Test.assertFileExists(dir.resolve(desktopShortcutPath()), exists);
+            verifyShortcut(dir.resolve(desktopShortcutPath()), exists);
         }
 
         private void verifyStartMenuShortcut() {
@@ -119,13 +125,13 @@ public class WindowsHelper {
         private void verifySystemStartMenuShortcut(boolean exists) {
             Path dir = Path.of(queryRegistryValueCache(
                     SYSTEM_SHELL_FOLDERS_REGKEY, "Common Programs"));
-            Test.assertFileExists(dir.resolve(startMenuShortcutPath()), exists);
+            verifyShortcut(dir.resolve(startMenuShortcutPath()), exists);
         }
 
         private void verifyUserLocalStartMenuShortcut(boolean exists) {
             Path dir = Path.of(queryRegistryValueCache(
                     USER_SHELL_FOLDERS_REGKEY, "Programs"));
-            Test.assertFileExists(dir.resolve(startMenuShortcutPath()), exists);
+            verifyShortcut(dir.resolve(startMenuShortcutPath()), exists);
         }
 
         private void verifyFileAssociationsRegistry() {
@@ -136,7 +142,7 @@ public class WindowsHelper {
         private void verifyFileAssociationsRegistry(Path faFile) {
             boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
             try {
-                Test.trace(String.format(
+                TKit.trace(String.format(
                         "Get file association properties from [%s] file",
                         faFile));
                 Map<String, String> faProps = Files.readAllLines(faFile).stream().filter(
@@ -150,10 +156,10 @@ public class WindowsHelper {
                                 entry -> entry.getValue()));
                 String suffix = faProps.get("extension");
                 String contentType = faProps.get("mime-type");
-                Test.assertNotNull(suffix, String.format(
+                TKit.assertNotNull(suffix, String.format(
                         "Check file association suffix [%s] is found in [%s] property file",
                         suffix, faFile));
-                Test.assertNotNull(contentType, String.format(
+                TKit.assertNotNull(contentType, String.format(
                         "Check file association content type [%s] is found in [%s] property file",
                         contentType, faFile));
                 verifyFileAssociations(appInstalled, "." + suffix, contentType);
@@ -172,14 +178,14 @@ public class WindowsHelper {
                     "Extension");
 
             if (exists) {
-                Test.assertEquals(suffix, suffixFromRegistry,
+                TKit.assertEquals(suffix, suffixFromRegistry,
                         "Check suffix in registry is as expected");
-                Test.assertEquals(contentType, contentTypeFromRegistry,
+                TKit.assertEquals(contentType, contentTypeFromRegistry,
                         "Check content type in registry is as expected");
             } else {
-                Test.assertNull(suffixFromRegistry,
+                TKit.assertNull(suffixFromRegistry,
                         "Check suffix in registry not found");
-                Test.assertNull(contentTypeFromRegistry,
+                TKit.assertNull(contentTypeFromRegistry,
                         "Check content type in registry not found");
             }
         }
@@ -200,7 +206,7 @@ public class WindowsHelper {
                     () -> new RuntimeException(String.format(
                             "Failed to find [%s] string in the output",
                             lookupString)));
-            Test.trace(String.format(
+            TKit.trace(String.format(
                     "Registry value [%s] at [%s] path not found", valueName,
                     keyPath));
             return null;
@@ -211,7 +217,7 @@ public class WindowsHelper {
         //     Common Desktop    REG_SZ    C:\Users\Public\Desktop
         value = value.split("    REG_SZ    ")[1];
 
-        Test.trace(String.format("Registry value [%s] at [%s] path is [%s]",
+        TKit.trace(String.format("Registry value [%s] at [%s] path is [%s]",
                 valueName, keyPath, value));
 
         return value;
@@ -228,6 +234,9 @@ public class WindowsHelper {
 
         return value;
     }
+
+    static final Set<Path> CRITICAL_RUNTIME_FILES = Set.of(Path.of(
+            "bin\\server\\jvm.dll"));
 
     // jtreg resets %ProgramFiles% environment variable by some reason.
     private final static Path PROGRAM_FILES = Path.of(Optional.ofNullable(

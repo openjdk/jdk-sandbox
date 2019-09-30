@@ -23,10 +23,10 @@
 package jdk.jpackage.test;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,96 +36,101 @@ import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import jdk.jpackage.test.Functional.ExceptionBox;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
+import jdk.jpackage.test.Functional.ThrowingFunction;
 import jdk.jpackage.test.Functional.ThrowingRunnable;
 import jdk.jpackage.test.Functional.ThrowingSupplier;
 
-final public class Test {
+final public class TKit {
 
-    public static final Path TEST_SRC_ROOT = new Supplier<Path>() {
-        @Override
-        public Path get() {
-            Path root = Path.of(System.getProperty("test.src"));
+    public static final Path TEST_SRC_ROOT = Functional.identity(() -> {
+        Path root = Path.of(System.getProperty("test.src"));
 
-            for (int i = 0; i != 10; ++i) {
-                if (root.resolve("apps").toFile().isDirectory()) {
-                    return root.toAbsolutePath();
-                }
-                root = root.resolve("..");
+        for (int i = 0; i != 10; ++i) {
+            if (root.resolve("apps").toFile().isDirectory()) {
+                return root.toAbsolutePath();
             }
-
-            throw new RuntimeException("Failed to locate apps directory");
-        }
-    }.get();
-
-    private static class Instance implements AutoCloseable {
-        Instance(String args[]) {
-            assertCount = 0;
-
-            name = enclosingMainMethodClass().getSimpleName();
-            extraLogStream = openLogStream();
-
-            currentTest = this;
-
-            log(String.format("[ RUN      ] %s", name));
+            root = root.resolve("..");
         }
 
-        @Override
-        public void close() {
-            log(String.format("%s %s; checks=%d",
-                    success ? "[       OK ]" : "[  FAILED  ]", name, assertCount));
+        throw new RuntimeException("Failed to locate apps directory");
+    }).get();
 
-            if (extraLogStream != null) {
-                extraLogStream.close();
-            }
-        }
-
-        void notifyAssert() {
-            assertCount++;
-        }
-
-        void notifySuccess() {
-            success = true;
-        }
-
-        private int assertCount;
-        private boolean success;
-        private final String name;
-        private final PrintStream extraLogStream;
-    }
-
-    public static void run(String args[], TestBody action) {
+    public static void run(String args[], ThrowingRunnable testBody) {
         if (currentTest != null) {
             throw new IllegalStateException(
                     "Unexpeced nested or concurrent Test.run() call");
         }
 
-        try (Instance instance = new Instance(args)) {
-            action.run();
-            instance.notifySuccess();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        } finally {
-            currentTest = null;
+        TestInstance test = new TestInstance(testBody);
+        ThrowingRunnable.toRunnable(() -> runTests(List.of(test))).run();
+        if (!test.passed()) {
+            throw new RuntimeException();
         }
     }
 
-    public static interface TestBody {
-        public void run() throws Exception;
+    static void runTests(List<TestInstance> tests) {
+        if (currentTest != null) {
+            throw new IllegalStateException(
+                    "Unexpeced nested or concurrent Test.run() call");
+        }
+
+        try (PrintStream logStream = openLogStream()) {
+            extraLogStream = logStream;
+            tests.stream().forEach(test -> {
+                currentTest = test;
+                try {
+                    ignoreExceptions(test).run();
+                } finally {
+                    currentTest = null;
+                    if (extraLogStream != null) {
+                        extraLogStream.flush();
+                    }
+                }
+            });
+        } finally {
+            extraLogStream = null;
+        }
+    }
+
+    static Runnable ignoreExceptions(ThrowingRunnable action) {
+        return () -> {
+            try {
+                try {
+                    action.run();
+                } catch (Throwable ex) {
+                    unbox(ex);
+                }
+            } catch (Throwable throwable) {
+                if (extraLogStream != null) {
+                    throwable.printStackTrace(extraLogStream);
+                }
+                throwable.printStackTrace();
+            }
+        };
+    }
+
+    static void unbox(Throwable throwable) throws Throwable {
+        try {
+            throw throwable;
+        } catch (ExceptionBox | InvocationTargetException ex) {
+            unbox(ex.getCause());
+        }
     }
 
     public static Path workDir() {
-        return Path.of(".");
+        Path result = Path.of(".");
+        String testFunctionName = currentTest.functionName();
+        if (testFunctionName != null) {
+            result = result.resolve(testFunctionName);
+        }
+        return result;
     }
 
     static Path defaultInputDir() {
@@ -136,55 +141,52 @@ final public class Test {
         return workDir().resolve("output");
     }
 
-    static Class enclosingMainMethodClass() {
-        StackTraceElement st[] = Thread.currentThread().getStackTrace();
-        for (StackTraceElement ste : st) {
-            if ("main".equals(ste.getMethodName())) {
-                try {
-                    return Class.forName(ste.getClassName());
-                } catch (ClassNotFoundException ex) {
-                    throw new RuntimeException(ex);
-                }
-            }
+    static String getCurrentDefaultAppName() {
+        // Construct app name from swapping and joining test base name
+        // and test function name.
+        // Say the test name is `FooTest.testBasic`. Then app name would be `BasicFooTest`.
+        String appNamePrefix = currentTest.functionName();
+        if (appNamePrefix != null && appNamePrefix.startsWith("test")) {
+            appNamePrefix = appNamePrefix.substring("test".length());
         }
-        return null;
+        return Stream.of(appNamePrefix, currentTest.baseName()).filter(
+                v -> v != null && !v.isEmpty()).collect(Collectors.joining());
     }
 
-    static boolean isWindows() {
+    public static boolean isWindows() {
         return (OS.contains("win"));
     }
 
-    static boolean isOSX() {
+    public static boolean isOSX() {
         return (OS.contains("mac"));
     }
 
-    static boolean isLinux() {
+    public static boolean isLinux() {
         return ((OS.contains("nix") || OS.contains("nux")));
     }
 
-    static private void log(String v) {
+    static void log(String v) {
         System.out.println(v);
-        if (currentTest != null && currentTest.extraLogStream != null) {
-            currentTest.extraLogStream.println(v);
+        if (extraLogStream != null) {
+            extraLogStream.println(v);
         }
     }
 
-    public static Class getTestClass () {
-        return enclosingMainMethodClass();
+    public static void createTextFile(Path propsFilename, Collection<String> lines) {
+        trace(String.format("Create [%s] text file...",
+                propsFilename.toAbsolutePath().normalize()));
+        ThrowingRunnable.toRunnable(() -> Files.write(propsFilename,
+                lines.stream().peek(TKit::trace).collect(Collectors.toList()))).run();
+        trace("Done");
     }
 
     public static void createPropertiesFile(Path propsFilename,
             Collection<Map.Entry<String, String>> props) {
         trace(String.format("Create [%s] properties file...",
                 propsFilename.toAbsolutePath().normalize()));
-        try {
-            Files.write(propsFilename, props.stream().peek(e -> trace(
-                    String.format("%s=%s", e.getKey(), e.getValue()))).map(
-                    e -> String.format("%s=%s", e.getKey(), e.getValue())).collect(
-                            Collectors.toList()));
-        } catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
+        ThrowingRunnable.toRunnable(() -> Files.write(propsFilename,
+                props.stream().map(e -> String.join("=", e.getKey(),
+                e.getValue())).peek(TKit::trace).collect(Collectors.toList()))).run();
         trace("Done");
     }
 
@@ -215,19 +217,55 @@ final public class Test {
         throw new AssertionError(v);
     }
 
-    private static final String TEMP_FILE_PREFIX = null;
+    private final static String TEMP_FILE_PREFIX = null;
 
-    public static Path createTempDirectory() throws IOException {
-        return Files.createTempDirectory(workDir(), TEMP_FILE_PREFIX);
+    private static Path createUniqueFileName(String defaultName) {
+        final String[] nameComponents;
+
+        int separatorIdx = defaultName.lastIndexOf('.');
+        final String baseName;
+        if (separatorIdx == -1) {
+            baseName = defaultName;
+            nameComponents = new String[]{baseName};
+        } else {
+            baseName = defaultName.substring(0, separatorIdx);
+            nameComponents = new String[]{baseName, defaultName.substring(
+                separatorIdx + 1)};
+        }
+
+        final Path basedir = workDir();
+        int i = 0;
+        for (; i < 100; ++i) {
+            Path path = basedir.resolve(String.join(".", nameComponents));
+            if (!path.toFile().exists()) {
+                return path;
+            }
+            nameComponents[0] = String.format("%s.%d", baseName, i);
+        }
+        throw new IllegalStateException(String.format(
+                "Failed to create unique file name from [%s] basename after %d attempts",
+                baseName, i));
     }
 
-    public static Path createTempFile(String suffix) throws IOException {
-        return Files.createTempFile(workDir(), TEMP_FILE_PREFIX, suffix);
+    public static Path createTempDirectory(String role) throws IOException {
+        if (role == null) {
+            return Files.createTempDirectory(workDir(), TEMP_FILE_PREFIX);
+        }
+        return Files.createDirectory(createUniqueFileName(role));
     }
 
-    public static void withTempFile(String suffix, ThrowingConsumer<Path> action) {
+    public static Path createTempFile(String role, String suffix) throws
+            IOException {
+        if (role == null) {
+            return Files.createTempFile(workDir(), TEMP_FILE_PREFIX, suffix);
+        }
+        return Files.createFile(createUniqueFileName(role));
+    }
+
+    public static void withTempFile(String role, String suffix,
+            ThrowingConsumer<Path> action) {
         final Path tempFile = ThrowingSupplier.toSupplier(() -> createTempFile(
-                suffix)).get();
+                role, suffix)).get();
         boolean keepIt = true;
         try {
             ThrowingConsumer.toConsumer(action).accept(tempFile);
@@ -239,24 +277,93 @@ final public class Test {
         }
     }
 
-    public static void withTempDirectory(ThrowingConsumer<Path> action) {
+    public static void withTempDirectory(String role,
+            ThrowingConsumer<Path> action) {
         final Path tempDir = ThrowingSupplier.toSupplier(
-                () -> createTempDirectory()).get();
+                () -> createTempDirectory(role)).get();
         boolean keepIt = true;
         try {
             ThrowingConsumer.toConsumer(action).accept(tempDir);
             keepIt = false;
         } finally {
             if (tempDir != null && tempDir.toFile().isDirectory() && !keepIt) {
-                deleteDirectoryRecursive(tempDir);
+                deleteDirectoryRecursive(tempDir, "");
             }
         }
     }
 
-    static void deleteDirectoryRecursive(Path path) {
-        ThrowingRunnable.toRunnable(() -> Files.walk(path).sorted(
-                Comparator.reverseOrder()).map(Path::toFile).forEach(
-                File::delete)).run();
+    /**
+     * Deletes contents of the given directory recursively. Shortcut for
+     * <code>deleteDirectoryContentsRecursive(path, null)</code>
+     *
+     * @param path path to directory to clean
+     */
+    public static void deleteDirectoryContentsRecursive(Path path) {
+        deleteDirectoryContentsRecursive(path, null);
+    }
+
+    /**
+     * Deletes contents of the given directory recursively. If <code>path<code> is not a
+     * directory, request is silently ignored.
+     *
+     * @param path path to directory to clean
+     * @param msg log message. If null, the default log message is used. If
+     * empty string, no log message will be saved.
+     */
+    public static void deleteDirectoryContentsRecursive(Path path, String msg) {
+        if (path.toFile().isDirectory()) {
+            if (msg == null) {
+                msg = String.format("Cleaning [%s] directory recursively", path);
+            }
+
+            if (!msg.isEmpty()) {
+                TKit.trace(msg);
+            }
+
+            // Walk all children of `path` in sorted order to hit files first
+            // and directories last and delete each item.
+            ThrowingRunnable.toRunnable(() -> Stream.of(
+                    path.toFile().listFiles()).map(File::toPath).map(
+                    ThrowingFunction.toFunction(Files::walk)).flatMap(x -> x).sorted(
+                    Comparator.reverseOrder()).map(Path::toFile).forEach(
+                    File::delete)).run();
+        }
+    }
+
+    /**
+     * Deletes the given directory recursively. Shortcut for
+     * <code>deleteDirectoryRecursive(path, null)</code>
+     *
+     * @param path path to directory to delete
+     */
+    public static void deleteDirectoryRecursive(Path path) {
+        deleteDirectoryRecursive(path, null);
+    }
+
+    /**
+     * Deletes the given directory recursively. If <code>path<code> is not a
+     * directory, request is silently ignored.
+     *
+     * @param path path to directory to delete
+     * @param msg log message. If null, the default log message is used. If
+     * empty string, no log message will be saved.
+     */
+    public static void deleteDirectoryRecursive(Path path, String msg) {
+        if (path.toFile().isDirectory()) {
+            if (msg == null) {
+                msg = String.format("Deleting [%s] directory recursively", path);
+            }
+            deleteDirectoryContentsRecursive(path, msg);
+            ThrowingConsumer.toConsumer(Files::delete).accept(path);
+        }
+    }
+
+    public static RuntimeException throwUnknownPlatformError() {
+        if (isWindows() || isLinux() || isOSX()) {
+            throw new IllegalStateException(
+                    "Platform is known. throwUnknownPlatformError() called by mistake");
+        }
+        throw new IllegalStateException("Unknown platform");
     }
 
     static void waitForFileCreated(Path fileToWaitFor,
@@ -275,13 +382,8 @@ final public class Test {
             assertTrue(timeout > 0, String.format(
                     "Check timeout value %d is positive", timeout));
 
-            WatchKey key = null;
-            try {
-                key = ws.poll(timeout, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-
+            WatchKey key = ThrowingSupplier.toSupplier(() -> ws.poll(timeout,
+                    TimeUnit.MILLISECONDS)).get();
             if (key == null) {
                 if (fileToWaitFor.toFile().exists()) {
                     trace(String.format(
@@ -411,35 +513,29 @@ final public class Test {
         }
     }
 
-    public static void assertDirectoryExists(Path path, boolean exists) {
-        assertPathExists(path, exists);
-        if (exists) {
-            assertTrue(path.toFile().isDirectory(), String.format(
-                    "Check [%s] is a directory", path));
-        }
+     public static void assertDirectoryExists(Path path) {
+        assertPathExists(path, true);
+        assertTrue(path.toFile().isDirectory(), String.format(
+                "Check [%s] is a directory", path));
     }
 
-    public static void assertFileExists(Path path, boolean exists) {
-        assertPathExists(path, exists);
-        if (exists) {
-            assertTrue(path.toFile().isFile(), String.format(
-                    "Check [%s] is a file", path));
-        }
+    public static void assertFileExists(Path path) {
+        assertPathExists(path, true);
+        assertTrue(path.toFile().isFile(), String.format("Check [%s] is a file",
+                path));
     }
 
-    public static void assertExecutableFileExists(Path path, boolean exists) {
-        assertFileExists(path, exists);
-        if (exists) {
-            assertTrue(path.toFile().canExecute(), String.format(
-                    "Check [%s] file is executable", path));
-        }
+    public static void assertExecutableFileExists(Path path) {
+        assertFileExists(path);
+        assertTrue(path.toFile().canExecute(), String.format(
+                "Check [%s] file is executable", path));
     }
 
     public static void assertReadableFileExists(Path path) {
-        assertFileExists(path, true);
+        assertFileExists(path);
         assertTrue(path.toFile().canRead(), String.format(
                 "Check [%s] file is readable", path));
-     }
+    }
 
     public static void assertUnexpected(String msg) {
         currentTest.notifyAssert();
@@ -449,20 +545,6 @@ final public class Test {
     public static void assertStringListEquals(List<String> expected,
             List<String> actual, String msg) {
         currentTest.notifyAssert();
-
-        if (expected.size() < actual.size()) {
-            // Actual string list is longer than expected
-            error(concatMessages(String.format(
-                    "Actual list is longer than expected by %d elements",
-                    actual.size() - expected.size()), msg));
-        }
-
-        if (actual.size() < expected.size()) {
-            // Actual string list is shorter than expected
-            error(concatMessages(String.format(
-                    "Actual list is longer than expected by %d elements",
-                    expected.size() - actual.size()), msg));
-        }
 
         traceAssert(String.format("assertStringListEquals(): %s", msg));
 
@@ -493,6 +575,20 @@ final public class Test {
                     "assertStringListEquals(" + idxFieldFormat + ", %s)", idx,
                     expectedStr));
         });
+
+        if (expected.size() < actual.size()) {
+            // Actual string list is longer than expected
+            error(concatMessages(String.format(
+                    "Actual list is longer than expected by %d elements",
+                    actual.size() - expected.size()), msg));
+        }
+
+        if (actual.size() < expected.size()) {
+            // Actual string list is shorter than expected
+            error(concatMessages(String.format(
+                    "Actual list is longer than expected by %d elements",
+                    expected.size() - actual.size()), msg));
+        }
     }
 
     private static PrintStream openLogStream() {
@@ -500,19 +596,18 @@ final public class Test {
             return null;
         }
 
-        try {
-            return new PrintStream(new FileOutputStream(LOG_FILE.toFile(), true));
-        } catch (FileNotFoundException ex) {
-            throw new RuntimeException(ex);
-        }
+        return ThrowingSupplier.toSupplier(() -> new PrintStream(
+                new FileOutputStream(LOG_FILE.toFile(), true))).get();
     }
 
-    private static Instance currentTest;
+    private static TestInstance currentTest;
+    private static PrintStream extraLogStream;
 
     private static final boolean TRACE;
     private static final boolean TRACE_ASSERTS;
 
     static final boolean VERBOSE_JPACKAGE;
+    static final boolean VERBOSE_TEST_SETUP;
 
     static String getConfigProperty(String propertyName) {
         return System.getProperty(getConfigPropertyName(propertyName));
@@ -536,10 +631,12 @@ final public class Test {
             TRACE = true;
             TRACE_ASSERTS = true;
             VERBOSE_JPACKAGE = true;
+            VERBOSE_TEST_SETUP = true;
         } else if ("all".equals(val.toLowerCase())) {
             TRACE = false;
             TRACE_ASSERTS = false;
             VERBOSE_JPACKAGE = false;
+            VERBOSE_TEST_SETUP = false;
         } else {
             Set<String> logOptions = Set.of(val.toLowerCase().split(","));
             TRACE = !(logOptions.contains("trace") || logOptions.contains("t"));
@@ -547,6 +644,7 @@ final public class Test {
                     "a"));
             VERBOSE_JPACKAGE = !(logOptions.contains("jpackage") || logOptions.contains(
                     "jp"));
+            VERBOSE_TEST_SETUP = !logOptions.contains("init");
         }
     }
 

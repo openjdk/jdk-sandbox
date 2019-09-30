@@ -102,4 +102,16 @@ enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
     static int getMinorVersion() {
         return minorVersion;
     }
+
+    static boolean isWindows() {
+        return getPlatform() == WINDOWS;
+    }
+
+    static boolean isMac() {
+        return getPlatform() == MAC;
+    }
+
+    static boolean isLinux() {
+        return getPlatform() == LINUX;
+    }
 }

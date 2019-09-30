@@ -22,7 +22,7 @@
  */
 
 import java.nio.file.Path;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.JPackageCommand;
@@ -37,13 +37,14 @@ import jdk.jpackage.test.JPackageCommand;
  * @test
  * @summary jpackage with --app-image
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m AppImagePackageTest
  */
 public class AppImagePackageTest {
 
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             Path appimageOutput = Path.of("appimage");
 
             JPackageCommand appImageCmd = JPackageCommand.helloAppImage()
@@ -64,7 +65,7 @@ public class AppImagePackageTest {
                 }
 
                 cmd.addArguments("--app-image", appimageInput);
-                cmd.removeArgument("--input");
+                cmd.removeArgumentWithValue("--input");
             }).addBundleDesktopIntegrationVerifier(false).run();
         });
     }

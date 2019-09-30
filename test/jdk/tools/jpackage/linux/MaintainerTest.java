@@ -23,7 +23,7 @@
 
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 
 
 /**
@@ -40,6 +40,7 @@ import jdk.jpackage.test.Test;
  * @test
  * @summary jpackage with --linux-deb-maintainer
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m MaintainerTest
@@ -49,14 +50,14 @@ public class MaintainerTest {
     public static void main(String[] args) {
         final String MAINTAINER = "jpackage-test@java.com";
 
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             new PackageTest().forTypes(PackageType.LINUX_DEB).configureHelloApp()
             .addInitializer(cmd -> {
                 cmd.addArguments("--linux-deb-maintainer", MAINTAINER);
             })
             .addBundlePropertyVerifier("Maintainer", (propName, propValue) -> {
                 String lookupValue = "<" + MAINTAINER + ">";
-                Test.assertTrue(propValue.endsWith(lookupValue),
+                TKit.assertTrue(propValue.endsWith(lookupValue),
                         String.format("Check value of %s property [%s] ends with %s",
                                 propName, propValue, lookupValue));
             })

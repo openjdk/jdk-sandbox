@@ -22,28 +22,37 @@
  */
 package jdk.jpackage.test;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.file.Files;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Matcher;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.jpackage.test.Functional.ThrowingSupplier;
 
 public final class Executor extends CommandArguments<Executor> {
 
     public Executor() {
-        saveOutputType = SaveOutputType.NONE;
+        saveOutputType = new HashSet<>(Set.of(SaveOutputType.NONE));
     }
 
     public Executor setExecutable(String v) {
+        return setExecutable(Path.of(v));
+    }
+
+    public Executor setExecutable(Path v) {
         executable = v;
         if (executable != null) {
             toolProvider = null;
@@ -53,6 +62,7 @@ public final class Executor extends CommandArguments<Executor> {
 
     public Executor setToolProvider(ToolProvider v) {
         toolProvider = v;
+        filterOutJcovOutput = true;
         if (toolProvider != null) {
             executable = null;
         }
@@ -65,21 +75,72 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Executor setExecutable(JavaTool v) {
-        return setExecutable(v.getPath().getAbsolutePath());
+        filterOutJcovOutput = true;
+        return setExecutable(v.getPath());
     }
 
+    /**
+     * Configures this instance to save full output that command will produce.
+     * This function is mutual exclusive with
+     * saveFirstLineOfOutput() function.
+     *
+     * @return this
+     */
     public Executor saveOutput() {
-        saveOutputType = SaveOutputType.FULL;
+        saveOutputType.remove(SaveOutputType.FIRST_LINE);
+        saveOutputType.add(SaveOutputType.FULL);
         return this;
     }
 
+    /**
+     * Configures how to save output that command will produce. If
+     * <code>v</code> is <code>true</code>, the function call is equivalent to
+     * <code>saveOutput()</code> call. If <code>v</code> is <code>false</code>,
+     * the function will result in not preserving command output.
+     *
+     * @return this
+     */
+    public Executor saveOutput(boolean v) {
+        if (v) {
+            saveOutput();
+        } else {
+            saveOutputType.remove(SaveOutputType.FIRST_LINE);
+            saveOutputType.remove(SaveOutputType.FULL);
+        }
+        return this;
+    }
+
+    /**
+     * Configures this instance to save only the first line out output that
+     * command will produce. This function is mutual exclusive with
+     * saveOutput() function.
+     *
+     * @return this
+     */
     public Executor saveFirstLineOfOutput() {
-        saveOutputType = SaveOutputType.FIRST_LINE;
+        saveOutputType.add(SaveOutputType.FIRST_LINE);
+        saveOutputType.remove(SaveOutputType.FULL);
         return this;
     }
 
-    public Executor dumpOtput() {
-        saveOutputType = SaveOutputType.DUMP;
+    /**
+     * Configures this instance to dump all output that command will produce to
+     * System.out and System.err. Can be used together with saveOutput() and
+     * saveFirstLineOfOutput() to save command output and also copy it in the
+     * default output streams.
+     *
+     * @return this
+     */
+    public Executor dumpOutput() {
+        return dumpOutput(true);
+    }
+
+    public Executor dumpOutput(boolean v) {
+        if (v) {
+            saveOutputType.add(SaveOutputType.DUMP);
+        } else {
+            saveOutputType.remove(SaveOutputType.DUMP);
+        }
         return this;
     }
 
@@ -102,7 +163,7 @@ public final class Executor extends CommandArguments<Executor> {
         }
 
         public Result assertExitCodeIs(int expectedExitCode) {
-            Test.assertEquals(expectedExitCode, exitCode, String.format(
+            TKit.assertEquals(expectedExitCode, exitCode, String.format(
                     "Check command %s exited with %d code",
                     getPrintableCommandLine(), expectedExitCode));
             return this;
@@ -117,21 +178,17 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Result execute() {
-        if (toolProvider != null) {
-            return runToolProvider();
-        }
+        return ThrowingSupplier.toSupplier(() -> {
+            if (toolProvider != null) {
+                return runToolProvider();
+            }
 
-        try {
             if (executable != null) {
                 return runExecutable();
             }
-        } catch (RuntimeException e) {
-            throw e;
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
-        throw new IllegalStateException("No command to execute");
+            throw new IllegalStateException("No command to execute");
+        }).get();
     }
 
     public String executeAndGetFirstLineOfOutput() {
@@ -142,69 +199,119 @@ public final class Executor extends CommandArguments<Executor> {
         return saveOutput().execute().assertExitCodeIsZero().getOutput();
     }
 
+    private boolean withSavedOutput() {
+        return saveOutputType.contains(SaveOutputType.FULL) || saveOutputType.contains(
+                SaveOutputType.FIRST_LINE);
+    }
+
     private Result runExecutable() throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
-        command.add(executable);
+        command.add(executable.toString());
         command.addAll(args);
-        Path outputFile = null;
         ProcessBuilder builder = new ProcessBuilder(command);
         StringBuilder sb = new StringBuilder(getPrintableCommandLine());
-        if (saveOutputType != SaveOutputType.NONE) {
+        if (withSavedOutput()) {
             builder.redirectErrorStream(true);
-
-            if (saveOutputType == SaveOutputType.DUMP) {
-                builder.inheritIO();
-                sb.append("; redirect output to stdout");
-            } else {
-                outputFile = Test.createTempFile(".out");
-                builder.redirectOutput(outputFile.toFile());
-                sb.append(String.format("; redirect output to [%s]", outputFile));
-            }
+            sb.append("; save output");
+        } else if (saveOutputType.contains(SaveOutputType.DUMP)) {
+            builder.inheritIO();
+            sb.append("; inherit I/O");
         }
         if (directory != null) {
             builder.directory(directory.toFile());
             sb.append(String.format("; in directory [%s]", directory));
         }
 
-        try {
-            Test.trace("Execute " + sb.toString() + "...");
-            Process process = builder.start();
-            Result reply = new Result(process.waitFor());
-            Test.trace("Done. Exit code: " + reply.exitCode);
-            if (saveOutputType == SaveOutputType.FIRST_LINE) {
-                // If the command produced no ouput, save null in 'result.output' list.
-                reply.output = Arrays.asList(
-                        Files.readAllLines(outputFile).stream().findFirst().orElse(
-                                null));
-            } else if (saveOutputType == SaveOutputType.FULL) {
-                reply.output = Collections.unmodifiableList(Files.readAllLines(
-                        outputFile));
-            }
-            return reply;
-        } finally {
-            if (outputFile != null) {
-                Files.deleteIfExists(outputFile);
+        TKit.trace("Execute " + sb.toString() + "...");
+        Process process = builder.start();
+
+        List<String> outputLines = null;
+        if (withSavedOutput()) {
+            try (BufferedReader outReader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+                if (saveOutputType.contains(SaveOutputType.DUMP) || saveOutputType.contains(
+                        SaveOutputType.FULL)) {
+                    outputLines = outReader.lines().collect(Collectors.toList());
+                } else {
+                    outputLines = Arrays.asList(
+                            outReader.lines().findFirst().orElse(null));
+                }
+            } finally {
+                if (saveOutputType.contains(SaveOutputType.DUMP) && outputLines != null) {
+                    outputLines.stream().forEach(System.out::println);
+                    if (saveOutputType.contains(SaveOutputType.FIRST_LINE)) {
+                        // Pick the first line of saved output if there is one
+                        for (String line: outputLines) {
+                            outputLines = List.of(line);
+                            break;
+                        }
+                    }
+                }
             }
         }
-    }
 
-    private Result runToolProvider() {
-        StringWriter writer = new StringWriter();
-        PrintWriter pw = new PrintWriter(writer);
+        Result reply = new Result(process.waitFor());
+        TKit.trace("Done. Exit code: " + reply.exitCode);
 
-        Test.trace("Execute " + getPrintableCommandLine() + "...");
-        Result reply = new Result(toolProvider.run(pw, pw, args.toArray(
-                String[]::new)));
-        Test.trace("Done. Exit code: " + reply.exitCode);
-
-        List lines = List.of(writer.toString().split("\\R", -1));
-
-        if (saveOutputType == SaveOutputType.FIRST_LINE) {
-            reply.output = Stream.of(lines).findFirst().get();
-        } else if (saveOutputType == SaveOutputType.FULL) {
-            reply.output = Collections.unmodifiableList(lines);
+        if (outputLines != null) {
+            reply.output = Collections.unmodifiableList(outputLines);
         }
         return reply;
+    }
+
+    private Result runToolProvider(PrintStream out, PrintStream err) {
+        TKit.trace("Execute " + getPrintableCommandLine() + "...");
+        Result reply = new Result(toolProvider.run(out, err, args.toArray(
+                String[]::new)));
+        TKit.trace("Done. Exit code: " + reply.exitCode);
+        return reply;
+    }
+
+
+    private Result runToolProvider() throws IOException {
+        if (!withSavedOutput()) {
+            if (saveOutputType.contains(SaveOutputType.DUMP)) {
+                return runToolProvider(System.out, System.err);
+            }
+
+            PrintStream nullPrintStream = new PrintStream(new OutputStream() {
+                @Override
+                public void write(int b) {
+                    // Nop
+                }
+            });
+            return runToolProvider(nullPrintStream, nullPrintStream);
+        }
+
+        try (ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                PrintStream ps = new PrintStream(buf)) {
+            Result reply = runToolProvider(ps, ps);
+            ps.flush();
+            try (BufferedReader bufReader = new BufferedReader(new StringReader(
+                    buf.toString()))) {
+                if (saveOutputType.contains(SaveOutputType.FIRST_LINE)) {
+                    String firstLine = filterJcovOutput(bufReader.lines()).findFirst().orElse(
+                            null);
+                    if (firstLine != null) {
+                        reply.output = List.of(firstLine);
+                    }
+                } else if (saveOutputType.contains(SaveOutputType.FULL)) {
+                    reply.output = filterJcovOutput(bufReader.lines()).collect(
+                            Collectors.toUnmodifiableList());
+                }
+
+                if (saveOutputType.contains(SaveOutputType.DUMP)) {
+                    Stream<String> lines;
+                    if (saveOutputType.contains(SaveOutputType.FULL)) {
+                        lines = reply.output.stream();
+                    } else {
+                        lines = bufReader.lines();
+                    }
+                    lines.forEach(System.out::println);
+                }
+            }
+            return reply;
+        }
     }
 
     public String getPrintableCommandLine() {
@@ -216,7 +323,7 @@ public final class Executor extends CommandArguments<Executor> {
             format = "tool provider " + format;
             exec = toolProvider.name();
         } else {
-            exec = executable;
+            exec = executable.toString();
         }
 
         return String.format(format, printCommandLine(exec, args),
@@ -232,10 +339,18 @@ public final class Executor extends CommandArguments<Executor> {
                         Collectors.joining(" "));
     }
 
+    private Stream<String> filterJcovOutput(Stream<String> lines) {
+        if (filterOutJcovOutput) {
+            return lines.filter(line -> !line.startsWith("Picked up"));
+        }
+        return lines;
+    }
+
     private ToolProvider toolProvider;
-    private String executable;
-    private SaveOutputType saveOutputType;
+    private Path executable;
+    private Set<SaveOutputType> saveOutputType;
     private Path directory;
+    private boolean filterOutJcovOutput;
 
     private static enum SaveOutputType {
         NONE, FULL, FIRST_LINE, DUMP

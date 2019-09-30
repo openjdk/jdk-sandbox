@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class LinuxHelper {
@@ -99,6 +100,48 @@ public class LinuxHelper {
         return lines.map(Path::of);
     }
 
+    public static List<String> getPrerequisitePackages(JPackageCommand cmd) {
+        cmd.verifyIsOfType(PackageType.LINUX);
+        var packageType = cmd.packageType();
+        switch (packageType) {
+            case LINUX_DEB:
+                return Stream.of(getDebBundleProperty(cmd.outputBundle(),
+                        "Depends").split(",")).map(String::strip).collect(
+                        Collectors.toList());
+
+            case LINUX_RPM:
+                return new Executor().setExecutable("rpm")
+                .addArguments("-qp", "-R", cmd.outputBundle().toString())
+                .executeAndGetOutput();
+        }
+        // Unreachable
+        return null;
+    }
+
+    public static String getBundleProperty(JPackageCommand cmd,
+            String propertyName) {
+        return getBundleProperty(cmd,
+                Map.of(PackageType.LINUX_DEB, propertyName,
+                        PackageType.LINUX_RPM, propertyName));
+    }
+
+    public static String getBundleProperty(JPackageCommand cmd,
+            Map<PackageType, String> propertyName) {
+        cmd.verifyIsOfType(PackageType.LINUX);
+        var packageType = cmd.packageType();
+        switch (packageType) {
+            case LINUX_DEB:
+                return getDebBundleProperty(cmd.outputBundle(), propertyName.get(
+                        packageType));
+
+            case LINUX_RPM:
+                return getRpmBundleProperty(cmd.outputBundle(), propertyName.get(
+                        packageType));
+        }
+        // Unrechable
+        return null;
+    }
+
     static Path getLauncherPath(JPackageCommand cmd) {
         cmd.verifyIsOfType(PackageType.LINUX);
 
@@ -107,7 +150,7 @@ public class LinuxHelper {
 
         return getPackageFiles(cmd).filter(path -> path.toString().endsWith(
                 launcherRelativePath)).findFirst().or(() -> {
-            Test.assertUnexpected(String.format(
+            TKit.assertUnexpected(String.format(
                     "Failed to find %s in %s package", launcherName,
                     getPackageName(cmd)));
             return null;
@@ -160,32 +203,28 @@ public class LinuxHelper {
         };
 
         test.addBundleVerifier(cmd -> {
-            Test.withTempDirectory(tempDir -> {
-                try {
-                    // Extract control Debian package files into temporary directory
-                    new Executor()
-                    .setExecutable("dpkg")
-                    .addArguments(
-                            "-e",
-                            cmd.outputBundle().toString(),
-                            tempDir.toString()
-                    ).execute().assertExitCodeIsZero();
+            TKit.withTempDirectory("dpkg-control-files", tempDir -> {
+                // Extract control Debian package files into temporary directory
+                new Executor()
+                .setExecutable("dpkg")
+                .addArguments(
+                        "-e",
+                        cmd.outputBundle().toString(),
+                        tempDir.toString()
+                ).execute().assertExitCodeIsZero();
 
-                    Path controlFile = Path.of("postinst");
+                Path controlFile = Path.of("postinst");
 
-                    // Lookup for xdg commands in postinstall script
-                    String lineWithXsdCommand = verifier.apply(
-                            Files.readAllLines(tempDir.resolve(controlFile)));
-                    String assertMsg = String.format(
-                            "Check if %s@%s control file uses xdg commands",
-                            cmd.outputBundle(), controlFile);
-                    if (integrated) {
-                        Test.assertNotNull(lineWithXsdCommand, assertMsg);
-                    } else {
-                        Test.assertNull(lineWithXsdCommand, assertMsg);
-                    }
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
+                // Lookup for xdg commands in postinstall script
+                String lineWithXsdCommand = verifier.apply(
+                        Files.readAllLines(tempDir.resolve(controlFile)));
+                String assertMsg = String.format(
+                        "Check if %s@%s control file uses xdg commands",
+                        cmd.outputBundle(), controlFile);
+                if (integrated) {
+                    TKit.assertNotNull(lineWithXsdCommand, assertMsg);
+                } else {
+                    TKit.assertNull(lineWithXsdCommand, assertMsg);
                 }
             });
         });
@@ -220,12 +259,10 @@ public class LinuxHelper {
 
     static void addFileAssociationsVerifier(PackageTest test, FileAssociations fa) {
         test.addInstallVerifier(cmd -> {
-            Test.withTempFile(fa.getSuffix(), testFile -> {
-                initFileAssociationsTestFile(testFile);
-
+            PackageTest.withTestFileAssociationsFile(fa, testFile -> {
                 String mimeType = queryFileMimeType(testFile);
 
-                Test.assertEquals(fa.getMime(), mimeType, String.format(
+                TKit.assertEquals(fa.getMime(), mimeType, String.format(
                         "Check mime type of [%s] file", testFile));
 
                 String desktopFileName = queryMimeTypeDefaultHandler(mimeType);
@@ -233,21 +270,17 @@ public class LinuxHelper {
                 Path desktopFile = getSystemDesktopFilesFolder().resolve(
                         desktopFileName);
 
-                Test.assertFileExists(desktopFile, true);
+                TKit.assertFileExists(desktopFile);
 
-                Test.trace(String.format("Reading [%s] file...", desktopFile));
-                String mimeHandler = null;
-                try {
-                    mimeHandler = Files.readAllLines(desktopFile).stream().peek(
-                            v -> Test.trace(v)).filter(
-                                    v -> v.startsWith("Exec=")).map(
-                                    v -> v.split("=", 2)[1]).findFirst().orElseThrow();
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
-                }
-                Test.trace(String.format("Done"));
+                TKit.trace(String.format("Reading [%s] file...", desktopFile));
+                String mimeHandler = Files.readAllLines(desktopFile).stream().peek(
+                        v -> TKit.trace(v)).filter(
+                                v -> v.startsWith("Exec=")).map(
+                                v -> v.split("=", 2)[1]).findFirst().orElseThrow();
 
-                Test.assertEquals(cmd.launcherInstallationPath().toString(),
+                TKit.trace(String.format("Done"));
+
+                TKit.assertEquals(cmd.launcherInstallationPath().toString(),
                         mimeHandler, String.format(
                                 "Check mime type handler is the main application launcher"));
 
@@ -255,17 +288,15 @@ public class LinuxHelper {
         });
 
         test.addUninstallVerifier(cmd -> {
-            Test.withTempFile(fa.getSuffix(), testFile -> {
-                initFileAssociationsTestFile(testFile);
-
+            PackageTest.withTestFileAssociationsFile(fa, testFile -> {
                 String mimeType = queryFileMimeType(testFile);
 
-                Test.assertNotEquals(fa.getMime(), mimeType, String.format(
+                TKit.assertNotEquals(fa.getMime(), mimeType, String.format(
                         "Check mime type of [%s] file", testFile));
 
                 String desktopFileName = queryMimeTypeDefaultHandler(fa.getMime());
 
-                Test.assertNull(desktopFileName, String.format(
+                TKit.assertNull(desktopFileName, String.format(
                         "Check there is no default handler for [%s] mime type",
                         fa.getMime()));
             });
@@ -310,6 +341,9 @@ public class LinuxHelper {
         }
         return arch;
     }
+
+    static final Set<Path> CRITICAL_RUNTIME_FILES = Set.of(Path.of(
+            "lib/server/libjvm.so"));
 
     static private Map<PackageType, String> archs;
 }

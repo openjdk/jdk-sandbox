@@ -26,7 +26,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -35,15 +34,15 @@ import java.util.stream.Stream;
  */
 public enum PackageType {
     WIN_MSI(".msi",
-            Test.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
+            TKit.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
     WIN_EXE(".exe",
-            Test.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
+            TKit.isWindows() ? "jdk.jpackage.internal.WinMsiBundler" : null),
     LINUX_DEB(".deb",
-            Test.isLinux() ? "jdk.jpackage.internal.LinuxDebBundler" : null),
+            TKit.isLinux() ? "jdk.jpackage.internal.LinuxDebBundler" : null),
     LINUX_RPM(".rpm",
-            Test.isLinux() ? "jdk.jpackage.internal.LinuxRpmBundler" : null),
-    MAC_DMG(".dmg", Test.isOSX() ? "jdk.jpackage.internal.MacDmgBundler" : null),
-    MAC_PKG(".pkg", Test.isOSX() ? "jdk.jpackage.internal.MacPkgBundler" : null),
+            TKit.isLinux() ? "jdk.jpackage.internal.LinuxRpmBundler" : null),
+    MAC_DMG(".dmg", TKit.isOSX() ? "jdk.jpackage.internal.MacDmgBundler" : null),
+    MAC_PKG(".pkg", TKit.isOSX() ? "jdk.jpackage.internal.MacPkgBundler" : null),
     IMAGE("app-image", null, null);
 
     PackageType(String packageName, String bundleSuffix, String bundlerClass) {
@@ -56,7 +55,7 @@ public enum PackageType {
         }
 
         if (suffix != null && supported) {
-            Test.trace(String.format("Bundler %s supported", getName()));
+            TKit.trace(String.format("Bundler %s supported", getName()));
         }
     }
 
@@ -95,16 +94,17 @@ public enum PackageType {
         try {
             Class clazz = Class.forName(bundlerClass);
             Method supported = clazz.getMethod("supported", boolean.class);
-            return ((Boolean) supported.invoke(clazz.newInstance(), true));
-        } catch (ClassNotFoundException ex) {
-            return false;
+            return ((Boolean) supported.invoke(
+                    clazz.getConstructor().newInstance(), true));
+        } catch (ClassNotFoundException | IllegalAccessException ex) {
         } catch (InstantiationException | NoSuchMethodException
-                | IllegalAccessException | InvocationTargetException ex) {
-            throw new RuntimeException(ex);
+                | InvocationTargetException ex) {
+            Functional.rethrowUnchecked(ex);
         }
+        return false;
     }
 
-    private String name;
+    private final String name;
     private final String suffix;
     private final boolean supported;
 
@@ -115,27 +115,11 @@ public enum PackageType {
             Stream.concat(LINUX.stream(), WINDOWS.stream()),
             MAC.stream()).collect(Collectors.toUnmodifiableSet());
 
-    public final static PackageType DEFAULT = ((Supplier<PackageType>) () -> {
-        if (Test.isLinux()) {
-            return LINUX.stream().filter(v -> v.isSupported()).findFirst().orElseThrow();
-        }
-
-        if (Test.isWindows()) {
-            return WIN_EXE;
-        }
-
-        if (Test.isOSX()) {
-            return MAC_DMG;
-        }
-
-        throw new IllegalStateException("Unknwon platform");
-    }).get();
-
     private final static class Inner {
 
         private final static Set<String> DISABLED_PACKAGERS = Stream.of(
                 Optional.ofNullable(
-                        Test.getConfigProperty("disabledPackagers")).orElse(
+                        TKit.getConfigProperty("disabledPackagers")).orElse(
                         "").split(",")).collect(Collectors.toUnmodifiableSet());
     }
 }

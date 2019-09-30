@@ -21,7 +21,7 @@
  * questions.
  */
 
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 
@@ -45,28 +45,28 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --linux-package-deps
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m PackageDepsTest
  */
 public class PackageDepsTest {
 
-    // Pick the name of prerequisite package to be alphabetically
-    // preceeding the main package name.
-    // This is needed to make Bash script batch installing/uninstalling packages
-    // produced by jtreg tests install/uninstall packages in the right order.
-    static class APackageDepsTestPrereq {
-
-        public static void main(String[] args) {
-            new PackageTest().forTypes(PackageType.LINUX).configureHelloApp().run();
-        }
-    }
-
     public static void main(String[] args) {
+        // Pick the name of prerequisite package to be alphabetically
+        // preceeding the main package name.
+        // This is needed to make Bash script batch installing/uninstalling packages
+        // produced by jtreg tests install/uninstall packages in the right order.
         final String PREREQ_PACKAGE_NAME = "apackagedepstestprereq";
 
-        Test.run(args, () -> {
-            APackageDepsTestPrereq.main(args);
+        TKit.run(args, () -> {
+            new PackageTest()
+            .forTypes(PackageType.LINUX)
+            .configureHelloApp()
+            .addInitializer(cmd -> {
+                cmd.setArgumentValue("--name", PREREQ_PACKAGE_NAME);
+            })
+            .run();
 
             new PackageTest()
             .forTypes(PackageType.LINUX)

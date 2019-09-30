@@ -31,7 +31,7 @@ import jdk.jpackage.test.HelloApp;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.FileAssociations;
-import jdk.jpackage.test.Test;
+import jdk.jpackage.test.TKit;
 
 /**
  * Test --add-launcher parameter. Output of the test should be
@@ -45,13 +45,14 @@ import jdk.jpackage.test.Test;
  * @test
  * @summary jpackage with --add-launcher
  * @library ../helpers
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m AdditionalLaunchersTest
  */
 public class AdditionalLaunchersTest {
 
     public static void main(String[] args) {
-        Test.run(args, () -> {
+        TKit.run(args, () -> {
             FileAssociations fa = new FileAssociations(
                     MethodHandles.lookup().lookupClass().getSimpleName());
 
@@ -75,7 +76,7 @@ public class AdditionalLaunchersTest {
             AdditionalLauncher barLauncher = new AdditionalLauncher("Bar").setArguments(
                     "one", "two", "three");
             packageTest.forTypes(PackageType.LINUX).addInitializer(cmd -> {
-                barLauncher.setIcon(Test.TEST_SRC_ROOT.resolve("apps/dukeplug.png"));
+                barLauncher.setIcon(TKit.TEST_SRC_ROOT.resolve("apps/dukeplug.png"));
             });
             barLauncher.applyTo(packageTest);
 
@@ -109,7 +110,7 @@ public class AdditionalLaunchersTest {
         }
 
         void applyTo(PackageTest test) {
-            final Path propsFile = Test.workDir().resolve(name + ".properties");
+            final Path propsFile = TKit.workDir().resolve(name + ".properties");
 
             test.addInitializer(cmd -> {
                 cmd.addArguments("--add-launcher", String.format("%s=%s", name,
@@ -125,13 +126,13 @@ public class AdditionalLaunchersTest {
                     properties.put("icon", icon.toAbsolutePath().toString());
                 }
 
-                Test.createPropertiesFile(propsFile, properties);
+                TKit.createPropertiesFile(propsFile, properties);
             });
             test.addInstallVerifier(cmd -> {
                 Path launcherPath = replaceFileName(
                         cmd.launcherInstallationPath(), name);
 
-                Test.assertExecutableFileExists(launcherPath, true);
+                TKit.assertExecutableFileExists(launcherPath);
 
                 if (cmd.isFakeRuntimeInstalled(String.format(
                         "Not running %s launcher", launcherPath))) {
@@ -145,7 +146,7 @@ public class AdditionalLaunchersTest {
                 Path launcherPath = replaceFileName(
                         cmd.launcherInstallationPath(), name);
 
-                Test.assertExecutableFileExists(launcherPath, false);
+                TKit.assertPathExists(launcherPath, false);
             });
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,33 +20,33 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.jpackage.test;
 
- /*
- * @test
- * @summary jpackage create image runtime test
- * @library ../helpers
- * @build JPackageHelper
- * @build JPackagePath
- * @build RuntimeBase
- * @modules jdk.jpackage
- * @run main/othervm -Xmx512m RuntimeModuleTest
- */
-public class RuntimeModuleTest {
-    private static final String OUTPUT = "output";
-    private static final String [] CMD = {
-        "--package-type", "app-image",
-        "--runtime-image", "runtime",
-        "--dest", OUTPUT,
-        "--name", "test",
-        "--module", "com.hello/com.hello.Hello",
-        "--module-path", "input"};
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloModule();
-        JPackageHelper.createRuntime();
-        RuntimeBase.testCreateAppImage(CMD);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        RuntimeBase.testCreateAppImageToolProvider(CMD);
+public class Annotations {
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    public @interface Test {
     }
 
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    @Repeatable(Parameters.class)
+    public @interface Parameter {
+
+        String value();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    public @interface Parameters {
+
+        Parameter[] value();
+    }
 }

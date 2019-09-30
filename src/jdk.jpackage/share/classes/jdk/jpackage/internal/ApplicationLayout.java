@@ -31,7 +31,7 @@ import java.util.Map;
 /**
  * Application directory layout.
  */
-final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
+public final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
     enum PathRole {
         RUNTIME, APP, LAUNCHERS, DESKTOP, APP_MODS, DLLS
     }
@@ -57,46 +57,46 @@ final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
     /**
      * Path to launchers directory.
      */
-    Path launchersDirectory() {
+    public Path launchersDirectory() {
         return pathGroup().getPath(PathRole.LAUNCHERS);
     }
 
     /**
      * Path to directory with dynamic libraries.
      */
-    Path dllDirectory() {
+    public Path dllDirectory() {
         return pathGroup().getPath(PathRole.DLLS);
     }
 
     /**
      * Path to application data directory.
      */
-    Path appDirectory() {
+    public Path appDirectory() {
         return pathGroup().getPath(PathRole.APP);
     }
 
     /**
      * Path to Java runtime directory.
      */
-    Path runtimeDirectory() {
+    public Path runtimeDirectory() {
         return pathGroup().getPath(PathRole.RUNTIME);
     }
 
     /**
      * Path to application mods directory.
      */
-    Path appModsDirectory() {
+    public Path appModsDirectory() {
         return pathGroup().getPath(PathRole.APP_MODS);
     }
 
     /**
      * Path to directory with application's desktop integration files.
      */
-    Path destktopIntegrationDirectory() {
+    public Path destktopIntegrationDirectory() {
         return pathGroup().getPath(PathRole.DESKTOP);
     }
 
-    static ApplicationLayout linuxApp() {
+    static ApplicationLayout linuxAppImage() {
         return new ApplicationLayout(Map.of(
                 PathRole.LAUNCHERS, Path.of("bin"),
                 PathRole.APP, Path.of("lib/app"),
@@ -107,21 +107,44 @@ final class ApplicationLayout implements PathGroup.Facade<ApplicationLayout> {
         ));
     }
 
-    static ApplicationLayout windowsApp() {
+    static ApplicationLayout windowsAppImage() {
         return new ApplicationLayout(Map.of(
                 PathRole.LAUNCHERS, Path.of(""),
                 PathRole.APP, Path.of("app"),
                 PathRole.RUNTIME, Path.of("runtime"),
-                PathRole.DESKTOP, Path.of("")
+                PathRole.DESKTOP, Path.of(""),
+                PathRole.DLLS, Path.of(""),
+                PathRole.APP_MODS, Path.of("app/mods")
         ));
     }
 
-    static ApplicationLayout platformApp() {
-        if (Platform.getPlatform() == Platform.WINDOWS) {
-            return windowsApp();
+    static ApplicationLayout macAppImage() {
+        return new ApplicationLayout(Map.of(
+                PathRole.LAUNCHERS, Path.of("Contents/MacOS"),
+                PathRole.APP, Path.of("Contents/Java"),
+                PathRole.RUNTIME, Path.of("Contents/runtime"),
+                PathRole.DESKTOP, Path.of("Contents/Resources"),
+                PathRole.DLLS, Path.of("Contents/MacOS"),
+                PathRole.APP_MODS, Path.of("Contents/Java/mods")
+        ));
+    }
+
+
+
+    public static ApplicationLayout platformAppImage() {
+        if (Platform.isWindows()) {
+            return windowsAppImage();
         }
 
-        return linuxApp();
+        if (Platform.isLinux()) {
+            return linuxAppImage();
+        }
+
+        if (Platform.isMac()) {
+            return macAppImage();
+        }
+
+        throw new IllegalArgumentException("Unknown platform");
     }
 
     static ApplicationLayout javaRuntime() {

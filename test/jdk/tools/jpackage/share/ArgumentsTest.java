@@ -21,33 +21,68 @@
  * questions.
  */
 
+import java.nio.file.Path;
+import java.util.List;
+import jdk.jpackage.test.TKit;
+import jdk.jpackage.test.HelloApp;
+import jdk.jpackage.test.Functional.ThrowingConsumer;
+import jdk.jpackage.test.JPackageCommand;
+import jdk.jpackage.test.Annotations.*;
+
+
+/*
+ * Tricky arguments used in the test require a bunch of levels of character
+ * escaping for proper encoding them in a single string to be used as a value of
+ * `--arguments` option. String with encoded arguments doesn't go through the
+ * system to jpackage executable as is because OS is interpreting escape
+ * characters. This is true for Windows at least.
+ *
+ * String mapping performed by the system corrupts the string and jpackage exits
+ * with error. There is no problem with string corruption when jpackage is used
+ * as tool provider. This is not jpackage issue, so just always run this test
+ * with jpackage used as tool provider.
+ * /
+
 /*
  * @test
  * @summary jpackage create image with --arguments test
  * @library ../helpers
- * @build JPackageHelper
- * @build JPackagePath
- * @build ArgumentsBase
+ * @build jdk.jpackage.test.*
  * @modules jdk.jpackage
- * @run main/othervm -Xmx512m ArgumentsTest
+ * @compile ArgumentsTest.java
+ * @run main/othervm -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=ArgumentsTest
+ *  --jpt-before-run=jdk.jpackage.test.JPackageCommand.useToolProviderByDefault
  */
 public class ArgumentsTest {
-    private static final String OUTPUT = "output";
-
-    private static final String[] CMD = {
-        "--package-type", "app-image",
-        "--input", "input",
-        "--dest", OUTPUT,
-        "--name", "test",
-        "--main-jar", "hello.jar",
-        "--main-class", "Hello",
-        "--arguments", "TBD"};
-
-    public static void main(String[] args) throws Exception {
-        JPackageHelper.createHelloImageJar();
-        ArgumentsBase.testCreateAppImage(CMD);
-        JPackageHelper.deleteOutputFolder(OUTPUT);
-        ArgumentsBase.testCreateAppImageToolProvider(CMD);
+    @Test
+    @Parameter("Goodbye")
+    @Parameter("com.hello/com.hello.Hello")
+    public static void testApp(String javaAppDesc) {
+        testIt(javaAppDesc, null);
     }
 
+    private static void testIt(String javaAppDesc,
+            ThrowingConsumer<JPackageCommand> initializer) {
+
+        JPackageCommand cmd = JPackageCommand.helloAppImage(javaAppDesc).addArguments(
+                "--arguments", JPackageCommand.escapeAndJoin(TRICKY_ARGUMENTS));
+        if (initializer != null) {
+            ThrowingConsumer.toConsumer(initializer).accept(cmd);
+        }
+
+        cmd.executeAndAssertImageCreated();
+
+        Path launcherPath = cmd.appImage().resolve(cmd.launcherPathInAppImage());
+        if (!cmd.isFakeRuntimeInAppImage(String.format(
+                "Not running [%s] launcher", launcherPath))) {
+            HelloApp.executeAndVerifyOutput(launcherPath, TRICKY_ARGUMENTS);
+        }
+    }
+
+    private final static List<String> TRICKY_ARGUMENTS = List.of(
+        "argument",
+        "Some Arguments",
+        "Value \"with\" quotes"
+    );
 }
