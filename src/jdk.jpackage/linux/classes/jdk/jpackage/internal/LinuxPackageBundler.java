@@ -90,6 +90,8 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         // we are not interested in return code, only possible exception
         APP_BUNDLER.fetchFrom(params).validate(params);
 
+        validateInstallDir(LINUX_INSTALL_DIR.fetchFrom(params));
+
         validateFileAssociations(FILE_ASSOCIATIONS.fetchFrom(params));
 
         // If package name has some restrictions, the string converter will
@@ -301,6 +303,36 @@ abstract class LinuxPackageBundler extends AbstractBundler {
             return ApplicationLayout.javaRuntime();
         }
         return ApplicationLayout.linuxAppImage();
+    }
+
+    private static void validateInstallDir(String installDir) throws
+            ConfigException {
+        if (installDir.startsWith("/usr/") || installDir.equals("/usr")) {
+            throw new ConfigException(MessageFormat.format(I18N.getString(
+                    "error.unsupported-install-dir"), installDir), null);
+        }
+
+        if (installDir.isEmpty()) {
+            throw new ConfigException(MessageFormat.format(I18N.getString(
+                    "error.invalid-install-dir"), "/"), null);
+        }
+
+        boolean valid = false;
+        try {
+            final Path installDirPath = Path.of(installDir);
+            valid = installDirPath.isAbsolute();
+            if (valid && !installDirPath.normalize().toString().equals(
+                    installDirPath.toString())) {
+                // Don't allow '/opt/foo/..' or /opt/.
+                valid = false;
+            }
+        } catch (InvalidPathException ex) {
+        }
+
+        if (!valid) {
+            throw new ConfigException(MessageFormat.format(I18N.getString(
+                    "error.invalid-install-dir"), installDir), null);
+        }
     }
 
     private static void validateFileAssociations(

@@ -56,7 +56,7 @@ public final class PackageTest {
     public PackageTest() {
         action = DEFAULT_ACTION;
         forTypes();
-        setJPackageExitCode(0);
+        setExpectedExitCode(0);
         handlers = new HashMap<>();
         namedInitializers = new HashSet<>();
         currentTypes.forEach(v -> handlers.put(v, new Handler(v)));
@@ -78,7 +78,7 @@ public final class PackageTest {
         return forTypes(types.toArray(PackageType[]::new));
     }
 
-    public PackageTest setJPackageExitCode(int v) {
+    public PackageTest setExpectedExitCode(int v) {
         expectedJPackageExitCode = v;
         return this;
     }
@@ -310,19 +310,25 @@ public final class PackageTest {
                     break;
 
                 case VERIFY_INSTALL:
-                    verifyPackageInstalled(cmd.createImmutableCopy());
+                    if (expectedJPackageExitCode == 0) {
+                        verifyPackageInstalled(cmd.createImmutableCopy());
+                    }
                     break;
 
                 case VERIFY_UNINSTALL:
-                    verifyPackageUninstalled(cmd.createImmutableCopy());
+                    if (expectedJPackageExitCode == 0) {
+                        verifyPackageUninstalled(cmd.createImmutableCopy());
+                    }
                     break;
             }
         }
 
         private void verifyPackageBundle(JPackageCommand cmd,
                 Executor.Result result) {
-            if (PackageType.LINUX.contains(cmd.packageType())) {
-                LinuxHelper.verifyPackageBundleEssential(cmd);
+            if (expectedJPackageExitCode == 0) {
+                if (PackageType.LINUX.contains(cmd.packageType())) {
+                    LinuxHelper.verifyPackageBundleEssential(cmd);
+                }
             }
             bundleVerifiers.stream().forEach(v -> v.accept(cmd, result));
         }
