@@ -24,6 +24,7 @@
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,7 +88,20 @@ public class LicenseTest {
     public static void testCommon() {
         new PackageTest().configureHelloApp()
         .addInitializer(cmd -> {
-            cmd.addArguments("--license-file", LICENSE_FILE);
+            Path licenseCopy = TKit.workDir().resolve(LICENSE_FILE.getFileName()).toAbsolutePath().normalize();
+            Files.copy(LICENSE_FILE, licenseCopy,
+                    StandardCopyOption.REPLACE_EXISTING);
+            final Path basePath = Path.of(".").toAbsolutePath().normalize();
+            try {
+                licenseCopy = basePath.relativize(licenseCopy);
+            } catch (IllegalArgumentException ex) {
+                // May happen on Windows: java.lang.IllegalArgumentException: 'other' has different root
+                TKit.trace(String.format(
+                        "Not using relative path to license file for --license-file parameter. Failed to relativize [%s] at [%s]",
+                        licenseCopy, basePath));
+                ex.printStackTrace();
+            }
+            cmd.addArguments("--license-file", licenseCopy);
         })
         .forTypes(PackageType.LINUX)
         .addBundleVerifier(cmd -> {
