@@ -335,16 +335,19 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     }
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * {@inheritDoc} This implementation scans the children in left to right order.
      *
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
      * @return the result of scanning
-     *
-     * @preview
-     * This method is modeling switch expressions,
-     * which are part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @Override
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
@@ -936,16 +939,19 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     }
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * {@inheritDoc} This implementation returns {@code null}.
      *
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
      * @return the result of scanning
-     *
-     * @preview
-     * This method is modeling switch expressions,
-     * which are part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @Override
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)

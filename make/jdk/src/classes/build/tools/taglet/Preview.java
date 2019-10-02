@@ -25,12 +25,14 @@
 
 package build.tools.taglet;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.Element;
 import com.sun.source.doctree.DocTree;
-import com.sun.source.doctree.UnknownBlockTagTree;
+import com.sun.source.doctree.TextTree;
+import com.sun.source.doctree.UnknownInlineTagTree;
 import jdk.javadoc.doclet.Taglet;
 import static jdk.javadoc.doclet.Taglet.Location.*;
 
@@ -47,7 +49,7 @@ public class Preview implements Taglet {
 
     @Override
     public boolean isInlineTag() {
-        return false;
+        return true;
     }
 
     @Override
@@ -57,14 +59,16 @@ public class Preview implements Taglet {
 
     @Override
     public String toString(List<? extends DocTree> tags, Element elem) {
-        StringBuilder sb = new StringBuilder();
-	sb.append("<dt>Preview Feature:\n");
-        for (DocTree tag : tags) {
-	    UnknownBlockTagTree ubt = (UnknownBlockTagTree) tag;
-	    sb.append("<dd style=\"border: 1px solid red; border-radius: 5px; padding: 5px; font-size: larger\"> <b>Preview:</b> ")
-		.append(ubt.getContent()); 
+        UnknownInlineTagTree previewTag = (UnknownInlineTagTree) tags.get(0);
+        List<? extends DocTree> previewContent = previewTag.getContent();
+        String previewText = ((TextTree) previewContent.get(0)).getBody();
+        String[] summaryAndDetails = previewText.split("\n\r?\n\r?");
+        String summary = summaryAndDetails[0];
+        String details = summaryAndDetails.length > 1 ? summaryAndDetails[1] : summaryAndDetails[0];
+        if (Arrays.stream(new Exception().getStackTrace()).anyMatch(el -> el.getClassName().endsWith("HtmlDocletWriter") && el.getMethodName().equals("addSummaryComment"))) {
+            return "<div style=\"display:inline-block; font-weight:bold\">" + summary + "</div><br>";
         }
-	return sb.toString();
+        return "<div style=\"border: 1px solid red; border-radius: 25px; padding: 5px; display:inline-block; font-size: larger\">" + details + "</div><br>";
     }
 }
 

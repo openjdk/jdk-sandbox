@@ -55,6 +55,14 @@ public interface CaseTree extends Tree {
     ExpressionTree getExpression();
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * Returns the labels for this case.
      * For default case, returns an empty list.
      *
@@ -78,6 +86,14 @@ public interface CaseTree extends Tree {
     List<? extends StatementTree> getStatements();
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * For case with kind {@linkplain CaseKind#RULE},
      * returns the statement or expression after the arrow.
      * Returns {@code null} for case with kind
@@ -85,10 +101,6 @@ public interface CaseTree extends Tree {
      *
      * @return case value or null
      * @since 12
-     *
-     * @preview This method is modeling a rule case,
-     * which is part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
     public default Tree getBody() {
@@ -96,14 +108,18 @@ public interface CaseTree extends Tree {
     }
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * Returns the kind of this case.
      *
      * @return the kind of this case
      * @since 12
-     *
-     * @preview This method is used to model a rule case,
-     * which is part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
     @SuppressWarnings("preview")
@@ -112,6 +128,14 @@ public interface CaseTree extends Tree {
     }
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This enum is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * The syntatic form of this case:
      * <ul>
      *     <li>STATEMENT: {@code case <expression>: <statements>}</li>
@@ -119,10 +143,6 @@ public interface CaseTree extends Tree {
      * </ul>
      *
      * @since 12
-     *
-     * @preview This enum is used to model a rule case,
-     * which is part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
     @SuppressWarnings("preview")
