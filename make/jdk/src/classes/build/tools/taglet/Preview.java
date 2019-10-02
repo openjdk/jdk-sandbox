@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import javax.lang.model.element.Element;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.TextTree;
@@ -65,7 +66,11 @@ public class Preview implements Taglet {
         String[] summaryAndDetails = previewText.split("\n\r?\n\r?");
         String summary = summaryAndDetails[0];
         String details = summaryAndDetails.length > 1 ? summaryAndDetails[1] : summaryAndDetails[0];
-        if (Arrays.stream(new Exception().getStackTrace()).anyMatch(el -> el.getClassName().endsWith("HtmlDocletWriter") && el.getMethodName().equals("addSummaryComment"))) {
+        StackTraceElement[] stackTrace = new Exception().getStackTrace();
+        Predicate<StackTraceElement> isSummary =
+                el -> el.getClassName().endsWith("HtmlDocletWriter") &&
+                      el.getMethodName().equals("addSummaryComment");
+        if (Arrays.stream(stackTrace).anyMatch(isSummary)) {
             return "<div style=\"display:inline-block; font-weight:bold\">" + summary + "</div><br>";
         }
         return "<div style=\"border: 1px solid red; border-radius: 25px; padding: 5px; display:inline-block; font-size: larger\">" + details + "</div><br>";
