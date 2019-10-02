@@ -98,7 +98,6 @@ public final class ChunkParser {
     private final MetadataDescriptor metadata;
     private final TimeConverter timeConverter;
     private final MetadataDescriptor previousMetadata;
-    private final long pollInterval;
     private final LongMap<ConstantLookup> constantLookups;
 
     private LongMap<Type> typeMap;
@@ -125,13 +124,11 @@ public final class ChunkParser {
         this.input = header.getInput();
         this.chunkHeader = header;
         if (previous == null) {
-            this.pollInterval = 1000;
             this.constantLookups = new LongMap<>();
             this.previousMetadata = null;
         } else {
             this.constantLookups = previous.constantLookups;
             this.previousMetadata = previous.metadata;
-            this.pollInterval = previous.pollInterval;
             this.configuration = previous.configuration;
         }
         this.metadata = header.readMetadata(previousMetadata);
@@ -288,7 +285,7 @@ public final class ChunkParser {
             if (chunkHeader.isFinished()) {
                 return true;
             }
-            Utils.waitFlush(pollInterval);
+            Utils.waitFlush(1000);
         }
     }
 

@@ -34,6 +34,7 @@ import java.util.Comparator;
 import java.util.Objects;
 
 import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.Utils;
 import jdk.jfr.internal.consumer.ChunkParser.ParserConfiguration;
 
@@ -80,6 +81,15 @@ public final class EventDirectoryStream extends AbstractEventStream {
 
     @Override
     protected void process() throws IOException {
+        try {
+            JVM.getJVM().exclude(Thread.currentThread());
+            processRecursionSafe();
+        } finally {
+            JVM.getJVM().include(Thread.currentThread());
+        }
+    }
+
+    protected void processRecursionSafe() throws IOException {
         Dispatcher disp = dispatcher();
 
         Path path;

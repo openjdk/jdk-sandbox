@@ -44,14 +44,15 @@ public class TestStart {
     static class StartEvent extends Event {
     }
     static class EventProducer extends Thread {
+        private final Object lock = new Object();
         private boolean killed = false;
         public void run() {
             while (true) {
                 StartEvent s = new StartEvent();
                 s.commit();
-                synchronized (this) {
+                synchronized (lock) {
                     try {
-                        wait(10);
+                        lock.wait(10);
                         if (killed) {
                             return; // end thread
                         }
@@ -62,9 +63,9 @@ public class TestStart {
             }
         }
         public void kill() {
-            synchronized (this) {
+            synchronized (lock) {
                 this.killed = true;
-                this.notifyAll();
+                lock.notifyAll();
             }
         }
     }

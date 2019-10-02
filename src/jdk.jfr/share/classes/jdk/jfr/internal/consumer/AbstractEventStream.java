@@ -238,7 +238,6 @@ abstract class AbstractEventStream implements EventStream {
     }
 
     private void execute() {
-        JVM.getJVM().exclude(Thread.currentThread());
         try {
             process();
         } catch (IOException ioe) {
