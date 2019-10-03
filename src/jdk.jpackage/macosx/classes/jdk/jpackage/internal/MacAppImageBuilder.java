@@ -79,7 +79,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     private final Path root;
     private final Path contentsDir;
-    private final Path javaDir;
+    private final Path appDir;
     private final Path javaModsDir;
     private final Path resourcesDir;
     private final Path macOSDir;
@@ -184,14 +184,14 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
         this.root = imageOutDir.resolve(APP_NAME.fetchFrom(params) + ".app");
         this.contentsDir = root.resolve("Contents");
-        this.javaDir = contentsDir.resolve("Java");
-        this.javaModsDir = javaDir.resolve("mods");
+        this.appDir = contentsDir.resolve("app");
+        this.javaModsDir = appDir.resolve("mods");
         this.resourcesDir = contentsDir.resolve("Resources");
         this.macOSDir = contentsDir.resolve("MacOS");
         this.runtimeDir = contentsDir.resolve("runtime");
         this.runtimeRoot = runtimeDir.resolve("Contents/Home");
         this.mdir = runtimeRoot.resolve("lib");
-        Files.createDirectories(javaDir);
+        Files.createDirectories(appDir);
         Files.createDirectories(resourcesDir);
         Files.createDirectories(macOSDir);
         Files.createDirectories(runtimeDir);
@@ -257,7 +257,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     @Override
     public Path getAppDir() {
-        return javaDir;
+        return appDir;
     }
 
     @Override
@@ -309,7 +309,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
 
         // Copy class path entries to Java folder
-        copyClassPathEntries(javaDir, params);
+        copyClassPathEntries(appDir, params);
 
         /*********** Take care of "config" files *******/
         File icon = ICON_ICNS.fetchFrom(params);
@@ -404,7 +404,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
     public static String getLauncherCfgName(
             Map<String, ? super Object> params) {
-        return "Contents/Java/" + APP_NAME.fetchFrom(params) + ".cfg";
+        return "Contents/app/" + APP_NAME.fetchFrom(params) + ".cfg";
     }
 
     private void copyClassPathEntries(Path javaDirectory,

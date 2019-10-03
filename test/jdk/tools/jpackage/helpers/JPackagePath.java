@@ -95,7 +95,7 @@ public class JPackagePath {
             return Path.of("output", name, "app", name + ".cfg").toString();
         } else if (JPackageHelper.isOSX()) {
             return Path.of("output", name + ".app",
-                    "Contents", "Java", name + ".cfg").toString();
+                    "Contents", "app", name + ".cfg").toString();
         } else if (JPackageHelper.isLinux()) {
             return Path.of("output", name, "lib", "app", name + ".cfg").toString();
         } else {

@@ -97,7 +97,7 @@ MacPlatform::~MacPlatform(void) {
 
 TString MacPlatform::GetPackageAppDirectory() {
     return FilePath::IncludeTrailingSeparator(
-            GetPackageRootDirectory()) + _T("Java");
+            GetPackageRootDirectory()) + _T("app");
 }
 
 TString MacPlatform::GetPackageLauncherDirectory() {

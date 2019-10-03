@@ -121,11 +121,11 @@ public final class ApplicationLayout implements PathGroup.Facade<ApplicationLayo
     static ApplicationLayout macAppImage() {
         return new ApplicationLayout(Map.of(
                 PathRole.LAUNCHERS, Path.of("Contents/MacOS"),
-                PathRole.APP, Path.of("Contents/Java"),
+                PathRole.APP, Path.of("Contents/app"),
                 PathRole.RUNTIME, Path.of("Contents/runtime"),
                 PathRole.DESKTOP, Path.of("Contents/Resources"),
                 PathRole.DLLS, Path.of("Contents/MacOS"),
-                PathRole.APP_MODS, Path.of("Contents/Java/mods")
+                PathRole.APP_MODS, Path.of("Contents/app/mods")
         ));
     }
 
