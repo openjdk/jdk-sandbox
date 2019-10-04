@@ -34,7 +34,6 @@ import jdk.jpackage.test.Functional.ThrowingFunction;
 import jdk.jpackage.test.Functional.ThrowingRunnable;
 import jdk.jpackage.test.Functional.ThrowingSupplier;
 
-
 class TestInstance implements ThrowingRunnable {
 
     static class TestDesc {
@@ -100,8 +99,20 @@ class TestInstance implements ThrowingRunnable {
         assertCount++;
     }
 
+    void notifySkipped(RuntimeException ex) {
+        skippedTestException = ex;
+    }
+
     boolean passed() {
-        return success;
+        return status == Status.Passed;
+    }
+
+    boolean skipped() {
+        return status == Status.Skipped;
+    }
+
+    boolean failed() {
+        return status == Status.Failed;
     }
 
     String functionName() {
@@ -114,6 +125,12 @@ class TestInstance implements ThrowingRunnable {
 
     String fullName() {
         return testDesc.testFullName();
+    }
+
+    void rethrowIfSkipped() {
+        if (skippedTestException != null) {
+            throw skippedTestException;
+        }
     }
 
     @Override
@@ -131,10 +148,14 @@ class TestInstance implements ThrowingRunnable {
                 afterActions.forEach(a -> TKit.ignoreExceptions(() -> a.accept(
                         testInstance)));
             }
-            success = true;
+            status = Status.Passed;
         } finally {
-            TKit.log(String.format("%s %s; checks=%d",
-                    success ? "[       OK ]" : "[  FAILED  ]", fullName,
+            if (skippedTestException != null) {
+                status = Status.Skipped;
+            } else if (status == null) {
+                status = Status.Failed;
+            }
+            TKit.log(String.format("%s %s; checks=%d", status, fullName,
                     assertCount));
         }
     }
@@ -150,8 +171,26 @@ class TestInstance implements ThrowingRunnable {
         return null;
     }
 
+    private enum Status {
+        Passed("[       OK ]"),
+        Failed("[  FAILED  ]"),
+        Skipped("[  SKIPPED ]");
+
+        Status(String msg) {
+            this.msg = msg;
+        }
+
+        @Override
+        public String toString() {
+            return msg;
+        }
+
+        private final String msg;
+    }
+
     private int assertCount;
-    private boolean success;
+    private Status status;
+    private RuntimeException skippedTestException;
     private final TestDesc testDesc;
     private final ThrowingFunction testConstructor;
     private final ThrowingConsumer testBody;

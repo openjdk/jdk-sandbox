@@ -59,7 +59,7 @@ import jdk.jpackage.test.Annotations.Parameter;
  * @build jdk.jpackage.test.*
  * @compile InstallDirTest.java
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ * @run main/othervm/timeout=540 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=InstallDirTest.testCommon
  */
 

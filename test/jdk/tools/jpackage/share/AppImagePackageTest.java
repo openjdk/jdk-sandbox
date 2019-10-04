@@ -39,7 +39,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m AppImagePackageTest
+ * @run main/othervm/timeout=540 -Xmx512m AppImagePackageTest
  */
 public class AppImagePackageTest {
 

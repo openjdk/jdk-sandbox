@@ -25,6 +25,7 @@ package jdk.jpackage.test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import static jdk.jpackage.test.TestBuilder.CMDLINE_ARG_PREFIX;
 
@@ -72,26 +73,49 @@ public final class Main {
 
         TKit.runTests(tests);
 
-        final long failedCount = tests.stream().filter(Functional.identity(
-                TestInstance::passed).negate()).count();
-        final long passedCount = tests.size() - failedCount;
-
+        final long passedCount = tests.stream().filter(TestInstance::passed).count();
         TKit.log(String.format("[==========] %d tests ran", tests.size()));
         TKit.log(String.format("[  PASSED  ] %d %s", passedCount,
                 passedCount == 1 ? "test" : "tests"));
-        if (failedCount != 0) {
-            TKit.log(String.format("[  FAILED  ] %d %s, listed below",
-                    failedCount,
-                    failedCount == 1 ? "test" : "tests"));
-            tests.stream().filter(
-                    Functional.identity(TestInstance::passed).negate()).forEach(
-                    test -> TKit.log(String.format("[  FAILED  ] %s",
-                            test.fullName())));
 
-            final String errorMessage = String.format("%d FAILED %s",
-                    failedCount, failedCount == 1 ? "TEST" : "TESTS");
-            TKit.log(errorMessage);
-            throw new RuntimeException(errorMessage);
+        reportDetails(tests, "[  SKIPPED ]", TestInstance::skipped);
+        reportDetails(tests, "[  FAILED  ]", TestInstance::failed);
+
+        var withSkipped = reportSummary(tests, "SKIPPED", TestInstance::skipped);
+        var withFailures = reportSummary(tests, "FAILED", TestInstance::failed);
+
+        if (withFailures != null) {
+            throw withFailures;
         }
+
+        if (withSkipped != null) {
+            tests.stream().filter(TestInstance::skipped).findFirst().get().rethrowIfSkipped();
+        }
+    }
+
+    private static long reportDetails(List<TestInstance> tests,
+            String label, Predicate<TestInstance> selector) {
+        final long count = tests.stream().filter(selector).count();
+        if (count != 0) {
+            TKit.log(String.format("%s %d %s, listed below", label, count, count
+                    == 1 ? "test" : "tests"));
+            tests.stream().filter(selector).forEach(test -> TKit.log(
+                    String.format("%s %s", label, test.fullName())));
+        }
+
+        return count;
+    }
+
+    private static RuntimeException reportSummary(List<TestInstance> tests,
+            String label, Predicate<TestInstance> selector) {
+        final long count = tests.stream().filter(selector).count();
+        if (count != 0) {
+            final String message = String.format("%d %s %s", count, label, count
+                    == 1 ? "TEST" : "TESTS");
+            TKit.log(message);
+            return new RuntimeException(message);
+        }
+
+        return null;
     }
 }

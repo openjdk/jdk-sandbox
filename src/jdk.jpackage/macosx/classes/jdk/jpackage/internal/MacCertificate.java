@@ -25,14 +25,10 @@
 
 package jdk.jpackage.internal;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
@@ -45,21 +41,21 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-final class MacCertificate {
+public final class MacCertificate {
     private final String certificate;
     private final boolean verbose;
 
-    MacCertificate(String certificate) {
+    public MacCertificate(String certificate) {
         this.certificate = certificate;
         this.verbose = false;
     }
 
-    MacCertificate(String certificate, boolean verbose) {
+    public MacCertificate(String certificate, boolean verbose) {
         this.certificate = certificate;
         this.verbose = verbose;
     }
 
-    boolean isValid() {
+    public boolean isValid() {
         return verifyCertificate(this.certificate, verbose);
     }
 

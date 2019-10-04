@@ -70,6 +70,7 @@ final public class TKit {
 
         TestInstance test = new TestInstance(testBody);
         ThrowingRunnable.toRunnable(() -> runTests(List.of(test))).run();
+        test.rethrowIfSkipped();
         if (!test.passed()) {
             throw new RuntimeException();
         }
@@ -364,6 +365,16 @@ final public class TKit {
                     "Platform is known. throwUnknownPlatformError() called by mistake");
         }
         throw new IllegalStateException("Unknown platform");
+    }
+
+    public static RuntimeException throwSkippedException(String reason) {
+        trace("Skip the test: " + reason);
+        RuntimeException ex = ThrowingSupplier.toSupplier(
+                () -> (RuntimeException) Class.forName("jtreg.SkippedException").getConstructor(
+                        String.class).newInstance(reason)).get();
+
+        currentTest.notifySkipped(ex);
+        throw ex;
     }
 
     static void waitForFileCreated(Path fileToWaitFor,
