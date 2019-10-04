@@ -30,12 +30,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
 import java.util.stream.Collectors;
@@ -53,19 +48,14 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Executor setExecutable(Path v) {
-        executable = v;
-        if (executable != null) {
-            toolProvider = null;
-        }
+        executable = Objects.requireNonNull(v);
+        toolProvider = null;
         return this;
     }
 
     public Executor setToolProvider(ToolProvider v) {
-        toolProvider = v;
-        filterOutJcovOutput = true;
-        if (toolProvider != null) {
-            executable = null;
-        }
+        toolProvider = Objects.requireNonNull(v);
+        executable = null;
         return this;
     }
 
@@ -75,7 +65,6 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Executor setExecutable(JavaTool v) {
-        filterOutJcovOutput = true;
         return setExecutable(v.getPath());
     }
 
@@ -233,8 +222,8 @@ public final class Executor extends CommandArguments<Executor> {
         if (withSavedOutput()) {
             try (BufferedReader outReader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
-                if (saveOutputType.contains(SaveOutputType.DUMP) || saveOutputType.contains(
-                        SaveOutputType.FULL)) {
+                if (saveOutputType.contains(SaveOutputType.DUMP)
+                        || saveOutputType.contains(SaveOutputType.FULL)) {
                     outputLines = outReader.lines().collect(Collectors.toList());
                 } else {
                     outputLines = Arrays.asList(
@@ -294,13 +283,12 @@ public final class Executor extends CommandArguments<Executor> {
             try (BufferedReader bufReader = new BufferedReader(new StringReader(
                     buf.toString()))) {
                 if (saveOutputType.contains(SaveOutputType.FIRST_LINE)) {
-                    String firstLine = filterJcovOutput(bufReader.lines()).findFirst().orElse(
-                            null);
+                    String firstLine = bufReader.lines().findFirst().orElse(null);
                     if (firstLine != null) {
                         reply.output = List.of(firstLine);
                     }
                 } else if (saveOutputType.contains(SaveOutputType.FULL)) {
-                    reply.output = filterJcovOutput(bufReader.lines()).collect(
+                    reply.output = bufReader.lines().collect(
                             Collectors.toUnmodifiableList());
                 }
 
@@ -343,18 +331,10 @@ public final class Executor extends CommandArguments<Executor> {
                         Collectors.joining(" "));
     }
 
-    private Stream<String> filterJcovOutput(Stream<String> lines) {
-        if (filterOutJcovOutput) {
-            return lines.filter(line -> !line.startsWith("Picked up"));
-        }
-        return lines;
-    }
-
     private ToolProvider toolProvider;
     private Path executable;
     private Set<SaveOutputType> saveOutputType;
     private Path directory;
-    private boolean filterOutJcovOutput;
 
     private static enum SaveOutputType {
         NONE, FULL, FIRST_LINE, DUMP

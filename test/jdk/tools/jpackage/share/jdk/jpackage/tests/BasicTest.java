@@ -28,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import jdk.jpackage.test.Executor;
 import jdk.jpackage.test.JPackageCommand;
@@ -51,7 +52,7 @@ public class BasicTest {
     @Test
     public void testNoArgs() {
         List<String> output = JPackageCommand.filterOutput(
-                createVanillaJPackageCommand().executeAndGetOutput());
+                getJPackageToolProvider().executeAndGetOutput());
         TKit.assertStringListEquals(List.of("Usage: jpackage <mode> <options>",
                 "Use jpackage --help (or -h) for a list of possible options"),
                 output, "Check jpackage output");
@@ -60,7 +61,7 @@ public class BasicTest {
     @Test
     public void testVersion() {
         List<String> output = JPackageCommand.filterOutput(
-                createVanillaJPackageCommand()
+                getJPackageToolProvider()
                         .addArgument("--version")
                         .executeAndGetOutput());
         TKit.assertStringListEquals(List.of(System.getProperty("java.version")),
@@ -159,7 +160,7 @@ public class BasicTest {
 
         // Instead of running jpackage command through configured
         // JPackageCommand instance, run vanilla jpackage command with @ file.
-        createVanillaJPackageCommand()
+        getJPackageToolProvider()
                 .addArgument(String.format("@%s", optionsFile))
                 .execute().assertExitCodeIsZero();
 
@@ -172,7 +173,7 @@ public class BasicTest {
     @Parameter("com.foo/com.foo.main.Aloha")
     @Test
     public void testJLinkRuntime(String javaAppDesc) {
-        JPackageCommand cmd = new JPackageCommand().helloAppImage(javaAppDesc);
+        JPackageCommand cmd = JPackageCommand.helloAppImage(javaAppDesc);
 
         // If `--module` parameter was set on jpackage command line, get its
         // value and extract module name.
@@ -189,7 +190,7 @@ public class BasicTest {
         TKit.withTempDirectory("runtime", runtimeDir -> {
             TKit.deleteDirectoryRecursive(runtimeDir, String.format(
                     "Delete [%s] output directory for jlink command", runtimeDir));
-            Executor jlink = createJavaToolCommand(JavaTool.JLINK)
+            Executor jlink = getToolProvider(JavaTool.JLINK)
             .saveOutput(false)
             .addArguments(
                     "--add-modules", "java.base",
@@ -212,14 +213,21 @@ public class BasicTest {
             final Path appImageRuntimePath = cmd.appImage().resolve(
                     cmd.appRuntimeDirectoryInAppImage());
 
+            //
             // This is an overkill to list modules in jlink output as we have
             // already verified that Java app is functional and thus app's runtime
             // is likely to be OK, but let's double check.
+            //
+            // Filter out all first strings with whitespace. They are java
+            // launcher output like `Picked up ...` unrelated to module names.
+            //
+            Pattern whitespaceChar = Pattern.compile("\\s");
             List<String> moduleList = new Executor().dumpOutput().setExecutable(
                     appImageRuntimePath.resolve(
                             JPackageCommand.relativePathInRuntime(JavaTool.JAVA))).addArguments(
-                            "--list-modules").executeAndGetOutput().stream().sorted().collect(
-                                    Collectors.toList());
+                    "--list-modules").executeAndGetOutput().stream().dropWhile(
+                            s -> whitespaceChar.matcher(s).find()).sorted().collect(
+                            Collectors.toList());
 
             List<String> expectedModules = new ArrayList<>();
             expectedModules.add(String.format("java.base@%s",
@@ -237,18 +245,13 @@ public class BasicTest {
         });
     }
 
-    private static Executor createVanillaJPackageCommand() {
-        return createJavaToolCommand(JavaTool.JPACKAGE);
+    private static Executor getJPackageToolProvider() {
+        return getToolProvider(JavaTool.JPACKAGE);
     }
 
-    private static Executor createJavaToolCommand(JavaTool tool) {
-        Executor exec = new Executor().dumpOutput().saveOutput();
-        if (new JPackageCommand().isWithToolProvider()) {
-            exec.setToolProvider(tool.asToolProvider());
-        } else {
-            exec.setExecutable(tool);
-        }
-
-        return exec;
+    private static Executor getToolProvider(JavaTool tool) {
+        return new Executor()
+                .dumpOutput().saveOutput()
+                .setToolProvider(tool.asToolProvider());
     }
 }
