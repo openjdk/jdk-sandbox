@@ -105,8 +105,9 @@ public class BasicTest {
     }
 
     @Test
-//    @Parameter("ALL-MODULE-PATH") ; This test fails
+    @Parameter("ALL-MODULE-PATH")
     @Parameter("ALL-DEFAULT")
+    @Parameter("jdk.desktop,jdk.jartool")
     public void testAddModules(String addModulesArg) {
         JPackageCommand cmd = new JPackageCommand()
             .helloAppImage("com.other/com.other.Hello");

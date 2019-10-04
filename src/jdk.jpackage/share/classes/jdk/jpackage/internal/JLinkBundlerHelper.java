@@ -282,29 +282,17 @@ final class JLinkBundlerHelper {
 
     private static Set<String> removeInvalidModules(
             List<Path> modulePath, Set<String> modules) {
-        Set<String> result = new LinkedHashSet<String>();
-        ModuleManager mm = new ModuleManager(modulePath);
-        List<ModFile> lmodfiles =
-                mm.getModules(EnumSet.of(ModuleManager.SearchType.ModularJar,
-                        ModuleManager.SearchType.Jmod,
-                        ModuleManager.SearchType.ExplodedModule));
-
-        HashMap<String, ModFile> validModules = new HashMap<>();
-
-        for (ModFile modFile : lmodfiles) {
-            validModules.put(modFile.getModName(), modFile);
-        }
-
-        for (String name : modules) {
-            if (validModules.containsKey(name)) {
-                result.add(name);
-            } else {
-                Log.error(MessageFormat.format(
-                        I18N.getString("warning.module.does.not.exist"), name));
+        ModuleFinder moduleFinder = ModuleFinder.compose(
+                ModuleFinder.of(modulePath.toArray(Path[]::new)),
+                ModuleFinder.ofSystem());
+        return modules.stream().filter(moduleName -> {
+            if (moduleFinder.find(moduleName).isEmpty()) {
+                Log.error(MessageFormat.format(I18N.getString(
+                        "warning.module.does.not.exist"), moduleName));
+                return false;
             }
-        }
-
-        return result;
+            return true;
+        }).collect(Collectors.toSet());
     }
 
     private static class ModuleHelper {
@@ -351,18 +339,16 @@ final class JLinkBundlerHelper {
             return modules;
         }
 
-        private static Set<String> getModuleNamesFromPath(List<Path> Value) {
-            Set<String> result = new LinkedHashSet<String>();
-            ModuleManager mm = new ModuleManager(Value);
-            List<ModFile> modFiles = mm.getModules(
-                    EnumSet.of(ModuleManager.SearchType.ModularJar,
-                    ModuleManager.SearchType.Jmod,
-                    ModuleManager.SearchType.ExplodedModule));
+        private static Set<String> getModuleNamesFromPath(List<Path> paths) {
 
-            for (ModFile modFile : modFiles) {
-                result.add(modFile.getModName());
-            }
-            return result;
+            return ModuleFinder.compose(
+                    ModuleFinder.of(paths.toArray(Path[]::new)),
+                    ModuleFinder.ofSystem())
+                    .findAll()
+                    .stream()
+                    .map(ModuleReference::descriptor)
+                    .map(ModuleDescriptor::name)
+                    .collect(Collectors.toSet());
         }
     }
 
