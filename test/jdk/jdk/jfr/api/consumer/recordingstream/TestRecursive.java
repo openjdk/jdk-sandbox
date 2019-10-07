@@ -25,11 +25,16 @@
 
 package jdk.jfr.api.consumer.recordingstream;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import jdk.jfr.Event;
+import jdk.jfr.Recording;
+import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingStream;
+import jdk.test.lib.jfr.Events;
 
 /**
  * @test
@@ -41,13 +46,55 @@ import jdk.jfr.consumer.RecordingStream;
  */
 public class TestRecursive {
 
-    static class NotRecorded extends Event {
+    public static class NotRecorded extends Event {
     }
 
-    static class Recorded extends Event {
+    public static class Recorded extends Event {
     }
 
     public static void main(String... args) throws Exception {
+        testAsync();
+        testSync();
+    }
+
+    private static void testSync() throws Exception {
+        try (Recording r = new Recording()) {
+            r.start();
+            Recorded e1 = new Recorded();
+            e1.commit();
+            try (RecordingStream rs = new RecordingStream()) {
+                rs.onEvent(e -> {
+                    NotRecorded e2 = new NotRecorded();
+                    e2.commit();
+                });
+                CompletableFuture.runAsync(() -> {
+                    r.start();
+                });
+            }
+            Recorded e3 = new Recorded();
+            e3.commit();
+            r.stop();
+            List<RecordedEvent> events = Events.fromRecording(r);
+            if (count(events, NotRecorded.class) != 0) {
+                throw new Exception("Expected 0 NotRecorded events");
+            }
+            if (count(events, Recorded.class) != 2) {
+                throw new Exception("Expected 2 Recorded events");
+            }
+        }
+    }
+
+    private static int count(List<RecordedEvent> events, Class<?> eventClass) {
+        int count = 0;
+        for (RecordedEvent e : events) {
+            if (e.getEventType().getName().equals(eventClass.getName())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static void testAsync() throws InterruptedException, Exception {
         CountDownLatch latchOne = new CountDownLatch(1);
         CountDownLatch latchTwo = new CountDownLatch(2);
         AtomicBoolean fail = new AtomicBoolean();
