@@ -80,6 +80,7 @@ public class TestRemovedChunks {
             // Rotate and emit data that exceeds maxSize
             for (int i = 0; i< 10;i++) {
                 try (Recording r = new Recording()) {
+                    r.start();
                     emitData(1_000_000);
                 }
             }
