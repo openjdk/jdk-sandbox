@@ -773,7 +773,7 @@ JVM_ENTRY(jclass, JVM_FindPrimitiveClass(JNIEnv* env, const char* utf))
   JVMWrapper("JVM_FindPrimitiveClass");
   oop mirror = NULL;
   BasicType t = name2type(utf);
-  if (t != T_ILLEGAL && t != T_OBJECT && t != T_ARRAY) {
+  if (t != T_ILLEGAL && !is_reference_type(t)) {
     mirror = Universe::java_mirror(t);
   }
   if (mirror == NULL) {
@@ -990,13 +990,21 @@ JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name)
   ResourceMark rm(THREAD);
 
   Handle h_name (THREAD, JNIHandles::resolve_non_null(name));
-  Handle string = java_lang_String::internalize_classname(h_name, CHECK_NULL);
+  char* str = java_lang_String::as_utf8_string(h_name());
 
-  const char* str   = java_lang_String::as_utf8_string(string());
   // Sanity check, don't expect null
   if (str == NULL) return NULL;
 
-  const int str_len = (int)strlen(str);
+  // Internalize the string, converting '.' to '/' in string.
+  char* p = (char*)str;
+  while (*p != '\0') {
+      if (*p == '.') {
+          *p = '/';
+      }
+      p++;
+  }
+
+  const int str_len = (int)(p - str);
   if (str_len > Symbol::max_length()) {
     // It's impossible to create this class;  the name cannot fit
     // into the constant pool.
