@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,11 @@
  * questions.
  */
 
-#ifndef CPU_X86_GC_Z_ZGLOBALS_X86_HPP
-#define CPU_X86_GC_Z_ZGLOBALS_X86_HPP
-
-//
-// Page Allocation Tiers
-// ---------------------
-//
-//  Page Type     Page Size     Object Size Limit     Object Alignment
-//  ------------------------------------------------------------------
-//  Small         2M            <= 265K               <MinObjAlignmentInBytes>
-//  Medium        32M           <= 4M                 4K
-//  Large         X*M           > 4M                  2M
-//  ------------------------------------------------------------------
-//
-const size_t ZPlatformGranuleSizeShift      = 21; // 2MB
-const size_t ZPlatformNMethodDisarmedOffset = 4;
-const size_t ZPlatformCacheLineSize         = 64;
-
-uintptr_t    ZPlatformAddressBase();
-size_t       ZPlatformAddressOffsetBits();
-size_t       ZPlatformAddressMetadataShift();
-
-#endif // CPU_X86_GC_Z_ZGLOBALS_X86_HPP
+/**
+ * @test
+ * @bug  8230731 8001227 8231635 8231634 8196969
+ * @requires vm.hasSAandCanAttach
+ * @library /test/lib
+ * @compile JShellHeapDumpTest.java
+ * @run main/timeout=240 JShellHeapDumpTest nosleep
+ */
