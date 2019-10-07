@@ -253,6 +253,10 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
       log_trace(metaspace)("SpaceManager %s: .. taken from freelist.", _name);
+      // Note: space in the freeblock dictionary counts as used (see retire_current_chunk()) -
+      // that means that we must not increase the used counter again when allocating from the dictionary.
+      // Therefore we return here.
+      return p;
     }
 
   }
