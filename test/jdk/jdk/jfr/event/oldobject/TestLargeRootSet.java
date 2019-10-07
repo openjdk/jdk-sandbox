@@ -25,6 +25,7 @@
 package jdk.jfr.event.oldobject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -32,9 +33,11 @@ import java.util.concurrent.CyclicBarrier;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedClass;
 import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordedFrame;
+import jdk.jfr.consumer.RecordedMethod;
 import jdk.jfr.consumer.RecordedObject;
+import jdk.jfr.consumer.RecordedStackTrace;
 import jdk.jfr.internal.test.WhiteBox;
-import jdk.test.lib.Asserts;
 import jdk.test.lib.jfr.EventNames;
 import jdk.test.lib.jfr.Events;
 
@@ -50,12 +53,12 @@ import jdk.test.lib.jfr.Events;
 public class TestLargeRootSet {
 
     private static final int THREAD_COUNT = 50;
+    public static List<StackObject[]> temporaries = Collections.synchronizedList(new ArrayList<>(OldObjects.MIN_SIZE));
 
     private static class RootThread extends Thread {
         private final CyclicBarrier barrier;
         private int maxDepth = OldObjects.MIN_SIZE / THREAD_COUNT;
 
-        public List<StackObject[]> temporaries = new ArrayList<>(maxDepth);
 
         RootThread(CyclicBarrier cb) {
             this.barrier = cb;
@@ -91,7 +94,12 @@ public class TestLargeRootSet {
 
     public static void main(String[] args) throws Exception {
         WhiteBox.setWriteAllObjectSamples(true);
+        int attempt = 1;
         while (true) {
+            System.out.println();
+            System.out.println();
+            System.out.println("ATTEMPT: " + attempt);
+            System.out.println("====================================");
             List<RootThread> threads = new ArrayList<>();
             try (Recording r = new Recording()) {
                 r.enable(EventNames.OldObjectSample).withStackTrace().with("cutoff", "infinity");
@@ -112,16 +120,44 @@ public class TestLargeRootSet {
                 cb.await();
                 List<RecordedEvent> events = Events.fromRecording(r);
                 Events.hasEvents(events);
+                int sample = 0;
                 for (RecordedEvent e : events) {
                     RecordedObject ro = e.getValue("object");
                     RecordedClass rc = ro.getValue("type");
-                    System.out.println(rc.getName());
-                    if (rc.getName().equals(StackObject[].class.getName())) {
-                        return; // ok
+                    System.out.println("Sample: " + sample);
+                    System.out.println(" - allocationTime: "  + e.getInstant("allocationTime"));
+                    System.out.println(" - type: " + rc.getName());
+                    RecordedObject root = e.getValue("root");
+                    if (root != null) {
+                        System.out.println(" - root:");
+                        System.out.println("   - description: " + root.getValue("description"));
+                        System.out.println("   - system: " + root.getValue("system"));
+                        System.out.println("   - type: " + root.getValue("type"));
+                        System.out.println("   stack:");
+                        RecordedStackTrace stack = e.getStackTrace();
+                        if (stack != null) {
+                            int frameCount = 0;
+                            for (RecordedFrame frame: stack.getFrames()) {
+                                RecordedMethod m = frame.getMethod();
+                                System.out.println("      " + m.getType().getName() + "." + m.getName() +"(...)");
+                                frameCount++;
+                                if (frameCount ==10) {
+                                    break;
+                                }
+                            }
+                        }
                     }
+                    System.out.println();
+//                    if (rc.getName().equals(StackObject[].class.getName())) {
+//                        return; // ok
+//                    }
+                    sample++;
                 }
-                // Asserts.fail("Could not find root object");
+                if (1== 1) {
+                    return;
+                }
             }
+            attempt++;
         }
     }
 }
