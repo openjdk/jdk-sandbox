@@ -26,7 +26,6 @@
 package jdk.jfr.api.consumer.recordingstream;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,33 +51,60 @@ public class TestRecursive {
     public static class Recorded extends Event {
     }
 
+    public static class Provoker extends Event {
+    }
+
     public static void main(String... args) throws Exception {
-        testAsync();
         testSync();
+        testAsync();
+    }
+
+    private static void emit(AtomicBoolean stop) {
+        Runnable r = () -> {
+            while (!stop.get()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+                Provoker e = new Provoker();
+                e.commit();
+            }
+        };
+        Thread t = new Thread(r);
+        t.start();
     }
 
     private static void testSync() throws Exception {
         try (Recording r = new Recording()) {
             r.start();
-            Recorded e1 = new Recorded();
-            e1.commit();
+            AtomicBoolean stop = new AtomicBoolean(false);
+            emit(stop);
             try (RecordingStream rs = new RecordingStream()) {
+                Recorded e1 = new Recorded();
+                e1.commit();
                 rs.onEvent(e -> {
-                    NotRecorded e2 = new NotRecorded();
-                    e2.commit();
+                    if (!stop.get()) {
+                        System.out.println("Emitting NotRecorded event");
+                        NotRecorded event = new NotRecorded();
+                        event.commit();
+                        System.out.println("Stopping event provoker");
+                        stop.set(true);
+                        System.out.println("Closing recording stream");
+                        rs.close();
+                        return;
+                    }
                 });
-                CompletableFuture.runAsync(() -> {
-                    r.start();
-                });
+                rs.start();
+                Recorded e2 = new Recorded();
+                e2.commit();
             }
-            Recorded e3 = new Recorded();
-            e3.commit();
             r.stop();
             List<RecordedEvent> events = Events.fromRecording(r);
+            System.out.println(events);
             if (count(events, NotRecorded.class) != 0) {
                 throw new Exception("Expected 0 NotRecorded events");
             }
-            if (count(events, Recorded.class) != 2) {
+            if (count(events, Recorded.class) == 2) {
                 throw new Exception("Expected 2 Recorded events");
             }
         }
@@ -91,6 +117,7 @@ public class TestRecursive {
                 count++;
             }
         }
+        System.out.println(count);
         return count;
     }
 
