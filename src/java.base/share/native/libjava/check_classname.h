@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,27 +23,12 @@
  * questions.
  */
 
-#include <jni.h>
+#include "jni.h"
 
-jmethodID mid;
-jclass cls;
-static int count = 0;
+/*
+ * Class name checking methods
+ */
 
-JNIEXPORT jint JNICALL
-Java_RedefineDeleteJmethod_jniCallDeleteMe(JNIEnv* env, jobject obj) {
-
-    if (count == 0) {
-      count++;
-      cls = (*env)->FindClass(env, "B");
-      if (NULL == cls) {
-          (*env)->FatalError(env, "could not find class");
-      }
-
-      mid = (*env)->GetStaticMethodID(env, cls, "deleteMe", "()I");
-      if (NULL == mid) {
-          (*env)->FatalError(env, "could not find method");
-      }
-    }
-
-    return (*env)->CallStaticIntMethod(env, cls, mid);
-}
+jboolean verifyClassname(char *name, jboolean allowArrayClass);
+jboolean verifyFixClassname(char *name);
+void fixClassname(char *name);
