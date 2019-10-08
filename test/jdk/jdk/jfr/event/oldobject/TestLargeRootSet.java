@@ -27,6 +27,7 @@ package jdk.jfr.event.oldobject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Vector;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
@@ -53,7 +54,7 @@ import jdk.test.lib.jfr.Events;
 public class TestLargeRootSet {
 
     private static final int THREAD_COUNT = 50;
-    public static List<StackObject[]> temporaries = Collections.synchronizedList(new ArrayList<>(OldObjects.MIN_SIZE));
+    public static Vector<StackObject[]> temporaries = new Vector<>(OldObjects.MIN_SIZE);
 
     private static class RootThread extends Thread {
         private final CyclicBarrier barrier;
@@ -133,28 +134,29 @@ public class TestLargeRootSet {
                         System.out.println("   - description: " + root.getValue("description"));
                         System.out.println("   - system: " + root.getValue("system"));
                         System.out.println("   - type: " + root.getValue("type"));
-                        System.out.println("   stack:");
-                        RecordedStackTrace stack = e.getStackTrace();
-                        if (stack != null) {
-                            int frameCount = 0;
-                            for (RecordedFrame frame: stack.getFrames()) {
-                                RecordedMethod m = frame.getMethod();
-                                System.out.println("      " + m.getType().getName() + "." + m.getName() +"(...)");
-                                frameCount++;
-                                if (frameCount ==10) {
-                                    break;
-                                }
+                    } else {
+                        System.out.println(" - root: N/A");
+                    }
+                    RecordedStackTrace stack = e.getStackTrace();
+                    if (stack != null) {
+                        System.out.println(" - stack:");
+                        int frameCount = 0;
+                        for (RecordedFrame frame: stack.getFrames()) {
+                            RecordedMethod m = frame.getMethod();
+                            System.out.println("      " + m.getType().getName() + "." + m.getName() +"(...)");
+                            frameCount++;
+                            if (frameCount == 10) {
+                                break;
                             }
                         }
+                    } else {
+                        System.out.println(" - stack: N/A");
                     }
                     System.out.println();
-//                    if (rc.getName().equals(StackObject[].class.getName())) {
-//                        return; // ok
-//                    }
+                    if (rc.getName().equals(StackObject[].class.getName())) {
+                        return; // ok
+                    }
                     sample++;
-                }
-                if (1== 1) {
-                    return;
                 }
             }
             attempt++;
