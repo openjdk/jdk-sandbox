@@ -316,8 +316,6 @@ public class WinMsiBundler  extends AbstractBundler {
                     I18N.getString("error.parameters-null.advice"));
 
             // run basic validation to ensure requirements are met
-            // we are not interested in return code, only possible exception
-            validateWixTools();
 
             String lightVersion = findToolVersion(getLightPath());
             if (!VersionExtractor.isLessThan(lightVersion, "3.6")) {

@@ -101,14 +101,15 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
 
     @Override
     protected String getCfgAppDir() {
-        return Path.of("$APPDIR").resolve(
-                ApplicationLayout.linuxAppImage().appDirectory()).toString() + File.separator;
+        return Path.of("$ROOTDIR").resolve(
+                ApplicationLayout.linuxAppImage().appDirectory()).toString()
+                + File.separator;
     }
 
     @Override
     protected String getCfgRuntimeDir() {
-        return Path.of("$APPDIR").resolve(
-                ApplicationLayout.linuxAppImage().runtimeDirectory()).toString();
+        return Path.of("$ROOTDIR").resolve(
+              ApplicationLayout.linuxAppImage().runtimeDirectory()).toString();
     }
 
     @Override

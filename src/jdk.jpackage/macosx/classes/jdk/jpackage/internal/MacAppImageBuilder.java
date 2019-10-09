@@ -484,7 +484,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                 COPYRIGHT.fetchFrom(params) != null ?
                 COPYRIGHT.fetchFrom(params) : "Unknown");
         data.put("DEPLOY_LAUNCHER_NAME", getLauncherName(params));
-        data.put("DEPLOY_JAVA_RUNTIME_NAME", getCfgRuntimeDir());
         data.put("DEPLOY_BUNDLE_SHORT_VERSION",
                 VERSION.fetchFrom(params) != null ?
                 VERSION.fetchFrom(params) : "1.0.0");

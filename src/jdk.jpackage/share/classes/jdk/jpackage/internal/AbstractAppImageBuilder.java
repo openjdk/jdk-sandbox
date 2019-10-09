@@ -249,12 +249,12 @@ public abstract class AbstractAppImageBuilder {
     }
 
     protected String getCfgAppDir() {
-        return "$APPDIR" + File.separator
+        return "$ROOTDIR" + File.separator
                 + getAppDir().getFileName() + File.separator;
     }
 
     protected String getCfgRuntimeDir() {
-        return "$APPDIR" + File.separator + "runtime";
+        return "$ROOTDIR" + File.separator + "runtime";
     }
 
     String getCfgClassPath(String classpath) {
