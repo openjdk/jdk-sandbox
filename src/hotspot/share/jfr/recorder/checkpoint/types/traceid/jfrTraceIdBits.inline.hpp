@@ -42,8 +42,10 @@ inline void set_bits(jbyte bits, jbyte* const dest) {
   assert(dest != NULL, "invariant");
   if (bits != (*dest & bits)) {
     *dest |= bits;
-    OrderAccess::storestore();
+    OrderAccess::storeload();
+    return;
   }
+  OrderAccess::loadload();
 }
 
 inline jbyte traceid_and(jbyte current, jbyte bits) {

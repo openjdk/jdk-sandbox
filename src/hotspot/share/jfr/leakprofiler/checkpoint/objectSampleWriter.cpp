@@ -355,10 +355,6 @@ int __write_root_description_info__(JfrCheckpointWriter* writer, const void* di)
 
 static traceid get_gc_root_description_info_id(const Edge& edge, traceid id) {
   assert(edge.is_root(), "invariant");
-  if (EdgeUtils::is_leak_edge(edge)) {
-    return 0;
-  }
-
   if (root_infos == NULL) {
     root_infos = new RootDescriptionInfo();
   }
