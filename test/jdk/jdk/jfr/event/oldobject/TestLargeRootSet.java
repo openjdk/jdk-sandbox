@@ -25,8 +25,8 @@
 package jdk.jfr.event.oldobject;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
@@ -54,12 +54,12 @@ import jdk.test.lib.jfr.Events;
 public class TestLargeRootSet {
 
     private static final int THREAD_COUNT = 50;
+    private static final Random RANDOM = new Random(4711);
     public static Vector<StackObject[]> temporaries = new Vector<>(OldObjects.MIN_SIZE);
 
     private static class RootThread extends Thread {
         private final CyclicBarrier barrier;
         private int maxDepth = OldObjects.MIN_SIZE / THREAD_COUNT;
-
 
         RootThread(CyclicBarrier cb) {
             this.barrier = cb;
@@ -71,8 +71,9 @@ public class TestLargeRootSet {
 
         private void buildRootObjects() {
             if (maxDepth-- > 0) {
-                // Allocate array to trigger sampling code path for interpreter / c1
-                StackObject[] stackObject = new StackObject[0];
+                // Allocate array to trigger sampling code path for interpreter
+                // / c1
+                StackObject[] stackObject = new StackObject[RANDOM.nextInt(7)];
                 temporaries.add(stackObject); // make sure object escapes
                 buildRootObjects();
             } else {
@@ -110,7 +111,8 @@ public class TestLargeRootSet {
                     RootThread t = new RootThread(cb);
                     t.start();
                     if (i % 10 == 0) {
-                        // Give threads some breathing room before starting next batch
+                        // Give threads some breathing room before starting next
+                        // batch
                         Thread.sleep(100);
                     }
                     threads.add(t);
@@ -126,7 +128,7 @@ public class TestLargeRootSet {
                     RecordedObject ro = e.getValue("object");
                     RecordedClass rc = ro.getValue("type");
                     System.out.println("Sample: " + sample);
-                    System.out.println(" - allocationTime: "  + e.getInstant("allocationTime"));
+                    System.out.println(" - allocationTime: " + e.getInstant("allocationTime"));
                     System.out.println(" - type: " + rc.getName());
                     RecordedObject root = e.getValue("root");
                     if (root != null) {
@@ -141,9 +143,9 @@ public class TestLargeRootSet {
                     if (stack != null) {
                         System.out.println(" - stack:");
                         int frameCount = 0;
-                        for (RecordedFrame frame: stack.getFrames()) {
+                        for (RecordedFrame frame : stack.getFrames()) {
                             RecordedMethod m = frame.getMethod();
-                            System.out.println("      " + m.getType().getName() + "." + m.getName() +"(...)");
+                            System.out.println("      " + m.getType().getName() + "." + m.getName() + "(...)");
                             frameCount++;
                             if (frameCount == 10) {
                                 break;
@@ -162,5 +164,5 @@ public class TestLargeRootSet {
             attempt++;
         }
     }
-}
 
+}
