@@ -37,7 +37,7 @@ import jdk.jfr.consumer.RecordingStream;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib
- * @run main/othervm jdk.jfr.api.consumer.streaming.TestRemovedChunks
+ * @run main/othervm -Xlog:jfr*=info jdk.jfr.api.consumer.streaming.TestRemovedChunks
  */
 public class TestRemovedChunks {
     private final static CountDownLatch parkLatch = new CountDownLatch(1);
