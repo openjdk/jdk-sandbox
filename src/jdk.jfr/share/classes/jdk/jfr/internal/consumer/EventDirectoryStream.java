@@ -54,6 +54,7 @@ public final class EventDirectoryStream extends AbstractEventStream {
     private ChunkParser currentParser;
     private long currentChunkStartNanos;
     private RecordedEvent[] sortedCache;
+    private int threadExclusionLevel = 0;
 
     public EventDirectoryStream(AccessControlContext acc, Path p, FileAccess fileAccess, boolean active) throws IOException {
         super(acc, active);
@@ -81,11 +82,21 @@ public final class EventDirectoryStream extends AbstractEventStream {
 
     @Override
     protected void process() throws IOException {
+        JVM jvm = JVM.getJVM();
+        Thread t = Thread.currentThread();
         try {
-            JVM.getJVM().exclude(Thread.currentThread());
+            if (jvm.isExcluded(t)) {
+                threadExclusionLevel++;
+            } else {
+                jvm.exclude(t);
+            }
             processRecursionSafe();
         } finally {
-            JVM.getJVM().include(Thread.currentThread());
+            if (threadExclusionLevel > 0) {
+                threadExclusionLevel--;
+            } else {
+                jvm.include(t);
+            }
         }
     }
 
