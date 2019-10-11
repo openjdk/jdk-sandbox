@@ -33,7 +33,7 @@
 
 static jbyteArray metadata_blob = NULL;
 static u8 metadata_id = 0;
-static u8 last_written_metadata_id = 0;
+static u8 last_metadata_id = 0;
 
 static void write_metadata_blob(JfrChunkWriter& chunkwriter) {
   assert(metadata_blob != NULL, "invariant");
@@ -49,7 +49,7 @@ static void write_metadata_blob(JfrChunkWriter& chunkwriter) {
 
 void JfrMetadataEvent::write(JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
-  if (last_written_metadata_id == metadata_id && chunkwriter.has_metadata()) {
+  if (last_metadata_id == metadata_id && chunkwriter.has_metadata()) {
     return;
   }
   // header
@@ -60,11 +60,11 @@ void JfrMetadataEvent::write(JfrChunkWriter& chunkwriter) {
   chunkwriter.write((u8)0); // duration
   chunkwriter.write(metadata_id); // metadata id
   write_metadata_blob(chunkwriter); // payload
-  last_written_metadata_id = metadata_id;
   // fill in size of metadata descriptor event
   const int64_t size_written = chunkwriter.current_offset() - metadata_offset;
   chunkwriter.write_padded_at_offset((u4)size_written, metadata_offset);
   chunkwriter.set_last_metadata_offset(metadata_offset);
+  last_metadata_id = metadata_id;
 }
 
 void JfrMetadataEvent::update(jbyteArray metadata) {

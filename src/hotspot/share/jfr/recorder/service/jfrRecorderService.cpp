@@ -647,10 +647,7 @@ static void write_thread_local_buffer(JfrChunkWriter& chunkwriter) {
 static bool write_metadata_in_flushpoint = false;
 
 size_t JfrRecorderService::flush() {
-  size_t total_elements = 0;
-  if (write_metadata_in_flushpoint) {
-    total_elements = flush_metadata(_chunkwriter);
-  }
+  size_t total_elements = flush_metadata(_chunkwriter);
   const size_t storage_elements = flush_storage(_storage, _chunkwriter);
   if (0 == storage_elements) {
     return total_elements;
@@ -674,11 +671,10 @@ size_t JfrRecorderService::flush() {
 typedef Content<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
 typedef WriteContent<FlushFunctor> Flush;
 
-void JfrRecorderService::flush(int msgs) {
+void JfrRecorderService::flushpoint() {
   assert(_chunkwriter.is_valid(), "invariant");
   ResourceMark rm;
   HandleMark hm;
-  write_metadata_in_flushpoint = (msgs & MSGBIT(MSG_FLUSHPOINT_METADATA));
   ++flushpoint_id;
   reset_thread_local_buffer();
   FlushFunctor flushpoint(*this);

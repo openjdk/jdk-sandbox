@@ -66,7 +66,7 @@ class JfrRecorderService : public StackObj {
   JfrRecorderService();
   void start();
   void rotate(int msgs);
-  void flush(int msgs);
+  void flushpoint();
   void process_full_buffers();
   void scavenge();
   void evaluate_chunk_size_for_rotation();

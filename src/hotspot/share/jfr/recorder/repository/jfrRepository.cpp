@@ -165,7 +165,7 @@ size_t JfrRepository::close_chunk() {
   return _chunkwriter->close();
 }
 
-void JfrRepository::flush(bool metadata, JavaThread* jt) {
+void JfrRepository::flush(JavaThread* jt) {
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(jt));
   if (!Jfr::is_recording()) {
     return;
@@ -173,7 +173,7 @@ void JfrRepository::flush(bool metadata, JavaThread* jt) {
   if (!_chunkwriter->is_valid()) {
     return;
   }
-  instance()._post_box.post((metadata || !_chunkwriter->has_metadata()) ? MSG_FLUSHPOINT_METADATA : MSG_FLUSHPOINT);
+  instance()._post_box.post(MSG_FLUSHPOINT);
 }
 
 size_t JfrRepository::flush_chunk() {

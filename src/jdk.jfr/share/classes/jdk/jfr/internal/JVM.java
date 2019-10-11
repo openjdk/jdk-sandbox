@@ -466,10 +466,8 @@ public final class JVM {
      * pointers to the metadata event, last check point event, correct file size and
      * the generation id.
      *
-     * @param includeMetadata {@code true} if metadata event should be written, {@code false}
-     *        otherwise
      */
-    public native void flush(boolean includeMetadata);
+    public native void flush();
     /**
      * Sets the location of the disk repository, to be used at an emergency
      * dump.

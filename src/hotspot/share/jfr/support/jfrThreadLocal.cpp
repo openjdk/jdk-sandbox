@@ -108,6 +108,26 @@ static void send_java_thread_end_events(traceid id, JavaThread* jt) {
   }
 }
 
+void JfrThreadLocal::release(Thread* t) {
+  if (has_java_event_writer()) {
+    assert(t->is_Java_thread(), "invariant");
+    JfrJavaSupport::destroy_global_jni_handle(java_event_writer());
+    _java_event_writer = NULL;
+  }
+  if (has_native_buffer()) {
+    JfrStorage::release_thread_local(native_buffer(), t);
+    _native_buffer = NULL;
+  }
+  if (has_java_buffer()) {
+    JfrStorage::release_thread_local(java_buffer(), t);
+    _java_buffer = NULL;
+  }
+  if (_stackframes != NULL) {
+    FREE_C_HEAP_ARRAY(JfrStackFrame, _stackframes);
+    _stackframes = NULL;
+  }
+}
+
 void JfrThreadLocal::release(JfrThreadLocal* tl, Thread* t) {
   assert(tl != NULL, "invariant");
   assert(t != NULL, "invariant");
@@ -115,19 +135,7 @@ void JfrThreadLocal::release(JfrThreadLocal* tl, Thread* t) {
   assert(!tl->is_dead(), "invariant");
   assert(tl->shelved_buffer() == NULL, "invariant");
   tl->_dead = true;
-  if (tl->has_java_event_writer()) {
-    assert(t->is_Java_thread(), "invariant");
-    const jobject event_writer = tl->java_event_writer();
-    tl->set_java_event_writer(NULL);
-    JfrJavaSupport::destroy_global_jni_handle(event_writer);
-  }
-  if (tl->has_native_buffer()) {
-    JfrStorage::release_thread_local(tl->native_buffer(), t);
-  }
-  if (tl->has_java_buffer()) {
-    JfrStorage::release_thread_local(tl->java_buffer(), t);
-  }
-  FREE_C_HEAP_ARRAY(JfrStackFrame, tl->_stackframes);
+  tl->release(t);
 }
 
 void JfrThreadLocal::on_exit(Thread* t) {
@@ -179,14 +187,16 @@ ByteSize JfrThreadLocal::java_event_writer_offset() {
   return in_ByteSize(offset_of(JfrThreadLocal, _java_event_writer));
 }
 
-void JfrThreadLocal::exclude(const Thread* t) {
+void JfrThreadLocal::exclude(Thread* t) {
   assert(t != NULL, "invariant");
   t->jfr_thread_local()->_excluded = true;
+  t->jfr_thread_local()->release(t);
 }
 
-void JfrThreadLocal::include(const Thread* t) {
+void JfrThreadLocal::include(Thread* t) {
   assert(t != NULL, "invariant");
   t->jfr_thread_local()->_excluded = false;
+  t->jfr_thread_local()->release(t);
 }
 
 u4 JfrThreadLocal::stackdepth() const {

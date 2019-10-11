@@ -113,7 +113,7 @@ jobject JNICALL jfr_new_event_writer(JNIEnv* env, jclass cls);
 
 jboolean JNICALL jfr_event_writer_flush(JNIEnv* env, jclass cls, jobject writer, jint used_size, jint requested_size);
 
-void JNICALL jfr_flush(JNIEnv* env, jobject jvm, jboolean include_metadata);
+void JNICALL jfr_flush(JNIEnv* env, jobject jvm);
 void JNICALL jfr_abort(JNIEnv* env, jobject jvm, jstring errorMsg);
 
 jlong JNICALL jfr_get_epoch_address(JNIEnv* env, jobject jvm);

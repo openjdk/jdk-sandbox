@@ -56,7 +56,7 @@ class JfrThreadLocal {
   JfrBuffer* install_native_buffer() const;
   JfrBuffer* install_java_buffer() const;
   JfrStackFrame* install_stackframes() const;
-
+  void release(Thread* t);
   static void release(JfrThreadLocal* tl, Thread* t);
 
  public:
@@ -216,8 +216,8 @@ class JfrThreadLocal {
   void set_thread_blob(const JfrBlobHandle& handle);
   const JfrBlobHandle& thread_blob() const;
 
-  static void exclude(const Thread* t);
-  static void include(const Thread* t);
+  static void exclude(Thread* t);
+  static void include(Thread* t);
 
   static void on_start(Thread* t);
   static void on_exit(Thread* t);

@@ -70,7 +70,7 @@ class JfrRepository : public JfrCHeapObj {
  public:
   static void set_path(jstring location, JavaThread* jt);
   static void set_chunk_path(jstring path, JavaThread* jt);
-  static void flush(bool metadata, JavaThread* jt);
+  static void flush(JavaThread* jt);
   static jlong current_chunk_start_nanos();
 };
 

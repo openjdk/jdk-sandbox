@@ -284,8 +284,8 @@ JVM_ENTRY_NO_ENV(jboolean, jfr_event_writer_flush(JNIEnv* env, jclass cls, jobje
   return JfrJavaEventWriter::flush(writer, used_size, requested_size, thread);
 JVM_END
 
-JVM_ENTRY_NO_ENV(void, jfr_flush(JNIEnv* env, jobject jvm, jboolean include_metadata))
-  JfrRepository::flush(include_metadata == JNI_TRUE, thread);
+JVM_ENTRY_NO_ENV(void, jfr_flush(JNIEnv* env, jobject jvm))
+  JfrRepository::flush(thread);
 JVM_END
 
 JVM_ENTRY_NO_ENV(void, jfr_set_repository_location(JNIEnv* env, jobject repo, jstring location))

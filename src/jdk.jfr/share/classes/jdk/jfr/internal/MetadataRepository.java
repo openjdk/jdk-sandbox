@@ -62,7 +62,6 @@ public final class MetadataRepository {
     private boolean staleMetadata = true;
     private boolean unregistered;
     private long lastUnloaded = -1;
-    private boolean flushMetadata;
 
     public MetadataRepository() {
         initializeJVMEventTypes();
@@ -144,7 +143,6 @@ public final class MetadataRepository {
         typeLibrary.addType(handler.getPlatformEventType());
         if (jvm.isRecording()) {
             storeDescriptorInJVM(); // needed for emergency dump
-            flushMetadata = true;
             settingsManager.setEventControl(handler.getEventControl());
             settingsManager.updateRetransform(Collections.singletonList((eventClass)));
         } else {
@@ -266,18 +264,19 @@ public final class MetadataRepository {
     // emit events after setOutput and unregister the event class, before a call
     // to storeDescriptorInJVM
     synchronized void setOutput(String filename) {
+        if (staleMetadata) {
+            storeDescriptorInJVM();
+        }
         jvm.setOutput(filename);
         if (filename != null) {
             RepositoryFiles.notifyNewFile();
         }
-        flushMetadata = false;
         unregisterUnloaded();
         if (unregistered) {
-            staleMetadata = typeLibrary.clearUnregistered();
+            if (typeLibrary.clearUnregistered()) {
+                storeDescriptorInJVM();
+            }
             unregistered = false;
-        }
-        if (staleMetadata) {
-            storeDescriptorInJVM();
         }
     }
 
@@ -318,11 +317,10 @@ public final class MetadataRepository {
     }
 
     public synchronized void flush() {
-        jvm.flush(flushMetadata);
-        this.flushMetadata = false;
+        if (staleMetadata) {
+            storeDescriptorInJVM();
+        }
+        jvm.flush();
     }
-
-
-
 
 }
