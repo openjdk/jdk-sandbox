@@ -26,6 +26,7 @@
 package jdk.jfr.api.consumer.recordingstream;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -40,7 +41,8 @@ import jdk.test.lib.jfr.Events;
  * @summary Tests that events are not emitted in handlers
  * @key jfr
  * @requires vm.hasJFR
- * @library /test/lib
+ * @library /test/lib /test/jdk
+ * @build jdk.jfr.api.consumer.recordingstream.EventProducer.java
  * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestRecursive
  */
 public class TestRecursive {
@@ -57,43 +59,88 @@ public class TestRecursive {
     public static void main(String... args) throws Exception {
         testSync();
         testAsync();
+        testStreamInStream();
     }
 
-    private static void emit(AtomicBoolean stop) {
-        Runnable r = () -> {
-            while (!stop.get()) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                }
-                Provoker e = new Provoker();
-                e.commit();
+    private static void testStreamInStream() throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        try (Recording r = new Recording()) {
+            r.start();
+            Recorded r1 = new Recorded(); // 1
+            r1.commit();
+            try (RecordingStream rs = new RecordingStream()) {
+                rs.onEvent(e1 -> {
+                    streamInStream();
+                    latch.countDown();
+                });
+                rs.startAsync();
+                Recorded r2 = new Recorded(); // 2
+                r2.commit();
+                latch.await();
             }
-        };
-        Thread t = new Thread(r);
-        t.start();
+            Recorded r3 = new Recorded(); // 2
+            r3.commit();
+            r.stop();
+            List<RecordedEvent> events = Events.fromRecording(r);
+            if (count(events, NotRecorded.class) != 0) {
+                throw new Exception("Expected 0 NotRecorded events");
+            }
+            if (count(events, Recorded.class) != 3) {
+                throw new Exception("Expected 3 Recorded events");
+            }
+        }
+    }
+
+    // No events should be recorded in this method
+    private static void streamInStream() {
+        NotRecorded nr1 = new NotRecorded();
+        nr1.commit();
+        CountDownLatch latch = new CountDownLatch(1);
+        try (RecordingStream rs2 = new RecordingStream()) {
+            rs2.onEvent(e2 -> {
+                NotRecorded nr2 = new NotRecorded();
+                nr2.commit();
+                latch.countDown();
+            });
+            NotRecorded nr3 = new NotRecorded();
+            nr3.commit();
+            rs2.startAsync();
+            // run event in separate thread
+            CompletableFuture.runAsync(() -> {
+                Provoker p = new Provoker();
+                p.commit();
+            });
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                throw new Error("Unexpected interruption", e);
+            }
+        }
+        NotRecorded nr2 = new NotRecorded();
+        nr2.commit();
     }
 
     private static void testSync() throws Exception {
         try (Recording r = new Recording()) {
             r.start();
-            AtomicBoolean stop = new AtomicBoolean(false);
-            emit(stop);
+            AtomicBoolean first = new AtomicBoolean();
+            EventProducer p = new EventProducer();
             try (RecordingStream rs = new RecordingStream()) {
                 Recorded e1 = new Recorded();
                 e1.commit();
                 rs.onEvent(e -> {
-                    if (!stop.get()) {
+                    if (first.get()) {
                         System.out.println("Emitting NotRecorded event");
                         NotRecorded event = new NotRecorded();
                         event.commit();
                         System.out.println("Stopping event provoker");
-                        stop.set(true);
+                        p.kill();
                         System.out.println("Closing recording stream");
                         rs.close();
                         return;
                     }
                 });
+                p.start();
                 rs.start();
                 Recorded e2 = new Recorded();
                 e2.commit();
@@ -104,7 +151,7 @@ public class TestRecursive {
             if (count(events, NotRecorded.class) != 0) {
                 throw new Exception("Expected 0 NotRecorded events");
             }
-            if (count(events, Recorded.class) == 2) {
+            if (count(events, Recorded.class) != 2) {
                 throw new Exception("Expected 2 Recorded events");
             }
         }

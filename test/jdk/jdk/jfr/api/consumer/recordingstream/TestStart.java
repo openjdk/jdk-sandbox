@@ -25,7 +25,6 @@
 
 package jdk.jfr.api.consumer.recordingstream;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,39 +36,13 @@ import jdk.jfr.consumer.RecordingStream;
  * @summary Tests RecordingStream::start()
  * @key jfr
  * @requires vm.hasJFR
- * @library /test/lib
+ * @library /test/lib /test/jdk
+ * @build jdk.jfr.api.consumer.recordingstream.EventProducer.java
  * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestStart
  */
 public class TestStart {
     static class StartEvent extends Event {
     }
-    static class EventProducer extends Thread {
-        private final Object lock = new Object();
-        private boolean killed = false;
-        public void run() {
-            while (true) {
-                StartEvent s = new StartEvent();
-                s.commit();
-                synchronized (lock) {
-                    try {
-                        lock.wait(10);
-                        if (killed) {
-                            return; // end thread
-                        }
-                    } catch (InterruptedException e) {
-                        // ignore
-                    }
-                }
-            }
-        }
-        public void kill() {
-            synchronized (lock) {
-                this.killed = true;
-                lock.notifyAll();
-            }
-        }
-    }
-
     public static void main(String... args) throws Exception {
         testStart();
         testStartOnEvent();
@@ -83,9 +56,12 @@ public class TestStart {
         try (RecordingStream rs = new RecordingStream()) {
             EventProducer t = new EventProducer();
             t.start();
-            CompletableFuture.runAsync(() -> {
-                rs.start();
-            });
+            Thread thread = new Thread() {
+                public void run() {
+                    rs.start();
+                }
+            };
+            thread.start();
             rs.onEvent(e -> {
                 if (started.getCount() > 0) {
                     started.countDown();
@@ -112,9 +88,12 @@ public class TestStart {
             });
             EventProducer t = new EventProducer();
             t.start();
-            CompletableFuture.runAsync(() -> {
-                rs.start();
-            });
+            Thread thread = new Thread() {
+                public void run() {
+                    rs.start();
+                }
+            };
+            thread.start();
             started.await();
             t.kill();
         }
@@ -138,9 +117,12 @@ public class TestStart {
             });
             EventProducer t = new EventProducer();
             t.start();
-            CompletableFuture.runAsync(() -> {
-                rs.start();
-            });
+            Thread thread = new Thread() {
+                public void run() {
+                    rs.start();
+                }
+            };
+            thread.start();
             startedTwice.await();
             t.kill();
             if (!ISE.get()) {
