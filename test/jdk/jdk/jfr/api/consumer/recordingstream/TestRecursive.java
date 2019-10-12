@@ -42,7 +42,7 @@ import jdk.test.lib.jfr.Events;
  * @key jfr
  * @requires vm.hasJFR
  * @library /test/lib /test/jdk
- * @build jdk.jfr.api.consumer.recordingstream.EventProducer.java
+ * @build jdk.jfr.api.consumer.recordingstream.EventProducer
  * @run main/othervm jdk.jfr.api.consumer.recordingstream.TestRecursive
  */
 public class TestRecursive {
