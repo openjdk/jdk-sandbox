@@ -82,7 +82,6 @@ void JfrRepository::destroy() {
 }
 
 void JfrRepository::on_vm_error() {
-
   if (_path == NULL) {
     // completed already
     return;

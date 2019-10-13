@@ -33,6 +33,7 @@ class JfrRepository;
 class JfrStackTraceRepository;
 class JfrStorage;
 class JfrStringPool;
+class Thread;
 
 class JfrRecorderService : public StackObj {
  private:
@@ -49,6 +50,7 @@ class JfrRecorderService : public StackObj {
   void finalize_current_chunk();
   void prepare_for_vm_error_rotation();
   void vm_error_rotation();
+  void invoke_flush(Thread* t);
 
   void clear();
   void pre_safepoint_clear();

@@ -508,13 +508,11 @@ void JfrRecorderService::prepare_for_vm_error_rotation() {
 
 void JfrRecorderService::vm_error_rotation() {
   if (_chunkwriter.is_valid()) {
-    pre_safepoint_write();
-    // Do not attempt safepoint dependent operations during emergency dump.
-    // Optimistically write tagged artifacts.
-    _checkpoint_manager.shift_epoch();
-    // update time
+    Thread* const t = Thread::current();
+    _storage.flush_regular_buffer(t->jfr_thread_local()->native_buffer(), t);
+    invoke_flush(t);
     _chunkwriter.set_time_stamp();
-    post_safepoint_write();
+    _repository.close_chunk();
     assert(!_chunkwriter.is_valid(), "invariant");
     _repository.on_vm_error();
   }
@@ -619,32 +617,30 @@ void JfrRecorderService::post_safepoint_write() {
   _repository.close_chunk();
 }
 
-static JfrBuffer* thread_local_buffer() {
-  return Thread::current()->jfr_thread_local()->native_buffer();
+static JfrBuffer* thread_local_buffer(Thread* t) {
+  assert(t != NULL, "invariant");
+  return t->jfr_thread_local()->native_buffer();
 }
 
-static void reset_buffer(JfrBuffer* buffer) {
+static void reset_buffer(JfrBuffer* buffer, Thread* t) {
   assert(buffer != NULL, "invariant");
-  assert(buffer == thread_local_buffer(), "invariant");
+  assert(t != NULL, "invariant");
+  assert(buffer == thread_local_buffer(t), "invariant");
   buffer->set_pos(const_cast<u1*>(buffer->top()));
-  assert(buffer->empty(), "invariant");
 }
 
-static void reset_thread_local_buffer() {
-  reset_buffer(thread_local_buffer());
+static void reset_thread_local_buffer(Thread* t) {
+  reset_buffer(thread_local_buffer(t), t);
 }
 
-static void write_thread_local_buffer(JfrChunkWriter& chunkwriter) {
-  JfrBuffer * const buffer = thread_local_buffer();
+static void write_thread_local_buffer(JfrChunkWriter& chunkwriter, Thread* t) {
+  JfrBuffer * const buffer = thread_local_buffer(t);
   assert(buffer != NULL, "invariant");
   if (!buffer->empty()) {
     chunkwriter.write_unbuffered(buffer->top(), buffer->pos() - buffer->top());
-    reset_buffer(buffer);
+    reset_buffer(buffer, t);
   }
-  assert(buffer->empty(), "invariant");
 }
-
-static bool write_metadata_in_flushpoint = false;
 
 size_t JfrRecorderService::flush() {
   size_t total_elements = flush_metadata(_chunkwriter);
@@ -671,17 +667,27 @@ size_t JfrRecorderService::flush() {
 typedef Content<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
 typedef WriteContent<FlushFunctor> Flush;
 
-void JfrRecorderService::flushpoint() {
+void JfrRecorderService::invoke_flush(Thread* t) {
+  assert(t != NULL, "invariant");
   assert(_chunkwriter.is_valid(), "invariant");
-  ResourceMark rm;
-  HandleMark hm;
+  ResourceMark rm(t);
+  HandleMark hm(t);
   ++flushpoint_id;
-  reset_thread_local_buffer();
+  reset_thread_local_buffer(t);
   FlushFunctor flushpoint(*this);
   Flush fl(_chunkwriter, flushpoint);
   invoke_with_flush_event(fl);
-  write_thread_local_buffer(_chunkwriter);
+  write_thread_local_buffer(_chunkwriter, t);
   _repository.flush_chunk();
+}
+
+void JfrRecorderService::flushpoint() {
+  Thread* const t = Thread::current();
+  RotationLock rl(t);
+  if (rl.not_acquired() || !_chunkwriter.is_valid()) {
+    return;
+  }
+  invoke_flush(t);
 }
 
 void JfrRecorderService::process_full_buffers() {
