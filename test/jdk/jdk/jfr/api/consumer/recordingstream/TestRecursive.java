@@ -123,22 +123,19 @@ public class TestRecursive {
     private static void testSync() throws Exception {
         try (Recording r = new Recording()) {
             r.start();
-            AtomicBoolean first = new AtomicBoolean();
             EventProducer p = new EventProducer();
             try (RecordingStream rs = new RecordingStream()) {
                 Recorded e1 = new Recorded();
                 e1.commit();
                 rs.onEvent(e -> {
-                    if (first.get()) {
-                        System.out.println("Emitting NotRecorded event");
-                        NotRecorded event = new NotRecorded();
-                        event.commit();
-                        System.out.println("Stopping event provoker");
-                        p.kill();
-                        System.out.println("Closing recording stream");
-                        rs.close();
-                        return;
-                    }
+                    System.out.println("Emitting NotRecorded event");
+                    NotRecorded event = new NotRecorded();
+                    event.commit();
+                    System.out.println("Stopping event provoker");
+                    p.kill();
+                    System.out.println("Closing recording stream");
+                    rs.close();
+                    return;
                 });
                 p.start();
                 rs.start();

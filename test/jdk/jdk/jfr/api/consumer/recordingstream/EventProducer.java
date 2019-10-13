@@ -25,10 +25,10 @@ class EventProducer extends Thread {
         synchronized (lock) {
             this.killed = true;
             lock.notifyAll();
-            try {
-                join();
-            } catch (InterruptedException e) {
-            }
+        }
+        try {
+            join();
+        } catch (InterruptedException e) {
         }
     }
 }
