@@ -2,5 +2,6 @@
 
 chown root:wheel "INSTALL_LOCATION"
 chmod a+rX "INSTALL_LOCATION"
+chmod +r "APP_LOCATION/"*.jar
 
 exit 0

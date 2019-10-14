@@ -190,7 +190,11 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
         Map<String, String> data = new HashMap<>();
 
+        Path appLocation = Path.of(MAC_INSTALL_DIR.fetchFrom(params),
+                         APP_NAME.fetchFrom(params) + ".app", "Contents", "app");
+
         data.put("INSTALL_LOCATION", MAC_INSTALL_DIR.fetchFrom(params));
+        data.put("APP_LOCATION", appLocation.toString());
 
         try (Writer w = Files.newBufferedWriter(
                 getScripts_PreinstallFile(params).toPath())) {
