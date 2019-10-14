@@ -21,13 +21,13 @@ tell application "Finder"
       set theFilePath to POSIX Path of theFile
       if theFilePath is "/DEPLOY_APPLICATION_NAME.app"
         -- Position application location
-        set position of item theFile of container window to {120, 60}
+        set position of item theFile of container window to {120, 130}
       else if theFilePath is "/DEPLOY_INSTALL_NAME"
         -- Position install location
-        set position of item theFile of container window to {390, 60}
+        set position of item theFile of container window to {390, 130}
       else
         -- Move all other files far enough to be not visible if user has "show hidden files" option set
-        set position of item theFile of container window to {1000, 0}
+        set position of item theFile of container window to {1000, 130}
       end
     end repeat
 
