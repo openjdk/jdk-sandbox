@@ -31,7 +31,8 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.Writer;
-import java.net.URLEncoder;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
@@ -154,7 +155,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 return createPKG(params, outdir, appImageDir);
             }
             return null;
-        } catch (IOException ex) {
+        } catch (IOException|URISyntaxException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
@@ -232,8 +233,13 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         getScripts_PostinstallFile(params).setExecutable(true, false);
     }
 
+    private String URLEncoding(String pkgName) throws URISyntaxException {
+        URI uri = new URI(null, null, pkgName, null);
+        return uri.toASCIIString();
+    }
+
     private void prepareDistributionXMLFile(Map<String, ? super Object> params)
-            throws IOException {
+            throws IOException, URISyntaxException {
         File f = getConfig_DistributionXMLFile(params);
 
         Log.verbose(MessageFormat.format(I18N.getString(
@@ -311,8 +317,8 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             xml.writeAttribute("id", appId);
             xml.writeAttribute("version", VERSION.fetchFrom(params));
             xml.writeAttribute("onConclusion", "none");
-            xml.writeCharacters(URLEncoder.encode(
-                    getPackages_AppPackage(params).getName(), "UTF-8"));
+            xml.writeCharacters(URLEncoding(
+                    getPackages_AppPackage(params).getName()));
             xml.writeEndElement(); // </pkg-ref>
 
             xml.writeEndElement(); // </installer-gui-script>
@@ -328,7 +334,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     }
 
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
-            throws IOException {
+            throws IOException, URISyntaxException {
         File imageTarget = getConfig_BackgroundImage(params);
         fetchResource(imageTarget.getName(),
                 I18N.getString("resource.pkg-background-image"),
