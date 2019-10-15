@@ -343,7 +343,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     // The "creator" attribute on a file is a legacy attribute
                     // but it seems Finder excepts these bytes to be
                     // "icnC" for the volume icon
-                    // http://endrift.com/blog/2010/06/14/dmg-files-volume-icons-cli
                     // (might not work on Mac 10.13 with old XCode)
                     pb = new ProcessBuilder(
                             setFileUtility,

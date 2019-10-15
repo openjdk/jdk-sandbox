@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
  <dict>
   <key>LSMinimumSystemVersion</key>
@@ -24,8 +24,7 @@
   <string>DEPLOY_BUNDLE_SHORT_VERSION</string>
   <key>CFBundleSignature</key>
   <string>????</string>
-  <!-- See http://developer.apple.com/library/mac/#releasenotes/General/SubmittingToMacAppStore/_index.html
-       for list of AppStore categories -->
+  <!-- See https://developer.apple.com/app-store/categories/ for list of AppStore categories -->
   <key>LSApplicationCategoryType</key>
   <string>DEPLOY_BUNDLE_CATEGORY</string>
   <key>CFBundleVersion</key>

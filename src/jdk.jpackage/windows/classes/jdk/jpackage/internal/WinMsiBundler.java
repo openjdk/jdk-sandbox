@@ -362,7 +362,7 @@ public class WinMsiBundler  extends AbstractBundler {
         }
     }
 
-    // http://msdn.microsoft.com/en-us/library/aa370859%28v=VS.85%29.aspx
+    // https://msdn.microsoft.com/en-us/library/aa370859%28v=VS.85%29.aspx
     // The format of the string is as follows:
     //     major.minor.build
     // The first field is the major version and has a maximum value of 255.

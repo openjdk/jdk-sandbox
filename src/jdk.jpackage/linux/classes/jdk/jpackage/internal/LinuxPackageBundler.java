@@ -699,7 +699,7 @@ abstract class LinuxPackageBundler extends AbstractBundler {
                 xml.writeStartDocument();
                 xml.writeStartElement("mime-info");
                 xml.writeNamespace("xmlns",
-                        "http://www.freedesktop.org/standards/shared-mime-info");
+                      "https://www.freedesktop.org/standards/shared-mime-info");
 
                 for (var assoc : associations) {
                     appendFileAssociation(xml, assoc);
