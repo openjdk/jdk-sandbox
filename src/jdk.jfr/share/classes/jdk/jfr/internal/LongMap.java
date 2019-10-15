@@ -157,9 +157,6 @@ public final class LongMap<T> {
             // Lazy initialization
             initialize(DEFAULT_SIZE);
         }
-        if (count > 3 * keys.length / 4) {
-            expand(2 * keys.length);
-        }
         if (object == null) {
             object = (T) NULL_OBJECT;
         }
@@ -171,6 +168,12 @@ public final class LongMap<T> {
                 keys[index] = id;
                 objects[index] = object;
                 count++;
+                // Don't expand lazy since it
+                // can cause resize when replacing
+                // an object.
+                if (count > 3 * keys.length / 4) {
+                    expand(2 * keys.length);
+                }
                 return;
             }
             // if it already exists, replace
