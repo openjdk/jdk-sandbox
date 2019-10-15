@@ -114,6 +114,27 @@ public class AppImageFileTest {
 
     @Test
     public void testAddLauncherNames() throws IOException {
+        Map<String, ? super Object> params = new LinkedHashMap<>();
+        List<Map<String, ? super Object>> launchersAsMap = new ArrayList<>();
+
+        Map<String, ? super Object> addLauncher2Params = new LinkedHashMap();
+        addLauncher2Params.put("name", "Launcher2Name");
+        launchersAsMap.add(addLauncher2Params);
+
+        Map<String, ? super Object> addLauncher3Params = new LinkedHashMap();
+        addLauncher3Params.put("name", "Launcher3Name");
+        launchersAsMap.add(addLauncher3Params);
+
+        params.put("name", "Duke App");
+        params.put("description", "Duke App Description");
+        params.put("add-launcher", launchersAsMap);
+        AppImageFile aif = create(params);
+
+	List<String> addLauncherNames = aif.getAddLauncherNames();
+        Assert.assertEquals(2, addLauncherNames.size());
+        Assert.assertTrue(addLauncherNames.contains("Launcher2Name"));
+        Assert.assertTrue(addLauncherNames.contains("Launcher3Name"));
+
     }
 
     private AppImageFile create(Map<String, Object> params) throws IOException {
