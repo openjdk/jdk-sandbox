@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -332,17 +333,11 @@ public class LinuxDebBundler extends LinuxPackageBundler {
 
         void create(Map<String, String> data, Map<String, ? super Object> params)
                 throws IOException {
-            Files.createDirectories(dstFilePath.getParent());
-            try (Writer w = Files.newBufferedWriter(dstFilePath)) {
-                String content = preprocessTextResource(
-                        dstFilePath.getFileName().toString(),
-                        I18N.getString(comment),
-                        "template." + dstFilePath.getFileName().toString(),
-                        data,
-                        VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params));
-                w.write(content);
-            }
+            createResource("template." + dstFilePath.getFileName().toString(),
+                    params)
+                    .setCategory(I18N.getString(comment))
+                    .setSubstitutionData(data)
+                    .saveToFile(dstFilePath);
             if (permissions != null) {
                 setPermissions(dstFilePath.toFile(), permissions);
             }

@@ -28,6 +28,7 @@ package jdk.jpackage.internal;
 import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.*;
@@ -35,6 +36,7 @@ import java.util.regex.Pattern;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 import static jdk.jpackage.internal.WindowsBundlerParam.*;
 
@@ -527,12 +529,12 @@ public class WinMsiBundler  extends AbstractBundler {
 
     private void prepareBasicProjectConfig(
         Map<String, ? super Object> params) throws IOException {
-        fetchResource(getConfig_Script(params).getName(),
-                I18N.getString("resource.post-install-script"),
-                (String) null,
-                getConfig_Script(params),
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
+
+        Path scriptPath = getConfig_Script(params).toPath();
+
+        createResource(null, params)
+                .setCategory(I18N.getString("resource.post-install-script"))
+                .saveToFile(scriptPath);
     }
 
     private static String relativePath(File basedir, File file) {
@@ -663,7 +665,7 @@ public class WinMsiBundler  extends AbstractBundler {
         if (INSTALLDIR_CHOOSER.fetchFrom(params)) {
             data.put("JpInstallDirChooser", "yes");
             String fname = "wixhelper.dll";
-            try (InputStream is = getResourceAsStream(fname)) {
+            try (InputStream is = OverridableResource.readDefault(fname)) {
                 Files.copy(is, Paths.get(
                         CONFIG_ROOT.fetchFrom(params).getAbsolutePath(),
                         fname));
@@ -673,14 +675,14 @@ public class WinMsiBundler  extends AbstractBundler {
         // Copy l10n files.
         for (String loc : Arrays.asList("en", "ja", "zh_CN")) {
             String fname = "MsiInstallerStrings_" + loc + ".wxl";
-            try (InputStream is = getResourceAsStream(fname)) {
+            try (InputStream is = OverridableResource.readDefault(fname)) {
                 Files.copy(is, Paths.get(
                         CONFIG_ROOT.fetchFrom(params).getAbsolutePath(),
                         fname));
             }
         }
 
-        try (InputStream is = getResourceAsStream("main.wxs")) {
+        try (InputStream is = OverridableResource.readDefault("main.wxs")) {
             Files.copy(is, Paths.get(
                     getConfig_ProjectFile(params).getAbsolutePath()));
         }

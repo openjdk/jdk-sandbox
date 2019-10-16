@@ -43,23 +43,16 @@ import java.util.Locale;
 
 public final class MacCertificate {
     private final String certificate;
-    private final boolean verbose;
 
     public MacCertificate(String certificate) {
         this.certificate = certificate;
-        this.verbose = false;
-    }
-
-    public MacCertificate(String certificate, boolean verbose) {
-        this.certificate = certificate;
-        this.verbose = verbose;
     }
 
     public boolean isValid() {
-        return verifyCertificate(this.certificate, verbose);
+        return verifyCertificate(this.certificate);
     }
 
-    private static File findCertificate(String certificate, boolean verbose) {
+    private static File findCertificate(String certificate) {
         File result = null;
 
         List<String> args = new ArrayList<>();
@@ -87,7 +80,7 @@ public final class MacCertificate {
         return result;
     }
 
-    private static Date findCertificateDate(String filename, boolean verbose) {
+    private static Date findCertificateDate(String filename) {
         Date result = null;
 
         List<String> args = new ArrayList<>();
@@ -114,8 +107,7 @@ public final class MacCertificate {
         return result;
     }
 
-    private static boolean verifyCertificate(
-            String certificate, boolean verbose) {
+    private static boolean verifyCertificate(String certificate) {
         boolean result = false;
 
         try {
@@ -123,11 +115,11 @@ public final class MacCertificate {
             Date certificateDate = null;
 
             try {
-                file = findCertificate(certificate, verbose);
+                file = findCertificate(certificate);
 
                 if (file != null) {
                     certificateDate = findCertificateDate(
-                            file.getCanonicalPath(), verbose);
+                            file.getCanonicalPath());
                 }
             }
             finally {

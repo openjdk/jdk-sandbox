@@ -50,6 +50,7 @@ import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEY_USER;
 import static jdk.jpackage.internal.MacAppImageBuilder.MAC_CF_BUNDLE_IDENTIFIER;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 public class MacPkgBundler extends MacBaseInstallerBundler {
 
@@ -100,8 +101,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                             SIGNING_KEYCHAIN.fetchFrom(params),
                             VERBOSE.fetchFrom(params));
                     if (result != null) {
-                        MacCertificate certificate = new MacCertificate(
-                                result, VERBOSE.fetchFrom(params));
+                        MacCertificate certificate = new MacCertificate(result);
 
                         if (!certificate.isValid()) {
                             Log.error(MessageFormat.format(
@@ -206,30 +206,16 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         data.put("INSTALL_LOCATION", MAC_INSTALL_DIR.fetchFrom(params));
         data.put("APP_LOCATION", appLocation.toString());
 
-        try (Writer w = Files.newBufferedWriter(
-                getScripts_PreinstallFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getScripts_PreinstallFile(params).getName(),
-                    I18N.getString("resource.pkg-preinstall-script"),
-                    TEMPLATE_PREINSTALL_SCRIPT,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
+        createResource(TEMPLATE_PREINSTALL_SCRIPT, params)
+                .setCategory(I18N.getString("resource.pkg-preinstall-script"))
+                .setSubstitutionData(data)
+                .saveToFile(getScripts_PreinstallFile(params));
         getScripts_PreinstallFile(params).setExecutable(true, false);
 
-        try (Writer w = Files.newBufferedWriter(
-                getScripts_PostinstallFile(params).toPath())) {
-            String content = preprocessTextResource(
-                    getScripts_PostinstallFile(params).getName(),
-                    I18N.getString("resource.pkg-postinstall-script"),
-                    TEMPLATE_POSTINSTALL_SCRIPT,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
+        createResource(TEMPLATE_POSTINSTALL_SCRIPT, params)
+                .setCategory(I18N.getString("resource.pkg-postinstall-script"))
+                .setSubstitutionData(data)
+                .saveToFile(getScripts_PostinstallFile(params));
         getScripts_PostinstallFile(params).setExecutable(true, false);
     }
 
@@ -335,30 +321,20 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
 
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
             throws IOException, URISyntaxException {
-        File imageTarget = getConfig_BackgroundImage(params);
-        fetchResource(imageTarget.getName(),
-                I18N.getString("resource.pkg-background-image"),
-                DEFAULT_BACKGROUND_IMAGE,
-                imageTarget,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
 
-        imageTarget = getConfig_BackgroundImageDarkAqua(params);
-        fetchResource(imageTarget.getName(),
-                I18N.getString("resource.pkg-background-image"),
-                DEFAULT_BACKGROUND_IMAGE,
-                imageTarget,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
+        createResource(DEFAULT_BACKGROUND_IMAGE, params)
+                .setCategory(I18N.getString("resource.pkg-background-image"))
+                .saveToFile(getConfig_BackgroundImage(params));
+
+        createResource(DEFAULT_BACKGROUND_IMAGE, params)
+                .setCategory(I18N.getString("resource.pkg-background-image"))
+                .saveToFile(getConfig_BackgroundImageDarkAqua(params));
 
         prepareDistributionXMLFile(params);
 
-        fetchResource(getConfig_Script(params).getName(),
-                I18N.getString("resource.post-install-script"),
-                (String) null,
-                getConfig_Script(params),
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
+        createResource(null, params)
+                .setCategory(I18N.getString("resource.post-install-script"))
+                .saveToFile(getConfig_Script(params));
 
         return true;
     }

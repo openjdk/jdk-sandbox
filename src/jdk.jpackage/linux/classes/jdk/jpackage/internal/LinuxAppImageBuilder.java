@@ -30,13 +30,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.ResourceBundle;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -170,19 +168,13 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
     private void copyIcon(Map<String, ? super Object> params)
             throws IOException {
 
-        File icon = ICON_PNG.fetchFrom(params);
-        File iconTarget = appLayout.destktopIntegrationDirectory().resolve(
-                APP_NAME.fetchFrom(params) + ".png").toFile();
+        Path iconTarget = appLayout.destktopIntegrationDirectory().resolve(
+                APP_NAME.fetchFrom(params) + ".png");
 
-        InputStream in = locateResource(
-                iconTarget.getName(),
-                "icon",
-                DEFAULT_ICON,
-                icon,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-
-        Files.copy(in, iconTarget.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        createResource(DEFAULT_ICON, params)
+                .setCategory("icon")
+                .setExternal(ICON_PNG.fetchFrom(params))
+                .saveToFile(iconTarget);
     }
 
     private void copyApplication(Map<String, ? super Object> params)

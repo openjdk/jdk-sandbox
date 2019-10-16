@@ -72,8 +72,7 @@ public class SigningCheck {
 
     private static void validateCertificate(String key) {
         if (key != null) {
-            MacCertificate certificate = new MacCertificate(
-                    key, true);
+            MacCertificate certificate = new MacCertificate(key);
             if (!certificate.isValid()) {
                 TKit.throwSkippedException("Certifcate expired: " + key);
             } else {

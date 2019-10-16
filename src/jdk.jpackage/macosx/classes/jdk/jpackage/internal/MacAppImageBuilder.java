@@ -25,16 +25,10 @@
 
 package jdk.jpackage.internal;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.file.Files;
@@ -63,6 +57,7 @@ import javax.xml.xpath.XPathFactory;
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.*;
 import static jdk.jpackage.internal.MacAppBundler.*;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 public class MacAppImageBuilder extends AbstractAppImageBuilder {
 
@@ -142,13 +137,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                         }
                     },
                     (s, p) -> s);
-
-    public static final BundlerParamInfo<String> DEFAULT_ICNS_ICON =
-            new StandardBundlerParam<>(
-            ".mac.default.icns",
-            String.class,
-            params -> TEMPLATE_BUNDLE_ICON,
-            (s, p) -> s);
 
     public static final BundlerParamInfo<File> ICON_ICNS =
             new StandardBundlerParam<>(
@@ -312,18 +300,12 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         copyClassPathEntries(appDir, params);
 
         /*********** Take care of "config" files *******/
-        File icon = ICON_ICNS.fetchFrom(params);
 
-        InputStream in = locateResource(
-                APP_NAME.fetchFrom(params) + ".icns",
-                "icon",
-                DEFAULT_ICNS_ICON.fetchFrom(params),
-                icon,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-        Files.copy(in,
-                resourcesDir.resolve(APP_NAME.fetchFrom(params) + ".icns"),
-                StandardCopyOption.REPLACE_EXISTING);
+        createResource(TEMPLATE_BUNDLE_ICON, params)
+                .setCategory("icon")
+                .setExternal(ICON_ICNS.fetchFrom(params))
+                .saveToFile(resourcesDir.resolve(APP_NAME.fetchFrom(params)
+                        + ".icns"));
 
         // copy file association icons
         for (Map<String, ?
@@ -457,14 +439,11 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("CF_BUNDLE_VERSION", VERSION.fetchFrom(params));
         data.put("CF_BUNDLE_SHORT_VERSION_STRING", VERSION.fetchFrom(params));
 
-        try (Writer w = Files.newBufferedWriter(file.toPath())) {
-            w.write(preprocessTextResource("Runtime-Info.plist",
-                    I18N.getString("resource.runtime-info-plist"),
-                    TEMPLATE_RUNTIME_INFO_PLIST,
-                    data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params)));
-        }
+        createResource(TEMPLATE_RUNTIME_INFO_PLIST, params)
+                .setPublicName("Runtime-Info.plist")
+                .setCategory(I18N.getString("resource.runtime-info-plist"))
+                .setSubstitutionData(data)
+                .saveToFile(file);
     }
 
     private void writeInfoPlist(File file, Map<String, ? super Object> params)
@@ -664,16 +643,11 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         }
         data.put("DEPLOY_FILE_ASSOCIATIONS", associationData);
 
-
-        try (Writer w = Files.newBufferedWriter(file.toPath())) {
-            w.write(preprocessTextResource(
-                    // getConfig_InfoPlist(params).getName(),
-                    "Info.plist",
-                    I18N.getString("resource.app-info-plist"),
-                    TEMPLATE_INFO_PLIST_LITE,
-                    data, VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params)));
-        }
+        createResource(TEMPLATE_INFO_PLIST_LITE, params)
+                .setCategory(I18N.getString("resource.app-info-plist"))
+                .setSubstitutionData(data)
+                .setPublicName("Info.plist")
+                .saveToFile(file);
     }
 
     private void writePkgInfo(File file) throws IOException {

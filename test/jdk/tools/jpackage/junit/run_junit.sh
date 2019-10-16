@@ -9,10 +9,11 @@ if [ -z "$BASH" ]; then
   exit
 fi
 
-classes=( "$@" )
 sources=()
-for c in "${classes[@]}"; do
-  sources+=( "${TESTSRC}/$(echo $c | sed -e 's|\.|/|g').java" )
+classes=()
+for s in $(find "${TESTSRC}" -name  "*.java" | grep -v junit.java); do
+  sources+=( "$s" )
+  classes+=( $(echo "$s" | sed -e "s|${TESTSRC}/||" -e 's|/|.|g' -e 's/.java$//') )
 done
 
 common_args=(\
@@ -28,4 +29,4 @@ common_args=(\
 
 # Run junit
 "${TESTJAVA}/bin/java" ${TESTVMOPTS} ${TESTJAVAOPTS} \
-  "${common_args[@]}" org.junit.runner.JUnitCore "$@"
+  "${common_args[@]}" org.junit.runner.JUnitCore "${classes[@]}"

@@ -114,4 +114,8 @@ enum Platform {UNKNOWN, WINDOWS, LINUX, MAC;
     static boolean isLinux() {
         return getPlatform() == LINUX;
     }
+
+    static RuntimeException throwUnknownPlatformError() {
+        throw new IllegalArgumentException("Unknown platform");
+    }
 }

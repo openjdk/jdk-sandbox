@@ -29,9 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +36,7 @@ import java.util.ResourceBundle;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacAppBundler.*;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
@@ -62,8 +60,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                         SIGNING_KEYCHAIN.fetchFrom(params),
                         VERBOSE.fetchFrom(params));
                 if (result != null) {
-                    MacCertificate certificate = new MacCertificate(result,
-                            VERBOSE.fetchFrom(params));
+                    MacCertificate certificate = new MacCertificate(result);
 
                     if (!certificate.isValid()) {
                         Log.error(MessageFormat.format(
@@ -88,8 +85,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
                         VERBOSE.fetchFrom(params));
 
                 if (result != null) {
-                    MacCertificate certificate = new MacCertificate(
-                            result, VERBOSE.fetchFrom(params));
+                    MacCertificate certificate = new MacCertificate(result);
 
                     if (!certificate.isValid()) {
                         Log.error(MessageFormat.format(
@@ -209,39 +205,17 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
 
     private void prepareEntitlements(Map<String, ? super Object> params)
             throws IOException {
-        File entitlements = MAC_APP_STORE_ENTITLEMENTS.fetchFrom(params);
-        if (entitlements == null || !entitlements.exists()) {
-            fetchResource(getEntitlementsFileName(params),
-                    I18N.getString("resource.mac-app-store-entitlements"),
-                    DEFAULT_ENTITLEMENTS,
-                    getConfig_Entitlements(params),
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-        } else {
-            fetchResource(getEntitlementsFileName(params),
-                    I18N.getString("resource.mac-app-store-entitlements"),
-                    entitlements,
-                    getConfig_Entitlements(params),
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-        }
-        fetchResource(getInheritEntitlementsFileName(params),
-                I18N.getString("resource.mac-app-store-inherit-entitlements"),
-                DEFAULT_INHERIT_ENTITLEMENTS,
-                getConfig_Inherit_Entitlements(params),
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-    }
+        createResource(DEFAULT_ENTITLEMENTS, params)
+                .setCategory(
+                        I18N.getString("resource.mac-app-store-entitlements"))
+                .setExternal(MAC_APP_STORE_ENTITLEMENTS.fetchFrom(params))
+                .saveToFile(getConfig_Entitlements(params));
 
-    private String getEntitlementsFileName(Map<String, ? super Object> params) {
-        return APP_NAME.fetchFrom(params) + ".entitlements";
+        createResource(DEFAULT_INHERIT_ENTITLEMENTS, params)
+                .setCategory(I18N.getString(
+                        "resource.mac-app-store-inherit-entitlements"))
+                .saveToFile(getConfig_Entitlements(params));
     }
-
-    private String getInheritEntitlementsFileName(
-            Map<String, ? super Object> params) {
-        return APP_NAME.fetchFrom(params) + "_Inherit.entitlements";
-    }
-
 
     ///////////////////////////////////////////////////////////////////////
     // Implement Bundler

@@ -29,6 +29,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.*;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -97,12 +98,10 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_INSTALL_LOCATION", "(path to applications folder)");
         data.put("DEPLOY_INSTALL_NAME", "Applications");
 
-        try (Writer w = Files.newBufferedWriter(dmgSetup.toPath())) {
-            w.write(preprocessTextResource(dmgSetup.getName(),
-                    I18N.getString("resource.dmg-setup-script"),
-                    DEFAULT_DMG_SETUP_SCRIPT, data, VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params)));
-        }
+        createResource(DEFAULT_DMG_SETUP_SCRIPT, params)
+                .setCategory(I18N.getString("resource.dmg-setup-script"))
+                .setSubstitutionData(data)
+                .saveToFile(dmgSetup);
     }
 
     private File getConfig_VolumeScript(Map<String, ? super Object> params) {
@@ -142,14 +141,10 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             Map<String, String> data = new HashMap<>();
             data.put("APPLICATION_LICENSE_TEXT", licenseInBase64);
 
-            try (Writer w = Files.newBufferedWriter(
-                    getConfig_LicenseFile(params).toPath())) {
-                w.write(preprocessTextResource(
-                        getConfig_LicenseFile(params).getName(),
-                        I18N.getString("resource.license-setup"),
-                        DEFAULT_LICENSE_PLIST, data, VERBOSE.fetchFrom(params),
-                        RESOURCE_DIR.fetchFrom(params)));
-            }
+            createResource(DEFAULT_LICENSE_PLIST, params)
+                    .setCategory(I18N.getString("resource.license-setup"))
+                    .setSubstitutionData(data)
+                    .saveToFile(getConfig_LicenseFile(params));
 
         } catch (IOException ex) {
             Log.verbose(ex);
@@ -158,39 +153,19 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
             throws IOException {
-        File bgTarget = getConfig_VolumeBackground(params);
-        fetchResource(bgTarget.getName(),
-                I18N.getString("resource.dmg-background"),
-                DEFAULT_BACKGROUND_IMAGE,
-                bgTarget,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
 
-        File iconTarget = getConfig_VolumeIcon(params);
-        if (MacAppBundler.ICON_ICNS.fetchFrom(params) == null ||
-                !MacAppBundler.ICON_ICNS.fetchFrom(params).exists()) {
-            fetchResource(iconTarget.getName(),
-                    I18N.getString("resource.volume-icon"),
-                    TEMPLATE_BUNDLE_ICON,
-                    iconTarget,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-        } else {
-            fetchResource(iconTarget.getName(),
-                    I18N.getString("resource.volume-icon"),
-                    MacAppBundler.ICON_ICNS.fetchFrom(params),
-                    iconTarget,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-        }
+        createResource(DEFAULT_BACKGROUND_IMAGE, params)
+                    .setCategory(I18N.getString("resource.dmg-background"))
+                    .saveToFile(getConfig_VolumeBackground(params));
 
+        createResource(TEMPLATE_BUNDLE_ICON, params)
+                .setCategory(I18N.getString("resource.volume-icon"))
+                .setExternal(MacAppBundler.ICON_ICNS.fetchFrom(params))
+                .saveToFile(getConfig_VolumeIcon(params));
 
-        fetchResource(getConfig_Script(params).getName(),
-                I18N.getString("resource.post-install-script"),
-                (String) null,
-                getConfig_Script(params),
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
+        createResource(null, params)
+                .setCategory(I18N.getString("resource.post-install-script"))
+                .saveToFile(getConfig_Script(params));
 
         prepareLicense(params);
 

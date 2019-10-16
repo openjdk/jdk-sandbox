@@ -1,0 +1,478 @@
+/*
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+package jdk.jpackage.internal;
+
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+import static jdk.jpackage.internal.LinuxAppBundler.ICON_PNG;
+import static jdk.jpackage.internal.LinuxAppImageBuilder.DEFAULT_ICON;
+import static jdk.jpackage.internal.OverridableResource.createResource;
+import static jdk.jpackage.internal.StandardBundlerParam.*;
+
+/**
+ * Helper to create files for desktop integration.
+ */
+final class DesktopIntegration {
+
+    static final String DESKTOP_COMMANDS_INSTALL = "DESKTOP_COMMANDS_INSTALL";
+    static final String DESKTOP_COMMANDS_UNINSTALL = "DESKTOP_COMMANDS_UNINSTALL";
+    static final String UTILITY_SCRIPTS = "UTILITY_SCRIPTS";
+
+    DesktopIntegration(PlatformPackage thePackage,
+            Map<String, ? super Object> params) {
+
+        associations = FILE_ASSOCIATIONS.fetchFrom(params).stream().filter(
+                a -> {
+                    if (a == null) {
+                        return false;
+                    }
+                    List<String> mimes = FA_CONTENT_TYPE.fetchFrom(a);
+                    return (mimes != null && !mimes.isEmpty());
+                }).collect(Collectors.toUnmodifiableList());
+
+        launchers = ADD_LAUNCHERS.fetchFrom(params);
+
+        this.thePackage = thePackage;
+
+        final File customIconFile = ICON_PNG.fetchFrom(params);
+
+        iconResource = createResource(DEFAULT_ICON, params)
+                .setCategory(I18N.getString("resource.menu-icon"))
+                .setExternal(customIconFile);
+        desktopFileResource = createResource("template.desktop", params)
+                .setCategory(I18N.getString("resource.menu-shortcut-descriptor"));
+
+        // XDG recommends to use vendor prefix in desktop file names as xdg
+        // commands copy files to system directories.
+        // Package name should be a good prefix.
+        final String desktopFileName = String.format("%s-%s.desktop",
+                    thePackage.name(), APP_NAME.fetchFrom(params));
+        final String mimeInfoFileName = String.format("%s-%s-MimeInfo.xml",
+                    thePackage.name(), APP_NAME.fetchFrom(params));
+
+        mimeInfoFile = new DesktopFile(mimeInfoFileName);
+
+        if (!associations.isEmpty() || SHORTCUT_HINT.fetchFrom(params) || customIconFile != null) {
+            //
+            // Create primary .desktop file if one of conditions is met:
+            // - there are file associations configured
+            // - user explicitely requested to create a shortcut
+            // - custom icon specified
+            //
+            desktopFile = new DesktopFile(desktopFileName);
+            iconFile = new DesktopFile(String.format("%s.png",
+                    APP_NAME.fetchFrom(params)));
+        } else {
+            desktopFile = null;
+            iconFile = null;
+        }
+
+        desktopFileData = Collections.unmodifiableMap(
+                createDataForDesktopFile(params));
+
+        nestedIntegrations = launchers.stream().map(
+                launcherParams -> new DesktopIntegration(thePackage,
+                        launcherParams)).collect(Collectors.toList());
+    }
+
+    List<String> requiredPackages() {
+        return Stream.of(List.of(this), nestedIntegrations).flatMap(
+                List::stream).map(DesktopIntegration::requiredPackagesSelf).flatMap(
+                List::stream).distinct().collect(Collectors.toList());
+    }
+
+    Map<String, String> create() throws IOException {
+        if (iconFile != null) {
+            // Create application icon file.
+            iconResource.saveToFile(iconFile.srcPath());
+        }
+
+        Map<String, String> data = new HashMap<>(desktopFileData);
+
+        final ShellCommands shellCommands;
+        if (desktopFile != null) {
+            // Create application desktop description file.
+            createDesktopFile(data);
+
+            // Shell commands will be created only if desktop file
+            // should be installed.
+            shellCommands = new ShellCommands();
+        } else {
+            shellCommands = null;
+        }
+
+        if (!associations.isEmpty()) {
+            // Create XML file with mime types corresponding to file associations.
+            createFileAssociationsMimeInfoFile();
+
+            shellCommands.setFileAssociations();
+
+            // Create icon files corresponding to file associations
+            Map<String, Path> mimeTypeWithIconFile = createFileAssociationIconFiles();
+            mimeTypeWithIconFile.forEach((k, v) -> {
+                shellCommands.addIcon(k, v);
+            });
+        }
+
+        // Create shell commands to install/uninstall integration with desktop of the app.
+        if (shellCommands != null) {
+            shellCommands.applyTo(data);
+        }
+
+        boolean needCleanupScripts = !associations.isEmpty();
+
+        // Take care of additional launchers if there are any.
+        // Process every additional launcher as the main application launcher.
+        // Collect shell commands to install/uninstall integration with desktop
+        // of the additional launchers and append them to the corresponding
+        // commands of the main launcher.
+        List<String> installShellCmds = new ArrayList<>(Arrays.asList(
+                data.get(DESKTOP_COMMANDS_INSTALL)));
+        List<String> uninstallShellCmds = new ArrayList<>(Arrays.asList(
+                data.get(DESKTOP_COMMANDS_UNINSTALL)));
+        for (var integration: nestedIntegrations) {
+            if (!integration.associations.isEmpty()) {
+                needCleanupScripts = true;
+            }
+
+            Map<String, String> launcherData = integration.create();
+
+            installShellCmds.add(launcherData.get(DESKTOP_COMMANDS_INSTALL));
+            uninstallShellCmds.add(launcherData.get(
+                    DESKTOP_COMMANDS_UNINSTALL));
+        }
+
+        data.put(DESKTOP_COMMANDS_INSTALL, stringifyShellCommands(
+                installShellCmds));
+        data.put(DESKTOP_COMMANDS_UNINSTALL, stringifyShellCommands(
+                uninstallShellCmds));
+
+        if (needCleanupScripts) {
+            // Pull in utils.sh scrips library.
+            try (InputStream is = OverridableResource.readDefault("utils.sh");
+                    InputStreamReader isr = new InputStreamReader(is);
+                    BufferedReader reader = new BufferedReader(isr)) {
+                data.put(UTILITY_SCRIPTS, reader.lines().collect(
+                        Collectors.joining(System.lineSeparator())));
+            }
+        } else {
+            data.put(UTILITY_SCRIPTS, "");
+        }
+
+        return data;
+    }
+
+    private List<String> requiredPackagesSelf() {
+        if (desktopFile != null) {
+            return List.of("xdg-utils");
+        }
+        return Collections.emptyList();
+    }
+
+    private Map<String, String> createDataForDesktopFile(
+            Map<String, ? super Object> params) {
+        Map<String, String> data = new HashMap<>();
+        data.put("APPLICATION_NAME", APP_NAME.fetchFrom(params));
+        data.put("APPLICATION_DESCRIPTION", DESCRIPTION.fetchFrom(params));
+        data.put("APPLICATION_ICON",
+                iconFile != null ? iconFile.installPath().toString() : null);
+        data.put("DEPLOY_BUNDLE_CATEGORY", MENU_GROUP.fetchFrom(params));
+        data.put("APPLICATION_LAUNCHER",
+                thePackage.installedApplicationLayout().launchersDirectory().resolve(
+                        LinuxAppImageBuilder.getLauncherName(params)).toString());
+
+        return data;
+    }
+
+    /**
+     * Shell commands to integrate something with desktop.
+     */
+    private class ShellCommands {
+
+        ShellCommands() {
+            registerIconCmds = new ArrayList<>();
+            unregisterIconCmds = new ArrayList<>();
+
+            registerDesktopFileCmd = String.join(" ", "xdg-desktop-menu",
+                    "install", desktopFile.installPath().toString());
+            unregisterDesktopFileCmd = String.join(" ", "xdg-desktop-menu",
+                    "uninstall", desktopFile.installPath().toString());
+        }
+
+        void setFileAssociations() {
+            registerFileAssociationsCmd = String.join(" ", "xdg-mime",
+                    "install",
+                    mimeInfoFile.installPath().toString());
+            unregisterFileAssociationsCmd = String.join(" ", "xdg-mime",
+                    "uninstall", mimeInfoFile.installPath().toString());
+
+            //
+            // Add manual cleanup of system files to get rid of
+            // the default mime type handlers.
+            //
+            // Even after mime type is unregisterd with `xdg-mime uninstall`
+            // command and desktop file deleted with `xdg-desktop-menu uninstall`
+            // command, records in
+            // `/usr/share/applications/defaults.list` (Ubuntu 16) or
+            // `/usr/local/share/applications/defaults.list` (OracleLinux 7)
+            // files remain referencing deleted mime time and deleted
+            // desktop file which makes `xdg-mime query default` output name
+            // of non-existing desktop file.
+            //
+            String cleanUpCommand = String.join(" ",
+                    "uninstall_default_mime_handler",
+                    desktopFile.installPath().getFileName().toString(),
+                    String.join(" ", getMimeTypeNamesFromFileAssociations()));
+
+            unregisterFileAssociationsCmd = stringifyShellCommands(
+                    unregisterFileAssociationsCmd, cleanUpCommand);
+        }
+
+        void addIcon(String mimeType, Path iconFile) {
+            final int imgSize = getSquareSizeOfImage(iconFile.toFile());
+            final String dashMime = mimeType.replace('/', '-');
+            registerIconCmds.add(String.join(" ", "xdg-icon-resource",
+                    "install", "--context", "mimetypes", "--size ",
+                    Integer.toString(imgSize), iconFile.toString(), dashMime));
+            unregisterIconCmds.add(String.join(" ", "xdg-icon-resource",
+                    "uninstall", dashMime));
+        }
+
+        void applyTo(Map<String, String> data) {
+            List<String> cmds = new ArrayList<>();
+
+            cmds.add(registerDesktopFileCmd);
+            cmds.add(registerFileAssociationsCmd);
+            cmds.addAll(registerIconCmds);
+            data.put(DESKTOP_COMMANDS_INSTALL, stringifyShellCommands(cmds));
+
+            cmds.clear();
+            cmds.add(unregisterDesktopFileCmd);
+            cmds.add(unregisterFileAssociationsCmd);
+            cmds.addAll(unregisterIconCmds);
+            data.put(DESKTOP_COMMANDS_UNINSTALL, stringifyShellCommands(cmds));
+        }
+
+        private String registerDesktopFileCmd;
+        private String unregisterDesktopFileCmd;
+
+        private String registerFileAssociationsCmd;
+        private String unregisterFileAssociationsCmd;
+
+        private List<String> registerIconCmds;
+        private List<String> unregisterIconCmds;
+    }
+
+    /**
+     * Desktop integration file. xml, icon, etc.
+     * Resides somewhere in application installation tree.
+     * Has two paths:
+     *  - path where it should be placed at package build time;
+     *  - path where it should be installed by package manager;
+     */
+    private class DesktopFile {
+
+        DesktopFile(String fileName) {
+            installPath = thePackage
+                    .installedApplicationLayout()
+                    .destktopIntegrationDirectory().resolve(fileName);
+            srcPath = thePackage
+                    .sourceApplicationLayout()
+                    .destktopIntegrationDirectory().resolve(fileName);
+        }
+
+        private final Path installPath;
+        private final Path srcPath;
+
+        Path installPath() {
+            return installPath;
+        }
+
+        Path srcPath() {
+            return srcPath;
+        }
+    }
+
+    private void appendFileAssociation(XMLStreamWriter xml,
+            Map<String, ? super Object> assoc) throws XMLStreamException {
+
+        xml.writeStartElement("mime-type");
+        final String thisMime = FA_CONTENT_TYPE.fetchFrom(assoc).get(0);
+        xml.writeAttribute("type", thisMime);
+
+        final String description = FA_DESCRIPTION.fetchFrom(assoc);
+        if (description != null && !description.isEmpty()) {
+            xml.writeStartElement("comment");
+            xml.writeCharacters(description);
+            xml.writeEndElement();
+        }
+
+        final List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
+        if (extensions == null) {
+            Log.error(I18N.getString(
+                    "message.creating-association-with-null-extension"));
+        } else {
+            for (String ext : extensions) {
+                xml.writeStartElement("glob");
+                xml.writeAttribute("pattern", "*." + ext);
+                xml.writeEndElement();
+            }
+        }
+
+        xml.writeEndElement();
+    }
+
+    private void createFileAssociationsMimeInfoFile() throws IOException {
+        XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
+
+        try (Writer w = new BufferedWriter(new FileWriter(
+                mimeInfoFile.srcPath().toFile()))) {
+            XMLStreamWriter xml = xmlFactory.createXMLStreamWriter(w);
+
+            xml.writeStartDocument();
+            xml.writeStartElement("mime-info");
+            xml.writeNamespace("xmlns",
+                    "http://www.freedesktop.org/standards/shared-mime-info");
+
+            for (var assoc : associations) {
+                appendFileAssociation(xml, assoc);
+            }
+
+            xml.writeEndElement();
+            xml.writeEndDocument();
+            xml.flush();
+            xml.close();
+
+        } catch (XMLStreamException ex) {
+            Log.verbose(ex);
+            throw new IOException(ex);
+        }
+    }
+
+    private Map<String, Path> createFileAssociationIconFiles() throws
+            IOException {
+        Map<String, Path> mimeTypeWithIconFile = new HashMap<>();
+        for (var assoc : associations) {
+            File customFaIcon = FA_ICON.fetchFrom(assoc);
+            if (customFaIcon == null || !customFaIcon.exists() || getSquareSizeOfImage(
+                    customFaIcon) == 0) {
+                continue;
+            }
+
+            String fname = iconFile.srcPath().getFileName().toString();
+            if (fname.indexOf(".") > 0) {
+                fname = fname.substring(0, fname.lastIndexOf("."));
+            }
+
+            DesktopFile faIconFile = new DesktopFile(
+                    fname + "_fa_" + customFaIcon.getName());
+
+            IOUtils.copyFile(customFaIcon, faIconFile.srcPath().toFile());
+
+            mimeTypeWithIconFile.put(FA_CONTENT_TYPE.fetchFrom(assoc).get(0),
+                    faIconFile.installPath());
+        }
+        return mimeTypeWithIconFile;
+    }
+
+    private void createDesktopFile(Map<String, String> data) throws IOException {
+        List<String> mimeTypes = getMimeTypeNamesFromFileAssociations();
+        data.put("DESKTOP_MIMES", "MimeType=" + String.join(";", mimeTypes));
+
+        // prepare desktop shortcut
+        desktopFileResource
+                .setSubstitutionData(data)
+                .saveToFile(desktopFile.srcPath());
+    }
+
+    private List<String> getMimeTypeNamesFromFileAssociations() {
+        return associations.stream().map(
+                a -> FA_CONTENT_TYPE.fetchFrom(a).get(0)).collect(
+                        Collectors.toUnmodifiableList());
+    }
+
+    private static int getSquareSizeOfImage(File f) {
+        try {
+            BufferedImage bi = ImageIO.read(f);
+            if (bi.getWidth() == bi.getHeight()) {
+                return bi.getWidth();
+            }
+        } catch (IOException e) {
+            Log.verbose(e);
+        }
+        return 0;
+    }
+
+    private static String stringifyShellCommands(String... commands) {
+        return stringifyShellCommands(Arrays.asList(commands));
+    }
+
+    private static String stringifyShellCommands(List<String> commands) {
+        return String.join(System.lineSeparator(), commands.stream().filter(
+                s -> s != null && !s.isEmpty()).collect(Collectors.toList()));
+    }
+
+    private final PlatformPackage thePackage;
+
+    private final List<Map<String, ? super Object>> associations;
+
+    private final List<Map<String, ? super Object>> launchers;
+
+    private final OverridableResource iconResource;
+    private final OverridableResource desktopFileResource;
+
+    private final DesktopFile mimeInfoFile;
+    private final DesktopFile desktopFile;
+    private final DesktopFile iconFile;
+
+    private final List<DesktopIntegration> nestedIntegrations;
+
+    private final Map<String, String> desktopFileData;
+
+    private static final BundlerParamInfo<String> MENU_GROUP =
+        new StandardBundlerParam<>(
+                Arguments.CLIOptions.LINUX_MENU_GROUP.getId(),
+                String.class,
+                params -> I18N.getString("param.menu-group.default"),
+                (s, p) -> s
+        );
+
+    private static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
+        new StandardBundlerParam<>(
+                Arguments.CLIOptions.LINUX_SHORTCUT_HINT.getId(),
+                Boolean.class,
+                params -> false,
+                (s, p) -> (s == null || "null".equalsIgnoreCase(s))
+                        ? false : Boolean.valueOf(s)
+        );
+}

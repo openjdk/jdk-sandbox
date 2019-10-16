@@ -141,8 +141,7 @@ public class MacAppBundler extends AbstractImageBundler {
                             SIGNING_KEYCHAIN.fetchFrom(params),
                             VERBOSE.fetchFrom(params));
                     if (result != null) {
-                        MacCertificate certificate = new MacCertificate(result,
-                                VERBOSE.fetchFrom(params));
+                        MacCertificate certificate = new MacCertificate(result);
 
                         if (!certificate.isValid()) {
                             Log.error(MessageFormat.format(I18N.getString(

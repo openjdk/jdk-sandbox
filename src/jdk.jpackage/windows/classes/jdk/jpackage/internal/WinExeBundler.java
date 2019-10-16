@@ -127,7 +127,7 @@ public class WinExeBundler extends AbstractBundler {
         // Copy template msi wrapper next to msi file
         String exePath = msi.getAbsolutePath();
         exePath = exePath.substring(0, exePath.lastIndexOf('.')) + ".exe";
-        try (InputStream is = getResourceAsStream(EXE_WRAPPER_NAME)) {
+        try (InputStream is = OverridableResource.readDefault(EXE_WRAPPER_NAME)) {
             Files.copy(is, Path.of(exePath));
         }
         // Embed msi in msi wrapper exe.

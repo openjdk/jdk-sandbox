@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -265,35 +266,21 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
         validateValueAndPut(data, "PRODUCT_NAME", APP_NAME, params);
         validateValueAndPut(data, "PRODUCT_VERSION", VERSION, params);
 
-        try (Writer w = Files.newBufferedWriter(
-                getConfig_ExecutableProperties(params).toPath(),
-                StandardCharsets.UTF_8)) {
-            String content = preprocessTextResource(
-                    getConfig_ExecutableProperties(params).getName(),
-                    I18N.getString("resource.executable-properties-template"),
-                    EXECUTABLE_PROPERTIES_TEMPLATE, data,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
+        createResource(EXECUTABLE_PROPERTIES_TEMPLATE, params)
+                .setCategory(I18N.getString("resource.executable-properties-template"))
+                .setSubstitutionData(data)
+                .saveToFile(getConfig_ExecutableProperties(params));
     }
 
     private void createLauncherForEntryPoint(
             Map<String, ? super Object> params) throws IOException {
 
-        File icon = ICON_ICO.fetchFrom(params);
         File iconTarget = getConfig_AppIcon(params);
 
-        InputStream in = locateResource(
-                iconTarget.getName(),
-                "icon",
-                TEMPLATE_APP_ICON,
-                icon,
-                VERBOSE.fetchFrom(params),
-                RESOURCE_DIR.fetchFrom(params));
-
-        Files.copy(in, iconTarget.toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
+        createResource(TEMPLATE_APP_ICON, params)
+                .setCategory("icon")
+                .setExternal(ICON_ICO.fetchFrom(params))
+                .saveToFile(iconTarget);
 
         writeCfgFile(params, root.resolve(
                 getLauncherCfgName(params)).toFile());

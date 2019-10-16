@@ -26,7 +26,6 @@
 package jdk.jpackage.internal;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.*;
@@ -36,6 +35,7 @@ import java.util.stream.Collectors;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
+import static jdk.jpackage.internal.OverridableResource.createResource;
 
 /**
  * There are two command line options to configure license information for RPM
@@ -146,16 +146,10 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         Path specFile = specFile(params);
 
         // prepare spec file
-        Files.createDirectories(specFile.getParent());
-        try (Writer w = Files.newBufferedWriter(specFile)) {
-            String content = preprocessTextResource(
-                    specFile.getFileName().toString(),
-                    I18N.getString("resource.rpm-spec-file"),
-                    DEFAULT_SPEC_TEMPLATE, replacementData,
-                    VERBOSE.fetchFrom(params),
-                    RESOURCE_DIR.fetchFrom(params));
-            w.write(content);
-        }
+        createResource(DEFAULT_SPEC_TEMPLATE, params)
+                .setCategory(I18N.getString("resource.rpm-spec-file"))
+                .setSubstitutionData(replacementData)
+                .saveToFile(specFile);
 
         return buildRPM(params, outputParentDir);
     }
@@ -171,14 +165,11 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         data.put("APPLICATION_LICENSE_TYPE", LICENSE_TYPE.fetchFrom(params));
 
         String licenseFile = LICENSE_FILE.fetchFrom(params);
-        if (licenseFile == null) {
-            licenseFile = "";
-        } else {
+        if (licenseFile != null) {
             licenseFile = Path.of(licenseFile).toAbsolutePath().normalize().toString();
         }
         data.put("APPLICATION_LICENSE_FILE", licenseFile);
-        data.put("APPLICATION_GROUP", Optional.ofNullable(
-                GROUP.fetchFrom(params)).orElse(""));
+        data.put("APPLICATION_GROUP", GROUP.fetchFrom(params));
 
         return data;
     }
