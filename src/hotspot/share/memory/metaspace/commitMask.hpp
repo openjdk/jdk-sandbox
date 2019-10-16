@@ -130,15 +130,6 @@ public:
     return at(bitno);
   }
 
-  // Given an address range [start..end), returns true if area is fully committed through.
-  bool is_fully_committed_range(const MetaWord* start, size_t word_size) const {
-    DEBUG_ONLY(check_range(start, word_size));
-    assert(word_size > 0, "zero range");
-    const idx_t b1 = bitno_for_address(start);
-    const idx_t b2 = bitno_for_address(start + word_size);
-    return get_next_zero_offset(b1, b2) == b2;
-  }
-
   // Given an address range, return size, in number of words, of committed area within that range.
   size_t get_committed_size_in_range(const MetaWord* start, size_t word_size) const {
     DEBUG_ONLY(check_range(start, word_size));

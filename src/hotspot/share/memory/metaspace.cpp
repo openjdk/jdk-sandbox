@@ -716,10 +716,6 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
   ChunkManager* cm = new ChunkManager("class space chunk manager", vsl);
   ChunkManager::set_chunkmanager_class(cm);
 
-  if (metaspace::Settings::separate_micro_cld_allocations()) {
-    ChunkManager* cm2 = new ChunkManager("microcld class space chunk manager", vsl);
-    ChunkManager::set_chunkmanager_microclds_class(cm2);
-  }
 }
 
 
@@ -838,11 +834,6 @@ void Metaspace::global_initialize() {
   VirtualSpaceList::set_vslist_nonclass(vsl);
   ChunkManager* cm = new ChunkManager("non-class chunkmanager", vsl);
   ChunkManager::set_chunkmanager_nonclass(cm);
-
-  if (metaspace::Settings::separate_micro_cld_allocations()) {
-    ChunkManager* cm2 = new ChunkManager("microcld non-class chunk manager", vsl);
-    ChunkManager::set_chunkmanager_microclds_nonclass(cm2);
-  }
 
   _tracer = new MetaspaceTracer();
 

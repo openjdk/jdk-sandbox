@@ -84,10 +84,6 @@ class Settings : public AllStatic {
   // Must be a multiple of and not smaller than commit granularity.
   static size_t _uncommit_on_purge_min_word_size;
 
-  // If true, allocations from micro-clds (CLDs which only load one class, e.g. hidden classes or
-  // reflection loaders) are shepherded into an own root chunk.
-  static bool _separate_micro_cld_allocations;
-
 public:
 
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
@@ -103,7 +99,6 @@ public:
   static bool delete_nodes_on_purge()                         { return _delete_nodes_on_purge; }
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
   static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
-  static bool separate_micro_cld_allocations()                { return _separate_micro_cld_allocations; }
 
   static void ergo_initialize();
 

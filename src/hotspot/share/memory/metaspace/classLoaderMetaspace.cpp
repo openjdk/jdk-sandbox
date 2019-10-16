@@ -48,11 +48,6 @@ static bool use_class_space(bool is_class) {
   return false;
 }
 
-static bool is_micro_cld(MetaspaceType space_type) {
-  return space_type == metaspace::UnsafeAnonymousMetaspaceType ||
-         space_type == metaspace::ReflectionMetaspaceType;
-}
-
 static bool use_class_space(MetadataType mdType) {
   return use_class_space(is_class(mdType));
 }
@@ -64,8 +59,6 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
   , _class_space_manager(NULL)
 {
   ChunkManager* const non_class_cm =
-      is_micro_cld(_space_type) && Settings::separate_micro_cld_allocations() ?
-          ChunkManager::chunkmanager_microclds_nonclass() :
           ChunkManager::chunkmanager_nonclass();
 
   // Initialize non-class spacemanager
@@ -79,8 +72,6 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
   // If needed, initialize class spacemanager
   if (Metaspace::using_class_space()) {
     ChunkManager* const class_cm =
-        is_micro_cld(_space_type) && Settings::separate_micro_cld_allocations() ?
-            ChunkManager::chunkmanager_microclds_class() :
             ChunkManager::chunkmanager_class();
     _class_space_manager = new SpaceManager(
         class_cm,

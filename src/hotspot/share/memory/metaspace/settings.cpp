@@ -54,7 +54,6 @@ bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
 
-bool Settings::_separate_micro_cld_allocations = false;
 
 void Settings::ergo_initialize() {
 
@@ -130,9 +129,6 @@ void Settings::ergo_initialize() {
   // strategy. This is rather arbitrarily choosen.
   _enlarge_chunks_in_place = MetaspaceEnlargeChunksInPlace;
   _enlarge_chunks_in_place_max_word_size = 256 * K;
-
-  // Optionally, we can shepherd micro cld metaspace allocs to an own root chunk.
-  _separate_micro_cld_allocations = MetaspaceSeparateMicroCLDs;
 
   // Sanity checks.
   guarantee(commit_granule_words() <= chklvl::MAX_CHUNK_WORD_SIZE, "Too large granule size");

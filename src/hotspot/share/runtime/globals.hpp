@@ -1612,9 +1612,6 @@ const size_t minimumSymbolTableSize = 1024;
   product(ccstr, MetaspaceReclaimStrategy, "balanced",                      \
           "options: balanced, aggressive, none")                            \
                                                                             \
-  product(bool, MetaspaceSeparateMicroCLDs, false,                          \
-          "Micro CLDs are separated.")                                      \
-                                                                            \
   product(bool, MetaspaceEnlargeChunksInPlace, true,                        \
           "Metapace chunks are enlarged in place.")                         \
                                                                             \
