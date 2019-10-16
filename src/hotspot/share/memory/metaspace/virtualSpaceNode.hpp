@@ -46,7 +46,7 @@ namespace metaspace {
 class CommitLimiter;
 class MetachunkListCluster;
 
-// VirtualSpaceNode manage a single address range of the Metaspace.
+// VirtualSpaceNode manages a single address range of the Metaspace.
 //
 // That address range may contain interleaved committed and uncommitted
 // regions. It keeps track of which regions have committed and offers
