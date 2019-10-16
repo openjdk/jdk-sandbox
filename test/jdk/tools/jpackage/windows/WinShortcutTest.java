@@ -24,6 +24,7 @@
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.Annotations.Test;
 
 /**
  * Test --win-shortcut parameter. Output of the test should be
@@ -40,17 +41,18 @@ import jdk.jpackage.test.PackageType;
  * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m WinShortcutTest
+ * @compile WinShortcutTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=WinShortcutTest
  */
 
 public class WinShortcutTest {
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            new PackageTest()
-            .forTypes(PackageType.WINDOWS)
-            .configureHelloApp()
-            .addInitializer(cmd -> cmd.addArgument("--win-shortcut"))
-            .run();
-        });
+    @Test
+    public static void test() {
+        new PackageTest()
+        .forTypes(PackageType.WINDOWS)
+        .configureHelloApp()
+        .addInitializer(cmd -> cmd.addArgument("--win-shortcut"))
+        .run();
     }
 }

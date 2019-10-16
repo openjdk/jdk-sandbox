@@ -31,6 +31,7 @@ import jdk.jpackage.test.HelloApp;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.FileAssociations;
+import jdk.jpackage.test.Annotations.Test;
 import jdk.jpackage.test.TKit;
 
 /**
@@ -47,41 +48,43 @@ import jdk.jpackage.test.TKit;
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m AdditionalLaunchersTest
+ * @compile AdditionalLaunchersTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=AdditionalLaunchersTest
  */
+
 public class AdditionalLaunchersTest {
 
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            FileAssociations fa = new FileAssociations(
-                    MethodHandles.lookup().lookupClass().getSimpleName());
+    @Test
+    public void test() {
+        FileAssociations fa = new FileAssociations(
+                MethodHandles.lookup().lookupClass().getSimpleName());
 
-            // Configure a bunch of additional launchers and also setup
-            // file association to make sure it will be linked only to the main
-            // launcher.
+        // Configure a bunch of additional launchers and also setup
+        // file association to make sure it will be linked only to the main
+        // launcher.
 
-            PackageTest packageTest = new PackageTest().configureHelloApp()
-            .addInitializer(cmd -> {
-                fa.createFile();
-                cmd.addArguments("--file-associations", fa.getPropertiesFile());
-                cmd.addArguments("--arguments", "Duke", "--arguments", "is",
-                        "--arguments", "the", "--arguments", "King");
-            });
-
-            packageTest.addHelloAppFileAssociationsVerifier(fa);
-
-            new AdditionalLauncher("Baz2").setArguments().applyTo(packageTest);
-            new AdditionalLauncher("foo").setArguments("yep!").applyTo(packageTest);
-
-            AdditionalLauncher barLauncher = new AdditionalLauncher("Bar").setArguments(
-                    "one", "two", "three");
-            packageTest.forTypes(PackageType.LINUX).addInitializer(cmd -> {
-                barLauncher.setIcon(TKit.TEST_SRC_ROOT.resolve("apps/dukeplug.png"));
-            });
-            barLauncher.applyTo(packageTest);
-
-            packageTest.run();
+        PackageTest packageTest = new PackageTest().configureHelloApp()
+        .addInitializer(cmd -> {
+            fa.createFile();
+            cmd.addArguments("--file-associations", fa.getPropertiesFile());
+            cmd.addArguments("--arguments", "Duke", "--arguments", "is",
+                    "--arguments", "the", "--arguments", "King");
         });
+
+        packageTest.addHelloAppFileAssociationsVerifier(fa);
+
+        new AdditionalLauncher("Baz2").setArguments().applyTo(packageTest);
+        new AdditionalLauncher("foo").setArguments("yep!").applyTo(packageTest);
+
+        AdditionalLauncher barLauncher = new AdditionalLauncher("Bar").setArguments(
+                "one", "two", "three");
+        if (TKit.isLinux()) {
+            barLauncher.setIcon(TKit.TEST_SRC_ROOT.resolve("apps/dukeplug.png"));
+        }
+        barLauncher.applyTo(packageTest);
+
+        packageTest.run();
     }
 
     private static Path replaceFileName(Path path, String newFileName) {
@@ -129,12 +132,11 @@ public class AdditionalLaunchersTest {
                 TKit.createPropertiesFile(propsFile, properties);
             });
             test.addInstallVerifier(cmd -> {
-                Path launcherPath = replaceFileName(
-                        cmd.launcherInstallationPath(), name);
+                Path launcherPath = replaceFileName(cmd.appLauncherPath(), name);
 
                 TKit.assertExecutableFileExists(launcherPath);
 
-                if (cmd.isFakeRuntimeInstalled(String.format(
+                if (cmd.isFakeRuntime(String.format(
                         "Not running %s launcher", launcherPath))) {
                     return;
                 }
@@ -143,8 +145,7 @@ public class AdditionalLaunchersTest {
                                 String[]::new));
             });
             test.addUninstallVerifier(cmd -> {
-                Path launcherPath = replaceFileName(
-                        cmd.launcherInstallationPath(), name);
+                Path launcherPath = replaceFileName(cmd.appLauncherPath(), name);
 
                 TKit.assertPathExists(launcherPath, false);
             });

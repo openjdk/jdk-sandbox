@@ -28,13 +28,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import jdk.jpackage.test.Executor;
-import jdk.jpackage.test.JPackageCommand;
-import jdk.jpackage.test.TKit;
-import jdk.jpackage.test.JavaTool;
-import jdk.jpackage.test.HelloApp;
+import java.util.stream.Stream;
+import jdk.jpackage.test.*;
 import jdk.jpackage.test.Annotations.*;
 
 /*
@@ -42,13 +41,13 @@ import jdk.jpackage.test.Annotations.*;
  * @summary jpackage basic testing
  * @library ../../../../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile BasicTest.java
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.BasicTest
  */
 
-public class BasicTest {
+public final class BasicTest {
     @Test
     public void testNoArgs() {
         List<String> output = JPackageCommand.filterOutput(
@@ -69,11 +68,101 @@ public class BasicTest {
     }
 
     @Test
+    public void testHelp() {
+        List<String> hOutput = getJPackageToolProvider()
+                .addArgument("-h").executeAndGetOutput();
+        List<String> helpOutput = getJPackageToolProvider()
+                .addArgument("--help").executeAndGetOutput();
+
+        TKit.assertStringListEquals(hOutput, helpOutput,
+                "Check -h and --help parameters produce the same output");
+
+        final String windowsPrefix = "--win-";
+        final String linuxPrefix = "--linux-";
+        final String osxPrefix = "--mac-";
+
+        final String expectedPrefix;
+        final List<String> unexpectedPrefixes;
+
+        if (TKit.isWindows()) {
+            expectedPrefix = windowsPrefix;
+            unexpectedPrefixes = List.of(osxPrefix, linuxPrefix);
+        } else if (TKit.isLinux()) {
+            expectedPrefix = linuxPrefix;
+            unexpectedPrefixes = List.of(windowsPrefix, osxPrefix);
+        } else if (TKit.isOSX()) {
+            expectedPrefix = osxPrefix;
+            unexpectedPrefixes = List.of(linuxPrefix,  windowsPrefix);
+        } else {
+            throw TKit.throwUnknownPlatformError();
+        }
+
+        Function<String, Predicate<String>> createPattern = (prefix) -> {
+            return Pattern.compile("^  " + prefix).asPredicate();
+        };
+
+        Function<List<String>, Long> countStrings = (prefixes) -> {
+            return hOutput.stream().filter(
+                    prefixes.stream().map(createPattern).reduce(x -> false,
+                            Predicate::or)).peek(TKit::trace).count();
+        };
+
+        TKit.trace("Check parameters in help text");
+        TKit.assertNotEquals(0, countStrings.apply(List.of(expectedPrefix)),
+                "Check help text contains plaform specific parameters");
+        TKit.assertEquals(0, countStrings.apply(unexpectedPrefixes),
+                "Check help text doesn't contain unexpected parameters");
+    }
+
+    @Test
+    public void testVerbose() {
+        JPackageCommand cmd = JPackageCommand.helloAppImage()
+                .setFakeRuntime().executePrerequisiteActions();
+
+        List<String> expectedVerboseOutputStrings = new ArrayList<>();
+        expectedVerboseOutputStrings.add("Creating app package:");
+        if (TKit.isWindows()) {
+            expectedVerboseOutputStrings.add("Result application bundle:");
+            expectedVerboseOutputStrings.add(
+                    "Succeeded in building Windows Application Image package");
+        } else if (TKit.isLinux()) {
+            expectedVerboseOutputStrings.add(
+                    "Succeeded in building Linux Application Image package");
+        } else if (TKit.isOSX()) {
+            expectedVerboseOutputStrings.add("Preparing Info.plist:");
+            expectedVerboseOutputStrings.add(
+                    "Succeeded in building Mac Application Image package");
+        } else {
+            TKit.throwUnknownPlatformError();
+        }
+
+        TKit.deleteDirectoryContentsRecursive(cmd.outputDir());
+        List<String> nonVerboseOutput = cmd.createExecutor().executeAndGetOutput();
+
+        TKit.deleteDirectoryContentsRecursive(cmd.outputDir());
+        List<String> verboseOutput = cmd.createExecutor().addArgument(
+                "--verbose").executeAndGetOutput();
+
+        TKit.assertTrue(nonVerboseOutput.size() < verboseOutput.size(),
+                "Check verbose output is longer than regular");
+
+        expectedVerboseOutputStrings.forEach(str -> {
+            TKit.assertTextStream(str).label("regular output")
+                    .predicate(String::contains).negate()
+                    .apply(nonVerboseOutput.stream());
+        });
+
+        expectedVerboseOutputStrings.forEach(str -> {
+            TKit.assertTextStream(str).label("verbose output")
+                    .apply(verboseOutput.stream());
+        });
+    }
+
+    @Test
     public void testNoName() {
         final String mainClassName = "Greetings";
 
-        JPackageCommand cmd = new JPackageCommand()
-                .helloAppImage(mainClassName)
+        JPackageCommand cmd = JPackageCommand.helloAppImage(mainClassName)
                 .removeArgumentWithValue("--name");
 
         Path expectedImageDir = cmd.outputDir().resolve(mainClassName);
@@ -84,51 +173,60 @@ public class BasicTest {
 
         cmd.executeAndAssertHelloAppImageCreated();
         TKit.assertEquals(expectedImageDir.toAbsolutePath().normalize().toString(),
-                cmd.appImage().toAbsolutePath().normalize().toString(),
+                cmd.outputBundle().toAbsolutePath().normalize().toString(),
                 String.format(
                         "Check [%s] directory is filled with application image data",
                         expectedImageDir));
     }
 
     @Test
-    public void testApp() {
-        new JPackageCommand()
-        .helloAppImage()
+     // Regular app
+    @Parameter("Hello")
+    // Modular app
+    @Parameter("com.other/com.other.Hello")
+    public void testApp(String javaAppDesc) {
+        JPackageCommand.helloAppImage(javaAppDesc)
         .executeAndAssertHelloAppImageCreated();
     }
 
     @Test
-    public void testModularApp() {
-        new JPackageCommand()
-        .helloAppImage("com.other/com.other.Hello")
+    public void testWhitespaceInPaths() {
+        JPackageCommand.helloAppImage("a/b c.jar:Hello")
+        .setArgumentValue("--input", TKit.workDir().resolve("The quick brown fox"))
+        .setArgumentValue("--dest", TKit.workDir().resolve("jumps over the lazy dog"))
         .executeAndAssertHelloAppImageCreated();
     }
 
     @Test
     @Parameter("ALL-MODULE-PATH")
     @Parameter("ALL-DEFAULT")
-    @Parameter("jdk.desktop,jdk.jartool")
-    public void testAddModules(String addModulesArg) {
-        JPackageCommand cmd = new JPackageCommand()
-            .helloAppImage("com.other/com.other.Hello");
-        if (!addModulesArg.isEmpty()) {
-            cmd.addArguments("--add-modules", addModulesArg);
-        }
+    @Parameter("java.desktop")
+    @Parameter("java.desktop,jdk.jartool")
+    @Parameter({ "java.desktop", "jdk.jartool" })
+    public void testAddModules(String... addModulesArg) {
+        JPackageCommand cmd = JPackageCommand
+                .helloAppImage("goodbye.jar:com.other/com.other.Hello");
+        Stream.of(addModulesArg).map(v -> Stream.of("--add-modules", v)).flatMap(
+                s -> s).forEachOrdered(cmd::addArgument);
         cmd.executeAndAssertHelloAppImageCreated();
     }
 
     /**
      * Test --temp option. Doesn't make much sense for app image as temporary
-     * directory is used only on Windows.
+     * directory is used only on Windows. Test it in packaging mode.
      * @throws IOException
      */
-//    @Test
+    @Test
     public void testTemp() throws IOException {
-        JPackageCommand cmd = new JPackageCommand().helloAppImage();
+        JPackageCommand cmd = JPackageCommand.helloAppImage()
+                .removeArgumentWithValue("--package-type")
+                .addArguments("--verbose")
+                .setFakeRuntime();
+
         TKit.withTempDirectory("temp-root", tempDir -> {
             cmd.addArguments("--temp", tempDir);
 
-            cmd.executeAndAssertHelloAppImageCreated();
+            cmd.execute().assertExitCodeIsZero();
 
             // Check jpackage actually used the supplied directory.
             TKit.assertNotEquals(0, tempDir.toFile().list().length,
@@ -144,7 +242,7 @@ public class BasicTest {
 
     @Test
     public void testAtFile() throws IOException {
-        JPackageCommand cmd = new JPackageCommand().helloAppImage();
+        JPackageCommand cmd = JPackageCommand.helloAppImage();
 
         // Init options file with the list of options configured
         // for JPackageCommand instance.
@@ -211,8 +309,7 @@ public class BasicTest {
             cmd.addArguments("--runtime-image", runtimeDir);
             cmd.executeAndAssertHelloAppImageCreated();
 
-            final Path appImageRuntimePath = cmd.appImage().resolve(
-                    cmd.appRuntimeDirectoryInAppImage());
+            final Path appImageRuntimePath = cmd.appRuntimeDirectory();
 
             //
             // This is an overkill to list modules in jlink output as we have
@@ -251,8 +348,6 @@ public class BasicTest {
     }
 
     private static Executor getToolProvider(JavaTool tool) {
-        return new Executor()
-                .dumpOutput().saveOutput()
-                .setToolProvider(tool.asToolProvider());
+        return new Executor().dumpOutput().saveOutput().setToolProvider(tool);
     }
 }

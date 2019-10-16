@@ -162,10 +162,9 @@ public final class PackageTest {
     public PackageTest addHelloAppFileAssociationsVerifier(FileAssociations fa,
             String... faLauncherDefaultArgs) {
 
-        addInitializer(cmd -> HelloApp.addTo(cmd, null), "HelloApp");
+        addInitializer(cmd -> new HelloApp(null).addTo(cmd), "HelloApp");
         addInstallVerifier(cmd -> {
-            if (cmd.isFakeRuntimeInstalled(
-                    "Not running file associations test")) {
+            if (cmd.isFakeRuntime("Not running file associations test")) {
                 return;
             }
 
@@ -219,7 +218,8 @@ public final class PackageTest {
     }
 
     public PackageTest configureHelloApp(String encodedName) {
-        addInitializer(cmd -> HelloApp.addTo(cmd, encodedName));
+        addInitializer(
+                cmd -> new HelloApp(JavaAppDesc.parse(encodedName)).addTo(cmd));
         addInstallVerifier(HelloApp::executeLauncherAndVerifyOutput);
         return this;
     }
@@ -297,6 +297,8 @@ public final class PackageTest {
             type.applyTo(cmd);
 
             initializers.stream().forEach(v -> v.accept(cmd));
+            cmd.executePrerequisiteActions();
+
             switch (action) {
                 case CREATE:
                     Executor.Result result = cmd.execute();
@@ -336,15 +338,13 @@ public final class PackageTest {
         private void verifyPackageInstalled(JPackageCommand cmd) {
             TKit.trace(String.format("Verify installed: %s",
                     cmd.getPrintableCommandLine()));
-            if (cmd.isRuntime()) {
-                TKit.assertPathExists(
-                        cmd.appRuntimeInstallationDirectory(), false);
-            } else {
-                TKit.assertExecutableFileExists(cmd.launcherInstallationPath());
-            }
+            TKit.assertDirectoryExists(cmd.appRuntimeDirectory());
+            if (!cmd.isRuntime()) {
+                TKit.assertExecutableFileExists(cmd.appLauncherPath());
 
-            if (PackageType.WINDOWS.contains(cmd.packageType())) {
-                new WindowsHelper.AppVerifier(cmd);
+                if (PackageType.WINDOWS.contains(cmd.packageType())) {
+                    new WindowsHelper.AppVerifier(cmd);
+                }
             }
 
             installVerifiers.stream().forEach(v -> v.accept(cmd));
@@ -354,13 +354,14 @@ public final class PackageTest {
             TKit.trace(String.format("Verify uninstalled: %s",
                     cmd.getPrintableCommandLine()));
             if (!cmd.isRuntime()) {
-                TKit.assertPathExists(cmd.launcherInstallationPath(), false);
-                TKit.assertPathExists(cmd.appInstallationDirectory(), false);
+                TKit.assertPathExists(cmd.appLauncherPath(), false);
+
+                if (PackageType.WINDOWS.contains(cmd.packageType())) {
+                    new WindowsHelper.AppVerifier(cmd);
+                }
             }
 
-            if (PackageType.WINDOWS.contains(cmd.packageType())) {
-                new WindowsHelper.AppVerifier(cmd);
-            }
+            TKit.assertPathExists(cmd.appInstallationDirectory(), false);
 
             uninstallVerifiers.stream().forEach(v -> v.accept(cmd));
         }

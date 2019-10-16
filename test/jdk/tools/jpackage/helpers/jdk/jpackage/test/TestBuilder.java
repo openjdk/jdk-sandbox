@@ -23,43 +23,66 @@
 
 package jdk.jpackage.test;
 
-import java.lang.reflect.Constructor;
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Modifier;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import jdk.jpackage.test.Annotations.AfterEach;
+import jdk.jpackage.test.Annotations.BeforeEach;
 import jdk.jpackage.test.Annotations.Parameter;
+import jdk.jpackage.test.Annotations.ParameterGroup;
 import jdk.jpackage.test.Annotations.Parameters;
 import jdk.jpackage.test.Annotations.Test;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
 import jdk.jpackage.test.Functional.ThrowingFunction;
-import jdk.jpackage.test.Functional.ThrowingSupplier;
 
 final class TestBuilder implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        flushTestGroup(null);
+        flushTestGroup();
     }
 
     TestBuilder(Consumer<TestInstance> testConsumer) {
-        argProcessors = Map.of(CMDLINE_ARG_PREFIX + "after-run",
-                arg -> getJavaMethodsFromArg(arg).forEach(
-                        (method) -> afterActions.add(wrap(method, dryRun))),
+        argProcessors = Map.of(
+                CMDLINE_ARG_PREFIX + "after-run",
+                arg -> getJavaMethodsFromArg(arg).map(
+                        this::wrap).forEachOrdered(afterActions::add),
+
                 CMDLINE_ARG_PREFIX + "before-run",
-                arg -> getJavaMethodsFromArg(arg).forEach(
-                        (method) -> beforeActions.add(wrap(method, dryRun))),
+                arg -> getJavaMethodsFromArg(arg).map(
+                        this::wrap).forEachOrdered(beforeActions::add),
+
                 CMDLINE_ARG_PREFIX + "run",
-                arg -> flushTestGroup(getJavaMethodsFromArg(arg).map(
-                        TestBuilder::toMethodCalls).flatMap(List::stream).collect(
+                arg -> addTestGroup(getJavaMethodsFromArg(arg).map(
+                        ThrowingFunction.toFunction(
+                                TestBuilder::toMethodCalls)).flatMap(s -> s).collect(
                         Collectors.toList())),
+
+                CMDLINE_ARG_PREFIX + "exclude",
+                arg -> (excludedTests = Optional.ofNullable(
+                        excludedTests).orElse(new HashSet<String>())).add(arg),
+
+                CMDLINE_ARG_PREFIX + "include",
+                arg -> (includedTests = Optional.ofNullable(
+                        includedTests).orElse(new HashSet<String>())).add(arg),
+
+                CMDLINE_ARG_PREFIX + "space-subst",
+                arg -> spaceSubstitute = arg,
+
+                CMDLINE_ARG_PREFIX + "group",
+                arg -> flushTestGroup(),
+
                 CMDLINE_ARG_PREFIX + "dry-run",
-                arg -> dryRun = true);
+                arg -> dryRun = true
+        );
         this.testConsumer = testConsumer;
         clear();
     }
@@ -87,50 +110,93 @@ final class TestBuilder implements AutoCloseable {
         }
     }
 
-    private void flushTestGroup(List<MethodCall> newTestGroup) {
+    private void addTestGroup(List<MethodCall> newTestGroup) {
         if (testGroup != null) {
-            testGroup.forEach(testBody -> createTestInstance(testBody));
+            testGroup.addAll(newTestGroup);
+        } else {
+            testGroup = newTestGroup;
+        }
+    }
+
+    private static Stream<MethodCall> filterTests(Stream<MethodCall> tests,
+            Set<String> filters, UnaryOperator<Boolean> pred, String logMsg) {
+        if (filters == null) {
+            return tests;
+        }
+
+        // Log all matches before returning from the function
+        return tests.filter(test -> {
+            String testDescription = test.createDescription().testFullName();
+            boolean match = filters.stream().anyMatch(
+                    v -> testDescription.contains(v));
+            if (match) {
+                trace(String.format(logMsg + ": %s", testDescription));
+            }
+            return pred.apply(match);
+        }).collect(Collectors.toList()).stream();
+    }
+
+    private Stream<MethodCall> filterTestGroup() {
+        Objects.requireNonNull(testGroup);
+
+        UnaryOperator<Set<String>> restoreSpaces = filters -> {
+            if (spaceSubstitute == null || filters == null) {
+                return filters;
+            }
+            return filters.stream().map(
+                    filter -> filter.replace(spaceSubstitute, " ")).collect(
+                            Collectors.toSet());
+        };
+
+        if (includedTests != null) {
+            return filterTests(testGroup.stream(), restoreSpaces.apply(
+                    includedTests), x -> x, "Include");
+        }
+
+        return filterTests(testGroup.stream(),
+                restoreSpaces.apply(excludedTests), x -> !x, "Exclude");
+    }
+
+    private void flushTestGroup() {
+        if (testGroup != null) {
+            filterTestGroup().forEach(testBody -> createTestInstance(testBody));
             clear();
         }
-        testGroup = newTestGroup;
     }
 
     private void createTestInstance(MethodCall testBody) {
-        ThrowingFunction<MethodCall, Object> testContructor;
-        if (dryRun) {
-            testContructor = (unused) -> null;
-            testBody = DRY_RUN_TEST_BODY;
+        final List<ThrowingConsumer> curBeforeActions;
+        final List<ThrowingConsumer> curAfterActions;
+
+        Method testMethod = testBody.getMethod();
+        if (Stream.of(BeforeEach.class, AfterEach.class).anyMatch(
+                type -> testMethod.isAnnotationPresent(type))) {
+            curBeforeActions = beforeActions;
+            curAfterActions = afterActions;
         } else {
-            testContructor = TestBuilder::constructTest;
+            curBeforeActions = new ArrayList<>(beforeActions);
+            curAfterActions = new ArrayList<>(afterActions);
+
+            selectFrameMethods(testMethod.getDeclaringClass(), BeforeEach.class).map(
+                    this::wrap).forEachOrdered(curBeforeActions::add);
+            selectFrameMethods(testMethod.getDeclaringClass(), AfterEach.class).map(
+                    this::wrap).forEachOrdered(curAfterActions::add);
         }
 
-        TestInstance test = new TestInstance(testContructor, testBody,
-                beforeActions, afterActions);
-        trace(String.format("[%s] test constructed", test.fullName()));
+        TestInstance test = new TestInstance(testBody, curBeforeActions,
+                curAfterActions, dryRun);
+        if (includedTests == null) {
+            trace(String.format("Create: %s", test.fullName()));
+        }
         testConsumer.accept(test);
-    }
-
-    public static void nop () {
-    }
-
-    private final static MethodCall DRY_RUN_TEST_BODY = ThrowingSupplier.toSupplier(() -> {
-        return new MethodCall(TestBuilder.class.getMethod("nop"));
-    }).get();
-
-    private static Object constructTest(MethodCall testBody) throws
-            NoSuchMethodException, InstantiationException,
-            IllegalAccessException, IllegalArgumentException,
-            InvocationTargetException {
-        Constructor ctor = testBody.getRequiredConstructor();
-        if (ctor == null) {
-            return null;
-        }
-        return ctor.newInstance();
     }
 
     private void clear() {
         beforeActions = new ArrayList<>();
         afterActions = new ArrayList<>();
+        excludedTests = null;
+        includedTests = null;
+        spaceSubstitute = null;
         testGroup = null;
     }
 
@@ -140,6 +206,14 @@ final class TestBuilder implements AutoCloseable {
         } catch (ClassNotFoundException ex) {
             return null;
         }
+    }
+
+    private static Stream<Method> selectFrameMethods(Class type, Class annotationType) {
+        return Stream.of(type.getMethods())
+                .filter(m -> m.getParameterCount() == 0)
+                .filter(m -> !m.isAnnotationPresent(Test.class))
+                .filter(m -> m.isAnnotationPresent(annotationType))
+                .sorted((a, b) -> a.getName().compareTo(b.getName()));
     }
 
     private static Stream<String> cmdLineArgValueToMethodNames(String v) {
@@ -156,6 +230,7 @@ final class TestBuilder implements AutoCloseable {
                         m -> m.isAnnotationPresent(Test.class)).map(
                                 Method::getName).distinct().forEach(
                                 name -> result.add(String.join(".", token, name)));
+
                 continue;
             }
 
@@ -188,7 +263,7 @@ final class TestBuilder implements AutoCloseable {
     }
 
     private static boolean isParametrized(Method method) {
-        return method.isAnnotationPresent(Parameters.class) || method.isAnnotationPresent(
+        return method.isAnnotationPresent(ParameterGroup.class) || method.isAnnotationPresent(
                 Parameter.class);
     }
 
@@ -215,19 +290,6 @@ final class TestBuilder implements AutoCloseable {
                     "Method [%s] not found in [%s] class;",
                     methodName, className));
         }
-        // Make sure default constructor is accessible if the one is needed.
-        // Need to probe all methods as some of them might be static and
-        // some class members.
-        // Onlu class members require default ctor.
-        for (Method method : methods) {
-            try {
-                MethodCall.getRequiredConstructor(method);
-            } catch (NoSuchMethodException ex) {
-                throw new ParseException(String.format(
-                        "Default constructor not found in [%s] class;",
-                        className));
-            }
-        }
 
         trace(String.format("%s -> %s", qualifiedMethodName, methods));
         return methods;
@@ -240,9 +302,9 @@ final class TestBuilder implements AutoCloseable {
                         List::stream).sequential();
     }
 
-    private static Parameter[] getParameters(Method method) {
-        if (method.isAnnotationPresent(Parameters.class)) {
-            return ((Parameters) method.getAnnotation(Parameters.class)).value();
+    private static Parameter[] getMethodParameters(Method method) {
+        if (method.isAnnotationPresent(ParameterGroup.class)) {
+            return ((ParameterGroup) method.getAnnotation(ParameterGroup.class)).value();
         }
 
         if (method.isAnnotationPresent(Parameter.class)) {
@@ -254,20 +316,73 @@ final class TestBuilder implements AutoCloseable {
         return null;
     }
 
-    private static List<MethodCall> toMethodCalls(Method method) {
-        if (!isParametrized(method)) {
-            return List.of(new MethodCall(method));
+    private static Stream<Object[]> toCtorArgs(Method method) throws
+            IllegalAccessException, InvocationTargetException {
+        Class type = method.getDeclaringClass();
+        List<Method> paremetersProviders = Stream.of(type.getMethods())
+                .filter(m -> m.getParameterCount() == 0)
+                .filter(m -> (m.getModifiers() & Modifier.STATIC) != 0)
+                .filter(m -> m.isAnnotationPresent(Parameters.class))
+                .sorted()
+                .collect(Collectors.toList());
+        if (paremetersProviders.isEmpty()) {
+            // Single instance using the default constructor.
+            return Stream.ofNullable(MethodCall.DEFAULT_CTOR_ARGS);
         }
-        Parameter[] annotations = getParameters(method);
+
+        // Pick the first method from the list.
+        Method paremetersProvider = paremetersProviders.iterator().next();
+        if (paremetersProviders.size() > 1) {
+            trace(String.format(
+                    "Found %d public static methods without arguments with %s annotation. Will use %s",
+                    paremetersProviders.size(), Parameters.class,
+                    paremetersProvider));
+            paremetersProviders.stream().map(Method::toString).forEach(
+                    TestBuilder::trace);
+        }
+
+        // Construct collection of arguments for test class instances.
+        return ((Collection) paremetersProvider.invoke(null)).stream();
+    }
+
+    private static Stream<MethodCall> toMethodCalls(Method method) throws
+            IllegalAccessException, InvocationTargetException {
+        return toCtorArgs(method).map(v -> toMethodCalls(v, method)).flatMap(
+                s -> s).peek(methodCall -> {
+                    // Make sure required constructor is accessible if the one is needed.
+                    // Need to probe all methods as some of them might be static
+                    // and some class members.
+                    // Only class members require ctors.
+                    try {
+                        methodCall.checkRequiredConstructor();
+                    } catch (NoSuchMethodException ex) {
+                        throw new ParseException(ex.getMessage() + ".");
+                    }
+                });
+    }
+
+    private static Stream<MethodCall> toMethodCalls(Object[] ctorArgs, Method method) {
+        if (!isParametrized(method)) {
+            return Stream.of(new MethodCall(ctorArgs, method));
+        }
+        Parameter[] annotations = getMethodParameters(method);
         if (annotations.length == 0) {
-            return List.of(new MethodCall(method));
+            return Stream.of(new MethodCall(ctorArgs, method));
         }
         return Stream.of(annotations).map((a) -> {
-            String annotationValue = a.value();
-            Class paramClass = method.getParameterTypes()[0];
-            return new MethodCall(method,
-                    fromString(annotationValue, paramClass));
-        }).collect(Collectors.toList());
+            Class paramType = method.getParameterTypes()[0];
+            final Object annotationValue;
+            if (!paramType.isArray()) {
+                annotationValue = fromString(a.value()[0], paramType);
+            } else {
+                Class paramComponentType = paramType.getComponentType();
+                annotationValue = Array.newInstance(paramComponentType, a.value().length);
+                var idx = new AtomicInteger(-1);
+                Stream.of(a.value()).map(v -> fromString(v, paramComponentType)).sequential().forEach(
+                        v -> Array.set(annotationValue, idx.incrementAndGet(), v));
+            }
+            return new MethodCall(ctorArgs, method, annotationValue);
+        });
     }
 
     private static Object fromString(String value, Class toType) {
@@ -281,7 +396,7 @@ final class TestBuilder implements AutoCloseable {
     }
 
     // Wraps Method.invike() into ThrowingRunnable.run()
-    private static ThrowingConsumer wrap(Method method, boolean dryRun) {
+    private ThrowingConsumer wrap(Method method) {
         return (test) -> {
             Class methodClass = method.getDeclaringClass();
             String methodName = String.join(".", methodClass.getName(),
@@ -318,7 +433,7 @@ final class TestBuilder implements AutoCloseable {
         private String badCmdLineArg;
     }
 
-    private static void trace(String msg) {
+    static void trace(String msg) {
         if (TKit.VERBOSE_TEST_SETUP) {
             TKit.log(msg);
         }
@@ -329,6 +444,9 @@ final class TestBuilder implements AutoCloseable {
     private List<MethodCall> testGroup;
     private List<ThrowingConsumer> beforeActions;
     private List<ThrowingConsumer> afterActions;
+    private Set<String> excludedTests;
+    private Set<String> includedTests;
+    private String spaceSubstitute;
     private boolean dryRun;
 
     private final static Map<Class, Function<String, Object>> conv = Map.of(

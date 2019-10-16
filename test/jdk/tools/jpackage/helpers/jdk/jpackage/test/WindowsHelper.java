@@ -62,7 +62,7 @@ public class WindowsHelper {
         }
 
         private void verifyDesktopShortcut() {
-            boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
+            boolean appInstalled = cmd.appLauncherPath().toFile().exists();
             if (cmd.hasArgument("--win-shortcut")) {
                 if (isUserLocalInstall(cmd)) {
                     verifyUserLocalDesktopShortcut(appInstalled);
@@ -102,7 +102,7 @@ public class WindowsHelper {
         }
 
         private void verifyStartMenuShortcut() {
-            boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
+            boolean appInstalled = cmd.appLauncherPath().toFile().exists();
             if (cmd.hasArgument("--win-menu")) {
                 if (isUserLocalInstall(cmd)) {
                     verifyUserLocalStartMenuShortcut(appInstalled);
@@ -122,16 +122,23 @@ public class WindowsHelper {
                     () -> "Unknown"), cmd.name() + ".lnk");
         }
 
+        private void verifyStartMenuShortcut(Path shortcutsRoot, boolean exists) {
+            Path shortcutPath = shortcutsRoot.resolve(startMenuShortcutPath());
+            verifyShortcut(shortcutPath, exists);
+            if (!exists) {
+                TKit.assertPathExists(shortcutPath.getParent(), false);
+            }
+        }
+
         private void verifySystemStartMenuShortcut(boolean exists) {
-            Path dir = Path.of(queryRegistryValueCache(
-                    SYSTEM_SHELL_FOLDERS_REGKEY, "Common Programs"));
-            verifyShortcut(dir.resolve(startMenuShortcutPath()), exists);
+            verifyStartMenuShortcut(Path.of(queryRegistryValueCache(
+                    SYSTEM_SHELL_FOLDERS_REGKEY, "Common Programs")), exists);
+
         }
 
         private void verifyUserLocalStartMenuShortcut(boolean exists) {
-            Path dir = Path.of(queryRegistryValueCache(
-                    USER_SHELL_FOLDERS_REGKEY, "Programs"));
-            verifyShortcut(dir.resolve(startMenuShortcutPath()), exists);
+            verifyStartMenuShortcut(Path.of(queryRegistryValueCache(
+                    USER_SHELL_FOLDERS_REGKEY, "Programs")), exists);
         }
 
         private void verifyFileAssociationsRegistry() {
@@ -140,7 +147,7 @@ public class WindowsHelper {
         }
 
         private void verifyFileAssociationsRegistry(Path faFile) {
-            boolean appInstalled = cmd.launcherInstallationPath().toFile().exists();
+            boolean appInstalled = cmd.appLauncherPath().toFile().exists();
             try {
                 TKit.trace(String.format(
                         "Get file association properties from [%s] file",

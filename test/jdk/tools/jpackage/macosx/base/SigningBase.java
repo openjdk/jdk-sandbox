@@ -37,14 +37,8 @@ public class SigningBase {
     public static String KEYCHAIN = "jpackagerTest.keychain";
 
     private static void checkString(List<String> result, String lookupString) {
-        result.stream()
-                .filter(line -> line.trim().equals(lookupString)).findFirst().or(
-                () -> {
-                    TKit.assertUnexpected(String.format(
-                            "Failed to find [%s] string in the output",
-                            lookupString));
-                    return null;
-                });
+        TKit.assertTextStream(lookupString).predicate(
+                (line, what) -> line.trim().equals(what)).apply(result.stream());
     }
 
     private static List<String> codesignResult(Path target, boolean signed) {
@@ -62,7 +56,7 @@ public class SigningBase {
 
     private static void verifyCodesignResult(List<String> result, Path target,
             boolean signed) {
-        result.stream().peek(TKit::trace);
+        result.stream().forEachOrdered(TKit::trace);
         if (signed) {
             String lookupString = target.toString() + ": valid on disk";
             checkString(result, lookupString);
@@ -86,7 +80,7 @@ public class SigningBase {
     }
 
     private static void verifySpctlResult(List<String> result, Path target, String type) {
-        result.stream().peek(TKit::trace);
+        result.stream().forEachOrdered(TKit::trace);
         String lookupString = target.toString() + ": accepted";
         checkString(result, lookupString);
         lookupString = "source=" + DEV_NAME;
@@ -110,7 +104,7 @@ public class SigningBase {
     }
 
     private static void verifyPkgutilResult(List<String> result) {
-        result.stream().peek(line -> TKit.trace(line));
+        result.stream().forEachOrdered(TKit::trace);
         String lookupString = "Status: signed by a certificate trusted for current user";
         checkString(result, lookupString);
         lookupString = "1. " + INSTALLER_CERT;

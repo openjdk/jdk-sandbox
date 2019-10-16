@@ -88,13 +88,12 @@ public class SigningCheck {
                 .setExecutable("security")
                 .addArguments("dump-trust-settings")
                 .executeAndGetOutput();
-        result.stream().peek(TKit::trace);
-        result.stream()
-                .filter(line -> line.trim().endsWith(name)).findFirst().orElseThrow(
-                () -> {
-                    throw TKit.throwSkippedException("Certifcate not trusted by current user: "
-                            + name);
-                });
+        result.stream().forEachOrdered(TKit::trace);
+        TKit.assertTextStream(name)
+                .predicate((line, what) -> line.trim().endsWith(what))
+                .orElseThrow(() -> TKit.throwSkippedException(
+                        "Certifcate not trusted by current user: " + name))
+                .apply(result.stream());
     }
 
 }

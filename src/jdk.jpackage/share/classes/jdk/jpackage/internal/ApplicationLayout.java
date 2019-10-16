@@ -129,8 +129,6 @@ public final class ApplicationLayout implements PathGroup.Facade<ApplicationLayo
         ));
     }
 
-
-
     public static ApplicationLayout platformAppImage() {
         if (Platform.isWindows()) {
             return windowsAppImage();
@@ -147,7 +145,7 @@ public final class ApplicationLayout implements PathGroup.Facade<ApplicationLayo
         throw Platform.throwUnknownPlatformError();
     }
 
-    static ApplicationLayout javaRuntime() {
+    public static ApplicationLayout javaRuntime() {
         return new ApplicationLayout(Map.of(PathRole.RUNTIME, Path.of("")));
     }
 

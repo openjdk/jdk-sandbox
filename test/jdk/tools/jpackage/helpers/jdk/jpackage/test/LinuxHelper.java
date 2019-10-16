@@ -200,7 +200,7 @@ public class LinuxHelper {
 
         final boolean checkPrerequisites;
         if (cmd.isRuntime()) {
-            Path runtimeDir = cmd.appRuntimeInstallationDirectory();
+            Path runtimeDir = cmd.appRuntimeDirectory();
             Set<Path> expectedCriticalRuntimePaths = CRITICAL_RUNTIME_FILES.stream().map(
                     runtimeDir::resolve).collect(Collectors.toSet());
             Set<Path> actualCriticalRuntimePaths = getPackageFiles(cmd).filter(
@@ -339,7 +339,7 @@ public class LinuxHelper {
 
                 TKit.trace(String.format("Done"));
 
-                TKit.assertEquals(cmd.launcherInstallationPath().toString(),
+                TKit.assertEquals(cmd.appLauncherPath().toString(),
                         mimeHandler, String.format(
                                 "Check mime type handler is the main application launcher"));
 

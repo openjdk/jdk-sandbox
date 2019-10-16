@@ -22,28 +22,24 @@
  */
 package jdk.jpackage.test;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.*;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ExceptionBox;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
-import jdk.jpackage.test.Functional.ThrowingFunction;
 import jdk.jpackage.test.Functional.ThrowingRunnable;
 import jdk.jpackage.test.Functional.ThrowingSupplier;
 
@@ -76,14 +72,26 @@ final public class TKit {
         }
     }
 
+    static void withExtraLogStream(ThrowingRunnable action) {
+        if (extraLogStream != null) {
+            ThrowingRunnable.toRunnable(action).run();
+        } else {
+            try (PrintStream logStream = openLogStream()) {
+                extraLogStream = logStream;
+                ThrowingRunnable.toRunnable(action).run();
+            } finally {
+                extraLogStream = null;
+            }
+        }
+    }
+
     static void runTests(List<TestInstance> tests) {
         if (currentTest != null) {
             throw new IllegalStateException(
                     "Unexpeced nested or concurrent Test.run() call");
         }
 
-        try (PrintStream logStream = openLogStream()) {
-            extraLogStream = logStream;
+        withExtraLogStream(() -> {
             tests.stream().forEach(test -> {
                 currentTest = test;
                 try {
@@ -95,9 +103,7 @@ final public class TKit {
                     }
                 }
             });
-        } finally {
-            extraLogStream = null;
-        }
+        });
     }
 
     static Runnable ignoreExceptions(ThrowingRunnable action) {
@@ -109,10 +115,7 @@ final public class TKit {
                     unbox(ex);
                 }
             } catch (Throwable throwable) {
-                if (extraLogStream != null) {
-                    throwable.printStackTrace(extraLogStream);
-                }
-                throwable.printStackTrace();
+                printStackTrace(throwable);
             }
         };
     }
@@ -126,12 +129,7 @@ final public class TKit {
     }
 
     public static Path workDir() {
-        Path result = Path.of(".");
-        String testFunctionName = currentTest.functionName();
-        if (testFunctionName != null) {
-            result = result.resolve(testFunctionName);
-        }
-        return result;
+        return currentTest.workDir();
     }
 
     static Path defaultInputDir() {
@@ -174,10 +172,14 @@ final public class TKit {
     }
 
     public static void createTextFile(Path propsFilename, Collection<String> lines) {
+        createTextFile(propsFilename, lines.stream());
+    }
+
+    public static void createTextFile(Path propsFilename, Stream<String> lines) {
         trace(String.format("Create [%s] text file...",
                 propsFilename.toAbsolutePath().normalize()));
         ThrowingRunnable.toRunnable(() -> Files.write(propsFilename,
-                lines.stream().peek(TKit::trace).collect(Collectors.toList()))).run();
+                lines.peek(TKit::trace).collect(Collectors.toList()))).run();
         trace("Done");
     }
 
@@ -263,7 +265,7 @@ final public class TKit {
         return Files.createFile(createUniqueFileName(role));
     }
 
-    public static void withTempFile(String role, String suffix,
+    public static Path withTempFile(String role, String suffix,
             ThrowingConsumer<Path> action) {
         final Path tempFile = ThrowingSupplier.toSupplier(() -> createTempFile(
                 role, suffix)).get();
@@ -271,6 +273,7 @@ final public class TKit {
         try {
             ThrowingConsumer.toConsumer(action).accept(tempFile);
             keepIt = false;
+            return tempFile;
         } finally {
             if (tempFile != null && !keepIt) {
                 ThrowingRunnable.toRunnable(() -> Files.deleteIfExists(tempFile)).run();
@@ -278,7 +281,7 @@ final public class TKit {
         }
     }
 
-    public static void withTempDirectory(String role,
+    public static Path withTempDirectory(String role,
             ThrowingConsumer<Path> action) {
         final Path tempDir = ThrowingSupplier.toSupplier(
                 () -> createTempDirectory(role)).get();
@@ -286,11 +289,78 @@ final public class TKit {
         try {
             ThrowingConsumer.toConsumer(action).accept(tempDir);
             keepIt = false;
+            return tempDir;
         } finally {
             if (tempDir != null && tempDir.toFile().isDirectory() && !keepIt) {
                 deleteDirectoryRecursive(tempDir, "");
             }
         }
+    }
+
+    private static class DirectoryCleaner implements Consumer<Path> {
+        DirectoryCleaner traceMessage(String v) {
+            msg = v;
+            return this;
+        }
+
+        DirectoryCleaner contentsOnly(boolean v) {
+            contentsOnly = v;
+            return this;
+        }
+
+        @Override
+        public void accept(Path root) {
+            if (msg == null) {
+                if (contentsOnly) {
+                    msg = String.format("Cleaning [%s] directory recursively",
+                            root);
+                } else {
+                    msg = String.format("Deleting [%s] directory recursively",
+                            root);
+                }
+            }
+
+            if (!msg.isEmpty()) {
+                trace(msg);
+            }
+
+            List<Throwable> errors = new ArrayList<>();
+            try {
+                final List<Path> paths;
+                if (contentsOnly) {
+                    try (var pathStream = Files.walk(root, 0)) {
+                        paths = pathStream.collect(Collectors.toList());
+                    }
+                } else {
+                    paths = List.of(root);
+                }
+
+                for (var path : paths) {
+                    try (var pathStream = Files.walk(path)) {
+                        pathStream
+                        .sorted(Comparator.reverseOrder())
+                        .sequential()
+                        .forEachOrdered(file -> {
+                            try {
+                                if (isWindows()) {
+                                    Files.setAttribute(file, "dos:readonly", false);
+                                }
+                                Files.delete(file);
+                            } catch (IOException ex) {
+                                errors.add(ex);
+                            }
+                        });
+                    }
+                }
+
+            } catch (IOException ex) {
+                errors.add(ex);
+            }
+            errors.forEach(error -> trace(error.toString()));
+        }
+
+        private String msg;
+        private boolean contentsOnly;
     }
 
     /**
@@ -313,21 +383,8 @@ final public class TKit {
      */
     public static void deleteDirectoryContentsRecursive(Path path, String msg) {
         if (path.toFile().isDirectory()) {
-            if (msg == null) {
-                msg = String.format("Cleaning [%s] directory recursively", path);
-            }
-
-            if (!msg.isEmpty()) {
-                TKit.trace(msg);
-            }
-
-            // Walk all children of `path` in sorted order to hit files first
-            // and directories last and delete each item.
-            ThrowingRunnable.toRunnable(() -> Stream.of(
-                    path.toFile().listFiles()).map(File::toPath).map(
-                    ThrowingFunction.toFunction(Files::walk)).flatMap(x -> x).sorted(
-                    Comparator.reverseOrder()).map(Path::toFile).forEach(
-                    File::delete)).run();
+            new DirectoryCleaner().contentsOnly(true).traceMessage(msg).accept(
+                    path);
         }
     }
 
@@ -351,11 +408,7 @@ final public class TKit {
      */
     public static void deleteDirectoryRecursive(Path path, String msg) {
         if (path.toFile().isDirectory()) {
-            if (msg == null) {
-                msg = String.format("Deleting [%s] directory recursively", path);
-            }
-            deleteDirectoryContentsRecursive(path, msg);
-            ThrowingConsumer.toConsumer(Files::delete).accept(path);
+            new DirectoryCleaner().traceMessage(msg).accept(path);
         }
     }
 
@@ -375,6 +428,24 @@ final public class TKit {
 
         currentTest.notifySkipped(ex);
         throw ex;
+    }
+
+    public static Path createRelativePathCopy(final Path file) {
+        Path fileCopy = workDir().resolve(file.getFileName()).toAbsolutePath().normalize();
+
+        ThrowingRunnable.toRunnable(() -> Files.copy(file, fileCopy,
+                StandardCopyOption.REPLACE_EXISTING)).run();
+
+        final Path basePath = Path.of(".").toAbsolutePath().normalize();
+        try {
+            return basePath.relativize(fileCopy);
+        } catch (IllegalArgumentException ex) {
+            // May happen on Windows: java.lang.IllegalArgumentException: 'other' has different root
+            trace(String.format("Failed to relativize [%s] at [%s]", fileCopy,
+                    basePath));
+            printStackTrace(ex);
+        }
+        return file;
     }
 
     static void waitForFileCreated(Path fileToWaitFor,
@@ -421,6 +492,13 @@ final public class TKit {
                 assertUnexpected("Watch key invalidated");
             }
         }
+    }
+
+    static void printStackTrace(Throwable throwable) {
+        if (extraLogStream != null) {
+            throwable.printStackTrace(extraLogStream);
+        }
+        throwable.printStackTrace();
     }
 
     private static String concatMessages(String msg, String msg2) {
@@ -602,6 +680,76 @@ final public class TKit {
         }
     }
 
+    public final static class TextStreamAsserter {
+        TextStreamAsserter(String value) {
+            this.value = value;
+            predicate(String::contains);
+        }
+
+        public TextStreamAsserter label(String v) {
+            label = v;
+            return this;
+        }
+
+        public TextStreamAsserter predicate(BiPredicate<String, String> v) {
+            predicate = v;
+            return this;
+        }
+
+        public TextStreamAsserter negate() {
+            negate = true;
+            return this;
+        }
+
+        public TextStreamAsserter orElseThrow(RuntimeException v) {
+            return orElseThrow(() -> v);
+        }
+
+        public TextStreamAsserter orElseThrow(Supplier<RuntimeException> v) {
+            createException = v;
+            return this;
+        }
+
+        public void apply(Stream<String> lines) {
+            String matchedStr = lines.filter(line -> predicate.test(line, value)).findFirst().orElse(
+                    null);
+            String labelStr = Optional.ofNullable(label).orElse("output");
+            if (negate) {
+                String msg = String.format(
+                        "Check %s doesn't contain [%s] string", labelStr, value);
+                if (createException == null) {
+                    assertNull(matchedStr, msg);
+                } else {
+                    trace(msg);
+                    if (matchedStr != null) {
+                        throw createException.get();
+                    }
+                }
+            } else {
+                String msg = String.format("Check %s contains [%s] string",
+                        labelStr, value);
+                if (createException == null) {
+                    assertNotNull(matchedStr, msg);
+                } else {
+                    trace(msg);
+                    if (matchedStr == null) {
+                        throw createException.get();
+                    }
+                }
+            }
+        }
+
+        private BiPredicate<String, String> predicate;
+        private String label;
+        private boolean negate;
+        private Supplier<RuntimeException> createException;
+        final private String value;
+    }
+
+    public static TextStreamAsserter assertTextStream(String what) {
+        return new TextStreamAsserter(what);
+    }
+
     private static PrintStream openLogStream() {
         if (LOG_FILE == null) {
             return null;
@@ -628,6 +776,15 @@ final public class TKit {
         return "jpackage.test." + propertyName;
     }
 
+    static Set<String> tokenizeConfigProperty(String propertyName) {
+        final String val = TKit.getConfigProperty(propertyName);
+        if (val == null) {
+            return null;
+        }
+        return Stream.of(val.toLowerCase().split(",")).map(String::strip).filter(
+                Predicate.not(String::isEmpty)).collect(Collectors.toSet());
+    }
+
     static final Path LOG_FILE = Functional.identity(() -> {
         String val = getConfigProperty("logfile");
         if (val == null) {
@@ -637,25 +794,26 @@ final public class TKit {
     }).get();
 
     static {
-        String val = getConfigProperty("suppress-logging");
-        if (val == null) {
+        Set<String> logOptions = tokenizeConfigProperty("suppress-logging");
+        if (logOptions == null) {
             TRACE = true;
             TRACE_ASSERTS = true;
             VERBOSE_JPACKAGE = true;
             VERBOSE_TEST_SETUP = true;
-        } else if ("all".equals(val.toLowerCase())) {
+        } else if (logOptions.contains("all")) {
             TRACE = false;
             TRACE_ASSERTS = false;
             VERBOSE_JPACKAGE = false;
             VERBOSE_TEST_SETUP = false;
         } else {
-            Set<String> logOptions = Set.of(val.toLowerCase().split(","));
-            TRACE = !(logOptions.contains("trace") || logOptions.contains("t"));
-            TRACE_ASSERTS = !(logOptions.contains("assert") || logOptions.contains(
-                    "a"));
-            VERBOSE_JPACKAGE = !(logOptions.contains("jpackage") || logOptions.contains(
-                    "jp"));
-            VERBOSE_TEST_SETUP = !logOptions.contains("init");
+            Predicate<Set<String>> isNonOf = options -> {
+                return Collections.disjoint(logOptions, options);
+            };
+
+            TRACE = isNonOf.test(Set.of("trace", "t"));
+            TRACE_ASSERTS = isNonOf.test(Set.of("assert", "a"));
+            VERBOSE_JPACKAGE = isNonOf.test(Set.of("jpackage", "jp"));
+            VERBOSE_TEST_SETUP = isNonOf.test(Set.of("init", "i"));
         }
     }
 

@@ -24,6 +24,7 @@
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.FileAssociations;
+import jdk.jpackage.test.Annotations.Test;
 
 /**
  * Test --file-associations parameter. Output of the test should be
@@ -49,18 +50,19 @@ import jdk.jpackage.test.FileAssociations;
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m FileAssociationsTest
+ * @compile FileAssociationsTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=FileAssociationsTest
  */
 public class FileAssociationsTest {
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            PackageTest packageTest = new PackageTest();
+    @Test
+    public static void test() {
+        PackageTest packageTest = new PackageTest();
 
-            applyFileAssociations(packageTest, new FileAssociations("jptest1"));
-            applyFileAssociations(packageTest,
-                    new FileAssociations("jptest2").setFilename("fa2"));
-            packageTest.run();
-        });
+        applyFileAssociations(packageTest, new FileAssociations("jptest1"));
+        applyFileAssociations(packageTest,
+                new FileAssociations("jptest2").setFilename("fa2"));
+        packageTest.run();
     }
 
     private static void applyFileAssociations(PackageTest test,

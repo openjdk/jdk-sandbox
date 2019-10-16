@@ -23,6 +23,7 @@
 
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.Annotations.Test;
 
 /**
  * Simple platform specific packaging test. Output of the test should be
@@ -43,16 +44,17 @@ import jdk.jpackage.test.PackageTest;
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m SimplePackageTest
+ * @compile SimplePackageTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=SimplePackageTest
  */
 public class SimplePackageTest {
 
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            new PackageTest()
-            .configureHelloApp()
-            .addBundleDesktopIntegrationVerifier(false)
-            .run();
-        });
+    @Test
+    public static void test() {
+        new PackageTest()
+        .configureHelloApp()
+        .addBundleDesktopIntegrationVerifier(false)
+        .run();
     }
 }

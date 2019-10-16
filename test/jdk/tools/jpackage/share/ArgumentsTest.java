@@ -48,13 +48,18 @@ import jdk.jpackage.test.Annotations.*;
  * @summary jpackage create image with --arguments test
  * @library ../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile ArgumentsTest.java
  * @run main/othervm -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=ArgumentsTest
- *  --jpt-before-run=jdk.jpackage.test.JPackageCommand.useToolProviderByDefault
  */
 public class ArgumentsTest {
+
+    @BeforeEach
+    public static void useJPackageToolProvider() {
+        JPackageCommand.useToolProviderByDefault();
+    }
+
     @Test
     @Parameter("Goodbye")
     @Parameter("com.hello/com.hello.Hello")
@@ -73,8 +78,8 @@ public class ArgumentsTest {
 
         cmd.executeAndAssertImageCreated();
 
-        Path launcherPath = cmd.appImage().resolve(cmd.launcherPathInAppImage());
-        if (!cmd.isFakeRuntimeInAppImage(String.format(
+        Path launcherPath = cmd.appLauncherPath();
+        if (!cmd.isFakeRuntime(String.format(
                 "Not running [%s] launcher", launcherPath))) {
             HelloApp.executeAndVerifyOutput(launcherPath, TRICKY_ARGUMENTS);
         }

@@ -38,14 +38,14 @@ import jdk.jpackage.test.Executor;
 import jdk.jpackage.test.TKit;
 
 /**
- * Test --license-file parameter. Output of the test should be licensetest*.*
+ * Test --license-file parameter. Output of the test should be commonlicensetest*.*
  * package bundle. The output package should provide the same functionality as
  * the default package and also incorporate license information from
  * test/jdk/tools/jpackage/resources/license.txt file from OpenJDK repo.
  *
  * deb:
  *
- * Package should install license file /usr/share/doc/licensetest/copyright
+ * Package should install license file /opt/commonlicensetest/share/doc/copyright
  * file.
  *
  * rpm:
@@ -88,20 +88,8 @@ public class LicenseTest {
     public static void testCommon() {
         new PackageTest().configureHelloApp()
         .addInitializer(cmd -> {
-            Path licenseCopy = TKit.workDir().resolve(LICENSE_FILE.getFileName()).toAbsolutePath().normalize();
-            Files.copy(LICENSE_FILE, licenseCopy,
-                    StandardCopyOption.REPLACE_EXISTING);
-            final Path basePath = Path.of(".").toAbsolutePath().normalize();
-            try {
-                licenseCopy = basePath.relativize(licenseCopy);
-            } catch (IllegalArgumentException ex) {
-                // May happen on Windows: java.lang.IllegalArgumentException: 'other' has different root
-                TKit.trace(String.format(
-                        "Not using relative path to license file for --license-file parameter. Failed to relativize [%s] at [%s]",
-                        licenseCopy, basePath));
-                ex.printStackTrace();
-            }
-            cmd.addArguments("--license-file", licenseCopy);
+            cmd.addArguments("--license-file", TKit.createRelativePathCopy(
+                    LICENSE_FILE));
         })
         .forTypes(PackageType.LINUX)
         .addBundleVerifier(cmd -> {

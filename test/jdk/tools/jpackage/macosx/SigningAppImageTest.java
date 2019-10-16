@@ -59,10 +59,10 @@ public class SigningAppImageTest {
                     "jpackagerTest.keychain");
             cmd.executeAndAssertHelloAppImageCreated();
 
-            Path launcherPath = cmd.appImage().resolve(cmd.launcherPathInAppImage());
+            Path launcherPath = cmd.appLauncherPath();
             SigningBase.verifyCodesign(launcherPath, true);
 
-            Path appImage = cmd.appImage();
+            Path appImage = cmd.outputBundle();
             SigningBase.verifyCodesign(appImage, true);
             SigningBase.verifySpctl(appImage, "exec");
         });

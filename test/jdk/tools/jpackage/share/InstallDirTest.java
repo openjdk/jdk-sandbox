@@ -33,17 +33,18 @@ import jdk.jpackage.test.JPackageCommand;
 import jdk.jpackage.test.Annotations.Parameter;
 
 /**
- * Test --install-dir parameter. Output of the test should be installdirtest*.*
- * package bundle. The output package should provide the same functionality as
- * the default package but install test application in specified directory.
+ * Test --install-dir parameter. Output of the test should be
+ * commoninstalldirtest*.* package bundle. The output package should provide the
+ * same functionality as the default package but install test application in
+ * specified directory.
  *
  * Linux:
  *
- * Application should be installed in /opt/jpackage/installdirtest folder.
+ * Application should be installed in /opt/jpackage/commoninstalldirtest folder.
  *
  * Mac:
  *
- * Application should be installed in /Applications/jpackage/installdirtest.app
+ * Application should be installed in /Applications/jpackage/commoninstalldirtest.app
  * folder.
  *
  * Windows:
@@ -116,20 +117,20 @@ public class InstallDirTest {
     private static void testLinuxBad(String installDir,
             String errorMessageSubstring) {
         new PackageTest().configureHelloApp()
-                .setExpectedExitCode(1)
-                .forTypes(PackageType.LINUX)
-                .addInitializer(cmd -> {
-                    cmd.addArguments("--install-dir", installDir);
-                    cmd.saveConsoleOutput(true);
-                })
-                .addBundleVerifier((cmd, result) -> {
-                    String errorMessage = JPackageCommand.filterOutput(result.
-                            getOutput().stream()).filter(line -> line.contains(
-                            errorMessageSubstring)).findFirst().orElse(null);
-                    TKit.assertNotNull(errorMessage, String.format(
-                            "Check output contains [%s] substring",
-                            errorMessageSubstring));
-                })
-                .run();
+        .setExpectedExitCode(1)
+        .forTypes(PackageType.LINUX)
+        .addInitializer(cmd -> {
+            cmd.addArguments("--install-dir", installDir);
+            cmd.saveConsoleOutput(true);
+        })
+        .addBundleVerifier((cmd, result) -> {
+            String errorMessage = JPackageCommand.filterOutput(
+                    result.getOutput().stream()).filter(line -> line.contains(
+                    errorMessageSubstring)).findFirst().orElse(null);
+            TKit.assertNotNull(errorMessage, String.format(
+                    "Check output contains [%s] substring",
+                    errorMessageSubstring));
+        })
+        .run();
     }
 }

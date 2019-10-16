@@ -77,6 +77,11 @@ public class AppImageFileTest {
                 "<jpackage-state>",
                     "<main-launcher></main-launcher>",
                 "</jpackage-state>"));
+        assertInvalid(createFromXml(
+                "<jpackage-state>",
+                    "<launcher>A</launcher>",
+                    "<launcher>B</launcher>",
+                "</jpackage-state>"));
     }
 
     @Test
@@ -86,9 +91,9 @@ public class AppImageFileTest {
                     "<main-launcher>Foo</main-launcher>",
                 "</jpackage-state>")).getLauncherName());
 
-        Assert.assertEquals("Foo", (createFromXml(
+        Assert.assertEquals("Boo", (createFromXml(
                 "<jpackage-state>",
-                    "<main-launcher>Foo</main-launcher>",
+                    "<main-launcher>Boo</main-launcher>",
                     "<main-launcher>Bar</main-launcher>",
                 "</jpackage-state>")).getLauncherName());
 
@@ -130,7 +135,7 @@ public class AppImageFileTest {
         params.put("add-launcher", launchersAsMap);
         AppImageFile aif = create(params);
 
-	List<String> addLauncherNames = aif.getAddLauncherNames();
+        List<String> addLauncherNames = aif.getAddLauncherNames();
         Assert.assertEquals(2, addLauncherNames.size());
         Assert.assertTrue(addLauncherNames.contains("Launcher2Name"));
         Assert.assertTrue(addLauncherNames.contains("Launcher3Name"));

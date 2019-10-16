@@ -59,6 +59,10 @@ public final class Executor extends CommandArguments<Executor> {
         return this;
     }
 
+    public Executor setToolProvider(JavaTool v) {
+        return setToolProvider(v.asToolProvider());
+    }
+
     public Executor setDirectory(Path v) {
         directory = v;
         return this;
@@ -167,6 +171,11 @@ public final class Executor extends CommandArguments<Executor> {
     }
 
     public Result execute() {
+        if (toolProvider != null && directory != null) {
+            throw new IllegalArgumentException(
+                    "Can't change directory when using tool provider");
+        }
+
         return ThrowingSupplier.toSupplier(() -> {
             if (toolProvider != null) {
                 return runToolProvider();
@@ -193,9 +202,22 @@ public final class Executor extends CommandArguments<Executor> {
                 SaveOutputType.FIRST_LINE);
     }
 
+    private Path executablePath() {
+        if (directory == null || executable.isAbsolute()) {
+            return executable;
+        }
+
+        // If relative path to executable is used it seems to be broken when
+        // ProcessBuilder changes the directory. On Windows it changes the
+        // directory first and on Linux it looks up for executable before
+        // changing the directory. So to stay of safe side, use absolute path
+        // to executable.
+        return executable.toAbsolutePath();
+    }
+
     private Result runExecutable() throws IOException, InterruptedException {
         List<String> command = new ArrayList<>();
-        command.add(executable.toString());
+        command.add(executablePath().toString());
         command.addAll(args);
         ProcessBuilder builder = new ProcessBuilder(command);
         StringBuilder sb = new StringBuilder(getPrintableCommandLine());
@@ -315,7 +337,7 @@ public final class Executor extends CommandArguments<Executor> {
             format = "tool provider " + format;
             exec = toolProvider.name();
         } else {
-            exec = executable.toString();
+            exec = executablePath().toString();
         }
 
         return String.format(format, printCommandLine(exec, args),

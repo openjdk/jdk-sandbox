@@ -24,6 +24,7 @@
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
+import jdk.jpackage.test.Annotations.Test;
 
 /**
  * Test --win-per-user-install, --win-menu, --win-menu-group parameters.
@@ -41,20 +42,21 @@ import jdk.jpackage.test.PackageType;
  * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m WinPerUserInstallTest
+ * @compile WinPerUserInstallTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=WinPerUserInstallTest
  */
 
 public class WinPerUserInstallTest {
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            new PackageTest()
-            .forTypes(PackageType.WINDOWS)
-            .configureHelloApp()
-            .addInitializer(cmd -> cmd.addArguments(
-                    "--win-menu",
-                    "--win-menu-group", "WinPerUserInstallTest_MenuGroup",
-                    "--win-per-user-install"))
-            .run();
-        });
+    @Test
+    public static void test() {
+        new PackageTest()
+        .forTypes(PackageType.WINDOWS)
+        .configureHelloApp()
+        .addInitializer(cmd -> cmd.addArguments(
+                "--win-menu",
+                "--win-menu-group", "WinPerUserInstallTest_MenuGroup",
+                "--win-per-user-install"))
+        .run();
     }
 }

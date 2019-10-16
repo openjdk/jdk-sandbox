@@ -32,21 +32,36 @@ public class Annotations {
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
+    public @interface BeforeEach {
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    public @interface AfterEach {
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
     public @interface Test {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    @Repeatable(Parameters.class)
+    @Repeatable(ParameterGroup.class)
     public @interface Parameter {
 
-        String value();
+        String[] value();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    public @interface ParameterGroup {
+
+        Parameter[] value();
     }
 
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     public @interface Parameters {
-
-        Parameter[] value();
     }
 }

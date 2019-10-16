@@ -23,18 +23,20 @@
 
 package jdk.jpackage.test;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
-import java.util.Collections;
-import java.util.List;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
 import jdk.jpackage.test.Functional.ThrowingFunction;
 import jdk.jpackage.test.Functional.ThrowingRunnable;
-import jdk.jpackage.test.Functional.ThrowingSupplier;
 
-class TestInstance implements ThrowingRunnable {
+final class TestInstance implements ThrowingRunnable {
 
     static class TestDesc {
         private TestDesc() {
@@ -43,24 +45,81 @@ class TestInstance implements ThrowingRunnable {
         String testFullName() {
             StringBuilder sb = new StringBuilder();
             sb.append(clazz.getSimpleName());
+            if (instanceArgs != null) {
+                sb.append('(').append(instanceArgs).append(')');
+            }
             if (functionName != null) {
                 sb.append('.');
                 sb.append(functionName);
-                if (args != null) {
-                    sb.append('(').append(args).append(')');
+                if (functionArgs != null) {
+                    sb.append('(').append(functionArgs).append(')');
                 }
             }
             return sb.toString();
         }
 
-        private Class clazz;
-        private String functionName;
-        private String args;
+        static Builder createBuilder() {
+            return new Builder();
+        }
 
-        private static TestDesc create() {
-            TestDesc desc = new TestDesc();
-            desc.clazz = enclosingMainMethodClass();
-            return desc;
+        static final class Builder implements Supplier<TestDesc> {
+            private Builder() {
+            }
+
+            Builder method(Method v) {
+                method = v;
+                return this;
+            }
+
+            Builder ctorArgs(Object... v) {
+                ctorArgs = ofNullable(v);
+                return this;
+            }
+
+            Builder methodArgs(Object... v) {
+                methodArgs = ofNullable(v);
+                return this;
+            }
+
+            @Override
+            public TestDesc get() {
+                TestDesc desc = new TestDesc();
+                if (method == null) {
+                    desc.clazz = enclosingMainMethodClass();
+                } else {
+                    desc.clazz = method.getDeclaringClass();
+                    desc.functionName = method.getName();
+                    desc.functionArgs = formatArgs(methodArgs);
+                    desc.instanceArgs = formatArgs(ctorArgs);
+                }
+                return desc;
+            }
+
+            private static String formatArgs(List<Object> values) {
+                if (values == null) {
+                    return null;
+                }
+                return values.stream().map(v -> {
+                    if (v != null && v.getClass().isArray()) {
+                        return String.format("%s(length=%d)",
+                                Arrays.deepToString((Object[]) v),
+                                Array.getLength(v));
+                    }
+                    return String.format("%s", v);
+                }).collect(Collectors.joining(", "));
+            }
+
+            private static List<Object> ofNullable(Object... values) {
+                List<Object> result = new ArrayList();
+                for (var v: values) {
+                    result.add(v);
+                }
+                return result;
+            }
+
+            private List<Object> ctorArgs;
+            private List<Object> methodArgs;
+            private Method method;
         }
 
         static TestDesc create(Method m, Object... args) {
@@ -68,11 +127,22 @@ class TestInstance implements ThrowingRunnable {
             desc.clazz = m.getDeclaringClass();
             desc.functionName = m.getName();
             if (args.length != 0) {
-                desc.args = Stream.of(args).map(Object::toString).collect(
-                        Collectors.joining(","));
+                desc.functionArgs = Stream.of(args).map(v -> {
+                    if (v.getClass().isArray()) {
+                        return String.format("%s(length=%d)",
+                                Arrays.deepToString((Object[]) v),
+                                Array.getLength(v));
+                    }
+                    return String.format("%s", v);
+                }).collect(Collectors.joining(", "));
             }
             return desc;
         }
+
+        private Class clazz;
+        private String functionName;
+        private String functionArgs;
+        private String instanceArgs;
     }
 
     TestInstance(ThrowingRunnable testBody) {
@@ -81,18 +151,19 @@ class TestInstance implements ThrowingRunnable {
         this.testBody = (unused) -> testBody.run();
         this.beforeActions = Collections.emptyList();
         this.afterActions = Collections.emptyList();
-        this.testDesc = TestDesc.create();
+        this.testDesc = TestDesc.createBuilder().get();
+        this.dryRun = false;
     }
 
-    TestInstance(ThrowingFunction testConstructor, MethodCall testBody,
-            List<ThrowingConsumer> beforeActions,
-            List<ThrowingConsumer> afterActions) {
+    TestInstance(MethodCall testBody, List<ThrowingConsumer> beforeActions,
+            List<ThrowingConsumer> afterActions, boolean dryRun) {
         assertCount = 0;
-        this.testConstructor = testConstructor;
+        this.testConstructor = v -> ((MethodCall)v).newInstance();
         this.testBody = testBody;
         this.beforeActions = beforeActions;
         this.afterActions = afterActions;
         this.testDesc = testBody.createDescription();
+        this.dryRun = dryRun;
     }
 
     void notifyAssert() {
@@ -133,17 +204,44 @@ class TestInstance implements ThrowingRunnable {
         }
     }
 
+    Path workDir() {
+        Path result = Path.of(".");
+        List<String> components = new ArrayList<>();
+
+        String testFunctionName = functionName();
+        if (testFunctionName != null) {
+            components.add(testFunctionName);
+        }
+
+        if (isPrametrized()) {
+            components.add(String.format("%08x", fullName().hashCode()));
+        }
+
+        if (!components.isEmpty()) {
+            result = result.resolve(String.join(".", components));
+        }
+
+        return result;
+    }
+
+    boolean isPrametrized() {
+        return Stream.of(testDesc.functionArgs, testDesc.instanceArgs).anyMatch(
+                Objects::nonNull);
+    }
+
     @Override
     public void run() throws Throwable {
-        final String fullName = testDesc.testFullName();
+        final String fullName = fullName();
         TKit.log(String.format("[ RUN      ] %s", fullName));
         try {
             Object testInstance = testConstructor.apply(testBody);
-            beforeActions.forEach((a) -> ThrowingConsumer.toConsumer(a).accept(
+            beforeActions.forEach(a -> ThrowingConsumer.toConsumer(a).accept(
                     testInstance));
-            Files.createDirectories(TKit.workDir());
             try {
-                testBody.accept(testInstance);
+                if (!dryRun) {
+                    Files.createDirectories(workDir());
+                    testBody.accept(testInstance);
+                }
             } finally {
                 afterActions.forEach(a -> TKit.ignoreExceptions(() -> a.accept(
                         testInstance)));
@@ -155,6 +253,11 @@ class TestInstance implements ThrowingRunnable {
             } else if (status == null) {
                 status = Status.Failed;
             }
+
+            if (!KEEP_WORK_DIR.contains(status)) {
+                TKit.deleteDirectoryRecursive(workDir());
+            }
+
             TKit.log(String.format("%s %s; checks=%d", status, fullName,
                     assertCount));
         }
@@ -196,4 +299,30 @@ class TestInstance implements ThrowingRunnable {
     private final ThrowingConsumer testBody;
     private final List<ThrowingConsumer> beforeActions;
     private final List<ThrowingConsumer> afterActions;
+    private final boolean dryRun;
+
+    private final static Set<Status> KEEP_WORK_DIR = Functional.identity(
+            () -> {
+                final String propertyName = "keep-work-dir";
+                Set<String> keepWorkDir = TKit.tokenizeConfigProperty(
+                        propertyName);
+                if (keepWorkDir == null) {
+                    return Set.of(Status.Failed);
+                }
+
+                Predicate<Set<String>> isOneOf = options -> {
+                    return !Collections.disjoint(keepWorkDir, options);
+                };
+
+                Set<Status> result = new HashSet<>();
+                if (isOneOf.test(Set.of("pass", "p"))) {
+                    result.add(Status.Passed);
+                }
+                if (isOneOf.test(Set.of("fail", "f"))) {
+                    result.add(Status.Failed);
+                }
+
+                return Collections.unmodifiableSet(result);
+            }).get();
+
 }

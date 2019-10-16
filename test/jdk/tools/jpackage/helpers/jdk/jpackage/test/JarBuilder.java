@@ -62,15 +62,16 @@ public final class JarBuilder {
 
     public void create() {
         TKit.withTempDirectory("jar-workdir", workDir -> {
-            Executor.Result javacReply = new Executor()
-                    .setExecutable(JavaTool.JAVAC)
-                    .addArguments("-d", workDir.toString())
-                    .addPathArguments(sourceFiles).execute();
-            javacReply.assertExitCodeIsZero();
+            if (!sourceFiles.isEmpty()) {
+                new Executor()
+                        .setToolProvider(JavaTool.JAVAC)
+                        .addArguments("-d", workDir.toString())
+                        .addPathArguments(sourceFiles)
+                        .execute().assertExitCodeIsZero();
+            }
             Path tmpJar = workDir.resolve("foo.jar");
             Executor jarExe = new Executor();
-            jarExe.setExecutable(JavaTool.JAR).addArguments("-c", "-v", "-f",
-                    tmpJar.toString());
+            jarExe.setToolProvider(JavaTool.JAR).addArguments("-c", "-f", tmpJar.toString());
             if (moduleVersion != null) {
                 jarExe.addArguments(String.format("--module-version=%s",
                         moduleVersion));
@@ -79,8 +80,7 @@ public final class JarBuilder {
                 jarExe.addArguments("-e", mainClass);
             }
             jarExe.addArguments("-C", workDir.toString(), ".");
-            javacReply = jarExe.execute();
-            javacReply.assertExitCodeIsZero();
+            jarExe.execute().assertExitCodeIsZero();
             outputJar.getParentFile().mkdirs();
             Files.copy(tmpJar, outputJar.toPath(), REPLACE_EXISTING);
         });

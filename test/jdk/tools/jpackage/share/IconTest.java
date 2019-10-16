@@ -21,38 +21,70 @@
  * questions.
  */
 
+import java.io.IOException;
 import java.nio.file.Files;
-import jdk.jpackage.internal.ApplicationLayout;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.Functional;
+import jdk.jpackage.test.Annotations.*;
 import jdk.jpackage.test.JPackageCommand;
 
 /*
  * @test
- * @summary jpackage create image to verify --icon
+ * @summary jpackage create image with custom icon
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm -Xmx512m IconTest
+ * @compile IconTest.java
+ * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ *  --jpt-run=IconTest
  */
+
 public class IconTest {
-    public static void main(String[] args) {
-        TKit.run(args, () -> {
-            JPackageCommand cmd = JPackageCommand.helloAppImage().addArguments("--icon", GOLDEN_ICON);
-            cmd.useToolProvider(true).executeAndAssertHelloAppImageCreated();
+    @Test
+    public static void testResourceDir() throws IOException {
+        TKit.withTempDirectory("resources", tempDir -> {
+            JPackageCommand cmd = JPackageCommand.helloAppImage()
+                    .addArguments("--resource-dir", tempDir);
 
-            Path iconPath = ApplicationLayout.platformAppImage().resolveAt(
-                    cmd.appImage()).destktopIntegrationDirectory().resolve(
-                    cmd.launcherPathInAppImage().getFileName().toString().replaceAll(
-                            "\\.[^.]*$", "") + ICON_SUFFIX);
+            Files.copy(GOLDEN_ICON, tempDir.resolve(appIconFileName(cmd)),
+                    StandardCopyOption.REPLACE_EXISTING);
 
-            TKit.assertFileExists(iconPath);
-            TKit.assertTrue(-1 == Files.mismatch(GOLDEN_ICON, iconPath),
-                    String.format(
-                            "Check application icon file [%s] is a copy of source icon file [%s]",
-                            iconPath, GOLDEN_ICON));
+            testIt(cmd);
         });
+    }
+
+    @Test
+    @Parameter("true")
+    @Parameter("false")
+    public static void testParameter(boolean relativePath) throws IOException {
+        final Path iconPath;
+        if (relativePath) {
+            iconPath = TKit.createRelativePathCopy(GOLDEN_ICON);
+        } else {
+            iconPath = GOLDEN_ICON;
+        }
+
+        testIt(JPackageCommand.helloAppImage().addArguments("--icon", iconPath));
+    }
+
+    private static String appIconFileName(JPackageCommand cmd) {
+        return cmd.appLauncherPath().getFileName().toString().replaceAll(
+                "\\.[^.]*$", "") + ICON_SUFFIX;
+    }
+
+    private static void testIt(JPackageCommand cmd) throws IOException {
+        cmd.executeAndAssertHelloAppImageCreated();
+
+        Path iconPath = cmd.appLayout().destktopIntegrationDirectory().resolve(
+                appIconFileName(cmd));
+
+        TKit.assertFileExists(iconPath);
+        TKit.assertTrue(-1 == Files.mismatch(GOLDEN_ICON, iconPath),
+                String.format(
+                        "Check application icon file [%s] is a copy of source icon file [%s]",
+                        iconPath, GOLDEN_ICON));
     }
 
     private final static String ICON_SUFFIX = Functional.identity(() -> {

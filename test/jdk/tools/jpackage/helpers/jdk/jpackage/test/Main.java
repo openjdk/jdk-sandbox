@@ -25,6 +25,7 @@ package jdk.jpackage.test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import static jdk.jpackage.test.TestBuilder.CMDLINE_ARG_PREFIX;
@@ -36,9 +37,7 @@ public final class Main {
         List<TestInstance> tests = new ArrayList<>();
         try (TestBuilder testBuilder = new TestBuilder(tests::add)) {
             for (var arg : args) {
-                if (TKit.VERBOSE_TEST_SETUP) {
-                    TKit.log(String.format("Parsing [%s]...", arg));
-                }
+                TestBuilder.trace(String.format("Parsing [%s]...", arg));
 
                 if ((CMDLINE_ARG_PREFIX + "list").equals(arg)) {
                     listTests = true;
@@ -62,15 +61,21 @@ public final class Main {
         }
 
         // Order tests by their full names to have stable test sequence.
-        tests = tests.stream().sorted((a, b) -> a.fullName().compareTo(
-                b.fullName())).collect(Collectors.toList());
+        List<TestInstance> orderedTests = tests.stream()
+                .sorted((a, b) -> a.fullName().compareTo(b.fullName()))
+                .collect(Collectors.toList());
 
         if (listTests) {
             // Just list the tests
-            tests.stream().forEach(test -> System.out.println(test.fullName()));
+            orderedTests.stream().forEach(test -> System.out.println(String.format(
+                    "%s; workDir=[%s]", test.fullName(), test.workDir())));
             return;
         }
 
+        TKit.withExtraLogStream(() -> runTests(orderedTests));
+    }
+
+    private static void runTests(List<TestInstance> tests) {
         TKit.runTests(tests);
 
         final long passedCount = tests.stream().filter(TestInstance::passed).count();
@@ -78,8 +83,8 @@ public final class Main {
         TKit.log(String.format("[  PASSED  ] %d %s", passedCount,
                 passedCount == 1 ? "test" : "tests"));
 
-        reportDetails(tests, "[  SKIPPED ]", TestInstance::skipped);
-        reportDetails(tests, "[  FAILED  ]", TestInstance::failed);
+        reportDetails(tests, "[  SKIPPED ]", TestInstance::skipped, false);
+        reportDetails(tests, "[  FAILED  ]", TestInstance::failed, true);
 
         var withSkipped = reportSummary(tests, "SKIPPED", TestInstance::skipped);
         var withFailures = reportSummary(tests, "FAILED", TestInstance::failed);
@@ -94,13 +99,22 @@ public final class Main {
     }
 
     private static long reportDetails(List<TestInstance> tests,
-            String label, Predicate<TestInstance> selector) {
+            String label, Predicate<TestInstance> selector, boolean printWorkDir) {
+
+        final Function<TestInstance, String> makeMessage = test -> {
+            if (printWorkDir) {
+                return String.format("%s %s; workDir=[%s]", label,
+                        test.fullName(), test.workDir());
+            }
+            return String.format("%s %s", label, test.fullName());
+        };
+
         final long count = tests.stream().filter(selector).count();
         if (count != 0) {
             TKit.log(String.format("%s %d %s, listed below", label, count, count
                     == 1 ? "test" : "tests"));
-            tests.stream().filter(selector).forEach(test -> TKit.log(
-                    String.format("%s %s", label, test.fullName())));
+            tests.stream().filter(selector).map(makeMessage).forEachOrdered(
+                    TKit::log);
         }
 
         return count;

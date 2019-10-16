@@ -24,6 +24,7 @@ package jdk.jpackage.test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -117,9 +118,8 @@ public enum PackageType {
 
     private final static class Inner {
 
-        private final static Set<String> DISABLED_PACKAGERS = Stream.of(
-                Optional.ofNullable(
-                        TKit.getConfigProperty("disabledPackagers")).orElse(
-                        "").split(",")).collect(Collectors.toUnmodifiableSet());
+        private final static Set<String> DISABLED_PACKAGERS = Optional.ofNullable(
+                TKit.tokenizeConfigProperty("disabledPackagers")).orElse(
+                Collections.emptySet());
     }
 }

@@ -36,7 +36,7 @@ import jdk.jpackage.test.Annotations.Parameter;
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
- * @modules jdk.jpackage
+ * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile WinConsoleTest.java
  *
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
@@ -57,8 +57,7 @@ public class WinConsoleTest {
             cmd.removeArgument("--win-console");
         }
         cmd.executeAndAssertHelloAppImageCreated();
-        checkSubsystem(cmd.appImage().resolve(cmd.launcherPathInAppImage()),
-                withWinConsole);
+        checkSubsystem(cmd.appLauncherPath(), withWinConsole);
     }
 
     private static void checkSubsystem(Path path, boolean isConsole) throws

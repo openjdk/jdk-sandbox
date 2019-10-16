@@ -37,43 +37,27 @@ import jdk.jpackage.test.Functional.ThrowingSupplier;
 
 public class HelloApp {
 
-    private HelloApp() {
-        setClassName(CLASS_NAME).setJarFileName("hello.jar");
-    }
-
-    /**
-     * Set fully qualified class name. E.g: foo.bar.Buzz.
-     */
-    private HelloApp setClassName(String v) {
-        qualifiedClassName = v;
-        return this;
-    }
-
-    private HelloApp setModuleName(String v) {
-        moduleName = v;
-        return this;
-    }
-
-    private HelloApp setJarFileName(String v) {
-        jarFileName = v;
-        return this;
-    }
-
-    private HelloApp setModuleVersion(String v) {
-        moduleVersion = v;
-        return this;
+    HelloApp(JavaAppDesc appDesc) {
+        if (appDesc == null) {
+            this.appDesc = createDefaltAppDesc();
+        } else {
+            this.appDesc = appDesc;
+        }
     }
 
     private JarBuilder prepareSources(Path srcDir) throws IOException {
+        final String qualifiedClassName = appDesc.className();
+
         final String className = qualifiedClassName.substring(
                 qualifiedClassName.lastIndexOf('.') + 1);
-        final String packageName = packageName();
+        final String packageName = appDesc.packageName();
 
         final Path srcFile = srcDir.resolve(Path.of(String.join(
                 File.separator, qualifiedClassName.split("\\.")) + ".java"));
         Files.createDirectories(srcFile.getParent());
 
         JarBuilder jarBuilder = createJarBuilder().addSourceFile(srcFile);
+        final String moduleName = appDesc.moduleName();
         if (moduleName != null) {
             Path moduleInfoFile = srcDir.resolve("module-info.java");
             TKit.createTextFile(moduleInfoFile, List.of(
@@ -82,9 +66,7 @@ public class HelloApp {
                     "}"
             ));
             jarBuilder.addSourceFile(moduleInfoFile);
-            if (moduleVersion != null) {
-                jarBuilder.setModuleVersion(moduleVersion);
-            }
+            jarBuilder.setModuleVersion(appDesc.moduleVersion());
         }
 
         // Add package directive and replace class name in java source file.
@@ -124,11 +106,19 @@ public class HelloApp {
     }
 
     private JarBuilder createJarBuilder() {
-        return new JarBuilder().setMainClass(qualifiedClassName);
+        JarBuilder builder = new JarBuilder();
+        if (appDesc.jarWithMainClass()) {
+            builder.setMainClass(appDesc.className());
+        }
+        return builder;
     }
 
-    private void addTo(JPackageCommand cmd) {
-        if (moduleName != null && packageName() == null) {
+    void addTo(JPackageCommand cmd) {
+        final String moduleName = appDesc.moduleName();
+        final String jarFileName = appDesc.jarFileName();
+        final String qualifiedClassName = appDesc.className();
+
+        if (moduleName != null && appDesc.packageName() == null) {
             throw new IllegalArgumentException(String.format(
                     "Module [%s] with default package", moduleName));
         }
@@ -177,55 +167,9 @@ public class HelloApp {
         }
     }
 
-    private String packageName() {
-        int lastDotIdx = qualifiedClassName.lastIndexOf('.');
-        if (lastDotIdx == -1) {
-            return null;
-        }
-        return qualifiedClassName.substring(0, lastDotIdx);
-    }
-
-    /**
-     * Configures Java application to be used with the given jpackage command.
-     * Syntax of encoded Java application description is
-     * [jar_file:][module_name/]qualified_class_name[@module_version].
-     *
-     * E.g.: duke.jar:com.other/com.other.foo.bar.Buz@3.7 encodes modular
-     * application. Module name is `com.other`. Main class is
-     * `com.other.foo.bar.Buz`. Module version is `3.7`. Application will be
-     * compiled and packed in `duke.jar` jar file.
-     *
-     * @param cmd jpackage command to configure
-     * @param javaAppDesc encoded Java application description
-     */
-    static void addTo(JPackageCommand cmd, String javaAppDesc) {
-        HelloApp helloApp = new HelloApp();
-        if (javaAppDesc != null) {
-            String moduleNameAndOther = Functional.identity(() -> {
-                String[] components = javaAppDesc.split(":", 2);
-                if (components.length == 2) {
-                    helloApp.setJarFileName(components[0]);
-                }
-                return components[components.length - 1];
-            }).get();
-
-            String classNameAndOther = Functional.identity(() -> {
-                String[] components = moduleNameAndOther.split("/", 2);
-                if (components.length == 2) {
-                    helloApp.setModuleName(components[0]);
-                }
-                return components[components.length - 1];
-            }).get();
-
-            Functional.identity(() -> {
-                String[] components = classNameAndOther.split("@", 2);
-                helloApp.setClassName(components[0]);
-                if (components.length == 2) {
-                    helloApp.setModuleVersion(components[1]);
-                }
-            }).run();
-        }
-        helloApp.addTo(cmd);
+    static JavaAppDesc createDefaltAppDesc() {
+        return new JavaAppDesc().setClassName(CLASS_NAME).setJarFileName(
+                "hello.jar");
     }
 
     static void verifyOutputFile(Path outputFile, List<String> args) {
@@ -250,24 +194,12 @@ public class HelloApp {
     }
 
     public static void executeLauncherAndVerifyOutput(JPackageCommand cmd) {
-        final Path launcherPath;
-        if (cmd.packageType() == PackageType.IMAGE) {
-            launcherPath = cmd.appImage().resolve(cmd.launcherPathInAppImage());
-            if (cmd.isFakeRuntimeInAppImage(String.format(
-                    "Not running [%s] launcher from application image",
-                    launcherPath))) {
-                return;
-            }
-        } else {
-            launcherPath = cmd.launcherInstallationPath();
-            if (cmd.isFakeRuntimeInstalled(String.format(
-                    "Not running [%s] launcher", launcherPath))) {
-                return;
-            }
+        final Path launcherPath = cmd.appLauncherPath();
+        if (!cmd.isFakeRuntime(String.format("Not running [%s] launcher",
+                launcherPath))) {
+            executeAndVerifyOutput(launcherPath, cmd.getAllArgumentValues(
+                    "--arguments"));
         }
-
-        executeAndVerifyOutput(launcherPath, cmd.getAllArgumentValues(
-                "--arguments"));
     }
 
     public static void executeAndVerifyOutput(Path helloAppLauncher,
@@ -278,7 +210,7 @@ public class HelloApp {
     public static void executeAndVerifyOutput(Path helloAppLauncher,
             List<String> defaultLauncherArgs) {
         // Output file will be created in the current directory.
-        Path outputFile = Path.of(OUTPUT_FILENAME);
+        Path outputFile = TKit.workDir().resolve(OUTPUT_FILENAME);
         ThrowingFunction.toFunction(Files::deleteIfExists).apply(outputFile);
         new Executor()
                 .setDirectory(outputFile.getParent())
@@ -291,10 +223,7 @@ public class HelloApp {
 
     final static String OUTPUT_FILENAME = "appOutput.txt";
 
-    private String qualifiedClassName;
-    private String moduleName;
-    private String jarFileName;
-    private String moduleVersion;
+    private final JavaAppDesc appDesc;
 
     private static final Path HELLO_JAVA = TKit.TEST_SRC_ROOT.resolve(
             "apps/image/Hello.java");

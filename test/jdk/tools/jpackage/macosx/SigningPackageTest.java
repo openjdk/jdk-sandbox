@@ -60,25 +60,14 @@ public class SigningPackageTest {
         SigningBase.verifyCodesign(outputBundle, false);
     }
 
-    private static void verifyAppImageInDMG(JPackageCommand cmd) throws Exception {
-        Path disk = Paths.get("/Volumes", cmd.name());
-        try {
-            new Executor()
-                    .setExecutable("/usr/bin/hdiutil")
-                    .addArgument("attach").addArgument(cmd.outputBundle())
-                    .execute().assertExitCodeIsZero();
-
+    private static void verifyAppImageInDMG(JPackageCommand cmd) {
+        MacHelper.withExplodedDmg(cmd, disk -> {
             Path appImageInDMG = disk.resolve(cmd.name() + ".app");
             Path launcherPath = appImageInDMG.resolve(Path.of("Contents", "MacOS", cmd.name()));
             SigningBase.verifyCodesign(launcherPath, true);
             SigningBase.verifyCodesign(appImageInDMG, true);
             SigningBase.verifySpctl(appImageInDMG, "exec");
-        } finally {
-            new Executor()
-                    .setExecutable("/usr/bin/hdiutil")
-                    .addArgument("detach").addArgument(disk)
-                    .execute().assertExitCodeIsZero();
-        }
+        });
     }
 
     public static void main(String[] args) throws Exception {
@@ -94,14 +83,10 @@ public class SigningPackageTest {
                                 "--mac-signing-keychain", "jpackagerTest.keychain");
                     })
                     .forTypes(PackageType.MAC_PKG)
-                    .addBundleVerifier(cmd -> {
-                        verifyPKG(cmd);
-                    })
+                    .addBundleVerifier(SigningPackageTest::verifyPKG)
                     .forTypes(PackageType.MAC_DMG)
-                    .addBundleVerifier(cmd -> {
-                        verifyDMG(cmd);
-                        verifyAppImageInDMG(cmd);
-                    })
+                    .addBundleVerifier(SigningPackageTest::verifyDMG)
+                    .addBundleVerifier(SigningPackageTest::verifyAppImageInDMG)
                     .run();
         });
     }
