@@ -431,7 +431,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         }
 
         if (TKit.isLinux()) {
-            LinuxHelper.getLauncherPath(this).getParent().resolve(launcherName);
+            return LinuxHelper.getLauncherPath(this).getParent().resolve(launcherName);
         }
 
         return appLayout().launchersDirectory().resolve(launcherName);

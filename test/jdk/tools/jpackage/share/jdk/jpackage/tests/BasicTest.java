@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.*;
+import jdk.jpackage.test.Functional.ThrowingConsumer;
 import jdk.jpackage.test.Annotations.*;
 
 /*
@@ -218,25 +219,37 @@ public final class BasicTest {
      */
     @Test
     public void testTemp() throws IOException {
-        JPackageCommand cmd = JPackageCommand.helloAppImage()
-                .removeArgumentWithValue("--package-type")
-                .addArguments("--verbose")
-                .setFakeRuntime();
+        TKit.withTempDirectory("temp-root", tempRoot -> {
+            Function<JPackageCommand, Path> getTempDir = cmd -> {
+                return tempRoot.resolve(cmd.outputBundle().getFileName());
+            };
 
-        TKit.withTempDirectory("temp-root", tempDir -> {
-            cmd.addArguments("--temp", tempDir);
+            ThrowingConsumer<JPackageCommand> addTempDir = cmd -> {
+                Path tempDir = getTempDir.apply(cmd);
+                Files.createDirectories(tempDir);
+                cmd.addArguments("--temp", tempDir);
+            };
 
-            cmd.execute().assertExitCodeIsZero();
+            new PackageTest().configureHelloApp().addInitializer(addTempDir)
+            .addBundleVerifier(cmd -> {
+                // Check jpackage actually used the supplied directory.
+                Path tempDir = getTempDir.apply(cmd);
+                TKit.assertNotEquals(0, tempDir.toFile().list().length,
+                        String.format(
+                                "Check jpackage wrote some data in the supplied temporary directory [%s]",
+                                tempDir));
+            })
+            .run();
 
-            // Check jpackage actually used the supplied directory.
-            TKit.assertNotEquals(0, tempDir.toFile().list().length,
-                    String.format(
-                            "Check jpackage wrote some data in the supplied temporary directory [%s]",
-                            tempDir));
-
+            new PackageTest().configureHelloApp().addInitializer(addTempDir)
+            .addInitializer(cmd -> {
+                // Clean output from the previus jpackage run.
+                Files.delete(cmd.outputBundle());
+            })
             // Temporary directory should not be empty,
             // jpackage should exit with error.
-            cmd.execute().assertExitCodeIs(1);
+            .setExpectedExitCode(1)
+            .run();
         });
     }
 
