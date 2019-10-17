@@ -34,7 +34,7 @@ ifeq ($(call isTargetOsType, unix), true)
         NAME := sctp, \
         OPTIMIZATION := LOW, \
         CFLAGS := $(CFLAGS_JDKLIB), \
-        DISABLED_WARNINGS_gcc := undef logical-op, \
+        DISABLED_WARNINGS_gcc := undef, \
         DISABLED_WARNINGS_clang := undef, \
         EXTRA_HEADER_DIRS := \
             $(call GetJavaHeaderDir, java.base) \

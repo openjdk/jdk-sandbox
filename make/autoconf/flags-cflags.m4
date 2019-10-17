@@ -198,7 +198,8 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
       # -Wall -Wextra does not enable all warnings. We add some more that we
       # consider relevant:
-      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wundef -Wlogical-op -Winit-self -Wpacked -Wdisabled-optimization -Wtrampolines"
+      # logical-op cannot be used due to https://gcc.gnu.org/bugzilla//show_bug.cgi?id=69602
+      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wundef -Winit-self -Wpacked -Wdisabled-optimization -Wtrampolines"
       WARNINGS_ENABLE_ADDITIONAL_CXX="-Wc++0x-compat -Wreorder -Wnoexcept -Woverloaded-virtual -Wdelete-non-virtual-dtor -Wwrite-strings -Wstrict-null-sentinel"
 
       WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"

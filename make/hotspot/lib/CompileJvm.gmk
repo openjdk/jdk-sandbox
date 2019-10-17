@@ -196,7 +196,7 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
         unused-local-typedefs unused-variable address \
         missing-field-initializers unused-but-set-variable char-subscripts \
         array-bounds narrowing empty-body unused-but-set-parameter \
-        maybe-uninitialized logical-op \
+        maybe-uninitialized \
         implicit-fallthrough expansion-to-defined strict-overflow sequence-point, \
     DISABLED_WARNINGS_clang := $(DISABLED_WARNINGS_clang) \
         \
@@ -207,7 +207,7 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
         unknownpragma doubunder w_enumnotused w_toomanyenumnotused \
         wvarhidenmem wunreachable wnoretvalue, \
     DISABLED_WARNINGS_xlc := $(DISABLED_WARNINGS_xlc), \
-    DISABLED_WARNINGS_microsoft := $(DISABLED_WARNINGS_microsoft), \
+    DISABLED_WARNINGS_microsoft := $(DISABLED_WARNINGS_microsoft) \
         \
         4459, \
     ASFLAGS := $(JVM_ASFLAGS), \

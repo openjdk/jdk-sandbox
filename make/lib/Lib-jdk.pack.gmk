@@ -36,7 +36,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBUNPACK, \
         -DNO_ZLIB -DUNPACK_JNI -DFULL, \
     CFLAGS_release := -DPRODUCT, \
     EXTRA_HEADER_DIRS := $(call GetJavaHeaderDir, java.base), \
-    DISABLED_WARNINGS_gcc := implicit-fallthrough, \
+    DISABLED_WARNINGS_gcc := implicit-fallthrough unused-local-typedefs, \
     DISABLED_WARNINGS_clang := format-nonliteral, \
     DISABLED_WARNINGS_solstudio := wunreachable, \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(LDFLAGS_CXX_JDK) \

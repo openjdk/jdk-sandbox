@@ -607,7 +607,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBFONTMANAGER, \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := sign-compare int-to-pointer-cast \
         type-limits missing-field-initializers implicit-fallthrough \
-        strict-aliasing undef unused-function, \
+        strict-aliasing undef unused-function packed, \
     DISABLED_WARNINGS_CXX_gcc := reorder delete-non-virtual-dtor strict-overflow \
         maybe-uninitialized class-memaccess, \
     DISABLED_WARNINGS_clang := unused-value incompatible-pointer-types \

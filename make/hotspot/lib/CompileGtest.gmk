@@ -86,7 +86,7 @@ $(eval $(call SetupNativeCompilation, BUILD_GTEST_LIBJVM, \
         unused-local-typedefs unused-variable address \
         missing-field-initializers unused-but-set-variable char-subscripts \
         array-bounds narrowing empty-body unused-but-set-parameter undef \
-        maybe-uninitialized logical-op \
+        maybe-uninitialized \
         implicit-fallthrough expansion-to-defined, \
     DISABLED_WARNINGS_clang := $(DISABLED_WARNINGS_clang) \
         undef switch format-nonliteral tautological-undefined-compare \
