@@ -180,7 +180,7 @@ public:
 
 
   //// Debug stuff ////
-  DEBUG_ONLY(void verify(bool slow, bool do_touch_test = true) const;)
+  DEBUG_ONLY(void verify(bool slow) const;)
 
   void print_on(outputStream* st) const;
 

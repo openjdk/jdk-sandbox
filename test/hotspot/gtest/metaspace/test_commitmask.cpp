@@ -39,7 +39,7 @@ class CommitMaskTest {
   void verify_mask() {
     // Note: we omit the touch test since we operate on fictional
     // memory
-    DEBUG_ONLY(_mask.verify(true, false);)
+    DEBUG_ONLY(_mask.verify(false);)
   }
 
   // Return a random sub range within [_base.._base + word_size),
@@ -258,7 +258,7 @@ public:
 
 };
 
-TEST(metaspace, commit_mask_basics) {
+TEST_VM(metaspace, commit_mask_basics) {
 
   const MetaWord* const base = (const MetaWord*) 0x100000;
 
@@ -282,7 +282,7 @@ TEST(metaspace, commit_mask_basics) {
 
 }
 
-TEST(metaspace, commit_mask_small) {
+TEST_VM(metaspace, commit_mask_small) {
 
   const MetaWord* const base = (const MetaWord*) 0x100000;
 
@@ -291,7 +291,7 @@ TEST(metaspace, commit_mask_small) {
 
 }
 
-TEST(metaspace, commit_mask_range) {
+TEST_VM(metaspace, commit_mask_range) {
 
   const MetaWord* const base = (const MetaWord*) 0x100000;
   const size_t len = Settings::commit_granule_words() * 4;
@@ -329,7 +329,7 @@ TEST(metaspace, commit_mask_range) {
 }
 
 
-TEST(metaspace, commit_mask_random) {
+TEST_VM(metaspace, commit_mask_random) {
 
   for (int i = 0; i < 5; i ++) {
 

@@ -26,6 +26,7 @@
 #define SHARE_MEMORY_METASPACE_METADEBUG_HPP
 
 #include "memory/allocation.hpp"
+#include "runtime/globals.hpp" // For MetaspaceVerifyInterval
 
 namespace metaspace {
 

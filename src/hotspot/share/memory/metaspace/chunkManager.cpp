@@ -33,6 +33,7 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
@@ -110,7 +111,6 @@ Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chklvl_t ta
   DEBUG_ONLY(chklvl::check_valid_level(target_level);)
 
   DEBUG_ONLY(c->verify(true);)
-  DEBUG_ONLY(c->vsnode()->verify(true);)
 
   // Chunk must be outside of our freelists
   assert(_chunks.contains(c) == false, "Chunk is in freelist.");
@@ -129,7 +129,7 @@ Metachunk* ChunkManager::split_chunk_and_add_splinters(Metachunk* c, chklvl_t ta
 
   DEBUG_ONLY(verify_locked(true);)
 
-  DEBUG_ONLY(c->vsnode()->verify(true);)
+  SOMETIMES(c->vsnode()->verify(true);)
 
   return c;
 }
@@ -238,6 +238,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
   c->set_in_use();
 
   DEBUG_ONLY(verify_locked(false);)
+  SOMETIMES(c->vsnode()->verify(true);)
 
   log_debug(metaspace)("ChunkManager %s: handing out chunk " METACHUNK_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c));
@@ -263,8 +264,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
   log_debug(metaspace)("ChunkManager %s: returning chunk " METACHUNK_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c));
 
-  DEBUG_ONLY(verify_locked(false);)
-  DEBUG_ONLY(c->verify(false);)
+  DEBUG_ONLY(c->verify(true);)
 
   assert(!_chunks.contains(c), "A chunk to be added to the freelist must not be in the freelist already.");
 
@@ -308,7 +308,7 @@ void ChunkManager::return_chunk(Metachunk* c) {
   return_chunk_simple(c);
 
   DEBUG_ONLY(verify_locked(false);)
-  DEBUG_ONLY(c->vsnode()->verify(true);)
+  SOMETIMES(c->vsnode()->verify(true);)
 
   DEBUG_ONLY(InternalStats::inc_num_chunks_returned_to_freelist();)
 

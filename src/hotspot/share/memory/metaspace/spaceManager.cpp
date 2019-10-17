@@ -411,6 +411,7 @@ void SpaceManager::add_to_statistics(sm_stats_t* out) const {
   }
 
   SOMETIMES(out->verify();)
+
 }
 
 #ifdef ASSERT

@@ -30,6 +30,7 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
+#include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -81,8 +82,6 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
 // Returns NULL if chunk cannot be split at least once.
 Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkListCluster* freelists) {
 
-  DEBUG_ONLY(c->verify(true);)
-
   // Splitting a chunk once works like this:
   //
   // For a given chunk we want to split:
@@ -118,8 +117,6 @@ Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkLi
 
   DEBUG_ONLY(chklvl::check_valid_level(target_level));
   assert(target_level > c->level(), "Wrong target level");
-
-  DEBUG_ONLY(verify(true);)
 
   const chklvl_t starting_level = c->level();
 
@@ -423,8 +420,8 @@ bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster* fr
 
 void RootChunkArea::verify(bool slow) const {
 
-  assert_lock_strong(MetaspaceExpand_lock);
 
+  assert_lock_strong(MetaspaceExpand_lock);
   assert_is_aligned(_base, chklvl::MAX_CHUNK_BYTE_SIZE);
 
   // Iterate thru all chunks in this area. They must be ordered correctly,
@@ -468,7 +465,7 @@ void RootChunkArea::verify(bool slow) const {
 
 void RootChunkArea::verify_area_is_ideally_merged() const {
 
-  assert_lock_strong(MetaspaceExpand_lock);
+  SOMETIMES(assert_lock_strong(MetaspaceExpand_lock);)
 
   int num_chunk = 0;
   for (const Metachunk* c = _first_chunk; c != NULL; c = c->next_in_vs()) {
