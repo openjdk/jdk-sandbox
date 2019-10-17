@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -82,8 +83,10 @@ final class PathGroup {
         long reply = 0;
         for (Path dir : roots().stream().filter(f -> Files.isDirectory(f)).collect(
                 Collectors.toList())) {
-            reply += Files.walk(dir).filter(p -> Files.isRegularFile(p)).mapToLong(
-                    f -> f.toFile().length()).sum();
+            try (Stream<Path> stream = Files.walk(dir)) {
+                reply += stream.filter(p -> Files.isRegularFile(p)).mapToLong(
+                        f -> f.toFile().length()).sum();
+            }
         }
         return reply;
     }
@@ -145,8 +148,11 @@ final class PathGroup {
             Path src = action.getKey();
             Path dst = action.getValue();
             if (src.toFile().isDirectory()) {
-                Files.walk(src).forEach(path -> actions.put(dst.resolve(
-                        src.relativize(path)).toAbsolutePath().normalize(), path));
+               try (Stream<Path> stream = Files.walk(src)) {
+                   stream.forEach(path -> actions.put(dst.resolve(
+                           src.relativize(path)).toAbsolutePath().normalize(),
+                           path));
+               }
             } else {
                 actions.put(dst.toAbsolutePath().normalize(), src);
             }

@@ -50,6 +50,7 @@ import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * StandardBundlerParam
@@ -673,9 +674,10 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                 }
                 Set<File> theFiles = new HashSet<>();
                 try {
-                    Files.walk(f.toPath())
-                            .filter(Files::isRegularFile)
-                            .forEach(p -> theFiles.add(p.toFile()));
+                    try (Stream<Path> stream = Files.walk(f.toPath())) {
+                        stream.filter(Files::isRegularFile)
+                                .forEach(p -> theFiles.add(p.toFile()));
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

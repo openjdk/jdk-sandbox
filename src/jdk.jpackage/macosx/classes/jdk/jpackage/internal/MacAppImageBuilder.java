@@ -48,6 +48,7 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
@@ -747,78 +748,79 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         String keyChain = SIGNING_KEYCHAIN.fetchFrom(params);
 
         // sign all dylibs and jars
-        Files.walk(appLocation).peek(path -> { // fix permissions
+        try (Stream<Path> stream = Files.walk(appLocation)) {
+            stream.peek(path -> { // fix permissions
+                try {
+                    Set<PosixFilePermission> pfp =
+                            Files.getPosixFilePermissions(path);
+                    if (!pfp.contains(PosixFilePermission.OWNER_WRITE)) {
+                        pfp = EnumSet.copyOf(pfp);
+                        pfp.add(PosixFilePermission.OWNER_WRITE);
+                        Files.setPosixFilePermissions(path, pfp);
+                    }
+                } catch (IOException e) {
+                    Log.verbose(e);
+                }
+            }).filter(p -> Files.isRegularFile(p)
+                      && !(p.toString().contains("/Contents/MacOS/libjli.dylib")
+                      || p.toString().endsWith(appExecutable)
+                      || p.toString().contains("/Contents/runtime")
+                      || p.toString().contains("/Contents/Frameworks"))).forEach(p -> {
+                //noinspection ThrowableResultOfMethodCallIgnored
+                if (toThrow.get() != null) return;
+
+                // If p is a symlink then skip the signing process.
+                if (Files.isSymbolicLink(p)) {
+                    if (VERBOSE.fetchFrom(params)) {
+                        Log.verbose(MessageFormat.format(I18N.getString(
+                                "message.ignoring.symlink"), p.toString()));
+                    }
+                } else {
+                    if (p.toString().endsWith(LIBRARY_NAME)) {
+                        if (isFileSigned(p)) {
+                            return;
+                        }
+                    }
+
+                    List<String> args = new ArrayList<>();
+                    args.addAll(Arrays.asList("codesign",
+                            "-s", signingIdentity, // sign with this key
+                            "--prefix", identifierPrefix,
+                            // use the identifier as a prefix
+                            "-vvvv"));
+                    if (entitlementsFile != null &&
+                            (p.toString().endsWith(".jar")
+                            || p.toString().endsWith(".dylib"))) {
+                        args.add("--entitlements");
+                        args.add(entitlementsFile); // entitlements
+                    } else if (inheritedEntitlements != null &&
+                            Files.isExecutable(p)) {
+                        args.add("--entitlements");
+                        args.add(inheritedEntitlements);
+                        // inherited entitlements for executable processes
+                    }
+                    if (keyChain != null && !keyChain.isEmpty()) {
+                        args.add("--keychain");
+                        args.add(keyChain);
+                    }
+                    args.add(p.toString());
+
                     try {
-                        Set<PosixFilePermission> pfp =
-                                Files.getPosixFilePermissions(path);
-                        if (!pfp.contains(PosixFilePermission.OWNER_WRITE)) {
-                            pfp = EnumSet.copyOf(pfp);
-                            pfp.add(PosixFilePermission.OWNER_WRITE);
-                            Files.setPosixFilePermissions(path, pfp);
-                        }
-                    } catch (IOException e) {
-                        Log.verbose(e);
+                        Set<PosixFilePermission> oldPermissions =
+                                Files.getPosixFilePermissions(p);
+                        File f = p.toFile();
+                        f.setWritable(true, true);
+
+                        ProcessBuilder pb = new ProcessBuilder(args);
+                        IOUtils.exec(pb);
+
+                        Files.setPosixFilePermissions(p, oldPermissions);
+                    } catch (IOException ioe) {
+                        toThrow.set(ioe);
                     }
-                }).filter(p -> Files.isRegularFile(p)
-                          && !(p.toString().contains("/Contents/MacOS/libjli.dylib")
-                          || p.toString().endsWith(appExecutable)
-                          || p.toString().contains("/Contents/runtime")
-                          || p.toString().contains("/Contents/Frameworks"))).forEach(p -> {
-                    //noinspection ThrowableResultOfMethodCallIgnored
-                    if (toThrow.get() != null) return;
-
-                    // If p is a symlink then skip the signing process.
-                    if (Files.isSymbolicLink(p)) {
-                        if (VERBOSE.fetchFrom(params)) {
-                            Log.verbose(MessageFormat.format(I18N.getString(
-                                    "message.ignoring.symlink"), p.toString()));
-                        }
-                    } else {
-                        if (p.toString().endsWith(LIBRARY_NAME)) {
-                            if (isFileSigned(p)) {
-                                return;
-                            }
-                        }
-
-                        List<String> args = new ArrayList<>();
-                        args.addAll(Arrays.asList("codesign",
-                                "-s", signingIdentity, // sign with this key
-                                "--prefix", identifierPrefix,
-                                // use the identifier as a prefix
-                                "-vvvv"));
-                        if (entitlementsFile != null &&
-                                (p.toString().endsWith(".jar")
-                                || p.toString().endsWith(".dylib"))) {
-                            args.add("--entitlements");
-                            args.add(entitlementsFile); // entitlements
-                        } else if (inheritedEntitlements != null &&
-                                Files.isExecutable(p)) {
-                            args.add("--entitlements");
-                            args.add(inheritedEntitlements);
-                            // inherited entitlements for executable processes
-                        }
-                        if (keyChain != null && !keyChain.isEmpty()) {
-                            args.add("--keychain");
-                            args.add(keyChain);
-                        }
-                        args.add(p.toString());
-
-                        try {
-                            Set<PosixFilePermission> oldPermissions =
-                                    Files.getPosixFilePermissions(p);
-                            File f = p.toFile();
-                            f.setWritable(true, true);
-
-                            ProcessBuilder pb = new ProcessBuilder(args);
-                            IOUtils.exec(pb);
-
-                            Files.setPosixFilePermissions(p, oldPermissions);
-                        } catch (IOException ioe) {
-                            toThrow.set(ioe);
-                        }
-                    }
-                });
-
+                }
+            });
+        }
         IOException ioe = toThrow.get();
         if (ioe != null) {
             throw ioe;

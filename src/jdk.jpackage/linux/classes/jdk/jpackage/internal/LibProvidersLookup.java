@@ -52,9 +52,12 @@ final public class LibProvidersLookup {
 
     List<String> execute(Path root) throws IOException {
         // Get the list of files in the root for which to look up for needed shared libraries
-        List<Path> allPackageFiles = Files.walk(root).filter(
-                Files::isRegularFile).filter(LibProvidersLookup::canDependOnLibs).collect(
-                Collectors.toList());
+        List<Path> allPackageFiles;
+        try (Stream<Path> stream = Files.walk(root)) {
+            allPackageFiles = stream.filter(Files::isRegularFile).filter(
+                    LibProvidersLookup::canDependOnLibs).collect(
+                    Collectors.toList());
+        }
 
         Collection<Path> neededLibs = getNeededLibsForFiles(allPackageFiles);
 
