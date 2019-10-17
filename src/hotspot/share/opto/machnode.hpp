@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MACHNODE_HPP
-#define SHARE_VM_OPTO_MACHNODE_HPP
+#ifndef SHARE_OPTO_MACHNODE_HPP
+#define SHARE_OPTO_MACHNODE_HPP
 
 #include "opto/callnode.hpp"
 #include "opto/matcher.hpp"
@@ -161,7 +161,7 @@ public:
 
   // Hash and compare over operands are currently identical
   virtual uint  hash() const;
-  virtual uint  cmp( const MachOper &oper ) const;
+  virtual bool  cmp( const MachOper &oper ) const;
 
   // Virtual clone, since I do not know how big the MachOper is.
   virtual MachOper *clone() const = 0;
@@ -197,7 +197,7 @@ public:
 // ADLC inherit from this class.
 class MachNode : public Node {
 public:
-  MachNode() : Node((uint)0), _num_opnds(0), _opnds(NULL) {
+  MachNode() : Node((uint)0), _barrier(0), _num_opnds(0), _opnds(NULL) {
     init_class_id(Class_Mach);
   }
   // Required boilerplate
@@ -210,6 +210,9 @@ public:
   // Position of constant base node in node's inputs. -1 if
   // no constant base node input.
   virtual uint mach_constant_base_node_input() const { return (uint)-1; }
+
+  uint8_t barrier_data() const { return _barrier; }
+  void set_barrier_data(uint data) { _barrier = data; }
 
   // Copy inputs and operands to new node of instruction.
   // Called from cisc_version() and short_branch_version().
@@ -255,6 +258,9 @@ public:
   // output have choices - but they must use the same choice.
   virtual uint two_adr( ) const { return 0; }
 
+  // The GC might require some barrier metadata for machine code emission.
+  uint8_t _barrier;
+
   // Array of complex operand pointers.  Each corresponds to zero or
   // more leafs.  Must be set by MachNode constructor to point to an
   // internal array of MachOpers.  The MachOper array is sized by
@@ -292,7 +298,7 @@ public:
 
   // Hash and compare over operands.  Used to do GVN on machine Nodes.
   virtual uint  hash() const;
-  virtual uint  cmp( const Node &n ) const;
+  virtual bool  cmp( const Node &n ) const;
 
   // Expand method for MachNode, replaces nodes representing pseudo
   // instructions with a set of nodes which represent real machine
@@ -301,7 +307,14 @@ public:
 
   // Bottom_type call; value comes from operand0
   virtual const class Type *bottom_type() const { return _opnds[0]->type(); }
-  virtual uint ideal_reg() const { const Type *t = _opnds[0]->type(); return t == TypeInt::CC ? (uint) Op_RegFlags : t->ideal_reg(); }
+  virtual uint ideal_reg() const {
+    const Type *t = _opnds[0]->type();
+    if (t == TypeInt::CC) {
+      return Op_RegFlags;
+    } else {
+      return t->ideal_reg();
+    }
+  }
 
   // If this is a memory op, return the base pointer and fixed offset.
   // If there are no such, return NULL.  If there are multiple addresses
@@ -861,7 +874,7 @@ public:
 class MachCallNode : public MachSafePointNode {
 protected:
   virtual uint hash() const { return NO_HASH; }  // CFG nodes do not hash
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const = 0; // Size is bigger
 public:
   const TypeFunc *_tf;        // Function type
@@ -904,7 +917,7 @@ public:
 // "Base" class for machine-specific versions of subroutine calls
 class MachCallJavaNode : public MachCallNode {
 protected:
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   ciMethod* _method;                 // Method being direct called
@@ -937,7 +950,7 @@ public:
 //------------------------------MachCallStaticJavaNode------------------------
 // Machine-specific versions of monomorphic subroutine calls
 class MachCallStaticJavaNode : public MachCallJavaNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   const char *_name;            // Runtime wrapper name
@@ -973,7 +986,7 @@ public:
 //------------------------------MachCallRuntimeNode----------------------------
 // Machine-specific versions of subroutine calls
 class MachCallRuntimeNode : public MachCallNode {
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
 public:
   const char *_name;            // Printable name, if _method is NULL
@@ -997,6 +1010,7 @@ public:
 // Machine-specific versions of halt nodes
 class MachHaltNode : public MachReturnNode {
 public:
+  const char* _halt_reason;
   virtual JVMState* jvms() const;
 };
 
@@ -1066,7 +1080,7 @@ public:
   virtual uint           opcode() const;
 
   virtual uint           hash()   const;
-  virtual uint           cmp( const MachOper &oper ) const;
+  virtual bool           cmp( const MachOper &oper ) const;
 #ifndef PRODUCT
   virtual const char    *Name()   const { return "Label";}
 
@@ -1093,7 +1107,7 @@ public:
   virtual uint           opcode() const;
 
   virtual uint           hash()   const;
-  virtual uint           cmp( const MachOper &oper ) const;
+  virtual bool           cmp( const MachOper &oper ) const;
 #ifndef PRODUCT
   virtual const char    *Name()   const { return "Method";}
 
@@ -1102,4 +1116,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_MACHNODE_HPP
+#endif // SHARE_OPTO_MACHNODE_HPP

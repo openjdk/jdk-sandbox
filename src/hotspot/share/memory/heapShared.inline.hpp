@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,21 +22,29 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_HEAPSHARED_INLINE_HPP
-#define SHARE_VM_MEMORY_HEAPSHARED_INLINE_HPP
+#ifndef SHARE_MEMORY_HEAPSHARED_INLINE_HPP
+#define SHARE_MEMORY_HEAPSHARED_INLINE_HPP
 
 #include "oops/compressedOops.inline.hpp"
 #include "memory/heapShared.hpp"
+#include "utilities/align.hpp"
+#if INCLUDE_G1GC
+#include "gc/g1/g1Allocator.inline.hpp"
+#endif
 
 #if INCLUDE_CDS_JAVA_HEAP
+
+bool HeapShared::is_archived_object(oop p) {
+  return (p == NULL) ? false : G1ArchiveAllocator::is_archived_object(p);
+}
 
 inline oop HeapShared::decode_from_archive(narrowOop v) {
   assert(!CompressedOops::is_null(v), "narrow oop value can never be zero");
   oop result = (oop)(void*)((uintptr_t)_narrow_oop_base + ((uintptr_t)v << _narrow_oop_shift));
-  assert(check_obj_alignment(result), "address not aligned: " INTPTR_FORMAT, p2i((void*) result));
+  assert(is_object_aligned(result), "address not aligned: " INTPTR_FORMAT, p2i((void*) result));
   return result;
 }
 
 #endif
 
-#endif // SHARE_VM_MEMORY_HEAPSHARED_INLINE_HPP
+#endif // SHARE_MEMORY_HEAPSHARED_INLINE_HPP

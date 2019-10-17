@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -716,6 +716,7 @@ class Attribute implements Comparable<Attribute> {
 
     public static
     class FormatException extends IOException {
+        @java.io.Serial
         private static final long serialVersionUID = -2542243830788066513L;
 
         private int ctype;
@@ -996,7 +997,7 @@ class Attribute implements Comparable<Attribute> {
                             endp = cstr.indexOf(',', cp);
                             if (endp < 0)  endp = cstrlen;
                             String cstr1 = cstr.substring(cp, endp);
-                            if (cstr1.length() == 0)
+                            if (cstr1.isEmpty())
                                 cstr1 = "empty";  // will fail parse
                             int value0, value1;
                             // Check for a case range (new in 1.6).

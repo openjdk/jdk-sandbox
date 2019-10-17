@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,39 +22,22 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_STARTOPERATION_HPP
-#define SHARE_VM_LEAKPROFILER_STARTOPERATION_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_STARTOPERATION_HPP
+#define SHARE_JFR_LEAKPROFILER_STARTOPERATION_HPP
 
-#include "jfr/recorder/jfrRecorder.hpp"
-#include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
-#include "logging/log.hpp"
-#include "runtime/vm_operations.hpp"
+#include "jfr/leakprofiler/utilities/vmOperation.hpp"
 
-// Safepoint operation for starting leak profiler object sampler
-class StartOperation : public VM_Operation {
+// Safepoint operation for creating and starting the leak profiler object sampler
+class StartOperation : public OldObjectVMOperation {
  private:
-  jlong _sample_count;
+  int _sample_count;
  public:
-  StartOperation(jlong sample_count) :
-    _sample_count(sample_count) {
-  }
-
-  Mode evaluation_mode() const {
-    return _safepoint;
-  }
-
-  VMOp_Type type() const {
-    return VMOp_GC_HeapInspection;
-  }
+  StartOperation(int sample_count) : _sample_count(sample_count) {}
 
   virtual void doit() {
-    assert(!LeakProfiler::is_running(), "invariant");
-    jint queue_size = JfrOptionSet::old_object_queue_size();
-    LeakProfiler::set_object_sampler(new ObjectSampler(queue_size));
-    log_trace(jfr, system)( "Object sampling started");
+    ObjectSampler::create(_sample_count);
   }
 };
 
-#endif // SHARE_VM_LEAKPROFILER_STARTOPERATION_HPP
+#endif // SHARE_JFR_LEAKPROFILER_STARTOPERATION_HPP

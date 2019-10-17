@@ -235,45 +235,6 @@ void Parse::array_store_check() {
 }
 
 
-void Parse::emit_guard_for_new(ciInstanceKlass* klass) {
-  // Emit guarded new
-  //   if (klass->_init_thread != current_thread ||
-  //       klass->_init_state != being_initialized)
-  //      uncommon_trap
-  Node* cur_thread = _gvn.transform( new ThreadLocalNode() );
-  Node* merge = new RegionNode(3);
-  _gvn.set_type(merge, Type::CONTROL);
-  Node* kls = makecon(TypeKlassPtr::make(klass));
-
-  Node* init_thread_offset = _gvn.MakeConX(in_bytes(InstanceKlass::init_thread_offset()));
-  Node* adr_node = basic_plus_adr(kls, kls, init_thread_offset);
-  Node* init_thread = make_load(NULL, adr_node, TypeRawPtr::BOTTOM, T_ADDRESS, MemNode::unordered);
-  Node *tst   = Bool( CmpP( init_thread, cur_thread), BoolTest::eq);
-  IfNode* iff = create_and_map_if(control(), tst, PROB_ALWAYS, COUNT_UNKNOWN);
-  set_control(IfTrue(iff));
-  merge->set_req(1, IfFalse(iff));
-
-  Node* init_state_offset = _gvn.MakeConX(in_bytes(InstanceKlass::init_state_offset()));
-  adr_node = basic_plus_adr(kls, kls, init_state_offset);
-  // Use T_BOOLEAN for InstanceKlass::_init_state so the compiler
-  // can generate code to load it as unsigned byte.
-  Node* init_state = make_load(NULL, adr_node, TypeInt::UBYTE, T_BOOLEAN, MemNode::unordered);
-  Node* being_init = _gvn.intcon(InstanceKlass::being_initialized);
-  tst   = Bool( CmpI( init_state, being_init), BoolTest::eq);
-  iff = create_and_map_if(control(), tst, PROB_ALWAYS, COUNT_UNKNOWN);
-  set_control(IfTrue(iff));
-  merge->set_req(2, IfFalse(iff));
-
-  PreserveJVMState pjvms(this);
-  record_for_igvn(merge);
-  set_control(merge);
-
-  uncommon_trap(Deoptimization::Reason_uninitialized,
-                Deoptimization::Action_reinterpret,
-                klass);
-}
-
-
 //------------------------------do_new-----------------------------------------
 void Parse::do_new() {
   kill_dead_locals();
@@ -282,18 +243,19 @@ void Parse::do_new() {
   ciInstanceKlass* klass = iter().get_klass(will_link)->as_instance_klass();
   assert(will_link, "_new: typeflow responsibility");
 
-  // Should initialize, or throw an InstantiationError?
-  if ((!klass->is_initialized() && !klass->is_being_initialized()) ||
-      klass->is_abstract() || klass->is_interface() ||
+  // Should throw an InstantiationError?
+  if (klass->is_abstract() || klass->is_interface() ||
       klass->name() == ciSymbol::java_lang_Class() ||
       iter().is_unresolved_klass()) {
-    uncommon_trap(Deoptimization::Reason_uninitialized,
-                  Deoptimization::Action_reinterpret,
+    uncommon_trap(Deoptimization::Reason_unhandled,
+                  Deoptimization::Action_none,
                   klass);
     return;
   }
-  if (klass->is_being_initialized()) {
-    emit_guard_for_new(klass);
+
+  if (C->needs_clinit_barrier(klass, method())) {
+    clinit_barrier(klass, method());
+    if (stopped())  return;
   }
 
   Node* kls = makecon(TypeKlassPtr::make(klass));
@@ -437,9 +399,9 @@ void Parse::set_md_flag_at(ciMethodData* md, ciProfileData* data, int flag_const
   Node* adr_node = method_data_addressing(md, data, DataLayout::flags_offset());
 
   const TypePtr* adr_type = _gvn.type(adr_node)->is_ptr();
-  Node* flags = make_load(NULL, adr_node, TypeInt::BYTE, T_BYTE, adr_type, MemNode::unordered);
+  Node* flags = make_load(NULL, adr_node, TypeInt::INT, T_INT, adr_type, MemNode::unordered);
   Node* incr = _gvn.transform(new OrINode(flags, _gvn.intcon(flag_constant)));
-  store_to_memory(NULL, adr_node, incr, T_BYTE, adr_type, MemNode::unordered);
+  store_to_memory(NULL, adr_node, incr, T_INT, adr_type, MemNode::unordered);
 }
 
 //----------------------------profile_taken_branch-----------------------------
@@ -471,15 +433,15 @@ void Parse::profile_taken_branch(int target_bci, bool force_update) {
     if (osr_site) {
       ciProfileData* data = md->bci_to_data(cur_bci);
       assert(data != NULL && data->is_JumpData(), "need JumpData for taken branch");
-      int limit = (CompileThreshold
-                   * (OnStackReplacePercentage - InterpreterProfilePercentage)) / 100;
+      int limit = (int)((int64_t)CompileThreshold
+                   * (OnStackReplacePercentage - InterpreterProfilePercentage) / 100);
       test_for_osr_md_counter_at(md, data, JumpData::taken_offset(), limit);
     }
   } else {
     // With method data update off, use the invocation counter to trigger an
     // OSR compilation, as done in the interpreter.
     if (osr_site) {
-      int limit = (CompileThreshold * OnStackReplacePercentage) / 100;
+      int limit = (int)((int64_t)CompileThreshold * OnStackReplacePercentage / 100);
       increment_and_test_invocation_counter(limit);
     }
   }

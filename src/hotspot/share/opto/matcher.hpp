@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_MATCHER_HPP
-#define SHARE_VM_OPTO_MATCHER_HPP
+#ifndef SHARE_OPTO_MATCHER_HPP
+#define SHARE_OPTO_MATCHER_HPP
 
 #include "libadt/vectset.hpp"
 #include "memory/resourceArea.hpp"
@@ -118,6 +118,9 @@ private:
 
   // Find shared Nodes, or Nodes that otherwise are Matcher roots
   void find_shared( Node *n );
+  bool find_shared_visit(MStack& mstack, Node* n, uint opcode, bool& mem_op, int& mem_addr_idx);
+  void find_shared_post_visit(Node* n, uint opcode);
+
 #ifdef X86
   bool is_bmi_pattern(Node *n, Node *m);
 #endif
@@ -484,18 +487,7 @@ public:
   // [oop_reg + offset]
   // NullCheck oop_reg
   //
-  inline static bool gen_narrow_oop_implicit_null_checks() {
-    // Advice matcher to perform null checks on the narrow oop side.
-    // Implicit checks are not possible on the uncompressed oop side anyway
-    // (at least not for read accesses).
-    // Performs significantly better (especially on Power 6).
-    if (!os::zero_page_read_protected()) {
-      return true;
-    }
-    return Universe::narrow_oop_use_implicit_null_checks() &&
-           (narrow_oop_use_complex_address() ||
-            Universe::narrow_oop_base() != NULL);
-  }
+  static bool gen_narrow_oop_implicit_null_checks();
 
   // Is it better to copy float constants, or load them directly from memory?
   // Intel can load a float constant from a direct address, requiring no
@@ -561,4 +553,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_MATCHER_HPP
+#endif // SHARE_OPTO_MATCHER_HPP

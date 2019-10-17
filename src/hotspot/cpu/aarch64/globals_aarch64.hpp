@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,14 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
-#define CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#ifndef CPU_AARCH64_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 // Sets the default values for platform dependent flags used by the runtime system.
 // (see globals.hpp)
-
-define_pd_global(bool, ShareVtableStubs,         true);
-define_pd_global(bool, NeedsDeoptSuspend,        false); // only register window machines need this
 
 define_pd_global(bool, ImplicitNullChecks,       true);  // Generate code for implicit null checks
 define_pd_global(bool, TrapBasedNullChecks,  false);
@@ -65,8 +62,6 @@ define_pd_global(intx, StackReservedPages, DEFAULT_STACK_RESERVED_PAGES);
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, true);
 
-define_pd_global(bool, UseMembar,            true);
-
 define_pd_global(bool, PreserveFramePointer, false);
 
 // GC Ergo Flags
@@ -85,48 +80,6 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
 define_pd_global(intx, InlineSmallCode,          1000);
 #endif
 
-#ifdef BUILTIN_SIM
-#define UseBuiltinSim           true
-#define ARCH_FLAGS(develop, \
-                   product, \
-                   diagnostic, \
-                   experimental, \
-                   notproduct, \
-                   range, \
-                   constraint, \
-                   writeable) \
-                                                                        \
-  product(bool, NotifySimulator, UseBuiltinSim,                         \
-         "tell the AArch64 sim where we are in method code")            \
-                                                                        \
-  product(bool, UseSimulatorCache, false,                               \
-         "tell sim to cache memory updates until exclusive op occurs")  \
-                                                                        \
-  product(bool, DisableBCCheck, true,                                   \
-          "tell sim not to invoke bccheck callback")                    \
-                                                                        \
-  product(bool, NearCpool, true,                                        \
-         "constant pool is close to instructions")                      \
-                                                                        \
-  product(bool, UseBarriersForVolatile, false,                          \
-          "Use memory barriers to implement volatile accesses")         \
-                                                                        \
-  product(bool, UseCRC32, false,                                        \
-          "Use CRC32 instructions for CRC32 computation")               \
-                                                                        \
-  product(bool, UseLSE, false,                                          \
-          "Use LSE instructions")                                       \
-
-// Don't attempt to use Neon on builtin sim until builtin sim supports it
-#define UseCRC32 false
-#define UseSIMDForMemoryOps    false
-#define AvoidUnalignedAcesses false
-
-#else
-#define UseBuiltinSim           false
-#define NotifySimulator         false
-#define UseSimulatorCache       false
-#define DisableBCCheck          true
 #define ARCH_FLAGS(develop, \
                    product, \
                    diagnostic, \
@@ -165,7 +118,5 @@ define_pd_global(intx, InlineSmallCode,          1000);
           "Use prfm hint with specified distance in compiled code."     \
           "Value -1 means off.")                                        \
           range(-1, 4096)
-#endif
 
-
-#endif // CPU_AARCH64_VM_GLOBALS_AARCH64_HPP
+#endif // CPU_AARCH64_GLOBALS_AARCH64_HPP

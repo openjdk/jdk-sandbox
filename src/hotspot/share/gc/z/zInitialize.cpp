@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,23 +30,23 @@
 #include "gc/z/zLargePages.hpp"
 #include "gc/z/zNUMA.hpp"
 #include "gc/z/zStat.hpp"
-#include "gc/z/zStatTLAB.hpp"
+#include "gc/z/zThreadLocalAllocBuffer.hpp"
 #include "gc/z/zTracer.hpp"
 #include "logging/log.hpp"
 #include "runtime/vm_version.hpp"
 
 ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
-  log_info(gc, init)("Initializing %s", ZGCName);
+  log_info(gc, init)("Initializing %s", ZName);
   log_info(gc, init)("Version: %s (%s)",
-                     Abstract_VM_Version::vm_release(),
-                     Abstract_VM_Version::jdk_debug_level());
+                     VM_Version::vm_release(),
+                     VM_Version::jdk_debug_level());
 
   // Early initialization
-  ZAddressMasks::initialize();
+  ZAddress::initialize();
   ZNUMA::initialize();
   ZCPU::initialize();
   ZStatValue::initialize();
-  ZStatTLAB::initialize();
+  ZThreadLocalAllocBuffer::initialize();
   ZTracer::initialize();
   ZLargePages::initialize();
   ZBarrierSet::set_barrier_set(barrier_set);

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -64,6 +64,7 @@ BOOT_MODULES += \
     jdk.management.jfr \
     jdk.management.agent \
     jdk.net \
+    jdk.nio.mapmode \
     jdk.sctp \
     jdk.unsupported \
     #
@@ -117,11 +118,11 @@ PLATFORM_MODULES += \
     jdk.zipfs \
     #
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   PLATFORM_MODULES += jdk.crypto.mscapi
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), solaris)
+ifeq ($(call isTargetOs, solaris), true)
   PLATFORM_MODULES += jdk.crypto.ucrypto
 endif
 
@@ -247,6 +248,8 @@ SRC_SUBDIRS += share/classes
 
 SPEC_SUBDIRS += share/specs
 
+MAN_SUBDIRS += share/man
+
 # Find all module-info.java files for the current build target platform and
 # configuration.
 # Param 1 - Module to find for, set to * for finding all
@@ -305,6 +308,12 @@ FindModuleSpecsDirs = \
     $(strip $(wildcard \
         $(foreach sub, $(SPEC_SUBDIRS), $(addsuffix /$(strip $1)/$(sub), $(TOP_SRC_DIRS)))))
 
+# Find all man dirs for a particular module
+# $1 - Module to find man dirs for
+FindModuleManDirs = \
+    $(strip $(wildcard \
+        $(foreach sub, $(MAN_SUBDIRS), $(addsuffix /$(strip $1)/$(sub), $(TOP_SRC_DIRS)))))
+
 # Construct the complete module source path
 GetModuleSrcPath = \
     $(call PathList, \
@@ -321,7 +330,7 @@ MODULE_INFOS := $(call FindAllModuleInfos, *)
 
 $(MODULE_DEPS_MAKEFILE): $(MODULE_INFOS) \
     $(call DependOnVariable, MODULE_INFOS, $(MAKESUPPORT_OUTPUTDIR)/MODULE_INFOS.vardeps)
-	$(MKDIR) -p $(@D)
+	$(call MakeTargetDir)
 	$(RM) $@
 	$(foreach m, $(MODULE_INFOS), \
 	    ( $(PRINTF) "DEPS_$(call GetModuleNameFromModuleInfo, $m) :=" && \

@@ -139,6 +139,19 @@ public class HtmlDoclet extends AbstractDoclet {
         if (configuration.createtree) {
             TreeWriter.generate(configuration, classtree);
         }
+
+        if (!(configuration.nodeprecatedlist || nodeprecated)) {
+            DeprecatedListWriter.generate(configuration);
+        }
+
+        if (configuration.createoverview) {
+            if (configuration.showModules) {
+                ModuleIndexWriter.generate(configuration);
+            } else {
+                PackageIndexWriter.generate(configuration);
+            }
+        }
+
         if (configuration.createindex) {
             configuration.buildSearchTagIndex();
             if (configuration.splitindex) {
@@ -153,31 +166,10 @@ public class HtmlDoclet extends AbstractDoclet {
             }
         }
 
-        if (!(configuration.nodeprecatedlist || nodeprecated)) {
-            DeprecatedListWriter.generate(configuration);
-        }
-
-        AllClassesFrameWriter.generate(configuration,
-            new IndexBuilder(configuration, nodeprecated, true));
-
-        if (configuration.frames) {
-            FrameOutputWriter.generate(configuration);
-        }
-
         if (configuration.createoverview) {
-            if (configuration.showModules) {
-                ModuleIndexWriter.generate(configuration);
-            } else {
-                PackageIndexWriter.generate(configuration);
-            }
-        }
-
-        if (!configuration.frames) {
-            if (configuration.createoverview) {
-                IndexRedirectWriter.generate(configuration, DocPaths.OVERVIEW_SUMMARY, DocPaths.INDEX);
-            } else {
-                IndexRedirectWriter.generate(configuration);
-            }
+            IndexRedirectWriter.generate(configuration, DocPaths.OVERVIEW_SUMMARY, DocPaths.INDEX);
+        } else {
+            IndexRedirectWriter.generate(configuration);
         }
 
         if (configuration.helpfile.isEmpty() && !configuration.nohelp) {
@@ -207,8 +199,7 @@ public class HtmlDoclet extends AbstractDoclet {
 
     private void copyJqueryFiles() throws DocletException {
         List<String> files = Arrays.asList(
-                "jquery-3.3.1.js",
-                "jquery-migrate-3.0.1.js",
+                "jquery-3.4.1.js",
                 "jquery-ui.js",
                 "jquery-ui.css",
                 "jquery-ui.min.js",
@@ -222,19 +213,17 @@ public class HtmlDoclet extends AbstractDoclet {
                 "jszip-utils/dist/jszip-utils.min.js",
                 "jszip-utils/dist/jszip-utils-ie.js",
                 "jszip-utils/dist/jszip-utils-ie.min.js",
-                "images/ui-bg_flat_0_aaaaaa_40x100.png",
+                "images/ui-bg_glass_65_dadada_1x400.png",
                 "images/ui-icons_454545_256x240.png",
                 "images/ui-bg_glass_95_fef1ec_1x400.png",
                 "images/ui-bg_glass_75_dadada_1x400.png",
                 "images/ui-bg_highlight-soft_75_cccccc_1x100.png",
                 "images/ui-icons_888888_256x240.png",
                 "images/ui-icons_2e83ff_256x240.png",
-                "images/ui-bg_glass_65_ffffff_1x400.png",
                 "images/ui-icons_cd0a0a_256x240.png",
                 "images/ui-bg_glass_55_fbf9ee_1x400.png",
                 "images/ui-icons_222222_256x240.png",
-                "images/ui-bg_glass_75_e6e6e6_1x400.png",
-                "images/ui-bg_flat_75_ffffff_40x100.png");
+                "images/ui-bg_glass_75_e6e6e6_1x400.png");
         DocFile f;
         for (String file : files) {
             DocPath filePath = DocPaths.JQUERY_FILES.resolve(file);
@@ -274,15 +263,8 @@ public class HtmlDoclet extends AbstractDoclet {
     @Override // defined by AbstractDoclet
     protected void generateModuleFiles() throws DocletException {
         if (configuration.showModules) {
-            if (configuration.frames  && configuration.modules.size() > 1) {
-                ModuleIndexFrameWriter.generate(configuration);
-            }
             List<ModuleElement> mdles = new ArrayList<>(configuration.modulePackages.keySet());
             for (ModuleElement mdle : mdles) {
-                if (configuration.frames && configuration.modules.size() > 1) {
-                    ModulePackageIndexFrameWriter.generate(configuration, mdle);
-                    ModuleFrameWriter.generate(configuration, mdle);
-                }
                 AbstractBuilder moduleSummaryBuilder =
                         configuration.getBuilderFactory().getModuleSummaryBuilder(mdle);
                 moduleSummaryBuilder.build();
@@ -296,18 +278,12 @@ public class HtmlDoclet extends AbstractDoclet {
     @Override // defined by AbstractDoclet
     protected void generatePackageFiles(ClassTree classtree) throws DocletException {
         Set<PackageElement> packages = configuration.packages;
-        if (packages.size() > 1 && configuration.frames) {
-            PackageIndexFrameWriter.generate(configuration);
-        }
         List<PackageElement> pList = new ArrayList<>(packages);
         for (PackageElement pkg : pList) {
             // if -nodeprecated option is set and the package is marked as
             // deprecated, do not generate the package-summary.html, package-frame.html
             // and package-tree.html pages for that package.
             if (!(configuration.nodeprecated && utils.isDeprecated(pkg))) {
-                if (configuration.frames) {
-                    PackageFrameWriter.generate(configuration, pkg);
-                }
                 AbstractBuilder packageSummaryBuilder =
                         configuration.getBuilderFactory().getPackageSummaryBuilder(pkg);
                 packageSummaryBuilder.build();

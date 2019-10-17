@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 #include <jni.h>
 #include <stdio.h>
 #include <time.h>
+#include "ExceptionCheckingJniEnv.hpp"
 #include "jni_tools.h"
 
 extern "C" {
@@ -35,40 +36,31 @@ static jfieldID objFieldId = NULL;
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_nsk_share_gc_lock_jniref_JNIWeakGlobalRefLocker_criticalNative
-  (JNIEnv *env, jobject o, jlong enterTime, jlong sleepTime) {
+  (JNIEnv *jni_env, jobject o, jlong enterTime, jlong sleepTime) {
+        ExceptionCheckingJniEnvPtr ec_jni(jni_env);
+
         jobject obj;
         jobject gref;
         time_t start_time, current_time;
 
         if (objFieldId == NULL) {
-                jclass klass = env->GetObjectClass(o);
-                if (klass == NULL) {
-                        printf("Error: GetObjectClass returned NULL\n");
-                        return;
-                }
-                objFieldId = env->GetFieldID(klass, "obj", "Ljava/lang/Object;");
-                if (objFieldId == NULL) {
-                        printf("Error: GetFieldID returned NULL\n");
-                        return;
-                }
+                jclass klass = ec_jni->GetObjectClass(o, TRACE_JNI_CALL);
+                objFieldId = ec_jni->GetFieldID(klass, "obj", "Ljava/lang/Object;", TRACE_JNI_CALL);
         }
-        obj = env->GetObjectField(o, objFieldId);
-        if (obj == NULL) {
-                printf("Error: GetObjectField returned NULL\n");
-                return;
-        }
-        env->SetObjectField(o, objFieldId, NULL);
+        obj = ec_jni->GetObjectField(o, objFieldId, TRACE_JNI_CALL);
+        ec_jni->SetObjectField(o, objFieldId, NULL, TRACE_JNI_CALL);
+
         start_time = time(NULL);
         enterTime /= 1000;
         current_time = 0;
         while (current_time - start_time < enterTime) {
-                gref = env->NewWeakGlobalRef(obj);
+                gref = ec_jni->NewWeakGlobalRef(obj, TRACE_JNI_CALL);
                 mssleep((long) sleepTime);
-                env->DeleteWeakGlobalRef(gref);
+                ec_jni->DeleteWeakGlobalRef(gref, TRACE_JNI_CALL);
                 mssleep((long) sleepTime);
                 current_time = time(NULL);
         }
-        env->SetObjectField(o, objFieldId, obj);
+        ec_jni->SetObjectField(o, objFieldId, obj, TRACE_JNI_CALL);
 }
 
 }

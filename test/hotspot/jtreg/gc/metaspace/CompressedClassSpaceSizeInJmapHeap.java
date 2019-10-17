@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,15 +21,18 @@
  * questions.
  */
 
+package gc.metaspace;
+
 /**
  * @test CompressedClassSpaceSizeInJmapHeap
  * @bug 8004924
  * @summary Checks that jmap -heap contains the flag CompressedClassSpaceSize
- * @requires vm.hasSAandCanAttach & vm.opt.final.UseCompressedOops
+ * @requires vm.hasSAandCanAttach
+ * @requires vm.bits == 64 & vm.opt.final.UseCompressedOops == true
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:CompressedClassSpaceSize=50m CompressedClassSpaceSizeInJmapHeap
+ * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:CompressedClassSpaceSize=50m gc.metaspace.CompressedClassSpaceSizeInJmapHeap
  */
 
 import jdk.test.lib.JDKToolLauncher;

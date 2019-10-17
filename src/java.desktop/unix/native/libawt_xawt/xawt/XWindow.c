@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@
 
 #include "awt_p.h"
 #include "awt_GraphicsEnv.h"
-#include "awt_AWTEvent.h"
 
 #define XK_KATAKANA
 #include <X11/keysym.h>     /* standard X keysyms */
@@ -54,17 +53,12 @@
 #include <X11/Sunkeysym.h>  /* Sun vendor-specific */
 #include <X11/ap_keysym.h>  /* Apollo (HP) vendor-specific */
 /*
- * #include <X11/HPkeysym.h>    HP vendor-specific
- * I checked HPkeysym.h into the workspace because although
- * I think it will ship with X11R6.4.2 (and later) on Linux,
- * it doesn't seem to be in Solaris 9 Update 2.
- *
- * This is done not only for the hp keysyms, but also to
+ * HPKeysym.h is used not only for the hp keysyms, but also to
  * give us the osf keysyms that are also defined in HPkeysym.h.
  * However, HPkeysym.h is missing a couple of osf keysyms,
  * so I have #defined them below.
  */
-#include "HPkeysym.h"   /* HP vendor-specific */
+#include <X11/HPkeysym.h>   /* HP vendor-specific */
 
 #include "java_awt_event_KeyEvent.h"
 #include "java_awt_event_InputEvent.h"

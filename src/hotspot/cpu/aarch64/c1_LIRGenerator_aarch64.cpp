@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -426,7 +426,7 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
     tmp = new_register(T_DOUBLE);
   }
 
-  arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), NULL);
+  arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), x->is_strictfp());
 
   set_result(x, round_item(reg));
 }
@@ -440,17 +440,26 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
 
   if (x->op() == Bytecodes::_ldiv || x->op() == Bytecodes::_lrem) {
 
-    // the check for division by zero destroys the right operand
-    right.set_destroys_register();
-
-    // check for division by zero (destroys registers of right operand!)
-    CodeEmitInfo* info = state_for(x);
-
     left.load_item();
-    right.load_item();
-
-    __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
-    __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
+    bool need_zero_check = true;
+    if (right.is_constant()) {
+      jlong c = right.get_jlong_constant();
+      // no need to do div-by-zero check if the divisor is a non-zero constant
+      if (c != 0) need_zero_check = false;
+      // do not load right if the divisor is a power-of-2 constant
+      if (c > 0 && is_power_of_2_long(c)) {
+        right.dont_load_item();
+      } else {
+        right.load_item();
+      }
+    } else {
+      right.load_item();
+    }
+    if (need_zero_check) {
+      CodeEmitInfo* info = state_for(x);
+      __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
+      __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
+    }
 
     rlock_result(x);
     switch (x->op()) {
@@ -506,19 +515,32 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
   // do not need to load right, as we can handle stack and constants
   if (x->op() == Bytecodes::_idiv || x->op() == Bytecodes::_irem) {
 
-    right_arg->load_item();
     rlock_result(x);
+    bool need_zero_check = true;
+    if (right.is_constant()) {
+      jint c = right.get_jint_constant();
+      // no need to do div-by-zero check if the divisor is a non-zero constant
+      if (c != 0) need_zero_check = false;
+      // do not load right if the divisor is a power-of-2 constant
+      if (c > 0 && is_power_of_2(c)) {
+        right_arg->dont_load_item();
+      } else {
+        right_arg->load_item();
+      }
+    } else {
+      right_arg->load_item();
+    }
+    if (need_zero_check) {
+      CodeEmitInfo* info = state_for(x);
+      __ cmp(lir_cond_equal, right_arg->result(), LIR_OprFact::longConst(0));
+      __ branch(lir_cond_equal, T_INT, new DivByZeroStub(info));
+    }
 
-    CodeEmitInfo* info = state_for(x);
-    LIR_Opr tmp = new_register(T_INT);
-    __ cmp(lir_cond_equal, right_arg->result(), LIR_OprFact::longConst(0));
-    __ branch(lir_cond_equal, T_INT, new DivByZeroStub(info));
-    info = state_for(x);
-
+    LIR_Opr ill = LIR_OprFact::illegalOpr;
     if (x->op() == Bytecodes::_irem) {
-      __ irem(left_arg->result(), right_arg->result(), x->operand(), tmp, NULL);
+      __ irem(left_arg->result(), right_arg->result(), x->operand(), ill, NULL);
     } else if (x->op() == Bytecodes::_idiv) {
-      __ idiv(left_arg->result(), right_arg->result(), x->operand(), tmp, NULL);
+      __ idiv(left_arg->result(), right_arg->result(), x->operand(), ill, NULL);
     }
 
   } else if (x->op() == Bytecodes::_iadd || x->op() == Bytecodes::_isub) {
@@ -562,8 +584,8 @@ void LIRGenerator::do_ArithmeticOp(ArithmeticOp* x) {
     case doubleTag:  do_ArithmeticOp_FPU(x);  return;
     case longTag:    do_ArithmeticOp_Long(x); return;
     case intTag:     do_ArithmeticOp_Int(x);  return;
+    default:         ShouldNotReachHere();    return;
   }
-  ShouldNotReachHere();
 }
 
 // _ishl, _lshl, _ishr, _lshr, _iushr, _lushr
@@ -711,7 +733,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
   new_value.load_item();
   cmp_value.load_item();
   LIR_Opr result = new_register(T_INT);
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     __ cas_obj(addr, cmp_value.result(), new_value.result(), new_register(T_INT), new_register(T_INT), result);
   } else if (type == T_INT) {
     __ cas_int(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
@@ -726,7 +748,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
 }
 
 LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) {
-  bool is_oop = type == T_OBJECT || type == T_ARRAY;
+  bool is_oop = is_reference_type(type);
   LIR_Opr result = new_register(type);
   value.load_item();
   assert(type == T_INT || is_oop LP64_ONLY( || type == T_LONG ), "unexpected type");
@@ -770,9 +792,13 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
           __ abs(value.result(), dst, LIR_OprFact::illegalOpr);
           break;
         }
+        default:
+          ShouldNotReachHere();
       }
       break;
     }
+    default:
+      ShouldNotReachHere();
   }
 }
 

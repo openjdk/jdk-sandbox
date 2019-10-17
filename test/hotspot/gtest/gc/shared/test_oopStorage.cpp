@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@
 #include "runtime/mutex.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/thread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/ostream.hpp"
@@ -138,7 +138,7 @@ static bool is_list_empty(const AllocationList& list) {
 }
 
 static bool process_deferred_updates(OopStorage& storage) {
-  MutexLockerEx ml(TestAccess::allocation_mutex(storage), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(TestAccess::allocation_mutex(storage), Mutex::_no_safepoint_check_flag);
   bool result = false;
   while (TestAccess::reduce_deferred_updates(storage)) {
     result = true;
@@ -216,8 +216,6 @@ public:
 
   static const size_t _max_entries = 1000;
   oop* _entries[_max_entries];
-
-  class VM_DeleteBlocksAtSafepoint;
 };
 
 OopStorageTestWithAllocation::OopStorageTestWithAllocation() {
@@ -229,19 +227,6 @@ OopStorageTestWithAllocation::OopStorageTestWithAllocation() {
 };
 
 const size_t OopStorageTestWithAllocation::_max_entries;
-
-class OopStorageTestWithAllocation::VM_DeleteBlocksAtSafepoint
-  : public VM_GTestExecuteAtSafepoint {
-public:
-  VM_DeleteBlocksAtSafepoint(OopStorage* storage) : _storage(storage) {}
-
-  void doit() {
-    _storage->delete_empty_blocks_safepoint();
-  }
-
-private:
-  OopStorage* _storage;
-};
 
 static bool is_allocation_list_sorted(const OopStorage& storage) {
   // The allocation_list isn't strictly sorted.  Rather, all empty
@@ -1027,7 +1012,7 @@ TEST_VM_F(OopStorageTestParIteration, par_state_concurrent_const_oops_do) {
   vstate.check();
 }
 
-TEST_VM_F(OopStorageTestWithAllocation, delete_empty_blocks_safepoint) {
+TEST_VM_F(OopStorageTestWithAllocation, delete_empty_blocks) {
   size_t initial_active_size = active_count(_storage);
   EXPECT_EQ(initial_active_size, _storage.block_count());
   ASSERT_LE(3u, initial_active_size); // Need at least 3 blocks for test
@@ -1040,32 +1025,10 @@ TEST_VM_F(OopStorageTestWithAllocation, delete_empty_blocks_safepoint) {
   EXPECT_EQ(initial_active_size, active_count(_storage));
   EXPECT_EQ(initial_active_size, _storage.block_count());
   EXPECT_EQ(3u, empty_block_count(_storage));
-
   {
     ThreadInVMfromNative invm(JavaThread::current());
-    VM_DeleteBlocksAtSafepoint op(&_storage);
-    VMThread::execute(&op);
+    while (_storage.delete_empty_blocks()) {}
   }
-  EXPECT_EQ(0u, empty_block_count(_storage));
-  EXPECT_EQ(initial_active_size - 3, active_count(_storage));
-  EXPECT_EQ(initial_active_size - 3, _storage.block_count());
-}
-
-TEST_VM_F(OopStorageTestWithAllocation, delete_empty_blocks_concurrent) {
-  size_t initial_active_size = active_count(_storage);
-  EXPECT_EQ(initial_active_size, _storage.block_count());
-  ASSERT_LE(3u, initial_active_size); // Need at least 3 blocks for test
-
-  for (size_t i = 0; empty_block_count(_storage) < 3; ++i) {
-    ASSERT_GT(_max_entries, i);
-    release_entry(_storage, _entries[i]);
-  }
-
-  EXPECT_EQ(initial_active_size, active_count(_storage));
-  EXPECT_EQ(initial_active_size, _storage.block_count());
-  EXPECT_EQ(3u, empty_block_count(_storage));
-
-  _storage.delete_empty_blocks_concurrent();
   EXPECT_EQ(0u, empty_block_count(_storage));
   EXPECT_EQ(initial_active_size - 3, active_count(_storage));
   EXPECT_EQ(initial_active_size - 3, _storage.block_count());
@@ -1092,8 +1055,7 @@ TEST_VM_F(OopStorageTestWithAllocation, allocation_status) {
 
   {
     ThreadInVMfromNative invm(JavaThread::current());
-    VM_DeleteBlocksAtSafepoint op(&_storage);
-    VMThread::execute(&op);
+    while (_storage.delete_empty_blocks()) {}
   }
   EXPECT_EQ(OopStorage::ALLOCATED_ENTRY, _storage.allocation_status(retained));
 #ifndef DISABLE_GARBAGE_ALLOCATION_STATUS_TESTS

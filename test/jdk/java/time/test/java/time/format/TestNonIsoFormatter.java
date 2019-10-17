@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,8 +142,8 @@ public class TestNonIsoFormatter {
         return new Object[][] {
             // Chronology, lenient era/year, strict era/year
             { JAPANESE, "Meiji 123", "Heisei 2" },
-            { JAPANESE, "Showa 65", "Heisei 2" },
-            { JAPANESE, "Heisei 32", "NewEra 2" }, // NewEra
+            { JAPANESE, "Sh\u014dwa 65", "Heisei 2" },
+            { JAPANESE, "Heisei 32", "Reiwa 2" },
         };
     }
 
@@ -191,7 +191,7 @@ public class TestNonIsoFormatter {
         String mdStr = "-01-01";
         DateTimeFormatter dtf = new DateTimeFormatterBuilder()
             .appendPattern("GGGG y-M-d")
-            .toFormatter()
+            .toFormatter(Locale.ROOT)
             .withChronology(chrono);
         DateTimeFormatter dtfLenient = dtf.withResolverStyle(ResolverStyle.LENIENT);
         assertEquals(LocalDate.parse(lenient+mdStr, dtfLenient), LocalDate.parse(strict+mdStr, dtf));

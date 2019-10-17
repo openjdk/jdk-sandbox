@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,12 +85,6 @@
 size_t os::Posix::_compiler_thread_min_stack_allowed = 104 * K;
 size_t os::Posix::_java_thread_min_stack_allowed = 86 * K;
 size_t os::Posix::_vm_internal_thread_min_stack_allowed = 128 * K;
-
-int os::Solaris::max_register_window_saves_before_flushing() {
-  // We should detect this at run time. For now, filling
-  // in with a constant.
-  return 8;
-}
 
 static void handle_unflushed_register_windows(gwindows_t *win) {
   int restore_count = win->wbcnt;
@@ -436,8 +430,12 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
     }
 
 
-    if (thread->thread_state() == _thread_in_vm) {
+    if (thread->thread_state() == _thread_in_vm ||
+        thread->thread_state() == _thread_in_native) {
       if (sig == SIGBUS && thread->doing_unsafe_access()) {
+        if (UnsafeCopyMemory::contains_pc(pc)) {
+          npc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
         stub = SharedRuntime::handle_unsafe_access(thread, npc);
       }
     }
@@ -476,7 +474,11 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
         // Do not crash the VM in such a case.
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         CompiledMethod* nm = cb->as_compiled_method_or_null();
-        if (nm != NULL && nm->has_unsafe_access()) {
+        bool is_unsafe_arraycopy = (thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc));
+        if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
+          if (is_unsafe_arraycopy) {
+            npc = UnsafeCopyMemory::page_error_continue_pc(pc);
+          }
           stub = SharedRuntime::handle_unsafe_access(thread, npc);
         }
       }
@@ -505,7 +507,7 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
       }
 #endif  // COMPILER2
 
-      else if (sig == SIGSEGV && info->si_code > 0 && !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+      else if (sig == SIGSEGV && info->si_code > 0 && MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         // Determination of interpreter/vtable stub/compiled code null exception
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
@@ -518,17 +520,6 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
       if (addr != (address)-1) {
         stub = addr;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so just return.
-    if ((sig == SIGSEGV) &&
-        os::is_memory_serialize_page(thread, (address)info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -666,8 +657,8 @@ void os::print_context(outputStream *st, const void *context) {
   // this at the end, and hope for the best.
   ExtendedPC epc = os::Solaris::ucontext_get_ExtendedPC(uc);
   address pc = epc.pc();
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", pc);
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  print_instructions(st, pc, sizeof(char));
+  st->cr();
 }
 
 void os::print_register_info(outputStream *st, const void *context) {

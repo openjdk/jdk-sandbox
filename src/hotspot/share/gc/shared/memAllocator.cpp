@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,27 +120,22 @@ bool MemAllocator::Allocation::check_out_of_memory() {
     return false;
   }
 
-  if (!_overhead_limit_exceeded) {
+  const char* message = _overhead_limit_exceeded ? "GC overhead limit exceeded" : "Java heap space";
+  if (!THREAD->in_retryable_allocation()) {
     // -XX:+HeapDumpOnOutOfMemoryError and -XX:OnOutOfMemoryError support
-    report_java_out_of_memory("Java heap space");
+    report_java_out_of_memory(message);
 
     if (JvmtiExport::should_post_resource_exhausted()) {
       JvmtiExport::post_resource_exhausted(
         JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR | JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP,
-        "Java heap space");
+        message);
     }
-    THROW_OOP_(Universe::out_of_memory_error_java_heap(), true);
+    oop exception = _overhead_limit_exceeded ?
+        Universe::out_of_memory_error_gc_overhead_limit() :
+        Universe::out_of_memory_error_java_heap();
+    THROW_OOP_(exception, true);
   } else {
-    // -XX:+HeapDumpOnOutOfMemoryError and -XX:OnOutOfMemoryError support
-    report_java_out_of_memory("GC overhead limit exceeded");
-
-    if (JvmtiExport::should_post_resource_exhausted()) {
-      JvmtiExport::post_resource_exhausted(
-        JVMTI_RESOURCE_EXHAUSTED_OOM_ERROR | JVMTI_RESOURCE_EXHAUSTED_JAVA_HEAP,
-        "GC overhead limit exceeded");
-    }
-
-    THROW_OOP_(Universe::out_of_memory_error_gc_overhead_limit(), true);
+    THROW_OOP_(Universe::out_of_memory_error_retry(), true);
   }
 }
 
@@ -148,7 +143,6 @@ void MemAllocator::Allocation::verify_before() {
   // Clear unhandled oops for memory allocation.  Memory allocation might
   // not take out a lock if from tlab, so clear here.
   Thread* THREAD = _thread;
-  CHECK_UNHANDLED_OOPS_ONLY(THREAD->clear_unhandled_oops();)
   assert(!HAS_PENDING_EXCEPTION, "Should not allocate with exception pending");
   debug_only(check_for_valid_allocation_state());
   assert(!Universe::heap()->is_gc_active(), "Allocation during gc not allowed");
@@ -177,14 +171,8 @@ void MemAllocator::Allocation::check_for_valid_allocation_state() const {
   // This is a VM policy failure, so how do we exhaustively test it?
   assert(!_thread->has_pending_exception(),
          "shouldn't be allocating with pending exception");
-  if (StrictSafepointChecks) {
-    assert(_thread->allow_allocation(),
-           "Allocation done by thread for which allocation is blocked "
-           "by No_Allocation_Verifier!");
-    // Allocation of an oop can always invoke a safepoint,
-    // hence, the true argument
-    _thread->check_for_valid_safepoint_state(true);
-  }
+  // Allocation of an oop can always invoke a safepoint.
+  _thread->check_for_valid_safepoint_state();
 }
 #endif
 
@@ -192,7 +180,7 @@ void MemAllocator::Allocation::notify_allocation_jvmti_sampler() {
   // support for JVMTI VMObjectAlloc event (no-op if not enabled)
   JvmtiExport::vm_object_alloc_event_collector(obj());
 
-  if (!ThreadHeapSampler::enabled()) {
+  if (!JvmtiExport::should_post_sampled_object_alloc()) {
     // Sampling disabled
     return;
   }
@@ -203,31 +191,27 @@ void MemAllocator::Allocation::notify_allocation_jvmti_sampler() {
     return;
   }
 
-  assert(JavaThread::current()->heap_sampler().add_sampling_collector(),
-         "Should never return false.");
+  // If we want to be sampling, protect the allocated object with a Handle
+  // before doing the callback. The callback is done in the destructor of
+  // the JvmtiSampledObjectAllocEventCollector.
+  size_t bytes_since_last = 0;
 
-  // Only check if the sampler could actually sample something in this path.
-  assert(!JvmtiExport::should_post_sampled_object_alloc() ||
-         !JvmtiSampledObjectAllocEventCollector::object_alloc_is_safe_to_sample() ||
-         _thread->heap_sampler().sampling_collector_present(),
-         "Sampling collector not present.");
-
-  if (JvmtiExport::should_post_sampled_object_alloc()) {
-    // If we want to be sampling, protect the allocated object with a Handle
-    // before doing the callback. The callback is done in the destructor of
-    // the JvmtiSampledObjectAllocEventCollector.
+  {
     PreserveObj obj_h(_thread, _obj_ptr);
     JvmtiSampledObjectAllocEventCollector collector;
     size_t size_in_bytes = _allocator._word_size * HeapWordSize;
     ThreadLocalAllocBuffer& tlab = _thread->tlab();
-    size_t bytes_since_last = _allocated_outside_tlab ? 0 : tlab.bytes_since_last_sample_point();
+
+    if (!_allocated_outside_tlab) {
+      bytes_since_last = tlab.bytes_since_last_sample_point();
+    }
+
     _thread->heap_sampler().check_for_sampling(obj_h(), size_in_bytes, bytes_since_last);
   }
 
-  assert(JavaThread::current()->heap_sampler().remove_sampling_collector(), "Should never return false.");
-
   if (_tlab_end_reset_for_sample || _allocated_tlab_size != 0) {
-    _thread->tlab().set_sample_end();
+    // Tell tlab to forget bytes_since_last if we passed it to the heap sampler.
+    _thread->tlab().set_sample_end(bytes_since_last != 0);
   }
 }
 
@@ -241,10 +225,10 @@ void MemAllocator::Allocation::notify_allocation_jfr_sampler() {
   size_t size_in_bytes = _allocator._word_size * HeapWordSize;
 
   if (_allocated_outside_tlab) {
-    AllocTracer::send_allocation_outside_tlab(_allocator._klass, mem, size_in_bytes, _thread);
+    AllocTracer::send_allocation_outside_tlab(obj()->klass(), mem, size_in_bytes, _thread);
   } else if (_allocated_tlab_size != 0) {
     // TLAB was refilled
-    AllocTracer::send_allocation_in_new_tlab(_allocator._klass, mem, _allocated_tlab_size * HeapWordSize,
+    AllocTracer::send_allocation_in_new_tlab(obj()->klass(), mem, _allocated_tlab_size * HeapWordSize,
                                              size_in_bytes, _thread);
   }
 }
@@ -252,7 +236,7 @@ void MemAllocator::Allocation::notify_allocation_jfr_sampler() {
 void MemAllocator::Allocation::notify_allocation_dtrace_sampler() {
   if (DTraceAllocProbes) {
     // support for Dtrace object alloc event (no-op most of the time)
-    Klass* klass = _allocator._klass;
+    Klass* klass = obj()->klass();
     size_t word_size = _allocator._word_size;
     if (klass != NULL && klass->name() != NULL) {
       SharedRuntime::dtrace_object_alloc(obj(), (int)word_size);
@@ -269,12 +253,12 @@ void MemAllocator::Allocation::notify_allocation() {
 
 HeapWord* MemAllocator::allocate_outside_tlab(Allocation& allocation) const {
   allocation._allocated_outside_tlab = true;
-  HeapWord* mem = _heap->mem_allocate(_word_size, &allocation._overhead_limit_exceeded);
+  HeapWord* mem = Universe::heap()->mem_allocate(_word_size, &allocation._overhead_limit_exceeded);
   if (mem == NULL) {
     return mem;
   }
 
-  NOT_PRODUCT(_heap->check_for_non_bad_heap_word_value(mem, _word_size));
+  NOT_PRODUCT(Universe::heap()->check_for_non_bad_heap_word_value(mem, _word_size));
   size_t size_in_bytes = _word_size * HeapWordSize;
   _thread->incr_allocated_bytes(size_in_bytes);
 
@@ -298,13 +282,15 @@ HeapWord* MemAllocator::allocate_inside_tlab_slow(Allocation& allocation) const 
   HeapWord* mem = NULL;
   ThreadLocalAllocBuffer& tlab = _thread->tlab();
 
-  if (ThreadHeapSampler::enabled()) {
-    // Try to allocate the sampled object from TLAB, it is possible a sample
-    // point was put and the TLAB still has space.
+  if (JvmtiExport::should_post_sampled_object_alloc()) {
     tlab.set_back_allocation_end();
     mem = tlab.allocate(_word_size);
+
+    // We set back the allocation sample point to try to allocate this, reset it
+    // when done.
+    allocation._tlab_end_reset_for_sample = true;
+
     if (mem != NULL) {
-      allocation._tlab_end_reset_for_sample = true;
       return mem;
     }
   }
@@ -329,7 +315,7 @@ HeapWord* MemAllocator::allocate_inside_tlab_slow(Allocation& allocation) const 
   // Allocate a new TLAB requesting new_tlab_size. Any size
   // between minimal and new_tlab_size is accepted.
   size_t min_tlab_size = ThreadLocalAllocBuffer::compute_min_size(_word_size);
-  mem = _heap->allocate_new_tlab(min_tlab_size, new_tlab_size, &allocation._allocated_tlab_size);
+  mem = Universe::heap()->allocate_new_tlab(min_tlab_size, new_tlab_size, &allocation._allocated_tlab_size);
   if (mem == NULL) {
     assert(allocation._allocated_tlab_size == 0,
            "Allocation failed, but actual size was updated. min: " SIZE_FORMAT
@@ -377,6 +363,10 @@ oop MemAllocator::allocate() const {
     HeapWord* mem = mem_allocate(allocation);
     if (mem != NULL) {
       obj = initialize(mem);
+    } else {
+      // The unhandled oop detector will poison local variable obj,
+      // so reset it to NULL if mem is NULL.
+      obj = NULL;
     }
   }
   return obj;
@@ -396,7 +386,7 @@ oop MemAllocator::finish(HeapWord* mem) const {
     oopDesc::set_mark_raw(mem, _klass->prototype_header());
   } else {
     // May be bootstrapping
-    oopDesc::set_mark_raw(mem, markOopDesc::prototype());
+    oopDesc::set_mark_raw(mem, markWord::prototype());
   }
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-NULL, for

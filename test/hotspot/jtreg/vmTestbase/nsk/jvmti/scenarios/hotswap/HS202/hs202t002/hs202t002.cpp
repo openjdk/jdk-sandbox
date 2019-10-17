@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,13 +43,7 @@ extern "C" {
 static jint redefineNumber = 0;
 static jvmtiEnv * jvmti = NULL;
 
-typedef enum {
-  suspend_error = -1,
-  not_suspended,
-  suspended
-} thread_suspend_status_t;
-
-static volatile thread_suspend_status_t thread_suspend_status = not_suspended;
+static volatile bool thread_suspend_error = false;
 
 void JNICALL callbackMethodExit(jvmtiEnv *jvmti_env,
                                 JNIEnv* jni_env,
@@ -57,7 +51,7 @@ void JNICALL callbackMethodExit(jvmtiEnv *jvmti_env,
                                 jmethodID method,
                                 jboolean was_popped_by_exception,
                                 jvalue return_value) {
-    if ( was_popped_by_exception ) {
+    if (was_popped_by_exception) {
         char * name;
         char * signature;
         char * generic ;
@@ -70,15 +64,15 @@ void JNICALL callbackMethodExit(jvmtiEnv *jvmti_env,
             nsk_jvmti_getFileName(redefineNumber, FILE_NAME, fileName,
                                   sizeof(fileName)/sizeof(char));
             jvmti_env->GetMethodDeclaringClass(method, &cls);
-            if ( nsk_jvmti_redefineClass(jvmti_env, cls,fileName) == NSK_TRUE ) {
+            if (nsk_jvmti_redefineClass(jvmti_env, cls,fileName)) {
                 nsk_printf(" Agent:: redefine class success ..\n");
                 nsk_printf("Agent::SUSPENDING>> \n");
                 err=jvmti_env->SuspendThread(thread);
-                if (err ==  JVMTI_ERROR_NONE) {
-                    thread_suspend_status = suspended;
-                    nsk_printf("Agent:: Thread successfully suspended..\n");
-                } else if (err == JVMTI_ERROR_THREAD_SUSPENDED) {
-                    thread_suspend_status = suspend_error;
+                if (err == JVMTI_ERROR_NONE) {
+                  // we don't get here until we are resumed
+                    nsk_printf("Agent:: Thread successfully suspended and was resumed\n");
+                } else {
+                    thread_suspend_error = true;
                     nsk_printf(" ## Error occured %s \n",TranslateError(err));
                 }
             }
@@ -102,14 +96,14 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     nsk_printf("Agent:: VM.. Started..\n");
     redefineNumber=0;
     rc=vm->GetEnv((void **)&jvmti, JVMTI_VERSION_1_1);
-    if ( rc!= JNI_OK ) {
+    if (rc != JNI_OK) {
         nsk_printf("Agent:: Could not load JVMTI interface \n");
         return JNI_ERR;
     } else {
         jvmtiCapabilities caps;
         jvmtiEventCallbacks eventCallbacks;
         memset(&caps, 0, sizeof(caps));
-        if (nsk_jvmti_parseOptions(options) == NSK_FALSE ) {
+        if (!nsk_jvmti_parseOptions(options)) {
             nsk_printf("# error agent Failed to parse options \n");
             return JNI_ERR;
         }
@@ -125,7 +119,7 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
             nsk_printf(" Agent:: Error occured while setting event callbacks \n");
             return JNI_ERR;
         }
-        if (NSK_TRUE == nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_METHOD_EXIT, NULL)) {
+        if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_METHOD_EXIT, NULL)) {
             nsk_printf(" Agent :: NOTIFICATIONS ARE ENABLED \n");
         } else {
             nsk_printf(" Agent :: Error Enabling Notifications..");
@@ -143,7 +137,7 @@ Java_nsk_jvmti_scenarios_hotswap_HS202_hs202t002_hs202t002_popThreadFrame(JNIEnv
     jint state;
     nsk_printf("Agent:: POPPING THE FRAME..\n");
     jvmti->GetThreadState(thread, &state);
-    if ( state & JVMTI_THREAD_STATE_SUSPENDED) {
+    if (state & JVMTI_THREAD_STATE_SUSPENDED) {
         err = jvmti->PopFrame(thread);
         if (err == JVMTI_ERROR_NONE) {
             nsk_printf("Agent:: PopFrame succeeded..\n");
@@ -166,7 +160,7 @@ Java_nsk_jvmti_scenarios_hotswap_HS202_hs202t002_hs202t002_resumeThread(JNIEnv *
 
     // disable notifications before resuming thread
     // to avoid recursion on PopFrame issued reinvoke
-    if (NSK_TRUE == nsk_jvmti_disableNotification(jvmti,JVMTI_EVENT_METHOD_EXIT, NULL)) {
+    if (nsk_jvmti_disableNotification(jvmti,JVMTI_EVENT_METHOD_EXIT, NULL)) {
         nsk_printf("Agent :: nsk_jvmti_disabled notifications..\n");
     } else {
         nsk_printf("Agent :: Failed to disable notifications..");
@@ -175,7 +169,6 @@ Java_nsk_jvmti_scenarios_hotswap_HS202_hs202t002_hs202t002_resumeThread(JNIEnv *
 
     err = jvmti->ResumeThread(thread);
     if (err == JVMTI_ERROR_NONE) {
-        thread_suspend_status = not_suspended;
         retvalue = JNI_TRUE;
         nsk_printf(" Agent:: Thread Resumed.. \n");
     } else {
@@ -189,13 +182,21 @@ JNIEXPORT jboolean JNICALL
 Java_nsk_jvmti_scenarios_hotswap_HS202_hs202t002_hs202t002_isThreadSuspended(JNIEnv* jni,
                                                                              jclass clas,
                                                                              jthread thread) {
-    if (suspend_error == thread_suspend_status) {
+    if (thread_suspend_error) {
         jclass ex_class = jni->FindClass("java/lang/IllegalThreadStateException");
         jni->ThrowNew(ex_class, "Thread has failed to self suspend");
         return JNI_FALSE;
     }
 
-    return suspended == thread_suspend_status;
+    // There is an inherent race here if the suspend fails for some reason but
+    // thread_suspend_error is not yet set. But as long as we report the suspend
+    // state correctly there is no problem as the Java code will simply loop and call
+    // this again until we see thread_suspend_error is true.
+
+    jint state = 0;
+    // No errors possible here: thread is valid, and state is not NULL
+    jvmti->GetThreadState(thread, &state);
+    return (state & JVMTI_THREAD_STATE_SUSPENDED) != 0;
 }
 
-}
+} // extern C

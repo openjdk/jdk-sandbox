@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
+ * @bug 8216498
  * @summary Tests Exception detail message when too few response bytes are
  *          received before a socket exception or eof.
- * @library /lib/testlibrary
- * @build jdk.testlibrary.SimpleSSLContext
+ * @library /test/lib
+ * @build jdk.test.lib.net.SimpleSSLContext
  * @run testng/othervm
  *       -Djdk.httpclient.HttpClient.log=headers,errors,channel
  *       ShortResponseBody
@@ -55,12 +56,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
@@ -224,8 +226,7 @@ public class ShortResponseBody {
                 fail("UNEXPECTED RESPONSE: " + response);
             } catch (IOException ioe) {
                 out.println("Caught expected exception:" + ioe);
-                String msg = ioe.getMessage();
-                assertTrue(msg.contains(expectedMsg), "exception msg:[" + msg + "]");
+                assertExpectedMessage(request, ioe, expectedMsg);
                 // synchronous API must have the send method on the stack
                 assertSendMethodOnStack(ioe);
                 assertNoConnectionExpiredException(ioe);
@@ -252,8 +253,7 @@ public class ShortResponseBody {
                 if (ee.getCause() instanceof IOException) {
                     IOException ioe = (IOException) ee.getCause();
                     out.println("Caught expected exception:" + ioe);
-                    String msg = ioe.getMessage();
-                    assertTrue(msg.contains(expectedMsg), "exception msg:[" + msg + "]");
+                    assertExpectedMessage(request, ioe, expectedMsg);
                     assertNoConnectionExpiredException(ioe);
                 } else {
                     throw ee;
@@ -335,15 +335,13 @@ public class ShortResponseBody {
                 fail("UNEXPECTED RESPONSE: " + response);
             } catch (IOException ioe) {
                 out.println("Caught expected exception:" + ioe);
-                String msg = ioe.getMessage();
 
                 List<String> expectedMessages = new ArrayList<>();
                 expectedMessages.add(expectedMsg);
                 MSGS_ORDER.stream().takeWhile(s -> !s.equals(expectedMsg))
                                    .forEach(expectedMessages::add);
 
-                assertTrue(expectedMessages.stream().anyMatch(s -> msg.indexOf(s) != -1),
-                           "exception msg:[" + msg + "], not in [" + expectedMessages);
+                assertExpectedMessage(request, ioe, expectedMessages);
                 // synchronous API must have the send method on the stack
                 assertSendMethodOnStack(ioe);
                 assertNoConnectionExpiredException(ioe);
@@ -379,13 +377,37 @@ public class ShortResponseBody {
                     MSGS_ORDER.stream().takeWhile(s -> !s.equals(expectedMsg))
                             .forEach(expectedMessages::add);
 
-                    assertTrue(expectedMessages.stream().anyMatch(s -> msg.indexOf(s) != -1),
-                               "exception msg:[" + msg + "], not in [" + expectedMessages);
+                    assertExpectedMessage(request, ioe, expectedMessages);
                     assertNoConnectionExpiredException(ioe);
                 } else {
                     throw ee;
                 }
             }
+        }
+    }
+
+
+    void assertExpectedMessage(HttpRequest request, Throwable t, String expected) {
+        if (request.uri().getScheme().equalsIgnoreCase("https")
+                && (t instanceof SSLHandshakeException)) {
+            // OK
+            out.println("Skipping expected " + t);
+        } else {
+            String msg = t.getMessage();
+            assertTrue(msg.contains(expected),
+                    "exception msg:[" + msg + "]");
+        }
+    }
+
+    void assertExpectedMessage(HttpRequest request, Throwable t, List<String> expected) {
+        if (request.uri().getScheme().equalsIgnoreCase("https")
+                && (t instanceof SSLHandshakeException)) {
+            // OK
+            out.println("Skipping expected " + t);
+        } else {
+            String msg = t.getMessage();
+            assertTrue(expected.stream().anyMatch(msg::contains),
+                    "exception msg:[" + msg + "] not in " + Arrays.asList(expected));
         }
     }
 

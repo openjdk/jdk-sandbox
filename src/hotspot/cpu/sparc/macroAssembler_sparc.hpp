@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_MACROASSEMBLER_SPARC_HPP
-#define CPU_SPARC_VM_MACROASSEMBLER_SPARC_HPP
+#ifndef CPU_SPARC_MACROASSEMBLER_SPARC_HPP
+#define CPU_SPARC_MACROASSEMBLER_SPARC_HPP
 
 #include "asm/assembler.hpp"
 #include "utilities/macros.hpp"
@@ -575,6 +575,7 @@ class MacroAssembler : public Assembler {
 
   void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   // support for delayed instructions
   MacroAssembler* delayed() { Assembler::delayed();  return this; }
@@ -950,9 +951,6 @@ public:
 
   void breakpoint_trap();
   void breakpoint_trap(Condition c, CC cc);
-
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp1, Register tmp2);
 
   void safepoint_poll(Label& slow_path, bool a, Register thread_reg, Register temp_reg);
 
@@ -1399,4 +1397,4 @@ class SkipIfEqual : public StackObj {
    ~SkipIfEqual();
 };
 
-#endif // CPU_SPARC_VM_MACROASSEMBLER_SPARC_HPP
+#endif // CPU_SPARC_MACROASSEMBLER_SPARC_HPP

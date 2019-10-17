@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,8 +143,8 @@ final class ClientHello {
                     if (id == SSLExtension.CH_PRE_SHARED_KEY.id) {
                         // ensure pre_shared_key is the last extension
                         if (remaining > 0) {
-                            tc.fatal(Alert.ILLEGAL_PARAMETER,
-                            "pre_shared_key extension is not last");
+                            throw tc.fatal(Alert.ILLEGAL_PARAMETER,
+                                    "pre_shared_key extension is not last");
                         }
                         // read only up to the IDs
                         Record.getBytes16(m);
@@ -168,7 +168,8 @@ final class ClientHello {
             try {
                 sessionId.checkLength(clientVersion);
             } catch (SSLProtocolException ex) {
-                handshakeContext.conContext.fatal(Alert.ILLEGAL_PARAMETER, ex);
+                throw handshakeContext.conContext.fatal(
+                        Alert.ILLEGAL_PARAMETER, ex);
             }
             if (isDTLS) {
                 this.cookie = Record.getBytes8(m);
@@ -178,8 +179,9 @@ final class ClientHello {
 
             byte[] encodedIds = Record.getBytes16(m);
             if (encodedIds.length == 0 || (encodedIds.length & 0x01) != 0) {
-                handshakeContext.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Invalid ClientHello message");
+                throw handshakeContext.conContext.fatal(
+                        Alert.ILLEGAL_PARAMETER,
+                        "Invalid ClientHello message");
             }
 
             this.cipherSuiteIds = new int[encodedIds.length >> 1];
@@ -490,7 +492,7 @@ final class ClientHello {
                     // It is fine to move on with abbreviate handshake if
                     // endpoint identification is enabled.
                     String identityAlg = chc.sslConfig.identificationProtocol;
-                    if ((identityAlg == null || identityAlg.length() == 0)) {
+                    if (identityAlg == null || identityAlg.isEmpty()) {
                         if (isEmsAvailable) {
                             if (!session.useExtendedMasterSecret) {
                                 // perform full handshake instead
@@ -507,6 +509,23 @@ final class ClientHello {
                             session = null;
                         }
                     }
+                }
+            }
+
+            // ensure that the endpoint identification algorithm matches the
+            // one in the session
+            String identityAlg = chc.sslConfig.identificationProtocol;
+            if (session != null && identityAlg != null) {
+                String sessionIdentityAlg =
+                    session.getIdentificationProtocol();
+                if (!identityAlg.equalsIgnoreCase(sessionIdentityAlg)) {
+                    if (SSLLogger.isOn &&
+                    SSLLogger.isOn("ssl,handshake,verbose")) {
+                        SSLLogger.finest("Can't resume, endpoint id" +
+                            " algorithm does not match, requested: " +
+                            identityAlg + ", cached: " + sessionIdentityAlg);
+                    }
+                    session = null;
                 }
             }
 
@@ -684,7 +703,8 @@ final class ClientHello {
                     try {
                         chc.kickstart();
                     } catch (IOException ioe) {
-                        chc.conContext.fatal(Alert.HANDSHAKE_FAILURE, ioe);
+                        throw chc.conContext.fatal(
+                                Alert.HANDSHAKE_FAILURE, ioe);
                     }
 
                     // The handshake message has been delivered.
@@ -772,7 +792,7 @@ final class ClientHello {
             // clean up this consumer
             shc.handshakeConsumers.remove(SSLHandshake.CLIENT_HELLO.id);
             if (!shc.handshakeConsumers.isEmpty()) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                         "No more handshake message allowed " +
                         "in a ClientHello flight");
             }
@@ -859,7 +879,7 @@ final class ClientHello {
                     context.activeProtocols, chv);
             if (pv == null || pv == ProtocolVersion.NONE ||
                     pv == ProtocolVersion.SSL20Hello) {
-                context.conContext.fatal(Alert.PROTOCOL_VERSION,
+                throw context.conContext.fatal(Alert.PROTOCOL_VERSION,
                     "Client requested protocol " +
                     ProtocolVersion.nameOf(clientHelloVersion) +
                     " is not enabled or supported in server context");
@@ -892,13 +912,11 @@ final class ClientHello {
             }
 
             // No protocol version can be negotiated.
-            context.conContext.fatal(Alert.PROTOCOL_VERSION,
+            throw context.conContext.fatal(Alert.PROTOCOL_VERSION,
                 "The client supported protocol versions " + Arrays.toString(
                     ProtocolVersion.toStringArray(clientSupportedVersions)) +
                 " are not accepted by server preferences " +
                 context.activeProtocols);
-
-            return null;        // make the compiler happy
         }
     }
 
@@ -939,22 +957,35 @@ final class ClientHello {
             if (shc.conContext.isNegotiated) {
                 if (!shc.conContext.secureRenegotiation &&
                         !HandshakeContext.allowUnsafeRenegotiation) {
-                    shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Unsafe renegotiation is not allowed");
                 }
 
                 if (ServerHandshakeContext.rejectClientInitiatedRenego &&
                         !shc.kickstartMessageDelivered) {
-                    shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Client initiated renegotiation is not allowed");
                 }
             }
 
-            // Is it an abbreviated handshake?
-            if (clientHello.sessionId.length() != 0) {
-                SSLSessionImpl previous = ((SSLSessionContextImpl)shc.sslContext
-                            .engineGetServerSessionContext())
-                            .get(clientHello.sessionId.getId());
+            // Consume a Session Ticket Extension if it exists
+            SSLExtension[] ext = new SSLExtension[]{
+                    SSLExtension.CH_SESSION_TICKET
+            };
+            clientHello.extensions.consumeOnLoad(shc, ext);
+
+            // Does the client want to resume a session?
+            if (clientHello.sessionId.length() != 0 || shc.statelessResumption) {
+                SSLSessionContextImpl cache = (SSLSessionContextImpl)shc.sslContext
+                        .engineGetServerSessionContext();
+
+                SSLSessionImpl previous;
+                // Use the stateless session ticket if provided
+                if (shc.statelessResumption) {
+                    previous = shc.resumingSession;
+                } else {
+                    previous = cache.get(clientHello.sessionId.getId());
+                }
 
                 boolean resumingSession =
                         (previous != null) && previous.isRejoinable();
@@ -1011,18 +1042,41 @@ final class ClientHello {
                     }
                 }
 
+                // ensure that the endpoint identification algorithm matches the
+                // one in the session
+                String identityAlg = shc.sslConfig.identificationProtocol;
+                if (resumingSession && identityAlg != null) {
+                    String sessionIdentityAlg =
+                        previous.getIdentificationProtocol();
+                    if (!identityAlg.equalsIgnoreCase(sessionIdentityAlg)) {
+                        if (SSLLogger.isOn &&
+                        SSLLogger.isOn("ssl,handshake,verbose")) {
+                            SSLLogger.finest("Can't resume, endpoint id" +
+                            " algorithm does not match, requested: " +
+                            identityAlg + ", cached: " + sessionIdentityAlg);
+                        }
+                        resumingSession = false;
+                    }
+                }
+
                 // So far so good.  Note that the handshake extensions may reset
                 // the resuming options later.
                 shc.isResumption = resumingSession;
                 shc.resumingSession = resumingSession ? previous : null;
+
+                if (!resumingSession && SSLLogger.isOn &&
+                        SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine("Session not resumed.");
+                }
             }
 
             // cache the client random number for further using
             shc.clientHelloRandom = clientHello.clientRandom;
 
             // Check and launch ClientHello extensions.
-            SSLExtension[] extTypes = shc.sslConfig.getEnabledExtensions(
-                    SSLHandshake.CLIENT_HELLO);
+            SSLExtension[] extTypes = shc.sslConfig.getExclusiveExtensions(
+                    SSLHandshake.CLIENT_HELLO,
+                    Arrays.asList(SSLExtension.CH_SESSION_TICKET));
             clientHello.extensions.consumeOnLoad(shc, extTypes);
 
             //
@@ -1135,13 +1189,13 @@ final class ClientHello {
                     handshakeProducer.produce(shc, clientHello);
             } else {
                 // unlikely
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No HelloRetryRequest producer: " + shc.handshakeProducers);
             }
 
             if (!shc.handshakeProducers.isEmpty()) {
                 // unlikely, but please double check.
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "unknown handshake producers: " + shc.handshakeProducers);
             }
         }
@@ -1229,22 +1283,36 @@ final class ClientHello {
             if (shc.conContext.isNegotiated) {
                 if (!shc.conContext.secureRenegotiation &&
                         !HandshakeContext.allowUnsafeRenegotiation) {
-                    shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Unsafe renegotiation is not allowed");
                 }
 
                 if (ServerHandshakeContext.rejectClientInitiatedRenego &&
                         !shc.kickstartMessageDelivered) {
-                    shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                             "Client initiated renegotiation is not allowed");
                 }
             }
 
-            // Is it an abbreviated handshake?
+
+            // Does the client want to resume a session?
             if (clientHello.sessionId.length() != 0) {
-                SSLSessionImpl previous = ((SSLSessionContextImpl)shc.sslContext
-                            .engineGetServerSessionContext())
-                            .get(clientHello.sessionId.getId());
+                SSLSessionContextImpl cache = (SSLSessionContextImpl)shc.sslContext
+                        .engineGetServerSessionContext();
+
+                // Consume a Session Ticket Extension if it exists
+                SSLExtension[] ext = new SSLExtension[]{
+                        SSLExtension.CH_SESSION_TICKET
+                };
+                clientHello.extensions.consumeOnLoad(shc, ext);
+
+                SSLSessionImpl previous;
+                // Use stateless session ticket if provided.
+                if (shc.statelessResumption) {
+                    previous = shc.resumingSession;
+                } else {
+                    previous = cache.get(clientHello.sessionId.getId());
+                }
 
                 boolean resumingSession =
                         (previous != null) && previous.isRejoinable();

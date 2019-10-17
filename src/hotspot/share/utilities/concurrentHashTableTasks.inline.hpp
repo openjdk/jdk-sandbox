@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_UTILITIES_CONCURRENT_HASH_TABLE_TASKS_INLINE_HPP
-#define SHARE_UTILITIES_CONCURRENT_HASH_TABLE_TASKS_INLINE_HPP
+#ifndef SHARE_UTILITIES_CONCURRENTHASHTABLETASKS_INLINE_HPP
+#define SHARE_UTILITIES_CONCURRENTHASHTABLETASKS_INLINE_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/concurrentHashTable.inline.hpp"
@@ -32,10 +32,10 @@
 // operations, which they are serialized with each other.
 
 // Base class for pause and/or parallel bulk operations.
-template <typename VALUE, typename CONFIG, MEMFLAGS F>
-class ConcurrentHashTable<VALUE, CONFIG, F>::BucketsOperation {
+template <typename CONFIG, MEMFLAGS F>
+class ConcurrentHashTable<CONFIG, F>::BucketsOperation {
  protected:
-  ConcurrentHashTable<VALUE, CONFIG, F>* _cht;
+  ConcurrentHashTable<CONFIG, F>* _cht;
 
   // Default size of _task_size_log2
   static const size_t DEFAULT_TASK_SIZE_LOG2 = 12;
@@ -47,7 +47,7 @@ class ConcurrentHashTable<VALUE, CONFIG, F>::BucketsOperation {
   size_t _size_log2;      // Table size.
   bool   _is_mt;
 
-  BucketsOperation(ConcurrentHashTable<VALUE, CONFIG, F>* cht, bool is_mt = false)
+  BucketsOperation(ConcurrentHashTable<CONFIG, F>* cht, bool is_mt = false)
     : _cht(cht), _next_to_claim(0), _task_size_log2(DEFAULT_TASK_SIZE_LOG2),
     _stop_task(0), _size_log2(0), _is_mt(is_mt) {}
 
@@ -116,12 +116,12 @@ public:
 };
 
 // For doing pausable/parallel bulk delete.
-template <typename VALUE, typename CONFIG, MEMFLAGS F>
-class ConcurrentHashTable<VALUE, CONFIG, F>::BulkDeleteTask :
+template <typename CONFIG, MEMFLAGS F>
+class ConcurrentHashTable<CONFIG, F>::BulkDeleteTask :
   public BucketsOperation
 {
  public:
-  BulkDeleteTask(ConcurrentHashTable<VALUE, CONFIG, F>* cht, bool is_mt = false)
+  BulkDeleteTask(ConcurrentHashTable<CONFIG, F>* cht, bool is_mt = false)
     : BucketsOperation(cht, is_mt) {
   }
   // Before start prepare must be called.
@@ -160,12 +160,12 @@ class ConcurrentHashTable<VALUE, CONFIG, F>::BulkDeleteTask :
   }
 };
 
-template <typename VALUE, typename CONFIG, MEMFLAGS F>
-class ConcurrentHashTable<VALUE, CONFIG, F>::GrowTask :
+template <typename CONFIG, MEMFLAGS F>
+class ConcurrentHashTable<CONFIG, F>::GrowTask :
   public BucketsOperation
 {
  public:
-  GrowTask(ConcurrentHashTable<VALUE, CONFIG, F>* cht) : BucketsOperation(cht) {
+  GrowTask(ConcurrentHashTable<CONFIG, F>* cht) : BucketsOperation(cht) {
   }
   // Before start prepare must be called.
   bool prepare(Thread* thread) {
@@ -199,4 +199,4 @@ class ConcurrentHashTable<VALUE, CONFIG, F>::GrowTask :
   }
 };
 
-#endif // include guard
+#endif // SHARE_UTILITIES_CONCURRENTHASHTABLETASKS_INLINE_HPP

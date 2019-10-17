@@ -41,9 +41,9 @@ typedef struct PropertyDescStruct {
 } PropertyDesc;
 
 static PropertyDesc propDescList[PROPERTIES_COUNT] = {
-    {"nsk.jvmti.test.property", "new value of nsk.jvmti.test.property"},
-    {"nsk.jvmti.test.property.empty.old", "new value of nsk.jvmti.test.property.emply.old"},
-    {"nsk.jvmti.test.property.empty.new", ""}
+    { "nsk.jvmti.test.property", "new value of nsk.jvmti.test.property" },
+    { "nsk.jvmti.test.property.empty.old", "new value of nsk.jvmti.test.property.emply.old" },
+    { "nsk.jvmti.test.property.empty.new", "" }
 };
 
 /* ============================================================================= */
@@ -56,8 +56,7 @@ static int setProperties(jvmtiEnv* jvmti) {
         NSK_DISPLAY1("  property: %s\n", propDescList[i].name);
         NSK_DISPLAY1("     value: \"%s\"\n", propDescList[i].value);
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetSystemProperty, jvmti,
-                                propDescList[i].name, propDescList[i].value))) {
+                jvmti->SetSystemProperty(propDescList[i].name, propDescList[i].value))) {
             success = NSK_FALSE;
         }
     }

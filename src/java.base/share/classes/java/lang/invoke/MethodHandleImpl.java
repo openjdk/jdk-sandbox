@@ -25,14 +25,15 @@
 
 package java.lang.invoke;
 
-import jdk.internal.misc.JavaLangInvokeAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangInvokeAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.org.objectweb.asm.AnnotationVisitor;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.Hidden;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.empty.Empty;
 import sun.invoke.util.ValueConversions;
@@ -42,6 +43,7 @@ import sun.invoke.util.Wrapper;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -257,14 +259,19 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
     private static int countNonNull(Object[] array) {
         int count = 0;
-        for (Object x : array) {
-            if (x != null)  ++count;
+        if (array != null) {
+            for (Object x : array) {
+                if (x != null) ++count;
+            }
         }
         return count;
     }
 
     static MethodHandle makePairwiseConvertByEditor(MethodHandle target, MethodType srcType,
                                                     boolean strict, boolean monobox) {
+        // In method types arguments start at index 0, while the LF
+        // editor have the MH receiver at position 0 - adjust appropriately.
+        final int MH_RECEIVER_OFFSET = 1;
         Object[] convSpecs = computeValueConversions(srcType, target.type(), strict, monobox);
         int convCount = countNonNull(convSpecs);
         if (convCount == 0)
@@ -272,27 +279,52 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         MethodType basicSrcType = srcType.basicType();
         MethodType midType = target.type().basicType();
         BoundMethodHandle mh = target.rebind();
-        // FIXME: Reduce number of bindings when there is more than one Class conversion.
-        // FIXME: Reduce number of bindings when there are repeated conversions.
-        for (int i = 0; i < convSpecs.length-1; i++) {
+
+        // Match each unique conversion to the positions at which it is to be applied
+        var convSpecMap = new HashMap<Object, int[]>(((4 * convCount) / 3) + 1);
+        for (int i = 0; i < convSpecs.length - MH_RECEIVER_OFFSET; i++) {
             Object convSpec = convSpecs[i];
-            if (convSpec == null)  continue;
+            if (convSpec == null) continue;
+            int[] positions = convSpecMap.get(convSpec);
+            if (positions == null) {
+                positions = new int[] { i + MH_RECEIVER_OFFSET };
+            } else {
+                positions = Arrays.copyOf(positions, positions.length + 1);
+                positions[positions.length - 1] = i + MH_RECEIVER_OFFSET;
+            }
+            convSpecMap.put(convSpec, positions);
+        }
+        for (var entry : convSpecMap.entrySet()) {
+            Object convSpec = entry.getKey();
+
             MethodHandle fn;
             if (convSpec instanceof Class) {
                 fn = getConstantHandle(MH_cast).bindTo(convSpec);
             } else {
                 fn = (MethodHandle) convSpec;
             }
-            Class<?> newType = basicSrcType.parameterType(i);
-            if (--convCount == 0)
+            int[] positions = entry.getValue();
+            Class<?> newType = basicSrcType.parameterType(positions[0] - MH_RECEIVER_OFFSET);
+            BasicType newBasicType = BasicType.basicType(newType);
+            convCount -= positions.length;
+            if (convCount == 0) {
                 midType = srcType;
-            else
-                midType = midType.changeParameterType(i, newType);
-            LambdaForm form2 = mh.editor().filterArgumentForm(1+i, BasicType.basicType(newType));
+            } else {
+                Class<?>[] ptypes = midType.ptypes().clone();
+                for (int pos : positions) {
+                    ptypes[pos - 1] = newType;
+                }
+                midType = MethodType.makeImpl(midType.rtype(), ptypes, true);
+            }
+            LambdaForm form2;
+            if (positions.length > 1) {
+                form2 = mh.editor().filterRepeatedArgumentForm(newBasicType, positions);
+            } else {
+                form2 = mh.editor().filterArgumentForm(positions[0], newBasicType);
+            }
             mh = mh.copyWithExtendL(midType, form2, fn);
-            mh = mh.rebind();
         }
-        Object convSpec = convSpecs[convSpecs.length-1];
+        Object convSpec = convSpecs[convSpecs.length - 1];
         if (convSpec != null) {
             MethodHandle fn;
             if (convSpec instanceof Class) {
@@ -320,98 +352,18 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         return mh;
     }
 
-    static MethodHandle makePairwiseConvertIndirect(MethodHandle target, MethodType srcType,
-                                                    boolean strict, boolean monobox) {
-        assert(target.type().parameterCount() == srcType.parameterCount());
-        // Calculate extra arguments (temporaries) required in the names array.
-        Object[] convSpecs = computeValueConversions(srcType, target.type(), strict, monobox);
-        final int INARG_COUNT = srcType.parameterCount();
-        int convCount = countNonNull(convSpecs);
-        boolean retConv = (convSpecs[INARG_COUNT] != null);
-        boolean retVoid = srcType.returnType() == void.class;
-        if (retConv && retVoid) {
-            convCount -= 1;
-            retConv = false;
-        }
-
-        final int IN_MH         = 0;
-        final int INARG_BASE    = 1;
-        final int INARG_LIMIT   = INARG_BASE + INARG_COUNT;
-        final int NAME_LIMIT    = INARG_LIMIT + convCount + 1;
-        final int RETURN_CONV   = (!retConv ? -1         : NAME_LIMIT - 1);
-        final int OUT_CALL      = (!retConv ? NAME_LIMIT : RETURN_CONV) - 1;
-        final int RESULT        = (retVoid ? -1 : NAME_LIMIT - 1);
-
-        // Now build a LambdaForm.
-        MethodType lambdaType = srcType.basicType().invokerType();
-        Name[] names = arguments(NAME_LIMIT - INARG_LIMIT, lambdaType);
-
-        // Collect the arguments to the outgoing call, maybe with conversions:
-        final int OUTARG_BASE = 0;  // target MH is Name.function, name Name.arguments[0]
-        Object[] outArgs = new Object[OUTARG_BASE + INARG_COUNT];
-
-        int nameCursor = INARG_LIMIT;
-        for (int i = 0; i < INARG_COUNT; i++) {
-            Object convSpec = convSpecs[i];
-            if (convSpec == null) {
-                // do nothing: difference is trivial
-                outArgs[OUTARG_BASE + i] = names[INARG_BASE + i];
-                continue;
-            }
-
-            Name conv;
-            if (convSpec instanceof Class) {
-                Class<?> convClass = (Class<?>) convSpec;
-                conv = new Name(getConstantHandle(MH_cast), convClass, names[INARG_BASE + i]);
-            } else {
-                MethodHandle fn = (MethodHandle) convSpec;
-                conv = new Name(fn, names[INARG_BASE + i]);
-            }
-            assert(names[nameCursor] == null);
-            names[nameCursor++] = conv;
-            assert(outArgs[OUTARG_BASE + i] == null);
-            outArgs[OUTARG_BASE + i] = conv;
-        }
-
-        // Build argument array for the call.
-        assert(nameCursor == OUT_CALL);
-        names[OUT_CALL] = new Name(target, outArgs);
-
-        Object convSpec = convSpecs[INARG_COUNT];
-        if (!retConv) {
-            assert(OUT_CALL == names.length-1);
-        } else {
-            Name conv;
-            if (convSpec == void.class) {
-                conv = new Name(LambdaForm.constantZero(BasicType.basicType(srcType.returnType())));
-            } else if (convSpec instanceof Class) {
-                Class<?> convClass = (Class<?>) convSpec;
-                conv = new Name(getConstantHandle(MH_cast), convClass, names[OUT_CALL]);
-            } else {
-                MethodHandle fn = (MethodHandle) convSpec;
-                if (fn.type().parameterCount() == 0)
-                    conv = new Name(fn);  // don't pass retval to void conversion
-                else
-                    conv = new Name(fn, names[OUT_CALL]);
-            }
-            assert(names[RETURN_CONV] == null);
-            names[RETURN_CONV] = conv;
-            assert(RETURN_CONV == names.length-1);
-        }
-
-        LambdaForm form = new LambdaForm(lambdaType.parameterCount(), names, RESULT, Kind.CONVERT);
-        return SimpleMethodHandle.make(srcType, form);
-    }
-
     static Object[] computeValueConversions(MethodType srcType, MethodType dstType,
                                             boolean strict, boolean monobox) {
         final int INARG_COUNT = srcType.parameterCount();
-        Object[] convSpecs = new Object[INARG_COUNT+1];
+        Object[] convSpecs = null;
         for (int i = 0; i <= INARG_COUNT; i++) {
             boolean isRet = (i == INARG_COUNT);
             Class<?> src = isRet ? dstType.returnType() : srcType.parameterType(i);
             Class<?> dst = isRet ? srcType.returnType() : dstType.parameterType(i);
             if (!VerifyType.isNullConversion(src, dst, /*keepInterfaces=*/ strict)) {
+                if (convSpecs == null) {
+                    convSpecs = new Object[INARG_COUNT + 1];
+                }
                 convSpecs[i] = valueConversion(src, dst, strict, monobox);
             }
         }
@@ -730,7 +682,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         return SimpleMethodHandle.make(srcType, form);
     }
 
-    @LambdaForm.Hidden
+    @Hidden
     static
     MethodHandle selectAlternative(boolean testResult, MethodHandle target, MethodHandle fallback) {
         if (testResult) {
@@ -741,7 +693,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     // Intrinsified by C2. Counters are used during parsing to calculate branch frequencies.
-    @LambdaForm.Hidden
+    @Hidden
     @jdk.internal.HotSpotIntrinsicCandidate
     static
     boolean profileBoolean(boolean result, int[] counters) {
@@ -757,7 +709,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     // Intrinsified by C2. Returns true if obj is a compile-time constant.
-    @LambdaForm.Hidden
+    @Hidden
     @jdk.internal.HotSpotIntrinsicCandidate
     static
     boolean isCompileConstant(Object obj) {
@@ -1103,7 +1055,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * Intrinsified during LambdaForm compilation
      * (see {@link InvokerBytecodeGenerator#emitGuardWithCatch emitGuardWithCatch}).
      */
-    @LambdaForm.Hidden
+    @Hidden
     static Object guardWithCatch(MethodHandle target, Class<? extends Throwable> exType, MethodHandle catcher,
                                  Object... av) throws Throwable {
         // Use asFixedArity() to avoid unnecessary boxing of last argument for VarargsCollector case.
@@ -1116,7 +1068,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     }
 
     /** Prepend elements to an array. */
-    @LambdaForm.Hidden
+    @Hidden
     private static Object[] prepend(Object[] array, Object... elems) {
         int nArray = array.length;
         int nElems = elems.length;
@@ -1314,7 +1266,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                           null, null);
 
             // Suppress invoker method in stack traces.
-            AnnotationVisitor av0 = mv.visitAnnotation("Ljava/lang/invoke/LambdaForm$Hidden;", true);
+            AnnotationVisitor av0 = mv.visitAnnotation(InvokerBytecodeGenerator.HIDDEN_SIG, true);
             av0.visitEnd();
 
             mv.visitCode();
@@ -2018,7 +1970,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * Intrinsified during LambdaForm compilation
      * (see {@link InvokerBytecodeGenerator#emitLoop(int)}).
      */
-    @LambdaForm.Hidden
+    @Hidden
     static Object loop(BasicType[] localTypes, LoopClauses clauseData, Object... av) throws Throwable {
         final MethodHandle[] init = clauseData.clauses[0];
         final MethodHandle[] step = clauseData.clauses[1];
@@ -2223,7 +2175,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * Intrinsified during LambdaForm compilation
      * (see {@link InvokerBytecodeGenerator#emitTryFinally emitTryFinally}).
      */
-    @LambdaForm.Hidden
+    @Hidden
     static Object tryFinally(MethodHandle target, MethodHandle cleanup, Object... av) throws Throwable {
         Throwable t = null;
         Object r = null;

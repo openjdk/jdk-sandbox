@@ -1,4 +1,4 @@
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
 This code is free software; you can redistribute it and/or modify it
@@ -131,7 +131,7 @@ OVERVIEW
     where
 
         majorVer - major version of class files for generated concrete classes
-            values: ver49, ver50, ver51, ver52
+            values: ver49, ver52
 
         methodFlags - additional access flags for methods in generated classes
             values:
@@ -210,7 +210,7 @@ HOW TO RUN
 
     StressTest has some specific options:
         -stressTime <long>
-            Stress execution time in seconds (default: 60)
+            Stress execution time in seconds (default: 30)
 
         -stressThreadsFactor <int>
               Stress threads factor (default: 1)

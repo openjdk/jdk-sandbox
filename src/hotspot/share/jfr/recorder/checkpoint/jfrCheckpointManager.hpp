@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP
-#define SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP
 
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "jfr/recorder/storage/jfrMemorySpace.hpp"
@@ -92,7 +92,7 @@ class JfrCheckpointManager : public JfrCHeapObj {
  public:
   void register_service_thread(const Thread* t);
   static void write_type_set_for_unloaded_classes();
-  static void create_thread_checkpoint(JavaThread* jt);
+  static void create_thread_blob(JavaThread* jt);
   static void write_thread_checkpoint(JavaThread* jt);
 
   friend class JfrRecorder;
@@ -105,4 +105,4 @@ class JfrCheckpointManager : public JfrCHeapObj {
   friend class JfrMemorySpace;
 };
 
-#endif //SHARE_VM_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_JFRCHECKPOINTMANAGER_HPP

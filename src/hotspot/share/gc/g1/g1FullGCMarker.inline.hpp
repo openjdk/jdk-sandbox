@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1MARKSTACK_INLINE_HPP
-#define SHARE_VM_GC_G1_G1MARKSTACK_INLINE_HPP
+#ifndef SHARE_GC_G1_G1FULLGCMARKER_INLINE_HPP
+#define SHARE_GC_G1_G1FULLGCMARKER_INLINE_HPP
 
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
@@ -50,8 +50,8 @@ inline bool G1FullGCMarker::mark_object(oop obj) {
   }
 
   // Marked by us, preserve if needed.
-  markOop mark = obj->mark_raw();
-  if (mark->must_be_preserved(obj) &&
+  markWord mark = obj->mark_raw();
+  if (obj->mark_must_be_preserved(mark) &&
       !G1ArchiveAllocator::is_open_archive_object(obj)) {
     preserved_stack()->push(obj, mark);
   }
@@ -165,7 +165,7 @@ void G1FullGCMarker::drain_stack() {
 }
 
 inline void G1FullGCMarker::follow_klass(Klass* k) {
-  oop op = k->klass_holder();
+  oop op = k->class_loader_data()->holder_no_keepalive();
   mark_and_push(&op);
 }
 
@@ -173,4 +173,4 @@ inline void G1FullGCMarker::follow_cld(ClassLoaderData* cld) {
   _cld_closure.do_cld(cld);
 }
 
-#endif
+#endif // SHARE_GC_G1_G1FULLGCMARKER_INLINE_HPP

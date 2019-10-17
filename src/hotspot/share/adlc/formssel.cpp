@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -757,7 +757,6 @@ int InstructForm::memory_operand(FormDict &globals) const {
   return NO_MEMORY_OPERAND;
 }
 
-
 // This instruction captures the machine-independent bottom_type
 // Expected use is for pointer vs oop determination for LoadP
 bool InstructForm::captures_bottom_type(FormDict &globals) const {
@@ -774,8 +773,12 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
        !strcmp(_matrule->_rChild->_opType,"CheckCastPP")  ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetP")   ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetN")   ||
+#if INCLUDE_SHENANDOAHGC
+       !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeP") ||
+       !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeN") ||
+#endif
        !strcmp(_matrule->_rChild->_opType,"CompareAndExchangeP") ||
-       !strcmp(_matrule->_rChild->_opType,"CompareAndExchangeN")))  return true;
+       !strcmp(_matrule->_rChild->_opType,"CompareAndExchangeN"))) return true;
   else if ( is_ideal_load() == Form::idealP )                return true;
   else if ( is_ideal_store() != Form::none  )                return true;
 
@@ -919,7 +922,8 @@ void InstructForm::build_components() {
   const char *name;
   const char *kill_name = NULL;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     Effect* e = NULL;
     {
@@ -936,7 +940,8 @@ void InstructForm::build_components() {
       // complex so simply enforce the restriction during parse.
       if (kill_name != NULL &&
           e->isa(Component::TEMP) && !e->isa(Component::DEF)) {
-        OperandForm* kill = (OperandForm*)_localNames[kill_name];
+        OpClassForm* kill = _localNames[kill_name]->is_opclass();
+        assert(kill != NULL, "sanity");
         globalAD->syntax_err(_linenum, "%s: %s %s must be at the end of the argument list\n",
                              _ident, kill->_ident, kill_name);
       } else if (e->isa(Component::KILL) && !e->isa(Component::USE)) {
@@ -1354,7 +1359,7 @@ void InstructForm::set_unique_opnds() {
     // component back to an index and any DEF always goes at 0 so the
     // length of the array has to be the number of components + 1.
     _uniq_idx_length = _components.count() + 1;
-    uniq_idx = (uint*) malloc(sizeof(uint) * _uniq_idx_length);
+    uniq_idx = (uint*) AllocateHeap(sizeof(uint) * _uniq_idx_length);
     for (i = 0; i < _uniq_idx_length; i++) {
       uniq_idx[i] = i;
     }
@@ -1503,7 +1508,7 @@ Predicate *InstructForm::build_predicate() {
 
   MatchNode *mnode =
     strcmp(_matrule->_opType, "Set") ? _matrule : _matrule->_rChild;
-  mnode->count_instr_names(names);
+  if (mnode != NULL) mnode->count_instr_names(names);
 
   uint first = 1;
   // Start with the predicate supplied in the .ad file.
@@ -1716,26 +1721,25 @@ bool Opcode::print_opcode(FILE *fp, Opcode::opcode_type desired_opcode) {
   const char *description = NULL;
   const char *value       = NULL;
   // Check if user provided any opcode definitions
-  if( this != NULL ) {
-    // Update 'value' if user provided a definition in the instruction
-    switch (desired_opcode) {
-    case PRIMARY:
-      description = "primary()";
-      if( _primary   != NULL)  { value = _primary;     }
-      break;
-    case SECONDARY:
-      description = "secondary()";
-      if( _secondary != NULL ) { value = _secondary;   }
-      break;
-    case TERTIARY:
-      description = "tertiary()";
-      if( _tertiary  != NULL ) { value = _tertiary;    }
-      break;
-    default:
-      assert( false, "ShouldNotReachHere();");
-      break;
-    }
+  // Update 'value' if user provided a definition in the instruction
+  switch (desired_opcode) {
+  case PRIMARY:
+    description = "primary()";
+    if( _primary   != NULL)  { value = _primary;     }
+    break;
+  case SECONDARY:
+    description = "secondary()";
+    if( _secondary != NULL ) { value = _secondary;   }
+    break;
+  case TERTIARY:
+    description = "tertiary()";
+    if( _tertiary  != NULL ) { value = _tertiary;    }
+    break;
+  default:
+    assert( false, "ShouldNotReachHere();");
+    break;
   }
+
   if (value != NULL) {
     fprintf(fp, "(%s /*%s*/)", value, description);
   }
@@ -2350,7 +2354,8 @@ void OperandForm::build_components() {
   // Add parameters that "do not appear in match rule".
   const char *name;
   for (_parameters.reset(); (name = _parameters.iter()) != NULL;) {
-    OperandForm *opForm = (OperandForm*)_localNames[name];
+    OpClassForm *opForm = _localNames[name]->is_opclass();
+    assert(opForm != NULL, "sanity");
 
     if ( _components.operand_position(name) == -1 ) {
       _components.insert(name, opForm->_ident, Component::INVALID, false);
@@ -3402,7 +3407,6 @@ const char *MatchNode::reduce_left(FormDict &globals) const {
 // Count occurrences of operands names in the leaves of the instruction
 // match rule.
 void MatchNode::count_instr_names( Dict &names ) {
-  if( this == NULL ) return;
   if( _lChild ) _lChild->count_instr_names(names);
   if( _rChild ) _rChild->count_instr_names(names);
   if( !_lChild && !_rChild ) {
@@ -3449,7 +3453,7 @@ void MatchNode::build_internalop( ) {
   rstr = (_rChild) ? ((_rChild->_internalop) ?
                        _rChild->_internalop : _rChild->_opType) : "";
   len += (int)strlen(lstr) + (int)strlen(rstr);
-  subtree = (char *)malloc(len);
+  subtree = (char *)AllocateHeap(len);
   sprintf(subtree,"_%s_%s_%s", _opType, lstr, rstr);
   // Hash the subtree string in _internalOps; if a name exists, use it
   iop = (char *)_AD._internalOps[subtree];
@@ -3495,14 +3499,22 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
     "CompareAndSwapB", "CompareAndSwapS", "CompareAndSwapI", "CompareAndSwapL", "CompareAndSwapP", "CompareAndSwapN",
     "WeakCompareAndSwapB", "WeakCompareAndSwapS", "WeakCompareAndSwapI", "WeakCompareAndSwapL", "WeakCompareAndSwapP", "WeakCompareAndSwapN",
     "CompareAndExchangeB", "CompareAndExchangeS", "CompareAndExchangeI", "CompareAndExchangeL", "CompareAndExchangeP", "CompareAndExchangeN",
+#if INCLUDE_SHENANDOAHGC
+    "ShenandoahCompareAndSwapN", "ShenandoahCompareAndSwapP", "ShenandoahWeakCompareAndSwapP", "ShenandoahWeakCompareAndSwapN", "ShenandoahCompareAndExchangeP", "ShenandoahCompareAndExchangeN",
+#endif
     "StoreCM",
-    "ClearArray",
     "GetAndSetB", "GetAndSetS", "GetAndAddI", "GetAndSetI", "GetAndSetP",
     "GetAndAddB", "GetAndAddS", "GetAndAddL", "GetAndSetL", "GetAndSetN",
-    "LoadBarrierSlowReg", "LoadBarrierWeakSlowReg"
+    "ClearArray"
   };
   int cnt = sizeof(needs_ideal_memory_list)/sizeof(char*);
   if( strcmp(_opType,"PrefetchAllocation")==0 )
+    return 1;
+  if( strcmp(_opType,"CacheWB")==0 )
+    return 1;
+  if( strcmp(_opType,"CacheWBPreSync")==0 )
+    return 1;
+  if( strcmp(_opType,"CacheWBPostSync")==0 )
     return 1;
   if( _lChild ) {
     const char *opType = _lChild->_opType;
@@ -3793,9 +3805,10 @@ void MatchNode::count_commutative_op(int& count) {
     "AddVB","AddVS","AddVI","AddVL","AddVF","AddVD",
     "AndI","AndL",
     "AndV",
-    "MaxI","MinI",
+    "MaxI","MinI","MaxF","MinF","MaxD","MinD",
+    "MaxV", "MinV",
     "MulI","MulL","MulF","MulD",
-    "MulVS","MulVI","MulVL","MulVF","MulVD",
+    "MulVB","MulVS","MulVI","MulVL","MulVF","MulVD",
     "OrI","OrL",
     "OrV",
     "XorI","XorL",
@@ -3863,7 +3876,7 @@ void MatchRule::matchrule_swap_commutative_op(const char* instr_ident, int count
   MatchRule* clone = new MatchRule(_AD, this);
   // Swap operands of commutative operation
   ((MatchNode*)clone)->swap_commutative_op(true, count);
-  char* buf = (char*) malloc(strlen(instr_ident) + 4);
+  char* buf = (char*) AllocateHeap(strlen(instr_ident) + 4);
   sprintf(buf, "%s_%d", instr_ident, match_rules_cnt++);
   clone->_result = buf;
 
@@ -3986,39 +3999,12 @@ bool MatchRule::is_chain_rule(FormDict &globals) const {
 }
 
 int MatchRule::is_ideal_copy() const {
-  if( _rChild ) {
-    const char  *opType = _rChild->_opType;
-#if 1
-    if( strcmp(opType,"CastIP")==0 )
-      return 1;
-#else
-    if( strcmp(opType,"CastII")==0 )
-      return 1;
-    // Do not treat *CastPP this way, because it
-    // may transfer a raw pointer to an oop.
-    // If the register allocator were to coalesce this
-    // into a single LRG, the GC maps would be incorrect.
-    //if( strcmp(opType,"CastPP")==0 )
-    //  return 1;
-    //if( strcmp(opType,"CheckCastPP")==0 )
-    //  return 1;
-    //
-    // Do not treat CastX2P or CastP2X this way, because
-    // raw pointers and int types are treated differently
-    // when saving local & stack info for safepoints in
-    // Output().
-    //if( strcmp(opType,"CastX2P")==0 )
-    //  return 1;
-    //if( strcmp(opType,"CastP2X")==0 )
-    //  return 1;
-#endif
-  }
-  if( is_chain_rule(_AD.globalNames()) &&
-      _lChild && strncmp(_lChild->_opType,"stackSlot",9)==0 )
+  if (is_chain_rule(_AD.globalNames()) &&
+      _lChild && strncmp(_lChild->_opType, "stackSlot", 9) == 0) {
     return 1;
+  }
   return 0;
 }
-
 
 int MatchRule::is_expensive() const {
   if( _rChild ) {
@@ -4053,6 +4039,7 @@ int MatchRule::is_expensive() const {
         strcmp(opType,"FmaD") == 0 ||
         strcmp(opType,"FmaF") == 0 ||
         strcmp(opType,"RoundDouble")==0 ||
+        strcmp(opType,"RoundDoubleMode")==0 ||
         strcmp(opType,"RoundFloat")==0 ||
         strcmp(opType,"ReverseBytesI")==0 ||
         strcmp(opType,"ReverseBytesL")==0 ||
@@ -4162,23 +4149,26 @@ bool MatchRule::is_vector() const {
   static const char *vector_list[] = {
     "AddVB","AddVS","AddVI","AddVL","AddVF","AddVD",
     "SubVB","SubVS","SubVI","SubVL","SubVF","SubVD",
-    "MulVS","MulVI","MulVL","MulVF","MulVD",
+    "MulVB","MulVS","MulVI","MulVL","MulVF","MulVD",
     "CMoveVD", "CMoveVF",
     "DivVF","DivVD",
-    "AbsVF","AbsVD",
+    "AbsVB","AbsVS","AbsVI","AbsVL","AbsVF","AbsVD",
     "NegVF","NegVD",
     "SqrtVD","SqrtVF",
     "AndV" ,"XorV" ,"OrV",
+    "MaxV", "MinV",
     "AddReductionVI", "AddReductionVL",
     "AddReductionVF", "AddReductionVD",
     "MulReductionVI", "MulReductionVL",
     "MulReductionVF", "MulReductionVD",
+    "MulAddVS2VI",
     "LShiftCntV","RShiftCntV",
     "LShiftVB","LShiftVS","LShiftVI","LShiftVL",
     "RShiftVB","RShiftVS","RShiftVI","RShiftVL",
     "URShiftVB","URShiftVS","URShiftVI","URShiftVL",
+    "MaxReductionV", "MinReductionV",
     "ReplicateB","ReplicateS","ReplicateI","ReplicateL","ReplicateF","ReplicateD",
-    "LoadVector","StoreVector",
+    "RoundDoubleModeV","LoadVector","StoreVector",
     "FmaVD", "FmaVF","PopCountVI",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",

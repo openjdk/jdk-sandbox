@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -418,21 +418,20 @@ static void* check_wrapped_array_release(JavaThread* thr, const char* fn_name,
   size_t sz;
   void* orig_result = check_wrapped_array(thr, fn_name, obj, carray, &sz);
   switch (mode) {
+  // As we never make copies, mode 0 and JNI_COMMIT are the same.
   case 0:
-    memcpy(orig_result, carray, sz);
-    GuardedMemory::free_copy(carray);
-    break;
   case JNI_COMMIT:
     memcpy(orig_result, carray, sz);
     break;
   case JNI_ABORT:
-    GuardedMemory::free_copy(carray);
     break;
   default:
     tty->print_cr("%s: Unrecognized mode %i releasing array "
         PTR_FORMAT " elements " PTR_FORMAT, fn_name, mode, p2i(obj), p2i(carray));
     NativeReportJNIFatalError(thr, "Unrecognized array release mode");
   }
+  // We always need to release the copy we made with GuardedMemory
+  GuardedMemory::free_copy(carray);
   return orig_result;
 }
 
@@ -449,16 +448,16 @@ oop jniCheck::validate_handle(JavaThread* thr, jobject obj) {
 Method* jniCheck::validate_jmethod_id(JavaThread* thr, jmethodID method_id) {
   ASSERT_OOPS_ALLOWED;
   // do the fast jmethodID check first
-  Method* moop = Method::checked_resolve_jmethod_id(method_id);
-  if (moop == NULL) {
+  Method* m = Method::checked_resolve_jmethod_id(method_id);
+  if (m == NULL) {
     ReportJNIFatalError(thr, fatal_wrong_class_or_method);
   }
-  // jmethodIDs are supposed to be weak handles in the class loader data,
+  // jmethodIDs are handles in the class loader data,
   // but that can be expensive so check it last
   else if (!Method::is_method_id(method_id)) {
     ReportJNIFatalError(thr, fatal_non_weak_method);
   }
-  return moop;
+  return m;
 }
 
 
@@ -519,18 +518,29 @@ void jniCheck::validate_throwable_klass(JavaThread* thr, Klass* klass) {
   }
 }
 
-void jniCheck::validate_call_object(JavaThread* thr, jobject obj, jmethodID method_id) {
-  /* validate the object being passed */
+void jniCheck::validate_call(JavaThread* thr, jclass clazz, jmethodID method_id, jobject obj) {
   ASSERT_OOPS_ALLOWED;
-  jniCheck::validate_jmethod_id(thr, method_id);
-  jniCheck::validate_object(thr, obj);
-}
+  Method* m = jniCheck::validate_jmethod_id(thr, method_id);
+  InstanceKlass* holder = m->method_holder();
 
-void jniCheck::validate_call_class(JavaThread* thr, jclass clazz, jmethodID method_id) {
-  /* validate the class being passed */
-  ASSERT_OOPS_ALLOWED;
-  jniCheck::validate_jmethod_id(thr, method_id);
-  jniCheck::validate_class(thr, clazz, false);
+  if (clazz != NULL) {
+    Klass* k = jniCheck::validate_class(thr, clazz, false);
+    // Check that method is in the class, must be InstanceKlass
+    if (!InstanceKlass::cast(k)->is_subtype_of(holder)) {
+      ReportJNIFatalError(thr, fatal_wrong_class_or_method);
+    }
+  }
+
+  if (obj != NULL) {
+    oop recv = jniCheck::validate_object(thr, obj);
+    assert(recv != NULL, "validate_object checks that");
+    Klass* rk = recv->klass();
+
+    // Check that the object is a subtype of method holder too.
+    if (!rk->is_subtype_of(holder)) {
+      ReportJNIFatalError(thr, fatal_wrong_class_or_method);
+    }
+  }
 }
 
 
@@ -596,8 +606,7 @@ JNI_ENTRY_CHECKED(jobject,
                                 jboolean isStatic))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_class(thr, cls, false);
-      jniCheck::validate_jmethod_id(thr, methodID);
+      jniCheck::validate_call(thr, cls, methodID);
     )
     jobject result = UNCHECKED()->ToReflectedMethod(env, cls, methodID,
                                                     isStatic);
@@ -853,8 +862,7 @@ JNI_ENTRY_CHECKED(jobject,
     functionEnter(thr);
     va_list args;
     IN_VM(
-      jniCheck::validate_class(thr, clazz, false);
-      jniCheck::validate_jmethod_id(thr, methodID);
+      jniCheck::validate_call(thr, clazz, methodID);
     )
     va_start(args, methodID);
     jobject result = UNCHECKED()->NewObjectV(env,clazz,methodID,args);
@@ -870,8 +878,7 @@ JNI_ENTRY_CHECKED(jobject,
                          va_list args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_class(thr, clazz, false);
-      jniCheck::validate_jmethod_id(thr, methodID);
+      jniCheck::validate_call(thr, clazz, methodID);
     )
     jobject result = UNCHECKED()->NewObjectV(env,clazz,methodID,args);
     functionExit(thr);
@@ -885,8 +892,7 @@ JNI_ENTRY_CHECKED(jobject,
                          const jvalue *args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_class(thr, clazz, false);
-      jniCheck::validate_jmethod_id(thr, methodID);
+      jniCheck::validate_call(thr, clazz, methodID);
     )
     jobject result = UNCHECKED()->NewObjectA(env,clazz,methodID,args);
     functionExit(thr);
@@ -942,7 +948,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
     functionEnter(thr); \
     va_list args; \
     IN_VM( \
-      jniCheck::validate_call_object(thr, obj, methodID); \
+      jniCheck::validate_call(thr, NULL, methodID, obj); \
     ) \
     va_start(args,methodID); \
     ResultType result =UNCHECKED()->Call##Result##MethodV(env, obj, methodID, \
@@ -960,7 +966,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
                                     va_list args)) \
     functionEnter(thr); \
     IN_VM(\
-      jniCheck::validate_call_object(thr, obj, methodID); \
+      jniCheck::validate_call(thr, NULL, methodID, obj); \
     ) \
     ResultType result = UNCHECKED()->Call##Result##MethodV(env, obj, methodID,\
                                                            args); \
@@ -976,7 +982,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
                                     const jvalue * args)) \
     functionEnter(thr); \
     IN_VM( \
-      jniCheck::validate_call_object(thr, obj, methodID); \
+      jniCheck::validate_call(thr, NULL, methodID, obj); \
     ) \
     ResultType result = UNCHECKED()->Call##Result##MethodA(env, obj, methodID,\
                                                            args); \
@@ -1003,7 +1009,7 @@ JNI_ENTRY_CHECKED(void,
     functionEnter(thr);
     va_list args;
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
+      jniCheck::validate_call(thr, NULL, methodID, obj);
     )
     va_start(args,methodID);
     UNCHECKED()->CallVoidMethodV(env,obj,methodID,args);
@@ -1019,7 +1025,7 @@ JNI_ENTRY_CHECKED(void,
                               va_list args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
+      jniCheck::validate_call(thr, NULL, methodID, obj);
     )
     UNCHECKED()->CallVoidMethodV(env,obj,methodID,args);
     thr->set_pending_jni_exception_check("CallVoidMethodV");
@@ -1033,7 +1039,7 @@ JNI_ENTRY_CHECKED(void,
                               const jvalue * args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
+      jniCheck::validate_call(thr, NULL, methodID, obj);
     )
     UNCHECKED()->CallVoidMethodA(env,obj,methodID,args);
     thr->set_pending_jni_exception_check("CallVoidMethodA");
@@ -1050,8 +1056,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
     functionEnter(thr); \
     va_list args; \
     IN_VM( \
-      jniCheck::validate_call_object(thr, obj, methodID); \
-      jniCheck::validate_call_class(thr, clazz, methodID); \
+      jniCheck::validate_call(thr, clazz, methodID, obj); \
     ) \
     va_start(args,methodID); \
     ResultType result = UNCHECKED()->CallNonvirtual##Result##MethodV(env, \
@@ -1073,8 +1078,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
                                               va_list args)) \
     functionEnter(thr); \
     IN_VM( \
-      jniCheck::validate_call_object(thr, obj, methodID); \
-      jniCheck::validate_call_class(thr, clazz, methodID); \
+      jniCheck::validate_call(thr, clazz, methodID, obj); \
     ) \
     ResultType result = UNCHECKED()->CallNonvirtual##Result##MethodV(env, \
                                                                      obj, \
@@ -1094,8 +1098,7 @@ JNI_ENTRY_CHECKED(ResultType,  \
                                               const jvalue * args)) \
     functionEnter(thr); \
     IN_VM( \
-      jniCheck::validate_call_object(thr, obj, methodID); \
-      jniCheck::validate_call_class(thr, clazz, methodID); \
+      jniCheck::validate_call(thr, clazz, methodID, obj); \
     ) \
     ResultType result = UNCHECKED()->CallNonvirtual##Result##MethodA(env, \
                                                                      obj, \
@@ -1126,8 +1129,7 @@ JNI_ENTRY_CHECKED(void,
     functionEnter(thr);
     va_list args;
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
-      jniCheck::validate_call_class(thr, clazz, methodID);
+      jniCheck::validate_call(thr, clazz, methodID, obj);
     )
     va_start(args,methodID);
     UNCHECKED()->CallNonvirtualVoidMethodV(env,obj,clazz,methodID,args);
@@ -1144,8 +1146,7 @@ JNI_ENTRY_CHECKED(void,
                                         va_list args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
-      jniCheck::validate_call_class(thr, clazz, methodID);
+      jniCheck::validate_call(thr, clazz, methodID, obj);
     )
     UNCHECKED()->CallNonvirtualVoidMethodV(env,obj,clazz,methodID,args);
     thr->set_pending_jni_exception_check("CallNonvirtualVoidMethodV");
@@ -1160,8 +1161,7 @@ JNI_ENTRY_CHECKED(void,
                                         const jvalue * args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_call_object(thr, obj, methodID);
-      jniCheck::validate_call_class(thr, clazz, methodID);
+      jniCheck::validate_call(thr, clazz, methodID, obj);
     )
     UNCHECKED()->CallNonvirtualVoidMethodA(env,obj,clazz,methodID,args);
     thr->set_pending_jni_exception_check("CallNonvirtualVoidMethodA");
@@ -1254,8 +1254,7 @@ JNI_ENTRY_CHECKED(ReturnType,  \
     functionEnter(thr); \
     va_list args; \
     IN_VM( \
-      jniCheck::validate_jmethod_id(thr, methodID); \
-      jniCheck::validate_class(thr, clazz, false); \
+      jniCheck::validate_call(thr, clazz, methodID); \
     ) \
     va_start(args,methodID); \
     ReturnType result = UNCHECKED()->CallStatic##Result##MethodV(env, \
@@ -1275,8 +1274,7 @@ JNI_ENTRY_CHECKED(ReturnType,  \
                                           va_list args)) \
     functionEnter(thr); \
     IN_VM( \
-      jniCheck::validate_jmethod_id(thr, methodID); \
-      jniCheck::validate_class(thr, clazz, false); \
+      jniCheck::validate_call(thr, clazz, methodID); \
     ) \
     ReturnType result = UNCHECKED()->CallStatic##Result##MethodV(env, \
                                                                  clazz, \
@@ -1294,8 +1292,7 @@ JNI_ENTRY_CHECKED(ReturnType,  \
                                           const jvalue *args)) \
     functionEnter(thr); \
     IN_VM( \
-      jniCheck::validate_jmethod_id(thr, methodID); \
-      jniCheck::validate_class(thr, clazz, false); \
+      jniCheck::validate_call(thr, clazz, methodID); \
     ) \
     ReturnType result = UNCHECKED()->CallStatic##Result##MethodA(env, \
                                                                  clazz, \
@@ -1324,8 +1321,7 @@ JNI_ENTRY_CHECKED(void,
     functionEnter(thr);
     va_list args;
     IN_VM(
-      jniCheck::validate_jmethod_id(thr, methodID);
-      jniCheck::validate_class(thr, cls, false);
+      jniCheck::validate_call(thr, cls, methodID);
     )
     va_start(args,methodID);
     UNCHECKED()->CallStaticVoidMethodV(env,cls,methodID,args);
@@ -1341,8 +1337,7 @@ JNI_ENTRY_CHECKED(void,
                                     va_list args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_jmethod_id(thr, methodID);
-      jniCheck::validate_class(thr, cls, false);
+      jniCheck::validate_call(thr, cls, methodID);
     )
     UNCHECKED()->CallStaticVoidMethodV(env,cls,methodID,args);
     thr->set_pending_jni_exception_check("CallStaticVoidMethodV");
@@ -1356,8 +1351,7 @@ JNI_ENTRY_CHECKED(void,
                                     const jvalue * args))
     functionEnter(thr);
     IN_VM(
-      jniCheck::validate_jmethod_id(thr, methodID);
-      jniCheck::validate_class(thr, cls, false);
+      jniCheck::validate_call(thr, cls, methodID);
     )
     UNCHECKED()->CallStaticVoidMethodA(env,cls,methodID,args);
     thr->set_pending_jni_exception_check("CallStaticVoidMethodA");
@@ -1928,6 +1922,12 @@ JNI_ENTRY_CHECKED(void,
   checked_jni_DeleteWeakGlobalRef(JNIEnv *env,
                                   jweak ref))
     functionEnterExceptionAllowed(thr);
+    IN_VM(
+      if (ref && !JNIHandles::is_weak_global_handle(ref)) {
+        ReportJNIFatalError(thr,
+             "Invalid weak global JNI handle passed to DeleteWeakGlobalRef");
+      }
+    )
     UNCHECKED()->DeleteWeakGlobalRef(env, ref);
     functionExit(thr);
 JNI_END

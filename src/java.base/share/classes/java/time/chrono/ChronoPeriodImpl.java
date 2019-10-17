@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,6 +98,7 @@ final class ChronoPeriodImpl
     /**
      * Serialization version.
      */
+    @java.io.Serial
     private static final long serialVersionUID = 57387258289L;
 
     /**
@@ -108,6 +109,7 @@ final class ChronoPeriodImpl
     /**
      * The chronology.
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final Chronology chrono;
     /**
      * The number of years.
@@ -355,7 +357,7 @@ final class ChronoPeriodImpl
     //-----------------------------------------------------------------------
     /**
      * Writes the Chronology using a
-     * <a href="../../../serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
+     * <a href="{@docRoot}/serialized-form.html#java.time.chrono.Ser">dedicated serialized form</a>.
      * <pre>
      *  out.writeByte(12);  // identifies this as a ChronoPeriodImpl
      *  out.writeUTF(getId());  // the chronology
@@ -366,6 +368,7 @@ final class ChronoPeriodImpl
      *
      * @return the instance of {@code Ser}, not null
      */
+    @java.io.Serial
     protected Object writeReplace() {
         return new Ser(Ser.CHRONO_PERIOD_TYPE, this);
     }
@@ -376,6 +379,7 @@ final class ChronoPeriodImpl
      * @param s the stream to read
      * @throws InvalidObjectException always
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s) throws ObjectStreamException {
         throw new InvalidObjectException("Deserialization via serialization delegate");
     }

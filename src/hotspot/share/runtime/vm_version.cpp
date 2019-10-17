@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
-#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/vm_version.hpp"
@@ -43,6 +42,9 @@ bool Abstract_VM_Version::_supports_atomic_getadd4 = false;
 bool Abstract_VM_Version::_supports_atomic_getadd8 = false;
 unsigned int Abstract_VM_Version::_logical_processors_per_package = 1U;
 unsigned int Abstract_VM_Version::_L1_data_cache_line_size = 0;
+unsigned int Abstract_VM_Version::_data_cache_line_flush_size = 0;
+
+VirtualizationType Abstract_VM_Version::_detected_virtualization = NoDetectedVirtualization;
 
 #ifndef HOTSPOT_VERSION_STRING
   #error HOTSPOT_VERSION_STRING must be defined
@@ -81,8 +83,6 @@ int Abstract_VM_Version::_vm_minor_version = VERSION_INTERIM;
 int Abstract_VM_Version::_vm_security_version = VERSION_UPDATE;
 int Abstract_VM_Version::_vm_patch_version = VERSION_PATCH;
 int Abstract_VM_Version::_vm_build_number = VERSION_BUILD;
-unsigned int Abstract_VM_Version::_parallel_worker_threads = 0;
-bool Abstract_VM_Version::_parallel_worker_threads_initialized = false;
 
 #if defined(_LP64)
   #define VMLP "64-Bit "
@@ -218,19 +218,21 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 12.0 (VS2013)"
       #elif _MSC_VER == 1900
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 14.0 (VS2015)"
+      #elif _MSC_VER == 1911
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 15.3 (VS2017)"
       #elif _MSC_VER == 1912
         #define HOTSPOT_BUILD_COMPILER "MS VC++ 15.5 (VS2017)"
+      #elif _MSC_VER == 1913
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 15.6 (VS2017)"
+      #elif _MSC_VER == 1914
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 15.7 (VS2017)"
+      #elif _MSC_VER == 1915
+        #define HOTSPOT_BUILD_COMPILER "MS VC++ 15.8 (VS2017)"
       #else
         #define HOTSPOT_BUILD_COMPILER "unknown MS VC++:" XSTR(_MSC_VER)
       #endif
     #elif defined(__SUNPRO_CC)
-      #if   __SUNPRO_CC == 0x420
-        #define HOTSPOT_BUILD_COMPILER "Workshop 4.2"
-      #elif __SUNPRO_CC == 0x500
-        #define HOTSPOT_BUILD_COMPILER "Workshop 5.0 compat=" XSTR(__SUNPRO_CC_COMPAT)
-      #elif __SUNPRO_CC == 0x520
-        #define HOTSPOT_BUILD_COMPILER "Workshop 5.2 compat=" XSTR(__SUNPRO_CC_COMPAT)
-      #elif __SUNPRO_CC == 0x580
+      #if __SUNPRO_CC == 0x580
         #define HOTSPOT_BUILD_COMPILER "Workshop 5.8"
       #elif __SUNPRO_CC == 0x590
         #define HOTSPOT_BUILD_COMPILER "Workshop 5.9"
@@ -243,11 +245,10 @@ const char* Abstract_VM_Version::internal_vm_info_string() {
       #else
         #define HOTSPOT_BUILD_COMPILER "unknown Workshop:" XSTR(__SUNPRO_CC)
       #endif
+    #elif defined(__clang_version__)
+        #define HOTSPOT_BUILD_COMPILER "clang " __VERSION__
     #elif defined(__GNUC__)
         #define HOTSPOT_BUILD_COMPILER "gcc " __VERSION__
-    #elif defined(__IBMCPP__)
-        #define HOTSPOT_BUILD_COMPILER "xlC " XSTR(__IBMCPP__)
-
     #else
       #define HOTSPOT_BUILD_COMPILER "unknown compiler"
     #endif
@@ -293,7 +294,6 @@ unsigned int Abstract_VM_Version::jvm_version() {
          (Abstract_VM_Version::vm_build_number() & 0xFF);
 }
 
-
 void VM_Version_init() {
   VM_Version::initialize();
 
@@ -305,54 +305,26 @@ void VM_Version_init() {
   }
 }
 
-unsigned int Abstract_VM_Version::nof_parallel_worker_threads(
-                                                      unsigned int num,
-                                                      unsigned int den,
-                                                      unsigned int switch_pt) {
-  if (FLAG_IS_DEFAULT(ParallelGCThreads)) {
-    assert(ParallelGCThreads == 0, "Default ParallelGCThreads is not 0");
-    unsigned int threads;
-    // For very large machines, there are diminishing returns
-    // for large numbers of worker threads.  Instead of
-    // hogging the whole system, use a fraction of the workers for every
-    // processor after the first 8.  For example, on a 72 cpu machine
-    // and a chosen fraction of 5/8
-    // use 8 + (72 - 8) * (5/8) == 48 worker threads.
-    unsigned int ncpus = (unsigned int) os::initial_active_processor_count();
-    threads = (ncpus <= switch_pt) ?
-             ncpus :
-             (switch_pt + ((ncpus - switch_pt) * num) / den);
-#ifndef _LP64
-    // On 32-bit binaries the virtual address space available to the JVM
-    // is usually limited to 2-3 GB (depends on the platform).
-    // Do not use up address space with too many threads (stacks and per-thread
-    // data). Note that x86 apps running on Win64 have 2 stacks per thread.
-    // GC may more generally scale down threads by max heap size (etc), but the
-    // consequences of over-provisioning threads are higher on 32-bit JVMS,
-    // so add hard limit here:
-    threads = MIN2(threads, (2*switch_pt));
-#endif
-    return threads;
-  } else {
-    return ParallelGCThreads;
+bool Abstract_VM_Version::print_matching_lines_from_file(const char* filename, outputStream* st, const char* keywords_to_match[]) {
+  char line[500];
+  FILE* fp = fopen(filename, "r");
+  if (fp == NULL) {
+    return false;
   }
-}
 
-unsigned int Abstract_VM_Version::calc_parallel_worker_threads() {
-  return nof_parallel_worker_threads(5, 8, 8);
-}
-
-
-// Does not set the _initialized flag since it is
-// a global flag.
-unsigned int Abstract_VM_Version::parallel_worker_threads() {
-  if (!_parallel_worker_threads_initialized) {
-    if (FLAG_IS_DEFAULT(ParallelGCThreads)) {
-      _parallel_worker_threads = VM_Version::calc_parallel_worker_threads();
-    } else {
-      _parallel_worker_threads = ParallelGCThreads;
+  st->print_cr("Virtualization information:");
+  while (fgets(line, sizeof(line), fp) != NULL) {
+    int i = 0;
+    while (keywords_to_match[i] != NULL) {
+      if (strncmp(line, keywords_to_match[i], strlen(keywords_to_match[i])) == 0) {
+        st->print("%s", line);
+        break;
+      }
+      i++;
     }
-    _parallel_worker_threads_initialized = true;
   }
-  return _parallel_worker_threads;
+  fclose(fp);
+  return true;
 }
+
+

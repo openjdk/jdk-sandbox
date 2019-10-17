@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ extern "C" {
  *    class.
  */
 
-#define JVM_INTERFACE_VERSION 5
+#define JVM_INTERFACE_VERSION 6
 
 JNIEXPORT jint JNICALL
 JVM_GetInterfaceVersion(void);
@@ -111,9 +111,11 @@ JNIEXPORT void JNICALL
 JVM_ArrayCopy(JNIEnv *env, jclass ignored, jobject src, jint src_pos,
               jobject dst, jint dst_pos, jint length);
 
-JNIEXPORT jobject JNICALL
-JVM_InitProperties(JNIEnv *env, jobject p);
-
+/*
+ * Return an array of all properties as alternating name and value pairs.
+ */
+JNIEXPORT jobjectArray JNICALL
+JVM_GetProperties(JNIEnv *env);
 
 /*
  * java.lang.Runtime
@@ -343,6 +345,11 @@ JVM_GetCallerClass(JNIEnv *env);
 JNIEXPORT jclass JNICALL
 JVM_FindPrimitiveClass(JNIEnv *env, const char *utf);
 
+/*
+ * Link the 'arg' class
+ */
+JNIEXPORT void JNICALL
+JVM_LinkClass(JNIEnv *env, jclass classClass, jclass arg);
 
 /*
  * Find a class from a boot class loader. Returns NULL if class not found.
@@ -448,7 +455,7 @@ JVM_AddReadsModule(JNIEnv *env, jobject from_module, jobject source_module);
  */
 
 JNIEXPORT jstring JNICALL
-JVM_GetClassName(JNIEnv *env, jclass cls);
+JVM_InitClassName(JNIEnv *env, jclass cls);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetClassInterfaces(JNIEnv *env, jclass cls);
@@ -621,11 +628,16 @@ JVM_GetMethodParameters(JNIEnv *env, jobject method);
  */
 
 JNIEXPORT jobject JNICALL
-JVM_DoPrivileged(JNIEnv *env, jclass cls,
-                 jobject action, jobject context, jboolean wrapException);
-
-JNIEXPORT jobject JNICALL
 JVM_GetInheritedAccessControlContext(JNIEnv *env, jclass cls);
+
+/*
+ * Ensure that code doing a stackwalk and using javaVFrame::locals() to
+ * get the value will see a materialized value and not a scalar-replaced
+ * null value.
+ */
+#define JVM_EnsureMaterializedForStackWalk(env, value) \
+    do {} while(0) // Nothing to do.  The fact that the value escaped
+                   // through a native method is enough.
 
 JNIEXPORT jobject JNICALL
 JVM_GetStackAccessControlContext(JNIEnv *env, jclass cls);
@@ -1032,19 +1044,6 @@ JVM_IsSameClassPackage(JNIEnv *env, jclass class1, jclass class2);
 #include "classfile_constants.h"
 
 /*
- * A function defined by the byte-code verifier and called by the VM.
- * This is not a function implemented in the VM.
- *
- * Returns JNI_FALSE if verification fails. A detailed error message
- * will be places in msg_buf, whose length is specified by buf_len.
- */
-typedef jboolean (*verifier_fn_t)(JNIEnv *env,
-                                  jclass cb,
-                                  char * msg_buf,
-                                  jint buf_len);
-
-
-/*
  * Support for a VM-independent class format checker.
  */
 typedef struct {
@@ -1073,28 +1072,6 @@ typedef struct {
  */
 
 typedef jstring (*to_java_string_fn_t)(JNIEnv *env, char *str);
-
-typedef char *(*to_c_string_fn_t)(JNIEnv *env, jstring s, jboolean *b);
-
-/* This is the function defined in libjava.so that performs class
- * format checks. This functions fills in size information about
- * the class file and returns:
- *
- *   0: good
- *  -1: out of memory
- *  -2: bad format
- *  -3: unsupported version
- *  -4: bad class name
- */
-
-typedef jint (*check_format_fn_t)(char *class_name,
-                                  unsigned char *data,
-                                  unsigned int data_size,
-                                  class_size_info *class_size,
-                                  char *message_buffer,
-                                  jint buffer_length,
-                                  jboolean measure_only,
-                                  jboolean check_relaxed);
 
 #define JVM_RECOGNIZED_CLASS_MODIFIERS (JVM_ACC_PUBLIC | \
                                         JVM_ACC_FINAL | \
@@ -1273,18 +1250,7 @@ typedef struct {
     unsigned int reserved3 : 8;
     unsigned int reserved1 : 16;
     unsigned int reserved2;
-
-    /* The following bits represents new JDK supports that VM has dependency on.
-     * VM implementation can use these bits to determine which JDK version
-     * and support it has to maintain runtime compatibility.
-     *
-     * When a new bit is added in a minor or update release, make sure
-     * the new bit is also added in the main/baseline.
-     */
-    unsigned int thread_park_blocker : 1;
-    unsigned int post_vm_init_hook_enabled : 1;
-    unsigned int pending_list_uses_discovered_field : 1;
-    unsigned int : 29;
+    unsigned int : 32;
     unsigned int : 32;
     unsigned int : 32;
 } jdk_version_info;

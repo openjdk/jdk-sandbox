@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP
 
 #include "jni.h"
 #include "jfr/utilities/jfrTypes.hpp"
@@ -90,12 +90,16 @@ class JfrTraceId : public AllStatic {
   static traceid get(const Thread* thread);
 
   // tag construct as used, returns pre-tagged traceid
-  static traceid use(const Klass* klass, bool leakp = false);
-  static traceid use(jclass jc, bool leakp = false);
-  static traceid use(const Method* method, bool leakp = false);
-  static traceid use(const ModuleEntry* module, bool leakp = false);
-  static traceid use(const PackageEntry* package, bool leakp = false);
-  static traceid use(const ClassLoaderData* cld, bool leakp = false);
+  static traceid use(const Klass* klass);
+  static traceid use(jclass jc);
+  static traceid use(const Method* method);
+  static traceid use(const Klass* klass, const Method* method);
+  static traceid use(const ModuleEntry* module);
+  static traceid use(const PackageEntry* package);
+  static traceid use(const ClassLoaderData* cld);
+
+  // leak profiler
+  static void set_leakp(const Method* method);
 
   static void remove(const Klass* klass);
   static void restore(const Klass* klass);
@@ -125,4 +129,4 @@ class JfrTraceId : public AllStatic {
   static void tag_as_event_host(const jclass jc);
 };
 
-#endif // SHARE_VM_JFR_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_TRACEID_JFRTRACEID_HPP

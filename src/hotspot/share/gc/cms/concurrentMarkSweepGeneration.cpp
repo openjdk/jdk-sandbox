@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,21 +23,18 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.hpp"
-#include "classfile/stringTable.hpp"
-#include "classfile/symbolTable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
-#include "gc/cms/cmsCollectorPolicy.hpp"
 #include "gc/cms/cmsGCStats.hpp"
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/cms/cmsOopClosures.inline.hpp"
+#include "gc/cms/cmsVMOperations.hpp"
 #include "gc/cms/compactibleFreeListSpace.hpp"
 #include "gc/cms/concurrentMarkSweepGeneration.inline.hpp"
 #include "gc/cms/concurrentMarkSweepThread.hpp"
 #include "gc/cms/parNewGeneration.hpp"
 #include "gc/cms/promotionInfo.inline.hpp"
-#include "gc/cms/vmCMSOperations.hpp"
 #include "gc/serial/genMarkSweep.hpp"
 #include "gc/serial/tenuredGeneration.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
@@ -45,7 +42,6 @@
 #include "gc/shared/cardTableRS.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/collectorCounters.hpp"
-#include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcTimer.hpp"
@@ -54,13 +50,14 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
-#include "gc/shared/oopStorageParState.hpp"
+#include "gc/shared/owstTaskTerminator.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/space.inline.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/weakProcessor.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.hpp"
@@ -68,6 +65,7 @@
 #include "memory/iterator.inline.hpp"
 #include "memory/padded.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -83,6 +81,9 @@
 #include "services/runtimeService.hpp"
 #include "utilities/align.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_JVMCI
+#include "jvmci/jvmci.hpp"
+#endif
 
 // statics
 CMSCollector* ConcurrentMarkSweepGeneration::_collector = NULL;
@@ -173,7 +174,7 @@ class CMSTokenSyncWithLocks: public CMSTokenSync {
  private:
   // Note: locks are acquired in textual declaration order
   // and released in the opposite order
-  MutexLockerEx _locker1, _locker2, _locker3;
+  MutexLocker _locker1, _locker2, _locker3;
  public:
   CMSTokenSyncWithLocks(bool is_cms_thread, Mutex* mutex1,
                         Mutex* mutex2 = NULL, Mutex* mutex3 = NULL):
@@ -205,7 +206,11 @@ class CMSParGCThreadState: public CHeapObj<mtGC> {
 };
 
 ConcurrentMarkSweepGeneration::ConcurrentMarkSweepGeneration(
-     ReservedSpace rs, size_t initial_byte_size, CardTableRS* ct) :
+     ReservedSpace rs,
+     size_t initial_byte_size,
+     size_t min_byte_size,
+     size_t max_byte_size,
+     CardTableRS* ct) :
   CardGeneration(rs, initial_byte_size, ct),
   _dilatation_factor(((double)MinChunkSize)/((double)(CollectedHeap::min_fill_size()))),
   _did_compact(false)
@@ -256,6 +261,8 @@ ConcurrentMarkSweepGeneration::ConcurrentMarkSweepGeneration(
   // note that all arithmetic is in units of HeapWords.
   assert(MinChunkSize >= CollectedHeap::min_fill_size(), "just checking");
   assert(_dilatation_factor >= 1.0, "from previous assert");
+
+  initialize_performance_counters(min_byte_size, max_byte_size);
 }
 
 
@@ -312,13 +319,13 @@ AdaptiveSizePolicy* CMSCollector::size_policy() {
   return CMSHeap::heap()->size_policy();
 }
 
-void ConcurrentMarkSweepGeneration::initialize_performance_counters() {
+void ConcurrentMarkSweepGeneration::initialize_performance_counters(size_t min_old_size,
+                                                                    size_t max_old_size) {
 
   const char* gen_name = "old";
-  GenCollectorPolicy* gcp = CMSHeap::heap()->gen_policy();
   // Generation Counters - generation 1, 1 subspace
   _gen_counters = new GenerationCounters(gen_name, 1, 1,
-      gcp->min_old_size(), gcp->max_old_size(), &_virtual_space);
+      min_old_size, max_old_size, &_virtual_space);
 
   _space_counters = new GSpaceCounters(gen_name, 0,
                                        _virtual_space.reserved_size(),
@@ -447,8 +454,7 @@ bool CMSCollector::_foregroundGCIsActive = false;
 bool CMSCollector::_foregroundGCShouldWait = false;
 
 CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
-                           CardTableRS*                   ct,
-                           ConcurrentMarkSweepPolicy*     cp):
+                           CardTableRS*                   ct):
   _overflow_list(NULL),
   _conc_workers(NULL),     // may be set later
   _completed_initialization(false),
@@ -458,7 +464,6 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   _roots_scanning_options(GenCollectedHeap::SO_None),
   _verification_mark_bm(0, Mutex::leaf + 1, "CMS_verification_mark_bm_lock"),
   _verifying(false),
-  _collector_policy(cp),
   _inter_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
   _intra_sweep_estimate(CMS_SweepWeight, CMS_SweepPadding),
   _gc_tracer_cm(new (ResourceObj::C_HEAP, mtGC) CMSTracer()),
@@ -492,7 +497,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   _stats(cmsGen),
   _eden_chunk_lock(new Mutex(Mutex::leaf + 1, "CMS_eden_chunk_lock", true,
                              //verify that this lock should be acquired with safepoint check.
-                             Monitor::_safepoint_check_sometimes)),
+                             Monitor::_safepoint_check_never)),
   _eden_chunk_array(NULL),     // may be set in ctor body
   _eden_chunk_index(0),        // -- ditto --
   _eden_chunk_capacity(0),     // -- ditto --
@@ -510,7 +515,7 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
 
   // Allocate MUT and marking bit map
   {
-    MutexLockerEx x(_markBitMap.lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker x(_markBitMap.lock(), Mutex::_no_safepoint_check_flag);
     if (!_markBitMap.allocate(_span)) {
       log_warning(gc)("Failed to allocate CMS Bit Map");
       return;
@@ -634,8 +639,8 @@ CMSCollector::CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
   }
 
   NOT_PRODUCT(_overflow_counter = CMSMarkStackOverflowInterval;)
-  _gc_counters = new CollectorCounters("CMS", 1);
-  _cgc_counters = new CollectorCounters("CMS stop-the-world phases", 2);
+  _gc_counters = new CollectorCounters("CMS full collection pauses", 1);
+  _cgc_counters = new CollectorCounters("CMS concurrent cycle pauses", 2);
   _completed_initialization = true;
   _inter_sweep_timer.start();  // start of time
 }
@@ -685,6 +690,10 @@ ConcurrentMarkSweepGeneration::contiguous_available() const {
 size_t
 ConcurrentMarkSweepGeneration::unsafe_max_alloc_nogc() const {
   return _cmsSpace->max_alloc_in_words() * HeapWordSize;
+}
+
+size_t ConcurrentMarkSweepGeneration::used_stable() const {
+  return cmsSpace()->used_stable();
 }
 
 size_t ConcurrentMarkSweepGeneration::max_available() const {
@@ -798,7 +807,7 @@ Mutex* ConcurrentMarkSweepGeneration::freelistLock() const {
 
 HeapWord* ConcurrentMarkSweepGeneration::allocate(size_t size, bool tlab) {
   CMSSynchronousYieldRequest yr;
-  MutexLockerEx x(freelistLock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
   return have_lock_and_allocate(size, tlab);
 }
 
@@ -845,8 +854,8 @@ HeapWord* ConcurrentMarkSweepGeneration::have_lock_and_allocate(size_t size,
 void CMSCollector::direct_allocated(HeapWord* start, size_t size) {
   assert(_markBitMap.covers(start, size), "Out of bounds");
   if (_collectorState >= Marking) {
-    MutexLockerEx y(_markBitMap.lock(),
-                    Mutex::_no_safepoint_check_flag);
+    MutexLocker y(_markBitMap.lock(),
+                  Mutex::_no_safepoint_check_flag);
     // [see comments preceding SweepClosure::do_blk() below for details]
     //
     // Can the P-bits be deleted now?  JJJ
@@ -1005,7 +1014,7 @@ oop ConcurrentMarkSweepGeneration::promote(oop obj, size_t obj_size) {
 // Things to support parallel young-gen collection.
 oop
 ConcurrentMarkSweepGeneration::par_promote(int thread_num,
-                                           oop old, markOop m,
+                                           oop old, markWord m,
                                            size_t word_sz) {
 #ifndef PRODUCT
   if (CMSHeap::heap()->promotion_should_fail()) {
@@ -1303,7 +1312,7 @@ void CMSCollector::request_full_gc(unsigned int full_gc_count, GCCause::Cause ca
   CMSHeap* heap = CMSHeap::heap();
   unsigned int gc_count = heap->total_full_collections();
   if (gc_count == full_gc_count) {
-    MutexLockerEx y(CGC_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker y(CGC_lock, Mutex::_no_safepoint_check_flag);
     _full_gc_requested = true;
     _full_gc_cause = cause;
     CGC_lock->notify();   // nudge CMS thread
@@ -1424,7 +1433,7 @@ void CMSCollector::acquire_control_and_collect(bool full,
   bitMapLock()->unlock();
   releaseFreelistLocks();
   {
-    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
     if (_foregroundGCShouldWait) {
       // We are going to be waiting for action for the CMS thread;
       // it had better not be gone (for instance at shutdown)!
@@ -1441,7 +1450,7 @@ void CMSCollector::acquire_control_and_collect(bool full,
              "Possible deadlock");
       while (_foregroundGCShouldWait) {
         // wait for notification
-        CGC_lock->wait(Mutex::_no_safepoint_check_flag);
+        CGC_lock->wait_without_safepoint_check();
         // Possibility of delay/starvation here, since CMS token does
         // not know to give priority to VM thread? Actually, i think
         // there wouldn't be any delay/starvation, but the proof of
@@ -1496,8 +1505,7 @@ void CMSCollector::acquire_control_and_collect(bool full,
   // Has the GC time limit been exceeded?
   size_t max_eden_size = _young_gen->max_eden_size();
   GCCause::Cause gc_cause = heap->gc_cause();
-  size_policy()->check_gc_overhead_limit(_young_gen->used(),
-                                         _young_gen->eden()->used(),
+  size_policy()->check_gc_overhead_limit(_young_gen->eden()->used(),
                                          _cmsGen->max_capacity(),
                                          max_eden_size,
                                          full,
@@ -1519,6 +1527,8 @@ void CMSCollector::compute_new_size() {
   FreelistLocker z(this);
   MetaspaceGC::compute_new_size();
   _cmsGen->compute_new_size_free_list();
+  // recalculate CMS used space after CMS collection
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 // A work method used by the foreground collector to do
@@ -1687,7 +1697,7 @@ class ReleaseForegroundGC: public StackObj {
  public:
   ReleaseForegroundGC(CMSCollector* c) : _c(c) {
     assert(_c->_foregroundGCShouldWait, "Else should not need to call");
-    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
     // allow a potentially blocked foreground collector to proceed
     _c->_foregroundGCShouldWait = false;
     if (_c->_foregroundGCIsActive) {
@@ -1699,7 +1709,7 @@ class ReleaseForegroundGC: public StackObj {
 
   ~ReleaseForegroundGC() {
     assert(!_c->_foregroundGCShouldWait, "Usage protocol violation?");
-    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
     _c->_foregroundGCShouldWait = true;
   }
 };
@@ -1710,10 +1720,9 @@ void CMSCollector::collect_in_background(GCCause::Cause cause) {
 
   CMSHeap* heap = CMSHeap::heap();
   {
-    bool safepoint_check = Mutex::_no_safepoint_check_flag;
-    MutexLockerEx hl(Heap_lock, safepoint_check);
+    MutexLocker hl(Heap_lock, Mutex::_no_safepoint_check_flag);
     FreelistLocker fll(this);
-    MutexLockerEx x(CGC_lock, safepoint_check);
+    MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
     if (_foregroundGCIsActive) {
       // The foreground collector is. Skip this
       // background collection.
@@ -1857,7 +1866,7 @@ void CMSCollector::collect_in_background(GCCause::Cause cause) {
         // collection was preempted.
         {
           ReleaseForegroundGC x(this);   // unblock FG collection
-          MutexLockerEx       y(Heap_lock, Mutex::_no_safepoint_check_flag);
+          MutexLocker         y(Heap_lock, Mutex::_no_safepoint_check_flag);
           CMSTokenSync        z(true);   // not strictly needed.
           if (_collectorState == Resizing) {
             compute_new_size();
@@ -1900,7 +1909,7 @@ void CMSCollector::collect_in_background(GCCause::Cause cause) {
     // Clear _foregroundGCShouldWait and, in the event that the
     // foreground collector is waiting, notify it, before
     // returning.
-    MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
     _foregroundGCShouldWait = false;
     if (_foregroundGCIsActive) {
       CGC_lock->notify();
@@ -1948,7 +1957,7 @@ bool CMSCollector::waitForForegroundGC() {
   // Block the foreground collector until the
   // background collectors decides whether to
   // yield.
-  MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(CGC_lock, Mutex::_no_safepoint_check_flag);
   _foregroundGCShouldWait = true;
   if (_foregroundGCIsActive) {
     // The background collector yields to the
@@ -1966,7 +1975,7 @@ bool CMSCollector::waitForForegroundGC() {
     log_debug(gc, state)("CMS Thread " INTPTR_FORMAT " waiting at CMS state %d",
                          p2i(Thread::current()), _collectorState);
     while (_foregroundGCIsActive) {
-      CGC_lock->wait(Mutex::_no_safepoint_check_flag);
+      CGC_lock->wait_without_safepoint_check();
     }
     ConcurrentMarkSweepThread::set_CMS_flag(
       ConcurrentMarkSweepThread::CMS_cms_has_token);
@@ -2048,6 +2057,7 @@ void ConcurrentMarkSweepGeneration::gc_prologue(bool full) {
 
   _capacity_at_prologue = capacity();
   _used_at_prologue = used();
+  _cmsSpace->recalculate_used_stable();
 
   // We enable promotion tracking so that card-scanning can recognize
   // which objects have been promoted during this GC and skip them.
@@ -2120,6 +2130,7 @@ void CMSCollector::gc_epilogue(bool full) {
   _eden_chunk_index = 0;
 
   size_t cms_used   = _cmsGen->cmsSpace()->used();
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 
   // update performance counters - this uses a special version of
   // update_counters() that allows the utilization to be passed as a
@@ -2208,7 +2219,7 @@ bool CMSCollector::is_cms_reachable(HeapWord* addr) {
                 _markBitMap.isMarked(addr) ? "" : " not");
 
   if (verify_after_remark()) {
-    MutexLockerEx x(verification_mark_bm()->lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker x(verification_mark_bm()->lock(), Mutex::_no_safepoint_check_flag);
     bool result = verification_mark_bm()->isMarked(addr);
     tty->print_cr("TransitiveMark: Address " PTR_FORMAT " %s marked", p2i(addr),
                   result ? "IS" : "is NOT");
@@ -2268,7 +2279,7 @@ class VerifyMarkedClosure: public BitMapClosure {
 
 bool CMSCollector::verify_after_remark() {
   GCTraceTime(Info, gc, phases, verify) tm("Verifying CMS Marking.");
-  MutexLockerEx ml(verification_mark_bm()->lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(verification_mark_bm()->lock(), Mutex::_no_safepoint_check_flag);
   static bool init = false;
 
   assert(SafepointSynchronize::is_at_safepoint(),
@@ -2398,7 +2409,7 @@ class VerifyCLDOopsCLDClosure : public CLDClosure {
  public:
   VerifyCLDOopsCLDClosure(CMSBitMap* bitmap) : _oop_closure(bitmap) {}
   void do_cld(ClassLoaderData* cld) {
-    cld->oops_do(&_oop_closure, false, false);
+    cld->oops_do(&_oop_closure, ClassLoaderData::_claim_none, false);
   }
 };
 
@@ -2413,7 +2424,7 @@ void CMSCollector::verify_after_remark_work_2() {
   // Mark from roots one level into CMS
   MarkRefsIntoVerifyClosure notOlder(_span, verification_mark_bm(),
                                      markBitMap());
-  CLDToOopClosure cld_closure(&notOlder, true);
+  CLDToOopClosure cld_closure(&notOlder, ClassLoaderData::_claim_strong);
 
   heap->rem_set()->prepare_for_younger_refs_iterate(false); // Not parallel.
 
@@ -2469,7 +2480,7 @@ ConcurrentMarkSweepGeneration::oop_iterate(OopIterateClosure* cl) {
   if (freelistLock()->owned_by_self()) {
     Generation::oop_iterate(cl);
   } else {
-    MutexLockerEx x(freelistLock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
     Generation::oop_iterate(cl);
   }
 }
@@ -2479,7 +2490,7 @@ ConcurrentMarkSweepGeneration::object_iterate(ObjectClosure* cl) {
   if (freelistLock()->owned_by_self()) {
     Generation::object_iterate(cl);
   } else {
-    MutexLockerEx x(freelistLock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
     Generation::object_iterate(cl);
   }
 }
@@ -2489,7 +2500,7 @@ ConcurrentMarkSweepGeneration::safe_object_iterate(ObjectClosure* cl) {
   if (freelistLock()->owned_by_self()) {
     Generation::safe_object_iterate(cl);
   } else {
-    MutexLockerEx x(freelistLock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
     Generation::safe_object_iterate(cl);
   }
 }
@@ -2508,7 +2519,7 @@ ConcurrentMarkSweepGeneration::prepare_for_verify() {
   if (freelistLock()->owned_by_self()) {
     cmsSpace()->prepare_for_verify();
   } else {
-    MutexLockerEx fll(freelistLock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker fll(freelistLock(), Mutex::_no_safepoint_check_flag);
     cmsSpace()->prepare_for_verify();
   }
 }
@@ -2521,7 +2532,7 @@ ConcurrentMarkSweepGeneration::verify() {
   if (freelistLock()->owned_by_self()) {
     cmsSpace()->verify();
   } else {
-    MutexLockerEx fll(freelistLock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker fll(freelistLock(), Mutex::_no_safepoint_check_flag);
     cmsSpace()->verify();
   }
 }
@@ -2631,10 +2642,10 @@ ConcurrentMarkSweepGeneration::expand_and_allocate(size_t word_size,
                                                    bool   parallel) {
   CMSSynchronousYieldRequest yr;
   assert(!tlab, "Can't deal with TLAB allocation");
-  MutexLockerEx x(freelistLock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
   expand_for_gc_cause(word_size*HeapWordSize, MinHeapDeltaBytes, CMSExpansionCause::_satisfy_allocation);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return have_lock_and_allocate(word_size, tlab);
 }
@@ -2673,7 +2684,7 @@ HeapWord* ConcurrentMarkSweepGeneration::expand_and_par_lab_allocate(CMSParGCThr
     // A competing par_promote might beat us to the expansion space,
     // so we may go around the loop again if promotion fails again.
     if (GCExpandToAllocateDelayMillis > 0) {
-      os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+      os::naked_sleep(GCExpandToAllocateDelayMillis);
     }
   }
 }
@@ -2700,7 +2711,7 @@ bool ConcurrentMarkSweepGeneration::expand_and_ensure_spooling_space(
     // A competing allocation might beat us to the expansion space,
     // so we may go around the loop again if allocation fails again.
     if (GCExpandToAllocateDelayMillis > 0) {
-      os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+      os::naked_sleep(GCExpandToAllocateDelayMillis);
     }
   }
 }
@@ -2759,7 +2770,7 @@ CMSPhaseAccounting::CMSPhaseAccounting(CMSCollector *collector,
 CMSPhaseAccounting::~CMSPhaseAccounting() {
   _collector->gc_timer_cm()->register_gc_concurrent_end();
   _collector->stopTimer();
-  log_debug(gc)("Concurrent active time: %.3fms", TimeHelper::counter_to_seconds(_collector->timerTicks()));
+  log_debug(gc)("Concurrent active time: %.3fms", TimeHelper::counter_to_millis(_collector->timerTicks()));
   log_trace(gc)(" (CMS %s yielded %d times)", _title, _collector->yields());
 }
 
@@ -2770,12 +2781,10 @@ class CMSParMarkTask : public AbstractGangTask {
  protected:
   CMSCollector*     _collector;
   uint              _n_workers;
-  OopStorage::ParState<false, false> _par_state_string;
   CMSParMarkTask(const char* name, CMSCollector* collector, uint n_workers) :
       AbstractGangTask(name),
       _collector(collector),
-      _n_workers(n_workers),
-      _par_state_string(StringTable::weak_storage()) {}
+      _n_workers(n_workers) {}
   // Work method in support of parallel rescan ... of young gen spaces
   void do_young_space_rescan(OopsInGenClosure* cl,
                              ContiguousSpace* space,
@@ -2808,13 +2817,15 @@ void CMSCollector::checkpointRootsInitial() {
   assert(_restart_addr == NULL, "Control point invariant");
   {
     // acquire locks for subsequent manipulations
-    MutexLockerEx x(bitMapLock(),
-                    Mutex::_no_safepoint_check_flag);
+    MutexLocker x(bitMapLock(),
+                  Mutex::_no_safepoint_check_flag);
     checkpointRootsInitialWork();
     // enable ("weak") refs discovery
     rp->enable_discovery();
     _collectorState = Marking;
   }
+
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 void CMSCollector::checkpointRootsInitialWork() {
@@ -2886,7 +2897,7 @@ void CMSCollector::checkpointRootsInitialWork() {
       }
     } else {
       // The serial version.
-      CLDToOopClosure cld_closure(&notOlder, true);
+      CLDToOopClosure cld_closure(&notOlder, ClassLoaderData::_claim_strong);
       heap->rem_set()->prepare_for_younger_refs_iterate(false); // Not parallel.
 
       StrongRootsScope srs(1);
@@ -2981,7 +2992,7 @@ bool CMSCollector::markFromRootsWork() {
 // Forward decl
 class CMSConcMarkingTask;
 
-class CMSConcMarkingTerminator: public ParallelTaskTerminator {
+class CMSConcMarkingParallelTerminator: public ParallelTaskTerminator {
   CMSCollector*       _collector;
   CMSConcMarkingTask* _task;
  public:
@@ -2991,13 +3002,52 @@ class CMSConcMarkingTerminator: public ParallelTaskTerminator {
   // "queue_set" is a set of work queues of other threads.
   // "collector" is the CMS collector associated with this task terminator.
   // "yield" indicates whether we need the gang as a whole to yield.
-  CMSConcMarkingTerminator(int n_threads, TaskQueueSetSuper* queue_set, CMSCollector* collector) :
+  CMSConcMarkingParallelTerminator(int n_threads, TaskQueueSetSuper* queue_set, CMSCollector* collector) :
     ParallelTaskTerminator(n_threads, queue_set),
     _collector(collector) { }
 
   void set_task(CMSConcMarkingTask* task) {
     _task = task;
   }
+};
+
+class CMSConcMarkingOWSTTerminator: public OWSTTaskTerminator {
+  CMSCollector*       _collector;
+  CMSConcMarkingTask* _task;
+ public:
+  virtual void yield();
+
+  // "n_threads" is the number of threads to be terminated.
+  // "queue_set" is a set of work queues of other threads.
+  // "collector" is the CMS collector associated with this task terminator.
+  // "yield" indicates whether we need the gang as a whole to yield.
+  CMSConcMarkingOWSTTerminator(int n_threads, TaskQueueSetSuper* queue_set, CMSCollector* collector) :
+    OWSTTaskTerminator(n_threads, queue_set),
+    _collector(collector) { }
+
+  void set_task(CMSConcMarkingTask* task) {
+    _task = task;
+  }
+};
+
+class CMSConcMarkingTaskTerminator {
+ private:
+  ParallelTaskTerminator* _term;
+ public:
+  CMSConcMarkingTaskTerminator(int n_threads, TaskQueueSetSuper* queue_set, CMSCollector* collector) {
+    if (UseOWSTTaskTerminator) {
+      _term = new CMSConcMarkingOWSTTerminator(n_threads, queue_set, collector);
+    } else {
+      _term = new CMSConcMarkingParallelTerminator(n_threads, queue_set, collector);
+    }
+  }
+  ~CMSConcMarkingTaskTerminator() {
+    assert(_term != NULL, "Must not be NULL");
+    delete _term;
+  }
+
+  void set_task(CMSConcMarkingTask* task);
+  ParallelTaskTerminator* terminator() const { return _term; }
 };
 
 class CMSConcMarkingTerminatorTerminator: public TerminatorTerminator {
@@ -3027,7 +3077,7 @@ class CMSConcMarkingTask: public YieldingFlexibleGangTask {
   OopTaskQueueSet*  _task_queues;
 
   // Termination (and yielding) support
-  CMSConcMarkingTerminator _term;
+  CMSConcMarkingTaskTerminator       _term;
   CMSConcMarkingTerminatorTerminator _term_term;
 
  public:
@@ -3057,7 +3107,7 @@ class CMSConcMarkingTask: public YieldingFlexibleGangTask {
 
   HeapWord* volatile* global_finger_addr() { return &_global_finger; }
 
-  CMSConcMarkingTerminator* terminator() { return &_term; }
+  ParallelTaskTerminator* terminator() { return _term.terminator(); }
 
   virtual void set_for_termination(uint active_workers) {
     terminator()->reset_for_reuse(active_workers);
@@ -3075,7 +3125,7 @@ class CMSConcMarkingTask: public YieldingFlexibleGangTask {
   void reset(HeapWord* ra) {
     assert(_global_finger >= _cms_space->end(),  "Postcondition of ::work(i)");
     _restart_addr = _global_finger = ra;
-    _term.reset_for_reuse();
+    _term.terminator()->reset_for_reuse();
   }
 
   static bool get_work_from_overflow_stack(CMSMarkStack* ovflw_stk,
@@ -3096,11 +3146,27 @@ bool CMSConcMarkingTerminatorTerminator::should_exit_termination() {
   // thread has yielded.
 }
 
-void CMSConcMarkingTerminator::yield() {
+void CMSConcMarkingParallelTerminator::yield() {
   if (_task->should_yield()) {
     _task->yield();
   } else {
     ParallelTaskTerminator::yield();
+  }
+}
+
+void CMSConcMarkingOWSTTerminator::yield() {
+  if (_task->should_yield()) {
+    _task->yield();
+  } else {
+    OWSTTaskTerminator::yield();
+  }
+}
+
+void CMSConcMarkingTaskTerminator::set_task(CMSConcMarkingTask* task) {
+  if (UseOWSTTaskTerminator) {
+    ((CMSConcMarkingOWSTTerminator*)_term)->set_task(task);
+  } else {
+    ((CMSConcMarkingParallelTerminator*)_term)->set_task(task);
   }
 }
 
@@ -3195,8 +3261,8 @@ bool CMSConcMarkingTask::get_work_from_overflow_stack(CMSMarkStack* ovflw_stk,
     return false;
   }
   assert(work_q->size() == 0, "Shouldn't steal");
-  MutexLockerEx ml(ovflw_stk->par_lock(),
-                   Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(ovflw_stk->par_lock(),
+                 Mutex::_no_safepoint_check_flag);
   // Grab up to 1/4 the size of the work queue
   size_t num = MIN2((size_t)(work_q->max_elems() - work_q->size())/4,
                     (size_t)ParGCDesiredObjsFromOverflowList);
@@ -3400,8 +3466,8 @@ void ParConcMarkingClosure::trim_queue(size_t max) {
 void ParConcMarkingClosure::handle_stack_overflow(HeapWord* lost) {
   // We need to do this under a mutex to prevent other
   // workers from interfering with the work done below.
-  MutexLockerEx ml(_overflow_stack->par_lock(),
-                   Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(_overflow_stack->par_lock(),
+                 Mutex::_no_safepoint_check_flag);
   // Remember the least grey address discarded
   HeapWord* ra = (HeapWord*)_overflow_stack->least_value(lost);
   _collector->lower_restart_addr(ra);
@@ -3478,7 +3544,7 @@ void CMSConcMarkingTask::coordinator_yield() {
   for (unsigned i = 0; i < CMSCoordinatorYieldSleepCount &&
                    ConcurrentMarkSweepThread::should_yield() &&
                    !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -3488,9 +3554,9 @@ void CMSConcMarkingTask::coordinator_yield() {
 
 bool CMSCollector::do_marking_mt() {
   assert(ConcGCThreads > 0 && conc_workers() != NULL, "precondition");
-  uint num_workers = AdaptiveSizePolicy::calc_active_conc_workers(conc_workers()->total_workers(),
-                                                                  conc_workers()->active_workers(),
-                                                                  Threads::number_of_non_daemon_threads());
+  uint num_workers = WorkerPolicy::calc_active_conc_workers(conc_workers()->total_workers(),
+                                                            conc_workers()->active_workers(),
+                                                            Threads::number_of_non_daemon_threads());
   num_workers = conc_workers()->update_active_workers(num_workers);
   log_info(gc,task)("Using %u workers of %u for marking", num_workers, conc_workers()->total_workers());
 
@@ -4118,9 +4184,10 @@ void CMSCollector::checkpointRootsFinal() {
         );
     }
     FreelistLocker x(this);
-    MutexLockerEx y(bitMapLock(),
-                    Mutex::_no_safepoint_check_flag);
+    MutexLocker y(bitMapLock(),
+                  Mutex::_no_safepoint_check_flag);
     checkpointRootsFinalWork();
+    _cmsGen->cmsSpace()->recalculate_used_stable();
   }
   verify_work_stacks_empty();
   verify_overflow_empty();
@@ -4137,9 +4204,6 @@ void CMSCollector::checkpointRootsFinalWork() {
 
   CMSHeap* heap = CMSHeap::heap();
 
-  if (should_unload_classes()) {
-    CodeCache::gc_prologue();
-  }
   assert(haveFreelistLocks(), "must have free list locks");
   assert_lock_strong(bitMapLock());
 
@@ -4195,9 +4259,8 @@ void CMSCollector::checkpointRootsFinalWork() {
   verify_overflow_empty();
 
   if (should_unload_classes()) {
-    CodeCache::gc_epilogue();
+    heap->prune_scavengable_nmethods();
   }
-  JvmtiExport::gc_epilogue();
 
   // If we encountered any (marking stack / work queue) overflow
   // events during the current CMS cycle, take appropriate
@@ -4269,15 +4332,14 @@ void CMSParInitialMarkTask::work(uint worker_id) {
   _timer.reset();
   _timer.start();
 
-  CLDToOopClosure cld_closure(&par_mri_cl, true);
+  CLDToOopClosure cld_closure(&par_mri_cl, ClassLoaderData::_claim_strong);
 
   heap->cms_process_roots(_strong_roots_scope,
                           false,     // yg was scanned above
                           GenCollectedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                           _collector->should_unload_classes(),
                           &par_mri_cl,
-                          &cld_closure,
-                          &_par_state_string);
+                          &cld_closure);
 
   assert(_collector->should_unload_classes()
          || (_collector->CMSCollector::roots_scanning_options() & GenCollectedHeap::SO_AllCodeCache),
@@ -4292,7 +4354,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
 
   // The per-thread work queues, available here for stealing.
   OopTaskQueueSet*       _task_queues;
-  ParallelTaskTerminator _term;
+  TaskTerminator         _term;
   StrongRootsScope*      _strong_roots_scope;
 
  public:
@@ -4314,7 +4376,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
 
   OopTaskQueue* work_queue(int i) { return task_queues()->queue(i); }
 
-  ParallelTaskTerminator* terminator() { return &_term; }
+  ParallelTaskTerminator* terminator() { return _term.terminator(); }
   uint n_workers() { return _n_workers; }
 
   void work(uint worker_id);
@@ -4331,7 +4393,7 @@ class CMSParRemarkTask: public CMSParMarkTask {
 class RemarkCLDClosure : public CLDClosure {
   CLDToOopClosure _cm_closure;
  public:
-  RemarkCLDClosure(OopClosure* oop_closure) : _cm_closure(oop_closure) {}
+  RemarkCLDClosure(OopClosure* oop_closure) : _cm_closure(oop_closure, ClassLoaderData::_claim_strong) {}
   void do_cld(ClassLoaderData* cld) {
     // Check if we have modified any oops in the CLD during the concurrent marking.
     if (cld->has_accumulated_modified_oops()) {
@@ -4407,8 +4469,7 @@ void CMSParRemarkTask::work(uint worker_id) {
                           GenCollectedHeap::ScanningOption(_collector->CMSCollector::roots_scanning_options()),
                           _collector->should_unload_classes(),
                           &par_mrias_cl,
-                          NULL,     // The dirty klasses will be handled below
-                          &_par_state_string);
+                          NULL);     // The dirty klasses will be handled below
 
   assert(_collector->should_unload_classes()
          || (_collector->CMSCollector::roots_scanning_options() & GenCollectedHeap::SO_AllCodeCache),
@@ -5002,11 +5063,11 @@ void CMSCollector::do_remark_non_parallel() {
 ////////////////////////////////////////////////////////
 class AbstractGangTaskWOopQueues : public AbstractGangTask {
   OopTaskQueueSet*       _queues;
-  ParallelTaskTerminator _terminator;
+  TaskTerminator         _terminator;
  public:
   AbstractGangTaskWOopQueues(const char* name, OopTaskQueueSet* queues, uint n_threads) :
     AbstractGangTask(name), _queues(queues), _terminator(n_threads, _queues) {}
-  ParallelTaskTerminator* terminator() { return &_terminator; }
+  ParallelTaskTerminator* terminator() { return _terminator.terminator(); }
   OopTaskQueueSet* queues() { return _queues; }
 };
 
@@ -5213,18 +5274,9 @@ void CMSCollector::refProcessingWork() {
 
       // Prune dead klasses from subklass/sibling/implementor lists.
       Klass::clean_weak_klass_links(purged_class);
-    }
 
-    {
-      GCTraceTime(Debug, gc, phases) t("Scrub Symbol Table", _gc_timer_cm);
-      // Clean up unreferenced symbols in symbol table.
-      SymbolTable::unlink();
-    }
-
-    {
-      GCTraceTime(Debug, gc, phases) t("Scrub String Table", _gc_timer_cm);
-      // Delete entries for dead interned strings.
-      StringTable::unlink(&_is_alive_closure);
+      // Clean JVMCI metadata handles.
+      JVMCI_ONLY(JVMCI::do_unloading(purged_class));
     }
   }
 
@@ -5295,9 +5347,14 @@ void CMSCollector::sweep() {
     // further below.
     {
       CMSTokenSyncWithLocks ts(true, _cmsGen->freelistLock());
+
       // Update heap occupancy information which is used as
       // input to soft ref clearing policy at the next gc.
       Universe::update_heap_info_at_gc();
+
+      // recalculate CMS used space after CMS collection
+      _cmsGen->cmsSpace()->recalculate_used_stable();
+
       _collectorState = Resizing;
     }
   }
@@ -5386,6 +5443,7 @@ void ConcurrentMarkSweepGeneration::update_gc_stats(Generation* current_generati
     // Gather statistics on the young generation collection.
     collector()->stats().record_gc0_end(used());
   }
+  _cmsSpace->recalculate_used_stable();
 }
 
 void CMSCollector::sweepWork(ConcurrentMarkSweepGeneration* old_gen) {
@@ -5483,7 +5541,7 @@ void CMSCollector::reset_concurrent() {
         for (unsigned i = 0; i < CMSYieldSleepCount &&
                          ConcurrentMarkSweepThread::should_yield() &&
                          !CMSCollector::foregroundGCIsActive(); ++i) {
-          os::sleep(Thread::current(), 1, false);
+          os::naked_short_sleep(1);
         }
 
         ConcurrentMarkSweepThread::synchronize(true);
@@ -5610,7 +5668,7 @@ CMSBitMap::CMSBitMap(int shifter, int mutex_rank, const char* mutex_name):
   _shifter(shifter),
   _bm(),
   _lock(mutex_rank >= 0 ? new Mutex(mutex_rank, mutex_name, true,
-                                    Monitor::_safepoint_check_sometimes) : NULL)
+                                    Monitor::_safepoint_check_never) : NULL)
 {
   _bmStartWord = 0;
   _bmWordSize  = 0;
@@ -5937,7 +5995,7 @@ void MarkRefsIntoAndScanClosure::do_yield_work() {
        ConcurrentMarkSweepThread::should_yield() &&
        !CMSCollector::foregroundGCIsActive();
        ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6092,7 +6150,7 @@ void ScanMarkedObjectsAgainCarefullyClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                    ConcurrentMarkSweepThread::should_yield() &&
                    !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6159,7 +6217,7 @@ void SurvivorSpacePrecleanClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6310,7 +6368,7 @@ void MarkFromRootsClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6691,8 +6749,8 @@ void PushOrMarkClosure::handle_stack_overflow(HeapWord* lost) {
 void ParPushOrMarkClosure::handle_stack_overflow(HeapWord* lost) {
   // We need to do this under a mutex to prevent other
   // workers from interfering with the work done below.
-  MutexLockerEx ml(_overflow_stack->par_lock(),
-                   Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(_overflow_stack->par_lock(),
+                 Mutex::_no_safepoint_check_flag);
   // Remember the least grey address discarded
   HeapWord* ra = (HeapWord*)_overflow_stack->least_value(lost);
   _collector->lower_restart_addr(ra);
@@ -6924,11 +6982,11 @@ void CMSPrecleanRefsYieldClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
-  bml->lock();
+  bml->lock_without_safepoint_check();
 
   _collector->startTimer();
 }
@@ -7489,11 +7547,11 @@ void SweepClosure::do_yield_work(HeapWord* addr) {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
-  _freelistLock->lock();
+  _freelistLock->lock_without_safepoint_check();
   _bitMap->lock()->lock_without_safepoint_check();
   _collector->startTimer();
 }
@@ -7735,10 +7793,10 @@ bool CMSCollector::take_from_overflow_list(size_t num, CMSMarkStack* stack) {
   assert(stack->capacity() > num, "Shouldn't bite more than can chew");
   size_t i = num;
   oop  cur = _overflow_list;
-  const markOop proto = markOopDesc::prototype();
+  const markWord proto = markWord::prototype();
   NOT_PRODUCT(ssize_t n = 0;)
   for (oop next; i > 0 && cur != NULL; cur = next, i--) {
-    next = oop(cur->mark_raw());
+    next = oop(cur->mark_raw().to_pointer());
     cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = stack->push(cur);
@@ -7787,7 +7845,6 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   }
   // Grab the entire list; we'll put back a suffix
   oop prefix = cast_to_oop(Atomic::xchg((oopDesc*)BUSY, &_overflow_list));
-  Thread* tid = Thread::current();
   // Before "no_of_gc_threads" was introduced CMSOverflowSpinCount was
   // set to ParallelGCThreads.
   size_t CMSOverflowSpinCount = (size_t) no_of_gc_threads; // was ParallelGCThreads;
@@ -7795,7 +7852,7 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   // If the list is busy, we spin for a short while,
   // sleeping between attempts to get the list.
   for (size_t spin = 0; prefix == BUSY && spin < CMSOverflowSpinCount; spin++) {
-    os::sleep(tid, sleep_time_millis, false);
+    os::naked_sleep(sleep_time_millis);
     if (_overflow_list == NULL) {
       // Nothing left to take
       return false;
@@ -7822,8 +7879,8 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   size_t i = num;
   oop cur = prefix;
   // Walk down the first "num" objects, unless we reach the end.
-  for (; i > 1 && cur->mark_raw() != NULL; cur = oop(cur->mark_raw()), i--);
-  if (cur->mark_raw() == NULL) {
+  for (; i > 1 && cur->mark_raw().to_pointer() != NULL; cur = oop(cur->mark_raw().to_pointer()), i--);
+  if (cur->mark_raw().to_pointer() == NULL) {
     // We have "num" or fewer elements in the list, so there
     // is nothing to return to the global list.
     // Write back the NULL in lieu of the BUSY we wrote
@@ -7833,9 +7890,9 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
     }
   } else {
     // Chop off the suffix and return it to the global list.
-    assert(cur->mark_raw() != BUSY, "Error");
-    oop suffix_head = cur->mark_raw(); // suffix will be put back on global list
-    cur->set_mark_raw(NULL);           // break off suffix
+    assert(cur->mark_raw().to_pointer() != (void*)BUSY, "Error");
+    oop suffix_head = oop(cur->mark_raw().to_pointer()); // suffix will be put back on global list
+    cur->set_mark_raw(markWord::from_pointer(NULL));     // break off suffix
     // It's possible that the list is still in the empty(busy) state
     // we left it in a short while ago; in that case we may be
     // able to place back the suffix without incurring the cost
@@ -7855,18 +7912,18 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
       // Too bad, someone else sneaked in (at least) an element; we'll need
       // to do a splice. Find tail of suffix so we can prepend suffix to global
       // list.
-      for (cur = suffix_head; cur->mark_raw() != NULL; cur = (oop)(cur->mark_raw()));
+      for (cur = suffix_head; cur->mark_raw().to_pointer() != NULL; cur = (oop)(cur->mark_raw().to_pointer()));
       oop suffix_tail = cur;
-      assert(suffix_tail != NULL && suffix_tail->mark_raw() == NULL,
+      assert(suffix_tail != NULL && suffix_tail->mark_raw().to_pointer() == NULL,
              "Tautology");
       observed_overflow_list = _overflow_list;
       do {
         cur_overflow_list = observed_overflow_list;
         if (cur_overflow_list != BUSY) {
           // Do the splice ...
-          suffix_tail->set_mark_raw(markOop(cur_overflow_list));
+          suffix_tail->set_mark_raw(markWord::from_pointer((void*)cur_overflow_list));
         } else { // cur_overflow_list == BUSY
-          suffix_tail->set_mark_raw(NULL);
+          suffix_tail->set_mark_raw(markWord::from_pointer(NULL));
         }
         // ... and try to place spliced list back on overflow_list ...
         observed_overflow_list =
@@ -7878,11 +7935,11 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
 
   // Push the prefix elements on work_q
   assert(prefix != NULL, "control point invariant");
-  const markOop proto = markOopDesc::prototype();
+  const markWord proto = markWord::prototype();
   oop next;
   NOT_PRODUCT(ssize_t n = 0;)
   for (cur = prefix; cur != NULL; cur = next) {
-    next = oop(cur->mark_raw());
+    next = oop(cur->mark_raw().to_pointer());
     cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = work_q->push(cur);
@@ -7901,7 +7958,7 @@ void CMSCollector::push_on_overflow_list(oop p) {
   NOT_PRODUCT(_num_par_pushes++;)
   assert(oopDesc::is_oop(p), "Not an oop");
   preserve_mark_if_necessary(p);
-  p->set_mark_raw((markOop)_overflow_list);
+  p->set_mark_raw(markWord::from_pointer(_overflow_list));
   _overflow_list = p;
 }
 
@@ -7915,9 +7972,9 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
   do {
     cur_overflow_list = observed_overflow_list;
     if (cur_overflow_list != BUSY) {
-      p->set_mark_raw(markOop(cur_overflow_list));
+      p->set_mark_raw(markWord::from_pointer((void*)cur_overflow_list));
     } else {
-      p->set_mark_raw(NULL);
+      p->set_mark_raw(markWord::from_pointer(NULL));
     }
     observed_overflow_list =
       Atomic::cmpxchg((oopDesc*)p, &_overflow_list, (oopDesc*)cur_overflow_list);
@@ -7939,7 +7996,7 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
 // the VM can then be changed, incrementally, to deal with such
 // failures where possible, thus, incrementally hardening the VM
 // in such low resource situations.
-void CMSCollector::preserve_mark_work(oop p, markOop m) {
+void CMSCollector::preserve_mark_work(oop p, markWord m) {
   _preserved_oop_stack.push(p);
   _preserved_mark_stack.push(m);
   assert(m == p->mark_raw(), "Mark word changed");
@@ -7949,16 +8006,16 @@ void CMSCollector::preserve_mark_work(oop p, markOop m) {
 
 // Single threaded
 void CMSCollector::preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark_raw();
-  if (m->must_be_preserved(p)) {
+  markWord m = p->mark_raw();
+  if (p->mark_must_be_preserved(m)) {
     preserve_mark_work(p, m);
   }
 }
 
 void CMSCollector::par_preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark_raw();
-  if (m->must_be_preserved(p)) {
-    MutexLockerEx x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
+  markWord m = p->mark_raw();
+  if (p->mark_must_be_preserved(m)) {
+    MutexLocker x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
     // Even though we read the mark word without holding
     // the lock, we are assured that it will not change
     // because we "own" this oop, so no other thread can
@@ -7997,9 +8054,9 @@ void CMSCollector::restore_preserved_marks_if_any() {
     oop p = _preserved_oop_stack.pop();
     assert(oopDesc::is_oop(p), "Should be an oop");
     assert(_span.contains(p), "oop should be in _span");
-    assert(p->mark_raw() == markOopDesc::prototype(),
+    assert(p->mark_raw() == markWord::prototype(),
            "Set when taken from overflow list");
-    markOop m = _preserved_mark_stack.pop();
+    markWord m = _preserved_mark_stack.pop();
     p->set_mark_raw(m);
   }
   assert(_preserved_mark_stack.is_empty() && _preserved_oop_stack.is_empty(),

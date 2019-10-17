@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_HANDSHAKE_HPP
-#define SHARE_VM_RUNTIME_HANDSHAKE_HPP
+#ifndef SHARE_RUNTIME_HANDSHAKE_HPP
+#define SHARE_RUNTIME_HANDSHAKE_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/flags/flagSetting.hpp"
@@ -60,7 +60,6 @@ class HandshakeState {
   bool vmthread_can_process_handshake(JavaThread* target);
 
   void clear_handshake(JavaThread* thread);
-  void cancel_inner(JavaThread* thread);
 
   void process_self_inner(JavaThread* thread);
 public:
@@ -72,20 +71,14 @@ public:
     return _operation != NULL;
   }
 
-  void cancel(JavaThread* thread) {
-    if (!_thread_in_process_handshake) {
-      FlagSetting fs(_thread_in_process_handshake, true);
-      cancel_inner(thread);
-    }
-  }
-
   void process_by_self(JavaThread* thread) {
     if (!_thread_in_process_handshake) {
       FlagSetting fs(_thread_in_process_handshake, true);
       process_self_inner(thread);
     }
   }
+
   void process_by_vmthread(JavaThread* target);
 };
 
-#endif // SHARE_VM_RUNTIME_HANDSHAKE_HPP
+#endif // SHARE_RUNTIME_HANDSHAKE_HPP

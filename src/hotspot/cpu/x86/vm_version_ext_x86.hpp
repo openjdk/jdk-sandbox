@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,21 +22,27 @@
  *
  */
 
-#ifndef CPU_X86_VM_VM_VERSION_EXT_X86_HPP
-#define CPU_X86_VM_VM_VERSION_EXT_X86_HPP
+#ifndef CPU_X86_VM_VERSION_EXT_X86_HPP
+#define CPU_X86_VM_VERSION_EXT_X86_HPP
 
 #include "utilities/macros.hpp"
 #include "vm_version_x86.hpp"
 
 class VM_Version_Ext : public VM_Version {
+
+  enum {
+    ExtendedFamilyIdLength_INTEL = 16,
+    ExtendedFamilyIdLength_AMD   = 24
+  };
+
  private:
   static const size_t      VENDOR_LENGTH;
   static const size_t      CPU_EBS_MAX_LENGTH;
   static const size_t      CPU_TYPE_DESC_BUF_SIZE;
   static const size_t      CPU_DETAILED_DESC_BUF_SIZE;
 
-  static const char* const _family_id_intel[];
-  static const char* const _family_id_amd[];
+  static const char* const _family_id_intel[ExtendedFamilyIdLength_INTEL];
+  static const char* const _family_id_amd[ExtendedFamilyIdLength_AMD];
   static const char* const _brand_id[];
   static const char* const _model_id_pentium_pro[];
 
@@ -97,4 +103,4 @@ class VM_Version_Ext : public VM_Version {
   static void initialize();
 };
 
-#endif // CPU_X86_VM_VM_VERSION_EXT_X86_HPP
+#endif // CPU_X86_VM_VERSION_EXT_X86_HPP

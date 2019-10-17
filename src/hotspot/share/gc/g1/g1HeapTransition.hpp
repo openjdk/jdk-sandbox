@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
-#define SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
+#ifndef SHARE_GC_G1_G1HEAPTRANSITION_HPP
+#define SHARE_GC_G1_G1HEAPTRANSITION_HPP
 
 #include "gc/shared/plab.hpp"
+#include "memory/metaspace/metaspaceSizesSnapshot.hpp"
 
 class G1CollectedHeap;
 
@@ -36,7 +37,7 @@ class G1HeapTransition {
     size_t _old_length;
     size_t _archive_length;
     size_t _humongous_length;
-    size_t _metaspace_used_bytes;
+    const metaspace::MetaspaceSizesSnapshot _meta_sizes;
 
     Data(G1CollectedHeap* g1_heap);
   };
@@ -50,4 +51,4 @@ public:
   void print();
 };
 
-#endif // SHARE_VM_GC_G1_G1HEAPTRANSITION_HPP
+#endif // SHARE_GC_G1_G1HEAPTRANSITION_HPP

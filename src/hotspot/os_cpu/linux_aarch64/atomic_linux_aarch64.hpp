@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_HPP
-#define OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_HPP
+#ifndef OS_CPU_LINUX_AARCH64_ATOMIC_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_ATOMIC_LINUX_AARCH64_HPP
 
 #include "vm_version_aarch64.hpp"
 
@@ -40,7 +40,9 @@ struct Atomic::PlatformAdd
 {
   template<typename I, typename D>
   D add_and_fetch(I add_value, D volatile* dest, atomic_memory_order order) const {
-    return __sync_add_and_fetch(dest, add_value);
+    D res = __atomic_add_fetch(dest, add_value, __ATOMIC_RELEASE);
+    FULL_MEM_BARRIER;
+    return res;
   }
 };
 
@@ -72,4 +74,4 @@ inline T Atomic::PlatformCmpxchg<byte_size>::operator()(T exchange_value,
   }
 }
 
-#endif // OS_CPU_LINUX_AARCH64_VM_ATOMIC_LINUX_AARCH64_HPP
+#endif // OS_CPU_LINUX_AARCH64_ATOMIC_LINUX_AARCH64_HPP

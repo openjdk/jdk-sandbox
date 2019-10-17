@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
@@ -67,9 +68,9 @@ import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.util.zip.ZipFile;
 
-import jdk.internal.misc.JavaNetURLAccess;
-import jdk.internal.misc.JavaUtilZipFileAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaNetURLAccess;
+import jdk.internal.access.JavaUtilZipFileAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.util.jar.InvalidJarIndexError;
 import jdk.internal.util.jar.JarIndex;
 import sun.net.util.URLUtil;
@@ -88,16 +89,27 @@ public class URLClassPath {
     private static final boolean DEBUG;
     private static final boolean DISABLE_JAR_CHECKING;
     private static final boolean DISABLE_ACC_CHECKING;
+    private static final boolean DISABLE_CP_URL_CHECK;
+    private static final boolean DEBUG_CP_URL_CHECK;
 
     static {
         Properties props = GetPropertyAction.privilegedGetProperties();
         JAVA_VERSION = props.getProperty("java.version");
         DEBUG = (props.getProperty("sun.misc.URLClassPath.debug") != null);
         String p = props.getProperty("sun.misc.URLClassPath.disableJarChecking");
-        DISABLE_JAR_CHECKING = p != null ? p.equals("true") || p.equals("") : false;
+        DISABLE_JAR_CHECKING = p != null ? p.equals("true") || p.isEmpty() : false;
 
         p = props.getProperty("jdk.net.URLClassPath.disableRestrictedPermissions");
-        DISABLE_ACC_CHECKING = p != null ? p.equals("true") || p.equals("") : false;
+        DISABLE_ACC_CHECKING = p != null ? p.equals("true") || p.isEmpty() : false;
+
+        // This property will be removed in a later release
+        p = props.getProperty("jdk.net.URLClassPath.disableClassPathURLCheck");
+        DISABLE_CP_URL_CHECK = p != null ? p.equals("true") || p.isEmpty() : false;
+
+        // Print a message for each Class-Path entry that is ignored (assuming
+        // the check is not disabled).
+        p = props.getProperty("jdk.net.URLClassPath.showIgnoredClassPathEntries");
+        DEBUG_CP_URL_CHECK = p != null ? p.equals("true") || p.isEmpty() : false;
     }
 
     /* The original search path of URLs. */
@@ -181,7 +193,7 @@ public class URLClassPath {
                 String element = (next == -1)
                     ? cp.substring(off)
                     : cp.substring(off, next);
-                if (element.length() > 0 || !skipEmptyElements) {
+                if (!element.isEmpty() || !skipEmptyElements) {
                     URL url = toFileURL(element);
                     if (url != null) path.add(url);
                 }
@@ -687,7 +699,7 @@ public class URLClassPath {
     /*
      * Nested class used to represent a Loader of resources from a JAR URL.
      */
-    static class JarLoader extends Loader {
+    private static class JarLoader extends Loader {
         private JarFile jar;
         private final URL csu;
         private JarIndex index;
@@ -702,9 +714,9 @@ public class URLClassPath {
          * Creates a new JarLoader for the specified URL referring to
          * a JAR file.
          */
-        JarLoader(URL url, URLStreamHandler jarHandler,
-                  HashMap<String, Loader> loaderMap,
-                  AccessControlContext acc)
+        private JarLoader(URL url, URLStreamHandler jarHandler,
+                          HashMap<String, Loader> loaderMap,
+                          AccessControlContext acc)
             throws IOException
         {
             super(new URL("jar", "", -1, url + "!/", jarHandler));
@@ -796,7 +808,7 @@ public class URLClassPath {
         private JarFile getJarFile(URL url) throws IOException {
             // Optimize case where url refers to a local jar file
             if (isOptimizable(url)) {
-                FileURLMapper p = new FileURLMapper (url);
+                FileURLMapper p = new FileURLMapper(url);
                 if (!p.exists()) {
                     throw new FileNotFoundException(p.getPath());
                 }
@@ -857,8 +869,10 @@ public class URLClassPath {
                     { return jar.getInputStream(entry); }
                 public int getContentLength()
                     { return (int)entry.getSize(); }
-                public Manifest getManifest() throws IOException
-                    { return jar.getManifest(); };
+                public Manifest getManifest() throws IOException {
+                    SharedSecrets.javaUtilJarAccess().ensureInitialization(jar);
+                    return jar.getManifest();
+                }
                 public Certificate[] getCertificates()
                     { return entry.getCertificates(); };
                 public CodeSigner[] getCodeSigners()
@@ -1081,10 +1095,93 @@ public class URLClassPath {
             int i = 0;
             while (st.hasMoreTokens()) {
                 String path = st.nextToken();
-                urls[i] = new URL(base, path);
-                i++;
+                URL url = DISABLE_CP_URL_CHECK ? new URL(base, path) : tryResolve(base, path);
+                if (url != null) {
+                    urls[i] = url;
+                    i++;
+                } else {
+                    if (DEBUG_CP_URL_CHECK) {
+                        System.err.println("Class-Path entry: \"" + path
+                                           + "\" ignored in JAR file " + base);
+                    }
+                }
+            }
+            if (i == 0) {
+                urls = null;
+            } else if (i != urls.length) {
+                // Truncate nulls from end of array
+                urls = Arrays.copyOf(urls, i);
             }
             return urls;
+        }
+
+        static URL tryResolve(URL base, String input) throws MalformedURLException {
+            if ("file".equalsIgnoreCase(base.getProtocol())) {
+                return tryResolveFile(base, input);
+            } else {
+                return tryResolveNonFile(base, input);
+            }
+        }
+
+        /**
+         * Attempt to return a file URL by resolving input against a base file
+         * URL. The input is an absolute or relative file URL that encodes a
+         * file path.
+         *
+         * @apiNote Nonsensical input such as a Windows file path with a drive
+         * letter cannot be disambiguated from an absolute URL so will be rejected
+         * (by returning null) by this method.
+         *
+         * @return the resolved URL or null if the input is an absolute URL with
+         *         a scheme other than file (ignoring case)
+         * @throws MalformedURLException
+         */
+        static URL tryResolveFile(URL base, String input) throws MalformedURLException {
+            int index = input.indexOf(':');
+            boolean isFile;
+            if (index >= 0) {
+                String scheme = input.substring(0, index);
+                isFile = "file".equalsIgnoreCase(scheme);
+            } else {
+                isFile = true;
+            }
+            return (isFile) ? new URL(base, input) : null;
+        }
+
+        /**
+         * Attempt to return a URL by resolving input against a base URL. Returns
+         * null if the resolved URL is not contained by the base URL.
+         *
+         * @return the resolved URL or null
+         * @throws MalformedURLException
+         */
+        static URL tryResolveNonFile(URL base, String input) throws MalformedURLException {
+            String child = input.replace(File.separatorChar, '/');
+            if (isRelative(child)) {
+                URL url = new URL(base, child);
+                String bp = base.getPath();
+                String urlp = url.getPath();
+                int pos = bp.lastIndexOf('/');
+                if (pos == -1) {
+                    pos = bp.length() - 1;
+                }
+                if (urlp.regionMatches(0, bp, 0, pos + 1)
+                        && urlp.indexOf("..", pos) == -1) {
+                    return url;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Returns true if the given input is a relative URI.
+         */
+        static boolean isRelative(String child) {
+            try {
+                return !URI.create(child).isAbsolute();
+            } catch (IllegalArgumentException e) {
+                return false;
+            }
         }
     }
 
@@ -1096,11 +1193,11 @@ public class URLClassPath {
         /* Canonicalized File */
         private File dir;
 
-        FileLoader(URL url) throws IOException {
+        /*
+         * Creates a new FileLoader for the specified URL with a file protocol.
+         */
+        private FileLoader(URL url) throws IOException {
             super(url);
-            if (!"file".equals(url.getProtocol())) {
-                throw new IllegalArgumentException("url");
-            }
             String path = url.getFile().replace('/', File.separatorChar);
             path = ParseUtil.decode(path);
             dir = (new File(path)).getCanonicalFile();

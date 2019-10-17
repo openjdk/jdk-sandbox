@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,15 @@
 
 package java.net;
 
-import jdk.internal.misc.JavaNetSocketAccess;
-import jdk.internal.misc.SharedSecrets;
-
 import java.io.FileDescriptor;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.channels.ServerSocketChannel;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
+
+import sun.security.util.SecurityConstants;
+import sun.net.PlatformSocketImpl;
 
 /**
  * This class implements server sockets. A server socket waits for
@@ -71,23 +68,35 @@ class ServerSocket implements java.io.Closeable {
     private SocketImpl impl;
 
     /**
-     * Are we using an older SocketImpl?
+     * Creates a server socket with a user-specified {@code SocketImpl}.
+     *
+     * @param      impl an instance of a SocketImpl to use on the ServerSocket.
+     *
+     * @throws     NullPointerException if impl is {@code null}.
+     *
+     * @throws     SecurityException if a security manager is set and
+     *             its {@code checkPermission} method doesn't allow
+     *             {@code NetPermission("setSocketImpl")}.
+     * @since 12
      */
-    private boolean oldImpl = false;
-
-    /**
-     * Package-private constructor to create a ServerSocket associated with
-     * the given SocketImpl.
-     */
-    ServerSocket(SocketImpl impl) {
+    protected ServerSocket(SocketImpl impl) {
+        Objects.requireNonNull(impl);
+        checkPermission();
         this.impl = impl;
-        impl.setServerSocket(this);
+    }
+
+    private static Void checkPermission() {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SecurityConstants.SET_SOCKETIMPL_PERMISSION);
+        }
+        return null;
     }
 
     /**
      * Creates an unbound server socket.
      *
-     * @exception IOException IO error when opening the socket.
+     * @throws    IOException IO error when opening the socket.
      * @revised 1.4
      */
     public ServerSocket() throws IOException {
@@ -104,9 +113,10 @@ class ServerSocket implements java.io.Closeable {
      * request to connect) is set to {@code 50}. If a connection
      * indication arrives when the queue is full, the connection is refused.
      * <p>
-     * If the application has specified a server socket factory, that
-     * factory's {@code createSocketImpl} method is called to create
-     * the actual socket implementation. Otherwise a "plain" socket is created.
+     * If the application has specified a server socket implementation
+     * factory, that factory's {@code createSocketImpl} method is called to
+     * create the actual socket implementation. Otherwise a system-default
+     * socket implementation is created.
      * <p>
      * If there is a security manager,
      * its {@code checkListen} method is called
@@ -118,11 +128,11 @@ class ServerSocket implements java.io.Closeable {
      * @param      port  the port number, or {@code 0} to use a port
      *                   number that is automatically allocated.
      *
-     * @exception  IOException  if an I/O error occurs when opening the socket.
-     * @exception  SecurityException
+     * @throws     IOException  if an I/O error occurs when opening the socket.
+     * @throws     SecurityException
      * if a security manager exists and its {@code checkListen}
      * method doesn't allow the operation.
-     * @exception  IllegalArgumentException if the port parameter is outside
+     * @throws     IllegalArgumentException if the port parameter is outside
      *             the specified range of valid port values, which is between
      *             0 and 65535, inclusive.
      *
@@ -148,9 +158,10 @@ class ServerSocket implements java.io.Closeable {
      * a connection indication arrives when the queue is full, the
      * connection is refused.
      * <p>
-     * If the application has specified a server socket factory, that
-     * factory's {@code createSocketImpl} method is called to create
-     * the actual socket implementation. Otherwise a "plain" socket is created.
+     * If the application has specified a server socket implementation
+     * factory, that factory's {@code createSocketImpl} method is called to
+     * create the actual socket implementation. Otherwise a system-default
+     * socket implementation is created.
      * <p>
      * If there is a security manager,
      * its {@code checkListen} method is called
@@ -161,7 +172,7 @@ class ServerSocket implements java.io.Closeable {
      * The {@code backlog} argument is the requested maximum number of
      * pending connections on the socket. Its exact semantics are implementation
      * specific. In particular, an implementation may impose a maximum length
-     * or may choose to ignore the parameter altogther. The value provided
+     * or may choose to ignore the parameter altogether. The value provided
      * should be greater than {@code 0}. If it is less than or equal to
      * {@code 0}, then an implementation specific default will be used.
      *
@@ -170,11 +181,11 @@ class ServerSocket implements java.io.Closeable {
      * @param      backlog  requested maximum length of the queue of incoming
      *                      connections.
      *
-     * @exception  IOException  if an I/O error occurs when opening the socket.
-     * @exception  SecurityException
+     * @throws     IOException  if an I/O error occurs when opening the socket.
+     * @throws     SecurityException
      * if a security manager exists and its {@code checkListen}
      * method doesn't allow the operation.
-     * @exception  IllegalArgumentException if the port parameter is outside
+     * @throws     IllegalArgumentException if the port parameter is outside
      *             the specified range of valid port values, which is between
      *             0 and 65535, inclusive.
      *
@@ -209,7 +220,7 @@ class ServerSocket implements java.io.Closeable {
      * The {@code backlog} argument is the requested maximum number of
      * pending connections on the socket. Its exact semantics are implementation
      * specific. In particular, an implementation may impose a maximum length
-     * or may choose to ignore the parameter altogther. The value provided
+     * or may choose to ignore the parameter altogether. The value provided
      * should be greater than {@code 0}. If it is less than or equal to
      * {@code 0}, then an implementation specific default will be used.
      *
@@ -223,7 +234,7 @@ class ServerSocket implements java.io.Closeable {
      * its {@code checkListen} method doesn't allow the operation.
      *
      * @throws  IOException if an I/O error occurs when opening the socket.
-     * @exception  IllegalArgumentException if the port parameter is outside
+     * @throws     IllegalArgumentException if the port parameter is outside
      *             the specified range of valid port values, which is between
      *             0 and 65535, inclusive.
      *
@@ -264,37 +275,13 @@ class ServerSocket implements java.io.Closeable {
         return impl;
     }
 
-    private void checkOldImpl() {
-        if (impl == null)
-            return;
-        // SocketImpl.connect() is a protected method, therefore we need to use
-        // getDeclaredMethod, therefore we need permission to access the member
-        try {
-            AccessController.doPrivileged(
-                new PrivilegedExceptionAction<Void>() {
-                    public Void run() throws NoSuchMethodException {
-                        impl.getClass().getDeclaredMethod("connect",
-                                                          SocketAddress.class,
-                                                          int.class);
-                        return null;
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            oldImpl = true;
-        }
-    }
-
     private void setImpl() {
+        SocketImplFactory factory = ServerSocket.factory;
         if (factory != null) {
             impl = factory.createSocketImpl();
-            checkOldImpl();
         } else {
-            // No need to do a checkOldImpl() here, we know it's an up to date
-            // SocketImpl!
-            impl = new SocksSocketImpl();
+            impl = SocketImpl.createPlatformSocketImpl(true);
         }
-        if (impl != null)
-            impl.setServerSocket(this);
     }
 
     /**
@@ -346,7 +333,7 @@ class ServerSocket implements java.io.Closeable {
      * The {@code backlog} argument is the requested maximum number of
      * pending connections on the socket. Its exact semantics are implementation
      * specific. In particular, an implementation may impose a maximum length
-     * or may choose to ignore the parameter altogther. The value provided
+     * or may choose to ignore the parameter altogether. The value provided
      * should be greater than {@code 0}. If it is less than or equal to
      * {@code 0}, then an implementation specific default will be used.
      * @param   endpoint        The IP address and port number to bind to.
@@ -363,7 +350,7 @@ class ServerSocket implements java.io.Closeable {
     public void bind(SocketAddress endpoint, int backlog) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
-        if (!oldImpl && isBound())
+        if (isBound())
             throw new SocketException("Already bound");
         if (endpoint == null)
             endpoint = new InetSocketAddress(0);
@@ -494,13 +481,19 @@ class ServerSocket implements java.io.Closeable {
      * as its arguments to ensure the operation is allowed.
      * This could result in a SecurityException.
      *
-     * @exception  IOException  if an I/O error occurs when waiting for a
+     * @implNote
+     * An instance of this class using a system-default {@code SocketImpl}
+     * accepts sockets with a {@code SocketImpl} of the same type, regardless
+     * of the {@linkplain Socket#setSocketImplFactory(SocketImplFactory)
+     * client socket implementation factory}, if one has been set.
+     *
+     * @throws     IOException  if an I/O error occurs when waiting for a
      *               connection.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkAccept} method doesn't allow the operation.
-     * @exception  SocketTimeoutException if a timeout was previously set with setSoTimeout and
+     * @throws     SocketTimeoutException if a timeout was previously set with setSoTimeout and
      *             the timeout has been reached.
-     * @exception  java.nio.channels.IllegalBlockingModeException
+     * @throws     java.nio.channels.IllegalBlockingModeException
      *             if this socket has an associated channel, the channel is in
      *             non-blocking mode, and there is no connection ready to be
      *             accepted
@@ -523,52 +516,166 @@ class ServerSocket implements java.io.Closeable {
     /**
      * Subclasses of ServerSocket use this method to override accept()
      * to return their own subclass of socket.  So a FooServerSocket
-     * will typically hand this method an <i>empty</i> FooSocket.  On
-     * return from implAccept the FooSocket will be connected to a client.
+     * will typically hand this method a newly created, unbound, FooSocket.
+     * On return from implAccept the FooSocket will be connected to a client.
+     *
+     * <p> The behavior of this method is unspecified when invoked with a
+     * socket that is not newly created and unbound. Any socket options set
+     * on the given socket prior to invoking this method may or may not be
+     * preserved when the connection is accepted. It may not be possible to
+     * accept a connection when this socket has a {@code SocketImpl} of one
+     * type and the given socket has a {@code SocketImpl} of a completely
+     * different type.
+     *
+     * @implNote
+     * An instance of this class using a system-default {@code SocketImpl}
+     * can accept a connection with a Socket using a {@code SocketImpl} of
+     * the same type: {@code IOException} is thrown if the Socket is using
+     * a custom {@code SocketImpl}. An instance of this class using a
+     * custom {@code SocketImpl} cannot accept a connection with a Socket
+     * using a system-default {@code SocketImpl}.
      *
      * @param s the Socket
      * @throws java.nio.channels.IllegalBlockingModeException
      *         if this socket has an associated channel,
      *         and the channel is in non-blocking mode
      * @throws IOException if an I/O error occurs when waiting
-     * for a connection.
+     *         for a connection, or if it is not possible for this socket
+     *         to accept a connection with the given socket
+     *
      * @since   1.1
      * @revised 1.4
      * @spec JSR-51
      */
     protected final void implAccept(Socket s) throws IOException {
-        SocketImpl si = null;
-        try {
-            if (s.impl == null)
-              s.setImpl();
-            else {
-                s.impl.reset();
-            }
-            si = s.impl;
-            s.impl = null;
-            si.address = new InetAddress();
-            si.fd = new FileDescriptor();
-            getImpl().accept(si);
-            SocketCleanable.register(si.fd);   // raw fd has been set
+        SocketImpl si = s.impl;
 
-            SecurityManager security = System.getSecurityManager();
-            if (security != null) {
-                security.checkAccept(si.getInetAddress().getHostAddress(),
-                                     si.getPort());
+        // Socket has no SocketImpl
+        if (si == null) {
+            si = implAccept();
+            s.setImpl(si);
+            s.postAccept();
+            return;
+        }
+
+        // Socket has a SOCKS or HTTP SocketImpl, need delegate
+        if (si instanceof DelegatingSocketImpl) {
+            si = ((DelegatingSocketImpl) si).delegate();
+            assert si instanceof PlatformSocketImpl;
+        }
+
+        // Accept connection with a platform or custom SocketImpl.
+        // For the platform SocketImpl case:
+        // - the connection is accepted with a new SocketImpl
+        // - the SO_TIMEOUT socket option is copied to the new SocketImpl
+        // - the Socket is connected to the new SocketImpl
+        // - the existing/old SocketImpl is closed
+        // For the custom SocketImpl case, the connection is accepted with the
+        // existing custom SocketImpl.
+        ensureCompatible(si);
+        if (impl instanceof PlatformSocketImpl) {
+            SocketImpl psi = platformImplAccept();
+            si.copyOptionsTo(psi);
+            s.setImpl(psi);
+            si.closeQuietly();
+        } else {
+            s.impl = null; // temporarily break connection to impl
+            try {
+                customImplAccept(si);
+            } finally {
+                s.impl = si;  // restore connection to impl
             }
-        } catch (IOException e) {
-            if (si != null)
-                si.reset();
-            s.impl = si;
-            throw e;
-        } catch (SecurityException e) {
-            if (si != null)
-                si.reset();
-            s.impl = si;
+        }
+        s.postAccept();
+    }
+
+    /**
+     * Accepts a connection with a new SocketImpl.
+     * @return the new SocketImpl
+     */
+    private SocketImpl implAccept() throws IOException {
+        if (impl instanceof PlatformSocketImpl) {
+            return platformImplAccept();
+        } else {
+            // custom server SocketImpl, client SocketImplFactory must be set
+            SocketImplFactory factory = Socket.socketImplFactory();
+            if (factory == null) {
+                throw new IOException("An instance of " + impl.getClass() +
+                    " cannot accept connection with 'null' SocketImpl:" +
+                    " client socket implementation factory not set");
+            }
+            SocketImpl si = factory.createSocketImpl();
+            customImplAccept(si);
+            return si;
+        }
+    }
+
+    /**
+     * Accepts a connection with a new platform SocketImpl.
+     * @return the new platform SocketImpl
+     */
+    private SocketImpl platformImplAccept() throws IOException {
+        assert impl instanceof PlatformSocketImpl;
+
+        // create a new platform SocketImpl and accept the connection
+        SocketImpl psi = SocketImpl.createPlatformSocketImpl(false);
+        implAccept(psi);
+        return psi;
+    }
+
+    /**
+     * Accepts a new connection with the given custom SocketImpl.
+     */
+    private void customImplAccept(SocketImpl si) throws IOException {
+        assert !(impl instanceof PlatformSocketImpl)
+                && !(si instanceof PlatformSocketImpl);
+
+        si.reset();
+        try {
+            // custom SocketImpl may expect fd/address objects to be created
+            si.fd = new FileDescriptor();
+            si.address = new InetAddress();
+            implAccept(si);
+        } catch (Exception e) {
+            si.reset();
             throw e;
         }
-        s.impl = si;
-        s.postAccept();
+    }
+
+    /**
+     * Accepts a new connection so that the given SocketImpl is connected to
+     * the peer. The SocketImpl and connection are closed if the connection is
+     * denied by the security manager.
+     * @throws IOException if an I/O error occurs
+     * @throws SecurityException if the security manager's checkAccept method fails
+     */
+    private void implAccept(SocketImpl si) throws IOException {
+        assert !(si instanceof DelegatingSocketImpl);
+
+        // accept a connection
+        impl.accept(si);
+
+        // check permission, close SocketImpl/connection if denied
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            try {
+                sm.checkAccept(si.getInetAddress().getHostAddress(), si.getPort());
+            } catch (SecurityException se) {
+                si.close();
+                throw se;
+            }
+        }
+    }
+
+    /**
+     * Throws IOException if the server SocketImpl and the given client
+     * SocketImpl are not both platform or custom SocketImpls.
+     */
+    private void ensureCompatible(SocketImpl si) throws IOException {
+        if ((impl instanceof PlatformSocketImpl) != (si instanceof PlatformSocketImpl)) {
+            throw new IOException("An instance of " + impl.getClass() +
+                " cannot accept a connection with an instance of " + si.getClass());
+        }
     }
 
     /**
@@ -580,7 +687,7 @@ class ServerSocket implements java.io.Closeable {
      * <p> If this socket has an associated channel then the channel is closed
      * as well.
      *
-     * @exception  IOException  if an I/O error occurs when closing the socket.
+     * @throws     IOException  if an I/O error occurs when closing the socket.
      * @revised 1.4
      * @spec JSR-51
      */
@@ -616,13 +723,16 @@ class ServerSocket implements java.io.Closeable {
 
     /**
      * Returns the binding state of the ServerSocket.
+     * <p>
+     * If the socket was bound prior to being {@linkplain #close closed},
+     * then this method will continue to return {@code true}
+     * after the socket is closed.
      *
      * @return true if the ServerSocket successfully bound to an address
      * @since 1.4
      */
     public boolean isBound() {
-        // Before 1.3 ServerSockets were always bound during creation
-        return bound || oldImpl;
+        return bound;
     }
 
     /**
@@ -648,14 +758,17 @@ class ServerSocket implements java.io.Closeable {
      * timeout must be {@code > 0}.
      * A timeout of zero is interpreted as an infinite timeout.
      * @param timeout the specified timeout, in milliseconds
-     * @exception SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
+     * @throws  SocketException if there is an error in the underlying protocol,
+     *          such as a TCP error
+     * @throws  IllegalArgumentException  if {@code timeout} is negative
      * @since   1.1
      * @see #getSoTimeout()
      */
     public synchronized void setSoTimeout(int timeout) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
+        if (timeout < 0)
+            throw new IllegalArgumentException("timeout < 0");
         getImpl().setOption(SocketOptions.SO_TIMEOUT, timeout);
     }
 
@@ -663,7 +776,7 @@ class ServerSocket implements java.io.Closeable {
      * Retrieve setting for {@link SocketOptions#SO_TIMEOUT SO_TIMEOUT}.
      * 0 returns implies that the option is disabled (i.e., timeout of infinity).
      * @return the {@link SocketOptions#SO_TIMEOUT SO_TIMEOUT} value
-     * @exception IOException if an I/O error occurs
+     * @throws    IOException if an I/O error occurs
      * @since   1.1
      * @see #setSoTimeout(int)
      */
@@ -706,7 +819,7 @@ class ServerSocket implements java.io.Closeable {
      * is not defined.
      *
      * @param on  whether to enable or disable the socket option
-     * @exception SocketException if an error occurs enabling or
+     * @throws    SocketException if an error occurs enabling or
      *            disabling the {@link SocketOptions#SO_REUSEADDR SO_REUSEADDR}
      *            socket option, or the socket is closed.
      * @since 1.4
@@ -726,7 +839,7 @@ class ServerSocket implements java.io.Closeable {
      *
      * @return a {@code boolean} indicating whether or not
      *         {@link SocketOptions#SO_REUSEADDR SO_REUSEADDR} is enabled.
-     * @exception SocketException if there is an error
+     * @throws    SocketException if there is an error
      * in the underlying protocol, such as a TCP error.
      * @since   1.4
      * @see #setReuseAddress(boolean)
@@ -741,7 +854,8 @@ class ServerSocket implements java.io.Closeable {
      * Returns the implementation address and implementation port of
      * this socket as a {@code String}.
      * <p>
-     * If there is a security manager set, its {@code checkConnect} method is
+     * If there is a security manager set, and this socket is
+     * {@linkplain #isBound bound}, its {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
      * an {@code InetAddress} representing the
@@ -755,25 +869,17 @@ class ServerSocket implements java.io.Closeable {
             return "ServerSocket[unbound]";
         InetAddress in;
         if (System.getSecurityManager() != null)
-            in = InetAddress.getLoopbackAddress();
+            in = getInetAddress();
         else
             in = impl.getInetAddress();
         return "ServerSocket[addr=" + in +
                 ",localport=" + impl.getLocalPort()  + "]";
     }
 
-    void setBound() {
-        bound = true;
-    }
-
-    void setCreated() {
-        created = true;
-    }
-
     /**
      * The factory for all server sockets.
      */
-    private static SocketImplFactory factory = null;
+    private static volatile SocketImplFactory factory;
 
     /**
      * Sets the server socket implementation factory for the
@@ -792,10 +898,10 @@ class ServerSocket implements java.io.Closeable {
      * This could result in a SecurityException.
      *
      * @param      fac   the desired factory.
-     * @exception  IOException  if an I/O error occurs when setting the
+     * @throws     IOException  if an I/O error occurs when setting the
      *               socket factory.
-     * @exception  SocketException  if the factory has already been defined.
-     * @exception  SecurityException  if a security manager exists and its
+     * @throws     SocketException  if the factory has already been defined.
+     * @throws     SecurityException  if a security manager exists and its
      *             {@code checkSetFactory} method doesn't allow the operation.
      * @see        java.net.SocketImplFactory#createSocketImpl()
      * @see        SecurityManager#checkSetFactory
@@ -821,7 +927,7 @@ class ServerSocket implements java.io.Closeable {
      * <p>
      * The value of {@link SocketOptions#SO_RCVBUF SO_RCVBUF} is used both to
      * set the size of the internal socket receive buffer, and to set the size
-     * of the TCP receive window that is advertized to the remote peer.
+     * of the TCP receive window that is advertised to the remote peer.
      * <p>
      * It is possible to change the value subsequently, by calling
      * {@link Socket#setReceiveBufferSize(int)}. However, if the application
@@ -835,13 +941,13 @@ class ServerSocket implements java.io.Closeable {
      * requested value but the TCP receive window in sockets accepted from
      * this ServerSocket will be no larger than 64K bytes.
      *
-     * @exception SocketException if there is an error
+     * @throws    SocketException if there is an error
      * in the underlying protocol, such as a TCP error.
      *
      * @param size the size to which to set the receive buffer
      * size. This value must be greater than 0.
      *
-     * @exception IllegalArgumentException if the
+     * @throws    IllegalArgumentException if the
      * value is 0 or is negative.
      *
      * @since 1.4
@@ -865,7 +971,7 @@ class ServerSocket implements java.io.Closeable {
      * calling {@link Socket#getReceiveBufferSize()}.
      * @return the value of the {@link SocketOptions#SO_RCVBUF SO_RCVBUF}
      *         option for this {@code Socket}.
-     * @exception SocketException if there is an error
+     * @throws    SocketException if there is an error
      *            in the underlying protocol, such as a TCP error.
      * @see #setReceiveBufferSize(int)
      * @since 1.4
@@ -957,6 +1063,9 @@ class ServerSocket implements java.io.Closeable {
     public <T> ServerSocket setOption(SocketOption<T> name, T value)
         throws IOException
     {
+        Objects.requireNonNull(name);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
         getImpl().setOption(name, value);
         return this;
     }
@@ -985,11 +1094,14 @@ class ServerSocket implements java.io.Closeable {
      * @since 9
      */
     public <T> T getOption(SocketOption<T> name) throws IOException {
+        Objects.requireNonNull(name);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
         return getImpl().getOption(name);
     }
 
-    private static Set<SocketOption<?>> options;
-    private static boolean optionsSet = false;
+    // cache of unmodifiable impl options. Possibly set racy, in impl we trust
+    private volatile Set<SocketOption<?>> options;
 
     /**
      * Returns a set of the socket options supported by this server socket.
@@ -1003,41 +1115,16 @@ class ServerSocket implements java.io.Closeable {
      * @since 9
      */
     public Set<SocketOption<?>> supportedOptions() {
-        synchronized (ServerSocket.class) {
-            if (optionsSet) {
-                return options;
-            }
-            try {
-                SocketImpl impl = getImpl();
-                options = Collections.unmodifiableSet(impl.supportedOptions());
-            } catch (IOException e) {
-                options = Collections.emptySet();
-            }
-            optionsSet = true;
-            return options;
+        Set<SocketOption<?>> so = options;
+        if (so != null)
+            return so;
+
+        try {
+            SocketImpl impl = getImpl();
+            options = Collections.unmodifiableSet(impl.supportedOptions());
+        } catch (IOException e) {
+            options = Collections.emptySet();
         }
-    }
-
-    static {
-        SharedSecrets.setJavaNetSocketAccess(
-            new JavaNetSocketAccess() {
-                @Override
-                public ServerSocket newServerSocket(SocketImpl impl) {
-                    return new ServerSocket(impl);
-                }
-
-                @Override
-                public SocketImpl newSocketImpl(Class<? extends SocketImpl> implClass) {
-                    try {
-                        Constructor<? extends SocketImpl> ctor =
-                            implClass.getDeclaredConstructor();
-                        return ctor.newInstance();
-                    } catch (NoSuchMethodException | InstantiationException |
-                             IllegalAccessException | InvocationTargetException e) {
-                        throw new AssertionError(e);
-                    }
-                }
-            }
-        );
+        return options;
     }
 }

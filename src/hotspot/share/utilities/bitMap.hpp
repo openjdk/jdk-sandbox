@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_BITMAP_HPP
-#define SHARE_VM_UTILITIES_BITMAP_HPP
+#ifndef SHARE_UTILITIES_BITMAP_HPP
+#define SHARE_UTILITIES_BITMAP_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/align.hpp"
@@ -60,6 +60,21 @@ class BitMap {
  private:
   bm_word_t* _map;     // First word in bitmap
   idx_t      _size;    // Size of bitmap (in bits)
+
+  // Helper for get_next_{zero,one}_bit variants.
+  // - flip designates whether searching for 1s or 0s.  Must be one of
+  //   find_{zeros,ones}_flip.
+  // - aligned_right is true if r_index is a priori on a bm_word_t boundary.
+  template<bm_word_t flip, bool aligned_right>
+  inline idx_t get_next_bit_impl(idx_t l_index, idx_t r_index) const;
+
+  // Values for get_next_bit_impl flip parameter.
+  static const bm_word_t find_ones_flip = 0;
+  static const bm_word_t find_zeros_flip = ~(bm_word_t)0;
+
+  // Threshold for performing small range operation, even when large range
+  // operation was requested. Measured in words.
+  static const size_t small_range_words = 32;
 
  protected:
   // Return the position of bit within the word that contains it (e.g., if
@@ -106,6 +121,8 @@ class BitMap {
 
   static void clear_range_of_words(bm_word_t* map, idx_t beg, idx_t end);
 
+  static bool is_small_range_of_words(idx_t beg_full_word, idx_t end_full_word);
+
   // The index of the first full word in a range.
   idx_t word_index_round_up(idx_t bit) const;
 
@@ -140,20 +157,20 @@ class BitMap {
   // Old bits are transfered to the new memory
   // and the extended memory is cleared.
   template <class Allocator>
-  void resize(const Allocator& allocator, idx_t new_size_in_bits);
+  void resize(const Allocator& allocator, idx_t new_size_in_bits, bool clear);
 
   // Set up and clear the bitmap memory.
   //
   // Precondition: The bitmap was default constructed and has
   // not yet had memory allocated via resize or (re)initialize.
   template <class Allocator>
-  void initialize(const Allocator& allocator, idx_t size_in_bits);
+  void initialize(const Allocator& allocator, idx_t size_in_bits, bool clear);
 
   // Set up and clear the bitmap memory.
   //
   // Can be called on previously initialized bitmaps.
   template <class Allocator>
-  void reinitialize(const Allocator& allocator, idx_t new_size_in_bits);
+  void reinitialize(const Allocator& allocator, idx_t new_size_in_bits, bool clear);
 
   // Set the map and size.
   void update(bm_word_t* map, idx_t size) {
@@ -312,8 +329,8 @@ class ResourceBitMap : public BitMap {
 
  public:
   ResourceBitMap() : BitMap(NULL, 0) {}
-  // Clears the bitmap memory.
-  ResourceBitMap(idx_t size_in_bits);
+  // Conditionally clears the bitmap memory.
+  ResourceBitMap(idx_t size_in_bits, bool clear = true);
 
   // Resize the backing bitmap memory.
   //
@@ -366,19 +383,19 @@ class CHeapBitMap : public BitMap {
   // Resize the backing bitmap memory.
   //
   // Old bits are transfered to the new memory
-  // and the extended memory is cleared.
-  void resize(idx_t new_size_in_bits);
+  // and the extended memory is (optionally) cleared.
+  void resize(idx_t new_size_in_bits, bool clear = true);
 
-  // Set up and clear the bitmap memory.
+  // Set up and (optionally) clear the bitmap memory.
   //
   // Precondition: The bitmap was default constructed and has
   // not yet had memory allocated via resize or initialize.
-  void initialize(idx_t size_in_bits);
+  void initialize(idx_t size_in_bits, bool clear = true);
 
-  // Set up and clear the bitmap memory.
+  // Set up and (optionally) clear the bitmap memory.
   //
   // Can be called on previously initialized bitmaps.
-  void reinitialize(idx_t size_in_bits);
+  void reinitialize(idx_t size_in_bits, bool clear = true);
 };
 
 // Convenience class wrapping BitMap which provides multiple bits per slot.
@@ -412,12 +429,6 @@ class BitMap2D {
     return _map.size();
   }
 
-  // Returns number of full slots that have been allocated
-  idx_t size_in_slots() {
-    // Round down
-    return _map.size() / _bits_per_slot;
-  }
-
   bool is_valid_index(idx_t slot_index, idx_t bit_within_slot_index);
   bool at(idx_t slot_index, idx_t bit_within_slot_index) const;
   void set_bit(idx_t slot_index, idx_t bit_within_slot_index);
@@ -435,4 +446,4 @@ class BitMapClosure {
   virtual bool do_bit(BitMap::idx_t offset) = 0;
 };
 
-#endif // SHARE_VM_UTILITIES_BITMAP_HPP
+#endif // SHARE_UTILITIES_BITMAP_HPP

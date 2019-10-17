@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,7 @@ package java.security;
 
 public abstract class Permission implements Guard, java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -5636570222231596674L;
 
     private String name;
@@ -222,7 +223,7 @@ public abstract class Permission implements Guard, java.io.Serializable {
      */
     public String toString() {
         String actions = getActions();
-        if ((actions == null) || (actions.length() == 0)) { // OPTIONAL
+        if (actions == null || actions.isEmpty()) { // OPTIONAL
             return "(\"" + getClass().getName() + "\" \"" + name + "\")";
         } else {
             return "(\"" + getClass().getName() + "\" \"" + name +

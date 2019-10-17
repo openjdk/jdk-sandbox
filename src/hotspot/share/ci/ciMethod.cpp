@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/handles.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/xmlstream.hpp"
 #ifdef COMPILER2
@@ -89,6 +90,7 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
   _is_c2_compilable   = !h_m()->is_not_c2_compilable();
   _can_be_parsed      = true;
   _has_reserved_stack_access = h_m()->has_reserved_stack_access();
+  _is_overpass        = h_m()->is_overpass();
   // Lazy fields, filled in on demand.  Require allocation.
   _code               = NULL;
   _exception_handlers = NULL;
@@ -109,7 +111,7 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
       _can_be_parsed = false;
     }
   } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
+    DEBUG_ONLY(CompilerThread::current()->check_possible_safepoint());
   }
 
   if (h_m()->method_holder()->is_linked()) {
@@ -402,12 +404,14 @@ MethodLivenessResult ciMethod::raw_liveness_at_bci(int bci) {
 // will return true for all locals in some cases to improve debug
 // information.
 MethodLivenessResult ciMethod::liveness_at_bci(int bci) {
-  MethodLivenessResult result = raw_liveness_at_bci(bci);
-  if (CURRENT_ENV->should_retain_local_variables() || DeoptimizeALot || CompileTheWorld) {
+  if (CURRENT_ENV->should_retain_local_variables() || DeoptimizeALot) {
     // Keep all locals live for the user's edification and amusement.
-    result.at_put_range(0, result.size(), true);
+    MethodLivenessResult result(_max_locals);
+    result.set_range(0, _max_locals);
+    result.set_is_valid();
+    return result;
   }
-  return result;
+  return raw_liveness_at_bci(bci);
 }
 
 // ciMethod::live_local_oops_at_bci
@@ -458,6 +462,27 @@ const BitMap& ciMethod::bci_block_start() {
 
 
 // ------------------------------------------------------------------
+// ciMethod::check_overflow
+//
+// Check whether the profile counter is overflowed and adjust if true.
+// For invoke* it will turn negative values into max_jint,
+// and for checkcast/aastore/instanceof turn positive values into min_jint.
+int ciMethod::check_overflow(int c, Bytecodes::Code code) {
+  switch (code) {
+    case Bytecodes::_aastore:    // fall-through
+    case Bytecodes::_checkcast:  // fall-through
+    case Bytecodes::_instanceof: {
+      return (c > 0 ? min_jint : c); // always non-positive
+    }
+    default: {
+      assert(Bytecodes::is_invoke(code), "%s", Bytecodes::name(code));
+      return (c < 0 ? max_jint : c); // always non-negative
+    }
+  }
+}
+
+
+// ------------------------------------------------------------------
 // ciMethod::call_profile_at_bci
 //
 // Get the ciCallProfile for the invocation of this method.
@@ -469,7 +494,7 @@ ciCallProfile ciMethod::call_profile_at_bci(int bci) {
     ciProfileData* data = method_data()->bci_to_data(bci);
     if (data != NULL && data->is_CounterData()) {
       // Every profiled call site has a counter.
-      int count = data->as_CounterData()->count();
+      int count = check_overflow(data->as_CounterData()->count(), java_code_at_bci(bci));
 
       if (!data->is_ReceiverTypeData()) {
         result._receiver_count[0] = 0;  // that's a definite zero
@@ -498,9 +523,9 @@ ciCallProfile ciMethod::call_profile_at_bci(int bci) {
         for (uint i = 0; i < call->row_limit(); i++) {
           ciKlass* receiver = call->receiver(i);
           if (receiver == NULL)  continue;
-          int rcount = call->receiver_count(i) + epsilon;
+          int rcount = saturated_add(call->receiver_count(i), epsilon);
           if (rcount == 0) rcount = 1; // Should be valid value
-          receivers_count_total += rcount;
+          receivers_count_total = saturated_add(receivers_count_total, rcount);
           // Add the receiver to result data.
           result.add_receiver(receiver, rcount);
           // If we extend profiling to record methods,
@@ -530,7 +555,7 @@ ciCallProfile ciMethod::call_profile_at_bci(int bci) {
         // do nothing.  Otherwise, increase count to be the sum of all
         // receiver's counts.
         if (count >= 0) {
-          count += receivers_count_total;
+          count = saturated_add(count, receivers_count_total);
         }
       }
       result._count = count;
@@ -716,7 +741,7 @@ ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
   VM_ENTRY_MARK;
 
   // Disable CHA for default methods for now
-  if (root_m->get_Method()->is_default_method()) {
+  if (root_m->is_default_method()) {
     return NULL;
   }
 
@@ -756,7 +781,16 @@ ciMethod* ciMethod::find_monomorphic_target(ciInstanceKlass* caller,
     // with the same name but different vtable indexes.
     return NULL;
   }
+  assert(!target()->is_abstract(), "not allowed");
   return CURRENT_THREAD_ENV->get_method(target());
+}
+
+// ------------------------------------------------------------------
+// ciMethod::can_be_statically_bound
+//
+// Tries to determine whether a method can be statically bound in some context.
+bool ciMethod::can_be_statically_bound(ciInstanceKlass* context) const {
+  return (holder() == context) && can_be_statically_bound();
 }
 
 // ------------------------------------------------------------------
@@ -872,6 +906,14 @@ ciMethod* ciMethod::get_method_at_bci(int bci, bool &will_link, ciSignature* *de
 }
 
 // ------------------------------------------------------------------
+ciKlass* ciMethod::get_declared_method_holder_at_bci(int bci) {
+  ciBytecodeStream iter(this);
+  iter.reset_to_bci(bci);
+  iter.next();
+  return iter.get_declared_method_holder();
+}
+
+// ------------------------------------------------------------------
 // Adjust a CounterData count to be commensurate with
 // interpreter_invocation_count.  If the MDO exists for
 // only 25% of the time the method exists, then the
@@ -912,6 +954,13 @@ bool ciMethod::is_ignored_by_security_stack_walk() const {
   return get_Method()->is_ignored_by_security_stack_walk();
 }
 
+// ------------------------------------------------------------------
+// ciMethod::needs_clinit_barrier
+//
+bool ciMethod::needs_clinit_barrier() const {
+  check_is_loaded();
+  return is_static() && !holder()->is_initialized();
+}
 
 // ------------------------------------------------------------------
 // invokedynamic support
@@ -1083,7 +1132,7 @@ void ciMethod::set_not_compilable(const char* reason) {
   } else {
     _is_c2_compilable = false;
   }
-  get_Method()->set_not_compilable(env->comp_level(), true, reason);
+  get_Method()->set_not_compilable(reason, env->comp_level());
 }
 
 // ------------------------------------------------------------------
@@ -1210,7 +1259,7 @@ bool ciMethod::is_klass_loaded(int refinfo_index, bool must_be_resolved) const {
 // ciMethod::check_call
 bool ciMethod::check_call(int refinfo_index, bool is_static) const {
   // This method is used only in C2 from InlineTree::ok_to_inline,
-  // and is only used under -Xcomp or -XX:CompileTheWorld.
+  // and is only used under -Xcomp.
   // It appears to fail when applied to an invokeinterface call site.
   // FIXME: Remove this method and resolve_method_statically; refactor to use the other LinkResolver entry points.
   VM_ENTRY_MARK;
@@ -1405,8 +1454,8 @@ void ciMethod::print_impl(outputStream* st) {
 // ------------------------------------------------------------------
 
 static BasicType erase_to_word_type(BasicType bt) {
-  if (is_subword_type(bt)) return T_INT;
-  if (bt == T_ARRAY)       return T_OBJECT;
+  if (is_subword_type(bt))   return T_INT;
+  if (is_reference_type(bt)) return T_OBJECT;
   return bt;
 }
 

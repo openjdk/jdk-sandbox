@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,14 @@
 
 # The command line given to configure.
 CONFIGURE_COMMAND_LINE:=@CONFIGURE_COMMAND_LINE@
+# The current directory when configure was run
+CONFIGURE_START_DIR:=@CONFIGURE_START_DIR@
 
 # A self-referential reference to this file.
 SPEC:=@SPEC@
+
+# Path to autoconf if overriden by the user, to be used by "make reconfigure"
+AUTOCONF := @AUTOCONF@
 
 # SPACE and COMMA are defined in MakeBase.gmk, but they are also used in
 # some definitions here, and are needed if MakeBase.gmk is not included before
@@ -45,6 +50,9 @@ COMMA:=,
 
 # What make to use for main processing, after bootstrapping top-level Makefile.
 MAKE := @MAKE@
+
+# Make sure all shell commands are executed with the C locale
+export LC_ALL := C
 
 # The default make arguments
 MAKE_ARGS = $(MAKE_LOG_FLAGS) -r -R -I $(TOPDIR)/make/common SPEC=$(SPEC) \
@@ -122,7 +130,12 @@ ORIGINAL_PATH:=@ORIGINAL_PATH@
 ifeq ($(OPENJDK_TARGET_OS), windows)
   # On Windows, the Visual Studio toolchain needs the PATH to be adjusted
   # to include Visual Studio tools (this needs to be in cygwin/msys style).
-  export PATH:=@VS_PATH@
+  ifeq ($(OPENJDK_TARGET_OS_ENV), windows.wsl)
+    export FIXPATH_PATH:=@VS_PATH_WINDOWS@
+    export WSLENV:=$(WSLENV):FIXPATH_PATH:DEBUG_FIXPATH
+  else
+    export PATH:=@VS_PATH@
+  endif
 endif
 
 SYSROOT_CFLAGS := @SYSROOT_CFLAGS@
@@ -130,8 +143,9 @@ SYSROOT_LDFLAGS := @SYSROOT_LDFLAGS@
 
 # The top-level directory of the source repository
 TOPDIR:=@TOPDIR@
-
-
+# Usually the top level directory, but could be something else if a custom
+# root is defined.
+WORKSPACE_ROOT:=@WORKSPACE_ROOT@
 IMPORT_MODULES_CLASSES:=@IMPORT_MODULES_CLASSES@
 IMPORT_MODULES_CMDS:=@IMPORT_MODULES_CMDS@
 IMPORT_MODULES_LIBS:=@IMPORT_MODULES_LIBS@
@@ -148,6 +162,7 @@ LAUNCHER_NAME:=@LAUNCHER_NAME@
 PRODUCT_NAME:=@PRODUCT_NAME@
 PRODUCT_SUFFIX:=@PRODUCT_SUFFIX@
 JDK_RC_PLATFORM_NAME:=@JDK_RC_PLATFORM_NAME@
+JDK_RC_NAME:=@JDK_RC_NAME@
 COMPANY_NAME:=@COMPANY_NAME@
 HOTSPOT_VM_DISTRO:=@HOTSPOT_VM_DISTRO@
 MACOSX_BUNDLE_NAME_BASE=@MACOSX_BUNDLE_NAME_BASE@
@@ -200,6 +215,8 @@ VENDOR_VERSION_STRING := @VENDOR_VERSION_STRING@
 VERSION_CLASSFILE_MAJOR := @VERSION_CLASSFILE_MAJOR@
 VERSION_CLASSFILE_MINOR := @VERSION_CLASSFILE_MINOR@
 
+JDK_SOURCE_TARGET_VERSION := @JDK_SOURCE_TARGET_VERSION@
+
 # Convenience CFLAGS settings for passing version information into native programs.
 VERSION_CFLAGS := \
     -DVERSION_FEATURE=$(VERSION_FEATURE) \
@@ -228,7 +245,8 @@ ifneq ($(COMPANY_NAME),)
   # Only export "VENDOR" to the build if COMPANY_NAME contains a real value.
   # Otherwise the default value for VENDOR, which is used to set the "java.vendor"
   # and "java.vm.vendor" properties is hard-coded into the source code (i.e. in
-  # System.c in the jdk for "vm.vendor" and vm_version.cpp in the VM for "java.vm.vendor")
+  # VersionProps.java.template in the jdk for "vm.vendor" and
+  # vm_version.cpp in the VM for "java.vm.vendor")
   ifneq ($(COMPANY_NAME), N/A)
     VERSION_CFLAGS += -DVENDOR='"$(COMPANY_NAME)"'
   endif
@@ -271,8 +289,11 @@ JVM_FEATURES_custom := @JVM_FEATURES_custom@
 VALID_JVM_FEATURES := @VALID_JVM_FEATURES@
 VALID_JVM_VARIANTS := @VALID_JVM_VARIANTS@
 
-# Control wether Hotspot builds gtest tests
+# Control whether Hotspot builds gtest tests
 BUILD_GTEST := @BUILD_GTEST@
+
+# Allow overriding the default hotspot library path
+HOTSPOT_OVERRIDE_LIBPATH := @HOTSPOT_OVERRIDE_LIBPATH@
 
 # Control use of precompiled header in hotspot libjvm build
 USE_PRECOMPILED_HEADER := @USE_PRECOMPILED_HEADER@
@@ -308,6 +329,8 @@ ENABLE_GENERATE_CLASSLIST := @ENABLE_GENERATE_CLASSLIST@
 EXCLUDE_TRANSLATIONS := @EXCLUDE_TRANSLATIONS@
 
 BUILD_MANPAGES := @BUILD_MANPAGES@
+
+BUILD_CDS_ARCHIVE := @BUILD_CDS_ARCHIVE@
 
 # The boot jdk to use. This is overridden in bootcycle-spec.gmk. Make sure to keep
 # it in sync.
@@ -353,6 +376,12 @@ ENABLE_LIBFFI_BUNDLING:=@ENABLE_LIBFFI_BUNDLING@
 LIBFFI_LIB_FILE:=@LIBFFI_LIB_FILE@
 GRAALUNIT_LIB := @GRAALUNIT_LIB@
 
+JMH_CORE_JAR := @JMH_CORE_JAR@
+JMH_GENERATOR_JAR := @JMH_GENERATOR_JAR@
+JMH_JOPT_SIMPLE_JAR := @JMH_JOPT_SIMPLE_JAR@
+JMH_COMMONS_MATH_JAR := @JMH_COMMONS_MATH_JAR@
+JMH_VERSION := @JMH_VERSION@
+
 # Source file for cacerts
 CACERTS_FILE=@CACERTS_FILE@
 
@@ -360,12 +389,16 @@ CACERTS_FILE=@CACERTS_FILE@
 UNLIMITED_CRYPTO=@UNLIMITED_CRYPTO@
 
 GCOV_ENABLED=@GCOV_ENABLED@
+JCOV_ENABLED=@JCOV_ENABLED@
+JCOV_HOME=@JCOV_HOME@
+JCOV_INPUT_JDK=@JCOV_INPUT_JDK@
+JCOV_FILTERS=@JCOV_FILTERS@
 
 # AddressSanitizer
 export ASAN_ENABLED:=@ASAN_ENABLED@
 export DEVKIT_LIB_DIR:=@DEVKIT_LIB_DIR@
 ifeq ($(ASAN_ENABLED), yes)
-  export ASAN_OPTIONS="handle_segv=0 detect_leaks=0"
+  export ASAN_OPTIONS=handle_segv=0 detect_leaks=0
   ifneq ($(DEVKIT_LIB_DIR),)
     export LD_LIBRARY_PATH:=$(LD_LIBRARY_PATH):$(DEVKIT_LIB_DIR)
   endif
@@ -459,6 +492,7 @@ JVM_RCFLAGS := @JVM_RCFLAGS@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
 EXTRA_CXXFLAGS = @EXTRA_CXXFLAGS@
 EXTRA_LDFLAGS = @EXTRA_LDFLAGS@
+EXTRA_ASFLAGS = @EXTRA_ASFLAGS@
 
 CXX:=@FIXPATH@ @CCACHE@ @ICECC@ @CXX@
 
@@ -466,6 +500,9 @@ CPP:=@FIXPATH@ @CPP@
 
 # The linker can be gcc or ld on unix systems, or link.exe on windows systems.
 LD:=@FIXPATH@ @LD@
+
+# Linker used by the jaotc tool for AOT compilation.
+LD_JAOTC:=@LD_JAOTC@
 
 # Xcode SDK path
 SDKROOT:=@SDKROOT@
@@ -709,6 +746,7 @@ MT:=@FIXPATH@ @MT@
 RC:=@FIXPATH@ @RC@
 DUMPBIN:=@FIXPATH@ @DUMPBIN@
 CYGPATH:=@CYGPATH@
+WSLPATH:=@WSLPATH@
 LDD:=@LDD@
 OTOOL:=@OTOOL@
 READELF:=@READELF@
@@ -723,7 +761,7 @@ SETFILE:=@SETFILE@
 XATTR:=@XATTR@
 JT_HOME:=@JT_HOME@
 JTREGEXE:=@JTREGEXE@
-JIB_JAR:=@JIB_JAR@
+JIB_HOME:=@JIB_HOME@
 XCODEBUILD=@XCODEBUILD@
 DTRACE := @DTRACE@
 FIXPATH:=@FIXPATH@
@@ -746,6 +784,8 @@ MSVCR_DLL:=@MSVCR_DLL@
 MSVCP_DLL:=@MSVCP_DLL@
 UCRT_DLL_DIR:=@UCRT_DLL_DIR@
 STLPORT_LIB:=@STLPORT_LIB@
+ENABLE_PANDOC:=@ENABLE_PANDOC@
+PANDOC_MARKDOWN_FLAG:=@PANDOC_MARKDOWN_FLAG@
 
 ####################################################
 #
@@ -827,10 +867,12 @@ OS_VERSION_MICRO:=@OS_VERSION_MICRO@
 # Images directory definitions
 JDK_IMAGE_SUBDIR:=jdk
 JRE_IMAGE_SUBDIR:=jre
+JCOV_IMAGE_SUBDIR := jdk-jcov
 
 # Colon left out to be able to override output dir for bootcycle-images
 JDK_IMAGE_DIR=$(IMAGES_OUTPUTDIR)/$(JDK_IMAGE_SUBDIR)
 JRE_IMAGE_DIR=$(IMAGES_OUTPUTDIR)/$(JRE_IMAGE_SUBDIR)
+JCOV_IMAGE_DIR = $(IMAGES_OUTPUTDIR)/$(JCOV_IMAGE_SUBDIR)
 
 # Test image, as above
 TEST_IMAGE_SUBDIR:=test
@@ -873,16 +915,20 @@ else
   JDK_BUNDLE_EXTENSION := tar.gz
 endif
 JDK_BUNDLE_NAME := jdk-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
+JRE_BUNDLE_NAME := jre-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
 JDK_SYMBOLS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin$(DEBUG_PART)-symbols.tar.gz
 TEST_DEMOS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests-demos$(DEBUG_PART).tar.gz
 TEST_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests$(DEBUG_PART).tar.gz
 DOCS_BUNDLE_NAME := jdk-$(BASE_NAME)_doc-api-spec$(DEBUG_PART).tar.gz
+JCOV_BUNDLE_NAME := jdk-jcov-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
 
 JDK_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(JDK_BUNDLE_NAME)
+JRE_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(JRE_BUNDLE_NAME)
 JDK_SYMBOLS_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(JDK_SYMBOLS_BUNDLE_NAME)
 TEST_DEMOS_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(TEST_DEMOS_BUNDLE_NAME)
 TEST_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(TEST_BUNDLE_NAME)
 DOCS_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(DOCS_BUNDLE_NAME)
+JCOV_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(JCOV_BUNDLE_NAME)
 
 # This macro is called to allow inclusion of closed source counterparts.
 # Unless overridden in closed sources, it expands to nothing.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -398,13 +398,14 @@ bool DirectiveSet::is_intrinsic_disabled(const methodHandle& method) {
   size_t length = strlen(DisableIntrinsicOption);
   char* local_list = NEW_RESOURCE_ARRAY(char, length + 1);
   strncpy(local_list, DisableIntrinsicOption, length + 1);
+  char* save_ptr;
 
-  char* token = strtok(local_list, ",");
+  char* token = strtok_r(local_list, ",", &save_ptr);
   while (token != NULL) {
     if (strcmp(token, vmIntrinsics::name_at(id)) == 0) {
       return true;
     } else {
-      token = strtok(NULL, ",");
+      token = strtok_r(NULL, ",", &save_ptr);
     }
   }
 
@@ -455,7 +456,7 @@ void DirectivesStack::init() {
 }
 
 DirectiveSet* DirectivesStack::getDefaultDirective(AbstractCompiler* comp) {
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
 
   assert(_bottom != NULL, "Must never be empty");
   _bottom->inc_refcount();
@@ -463,7 +464,7 @@ DirectiveSet* DirectivesStack::getDefaultDirective(AbstractCompiler* comp) {
 }
 
 void DirectivesStack::push(CompilerDirectives* directive) {
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
 
   directive->inc_refcount();
   if (_top == NULL) {
@@ -477,7 +478,7 @@ void DirectivesStack::push(CompilerDirectives* directive) {
 }
 
 void DirectivesStack::pop(int count) {
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
   assert(count > -1, "No negative values");
   for (int i = 0; i < count; i++) {
     pop_inner();
@@ -507,14 +508,14 @@ bool DirectivesStack::check_capacity(int request_size, outputStream* st) {
 
 void DirectivesStack::clear() {
   // holding the lock during the whole operation ensuring consistent result
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
   while (_top->next() != NULL) {
     pop_inner();
   }
 }
 
 void DirectivesStack::print(outputStream* st) {
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
   CompilerDirectives* tmp = _top;
   while (tmp != NULL) {
     tmp->print(st);
@@ -525,7 +526,7 @@ void DirectivesStack::print(outputStream* st) {
 
 void DirectivesStack::release(DirectiveSet* set) {
   assert(set != NULL, "Never NULL");
-  MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
   if (set->is_exclusive_copy()) {
     // Old CompilecCmmands forced us to create an exclusive copy
     delete set;
@@ -549,7 +550,7 @@ DirectiveSet* DirectivesStack::getMatchingDirective(const methodHandle& method, 
 
   DirectiveSet* match = NULL;
   {
-    MutexLockerEx locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker locker(DirectivesStack_lock, Mutex::_no_safepoint_check_flag);
 
     CompilerDirectives* dir = _top;
     assert(dir != NULL, "Must be initialized");

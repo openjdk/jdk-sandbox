@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -136,17 +136,33 @@ add_replacement() {
     eval TO$NUM_REPLACEMENTS='$2'
 }
 
-add_replacement "###BUILD_DIR###" "`dirname $SPEC`"
 add_replacement "###MODULE_NAMES###" "$MODULE_NAMES"
-add_replacement "###JTREG_HOME###" "$JT_HOME"
-add_replacement "###IMAGES_DIR###" "`dirname $SPEC`/images/jdk"
-add_replacement "###ROOT_DIR###" "$TOPLEVEL_DIR"
-add_replacement "###IDEA_DIR###" "$IDEA_OUTPUT"
+SPEC_DIR=`dirname $SPEC`
+if [ "x$CYGPATH" = "x" ]; then
+    add_replacement "###BUILD_DIR###" "$SPEC_DIR"
+    add_replacement "###JTREG_HOME###" "$JT_HOME"
+    add_replacement "###IMAGES_DIR###" "$SPEC_DIR/images/jdk"
+    add_replacement "###ROOT_DIR###" "$TOPLEVEL_DIR"
+    add_replacement "###IDEA_DIR###" "$IDEA_OUTPUT"
+else
+    add_replacement "###BUILD_DIR###" "`cygpath -am $SPEC_DIR`"
+    add_replacement "###IMAGES_DIR###" "`cygpath -am $SPEC_DIR`/images/jdk"
+    add_replacement "###ROOT_DIR###" "`cygpath -am $TOPLEVEL_DIR`"
+    add_replacement "###IDEA_DIR###" "`cygpath -am $IDEA_OUTPUT`"
+    if [ "x$JT_HOME" = "x" ]; then
+      add_replacement "###JTREG_HOME###" ""
+    else
+      add_replacement "###JTREG_HOME###" "`cygpath -am $JT_HOME`"
+    fi
+fi
 
 SOURCE_PREFIX="<sourceFolder url=\"file://"
 SOURCE_POSTFIX="\" isTestSource=\"false\" />"
 
 for root in $MODULE_ROOTS; do
+    if [ "x$CYGPATH" != "x" ]; then
+    	root=`cygpath -am $root`
+    fi
     SOURCES=$SOURCES" $SOURCE_PREFIX""$root""$SOURCE_POSTFIX"
 done
 

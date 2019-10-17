@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2010, 2018, Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ZERO_VM_OS_LINUX_ZERO_HPP
-#define OS_CPU_LINUX_ZERO_VM_OS_LINUX_ZERO_HPP
+#ifndef OS_CPU_LINUX_ZERO_OS_LINUX_ZERO_HPP
+#define OS_CPU_LINUX_ZERO_OS_LINUX_ZERO_HPP
 
   static void setup_fpu() {}
 
@@ -54,9 +54,19 @@
                   "std %0, %1\n"
                   : "=&f"(tmp), "=Q"(*(volatile double*)dst)
                   : "Q"(*(volatile double*)src));
+#elif defined(__ARM_ARCH_7A__)
+    // Note that a ldrexd + clrex combination is only needed for
+    // correctness on the OS level (context-switches). In this
+    // case, clrex *may* be beneficial for performance. For now
+    // don't bother with clrex as this is Zero.
+    jlong tmp;
+    asm volatile ("ldrexd  %0, [%1]\n"
+                  : "=r"(tmp)
+                  : "r"(src), "m"(src));
+    *(jlong *) dst = tmp;
 #else
     *(jlong *) dst = *(const jlong *) src;
 #endif
   }
 
-#endif // OS_CPU_LINUX_ZERO_VM_OS_LINUX_ZERO_HPP
+#endif // OS_CPU_LINUX_ZERO_OS_LINUX_ZERO_HPP

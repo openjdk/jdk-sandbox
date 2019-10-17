@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_MACROS_HPP
-#define SHARE_VM_UTILITIES_MACROS_HPP
+#ifndef SHARE_UTILITIES_MACROS_HPP
+#define SHARE_UTILITIES_MACROS_HPP
 
 // Use this to mark code that needs to be cleaned up (for development only)
 #define NEEDS_CLEANUP
@@ -221,6 +221,24 @@
 #define NOT_SERIALGC_RETURN_(code) { return code; }
 #endif // INCLUDE_SERIALGC
 
+#ifndef INCLUDE_SHENANDOAHGC
+#define INCLUDE_SHENANDOAHGC 1
+#endif // INCLUDE_SHENANDOAHGC
+
+#if INCLUDE_SHENANDOAHGC
+#define SHENANDOAHGC_ONLY(x) x
+#define SHENANDOAHGC_ONLY_ARG(arg) arg,
+#define NOT_SHENANDOAHGC(x)
+#define NOT_SHENANDOAHGC_RETURN        /* next token must be ; */
+#define NOT_SHENANDOAHGC_RETURN_(code) /* next token must be ; */
+#else
+#define SHENANDOAHGC_ONLY(x)
+#define SHENANDOAHGC_ONLY_ARG(arg)
+#define NOT_SHENANDOAHGC(x) x
+#define NOT_SHENANDOAHGC_RETURN        {}
+#define NOT_SHENANDOAHGC_RETURN_(code) { return code; }
+#endif // INCLUDE_SHENANDOAHGC
+
 #ifndef INCLUDE_ZGC
 #define INCLUDE_ZGC 1
 #endif // INCLUDE_ZGC
@@ -261,8 +279,10 @@
 
 #if INCLUDE_JFR
 #define JFR_ONLY(code) code
+#define NOT_JFR_RETURN_(code) /* next token must be ; */
 #else
 #define JFR_ONLY(code)
+#define NOT_JFR_RETURN_(code) { return code; }
 #endif
 
 #ifndef INCLUDE_JVMCI
@@ -541,10 +561,9 @@
 #define NOT_E500V2(code) code
 #endif
 
-// Note: There are three ARM ports. They set the following in the makefiles:
-// 1. Closed 32-bit port:   -DARM -DARM32           -DTARGET_ARCH_arm
-// 2. Closed 64-bit port:   -DARM -DAARCH64 -D_LP64 -DTARGET_ARCH_arm
-// 3. Open   64-bit port:         -DAARCH64 -D_LP64 -DTARGET_ARCH_aaarch64
+// Note: There are two ARM ports. They set the following in the makefiles:
+// 1. 32-bit port:   -DARM -DARM32 -DTARGET_ARCH_arm
+// 2. 64-bit port:   -DAARCH64 -D_LP64 -DTARGET_ARCH_aaarch64
 #ifdef ARM
 #define ARM_ONLY(code) code
 #define NOT_ARM(code)
@@ -623,4 +642,4 @@
 #define NOT_CDS_JAVA_HEAP_RETURN_(code) { return code; }
 #endif
 
-#endif // SHARE_VM_UTILITIES_MACROS_HPP
+#endif // SHARE_UTILITIES_MACROS_HPP

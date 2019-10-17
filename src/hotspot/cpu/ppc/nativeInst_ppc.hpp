@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_NATIVEINST_PPC_HPP
-#define CPU_PPC_VM_NATIVEINST_PPC_HPP
+#ifndef CPU_PPC_NATIVEINST_PPC_HPP
+#define CPU_PPC_NATIVEINST_PPC_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "runtime/icache.hpp"
@@ -98,12 +98,6 @@ class NativeInstruction {
                                     -1, encoding);
     }
     return MacroAssembler::is_load_from_polling_page(long_at(0), NULL);
-  }
-
-  bool is_memory_serialization(JavaThread *thread, void *ucontext) {
-    // Is the current instruction a write access of thread to the
-    // memory serialization page?
-    return MacroAssembler::is_memory_serialization(long_at(0), thread, ucontext);
   }
 
   address get_stack_bang_address(void *ucontext) {
@@ -509,4 +503,4 @@ class NativeMovRegMem: public NativeInstruction {
   }
 };
 
-#endif // CPU_PPC_VM_NATIVEINST_PPC_HPP
+#endif // CPU_PPC_NATIVEINST_PPC_HPP

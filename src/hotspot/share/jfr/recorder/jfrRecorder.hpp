@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_JFRRECORDER_HPP
-#define SHARE_VM_JFR_RECORDER_JFRRECORDER_HPP
+#ifndef SHARE_JFR_RECORDER_JFRRECORDER_HPP
+#define SHARE_JFR_RECORDER_JFRRECORDER_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
@@ -40,6 +40,7 @@ class JfrRecorder : public JfrCHeapObj {
  private:
   static bool create_checkpoint_manager();
   static bool create_chunk_repository();
+  static bool create_java_event_writer();
   static bool create_jvmti_agent();
   static bool create_os_interface();
   static bool create_post_box();
@@ -65,4 +66,4 @@ class JfrRecorder : public JfrCHeapObj {
   static void stop_recording();
 };
 
-#endif // SHARE_VM_JFR_RECORDER_JFRRECORDER_HPP
+#endif // SHARE_JFR_RECORDER_JFRRECORDER_HPP

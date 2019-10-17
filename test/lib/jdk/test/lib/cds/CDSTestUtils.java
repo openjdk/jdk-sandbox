@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,8 @@ public class CDSTestUtils {
     public static final String MSG_COMPRESSION_MUST_BE_USED =
         "Unable to use shared archive: UseCompressedOops and UseCompressedClassPointers must be on for UseSharedSpaces.";
 
+    public static final boolean DYNAMIC_DUMP = Boolean.getBoolean("test.dynamic.cds.archive");
+
     public interface Checker {
         public void check(OutputAnalyzer output) throws Exception;
     }
@@ -82,21 +84,21 @@ public class CDSTestUtils {
      *
      * Instead, the test case should be written as
      *
-     *      CCDSTestUtils.run(args).assertNormalExit("Hi");
+     *      CDSTestUtils.run(args).assertNormalExit("Hi");
      *
      * EXAMPLES/HOWTO
      *
      * 1. For simple substring matching:
      *
-     *      CCDSTestUtils.run(args).assertNormalExit("Hi");
-     *      CCDSTestUtils.run(args).assertNormalExit("a", "b", "x");
-     *      CCDSTestUtils.run(args).assertAbnormalExit("failure 1", "failure2");
+     *      CDSTestUtils.run(args).assertNormalExit("Hi");
+     *      CDSTestUtils.run(args).assertNormalExit("a", "b", "x");
+     *      CDSTestUtils.run(args).assertAbnormalExit("failure 1", "failure2");
      *
      * 2. For more complex output matching: using Lambda expressions
      *
-     *      CCDSTestUtils.run(args)
+     *      CDSTestUtils.run(args)
      *         .assertNormalExit(output -> output.shouldNotContain("this should not be printed");
-     *      CCDSTestUtils.run(args)
+     *      CDSTestUtils.run(args)
      *         .assertAbnormalExit(output -> {
      *             output.shouldNotContain("this should not be printed");
      *             output.shouldHaveExitValue(123);
@@ -104,13 +106,13 @@ public class CDSTestUtils {
      *
      * 3. Chaining several checks:
      *
-     *      CCDSTestUtils.run(args)
+     *      CDSTestUtils.run(args)
      *         .assertNormalExit(output -> output.shouldNotContain("this should not be printed")
      *         .assertNormalExit("should have this", "should have that");
      *
      * 4. [Rare use case] if a test sometimes exit normally, and sometimes abnormally:
      *
-     *      CCDSTestUtils.run(args)
+     *      CDSTestUtils.run(args)
      *         .ifNormalExit("ths string is printed when exiting with 0")
      *         .ifAbNormalExit("ths string is printed when exiting with 1");
      *
@@ -246,7 +248,12 @@ public class CDSTestUtils {
         cmd.add("-Xlog:cds,cds+hashtables");
         if (opts.archiveName == null)
             opts.archiveName = getDefaultArchiveName();
-        cmd.add("-XX:SharedArchiveFile=./" + opts.archiveName);
+        cmd.add("-XX:SharedArchiveFile=" + opts.archiveName);
+
+        if (opts.classList != null) {
+            File classListFile = makeClassList(opts.classList);
+            cmd.add("-XX:ExtraSharedClassListFile=" + classListFile.getPath());
+        }
 
         for (String s : opts.suffix) cmd.add(s);
 
@@ -255,12 +262,20 @@ public class CDSTestUtils {
         return executeAndLog(pb, "dump");
     }
 
+    public static boolean isDynamicArchive() {
+        return DYNAMIC_DUMP;
+    }
 
     // check result of 'dump-the-archive' operation, that is "-Xshare:dump"
     public static OutputAnalyzer checkDump(OutputAnalyzer output, String... extraMatches)
         throws Exception {
 
-        output.shouldContain("Loading classes to share");
+        if (!DYNAMIC_DUMP) {
+            output.shouldContain("Loading classes to share");
+        } else {
+            output.shouldContain("Buffer-space to target-space delta")
+                  .shouldContain("Written dynamic archive 0x");
+        }
         output.shouldHaveExitValue(0);
 
         for (String match : extraMatches) {
@@ -342,7 +357,8 @@ public class CDSTestUtils {
             outStr.contains("Unable to map MiscCode shared space at required address") ||
             outStr.contains("Unable to map OptionalData shared space at required address") ||
             outStr.contains("Could not allocate metaspace at a compatible address") ||
-            outStr.contains("UseSharedSpaces: Unable to allocate region, range is not within java heap") ))
+            outStr.contains("UseSharedSpaces: Unable to allocate region, range is not within java heap") ||
+            outStr.contains("DynamicDumpSharedSpaces is unsupported when base CDS archive is not loaded") ))
         {
             return true;
         }
@@ -388,9 +404,11 @@ public class CDSTestUtils {
         cmd.add("-Xshare:" + opts.xShareMode);
         cmd.add("-Dtest.timeout.factor=" + TestTimeoutFactor);
 
-        if (opts.archiveName == null)
-            opts.archiveName = getDefaultArchiveName();
-        cmd.add("-XX:SharedArchiveFile=" + opts.archiveName);
+        if (!opts.useSystemArchive) {
+            if (opts.archiveName == null)
+                opts.archiveName = getDefaultArchiveName();
+            cmd.add("-XX:SharedArchiveFile=" + opts.archiveName);
+        }
 
         if (opts.useVersion)
             cmd.add("-version");

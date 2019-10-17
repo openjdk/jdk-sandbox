@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,8 @@
 #include "jvm.h"
 #include "TimeZone_md.h"
 
+static char *isFileIdentical(char* buf, size_t size, char *pathname);
+
 #define SKIP_SPACE(p)   while (*p == ' ' || *p == '\t') p++;
 
 #define RESTARTABLE(_cmd, _result) do { \
@@ -56,6 +58,12 @@
 #define fileclose       fclose
 #endif
 
+#if defined(_ALLBSD_SOURCE)
+#define stat64 stat
+#define lstat64 lstat
+#define fstat64 fstat
+#endif
+
 #if defined(__linux__) || defined(_ALLBSD_SOURCE)
 static const char *ETC_TIMEZONE_FILE = "/etc/timezone";
 static const char *ZONEINFO_DIR = "/usr/share/zoneinfo";
@@ -65,6 +73,8 @@ static const char *SYS_INIT_FILE = "/etc/default/init";
 static const char *ZONEINFO_DIR = "/usr/share/lib/zoneinfo";
 static const char *DEFAULT_ZONEINFO_FILE = "/usr/share/lib/zoneinfo/localtime";
 #endif /* defined(__linux__) || defined(_ALLBSD_SOURCE) */
+
+static const char popularZones[][4] = {"UTC", "GMT"};
 
 #if defined(_AIX)
 static const char *ETC_ENVIRONMENT_FILE = "/etc/environment";
@@ -115,13 +125,26 @@ static char *
 findZoneinfoFile(char *buf, size_t size, const char *dir)
 {
     DIR *dirp = NULL;
-    struct stat statbuf;
     struct dirent *dp = NULL;
     char *pathname = NULL;
-    int fd = -1;
-    char *dbuf = NULL;
     char *tz = NULL;
     int res;
+
+    if (strcmp(dir, ZONEINFO_DIR) == 0) {
+        /* fast path for 1st iteration */
+        for (unsigned int i = 0; i < sizeof (popularZones) / sizeof (popularZones[0]); i++) {
+            pathname = getPathName(dir, popularZones[i]);
+            if (pathname == NULL) {
+                continue;
+            }
+            tz = isFileIdentical(buf, size, pathname);
+            free((void *) pathname);
+            pathname = NULL;
+            if (tz != NULL) {
+                return tz;
+            }
+        }
+    }
 
     dirp = opendir(dir);
     if (dirp == NULL) {
@@ -156,58 +179,67 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         if (pathname == NULL) {
             break;
         }
-        RESTARTABLE(stat(pathname, &statbuf), res);
-        if (res == -1) {
-            break;
-        }
 
-        if (S_ISDIR(statbuf.st_mode)) {
-            tz = findZoneinfoFile(buf, size, pathname);
-            if (tz != NULL) {
-                break;
-            }
-        } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
-            dbuf = (char *) malloc(size);
-            if (dbuf == NULL) {
-                break;
-            }
-            RESTARTABLE(open(pathname, O_RDONLY), fd);
-            if (fd == -1) {
-                break;
-            }
-            RESTARTABLE(read(fd, dbuf, size), res);
-            if (res != (ssize_t) size) {
-                break;
-            }
-            if (memcmp(buf, dbuf, size) == 0) {
-                tz = getZoneName(pathname);
-                if (tz != NULL) {
-                    tz = strdup(tz);
-                }
-                break;
-            }
-            free((void *) dbuf);
-            dbuf = NULL;
-            (void) close(fd);
-            fd = -1;
-        }
+        tz = isFileIdentical(buf, size, pathname);
         free((void *) pathname);
         pathname = NULL;
+        if (tz != NULL) {
+           break;
+        }
     }
 
     if (dirp != NULL) {
         (void) closedir(dirp);
     }
-    if (pathname != NULL) {
-        free((void *) pathname);
+    return tz;
+}
+
+/*
+ * Checks if the file pointed to by pathname matches
+ * the data contents in buf.
+ * Returns a representation of the timezone file name
+ * if file match is found, otherwise NULL.
+ */
+static char *
+isFileIdentical(char *buf, size_t size, char *pathname)
+{
+    char *possibleMatch = NULL;
+    struct stat64 statbuf;
+    char *dbuf = NULL;
+    int fd = -1;
+    int res;
+
+    RESTARTABLE(stat64(pathname, &statbuf), res);
+    if (res == -1) {
+        return NULL;
     }
-    if (fd != -1) {
+
+    if (S_ISDIR(statbuf.st_mode)) {
+        possibleMatch  = findZoneinfoFile(buf, size, pathname);
+    } else if (S_ISREG(statbuf.st_mode) && (size_t)statbuf.st_size == size) {
+        dbuf = (char *) malloc(size);
+        if (dbuf == NULL) {
+            return NULL;
+        }
+        RESTARTABLE(open(pathname, O_RDONLY), fd);
+        if (fd == -1) {
+            goto freedata;
+        }
+        RESTARTABLE(read(fd, dbuf, size), res);
+        if (res != (ssize_t) size) {
+            goto freedata;
+        }
+        if (memcmp(buf, dbuf, size) == 0) {
+            possibleMatch = getZoneName(pathname);
+            if (possibleMatch != NULL) {
+                possibleMatch = strdup(possibleMatch);
+            }
+        }
+        freedata:
+        free((void *) dbuf);
         (void) close(fd);
     }
-    if (dbuf != NULL) {
-        free((void *) dbuf);
-    }
-    return tz;
+    return possibleMatch;
 }
 
 #if defined(__linux__) || defined(MACOSX)
@@ -219,7 +251,7 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
 static char *
 getPlatformTimeZoneID()
 {
-    struct stat statbuf;
+    struct stat64 statbuf;
     char *tz = NULL;
     FILE *fp;
     int fd;
@@ -256,7 +288,7 @@ getPlatformTimeZoneID()
     /*
      * Next, try /etc/localtime to find the zone ID.
      */
-    RESTARTABLE(lstat(DEFAULT_ZONEINFO_FILE, &statbuf), res);
+    RESTARTABLE(lstat64(DEFAULT_ZONEINFO_FILE, &statbuf), res);
     if (res == -1) {
         return NULL;
     }
@@ -296,7 +328,7 @@ getPlatformTimeZoneID()
         return NULL;
     }
 
-    RESTARTABLE(fstat(fd, &statbuf), res);
+    RESTARTABLE(fstat64(fd, &statbuf), res);
     if (res == -1) {
         (void) close(fd);
         return NULL;
@@ -557,7 +589,7 @@ cleanupScf(scf_handle_t *h,
 static char *
 getSolarisDefaultZoneID() {
     char *tz = NULL;
-    struct stat statbuf;
+    struct stat64 statbuf;
     size_t size;
     char *buf;
     int fd;
@@ -597,7 +629,7 @@ getSolarisDefaultZoneID() {
     }
     cleanupScf(h, snap, inst, pg, prop, val, tz);
 
-    RESTARTABLE(stat(DEFAULT_ZONEINFO_FILE, &statbuf), res);
+    RESTARTABLE(stat64(DEFAULT_ZONEINFO_FILE, &statbuf), res);
     if (res == -1) {
         return NULL;
     }

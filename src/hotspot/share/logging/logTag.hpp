@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,10 +21,9 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_LOGGING_LOGTAG_HPP
-#define SHARE_VM_LOGGING_LOGTAG_HPP
+#ifndef SHARE_LOGGING_LOGTAG_HPP
+#define SHARE_LOGGING_LOGTAG_HPP
 
-#include "logging/logTag_ext.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -66,6 +65,7 @@
   LOG_TAG(defaultmethods) \
   LOG_TAG(director) \
   LOG_TAG(dump) \
+  LOG_TAG(dynamic) \
   LOG_TAG(ergo) \
   LOG_TAG(event) \
   LOG_TAG(exceptions) \
@@ -82,6 +82,7 @@
   LOG_TAG(iklass) \
   LOG_TAG(init) \
   LOG_TAG(inlining) \
+  LOG_TAG(install) \
   LOG_TAG(interpreter) \
   LOG_TAG(itables) \
   LOG_TAG(jfr) \
@@ -119,6 +120,7 @@
   LOG_TAG(patch) \
   LOG_TAG(path) \
   LOG_TAG(perf) \
+  LOG_TAG(periodic) \
   LOG_TAG(phases) \
   LOG_TAG(plab) \
   LOG_TAG(preview)   /* Trace loading of preview feature types */ \
@@ -132,6 +134,7 @@
   LOG_TAG(reloc) \
   LOG_TAG(remset) \
   LOG_TAG(parser) \
+  LOG_TAG(ptrqueue) \
   LOG_TAG(purge) \
   LOG_TAG(resolve) \
   LOG_TAG(safepoint) \
@@ -167,12 +170,12 @@
   LOG_TAG(mirror) \
   LOG_TAG(verification) \
   LOG_TAG(verify) \
+  LOG_TAG(vmmutex) \
   LOG_TAG(vmoperation) \
   LOG_TAG(vmthread) \
   LOG_TAG(vtables) \
   LOG_TAG(vtablestubs) \
-  LOG_TAG(workgang) \
-  LOG_TAG_LIST_EXT
+  LOG_TAG(workgang)
 
 #define PREFIX_LOG_TAG(T) (LogTag::_##T)
 
@@ -219,4 +222,4 @@ class LogTag : public AllStatic {
 
 typedef LogTag::type LogTagType;
 
-#endif // SHARE_VM_LOGGING_LOGTAG_HPP
+#endif // SHARE_LOGGING_LOGTAG_HPP

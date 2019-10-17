@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_KLASSVTABLE_HPP
-#define SHARE_VM_OOPS_KLASSVTABLE_HPP
+#ifndef SHARE_OOPS_KLASSVTABLE_HPP
+#define SHARE_OOPS_KLASSVTABLE_HPP
 
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
@@ -48,13 +48,6 @@ class klassVtable {
   int          _verify_count;     // to make verify faster
 #endif
 
-  // Ordering important, so greater_than (>) can be used as an merge operator.
-  enum AccessType {
-    acc_private         = 0,
-    acc_package_private = 1,
-    acc_publicprotected = 2
-  };
-
  public:
   klassVtable(Klass* klass, void* base, int length) : _klass(klass) {
     _tableOffset = (address)base - (address)klass; _length = length;
@@ -66,21 +59,11 @@ class klassVtable {
   int length() const              { return _length; }
   inline Method* method_at(int i) const;
   inline Method* unchecked_method_at(int i) const;
-  inline Method** adr_method_at(int i) const;
 
   // searching; all methods return -1 if not found
-  int index_of(Method* m) const                         { return index_of(m, _length); }
   int index_of_miranda(Symbol* name, Symbol* signature);
 
   void initialize_vtable(bool checkconstraints, TRAPS);   // initialize vtable of a new klass
-
-  // CDS/RedefineClasses support - clear vtables so they can be reinitialized
-  // at dump time.  Clearing gives us an easy way to tell if the vtable has
-  // already been reinitialized at dump time (see dump.cpp).  Vtables can
-  // be initialized at run time by RedefineClasses so dumping the right order
-  // is necessary.
-  void clear_vtable();
-  bool is_initialized();
 
   // computes vtable length (in words) and the number of miranda methods
   static void compute_vtable_size_and_num_mirandas(int* vtable_length,
@@ -103,7 +86,7 @@ class klassVtable {
   // printed the klass name so that other routines in the adjust_*
   // group don't print the klass name.
   bool adjust_default_method(int vtable_index, Method* old_method, Method* new_method);
-  void adjust_method_entries(InstanceKlass* holder, bool * trace_name_printed);
+  void adjust_method_entries(bool* trace_name_printed);
   bool check_no_old_or_obsolete_entries();
   void dump_vtable();
 #endif // INCLUDE_JVMTI
@@ -125,7 +108,6 @@ class klassVtable {
  private:
   void copy_vtable_to(vtableEntry* start);
   int  initialize_from_super(Klass* super);
-  int  index_of(Method* m, int len) const; // same as index_of, but search only up to len
   void put_method_at(Method* m, int index);
   static bool needs_new_vtable_entry(const methodHandle& m,
                                      const Klass* super,
@@ -223,12 +205,6 @@ inline Method* klassVtable::unchecked_method_at(int i) const {
   return table()[i].method();
 }
 
-inline Method** klassVtable::adr_method_at(int i) const {
-  // Allow one past the last entry to be referenced; useful for loop bounds.
-  assert(i >= 0 && i <= _length, "index out of bounds");
-  return (Method**)(address(table() + i) + vtableEntry::method_offset_in_bytes());
-}
-
 // --------------------------------------------------------------------------------
 class klassItable;
 class itableMethodEntry;
@@ -322,7 +298,7 @@ class klassItable {
   // trace_name_printed is set to true if the current call has
   // printed the klass name so that other routines in the adjust_*
   // group don't print the klass name.
-  void adjust_method_entries(InstanceKlass* holder, bool * trace_name_printed);
+  void adjust_method_entries(bool* trace_name_printed);
   bool check_no_old_or_obsolete_entries();
   void dump_itable();
 #endif // INCLUDE_JVMTI
@@ -332,9 +308,6 @@ class klassItable {
   static int method_count_for_interface(InstanceKlass* klass);
   static int compute_itable_size(Array<InstanceKlass*>* transitive_interfaces);
   static void setup_itable_offset_table(InstanceKlass* klass);
-
-  // Resolving of method to index
-  static Method* method_for_itable_index(InstanceKlass* klass, int itable_index);
 
   // Debugging/Statistics
   static void print_statistics() PRODUCT_RETURN;
@@ -352,4 +325,4 @@ class klassItable {
   static void update_stats(int size) PRODUCT_RETURN NOT_PRODUCT({ _total_classes++; _total_size += size; })
 };
 
-#endif // SHARE_VM_OOPS_KLASSVTABLE_HPP
+#endif // SHARE_OOPS_KLASSVTABLE_HPP

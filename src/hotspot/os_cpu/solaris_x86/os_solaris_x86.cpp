@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -517,9 +517,13 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
       stub = VM_Version::cpuinfo_cont_addr();
     }
 
-    if (thread->thread_state() == _thread_in_vm) {
+    if (thread->thread_state() == _thread_in_vm ||
+         thread->thread_state() == _thread_in_native) {
       if (sig == SIGBUS && info->si_code == BUS_OBJERR && thread->doing_unsafe_access()) {
         address next_pc = Assembler::locate_next_instruction(pc);
+        if (UnsafeCopyMemory::contains_pc(pc)) {
+          next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
         stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
       }
     }
@@ -536,8 +540,12 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         if (cb != NULL) {
           CompiledMethod* nm = cb->as_compiled_method_or_null();
-          if (nm != NULL && nm->has_unsafe_access()) {
+          bool is_unsafe_arraycopy = thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc);
+          if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
             address next_pc = Assembler::locate_next_instruction(pc);
+            if (is_unsafe_arraycopy) {
+              next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+            }
             stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
           }
         }
@@ -579,7 +587,8 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
         // QQQ It doesn't seem that we need to do this on x86 because we should be able
         // to return properly from the handler without this extra stuff on the back side.
 
-      else if (sig == SIGSEGV && info->si_code > 0 && !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+      else if (sig == SIGSEGV && info->si_code > 0 &&
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         // Determination of interpreter/vtable stub/compiled code null exception
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
@@ -592,17 +601,6 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
       if (addr != (address)-1) {
         stub = addr;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) &&
-        os::is_memory_serialize_page(thread, (address)info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -695,54 +693,6 @@ JVM_handle_solaris_signal(int sig, siginfo_t* info, void* ucVoid,
   if (os::Solaris::chained_handler(sig, info, ucVoid)) {
     return true;
   }
-
-#ifndef AMD64
-  // Workaround (bug 4900493) for Solaris kernel bug 4966651.
-  // Handle an undefined selector caused by an attempt to assign
-  // fs in libthread getipriptr(). With the current libthread design every 512
-  // thread creations the LDT for a private thread data structure is extended
-  // and thre is a hazard that and another thread attempting a thread creation
-  // will use a stale LDTR that doesn't reflect the structure's growth,
-  // causing a GP fault.
-  // Enforce the probable limit of passes through here to guard against an
-  // infinite loop if some other move to fs caused the GP fault. Note that
-  // this loop counter is ultimately a heuristic as it is possible for
-  // more than one thread to generate this fault at a time in an MP system.
-  // In the case of the loop count being exceeded or if the poll fails
-  // just fall through to a fatal error.
-  // If there is some other source of T_GPFLT traps and the text at EIP is
-  // unreadable this code will loop infinitely until the stack is exausted.
-  // The key to diagnosis in this case is to look for the bottom signal handler
-  // frame.
-
-  if(! IgnoreLibthreadGPFault) {
-    if (sig == SIGSEGV && uc->uc_mcontext.gregs[TRAPNO] == T_GPFLT) {
-      const unsigned char *p =
-                        (unsigned const char *) uc->uc_mcontext.gregs[EIP];
-
-      // Expected instruction?
-
-      if(p[0] == movlfs[0] && p[1] == movlfs[1]) {
-
-        Atomic::inc(&ldtr_refresh);
-
-        // Infinite loop?
-
-        if(ldtr_refresh < ((2 << 16) / PAGESIZE)) {
-
-          // No, force scheduling to get a fresh view of the LDTR
-
-          if(poll(NULL, 0, 10) == 0) {
-
-            // Retry the move
-
-            return false;
-          }
-        }
-      }
-    }
-  }
-#endif // !AMD64
 
   if (!abort_if_unrecognized) {
     // caller wants another chance, so give it to him
@@ -837,8 +787,8 @@ void os::print_context(outputStream *st, const void *context) {
   // this at the end, and hope for the best.
   ExtendedPC epc = os::Solaris::ucontext_get_ExtendedPC(uc);
   address pc = epc.pc();
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", pc);
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  print_instructions(st, pc, sizeof(char));
+  st->cr();
 }
 
 void os::print_register_info(outputStream *st, const void *context) {

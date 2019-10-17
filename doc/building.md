@@ -48,7 +48,7 @@ JDK.
 Make sure you are getting the correct version. As of JDK 10, the source is no
 longer split into separate repositories so you only need to clone one single
 repository. At the [OpenJDK Mercurial server](http://hg.openjdk.java.net/) you
-can see a list of all available forests. If you want to build an older version,
+can see a list of all available repositories. If you want to build an older version,
 e.g. JDK 8, it is recommended that you get the `jdk8u` forest, which contains
 incremental updates, instead of the `jdk8` forest, which was frozen at JDK 8 GA.
 
@@ -75,8 +75,8 @@ on where and how to check out the source code.
     network share for the source code, see below for suggestions on how to keep
     the build artifacts on a local disk.
 
-  * On Windows, extra care must be taken to make sure the [Cygwin](#cygwin)
-    environment is consistent. It is recommended that you follow this
+  * On Windows, if using [Cygwin](#cygwin), extra care must be taken to make sure
+    the environment is consistent. It is recommended that you follow this
     procedure:
 
       * Create the directory that is going to contain the top directory of the
@@ -150,14 +150,14 @@ time of writing.
 
  Operating system   Vendor/version used
  -----------------  -------------------------------------------------------
- Linux              Oracle Enterprise Linux 6.4 / 7.1 (using kernel 3.8.13)
- Solaris            Solaris 11.1 SRU 21.4.1 / 11.2 SRU 5.5
- macOS              Mac OS X 10.9 (Mavericks) / 10.10 (Yosemite)
+ Linux              Oracle Enterprise Linux 6.4 / 7.6
+ Solaris            Solaris 11.3 SRU 20
+ macOS              Mac OS X 10.13 (High Sierra)
  Windows            Windows Server 2012 R2
 
-The double version numbers for Linux, Solaris and macOS is due to the hybrid
-model used at Oracle, where header files and external libraries from an older
-version are used when building on a more modern version of the OS.
+The double version numbers for Linux and Solaris are due to the hybrid model
+used at Oracle, where header files and external libraries from an older version
+are used when building on a more modern version of the OS.
 
 The Build Group has a wiki page with [Supported Build Platforms](
 https://wiki.openjdk.java.net/display/Build/Supported+Build+Platforms). From
@@ -174,10 +174,10 @@ On Windows, it is important that you pay attention to the instructions in the
 
 Windows is the only non-POSIX OS supported by the JDK, and as such, requires
 some extra care. A POSIX support layer is required to build on Windows.
-Currently, the only supported such layer is Cygwin. (Msys is no longer
-supported due to a too old bash; msys2 and the new Windows Subsystem for Linux
-(WSL) would likely be possible to support in a future version but that would
-require effort to implement.)
+Currently, the only supported such layers are Cygwin and Windows Subsystem for
+Linux (WSL). (Msys is no longer supported due to a too old bash; msys2 would
+likely be possible to support in a future version but that would require effort
+to implement.)
 
 Internally in the build system, all paths are represented as Unix-style paths,
 e.g. `/cygdrive/c/hg/jdk9/Makefile` rather than `C:\hg\jdk9\Makefile`. This
@@ -188,7 +188,7 @@ on [Fixpath](#fixpath).
 
 #### Cygwin
 
-A functioning [Cygwin](http://www.cygwin.com/) environment is thus required for
+A functioning [Cygwin](http://www.cygwin.com/) environment is required for
 building the JDK on Windows. If you have a 64-bit OS, we strongly recommend
 using the 64-bit version of Cygwin.
 
@@ -198,7 +198,7 @@ that whenever you add or update a package in Cygwin, you might (inadvertently)
 update tools that are used by the JDK build process, and that can cause
 unexpected build problems.
 
-The JDK requires GNU Make 4.0 or greater on Windows. This is usually not a
+The JDK requires GNU Make 4.0 or greater in Cygwin. This is usually not a
 problem, since Cygwin currently only distributes GNU Make at a version above
 4.0.
 
@@ -220,6 +220,30 @@ experience build tool crashes or strange issues when building on Windows,
 please check the Cygwin FAQ on the ["BLODA" list](
 https://cygwin.com/faq/faq.html#faq.using.bloda) and the section on [fork()
 failures](https://cygwin.com/faq/faq.html#faq.using.fixing-fork-failures).
+
+#### Windows Subsystem for Linux (WSL)
+
+Windows 10 1809 or newer is supported due to a dependency on the wslpath utility
+and support for environment variable sharing through WSLENV. Version 1803 can
+work but intermittent build failures have been observed.
+
+It's possible to build both Windows and Linux binaries from WSL. To build
+Windows binaries, you must use a Windows boot JDK (located in a
+Windows-accessible directory). To build Linux binaries, you must use a Linux
+boot JDK. The default behavior is to build for Windows. To build for Linux, pass
+`--build=x86_64-unknown-linux-gnu --host=x86_64-unknown-linux-gnu` to
+`configure`.
+
+If building Windows binaries, the source code must be located in a Windows-
+accessible directory. This is because Windows executables (such as Visual Studio
+and the boot JDK) must be able to access the source code. Also, the drive where
+the source is stored must be mounted as case-insensitive by changing either
+/etc/fstab or /etc/wsl.conf in WSL. Individual directories may be corrected
+using the fsutil tool in case the source was cloned before changing the mount
+options.
+
+Note that while it's possible to build on WSL, testing is still not fully
+supported.
 
 ### Solaris
 
@@ -271,9 +295,9 @@ sudo yum groupinstall "Development Tools"
 
 ### AIX
 
-The regular builds by SAP is using AIX version 7.1, but AIX 5.3 is also
-supported. See the [OpenJDK PowerPC Port Status Page](
-http://cr.openjdk.java.net/~simonis/ppc-aix-port) for details.
+Please consult the AIX section of the [Supported Build Platforms](
+https://wiki.openjdk.java.net/display/Build/Supported+Build+Platforms) OpenJDK
+Build Wiki page for details about which versions of AIX are supported.
 
 ## Native Compiler (Toolchain) Requirements
 
@@ -299,17 +323,22 @@ issues.
 
  Operating system   Toolchain version
  ------------------ -------------------------------------------------------
- Linux              gcc 7.3.0
- macOS              Apple Xcode 9.4 (using clang 9.1.0)
- Solaris            Oracle Solaris Studio 12.4 (with compiler version 5.13)
- Windows            Microsoft Visual Studio 2017 update 15.5.5
+ Linux              gcc 8.3.0
+ macOS              Apple Xcode 10.1 (using clang 10.0.0)
+ Solaris            Oracle Solaris Studio 12.6 (with compiler version 5.15)
+ Windows            Microsoft Visual Studio 2017 update 15.9.16
+
+All compilers are expected to be able to compile to the C99 language standard,
+as some C99 features are used in the source code. Microsoft Visual Studio
+doesn't fully support C99 so in practice shared code is limited to using C99
+features that it does support.
 
 ### gcc
 
 The minimum accepted version of gcc is 4.8. Older versions will generate a warning
 by `configure` and are unlikely to work.
 
-The JDK is currently known to be able to compile with at least version 7.4 of
+The JDK is currently known to be able to compile with at least version 8.3 of
 gcc.
 
 In general, any version between these two should be usable.
@@ -380,7 +409,7 @@ CC: Sun C++ 5.13 SunOS_i386 151846-10 2015/10/30
 
 The minimum accepted version of Visual Studio is 2010. Older versions will not
 be accepted by `configure`. The maximum accepted version of Visual Studio is
-2017. Versions older than 2017 are unlikely to continue working for long.
+2019. Versions older than 2017 are unlikely to continue working for long.
 
 If you have multiple versions of Visual Studio installed, `configure` will by
 default pick the latest. You can request a specific version to be used by
@@ -395,11 +424,10 @@ https://stackoverflow.com/questions/10888391) for other suggestions.
 
 ### IBM XL C/C++
 
-The regular builds by SAP is using version 12.1, described as `IBM XL C/C++ for
-AIX, V12.1 (5765-J02, 5725-C72) Version: 12.01.0000.0017`.
+Please consult the AIX section of the [Supported Build Platforms](
+https://wiki.openjdk.java.net/display/Build/Supported+Build+Platforms) OpenJDK
+Build Wiki page for details about which versions of XLC are supported.
 
-See the [OpenJDK PowerPC Port Status Page](
-http://cr.openjdk.java.net/~simonis/ppc-aix-port) for details.
 
 ## Boot JDK Requirements
 
@@ -488,15 +516,15 @@ Certain [X11](http://www.x.org/) libraries and include files are required on
 Linux and Solaris.
 
   * To install on an apt-based Linux, try running `sudo apt-get install
-    libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev`.
+    libx11-dev libxext-dev libxrender-dev libxrandr-dev libxtst-dev libxt-dev`.
   * To install on an rpm-based Linux, try running `sudo yum install
-    libXtst-devel libXt-devel libXrender-devel libXi-devel`.
+    libXtst-devel libXt-devel libXrender-devel libXrandr-devel libXi-devel`.
   * To install on Solaris, try running `pkg install x11/header/x11-protocols
     x11/library/libice x11/library/libpthread-stubs x11/library/libsm
     x11/library/libx11 x11/library/libxau x11/library/libxcb
     x11/library/libxdmcp x11/library/libxevie x11/library/libxext
-    x11/library/libxrender x11/library/libxscrnsaver x11/library/libxtst
-    x11/library/toolkit/libxt`.
+    x11/library/libxrender x11/library/libxrandr x11/library/libxscrnsaver
+    x11/library/libxtst x11/library/toolkit/libxt`.
 
 Use `--with-x=<path>` if `configure` does not properly locate your X11 files.
 
@@ -662,6 +690,14 @@ features, use `bash configure --help=short` instead.)
     platform, instead of doing a full cross-compile. (This is known as a
     *reduced* build.)
 
+On Linux, BSD and AIX, it is possible to override where Java by default
+searches for runtime/JNI libraries. This can be useful in situations where
+there is a special shared directory for system JNI libraries. This setting
+can in turn be overriden at runtime by setting the `java.library.path` property.
+
+  * `--with-jni-libpath=<path>` - Use the specified path as a default
+  when searching for runtime libraries.
+
 #### Configure Arguments for Native Compilation
 
   * `--with-devkit=<path>` - Use this devkit for compilers, tools and resources
@@ -691,9 +727,12 @@ features, use `bash configure --help=short` instead.)
 
 Certain third-party libraries used by the JDK (libjpeg, giflib, libpng, lcms
 and zlib) are included in the JDK repository. The default behavior of the
-JDK build is to use this version of these libraries, but they might be
-replaced by an external version. To do so, specify `system` as the `<source>`
-option in these arguments. (The default is `bundled`).
+JDK build is to use the included ("bundled") versions of libjpeg, giflib,
+libpng and lcms.
+For zlib, the system lib (if present) is used except on Windows and AIX.
+However the bundled libraries may be replaced by an external version.
+To do so, specify `system` as the `<source>` option in these arguments.
+(The default is `bundled`).
 
   * `--with-libjpeg=<source>` - Use the specified source for libjpeg
   * `--with-giflib=<source>` - Use the specified source for giflib
@@ -832,6 +871,7 @@ Suggestions for Advanced Users](#hints-and-suggestions-for-advanced-users) and
   * `CONF_CHECK`
   * `COMPARE_BUILD`
   * `JDK_FILTER`
+  * `SPEC_FILTER`
 
 ## Running Tests
 
@@ -883,6 +923,64 @@ If all you want to do is to compile a 32-bit version, for the same OS, on a
 64-bit machine, consider using `--with-target-bits=32` instead of doing a
 full-blown cross-compilation. (While this surely is possible, it's a lot more
 work and will take much longer to build.)
+
+### Cross compiling the easy way with OpenJDK devkits
+
+The OpenJDK build system provides out-of-the box support for creating and using
+so called devkits. A `devkit` is basically a collection of a cross-compiling
+toolchain and a sysroot environment which can easily be used together with the
+`--with-devkit` configure option to cross compile the OpenJDK. On Linux/x86_64,
+the following command:
+```
+bash configure --with-devkit=<devkit-path> --openjdk-target=ppc64-linux-gnu && make
+```
+
+will configure and build OpenJDK for Linux/ppc64 assuming that `<devkit-path>`
+points to a Linux/x86_64 to Linux/ppc64 devkit.
+
+Devkits can be created from the `make/devkit` directory by executing:
+```
+make [ TARGETS="<TARGET_TRIPLET>+" ] [ BASE_OS=<OS> ] [ BASE_OS_VERSION=<VER> ]
+```
+
+where `TARGETS` contains one or more `TARGET_TRIPLET`s of the form
+described in [section 3.4 of the GNU Autobook](
+https://sourceware.org/autobook/autobook/autobook_17.html). If no
+targets are given, a native toolchain for the current platform will be
+created. Currently, at least the following targets are known to work:
+
+ Supported devkit targets
+ -------------------------
+ x86_64-linux-gnu
+ aarch64-linux-gnu
+ arm-linux-gnueabihf
+ ppc64-linux-gnu
+ ppc64le-linux-gnu
+ s390x-linux-gnu
+
+`BASE_OS` must be one of "OEL6" for Oracle Enterprise Linux 6 or
+"Fedora" (if not specified "OEL6" will be the default). If the base OS
+is "Fedora" the corresponding Fedora release can be specified with the
+help of the `BASE_OS_VERSION` option (with "27" as default version).
+If the build is successful, the new devkits can be found in the
+`build/devkit/result` subdirectory:
+```
+cd make/devkit
+make TARGETS="ppc64le-linux-gnu aarch64-linux-gnu" BASE_OS=Fedora BASE_OS_VERSION=21
+ls -1 ../../build/devkit/result/
+x86_64-linux-gnu-to-aarch64-linux-gnu
+x86_64-linux-gnu-to-ppc64le-linux-gnu
+```
+
+Notice that devkits are not only useful for targeting different build
+platforms. Because they contain the full build dependencies for a
+system (i.e. compiler and root file system), they can easily be used
+to build well-known, reliable and reproducible build environments. You
+can for example create and use a devkit with GCC 7.3 and a Fedora 12
+sysroot environment (with glibc 2.11) on Ubuntu 14.04 (which doesn't
+have GCC 7.3 by default) to produce OpenJDK binaries which will run on
+all Linux systems with runtime libraries newer than the ones from
+Fedora 12 (e.g. Ubuntu 16.04, SLES 11 or RHEL 6).
 
 ### Boot JDK and Build JDK
 
@@ -996,6 +1094,7 @@ Note that X11 is needed even if you only want to build a headless JDK.
       * libice-dev
       * libxrender
       * libxrender-dev
+      * libxrandr-dev
       * libsm-dev
       * libxt-dev
       * libx11
@@ -1046,7 +1145,7 @@ apt install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu
   * Create chroot on the *build* system, configuring it for *target* system:
 ```
 sudo qemu-debootstrap --arch=arm64 --verbose \
-       --include=fakeroot,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng12-dev \
+       --include=fakeroot,build-essential,libx11-dev,libxext-dev,libxrender-dev,libxrandr-dev,libxtst-dev,libxt-dev,libcups2-dev,libfontconfig1-dev,libasound2-dev,libfreetype6-dev,libpng12-dev \
        --resolve-deps jessie /chroots/arm64 http://httpredir.debian.org/debian/
 ```
 
@@ -1062,13 +1161,13 @@ without additional cleanup.
 
 Architectures that are known to successfully cross-compile like this are:
 
-  Target        `CC`                      `CXX`                       `--arch=...` `--openjdk-target=...`
-  ------------  ------------------------- --------------------------- ------------ ----------------------
-  x86           default                   default                     i386         i386-linux-gnu
-  armhf         gcc-arm-linux-gnueabihf   g++-arm-linux-gnueabihf     armhf        arm-linux-gnueabihf
-  aarch64       gcc-aarch64-linux-gnu     g++-aarch64-linux-gnu       arm64        aarch64-linux-gnu
-  ppc64el       gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu   ppc64el      powerpc64le-linux-gnu
-  s390x         gcc-s390x-linux-gnu       g++-s390x-linux-gnu         s390x        s390x-linux-gnu
+  Target        `CC`                      `CXX`                       `--arch=...`  `--openjdk-target=...`
+  ------------  ------------------------- --------------------------- ------------- -----------------------
+  x86           default                   default                     i386          i386-linux-gnu
+  armhf         gcc-arm-linux-gnueabihf   g++-arm-linux-gnueabihf     armhf         arm-linux-gnueabihf
+  aarch64       gcc-aarch64-linux-gnu     g++-aarch64-linux-gnu       arm64         aarch64-linux-gnu
+  ppc64el       gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu   ppc64el       powerpc64le-linux-gnu
+  s390x         gcc-s390x-linux-gnu       g++-s390x-linux-gnu         s390x         s390x-linux-gnu
 
 Additional architectures might be supported by Debian/Ubuntu Ports.
 
@@ -1079,14 +1178,6 @@ useful to set the ABI profile. A number of pre-defined ABI profiles are
 available using `--with-abi-profile`: arm-vfp-sflt, arm-vfp-hflt, arm-sflt,
 armv5-vfp-sflt, armv6-vfp-hflt. Note that soft-float ABIs are no longer
 properly supported by the JDK.
-
-The JDK contains two different ports for the aarch64 platform, one is the
-original aarch64 port from the [AArch64 Port Project](
-http://openjdk.java.net/projects/aarch64-port) and one is a 64-bit version of
-the Oracle contributed ARM port. When targeting aarch64, by the default the
-original aarch64 port is used. To select the Oracle ARM 64 port, use
-`--with-cpu-port=arm64`. Also set the corresponding value (`aarch64` or
-`arm64`) to --with-abi-profile, to ensure a consistent build.
 
 ### Verifying the Build
 
@@ -1309,17 +1400,15 @@ Incremental rebuilds mean that when you modify part of the product, only the
 affected parts get rebuilt. While this works great in most cases, and
 significantly speed up the development process, from time to time complex
 interdependencies will result in an incorrect build result. This is the most
-common cause for unexpected build problems, together with inconsistencies
-between the different Mercurial repositories in the forest.
+common cause for unexpected build problems.
 
 Here are a suggested list of things to try if you are having unexpected build
 problems. Each step requires more time than the one before, so try them in
 order. Most issues will be solved at step 1 or 2.
 
- 1. Make sure your forest is up-to-date
+ 1. Make sure your repository is up-to-date
 
-    Run `bash get_source.sh` to make sure you have the latest version of all
-    repositories.
+    Run `hg pull -u` to make sure you have the latest changes.
 
  2. Clean build results
 
@@ -1344,13 +1433,13 @@ order. Most issues will be solved at step 1 or 2.
     make
     ```
 
- 4. Re-clone the Mercurial forest
+ 4. Re-clone the Mercurial repository
 
-    Sometimes the Mercurial repositories themselves gets in a state that causes
-    the product to be un-buildable. In such a case, the simplest solution is
-    often the "sledgehammer approach": delete the entire forest, and re-clone
-    it. If you have local changes, save them first to a different location
-    using `hg export`.
+    Sometimes the Mercurial repository gets in a state that causes the product
+    to be un-buildable. In such a case, the simplest solution is often the
+    "sledgehammer approach": delete the entire repository, and re-clone it.
+    If you have local changes, save them first to a different location using
+    `hg export`.
 
 ### Specific Build Issues
 
@@ -1401,7 +1490,7 @@ contact the Adoption Group. See the section on [Contributing to OpenJDK](
 
 ## Hints and Suggestions for Advanced Users
 
-### Setting Up a Forest for Pushing Changes (defpath)
+### Setting Up a Repository for Pushing Changes (defpath)
 
 To help you prepare a proper push path for a Mercurial repository, there exists
 a useful tool known as [defpath](
@@ -1427,11 +1516,6 @@ You can now setup a proper push path using:
 ```
 hg defpath -d -u <your OpenJDK username>
 ```
-
-If you also have the `trees` extension installed in Mercurial, you will
-automatically get a `tdefpath` command, which is even more useful. By running
-`hg tdefpath -du <username>` in the top repository of your forest, all repos
-will get setup automatically. This is the recommended usage.
 
 ### Bash Completion
 
@@ -1467,7 +1551,7 @@ Now `configure --en<tab>-dt<tab>` will result in `configure --enable-dtrace`.
 
 ### Using Multiple Configurations
 
-You can have multiple configurations for a single source forest. When you
+You can have multiple configurations for a single source repository. When you
 create a new configuration, run `configure --with-conf-name=<name>` to create a
 configuration with the name `<name>`. Alternatively, you can create a directory
 under `build` and run `configure` from there, e.g. `mkdir build/<name> && cd
@@ -1482,7 +1566,7 @@ in the configuration directory, e.g. `cd build/<name> && make`.
 
 ### Handling Reconfigurations
 
-If you update the forest and part of the configure script has changed, the
+If you update the repository and part of the configure script has changed, the
 build system will force you to re-run `configure`.
 
 Most of the time, you will be fine by running `configure` again with the same

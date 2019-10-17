@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
-
 #include "aot/aotCodeHeap.hpp"
 #include "aot/aotLoader.inline.hpp"
-#include "jvmci/jvmciRuntime.hpp"
+#include "classfile/javaClasses.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
+#include "memory/resourceArea.hpp"
+#include "oops/compressedOops.hpp"
 #include "oops/method.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "runtime/timerTrace.hpp"
 
 GrowableArray<AOTCodeHeap*>* AOTLoader::_heaps = new(ResourceObj::C_HEAP, mtCode) GrowableArray<AOTCodeHeap*> (2, true);
@@ -47,13 +48,8 @@ void AOTLoader::load_for_klass(InstanceKlass* ik, Thread* thread) {
     return;
   }
   if (UseAOT) {
-    if (JvmtiExport::can_hotswap_or_post_breakpoint()) {
-      if (PrintAOT) {
-        warning("JVMTI capability to hotswap and post breakpoint is not compatible with AOT (switching AOT off)");
-      }
-      FLAG_SET_DEFAULT(UseAOT, false);
-      return;
-    }
+    // We allow hotswap to be enabled after the onload phase, but not breakpoints
+    assert(!JvmtiExport::can_post_breakpoint(), "AOT should have been disabled.");
     FOR_ALL_AOT_HEAPS(heap) {
       (*heap)->load_klass_data(ik, thread);
     }
@@ -83,10 +79,18 @@ void AOTLoader::oops_do(OopClosure* f) {
   }
 }
 
-void AOTLoader::metadata_do(void f(Metadata*)) {
+void AOTLoader::metadata_do(MetadataClosure* f) {
   if (UseAOT) {
     FOR_ALL_AOT_HEAPS(heap) {
       (*heap)->metadata_do(f);
+    }
+  }
+}
+
+void AOTLoader::mark_evol_dependent_methods(InstanceKlass* dependee) {
+  if (UseAOT) {
+    FOR_ALL_AOT_HEAPS(heap) {
+      (*heap)->mark_evol_dependent_methods(dependee);
     }
   }
 }
@@ -120,9 +124,9 @@ void AOTLoader::initialize() {
       return;
     }
 
-    if (JvmtiExport::can_hotswap_or_post_breakpoint()) {
+    if (JvmtiExport::can_post_breakpoint()) {
       if (PrintAOT) {
-        warning("JVMTI capability to hotswap and post breakpoint is not compatible with AOT (switching AOT off)");
+        warning("JVMTI capability to post breakpoint is not compatible with AOT (switching AOT off)");
       }
       FLAG_SET_DEFAULT(UseAOT, false);
       return;
@@ -137,21 +141,25 @@ void AOTLoader::initialize() {
       return;
     }
 
+#ifdef _WINDOWS
+    const char pathSep = ';';
+#else
+    const char pathSep = ':';
+#endif
+
     // Scan the AOTLibrary option.
     if (AOTLibrary != NULL) {
       const int len = (int)strlen(AOTLibrary);
       char* cp  = NEW_C_HEAP_ARRAY(char, len+1, mtCode);
-      if (cp != NULL) { // No memory?
-        memcpy(cp, AOTLibrary, len);
-        cp[len] = '\0';
-        char* end = cp + len;
-        while (cp < end) {
-          const char* name = cp;
-          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != ':' && (*cp) != ';')  cp++;
-          cp[0] = '\0';  // Terminate name
-          cp++;
-          load_library(name, true);
-        }
+      memcpy(cp, AOTLibrary, len);
+      cp[len] = '\0';
+      char* end = cp + len;
+      while (cp < end) {
+        const char* name = cp;
+        while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep) cp++;
+        cp[0] = '\0';  // Terminate name
+        cp++;
+        load_library(name, true);
       }
     }
 
@@ -175,14 +183,14 @@ void AOTLoader::universe_init() {
     // AOT sets shift values during heap and metaspace initialization.
     // Check shifts value to make sure thay did not change.
     if (UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
-      int oop_shift = Universe::narrow_oop_shift();
+      int oop_shift = CompressedOops::shift();
       FOR_ALL_AOT_LIBRARIES(lib) {
-        (*lib)->verify_flag((*lib)->config()->_narrowOopShift, oop_shift, "Universe::narrow_oop_shift");
+        (*lib)->verify_flag((*lib)->config()->_narrowOopShift, oop_shift, "CompressedOops::shift");
       }
       if (UseCompressedClassPointers) { // It is set only if UseCompressedOops is set
-        int klass_shift = Universe::narrow_klass_shift();
+        int klass_shift = CompressedKlassPointers::shift();
         FOR_ALL_AOT_LIBRARIES(lib) {
-          (*lib)->verify_flag((*lib)->config()->_narrowKlassShift, klass_shift, "Universe::narrow_klass_shift");
+          (*lib)->verify_flag((*lib)->config()->_narrowKlassShift, klass_shift, "CompressedKlassPointers::shift");
         }
       }
     }
@@ -191,7 +199,7 @@ void AOTLoader::universe_init() {
       if ((*lib)->is_valid()) {
         AOTCodeHeap* heap = new AOTCodeHeap(*lib);
         {
-          MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+          MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
           add_heap(heap);
           CodeCache::add_heap(heap);
         }
@@ -216,10 +224,10 @@ void AOTLoader::set_narrow_oop_shift() {
   // This method is called from Universe::initialize_heap().
   if (UseAOT && libraries_count() > 0 &&
       UseCompressedOops && AOTLib::narrow_oop_shift_initialized()) {
-    if (Universe::narrow_oop_shift() == 0) {
+    if (CompressedOops::shift() == 0) {
       // 0 is valid shift value for small heap but we can safely increase it
       // at this point when nobody used it yet.
-      Universe::set_narrow_oop_shift(AOTLib::narrow_oop_shift());
+      CompressedOops::set_shift(AOTLib::narrow_oop_shift());
     }
   }
 }
@@ -229,8 +237,8 @@ void AOTLoader::set_narrow_klass_shift() {
   if (UseAOT && libraries_count() > 0 &&
       UseCompressedOops && AOTLib::narrow_oop_shift_initialized() &&
       UseCompressedClassPointers) {
-    if (Universe::narrow_klass_shift() == 0) {
-      Universe::set_narrow_klass_shift(AOTLib::narrow_klass_shift());
+    if (CompressedKlassPointers::shift() == 0) {
+      CompressedKlassPointers::set_shift(AOTLib::narrow_klass_shift());
     }
   }
 }
@@ -309,4 +317,25 @@ bool AOTLoader::reconcile_dynamic_invoke(InstanceKlass* holder, int index, Metho
   bool success = caller_heap->reconcile_dynamic_invoke(aot, holder, index, adapter_method, appendix_klass);
   vmassert(success || thread->last_frame().sender(&map).is_deoptimized_frame(), "caller not deoptimized on failure");
   return success;
+}
+
+
+// This should be called very early during startup before any of the AOTed methods that use boxes can deoptimize.
+// Deoptimization machinery expects the caches to be present and populated.
+void AOTLoader::initialize_box_caches(TRAPS) {
+  if (!UseAOT || libraries_count() == 0) {
+    return;
+  }
+  TraceTime timer("AOT initialization of box caches", TRACETIME_LOG(Info, aot, startuptime));
+  Symbol* box_classes[] = { java_lang_Boolean::symbol(), java_lang_Byte_ByteCache::symbol(),
+    java_lang_Short_ShortCache::symbol(), java_lang_Character_CharacterCache::symbol(),
+    java_lang_Integer_IntegerCache::symbol(), java_lang_Long_LongCache::symbol() };
+
+  for (unsigned i = 0; i < sizeof(box_classes) / sizeof(Symbol*); i++) {
+    Klass* k = SystemDictionary::resolve_or_fail(box_classes[i], true, CHECK);
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    if (ik->is_not_initialized()) {
+      ik->initialize(CHECK);
+    }
+  }
 }

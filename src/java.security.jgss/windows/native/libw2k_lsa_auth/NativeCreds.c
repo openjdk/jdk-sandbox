@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,7 +54,6 @@
  * Library-wide static references
  */
 
-jclass derValueClass = NULL;
 jclass ticketClass = NULL;
 jclass principalNameClass = NULL;
 jclass encryptionKeyClass = NULL;
@@ -62,7 +61,6 @@ jclass ticketFlagsClass = NULL;
 jclass kerberosTimeClass = NULL;
 jclass javaLangStringClass = NULL;
 
-jmethodID derValueConstructor = 0;
 jmethodID ticketConstructor = 0;
 jmethodID principalNameConstructor = 0;
 jmethodID encryptionKeyConstructor = 0;
@@ -78,7 +76,8 @@ BOOL native_debug = 0;
 
 BOOL PackageConnectLookup(PHANDLE,PULONG);
 
-NTSTATUS ConstructTicketRequest(UNICODE_STRING DomainName,
+NTSTATUS ConstructTicketRequest(JNIEnv *env,
+                                UNICODE_STRING DomainName,
                                 PKERB_RETRIEVE_TKT_REQUEST *outRequest,
                                 ULONG *outSize);
 
@@ -103,6 +102,8 @@ jobject BuildPrincipal(JNIEnv *env, PKERB_EXTERNAL_NAME principalName,
 jobject BuildEncryptionKey(JNIEnv *env, PKERB_CRYPTO_KEY cryptoKey);
 jobject BuildTicketFlags(JNIEnv *env, PULONG flags);
 jobject BuildKerberosTime(JNIEnv *env, PLARGE_INTEGER kerbtime);
+
+void ThrowOOME(JNIEnv *env, const char *szMessage);
 
 /*
  * Class:     sun_security_krb5_KrbCreds
@@ -163,24 +164,6 @@ JNIEXPORT jint JNICALL DEF_JNI_OnLoad(
 
     principalNameClass = (*env)->NewWeakGlobalRef(env,cls);
     if (principalNameClass == NULL) {
-        return JNI_ERR;
-    }
-    if (native_debug) {
-        printf("LSA: Made NewWeakGlobalRef\n");
-    }
-
-    cls = (*env)->FindClass(env,"sun/security/util/DerValue");
-
-    if (cls == NULL) {
-        printf("LSA: Couldn't find DerValue\n");
-        return JNI_ERR;
-    }
-    if (native_debug) {
-        printf("LSA: Found DerValue\n");
-    }
-
-    derValueClass = (*env)->NewWeakGlobalRef(env,cls);
-    if (derValueClass == NULL) {
         return JNI_ERR;
     }
     if (native_debug) {
@@ -259,18 +242,8 @@ JNIEXPORT jint JNICALL DEF_JNI_OnLoad(
         printf("LSA: Made NewWeakGlobalRef\n");
     }
 
-    derValueConstructor = (*env)->GetMethodID(env, derValueClass,
-                                            "<init>", "([B)V");
-    if (derValueConstructor == 0) {
-        printf("LSA: Couldn't find DerValue constructor\n");
-        return JNI_ERR;
-    }
-    if (native_debug) {
-        printf("LSA: Found DerValue constructor\n");
-    }
-
     ticketConstructor = (*env)->GetMethodID(env, ticketClass,
-                            "<init>", "(Lsun/security/util/DerValue;)V");
+                            "<init>", "([B)V");
     if (ticketConstructor == 0) {
         printf("LSA: Couldn't find Ticket constructor\n");
         return JNI_ERR;
@@ -344,9 +317,6 @@ JNIEXPORT void JNICALL DEF_JNI_OnUnload(
     if (ticketClass != NULL) {
         (*env)->DeleteWeakGlobalRef(env,ticketClass);
     }
-    if (derValueClass != NULL) {
-        (*env)->DeleteWeakGlobalRef(env,derValueClass);
-    }
     if (principalNameClass != NULL) {
         (*env)->DeleteWeakGlobalRef(env,principalNameClass);
     }
@@ -401,6 +371,8 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
         if (krbcredsConstructor == 0) {
             krbcredsConstructor = (*env)->GetMethodID(env, krbcredsClass, "<init>",
                     "(Lsun/security/krb5/internal/Ticket;"
+                    "Lsun/security/krb5/PrincipalName;"
+                    "Lsun/security/krb5/PrincipalName;"
                     "Lsun/security/krb5/PrincipalName;"
                     "Lsun/security/krb5/PrincipalName;"
                     "Lsun/security/krb5/EncryptionKey;"
@@ -497,7 +469,7 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
             }
 
             // use domain to request Ticket
-            Status = ConstructTicketRequest(msticket->TargetDomainName,
+            Status = ConstructTicketRequest(env, msticket->TargetDomainName,
                                 &pTicketRequest, &requestSize);
             if (!LSA_SUCCESS(Status)) {
                 ShowNTError("ConstructTicketRequest status", Status);
@@ -664,7 +636,9 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
                 krbcredsConstructor,
                 ticket,
                 clientPrincipal,
+                NULL,
                 targetPrincipal,
+                NULL,
                 encryptionKey,
                 ticketFlags,
                 authTime, // mdu
@@ -691,7 +665,7 @@ JNIEXPORT jobject JNICALL Java_sun_security_krb5_Credentials_acquireDefaultNativ
 }
 
 static NTSTATUS
-ConstructTicketRequest(UNICODE_STRING DomainName,
+ConstructTicketRequest(JNIEnv *env, UNICODE_STRING DomainName,
                 PKERB_RETRIEVE_TKT_REQUEST *outRequest, ULONG *outSize)
 {
     NTSTATUS Status;
@@ -738,8 +712,10 @@ ConstructTicketRequest(UNICODE_STRING DomainName,
 
     pTicketRequest = (PKERB_RETRIEVE_TKT_REQUEST)
                     LocalAlloc(LMEM_ZEROINIT, RequestSize);
-    if (!pTicketRequest)
+    if (!pTicketRequest) {
+        ThrowOOME(env, "Can't allocate memory for ticket");
         return GetLastError();
+    }
 
     //
     // Concatenate the target prefix with the previous response's
@@ -888,15 +864,13 @@ InitUnicodeString(
 
 jobject BuildTicket(JNIEnv *env, PUCHAR encodedTicket, ULONG encodedTicketSize) {
 
-    /* To build a Ticket, we first need to build a DerValue out of the EncodedTicket.
-     * But before we can do that, we need to make a byte array out of the ET.
-     */
+    // To build a Ticket, we need to make a byte array out of the EncodedTicket.
 
-    jobject derValue, ticket;
+    jobject ticket;
     jbyteArray ary;
 
     ary = (*env)->NewByteArray(env,encodedTicketSize);
-    if ((*env)->ExceptionOccurred(env)) {
+    if (ary == NULL) {
         return (jobject) NULL;
     }
 
@@ -907,19 +881,12 @@ jobject BuildTicket(JNIEnv *env, PUCHAR encodedTicket, ULONG encodedTicketSize) 
         return (jobject) NULL;
     }
 
-    derValue = (*env)->NewObject(env, derValueClass, derValueConstructor, ary);
+    ticket = (*env)->NewObject(env, ticketClass, ticketConstructor, ary);
     if ((*env)->ExceptionOccurred(env)) {
         (*env)->DeleteLocalRef(env, ary);
         return (jobject) NULL;
     }
-
     (*env)->DeleteLocalRef(env, ary);
-    ticket = (*env)->NewObject(env, ticketClass, ticketConstructor, derValue);
-    if ((*env)->ExceptionOccurred(env)) {
-        (*env)->DeleteLocalRef(env, derValue);
-        return (jobject) NULL;
-    }
-    (*env)->DeleteLocalRef(env, derValue);
     return ticket;
 }
 
@@ -942,6 +909,10 @@ jobject BuildPrincipal(JNIEnv *env, PKERB_EXTERNAL_NAME principalName,
 
     realm = (WCHAR *) LocalAlloc(LMEM_ZEROINIT,
             ((domainName.Length)*sizeof(WCHAR) + sizeof(UNICODE_NULL)));
+    if (realm == NULL) {
+        ThrowOOME(env, "Can't allocate memory for realm");
+        return NULL;
+    }
     wcsncpy(realm, domainName.Buffer, domainName.Length/sizeof(WCHAR));
 
     if (native_debug) {
@@ -1016,6 +987,9 @@ jobject BuildEncryptionKey(JNIEnv *env, PKERB_CRYPTO_KEY cryptoKey) {
     }
 
     ary = (*env)->NewByteArray(env,cryptoKey->Length);
+    if (ary == NULL) {
+        return (jobject) NULL;
+    }
     (*env)->SetByteArrayRegion(env, ary, (jsize) 0, cryptoKey->Length,
                                     (jbyte *)cryptoKey->Value);
     if ((*env)->ExceptionOccurred(env)) {
@@ -1038,6 +1012,9 @@ jobject BuildTicketFlags(JNIEnv *env, PULONG flags) {
     ULONG nlflags = htonl(*flags);
 
     ary = (*env)->NewByteArray(env, sizeof(*flags));
+    if (ary == NULL) {
+        return (jobject) NULL;
+    }
     (*env)->SetByteArrayRegion(env, ary, (jsize) 0, sizeof(*flags),
                                     (jbyte *)&nlflags);
     if ((*env)->ExceptionOccurred(env)) {
@@ -1089,4 +1066,11 @@ jobject BuildKerberosTime(JNIEnv *env, PLARGE_INTEGER kerbtime) {
         }
     }
     return kerberosTime;
+}
+
+void ThrowOOME(JNIEnv *env, const char *szMessage) {
+    jclass exceptionClazz = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+    if (exceptionClazz != NULL) {
+        (*env)->ThrowNew(env, exceptionClazz, szMessage);
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_NMETHOD_HPP
-#define SHARE_VM_CODE_NMETHOD_HPP
+#ifndef SHARE_CODE_NMETHOD_HPP
+#define SHARE_CODE_NMETHOD_HPP
 
 #include "code/compiledMethod.hpp"
 
 class DepChange;
 class DirectiveSet;
+class DebugInformationRecorder;
 
 // nmethods (native methods) are the compiled code versions of Java methods.
 //
@@ -50,36 +51,27 @@ class DirectiveSet;
 //  - handler entry point array
 //  [Implicit Null Pointer exception table]
 //  - implicit null table array
+//  [Speculations]
+//  - encoded speculations array
+//  [JVMCINMethodData]
+//  - meta data for JVMCI compiled nmethod
+
+#if INCLUDE_JVMCI
+class FailedSpeculation;
+class JVMCINMethodData;
+#endif
 
 class nmethod : public CompiledMethod {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class NMethodSweeper;
   friend class CodeCache;  // scavengable oops
+  friend class JVMCINMethodData;
  private:
 
   // Shared fields for all nmethod's
   int       _entry_bci;        // != InvocationEntryBci if this nmethod is an on-stack replacement method
   jmethodID _jmethod_id;       // Cache of method()->jmethod_id()
-
-#if INCLUDE_JVMCI
-  // A weak reference to an InstalledCode object associated with
-  // this nmethod.
-  jweak     _jvmci_installed_code;
-
-  // A weak reference to a SpeculationLog object associated with
-  // this nmethod.
-  jweak     _speculation_log;
-
-  // Determines whether this nmethod is unloaded when the
-  // referent in _jvmci_installed_code is cleared. This
-  // will be false if the referent is initialized to a
-  // HotSpotNMethod object whose isDefault field is true.
-  // That is, installed code other than a "default"
-  // HotSpotNMethod causes nmethod unloading.
-  // This field is ignored once _jvmci_installed_code is NULL.
-  bool _jvmci_installed_code_triggers_invalidation;
-#endif
 
   // To support simple linked-list chaining of nmethods:
   nmethod*  _osr_link;         // from InstanceKlass::osr_nmethods_head
@@ -106,6 +98,10 @@ class nmethod : public CompiledMethod {
   int _dependencies_offset;
   int _handler_table_offset;
   int _nul_chk_table_offset;
+#if INCLUDE_JVMCI
+  int _speculations_offset;
+  int _jvmci_data_offset;
+#endif
   int _nmethod_end_offset;
 
   int code_offset() const { return (address) code_begin() - header_begin(); }
@@ -123,14 +119,12 @@ class nmethod : public CompiledMethod {
   // used by jvmti to track if an unload event has been posted for this nmethod.
   bool _unload_reported;
 
-  // Protected by Patching_lock
+  // Protected by CompiledMethod_lock
   volatile signed char _state;               // {not_installed, in_use, not_entrant, zombie, unloaded}
 
 #ifdef ASSERT
   bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
 #endif
-
-  jbyte _scavenge_root_state;
 
 #if INCLUDE_RTM_OPT
   // RTM state at compile time. Used during deoptimization to decide
@@ -157,6 +151,9 @@ class nmethod : public CompiledMethod {
   // is active while stack scanning (mark_active_nmethods()). The hotness
   // counter is decreased (by 1) while sweeping.
   int _hotness_counter;
+
+  // Local state used to keep track of whether unloading is happening or not
+  volatile uint8_t _is_unloading_state;
 
   // These are used for compiled synchronized native methods to
   // locate the owner and stack slot for the BasicLock so that we can
@@ -205,8 +202,9 @@ class nmethod : public CompiledMethod {
           AbstractCompiler* compiler,
           int comp_level
 #if INCLUDE_JVMCI
-          , jweak installed_code,
-          jweak speculation_log
+          , char* speculations,
+          int speculations_len,
+          int jvmci_data_size
 #endif
           );
 
@@ -214,6 +212,9 @@ class nmethod : public CompiledMethod {
   void* operator new(size_t size, int nmethod_size, int comp_level) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
+
+  bool try_transition(int new_state);
+
   // Returns true if this thread changed the state of the nmethod or
   // false if another thread performed the transition.
   bool make_not_entrant_or_zombie(int state);
@@ -249,10 +250,21 @@ class nmethod : public CompiledMethod {
                               AbstractCompiler* compiler,
                               int comp_level
 #if INCLUDE_JVMCI
-                              , jweak installed_code = NULL,
-                              jweak speculation_log = NULL
+                              , char* speculations = NULL,
+                              int speculations_len = 0,
+                              int nmethod_mirror_index = -1,
+                              const char* nmethod_mirror_name = NULL,
+                              FailedSpeculation** failed_speculations = NULL
 #endif
   );
+
+  // Only used for unit tests.
+  nmethod()
+    : CompiledMethod(),
+      _is_unloading_state(0),
+      _native_receiver_sp_offset(in_ByteSize(-1)),
+      _native_basic_lock_sp_offset(in_ByteSize(-1)) {}
+
 
   static nmethod* new_native_nmethod(const methodHandle& method,
                                      int compile_id,
@@ -289,12 +301,24 @@ class nmethod : public CompiledMethod {
   address handler_table_begin   () const          { return           header_begin() + _handler_table_offset ; }
   address handler_table_end     () const          { return           header_begin() + _nul_chk_table_offset ; }
   address nul_chk_table_begin   () const          { return           header_begin() + _nul_chk_table_offset ; }
+#if INCLUDE_JVMCI
+  address nul_chk_table_end     () const          { return           header_begin() + _speculations_offset  ; }
+  address speculations_begin    () const          { return           header_begin() + _speculations_offset  ; }
+  address speculations_end      () const          { return           header_begin() + _jvmci_data_offset   ; }
+  address jvmci_data_begin      () const          { return           header_begin() + _jvmci_data_offset    ; }
+  address jvmci_data_end        () const          { return           header_begin() + _nmethod_end_offset   ; }
+#else
   address nul_chk_table_end     () const          { return           header_begin() + _nmethod_end_offset   ; }
+#endif
 
   // Sizes
   int oops_size         () const                  { return (address)  oops_end         () - (address)  oops_begin         (); }
   int metadata_size     () const                  { return (address)  metadata_end     () - (address)  metadata_begin     (); }
   int dependencies_size () const                  { return            dependencies_end () -            dependencies_begin (); }
+#if INCLUDE_JVMCI
+  int speculations_size () const                  { return            speculations_end () -            speculations_begin (); }
+  int jvmci_data_size   () const                  { return            jvmci_data_end   () -            jvmci_data_begin   (); }
+#endif
 
   int     oops_count() const { assert(oops_size() % oopSize == 0, "");  return (oops_size() / oopSize) + 1; }
   int metadata_count() const { assert(metadata_size() % wordSize == 0, ""); return (metadata_size() / wordSize) + 1; }
@@ -318,10 +342,14 @@ class nmethod : public CompiledMethod {
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }
   bool  is_in_use() const                         { return _state <= in_use; }
-  bool  is_alive() const                          { return _state < zombie; }
+  bool  is_alive() const                          { return _state < unloaded; }
   bool  is_not_entrant() const                    { return _state == not_entrant; }
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
+
+  void clear_unloading_state();
+  virtual bool is_unloading();
+  virtual void do_unloading(bool unloading_occurred);
 
 #if INCLUDE_RTM_OPT
   // rtm state accessing and manipulating
@@ -329,7 +357,9 @@ class nmethod : public CompiledMethod {
   void set_rtm_state(RTMState state)              { _rtm_state = state; }
 #endif
 
-  void make_in_use()                              { _state = in_use; }
+  bool make_in_use() {
+    return try_transition(in_use);
+  }
   // Make the nmethod non entrant. The nmethod will continue to be
   // alive.  It is used when an uncommon trap happens.  Returns true
   // if this thread changed the state of the nmethod or false if
@@ -349,9 +379,10 @@ class nmethod : public CompiledMethod {
     return _state;
   }
 
-  void  make_unloaded(oop cause);
+  void  make_unloaded();
 
   bool has_dependencies()                         { return dependencies_size() != 0; }
+  void print_dependencies()                       PRODUCT_RETURN;
   void flush_dependencies(bool delete_immediately);
   bool has_flushed_dependencies()                 { return _has_flushed_dependencies; }
   void set_has_flushed_dependencies()             {
@@ -361,9 +392,12 @@ class nmethod : public CompiledMethod {
 
   int   comp_level() const                        { return _comp_level; }
 
+  void unlink_from_method();
+
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
-  oop   oop_at(int index) const                   { return index == 0 ? (oop) NULL: *oop_addr_at(index); }
+  oop   oop_at(int index) const;
+  oop   oop_at_phantom(int index) const; // phantom reference
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -392,30 +426,9 @@ public:
   void fix_oop_relocations(address begin, address end) { fix_oop_relocations(begin, end, false); }
   void fix_oop_relocations()                           { fix_oop_relocations(NULL, NULL, false); }
 
-  // Scavengable oop support
-  bool  on_scavenge_root_list() const                  { return (_scavenge_root_state & 1) != 0; }
- protected:
-  enum { sl_on_list = 0x01, sl_marked = 0x10 };
-  void  set_on_scavenge_root_list()                    { _scavenge_root_state = sl_on_list; }
-  void  clear_on_scavenge_root_list()                  { _scavenge_root_state = 0; }
-  // assertion-checking and pruning logic uses the bits of _scavenge_root_state
-#ifndef PRODUCT
-  void  set_scavenge_root_marked()                     { _scavenge_root_state |= sl_marked; }
-  void  clear_scavenge_root_marked()                   { _scavenge_root_state &= ~sl_marked; }
-  bool  scavenge_root_not_marked()                     { return (_scavenge_root_state &~ sl_on_list) == 0; }
-  // N.B. there is no positive marked query, and we only use the not_marked query for asserts.
-#endif //PRODUCT
-  nmethod* scavenge_root_link() const                  { return _scavenge_root_link; }
-  void     set_scavenge_root_link(nmethod *n)          { _scavenge_root_link = n; }
-
- public:
-
   // Sweeper support
   long  stack_traversal_mark()                    { return _stack_traversal_mark; }
   void  set_stack_traversal_mark(long l)          { _stack_traversal_mark = l; }
-
-  // implicit exceptions support
-  address continuation_for_implicit_exception(address pc);
 
   // On-stack replacement support
   int   osr_entry_bci() const                     { assert(is_osr_method(), "wrong kind of nmethod"); return _entry_bci; }
@@ -448,60 +461,24 @@ public:
   void set_method(Method* method) { _method = method; }
 
 #if INCLUDE_JVMCI
-  // Gets the InstalledCode object associated with this nmethod
-  // which may be NULL if this nmethod was not compiled by JVMCI
-  // or the weak reference has been cleared.
-  oop jvmci_installed_code();
+  // Gets the JVMCI name of this nmethod.
+  const char* jvmci_name();
 
-  // Copies the value of the name field in the InstalledCode
-  // object (if any) associated with this nmethod into buf.
-  // Returns the value of buf if it was updated otherwise NULL.
-  char* jvmci_installed_code_name(char* buf, size_t buflen) const;
+  // Records the pending failed speculation in the
+  // JVMCI speculation log associated with this nmethod.
+  void update_speculation(JavaThread* thread);
 
-  // Updates the state of the InstalledCode (if any) associated with
-  // this nmethod based on the current value of _state.
-  void maybe_invalidate_installed_code();
-
-  // Deoptimizes the nmethod (if any) in the address field of a given
-  // InstalledCode object. The address field is zeroed upon return.
-  static void invalidate_installed_code(Handle installed_code, TRAPS);
-
-  // Gets the SpeculationLog object associated with this nmethod
-  // which may be NULL if this nmethod was not compiled by JVMCI
-  // or the weak reference has been cleared.
-  oop speculation_log();
-
- private:
-  // Deletes the weak reference (if any) to the InstalledCode object
-  // associated with this nmethod.
-  void clear_jvmci_installed_code();
-
-  // Deletes the weak reference (if any) to the SpeculationLog object
-  // associated with this nmethod.
-  void clear_speculation_log();
-
- public:
+  // Gets the data specific to a JVMCI compiled method.
+  // This returns a non-NULL value iff this nmethod was
+  // compiled by the JVMCI compiler.
+  JVMCINMethodData* jvmci_nmethod_data() const {
+    return jvmci_data_size() == 0 ? NULL : (JVMCINMethodData*) jvmci_data_begin();
+  }
 #endif
-
- protected:
-  virtual bool do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive);
-#if INCLUDE_JVMCI
-  // See comment for _jvmci_installed_code_triggers_invalidation field.
-  // Returns whether this nmethod was unloaded.
-  virtual bool do_unloading_jvmci();
-#endif
-
- private:
-  bool do_unloading_scopes(BoolObjectClosure* is_alive);
-  //  Unload a nmethod if the *root object is dead.
-  bool can_unload(BoolObjectClosure* is_alive, oop* root);
-  bool unload_if_dead_at(RelocIterator *iter_at_oop, BoolObjectClosure* is_alive);
 
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
-  void oops_do(OopClosure* f, bool allow_zombie);
-  bool detect_scavenge_root_oops();
-  void verify_scavenge_root_oops() PRODUCT_RETURN;
+  void oops_do(OopClosure* f, bool allow_dead);
 
   bool test_set_oops_do_mark();
   static void oops_do_marking_prologue();
@@ -532,18 +509,40 @@ public:
   void verify_scopes();
   void verify_interrupt_point(address interrupt_point);
 
+  // Disassemble this nmethod with additional debug information, e.g. information about blocks.
+  void decode2(outputStream* st) const;
+  void print_constant_pool(outputStream* st);
+
+  // Avoid hiding of parent's 'decode(outputStream*)' method.
+  void decode(outputStream* st) const { decode2(st); } // just delegate here.
+
   // printing support
   void print()                          const;
+  void print(outputStream* st)          const;
+  void print_code();
+
+#if defined(SUPPORT_DATA_STRUCTS)
+  // print output in opt build for disassembler library
   void print_relocations()                        PRODUCT_RETURN;
-  void print_pcs()                                PRODUCT_RETURN;
-  void print_scopes()                             PRODUCT_RETURN;
-  void print_dependencies()                       PRODUCT_RETURN;
-  void print_value_on(outputStream* st) const     PRODUCT_RETURN;
+  void print_pcs() { print_pcs_on(tty); }
+  void print_pcs_on(outputStream* st);
+  void print_scopes() { print_scopes_on(tty); }
+  void print_scopes_on(outputStream* st)          PRODUCT_RETURN;
+  void print_value_on(outputStream* st) const;
+  void print_handler_table();
+  void print_nul_chk_table();
+  void print_recorded_oops();
+  void print_recorded_metadata();
+
+  void print_oops(outputStream* st);     // oops from the underlying CodeBlob.
+  void print_metadata(outputStream* st); // metadata in metadata pool.
+#else
+  // void print_pcs()                             PRODUCT_RETURN;
+  void print_pcs()                                { return; }
+#endif
+
   void print_calls(outputStream* st)              PRODUCT_RETURN;
-  void print_handler_table()                      PRODUCT_RETURN;
-  void print_nul_chk_table()                      PRODUCT_RETURN;
-  void print_recorded_oops()                      PRODUCT_RETURN;
-  void print_recorded_metadata()                  PRODUCT_RETURN;
+  static void print_statistics()                  PRODUCT_RETURN;
 
   void maybe_print_nmethod(DirectiveSet* directive);
   void print_nmethod(bool print_code);
@@ -555,18 +554,25 @@ public:
   // Logging
   void log_identity(xmlStream* log) const;
   void log_new_nmethod() const;
-  void log_state_change(oop cause = NULL) const;
+  void log_state_change() const;
 
   // Prints block-level comments, including nmethod specific block labels:
   virtual void print_block_comment(outputStream* stream, address block_begin) const {
+#if defined(SUPPORT_ASSEMBLY) || defined(SUPPORT_ABSTRACT_ASSEMBLY)
     print_nmethod_labels(stream, block_begin);
     CodeBlob::print_block_comment(stream, block_begin);
+#endif
   }
-  void print_nmethod_labels(outputStream* stream, address block_begin) const;
+  bool has_block_comment(address block_begin) {
+    return CodeBlob::has_block_comment(block_begin);
+  }
+  void print_nmethod_labels(outputStream* stream, address block_begin, bool print_section_labels=true) const;
+  const char* nmethod_section_label(address pos) const;
 
+  // returns whether this nmethod has code comments.
+  bool has_code_comment(address begin, address end);
   // Prints a comment for one native instruction (reloc info, pc desc)
   void print_code_comment_on(outputStream* st, int column, address begin, address end);
-  static void print_statistics() PRODUCT_RETURN;
 
   // Compiler task identification.  Note that all OSR methods
   // are numbered in an independent sequence if CICountOSR is true,
@@ -582,11 +588,6 @@ public:
   // tells if this compiled method is dependent on the given changes,
   // and the changes have invalidated it
   bool check_dependency_on(DepChange& changes);
-
-  // Evolution support. Tells if this compiled method is dependent on any of
-  // methods m() of class dependee, such that if m() in dependee is replaced,
-  // this compiled method will have to be deoptimized.
-  bool is_evol_dependent_on(Klass* dependee);
 
   // Fast breakpoint support. Tells if this compiled method is
   // dependent on the given method. Returns true if this nmethod
@@ -609,7 +610,7 @@ public:
   static int osr_entry_point_offset()             { return offset_of(nmethod, _osr_entry_point); }
   static int state_offset()                       { return offset_of(nmethod, _state); }
 
-  virtual void metadata_do(void f(Metadata*));
+  virtual void metadata_do(MetadataClosure* f);
 
   NativeCallWrapper* call_wrapper_at(address call) const;
   NativeCallWrapper* call_wrapper_before(address return_pc) const;
@@ -666,4 +667,4 @@ class nmethodLocker : public StackObj {
   }
 };
 
-#endif // SHARE_VM_CODE_NMETHOD_HPP
+#endif // SHARE_CODE_NMETHOD_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,15 @@
  * questions.
  */
 
-/*
- */
-
 package java.nio.channels.spi;
 
 import java.io.IOException;
-import java.nio.channels.*;
-import jdk.internal.misc.SharedSecrets;
+import java.nio.channels.AsynchronousCloseException;
+import java.nio.channels.Channel;
+import java.nio.channels.ClosedByInterruptException;
+import java.nio.channels.InterruptibleChannel;
+
+import jdk.internal.access.SharedSecrets;
 import sun.nio.ch.Interruptible;
 
 
@@ -84,7 +85,6 @@ import sun.nio.ch.Interruptible;
 public abstract class AbstractInterruptibleChannel
     implements Channel, InterruptibleChannel
 {
-
     private final Object closeLock = new Object();
     private volatile boolean closed;
 
@@ -203,7 +203,7 @@ public abstract class AbstractInterruptibleChannel
     }
 
 
-    // -- jdk.internal.misc.SharedSecrets --
+    // -- jdk.internal.access.SharedSecrets --
     static void blockedOn(Interruptible intr) {         // package-private
         SharedSecrets.getJavaLangAccess().blockedOn(intr);
     }

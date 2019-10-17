@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,28 +22,34 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JNIHANDLES_HPP
-#define SHARE_VM_RUNTIME_JNIHANDLES_HPP
+#ifndef SHARE_RUNTIME_JNIHANDLES_HPP
+#define SHARE_RUNTIME_JNIHANDLES_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
 
+class JavaThread;
 class OopStorage;
+class Thread;
 
 // Interface for creating and resolving local/global JNI handles
 
 class JNIHandles : AllStatic {
   friend class VMStructs;
  private:
+  // These are used by the serviceability agent.
   static OopStorage* _global_handles;
   static OopStorage* _weak_global_handles;
+  friend void jni_handles_init();
 
   inline static bool is_jweak(jobject handle);
   inline static oop* jobject_ptr(jobject handle); // NOT jweak!
   inline static oop* jweak_ptr(jobject handle);
 
-  template<bool external_guard> inline static oop resolve_impl(jobject handle);
-  static oop resolve_jweak(jweak handle);
+  template <DecoratorSet decorators, bool external_guard> inline static oop resolve_impl(jobject handle);
+
+  // Resolve handle into oop, without keeping the object alive
+  inline static oop resolve_no_keepalive(jobject handle);
 
   // This method is not inlined in order to avoid circular includes between
   // this header file and thread.hpp.
@@ -70,6 +76,9 @@ class JNIHandles : AllStatic {
   // Resolve externally provided handle into oop with some guards
   static oop resolve_external_guard(jobject handle);
 
+  // Check for equality without keeping objects alive
+  static bool is_same_object(jobject handle1, jobject handle2);
+
   // Local handles
   static jobject make_local(oop obj);
   static jobject make_local(JNIEnv* env, oop obj);    // Fast version when env is known
@@ -90,7 +99,7 @@ class JNIHandles : AllStatic {
 
   // Debugging
   static void print_on(outputStream* st);
-  static void print()           { print_on(tty); }
+  static void print();
   static void verify();
   // The category predicates all require handle != NULL.
   static bool is_local_handle(Thread* thread, jobject handle);
@@ -115,9 +124,6 @@ class JNIHandles : AllStatic {
   static void weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f);
   // Traversal of weak global handles.
   static void weak_oops_do(OopClosure* f);
-
-  static OopStorage* global_handles();
-  static OopStorage* weak_global_handles();
 };
 
 
@@ -133,7 +139,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
     block_size_in_oops  = 32                    // Number of handles per handle block
   };
 
-  oop             _handles[block_size_in_oops]; // The handles
+  uintptr_t       _handles[block_size_in_oops]; // The handles
   int             _top;                         // Index of next unused handle
   JNIHandleBlock* _next;                        // Link to next block
 
@@ -141,7 +147,7 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   // Having two types of blocks complicates the code and the space overhead in negligible.
   JNIHandleBlock* _last;                        // Last block in use
   JNIHandleBlock* _pop_frame_link;              // Block to restore on PopLocalFrame call
-  oop*            _free_list;                   // Handle free list
+  uintptr_t*      _free_list;                   // Handle free list
   int             _allocate_before_rebuild;     // Number of blocks to allocate before rebuilding free list
 
   // Check JNI, "planned capacity" for current frame (or push/ensure)
@@ -199,4 +205,4 @@ class JNIHandleBlock : public CHeapObj<mtInternal> {
   #endif
 };
 
-#endif // SHARE_VM_RUNTIME_JNIHANDLES_HPP
+#endif // SHARE_RUNTIME_JNIHANDLES_HPP

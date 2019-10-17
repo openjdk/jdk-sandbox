@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 
 #include "runtime/os.hpp"
 
-#ifndef OS_POSIX_VM_OS_POSIX_HPP
-#define OS_POSIX_VM_OS_POSIX_HPP
+#ifndef OS_POSIX_OS_POSIX_HPP
+#define OS_POSIX_OS_POSIX_HPP
 
 // File conventions
 static const char* file_separator() { return "/"; }
@@ -116,12 +116,33 @@ public:
   // Returns true if either given uid is effective uid and given gid is
   // effective gid, or if given uid is root.
   static bool matches_effective_uid_and_gid_or_root(uid_t uid, gid_t gid);
-};
 
-// On POSIX platforms the signal handler is global so we just do the write.
-static void write_memory_serialize_page_with_handler(JavaThread* thread) {
-  write_memory_serialize_page(thread);
-}
+  static struct sigaction *get_preinstalled_handler(int);
+  static void save_preinstalled_handler(int, struct sigaction&);
+
+  static void print_umask(outputStream* st, mode_t umsk);
+
+  static void print_user_info(outputStream* st);
+
+#ifdef SUPPORTS_CLOCK_MONOTONIC
+
+private:
+  // These need to be members so we can access them from inline functions
+  static int (*_clock_gettime)(clockid_t, struct timespec *);
+  static int (*_clock_getres)(clockid_t, struct timespec *);
+public:
+  static bool supports_monotonic_clock();
+  static int clock_gettime(clockid_t clock_id, struct timespec *tp);
+  static int clock_getres(clockid_t clock_id, struct timespec *tp);
+
+#else
+
+  static bool supports_monotonic_clock() { return false; }
+
+#endif
+
+  static void to_RTC_abstime(timespec* abstime, int64_t millis);
+};
 
 /*
  * Crash protection for the watcher thread. Wrap the callback
@@ -159,7 +180,7 @@ private:
  * These event objects are type-stable and immortal - we never delete them.
  * Events are associated with a thread for the lifetime of the thread.
  */
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
  private:
   double cachePad[4];        // Increase odds that _mutex is sole occupant of cache line
   volatile int _event;       // Event count/permit: -1, 0 or 1
@@ -194,7 +215,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
 // API updates of course). But Parker methods use fastpaths that break that
 // level of encapsulation - so combining the two remains a future project.
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
  protected:
   enum {
     REL_INDEX = 0,
@@ -211,6 +232,113 @@ class PlatformParker : public CHeapObj<mtInternal> {
   PlatformParker();
 };
 
+// Workaround for a bug in macOSX kernel's pthread support (fixed in Mojave?).
+// Avoid ever allocating a pthread_mutex_t at the same address as one of our
+// former pthread_cond_t, by using freelists of mutexes and condvars.
+// Conditional to avoid extra indirection and padding loss on other platforms.
+#ifdef __APPLE__
+#define PLATFORM_MONITOR_IMPL_INDIRECT 1
+#else
+#define PLATFORM_MONITOR_IMPL_INDIRECT 0
+#endif
+
+// Platform specific implementations that underpin VM Mutex/Monitor classes
+
+class PlatformMutex : public CHeapObj<mtSynchronizer> {
+#if PLATFORM_MONITOR_IMPL_INDIRECT
+  class Mutex : public CHeapObj<mtSynchronizer> {
+   public:
+    pthread_mutex_t _mutex;
+    Mutex* _next;
+
+    Mutex();
+    ~Mutex();
+  };
+
+  Mutex* _impl;
+
+  static pthread_mutex_t _freelist_lock; // used for mutex and cond freelists
+  static Mutex* _mutex_freelist;
+
+ protected:
+  class WithFreeListLocked;
+  pthread_mutex_t* mutex() { return &(_impl->_mutex); }
+
+ public:
+  PlatformMutex();              // Use freelist allocation of impl.
+  ~PlatformMutex();
+
+  static void init();           // Initialize the freelist.
+
+#else
+
+  pthread_mutex_t _mutex;
+
+ protected:
+  pthread_mutex_t* mutex() { return &_mutex; }
+
+ public:
+  static void init() {}         // Nothing needed for the non-indirect case.
+
+  PlatformMutex();
+  ~PlatformMutex();
+
+#endif // PLATFORM_MONITOR_IMPL_INDIRECT
+
+private:
+  // Disable copying
+  PlatformMutex(const PlatformMutex&);
+  PlatformMutex& operator=(const PlatformMutex&);
+
+ public:
+  void lock();
+  void unlock();
+  bool try_lock();
+};
+
+class PlatformMonitor : public PlatformMutex {
+#if PLATFORM_MONITOR_IMPL_INDIRECT
+  class Cond : public CHeapObj<mtSynchronizer> {
+   public:
+    pthread_cond_t _cond;
+    Cond* _next;
+
+    Cond();
+    ~Cond();
+  };
+
+  Cond* _impl;
+
+  static Cond* _cond_freelist;
+
+  pthread_cond_t* cond() { return &(_impl->_cond); }
+
+ public:
+  PlatformMonitor();            // Use freelist allocation of impl.
+  ~PlatformMonitor();
+
+#else
+
+  pthread_cond_t _cond;
+  pthread_cond_t* cond() { return &_cond; }
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+
+#endif // PLATFORM_MONITOR_IMPL_INDIRECT
+
+ private:
+  // Disable copying
+  PlatformMonitor(const PlatformMonitor&);
+  PlatformMonitor& operator=(const PlatformMonitor&);
+
+ public:
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
+};
+
 #endif // !SOLARIS
 
-#endif // OS_POSIX_VM_OS_POSIX_HPP
+#endif // OS_POSIX_OS_POSIX_HPP

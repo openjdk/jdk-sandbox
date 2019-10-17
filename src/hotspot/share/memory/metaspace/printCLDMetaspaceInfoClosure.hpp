@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,11 @@ public:
   uintx                           _num_loaders_by_spacetype [Metaspace::MetaspaceTypeCount];
   ClassLoaderMetaspaceStatistics  _stats_by_spacetype [Metaspace::MetaspaceTypeCount];
 
+  uintx                           _num_classes_by_spacetype [Metaspace::MetaspaceTypeCount];
+  uintx                           _num_classes_shared_by_spacetype [Metaspace::MetaspaceTypeCount];
+  uintx                           _num_classes;
+  uintx                           _num_classes_shared;
+
   PrintCLDMetaspaceInfoClosure(outputStream* out, size_t scale, bool do_print,
       bool do_print_classes, bool break_down_by_chunktype);
   void do_cld(ClassLoaderData* cld);
@@ -60,5 +65,4 @@ public:
 
 } // namespace metaspace
 
-#endif /* SHARE_MEMORY_METASPACE_PRINTCLDMETASPACEINFOCLOSURE_HPP */
-
+#endif // SHARE_MEMORY_METASPACE_PRINTCLDMETASPACEINFOCLOSURE_HPP

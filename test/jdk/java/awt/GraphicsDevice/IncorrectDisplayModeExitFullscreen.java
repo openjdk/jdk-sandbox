@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ import java.awt.GraphicsEnvironment;
  * @key headful
  * @bug 8019587
  * @author Sergey Bylokhov
- * @library ../../../lib/testlibrary/
+ * @library /lib/client/
  * @build ExtendedRobot
  * @run main IncorrectDisplayModeExitFullscreen
  */
@@ -46,6 +46,7 @@ public class IncorrectDisplayModeExitFullscreen {
                 GraphicsEnvironment.getLocalGraphicsEnvironment()
                                    .getScreenDevices();
         if (devices.length < 2 || devices[0].getDisplayModes().length < 2
+                || !devices[0].isDisplayChangeSupported()
                 || !devices[0].isFullScreenSupported()
                 || !devices[1].isFullScreenSupported()) {
             System.err.println("Testcase is not applicable");

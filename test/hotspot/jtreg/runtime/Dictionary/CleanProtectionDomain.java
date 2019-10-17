@@ -57,11 +57,10 @@ public class CleanProtectionDomain {
 
   static class Test {
     public static void test() throws Exception {
-      Unsafe unsafe = Unsafe.getUnsafe();
       TestClassLoader classloader = new TestClassLoader();
       ProtectionDomain pd = new ProtectionDomain(null, null);
       byte klassbuf[] = InMemoryJavaCompiler.compile("TestClass", "class TestClass { }");
-      Class klass = unsafe.defineClass(null, klassbuf, 0, klassbuf.length, classloader, pd);
+      Class<?> klass = classloader.defineClass("TestClass", klassbuf, pd);
     }
 
     public static void main(String[] args) throws Exception {
@@ -79,7 +78,7 @@ public class CleanProtectionDomain {
         if (cnt++ % 30 == 0) {
           System.gc();
         }
-        removedCount = wb.resolvedMethodRemovedCount();
+        removedCount = wb.protectionDomainRemovedCount();
         if (removedCountOrig != removedCount) {
           break;
         }
@@ -90,6 +89,10 @@ public class CleanProtectionDomain {
     private static class TestClassLoader extends ClassLoader {
       public TestClassLoader() {
         super();
+      }
+
+      public Class<?> defineClass(String name, byte[] bytes, ProtectionDomain pd) {
+        return defineClass(name, bytes, 0, bytes.length, pd);
       }
     }
   }

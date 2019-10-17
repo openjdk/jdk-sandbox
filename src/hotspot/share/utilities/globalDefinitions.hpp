@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_GLOBALDEFINITIONS_HPP
-#define SHARE_VM_UTILITIES_GLOBALDEFINITIONS_HPP
+#ifndef SHARE_UTILITIES_GLOBALDEFINITIONS_HPP
+#define SHARE_UTILITIES_GLOBALDEFINITIONS_HPP
 
 #include "utilities/compilerWarnings.hpp"
 #include "utilities/debug.hpp"
@@ -41,6 +41,26 @@
 
 #ifndef ATTRIBUTE_ALIGNED
 #define ATTRIBUTE_ALIGNED(x)
+#endif
+
+// These are #defines to selectively turn on/off the Print(Opto)Assembly
+// capabilities. Choices should be led by a tradeoff between
+// code size and improved supportability.
+// if PRINT_ASSEMBLY then PRINT_ABSTRACT_ASSEMBLY must be true as well
+// to have a fallback in case hsdis is not available.
+#if defined(PRODUCT)
+  #define SUPPORT_ABSTRACT_ASSEMBLY
+  #define SUPPORT_ASSEMBLY
+  #undef  SUPPORT_OPTO_ASSEMBLY      // Can't activate. In PRODUCT, many dump methods are missing.
+  #undef  SUPPORT_DATA_STRUCTS       // Of limited use. In PRODUCT, many print methods are empty.
+#else
+  #define SUPPORT_ABSTRACT_ASSEMBLY
+  #define SUPPORT_ASSEMBLY
+  #define SUPPORT_OPTO_ASSEMBLY
+  #define SUPPORT_DATA_STRUCTS
+#endif
+#if defined(SUPPORT_ASSEMBLY) && !defined(SUPPORT_ABSTRACT_ASSEMBLY)
+  #define SUPPORT_ABSTRACT_ASSEMBLY
 #endif
 
 // This file holds all globally used constants & types, class (forward)
@@ -69,12 +89,16 @@
 #define UINT64_FORMAT_X        "%" PRIx64
 #define INT64_FORMAT_W(width)  "%" #width PRId64
 #define UINT64_FORMAT_W(width) "%" #width PRIu64
+#define UINT64_FORMAT_X_W(width) "%" #width PRIx64
 
 #define PTR64_FORMAT           "0x%016" PRIx64
 
 // Format jlong, if necessary
 #ifndef JLONG_FORMAT
 #define JLONG_FORMAT           INT64_FORMAT
+#endif
+#ifndef JLONG_FORMAT_W
+#define JLONG_FORMAT_W(width)  INT64_FORMAT_W(width)
 #endif
 #ifndef JULONG_FORMAT
 #define JULONG_FORMAT          UINT64_FORMAT
@@ -164,38 +188,18 @@ const int BitsPerSize_t      = size_tSize * BitsPerByte;
 // Size of a char[] needed to represent a jint as a string in decimal.
 const int jintAsStringSize = 12;
 
-// In fact this should be
-// log2_intptr(sizeof(class JavaThread)) - log2_intptr(64);
-// see os::set_memory_serialize_page()
-#ifdef _LP64
-const int SerializePageShiftCount = 4;
-#else
-const int SerializePageShiftCount = 3;
-#endif
-
-// An opaque struct of heap-word width, so that HeapWord* can be a generic
-// pointer into the heap.  We require that object sizes be measured in
-// units of heap words, so that that
-//   HeapWord* hw;
+// An opaque type, so that HeapWord* can be a generic pointer into the heap.
+// We require that object sizes be measured in units of heap words (e.g.
+// pointer-sized values), so that given HeapWord* hw,
 //   hw += oop(hw)->foo();
 // works, where foo is a method (like size or scavenge) that returns the
 // object size.
-class HeapWord {
-  friend class VMStructs;
- private:
-  char* i;
-#ifndef PRODUCT
- public:
-  char* value() { return i; }
-#endif
-};
+class HeapWordImpl;             // Opaque, never defined.
+typedef HeapWordImpl* HeapWord;
 
-// Analogous opaque struct for metadata allocated from
-// metaspaces.
-class MetaWord {
- private:
-  char* i;
-};
+// Analogous opaque struct for metadata allocated from metaspaces.
+class MetaWordImpl;             // Opaque, never defined.
+typedef MetaWordImpl* MetaWord;
 
 // HeapWordSize must be 2^LogHeapWordSize.
 const int HeapWordSize        = sizeof(HeapWord);
@@ -238,15 +242,20 @@ const int NANOUNITS     = 1000000000;   // nano units per base unit
 const jlong NANOSECS_PER_SEC      = CONST64(1000000000);
 const jint  NANOSECS_PER_MILLISEC = 1000000;
 
+// Proper units routines try to maintain at least three significant digits.
+// In worst case, it would print five significant digits with lower prefix.
+// G is close to MAX_SIZE on 32-bit platforms, so its product can easily overflow,
+// and therefore we need to be careful.
+
 inline const char* proper_unit_for_byte_size(size_t s) {
 #ifdef _LP64
-  if (s >= 10*G) {
+  if (s >= 100*G) {
     return "G";
   }
 #endif
-  if (s >= 10*M) {
+  if (s >= 100*M) {
     return "M";
-  } else if (s >= 10*K) {
+  } else if (s >= 100*K) {
     return "K";
   } else {
     return "B";
@@ -256,13 +265,13 @@ inline const char* proper_unit_for_byte_size(size_t s) {
 template <class T>
 inline T byte_size_in_proper_unit(T s) {
 #ifdef _LP64
-  if (s >= 10*G) {
+  if (s >= 100*G) {
     return (T)(s/G);
   }
 #endif
-  if (s >= 10*M) {
+  if (s >= 100*M) {
     return (T)(s/M);
-  } else if (s >= 10*K) {
+  } else if (s >= 100*K) {
     return (T)(s/K);
   } else {
     return s;
@@ -298,6 +307,13 @@ inline size_t byte_size_in_exact_unit(size_t s) {
   }
   return s;
 }
+
+// Memory size transition formatting.
+
+#define HEAP_CHANGE_FORMAT "%s: " SIZE_FORMAT "K(" SIZE_FORMAT "K)->" SIZE_FORMAT "K(" SIZE_FORMAT "K)"
+
+#define HEAP_CHANGE_FORMAT_ARGS(_name_, _prev_used_, _prev_capacity_, _used_, _capacity_) \
+  (_name_), (_prev_used_) / K, (_prev_capacity_) / K, (_used_) / K, (_capacity_) / K
 
 //----------------------------------------------------------------------------------------------------
 // VM type definitions
@@ -422,24 +438,6 @@ const jint max_jint = (juint)min_jint - 1;                     // 0x7FFFFFFF == 
 const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (p.134)
 
 //----------------------------------------------------------------------------------------------------
-// Default and minimum StringTable and SymbolTable size values
-// Must be a power of 2
-
-const size_t defaultStringTableSize = NOT_LP64(1024) LP64_ONLY(65536);
-const size_t minimumStringTableSize = 128;
-
-const size_t defaultSymbolTableSize = 32768; // 2^15
-const size_t minimumSymbolTableSize = 1024;
-
-
-//----------------------------------------------------------------------------------------------------
-// HotSwap - for JVMTI   aka Class File Replacement and PopFrame
-//
-// Determines whether on-the-fly class replacement and frame popping are enabled.
-
-#define HOTSWAP
-
-//----------------------------------------------------------------------------------------------------
 // Object alignment, in units of HeapWords.
 //
 // Minimum is max(BytesPerLong, BytesPerDouble, BytesPerOop) / HeapWordSize, so jlong, jdouble and
@@ -483,10 +481,13 @@ const  uint64_t KlassEncodingMetaspaceMax = (uint64_t(max_juint) + 1) << LogKlas
 // assure their ordering, instead of after volatile stores.
 // (See "A Tutorial Introduction to the ARM and POWER Relaxed Memory Models"
 // by Luc Maranget, Susmit Sarkar and Peter Sewell, INRIA/Cambridge)
-#ifdef CPU_NOT_MULTIPLE_COPY_ATOMIC
-const bool support_IRIW_for_not_multiple_copy_atomic_cpu = true;
-#else
+#ifdef CPU_MULTI_COPY_ATOMIC
+// Not needed.
 const bool support_IRIW_for_not_multiple_copy_atomic_cpu = false;
+#else
+// From all non-multi-copy-atomic architectures, only PPC64 supports IRIW at the moment.
+// Final decision is subject to JEP 188: Java Memory Model Update.
+const bool support_IRIW_for_not_multiple_copy_atomic_cpu = PPC64_ONLY(true) NOT_PPC64(false);
 #endif
 
 // The expected size in bytes of a cache line, used to pad data structures.
@@ -846,104 +847,6 @@ enum JavaThreadState {
   _thread_max_state         = 12  // maximum thread state+1 - used for statistics allocation
 };
 
-
-
-//----------------------------------------------------------------------------------------------------
-// 'Forward' declarations of frequently used classes
-// (in order to reduce interface dependencies & reduce
-// number of unnecessary compilations after changes)
-
-class ClassFileStream;
-
-class Event;
-
-class Thread;
-class  VMThread;
-class  JavaThread;
-class Threads;
-
-class VM_Operation;
-class VMOperationQueue;
-
-class CodeBlob;
-class  CompiledMethod;
-class   nmethod;
-class RuntimeBlob;
-class  OSRAdapter;
-class  I2CAdapter;
-class  C2IAdapter;
-class CompiledIC;
-class relocInfo;
-class ScopeDesc;
-class PcDesc;
-
-class Recompiler;
-class Recompilee;
-class RecompilationPolicy;
-class RFrame;
-class  CompiledRFrame;
-class  InterpretedRFrame;
-
-class vframe;
-class   javaVFrame;
-class     interpretedVFrame;
-class     compiledVFrame;
-class     deoptimizedVFrame;
-class   externalVFrame;
-class     entryVFrame;
-
-class RegisterMap;
-
-class Mutex;
-class Monitor;
-class BasicLock;
-class BasicObjectLock;
-
-class PeriodicTask;
-
-class JavaCallWrapper;
-
-class   oopDesc;
-class   metaDataOopDesc;
-
-class NativeCall;
-
-class zone;
-
-class StubQueue;
-
-class outputStream;
-
-class ResourceArea;
-
-class DebugInformationRecorder;
-class ScopeValue;
-class CompressedStream;
-class   DebugInfoReadStream;
-class   DebugInfoWriteStream;
-class LocationValue;
-class ConstantValue;
-class IllegalValue;
-
-class PrivilegedElement;
-class MonitorArray;
-
-class MonitorInfo;
-
-class OffsetClosure;
-class OopMapCache;
-class InterpreterOopMap;
-class OopMapCacheEntry;
-class OSThread;
-
-typedef int (*OSThreadStartFunc)(void*);
-
-class Space;
-
-class JavaValue;
-class methodHandle;
-class JavaCallArguments;
-
 //----------------------------------------------------------------------------------------------------
 // Special constants for debugging
 
@@ -1042,12 +945,11 @@ inline bool is_power_of_2_long(jlong x) {
 }
 
 // Returns largest i such that 2^i <= x.
-// If x < 0, the function returns 31 on a 32-bit machine and 63 on a 64-bit machine.
 // If x == 0, the function returns -1.
-inline int log2_intptr(intptr_t x) {
+inline int log2_intptr(uintptr_t x) {
   int i = -1;
   uintptr_t p = 1;
-  while (p != 0 && p <= (uintptr_t)x) {
+  while (p != 0 && p <= x) {
     // p = 2^(i+1) && p <= x (i.e., 2^(i+1) <= x)
     i++; p *= 2;
   }
@@ -1057,17 +959,42 @@ inline int log2_intptr(intptr_t x) {
 }
 
 //* largest i such that 2^i <= x
-//  A negative value of 'x' will return '63'
-inline int log2_long(jlong x) {
+inline int log2_long(julong x) {
   int i = -1;
   julong p =  1;
-  while (p != 0 && p <= (julong)x) {
+  while (p != 0 && p <= x) {
     // p = 2^(i+1) && p <= x (i.e., 2^(i+1) <= x)
     i++; p *= 2;
   }
   // p = 2^(i+1) && x < p (i.e., 2^i <= x < 2^(i+1))
   // (if p = 0 then overflow occurred and i = 63)
   return i;
+}
+
+// If x < 0, the function returns 31 on a 32-bit machine and 63 on a 64-bit machine.
+inline int log2_intptr(intptr_t x) {
+  return log2_intptr((uintptr_t)x);
+}
+
+inline int log2_int(int x) {
+  STATIC_ASSERT(sizeof(int) <= sizeof(uintptr_t));
+  return log2_intptr((uintptr_t)x);
+}
+
+inline int log2_jint(jint x) {
+  STATIC_ASSERT(sizeof(jint) <= sizeof(uintptr_t));
+  return log2_intptr((uintptr_t)x);
+}
+
+inline int log2_uint(uint x) {
+  STATIC_ASSERT(sizeof(uint) <= sizeof(uintptr_t));
+  return log2_intptr((uintptr_t)x);
+}
+
+//  A negative value of 'x' will return '63'
+inline int log2_jlong(jlong x) {
+  STATIC_ASSERT(sizeof(jlong) <= sizeof(julong));
+  return log2_long((julong)x);
 }
 
 //* the argument must be exactly a power of 2
@@ -1085,120 +1012,32 @@ inline int exact_log2_long(jlong x) {
 inline bool is_odd (intx x) { return x & 1;      }
 inline bool is_even(intx x) { return !is_odd(x); }
 
+// abs methods which cannot overflow and so are well-defined across
+// the entire domain of integer types.
+static inline unsigned int uabs(unsigned int n) {
+  union {
+    unsigned int result;
+    int value;
+  };
+  result = n;
+  if (value < 0) result = 0-result;
+  return result;
+}
+static inline julong uabs(julong n) {
+  union {
+    julong result;
+    jlong value;
+  };
+  result = n;
+  if (value < 0) result = 0-result;
+  return result;
+}
+static inline julong uabs(jlong n) { return uabs((julong)n); }
+static inline unsigned int uabs(int n) { return uabs((unsigned int)n); }
+
 // "to" should be greater than "from."
 inline intx byte_size(void* from, void* to) {
   return (address)to - (address)from;
-}
-
-//----------------------------------------------------------------------------------------------------
-// Avoid non-portable casts with these routines (DEPRECATED)
-
-// NOTE: USE Bytes class INSTEAD WHERE POSSIBLE
-//       Bytes is optimized machine-specifically and may be much faster then the portable routines below.
-
-// Given sequence of four bytes, build into a 32-bit word
-// following the conventions used in class files.
-// On the 386, this could be realized with a simple address cast.
-//
-
-// This routine takes eight bytes:
-inline u8 build_u8_from( u1 c1, u1 c2, u1 c3, u1 c4, u1 c5, u1 c6, u1 c7, u1 c8 ) {
-  return  (( u8(c1) << 56 )  &  ( u8(0xff) << 56 ))
-       |  (( u8(c2) << 48 )  &  ( u8(0xff) << 48 ))
-       |  (( u8(c3) << 40 )  &  ( u8(0xff) << 40 ))
-       |  (( u8(c4) << 32 )  &  ( u8(0xff) << 32 ))
-       |  (( u8(c5) << 24 )  &  ( u8(0xff) << 24 ))
-       |  (( u8(c6) << 16 )  &  ( u8(0xff) << 16 ))
-       |  (( u8(c7) <<  8 )  &  ( u8(0xff) <<  8 ))
-       |  (( u8(c8) <<  0 )  &  ( u8(0xff) <<  0 ));
-}
-
-// This routine takes four bytes:
-inline u4 build_u4_from( u1 c1, u1 c2, u1 c3, u1 c4 ) {
-  return  (( u4(c1) << 24 )  &  0xff000000)
-       |  (( u4(c2) << 16 )  &  0x00ff0000)
-       |  (( u4(c3) <<  8 )  &  0x0000ff00)
-       |  (( u4(c4) <<  0 )  &  0x000000ff);
-}
-
-// And this one works if the four bytes are contiguous in memory:
-inline u4 build_u4_from( u1* p ) {
-  return  build_u4_from( p[0], p[1], p[2], p[3] );
-}
-
-// Ditto for two-byte ints:
-inline u2 build_u2_from( u1 c1, u1 c2 ) {
-  return  u2((( u2(c1) <<  8 )  &  0xff00)
-          |  (( u2(c2) <<  0 )  &  0x00ff));
-}
-
-// And this one works if the two bytes are contiguous in memory:
-inline u2 build_u2_from( u1* p ) {
-  return  build_u2_from( p[0], p[1] );
-}
-
-// Ditto for floats:
-inline jfloat build_float_from( u1 c1, u1 c2, u1 c3, u1 c4 ) {
-  u4 u = build_u4_from( c1, c2, c3, c4 );
-  return  *(jfloat*)&u;
-}
-
-inline jfloat build_float_from( u1* p ) {
-  u4 u = build_u4_from( p );
-  return  *(jfloat*)&u;
-}
-
-
-// now (64-bit) longs
-
-inline jlong build_long_from( u1 c1, u1 c2, u1 c3, u1 c4, u1 c5, u1 c6, u1 c7, u1 c8 ) {
-  return  (( jlong(c1) << 56 )  &  ( jlong(0xff) << 56 ))
-       |  (( jlong(c2) << 48 )  &  ( jlong(0xff) << 48 ))
-       |  (( jlong(c3) << 40 )  &  ( jlong(0xff) << 40 ))
-       |  (( jlong(c4) << 32 )  &  ( jlong(0xff) << 32 ))
-       |  (( jlong(c5) << 24 )  &  ( jlong(0xff) << 24 ))
-       |  (( jlong(c6) << 16 )  &  ( jlong(0xff) << 16 ))
-       |  (( jlong(c7) <<  8 )  &  ( jlong(0xff) <<  8 ))
-       |  (( jlong(c8) <<  0 )  &  ( jlong(0xff) <<  0 ));
-}
-
-inline jlong build_long_from( u1* p ) {
-  return  build_long_from( p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7] );
-}
-
-
-// Doubles, too!
-inline jdouble build_double_from( u1 c1, u1 c2, u1 c3, u1 c4, u1 c5, u1 c6, u1 c7, u1 c8 ) {
-  jlong u = build_long_from( c1, c2, c3, c4, c5, c6, c7, c8 );
-  return  *(jdouble*)&u;
-}
-
-inline jdouble build_double_from( u1* p ) {
-  jlong u = build_long_from( p );
-  return  *(jdouble*)&u;
-}
-
-
-// Portable routines to go the other way:
-
-inline void explode_short_to( u2 x, u1& c1, u1& c2 ) {
-  c1 = u1(x >> 8);
-  c2 = u1(x);
-}
-
-inline void explode_short_to( u2 x, u1* p ) {
-  explode_short_to( x, p[0], p[1]);
-}
-
-inline void explode_int_to( u4 x, u1& c1, u1& c2, u1& c3, u1& c4 ) {
-  c1 = u1(x >> 24);
-  c2 = u1(x >> 16);
-  c3 = u1(x >>  8);
-  c4 = u1(x);
-}
-
-inline void explode_int_to( u4 x, u1* p ) {
-  explode_int_to( x, p[0], p[1], p[2], p[3]);
 }
 
 
@@ -1256,6 +1095,28 @@ JAVA_INTEGER_OP(*, java_multiply, jlong, julong)
 
 #undef JAVA_INTEGER_OP
 
+//----------------------------------------------------------------------------------------------------
+// The goal of this code is to provide saturating operations for int/uint.
+// Checks overflow conditions and saturates the result to min_jint/max_jint.
+#define SATURATED_INTEGER_OP(OP, NAME, TYPE1, TYPE2) \
+inline int NAME (TYPE1 in1, TYPE2 in2) {             \
+  jlong res = static_cast<jlong>(in1);               \
+  res OP ## = static_cast<jlong>(in2);               \
+  if (res > max_jint) {                              \
+    res = max_jint;                                  \
+  } else if (res < min_jint) {                       \
+    res = min_jint;                                  \
+  }                                                  \
+  return static_cast<int>(res);                      \
+}
+
+SATURATED_INTEGER_OP(+, saturated_add, int, int)
+SATURATED_INTEGER_OP(+, saturated_add, int, uint)
+SATURATED_INTEGER_OP(+, saturated_add, uint, int)
+SATURATED_INTEGER_OP(+, saturated_add, uint, uint)
+
+#undef SATURATED_INTEGER_OP
+
 // Dereference vptr
 // All C++ compilers that we know of have the vtbl pointer in the first
 // word.  If there are exceptions, this function needs to be made compiler
@@ -1271,4 +1132,17 @@ static inline void* dereference_vptr(const void* addr) {
 typedef const char* ccstr;
 typedef const char* ccstrlist;   // represents string arguments which accumulate
 
-#endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_HPP
+//----------------------------------------------------------------------------------------------------
+// Default hash/equals functions used by ResourceHashtable and KVHashtable
+
+template<typename K> unsigned primitive_hash(const K& k) {
+  unsigned hash = (unsigned)((uintptr_t)k);
+  return hash ^ (hash >> 3); // just in case we're dealing with aligned ptrs
+}
+
+template<typename K> bool primitive_equals(const K& k0, const K& k1) {
+  return k0 == k1;
+}
+
+
+#endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

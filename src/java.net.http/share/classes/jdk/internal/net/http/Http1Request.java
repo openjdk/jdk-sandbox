@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package jdk.internal.net.http;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +60,7 @@ class Http1Request {
     private final Http1Exchange<?> http1Exchange;
     private final HttpConnection connection;
     private final HttpRequest.BodyPublisher requestPublisher;
-    private final HttpHeaders userHeaders;
+    private volatile HttpHeaders userHeaders;
     private final HttpHeadersBuilder systemHeadersBuilder;
     private volatile boolean streaming;
     private volatile long contentLength;
@@ -91,7 +92,7 @@ class Http1Request {
     }
 
 
-    private void collectHeaders0(StringBuilder sb) {
+    public void collectHeaders0(StringBuilder sb) {
         BiPredicate<String,String> filter =
                 connection.headerFilter(request);
 
@@ -99,6 +100,16 @@ class Http1Request {
         BiPredicate<String,String> nocookies = NOCOOKIES.and(filter);
 
         HttpHeaders systemHeaders = systemHeadersBuilder.build();
+        HttpClient client = http1Exchange.client();
+
+        // Filter overridable headers from userHeaders
+        userHeaders = HttpHeaders.of(userHeaders.map(),
+                      connection.contextRestricted(request, client));
+
+        final HttpHeaders uh = userHeaders;
+
+        // Filter any headers from systemHeaders that are set in userHeaders
+        systemHeaders = HttpHeaders.of(systemHeaders.map(), (k,v) -> uh.firstValue(k).isEmpty());
 
         // If we're sending this request through a tunnel,
         // then don't send any preemptive proxy-* headers that
@@ -191,13 +202,13 @@ class Http1Request {
     private String getPathAndQuery(URI uri) {
         String path = uri.getRawPath();
         String query = uri.getRawQuery();
-        if (path == null || path.equals("")) {
+        if (path == null || path.isEmpty()) {
             path = "/";
         }
         if (query == null) {
             query = "";
         }
-        if (query.equals("")) {
+        if (query.isEmpty()) {
             return Utils.encode(path);
         } else {
             return Utils.encode(path + "?" + query);

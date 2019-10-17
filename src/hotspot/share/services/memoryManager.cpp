@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -143,8 +143,8 @@ void MemoryManager::oops_do(OopClosure* f) {
 
 GCStatInfo::GCStatInfo(int num_pools) {
   // initialize the arrays for memory usage
-  _before_gc_usage_array = (MemoryUsage*) NEW_C_HEAP_ARRAY(MemoryUsage, num_pools, mtInternal);
-  _after_gc_usage_array  = (MemoryUsage*) NEW_C_HEAP_ARRAY(MemoryUsage, num_pools, mtInternal);
+  _before_gc_usage_array = NEW_C_HEAP_ARRAY(MemoryUsage, num_pools, mtInternal);
+  _after_gc_usage_array  = NEW_C_HEAP_ARRAY(MemoryUsage, num_pools, mtInternal);
   _usage_array_size = num_pools;
   clear();
 }
@@ -168,9 +168,8 @@ void GCStatInfo::clear() {
   _index = 0;
   _start_time = 0L;
   _end_time = 0L;
-  size_t len = _usage_array_size * sizeof(MemoryUsage);
-  memset(_before_gc_usage_array, 0, len);
-  memset(_after_gc_usage_array, 0, len);
+  for (int i = 0; i < _usage_array_size; i++) ::new (&_before_gc_usage_array[i]) MemoryUsage();
+  for (int i = 0; i < _usage_array_size; i++) ::new (&_after_gc_usage_array[i]) MemoryUsage();
 }
 
 
@@ -179,7 +178,7 @@ GCMemoryManager::GCMemoryManager(const char* name, const char* gc_end_message) :
   _num_collections = 0;
   _last_gc_stat = NULL;
   _last_gc_lock = new Mutex(Mutex::leaf, "_last_gc_lock", true,
-                            Monitor::_safepoint_check_never);
+                            Mutex::_safepoint_check_never);
   _current_gc_stat = NULL;
   _num_gc_threads = 1;
   _notification_enabled = false;
@@ -283,7 +282,7 @@ void GCMemoryManager::gc_end(bool recordPostGCUsage,
     _num_collections++;
     // alternately update two objects making one public when complete
     {
-      MutexLockerEx ml(_last_gc_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker ml(_last_gc_lock, Mutex::_no_safepoint_check_flag);
       GCStatInfo *tmp = _last_gc_stat;
       _last_gc_stat = _current_gc_stat;
       _current_gc_stat = tmp;
@@ -298,7 +297,7 @@ void GCMemoryManager::gc_end(bool recordPostGCUsage,
 }
 
 size_t GCMemoryManager::get_last_gc_stat(GCStatInfo* dest) {
-  MutexLockerEx ml(_last_gc_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(_last_gc_lock, Mutex::_no_safepoint_check_flag);
   if (_last_gc_stat->gc_index() != 0) {
     dest->set_index(_last_gc_stat->gc_index());
     dest->set_start_time(_last_gc_stat->start_time());

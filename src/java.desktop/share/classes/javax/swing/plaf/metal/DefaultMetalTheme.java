@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import sun.swing.SwingUtilities2;
  * All colors returned by {@code DefaultMetalTheme} are completely
  * opaque.
  *
- * <h3><a id="fontStyle"></a>Font Style</h3>
+ * <h2><a id="fontStyle"></a>Font Style</h2>
  *
  * {@code DefaultMetalTheme} uses bold fonts for many controls.  To make all
  * controls (with the exception of the internal frame title bars and
@@ -360,7 +360,7 @@ public class DefaultMetalTheme extends MetalTheme {
             USER_TEXT_FONT, CONTROL_TEXT_FONT,
             CONTROL_TEXT_FONT, SUB_TEXT_FONT
         };
-        FontUIResource fonts[];
+        FontUIResource[] fonts;
 
         // menu and window are mapped to controlFont
         public FontDelegate() {

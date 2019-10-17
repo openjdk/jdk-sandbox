@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,13 @@
  */
 import java.net.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DatagramSocket_receive extends AsyncCloseTest implements Runnable {
     private final DatagramSocket s;
     private final int timeout;
     private final CountDownLatch latch;
+    private final AtomicBoolean readyToClose = new AtomicBoolean(false);
 
     public DatagramSocket_receive() throws SocketException {
         this(0);
@@ -40,7 +42,7 @@ public class DatagramSocket_receive extends AsyncCloseTest implements Runnable {
     public DatagramSocket_receive(int timeout) throws SocketException {
         this.timeout = timeout;
         latch = new CountDownLatch(1);
-        s = new DatagramSocket();
+        s = new DatagramSocket(0, InetAddress.getLoopbackAddress());
     }
 
     public String description() {
@@ -59,8 +61,13 @@ public class DatagramSocket_receive extends AsyncCloseTest implements Runnable {
                 s.setSoTimeout(timeout);
             }
             latch.countDown();
-            s.receive(p);
-            failed("DatagramSocket.receive(DatagramPacket) returned unexpectly!!");
+            do {
+                // if readyToClose is still false it means some other
+                // process on the system attempted to send datagram packet:
+                // just ignore it, and go back to accept again.
+                s.receive(p);
+            } while (!readyToClose.get());
+            failed("DatagramSocket.receive(DatagramPacket) returned unexpectedly!!" + " - " + p.getAddress());
         } catch (SocketException se) {
             if (latch.getCount() != 1) {
                 closed();
@@ -80,6 +87,7 @@ public class DatagramSocket_receive extends AsyncCloseTest implements Runnable {
             thr.start();
             latch.await();
             Thread.sleep(5000); //sleep, so receive(DatagramPacket) can block
+            readyToClose.set(true);
             s.close();
             thr.join();
 

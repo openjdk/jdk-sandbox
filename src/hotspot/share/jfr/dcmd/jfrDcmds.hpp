@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_JFRDCMDS_HPP
-#define SHARE_VM_JFR_JFRDCMDS_HPP
+#ifndef SHARE_JFR_DCMD_JFRDCMDS_HPP
+#define SHARE_JFR_DCMD_JFRDCMDS_HPP
 
 #include "services/diagnosticCommand.hpp"
 
@@ -145,10 +145,10 @@ class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
   DCmdArgument<char*> _dump_path;
   DCmdArgument<jlong> _stack_depth;
   DCmdArgument<jlong> _global_buffer_count;
-  DCmdArgument<jlong> _global_buffer_size;
-  DCmdArgument<jlong> _thread_buffer_size;
-  DCmdArgument<jlong> _memory_size;
-  DCmdArgument<jlong> _max_chunk_size;
+  DCmdArgument<MemorySizeArgument> _global_buffer_size;
+  DCmdArgument<MemorySizeArgument> _thread_buffer_size;
+  DCmdArgument<MemorySizeArgument> _memory_size;
+  DCmdArgument<MemorySizeArgument> _max_chunk_size;
   DCmdArgument<bool>  _sample_threads;
 
  public:
@@ -172,4 +172,4 @@ class JfrConfigureFlightRecorderDCmd : public DCmdWithParser {
 
 bool register_jfr_dcmds();
 
-#endif // SHARE_VM_JFR_JFRDCMDS_HPP
+#endif // SHARE_JFR_DCMD_JFRDCMDS_HPP

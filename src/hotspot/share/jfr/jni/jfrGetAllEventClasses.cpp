@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,9 +133,8 @@ jobject JfrEventClasses::get_all_event_classes(TRAPS) {
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
   initialize(THREAD);
   assert(empty_java_util_arraylist != NULL, "should have been setup already!");
-  static const char jdk_jfr_event_name[] = "jdk/jfr/Event";
-  unsigned int unused_hash = 0;
-  Symbol* const event_klass_name = SymbolTable::lookup_only(jdk_jfr_event_name, sizeof jdk_jfr_event_name - 1, unused_hash);
+  static const char jdk_jfr_event_name[] = "jdk/internal/event/Event";
+  Symbol* const event_klass_name = SymbolTable::probe(jdk_jfr_event_name, sizeof jdk_jfr_event_name - 1);
 
   if (NULL == event_klass_name) {
     // not loaded yet
@@ -168,10 +167,10 @@ jobject JfrEventClasses::get_all_event_classes(TRAPS) {
   const Klass* const array_list_klass = JfrJavaSupport::klass(empty_java_util_arraylist);
   assert(array_list_klass != NULL, "invariant");
 
-  const Symbol* const add_method_sym = SymbolTable::lookup(add_method_name, sizeof add_method_name - 1, THREAD);
+  const Symbol* const add_method_sym = SymbolTable::new_symbol(add_method_name);
   assert(add_method_sym != NULL, "invariant");
 
-  const Symbol* const add_method_sig_sym = SymbolTable::lookup(add_method_signature, sizeof add_method_signature - 1, THREAD);
+  const Symbol* const add_method_sig_sym = SymbolTable::new_symbol(add_method_signature);
   assert(add_method_signature != NULL, "invariant");
 
   JavaValue result(T_BOOLEAN);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,9 @@
 #include "ci/ciUtilities.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
 #include "interpreter/interpreter.hpp"
+#include "memory/universe.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/method.hpp"
@@ -254,10 +256,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(r13_save, r13);
     __ movptr(r14_save, r14);
     __ movptr(r15_save, r15);
-    if (UseAVX > 2) {
-      __ movl(rbx, 0xffff);
-      __ kmovwl(k1, rbx);
-    }
+
 #ifdef _WIN64
     int last_reg = 15;
     if (UseAVX > 2) {
@@ -610,7 +609,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movl(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgl(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -636,7 +635,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movsbq(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgb(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -662,7 +661,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movq(rax, c_rarg2);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ cmpxchgq(c_rarg0, Address(c_rarg1, 0));
     __ ret(0);
 
@@ -683,7 +682,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movl(rax, c_rarg0);
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ xaddl(Address(c_rarg1, 0), c_rarg0);
     __ addl(rax, c_rarg0);
     __ ret(0);
@@ -705,7 +704,7 @@ class StubGenerator: public StubCodeGenerator {
     address start = __ pc();
 
     __ movptr(rax, c_rarg0); // Copy to eax we need a return value anyhow
-   if ( os::is_MP() ) __ lock();
+    __ lock();
     __ xaddptr(Address(c_rarg1, 0), c_rarg0);
     __ addptr(rax, c_rarg0);
     __ ret(0);
@@ -981,6 +980,40 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  address generate_vector_mask(const char *stub_name, int64_t mask) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", stub_name);
+    address start = __ pc();
+
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+    __ emit_data64(mask, relocInfo::none);
+
+    return start;
+  }
+
+  address generate_vector_byte_perm_mask(const char *stub_name) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", stub_name);
+    address start = __ pc();
+
+    __ emit_data64(0x0000000000000001, relocInfo::none);
+    __ emit_data64(0x0000000000000003, relocInfo::none);
+    __ emit_data64(0x0000000000000005, relocInfo::none);
+    __ emit_data64(0x0000000000000007, relocInfo::none);
+    __ emit_data64(0x0000000000000000, relocInfo::none);
+    __ emit_data64(0x0000000000000002, relocInfo::none);
+    __ emit_data64(0x0000000000000004, relocInfo::none);
+    __ emit_data64(0x0000000000000006, relocInfo::none);
+
+    return start;
+  }
+
   // Non-destructive plausibility checks for oops
   //
   // Arguments:
@@ -1096,10 +1129,7 @@ class StubGenerator: public StubCodeGenerator {
     __ andptr(rsp, -16);                            // align stack as required by ABI
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, MacroAssembler::debug64)));
-    __ mov(rsp, r12);                               // restore rsp
-    __ popa();                                      // pop registers (includes r12)
-    __ ret(4 * wordSize);                           // pop caller saved stuff
-
+    __ hlt();
     return start;
   }
 
@@ -1257,35 +1287,59 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
     if (UseUnalignedLoadStores) {
       Label L_end;
-      if (UseAVX > 2) {
-        __ movl(to, 0xffff);
-        __ kmovwl(k1, to);
-      }
       // Copy 64-bytes per iteration
-      __ BIND(L_loop);
       if (UseAVX > 2) {
+        Label L_loop_avx512, L_loop_avx2, L_32_byte_head, L_above_threshold, L_below_threshold;
+
+        __ BIND(L_copy_bytes);
+        __ cmpptr(qword_count, (-1 * AVX3Threshold / 8));
+        __ jccb(Assembler::less, L_above_threshold);
+        __ jmpb(L_below_threshold);
+
+        __ bind(L_loop_avx512);
         __ evmovdqul(xmm0, Address(end_from, qword_count, Address::times_8, -56), Assembler::AVX_512bit);
         __ evmovdqul(Address(end_to, qword_count, Address::times_8, -56), xmm0, Assembler::AVX_512bit);
-      } else if (UseAVX == 2) {
+        __ bind(L_above_threshold);
+        __ addptr(qword_count, 8);
+        __ jcc(Assembler::lessEqual, L_loop_avx512);
+        __ jmpb(L_32_byte_head);
+
+        __ bind(L_loop_avx2);
         __ vmovdqu(xmm0, Address(end_from, qword_count, Address::times_8, -56));
         __ vmovdqu(Address(end_to, qword_count, Address::times_8, -56), xmm0);
         __ vmovdqu(xmm1, Address(end_from, qword_count, Address::times_8, -24));
         __ vmovdqu(Address(end_to, qword_count, Address::times_8, -24), xmm1);
+        __ bind(L_below_threshold);
+        __ addptr(qword_count, 8);
+        __ jcc(Assembler::lessEqual, L_loop_avx2);
+
+        __ bind(L_32_byte_head);
+        __ subptr(qword_count, 4);  // sub(8) and add(4)
+        __ jccb(Assembler::greater, L_end);
       } else {
-        __ movdqu(xmm0, Address(end_from, qword_count, Address::times_8, -56));
-        __ movdqu(Address(end_to, qword_count, Address::times_8, -56), xmm0);
-        __ movdqu(xmm1, Address(end_from, qword_count, Address::times_8, -40));
-        __ movdqu(Address(end_to, qword_count, Address::times_8, -40), xmm1);
-        __ movdqu(xmm2, Address(end_from, qword_count, Address::times_8, -24));
-        __ movdqu(Address(end_to, qword_count, Address::times_8, -24), xmm2);
-        __ movdqu(xmm3, Address(end_from, qword_count, Address::times_8, - 8));
-        __ movdqu(Address(end_to, qword_count, Address::times_8, - 8), xmm3);
+        __ BIND(L_loop);
+        if (UseAVX == 2) {
+          __ vmovdqu(xmm0, Address(end_from, qword_count, Address::times_8, -56));
+          __ vmovdqu(Address(end_to, qword_count, Address::times_8, -56), xmm0);
+          __ vmovdqu(xmm1, Address(end_from, qword_count, Address::times_8, -24));
+          __ vmovdqu(Address(end_to, qword_count, Address::times_8, -24), xmm1);
+        } else {
+          __ movdqu(xmm0, Address(end_from, qword_count, Address::times_8, -56));
+          __ movdqu(Address(end_to, qword_count, Address::times_8, -56), xmm0);
+          __ movdqu(xmm1, Address(end_from, qword_count, Address::times_8, -40));
+          __ movdqu(Address(end_to, qword_count, Address::times_8, -40), xmm1);
+          __ movdqu(xmm2, Address(end_from, qword_count, Address::times_8, -24));
+          __ movdqu(Address(end_to, qword_count, Address::times_8, -24), xmm2);
+          __ movdqu(xmm3, Address(end_from, qword_count, Address::times_8, - 8));
+          __ movdqu(Address(end_to, qword_count, Address::times_8, - 8), xmm3);
+        }
+
+        __ BIND(L_copy_bytes);
+        __ addptr(qword_count, 8);
+        __ jcc(Assembler::lessEqual, L_loop);
+        __ subptr(qword_count, 4);  // sub(8) and add(4)
+        __ jccb(Assembler::greater, L_end);
       }
-      __ BIND(L_copy_bytes);
-      __ addptr(qword_count, 8);
-      __ jcc(Assembler::lessEqual, L_loop);
-      __ subptr(qword_count, 4);  // sub(8) and add(4)
-      __ jccb(Assembler::greater, L_end);
       // Copy trailing 32 bytes
       if (UseAVX >= 2) {
         __ vmovdqu(xmm0, Address(end_from, qword_count, Address::times_8, -24));
@@ -1341,36 +1395,60 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
     if (UseUnalignedLoadStores) {
       Label L_end;
-      if (UseAVX > 2) {
-        __ movl(to, 0xffff);
-        __ kmovwl(k1, to);
-      }
       // Copy 64-bytes per iteration
-      __ BIND(L_loop);
       if (UseAVX > 2) {
+        Label L_loop_avx512, L_loop_avx2, L_32_byte_head, L_above_threshold, L_below_threshold;
+
+        __ BIND(L_copy_bytes);
+        __ cmpptr(qword_count, (AVX3Threshold / 8));
+        __ jccb(Assembler::greater, L_above_threshold);
+        __ jmpb(L_below_threshold);
+
+        __ BIND(L_loop_avx512);
         __ evmovdqul(xmm0, Address(from, qword_count, Address::times_8, 0), Assembler::AVX_512bit);
         __ evmovdqul(Address(dest, qword_count, Address::times_8, 0), xmm0, Assembler::AVX_512bit);
-      } else if (UseAVX == 2) {
+        __ bind(L_above_threshold);
+        __ subptr(qword_count, 8);
+        __ jcc(Assembler::greaterEqual, L_loop_avx512);
+        __ jmpb(L_32_byte_head);
+
+        __ bind(L_loop_avx2);
         __ vmovdqu(xmm0, Address(from, qword_count, Address::times_8, 32));
         __ vmovdqu(Address(dest, qword_count, Address::times_8, 32), xmm0);
-        __ vmovdqu(xmm1, Address(from, qword_count, Address::times_8,  0));
-        __ vmovdqu(Address(dest, qword_count, Address::times_8,  0), xmm1);
-      } else {
-        __ movdqu(xmm0, Address(from, qword_count, Address::times_8, 48));
-        __ movdqu(Address(dest, qword_count, Address::times_8, 48), xmm0);
-        __ movdqu(xmm1, Address(from, qword_count, Address::times_8, 32));
-        __ movdqu(Address(dest, qword_count, Address::times_8, 32), xmm1);
-        __ movdqu(xmm2, Address(from, qword_count, Address::times_8, 16));
-        __ movdqu(Address(dest, qword_count, Address::times_8, 16), xmm2);
-        __ movdqu(xmm3, Address(from, qword_count, Address::times_8,  0));
-        __ movdqu(Address(dest, qword_count, Address::times_8,  0), xmm3);
-      }
-      __ BIND(L_copy_bytes);
-      __ subptr(qword_count, 8);
-      __ jcc(Assembler::greaterEqual, L_loop);
+        __ vmovdqu(xmm1, Address(from, qword_count, Address::times_8, 0));
+        __ vmovdqu(Address(dest, qword_count, Address::times_8, 0), xmm1);
+        __ bind(L_below_threshold);
+        __ subptr(qword_count, 8);
+        __ jcc(Assembler::greaterEqual, L_loop_avx2);
 
-      __ addptr(qword_count, 4);  // add(8) and sub(4)
-      __ jccb(Assembler::less, L_end);
+        __ bind(L_32_byte_head);
+        __ addptr(qword_count, 4);  // add(8) and sub(4)
+        __ jccb(Assembler::less, L_end);
+      } else {
+        __ BIND(L_loop);
+        if (UseAVX == 2) {
+          __ vmovdqu(xmm0, Address(from, qword_count, Address::times_8, 32));
+          __ vmovdqu(Address(dest, qword_count, Address::times_8, 32), xmm0);
+          __ vmovdqu(xmm1, Address(from, qword_count, Address::times_8,  0));
+          __ vmovdqu(Address(dest, qword_count, Address::times_8,  0), xmm1);
+        } else {
+          __ movdqu(xmm0, Address(from, qword_count, Address::times_8, 48));
+          __ movdqu(Address(dest, qword_count, Address::times_8, 48), xmm0);
+          __ movdqu(xmm1, Address(from, qword_count, Address::times_8, 32));
+          __ movdqu(Address(dest, qword_count, Address::times_8, 32), xmm1);
+          __ movdqu(xmm2, Address(from, qword_count, Address::times_8, 16));
+          __ movdqu(Address(dest, qword_count, Address::times_8, 16), xmm2);
+          __ movdqu(xmm3, Address(from, qword_count, Address::times_8,  0));
+          __ movdqu(Address(dest, qword_count, Address::times_8,  0), xmm3);
+        }
+
+        __ BIND(L_copy_bytes);
+        __ subptr(qword_count, 8);
+        __ jcc(Assembler::greaterEqual, L_loop);
+
+        __ addptr(qword_count, 4);  // add(8) and sub(4)
+        __ jccb(Assembler::less, L_end);
+      }
       // Copy trailing 32 bytes
       if (UseAVX >= 2) {
         __ vmovdqu(xmm0, Address(from, qword_count, Address::times_8, 0));
@@ -1407,7 +1485,6 @@ class StubGenerator: public StubCodeGenerator {
     __ addptr(qword_count, 4);
     __ jcc(Assembler::greater, L_copy_8_bytes); // Copy trailing qwords
   }
-
 
   // Arguments:
   //   aligned - true => Input and output aligned on a HeapWord == 8-byte boundary
@@ -1457,51 +1534,55 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(byte_count, count);
-    __ shrptr(count, 3); // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(byte_count, count);
+      __ shrptr(count, 3); // count => qword_count
 
-    // Copy from low to high addresses.  Use 'to' as scratch.
-    __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-    __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-    __ negptr(qword_count); // make the count negative
-    __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count); // make the count negative
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-    __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-    __ increment(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
 
-    // Check for and copy trailing dword
-  __ BIND(L_copy_4_bytes);
-    __ testl(byte_count, 4);
-    __ jccb(Assembler::zero, L_copy_2_bytes);
-    __ movl(rax, Address(end_from, 8));
-    __ movl(Address(end_to, 8), rax);
+      // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(byte_count, 4);
+      __ jccb(Assembler::zero, L_copy_2_bytes);
+      __ movl(rax, Address(end_from, 8));
+      __ movl(Address(end_to, 8), rax);
 
-    __ addptr(end_from, 4);
-    __ addptr(end_to, 4);
+      __ addptr(end_from, 4);
+      __ addptr(end_to, 4);
 
-    // Check for and copy trailing word
-  __ BIND(L_copy_2_bytes);
-    __ testl(byte_count, 2);
-    __ jccb(Assembler::zero, L_copy_byte);
-    __ movw(rax, Address(end_from, 8));
-    __ movw(Address(end_to, 8), rax);
+      // Check for and copy trailing word
+    __ BIND(L_copy_2_bytes);
+      __ testl(byte_count, 2);
+      __ jccb(Assembler::zero, L_copy_byte);
+      __ movw(rax, Address(end_from, 8));
+      __ movw(Address(end_to, 8), rax);
 
-    __ addptr(end_from, 2);
-    __ addptr(end_to, 2);
+      __ addptr(end_from, 2);
+      __ addptr(end_to, 2);
 
-    // Check for and copy trailing byte
-  __ BIND(L_copy_byte);
-    __ testl(byte_count, 1);
-    __ jccb(Assembler::zero, L_exit);
-    __ movb(rax, Address(end_from, 8));
-    __ movb(Address(end_to, 8), rax);
-
+      // Check for and copy trailing byte
+    __ BIND(L_copy_byte);
+      __ testl(byte_count, 1);
+      __ jccb(Assembler::zero, L_exit);
+      __ movb(rax, Address(end_from, 8));
+      __ movb(Address(end_to, 8), rax);
+    }
   __ BIND(L_exit);
+    address ucme_exit_pc = __ pc();
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jbyte_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1509,10 +1590,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-    __ jmp(L_copy_4_bytes);
-
+    {
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false, ucme_exit_pc);
+      // Copy in multi-bytes chunks
+      copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+      __ jmp(L_copy_4_bytes);
+    }
     return start;
   }
 
@@ -1557,41 +1640,44 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(byte_count, count);
-    __ shrptr(count, 3);   // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(byte_count, count);
+      __ shrptr(count, 3);   // count => qword_count
 
-    // Copy from high to low addresses.
+      // Copy from high to low addresses.
 
-    // Check for and copy trailing byte
-    __ testl(byte_count, 1);
-    __ jcc(Assembler::zero, L_copy_2_bytes);
-    __ movb(rax, Address(from, byte_count, Address::times_1, -1));
-    __ movb(Address(to, byte_count, Address::times_1, -1), rax);
-    __ decrement(byte_count); // Adjust for possible trailing word
+      // Check for and copy trailing byte
+      __ testl(byte_count, 1);
+      __ jcc(Assembler::zero, L_copy_2_bytes);
+      __ movb(rax, Address(from, byte_count, Address::times_1, -1));
+      __ movb(Address(to, byte_count, Address::times_1, -1), rax);
+      __ decrement(byte_count); // Adjust for possible trailing word
 
-    // Check for and copy trailing word
-  __ BIND(L_copy_2_bytes);
-    __ testl(byte_count, 2);
-    __ jcc(Assembler::zero, L_copy_4_bytes);
-    __ movw(rax, Address(from, byte_count, Address::times_1, -2));
-    __ movw(Address(to, byte_count, Address::times_1, -2), rax);
+      // Check for and copy trailing word
+    __ BIND(L_copy_2_bytes);
+      __ testl(byte_count, 2);
+      __ jcc(Assembler::zero, L_copy_4_bytes);
+      __ movw(rax, Address(from, byte_count, Address::times_1, -2));
+      __ movw(Address(to, byte_count, Address::times_1, -2), rax);
 
-    // Check for and copy trailing dword
-  __ BIND(L_copy_4_bytes);
-    __ testl(byte_count, 4);
-    __ jcc(Assembler::zero, L_copy_bytes);
-    __ movl(rax, Address(from, qword_count, Address::times_8));
-    __ movl(Address(to, qword_count, Address::times_8), rax);
-    __ jmp(L_copy_bytes);
+      // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(byte_count, 4);
+      __ jcc(Assembler::zero, L_copy_bytes);
+      __ movl(rax, Address(from, qword_count, Address::times_8));
+      __ movl(Address(to, qword_count, Address::times_8), rax);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-    __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-    __ decrement(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
-
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jbyte_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1599,9 +1685,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jbyte_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1659,44 +1748,48 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(word_count, count);
-    __ shrptr(count, 2); // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(word_count, count);
+      __ shrptr(count, 2); // count => qword_count
 
-    // Copy from low to high addresses.  Use 'to' as scratch.
-    __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-    __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-    __ negptr(qword_count);
-    __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-    __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-    __ increment(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
 
-    // Original 'dest' is trashed, so we can't use it as a
-    // base register for a possible trailing word copy
+      // Original 'dest' is trashed, so we can't use it as a
+      // base register for a possible trailing word copy
 
-    // Check for and copy trailing dword
-  __ BIND(L_copy_4_bytes);
-    __ testl(word_count, 2);
-    __ jccb(Assembler::zero, L_copy_2_bytes);
-    __ movl(rax, Address(end_from, 8));
-    __ movl(Address(end_to, 8), rax);
+      // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(word_count, 2);
+      __ jccb(Assembler::zero, L_copy_2_bytes);
+      __ movl(rax, Address(end_from, 8));
+      __ movl(Address(end_to, 8), rax);
 
-    __ addptr(end_from, 4);
-    __ addptr(end_to, 4);
+      __ addptr(end_from, 4);
+      __ addptr(end_to, 4);
 
-    // Check for and copy trailing word
-  __ BIND(L_copy_2_bytes);
-    __ testl(word_count, 1);
-    __ jccb(Assembler::zero, L_exit);
-    __ movw(rax, Address(end_from, 8));
-    __ movw(Address(end_to, 8), rax);
-
+      // Check for and copy trailing word
+    __ BIND(L_copy_2_bytes);
+      __ testl(word_count, 1);
+      __ jccb(Assembler::zero, L_exit);
+      __ movw(rax, Address(end_from, 8));
+      __ movw(Address(end_to, 8), rax);
+    }
   __ BIND(L_exit);
+    address ucme_exit_pc = __ pc();
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jshort_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1704,9 +1797,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-    __ jmp(L_copy_4_bytes);
+    {
+      UnsafeCopyMemoryMark ucmm(this, !aligned, false, ucme_exit_pc);
+      // Copy in multi-bytes chunks
+      copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+      __ jmp(L_copy_4_bytes);
+    }
 
     return start;
   }
@@ -1773,33 +1869,36 @@ class StubGenerator: public StubCodeGenerator {
     setup_arg_regs(); // from => rdi, to => rsi, count => rdx
                       // r9 and r10 may be used to save non-volatile registers
 
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(word_count, count);
-    __ shrptr(count, 2); // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(word_count, count);
+      __ shrptr(count, 2); // count => qword_count
 
-    // Copy from high to low addresses.  Use 'to' as scratch.
+      // Copy from high to low addresses.  Use 'to' as scratch.
 
-    // Check for and copy trailing word
-    __ testl(word_count, 1);
-    __ jccb(Assembler::zero, L_copy_4_bytes);
-    __ movw(rax, Address(from, word_count, Address::times_2, -2));
-    __ movw(Address(to, word_count, Address::times_2, -2), rax);
+      // Check for and copy trailing word
+      __ testl(word_count, 1);
+      __ jccb(Assembler::zero, L_copy_4_bytes);
+      __ movw(rax, Address(from, word_count, Address::times_2, -2));
+      __ movw(Address(to, word_count, Address::times_2, -2), rax);
 
-    // Check for and copy trailing dword
-  __ BIND(L_copy_4_bytes);
-    __ testl(word_count, 2);
-    __ jcc(Assembler::zero, L_copy_bytes);
-    __ movl(rax, Address(from, qword_count, Address::times_8));
-    __ movl(Address(to, qword_count, Address::times_8), rax);
-    __ jmp(L_copy_bytes);
+     // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(word_count, 2);
+      __ jcc(Assembler::zero, L_copy_bytes);
+      __ movl(rax, Address(from, qword_count, Address::times_8));
+      __ movl(Address(to, qword_count, Address::times_8), rax);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-    __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-    __ decrement(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
-
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jshort_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1807,9 +1906,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
     restore_arg_regs();
     inc_counter_np(SharedRuntime::_jshort_array_copy_ctr); // Update counter after rscratch1 is free
     __ xorptr(rax, rax); // return 0
@@ -1880,31 +1982,35 @@ class StubGenerator: public StubCodeGenerator {
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(dword_count, count);
-    __ shrptr(count, 1); // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(dword_count, count);
+      __ shrptr(count, 1); // count => qword_count
 
-    // Copy from low to high addresses.  Use 'to' as scratch.
-    __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-    __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-    __ negptr(qword_count);
-    __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-    __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-    __ increment(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
 
-    // Check for and copy trailing dword
-  __ BIND(L_copy_4_bytes);
-    __ testl(dword_count, 1); // Only byte test since the value is 0 or 1
-    __ jccb(Assembler::zero, L_exit);
-    __ movl(rax, Address(end_from, 8));
-    __ movl(Address(end_to, 8), rax);
-
+      // Check for and copy trailing dword
+    __ BIND(L_copy_4_bytes);
+      __ testl(dword_count, 1); // Only byte test since the value is 0 or 1
+      __ jccb(Assembler::zero, L_exit);
+      __ movl(rax, Address(end_from, 8));
+      __ movl(Address(end_to, 8), rax);
+    }
   __ BIND(L_exit);
+    address ucme_exit_pc = __ pc();
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, dword_count);
     restore_arg_regs_using_thread();
     inc_counter_np(SharedRuntime::_jint_array_copy_ctr); // Update counter after rscratch1 is free
@@ -1913,9 +2019,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-    __ jmp(L_copy_4_bytes);
+    {
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, false, ucme_exit_pc);
+      // Copy in multi-bytes chunks
+      copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+      __ jmp(L_copy_4_bytes);
+    }
 
     return start;
   }
@@ -1976,26 +2085,29 @@ class StubGenerator: public StubCodeGenerator {
     bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
     assert_clean_int(count, rax); // Make sure 'count' is clean int.
-    // 'from', 'to' and 'count' are now valid
-    __ movptr(dword_count, count);
-    __ shrptr(count, 1); // count => qword_count
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // 'from', 'to' and 'count' are now valid
+      __ movptr(dword_count, count);
+      __ shrptr(count, 1); // count => qword_count
 
-    // Copy from high to low addresses.  Use 'to' as scratch.
+      // Copy from high to low addresses.  Use 'to' as scratch.
 
-    // Check for and copy trailing dword
-    __ testl(dword_count, 1);
-    __ jcc(Assembler::zero, L_copy_bytes);
-    __ movl(rax, Address(from, dword_count, Address::times_4, -4));
-    __ movl(Address(to, dword_count, Address::times_4, -4), rax);
-    __ jmp(L_copy_bytes);
+      // Check for and copy trailing dword
+      __ testl(dword_count, 1);
+      __ jcc(Assembler::zero, L_copy_bytes);
+      __ movl(rax, Address(from, dword_count, Address::times_4, -4));
+      __ movl(Address(to, dword_count, Address::times_4, -4), rax);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-    __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-    __ decrement(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
-
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
     if (is_oop) {
       __ jmp(L_exit);
     }
@@ -2006,8 +2118,12 @@ class StubGenerator: public StubCodeGenerator {
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
 
   __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, dword_count);
@@ -2077,20 +2193,23 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
 
-    // Copy from low to high addresses.  Use 'to' as scratch.
-    __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
-    __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
-    __ negptr(qword_count);
-    __ jmp(L_copy_bytes);
+      // Copy from low to high addresses.  Use 'to' as scratch.
+      __ lea(end_from, Address(from, qword_count, Address::times_8, -8));
+      __ lea(end_to,   Address(to,   qword_count, Address::times_8, -8));
+      __ negptr(qword_count);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
-    __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
-    __ increment(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
-
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(end_from, qword_count, Address::times_8, 8));
+      __ movq(Address(end_to, qword_count, Address::times_8, 8), rax);
+      __ increment(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
     if (is_oop) {
       __ jmp(L_exit);
     } else {
@@ -2102,8 +2221,12 @@ class StubGenerator: public StubCodeGenerator {
       __ ret(0);
     }
 
-    // Copy in multi-bytes chunks
-    copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
+      // Copy in multi-bytes chunks
+      copy_bytes_forward(end_from, end_to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
 
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
@@ -2159,7 +2282,7 @@ class StubGenerator: public StubCodeGenerator {
                                    // r9 is used to save r15_thread
     // 'from', 'to' and 'qword_count' are now valid
 
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_DISJOINT;
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY;
     if (dest_uninitialized) {
       decorators |= IS_DEST_UNINITIALIZED;
     }
@@ -2170,16 +2293,19 @@ class StubGenerator: public StubCodeGenerator {
     BasicType type = is_oop ? T_OBJECT : T_LONG;
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
     bs->arraycopy_prologue(_masm, decorators, type, from, to, qword_count);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
 
-    __ jmp(L_copy_bytes);
+      __ jmp(L_copy_bytes);
 
-    // Copy trailing qwords
-  __ BIND(L_copy_8_bytes);
-    __ movq(rax, Address(from, qword_count, Address::times_8, -8));
-    __ movq(Address(to, qword_count, Address::times_8, -8), rax);
-    __ decrement(qword_count);
-    __ jcc(Assembler::notZero, L_copy_8_bytes);
-
+      // Copy trailing qwords
+    __ BIND(L_copy_8_bytes);
+      __ movq(rax, Address(from, qword_count, Address::times_8, -8));
+      __ movq(Address(to, qword_count, Address::times_8, -8), rax);
+      __ decrement(qword_count);
+      __ jcc(Assembler::notZero, L_copy_8_bytes);
+    }
     if (is_oop) {
       __ jmp(L_exit);
     } else {
@@ -2190,10 +2316,13 @@ class StubGenerator: public StubCodeGenerator {
       __ leave(); // required for proper stackwalking of RuntimeStub frame
       __ ret(0);
     }
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      UnsafeCopyMemoryMark ucmm(this, !is_oop && !aligned, true);
 
-    // Copy in multi-bytes chunks
-    copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
-
+      // Copy in multi-bytes chunks
+      copy_bytes_backward(from, to, qword_count, rax, L_copy_bytes, L_copy_8_bytes);
+    }
     __ BIND(L_exit);
     bs->arraycopy_epilogue(_masm, decorators, type, from, to, qword_count);
     restore_arg_regs_using_thread();
@@ -2353,7 +2482,7 @@ class StubGenerator: public StubCodeGenerator {
     Address from_element_addr(end_from, count, TIMES_OOP, 0);
     Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST | ARRAYCOPY_DISJOINT;
     if (dest_uninitialized) {
       decorators |= IS_DEST_UNINITIALIZED;
     }
@@ -2833,6 +2962,45 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  address generate_data_cache_writeback() {
+    const Register src        = c_rarg0;  // source address
+
+    __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback");
+
+    address start = __ pc();
+    __ enter();
+    __ cache_wb(Address(src, 0));
+    __ leave();
+    __ ret(0);
+
+    return start;
+  }
+
+  address generate_data_cache_writeback_sync() {
+    const Register is_pre    = c_rarg0;  // pre or post sync
+
+    __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback_sync");
+
+    // pre wbsync is a no-op
+    // post wbsync translates to an sfence
+
+    Label skip;
+    address start = __ pc();
+    __ enter();
+    __ cmpl(is_pre, 0);
+    __ jcc(Assembler::notEqual, skip);
+    __ cache_wbsync(false);
+    __ bind(skip);
+    __ leave();
+    __ ret(0);
+
+    return start;
+  }
+
   void generate_arraycopy_stubs() {
     address entry;
     address entry_jbyte_arraycopy;
@@ -3005,14 +3173,6 @@ class StubGenerator: public StubCodeGenerator {
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
-
     // keylen could be only {11, 13, 15} * 4 = {44, 52, 60}
     __ movl(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
 
@@ -3106,14 +3266,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_temp4  = xmm5;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
     // keylen could be only {11, 13, 15} * 4 = {44, 52, 60}
     __ movl(keylen, Address(key, arrayOopDesc::length_offset_in_bytes() - arrayOopDesc::base_offset_in_bytes(T_INT)));
@@ -3226,14 +3378,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_key13  = as_XMMRegister(XMM_REG_NUM_KEY_FIRST+13);
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // on win64, fill len_reg from stack position
@@ -3427,14 +3571,6 @@ class StubGenerator: public StubCodeGenerator {
     const XMMRegister xmm_key_last  = as_XMMRegister(XMM_REG_NUM_KEY_LAST);
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // on win64, fill len_reg from stack position
@@ -3640,6 +3776,36 @@ class StubGenerator: public StubCodeGenerator {
     __ ret(0);
     return start;
 }
+
+  address generate_electronicCodeBook_encryptAESCrypt() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "electronicCodeBook_encryptAESCrypt");
+    address start = __ pc();
+    const Register from = c_rarg0;  // source array address
+    const Register to = c_rarg1;  // destination array address
+    const Register key = c_rarg2;  // key array address
+    const Register len = c_rarg3;  // src len (must be multiple of blocksize 16)
+    __ enter(); // required for proper stackwalking of RuntimeStub frame
+    __ aesecb_encrypt(from, to, key, len);
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(0);
+    return start;
+ }
+
+  address generate_electronicCodeBook_decryptAESCrypt() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "electronicCodeBook_decryptAESCrypt");
+    address start = __ pc();
+    const Register from = c_rarg0;  // source array address
+    const Register to = c_rarg1;  // destination array address
+    const Register key = c_rarg2;  // key array address
+    const Register len = c_rarg3;  // src len (must be multiple of blocksize 16)
+    __ enter(); // required for proper stackwalking of RuntimeStub frame
+    __ aesecb_decrypt(from, to, key, len);
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(0);
+    return start;
+  }
 
   address generate_upper_word_mask() {
     __ align(64);
@@ -3901,14 +4067,6 @@ class StubGenerator: public StubCodeGenerator {
     Label L_exit;
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-        __ movl(rax, 0xffff);
-        __ kmovql(k1, rax);
-    }
 
 #ifdef _WIN64
     // allocate spill slots for r13, r14
@@ -4438,6 +4596,45 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     return start;
 }
 
+// Polynomial x^128+x^127+x^126+x^121+1
+address ghash_polynomial_addr() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "_ghash_poly_addr");
+    address start = __ pc();
+    __ emit_data64(0x0000000000000001, relocInfo::none);
+    __ emit_data64(0xc200000000000000, relocInfo::none);
+    return start;
+}
+
+address ghash_shufflemask_addr() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "_ghash_shuffmask_addr");
+    address start = __ pc();
+    __ emit_data64(0x0f0f0f0f0f0f0f0f, relocInfo::none);
+    __ emit_data64(0x0f0f0f0f0f0f0f0f, relocInfo::none);
+    return start;
+}
+
+// Ghash single and multi block operations using AVX instructions
+address generate_avx_ghash_processBlocks() {
+    __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", "ghash_processBlocks");
+    address start = __ pc();
+
+    // arguments
+    const Register state = c_rarg0;
+    const Register htbl = c_rarg1;
+    const Register data = c_rarg2;
+    const Register blocks = c_rarg3;
+    __ enter();
+   // Save state before entering routine
+    __ avx_ghash(state, htbl, data, blocks);
+    __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(0);
+    return start;
+}
+
   // byte swap x86 long
   address generate_ghash_long_swap_mask() {
     __ align(CodeEntryAlignment);
@@ -4483,14 +4680,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     const XMMRegister xmm_temp10 = xmm10;
 
     __ enter();
-
-    // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
-    // context for the registers used, where all instructions below are using 128-bit mode
-    // On EVEX without VL and BW, these instructions will all be AVX.
-    if (VM_Version::supports_avx512vlbw()) {
-      __ movl(rax, 0xffff);
-      __ kmovql(k1, rax);
-    }
 
     __ movdqu(xmm_temp10, ExternalAddress(StubRoutines::x86::ghash_long_swap_mask_addr()));
 
@@ -4761,7 +4950,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ push(r13);
     __ push(r14);
     __ push(r15);
-    __ push(rbx);
 
     // arguments
     const Register source = c_rarg0; // Source Array
@@ -4790,8 +4978,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ cmpl(length, 0);
     __ jcc(Assembler::lessEqual, L_exit);
 
-    // Save k1 value in rbx
-    __ kmovql(rbx, k1);
     __ lea(r11, ExternalAddress(StubRoutines::x86::base64_charset_addr()));
     // check if base64 charset(isURL=0) or base64 url charset(isURL=1) needs to be loaded
     __ cmpl(isURL, 0);
@@ -4802,7 +4988,7 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ BIND(L_processdata);
     __ movdqu(xmm16, ExternalAddress(StubRoutines::x86::base64_gather_mask_addr()));
     // Set 64 bits of K register.
-    __ evpcmpeqb(k1, xmm16, xmm16, Assembler::AVX_512bit);
+    __ evpcmpeqb(k3, xmm16, xmm16, Assembler::AVX_512bit);
     __ evmovdquq(xmm12, ExternalAddress(StubRoutines::x86::base64_bswap_mask_addr()), Assembler::AVX_256bit, r13);
     __ evmovdquq(xmm13, ExternalAddress(StubRoutines::x86::base64_right_shift_mask_addr()), Assembler::AVX_512bit, r13);
     __ evmovdquq(xmm14, ExternalAddress(StubRoutines::x86::base64_left_shift_mask_addr()), Assembler::AVX_512bit, r13);
@@ -4881,17 +5067,17 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ vextracti64x4(xmm4, xmm5, 1);
     __ vpmovzxwd(xmm7, xmm4, Assembler::AVX_512bit);
 
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm4, k2, Address(r11, xmm0, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm5, k2, Address(r11, xmm1, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm8, k2, Address(r11, xmm2, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm9, k2, Address(r11, xmm3, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm10, k2, Address(r11, xmm6, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm11, k2, Address(r11, xmm7, Address::times_4, 0), Assembler::AVX_512bit);
 
     //Down convert dword to byte. Final output is 16*6 = 96 bytes long
@@ -4927,9 +5113,9 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ vpmovzxwd(xmm6, xmm9, Assembler::AVX_512bit);
     __ vextracti64x4(xmm9, xmm1, 1);
     __ vpmovzxwd(xmm5, xmm9,  Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm8, k2, Address(r11, xmm6, Address::times_4, 0), Assembler::AVX_512bit);
-    __ kmovql(k2, k1);
+    __ kmovql(k2, k3);
     __ evpgatherdd(xmm10, k2, Address(r11, xmm5, Address::times_4, 0), Assembler::AVX_512bit);
     __ evpmovdb(Address(dest, dp, Address::times_1, 0), xmm8, Assembler::AVX_512bit);
     __ evpmovdb(Address(dest, dp, Address::times_1, 16), xmm10, Assembler::AVX_512bit);
@@ -4985,9 +5171,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     __ addq(source, 3);
     __ jmp(L_process3);
     __ BIND(L_exit);
-    // restore k1 register value
-    __ kmovql(k1, rbx);
-    __ pop(rbx);
     __ pop(r15);
     __ pop(r14);
     __ pop(r13);
@@ -5255,6 +5438,83 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
 
     __ leave(); // required for proper stackwalking of RuntimeStub frame
     __ ret(0);
+
+    return start;
+  }
+
+  address generate_method_entry_barrier() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "nmethod_entry_barrier");
+
+    Label deoptimize_label;
+
+    address start = __ pc();
+
+    __ push(-1); // cookie, this is used for writing the new rsp when deoptimizing
+
+    BLOCK_COMMENT("Entry:");
+    __ enter(); // save rbp
+
+    // save c_rarg0, because we want to use that value.
+    // We could do without it but then we depend on the number of slots used by pusha
+    __ push(c_rarg0);
+
+    __ lea(c_rarg0, Address(rsp, wordSize * 3)); // 1 for cookie, 1 for rbp, 1 for c_rarg0 - this should be the return address
+
+    __ pusha();
+
+    // The method may have floats as arguments, and we must spill them before calling
+    // the VM runtime.
+    assert(Argument::n_float_register_parameters_j == 8, "Assumption");
+    const int xmm_size = wordSize * 2;
+    const int xmm_spill_size = xmm_size * Argument::n_float_register_parameters_j;
+    __ subptr(rsp, xmm_spill_size);
+    __ movdqu(Address(rsp, xmm_size * 7), xmm7);
+    __ movdqu(Address(rsp, xmm_size * 6), xmm6);
+    __ movdqu(Address(rsp, xmm_size * 5), xmm5);
+    __ movdqu(Address(rsp, xmm_size * 4), xmm4);
+    __ movdqu(Address(rsp, xmm_size * 3), xmm3);
+    __ movdqu(Address(rsp, xmm_size * 2), xmm2);
+    __ movdqu(Address(rsp, xmm_size * 1), xmm1);
+    __ movdqu(Address(rsp, xmm_size * 0), xmm0);
+
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(address*)>(BarrierSetNMethod::nmethod_stub_entry_barrier)), 1);
+
+    __ movdqu(xmm0, Address(rsp, xmm_size * 0));
+    __ movdqu(xmm1, Address(rsp, xmm_size * 1));
+    __ movdqu(xmm2, Address(rsp, xmm_size * 2));
+    __ movdqu(xmm3, Address(rsp, xmm_size * 3));
+    __ movdqu(xmm4, Address(rsp, xmm_size * 4));
+    __ movdqu(xmm5, Address(rsp, xmm_size * 5));
+    __ movdqu(xmm6, Address(rsp, xmm_size * 6));
+    __ movdqu(xmm7, Address(rsp, xmm_size * 7));
+    __ addptr(rsp, xmm_spill_size);
+
+    __ cmpl(rax, 1); // 1 means deoptimize
+    __ jcc(Assembler::equal, deoptimize_label);
+
+    __ popa();
+    __ pop(c_rarg0);
+
+    __ leave();
+
+    __ addptr(rsp, 1 * wordSize); // cookie
+    __ ret(0);
+
+
+    __ BIND(deoptimize_label);
+
+    __ popa();
+    __ pop(c_rarg0);
+
+    __ leave();
+
+    // this can be taken out, but is good for verification purposes. getting a SIGSEGV
+    // here while still having a correct stack is valuable
+    __ testptr(rsp, Address(rsp, 0));
+
+    __ movptr(rsp, Address(rsp, 0)); // new rsp was written in the barrier
+    __ jmp(Address(rsp, -1 * wordSize)); // jmp target should be callers verified_entry_point
 
     return start;
   }
@@ -5669,8 +5929,6 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     // Round to nearest, 24-bit mode, exceptions masked
     StubRoutines::_fpu_cntrl_wrd_24    = 0x007F;
     // Round to nearest, 64-bit mode, exceptions masked
-    StubRoutines::_fpu_cntrl_wrd_64    = 0x037F;
-    // Round to nearest, 64-bit mode, exceptions masked
     StubRoutines::_mxcsr_std           = 0x1F80;
     // Note: the following two constants are 80-bit values
     //       layout is critical for correct loading by FPU.
@@ -5821,9 +6079,20 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     StubRoutines::x86::_float_sign_flip  = generate_fp_mask("float_sign_flip",  0x8000000080000000);
     StubRoutines::x86::_double_sign_mask = generate_fp_mask("double_sign_mask", 0x7FFFFFFFFFFFFFFF);
     StubRoutines::x86::_double_sign_flip = generate_fp_mask("double_sign_flip", 0x8000000000000000);
+    StubRoutines::x86::_vector_float_sign_mask = generate_vector_mask("vector_float_sign_mask", 0x7FFFFFFF7FFFFFFF);
+    StubRoutines::x86::_vector_float_sign_flip = generate_vector_mask("vector_float_sign_flip", 0x8000000080000000);
+    StubRoutines::x86::_vector_double_sign_mask = generate_vector_mask("vector_double_sign_mask", 0x7FFFFFFFFFFFFFFF);
+    StubRoutines::x86::_vector_double_sign_flip = generate_vector_mask("vector_double_sign_flip", 0x8000000000000000);
+    StubRoutines::x86::_vector_short_to_byte_mask = generate_vector_mask("vector_short_to_byte_mask", 0x00ff00ff00ff00ff);
+    StubRoutines::x86::_vector_byte_perm_mask = generate_vector_byte_perm_mask("vector_byte_perm_mask");
+    StubRoutines::x86::_vector_long_sign_mask = generate_vector_mask("vector_long_sign_mask", 0x8000000000000000);
 
     // support for verify_oop (must happen after universe_init)
     StubRoutines::_verify_oop_subroutine_entry = generate_verify_oop();
+
+    // data cache line writeback
+    StubRoutines::_data_cache_writeback = generate_data_cache_writeback();
+    StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
@@ -5836,6 +6105,8 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
       StubRoutines::_cipherBlockChaining_encryptAESCrypt = generate_cipherBlockChaining_encryptAESCrypt();
       if (VM_Version::supports_vaes() &&  VM_Version::supports_avx512vl() && VM_Version::supports_avx512dq() ) {
         StubRoutines::_cipherBlockChaining_decryptAESCrypt = generate_cipherBlockChaining_decryptVectorAESCrypt();
+        StubRoutines::_electronicCodeBook_encryptAESCrypt = generate_electronicCodeBook_encryptAESCrypt();
+        StubRoutines::_electronicCodeBook_decryptAESCrypt = generate_electronicCodeBook_decryptAESCrypt();
       } else {
         StubRoutines::_cipherBlockChaining_decryptAESCrypt = generate_cipherBlockChaining_decryptAESCrypt_Parallel();
       }
@@ -5873,9 +6144,15 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
 
     // Generate GHASH intrinsics code
     if (UseGHASHIntrinsics) {
-      StubRoutines::x86::_ghash_long_swap_mask_addr = generate_ghash_long_swap_mask();
-      StubRoutines::x86::_ghash_byte_swap_mask_addr = generate_ghash_byte_swap_mask();
-      StubRoutines::_ghash_processBlocks = generate_ghash_processBlocks();
+    StubRoutines::x86::_ghash_long_swap_mask_addr = generate_ghash_long_swap_mask();
+    StubRoutines::x86::_ghash_byte_swap_mask_addr = generate_ghash_byte_swap_mask();
+      if (VM_Version::supports_avx()) {
+        StubRoutines::x86::_ghash_shuffmask_addr = ghash_shufflemask_addr();
+        StubRoutines::x86::_ghash_poly_addr = ghash_polynomial_addr();
+        StubRoutines::_ghash_processBlocks = generate_avx_ghash_processBlocks();
+      } else {
+        StubRoutines::_ghash_processBlocks = generate_ghash_processBlocks();
+      }
     }
 
     if (UseBASE64Intrinsics) {
@@ -5896,6 +6173,11 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
     generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
                                                        &StubRoutines::_safefetchN_fault_pc,
                                                        &StubRoutines::_safefetchN_continuation_pc);
+
+    BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+    if (bs_nm != NULL) {
+      StubRoutines::x86::_method_entry_barrier = generate_method_entry_barrier();
+    }
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
@@ -5933,6 +6215,10 @@ address generate_cipherBlockChaining_decryptVectorAESCrypt() {
   }
 }; // end class declaration
 
+#define UCM_TABLE_MAX_ENTRIES 16
 void StubGenerator_generate(CodeBuffer* code, bool all) {
+  if (UnsafeCopyMemory::_table == NULL) {
+    UnsafeCopyMemory::create_table(UCM_TABLE_MAX_ENTRIES);
+  }
   StubGenerator g(code, all);
 }

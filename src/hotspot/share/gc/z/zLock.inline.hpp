@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,30 +25,71 @@
 #define SHARE_GC_Z_ZLOCK_INLINE_HPP
 
 #include "gc/z/zLock.hpp"
-
-inline ZLock::ZLock() {
-  pthread_mutex_init(&_lock, NULL);
-}
+#include "runtime/atomic.hpp"
+#include "runtime/os.inline.hpp"
+#include "runtime/thread.hpp"
+#include "utilities/debug.hpp"
 
 inline void ZLock::lock() {
-  pthread_mutex_lock(&_lock);
+  _lock.lock();
 }
 
 inline bool ZLock::try_lock() {
-  return pthread_mutex_trylock(&_lock) == 0;
+  return _lock.try_lock();
 }
 
 inline void ZLock::unlock() {
-  pthread_mutex_unlock(&_lock);
+  _lock.unlock();
 }
 
-inline ZLocker::ZLocker(ZLock* lock) :
+inline ZReentrantLock::ZReentrantLock() :
+    _lock(),
+    _owner(NULL),
+    _count(0) {}
+
+inline void ZReentrantLock::lock() {
+  Thread* const thread = Thread::current();
+  Thread* const owner = Atomic::load(&_owner);
+
+  if (owner != thread) {
+    _lock.lock();
+    Atomic::store(thread, &_owner);
+  }
+
+  _count++;
+}
+
+inline void ZReentrantLock::unlock() {
+  assert(is_owned(), "Invalid owner");
+  assert(_count > 0, "Invalid count");
+
+  _count--;
+
+  if (_count == 0) {
+    Atomic::store((Thread*)NULL, &_owner);
+    _lock.unlock();
+  }
+}
+
+inline bool ZReentrantLock::is_owned() const {
+  Thread* const thread = Thread::current();
+  Thread* const owner = Atomic::load(&_owner);
+  return owner == thread;
+}
+
+template <typename T>
+inline ZLocker<T>::ZLocker(T* lock) :
     _lock(lock) {
-  _lock->lock();
+  if (_lock != NULL) {
+    _lock->lock();
+  }
 }
 
-inline ZLocker::~ZLocker() {
-  _lock->unlock();
+template <typename T>
+inline ZLocker<T>::~ZLocker() {
+  if (_lock != NULL) {
+    _lock->unlock();
+  }
 }
 
 #endif // SHARE_GC_Z_ZLOCK_INLINE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,7 +121,8 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     public static final String WINDOW_FADE_IN = "apple.awt._windowFadeIn";
     public static final String WINDOW_FADE_OUT = "apple.awt._windowFadeOut";
     public static final String WINDOW_FULLSCREENABLE = "apple.awt.fullscreenable";
-
+    public static final String WINDOW_FULL_CONTENT = "apple.awt.fullWindowContent";
+    public static final String WINDOW_TRANSPARENT_TITLE_BAR = "apple.awt.transparentTitleBar";
 
     // Yeah, I know. But it's easier to deal with ints from JNI
     static final int MODELESS = 0;
@@ -149,7 +150,10 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     static final int IS_MODAL = 1 << 26;
     static final int IS_POPUP = 1 << 27;
 
-    static final int _STYLE_PROP_BITMASK = DECORATED | TEXTURED | UNIFIED | UTILITY | HUD | SHEET | CLOSEABLE | MINIMIZABLE | RESIZABLE;
+    static final int FULL_WINDOW_CONTENT = 1 << 14;
+
+    static final int _STYLE_PROP_BITMASK = DECORATED | TEXTURED | UNIFIED | UTILITY | HUD | SHEET | CLOSEABLE
+                                             | MINIMIZABLE | RESIZABLE | FULL_WINDOW_CONTENT;
 
     // corresponds to method-based properties
     static final int HAS_SHADOW = 1 << 10;
@@ -160,8 +164,11 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
     static final int DRAGGABLE_BACKGROUND = 1 << 19;
     static final int DOCUMENT_MODIFIED = 1 << 21;
     static final int FULLSCREENABLE = 1 << 23;
+    static final int TRANSPARENT_TITLE_BAR = 1 << 18;
 
-    static final int _METHOD_PROP_BITMASK = RESIZABLE | HAS_SHADOW | ZOOMABLE | ALWAYS_ON_TOP | HIDES_ON_DEACTIVATE | DRAGGABLE_BACKGROUND | DOCUMENT_MODIFIED | FULLSCREENABLE;
+    static final int _METHOD_PROP_BITMASK = RESIZABLE | HAS_SHADOW | ZOOMABLE | ALWAYS_ON_TOP | HIDES_ON_DEACTIVATE
+                                              | DRAGGABLE_BACKGROUND | DOCUMENT_MODIFIED | FULLSCREENABLE
+                                              | TRANSPARENT_TITLE_BAR;
 
     // corresponds to callback-based properties
     static final int SHOULD_BECOME_KEY = 1 << 12;
@@ -230,7 +237,19 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
 
             final String filename = ((java.io.File)value).getAbsolutePath();
             c.execute(ptr->nativeSetNSWindowRepresentedFilename(ptr, filename));
-        }}
+        }},
+        new Property<CPlatformWindow>(WINDOW_FULL_CONTENT) {
+            public void applyProperty(final CPlatformWindow c, final Object value) {
+                boolean isFullWindowContent = Boolean.parseBoolean(value.toString());
+                c.setStyleBits(FULL_WINDOW_CONTENT, isFullWindowContent);
+            }
+        },
+        new Property<CPlatformWindow>(WINDOW_TRANSPARENT_TITLE_BAR) {
+            public void applyProperty(final CPlatformWindow c, final Object value) {
+                boolean isTransparentTitleBar = Boolean.parseBoolean(value.toString());
+                c.setStyleBits(TRANSPARENT_TITLE_BAR, isTransparentTitleBar);
+            }
+        }
     }) {
         @SuppressWarnings("deprecation")
         public CPlatformWindow convertJComponentToTarget(final JRootPane p) {
@@ -247,12 +266,15 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         ComponentAccessor componentAccessor = AWTAccessor.getComponentAccessor();
         Object p1 = componentAccessor.getPeer(w1);
         Object p2 = componentAccessor.getPeer(w2);
-        if (p1 instanceof LWWindowPeer && p2 instanceof LWWindowPeer) {
-            return Long.compare(
-                    ((CPlatformWindow) (((LWWindowPeer) p1).getPlatformWindow())).lastBecomeMainTime,
-                    ((CPlatformWindow) (((LWWindowPeer) p2).getPlatformWindow())).lastBecomeMainTime);
+        long time1 = 0;
+        if (p1 instanceof LWWindowPeer) {
+            time1 = ((CPlatformWindow) (((LWWindowPeer) p1).getPlatformWindow())).lastBecomeMainTime;
         }
-        return 0;
+        long time2 = 0;
+        if (p2 instanceof LWWindowPeer) {
+            time2 = ((CPlatformWindow) (((LWWindowPeer) p2).getPlatformWindow())).lastBecomeMainTime;
+        }
+        return Long.compare(time1, time2);
     };
 
     // Bounds of the native widget but in the Java coordinate system.
@@ -467,6 +489,16 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             prop = rootpane.getClientProperty(WINDOW_DRAGGABLE_BACKGROUND);
             if (prop != null) {
                 styleBits = SET(styleBits, DRAGGABLE_BACKGROUND, Boolean.parseBoolean(prop.toString()));
+            }
+
+            prop = rootpane.getClientProperty(WINDOW_FULL_CONTENT);
+            if (prop != null) {
+                styleBits = SET(styleBits, FULL_WINDOW_CONTENT, Boolean.parseBoolean(prop.toString()));
+            }
+
+            prop = rootpane.getClientProperty(WINDOW_TRANSPARENT_TITLE_BAR);
+            if (prop != null) {
+                styleBits = SET(styleBits, TRANSPARENT_TITLE_BAR, Boolean.parseBoolean(prop.toString()));
             }
         }
 
@@ -695,6 +727,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
                         // Treat all state bit masks with ICONIFIED bit as ICONIFIED state.
                         frameState = Frame.ICONIFIED;
                     }
+
                     switch (frameState) {
                         case Frame.ICONIFIED:
                             execute(CWrapper.NSWindow::miniaturize);
@@ -924,6 +957,7 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
             // Treat all state bit masks with ICONIFIED bit as ICONIFIED state.
             windowState = Frame.ICONIFIED;
         }
+
         switch (windowState) {
             case Frame.ICONIFIED:
                 if (prevWindowState == Frame.MAXIMIZED_BOTH) {
@@ -1209,9 +1243,10 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         // the windows are ordered above their nearest owner; ancestors of the window,
         // which is going to become 'main window', are placed above their siblings.
         CPlatformWindow rootOwner = getRootOwner();
-        if (rootOwner.isVisible() && !rootOwner.isIconified()) {
+        if (rootOwner.isVisible() && !rootOwner.isIconified() && !rootOwner.isActive()) {
             rootOwner.execute(CWrapper.NSWindow::orderFront);
         }
+
         // Do not order child windows of iconified owner.
         if (!rootOwner.isIconified()) {
             final WindowAccessor windowAccessor = AWTAccessor.getWindowAccessor();
@@ -1276,6 +1311,20 @@ public class CPlatformWindow extends CFRetainedResource implements PlatformWindo
         }
     }
 
+    private Window getOwnerFrameOrDialog(Window window) {
+        Window owner = window.getOwner();
+        while (owner != null && !(owner instanceof Frame || owner instanceof Dialog)) {
+            owner = owner.getOwner();
+        }
+        return owner;
+    }
+
+    private boolean isSimpleWindowOwnedByEmbeddedFrame() {
+        if (peer != null && peer.isSimpleWindow()) {
+            return (getOwnerFrameOrDialog(target) instanceof CEmbeddedFrame);
+        }
+        return false;
+    }
     // ----------------------------------------------------------------------
     //                          NATIVE CALLBACKS
     // ----------------------------------------------------------------------

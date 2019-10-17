@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 
 #include "precompiled.hpp"
 #include "jfr/jni/jfrJavaSupport.hpp"
+#include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
+#include "jfr/leakprofiler/sampling/objectSampler.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/jfrMetadataEvent.hpp"
-#include "jfr/recorder/repository/jfrChunkSizeNotifier.hpp"
+#include "jfr/recorder/repository/jfrChunkRotation.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/repository/jfrRepository.hpp"
 #include "jfr/recorder/service/jfrPostBox.hpp"
@@ -50,7 +52,7 @@
 #include "runtime/os.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 
 // set data iff *dest == NULL
@@ -110,8 +112,8 @@ class RotationLock : public StackObj {
       }
       if (_thread->is_Java_thread()) {
         // in order to allow the system to move to a safepoint
-        MutexLockerEx msg_lock(JfrMsg_lock);
-        JfrMsg_lock->wait(false, rotation_retry_sleep_millis);
+        MutexLocker msg_lock(JfrMsg_lock);
+        JfrMsg_lock->wait(rotation_retry_sleep_millis);
       }
       else {
         os::naked_short_sleep(rotation_retry_sleep_millis);
@@ -130,18 +132,18 @@ class RotationLock : public StackObj {
   bool not_acquired() const { return !_acquired; }
 };
 
-static intptr_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
-  const intptr_t prev_cp_offset = cw.previous_checkpoint_offset();
-  const intptr_t prev_cp_relative_offset = 0 == prev_cp_offset ? 0 : prev_cp_offset - cw.current_offset();
+static int64_t write_checkpoint_event_prologue(JfrChunkWriter& cw, u8 type_id) {
+  const int64_t last_cp_offset = cw.last_checkpoint_offset();
+  const int64_t delta_to_last_checkpoint = 0 == last_cp_offset ? 0 : last_cp_offset - cw.current_offset();
   cw.reserve(sizeof(u4));
   cw.write<u8>(EVENT_CHECKPOINT);
   cw.write(JfrTicks::now());
-  cw.write<jlong>((jlong)0);
-  cw.write(prev_cp_relative_offset); // write previous checkpoint offset delta
+  cw.write((int64_t)0); // duration
+  cw.write(delta_to_last_checkpoint);
   cw.write<bool>(false); // flushpoint
-  cw.write<u4>((u4)1); // nof types in this checkpoint
-  cw.write<u8>(type_id);
-  const intptr_t number_of_elements_offset = cw.current_offset();
+  cw.write((u4)1); // nof types in this checkpoint
+  cw.write(type_id);
+  const int64_t number_of_elements_offset = cw.current_offset();
   cw.reserve(sizeof(u4));
   return number_of_elements_offset;
 }
@@ -161,8 +163,8 @@ class WriteCheckpointEvent : public StackObj {
   }
   bool process() {
     // current_cp_offset is also offset for the event size header field
-    const intptr_t current_cp_offset = _cw.current_offset();
-    const intptr_t num_elements_offset = write_checkpoint_event_prologue(_cw, _type_id);
+    const int64_t current_cp_offset = _cw.current_offset();
+    const int64_t num_elements_offset = write_checkpoint_event_prologue(_cw, _type_id);
     // invocation
     _content_functor.process();
     const u4 number_of_elements = (u4)_content_functor.processed();
@@ -176,7 +178,7 @@ class WriteCheckpointEvent : public StackObj {
     _cw.write_padded_at_offset<u4>(number_of_elements, num_elements_offset);
     _cw.write_padded_at_offset<u4>((u4)_cw.current_offset() - current_cp_offset, current_cp_offset);
     // update writer with last checkpoint position
-    _cw.set_previous_checkpoint_offset(current_cp_offset);
+    _cw.set_last_checkpoint_offset(current_cp_offset);
     return true;
   }
 };
@@ -315,19 +317,16 @@ void JfrRecorderService::rotate(int msgs) {
     vm_error = true;
     prepare_for_vm_error_rotation();
   }
+  if (!_storage.control().to_disk()) {
+    in_memory_rotation();
+  } else if (vm_error) {
+    vm_error_rotation();
+  } else {
+    chunk_rotation();
+  }
   if (msgs & (MSGBIT(MSG_STOP))) {
     stop();
   }
-  // action determined by chunkwriter state
-  if (!_chunkwriter.is_valid()) {
-    in_memory_rotation();
-    return;
-  }
-  if (vm_error) {
-    vm_error_rotation();
-    return;
-  }
-  chunk_rotation();
 }
 
 void JfrRecorderService::prepare_for_vm_error_rotation() {
@@ -335,12 +334,14 @@ void JfrRecorderService::prepare_for_vm_error_rotation() {
     open_new_chunk(true);
   }
   _checkpoint_manager.register_service_thread(Thread::current());
+  JfrMetadataEvent::lock();
 }
 
 void JfrRecorderService::open_new_chunk(bool vm_error) {
   assert(!_chunkwriter.is_valid(), "invariant");
   assert(!JfrStream_lock->owned_by_self(), "invariant");
-  MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+  JfrChunkRotation::on_rotation();
+  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
   if (!_repository.open_chunk(vm_error)) {
     assert(!_chunkwriter.is_valid(), "invariant");
     _storage.control().set_to_disk(false);
@@ -362,7 +363,7 @@ void JfrRecorderService::in_memory_rotation() {
 
 void JfrRecorderService::serialize_storage_from_in_memory_recording() {
   assert(!JfrStream_lock->owned_by_self(), "not holding stream lock!");
-  MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
   _storage.write();
 }
 
@@ -396,7 +397,6 @@ static void write_stacktrace_checkpoint(JfrStackTraceRepository& stack_trace_rep
   WriteStackTraceCheckpoint write_stack_trace_checkpoint(chunkwriter, TYPE_STACKTRACE, write_stacktrace_repo);
   write_stack_trace_checkpoint.process();
 }
-
 static void write_stringpool_checkpoint(JfrStringPool& string_pool, JfrChunkWriter& chunkwriter) {
   WriteStringPool write_string_pool(string_pool);
   WriteStringPoolCheckpoint write_string_pool_checkpoint(chunkwriter, TYPE_STRING, write_string_pool);
@@ -417,16 +417,22 @@ static void write_stringpool_checkpoint_safepoint(JfrStringPool& string_pool, Jf
 //      write checkpoint epoch transition list->
 //        write stack trace checkpoint ->
 //          write string pool checkpoint ->
-//            write storage ->
-//              release stream lock
+//            write object sample stacktraces ->
+//              write storage ->
+//                release stream lock
 //
 void JfrRecorderService::pre_safepoint_write() {
-  MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
   assert(_chunkwriter.is_valid(), "invariant");
   _checkpoint_manager.write_types();
   _checkpoint_manager.write_epoch_transition_mspace();
   write_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, false);
   write_stringpool_checkpoint(_string_pool, _chunkwriter);
+  if (LeakProfiler::is_running()) {
+    // Exclusive access to the object sampler instance.
+    // The sampler is released (unlocked) later in post_safepoint_write.
+    ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
+  }
   _storage.write();
 }
 
@@ -435,16 +441,10 @@ void JfrRecorderService::invoke_safepoint_write() {
   VMThread::execute(&safepoint_task);
 }
 
-static void write_object_sample_stacktrace(JfrStackTraceRepository& stack_trace_repository) {
-  WriteObjectSampleStacktrace object_sample_stacktrace(stack_trace_repository);
-  object_sample_stacktrace.process();
-}
-
 //
 // safepoint write sequence
 //
 //   lock stream lock ->
-//     write object sample stacktraces ->
 //       write stacktrace repository ->
 //         write string pool ->
 //           write safepoint dependent types ->
@@ -456,8 +456,7 @@ static void write_object_sample_stacktrace(JfrStackTraceRepository& stack_trace_
 //
 void JfrRecorderService::safepoint_write() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
-  write_object_sample_stacktrace(_stack_trace_repository);
+  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
   write_stacktrace_checkpoint(_stack_trace_repository, _chunkwriter, true);
   write_stringpool_checkpoint_safepoint(_string_pool, _chunkwriter);
   _checkpoint_manager.write_safepoint_types();
@@ -467,9 +466,9 @@ void JfrRecorderService::safepoint_write() {
   JfrMetadataEvent::lock();
 }
 
-static jlong write_metadata_event(JfrChunkWriter& chunkwriter) {
+static int64_t write_metadata_event(JfrChunkWriter& chunkwriter) {
   assert(chunkwriter.is_valid(), "invariant");
-  const jlong metadata_offset = chunkwriter.current_offset();
+  const int64_t metadata_offset = chunkwriter.current_offset();
   JfrMetadataEvent::write(chunkwriter, metadata_offset);
   return metadata_offset;
 }
@@ -477,13 +476,14 @@ static jlong write_metadata_event(JfrChunkWriter& chunkwriter) {
 //
 // post-safepoint write sequence
 //
-//  lock stream lock ->
-//    write type set ->
-//      write checkpoints ->
-//        write metadata event ->
-//          write chunk header ->
-//            close chunk fd ->
-//              release stream lock
+//   write type set ->
+//     release object sampler ->
+//       lock stream lock ->
+//         write checkpoints ->
+//           write metadata event ->
+//             write chunk header ->
+//               close chunk fd ->
+//                 release stream lock
 //
 void JfrRecorderService::post_safepoint_write() {
   assert(_chunkwriter.is_valid(), "invariant");
@@ -492,7 +492,12 @@ void JfrRecorderService::post_safepoint_write() {
   // already tagged artifacts for the previous epoch. We can accomplish this concurrently
   // with threads now tagging artifacts in relation to the new, now updated, epoch and remain outside of a safepoint.
   _checkpoint_manager.write_type_set();
-  MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+  if (LeakProfiler::is_running()) {
+    // The object sampler instance was exclusively acquired and locked in pre_safepoint_write.
+    // Note: There is a dependency on write_type_set() above, ensure the release is subsequent.
+    ObjectSampler::release();
+  }
+  MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
   // serialize any outstanding checkpoint memory
   _checkpoint_manager.write();
   // serialize the metadata descriptor event and close out the chunk
@@ -511,11 +516,9 @@ void JfrRecorderService::vm_error_rotation() {
 void JfrRecorderService::finalize_current_chunk_on_vm_error() {
   assert(_chunkwriter.is_valid(), "invariant");
   pre_safepoint_write();
-  JfrMetadataEvent::lock();
   // Do not attempt safepoint dependent operations during emergency dump.
   // Optimistically write tagged artifacts.
   _checkpoint_manager.shift_epoch();
-  _checkpoint_manager.write_type_set();
   // update time
   _chunkwriter.time_stamp_chunk_now();
   post_safepoint_write();
@@ -525,7 +528,7 @@ void JfrRecorderService::finalize_current_chunk_on_vm_error() {
 void JfrRecorderService::process_full_buffers() {
   if (_chunkwriter.is_valid()) {
     assert(!JfrStream_lock->owned_by_self(), "invariant");
-    MutexLockerEx stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker stream_lock(JfrStream_lock, Mutex::_no_safepoint_check_flag);
     _storage.write_full();
   }
 }
@@ -535,8 +538,5 @@ void JfrRecorderService::scavenge() {
 }
 
 void JfrRecorderService::evaluate_chunk_size_for_rotation() {
-  const size_t size_written = _chunkwriter.size_written();
-  if (size_written > JfrChunkSizeNotifier::chunk_size_threshold()) {
-    JfrChunkSizeNotifier::notify();
-  }
+  JfrChunkRotation::evaluate(_chunkwriter);
 }

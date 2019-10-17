@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1FullCollector.hpp"
@@ -85,7 +86,7 @@ G1FullGCAdjustTask::G1FullGCAdjustTask(G1FullCollector* collector) :
     _weak_proc_task(collector->workers()),
     _hrclaimer(collector->workers()),
     _adjust(),
-    _adjust_string_dedup(NULL, &_adjust, G1StringDedup::is_enabled()) {
+    _string_dedup_cleaning_task(NULL, &_adjust, false) {
   // Need cleared claim bits for the roots processing
   ClassLoaderDataGraph::clear_claimed_marks();
 }
@@ -107,17 +108,12 @@ void G1FullGCAdjustTask::work(uint worker_id) {
   AlwaysTrueClosure always_alive;
   _weak_proc_task.work(worker_id, &always_alive, &_adjust);
 
-  CLDToOopClosure adjust_cld(&_adjust);
+  CLDToOopClosure adjust_cld(&_adjust, ClassLoaderData::_claim_strong);
   CodeBlobToOopClosure adjust_code(&_adjust, CodeBlobToOopClosure::FixRelocations);
-  _root_processor.process_all_roots(
-      &_adjust,
-      &adjust_cld,
-      &adjust_code);
+  _root_processor.process_all_roots(&_adjust, &adjust_cld, &adjust_code);
 
-  // Adjust string dedup if enabled.
-  if (G1StringDedup::is_enabled()) {
-    G1StringDedup::parallel_unlink(&_adjust_string_dedup, worker_id);
-  }
+  // Adjust string dedup data structures.
+  _string_dedup_cleaning_task.work(worker_id);
 
   // Now adjust pointers region by region
   G1AdjustRegionClosure blk(collector()->mark_bitmap(), worker_id);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
-#include "gc/parallel/gcTaskManager.hpp"
 #include "gc/parallel/objectStartArray.hpp"
 #include "gc/parallel/parMarkBitMap.inline.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
@@ -68,16 +67,15 @@ ParCompactionManager::ParCompactionManager() :
 }
 
 void ParCompactionManager::initialize(ParMarkBitMap* mbm) {
-  assert(PSParallelCompact::gc_task_manager() != NULL,
+  assert(ParallelScavengeHeap::heap() != NULL,
     "Needed for initialization");
 
   _mark_bitmap = mbm;
 
-  uint parallel_gc_threads = PSParallelCompact::gc_task_manager()->workers();
+  uint parallel_gc_threads = ParallelScavengeHeap::heap()->workers().total_workers();
 
   assert(_manager_array == NULL, "Attempt to initialize twice");
   _manager_array = NEW_C_HEAP_ARRAY(ParCompactionManager*, parallel_gc_threads+1, mtGC);
-  guarantee(_manager_array != NULL, "Could not allocate manager_array");
 
   _stack_array = new OopTaskQueueSet(parallel_gc_threads);
   guarantee(_stack_array != NULL, "Could not allocate stack_array");
@@ -100,12 +98,12 @@ void ParCompactionManager::initialize(ParMarkBitMap* mbm) {
   _manager_array[parallel_gc_threads] = new ParCompactionManager();
   guarantee(_manager_array[parallel_gc_threads] != NULL,
     "Could not create ParCompactionManager");
-  assert(PSParallelCompact::gc_task_manager()->workers() != 0,
+  assert(ParallelScavengeHeap::heap()->workers().total_workers() != 0,
     "Not initialized?");
 }
 
 void ParCompactionManager::reset_all_bitmap_query_caches() {
-  uint parallel_gc_threads = PSParallelCompact::gc_task_manager()->workers();
+  uint parallel_gc_threads = ParallelScavengeHeap::heap()->workers().total_workers();
   for (uint i=0; i<=parallel_gc_threads; i++) {
     _manager_array[i]->reset_bitmap_query_cache();
   }
@@ -132,113 +130,6 @@ ParCompactionManager::gc_thread_compaction_manager(uint index) {
   return _manager_array[index];
 }
 
-void InstanceKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  assert(obj != NULL, "can't follow the content of NULL object");
-
-  cm->follow_klass(this);
-  // Only mark the header and let the scan of the meta-data mark
-  // everything else.
-
-  ParCompactionManager::MarkAndPushClosure cl(cm);
-  if (UseCompressedOops) {
-    InstanceKlass::oop_oop_iterate_oop_maps<narrowOop>(obj, &cl);
-  } else {
-    InstanceKlass::oop_oop_iterate_oop_maps<oop>(obj, &cl);
-  }
-}
-
-void InstanceMirrorKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  InstanceKlass::oop_pc_follow_contents(obj, cm);
-
-  // Follow the klass field in the mirror.
-  Klass* klass = java_lang_Class::as_Klass(obj);
-  if (klass != NULL) {
-    // An unsafe anonymous class doesn't have its own class loader,
-    // so the call to follow_klass will mark and push its java mirror instead of the
-    // class loader. When handling the java mirror for an unsafe anonymous
-    // class we need to make sure its class loader data is claimed, this is done
-    // by calling follow_class_loader explicitly. For non-anonymous classes the
-    // call to follow_class_loader is made when the class loader itself is handled.
-    if (klass->is_instance_klass() &&
-        InstanceKlass::cast(klass)->is_unsafe_anonymous()) {
-      cm->follow_class_loader(klass->class_loader_data());
-    } else {
-      cm->follow_klass(klass);
-    }
-  } else {
-    // If klass is NULL then this a mirror for a primitive type.
-    // We don't have to follow them, since they are handled as strong
-    // roots in Universe::oops_do.
-    assert(java_lang_Class::is_primitive(obj), "Sanity check");
-  }
-
-  ParCompactionManager::MarkAndPushClosure cl(cm);
-  if (UseCompressedOops) {
-    oop_oop_iterate_statics<narrowOop>(obj, &cl);
-  } else {
-    oop_oop_iterate_statics<oop>(obj, &cl);
-  }
-}
-
-void InstanceClassLoaderKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  InstanceKlass::oop_pc_follow_contents(obj, cm);
-
-  ClassLoaderData * const loader_data = java_lang_ClassLoader::loader_data_acquire(obj);
-  if (loader_data != NULL) {
-    cm->follow_class_loader(loader_data);
-  }
-}
-
-template <class T>
-static void oop_pc_follow_contents_specialized(InstanceRefKlass* klass, oop obj, ParCompactionManager* cm) {
-  T* referent_addr = (T*)java_lang_ref_Reference::referent_addr_raw(obj);
-  T heap_oop = RawAccess<>::oop_load(referent_addr);
-  log_develop_trace(gc, ref)("InstanceRefKlass::oop_pc_follow_contents " PTR_FORMAT, p2i(obj));
-  if (!CompressedOops::is_null(heap_oop)) {
-    oop referent = CompressedOops::decode_not_null(heap_oop);
-    if (PSParallelCompact::mark_bitmap()->is_unmarked(referent) &&
-        PSParallelCompact::ref_processor()->discover_reference(obj, klass->reference_type())) {
-      // reference already enqueued, referent will be traversed later
-      klass->InstanceKlass::oop_pc_follow_contents(obj, cm);
-      log_develop_trace(gc, ref)("       Non NULL enqueued " PTR_FORMAT, p2i(obj));
-      return;
-    } else {
-      // treat referent as normal oop
-      log_develop_trace(gc, ref)("       Non NULL normal " PTR_FORMAT, p2i(obj));
-      cm->mark_and_push(referent_addr);
-    }
-  }
-  // Treat discovered as normal oop.
-  T* discovered_addr = (T*)java_lang_ref_Reference::discovered_addr_raw(obj);
-  cm->mark_and_push(discovered_addr);
-  klass->InstanceKlass::oop_pc_follow_contents(obj, cm);
-}
-
-
-void InstanceRefKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  if (UseCompressedOops) {
-    oop_pc_follow_contents_specialized<narrowOop>(this, obj, cm);
-  } else {
-    oop_pc_follow_contents_specialized<oop>(this, obj, cm);
-  }
-}
-
-void ObjArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  cm->follow_klass(this);
-
-  if (UseCompressedOops) {
-    oop_pc_follow_contents_specialized<narrowOop>(objArrayOop(obj), 0, cm);
-  } else {
-    oop_pc_follow_contents_specialized<oop>(objArrayOop(obj), 0, cm);
-  }
-}
-
-void TypeArrayKlass::oop_pc_follow_contents(oop obj, ParCompactionManager* cm) {
-  assert(obj->is_typeArray(),"must be a type array");
-  // Performance tweak: We skip iterating over the klass pointer since we
-  // know that Universe::TypeArrayKlass never moves.
-}
-
 void ParCompactionManager::follow_marking_stacks() {
   do {
     // Drain the overflow stack first, to allow stealing from the marking stack.
@@ -253,7 +144,7 @@ void ParCompactionManager::follow_marking_stacks() {
     // Process ObjArrays one at a time to avoid marking stack bloat.
     ObjArrayTask task;
     if (_objarray_stack.pop_overflow(task) || _objarray_stack.pop_local(task)) {
-      follow_contents((objArrayOop)task.obj(), task.index());
+      follow_array((objArrayOop)task.obj(), task.index());
     }
   } while (!marking_stacks_empty());
 

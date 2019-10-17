@@ -24,11 +24,8 @@
  */
 package jdk.tools.jlink.internal;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.module.Configuration;
-import java.lang.module.ModuleFinder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,17 +45,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jdk.tools.jlink.internal.plugins.ExcludeJmodSectionPlugin;
-import jdk.tools.jlink.plugin.Plugin;
-import jdk.tools.jlink.plugin.Plugin.Category;
 import jdk.tools.jlink.builder.DefaultImageBuilder;
 import jdk.tools.jlink.builder.ImageBuilder;
-import jdk.tools.jlink.plugin.PluginException;
 import jdk.tools.jlink.internal.Jlink.PluginsConfiguration;
-import jdk.tools.jlink.internal.plugins.PluginsResourceBundle;
 import jdk.tools.jlink.internal.plugins.DefaultCompressPlugin;
-import jdk.tools.jlink.internal.plugins.StripDebugPlugin;
-import jdk.internal.module.ModulePath;
+import jdk.tools.jlink.internal.plugins.DefaultStripDebugPlugin;
+import jdk.tools.jlink.internal.plugins.ExcludeJmodSectionPlugin;
+import jdk.tools.jlink.internal.plugins.PluginsResourceBundle;
+import jdk.tools.jlink.plugin.Plugin;
+import jdk.tools.jlink.plugin.Plugin.Category;
+import jdk.tools.jlink.plugin.PluginException;
 
 /**
  *
@@ -227,6 +223,8 @@ public final class TaskHelper {
 
     private final class PluginsHelper {
 
+        // Duplicated here so as to avoid a direct dependency on platform specific plugin
+        private static final String STRIP_NATIVE_DEBUG_SYMBOLS_NAME = "strip-native-debug-symbols";
         private ModuleLayer pluginsLayer = ModuleLayer.boot();
         private final List<Plugin> plugins;
         private String lastSorter;
@@ -240,17 +238,7 @@ public final class TaskHelper {
         private final List<PluginOption> pluginsOptions = new ArrayList<>();
         private final List<PluginOption> mainOptions = new ArrayList<>();
 
-        private PluginsHelper(String pp) throws BadArgs {
-
-            if (pp != null) {
-                String[] dirs = pp.split(File.pathSeparator);
-                List<Path> paths = new ArrayList<>(dirs.length);
-                for (String dir : dirs) {
-                    paths.add(Paths.get(dir));
-                }
-
-                pluginsLayer = createPluginsLayer(paths);
-            }
+        private PluginsHelper() throws BadArgs {
 
             plugins = PluginRepository.getPlugins(pluginsLayer);
 
@@ -389,7 +377,7 @@ public final class TaskHelper {
                                 m.put(DefaultCompressPlugin.NAME, DefaultCompressPlugin.LEVEL_2);
                             }, false, "--compress", "-c");
                     mainOptions.add(plugOption);
-                } else if (plugin instanceof StripDebugPlugin) {
+                } else if (plugin instanceof DefaultStripDebugPlugin) {
                     plugOption
                         = new PluginOption(false,
                             (task, opt, arg) -> {
@@ -438,6 +426,7 @@ public final class TaskHelper {
             }
 
             List<Plugin> pluginsList = new ArrayList<>();
+            Set<String> seenPlugins = new HashSet<>();
             for (Entry<Plugin, List<Map<String, String>>> entry : pluginToMaps.entrySet()) {
                 Plugin plugin = entry.getKey();
                 List<Map<String, String>> argsMaps = entry.getValue();
@@ -458,7 +447,17 @@ public final class TaskHelper {
                 }
 
                 if (!Utils.isDisabled(plugin)) {
+                    // make sure that --strip-debug and --strip-native-debug-symbols
+                    // aren't being used at the same time. --strip-debug invokes --strip-native-debug-symbols on
+                    // platforms that support it, so it makes little sense to allow both at the same time.
+                    if ((plugin instanceof DefaultStripDebugPlugin && seenPlugins.contains(STRIP_NATIVE_DEBUG_SYMBOLS_NAME)) ||
+                        (STRIP_NATIVE_DEBUG_SYMBOLS_NAME.equals(plugin.getName()) && seenPlugins.contains(DefaultStripDebugPlugin.NAME))) {
+                        throw new BadArgs("err.plugin.conflicts", "--" + DefaultStripDebugPlugin.NAME,
+                                                                "-G",
+                                                                "--" + STRIP_NATIVE_DEBUG_SYMBOLS_NAME);
+                    }
                     pluginsList.add(plugin);
+                    seenPlugins.add(plugin.getName());
                 }
             }
 
@@ -544,7 +543,7 @@ public final class TaskHelper {
             // Must extract it prior to do any option analysis.
             // Required to interpret custom plugin options.
             // Unit tests can call Task multiple time in same JVM.
-            pluginOptions = new PluginsHelper(null);
+            pluginOptions = new PluginsHelper();
 
             // process options
             for (int i = 0; i < args.length; i++) {
@@ -739,24 +738,6 @@ public final class TaskHelper {
 
     public String version(String key) {
         return System.getProperty("java.version");
-    }
-
-    static ModuleLayer createPluginsLayer(List<Path> paths) {
-
-        Path[] dirs = paths.toArray(new Path[0]);
-        ModuleFinder finder = ModulePath.of(Runtime.version(), true, dirs);
-        Configuration bootConfiguration = ModuleLayer.boot().configuration();
-        try {
-            Configuration cf = bootConfiguration
-                .resolveAndBind(ModuleFinder.of(),
-                                finder,
-                                Collections.emptySet());
-            ClassLoader scl = ClassLoader.getSystemClassLoader();
-            return ModuleLayer.boot().defineModulesWithOneLoader(cf, scl);
-        } catch (Exception ex) {
-            // Malformed plugin modules (e.g.: same package in multiple modules).
-            throw new PluginException("Invalid modules in the plugins path: " + ex);
-        }
     }
 
     // Display all plugins

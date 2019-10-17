@@ -34,7 +34,7 @@ m4_include([flags-other.m4])
 AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
 [
   AC_ARG_WITH(abi-profile, [AS_HELP_STRING([--with-abi-profile],
-      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,arm64,aarch64) @<:@toolchain dependent@:>@ ])])
+      [specify ABI profile for ARM builds (arm-vfp-sflt,arm-vfp-hflt,arm-sflt, armv5-vfp-sflt,armv6-vfp-hflt,aarch64) @<:@toolchain dependent@:>@ ])])
 
   if test "x$with_abi_profile" != x; then
     if test "x$OPENJDK_TARGET_CPU" != xarm && \
@@ -46,45 +46,59 @@ AC_DEFUN([FLAGS_SETUP_ABI_PROFILE],
     AC_MSG_CHECKING([for ABI profle])
     AC_MSG_RESULT([$OPENJDK_TARGET_ABI_PROFILE])
 
+    # --- Arm-sflt CFLAGS and ASFLAGS ---
+    # Armv5te is required for assembler, because pld insn used in arm32 hotspot is only in v5E and above.
+    # However, there is also a GCC bug which generates unaligned strd/ldrd instructions on armv5te:
+    # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=82445, and it was fixed only quite recently.
+    # The resulting compromise is to enable v5TE for assembler and let GCC generate code for v5T.
     if test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv7-a -mthumb'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv7-a -mthumb'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm-sflt; then
       ARM_FLOAT_TYPE=sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv5-vfp-sflt; then
       ARM_FLOAT_TYPE=vfp-sflt
       ARM_ARCH_TYPE_FLAGS='-march=armv5t -marm'
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv5te'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarmv6-vfp-hflt; then
       ARM_FLOAT_TYPE=vfp-hflt
       ARM_ARCH_TYPE_FLAGS='-march=armv6 -marm'
-    elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xarm64; then
-      # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
-      ARM_FLOAT_TYPE=
-      ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS='-march=armv6'
     elif test "x$OPENJDK_TARGET_ABI_PROFILE" = xaarch64; then
       # No special flags, just need to trigger setting JDK_ARCH_ABI_PROP_NAME
       ARM_FLOAT_TYPE=
       ARM_ARCH_TYPE_FLAGS=
+      ARM_ARCH_TYPE_ASFLAGS=
     else
       AC_MSG_ERROR([Invalid ABI profile: "$OPENJDK_TARGET_ABI_PROFILE"])
     fi
 
     if test "x$ARM_FLOAT_TYPE" = xvfp-sflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=softfp -mfpu=vfp -DFLOAT_ARCH=-vfp-sflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=softfp -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xvfp-hflt; then
       ARM_FLOAT_TYPE_FLAGS='-mfloat-abi=hard -mfpu=vfp -DFLOAT_ARCH=-vfp-hflt'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=hard -mfpu=vfp"
     elif test "x$ARM_FLOAT_TYPE" = xsflt; then
       ARM_FLOAT_TYPE_FLAGS='-msoft-float -mfpu=vfp'
+      ARM_FLOAT_TYPE_ASFLAGS="-mfloat-abi=soft -mfpu=vfp"
     fi
     AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags])
     AC_MSG_RESULT([$ARM_FLOAT_TYPE_FLAGS])
+    AC_MSG_CHECKING([for $ARM_FLOAT_TYPE floating point flags for assembler])
+    AC_MSG_RESULT([$ARM_FLOAT_TYPE_ASFLAGS])
 
     AC_MSG_CHECKING([for arch type flags])
     AC_MSG_RESULT([$ARM_ARCH_TYPE_FLAGS])
+    AC_MSG_CHECKING([for arch type flags for assembler])
+    AC_MSG_RESULT([$ARM_ARCH_TYPE_ASFLAGS])
 
     # Now set JDK_ARCH_ABI_PROP_NAME. This is equivalent to the last part of the
     # autoconf target triplet.
@@ -162,6 +176,10 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
     AC_MSG_WARN([Ignoring LDFLAGS($LDFLAGS) found in environment. Use --with-extra-ldflags])
   fi
 
+  if test "x$ASFLAGS" != "x"; then
+    AC_MSG_WARN([Ignoring ASFLAGS($ASFLAGS) found in environment. Use --with-extra-asflags])
+  fi
+
   AC_ARG_WITH(extra-cflags, [AS_HELP_STRING([--with-extra-cflags],
       [extra flags to be used when compiling jdk c-files])])
 
@@ -171,9 +189,13 @@ AC_DEFUN_ONCE([FLAGS_SETUP_USER_SUPPLIED_FLAGS],
   AC_ARG_WITH(extra-ldflags, [AS_HELP_STRING([--with-extra-ldflags],
       [extra flags to be used when linking jdk])])
 
+  AC_ARG_WITH(extra-asflags, [AS_HELP_STRING([--with-extra-asflags],
+      [extra flags to be passed to the assembler])])
+
   USER_CFLAGS="$with_extra_cflags"
   USER_CXXFLAGS="$with_extra_cxxflags"
   USER_LDFLAGS="$with_extra_ldflags"
+  USER_ASFLAGS="$with_extra_asflags"
 ])
 
 # Setup the sysroot flags and add them to global CFLAGS and LDFLAGS so
@@ -266,10 +288,12 @@ AC_DEFUN_ONCE([FLAGS_PRE_TOOLCHAIN],
   EXTRA_CFLAGS="$MACHINE_FLAG $USER_CFLAGS"
   EXTRA_CXXFLAGS="$MACHINE_FLAG $USER_CXXFLAGS"
   EXTRA_LDFLAGS="$MACHINE_FLAG $USER_LDFLAGS"
+  EXTRA_ASFLAGS="$USER_ASFLAGS"
 
   AC_SUBST(EXTRA_CFLAGS)
   AC_SUBST(EXTRA_CXXFLAGS)
   AC_SUBST(EXTRA_LDFLAGS)
+  AC_SUBST(EXTRA_ASFLAGS)
 
   # For autoconf testing to work, the global flags must also be stored in the
   # "unnamed" CFLAGS etc.
@@ -407,17 +431,20 @@ AC_DEFUN([FLAGS_SETUP_FLAGS],
 # ------------------------------------------------------------
 # Check that the C compiler supports an argument
 BASIC_DEFUN_NAMED([FLAGS_C_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
-  AC_MSG_CHECKING([if the C compiler supports "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if ARG_PREFIX[CC] supports "ARG_ARGUMENT"])
   supports=yes
 
   saved_cflags="$CFLAGS"
+  saved_cc="$CC"
   CFLAGS="$CFLAGS ARG_ARGUMENT"
+  CC="$ARG_PREFIX[CC]"
   AC_LANG_PUSH([C])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int i;]])], [],
       [supports=no])
   AC_LANG_POP([C])
+  CC="$saved_cc"
   CFLAGS="$saved_cflags"
 
   AC_MSG_RESULT([$supports])
@@ -435,17 +462,20 @@ BASIC_DEFUN_NAMED([FLAGS_C_COMPILER_CHECK_ARGUMENTS],
 # ------------------------------------------------------------
 # Check that the C++ compiler supports an argument
 BASIC_DEFUN_NAMED([FLAGS_CXX_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
-  AC_MSG_CHECKING([if the C++ compiler supports "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if ARG_PREFIX[CXX] supports "ARG_ARGUMENT"])
   supports=yes
 
   saved_cxxflags="$CXXFLAGS"
+  saved_cxx="$CXX"
   CXXFLAGS="$CXXFLAG ARG_ARGUMENT"
+  CXX="$ARG_PREFIX[CXX]"
   AC_LANG_PUSH([C++])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int i;]])], [],
       [supports=no])
   AC_LANG_POP([C++])
+  CXX="$saved_cxx"
   CXXFLAGS="$saved_cxxflags"
 
   AC_MSG_RESULT([$supports])
@@ -463,18 +493,22 @@ BASIC_DEFUN_NAMED([FLAGS_CXX_COMPILER_CHECK_ARGUMENTS],
 # ------------------------------------------------------------
 # Check that the C and C++ compilers support an argument
 BASIC_DEFUN_NAMED([FLAGS_COMPILER_CHECK_ARGUMENTS],
-    [*ARGUMENT IF_TRUE IF_FALSE], [$@],
+    [*ARGUMENT IF_TRUE IF_FALSE PREFIX], [$@],
 [
   FLAGS_C_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [ARG_ARGUMENT],
-  					     IF_TRUE: [C_COMP_SUPPORTS="yes"],
-					     IF_FALSE: [C_COMP_SUPPORTS="no"])
+      IF_TRUE: [C_COMP_SUPPORTS="yes"],
+      IF_FALSE: [C_COMP_SUPPORTS="no"],
+      PREFIX: [ARG_PREFIX])
   FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [ARG_ARGUMENT],
-  					       IF_TRUE: [CXX_COMP_SUPPORTS="yes"],
-					       IF_FALSE: [CXX_COMP_SUPPORTS="no"])
+      IF_TRUE: [CXX_COMP_SUPPORTS="yes"],
+      IF_FALSE: [CXX_COMP_SUPPORTS="no"],
+      PREFIX: [ARG_PREFIX])
 
-  AC_MSG_CHECKING([if both compilers support "ARG_ARGUMENT"])
+  AC_MSG_CHECKING([if both ARG_PREFIX[CC] and ARG_PREFIX[CXX] support "ARG_ARGUMENT"])
   supports=no
-  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then supports=yes; fi
+  if test "x$C_COMP_SUPPORTS" = "xyes" -a "x$CXX_COMP_SUPPORTS" = "xyes"; then
+    supports=yes;
+  fi
 
   AC_MSG_RESULT([$supports])
   if test "x$supports" = "xyes" ; then

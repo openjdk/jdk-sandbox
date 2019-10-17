@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1361,6 +1361,19 @@ public class CSS implements Serializable {
             digits = value.substring(1, Math.min(value.length(), 7));
         } else {
             digits = value;
+        }
+        // Some webpage passes 3 digit color code as in #fff which is
+        // decoded as #000FFF resulting in blue background.
+        // As per https://www.w3.org/TR/CSS1/#color-units,
+        // The three-digit RGB notation (#rgb) is converted into six-digit form
+        // (#rrggbb) by replicating digits, not by adding zeros.
+        // This makes sure that white (#ffffff) can be specified with the short notation
+        // (#fff) and removes any dependencies on the color depth of the display.
+        if (digits.length() == 3) {
+            final String r = digits.substring(0, 1);
+            final String g = digits.substring(1, 2);
+            final String b = digits.substring(2, 3);
+            digits = String.format("%s%s%s%s%s%s", r, r, g, g, b, b);
         }
         String hstr = "0x" + digits;
         Color c;
@@ -3373,9 +3386,9 @@ public class CSS implements Serializable {
         int n = iter.getCount();
         int adjustmentWeightsCount = LayoutIterator.WorstAdjustmentWeight + 1;
         //max gain we can get adjusting elements with adjustmentWeight <= i
-        long gain[] = new long[adjustmentWeightsCount];
+        long[] gain = new long[adjustmentWeightsCount];
         //max loss we can get adjusting elements with adjustmentWeight <= i
-        long loss[] = new long[adjustmentWeightsCount];
+        long[] loss = new long[adjustmentWeightsCount];
 
         for (int i = 0; i < adjustmentWeightsCount; i++) {
             gain[i] = loss[i] = 0;
@@ -3414,7 +3427,7 @@ public class CSS implements Serializable {
         // determine the adjustment to be made
         int allocated = targetSpan - totalSpacing;
         long desiredAdjustment = allocated - preferred;
-        long adjustmentsArray[] = (desiredAdjustment > 0) ? gain : loss;
+        long[] adjustmentsArray = (desiredAdjustment > 0) ? gain : loss;
         desiredAdjustment = Math.abs(desiredAdjustment);
         int adjustmentLevel = 0;
         for (;adjustmentLevel <= LayoutIterator.WorstAdjustmentWeight;

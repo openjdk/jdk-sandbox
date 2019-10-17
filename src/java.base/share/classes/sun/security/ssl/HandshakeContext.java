@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 package sun.security.ssl;
 
 import java.io.IOException;
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.security.AlgorithmConstraints;
 import java.security.CryptoPrimitive;
@@ -43,9 +45,9 @@ import java.util.Queue;
 import javax.crypto.SecretKey;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLHandshakeException;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroupType;
-import static sun.security.ssl.SupportedGroupsExtension.NamedGroupType.*;
+import javax.security.auth.x500.X500Principal;
+import sun.security.ssl.NamedGroup.NamedGroupSpec;
+import static sun.security.ssl.NamedGroup.NamedGroupSpec.*;
 import sun.security.ssl.SupportedGroupsExtension.SupportedGroups;
 
 abstract class HandshakeContext implements ConnectionContext {
@@ -99,6 +101,8 @@ abstract class HandshakeContext implements ConnectionContext {
     // Resumption
     boolean                                 isResumption;
     SSLSessionImpl                          resumingSession;
+    // Session is using stateless resumption
+    boolean                                 statelessResumption = false;
 
     final Queue<Map.Entry<Byte, ByteBuffer>> delegatedActions;
     volatile boolean                        taskDelegated = false;
@@ -135,6 +139,9 @@ abstract class HandshakeContext implements ConnectionContext {
     List<SignatureScheme>                   localSupportedSignAlgs;
     List<SignatureScheme>                   peerRequestedSignatureSchemes;
     List<SignatureScheme>                   peerRequestedCertSignSchemes;
+
+    // Known authorities
+    X500Principal[]                         peerSupportedAuthorities = null;
 
     // SupportedGroups
     List<NamedGroup>                        clientRequestedNamedGroups;
@@ -276,8 +283,8 @@ abstract class HandshakeContext implements ConnectionContext {
             }
 
             boolean found = false;
-            Map<NamedGroupType, Boolean> cachedStatus =
-                    new EnumMap<>(NamedGroupType.class);
+            Map<NamedGroupSpec, Boolean> cachedStatus =
+                    new EnumMap<>(NamedGroupSpec.class);
             for (CipherSuite suite : enabledCipherSuites) {
                 if (suite.isAvailable() && suite.supports(protocol)) {
                     if (isActivatable(suite,
@@ -316,8 +323,8 @@ abstract class HandshakeContext implements ConnectionContext {
 
         List<CipherSuite> suites = new LinkedList<>();
         if (enabledProtocols != null && !enabledProtocols.isEmpty()) {
-            Map<NamedGroupType, Boolean> cachedStatus =
-                    new EnumMap<>(NamedGroupType.class);
+            Map<NamedGroupSpec, Boolean> cachedStatus =
+                    new EnumMap<>(NamedGroupSpec.class);
             for (CipherSuite suite : enabledCipherSuites) {
                 if (!suite.isAvailable()) {
                     continue;
@@ -361,26 +368,20 @@ abstract class HandshakeContext implements ConnectionContext {
         //     } Handshake;
 
         if (plaintext.contentType != ContentType.HANDSHAKE.id) {
-            conContext.fatal(Alert.INTERNAL_ERROR,
+            throw conContext.fatal(Alert.INTERNAL_ERROR,
                 "Unexpected operation for record: " + plaintext.contentType);
-
-            return 0;
         }
 
         if (plaintext.fragment == null || plaintext.fragment.remaining() < 4) {
-            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+            throw conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid handshake message: insufficient data");
-
-            return 0;
         }
 
         byte handshakeType = (byte)Record.getInt8(plaintext.fragment);
         int handshakeLen = Record.getInt24(plaintext.fragment);
         if (handshakeLen != plaintext.fragment.remaining()) {
-            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+            throw conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Invalid handshake message: insufficient handshake body");
-
-            return 0;
         }
 
         return handshakeType;
@@ -434,18 +435,21 @@ abstract class HandshakeContext implements ConnectionContext {
         }
 
         if (consumer == null) {
-            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+            throw conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unexpected handshake message: " +
                     SSLHandshake.nameOf(handshakeType));
-            return;
         }
 
         try {
             consumer.consume(this, fragment);
         } catch (UnsupportedOperationException unsoe) {
-            conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+            throw conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Unsupported handshake message: " +
                     SSLHandshake.nameOf(handshakeType), unsoe);
+        } catch (BufferUnderflowException | BufferOverflowException be) {
+            throw conContext.fatal(Alert.DECODE_ERROR,
+                    "Illegal handshake message: " +
+                    SSLHandshake.nameOf(handshakeType), be);
         }
 
         // update handshake hash after handshake message consumption.
@@ -505,7 +509,7 @@ abstract class HandshakeContext implements ConnectionContext {
 
     private static boolean isActivatable(CipherSuite suite,
             AlgorithmConstraints algorithmConstraints,
-            Map<NamedGroupType, Boolean> cachedStatus) {
+            Map<NamedGroupSpec, Boolean> cachedStatus) {
 
         if (algorithmConstraints.permits(
                 EnumSet.of(CryptoPrimitive.KEY_AGREEMENT), suite.name, null)) {
@@ -514,31 +518,38 @@ abstract class HandshakeContext implements ConnectionContext {
                 return true;
             }
 
-            boolean available;
-            NamedGroupType groupType = suite.keyExchange.groupType;
-            if (groupType != NAMED_GROUP_NONE) {
-                Boolean checkedStatus = cachedStatus.get(groupType);
-                if (checkedStatus == null) {
-                    available = SupportedGroups.isActivatable(
-                            algorithmConstraints, groupType);
-                    cachedStatus.put(groupType, available);
+            // Is at least one of the group types available?
+            boolean groupAvailable, retval = false;
+            NamedGroupSpec[] groupTypes = suite.keyExchange.groupTypes;
+            for (NamedGroupSpec groupType : groupTypes) {
+                if (groupType != NAMED_GROUP_NONE) {
+                    Boolean checkedStatus = cachedStatus.get(groupType);
+                    if (checkedStatus == null) {
+                        groupAvailable = SupportedGroups.isActivatable(
+                                algorithmConstraints, groupType);
+                        cachedStatus.put(groupType, groupAvailable);
 
-                    if (!available &&
-                            SSLLogger.isOn && SSLLogger.isOn("verbose")) {
-                        SSLLogger.fine("No activated named group");
+                        if (!groupAvailable &&
+                                SSLLogger.isOn && SSLLogger.isOn("verbose")) {
+                            SSLLogger.fine(
+                                    "No activated named group in " + groupType);
+                        }
+                    } else {
+                        groupAvailable = checkedStatus;
                     }
-                } else {
-                    available = checkedStatus;
-                }
 
-                if (!available && SSLLogger.isOn && SSLLogger.isOn("verbose")) {
-                    SSLLogger.fine(
-                        "No active named group, ignore " + suite);
+                    retval |= groupAvailable;
+                } else {
+                    retval |= true;
                 }
-                return available;
-            } else {
-                return true;
             }
+
+            if (!retval && SSLLogger.isOn && SSLLogger.isOn("verbose")) {
+                SSLLogger.fine("No active named group(s), ignore " + suite);
+            }
+
+            return retval;
+
         } else if (SSLLogger.isOn && SSLLogger.isOn("verbose")) {
             SSLLogger.fine("Ignore disabled cipher suite: " + suite);
         }
@@ -548,7 +559,7 @@ abstract class HandshakeContext implements ConnectionContext {
 
     List<SNIServerName> getRequestedServerNames() {
         if (requestedServerNames == null) {
-            return Collections.<SNIServerName>emptyList();
+            return Collections.emptyList();
         }
         return requestedServerNames;
     }

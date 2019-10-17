@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -112,7 +112,7 @@ public abstract class Pack200 {
     /**
      * Obtain new instance of a class that implements Packer.
      * <ul>
-     * <li><p>If the system property {@code java.util.jar.Pack200.Packer}
+     * <li><p>If the system property {@systemProperty java.util.jar.Pack200.Packer}
      * is defined, then the value is taken to be the fully-qualified name
      * of a concrete implementation class, which must implement Packer.
      * This class is loaded and instantiated.  If this process fails
@@ -138,7 +138,7 @@ public abstract class Pack200 {
     /**
      * Obtain new instance of a class that implements Unpacker.
      * <ul>
-     * <li><p>If the system property {@code java.util.jar.Pack200.Unpacker}
+     * <li><p>If the system property {@systemProperty java.util.jar.Pack200.Unpacker}
      * is defined, then the value is taken to be the fully-qualified
      * name of a concrete implementation class, which must implement Unpacker.
      * The class is loaded and instantiated.  If this process fails
@@ -554,7 +554,7 @@ public abstract class Pack200 {
          * Closes its input but not its output.  (Pack200 archives are appendable.)
          * @param in a JarFile
          * @param out an OutputStream
-         * @exception IOException if an error is encountered.
+         * @throws    IOException if an error is encountered.
          */
         void pack(JarFile in, OutputStream out) throws IOException ;
 
@@ -570,7 +570,7 @@ public abstract class Pack200 {
          * @see #DEFLATE_HINT
          * @param in a JarInputStream
          * @param out an OutputStream
-         * @exception IOException if an error is encountered.
+         * @throws    IOException if an error is encountered.
          */
         void pack(JarInputStream in, OutputStream out) throws IOException ;
     }
@@ -673,7 +673,7 @@ public abstract class Pack200 {
          * Closes its input but not its output.  (The output can accumulate more elements.)
          * @param in an InputStream.
          * @param out a JarOutputStream.
-         * @exception IOException if an error is encountered.
+         * @throws    IOException if an error is encountered.
          */
         void unpack(InputStream in, JarOutputStream out) throws IOException;
 
@@ -684,7 +684,7 @@ public abstract class Pack200 {
          * Does not close its output.  (The output can accumulate more elements.)
          * @param in a File.
          * @param out a JarOutputStream.
-         * @exception IOException if an error is encountered.
+         * @throws    IOException if an error is encountered.
          */
         void unpack(File in, JarOutputStream out) throws IOException;
     }
@@ -704,7 +704,7 @@ public abstract class Pack200 {
             if (impl == null) {
                 // The first time, we must decide which class to use.
                 implName = GetPropertyAction.privilegedGetProperty(prop,"");
-                if (implName != null && !implName.equals(""))
+                if (implName != null && !implName.isEmpty())
                     impl = Class.forName(implName);
                 else if (PACK_PROVIDER.equals(prop))
                     impl = com.sun.java.util.jar.pack.PackerImpl.class;

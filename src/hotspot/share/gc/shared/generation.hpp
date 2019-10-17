@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GENERATION_HPP
-#define SHARE_VM_GC_SHARED_GENERATION_HPP
+#ifndef SHARE_GC_SHARED_GENERATION_HPP
+#define SHARE_GC_SHARED_GENERATION_HPP
 
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
-#include "memory/universe.hpp"
 #include "memory/virtualspace.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/perfData.hpp"
@@ -157,6 +156,7 @@ class Generation: public CHeapObj<mtGC> {
   virtual size_t capacity() const = 0;  // The maximum number of object bytes the
                                         // generation can currently hold.
   virtual size_t used() const = 0;      // The number of used bytes in the gen.
+  virtual size_t used_stable() const;   // The number of used bytes for memory monitoring tools.
   virtual size_t free() const = 0;      // The number of free bytes in the gen.
 
   // Support for java.lang.Runtime.maxMemory(); see CollectedHeap.
@@ -301,7 +301,7 @@ class Generation: public CHeapObj<mtGC> {
   // word of "obj" may have been overwritten with a forwarding pointer, and
   // also taking care to copy the klass pointer *last*.  Returns the new
   // object if successful, or else NULL.
-  virtual oop par_promote(int thread_num, oop obj, markOop m, size_t word_sz);
+  virtual oop par_promote(int thread_num, oop obj, markWord m, size_t word_sz);
 
   // Informs the current generation that all par_promote_alloc's in the
   // collection have been completed; any supporting data structures can be
@@ -553,4 +553,4 @@ public:
 
 };
 
-#endif // SHARE_VM_GC_SHARED_GENERATION_HPP
+#endif // SHARE_GC_SHARED_GENERATION_HPP

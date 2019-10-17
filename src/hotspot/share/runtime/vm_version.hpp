@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,23 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_VM_VERSION_HPP
-#define SHARE_VM_RUNTIME_VM_VERSION_HPP
+#ifndef SHARE_RUNTIME_VM_VERSION_HPP
+#define SHARE_RUNTIME_VM_VERSION_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/macros.hpp"
+
+typedef enum {
+  NoDetectedVirtualization,
+  XenHVM,
+  KVM,
+  VMWare,
+  HyperV,
+  PowerVM, // on AIX or Linux ppc64(le)
+  PowerFullPartitionMode, // on Linux ppc64(le)
+  PowerKVM
+} VirtualizationType;
 
 // VM_Version provides information about the VM.
 
@@ -56,12 +67,10 @@ class Abstract_VM_Version: AllStatic {
   static int          _vm_security_version;
   static int          _vm_patch_version;
   static int          _vm_build_number;
-  static unsigned int _parallel_worker_threads;
-  static bool         _parallel_worker_threads_initialized;
+  static unsigned int _data_cache_line_flush_size;
 
-  static unsigned int nof_parallel_worker_threads(unsigned int num,
-                                                  unsigned int dem,
-                                                  unsigned int switch_pt);
+  static VirtualizationType _detected_virtualization;
+
  public:
   // Called as part of the runtime services initialization which is
   // called from the management module initialization (via init_globals())
@@ -69,7 +78,7 @@ class Abstract_VM_Version: AllStatic {
   // occurred.  Examines a variety of the hardware capabilities of
   // the platform to determine which features can be used to execute the
   // program.
-  static void initialize();
+  static void initialize() { }
 
   // This allows for early initialization of VM_Version information
   // that may be needed later in the initialization sequence but before
@@ -116,6 +125,14 @@ class Abstract_VM_Version: AllStatic {
     return _features_string;
   }
 
+  static VirtualizationType get_detected_virtualization() {
+    return _detected_virtualization;
+  }
+
+  // platforms that need to specialize this
+  // define VM_Version::print_platform_virtualization_info()
+  static void print_platform_virtualization_info(outputStream*) { }
+
   // does HW support an 8-byte compare-exchange operation?
   static bool supports_cx8()  {
 #ifdef SUPPORTS_NATIVE_CX8
@@ -139,6 +156,18 @@ class Abstract_VM_Version: AllStatic {
     return _L1_data_cache_line_size;
   }
 
+  // the size in bytes of a data cache line flushed by a flush
+  // operation which should be a power of two or zero if cache line
+  // writeback is not supported by the current os_cpu combination
+  static unsigned int data_cache_line_flush_size() {
+    return _data_cache_line_flush_size;
+  }
+
+  // returns true if and only if cache line writeback is supported
+  static bool supports_data_cache_line_flush() {
+    return _data_cache_line_flush_size != 0;
+  }
+
   // ARCH specific policy for the BiasedLocking
   static bool use_biased_locking()  { return true; }
 
@@ -148,19 +177,19 @@ class Abstract_VM_Version: AllStatic {
   // that the O/S may support more sizes, but at most this many are used.
   static uint page_size_count() { return 2; }
 
-  // Returns the number of parallel threads to be used for VM
-  // work.  If that number has not been calculated, do so and
-  // save it.  Returns ParallelGCThreads if it is set on the
-  // command line.
-  static unsigned int parallel_worker_threads();
-  // Calculates and returns the number of parallel threads.  May
-  // be VM version specific.
-  static unsigned int calc_parallel_worker_threads();
+  // Denominator for computing default ParallelGCThreads for machines with
+  // a large number of cores.
+  static uint parallel_worker_threads_denominator() { return 8; }
 
   // Does this CPU support spin wait instruction?
   static bool supports_on_spin_wait() { return false; }
+
+  // Does platform support fast class initialization checks for static methods?
+  static bool supports_fast_class_init_checks() { return false; }
+
+  static bool print_matching_lines_from_file(const char* filename, outputStream* st, const char* keywords_to_match[]);
 };
 
 #include CPU_HEADER(vm_version)
 
-#endif // SHARE_VM_RUNTIME_VM_VERSION_HPP
+#endif // SHARE_RUNTIME_VM_VERSION_HPP

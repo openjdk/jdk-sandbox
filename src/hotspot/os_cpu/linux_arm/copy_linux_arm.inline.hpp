@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_LINUX_ARM_VM_COPY_LINUX_ARM_INLINE_HPP
-#define OS_CPU_LINUX_ARM_VM_COPY_LINUX_ARM_INLINE_HPP
+#ifndef OS_CPU_LINUX_ARM_COPY_LINUX_ARM_INLINE_HPP
+#define OS_CPU_LINUX_ARM_COPY_LINUX_ARM_INLINE_HPP
 
 static void pd_conjoint_words(const HeapWord* from, HeapWord* to, size_t count) {
   _Copy_conjoint_words(from, to, count * HeapWordSize);
@@ -58,37 +58,18 @@ static void pd_conjoint_jshorts_atomic(const jshort* from, jshort* to, size_t co
 }
 
 static void pd_conjoint_jints_atomic(const jint* from, jint* to, size_t count) {
-#ifdef AARCH64
-  _Copy_conjoint_jints_atomic(from, to, count * BytesPerInt);
-#else
   assert(HeapWordSize == BytesPerInt, "heapwords and jints must be the same size");
   // pd_conjoint_words is word-atomic in this implementation.
   pd_conjoint_words((const HeapWord*)from, (HeapWord*)to, count);
-#endif
 }
 
 static void pd_conjoint_jlongs_atomic(const jlong* from, jlong* to, size_t count) {
-#ifdef AARCH64
-  assert(HeapWordSize == BytesPerLong, "64-bit architecture");
-  pd_conjoint_words((const HeapWord*)from, (HeapWord*)to, count);
-#else
   _Copy_conjoint_jlongs_atomic(from, to, count * BytesPerLong);
-#endif
 }
 
 static void pd_conjoint_oops_atomic(const oop* from, oop* to, size_t count) {
-#ifdef AARCH64
-  if (UseCompressedOops) {
-    assert(BytesPerHeapOop == BytesPerInt, "compressed oops");
-    pd_conjoint_jints_atomic((const jint*)from, (jint*)to, count);
-  } else {
-    assert(BytesPerHeapOop == BytesPerLong, "64-bit architecture");
-    pd_conjoint_jlongs_atomic((const jlong*)from, (jlong*)to, count);
-  }
-#else
   assert(BytesPerHeapOop == BytesPerInt, "32-bit architecture");
   pd_conjoint_jints_atomic((const jint*)from, (jint*)to, count);
-#endif
 }
 
 static void pd_arrayof_conjoint_bytes(const HeapWord* from, HeapWord* to, size_t count) {
@@ -111,4 +92,4 @@ static void pd_arrayof_conjoint_oops(const HeapWord* from, HeapWord* to, size_t 
   pd_conjoint_oops_atomic((const oop*)from, (oop*)to, count);
 }
 
-#endif // OS_CPU_LINUX_ARM_VM_COPY_LINUX_ARM_INLINE_HPP
+#endif // OS_CPU_LINUX_ARM_COPY_LINUX_ARM_INLINE_HPP

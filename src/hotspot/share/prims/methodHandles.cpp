@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "code/codeCache.hpp"
 #include "code/dependencyContext.hpp"
 #include "compiler/compileBroker.hpp"
@@ -34,12 +35,15 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/methodHandles.hpp"
-#include "runtime/compilationPolicy.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -315,7 +319,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
   }
 
   Handle resolved_method = info.resolved_method_name();
-  assert(java_lang_invoke_ResolvedMethodName::vmtarget(resolved_method()) == m(),
+  assert(java_lang_invoke_ResolvedMethodName::vmtarget(resolved_method()) == m() || m->is_old(),
          "Should not change after link resolution");
 
   oop mname_oop = mname();
@@ -515,12 +519,12 @@ bool MethodHandles::is_signature_polymorphic_public_name(Klass* klass, Symbol* n
 // convert the external string or reflective type to an internal signature
 Symbol* MethodHandles::lookup_signature(oop type_str, bool intern_if_not_found, TRAPS) {
   if (java_lang_invoke_MethodType::is_instance(type_str)) {
-    return java_lang_invoke_MethodType::as_signature(type_str, intern_if_not_found, THREAD);
+    return java_lang_invoke_MethodType::as_signature(type_str, intern_if_not_found);
   } else if (java_lang_Class::is_instance(type_str)) {
-    return java_lang_Class::as_signature(type_str, false, THREAD);
+    return java_lang_Class::as_signature(type_str, false);
   } else if (java_lang_String::is_instance_inlined(type_str)) {
     if (intern_if_not_found) {
-      return java_lang_String::as_symbol(type_str, THREAD);
+      return java_lang_String::as_symbol(type_str);
     } else {
       return java_lang_String::as_symbol_or_null(type_str);
     }
@@ -537,7 +541,7 @@ bool MethodHandles::is_basic_type_signature(Symbol* sig) {
   assert(vmSymbols::object_signature()->equals(OBJ_SIG), "");
   const int len = sig->utf8_length();
   for (int i = 0; i < len; i++) {
-    switch (sig->byte_at(i)) {
+    switch (sig->char_at(i)) {
     case 'L':
       // only java/lang/Object is valid here
       if (sig->index_of_at(i, OBJ_SIG, OBJ_SIG_LEN) != i)
@@ -563,12 +567,12 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
   } else if (is_basic_type_signature(sig)) {
     sig->increment_refcount();
     return sig;  // that was easy
-  } else if (sig->byte_at(0) != '(') {
-    BasicType bt = char2type(sig->byte_at(0));
+  } else if (sig->char_at(0) != '(') {
+    BasicType bt = char2type(sig->char_at(0));
     if (is_subword_type(bt)) {
       bsig = vmSymbols::int_signature();
     } else {
-      assert(bt == T_OBJECT || bt == T_ARRAY, "is_basic_type_signature was false");
+      assert(is_reference_type(bt), "is_basic_type_signature was false");
       bsig = vmSymbols::object_signature();
     }
   } else {
@@ -587,7 +591,7 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
       if (arg_pos == keep_arg_pos) {
         buffer.write((char*) ss.raw_bytes(),
                      (int)   ss.raw_length());
-      } else if (bt == T_OBJECT || bt == T_ARRAY) {
+      } else if (is_reference_type(bt)) {
         buffer.write(OBJ_SIG, OBJ_SIG_LEN);
       } else {
         if (is_subword_type(bt))
@@ -598,7 +602,7 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
     }
     const char* sigstr =       buffer.base();
     int         siglen = (int) buffer.size();
-    bsig = SymbolTable::new_symbol(sigstr, siglen, THREAD);
+    bsig = SymbolTable::new_symbol(sigstr, siglen);
   }
   assert(is_basic_type_signature(bsig) ||
          // detune assert in case the injected argument is not a basic type:
@@ -615,7 +619,7 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
   int array = 0;
   bool prev_type = false;
   for (int i = 0; i < len; i++) {
-    char ch = sig->byte_at(i);
+    char ch = sig->char_at(i);
     switch (ch) {
     case '(': case ')':
       prev_type = false;
@@ -630,7 +634,7 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
       {
         if (prev_type)  st->put(',');
         int start = i+1, slash = start;
-        while (++i < len && (ch = sig->byte_at(i)) != ';') {
+        while (++i < len && (ch = sig->char_at(i)) != ';') {
           if (ch == '/' || ch == '.' || ch == '$')  slash = i+1;
         }
         if (slash < i)  start = slash;
@@ -638,7 +642,7 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
           st->put('L');
         } else {
           for (int j = start; j < i; j++)
-            st->put(sig->byte_at(j));
+            st->put(sig->char_at(j));
           prev_type = true;
         }
         break;
@@ -968,14 +972,13 @@ int MethodHandles::find_MemberNames(Klass* k,
   bool search_superc = ((match_flags & SEARCH_SUPERCLASSES) != 0);
   bool search_intfc  = ((match_flags & SEARCH_INTERFACES)   != 0);
   bool local_only = !(search_superc | search_intfc);
-  bool classes_only = false;
 
   if (name != NULL) {
     if (name->utf8_length() == 0)  return 0; // a match is not possible
   }
   if (sig != NULL) {
     if (sig->utf8_length() == 0)  return 0; // a match is not possible
-    if (sig->byte_at(0) == '(')
+    if (sig->char_at(0) == '(')
       match_flags &= ~(IS_FIELD | IS_TYPE);
     else
       match_flags &= ~(IS_CONSTRUCTOR | IS_METHOD);
@@ -1000,7 +1003,7 @@ int MethodHandles::find_MemberNames(Klass* k,
         if (!java_lang_invoke_MemberName::is_instance(result()))
           return -99;  // caller bug!
         oop saved = MethodHandles::init_field_MemberName(result, st.field_descriptor());
-        if (!oopDesc::equals(saved, result()))
+        if (saved != result())
           results->obj_at_put(rfill-1, saved);  // show saved instance to user
       } else if (++overflow >= overflow_limit) {
         match_flags = 0; break; // got tired of looking at overflow
@@ -1052,7 +1055,7 @@ int MethodHandles::find_MemberNames(Klass* k,
           return -99;  // caller bug!
         CallInfo info(m, NULL, CHECK_0);
         oop saved = MethodHandles::init_method_MemberName(result, info);
-        if (!oopDesc::equals(saved, result()))
+        if (saved != result())
           results->obj_at_put(rfill-1, saved);  // show saved instance to user
       } else if (++overflow >= overflow_limit) {
         match_flags = 0; break; // got tired of looking at overflow
@@ -1064,33 +1067,31 @@ int MethodHandles::find_MemberNames(Klass* k,
   return rfill + overflow;
 }
 
-// Is it safe to remove stale entries from a dependency list?
-static bool safe_to_expunge() {
-  // Since parallel GC threads can concurrently iterate over a dependency
-  // list during safepoint, it is safe to remove entries only when
-  // CodeCache lock is held.
-  return CodeCache_lock->owned_by_self();
-}
-
 void MethodHandles::add_dependent_nmethod(oop call_site, nmethod* nm) {
   assert_locked_or_safepoint(CodeCache_lock);
 
-  oop context = java_lang_invoke_CallSite::context(call_site);
+  oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site);
   DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
   // Try to purge stale entries on updates.
   // Since GC doesn't clean dependency contexts rooted at CallSiteContext objects,
   // in order to avoid memory leak, stale entries are purged whenever a dependency list
   // is changed (both on addition and removal). Though memory reclamation is delayed,
   // it avoids indefinite memory usage growth.
-  deps.add_dependent_nmethod(nm, /*expunge_stale_entries=*/safe_to_expunge());
+  deps.add_dependent_nmethod(nm);
 }
 
 void MethodHandles::remove_dependent_nmethod(oop call_site, nmethod* nm) {
   assert_locked_or_safepoint(CodeCache_lock);
 
-  oop context = java_lang_invoke_CallSite::context(call_site);
+  oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site);
   DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
-  deps.remove_dependent_nmethod(nm, /*expunge_stale_entries=*/safe_to_expunge());
+  deps.remove_dependent_nmethod(nm);
+}
+
+void MethodHandles::clean_dependency_context(oop call_site) {
+  oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site);
+  DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
+  deps.clean_unloading_dependents();
 }
 
 void MethodHandles::flush_dependent_nmethods(Handle call_site, Handle target) {
@@ -1100,16 +1101,15 @@ void MethodHandles::flush_dependent_nmethods(Handle call_site, Handle target) {
   CallSiteDepChange changes(call_site, target);
   {
     NoSafepointVerifier nsv;
-    MutexLockerEx mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
-    oop context = java_lang_invoke_CallSite::context(call_site());
+    oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site());
     DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
     marked = deps.mark_dependent_nmethods(changes);
   }
   if (marked > 0) {
     // At least one nmethod has been marked for deoptimization.
-    VM_Deoptimize op;
-    VMThread::execute(&op);
+    Deoptimization::deoptimize_all_marked();
   }
 }
 
@@ -1429,7 +1429,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
   if (bss_index_in_pool <= 0 ||
       bss_index_in_pool >= caller->constants()->length() ||
       index_info->int_at(0)
-      != caller->constants()->invoke_dynamic_argument_count_at(bss_index_in_pool)) {
+      != caller->constants()->bootstrap_argument_count_at(bss_index_in_pool)) {
       THROW_MSG(vmSymbols::java_lang_InternalError(), "bad index info (1)");
   }
   objArrayHandle buf(THREAD, (objArrayOop) JNIHandles::resolve(buf_jh));
@@ -1441,7 +1441,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
         switch (pseudo_index) {
         case -4:  // bootstrap method
           {
-            int bsm_index = caller->constants()->invoke_dynamic_bootstrap_method_ref_index_at(bss_index_in_pool);
+            int bsm_index = caller->constants()->bootstrap_method_ref_index_at(bss_index_in_pool);
             pseudo_arg = caller->constants()->resolve_possibly_cached_constant_at(bsm_index, CHECK);
             break;
           }
@@ -1456,7 +1456,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
           {
             Symbol* type = caller->constants()->signature_ref_at(bss_index_in_pool);
             Handle th;
-            if (type->byte_at(0) == '(') {
+            if (type->char_at(0) == '(') {
               th = SystemDictionary::find_method_handle_type(type, caller, CHECK);
             } else {
               th = SystemDictionary::find_java_mirror_for_type(type, caller, SignatureStream::NCDFError, CHECK);
@@ -1466,7 +1466,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
           }
         case -1:  // argument count
           {
-            int argc = caller->constants()->invoke_dynamic_argument_count_at(bss_index_in_pool);
+            int argc = caller->constants()->bootstrap_argument_count_at(bss_index_in_pool);
             jvalue argc_value; argc_value.i = (jint)argc;
             pseudo_arg = java_lang_boxing_object::create(T_INT, &argc_value, CHECK);
             break;
@@ -1499,15 +1499,13 @@ JVM_ENTRY(void, MHN_clearCallSiteContext(JNIEnv* env, jobject igcls, jobject con
     int marked = 0;
     {
       NoSafepointVerifier nsv;
-      MutexLockerEx mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      assert(safe_to_expunge(), "removal is not safe");
+      MutexLocker mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context());
       marked = deps.remove_all_dependents();
     }
     if (marked > 0) {
       // At least one nmethod has been marked for deoptimization
-      VM_Deoptimize op;
-      VMThread::execute(&op);
+      Deoptimization::deoptimize_all_marked();
     }
   }
 }

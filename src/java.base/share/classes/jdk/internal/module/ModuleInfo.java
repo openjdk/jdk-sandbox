@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import jdk.internal.misc.JavaLangModuleAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangModuleAccess;
+import jdk.internal.access.SharedSecrets;
 
 import static jdk.internal.module.ClassFileConstants.*;
 
@@ -63,7 +63,7 @@ import static jdk.internal.module.ClassFileConstants.*;
 public final class ModuleInfo {
 
     private final int JAVA_MIN_SUPPORTED_VERSION = 53;
-    private final int JAVA_MAX_SUPPORTED_VERSION = 56;
+    private final int JAVA_MAX_SUPPORTED_VERSION = 58;
 
     private static final JavaLangModuleAccess JLMA
         = SharedSecrets.getJavaLangModuleAccess();

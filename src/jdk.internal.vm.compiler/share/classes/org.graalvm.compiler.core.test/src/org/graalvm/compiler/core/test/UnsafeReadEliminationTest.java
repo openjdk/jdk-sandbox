@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,11 +30,11 @@ import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
 import org.graalvm.compiler.nodes.extended.UnsafeAccessNode;
 import org.graalvm.compiler.nodes.memory.ReadNode;
 import org.graalvm.compiler.nodes.memory.WriteNode;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.LoweringPhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
 import org.graalvm.compiler.virtual.phases.ea.EarlyReadEliminationPhase;
 import org.graalvm.compiler.virtual.phases.ea.PartialEscapePhase;
 import org.junit.Assert;
@@ -118,7 +118,7 @@ public class UnsafeReadEliminationTest extends GraalCompilerTest {
     }
 
     public void testEarlyReadElimination(StructuredGraph graph, int reads, int writes) {
-        PhaseContext context = getDefaultHighTierContext();
+        CoreProviders context = getDefaultHighTierContext();
         CanonicalizerPhase canonicalizer = new CanonicalizerPhase();
         canonicalizer.apply(graph, context);
         new EarlyReadEliminationPhase(canonicalizer).apply(graph, context);
@@ -133,7 +133,7 @@ public class UnsafeReadEliminationTest extends GraalCompilerTest {
 
     public void testPartialEscapeReadElimination(StructuredGraph graph, int reads, int writes) {
         OptionValues options = graph.getOptions();
-        PhaseContext context = getDefaultHighTierContext();
+        CoreProviders context = getDefaultHighTierContext();
         CanonicalizerPhase canonicalizer = new CanonicalizerPhase();
         canonicalizer.apply(graph, context);
         new PartialEscapePhase(true, true, canonicalizer, null, options).apply(graph, context);

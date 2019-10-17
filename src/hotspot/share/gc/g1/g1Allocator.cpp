@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1AllocRegion.inline.hpp"
 #include "gc/g1/g1EvacStats.inline.hpp"
+#include "gc/g1/g1EvacuationInfo.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
@@ -38,8 +39,8 @@ G1Allocator::G1Allocator(G1CollectedHeap* heap) :
   _survivor_is_full(false),
   _old_is_full(false),
   _mutator_alloc_region(),
-  _survivor_gc_alloc_region(heap->alloc_buffer_stats(InCSetState::Young)),
-  _old_gc_alloc_region(heap->alloc_buffer_stats(InCSetState::Old)),
+  _survivor_gc_alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Young)),
+  _old_gc_alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old)),
   _retained_old_gc_alloc_region(NULL) {
 }
 
@@ -57,7 +58,7 @@ bool G1Allocator::is_retained_old_region(HeapRegion* hr) {
   return _retained_old_gc_alloc_region == hr;
 }
 
-void G1Allocator::reuse_retained_old_region(EvacuationInfo& evacuation_info,
+void G1Allocator::reuse_retained_old_region(G1EvacuationInfo& evacuation_info,
                                             OldGCAllocRegion* old,
                                             HeapRegion** retained_old) {
   HeapRegion* retained_region = *retained_old;
@@ -84,15 +85,13 @@ void G1Allocator::reuse_retained_old_region(EvacuationInfo& evacuation_info,
     // we allocate to in the region sets. We'll re-add it later, when
     // it's retired again.
     _g1h->old_set_remove(retained_region);
-    bool during_im = _g1h->collector_state()->in_initial_mark_gc();
-    retained_region->note_start_of_copying(during_im);
     old->set(retained_region);
     _g1h->hr_printer()->reuse(retained_region);
     evacuation_info.set_alloc_regions_used_before(retained_region->used());
   }
 }
 
-void G1Allocator::init_gc_alloc_regions(EvacuationInfo& evacuation_info) {
+void G1Allocator::init_gc_alloc_regions(G1EvacuationInfo& evacuation_info) {
   assert_at_safepoint_on_vm_thread();
 
   _survivor_is_full = false;
@@ -105,7 +104,7 @@ void G1Allocator::init_gc_alloc_regions(EvacuationInfo& evacuation_info) {
                             &_retained_old_gc_alloc_region);
 }
 
-void G1Allocator::release_gc_alloc_regions(EvacuationInfo& evacuation_info) {
+void G1Allocator::release_gc_alloc_regions(G1EvacuationInfo& evacuation_info) {
   evacuation_info.set_allocation_regions(survivor_gc_alloc_region()->count() +
                                          old_gc_alloc_region()->count());
   survivor_gc_alloc_region()->release();
@@ -162,7 +161,7 @@ size_t G1Allocator::used_in_alloc_regions() {
 }
 
 
-HeapWord* G1Allocator::par_allocate_during_gc(InCSetState dest,
+HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               size_t word_size) {
   size_t temp = 0;
   HeapWord* result = par_allocate_during_gc(dest, word_size, word_size, &temp);
@@ -172,14 +171,14 @@ HeapWord* G1Allocator::par_allocate_during_gc(InCSetState dest,
   return result;
 }
 
-HeapWord* G1Allocator::par_allocate_during_gc(InCSetState dest,
+HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               size_t min_word_size,
                                               size_t desired_word_size,
                                               size_t* actual_word_size) {
-  switch (dest.value()) {
-    case InCSetState::Young:
+  switch (dest.type()) {
+    case G1HeapRegionAttr::Young:
       return survivor_attempt_allocation(min_word_size, desired_word_size, actual_word_size);
-    case InCSetState::Old:
+    case G1HeapRegionAttr::Old:
       return old_attempt_allocation(min_word_size, desired_word_size, actual_word_size);
     default:
       ShouldNotReachHere();
@@ -197,7 +196,7 @@ HeapWord* G1Allocator::survivor_attempt_allocation(size_t min_word_size,
                                                                     desired_word_size,
                                                                     actual_word_size);
   if (result == NULL && !survivor_is_full()) {
-    MutexLockerEx x(FreeList_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(FreeList_lock, Mutex::_no_safepoint_check_flag);
     result = survivor_gc_alloc_region()->attempt_allocation_locked(min_word_size,
                                                                    desired_word_size,
                                                                    actual_word_size);
@@ -221,7 +220,7 @@ HeapWord* G1Allocator::old_attempt_allocation(size_t min_word_size,
                                                                desired_word_size,
                                                                actual_word_size);
   if (result == NULL && !old_is_full()) {
-    MutexLockerEx x(FreeList_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(FreeList_lock, Mutex::_no_safepoint_check_flag);
     result = old_gc_alloc_region()->attempt_allocation_locked(min_word_size,
                                                               desired_word_size,
                                                               actual_word_size);
@@ -247,22 +246,22 @@ uint G1PLABAllocator::calc_survivor_alignment_bytes() {
 G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   _g1h(G1CollectedHeap::heap()),
   _allocator(allocator),
-  _surviving_alloc_buffer(_g1h->desired_plab_sz(InCSetState::Young)),
-  _tenured_alloc_buffer(_g1h->desired_plab_sz(InCSetState::Old)),
+  _surviving_alloc_buffer(_g1h->desired_plab_sz(G1HeapRegionAttr::Young)),
+  _tenured_alloc_buffer(_g1h->desired_plab_sz(G1HeapRegionAttr::Old)),
   _survivor_alignment_bytes(calc_survivor_alignment_bytes()) {
-  for (uint state = 0; state < InCSetState::Num; state++) {
+  for (uint state = 0; state < G1HeapRegionAttr::Num; state++) {
     _direct_allocated[state] = 0;
     _alloc_buffers[state] = NULL;
   }
-  _alloc_buffers[InCSetState::Young] = &_surviving_alloc_buffer;
-  _alloc_buffers[InCSetState::Old]  = &_tenured_alloc_buffer;
+  _alloc_buffers[G1HeapRegionAttr::Young] = &_surviving_alloc_buffer;
+  _alloc_buffers[G1HeapRegionAttr::Old]  = &_tenured_alloc_buffer;
 }
 
 bool G1PLABAllocator::may_throw_away_buffer(size_t const allocation_word_sz, size_t const buffer_size) const {
   return (allocation_word_sz * 100 < buffer_size * ParallelGCBufferWastePct);
 }
 
-HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(InCSetState dest,
+HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                                        size_t word_sz,
                                                        bool* plab_refill_failed) {
   size_t plab_word_size = _g1h->desired_plab_sz(dest);
@@ -301,17 +300,17 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(InCSetState dest,
   // Try direct allocation.
   HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz);
   if (result != NULL) {
-    _direct_allocated[dest.value()] += word_sz;
+    _direct_allocated[dest.type()] += word_sz;
   }
   return result;
 }
 
-void G1PLABAllocator::undo_allocation(InCSetState dest, HeapWord* obj, size_t word_sz) {
+void G1PLABAllocator::undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz) {
   alloc_buffer(dest)->undo_allocation(obj, word_sz);
 }
 
 void G1PLABAllocator::flush_and_retire_stats() {
-  for (uint state = 0; state < InCSetState::Num; state++) {
+  for (uint state = 0; state < G1HeapRegionAttr::Num; state++) {
     PLAB* const buf = _alloc_buffers[state];
     if (buf != NULL) {
       G1EvacStats* stats = _g1h->alloc_buffer_stats(state);
@@ -322,16 +321,26 @@ void G1PLABAllocator::flush_and_retire_stats() {
   }
 }
 
-void G1PLABAllocator::waste(size_t& wasted, size_t& undo_wasted) {
-  wasted = 0;
-  undo_wasted = 0;
-  for (uint state = 0; state < InCSetState::Num; state++) {
+size_t G1PLABAllocator::waste() const {
+  size_t result = 0;
+  for (uint state = 0; state < G1HeapRegionAttr::Num; state++) {
     PLAB * const buf = _alloc_buffers[state];
     if (buf != NULL) {
-      wasted += buf->waste();
-      undo_wasted += buf->undo_waste();
+      result += buf->waste();
     }
   }
+  return result;
+}
+
+size_t G1PLABAllocator::undo_waste() const {
+  size_t result = 0;
+  for (uint state = 0; state < G1HeapRegionAttr::Num; state++) {
+    PLAB * const buf = _alloc_buffers[state];
+    if (buf != NULL) {
+      result += buf->undo_waste();
+    }
+  }
+  return result;
 }
 
 bool G1ArchiveAllocator::_archive_check_enabled = false;
@@ -360,7 +369,7 @@ bool G1ArchiveAllocator::alloc_new_region() {
   } else {
     hr->set_closed_archive();
   }
-  _g1h->g1_policy()->remset_tracker()->update_at_allocate(hr);
+  _g1h->policy()->remset_tracker()->update_at_allocate(hr);
   _g1h->archive_set_add(hr);
   _g1h->hr_printer()->alloc(hr);
   _allocated_regions.append(hr);

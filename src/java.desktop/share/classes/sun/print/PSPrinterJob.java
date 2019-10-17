@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ public class PSPrinterJob extends RasterPrinterJob {
     private static final int LOWNIBBLE_MASK = 0x0000000f;
     private static final int HINIBBLE_MASK =  0x000000f0;
     private static final int HINIBBLE_SHIFT = 4;
-    private static final byte hexDigits[] = {
+    private static final byte[] hexDigits = {
         (byte)'0', (byte)'1', (byte)'2', (byte)'3',
         (byte)'4', (byte)'5', (byte)'6', (byte)'7',
         (byte)'8', (byte)'9', (byte)'A', (byte)'B',
@@ -732,7 +732,7 @@ public class PSPrinterJob extends RasterPrinterJob {
                  * Spool to the printer.
                  */
                 String fileName = spoolFile.getAbsolutePath();
-                String execCmd[] = printExecCmd(mDestination, mOptions,
+                String[] execCmd = printExecCmd(mDestination, mOptions,
                                mNoJobSheet, getJobNameInt(),
                                                 1, fileName);
 
@@ -1590,19 +1590,19 @@ public class PSPrinterJob extends RasterPrinterJob {
         int COPIES  = 0x8;
         int NOSHEET = 0x10;
         int pFlags = 0;
-        String execCmd[];
+        String[] execCmd;
         int ncomps = 2; // minimum number of print args
         int n = 0;
 
-        if (printer != null && !printer.equals("") && !printer.equals("lp")) {
+        if (printer != null && !printer.isEmpty() && !printer.equals("lp")) {
             pFlags |= PRINTER;
             ncomps+=1;
         }
-        if (options != null && !options.equals("")) {
+        if (options != null && !options.isEmpty()) {
             pFlags |= OPTIONS;
             ncomps+=1;
         }
-        if (jobTitle != null && !jobTitle.equals("")) {
+        if (jobTitle != null && !jobTitle.isEmpty()) {
             pFlags |= JOBTITLE;
             ncomps+=1;
         }

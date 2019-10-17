@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,7 @@ class MethodHandleNatives {
     /** Represents a context to track nmethod dependencies on CallSite instance target. */
     static class CallSiteContext implements Runnable {
         //@Injected JVM_nmethodBucket* vmdependencies;
+        //@Injected jlong last_cleanup;
 
         static CallSiteContext make(CallSite cs) {
             final CallSiteContext newContext = new CallSiteContext();
@@ -433,7 +434,7 @@ class MethodHandleNatives {
      * completely in the linker method.
      * As a corner case, if N==255, no appendix is possible.
      * In this case, the method returned must be custom-generated to
-     * to perform any needed type checking.
+     * perform any needed type checking.
      * <p>
      * If the JVM does not reify a method at a call site, but instead
      * calls {@code linkMethod}, the corresponding call represented

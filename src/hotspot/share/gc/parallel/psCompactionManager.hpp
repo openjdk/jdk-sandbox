@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
-#define SHARE_VM_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
+#ifndef SHARE_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
+#define SHARE_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
 
 #include "gc/shared/taskqueue.hpp"
 #include "memory/allocation.hpp"
@@ -43,7 +43,9 @@ class ParCompactionManager : public CHeapObj<mtGC> {
   friend class CompactionWithStealingTask;
   friend class UpdateAndFillClosure;
   friend class RefProcTaskExecutor;
-  friend class IdleGCTask;
+  friend class PCRefProcTask;
+  friend class MarkFromRootsTask;
+  friend class UpdateDensePrefixAndCompactionTask;
 
  public:
 
@@ -171,23 +173,9 @@ private:
   void drain_region_stacks();
 
   void follow_contents(oop obj);
-  void follow_contents(objArrayOop array, int index);
+  void follow_array(objArrayOop array, int index);
 
   void update_contents(oop obj);
-
-  class MarkAndPushClosure: public BasicOopIterateClosure {
-   private:
-    ParCompactionManager* _compaction_manager;
-   public:
-    MarkAndPushClosure(ParCompactionManager* cm) : _compaction_manager(cm) { }
-
-    template <typename T> void do_oop_work(T* p);
-    virtual void do_oop(oop* p);
-    virtual void do_oop(narrowOop* p);
-
-    // This closure provides its own oop verification code.
-    debug_only(virtual bool should_verify_oops() { return false; })
-  };
 
   class FollowStackClosure: public VoidClosure {
    private:
@@ -208,4 +196,4 @@ bool ParCompactionManager::marking_stacks_empty() const {
   return _marking_stack.is_empty() && _objarray_stack.is_empty();
 }
 
-#endif // SHARE_VM_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
+#endif // SHARE_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP

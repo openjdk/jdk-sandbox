@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,14 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/gcLocker.hpp"
-#include "gc/shared/vmGCOperations.hpp"
+#include "gc/shared/gcVMOperations.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -46,7 +49,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "services/heapDumper.hpp"
 #include "services/threadService.hpp"
 #include "utilities/macros.hpp"
@@ -683,6 +686,16 @@ class DumperSupport : AllStatic {
 
   // fixes up the current dump record and writes HPROF_HEAP_DUMP_END record
   static void end_of_dump(DumpWriter* writer);
+
+  static oop mask_dormant_archived_object(oop o) {
+    if (o != NULL && o->klass()->java_mirror() == NULL) {
+      // Ignore this object since the corresponding java mirror is not loaded.
+      // Might be a dormant archive object.
+      return NULL;
+    } else {
+      return o;
+    }
+  }
 };
 
 // write a header of the given type
@@ -694,7 +707,7 @@ void DumperSupport:: write_header(DumpWriter* writer, hprofTag tag, u4 len) {
 
 // returns hprof tag for the given type signature
 hprofTag DumperSupport::sig2tag(Symbol* sig) {
-  switch (sig->byte_at(0)) {
+  switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_ARRAY    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_BYTE     : return HPROF_BYTE;
@@ -757,7 +770,14 @@ void DumperSupport::dump_field_value(DumpWriter* writer, char type, oop obj, int
   switch (type) {
     case JVM_SIGNATURE_CLASS :
     case JVM_SIGNATURE_ARRAY : {
-      oop o = obj->obj_field_access<ON_UNKNOWN_OOP_REF>(offset);
+      oop o = obj->obj_field_access<ON_UNKNOWN_OOP_REF | AS_NO_KEEPALIVE>(offset);
+      if (o != NULL && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == NULL) {
+        ResourceMark rm;
+        log_debug(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
+                             p2i(o), o->klass()->external_name(),
+                             p2i(obj), obj->klass()->external_name());
+      }
+      o = mask_dormant_archived_object(o);
       assert(oopDesc::is_oop_or_null(o), "Expected an oop or NULL at " PTR_FORMAT, p2i(o));
       writer->write_objectID(o);
       break;
@@ -819,7 +839,7 @@ u4 DumperSupport::instance_size(Klass* k) {
   for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
       Symbol* sig = fld.signature();
-      switch (sig->byte_at(0)) {
+      switch (sig->char_at(0)) {
         case JVM_SIGNATURE_CLASS   :
         case JVM_SIGNATURE_ARRAY   : size += oopSize; break;
 
@@ -887,7 +907,7 @@ void DumperSupport::dump_static_fields(DumpWriter* writer, Klass* k) {
       writer->write_u1(sig2tag(sig));       // type
 
       // value
-      dump_field_value(writer, sig->byte_at(0), ik->java_mirror(), fld.offset());
+      dump_field_value(writer, sig->char_at(0), ik->java_mirror(), fld.offset());
     }
   }
 
@@ -923,7 +943,7 @@ void DumperSupport::dump_instance_fields(DumpWriter* writer, oop o) {
   for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
       Symbol* sig = fld.signature();
-      dump_field_value(writer, sig->byte_at(0), o, fld.offset());
+      dump_field_value(writer, sig->char_at(0), o, fld.offset());
     }
   }
 }
@@ -1140,6 +1160,13 @@ void DumperSupport::dump_object_array(DumpWriter* writer, objArrayOop array) {
   // [id]* elements
   for (int index = 0; index < length; index++) {
     oop o = array->obj_at(index);
+    if (o != NULL && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == NULL) {
+      ResourceMark rm;
+      log_debug(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
+                           p2i(o), o->klass()->external_name(),
+                           p2i(array), array->klass()->external_name());
+    }
+    o = mask_dormant_archived_object(o);
     writer->write_objectID(o);
   }
 }
@@ -1417,6 +1444,11 @@ void HeapObjectDumper::do_object(oop o) {
     if (!java_lang_Class::is_primitive(o)) {
       return;
     }
+  }
+
+  if (DumperSupport::mask_dormant_archived_object(o) == NULL) {
+    log_debug(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s)", p2i(o), o->klass()->external_name());
+    return;
   }
 
   if (o->is_instance()) {

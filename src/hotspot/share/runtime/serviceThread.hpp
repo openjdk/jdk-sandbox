@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SERVICETHREAD_HPP
-#define SHARE_VM_RUNTIME_SERVICETHREAD_HPP
+#ifndef SHARE_RUNTIME_SERVICETHREAD_HPP
+#define SHARE_RUNTIME_SERVICETHREAD_HPP
 
 #include "runtime/thread.hpp"
 
-// A JavaThread for low memory detection support and JVMTI
-// compiled-method-load events.
+// A hidden from external view JavaThread for JVMTI compiled-method-load
+// events, oop storage cleanup, and the maintainance of string, symbol,
+// protection domain, and resolved method tables.
+
 class ServiceThread : public JavaThread {
   friend class VMStructs;
  private:
@@ -48,4 +50,4 @@ class ServiceThread : public JavaThread {
   static bool is_service_thread(Thread* thread);
 };
 
-#endif // SHARE_VM_RUNTIME_SERVICETHREAD_HPP
+#endif // SHARE_RUNTIME_SERVICETHREAD_HPP

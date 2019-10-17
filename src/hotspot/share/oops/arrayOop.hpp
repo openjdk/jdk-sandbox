@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAYOOP_HPP
-#define SHARE_VM_OOPS_ARRAYOOP_HPP
+#ifndef SHARE_OOPS_ARRAYOOP_HPP
+#define SHARE_OOPS_ARRAYOOP_HPP
 
-#include "memory/universe.hpp"
 #include "oops/oop.hpp"
 #include "utilities/align.hpp"
 
@@ -35,7 +34,7 @@
 
 // The layout of array Oops is:
 //
-//  markOop
+//  markWord
 //  Klass*    // 32 bits if compressed but declared 64 in LP64.
 //  length    // shares klass memory or allocated after declared fields.
 
@@ -150,4 +149,4 @@ class arrayOopDesc : public oopDesc {
 
 };
 
-#endif // SHARE_VM_OOPS_ARRAYOOP_HPP
+#endif // SHARE_OOPS_ARRAYOOP_HPP

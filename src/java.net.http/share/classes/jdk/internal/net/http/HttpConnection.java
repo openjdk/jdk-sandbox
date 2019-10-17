@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,8 +85,8 @@ abstract class HttpConnection implements Closeable {
                 new IdentityHashMap<>();
         void add(CompletionStage<?> cf) {
             synchronized(operations) {
-                cf.whenComplete((r,t)-> remove(cf));
                 operations.put(cf, Boolean.TRUE);
+                cf.whenComplete((r,t)-> remove(cf));
             }
         }
         boolean remove(CompletionStage<?> cf) {
@@ -285,6 +285,16 @@ abstract class HttpConnection implements Closeable {
         }
     }
 
+    BiPredicate<String,String> contextRestricted(HttpRequestImpl request, HttpClient client) {
+        if (!isTunnel() && request.isConnect()) {
+            // establishing a proxy tunnel
+            assert request.proxy() == null;
+            return Utils.PROXY_TUNNEL_RESTRICTED(client);
+        } else {
+            return Utils.CONTEXT_RESTRICTED(client);
+        }
+    }
+
     // Composes a new immutable HttpHeaders that combines the
     // user and system header but only keeps those headers that
     // start with "proxy-"
@@ -317,14 +327,13 @@ abstract class HttpConnection implements Closeable {
     void closeOrReturnToCache(HttpHeaders hdrs) {
         if (hdrs == null) {
             // the connection was closed by server, eof
+            Log.logTrace("Cannot return connection to pool: closing {0}", this);
             close();
-            return;
-        }
-        if (!isOpen()) {
             return;
         }
         HttpClientImpl client = client();
         if (client == null) {
+            Log.logTrace("Client released: closing {0}", this);
             close();
             return;
         }
@@ -333,10 +342,12 @@ abstract class HttpConnection implements Closeable {
                 .map((s) -> !s.equalsIgnoreCase("close"))
                 .orElse(true);
 
-        if (keepAlive) {
+        if (keepAlive && isOpen()) {
             Log.logTrace("Returning connection to the pool: {0}", this);
             pool.returnToPool(this);
         } else {
+            Log.logTrace("Closing connection (keepAlive={0}, isOpen={1}): {2}",
+                    keepAlive, isOpen(), this);
             close();
         }
     }

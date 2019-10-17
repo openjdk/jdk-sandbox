@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,10 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -35,6 +37,11 @@
 #include <ctype.h>
 
 #include "jni.h"
+
+#define CHECK(X) if ((X) == 0) {printf("JNI init error line %d\n", __LINE__); _exit(1);}
+
+static jclass unixSocketClass;
+static jmethodID unixSocketCtor;
 
 /*
  * Throws the exception of the given class name and detail message
@@ -142,19 +149,18 @@ JNIEXPORT void JNICALL Java_Launcher_launch0
 
     /*
      * We need to close all file descriptors except for serviceFd. To
-     * get the list of open file descriptos we read through /proc/self/fd
+     * get the list of open file descriptos we read through /proc/self/fd (/dev/fd)
      * but to open this requires a file descriptor. We could use a specific
      * file descriptor and fdopendir but Linux doesn't seem to support
      * fdopendir. Instead we use opendir and make an assumption on the
      * file descriptor that is used (by opening & closing a file).
      */
-    thisFd = open("/dev/null", O_RDONLY);
+    thisFd = open("/dev/fd", O_RDONLY);
     if (thisFd < 0) {
         _exit(-1);
     }
-    close(thisFd);
 
-    if ((dp = opendir("/proc/self/fd")) == NULL) {
+    if ((dp = fdopendir(thisFd)) == NULL) {
         _exit(-1);
     }
 
@@ -181,4 +187,128 @@ JNIEXPORT void JNICALL Java_Launcher_launch0
 
     execvp(cmdv[0], cmdv);
     _exit(-1);
+}
+
+JNIEXPORT void JNICALL Java_UnixDomainSocket_init(JNIEnv *env, jclass cls) {
+    CHECK(unixSocketClass = (*env)->FindClass(env, "UnixDomainSocket"));
+    CHECK(unixSocketClass = (*env)->NewGlobalRef(env, unixSocketClass));
+    CHECK(unixSocketCtor = (*env)->GetMethodID(env, unixSocketClass, "<init>", "(I)V"));
+}
+
+/*
+ * Class:     UnixDomainSocket
+ * Method:    socketpair
+ * Signature: ()[LUnixDomainSocket
+ */
+JNIEXPORT jobjectArray JNICALL Java_UnixDomainSocket_socketpair
+  (JNIEnv *env, jclass cls)
+{
+    int fds[2];
+    jobject socket;
+    jobjectArray result = (*env)->NewObjectArray(env, 2, unixSocketClass, 0);
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
+        perror("socketpair");
+        return result;
+    }
+    socket = (*env)->NewObject(env, unixSocketClass, unixSocketCtor, fds[0]);
+    (*env)->SetObjectArrayElement(env, result, 0, socket);
+    socket = (*env)->NewObject(env, unixSocketClass, unixSocketCtor, fds[1]);
+    (*env)->SetObjectArrayElement(env, result, 1, socket);
+    return result;
+}
+
+JNIEXPORT jint JNICALL Java_UnixDomainSocket_create
+  (JNIEnv *env, jclass cls)
+{
+    int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock == -1) {
+        ThrowException(env, "java/io/IOException", "socket create error");
+    }
+    return sock;
+}
+
+JNIEXPORT void JNICALL Java_UnixDomainSocket_bind0
+  (JNIEnv *env, jclass cls, jint sock, jstring name)
+{
+    struct sockaddr_un addr;
+    const char *nameUtf = (*env)->GetStringUTFChars(env, name, NULL);
+    int ret = -1;
+    unlink(nameUtf);
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, nameUtf, strlen(nameUtf));
+    ret = bind(sock, (const struct sockaddr*)&addr, sizeof(addr));
+    if (ret == -1) {
+        ThrowException(env, "java/io/IOException", "socket bind error");
+    }
+    ret = listen(sock, 5);
+    if (ret == -1) {
+        ThrowException(env, "java/io/IOException", "socket bind error");
+    }
+    (*env)->ReleaseStringUTFChars(env, name, nameUtf);
+}
+
+JNIEXPORT jint JNICALL Java_UnixDomainSocket_accept0
+  (JNIEnv *env, jclass cls, jint sock)
+{
+    struct sockaddr_storage addr;
+    socklen_t len = sizeof(addr);
+    int ret = accept(sock, (struct sockaddr *)&addr, &len);
+    if (ret == -1)
+        ThrowException(env, "java/io/IOException", "socket accept error");
+    return ret;
+}
+
+JNIEXPORT void JNICALL Java_UnixDomainSocket_connect0
+  (JNIEnv *env, jclass cls, jint fd, jstring name)
+{
+    struct sockaddr_un addr;
+    const char *nameUtf = (*env)->GetStringUTFChars(env, name, NULL);
+    int ret = -1;
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, nameUtf, strlen(nameUtf));
+    ret = connect(fd, (const struct sockaddr*)&addr, sizeof(addr));
+    if (ret == -1) {
+        ThrowException(env, "java/io/IOException", "socket connect error");
+    }
+    (*env)->ReleaseStringUTFChars(env, name, nameUtf);
+}
+
+
+JNIEXPORT jint JNICALL Java_UnixDomainSocket_read0
+  (JNIEnv *env, jclass cls, jint fd)
+{
+    int ret;
+    unsigned char res;
+    ret = read(fd, &res, 1);
+    if (ret == 0)
+        return -1; /* EOF */
+    else if (ret < 0) {
+        ThrowException(env, "java/io/IOException", "read error");
+        return -1;
+    }
+    return res;
+}
+
+JNIEXPORT void JNICALL Java_UnixDomainSocket_write0
+  (JNIEnv *env, jclass cls, jint fd, jint byte)
+{
+    int ret;
+    unsigned char w = (unsigned char)byte;
+    ret = write(fd, &w, 1);
+    if (ret < 0) {
+        ThrowException(env, "java/io/IOException", "write error");
+    }
+}
+
+JNIEXPORT void JNICALL Java_UnixDomainSocket_close0
+  (JNIEnv *env, jclass cls, jint fd, jstring name)
+{
+    close(fd);
+    if (name != NULL) {
+        const char *nameUtf = (*env)->GetStringUTFChars(env, name, NULL);
+        unlink(nameUtf);
+        (*env)->ReleaseStringUTFChars(env, name, nameUtf);
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_PERIODIC_JFROSINTERFACE_HPP
-#define SHARE_VM_JFR_PERIODIC_JFROSINTERFACE_HPP
+#ifndef SHARE_JFR_PERIODIC_JFROSINTERFACE_HPP
+#define SHARE_JFR_PERIODIC_JFROSINTERFACE_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
@@ -52,9 +52,10 @@ class JfrOSInterface: public JfrCHeapObj {
   static int cpu_load_total_process(double* cpu_load);
   static int cpu_loads_process(double* pjvmUserLoad, double* pjvmKernelLoad, double* psystemTotalLoad);
   static int os_version(char** os_version);
+  static const char* virtualization_name();
   static int generate_initial_environment_variable_events();
   static int system_processes(SystemProcess** system_processes, int* no_of_sys_processes);
   static int network_utilization(NetworkInterface** network_interfaces);
 };
 
-#endif // SHARE_VM_JFR_PERIODIC_JFROSINTERFACE_HPP
+#endif // SHARE_JFR_PERIODIC_JFROSINTERFACE_HPP

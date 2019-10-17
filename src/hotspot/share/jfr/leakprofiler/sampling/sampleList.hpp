@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP
-#define SHARE_VM_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP
+#define SHARE_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP
 #include "jfr/utilities/jfrAllocation.hpp"
 #include "jfr/utilities/jfrDoublyLinkedList.hpp"
 
@@ -50,14 +50,15 @@ class SampleList : public JfrCHeapObj {
   SampleList(size_t limit, size_t cache_size = 0);
   ~SampleList();
 
-  void set_last_resolved(const ObjectSample* sample);
   ObjectSample* get();
+  ObjectSample* first() const;
   ObjectSample* last() const;
-  void release(ObjectSample* sample);
   const ObjectSample* last_resolved() const;
+  void set_last_resolved(const ObjectSample* sample);
+  void release(ObjectSample* sample);
   ObjectSample* reuse(ObjectSample* sample);
   bool is_full() const;
   size_t count() const;
 };
 
-#endif // SHARE_VM_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP
+#endif // SHARE_JFR_LEAKPROFILER_SAMPLING_SAMPLELIST_HPP

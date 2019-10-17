@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_PHASEX_HPP
-#define SHARE_VM_OPTO_PHASEX_HPP
+#ifndef SHARE_OPTO_PHASEX_HPP
+#define SHARE_OPTO_PHASEX_HPP
 
 #include "libadt/dict.hpp"
 #include "libadt/vectset.hpp"
@@ -157,6 +157,16 @@ public:
 // Phase that first performs a PhaseRemoveUseless, then it renumbers compiler
 // structures accordingly.
 class PhaseRenumberLive : public PhaseRemoveUseless {
+protected:
+  Type_Array _new_type_array; // Storage for the updated type information.
+  GrowableArray<int> _old2new_map;
+  Node_List _delayed;
+  bool _is_pass_finished;
+  uint _live_node_count;
+
+  int update_embedded_ids(Node* n);
+  int new_index(int old_idx);
+
 public:
   PhaseRenumberLive(PhaseGVN* gvn,
                     Unique_Node_List* worklist, Unique_Node_List* new_worklist,
@@ -367,7 +377,6 @@ protected:
 public:
   PhaseValues( Arena *arena, uint est_max_size );
   PhaseValues( PhaseValues *pt );
-  PhaseValues( PhaseValues *ptv, const char *dummy );
   NOT_PRODUCT( ~PhaseValues(); )
   virtual PhaseIterGVN *is_IterGVN() { return 0; }
 
@@ -408,7 +417,6 @@ protected:
 public:
   PhaseGVN( Arena *arena, uint est_max_size ) : PhaseValues( arena, est_max_size ) {}
   PhaseGVN( PhaseGVN *gvn ) : PhaseValues( gvn ) {}
-  PhaseGVN( PhaseGVN *gvn, const char *dummy ) : PhaseValues( gvn, dummy ) {}
 
   // Return a node which computes the same function as this node, but
   // in a faster or cheaper fashion.
@@ -424,6 +432,12 @@ public:
   }
 
   bool is_dominator(Node *d, Node *n) { return is_dominator_helper(d, n, true); }
+
+  // Helper to call Node::Ideal() and BarrierSetC2::ideal_node().
+  Node* apply_ideal(Node* i, bool can_reshape);
+
+  // Helper to call Node::Identity() and BarrierSetC2::identity_node().
+  Node* apply_identity(Node* n);
 
   // Check for a simple dead loop when a data node references itself.
   DEBUG_ONLY(void dead_loop_check(Node *n);)
@@ -458,7 +472,6 @@ protected:
 public:
   PhaseIterGVN( PhaseIterGVN *igvn ); // Used by CCP constructor
   PhaseIterGVN( PhaseGVN *gvn ); // Used after Parser
-  PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ); // Used after +VerifyOpto
 
   // Idealize new Node 'n' with respect to its inputs and its value
   virtual Node *transform( Node *a_node );
@@ -633,4 +646,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_OPTO_PHASEX_HPP
+#endif // SHARE_OPTO_PHASEX_HPP

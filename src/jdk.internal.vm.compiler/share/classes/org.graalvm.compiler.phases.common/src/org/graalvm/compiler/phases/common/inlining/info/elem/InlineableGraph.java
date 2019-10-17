@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.DeadCodeEliminationPhase;
 import org.graalvm.compiler.phases.common.inlining.InliningUtil;
-import org.graalvm.compiler.phases.graph.FixedNodeProbabilityCache;
+import org.graalvm.compiler.phases.graph.FixedNodeRelativeFrequencyCache;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
 
 import jdk.vm.ci.meta.ResolvedJavaMethod;
@@ -66,10 +66,10 @@ public class InlineableGraph implements Inlineable {
 
     private final StructuredGraph graph;
 
-    private FixedNodeProbabilityCache probabilites = new FixedNodeProbabilityCache();
+    private FixedNodeRelativeFrequencyCache probabilites = new FixedNodeRelativeFrequencyCache();
 
     public InlineableGraph(final ResolvedJavaMethod method, final Invoke invoke, final HighTierContext context, CanonicalizerPhase canonicalizer, boolean trackNodeSourcePosition) {
-        StructuredGraph original = InliningUtil.getIntrinsicGraph(context.getReplacements(), method, invoke.bci(), trackNodeSourcePosition, null);
+        StructuredGraph original = context.getReplacements().getSubstitution(method, invoke.bci(), trackNodeSourcePosition, null, invoke.asNode().getOptions());
         if (original == null) {
             original = parseBytecodes(method, context, canonicalizer, invoke.asNode().graph(), trackNodeSourcePosition);
         } else if (original.isFrozen()) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
-#define CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
+#ifndef CPU_AARCH64_INTERP_MASM_AARCH64_HPP
+#define CPU_AARCH64_INTERP_MASM_AARCH64_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -38,8 +38,6 @@ class InterpreterMacroAssembler: public MacroAssembler {
  protected:
 
  protected:
-  using MacroAssembler::call_VM_leaf_base;
-
   // Interpreter specific version of call_VM_base
   using MacroAssembler::call_VM_leaf_base;
 
@@ -125,6 +123,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
   // load cpool->resolved_klass_at(index);
   void load_resolved_klass_at_offset(Register cpool, Register index, Register klass, Register temp);
+
+  void load_resolved_method_at_index(int byte_no, Register method, Register cache);
 
   void pop_ptr(Register r = r0);
   void pop_i(Register r = r0);
@@ -295,4 +295,4 @@ class InterpreterMacroAssembler: public MacroAssembler {
   }
 };
 
-#endif // CPU_AARCH64_VM_INTERP_MASM_AARCH64_64_HPP
+#endif // CPU_AARCH64_INTERP_MASM_AARCH64_HPP

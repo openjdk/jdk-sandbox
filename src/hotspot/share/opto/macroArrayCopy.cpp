@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,6 @@ Node* PhaseMacroExpand::make_leaf_call(Node* ctrl, Node* mem,
                                        Node* parm2, Node* parm3,
                                        Node* parm4, Node* parm5,
                                        Node* parm6, Node* parm7) {
-  int size = call_type->domain()->cnt();
   Node* call = new CallLeafNoFPNode(call_type, call_addr, call_name, adr_type);
   call->init_req(TypeFunc::Control, ctrl);
   call->init_req(TypeFunc::I_O    , top());
@@ -552,7 +551,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // At this point we know we do not need type checks on oop stores.
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (alloc != NULL && !bs->array_copy_requires_gc_barriers(copy_type)) {
+    if (!bs->array_copy_requires_gc_barriers(alloc != NULL, copy_type, false, BarrierSetC2::Expansion)) {
       // If we do not need gc barriers, copy using the jint or jlong stub.
       copy_type = LP64_ONLY(UseCompressedOops ? T_INT : T_LONG) NOT_LP64(T_INT);
       assert(type2aelembytes(basic_elem_type) == type2aelembytes(copy_type),
@@ -1094,20 +1093,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   MergeMemNode* merge_mem = NULL;
 
   if (ac->is_clonebasic()) {
-    assert (src_offset == NULL && dest_offset == NULL, "for clone offsets should be null");
-    Node* mem = ac->in(TypeFunc::Memory);
-    const char* copyfunc_name = "arraycopy";
-    address     copyfunc_addr =
-      basictype2arraycopy(T_LONG, NULL, NULL,
-                          true, copyfunc_name, true);
-
-    const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
-    const TypeFunc* call_type = OptoRuntime::fast_arraycopy_Type();
-
-    Node* call = make_leaf_call(ctrl, mem, call_type, copyfunc_addr, copyfunc_name, raw_adr_type, src, dest, length XTOP);
-    transform_later(call);
-
-    _igvn.replace_node(ac, call);
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    bs->clone_at_expansion(this, ac);
     return;
   } else if (ac->is_copyof() || ac->is_copyofrange() || ac->is_cloneoop()) {
     Node* mem = ac->in(TypeFunc::Memory);
@@ -1126,9 +1113,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     const TypePtr* adr_type = _igvn.type(dest)->is_oopptr()->add_offset(Type::OffsetBot);
     if (ac->_dest_type != TypeOopPtr::BOTTOM) {
       adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
-    }
-    if (ac->_src_type != ac->_dest_type) {
-      adr_type = TypeRawPtr::BOTTOM;
     }
     generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
                        adr_type, T_OBJECT,
@@ -1165,8 +1149,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_src != NULL && top_src->klass() != NULL) {
     src_elem = top_src->klass()->as_array_klass()->element_type()->basic_type();
   }
-  if (src_elem  == T_ARRAY)  src_elem  = T_OBJECT;
-  if (dest_elem == T_ARRAY)  dest_elem = T_OBJECT;
+  if (is_reference_type(src_elem))  src_elem  = T_OBJECT;
+  if (is_reference_type(dest_elem)) dest_elem = T_OBJECT;
 
   if (ac->is_arraycopy_validated() &&
       dest_elem != T_CONFLICT &&

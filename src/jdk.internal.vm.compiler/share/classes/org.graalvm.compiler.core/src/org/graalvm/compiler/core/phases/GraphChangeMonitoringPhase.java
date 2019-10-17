@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,10 +32,10 @@ import org.graalvm.compiler.graph.Graph.NodeEventScope;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.LogicConstantNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 import org.graalvm.compiler.phases.BasePhase;
 import org.graalvm.compiler.phases.PhaseSuite;
-import org.graalvm.compiler.phases.common.util.HashSetNodeEventListener;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
+import org.graalvm.compiler.phases.common.util.EconomicSetNodeEventListener;
 
 /**
  * A utility phase for detecting when a phase would change the graph and reporting extra information
@@ -46,7 +46,7 @@ import org.graalvm.compiler.phases.tiers.PhaseContext;
  *
  * @param <C>
  */
-public class GraphChangeMonitoringPhase<C extends PhaseContext> extends PhaseSuite<C> {
+public class GraphChangeMonitoringPhase<C extends CoreProviders> extends PhaseSuite<C> {
 
     private final String message;
 
@@ -68,7 +68,7 @@ public class GraphChangeMonitoringPhase<C extends PhaseContext> extends PhaseSui
          * Phase may add nodes but not end up using them so ignore additions. Nodes going dead and
          * having their inputs change are the main interesting differences.
          */
-        HashSetNodeEventListener listener = new HashSetNodeEventListener().exclude(NodeEvent.NODE_ADDED);
+        EconomicSetNodeEventListener listener = new EconomicSetNodeEventListener().exclude(NodeEvent.NODE_ADDED);
         StructuredGraph graphCopy = (StructuredGraph) graph.copy(graph.getDebug());
         DebugContext debug = graph.getDebug();
         try (NodeEventScope s = graphCopy.trackNodeEvents(listener)) {
@@ -90,7 +90,7 @@ public class GraphChangeMonitoringPhase<C extends PhaseContext> extends PhaseSui
         }
         if (!filteredNodes.isEmpty()) {
             /* rerun it on the real graph in a new Debug scope so Dump and Log can find it. */
-            listener = new HashSetNodeEventListener();
+            listener = new EconomicSetNodeEventListener();
             try (NodeEventScope s = graph.trackNodeEvents(listener)) {
                 try (DebugContext.Scope s2 = debug.scope("WithGraphChangeMonitoring")) {
                     if (debug.isDumpEnabled(DebugContext.DETAILED_LEVEL)) {

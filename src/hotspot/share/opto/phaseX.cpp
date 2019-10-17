@@ -240,12 +240,6 @@ bool NodeHash::hash_delete( const Node *n ) {
     k = _table[key];            // Get hashed value
     if( !k ) {                  // Miss?
       NOT_PRODUCT( _delete_misses++ );
-#ifdef ASSERT
-      if( VerifyOpto ) {
-        for( uint i=0; i < _max; i++ )
-          assert( _table[i] != n, "changed edges with rehashing" );
-      }
-#endif
       return false;             // Miss! Not in chain
     }
     else if( n == k ) {
@@ -430,20 +424,6 @@ PhaseRemoveUseless::PhaseRemoveUseless(PhaseGVN *gvn, Unique_Node_List *worklist
 
   // Disconnect 'useless' nodes that are adjacent to useful nodes
   C->remove_useless_nodes(_useful);
-
-  // Remove edges from "root" to each SafePoint at a backward branch.
-  // They were inserted during parsing (see add_safepoint()) to make infinite
-  // loops without calls or exceptions visible to root, i.e., useful.
-  Node *root = C->root();
-  if( root != NULL ) {
-    for( uint i = root->req(); i < root->len(); ++i ) {
-      Node *n = root->in(i);
-      if( n != NULL && n->is_SafePoint() ) {
-        root->rm_prec(i);
-        --i;
-      }
-    }
-  }
 }
 
 //=============================================================================
@@ -475,32 +455,34 @@ PhaseRemoveUseless::PhaseRemoveUseless(PhaseGVN *gvn, Unique_Node_List *worklist
 PhaseRenumberLive::PhaseRenumberLive(PhaseGVN* gvn,
                                      Unique_Node_List* worklist, Unique_Node_List* new_worklist,
                                      PhaseNumber phase_num) :
-  PhaseRemoveUseless(gvn, worklist, Remove_Useless_And_Renumber_Live) {
-
+  PhaseRemoveUseless(gvn, worklist, Remove_Useless_And_Renumber_Live),
+  _new_type_array(C->comp_arena()),
+  _old2new_map(C->unique(), C->unique(), -1),
+  _delayed(Thread::current()->resource_area()),
+  _is_pass_finished(false),
+  _live_node_count(C->live_nodes())
+{
   assert(RenumberLiveNodes, "RenumberLiveNodes must be set to true for node renumbering to take place");
   assert(C->live_nodes() == _useful.size(), "the number of live nodes must match the number of useful nodes");
   assert(gvn->nodes_size() == 0, "GVN must not contain any nodes at this point");
+  assert(_delayed.size() == 0, "should be empty");
 
-  uint old_unique_count = C->unique();
-  uint live_node_count = C->live_nodes();
   uint worklist_size = worklist->size();
 
-  // Storage for the updated type information.
-  Type_Array new_type_array(C->comp_arena());
-
   // Iterate over the set of live nodes.
-  uint current_idx = 0; // The current new node ID. Incremented after every assignment.
-  for (uint i = 0; i < _useful.size(); i++) {
-    Node* n = _useful.at(i);
-    // Sanity check that fails if we ever decide to execute this phase after EA
-    assert(!n->is_Phi() || n->as_Phi()->inst_mem_id() == -1, "should not be linked to data Phi");
-    const Type* type = gvn->type_or_null(n);
-    new_type_array.map(current_idx, type);
+  for (uint current_idx = 0; current_idx < _useful.size(); current_idx++) {
+    Node* n = _useful.at(current_idx);
 
     bool in_worklist = false;
     if (worklist->member(n)) {
       in_worklist = true;
     }
+
+    const Type* type = gvn->type_or_null(n);
+    _new_type_array.map(current_idx, type);
+
+    assert(_old2new_map.at(n->_idx) == -1, "already seen");
+    _old2new_map.at_put(n->_idx, current_idx);
 
     n->set_idx(current_idx); // Update node ID.
 
@@ -508,22 +490,80 @@ PhaseRenumberLive::PhaseRenumberLive(PhaseGVN* gvn,
       new_worklist->push(n);
     }
 
-    current_idx++;
+    if (update_embedded_ids(n) < 0) {
+      _delayed.push(n); // has embedded IDs; handle later
+    }
   }
 
   assert(worklist_size == new_worklist->size(), "the new worklist must have the same size as the original worklist");
-  assert(live_node_count == current_idx, "all live nodes must be processed");
+  assert(_live_node_count == _useful.size(), "all live nodes must be processed");
+
+  _is_pass_finished = true; // pass finished; safe to process delayed updates
+
+  while (_delayed.size() > 0) {
+    Node* n = _delayed.pop();
+    int no_of_updates = update_embedded_ids(n);
+    assert(no_of_updates > 0, "should be updated");
+  }
 
   // Replace the compiler's type information with the updated type information.
-  gvn->replace_types(new_type_array);
+  gvn->replace_types(_new_type_array);
 
   // Update the unique node count of the compilation to the number of currently live nodes.
-  C->set_unique(live_node_count);
+  C->set_unique(_live_node_count);
 
   // Set the dead node count to 0 and reset dead node list.
   C->reset_dead_node_list();
 }
 
+int PhaseRenumberLive::new_index(int old_idx) {
+  assert(_is_pass_finished, "not finished");
+  if (_old2new_map.at(old_idx) == -1) { // absent
+    // Allocate a placeholder to preserve uniqueness
+    _old2new_map.at_put(old_idx, _live_node_count);
+    _live_node_count++;
+  }
+  return _old2new_map.at(old_idx);
+}
+
+int PhaseRenumberLive::update_embedded_ids(Node* n) {
+  int no_of_updates = 0;
+  if (n->is_Phi()) {
+    PhiNode* phi = n->as_Phi();
+    if (phi->_inst_id != -1) {
+      if (!_is_pass_finished) {
+        return -1; // delay
+      }
+      int new_idx = new_index(phi->_inst_id);
+      assert(new_idx != -1, "");
+      phi->_inst_id = new_idx;
+      no_of_updates++;
+    }
+    if (phi->_inst_mem_id != -1) {
+      if (!_is_pass_finished) {
+        return -1; // delay
+      }
+      int new_idx = new_index(phi->_inst_mem_id);
+      assert(new_idx != -1, "");
+      phi->_inst_mem_id = new_idx;
+      no_of_updates++;
+    }
+  }
+
+  const Type* type = _new_type_array.fast_lookup(n->_idx);
+  if (type != NULL && type->isa_oopptr() && type->is_oopptr()->is_known_instance()) {
+    if (!_is_pass_finished) {
+        return -1; // delay
+    }
+    int old_idx = type->is_oopptr()->instance_id();
+    int new_idx = new_index(old_idx);
+    const Type* new_type = type->is_oopptr()->with_instance_id(new_idx);
+    _new_type_array.map(n->_idx, new_type);
+    no_of_updates++;
+  }
+
+  return no_of_updates;
+}
 
 //=============================================================================
 //------------------------------PhaseTransform---------------------------------
@@ -661,13 +701,6 @@ PhaseValues::PhaseValues( PhaseValues *ptv ) : PhaseTransform( ptv, GVN ),
   NOT_PRODUCT( clear_new_values(); )
 }
 
-//------------------------------PhaseValues------------------------------------
-// Used by +VerifyOpto.  Clear out hash table but copy _types array.
-PhaseValues::PhaseValues( PhaseValues *ptv, const char *dummy ) : PhaseTransform( ptv, GVN ),
-  _table(ptv->arena(),ptv->_table.size()) {
-  NOT_PRODUCT( clear_new_values(); )
-}
-
 //------------------------------~PhaseValues-----------------------------------
 #ifndef PRODUCT
 PhaseValues::~PhaseValues() {
@@ -769,6 +802,22 @@ ConNode* PhaseTransform::zerocon(BasicType bt) {
 
 
 //=============================================================================
+Node* PhaseGVN::apply_ideal(Node* k, bool can_reshape) {
+  Node* i = BarrierSet::barrier_set()->barrier_set_c2()->ideal_node(this, k, can_reshape);
+  if (i == NULL) {
+    i = k->Ideal(this, can_reshape);
+  }
+  return i;
+}
+
+Node* PhaseGVN::apply_identity(Node* k) {
+  Node* i = BarrierSet::barrier_set()->barrier_set_c2()->identity_node(this, k);
+  if (i == k) {
+    i = k->Identity(this);
+  }
+  return i;
+}
+
 //------------------------------transform--------------------------------------
 // Return a node which computes the same function as this node, but in a
 // faster or cheaper fashion.
@@ -786,7 +835,7 @@ Node *PhaseGVN::transform_no_reclaim( Node *n ) {
   Node *k = n;
   NOT_PRODUCT( uint loop_count = 0; )
   while( 1 ) {
-    Node *i = k->Ideal(this, /*can_reshape=*/false);
+    Node *i = apply_ideal(k, /*can_reshape=*/false);
     if( !i ) break;
     assert( i->_idx >= k->_idx, "Idealize should return new nodes, use Identity to return old nodes" );
     k = i;
@@ -823,7 +872,7 @@ Node *PhaseGVN::transform_no_reclaim( Node *n ) {
   }
 
   // Now check for Identities
-  Node *i = k->Identity(this);  // Look for a nearby replacement
+  Node *i = apply_identity(k);  // Look for a nearby replacement
   if( i != k ) {                // Found? Return replacement!
     NOT_PRODUCT( set_progress(); )
     return i;
@@ -887,14 +936,6 @@ void PhaseGVN::dead_loop_check( Node *n ) {
 
 //=============================================================================
 //------------------------------PhaseIterGVN-----------------------------------
-// Initialize hash table to fresh and clean for +VerifyOpto
-PhaseIterGVN::PhaseIterGVN( PhaseIterGVN *igvn, const char *dummy ) : PhaseGVN(igvn,dummy),
-                                                                      _delay_transform(false),
-                                                                      _stack(C->live_nodes() >> 1),
-                                                                      _worklist( ) {
-}
-
-//------------------------------PhaseIterGVN-----------------------------------
 // Initialize with previous PhaseIterGVN info; used by PhaseCCP
 PhaseIterGVN::PhaseIterGVN( PhaseIterGVN *igvn ) : PhaseGVN(igvn),
                                                    _delay_transform(igvn->_delay_transform),
@@ -941,9 +982,6 @@ PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
         n->is_Mem() )
       add_users_to_worklist(n);
   }
-
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->add_users_to_worklist(&_worklist);
 }
 
 /**
@@ -1075,24 +1113,6 @@ void PhaseIterGVN::verify_PhaseIterGVN() {
 #endif
 
   C->verify_graph_edges();
-  if( VerifyOpto && allow_progress() ) {
-    // Must turn off allow_progress to enable assert and break recursion
-    C->root()->verify();
-    { // Check if any progress was missed using IterGVN
-      // Def-Use info enables transformations not attempted in wash-pass
-      // e.g. Region/Phi cleanup, ...
-      // Null-check elision -- may not have reached fixpoint
-      //                       do not propagate to dominated nodes
-      ResourceMark rm;
-      PhaseIterGVN igvn2(this,"Verify"); // Fresh and clean!
-      // Fill worklist completely
-      igvn2.init_worklist(C->root());
-
-      igvn2.set_allow_progress(false);
-      igvn2.optimize();
-      igvn2.set_allow_progress(true);
-    }
-  }
   if (VerifyIterativeGVN && PrintOpto) {
     if (_verify_counter == _verify_full_passes) {
       tty->print_cr("VerifyIterativeGVN: %d transforms and verify passes",
@@ -1213,26 +1233,10 @@ Node *PhaseIterGVN::transform_old(Node* n) {
   DEBUG_ONLY(dead_loop_check(k);)
   DEBUG_ONLY(bool is_new = (k->outcnt() == 0);)
   C->remove_modified_node(k);
-  Node* i = k->Ideal(this, /*can_reshape=*/true);
+  Node* i = apply_ideal(k, /*can_reshape=*/true);
   assert(i != k || is_new || i->outcnt() > 0, "don't return dead nodes");
 #ifndef PRODUCT
   verify_step(k);
-  if (i && VerifyOpto ) {
-    if (!allow_progress()) {
-      if (i->is_Add() && (i->outcnt() == 1)) {
-        // Switched input to left side because this is the only use
-      } else if (i->is_If() && (i->in(0) == NULL)) {
-        // This IF is dead because it is dominated by an equivalent IF When
-        // dominating if changed, info is not propagated sparsely to 'this'
-        // Propagating this info further will spuriously identify other
-        // progress.
-        return i;
-      } else
-        set_progress();
-    } else {
-      set_progress();
-    }
-  }
 #endif
 
   while (i != NULL) {
@@ -1255,13 +1259,10 @@ Node *PhaseIterGVN::transform_old(Node* n) {
     // Try idealizing again
     DEBUG_ONLY(is_new = (k->outcnt() == 0);)
     C->remove_modified_node(k);
-    i = k->Ideal(this, /*can_reshape=*/true);
+    i = apply_ideal(k, /*can_reshape=*/true);
     assert(i != k || is_new || (i->outcnt() > 0), "don't return dead nodes");
 #ifndef PRODUCT
     verify_step(k);
-    if (i && VerifyOpto) {
-      set_progress();
-    }
 #endif
   }
 
@@ -1297,7 +1298,7 @@ Node *PhaseIterGVN::transform_old(Node* n) {
   }
 
   // Now check for Identities
-  i = k->Identity(this);      // Look for a nearby replacement
+  i = apply_identity(k);      // Look for a nearby replacement
   if (i != k) {                // Found? Return replacement!
     NOT_PRODUCT(set_progress();)
     add_users_to_worklist(k);
@@ -1338,6 +1339,9 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
 
   while (_stack.is_nonempty()) {
     dead = _stack.node();
+    if (dead->Opcode() == Op_SafePoint) {
+      dead->as_SafePoint()->disconnect_from_root(this);
+    }
     uint progress_state = _stack.index();
     assert(dead != C->root(), "killing root, eh?");
     assert(!dead->is_top(), "add check for top when pushing");
@@ -1375,7 +1379,7 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
                 assert(!(i < imax), "sanity");
               }
             } else {
-              BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(_worklist, in);
+              BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(this, in);
             }
             if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
                 in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
@@ -1440,6 +1444,9 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
 //------------------------------subsume_node-----------------------------------
 // Remove users from node 'old' and add them to node 'nn'.
 void PhaseIterGVN::subsume_node( Node *old, Node *nn ) {
+  if (old->Opcode() == Op_SafePoint) {
+    old->as_SafePoint()->disconnect_from_root(this);
+  }
   assert( old != hash_find(old), "should already been removed" );
   assert( old != C->top(), "cannot subsume top node");
   // Copy debug or profile information to the new version:
@@ -1641,14 +1648,14 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
     // of the mirror load depends on the type of 'n'. See LoadNode::Value().
     //   LoadBarrier?(LoadP(LoadP(AddP(foo:Klass, #java_mirror))))
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    bool has_load_barriers = bs->has_load_barriers();
+    bool has_load_barrier_nodes = bs->has_load_barrier_nodes();
 
     if (use_op == Op_LoadP && use->bottom_type()->isa_rawptr()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
         Node* u = use->fast_out(i2);
         const Type* ut = u->bottom_type();
         if (u->Opcode() == Op_LoadP && ut->isa_instptr()) {
-          if (has_load_barriers) {
+          if (has_load_barrier_nodes) {
             // Search for load barriers behind the load
             for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
               Node* b = u->fast_out(i3);
@@ -1661,6 +1668,8 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
         }
       }
     }
+
+    BarrierSet::barrier_set()->barrier_set_c2()->igvn_add_users_to_worklist(this, use);
   }
 }
 
@@ -1799,19 +1808,19 @@ void PhaseCCP::analyze() {
         // Loading the java mirror from a Klass requires two loads and the type
         // of the mirror load depends on the type of 'n'. See LoadNode::Value().
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        bool has_load_barriers = bs->has_load_barriers();
+        bool has_load_barrier_nodes = bs->has_load_barrier_nodes();
 
         if (m_op == Op_LoadP && m->bottom_type()->isa_rawptr()) {
           for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
             Node* u = m->fast_out(i2);
             const Type* ut = u->bottom_type();
             if (u->Opcode() == Op_LoadP && ut->isa_instptr() && ut != type(u)) {
-              if (has_load_barriers) {
+              if (has_load_barrier_nodes) {
                 // Search for load barriers behind the load
                 for (DUIterator_Fast i3max, i3 = u->fast_outs(i3max); i3 < i3max; i3++) {
                   Node* b = u->fast_out(i3);
                   if (bs->is_gc_barrier_node(b)) {
-                    _worklist.push(b);
+                    worklist.push(b);
                   }
                 }
               }
@@ -1819,6 +1828,8 @@ void PhaseCCP::analyze() {
             }
           }
         }
+
+        BarrierSet::barrier_set()->barrier_set_c2()->ccp_analyze(this, worklist, m);
       }
     }
   }
@@ -2089,6 +2100,8 @@ void Node::set_req_X( uint i, Node *n, PhaseIterGVN *igvn ) {
     default:
       break;
     }
+
+    BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(igvn, old);
   }
 
 }

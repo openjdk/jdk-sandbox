@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
-#include "classfile/javaClasses.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/stringTable.hpp"
@@ -49,6 +49,7 @@
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
@@ -91,7 +92,7 @@ oop Reflection::box(jvalue* value, BasicType type, TRAPS) {
   if (type == T_VOID) {
     return NULL;
   }
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     // regular objects are not boxed
     return (oop) value->l;
   }
@@ -326,13 +327,6 @@ static Klass* basic_type_mirror_to_arrayklass(oop basic_type_mirror, TRAPS) {
   }
 }
 
-#ifdef ASSERT
-static oop basic_type_arrayklass_to_mirror(Klass* basic_type_arrayklass, TRAPS) {
-  BasicType type = TypeArrayKlass::cast(basic_type_arrayklass)->element_type();
-  return Universe::java_mirror(type);
-}
-#endif
-
 arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
   if (element_mirror == NULL) {
     THROW_0(vmSymbols::java_lang_NullPointerException());
@@ -396,35 +390,6 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
 }
 
 
-oop Reflection::array_component_type(oop mirror, TRAPS) {
-  if (java_lang_Class::is_primitive(mirror)) {
-    return NULL;
-  }
-
-  Klass* klass = java_lang_Class::as_Klass(mirror);
-  if (!klass->is_array_klass()) {
-    return NULL;
-  }
-
-  oop result = java_lang_Class::component_mirror(mirror);
-#ifdef ASSERT
-  oop result2 = NULL;
-  if (ArrayKlass::cast(klass)->dimension() == 1) {
-    if (klass->is_typeArray_klass()) {
-      result2 = basic_type_arrayklass_to_mirror(klass, CHECK_NULL);
-    } else {
-      result2 = ObjArrayKlass::cast(klass)->element_klass()->java_mirror();
-    }
-  } else {
-    Klass* lower_dim = ArrayKlass::cast(klass)->lower_dimension();
-    assert(lower_dim->is_array_klass(), "just checking");
-    result2 = lower_dim->java_mirror();
-  }
-  assert(oopDesc::equals(result, result2), "results must be consistent");
-#endif //ASSERT
-  return result;
-}
-
 static bool under_unsafe_anonymous_host(const InstanceKlass* ik, const InstanceKlass* unsafe_anonymous_host) {
   DEBUG_ONLY(int inf_loop_check = 1000 * 1000 * 1000);
   for (;;) {
@@ -453,11 +418,9 @@ static bool can_relax_access_check_for(const Klass* accessor,
     under_unsafe_anonymous_host(accessee_ik, accessor_ik))
     return true;
 
-  if ((RelaxAccessControlCheck &&
+  if (RelaxAccessControlCheck &&
     accessor_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION &&
-    accessee_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION) ||
-    (accessor_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION &&
-    accessee_ik->major_version() < Verifier::STRICTER_ACCESS_CTRL_CHECK_VERSION)) {
+    accessee_ik->major_version() < Verifier::NO_RELAX_ACCESS_CTRL_CHECK_VERSION) {
     return classloader_only &&
       Verifier::relax_access_for(accessor_ik->class_loader()) &&
       accessor_ik->protection_domain() == accessee_ik->protection_domain() &&
@@ -503,7 +466,8 @@ Reflection::VerifyClassAccessResults Reflection::verify_class_access(
   }
   // Allow all accesses from jdk/internal/reflect/MagicAccessorImpl subclasses to
   // succeed trivially.
-  if (current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
+  if (SystemDictionary::reflect_MagicAccessorImpl_klass_is_loaded() &&
+      current_class->is_subclass_of(SystemDictionary::reflect_MagicAccessorImpl_klass())) {
     return ACCESS_OK;
   }
 
@@ -750,10 +714,12 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
   InnerClassesIterator iter(outer);
   constantPoolHandle cp   (THREAD, outer->constants());
   for (; !iter.done(); iter.next()) {
-     int ioff = iter.inner_class_info_index();
-     int ooff = iter.outer_class_info_index();
+    int ioff = iter.inner_class_info_index();
+    int ooff = iter.outer_class_info_index();
 
-     if (inner_is_member && ioff != 0 && ooff != 0) {
+    if (inner_is_member && ioff != 0 && ooff != 0) {
+      if (cp->klass_name_at_matches(outer, ooff) &&
+          cp->klass_name_at_matches(inner, ioff)) {
         Klass* o = cp->klass_at(ooff, CHECK);
         if (o == outer) {
           Klass* i = cp->klass_at(ioff, CHECK);
@@ -761,14 +727,16 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
             return;
           }
         }
-     }
-     if (!inner_is_member && ioff != 0 && ooff == 0 &&
-         cp->klass_name_at_matches(inner, ioff)) {
-        Klass* i = cp->klass_at(ioff, CHECK);
-        if (i == inner) {
-          return;
-        }
-     }
+      }
+    }
+
+    if (!inner_is_member && ioff != 0 && ooff == 0 &&
+        cp->klass_name_at_matches(inner, ioff)) {
+      Klass* i = cp->klass_at(ioff, CHECK);
+      if (i == inner) {
+        return;
+      }
+    }
   }
 
   // 'inner' not declared as an inner klass in outer
@@ -788,8 +756,8 @@ static oop get_mirror_from_signature(const methodHandle& method,
                                      TRAPS) {
 
 
-  if (T_OBJECT == ss->type() || T_ARRAY == ss->type()) {
-    Symbol* name = ss->as_symbol(CHECK_NULL);
+  if (is_reference_type(ss->type())) {
+    Symbol* name = ss->as_symbol();
     oop loader = method->method_holder()->class_loader();
     oop protection_domain = method->method_holder()->protection_domain();
     const Klass* k = SystemDictionary::resolve_or_fail(name,
@@ -1117,11 +1085,12 @@ static oop invoke(InstanceKlass* klass,
           if (method->is_abstract()) {
             // new default: 6531596
             ResourceMark rm(THREAD);
+            stringStream ss;
+            ss.print("'");
+            Method::print_external_name(&ss, target_klass, method->name(), method->signature());
+            ss.print("'");
             Handle h_origexception = Exceptions::new_exception(THREAD,
-              vmSymbols::java_lang_AbstractMethodError(),
-              Method::name_and_sig_as_C_string(target_klass,
-              method->name(),
-              method->signature()));
+              vmSymbols::java_lang_AbstractMethodError(), ss.as_string());
             JavaCallArguments args(h_origexception);
             THROW_ARG_0(vmSymbols::java_lang_reflect_InvocationTargetException(),
               vmSymbols::throwable_void_signature(),
@@ -1136,10 +1105,13 @@ static oop invoke(InstanceKlass* klass,
   // an internal vtable bug. If you ever get this please let Karen know.
   if (method.is_null()) {
     ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(),
-                Method::name_and_sig_as_C_string(klass,
-                reflected_method->name(),
-                reflected_method->signature()));
+    stringStream ss;
+    ss.print("'");
+    Method::print_external_name(&ss, klass,
+                                     reflected_method->name(),
+                                     reflected_method->signature());
+    ss.print("'");
+    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), ss.as_string());
   }
 
   assert(ptypes->is_objArray(), "just checking");

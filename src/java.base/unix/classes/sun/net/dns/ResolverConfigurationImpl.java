@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,14 +68,14 @@ public class ResolverConfigurationImpl
             String line;
             while ((line = in.readLine()) != null) {
                 int maxvalues = maxperkeyword;
-                if (line.length() == 0)
+                if (line.isEmpty())
                    continue;
                 if (line.charAt(0) == '#' || line.charAt(0) == ';')
                     continue;
                 if (!line.startsWith(keyword))
                     continue;
                 String value = line.substring(keyword.length());
-                if (value.length() == 0)
+                if (value.isEmpty())
                     continue;
                 if (value.charAt(0) != ' ' && value.charAt(0) != '\t')
                     continue;
@@ -181,7 +181,7 @@ public class ResolverConfigurationImpl
         // LOCALDOMAIN has absolute priority on Solaris
 
         String localDomain = localDomain0();
-        if (localDomain != null && localDomain.length() > 0) {
+        if (localDomain != null && !localDomain.isEmpty()) {
             sl = new LinkedList<>();
             sl.add(localDomain);
             return sl;
@@ -211,7 +211,7 @@ public class ResolverConfigurationImpl
 
         sl = new LinkedList<>();
         String domain = fallbackDomain0();
-        if (domain != null && domain.length() > 0) {
+        if (domain != null && !domain.isEmpty()) {
             sl.add(domain);
         }
 
@@ -259,13 +259,7 @@ public class ResolverConfigurationImpl
     static native String fallbackDomain0();
 
     static {
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction<>() {
-                public Void run() {
-                    System.loadLibrary("net");
-                    return null;
-                }
-            });
+        jdk.internal.loader.BootLoader.loadLibrary("net");
     }
 
 }

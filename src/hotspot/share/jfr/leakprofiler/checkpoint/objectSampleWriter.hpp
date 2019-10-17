@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,29 +22,25 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP
-#define SHARE_VM_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP
+#define SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP
 
 #include "memory/allocation.hpp"
 
 class Edge;
 class EdgeStore;
 class JfrCheckpointWriter;
-class RoutableEdge;
+class StoredEdge;
 
 class ObjectSampleWriter : public StackObj {
  private:
   JfrCheckpointWriter& _writer;
-  const EdgeStore* const _store;
-
-  void write(const RoutableEdge* edge);
-  void write_chain(const RoutableEdge& edge);
-
+  EdgeStore* const _store;
+  void write(const StoredEdge* edge);
  public:
-  ObjectSampleWriter(JfrCheckpointWriter& writer, const EdgeStore* store);
+  ObjectSampleWriter(JfrCheckpointWriter& writer, EdgeStore* store);
   ~ObjectSampleWriter();
-
-  bool operator()(const RoutableEdge& edge);
+  bool operator()(StoredEdge& edge);
 };
 
-#endif // SHARE_VM_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP
+#endif // SHARE_JFR_LEAKPROFILER_CHECKPOINT_OBJECTSAMPLEWRITER_HPP

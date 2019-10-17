@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_CPU_BSD_X86_VM_ATOMIC_BSD_X86_HPP
-#define OS_CPU_BSD_X86_VM_ATOMIC_BSD_X86_HPP
+#ifndef OS_CPU_BSD_X86_ATOMIC_BSD_X86_HPP
+#define OS_CPU_BSD_X86_ATOMIC_BSD_X86_HPP
 
 // Implementation of class atomic
 
@@ -136,7 +136,7 @@ inline T Atomic::PlatformCmpxchg<8>::operator()(T exchange_value,
 
 extern "C" {
   // defined in bsd_x86.s
-  int64_t _Atomic_cmpxchg_long(int64_t, volatile int64_t*, int64_t, bool);
+  int64_t _Atomic_cmpxchg_long(int64_t, volatile int64_t*, int64_t);
   void _Atomic_move_long(const volatile int64_t* src, volatile int64_t* dst);
 }
 
@@ -169,4 +169,4 @@ inline void Atomic::PlatformStore<8>::operator()(T store_value,
 
 #endif // AMD64
 
-#endif // OS_CPU_BSD_X86_VM_ATOMIC_BSD_X86_HPP
+#endif // OS_CPU_BSD_X86_ATOMIC_BSD_X86_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,54 @@
  * questions.
  */
 
+package gc.logging;
+
 /*
  * @test TestGCId
  * @bug 8043607
  * @summary Ensure that the GCId is logged
- * @requires vm.gc=="null"
  * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI gc.logging.TestGCId
  */
 
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
+import jtreg.SkippedException;
+import sun.hotspot.gc.GC;
 
 public class TestGCId {
   public static void main(String[] args) throws Exception {
-    testGCId("UseParallelGC");
-    testGCId("UseG1GC");
-    testGCId("UseConcMarkSweepGC");
-    testGCId("UseSerialGC");
+    boolean noneGCSupported = true;
+
+    if (GC.Parallel.isSupported()) {
+      noneGCSupported = false;
+      testGCId("UseParallelGC");
+    }
+    if (GC.G1.isSupported()) {
+      noneGCSupported = false;
+      testGCId("UseG1GC");
+    }
+    if (GC.ConcMarkSweep.isSupported()) {
+      noneGCSupported = false;
+      testGCId("UseConcMarkSweepGC");
+    }
+    if (GC.Serial.isSupported()) {
+      noneGCSupported = false;
+      testGCId("UseSerialGC");
+    }
+    if (GC.Shenandoah.isSupported()) {
+      noneGCSupported = false;
+      testGCId("UseShenandoahGC");
+    }
+
+    if (noneGCSupported) {
+      throw new SkippedException("Skipping test because none of Parallel/G1/ConcMarkSweep/Serial/Shenandoah is supported.");
+    }
   }
 
   private static void verifyContainsGCIDs(OutputAnalyzer output) {
@@ -51,7 +79,7 @@ public class TestGCId {
 
   private static void testGCId(String gcFlag) throws Exception {
     ProcessBuilder pb_default =
-      ProcessTools.createJavaProcessBuilder("-XX:+" + gcFlag, "-Xlog:gc", "-Xmx10M", GCTest.class.getName());
+      ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions", "-XX:+" + gcFlag, "-Xlog:gc", "-Xmx10M", GCTest.class.getName());
     verifyContainsGCIDs(new OutputAnalyzer(pb_default.start()));
   }
 

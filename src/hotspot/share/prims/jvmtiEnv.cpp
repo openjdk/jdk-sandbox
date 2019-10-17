@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
@@ -73,6 +74,7 @@
 #include "services/threadService.hpp"
 #include "utilities/exceptions.hpp"
 #include "utilities/preserveException.hpp"
+#include "utilities/utf8.hpp"
 
 
 #define FIXLATER 0 // REMOVE this when completed.
@@ -470,7 +472,7 @@ jvmtiError
 JvmtiEnv::GetObjectSize(jobject object, jlong* size_ptr) {
   oop mirror = JNIHandles::resolve_external_guard(object);
   NULL_CHECK(mirror, JVMTI_ERROR_INVALID_OBJECT);
-  *size_ptr = (jlong)mirror->size() * wordSize;
+  *size_ptr = (jlong)Universe::heap()->obj_size(mirror) * wordSize;
   return JVMTI_ERROR_NONE;
 } /* end GetObjectSize */
 
@@ -540,13 +542,6 @@ JvmtiEnv::SetEventNotificationMode(jvmtiEventMode mode, jvmtiEvent event_type, j
       record_class_file_load_hook_enabled();
     }
 
-    if (event_type == JVMTI_EVENT_SAMPLED_OBJECT_ALLOC) {
-      if (enabled) {
-        ThreadHeapSampler::enable();
-      } else {
-        ThreadHeapSampler::disable();
-      }
-    }
     JvmtiEventController::set_user_enabled(this, (JavaThread*) NULL, event_type, enabled);
   } else {
     // We have a specified event_thread.
@@ -926,7 +921,7 @@ JvmtiEnv::GetAllThreads(jint* threads_count_ptr, jthread** threads_ptr) {
   thread_objs = NEW_RESOURCE_ARRAY(Handle, nthreads);
   NULL_CHECK(thread_objs, JVMTI_ERROR_OUT_OF_MEMORY);
 
-  for (int i=0; i < nthreads; i++) {
+  for (int i = 0; i < nthreads; i++) {
     thread_objs[i] = Handle(tle.get_threadObj(i));
   }
 
@@ -948,7 +943,7 @@ JvmtiEnv::SuspendThread(JavaThread* java_thread) {
   }
 
   {
-    MutexLockerEx ml(java_thread->SR_lock(), Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(java_thread->SR_lock(), Mutex::_no_safepoint_check_flag);
     if (java_thread->is_external_suspend()) {
       // don't allow nested external suspend requests.
       return (JVMTI_ERROR_THREAD_SUSPENDED);
@@ -988,7 +983,7 @@ JvmtiEnv::SuspendThreadList(jint request_count, const jthread* request_list, jvm
     }
 
     {
-      MutexLockerEx ml(java_thread->SR_lock(), Mutex::_no_safepoint_check_flag);
+      MutexLocker ml(java_thread->SR_lock(), Mutex::_no_safepoint_check_flag);
       if (java_thread->is_external_suspend()) {
         // don't allow nested external suspend requests.
         results[i] = JVMTI_ERROR_THREAD_SUSPENDED;
@@ -1106,7 +1101,7 @@ JvmtiEnv::InterruptThread(jthread thread) {
     return err;
   }
 
-  Thread::interrupt(java_thread);
+  java_thread->interrupt();
 
   return JVMTI_ERROR_NONE;
 } /* end InterruptThread */
@@ -1151,16 +1146,14 @@ JvmtiEnv::GetThreadInfo(jthread thread, jvmtiThreadInfo* info_ptr) {
   Handle context_class_loader;
   bool          is_daemon;
 
-  { MutexLocker mu(Threads_lock);
+  name = Handle(current_thread, java_lang_Thread::name(thread_obj()));
+  priority = java_lang_Thread::priority(thread_obj());
+  thread_group = Handle(current_thread, java_lang_Thread::threadGroup(thread_obj()));
+  is_daemon = java_lang_Thread::is_daemon(thread_obj());
 
-    name = Handle(current_thread, java_lang_Thread::name(thread_obj()));
-    priority = java_lang_Thread::priority(thread_obj());
-    thread_group = Handle(current_thread, java_lang_Thread::threadGroup(thread_obj()));
-    is_daemon = java_lang_Thread::is_daemon(thread_obj());
+  oop loader = java_lang_Thread::context_class_loader(thread_obj());
+  context_class_loader = Handle(current_thread, loader);
 
-    oop loader = java_lang_Thread::context_class_loader(thread_obj());
-    context_class_loader = Handle(current_thread, loader);
-  }
   { const char *n;
 
     if (name() != NULL) {
@@ -1409,13 +1402,10 @@ JvmtiEnv::GetThreadGroupInfo(jthreadGroup group, jvmtiThreadGroupInfo* info_ptr)
   bool is_daemon;
   ThreadPriority max_priority;
 
-  { MutexLocker mu(Threads_lock);
-
-    name         = java_lang_ThreadGroup::name(group_obj());
-    parent_group = Handle(current_thread, java_lang_ThreadGroup::parent(group_obj()));
-    is_daemon    = java_lang_ThreadGroup::is_daemon(group_obj());
-    max_priority = java_lang_ThreadGroup::maxPriority(group_obj());
-  }
+  name         = java_lang_ThreadGroup::name(group_obj());
+  parent_group = Handle(current_thread, java_lang_ThreadGroup::parent(group_obj()));
+  is_daemon    = java_lang_ThreadGroup::is_daemon(group_obj());
+  max_priority = java_lang_ThreadGroup::maxPriority(group_obj());
 
   info_ptr->is_daemon    = is_daemon;
   info_ptr->max_priority = max_priority;
@@ -1455,7 +1445,7 @@ JvmtiEnv::GetThreadGroupChildren(jthreadGroup group, jint* thread_count_ptr, jth
   Handle group_hdl(current_thread, group_obj);
 
   { // Cannot allow thread or group counts to change.
-    MutexLocker mu(Threads_lock);
+    ObjectLocker ol(group_hdl, current_thread);
 
     nthreads = java_lang_ThreadGroup::nthreads(group_hdl());
     ngroups  = java_lang_ThreadGroup::ngroups(group_hdl());
@@ -1465,7 +1455,7 @@ JvmtiEnv::GetThreadGroupChildren(jthreadGroup group, jint* thread_count_ptr, jth
       objArrayOop threads = java_lang_ThreadGroup::threads(group_hdl());
       assert(nthreads <= threads->length(), "too many threads");
       thread_objs = NEW_RESOURCE_ARRAY(Handle,nthreads);
-      for (int i=0, j=0; i<nthreads; i++) {
+      for (int i = 0, j = 0; i < nthreads; i++) {
         oop thread_obj = threads->obj_at(i);
         assert(thread_obj != NULL, "thread_obj is NULL");
         JavaThread *java_thread = NULL;
@@ -1497,15 +1487,14 @@ JvmtiEnv::GetThreadGroupChildren(jthreadGroup group, jint* thread_count_ptr, jth
       objArrayOop groups = java_lang_ThreadGroup::groups(group_hdl());
       assert(ngroups <= groups->length(), "too many groups");
       group_objs = NEW_RESOURCE_ARRAY(Handle,ngroups);
-      for (int i=0; i<ngroups; i++) {
+      for (int i = 0; i < ngroups; i++) {
         oop group_obj = groups->obj_at(i);
         assert(group_obj != NULL, "group_obj != NULL");
         group_objs[i] = Handle(current_thread, group_obj);
       }
     }
-  }
+  } // ThreadGroup unlocked here
 
-  // have to make global handles outside of Threads_lock
   *group_count_ptr  = ngroups;
   *thread_count_ptr = nthreads;
   *threads_ptr     = new_jthreadArray(nthreads, thread_objs);
@@ -3240,23 +3229,23 @@ JvmtiEnv::CreateRawMonitor(const char* name, jrawMonitorID* monitor_ptr) {
 jvmtiError
 JvmtiEnv::DestroyRawMonitor(JvmtiRawMonitor * rmonitor) {
   if (Threads::number_of_threads() == 0) {
-    // Remove this  monitor from pending raw monitors list
+    // Remove this monitor from pending raw monitors list
     // if it has entered in onload or start phase.
     JvmtiPendingMonitors::destroy(rmonitor);
   } else {
     Thread* thread  = Thread::current();
-    if (rmonitor->is_entered(thread)) {
+    if (rmonitor->owner() == thread) {
       // The caller owns this monitor which we are about to destroy.
       // We exit the underlying synchronization object so that the
       // "delete monitor" call below can work without an assertion
       // failure on systems that don't like destroying synchronization
       // objects that are locked.
       int r;
-      intptr_t recursion = rmonitor->recursions();
-      for (intptr_t i=0; i <= recursion; i++) {
+      int recursion = rmonitor->recursions();
+      for (int i = 0; i <= recursion; i++) {
         r = rmonitor->raw_exit(thread);
-        assert(r == ObjectMonitor::OM_OK, "raw_exit should have worked");
-        if (r != ObjectMonitor::OM_OK) {  // robustness
+        assert(r == JvmtiRawMonitor::M_OK, "raw_exit should have worked");
+        if (r != JvmtiRawMonitor::M_OK) {  // robustness
           return JVMTI_ERROR_INTERNAL;
         }
       }
@@ -3282,7 +3271,7 @@ JvmtiEnv::DestroyRawMonitor(JvmtiRawMonitor * rmonitor) {
 jvmtiError
 JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
   if (Threads::number_of_threads() == 0) {
-    // No JavaThreads exist so ObjectMonitor enter cannot be
+    // No JavaThreads exist so JvmtiRawMonitor enter cannot be
     // used, add this raw monitor to the pending list.
     // The pending monitors will be actually entered when
     // the VM is setup.
@@ -3290,20 +3279,10 @@ JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
     // in thread.cpp.
     JvmtiPendingMonitors::enter(rmonitor);
   } else {
-    int r = 0;
     Thread* thread = Thread::current();
-
     if (thread->is_Java_thread()) {
       JavaThread* current_thread = (JavaThread*)thread;
 
-#ifdef PROPER_TRANSITIONS
-      // Not really unknown but ThreadInVMfromNative does more than we want
-      ThreadInVMfromUnknown __tiv;
-      {
-        ThreadBlockInVM __tbivm(current_thread);
-        r = rmonitor->raw_enter(current_thread);
-      }
-#else
       /* Transition to thread_blocked without entering vm state          */
       /* This is really evil. Normally you can't undo _thread_blocked    */
       /* transitions like this because it would cause us to miss a       */
@@ -3319,22 +3298,11 @@ JvmtiEnv::RawMonitorEnter(JvmtiRawMonitor * rmonitor) {
              current_thread->frame_anchor()->walkable(), "Must be walkable");
       current_thread->set_thread_state(_thread_blocked);
 
-      r = rmonitor->raw_enter(current_thread);
+      rmonitor->raw_enter(current_thread);
       // restore state, still at a safepoint safe state
       current_thread->set_thread_state(state);
-
-#endif /* PROPER_TRANSITIONS */
-      assert(r == ObjectMonitor::OM_OK, "raw_enter should have worked");
     } else {
-      if (thread->is_Named_thread()) {
-        r = rmonitor->raw_enter(thread);
-      } else {
-        ShouldNotReachHere();
-      }
-    }
-
-    if (r != ObjectMonitor::OM_OK) {  // robustness
-      return JVMTI_ERROR_INTERNAL;
+      rmonitor->raw_enter(thread);
     }
   }
   return JVMTI_ERROR_NONE;
@@ -3353,31 +3321,10 @@ JvmtiEnv::RawMonitorExit(JvmtiRawMonitor * rmonitor) {
       err = JVMTI_ERROR_NOT_MONITOR_OWNER;
     }
   } else {
-    int r = 0;
     Thread* thread = Thread::current();
-
-    if (thread->is_Java_thread()) {
-      JavaThread* current_thread = (JavaThread*)thread;
-#ifdef PROPER_TRANSITIONS
-      // Not really unknown but ThreadInVMfromNative does more than we want
-      ThreadInVMfromUnknown __tiv;
-#endif /* PROPER_TRANSITIONS */
-      r = rmonitor->raw_exit(current_thread);
-    } else {
-      if (thread->is_Named_thread()) {
-        r = rmonitor->raw_exit(thread);
-      } else {
-        ShouldNotReachHere();
-      }
-    }
-
-    if (r == ObjectMonitor::OM_ILLEGAL_MONITOR_STATE) {
+    int r = rmonitor->raw_exit(thread);
+    if (r == JvmtiRawMonitor::M_ILLEGAL_MONITOR_STATE) {
       err = JVMTI_ERROR_NOT_MONITOR_OWNER;
-    } else {
-      assert(r == ObjectMonitor::OM_OK, "raw_exit should have worked");
-      if (r != ObjectMonitor::OM_OK) {  // robustness
-        err = JVMTI_ERROR_INTERNAL;
-      }
     }
   }
   return err;
@@ -3392,14 +3339,7 @@ JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
 
   if (thread->is_Java_thread()) {
     JavaThread* current_thread = (JavaThread*)thread;
-#ifdef PROPER_TRANSITIONS
-    // Not really unknown but ThreadInVMfromNative does more than we want
-    ThreadInVMfromUnknown __tiv;
-    {
-      ThreadBlockInVM __tbivm(current_thread);
-      r = rmonitor->raw_wait(millis, true, current_thread);
-    }
-#else
+
     /* Transition to thread_blocked without entering vm state          */
     /* This is really evil. Normally you can't undo _thread_blocked    */
     /* transitions like this because it would cause us to miss a       */
@@ -3419,57 +3359,31 @@ JvmtiEnv::RawMonitorWait(JvmtiRawMonitor * rmonitor, jlong millis) {
     // restore state, still at a safepoint safe state
     current_thread->set_thread_state(state);
 
-#endif /* PROPER_TRANSITIONS */
   } else {
-    if (thread->is_Named_thread()) {
-      r = rmonitor->raw_wait(millis, true, thread);
-    } else {
-      ShouldNotReachHere();
-    }
+      r = rmonitor->raw_wait(millis, false, thread);
+      assert(r != JvmtiRawMonitor::M_INTERRUPTED, "non-JavaThread can't be interrupted");
   }
 
   switch (r) {
-  case ObjectMonitor::OM_INTERRUPTED:
+  case JvmtiRawMonitor::M_INTERRUPTED:
     return JVMTI_ERROR_INTERRUPT;
-  case ObjectMonitor::OM_ILLEGAL_MONITOR_STATE:
+  case JvmtiRawMonitor::M_ILLEGAL_MONITOR_STATE:
     return JVMTI_ERROR_NOT_MONITOR_OWNER;
+  default:
+    return JVMTI_ERROR_NONE;
   }
-  assert(r == ObjectMonitor::OM_OK, "raw_wait should have worked");
-  if (r != ObjectMonitor::OM_OK) {  // robustness
-    return JVMTI_ERROR_INTERNAL;
-  }
-
-  return JVMTI_ERROR_NONE;
 } /* end RawMonitorWait */
 
 
 // rmonitor - pre-checked for validity
 jvmtiError
 JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
-  int r = 0;
   Thread* thread = Thread::current();
+  int r = rmonitor->raw_notify(thread);
 
-  if (thread->is_Java_thread()) {
-    JavaThread* current_thread = (JavaThread*)thread;
-    // Not really unknown but ThreadInVMfromNative does more than we want
-    ThreadInVMfromUnknown __tiv;
-    r = rmonitor->raw_notify(current_thread);
-  } else {
-    if (thread->is_Named_thread()) {
-      r = rmonitor->raw_notify(thread);
-    } else {
-      ShouldNotReachHere();
-    }
-  }
-
-  if (r == ObjectMonitor::OM_ILLEGAL_MONITOR_STATE) {
+  if (r == JvmtiRawMonitor::M_ILLEGAL_MONITOR_STATE) {
     return JVMTI_ERROR_NOT_MONITOR_OWNER;
   }
-  assert(r == ObjectMonitor::OM_OK, "raw_notify should have worked");
-  if (r != ObjectMonitor::OM_OK) {  // robustness
-    return JVMTI_ERROR_INTERNAL;
-  }
-
   return JVMTI_ERROR_NONE;
 } /* end RawMonitorNotify */
 
@@ -3477,29 +3391,12 @@ JvmtiEnv::RawMonitorNotify(JvmtiRawMonitor * rmonitor) {
 // rmonitor - pre-checked for validity
 jvmtiError
 JvmtiEnv::RawMonitorNotifyAll(JvmtiRawMonitor * rmonitor) {
-  int r = 0;
   Thread* thread = Thread::current();
+  int r = rmonitor->raw_notifyAll(thread);
 
-  if (thread->is_Java_thread()) {
-    JavaThread* current_thread = (JavaThread*)thread;
-    ThreadInVMfromUnknown __tiv;
-    r = rmonitor->raw_notifyAll(current_thread);
-  } else {
-    if (thread->is_Named_thread()) {
-      r = rmonitor->raw_notifyAll(thread);
-    } else {
-      ShouldNotReachHere();
-    }
-  }
-
-  if (r == ObjectMonitor::OM_ILLEGAL_MONITOR_STATE) {
+  if (r == JvmtiRawMonitor::M_ILLEGAL_MONITOR_STATE) {
     return JVMTI_ERROR_NOT_MONITOR_OWNER;
   }
-  assert(r == ObjectMonitor::OM_OK, "raw_notifyAll should have worked");
-  if (r != ObjectMonitor::OM_OK) {  // robustness
-    return JVMTI_ERROR_INTERNAL;
-  }
-
   return JVMTI_ERROR_NONE;
 } /* end RawMonitorNotifyAll */
 
@@ -3683,7 +3580,7 @@ JvmtiEnv::GetSystemProperties(jint* count_ptr, char*** property_ptr) {
         strcpy(*tmp_value, key);
       } else {
         // clean up previously allocated memory.
-        for (int j=0; j<readable_count; j++) {
+        for (int j = 0; j < readable_count; j++) {
           Deallocate((unsigned char*)*property_ptr+j);
         }
         Deallocate((unsigned char*)property_ptr);

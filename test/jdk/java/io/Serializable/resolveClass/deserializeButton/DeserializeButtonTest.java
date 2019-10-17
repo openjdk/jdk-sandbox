@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 4413434
- * @library /lib/testlibrary
- * @build JarUtils Foo
+ * @library /test/lib
+ * @build jdk.test.lib.util.JarUtils Foo
  * @run main DeserializeButtonTest
  * @summary Verify that class loaded outside of application class loader is
  *          correctly resolved during deserialization when read in by custom
@@ -38,13 +38,16 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import jdk.test.lib.util.JarUtils;
+
 public class DeserializeButtonTest {
     public static void main(String[] args) throws Exception {
         setup();
 
         try (URLClassLoader ldr =
             new URLClassLoader(new URL[]{ new URL("file:cb.jar") })) {
-            Runnable r = (Runnable) Class.forName("Foo", true, ldr).newInstance();
+            Runnable r = (Runnable) Class.forName("Foo", true, ldr)
+                    .getConstructor().newInstance();
             r.run();
         }
     }

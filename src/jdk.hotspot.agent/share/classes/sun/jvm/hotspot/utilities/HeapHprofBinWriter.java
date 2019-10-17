@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.classfile.*;
+import sun.jvm.hotspot.gc.z.ZCollectedHeap;
 
 /*
  * This class writes Java heap in hprof binary format. This format is
@@ -388,11 +389,12 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     public synchronized void write(String fileName) throws IOException {
+        VM vm = VM.getVM();
+
         // open file stream and create buffered data output stream
         fos = new FileOutputStream(fileName);
         out = new DataOutputStream(new BufferedOutputStream(fos));
 
-        VM vm = VM.getVM();
         dbg = vm.getDebugger();
         objectHeap = vm.getObjectHeap();
 
@@ -706,8 +708,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
         int frameSerialNum = 0;
         int numThreads = 0;
         Threads threads = VM.getVM().getThreads();
-
-        for (JavaThread thread = threads.first(); thread != null; thread = thread.next()) {
+        for (int i = 0; i < threads.getNumberOfThreads(); i++) {
+            JavaThread thread = threads.getJavaThreadAt(i);
             Oop threadObj = thread.getThreadObj();
             if (threadObj != null && !thread.isExiting() && !thread.isHiddenFromExternalView()) {
 
@@ -936,10 +938,16 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     }
 
     protected void writeInstance(Instance instance) throws IOException {
+        Klass klass = instance.getKlass();
+        if (klass.getClassLoaderData() == null) {
+            // Ignoring this object since the corresponding Klass is not loaded.
+            // Might be a dormant archive object.
+            return;
+        }
+
         out.writeByte((byte) HPROF_GC_INSTANCE_DUMP);
         writeObjectID(instance);
         out.writeInt(DUMMY_STACK_TRACE_ID);
-        Klass klass = instance.getKlass();
         writeObjectID(klass.getJavaMirror());
 
         ClassData cd = (ClassData) classDataCache.get(klass);
@@ -1090,10 +1098,15 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
     private void writeSymbol(Symbol sym) throws IOException {
         // If name is already written don't write it again.
         if (names.add(sym)) {
-            byte[] buf = sym.asString().getBytes("UTF-8");
-            writeHeader(HPROF_UTF8, buf.length + OBJ_ID_SIZE);
-            writeSymbolID(sym);
-            out.write(buf);
+            if(sym != null) {
+              byte[] buf = sym.asString().getBytes("UTF-8");
+              writeHeader(HPROF_UTF8, buf.length + OBJ_ID_SIZE);
+              writeSymbolID(sym);
+              out.write(buf);
+           } else {
+              writeHeader(HPROF_UTF8, 0 + OBJ_ID_SIZE);
+              writeSymbolID(null);
+           }
         }
     }
 
@@ -1144,7 +1157,8 @@ public class HeapHprofBinWriter extends AbstractHeapGraphWriter {
 
     private void writeSymbolID(Symbol sym) throws IOException {
         assert names.contains(sym);
-        writeObjectID(getAddressValue(sym.getAddress()));
+        long address = (sym != null) ? getAddressValue(sym.getAddress()) : getAddressValue(null);
+        writeObjectID(address);
     }
 
     private void writeObjectID(long address) throws IOException {

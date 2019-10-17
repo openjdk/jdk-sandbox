@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -449,14 +449,7 @@ class XWindow extends XBaseWindow implements X11ComponentPeer {
             if (!doEraseBackground()) {
                 return;
             }
-            // 6304250: XAWT: Items in choice show a blue border on OpenGL + Solaris10 when background color is set
-            // Note: When OGL is enabled, surfaceData.pixelFor() will not
-            // return a pixel value appropriate for passing to
-            // XSetWindowBackground().  Therefore, we will use the ColorModel
-            // for this component in order to calculate a pixel value from
-            // the given RGB value.
-            ColorModel cm = getColorModel();
-            int pixel = PixelConverter.instance.rgbToPixel(c.getRGB(), cm);
+            int pixel = surfaceData.pixelFor(c.getRGB());
             XlibWrapper.XSetWindowBackground(XToolkit.getDisplay(), getContentWindow(), pixel);
             XlibWrapper.XClearWindow(XToolkit.getDisplay(), getContentWindow());
         }
@@ -1093,7 +1086,7 @@ class XWindow extends XBaseWindow implements X11ComponentPeer {
     // called directly from this package, unlike handleKeyRelease.
     // un-final it if you need to override it in a subclass.
     final void handleKeyPress(XKeyEvent ev) {
-        long keysym[] = new long[2];
+        long[] keysym = new long[2];
         int unicodeKey = 0;
         keysym[0] = XConstants.NoSymbol;
 

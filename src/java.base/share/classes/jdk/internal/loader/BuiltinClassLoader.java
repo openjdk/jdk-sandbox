@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 
 package jdk.internal.loader;
 
-import java.io.File;
-import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.module.ModuleDescriptor;
@@ -40,7 +38,6 @@ import java.nio.ByteBuffer;
 import java.security.AccessController;
 import java.security.CodeSigner;
 import java.security.CodeSource;
-import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -60,9 +57,12 @@ import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import java.util.stream.Stream;
 
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
 import jdk.internal.module.ModulePatcher.PatchedModuleReader;
 import jdk.internal.module.Resources;
+import jdk.internal.vm.annotation.Stable;
+import sun.security.util.LazyCodeSourcePermissionCollection;
 
 
 /**
@@ -116,14 +116,18 @@ public class BuiltinClassLoader
     private static class LoadedModule {
         private final BuiltinClassLoader loader;
         private final ModuleReference mref;
-        private final URL codeSourceURL;          // may be null
+        private final URI uri;                      // may be null
+        private @Stable URL codeSourceURL;          // may be null
 
         LoadedModule(BuiltinClassLoader loader, ModuleReference mref) {
             URL url = null;
-            if (mref.location().isPresent()) {
-                try {
-                    url = mref.location().get().toURL();
-                } catch (MalformedURLException | IllegalArgumentException e) { }
+            this.uri = mref.location().orElse(null);
+
+            // for non-jrt schemes we need to resolve the codeSourceURL
+            // eagerly during bootstrap since the handler might be
+            // overridden
+            if (uri != null && !"jrt".equals(uri.getScheme())) {
+                url = createURL(uri);
             }
             this.loader = loader;
             this.mref = mref;
@@ -133,7 +137,23 @@ public class BuiltinClassLoader
         BuiltinClassLoader loader() { return loader; }
         ModuleReference mref() { return mref; }
         String name() { return mref.descriptor().name(); }
-        URL codeSourceURL() { return codeSourceURL; }
+
+        URL codeSourceURL() {
+            URL url = codeSourceURL;
+            if (url == null && uri != null) {
+                codeSourceURL = url = createURL(uri);
+            }
+            return url;
+        }
+
+        private URL createURL(URI uri) {
+            URL url = null;
+            try {
+                url = uri.toURL();
+            } catch (MalformedURLException | IllegalArgumentException e) {
+            }
+            return url;
+        }
     }
 
 
@@ -161,7 +181,7 @@ public class BuiltinClassLoader
         this.parent = parent;
         this.ucp = ucp;
 
-        this.nameToModule = new ConcurrentHashMap<>();
+        this.nameToModule = new ConcurrentHashMap<>(32);
         this.moduleToReader = new ConcurrentHashMap<>();
     }
 
@@ -637,7 +657,7 @@ public class BuiltinClassLoader
      * binary name. This method returns {@code null} when the class is not
      * found.
      */
-    protected Class<?> loadClassOrNull(String cn) {
+    protected final Class<?> loadClassOrNull(String cn) {
         return loadClassOrNull(cn, false);
     }
 
@@ -862,7 +882,8 @@ public class BuiltinClassLoader
      * Manifest are used to get the package version and sealing information.
      *
      * @throws IllegalArgumentException if the package name duplicates an
-     * existing package either in this class loader or one of its ancestors
+     *      existing package either in this class loader or one of its ancestors
+     * @throws SecurityException if the package name is untrusted in the manifest
      */
     private Package definePackage(String pn, Manifest man, URL url) {
         String specTitle = null;
@@ -875,7 +896,8 @@ public class BuiltinClassLoader
         URL sealBase = null;
 
         if (man != null) {
-            Attributes attr = man.getAttributes(pn.replace('.', '/').concat("/"));
+            Attributes attr = SharedSecrets.javaUtilJarAccess()
+                    .getTrustedAttributes(man, pn.replace('.', '/').concat("/"));
             if (attr != null) {
                 specTitle = attr.getValue(Attributes.Name.SPECIFICATION_TITLE);
                 specVersion = attr.getValue(Attributes.Name.SPECIFICATION_VERSION);
@@ -921,10 +943,12 @@ public class BuiltinClassLoader
     /**
      * Returns {@code true} if the specified package name is sealed according to
      * the given manifest.
+     *
+     * @throws SecurityException if the package name is untrusted in the manifest
      */
     private boolean isSealed(String pn, Manifest man) {
-        String path = pn.replace('.', '/').concat("/");
-        Attributes attr = man.getAttributes(path);
+        Attributes attr = SharedSecrets.javaUtilJarAccess()
+                .getTrustedAttributes(man, pn.replace('.', '/').concat("/"));
         String sealed = null;
         if (attr != null)
             sealed = attr.getValue(Attributes.Name.SEALED);
@@ -940,38 +964,8 @@ public class BuiltinClassLoader
      */
     @Override
     protected PermissionCollection getPermissions(CodeSource cs) {
-        PermissionCollection perms = super.getPermissions(cs);
-
-        // add the permission to access the resource
-        URL url = cs.getLocation();
-        if (url == null)
-            return perms;
-
-        // avoid opening connection when URL is to resource in run-time image
-        if (url.getProtocol().equals("jrt")) {
-            perms.add(new RuntimePermission("accessSystemModules"));
-            return perms;
-        }
-
-        // open connection to determine the permission needed
-        try {
-            Permission p = url.openConnection().getPermission();
-            if (p != null) {
-                // for directories then need recursive access
-                if (p instanceof FilePermission) {
-                    String path = p.getName();
-                    if (path.endsWith(File.separator)) {
-                        path += "-";
-                        p = new FilePermission(path, "read");
-                    }
-                }
-                perms.add(p);
-            }
-        } catch (IOException ioe) { }
-
-        return perms;
+        return new LazyCodeSourcePermissionCollection(super.getPermissions(cs), cs);
     }
-
 
     // -- miscellaneous supporting methods
 

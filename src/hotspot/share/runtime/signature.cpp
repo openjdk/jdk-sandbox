@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -50,7 +51,7 @@ SignatureIterator::SignatureIterator(Symbol* signature) {
 }
 
 void SignatureIterator::expect(char c) {
-  if (_signature->byte_at(_index) != c) fatal("expecting %c", c);
+  if (_signature->char_at(_index) != c) fatal("expecting %c", c);
   _index++;
 }
 
@@ -61,7 +62,7 @@ int SignatureIterator::parse_type() {
   //       work (stack underflow for some tests) - this seems to be a VC++ 6.0
   //       compiler bug (was problem - gri 4/27/2000).
   int size = -1;
-  switch(_signature->byte_at(_index)) {
+  switch(_signature->char_at(_index)) {
     case 'B': do_byte  (); if (_parameter_index < 0 ) _return_type = T_BYTE;
               _index++; size = T_BYTE_size   ; break;
     case 'C': do_char  (); if (_parameter_index < 0 ) _return_type = T_CHAR;
@@ -83,7 +84,7 @@ int SignatureIterator::parse_type() {
     case 'L':
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->byte_at(_index++) != ';') ;
+        while (sig->char_at(_index++) != ';') ;
         do_object(begin, _index);
       }
       if (_parameter_index < 0 ) _return_type = T_OBJECT;
@@ -92,11 +93,11 @@ int SignatureIterator::parse_type() {
     case '[':
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->byte_at(_index) == '[') {
+        while (sig->char_at(_index) == '[') {
           _index++;
         }
-        if (sig->byte_at(_index) == 'L') {
-          while (sig->byte_at(_index++) != ';') ;
+        if (sig->char_at(_index) == 'L') {
+          while (sig->char_at(_index++) != ';') ;
         } else {
           _index++;
         }
@@ -123,21 +124,12 @@ void SignatureIterator::check_signature_end() {
 }
 
 
-void SignatureIterator::dispatch_field() {
-  // no '(', just one (field) type
-  _index = 0;
-  _parameter_index = 0;
-  parse_type();
-  check_signature_end();
-}
-
-
 void SignatureIterator::iterate_parameters() {
   // Parse parameters
   _index = 0;
   _parameter_index = 0;
   expect('(');
-  while (_signature->byte_at(_index) != ')') _parameter_index += parse_type();
+  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
   expect(')');
   _parameter_index = 0;
 }
@@ -196,7 +188,6 @@ void SignatureIterator::iterate_parameters( uint64_t fingerprint ) {
         break;
       case done_parm:
         return;
-        break;
       default:
         tty->print_cr("*** parameter is " UINT64_FORMAT, fingerprint & parameter_feature_mask);
         tty->print_cr("*** fingerprint is " PTR64_FORMAT, saved_fingerprint);
@@ -205,7 +196,6 @@ void SignatureIterator::iterate_parameters( uint64_t fingerprint ) {
     }
     fingerprint >>= parameter_feature_size;
   }
-  _parameter_index = 0;
 }
 
 
@@ -217,8 +207,8 @@ void SignatureIterator::iterate_returntype() {
   // Need to skip over each type in the signature's argument list until a
   // closing ')' is found., then get the return type.  We cannot just scan
   // for the first ')' because ')' is a legal character in a type name.
-  while (sig->byte_at(_index) != ')') {
-    switch(sig->byte_at(_index)) {
+  while (sig->char_at(_index) != ')') {
+    switch(sig->char_at(_index)) {
       case 'B':
       case 'C':
       case 'D':
@@ -234,17 +224,14 @@ void SignatureIterator::iterate_returntype() {
         break;
       case 'L':
         {
-          while (sig->byte_at(_index++) != ';') ;
+          while (sig->char_at(_index++) != ';') ;
         }
         break;
       case '[':
         {
-          int begin = ++_index;
-          while (sig->byte_at(_index) == '[') {
-            _index++;
-          }
-          if (sig->byte_at(_index) == 'L') {
-            while (sig->byte_at(_index++) != ';') ;
+          while (sig->char_at(++_index) == '[') ;
+          if (sig->char_at(_index) == 'L') {
+            while (sig->char_at(_index++) != ';') ;
           } else {
             _index++;
           }
@@ -269,7 +256,7 @@ void SignatureIterator::iterate() {
   _parameter_index = 0;
   _index = 0;
   expect('(');
-  while (_signature->byte_at(_index) != ')') _parameter_index += parse_type();
+  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
   expect(')');
   // Parse return type
   _parameter_index = -1;
@@ -281,16 +268,17 @@ void SignatureIterator::iterate() {
 
 // Implementation of SignatureStream
 SignatureStream::SignatureStream(Symbol* signature, bool is_method) :
-                   _signature(signature), _at_return_type(false) {
+                   _signature(signature), _at_return_type(false), _previous_name(NULL), _names(NULL) {
   _begin = _end = (is_method ? 1 : 0);  // skip first '(' in method signatures
-  _names = new GrowableArray<Symbol*>(10);
   next();
 }
 
 SignatureStream::~SignatureStream() {
   // decrement refcount for names created during signature parsing
-  for (int i = 0; i < _names->length(); i++) {
-    _names->at(i)->decrement_refcount();
+  if (_names != NULL) {
+    for (int i = 0; i < _names->length(); i++) {
+      _names->at(i)->decrement_refcount();
+    }
   }
 }
 
@@ -304,20 +292,20 @@ void SignatureStream::next_non_primitive(int t) {
     case 'L': {
       _type = T_OBJECT;
       Symbol* sig = _signature;
-      while (sig->byte_at(_end++) != ';');
+      while (sig->char_at(_end++) != ';');
       break;
     }
     case '[': {
       _type = T_ARRAY;
       Symbol* sig = _signature;
-      char c = sig->byte_at(_end);
-      while ('0' <= c && c <= '9') c = sig->byte_at(_end++);
-      while (sig->byte_at(_end) == '[') {
+      char c = sig->char_at(_end);
+      while ('0' <= c && c <= '9') c = sig->char_at(_end++);
+      while (sig->char_at(_end) == '[') {
         _end++;
-        c = sig->byte_at(_end);
-        while ('0' <= c && c <= '9') c = sig->byte_at(_end++);
+        c = sig->char_at(_end);
+        while ('0' <= c && c <= '9') c = sig->char_at(_end++);
       }
-      switch(sig->byte_at(_end)) {
+      switch(sig->char_at(_end)) {
         case 'B':
         case 'C':
         case 'D':
@@ -327,7 +315,7 @@ void SignatureStream::next_non_primitive(int t) {
         case 'S':
         case 'Z':_end++; break;
         default: {
-          while (sig->byte_at(_end++) != ';');
+          while (sig->char_at(_end++) != ';');
           break;
         }
       }
@@ -348,28 +336,53 @@ bool SignatureStream::is_array() const {
   return _type == T_ARRAY;
 }
 
-Symbol* SignatureStream::as_symbol(TRAPS) {
+Symbol* SignatureStream::as_symbol() {
   // Create a symbol from for string _begin _end
   int begin = _begin;
   int end   = _end;
 
-  if (   _signature->byte_at(_begin) == 'L'
-      && _signature->byte_at(_end-1) == ';') {
+  if (   _signature->char_at(_begin) == 'L'
+      && _signature->char_at(_end-1) == ';') {
     begin++;
     end--;
   }
 
+  const char* symbol_chars = (const char*)_signature->base() + begin;
+  int len = end - begin;
+
+  // Quick check for common symbols in signatures
+  assert((vmSymbols::java_lang_String()->utf8_length() == 16 && vmSymbols::java_lang_Object()->utf8_length() == 16), "sanity");
+  if (len == 16 &&
+      strncmp(symbol_chars, "java/lang/", 10) == 0) {
+    if (strncmp("String", symbol_chars + 10, 6) == 0) {
+      return vmSymbols::java_lang_String();
+    } else if (strncmp("Object", symbol_chars + 10, 6) == 0) {
+      return vmSymbols::java_lang_Object();
+    }
+  }
+
+  Symbol* name = _previous_name;
+  if (name != NULL && name->equals(symbol_chars, len)) {
+    return name;
+  }
+
   // Save names for cleaning up reference count at the end of
   // SignatureStream scope.
-  Symbol* name = SymbolTable::new_symbol(_signature, begin, end, CHECK_NULL);
-  _names->push(name);  // save new symbol for decrementing later
+  name = SymbolTable::new_symbol(symbol_chars, len);
+  if (!name->is_permanent()) {
+    if (_names == NULL) {
+      _names = new GrowableArray<Symbol*>(10);
+    }
+    _names->push(name);  // save new symbol for decrementing later
+  }
+  _previous_name = name;
   return name;
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
-                                   FailureMode failure_mode, TRAPS) {
+                                 FailureMode failure_mode, TRAPS) {
   if (!is_object())  return NULL;
-  Symbol* name = as_symbol(CHECK_NULL);
+  Symbol* name = as_symbol();
   if (failure_mode == ReturnNull) {
     return SystemDictionary::resolve_or_null(name, class_loader, protection_domain, THREAD);
   } else {
@@ -394,15 +407,15 @@ Symbol* SignatureStream::as_symbol_or_null() {
   int begin = _begin;
   int end   = _end;
 
-  if (   _signature->byte_at(_begin) == 'L'
-      && _signature->byte_at(_end-1) == ';') {
+  if (   _signature->char_at(_begin) == 'L'
+      && _signature->char_at(_end-1) == ';') {
     begin++;
     end--;
   }
 
   char* buffer = NEW_RESOURCE_ARRAY(char, end - begin);
   for (int index = begin; index < end; index++) {
-    buffer[index - begin] = _signature->byte_at(index);
+    buffer[index - begin] = _signature->char_at(index);
   }
   Symbol* result = SymbolTable::probe(buffer, end - begin);
   return result;
@@ -418,18 +431,7 @@ int SignatureStream::reference_parameter_count() {
   return args_count;
 }
 
-bool SignatureVerifier::is_valid_signature(Symbol* sig) {
-  const char* signature = (const char*)sig->bytes();
-  ssize_t len = sig->utf8_length();
-  if (signature == NULL || signature[0] == '\0' || len < 1) {
-    return false;
-  } else if (signature[0] == '(') {
-    return is_valid_method_signature(sig);
-  } else {
-    return is_valid_type_signature(sig);
-  }
-}
-
+#ifdef ASSERT
 bool SignatureVerifier::is_valid_method_signature(Symbol* sig) {
   const char* method_sig = (const char*)sig->bytes();
   ssize_t len = sig->utf8_length();
@@ -478,11 +480,12 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
     case 'L':
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];
-        if (c == ';') {
-          return index + 1;
-        }
-        if (invalid_name_char(c)) {
-          return -1;
+        switch (c) {
+          case ';':
+            return index + 1;
+          case '\0': case '.': case '[':
+            return -1;
+          default: ; // fall through
         }
       }
       // fall through
@@ -490,12 +493,4 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
   }
   return -1;
 }
-
-bool SignatureVerifier::invalid_name_char(char c) {
-  switch (c) {
-    case '\0': case '.': case ';': case '[':
-      return true;
-    default:
-      return false;
-  }
-}
+#endif // ASSERT

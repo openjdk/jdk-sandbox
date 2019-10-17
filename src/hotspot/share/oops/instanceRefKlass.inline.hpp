@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#ifndef SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#define SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP
 
 #include "classfile/javaClasses.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "logging/log.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -197,4 +196,4 @@ void InstanceRefKlass::trace_reference_gc(const char *s, oop obj) {
 }
 #endif
 
-#endif // SHARE_VM_OOPS_INSTANCEREFKLASS_INLINE_HPP
+#endif // SHARE_OOPS_INSTANCEREFKLASS_INLINE_HPP

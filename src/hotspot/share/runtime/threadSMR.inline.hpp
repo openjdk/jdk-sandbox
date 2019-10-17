@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
-#define SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#ifndef SHARE_RUNTIME_THREADSMR_INLINE_HPP
+#define SHARE_RUNTIME_THREADSMR_INLINE_HPP
 
 #include "runtime/atomic.hpp"
 #include "runtime/prefetch.inline.hpp"
@@ -82,7 +82,7 @@ inline ThreadsList* ThreadsSMRSupport::get_java_thread_list() {
 }
 
 inline bool ThreadsSMRSupport::is_a_protected_JavaThread_with_lock(JavaThread *thread) {
-  MutexLockerEx ml(Threads_lock->owned_by_self() ? NULL : Threads_lock);
+  MutexLocker ml(Threads_lock->owned_by_self() ? NULL : Threads_lock);
   return is_a_protected_JavaThread(thread);
 }
 
@@ -92,4 +92,4 @@ inline void ThreadsSMRSupport::update_tlh_stats(uint millis) {
   ThreadsSMRSupport::update_tlh_time_max(millis);
 }
 
-#endif // SHARE_VM_RUNTIME_THREADSMR_INLINE_HPP
+#endif // SHARE_RUNTIME_THREADSMR_INLINE_HPP

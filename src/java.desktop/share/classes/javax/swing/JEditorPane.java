@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import sun.reflect.misc.ReflectUtil;
 /**
  * A text component to edit various kinds of content.
  * You can find how-to information and examples of using editor panes in
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/text.html">Using Text Components</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/text.html">Using Text Components</a>,
  * a section in <em>The Java Tutorial.</em>
  *
  * <p>
@@ -1420,7 +1420,7 @@ public class JEditorPane extends JTextComponent {
         try {
             Document doc = getDocument();
             doc.remove(0, doc.getLength());
-            if (t == null || t.equals("")) {
+            if (t == null || t.isEmpty()) {
                 return;
             }
             Reader r = new StringReader(t);

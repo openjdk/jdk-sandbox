@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.lang;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.misc.VM;
 
 /**
  *
@@ -77,13 +78,25 @@ public final class Byte extends Number implements Comparable<Byte> {
     }
 
     private static class ByteCache {
-        private ByteCache(){}
+        private ByteCache() {}
 
-        static final Byte cache[] = new Byte[-(-128) + 127 + 1];
+        static final Byte[] cache;
+        static Byte[] archivedCache;
 
         static {
-            for(int i = 0; i < cache.length; i++)
-                cache[i] = new Byte((byte)(i - 128));
+            final int size = -(-128) + 127 + 1;
+
+            // Load and use the archived cache if it exists
+            VM.initializeFromArchive(ByteCache.class);
+            if (archivedCache == null || archivedCache.length != size) {
+                Byte[] c = new Byte[size];
+                byte value = (byte)-128;
+                for(int i = 0; i < size; i++) {
+                    c[i] = new Byte(value++);
+                }
+                archivedCache = c;
+            }
+            cache = archivedCache;
         }
     }
 
@@ -343,7 +356,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     /**
      * Returns the value of this {@code Byte} as a {@code short} after
      * a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public short shortValue() {
         return (short)value;
@@ -352,7 +365,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     /**
      * Returns the value of this {@code Byte} as an {@code int} after
      * a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public int intValue() {
         return (int)value;
@@ -361,7 +374,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     /**
      * Returns the value of this {@code Byte} as a {@code long} after
      * a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public long longValue() {
         return (long)value;
@@ -370,7 +383,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     /**
      * Returns the value of this {@code Byte} as a {@code float} after
      * a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public float floatValue() {
         return (float)value;
@@ -379,7 +392,7 @@ public final class Byte extends Number implements Comparable<Byte> {
     /**
      * Returns the value of this {@code Byte} as a {@code double}
      * after a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public double doubleValue() {
         return (double)value;
@@ -548,5 +561,6 @@ public final class Byte extends Number implements Comparable<Byte> {
     public static final int BYTES = SIZE / Byte.SIZE;
 
     /** use serialVersionUID from JDK 1.1. for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = -7183698231559129828L;
 }

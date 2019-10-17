@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/oopMapCache.hpp"
@@ -50,7 +51,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframe_hp.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/exceptions.hpp"
 
 //
@@ -224,13 +225,6 @@ void GrowableCache::metadata_do(void f(Metadata*)) {
   }
 }
 
-void GrowableCache::gc_epilogue() {
-  int len = _elements->length();
-  for (int i=0; i<len; i++) {
-    _cache[i] = _elements->at(i)->getCacheValue();
-  }
-}
-
 //
 // class JvmtiBreakpoint
 //
@@ -388,10 +382,6 @@ void  JvmtiBreakpoints::metadata_do(void f(Metadata*)) {
   _bps.metadata_do(f);
 }
 
-void JvmtiBreakpoints::gc_epilogue() {
-  _bps.gc_epilogue();
-}
-
 void JvmtiBreakpoints::print() {
 #ifndef PRODUCT
   LogTarget(Trace, jvmti) log;
@@ -513,12 +503,6 @@ void JvmtiCurrentBreakpoints::metadata_do(void f(Metadata*)) {
   }
 }
 
-void JvmtiCurrentBreakpoints::gc_epilogue() {
-  if (_jvmti_breakpoints != NULL) {
-    _jvmti_breakpoints->gc_epilogue();
-  }
-}
-
 ///////////////////////////////////////////////////////////////
 //
 // class VM_GetOrSetLocal
@@ -608,7 +592,7 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
     ty_sign++;
     len -= 2;
   }
-  TempNewSymbol ty_sym = SymbolTable::new_symbol(ty_sign, len, thread);
+  TempNewSymbol ty_sym = SymbolTable::new_symbol(ty_sign, len);
   if (klass->name() == ty_sym) {
     return true;
   }
@@ -635,18 +619,8 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
 //   JVMTI_ERROR_TYPE_MISMATCH
 // Returns: 'true' - everything is Ok, 'false' - error code
 
-bool VM_GetOrSetLocal::check_slot_type(javaVFrame* jvf) {
+bool VM_GetOrSetLocal::check_slot_type_lvt(javaVFrame* jvf) {
   Method* method_oop = jvf->method();
-  if (!method_oop->has_localvariable_table()) {
-    // Just to check index boundaries
-    jint extra_slot = (_type == T_LONG || _type == T_DOUBLE) ? 1 : 0;
-    if (_index < 0 || _index + extra_slot >= method_oop->max_locals()) {
-      _result = JVMTI_ERROR_INVALID_SLOT;
-      return false;
-    }
-    return true;
-  }
-
   jint num_entries = method_oop->localvariable_table_length();
   if (num_entries == 0) {
     _result = JVMTI_ERROR_INVALID_SLOT;
@@ -711,6 +685,35 @@ bool VM_GetOrSetLocal::check_slot_type(javaVFrame* jvf) {
   return true;
 }
 
+bool VM_GetOrSetLocal::check_slot_type_no_lvt(javaVFrame* jvf) {
+  Method* method_oop = jvf->method();
+  jint extra_slot = (_type == T_LONG || _type == T_DOUBLE) ? 1 : 0;
+
+  if (_index < 0 || _index + extra_slot >= method_oop->max_locals()) {
+    _result = JVMTI_ERROR_INVALID_SLOT;
+    return false;
+  }
+  StackValueCollection *locals = _jvf->locals();
+  BasicType slot_type = locals->at(_index)->type();
+
+  if (slot_type == T_CONFLICT) {
+    _result = JVMTI_ERROR_INVALID_SLOT;
+    return false;
+  }
+  if (extra_slot) {
+    BasicType extra_slot_type = locals->at(_index + 1)->type();
+    if (extra_slot_type != T_INT) {
+      _result = JVMTI_ERROR_INVALID_SLOT;
+      return false;
+    }
+  }
+  if (_type != slot_type && (_type == T_OBJECT || slot_type != T_INT)) {
+    _result = JVMTI_ERROR_TYPE_MISMATCH;
+    return false;
+  }
+  return true;
+}
+
 static bool can_be_deoptimized(vframe* vf) {
   return (vf->is_compiled_frame() && vf->fr().can_be_deoptimized());
 }
@@ -719,8 +722,9 @@ bool VM_GetOrSetLocal::doit_prologue() {
   _jvf = get_java_vframe();
   NULL_CHECK(_jvf, false);
 
-  if (_jvf->method()->is_native()) {
-    if (getting_receiver() && !_jvf->method()->is_static()) {
+  Method* method_oop = _jvf->method();
+  if (method_oop->is_native()) {
+    if (getting_receiver() && !method_oop->is_static()) {
       return true;
     } else {
       _result = JVMTI_ERROR_OPAQUE_FRAME;
@@ -728,8 +732,11 @@ bool VM_GetOrSetLocal::doit_prologue() {
     }
   }
 
-  if (!check_slot_type(_jvf)) {
+  if (!check_slot_type_no_lvt(_jvf)) {
     return false;
+  }
+  if (method_oop->has_localvariable_table()) {
+    return check_slot_type_lvt(_jvf);
   }
   return true;
 }
@@ -795,12 +802,6 @@ void VM_GetOrSetLocal::doit() {
       _value.l = JNIHandles::make_local(_calling_thread, receiver);
     } else {
       StackValueCollection *locals = _jvf->locals();
-
-      if (locals->at(_index)->type() == T_CONFLICT) {
-        memset(&_value, 0, sizeof(_value));
-        _value.l = NULL;
-        return;
-      }
 
       switch (_type) {
         case T_INT:    _value.i = locals->int_at   (_index);   break;
@@ -880,6 +881,7 @@ bool JvmtiSuspendControl::resume(JavaThread *java_thread) {
 
 void JvmtiSuspendControl::print() {
 #ifndef PRODUCT
+  ResourceMark rm;
   LogStreamHandle(Trace, jvmti) log_stream;
   log_stream.print("Suspended Threads: [");
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {

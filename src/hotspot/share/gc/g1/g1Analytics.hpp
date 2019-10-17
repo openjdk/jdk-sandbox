@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1MEASUREMENTS_HPP
-#define SHARE_VM_GC_G1_G1MEASUREMENTS_HPP
+#ifndef SHARE_GC_G1_G1ANALYTICS_HPP
+#define SHARE_GC_G1_G1ANALYTICS_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -46,19 +46,21 @@ class G1Analytics: public CHeapObj<mtGC> {
   double        _prev_collection_pause_end_ms;
 
   TruncatedSeq* _rs_length_diff_seq;
-  TruncatedSeq* _cost_per_card_ms_seq;
+  TruncatedSeq* _concurrent_refine_rate_ms_seq;
+  TruncatedSeq* _logged_cards_rate_ms_seq;
+  TruncatedSeq* _cost_per_logged_card_ms_seq;
   TruncatedSeq* _cost_scan_hcc_seq;
   TruncatedSeq* _young_cards_per_entry_ratio_seq;
   TruncatedSeq* _mixed_cards_per_entry_ratio_seq;
-  TruncatedSeq* _cost_per_entry_ms_seq;
-  TruncatedSeq* _mixed_cost_per_entry_ms_seq;
+  TruncatedSeq* _young_only_cost_per_remset_card_ms_seq;
+  TruncatedSeq* _mixed_cost_per_remset_card_ms_seq;
   TruncatedSeq* _cost_per_byte_ms_seq;
   TruncatedSeq* _constant_other_time_ms_seq;
   TruncatedSeq* _young_other_cost_per_region_ms_seq;
   TruncatedSeq* _non_young_other_cost_per_region_ms_seq;
 
   TruncatedSeq* _pending_cards_seq;
-  TruncatedSeq* _rs_lengths_seq;
+  TruncatedSeq* _rs_length_seq;
 
   TruncatedSeq* _cost_per_byte_ms_during_cm_seq;
 
@@ -99,9 +101,11 @@ public:
   void report_concurrent_mark_remark_times_ms(double ms);
   void report_concurrent_mark_cleanup_times_ms(double ms);
   void report_alloc_rate_ms(double alloc_rate);
-  void report_cost_per_card_ms(double cost_per_card_ms);
+  void report_concurrent_refine_rate_ms(double cards_per_ms);
+  void report_logged_cards_rate_ms(double cards_per_ms);
+  void report_cost_per_logged_card_ms(double cost_per_logged_card_ms);
   void report_cost_scan_hcc(double cost_scan_hcc);
-  void report_cost_per_entry_ms(double cost_per_entry_ms, bool for_young_gc);
+  void report_cost_per_remset_card_ms(double cost_per_remset_card_ms, bool for_young_gc);
   void report_cards_per_entry_ratio(double cards_per_entry_ratio, bool for_young_gc);
   void report_rs_length_diff(double rs_length_diff);
   void report_cost_per_byte_ms(double cost_per_byte_ms, bool mark_or_rebuild_in_progress);
@@ -109,14 +113,16 @@ public:
   void report_non_young_other_cost_per_region_ms(double other_cost_per_region_ms);
   void report_constant_other_time_ms(double constant_other_time_ms);
   void report_pending_cards(double pending_cards);
-  void report_rs_lengths(double rs_lengths);
+  void report_rs_length(double rs_length);
 
   size_t predict_rs_length_diff() const;
 
   double predict_alloc_rate_ms() const;
   int num_alloc_rate_ms() const;
 
-  double predict_cost_per_card_ms() const;
+  double predict_concurrent_refine_rate_ms() const;
+  double predict_logged_cards_rate_ms() const;
+  double predict_cost_per_logged_card_ms() const;
 
   double predict_scan_hcc_ms() const;
 
@@ -146,7 +152,7 @@ public:
 
   double predict_cleanup_time_ms() const;
 
-  size_t predict_rs_lengths() const;
+  size_t predict_rs_length() const;
   size_t predict_pending_cards() const;
 
   double predict_cost_per_byte_ms() const;
@@ -158,4 +164,4 @@ public:
   double last_known_gc_end_time_sec() const;
 };
 
-#endif // SHARE_VM_GC_G1_G1MEASUREMENTS_HPP
+#endif // SHARE_GC_G1_G1ANALYTICS_HPP

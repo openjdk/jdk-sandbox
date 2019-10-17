@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_OSTHREAD_WINDOWS_HPP
-#define OS_WINDOWS_VM_OSTHREAD_WINDOWS_HPP
+#ifndef OS_WINDOWS_OSTHREAD_WINDOWS_HPP
+#define OS_WINDOWS_OSTHREAD_WINDOWS_HPP
 
   typedef void* HANDLE;
  public:
@@ -32,7 +32,8 @@
  private:
   // Win32-specific thread information
   HANDLE _thread_handle;        // Win32 thread handle
-  HANDLE _interrupt_event;      // Event signalled on thread interrupt
+  HANDLE _interrupt_event;      // Event signalled on thread interrupt for use by
+                                // Process.waitFor().
   ThreadState _last_state;
 
  public:
@@ -42,6 +43,11 @@
   void set_thread_handle(HANDLE handle)            { _thread_handle = handle; }
   HANDLE interrupt_event() const                   { return _interrupt_event; }
   void set_interrupt_event(HANDLE interrupt_event) { _interrupt_event = interrupt_event; }
+  // These are specialized on Windows to interact with the _interrupt_event.
+  // Also note that Windows does not skip these calls if we are interrupted - see
+  // LibraryCallKit::inline_native_isInterrupted
+  volatile bool interrupted();
+  void set_interrupted(bool z);
 
 #ifndef PRODUCT
   // Used for debugging, return a unique integer for each thread.
@@ -54,7 +60,6 @@
     return false;
   }
 #endif // ASSERT
-  bool is_try_mutex_enter()                        { return false; }
 
   // This is a temporary fix for the thread states during
   // suspend/resume until we throw away OSThread completely.
@@ -66,4 +71,4 @@
   void pd_initialize();
   void pd_destroy();
 
-#endif // OS_WINDOWS_VM_OSTHREAD_WINDOWS_HPP
+#endif // OS_WINDOWS_OSTHREAD_WINDOWS_HPP

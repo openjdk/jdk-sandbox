@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ static const char *METHOD_SIGS[] = {
     "([Ljava/lang/String;Ljava/io/PrintStream;)I"
 };
 
-static volatile long stepEv[] = {0, 0};
+static volatile long stepEv[] = { 0, 0 };
 
 static const char *CLASS_SIG =
     "Lnsk/jvmti/SingleStep/singlestep001;";
@@ -57,21 +57,17 @@ static volatile jint result = PASSED;
 static jvmtiEnv *jvmti = NULL;
 static jvmtiEventCallbacks callbacks;
 
-static int vm_started = 0;
+static volatile int callbacksEnabled = NSK_FALSE;
 static jrawMonitorID agent_lock;
 
 static void setBP(jvmtiEnv *jvmti_env, JNIEnv *env, jclass klass) {
     jmethodID mid;
 
-    if (!NSK_JNI_VERIFY(env, (mid = NSK_CPP_STUB4(GetMethodID,
-            env, klass, METHODS[0], METHOD_SIGS[0])) != NULL))
-        NSK_CPP_STUB2(FatalError, env,
-            "failed to get ID for the java method\n");
+    if (!NSK_JNI_VERIFY(env, (mid = env->GetMethodID(klass, METHODS[0], METHOD_SIGS[0])) != NULL))
+        env->FatalError("failed to get ID for the java method\n");
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetBreakpoint,
-            jvmti_env, mid, 0)))
-        NSK_CPP_STUB2(FatalError, env,
-            "failed to set breakpoint\n");
+    if (!NSK_JVMTI_VERIFY(jvmti_env->SetBreakpoint(mid, 0)))
+        env->FatalError("failed to set breakpoint\n");
 }
 
 /** callback functions **/
@@ -81,16 +77,15 @@ ClassLoad(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thread, jclass klass) {
 
     jvmti->RawMonitorEnter(agent_lock);
 
-    if (vm_started) {
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-                                            jvmti_env, klass, &sig, &generic)))
-            NSK_CPP_STUB2(FatalError, env,
-                          "failed to obtain a class signature\n");
+    if (callbacksEnabled) {
+        if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(klass, &sig, &generic)))
+            env->FatalError("failed to obtain a class signature\n");
 
         if (sig != NULL && (strcmp(sig, CLASS_SIG) == 0)) {
-            NSK_DISPLAY1("ClassLoad event received for the class \"%s\"\n\
-\tsetting breakpoint ...\n",
-                         sig);
+            NSK_DISPLAY1(
+                "ClassLoad event received for the class \"%s\"\n"
+                "\tsetting breakpoint ...\n",
+                sig);
             setBP(jvmti_env, env, klass);
         }
     }
@@ -104,21 +99,24 @@ Breakpoint(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thr, jmethodID method,
     jclass klass;
     char *sig, *generic;
 
+    jvmti->RawMonitorEnter(agent_lock);
+
+    if (!callbacksEnabled) {
+        jvmti->RawMonitorExit(agent_lock);
+        return;
+    }
+
     NSK_DISPLAY0("Breakpoint event received\n");
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(GetMethodDeclaringClass,
-            jvmti_env, method, &klass)))
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodDeclaringClass(method, &klass)))
         NSK_COMPLAIN0("TEST FAILURE: unable to get method declaring class\n\n");
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-            jvmti_env, klass, &sig, &generic)))
-        NSK_CPP_STUB2(FatalError, env,
-            "Breakpoint: failed to obtain a class signature\n");
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(klass, &sig, &generic)))
+        env->FatalError("Breakpoint: failed to obtain a class signature\n");
 
     if (sig != NULL && (strcmp(sig, CLASS_SIG) == 0)) {
         NSK_DISPLAY1("method declaring class \"%s\"\n\tenabling SingleStep events ...\n",
             sig);
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-                jvmti_env, JVMTI_ENABLE, JVMTI_EVENT_SINGLE_STEP, thr))) {
+        if (!NSK_JVMTI_VERIFY(jvmti_env->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_SINGLE_STEP, thr))) {
             result = STATUS_FAILED;
             NSK_COMPLAIN0("TEST FAILURE: cannot enable SingleStep events\n\n");
         }
@@ -127,6 +125,7 @@ Breakpoint(jvmtiEnv *jvmti_env, JNIEnv *env, jthread thr, jmethodID method,
         NSK_COMPLAIN1("TEST FAILURE: unexpected breakpoint event in method of class \"%s\"\n\n",
             sig);
     }
+    jvmti->RawMonitorExit(agent_lock);
 }
 
 void JNICALL
@@ -141,29 +140,28 @@ SingleStep(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread,
 
     NSK_DISPLAY0(">>>> SingleStep event received\n");
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB5(GetMethodName,
-            jvmti_env, method, &methNam, &methSig, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodName(method, &methNam, &methSig, NULL))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILED: unable to get method name during SingleStep callback\n\n");
         return;
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(GetMethodDeclaringClass,
-            jvmti_env, method, &klass))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetMethodDeclaringClass(method, &klass))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILED: unable to get method declaring class during SingleStep callback\n\n");
         return;
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-            jvmti_env, klass, &sig, &generic))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->GetClassSignature(klass, &sig, &generic))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILED: unable to obtain a class signature during SingleStep callback\n\n");
         return;
     }
 
     if (sig != NULL) {
-        NSK_DISPLAY3("\tmethod name: \"%s\"\n\tsignature: \"%s\"\n\
-\tmethod declaring class: \"%s\"\n",
-                methNam, methSig, sig);
+        NSK_DISPLAY3(
+            "\tmethod name: \"%s\"\n"
+            "\tsignature: \"%s\"\n"
+            "\tmethod declaring class: \"%s\"\n",
+            methNam, methSig, sig);
 
         if (stepEv[1] == 1) {
             result = STATUS_FAILED;
@@ -180,24 +178,22 @@ SingleStep(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread,
                 (strcmp(methSig,METHOD_SIGS[1]) == 0) &&
                 (strcmp(sig,CLASS_SIG) == 0)) {
             stepEv[1]++;
-            NSK_DISPLAY1("CHECK PASSED: SingleStep event received for the method \"%s\" as expected\n\
-\tdisabling the event generation\n",
+            NSK_DISPLAY1(
+                "CHECK PASSED: SingleStep event received for the method \"%s\" as expected\n"
+                "\tdisabling the event generation\n",
                 methNam);
-            if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-                    jvmti_env, JVMTI_DISABLE, JVMTI_EVENT_SINGLE_STEP, thread))) {
+            if (!NSK_JVMTI_VERIFY(jvmti_env->SetEventNotificationMode(JVMTI_DISABLE, JVMTI_EVENT_SINGLE_STEP, thread))) {
                 result = STATUS_FAILED;
                 NSK_COMPLAIN0("TEST FAILED: cannot disable SingleStep events\n\n");
             }
         }
     }
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*) methNam))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*) methNam))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILED: unable to deallocate memory pointed to method name\n\n");
     }
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-            jvmti_env, (unsigned char*) methSig))) {
+    if (!NSK_JVMTI_VERIFY(jvmti_env->Deallocate((unsigned char*) methSig))) {
         result = STATUS_FAILED;
         NSK_COMPLAIN0("TEST FAILED: unable to deallocate memory pointed to method signature\n\n");
     }
@@ -209,7 +205,16 @@ void JNICALL
 VMStart(jvmtiEnv *jvmti_env, JNIEnv* jni_env) {
     jvmti->RawMonitorEnter(agent_lock);
 
-    vm_started = 1;
+    callbacksEnabled = NSK_TRUE;
+
+    jvmti->RawMonitorExit(agent_lock);
+}
+
+void JNICALL
+VMDeath(jvmtiEnv *jvmti_env, JNIEnv* jni_env) {
+    jvmti->RawMonitorEnter(agent_lock);
+
+    callbacksEnabled = NSK_FALSE;
 
     jvmti->RawMonitorExit(agent_lock);
 }
@@ -257,12 +262,10 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     memset(&caps, 0, sizeof(jvmtiCapabilities));
     caps.can_generate_breakpoint_events = 1;
     caps.can_generate_single_step_events = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetCapabilities,
-            jvmti, &caps)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetCapabilities(&caps)))
         return JNI_ERR;
 
     if (!caps.can_generate_single_step_events)
@@ -275,24 +278,22 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
     callbacks.Breakpoint = &Breakpoint;
     callbacks.SingleStep = &SingleStep;
     callbacks.VMStart = &VMStart;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks,
-            jvmti, &callbacks, sizeof(callbacks))))
+    callbacks.VMDeath = &VMDeath;
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, sizeof(callbacks))))
         return JNI_ERR;
 
     NSK_DISPLAY0("setting event callbacks done\nenabling JVMTI events ...\n");
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_VM_START, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_START, NULL)))
         return JNI_ERR;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_VM_DEATH, NULL)))
         return JNI_ERR;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(SetEventNotificationMode,
-            jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, NULL)))
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_CLASS_LOAD, NULL)))
+        return JNI_ERR;
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, NULL)))
         return JNI_ERR;
     NSK_DISPLAY0("enabling the events done\n\n");
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(CreateRawMonitor,
-            jvmti, "agent lock", &agent_lock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("agent lock", &agent_lock)))
         return JNI_ERR;
 
     return JNI_OK;

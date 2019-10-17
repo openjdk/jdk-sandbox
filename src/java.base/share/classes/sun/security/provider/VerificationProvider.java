@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,6 @@ package sun.security.provider;
 import java.util.*;
 import java.security.*;
 
-import sun.security.action.PutAllAction;
-
 import sun.security.rsa.SunRsaSignEntries;
 import static sun.security.util.SecurityConstants.PROVIDER_VER;
 
@@ -46,6 +44,7 @@ import static sun.security.util.SecurityConstants.PROVIDER_VER;
  */
 public final class VerificationProvider extends Provider {
 
+    @java.io.Serial
     private static final long serialVersionUID = 7482667077568930381L;
 
     private static final boolean ACTIVE;
@@ -70,18 +69,30 @@ public final class VerificationProvider extends Provider {
             return;
         }
 
+        Provider p = this;
+        Iterator<Provider.Service> sunIter = new SunEntries(p).iterator();
+        Iterator<Provider.Service> rsaIter =
+            new SunRsaSignEntries(p).iterator();
+
         // if there is no security manager installed, put directly into
-        // the provider. Otherwise, create a temporary map and use a
-        // doPrivileged() call at the end to transfer the contents
+        // the provider
         if (System.getSecurityManager() == null) {
-            SunEntries.putEntries(this);
-            SunRsaSignEntries.putEntries(this);
+            putEntries(sunIter);
+            putEntries(rsaIter);
         } else {
-            // use LinkedHashMap to preserve the order of the PRNGs
-            Map<Object, Object> map = new LinkedHashMap<>();
-            SunEntries.putEntries(map);
-            SunRsaSignEntries.putEntries(map);
-            AccessController.doPrivileged(new PutAllAction(this, map));
+            AccessController.doPrivileged(new PrivilegedAction<Object>() {
+                public Void run() {
+                    putEntries(sunIter);
+                    putEntries(rsaIter);
+                    return null;
+                }
+            });
+        }
+    }
+
+    void putEntries(Iterator<Provider.Service> i) {
+        while (i.hasNext()) {
+            putService(i.next());
         }
     }
 

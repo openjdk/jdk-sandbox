@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,10 +36,10 @@
  *      {@link java.nio.file.FileSystems#newFileSystem
  *      FileSystems.newFileSystem(URI.create("jrt:/"))}.
  *      </dd>
- * <dt class="simpleTagLabel" style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif">Tool Guides:</dt>
- * <dd style="font-family:'DejaVu Sans', Arial, Helvetica, sans serif"> {@extLink java_tool_reference java launcher},
- *      {@extLink keytool_tool_reference keytool}</dd>
  * </dl>
+ *
+ * @toolGuide java java launcher
+ * @toolGuide keytool
  *
  * @provides java.nio.file.spi.FileSystemProvider
  *
@@ -79,6 +79,7 @@ module java.base {
     exports java.io;
     exports java.lang;
     exports java.lang.annotation;
+    exports java.lang.constant;
     exports java.lang.invoke;
     exports java.lang.module;
     exports java.lang.ref;
@@ -95,7 +96,6 @@ module java.base {
     exports java.nio.file.attribute;
     exports java.nio.file.spi;
     exports java.security;
-    exports java.security.acl;
     exports java.security.cert;
     exports java.security.interfaces;
     exports java.security.spec;
@@ -136,6 +136,16 @@ module java.base {
         java.security.sasl;
     exports jdk.internal to
         jdk.jfr;
+    exports jdk.internal.access to
+        java.desktop,
+        java.logging,
+        java.management,
+        java.naming,
+        java.rmi,
+        jdk.jlink,
+        jdk.net;
+    exports jdk.internal.event to
+        jdk.jfr;
     exports jdk.internal.jimage to
         jdk.jlink;
     exports jdk.internal.jimage.decompressor to
@@ -173,18 +183,16 @@ module java.base {
         java.logging,
         java.management,
         java.naming,
+        java.net.http,
         java.rmi,
         java.security.jgss,
-        java.sql,
         java.xml,
         jdk.attach,
         jdk.charsets,
         jdk.compiler,
-        java.net.http,
         jdk.jfr,
-        jdk.jlink,
         jdk.jshell,
-        jdk.net,
+        jdk.nio.mapmode,
         jdk.scripting.nashorn,
         jdk.scripting.nashorn.shell,
         jdk.unsupported,
@@ -200,13 +208,13 @@ module java.base {
         jdk.management.agent,
         jdk.internal.jvmstat;
     exports jdk.internal.ref to
-        java.desktop,
-        jdk.unsupported;
+        java.desktop;
     exports jdk.internal.reflect to
         java.logging,
         java.sql,
         java.sql.rowset,
         jdk.dynalink,
+        jdk.internal.vm.ci,
         jdk.scripting.nashorn,
         jdk.unsupported;
     exports jdk.internal.vm to
@@ -234,7 +242,6 @@ module java.base {
         jdk.jconsole,
         java.net.http;
     exports sun.net.www to
-        java.desktop,
         java.net.http,
         jdk.jartool;
     exports sun.net.www.protocol.http to
@@ -243,12 +250,9 @@ module java.base {
         java.management,
         jdk.crypto.cryptoki,
         jdk.net,
-        jdk.sctp,
-        jdk.unsupported;
+        jdk.sctp;
     exports sun.nio.cs to
         jdk.charsets;
-    exports sun.nio.fs to
-        jdk.unsupported;
     exports sun.reflect.annotation to
         jdk.compiler;
     exports sun.reflect.generics.reflectiveObjects to

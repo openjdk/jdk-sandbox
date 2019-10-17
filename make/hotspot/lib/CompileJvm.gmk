@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,8 @@ JVM_LDFLAGS += \
     $(EXTRA_LDFLAGS) \
     #
 
+JVM_ASFLAGS += $(EXTRA_ASFLAGS)
+
 JVM_LIBS += \
     $(JVM_LIBS_FEATURES) \
     #
@@ -56,16 +58,10 @@ JVM_EXCLUDE_FILES += args.cc
 JVM_EXCLUDES += adlc
 
 # Needed by vm_version.cpp
-ifeq ($(OPENJDK_TARGET_CPU), x86_64)
+ifeq ($(call isTargetCpu, x86_64), true)
   OPENJDK_TARGET_CPU_VM_VERSION := amd64
-else ifeq ($(OPENJDK_TARGET_CPU), sparcv9)
+else ifeq ($(call isTargetCpu, sparcv9), true)
   OPENJDK_TARGET_CPU_VM_VERSION := sparc
-else ifeq ($(HOTSPOT_TARGET_CPU_ARCH), arm)
-  ifeq ($(OPENJDK_TARGET_CPU), aarch64)
-    # This sets the Oracle Aarch64 port to use arm64
-    # while the original Aarch64 port uses aarch64
-    OPENJDK_TARGET_CPU_VM_VERSION := arm64
-  endif
 else
   OPENJDK_TARGET_CPU_VM_VERSION := $(OPENJDK_TARGET_CPU)
 endif
@@ -80,14 +76,42 @@ CFLAGS_VM_VERSION := \
     #
 
 ################################################################################
+# Disabled warnings
+
+DISABLED_WARNINGS_gcc := extra parentheses comment unknown-pragmas address \
+    delete-non-virtual-dtor char-subscripts array-bounds int-in-bool-context \
+    ignored-qualifiers  missing-field-initializers implicit-fallthrough \
+    empty-body strict-overflow sequence-point maybe-uninitialized \
+    misleading-indentation
+
+ifeq ($(call check-jvm-feature, zero), true)
+  DISABLED_WARNINGS_gcc += return-type switch
+endif
+
+DISABLED_WARNINGS_clang := tautological-compare \
+    undefined-var-template sometimes-uninitialized unknown-pragmas \
+    delete-non-virtual-dtor missing-braces char-subscripts \
+    ignored-qualifiers missing-field-initializers mismatched-tags
+
+DISABLED_WARNINGS_solstudio := labelnotused hidef w_novirtualdescr inlafteruse \
+    unknownpragma doubunder w_enumnotused w_toomanyenumnotused \
+    wvarhidenmem wunreachable wnoretvalue notemsource
+
+DISABLED_WARNINGS_xlc := tautological-compare shift-negative-value
+
+DISABLED_WARNINGS_microsoft :=
+
+
+
+################################################################################
 # Platform specific setup
 
 # ARM source selection
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), linux-arm)
+ifeq ($(call And, $(call isTargetOs, linux) $(call isTargetCpu, arm)), true)
   JVM_EXCLUDE_PATTERNS += arm_64
 
-else ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), linux-aarch64)
+else ifeq ($(call And, $(call isTargetOs, linux) $(call isTargetCpu, aarch64)), true)
   # For 64-bit arm builds, we use the 64 bit hotspot/src/cpu/arm
   # hotspot sources if HOTSPOT_TARGET_CPU_ARCH is set to arm.
   # Exclude the aarch64 and 32 bit arm files for this build.
@@ -96,13 +120,13 @@ else ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), linux-aarch64)
   endif
 endif
 
-ifneq ($(filter $(OPENJDK_TARGET_OS), linux macosx windows), )
+ifeq ($(call isTargetOs, linux macosx windows), true)
   JVM_PRECOMPILED_HEADER := $(TOPDIR)/src/hotspot/share/precompiled/precompiled.hpp
 endif
 
-ifeq ($(OPENJDK_TARGET_CPU), x86)
+ifeq ($(call isTargetCpu, x86), true)
   JVM_EXCLUDE_PATTERNS += x86_64
-else ifeq ($(OPENJDK_TARGET_CPU), x86_64)
+else ifeq ($(call isTargetCpu, x86_64), true)
   JVM_EXCLUDE_PATTERNS += x86_32
 endif
 
@@ -111,20 +135,20 @@ ifneq ($(DEBUG_LEVEL), release)
 endif
 
 # Inline assembly for solaris
-ifeq ($(OPENJDK_TARGET_OS), solaris)
-  ifeq ($(OPENJDK_TARGET_CPU), x86_64)
+ifeq ($(call isTargetOs, solaris), true)
+  ifeq ($(call isTargetCpu, x86_64), true)
     JVM_CFLAGS += $(TOPDIR)/src/hotspot/os_cpu/solaris_x86/solaris_x86_64.il
-  else ifeq ($(OPENJDK_TARGET_CPU), sparcv9)
+  else ifeq ($(call isTargetCpu, sparcv9), true)
     JVM_CFLAGS += $(TOPDIR)/src/hotspot/os_cpu/solaris_sparc/solaris_sparc.il
   endif
   # Exclude warnings in devstudio 12.6
   ifeq ($(CC_VERSION_NUMBER), 5.15)
-    DISABLED_WARNINGS_solstudio := SEC_ARR_OUTSIDE_BOUND_READ \
+    DISABLED_WARNINGS_solstudio += SEC_ARR_OUTSIDE_BOUND_READ \
       SEC_ARR_OUTSIDE_BOUND_WRITE
   endif
 endif
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
+ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpu, sparcv9)), true)
   ifeq ($(COMPILE_WITH_DEBUG_SYMBOLS), false)
     # NOTE: In the old build, we weirdly enough set -g/-g0 always, regardless
     # of if debug symbols were needed. Without it, compilation fails on
@@ -133,8 +157,8 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
   endif
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+ifeq ($(call isTargetOs, windows), true)
+  ifeq ($(call isTargetCpuBits, 64), true)
     RC_DESC := 64-Bit$(SPACE)
   endif
   JVM_RCFLAGS += -D"HS_FILEDESC=$(HOTSPOT_VM_DISTRO) $(RC_DESC)$(JVM_VARIANT) VM"
@@ -146,6 +170,9 @@ JVM_OPTIMIZATION ?= HIGHEST_JVM
 # parameter to SetupNativeCompilation allows an empty value to override the
 # default.
 JVM_STRIPFLAGS ?= $(STRIPFLAGS)
+
+# This source set is reused so save in cache.
+$(call FillFindCache, $(JVM_SRC_DIRS))
 
 ################################################################################
 # Now set up the actual compilation of the main hotspot native library
@@ -162,22 +189,27 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
     CFLAGS := $(JVM_CFLAGS), \
     vm_version.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
     arguments.cpp_CXXFLAGS := $(CFLAGS_VM_VERSION), \
-    DISABLED_WARNINGS_gcc := suggest-attribute=format unknown-pragmas comment \
+    DISABLED_WARNINGS_gcc := $(DISABLED_WARNINGS_gcc) \
+        \
+        suggest-attribute=format unknown-pragmas comment \
         delete-non-virtual-dtor ignored-qualifiers parentheses reorder \
         unused-local-typedefs unused-variable address \
         missing-field-initializers unused-but-set-variable char-subscripts \
         array-bounds narrowing empty-body unused-but-set-parameter \
         maybe-uninitialized logical-op \
-        implicit-fallthrough expansion-to-defined strict-overflow sequence-point \
-        $(DISABLED_WARNINGS_gcc), \
-    DISABLED_WARNINGS_clang := tautological-compare, \
+        implicit-fallthrough expansion-to-defined strict-overflow sequence-point, \
+    DISABLED_WARNINGS_clang := $(DISABLED_WARNINGS_clang) \
+        \
+        tautological-compare, \
     DISABLED_WARNINGS_solstudio := $(DISABLED_WARNINGS_solstudio) \
+        \
         labelnotused hidef w_novirtualdescr inlafteruse \
         unknownpragma doubunder w_enumnotused w_toomanyenumnotused \
         wvarhidenmem wunreachable wnoretvalue, \
-    DISABLED_WARNINGS_microsoft := 4459, \
-    DISABLED_WARNINGS_xlc := 1540-0216 1540-0198 1540-1090 1540-1639 \
-        1540-1088 1500-010, \
+    DISABLED_WARNINGS_xlc := $(DISABLED_WARNINGS_xlc), \
+    DISABLED_WARNINGS_microsoft := $(DISABLED_WARNINGS_microsoft), \
+        \
+        4459, \
     ASFLAGS := $(JVM_ASFLAGS), \
     LDFLAGS := $(JVM_LDFLAGS), \
     LIBS := $(JVM_LIBS), \
@@ -191,6 +223,7 @@ $(eval $(call SetupNativeCompilation, BUILD_LIBJVM, \
     VERSIONINFO_RESOURCE := $(TOPDIR)/src/hotspot/os/windows/version.rc, \
     PRECOMPILED_HEADER := $(JVM_PRECOMPILED_HEADER), \
     PRECOMPILED_HEADER_EXCLUDE := $(JVM_PRECOMPILED_HEADER_EXCLUDE), \
+    DEFINE_THIS_FILE := false, \
 ))
 
 # Always recompile vm_version.cpp if libjvm needs to be relinked. This ensures
@@ -200,15 +233,17 @@ VM_VERSION_OBJ := $(JVM_OUTPUTDIR)/objs/vm_version$(OBJ_SUFFIX)
 $(VM_VERSION_OBJ): $(filter-out $(VM_VERSION_OBJ) $(JVM_MAPFILE), \
     $(BUILD_LIBJVM_TARGET_DEPS))
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
-  # It doesn't matter which jvm.lib file gets exported, but we need
-  # to pick just one.
-  ifeq ($(JVM_VARIANT), $(JVM_VARIANT_MAIN))
-    $(eval $(call SetupCopyFiles, COPY_JVM_LIB, \
-        DEST := $(LIB_OUTPUTDIR), \
-        FILES :=$(BUILD_LIBJVM_IMPORT_LIBRARY), \
-    ))
-    TARGETS += $(COPY_JVM_LIB)
+ifneq ($(GENERATE_COMPILE_COMMANDS_ONLY), true)
+  ifeq ($(call isTargetOs, windows), true)
+    # It doesn't matter which jvm.lib file gets exported, but we need
+    # to pick just one.
+    ifeq ($(JVM_VARIANT), $(JVM_VARIANT_MAIN))
+      $(eval $(call SetupCopyFiles, COPY_JVM_LIB, \
+          DEST := $(LIB_OUTPUTDIR), \
+          FILES :=$(BUILD_LIBJVM_IMPORT_LIBRARY), \
+      ))
+      TARGETS += $(COPY_JVM_LIB)
+    endif
   endif
 endif
 
@@ -246,45 +281,56 @@ TARGETS += $(BUILD_LIBJVM)
 #
 # Search the output for the operator(s) of interest, to see where they are
 # referenced.
+#
+# When a reference to the global 'operator delete' is reported, it might be
+# due to a "deleting destructor".  In this case, objdump may show the
+# reference to be associated with but not actually in a destructor.  A
+# deleting destructor is automatically generated for a class whose destructor
+# is virtual.  A deleting destructor requires an accessible 'operator delete'
+# for the associated class.  If the class doesn't provide a more specific
+# declaration (either directly or by inheriting from a class that provides
+# one) then the global definition will be used, triggering this check.
 
-ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang solstudio), )
+ifneq ($(GENERATE_COMPILE_COMMANDS_ONLY), true)
+  ifneq ($(filter $(TOOLCHAIN_TYPE), gcc clang solstudio), )
 
-  DEMANGLED_REGEXP := [^:]operator (new|delete)
+    DEMANGLED_REGEXP := [^:]operator (new|delete)
 
-  # Running c++filt to find offending symbols in all files is too expensive,
-  # especially on Solaris, so use mangled names when looking for symbols.
-  # Save the demangling for when something is actually found.
-  ifeq ($(TOOLCHAIN_TYPE), solstudio)
-    MANGLED_SYMS := \
-        __1c2n6FL_pv_ \
-        __1c2N6FL_pv_ \
-        __1c2k6Fpv_v_ \
-        __1c2K6Fpv_v_ \
-        #
-    UNDEF_PATTERN := UNDEF
-  else
-    MANGLED_SYMS := \
-        _ZdaPv \
-        _ZdlPv \
-        _Znam \
-        _Znwm \
-        #
-    UNDEF_PATTERN := ' U '
+    # Running c++filt to find offending symbols in all files is too expensive,
+    # especially on Solaris, so use mangled names when looking for symbols.
+    # Save the demangling for when something is actually found.
+    ifeq ($(TOOLCHAIN_TYPE), solstudio)
+      MANGLED_SYMS := \
+          __1c2n6FL_pv_ \
+          __1c2N6FL_pv_ \
+          __1c2k6Fpv_v_ \
+          __1c2K6Fpv_v_ \
+          #
+      UNDEF_PATTERN := UNDEF
+    else
+      MANGLED_SYMS := \
+          _ZdaPv \
+          _ZdlPv \
+          _Znam \
+          _Znwm \
+          #
+      UNDEF_PATTERN := ' U '
+    endif
+
+    define SetupOperatorNewDeleteCheck
+        $1.op_check: $1
+	  if [ -n "`$(NM) $$< | $(GREP) $(addprefix -e , $(MANGLED_SYMS)) \
+	      | $(GREP) $(UNDEF_PATTERN)`" ]; then \
+	    $(ECHO) "$$<: Error: Use of global operators new and delete is not allowed in Hotspot:"; \
+	    $(NM) $$< | $(CXXFILT) | $(EGREP) '$(DEMANGLED_REGEXP)' | $(GREP) $(UNDEF_PATTERN); \
+	    $(ECHO) "See: $(TOPDIR)/make/hotspot/lib/CompileJvm.gmk"; \
+	    exit 1; \
+	  fi
+	  $(TOUCH) $$@
+
+      TARGETS += $1.op_check
+    endef
+
+    $(foreach o, $(BUILD_LIBJVM_ALL_OBJS), $(eval $(call SetupOperatorNewDeleteCheck,$o)))
   endif
-
-  define SetupOperatorNewDeleteCheck
-    $1.op_check: $1
-	if [ -n "`$(NM) $$< | $(GREP) $(addprefix -e , $(MANGLED_SYMS)) \
-	    | $(GREP) $(UNDEF_PATTERN)`" ]; then \
-	  $(ECHO) "$$<: Error: Use of global operators new and delete is not allowed in Hotspot:"; \
-	  $(NM) $$< | $(CXXFILT) | $(EGREP) '$(DEMANGLED_REGEXP)' | $(GREP) $(UNDEF_PATTERN); \
-	  $(ECHO) "See: $(TOPDIR)/make/hotspot/lib/CompileJvm.gmk"; \
-	  exit 1; \
-	fi
-	$(TOUCH) $$@
-
-    TARGETS += $1.op_check
-  endef
-
-  $(foreach o, $(BUILD_LIBJVM_ALL_OBJS), $(eval $(call SetupOperatorNewDeleteCheck,$o)))
 endif

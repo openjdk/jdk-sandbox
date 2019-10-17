@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,9 @@
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "gc/parallel/adjoiningGenerations.hpp"
+#include "gc/parallel/adjoiningGenerationsForHeteroHeap.hpp"
 #include "gc/parallel/adjoiningVirtualSpaces.hpp"
-#include "gc/parallel/gcTaskManager.hpp"
-#include "gc/parallel/generationSizer.hpp"
+#include "gc/parallel/parallelArguments.hpp"
 #include "gc/parallel/objectStartArray.inline.hpp"
 #include "gc/parallel/parallelScavengeHeap.inline.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
@@ -36,12 +36,16 @@
 #include "gc/parallel/psParallelCompact.inline.hpp"
 #include "gc/parallel/psPromotionManager.hpp"
 #include "gc/parallel/psScavenge.hpp"
-#include "gc/parallel/vmPSOperations.hpp"
+#include "gc/parallel/psVMOperations.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/genArguments.hpp"
+#include "gc/shared/locationPrinter.inline.hpp"
+#include "gc/shared/scavengableNMethods.hpp"
 #include "logging/log.hpp"
 #include "memory/metaspaceCounters.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
@@ -55,23 +59,22 @@ PSYoungGen*  ParallelScavengeHeap::_young_gen = NULL;
 PSOldGen*    ParallelScavengeHeap::_old_gen = NULL;
 PSAdaptiveSizePolicy* ParallelScavengeHeap::_size_policy = NULL;
 PSGCAdaptivePolicyCounters* ParallelScavengeHeap::_gc_policy_counters = NULL;
-GCTaskManager* ParallelScavengeHeap::_gc_task_manager = NULL;
 
 jint ParallelScavengeHeap::initialize() {
-  const size_t heap_size = _collector_policy->max_heap_byte_size();
+  const size_t reserved_heap_size = ParallelArguments::heap_reserved_size_bytes();
 
-  ReservedSpace heap_rs = Universe::reserve_heap(heap_size, _collector_policy->heap_alignment());
+  ReservedHeapSpace heap_rs = Universe::reserve_heap(reserved_heap_size, HeapAlignment);
 
   os::trace_page_sizes("Heap",
-                       _collector_policy->min_heap_byte_size(),
-                       heap_size,
-                       generation_alignment(),
+                       MinHeapSize,
+                       reserved_heap_size,
+                       GenAlignment,
                        heap_rs.base(),
                        heap_rs.size());
 
-  initialize_reserved_region((HeapWord*)heap_rs.base(), (HeapWord*)(heap_rs.base() + heap_rs.size()));
+  initialize_reserved_region(heap_rs);
 
-  PSCardTable* card_table = new PSCardTable(reserved_region());
+  PSCardTable* card_table = new PSCardTable(heap_rs.region());
   card_table->initialize();
   CardTableBarrierSet* const barrier_set = new CardTableBarrierSet(card_table);
   barrier_set->initialize();
@@ -86,7 +89,7 @@ jint ParallelScavengeHeap::initialize() {
   double max_gc_pause_sec = ((double) MaxGCPauseMillis)/1000.0;
   double max_gc_minor_pause_sec = ((double) MaxGCMinorPauseMillis)/1000.0;
 
-  _gens = new AdjoiningGenerations(heap_rs, _collector_policy, generation_alignment());
+  _gens = AdjoiningGenerations::create_adjoining_generations(heap_rs);
 
   _old_gen = _gens->old_gen();
   _young_gen = _gens->young_gen();
@@ -98,13 +101,13 @@ jint ParallelScavengeHeap::initialize() {
     new PSAdaptiveSizePolicy(eden_capacity,
                              initial_promo_size,
                              young_gen()->to_space()->capacity_in_bytes(),
-                             _collector_policy->gen_alignment(),
+                             GenAlignment,
                              max_gc_pause_sec,
                              max_gc_minor_pause_sec,
                              GCTimeRatio
                              );
 
-  assert(!UseAdaptiveGCBoundary ||
+  assert(ParallelArguments::is_heterogeneous_heap() || !UseAdaptiveGCBoundary ||
     (old_gen()->virtual_space()->high_boundary() ==
      young_gen()->virtual_space()->low_boundary()),
     "Boundaries must meet");
@@ -112,12 +115,12 @@ jint ParallelScavengeHeap::initialize() {
   _gc_policy_counters =
     new PSGCAdaptivePolicyCounters("ParScav:MSC", 2, 2, _size_policy);
 
-  // Set up the GCTaskManager
-  _gc_task_manager = GCTaskManager::create(ParallelGCThreads);
-
   if (UseParallelOldGC && !PSParallelCompact::initialize()) {
     return JNI_ENOMEM;
   }
+
+  // Set up WorkGang
+  _workers.initialize_workers();
 
   return JNI_OK;
 }
@@ -149,6 +152,14 @@ void ParallelScavengeHeap::initialize_serviceability() {
 
 }
 
+class PSIsScavengable : public BoolObjectClosure {
+  bool do_object_b(oop obj) {
+    return ParallelScavengeHeap::heap()->is_in_young(obj);
+  }
+};
+
+static PSIsScavengable _is_scavengable;
+
 void ParallelScavengeHeap::post_initialize() {
   CollectedHeap::post_initialize();
   // Need to init the tenuring threshold
@@ -159,6 +170,8 @@ void ParallelScavengeHeap::post_initialize() {
     PSMarkSweepProxy::initialize();
   }
   PSPromotionManager::initialize();
+
+  ScavengableNMethods::initialize(&_is_scavengable);
 }
 
 void ParallelScavengeHeap::update_counters() {
@@ -506,6 +519,10 @@ void ParallelScavengeHeap::collect(GCCause::Cause cause) {
     full_gc_count = total_full_collections();
   }
 
+  if (GCLocker::should_discard(cause, gc_count)) {
+    return;
+  }
+
   VM_ParallelGCSystemGC op(gc_count, full_gc_count, cause);
   VMThread::execute(&op);
 }
@@ -529,10 +546,6 @@ HeapWord* ParallelScavengeHeap::block_start(const void* addr) const {
     return old_gen()->start_array()->object_start((HeapWord*)addr);
   }
   return 0;
-}
-
-size_t ParallelScavengeHeap::block_size(const HeapWord* addr) const {
-  return oop(addr)->size();
 }
 
 bool ParallelScavengeHeap::block_is_obj(const HeapWord* addr) const {
@@ -572,6 +585,10 @@ PSHeapSummary ParallelScavengeHeap::create_ps_heap_summary() {
   return PSHeapSummary(heap_summary, used(), old_summary, old_space, young_summary, eden_space, from_space, to_space);
 }
 
+bool ParallelScavengeHeap::print_location(outputStream* st, void* addr) const {
+  return BlockLocationPrinter<ParallelScavengeHeap>::print_location(st, addr);
+}
+
 void ParallelScavengeHeap::print_on(outputStream* st) const {
   young_gen()->print_on(st);
   old_gen()->print_on(st);
@@ -588,11 +605,11 @@ void ParallelScavengeHeap::print_on_error(outputStream* st) const {
 }
 
 void ParallelScavengeHeap::gc_threads_do(ThreadClosure* tc) const {
-  PSScavenge::gc_task_manager()->threads_do(tc);
+  ParallelScavengeHeap::heap()->workers().threads_do(tc);
 }
 
 void ParallelScavengeHeap::print_gc_threads_on(outputStream* st) const {
-  PSScavenge::gc_task_manager()->print_threads_on(st);
+  ParallelScavengeHeap::heap()->workers().print_worker_threads_on(st);
 }
 
 void ParallelScavengeHeap::print_tracing_info() const {
@@ -602,6 +619,54 @@ void ParallelScavengeHeap::print_tracing_info() const {
       UseParallelOldGC ? PSParallelCompact::accumulated_time()->seconds() : PSMarkSweepProxy::accumulated_time()->seconds());
 }
 
+PreGenGCValues ParallelScavengeHeap::get_pre_gc_values() const {
+  const PSYoungGen* const young = young_gen();
+  const MutableSpace* const eden = young->eden_space();
+  const MutableSpace* const from = young->from_space();
+  const PSOldGen* const old = old_gen();
+
+  return PreGenGCValues(young->used_in_bytes(),
+                        young->capacity_in_bytes(),
+                        eden->used_in_bytes(),
+                        eden->capacity_in_bytes(),
+                        from->used_in_bytes(),
+                        from->capacity_in_bytes(),
+                        old->used_in_bytes(),
+                        old->capacity_in_bytes());
+}
+
+void ParallelScavengeHeap::print_heap_change(const PreGenGCValues& pre_gc_values) const {
+  const PSYoungGen* const young = young_gen();
+  const MutableSpace* const eden = young->eden_space();
+  const MutableSpace* const from = young->from_space();
+  const PSOldGen* const old = old_gen();
+
+  log_info(gc, heap)(HEAP_CHANGE_FORMAT" "
+                     HEAP_CHANGE_FORMAT" "
+                     HEAP_CHANGE_FORMAT,
+                     HEAP_CHANGE_FORMAT_ARGS(young->name(),
+                                             pre_gc_values.young_gen_used(),
+                                             pre_gc_values.young_gen_capacity(),
+                                             young->used_in_bytes(),
+                                             young->capacity_in_bytes()),
+                     HEAP_CHANGE_FORMAT_ARGS("Eden",
+                                             pre_gc_values.eden_used(),
+                                             pre_gc_values.eden_capacity(),
+                                             eden->used_in_bytes(),
+                                             eden->capacity_in_bytes()),
+                     HEAP_CHANGE_FORMAT_ARGS("From",
+                                             pre_gc_values.from_used(),
+                                             pre_gc_values.from_capacity(),
+                                             from->used_in_bytes(),
+                                             from->capacity_in_bytes()));
+  log_info(gc, heap)(HEAP_CHANGE_FORMAT,
+                     HEAP_CHANGE_FORMAT_ARGS(old->name(),
+                                             pre_gc_values.old_gen_used(),
+                                             pre_gc_values.old_gen_capacity(),
+                                             old->used_in_bytes(),
+                                             old->capacity_in_bytes()));
+  MetaspaceUtils::print_metaspace_change(pre_gc_values.metaspace_sizes());
+}
 
 void ParallelScavengeHeap::verify(VerifyOption option /* ignored */) {
   // Why do we need the total_collections()-filter below?
@@ -696,16 +761,24 @@ void ParallelScavengeHeap::gen_mangle_unused_area() {
 }
 #endif
 
-bool ParallelScavengeHeap::is_scavengable(oop obj) {
-  return is_in_young(obj);
+void ParallelScavengeHeap::register_nmethod(nmethod* nm) {
+  ScavengableNMethods::register_nmethod(nm);
 }
 
-void ParallelScavengeHeap::register_nmethod(nmethod* nm) {
-  CodeCache::register_scavenge_root_nmethod(nm);
+void ParallelScavengeHeap::unregister_nmethod(nmethod* nm) {
+  ScavengableNMethods::unregister_nmethod(nm);
 }
 
 void ParallelScavengeHeap::verify_nmethod(nmethod* nm) {
-  CodeCache::verify_scavenge_root_nmethod(nm);
+  ScavengableNMethods::verify_nmethod(nm);
+}
+
+void ParallelScavengeHeap::flush_nmethod(nmethod* nm) {
+  // nothing particular
+}
+
+void ParallelScavengeHeap::prune_scavengable_nmethods() {
+  ScavengableNMethods::prune_nmethods();
 }
 
 GrowableArray<GCMemoryManager*> ParallelScavengeHeap::memory_managers() {

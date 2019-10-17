@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,8 @@
 
 package javax.swing.plaf.synth;
 
+import sun.awt.AppContext;
+
 import javax.swing.*;
 import java.awt.*;
 import java.beans.*;
@@ -43,6 +45,8 @@ import javax.swing.text.View;
 public class SynthButtonUI extends BasicButtonUI implements
                                  PropertyChangeListener, SynthUI {
     private SynthStyle style;
+
+    private static final Object SYNTH_BUTTON_UI_KEY = new Object();
 
     /**
      * Creates a new UI object for the given component.
@@ -191,7 +195,7 @@ public class SynthButtonUI extends BasicButtonUI implements
         }
         AbstractButton b = (AbstractButton)c;
         String text = b.getText();
-        if (text == null || "".equals(text)) {
+        if (text == null || text.isEmpty()) {
             return -1;
         }
         Insets i = b.getInsets();
@@ -205,9 +209,15 @@ public class SynthButtonUI extends BasicButtonUI implements
 
         // layout the text and icon
         SynthContext context = getContext(b);
+        SynthStyle style;
+        if (context.getStyle() != null) {
+            style = context.getStyle();
+        } else {
+            style = SynthLookAndFeel.updateStyle(context, this);
+        }
         FontMetrics fm = context.getComponent().getFontMetrics(
-            context.getStyle().getFont(context));
-        context.getStyle().getGraphicsUtils(context).layoutText(
+                               style.getFont(context));
+        style.getGraphicsUtils(context).layoutText(
             context, fm, b.getText(), b.getIcon(),
             b.getHorizontalAlignment(), b.getVerticalAlignment(),
             b.getHorizontalTextPosition(), b.getVerticalTextPosition(),

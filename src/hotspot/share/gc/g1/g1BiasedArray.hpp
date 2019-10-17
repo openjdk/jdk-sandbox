@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
-#define SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
+#ifndef SHARE_GC_G1_G1BIASEDARRAY_HPP
+#define SHARE_GC_G1_G1BIASEDARRAY_HPP
 
 #include "memory/memRegion.hpp"
 #include "utilities/debug.hpp"
@@ -128,6 +128,11 @@ public:
     return biased_base()[biased_index];
   }
 
+  T* get_ref_by_index(uintptr_t index) const {
+    verify_index(index);
+    return &this->base()[index];
+  }
+
   // Return the index of the element of the given array that covers the given
   // word in the heap.
   idx_t get_index_by_address(HeapWord* value) const {
@@ -194,4 +199,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1BIASEDARRAY_HPP
+#endif // SHARE_GC_G1_G1BIASEDARRAY_HPP

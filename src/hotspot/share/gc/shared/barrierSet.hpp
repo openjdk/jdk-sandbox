@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_BARRIERSET_HPP
-#define SHARE_VM_GC_SHARED_BARRIERSET_HPP
+#ifndef SHARE_GC_SHARED_BARRIERSET_HPP
+#define SHARE_GC_SHARED_BARRIERSET_HPP
 
 #include "gc/shared/barrierSetConfig.hpp"
 #include "memory/memRegion.hpp"
@@ -36,6 +36,7 @@
 class BarrierSetAssembler;
 class BarrierSetC1;
 class BarrierSetC2;
+class BarrierSetNMethod;
 class JavaThread;
 
 // This class provides the interface between a barrier implementation and
@@ -72,6 +73,7 @@ private:
   BarrierSetAssembler* _barrier_set_assembler;
   BarrierSetC1* _barrier_set_c1;
   BarrierSetC2* _barrier_set_c2;
+  BarrierSetNMethod* _barrier_set_nmethod;
 
 public:
   // Metafunction mapping a class derived from BarrierSet to the
@@ -95,11 +97,13 @@ protected:
   BarrierSet(BarrierSetAssembler* barrier_set_assembler,
              BarrierSetC1* barrier_set_c1,
              BarrierSetC2* barrier_set_c2,
+             BarrierSetNMethod* barrier_set_nmethod,
              const FakeRtti& fake_rtti) :
     _fake_rtti(fake_rtti),
     _barrier_set_assembler(barrier_set_assembler),
     _barrier_set_c1(barrier_set_c1),
-    _barrier_set_c2(barrier_set_c2) {}
+    _barrier_set_c2(barrier_set_c2),
+    _barrier_set_nmethod(barrier_set_nmethod) {}
   ~BarrierSet() { }
 
   template <class BarrierSetAssemblerT>
@@ -126,8 +130,18 @@ public:
   virtual void on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {}
   virtual void on_thread_create(Thread* thread) {}
   virtual void on_thread_destroy(Thread* thread) {}
-  virtual void on_thread_attach(JavaThread* thread) {}
-  virtual void on_thread_detach(JavaThread* thread) {}
+
+  // These perform BarrierSet-related initialization/cleanup before the thread
+  // is added to or removed from the corresponding set of threads. The
+  // argument thread is the current thread. These are called either holding
+  // the Threads_lock (for a JavaThread) and so not at a safepoint, or holding
+  // the NonJavaThreadsList_lock (for a NonJavaThread) locked by the
+  // caller. That locking ensures the operation is "atomic" with the list
+  // modification wrto operations that hold the NJTList_lock and either also
+  // hold the Threads_lock or are at a safepoint.
+  virtual void on_thread_attach(Thread* thread) {}
+  virtual void on_thread_detach(Thread* thread) {}
+
   virtual void make_parsable(JavaThread* thread) {}
 
 public:
@@ -150,6 +164,10 @@ public:
   BarrierSetC2* barrier_set_c2() {
     assert(_barrier_set_c2 != NULL, "should be set");
     return _barrier_set_c2;
+  }
+
+  BarrierSetNMethod* barrier_set_nmethod() {
+    return _barrier_set_nmethod;
   }
 
   // The AccessBarrier of a BarrierSet subclass is called by the Access API
@@ -263,11 +281,7 @@ public:
     template <typename T>
     static bool oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
-                                      size_t length) {
-      return Raw::oop_arraycopy(src_obj, src_offset_in_bytes, src_raw,
-                                dst_obj, dst_offset_in_bytes, dst_raw,
-                                length);
-    }
+                                      size_t length);
 
     // Off-heap oop accesses. These accessors get resolved when
     // IN_HEAP is not set (e.g. when using the NativeAccess API), it is
@@ -300,10 +314,6 @@ public:
     static oop resolve(oop obj) {
       return Raw::resolve(obj);
     }
-
-    static bool equals(oop o1, oop o2) {
-      return Raw::equals(o1, o2);
-    }
   };
 };
 
@@ -313,4 +323,4 @@ inline T* barrier_set_cast(BarrierSet* bs) {
   return static_cast<T*>(bs);
 }
 
-#endif // SHARE_VM_GC_SHARED_BARRIERSET_HPP
+#endif // SHARE_GC_SHARED_BARRIERSET_HPP

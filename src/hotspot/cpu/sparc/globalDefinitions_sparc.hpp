@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_GLOBALDEFINITIONS_SPARC_HPP
-#define CPU_SPARC_VM_GLOBALDEFINITIONS_SPARC_HPP
+#ifndef CPU_SPARC_GLOBALDEFINITIONS_SPARC_HPP
+#define CPU_SPARC_GLOBALDEFINITIONS_SPARC_HPP
 
 // Size of Sparc Instructions
 const int BytesPerInstWord = 4;
@@ -35,6 +35,8 @@ const int StackAlignmentInBytes = (2*wordSize);
 const bool CCallingConventionRequiresIntsAsLongs = true;
 
 #define SUPPORTS_NATIVE_CX8
+
+#define CPU_MULTI_COPY_ATOMIC
 
 // The expected size in bytes of a cache line, used to pad data structures.
 #if defined(TIERED)
@@ -55,4 +57,4 @@ const bool CCallingConventionRequiresIntsAsLongs = true;
 // SPARC have implemented the local polling
 #define THREAD_LOCAL_POLL
 
-#endif // CPU_SPARC_VM_GLOBALDEFINITIONS_SPARC_HPP
+#endif // CPU_SPARC_GLOBALDEFINITIONS_SPARC_HPP

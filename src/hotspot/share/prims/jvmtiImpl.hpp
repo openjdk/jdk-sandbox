@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTIIMPL_HPP
-#define SHARE_VM_PRIMS_JVMTIIMPL_HPP
+#ifndef SHARE_PRIMS_JVMTIIMPL_HPP
+#define SHARE_PRIMS_JVMTIIMPL_HPP
 
 #include "classfile/systemDictionary.hpp"
 #include "jvmtifiles/jvmti.h"
@@ -33,7 +33,7 @@
 #include "prims/jvmtiTrace.hpp"
 #include "prims/jvmtiUtil.hpp"
 #include "runtime/stackValueCollection.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/ostream.hpp"
 
 //
@@ -120,8 +120,6 @@ public:
   void oops_do(OopClosure* f);
   // walk metadata to preserve for RedefineClasses
   void metadata_do(void f(Metadata*));
-  // update the cache after a full gc
-  void gc_epilogue();
 };
 
 
@@ -154,7 +152,6 @@ public:
   void clear()                          { _cache.clear(); }
   void oops_do(OopClosure* f)           { _cache.oops_do(f); }
   void metadata_do(void f(Metadata*))   { _cache.metadata_do(f); }
-  void gc_epilogue()                    { _cache.gc_epilogue(); }
 };
 
 
@@ -257,7 +254,6 @@ public:
   int  set(JvmtiBreakpoint& bp);
   int  clear(JvmtiBreakpoint& bp);
   void clearall_in_class_at_safepoint(Klass* klass);
-  void gc_epilogue();
 };
 
 
@@ -297,24 +293,9 @@ public:
   // lazily create _jvmti_breakpoints and _breakpoint_list
   static JvmtiBreakpoints& get_jvmti_breakpoints();
 
-  // quickly test whether the bcp matches a cached breakpoint in the list
-  static inline bool is_breakpoint(address bcp);
-
   static void oops_do(OopClosure* f);
   static void metadata_do(void f(Metadata*)) NOT_JVMTI_RETURN;
-  static void gc_epilogue();
 };
-
-// quickly test whether the bcp matches a cached breakpoint in the list
-bool JvmtiCurrentBreakpoints::is_breakpoint(address bcp) {
-    address *bps = get_breakpoint_list();
-    if (bps == NULL) return false;
-    for ( ; (*bps) != NULL; bps++) {
-      if ((*bps) == bcp) return true;
-    }
-    return false;
-}
-
 
 ///////////////////////////////////////////////////////////////
 //
@@ -382,7 +363,8 @@ class VM_GetOrSetLocal : public VM_Operation {
 
   vframe* get_vframe();
   javaVFrame* get_java_vframe();
-  bool check_slot_type(javaVFrame* vf);
+  bool check_slot_type_lvt(javaVFrame* vf);
+  bool check_slot_type_no_lvt(javaVFrame* vf);
 
 public:
   // Constructor for non-object getter
@@ -531,4 +513,4 @@ class JvmtiDeferredEventQueue : AllStatic {
 // Utility macro that checks for NULL pointers:
 #define NULL_CHECK(X, Y) if ((X) == NULL) { return (Y); }
 
-#endif // SHARE_VM_PRIMS_JVMTIIMPL_HPP
+#endif // SHARE_PRIMS_JVMTIIMPL_HPP

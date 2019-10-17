@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,13 @@
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "aot/aotLoader.hpp"
-#include "code/compiledMethod.inline.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
+#include "code/icBuffer.hpp"
+#include "code/compiledMethod.inline.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/abstractCompiler.hpp"
@@ -56,7 +57,6 @@
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -763,18 +763,9 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* thread, bool del
   throw_and_post_jvmti_exception(thread, exception);
 }
 
-#if INCLUDE_JVMCI
-address SharedRuntime::deoptimize_for_implicit_exception(JavaThread* thread, address pc, CompiledMethod* nm, int deopt_reason) {
-  assert(deopt_reason > Deoptimization::Reason_none && deopt_reason < Deoptimization::Reason_LIMIT, "invalid deopt reason");
-  thread->set_jvmci_implicit_exception_pc(pc);
-  thread->set_pending_deoptimization(Deoptimization::make_trap_request((Deoptimization::DeoptReason)deopt_reason, Deoptimization::Action_reinterpret));
-  return (SharedRuntime::deopt_blob()->implicit_exception_uncommon_trap());
-}
-#endif // INCLUDE_JVMCI
-
 address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
                                                            address pc,
-                                                           SharedRuntime::ImplicitExceptionKind exception_kind)
+                                                           ImplicitExceptionKind exception_kind)
 {
   address target_pc = NULL;
 
@@ -875,19 +866,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
 #ifndef PRODUCT
           _implicit_null_throws++;
 #endif
-#if INCLUDE_JVMCI
-          if (cm->is_compiled_by_jvmci() && cm->pc_desc_at(pc) != NULL) {
-            // If there's no PcDesc then we'll die way down inside of
-            // deopt instead of just getting normal error reporting,
-            // so only go there if it will succeed.
-            return deoptimize_for_implicit_exception(thread, pc, cm, Deoptimization::Reason_null_check);
-          } else {
-#endif // INCLUDE_JVMCI
-          assert (cm->is_nmethod(), "Expect nmethod");
-          target_pc = ((nmethod*)cm)->continuation_for_implicit_exception(pc);
-#if INCLUDE_JVMCI
-          }
-#endif // INCLUDE_JVMCI
+          target_pc = cm->continuation_for_implicit_null_exception(pc);
           // If there's an unexpected fault, target_pc might be NULL,
           // in which case we want to fall through into the normal
           // error handling code.
@@ -903,15 +882,7 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
 #ifndef PRODUCT
         _implicit_div0_throws++;
 #endif
-#if INCLUDE_JVMCI
-        if (cm->is_compiled_by_jvmci() && cm->pc_desc_at(pc) != NULL) {
-          return deoptimize_for_implicit_exception(thread, pc, cm, Deoptimization::Reason_div0_check);
-        } else {
-#endif // INCLUDE_JVMCI
-        target_pc = cm->continuation_for_implicit_exception(pc);
-#if INCLUDE_JVMCI
-        }
-#endif // INCLUDE_JVMCI
+        target_pc = cm->continuation_for_implicit_div0_exception(pc);
         // If there's an unexpected fault, target_pc might be NULL,
         // in which case we want to fall through into the normal
         // error handling code.
@@ -1058,7 +1029,7 @@ methodHandle SharedRuntime::extract_attached_method(vframeStream& vfst) {
 
   address pc = vfst.frame_pc();
   { // Get call instruction under lock because another thread may be busy patching it.
-    MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
+    CompiledICLocker ic_locker(caller);
     return caller->attached_method_before_pc(pc);
   }
   return NULL;
@@ -1245,11 +1216,94 @@ methodHandle SharedRuntime::resolve_helper(JavaThread *thread,
   return callee_method;
 }
 
+// This fails if resolution required refilling of IC stubs
+bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
+                                                CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                                Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS) {
+  StaticCallInfo static_call_info;
+  CompiledICInfo virtual_call_info;
+
+  // Make sure the callee nmethod does not get deoptimized and removed before
+  // we are done patching the code.
+  CompiledMethod* callee = callee_method->code();
+
+  if (callee != NULL) {
+    assert(callee->is_compiled(), "must be nmethod for patching");
+  }
+
+  if (callee != NULL && !callee->is_in_use()) {
+    // Patch call site to C2I adapter if callee nmethod is deoptimized or unloaded.
+    callee = NULL;
+  }
+  nmethodLocker nl_callee(callee);
+#ifdef ASSERT
+  address dest_entry_point = callee == NULL ? 0 : callee->entry_point(); // used below
+#endif
+
+  bool is_nmethod = caller_nm->is_nmethod();
+
+  if (is_virtual) {
+    assert(receiver.not_null() || invoke_code == Bytecodes::_invokehandle, "sanity check");
+    bool static_bound = call_info.resolved_method()->can_be_statically_bound();
+    Klass* klass = invoke_code == Bytecodes::_invokehandle ? NULL : receiver->klass();
+    CompiledIC::compute_monomorphic_entry(callee_method, klass,
+                     is_optimized, static_bound, is_nmethod, virtual_call_info,
+                     CHECK_false);
+  } else {
+    // static call
+    CompiledStaticCall::compute_entry(callee_method, is_nmethod, static_call_info);
+  }
+
+  // grab lock, check for deoptimization and potentially patch caller
+  {
+    CompiledICLocker ml(caller_nm);
+
+    // Lock blocks for safepoint during which both nmethods can change state.
+
+    // Now that we are ready to patch if the Method* was redefined then
+    // don't update call site and let the caller retry.
+    // Don't update call site if callee nmethod was unloaded or deoptimized.
+    // Don't update call site if callee nmethod was replaced by an other nmethod
+    // which may happen when multiply alive nmethod (tiered compilation)
+    // will be supported.
+    if (!callee_method->is_old() &&
+        (callee == NULL || (callee->is_in_use() && callee_method->code() == callee))) {
+      NoSafepointVerifier nsv;
+#ifdef ASSERT
+      // We must not try to patch to jump to an already unloaded method.
+      if (dest_entry_point != 0) {
+        CodeBlob* cb = CodeCache::find_blob(dest_entry_point);
+        assert((cb != NULL) && cb->is_compiled() && (((CompiledMethod*)cb) == callee),
+               "should not call unloaded nmethod");
+      }
+#endif
+      if (is_virtual) {
+        CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
+        if (inline_cache->is_clean()) {
+          if (!inline_cache->set_to_monomorphic(virtual_call_info)) {
+            return false;
+          }
+        }
+      } else {
+        if (VM_Version::supports_fast_class_init_checks() &&
+            invoke_code == Bytecodes::_invokestatic &&
+            callee_method->needs_clinit_barrier() &&
+            callee != NULL && (callee->is_compiled_by_jvmci() || callee->is_aot())) {
+          return true; // skip patching for JVMCI or AOT code
+        }
+        CompiledStaticCall* ssc = caller_nm->compiledStaticCall_before(caller_frame.pc());
+        if (ssc->is_clean()) ssc->set(static_call_info);
+      }
+    }
+  } // unlock CompiledICLocker
+  return true;
+}
+
 // Resolves a call.  The compilers generate code for calls that go here
 // and are patched with the real destination of the call.
 methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
-                                           bool is_virtual,
-                                           bool is_optimized, TRAPS) {
+                                               bool is_virtual,
+                                               bool is_optimized, TRAPS) {
 
   ResourceMark rm(thread);
   RegisterMap cbl_map(thread, false);
@@ -1279,7 +1333,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
          (!is_virtual && invoke_code == Bytecodes::_invokedynamic) ||
          ( is_virtual && invoke_code != Bytecodes::_invokestatic ), "inconsistent bytecode");
 
-  assert(caller_nm->is_alive(), "It should be alive");
+  assert(caller_nm->is_alive() && !caller_nm->is_unloading(), "It should be alive");
 
 #ifndef PRODUCT
   // tracing/debugging/statistics
@@ -1299,6 +1353,22 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   }
 #endif
 
+  if (invoke_code == Bytecodes::_invokestatic) {
+    assert(callee_method->method_holder()->is_initialized() ||
+           callee_method->method_holder()->is_reentrant_initialization(thread),
+           "invalid class initialization state for invoke_static");
+    if (!VM_Version::supports_fast_class_init_checks() && callee_method->needs_clinit_barrier()) {
+      // In order to keep class initialization check, do not patch call
+      // site for static call when the class is not fully initialized.
+      // Proper check is enforced by call site re-resolution on every invocation.
+      //
+      // When fast class initialization checks are supported (VM_Version::supports_fast_class_init_checks() == true),
+      // explicit class initialization check is put in nmethod entry (VEP).
+      assert(callee_method->method_holder()->is_linked(), "must be");
+      return callee_method;
+    }
+  }
+
   // JSR 292 key invariant:
   // If the resolved method is a MethodHandle invoke target, the call
   // site must be a MethodHandle call site, because the lambda form might tail-call
@@ -1315,76 +1385,20 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   // (cached_oop, destination address) pair. For a static call/optimized
   // virtual this is just a destination address.
 
-  StaticCallInfo static_call_info;
-  CompiledICInfo virtual_call_info;
-
-  // Make sure the callee nmethod does not get deoptimized and removed before
-  // we are done patching the code.
-  CompiledMethod* callee = callee_method->code();
-
-  if (callee != NULL) {
-    assert(callee->is_compiled(), "must be nmethod for patching");
-  }
-
-  if (callee != NULL && !callee->is_in_use()) {
-    // Patch call site to C2I adapter if callee nmethod is deoptimized or unloaded.
-    callee = NULL;
-  }
-  nmethodLocker nl_callee(callee);
-#ifdef ASSERT
-  address dest_entry_point = callee == NULL ? 0 : callee->entry_point(); // used below
-#endif
-
-  bool is_nmethod = caller_nm->is_nmethod();
-
-  if (is_virtual) {
-    assert(receiver.not_null() || invoke_code == Bytecodes::_invokehandle, "sanity check");
-    bool static_bound = call_info.resolved_method()->can_be_statically_bound();
-    Klass* klass = invoke_code == Bytecodes::_invokehandle ? NULL : receiver->klass();
-    CompiledIC::compute_monomorphic_entry(callee_method, klass,
-                     is_optimized, static_bound, is_nmethod, virtual_call_info,
-                     CHECK_(methodHandle()));
-  } else {
-    // static call
-    CompiledStaticCall::compute_entry(callee_method, is_nmethod, static_call_info);
-  }
-
-  // grab lock, check for deoptimization and potentially patch caller
-  {
-    MutexLocker ml_patch(CompiledIC_lock);
-
-    // Lock blocks for safepoint during which both nmethods can change state.
-
-    // Now that we are ready to patch if the Method* was redefined then
-    // don't update call site and let the caller retry.
-    // Don't update call site if callee nmethod was unloaded or deoptimized.
-    // Don't update call site if callee nmethod was replaced by an other nmethod
-    // which may happen when multiply alive nmethod (tiered compilation)
-    // will be supported.
-    if (!callee_method->is_old() &&
-        (callee == NULL || (callee->is_in_use() && callee_method->code() == callee))) {
-#ifdef ASSERT
-      // We must not try to patch to jump to an already unloaded method.
-      if (dest_entry_point != 0) {
-        CodeBlob* cb = CodeCache::find_blob(dest_entry_point);
-        assert((cb != NULL) && cb->is_compiled() && (((CompiledMethod*)cb) == callee),
-               "should not call unloaded nmethod");
-      }
-#endif
-      if (is_virtual) {
-        CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
-        if (inline_cache->is_clean()) {
-          inline_cache->set_to_monomorphic(virtual_call_info);
-        }
-      } else {
-        CompiledStaticCall* ssc = caller_nm->compiledStaticCall_before(caller_frame.pc());
-        if (ssc->is_clean()) ssc->set(static_call_info);
-      }
+  // Patching IC caches may fail if we run out if transition stubs.
+  // We refill the ic stubs then and try again.
+  for (;;) {
+    ICRefillVerifier ic_refill_verifier;
+    bool successful = resolve_sub_helper_internal(callee_method, caller_frame, caller_nm,
+                                                  is_virtual, is_optimized, receiver,
+                                                  call_info, invoke_code, CHECK_(methodHandle()));
+    if (successful) {
+      return callee_method;
+    } else {
+      InlineCacheBuffer::refill_ic_stubs();
     }
+  }
 
-  } // unlock CompiledIC_lock
-
-  return callee_method;
 }
 
 
@@ -1432,7 +1446,19 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
     guarantee(callee != NULL && callee->is_method(), "bad handshake");
     thread->set_vm_result_2(callee);
     thread->set_callee_target(NULL);
-    return callee->get_c2i_entry();
+    if (caller_frame.is_entry_frame() && VM_Version::supports_fast_class_init_checks()) {
+      // Bypass class initialization checks in c2i when caller is in native.
+      // JNI calls to static methods don't have class initialization checks.
+      // Fast class initialization checks are present in c2i adapters and call into
+      // SharedRuntime::handle_wrong_method() on the slow path.
+      //
+      // JVM upcalls may land here as well, but there's a proper check present in
+      // LinkResolver::resolve_static_call (called from JavaCalls::call_static),
+      // so bypassing it in c2i adapter is benign.
+      return callee->get_c2i_no_clinit_check_entry();
+    } else {
+      return callee->get_c2i_entry();
+    }
   }
 
   // Must be compiled to compiled path which is safe to stackwalk
@@ -1518,7 +1544,85 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread *t
   return callee_method->verified_code_entry();
 JRT_END
 
+// The handle_ic_miss_helper_internal function returns false if it failed due
+// to either running out of vtable stubs or ic stubs due to IC transitions
+// to transitional states. The needs_ic_stub_refill value will be set if
+// the failure was due to running out of IC stubs, in which case handle_ic_miss_helper
+// refills the IC stubs and tries again.
+bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm,
+                                                   const frame& caller_frame, methodHandle callee_method,
+                                                   Bytecodes::Code bc, CallInfo& call_info,
+                                                   bool& needs_ic_stub_refill, TRAPS) {
+  CompiledICLocker ml(caller_nm);
+  CompiledIC* inline_cache = CompiledIC_before(caller_nm, caller_frame.pc());
+  bool should_be_mono = false;
+  if (inline_cache->is_optimized()) {
+    if (TraceCallFixup) {
+      ResourceMark rm(THREAD);
+      tty->print("OPTIMIZED IC miss (%s) call to", Bytecodes::name(bc));
+      callee_method->print_short_name(tty);
+      tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
+    }
+    should_be_mono = true;
+  } else if (inline_cache->is_icholder_call()) {
+    CompiledICHolder* ic_oop = inline_cache->cached_icholder();
+    if (ic_oop != NULL) {
+      if (!ic_oop->is_loader_alive()) {
+        // Deferred IC cleaning due to concurrent class unloading
+        if (!inline_cache->set_to_clean()) {
+          needs_ic_stub_refill = true;
+          return false;
+        }
+      } else if (receiver()->klass() == ic_oop->holder_klass()) {
+        // This isn't a real miss. We must have seen that compiled code
+        // is now available and we want the call site converted to a
+        // monomorphic compiled call site.
+        // We can't assert for callee_method->code() != NULL because it
+        // could have been deoptimized in the meantime
+        if (TraceCallFixup) {
+          ResourceMark rm(THREAD);
+          tty->print("FALSE IC miss (%s) converting to compiled call to", Bytecodes::name(bc));
+          callee_method->print_short_name(tty);
+          tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
+        }
+        should_be_mono = true;
+      }
+    }
+  }
 
+  if (should_be_mono) {
+    // We have a path that was monomorphic but was going interpreted
+    // and now we have (or had) a compiled entry. We correct the IC
+    // by using a new icBuffer.
+    CompiledICInfo info;
+    Klass* receiver_klass = receiver()->klass();
+    inline_cache->compute_monomorphic_entry(callee_method,
+                                            receiver_klass,
+                                            inline_cache->is_optimized(),
+                                            false, caller_nm->is_nmethod(),
+                                            info, CHECK_false);
+    if (!inline_cache->set_to_monomorphic(info)) {
+      needs_ic_stub_refill = true;
+      return false;
+    }
+  } else if (!inline_cache->is_megamorphic() && !inline_cache->is_clean()) {
+    // Potential change to megamorphic
+
+    bool successful = inline_cache->set_to_megamorphic(&call_info, bc, needs_ic_stub_refill, CHECK_false);
+    if (needs_ic_stub_refill) {
+      return false;
+    }
+    if (!successful) {
+      if (!inline_cache->set_to_clean()) {
+        needs_ic_stub_refill = true;
+        return false;
+      }
+    }
+  } else {
+    // Either clean or megamorphic
+  }
+  return true;
+}
 
 methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
   ResourceMark rm(thread);
@@ -1555,8 +1659,6 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
 
   methodHandle callee_method = call_info.selected_method();
 
-  bool should_be_mono = false;
-
 #ifndef PRODUCT
   Atomic::inc(&_ic_miss_ctr);
 
@@ -1585,71 +1687,42 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, TRAPS) {
   JvmtiDynamicCodeEventCollector event_collector;
 
   // Update inline cache to megamorphic. Skip update if we are called from interpreted.
-  { MutexLocker ml_patch (CompiledIC_lock);
-    RegisterMap reg_map(thread, false);
-    frame caller_frame = thread->last_frame().sender(&reg_map);
-    CodeBlob* cb = caller_frame.cb();
-    CompiledMethod* caller_nm = cb->as_compiled_method_or_null();
-    if (cb->is_compiled()) {
-      CompiledIC* inline_cache = CompiledIC_before(((CompiledMethod*)cb), caller_frame.pc());
-      bool should_be_mono = false;
-      if (inline_cache->is_optimized()) {
-        if (TraceCallFixup) {
-          ResourceMark rm(thread);
-          tty->print("OPTIMIZED IC miss (%s) call to", Bytecodes::name(bc));
-          callee_method->print_short_name(tty);
-          tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
-        }
-        should_be_mono = true;
-      } else if (inline_cache->is_icholder_call()) {
-        CompiledICHolder* ic_oop = inline_cache->cached_icholder();
-        if (ic_oop != NULL) {
+  // Transitioning IC caches may require transition stubs. If we run out
+  // of transition stubs, we have to drop locks and perform a safepoint
+  // that refills them.
+  RegisterMap reg_map(thread, false);
+  frame caller_frame = thread->last_frame().sender(&reg_map);
+  CodeBlob* cb = caller_frame.cb();
+  CompiledMethod* caller_nm = cb->as_compiled_method();
 
-          if (receiver()->klass() == ic_oop->holder_klass()) {
-            // This isn't a real miss. We must have seen that compiled code
-            // is now available and we want the call site converted to a
-            // monomorphic compiled call site.
-            // We can't assert for callee_method->code() != NULL because it
-            // could have been deoptimized in the meantime
-            if (TraceCallFixup) {
-              ResourceMark rm(thread);
-              tty->print("FALSE IC miss (%s) converting to compiled call to", Bytecodes::name(bc));
-              callee_method->print_short_name(tty);
-              tty->print_cr(" code: " INTPTR_FORMAT, p2i(callee_method->code()));
-            }
-            should_be_mono = true;
-          }
-        }
-      }
-
-      if (should_be_mono) {
-
-        // We have a path that was monomorphic but was going interpreted
-        // and now we have (or had) a compiled entry. We correct the IC
-        // by using a new icBuffer.
-        CompiledICInfo info;
-        Klass* receiver_klass = receiver()->klass();
-        inline_cache->compute_monomorphic_entry(callee_method,
-                                                receiver_klass,
-                                                inline_cache->is_optimized(),
-                                                false, caller_nm->is_nmethod(),
-                                                info, CHECK_(methodHandle()));
-        inline_cache->set_to_monomorphic(info);
-      } else if (!inline_cache->is_megamorphic() && !inline_cache->is_clean()) {
-        // Potential change to megamorphic
-        bool successful = inline_cache->set_to_megamorphic(&call_info, bc, CHECK_(methodHandle()));
-        if (!successful) {
-          inline_cache->set_to_clean();
-        }
-      } else {
-        // Either clean or megamorphic
-      }
+  for (;;) {
+    ICRefillVerifier ic_refill_verifier;
+    bool needs_ic_stub_refill = false;
+    bool successful = handle_ic_miss_helper_internal(receiver, caller_nm, caller_frame, callee_method,
+                                                     bc, call_info, needs_ic_stub_refill, CHECK_(methodHandle()));
+    if (successful || !needs_ic_stub_refill) {
+      return callee_method;
     } else {
-      fatal("Unimplemented");
+      InlineCacheBuffer::refill_ic_stubs();
     }
-  } // Release CompiledIC_lock
+  }
+}
 
-  return callee_method;
+static bool clear_ic_at_addr(CompiledMethod* caller_nm, address call_addr, bool is_static_call) {
+  CompiledICLocker ml(caller_nm);
+  if (is_static_call) {
+    CompiledStaticCall* ssc = caller_nm->compiledStaticCall_at(call_addr);
+    if (!ssc->is_clean()) {
+      return ssc->set_to_clean();
+    }
+  } else {
+    // compiled, dispatched call (which used to call an interpreted method)
+    CompiledIC* inline_cache = CompiledIC_at(caller_nm, call_addr);
+    if (!inline_cache->is_clean()) {
+      return inline_cache->set_to_clean();
+    }
+  }
+  return true;
 }
 
 //
@@ -1699,7 +1772,7 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
     {
       // Get call instruction under lock because another thread may be
       // busy patching it.
-      MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
+      CompiledICLocker ml(caller_nm);
       // Location of call instruction
       call_addr = caller_nm->call_instruction_address(pc);
     }
@@ -1731,15 +1804,13 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
       // to a wrong method). It should not be performance critical, since the
       // resolve is only done once.
 
-      bool is_nmethod = caller_nm->is_nmethod();
-      MutexLocker ml(CompiledIC_lock);
-      if (is_static_call) {
-        CompiledStaticCall* ssc = caller_nm->compiledStaticCall_at(call_addr);
-        ssc->set_to_clean();
-      } else {
-        // compiled, dispatched call (which used to call an interpreted method)
-        CompiledIC* inline_cache = CompiledIC_at(caller_nm, call_addr);
-        inline_cache->set_to_clean();
+      for (;;) {
+        ICRefillVerifier ic_refill_verifier;
+        if (!clear_ic_at_addr(caller_nm, call_addr, is_static_call)) {
+          InlineCacheBuffer::refill_ic_stubs();
+        } else {
+          break;
+        }
       }
     }
   }
@@ -1838,7 +1909,7 @@ bool SharedRuntime::should_fixup_call_destination(address destination, address e
 // where we went int -> i2c -> c2i and so the caller could in fact be
 // interpreted. If the caller is compiled we attempt to patch the caller
 // so he no longer calls into the interpreter.
-IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address caller_pc))
+JRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address caller_pc))
   Method* moop(method);
 
   address entry_point = moop->from_compiled_entry_no_trampoline();
@@ -1877,9 +1948,8 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
   if (moop->code() == NULL) return;
 
   if (nm->is_in_use()) {
-
     // Expect to find a native call there (unless it was no-inline cache vtable dispatch)
-    MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
+    CompiledICLocker ic_locker(nm);
     if (NativeCall::is_call_before(return_pc)) {
       ResourceMark mark;
       NativeCallWrapper* call = nm->call_wrapper_before(return_pc);
@@ -1908,7 +1978,7 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
       }
     }
   }
-IRT_END
+JRT_END
 
 
 // same as JVM_Arraycopy, but called directly from compiled code
@@ -1962,7 +2032,7 @@ char* SharedRuntime::generate_class_cast_message(
   const char* caster_name = caster_klass->external_name();
 
   assert(target_klass != NULL || target_klass_name != NULL, "one must be provided");
-  const char* target_name = target_klass == NULL ? target_klass_name->as_C_string() :
+  const char* target_name = target_klass == NULL ? target_klass_name->as_klass_external_name() :
                                                    target_klass->external_name();
 
   size_t msglen = strlen(caster_name) + strlen("class ") + strlen(" cannot be cast to class ") + strlen(target_name) + 1;
@@ -2021,12 +2091,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* _obj, B
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
   Handle h_obj(THREAD, obj);
-  if (UseBiasedLocking) {
-    // Retry fast entry if bias is revoked to avoid unnecessary inflation
-    ObjectSynchronizer::fast_enter(h_obj, lock, true, CHECK);
-  } else {
-    ObjectSynchronizer::slow_enter(h_obj, lock, CHECK);
-  }
+  ObjectSynchronizer::enter(h_obj, lock, CHECK);
   assert(!HAS_PENDING_EXCEPTION, "Should have no exception here");
   JRT_BLOCK_END
 JRT_END
@@ -2057,7 +2122,7 @@ JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* _obj, BasicL
   {
     // Exit must be non-blocking, and therefore no exceptions can be thrown.
     EXCEPTION_MARK;
-    ObjectSynchronizer::slow_exit(obj, lock, THREAD);
+    ObjectSynchronizer::exit(obj, lock, THREAD);
   }
 
 #ifdef MIGHT_HAVE_PENDING
@@ -2177,7 +2242,7 @@ class MethodArityHistogram {
 
  public:
   MethodArityHistogram() {
-    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     _max_arity = _max_size = 0;
     for (int i = 0; i < MAX_ARITY; i++) _arity_histogram[i] = _size_histogram[i] = 0;
     CodeCache::nmethods_do(add_method_to_histogram);
@@ -2392,9 +2457,9 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
     : BasicHashtable<mtCode>(293, (DumpSharedSpaces ? sizeof(CDSAdapterHandlerEntry) : sizeof(AdapterHandlerEntry))) { }
 
   // Create a new entry suitable for insertion in the table
-  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry) {
+  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry, address c2i_no_clinit_check_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
-    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2543,8 +2608,9 @@ void AdapterHandlerLibrary::initialize() {
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
                                                       address i2c_entry,
                                                       address c2i_entry,
-                                                      address c2i_unverified_entry) {
-  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+                                                      address c2i_unverified_entry,
+                                                      address c2i_no_clinit_check_entry) {
+  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
@@ -2720,6 +2786,7 @@ address AdapterHandlerEntry::base_address() {
   if (base == NULL)  base = _c2i_entry;
   assert(base <= _c2i_entry || _c2i_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
+  assert(base <= _c2i_no_clinit_check_entry || _c2i_no_clinit_check_entry == NULL, "");
   return base;
 }
 
@@ -2733,6 +2800,8 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _c2i_entry += delta;
   if (_c2i_unverified_entry != NULL)
     _c2i_unverified_entry += delta;
+  if (_c2i_no_clinit_check_entry != NULL)
+    _c2i_no_clinit_check_entry += delta;
   assert(base_address() == new_base, "");
 }
 
@@ -2740,7 +2809,7 @@ void AdapterHandlerEntry::relocate(address new_base) {
 void AdapterHandlerEntry::deallocate() {
   delete _fingerprint;
 #ifdef ASSERT
-  if (_saved_code) FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
+  FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
 #endif
 }
 
@@ -2775,10 +2844,16 @@ bool AdapterHandlerEntry::compare_code(unsigned char* buffer, int length) {
 void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
   ResourceMark rm;
   nmethod* nm = NULL;
+  address critical_entry = NULL;
 
   assert(method->is_native(), "must be native");
   assert(method->is_method_handle_intrinsic() ||
          method->has_native_function(), "must have something valid to call!");
+
+  if (CriticalJNINatives && !method->is_method_handle_intrinsic()) {
+    // We perform the I/O with transition to native before acquiring AdapterHandlerLibrary_lock.
+    critical_entry = NativeLookup::lookup_critical_entry(method);
+  }
 
   {
     // Perform the work while holding the lock, but perform any printing outside the lock
@@ -2824,10 +2899,15 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       int comp_args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, total_args_passed, is_outgoing);
 
       // Generate the compiled-to-native wrapper code
-      nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type);
+      nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type, critical_entry);
 
       if (nm != NULL) {
-        method->set_code(method, nm);
+        {
+          MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+          if (nm->make_in_use()) {
+            method->set_code(method, nm);
+          }
+        }
 
         DirectiveSet* directive = DirectivesStack::getDefaultDirective(CompileBroker::compiler(CompLevel_simple));
         if (directive->PrintAssemblyOption) {
@@ -3032,10 +3112,10 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
     if (kptr2->obj() != NULL) {         // Avoid 'holes' in the monitor array
       BasicLock *lock = kptr2->lock();
       // Inflate so the displaced header becomes position-independent
-      if (lock->displaced_header()->is_unlocked())
+      if (lock->displaced_header().is_unlocked())
         ObjectSynchronizer::inflate_helper(kptr2->obj());
       // Now the displaced header is free to move
-      buf[i++] = (intptr_t)lock->displaced_header();
+      buf[i++] = (intptr_t)lock->displaced_header().value();
       buf[i++] = cast_from_oop<intptr_t>(kptr2->obj());
     }
   }
@@ -3071,10 +3151,20 @@ void AdapterHandlerLibrary::print_handler_on(outputStream* st, const CodeBlob* b
 }
 
 void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
-  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iUV: " INTPTR_FORMAT,
-               p2i(this), fingerprint()->as_string(),
-               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_unverified_entry()));
-
+  st->print("AHE@" INTPTR_FORMAT ": %s", p2i(this), fingerprint()->as_string());
+  if (get_i2c_entry() != NULL) {
+    st->print(" i2c: " INTPTR_FORMAT, p2i(get_i2c_entry()));
+  }
+  if (get_c2i_entry() != NULL) {
+    st->print(" c2i: " INTPTR_FORMAT, p2i(get_c2i_entry()));
+  }
+  if (get_c2i_unverified_entry() != NULL) {
+    st->print(" c2iUV: " INTPTR_FORMAT, p2i(get_c2i_unverified_entry()));
+  }
+  if (get_c2i_no_clinit_check_entry() != NULL) {
+    st->print(" c2iNCI: " INTPTR_FORMAT, p2i(get_c2i_no_clinit_check_entry()));
+  }
+  st->cr();
 }
 
 #if INCLUDE_CDS

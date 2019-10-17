@@ -76,6 +76,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.lang.management.ManagementFactory;
+import java.lang.management.LockInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Constructor;
@@ -144,13 +145,21 @@ import junit.framework.TestSuite;
  *
  * <ol>
  *
- * <li>All assertions in code running in generated threads must use
- * the forms {@link #threadFail}, {@link #threadAssertTrue}, {@link
- * #threadAssertEquals}, or {@link #threadAssertNull}, (not
- * {@code fail}, {@code assertTrue}, etc.) It is OK (but not
- * particularly recommended) for other code to use these forms too.
- * Only the most typically used JUnit assertion methods are defined
- * this way, but enough to live with.
+ * <li>All code not running in the main test thread (manually spawned threads
+ * or the common fork join pool) must be checked for failure (and completion!).
+ * Mechanisms that can be used to ensure this are:
+ *   <ol>
+ *   <li>Signalling via a synchronizer like AtomicInteger or CountDownLatch
+ *    that the task completed normally, which is checked before returning from
+ *    the test method in the main thread.
+ *   <li>Using the forms {@link #threadFail}, {@link #threadAssertTrue},
+ *    or {@link #threadAssertNull}, (not {@code fail}, {@code assertTrue}, etc.)
+ *    Only the most typically used JUnit assertion methods are defined
+ *    this way, but enough to live with.
+ *   <li>Recording failure explicitly using {@link #threadUnexpectedException}
+ *    or {@link #threadRecordFailure}.
+ *   <li>Using a wrapper like CheckedRunnable that uses one the mechanisms above.
+ *   </ol>
  *
  * <li>If you override {@link #setUp} or {@link #tearDown}, make sure
  * to invoke {@code super.setUp} and {@code super.tearDown} within
@@ -262,6 +271,9 @@ public class JSR166TestCase extends TestCase {
         }
     }
 
+    private static final ThreadMXBean THREAD_MXBEAN
+        = ManagementFactory.getThreadMXBean();
+
     /**
      * The scaling factor to apply to standard delays used in tests.
      * May be initialized from any of:
@@ -303,12 +315,13 @@ public class JSR166TestCase extends TestCase {
     static volatile TestCase currentTestCase;
     // static volatile int currentRun = 0;
     static {
-        Runnable checkForWedgedTest = new Runnable() { public void run() {
+        Runnable wedgedTestDetector = new Runnable() { public void run() {
             // Avoid spurious reports with enormous runsPerTest.
             // A single test case run should never take more than 1 second.
             // But let's cap it at the high end too ...
-            final int timeoutMinutes =
-                Math.min(15, Math.max(runsPerTest / 60, 1));
+            final int timeoutMinutesMin = Math.max(runsPerTest / 60, 1)
+                * Math.max((int) delayFactor, 1);
+            final int timeoutMinutes = Math.min(15, timeoutMinutesMin);
             for (TestCase lastTestCase = currentTestCase;;) {
                 try { MINUTES.sleep(timeoutMinutes); }
                 catch (InterruptedException unexpected) { break; }
@@ -328,7 +341,7 @@ public class JSR166TestCase extends TestCase {
                 }
                 lastTestCase = currentTestCase;
             }}};
-        Thread thread = new Thread(checkForWedgedTest, "checkForWedgedTest");
+        Thread thread = new Thread(wedgedTestDetector, "WedgedTestDetector");
         thread.setDaemon(true);
         thread.start();
     }
@@ -372,7 +385,7 @@ public class JSR166TestCase extends TestCase {
             // Never report first run of any test; treat it as a
             // warmup run, notably to trigger all needed classloading,
             if (i > 0)
-                System.out.printf("%n%s: %d%n", toString(), elapsedMillis);
+                System.out.printf("%s: %d%n", toString(), elapsedMillis);
         }
     }
 
@@ -479,6 +492,12 @@ public class JSR166TestCase extends TestCase {
     public static boolean atLeastJava9()  { return JAVA_CLASS_VERSION >= 53.0; }
     public static boolean atLeastJava10() { return JAVA_CLASS_VERSION >= 54.0; }
     public static boolean atLeastJava11() { return JAVA_CLASS_VERSION >= 55.0; }
+    public static boolean atLeastJava12() { return JAVA_CLASS_VERSION >= 56.0; }
+    public static boolean atLeastJava13() { return JAVA_CLASS_VERSION >= 57.0; }
+    public static boolean atLeastJava14() { return JAVA_CLASS_VERSION >= 58.0; }
+    public static boolean atLeastJava15() { return JAVA_CLASS_VERSION >= 59.0; }
+    public static boolean atLeastJava16() { return JAVA_CLASS_VERSION >= 60.0; }
+    public static boolean atLeastJava17() { return JAVA_CLASS_VERSION >= 61.0; }
 
     /**
      * Collects all JSR166 unit tests as one suite.
@@ -530,6 +549,7 @@ public class JSR166TestCase extends TestCase {
             ExecutorsTest.suite(),
             ExecutorCompletionServiceTest.suite(),
             FutureTaskTest.suite(),
+            HashtableTest.suite(),
             LinkedBlockingDequeTest.suite(),
             LinkedBlockingQueueTest.suite(),
             LinkedListTest.suite(),
@@ -569,6 +589,7 @@ public class JSR166TestCase extends TestCase {
                 "HashMapTest",
                 "LinkedBlockingDeque8Test",
                 "LinkedBlockingQueue8Test",
+                "LinkedHashMapTest",
                 "LongAccumulatorTest",
                 "LongAdderTest",
                 "SplittableRandomTest",
@@ -667,6 +688,12 @@ public class JSR166TestCase extends TestCase {
     public static long MEDIUM_DELAY_MS;
     public static long LONG_DELAY_MS;
 
+    /**
+     * A delay significantly longer than LONG_DELAY_MS.
+     * Use this in a thread that is waited for via awaitTermination(Thread).
+     */
+    public static long LONGER_DELAY_MS;
+
     private static final long RANDOM_TIMEOUT;
     private static final long RANDOM_EXPIRED_TIMEOUT;
     private static final TimeUnit RANDOM_TIMEUNIT;
@@ -695,6 +722,20 @@ public class JSR166TestCase extends TestCase {
     static TimeUnit randomTimeUnit() { return RANDOM_TIMEUNIT; }
 
     /**
+     * Returns a random boolean; a "coin flip".
+     */
+    static boolean randomBoolean() {
+        return ThreadLocalRandom.current().nextBoolean();
+    }
+
+    /**
+     * Returns a random element from given choices.
+     */
+    <T> T chooseRandomly(T... choices) {
+        return choices[ThreadLocalRandom.current().nextInt(choices.length)];
+    }
+
+    /**
      * Returns the shortest timed delay. This can be scaled up for
      * slow machines using the jsr166.delay.factor system property,
      * or via jtreg's -timeoutFactor: flag.
@@ -712,6 +753,7 @@ public class JSR166TestCase extends TestCase {
         SMALL_DELAY_MS  = SHORT_DELAY_MS * 5;
         MEDIUM_DELAY_MS = SHORT_DELAY_MS * 10;
         LONG_DELAY_MS   = SHORT_DELAY_MS * 200;
+        LONGER_DELAY_MS = 2 * LONG_DELAY_MS;
     }
 
     private static final long TIMEOUT_DELAY_MS
@@ -750,8 +792,8 @@ public class JSR166TestCase extends TestCase {
      */
     public void threadRecordFailure(Throwable t) {
         System.err.println(t);
-        dumpTestThreads();
-        threadFailure.compareAndSet(null, t);
+        if (threadFailure.compareAndSet(null, t))
+            dumpTestThreads();
     }
 
     public void setUp() {
@@ -1072,6 +1114,39 @@ public class JSR166TestCase extends TestCase {
         }
     }
 
+    /** Returns true if thread info might be useful in a thread dump. */
+    static boolean threadOfInterest(ThreadInfo info) {
+        final String name = info.getThreadName();
+        String lockName;
+        if (name == null)
+            return true;
+        if (name.equals("Signal Dispatcher")
+            || name.equals("WedgedTestDetector"))
+            return false;
+        if (name.equals("Reference Handler")) {
+            // Reference Handler stacktrace changed in JDK-8156500
+            StackTraceElement[] stackTrace; String methodName;
+            if ((stackTrace = info.getStackTrace()) != null
+                && stackTrace.length > 0
+                && (methodName = stackTrace[0].getMethodName()) != null
+                && methodName.equals("waitForReferencePendingList"))
+                return false;
+            // jdk8 Reference Handler stacktrace
+            if ((lockName = info.getLockName()) != null
+                && lockName.startsWith("java.lang.ref"))
+                return false;
+        }
+        if ((name.equals("Finalizer") || name.equals("Common-Cleaner"))
+            && (lockName = info.getLockName()) != null
+            && lockName.startsWith("java.lang.ref"))
+            return false;
+        if (name.startsWith("ForkJoinPool.commonPool-worker")
+            && (lockName = info.getLockName()) != null
+            && lockName.startsWith("java.util.concurrent.ForkJoinPool"))
+            return false;
+        return true;
+    }
+
     /**
      * A debugging tool to print stack traces of most threads, as jstack does.
      * Uninteresting threads are filtered out.
@@ -1086,25 +1161,10 @@ public class JSR166TestCase extends TestCase {
             }
         }
 
-        ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
         System.err.println("------ stacktrace dump start ------");
-        for (ThreadInfo info : threadMXBean.dumpAllThreads(true, true)) {
-            final String name = info.getThreadName();
-            String lockName;
-            if ("Signal Dispatcher".equals(name))
-                continue;
-            if ("Reference Handler".equals(name)
-                && (lockName = info.getLockName()) != null
-                && lockName.startsWith("java.lang.ref.Reference$Lock"))
-                continue;
-            if ("Finalizer".equals(name)
-                && (lockName = info.getLockName()) != null
-                && lockName.startsWith("java.lang.ref.ReferenceQueue$Lock"))
-                continue;
-            if ("checkForWedgedTest".equals(name))
-                continue;
-            System.err.print(info);
-        }
+        for (ThreadInfo info : THREAD_MXBEAN.dumpAllThreads(true, true))
+            if (threadOfInterest(info))
+                System.err.print(info);
         System.err.println("------ stacktrace dump end ------");
 
         if (sm != null) System.setSecurityManager(sm);
@@ -1128,6 +1188,17 @@ public class JSR166TestCase extends TestCase {
                 fail("Unexpected thread termination");
         }
         fail("timed out waiting for thread to enter thread state " + expected);
+    }
+
+    /**
+     * Returns the thread's blocker's class name, if any, else null.
+     */
+    String blockerClassName(Thread thread) {
+        ThreadInfo threadInfo; LockInfo lockInfo;
+        if ((threadInfo = THREAD_MXBEAN.getThreadInfo(thread.getId(), 0)) != null
+            && (lockInfo = threadInfo.getLockInfo()) != null)
+            return lockInfo.getClassName();
+        return null;
     }
 
     /**
@@ -1318,22 +1389,33 @@ public class JSR166TestCase extends TestCase {
     /**
      * Spin-waits up to the specified number of milliseconds for the given
      * thread to enter a wait state: BLOCKED, WAITING, or TIMED_WAITING.
+     * @param waitingForGodot if non-null, an additional condition to satisfy
      */
-    void waitForThreadToEnterWaitState(Thread thread, long timeoutMillis) {
-        long startTime = 0L;
-        for (;;) {
-            Thread.State s = thread.getState();
-            if (s == Thread.State.BLOCKED ||
-                s == Thread.State.WAITING ||
-                s == Thread.State.TIMED_WAITING)
-                return;
-            else if (s == Thread.State.TERMINATED)
+    void waitForThreadToEnterWaitState(Thread thread, long timeoutMillis,
+                                       Callable<Boolean> waitingForGodot) {
+        for (long startTime = 0L;;) {
+            switch (thread.getState()) {
+            default: break;
+            case BLOCKED: case WAITING: case TIMED_WAITING:
+                try {
+                    if (waitingForGodot == null || waitingForGodot.call())
+                        return;
+                } catch (Throwable fail) { threadUnexpectedException(fail); }
+                break;
+            case TERMINATED:
                 fail("Unexpected thread termination");
-            else if (startTime == 0L)
+            }
+
+            if (startTime == 0L)
                 startTime = System.nanoTime();
             else if (millisElapsedSince(startTime) > timeoutMillis) {
-                threadAssertTrue(thread.isAlive());
-                fail("timed out waiting for thread to enter wait state");
+                assertTrue(thread.isAlive());
+                if (waitingForGodot == null
+                    || thread.getState() == Thread.State.RUNNABLE)
+                    fail("timed out waiting for thread to enter wait state");
+                else
+                    fail("timed out waiting for condition, thread state="
+                         + thread.getState());
             }
             Thread.yield();
         }
@@ -1341,32 +1423,10 @@ public class JSR166TestCase extends TestCase {
 
     /**
      * Spin-waits up to the specified number of milliseconds for the given
-     * thread to enter a wait state: BLOCKED, WAITING, or TIMED_WAITING,
-     * and additionally satisfy the given condition.
+     * thread to enter a wait state: BLOCKED, WAITING, or TIMED_WAITING.
      */
-    void waitForThreadToEnterWaitState(
-        Thread thread, long timeoutMillis, Callable<Boolean> waitingForGodot) {
-        long startTime = 0L;
-        for (;;) {
-            Thread.State s = thread.getState();
-            if (s == Thread.State.BLOCKED ||
-                s == Thread.State.WAITING ||
-                s == Thread.State.TIMED_WAITING) {
-                try {
-                    if (waitingForGodot.call())
-                        return;
-                } catch (Throwable fail) { threadUnexpectedException(fail); }
-            }
-            else if (s == Thread.State.TERMINATED)
-                fail("Unexpected thread termination");
-            else if (startTime == 0L)
-                startTime = System.nanoTime();
-            else if (millisElapsedSince(startTime) > timeoutMillis) {
-                threadAssertTrue(thread.isAlive());
-                fail("timed out waiting for thread to enter wait state");
-            }
-            Thread.yield();
-        }
+    void waitForThreadToEnterWaitState(Thread thread, long timeoutMillis) {
+        waitForThreadToEnterWaitState(thread, timeoutMillis, null);
     }
 
     /**
@@ -1374,7 +1434,7 @@ public class JSR166TestCase extends TestCase {
      * enter a wait state: BLOCKED, WAITING, or TIMED_WAITING.
      */
     void waitForThreadToEnterWaitState(Thread thread) {
-        waitForThreadToEnterWaitState(thread, LONG_DELAY_MS);
+        waitForThreadToEnterWaitState(thread, LONG_DELAY_MS, null);
     }
 
     /**
@@ -1382,9 +1442,23 @@ public class JSR166TestCase extends TestCase {
      * enter a wait state: BLOCKED, WAITING, or TIMED_WAITING,
      * and additionally satisfy the given condition.
      */
-    void waitForThreadToEnterWaitState(
-        Thread thread, Callable<Boolean> waitingForGodot) {
+    void waitForThreadToEnterWaitState(Thread thread,
+                                       Callable<Boolean> waitingForGodot) {
         waitForThreadToEnterWaitState(thread, LONG_DELAY_MS, waitingForGodot);
+    }
+
+    /**
+     * Spin-waits up to LONG_DELAY_MS milliseconds for the current thread to
+     * be interrupted.  Clears the interrupt status before returning.
+     */
+    void awaitInterrupted() {
+        for (long startTime = 0L; !Thread.interrupted(); ) {
+            if (startTime == 0L)
+                startTime = System.nanoTime();
+            else if (millisElapsedSince(startTime) > LONG_DELAY_MS)
+                fail("timed out waiting for thread interrupt");
+            Thread.yield();
+        }
     }
 
     /**
@@ -1396,28 +1470,17 @@ public class JSR166TestCase extends TestCase {
         return NANOSECONDS.toMillis(System.nanoTime() - startNanoTime);
     }
 
-//     void assertTerminatesPromptly(long timeoutMillis, Runnable r) {
-//         long startTime = System.nanoTime();
-//         try {
-//             r.run();
-//         } catch (Throwable fail) { threadUnexpectedException(fail); }
-//         if (millisElapsedSince(startTime) > timeoutMillis/2)
-//             throw new AssertionError("did not return promptly");
-//     }
-
-//     void assertTerminatesPromptly(Runnable r) {
-//         assertTerminatesPromptly(LONG_DELAY_MS/2, r);
-//     }
-
     /**
      * Checks that timed f.get() returns the expected value, and does not
      * wait for the timeout to elapse before returning.
      */
     <T> void checkTimedGet(Future<T> f, T expectedValue, long timeoutMillis) {
         long startTime = System.nanoTime();
+        T actual = null;
         try {
-            assertEquals(expectedValue, f.get(timeoutMillis, MILLISECONDS));
+            actual = f.get(timeoutMillis, MILLISECONDS);
         } catch (Throwable fail) { threadUnexpectedException(fail); }
+        assertEquals(expectedValue, actual);
         if (millisElapsedSince(startTime) > timeoutMillis/2)
             throw new AssertionError("timed get did not return promptly");
     }
@@ -1437,19 +1500,33 @@ public class JSR166TestCase extends TestCase {
     }
 
     /**
+     * Returns a new started daemon Thread running the given action,
+     * wrapped in a CheckedRunnable.
+     */
+    Thread newStartedThread(Action action) {
+        return newStartedThread(checkedRunnable(action));
+    }
+
+    /**
      * Waits for the specified time (in milliseconds) for the thread
      * to terminate (using {@link Thread#join(long)}), else interrupts
      * the thread (in the hope that it may terminate later) and fails.
      */
-    void awaitTermination(Thread t, long timeoutMillis) {
+    void awaitTermination(Thread thread, long timeoutMillis) {
         try {
-            t.join(timeoutMillis);
+            thread.join(timeoutMillis);
         } catch (InterruptedException fail) {
             threadUnexpectedException(fail);
-        } finally {
-            if (t.getState() != Thread.State.TERMINATED) {
-                t.interrupt();
-                threadFail("timed out waiting for thread to terminate");
+        }
+        if (thread.getState() != Thread.State.TERMINATED) {
+            String detail = String.format(
+                    "timed out waiting for thread to terminate, thread=%s, state=%s" ,
+                    thread, thread.getState());
+            try {
+                threadFail(detail);
+            } finally {
+                // Interrupt thread __after__ having reported its stack trace
+                thread.interrupt();
             }
         }
     }
@@ -1477,6 +1554,13 @@ public class JSR166TestCase extends TestCase {
         }
     }
 
+    Runnable checkedRunnable(Action action) {
+        return new CheckedRunnable() {
+            public void realRun() throws Throwable {
+                action.run();
+            }};
+    }
+
     public abstract class ThreadShouldThrow extends Thread {
         protected abstract void realRun() throws Throwable;
 
@@ -1489,11 +1573,12 @@ public class JSR166TestCase extends TestCase {
         public final void run() {
             try {
                 realRun();
-                threadShouldThrow(exceptionClass.getSimpleName());
             } catch (Throwable t) {
                 if (! exceptionClass.isInstance(t))
                     threadUnexpectedException(t);
+                return;
             }
+            threadShouldThrow(exceptionClass.getSimpleName());
         }
     }
 
@@ -1503,12 +1588,13 @@ public class JSR166TestCase extends TestCase {
         public final void run() {
             try {
                 realRun();
-                threadShouldThrow("InterruptedException");
             } catch (InterruptedException success) {
                 threadAssertFalse(Thread.interrupted());
+                return;
             } catch (Throwable fail) {
                 threadUnexpectedException(fail);
             }
+            threadShouldThrow("InterruptedException");
         }
     }
 
@@ -1520,26 +1606,8 @@ public class JSR166TestCase extends TestCase {
                 return realCall();
             } catch (Throwable fail) {
                 threadUnexpectedException(fail);
-                return null;
             }
-        }
-    }
-
-    public abstract class CheckedInterruptedCallable<T>
-        implements Callable<T> {
-        protected abstract T realCall() throws Throwable;
-
-        public final T call() {
-            try {
-                T result = realCall();
-                threadShouldThrow("InterruptedException");
-                return result;
-            } catch (InterruptedException success) {
-                threadAssertFalse(Thread.interrupted());
-            } catch (Throwable fail) {
-                threadUnexpectedException(fail);
-            }
-            return null;
+            throw new AssertionError("unreached");
         }
     }
 
@@ -1596,13 +1664,15 @@ public class JSR166TestCase extends TestCase {
     }
 
     public void await(CountDownLatch latch, long timeoutMillis) {
+        boolean timedOut = false;
         try {
-            if (!latch.await(timeoutMillis, MILLISECONDS))
-                fail("timed out waiting for CountDownLatch for "
-                     + (timeoutMillis/1000) + " sec");
+            timedOut = !latch.await(timeoutMillis, MILLISECONDS);
         } catch (Throwable fail) {
             threadUnexpectedException(fail);
         }
+        if (timedOut)
+            fail("timed out waiting for CountDownLatch for "
+                 + (timeoutMillis/1000) + " sec");
     }
 
     public void await(CountDownLatch latch) {
@@ -1610,13 +1680,15 @@ public class JSR166TestCase extends TestCase {
     }
 
     public void await(Semaphore semaphore) {
+        boolean timedOut = false;
         try {
-            if (!semaphore.tryAcquire(LONG_DELAY_MS, MILLISECONDS))
-                fail("timed out waiting for Semaphore for "
-                     + (LONG_DELAY_MS/1000) + " sec");
+            timedOut = !semaphore.tryAcquire(LONG_DELAY_MS, MILLISECONDS);
         } catch (Throwable fail) {
             threadUnexpectedException(fail);
         }
+        if (timedOut)
+            fail("timed out waiting for Semaphore for "
+                 + (LONG_DELAY_MS/1000) + " sec");
     }
 
     public void await(CyclicBarrier barrier) {
@@ -1648,14 +1720,6 @@ public class JSR166TestCase extends TestCase {
 
     public static class NPETask implements Callable<String> {
         public String call() { throw new NullPointerException(); }
-    }
-
-    public class SmallPossiblyInterruptedRunnable extends CheckedRunnable {
-        protected void realRun() {
-            try {
-                delay(SMALL_DELAY_MS);
-            } catch (InterruptedException ok) {}
-        }
     }
 
     public Runnable possiblyInterruptedRunnable(final long timeoutMillis) {
@@ -1713,8 +1777,8 @@ public class JSR166TestCase extends TestCase {
                 return realCompute();
             } catch (Throwable fail) {
                 threadUnexpectedException(fail);
-                return null;
             }
+            throw new AssertionError("unreached");
         }
     }
 
@@ -1791,28 +1855,27 @@ public class JSR166TestCase extends TestCase {
         }
     }
 
-    void assertImmutable(final Object o) {
+    void assertImmutable(Object o) {
         if (o instanceof Collection) {
             assertThrows(
                 UnsupportedOperationException.class,
-                new Runnable() { public void run() {
-                        ((Collection) o).add(null);}});
+                () -> ((Collection) o).add(null));
         }
     }
 
     @SuppressWarnings("unchecked")
     <T> T serialClone(T o) {
+        T clone = null;
         try {
             ObjectInputStream ois = new ObjectInputStream
                 (new ByteArrayInputStream(serialBytes(o)));
-            T clone = (T) ois.readObject();
-            if (o == clone) assertImmutable(o);
-            assertSame(o.getClass(), clone.getClass());
-            return clone;
+            clone = (T) ois.readObject();
         } catch (Throwable fail) {
             threadUnexpectedException(fail);
-            return null;
         }
+        if (o == clone) assertImmutable(o);
+        else assertSame(o.getClass(), clone.getClass());
+        return clone;
     }
 
     /**
@@ -1831,7 +1894,7 @@ public class JSR166TestCase extends TestCase {
             (new ByteArrayInputStream(bos.toByteArray()));
         T clone = (T) ois.readObject();
         if (o == clone) assertImmutable(o);
-        assertSame(o.getClass(), clone.getClass());
+        else assertSame(o.getClass(), clone.getClass());
         return clone;
     }
 
@@ -1856,8 +1919,8 @@ public class JSR166TestCase extends TestCase {
     }
 
     public void assertThrows(Class<? extends Throwable> expectedExceptionClass,
-                             Runnable... throwingActions) {
-        for (Runnable throwingAction : throwingActions) {
+                             Action... throwingActions) {
+        for (Action throwingAction : throwingActions) {
             boolean threw = false;
             try { throwingAction.run(); }
             catch (Throwable t) {

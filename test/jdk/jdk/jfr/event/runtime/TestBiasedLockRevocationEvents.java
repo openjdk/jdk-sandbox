@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -264,7 +264,6 @@ public class TestBiasedLockRevocationEvents {
 
         Recording recording = new Recording();
 
-        recording.enable(EventNames.BiasedLockRevocation);
         recording.enable(EventNames.BiasedLockClassRevocation);
         recording.enable(EventNames.ExecuteVMOperation);
         recording.start();
@@ -274,37 +273,26 @@ public class TestBiasedLockRevocationEvents {
         recording.stop();
         List<RecordedEvent> events = Events.fromRecording(recording);
 
-        // Determine which safepoints included single and bulk revocation VM operations
-        Set<Integer> vmOperationsSingle = new HashSet<>();
-        Set<Integer> vmOperationsBulk = new HashSet<>();
+        // Determine which safepoints included bulk revocation VM operations
+        Set<Long> vmOperationsBulk = new HashSet<>();
 
         for (RecordedEvent event : events) {
             if (event.getEventType().getName().equals(EventNames.ExecuteVMOperation)) {
                 String operation = event.getValue("operation");
-                Integer safepointId = event.getValue("safepointId");
+                Long safepointId = event.getValue("safepointId");
 
-                if (operation.equals("RevokeBias")) {
-                    vmOperationsSingle.add(safepointId);
-                } else if (operation.equals("BulkRevokeBias")) {
+                if (operation.equals("BulkRevokeBias")) {
                     vmOperationsBulk.add(safepointId);
                 }
             }
         }
 
-        int revokeCount = 0;
         int bulkRevokeCount = 0;
 
         // Match all revoke events to a corresponding VMOperation event
         for (RecordedEvent event : events) {
-            if (event.getEventType().getName().equals(EventNames.BiasedLockRevocation)) {
-                Integer safepointId = event.getValue("safepointId");
-                String lockClass = ((RecordedClass)event.getValue("lockClass")).getName();
-                if (lockClass.equals(MyLock.class.getName())) {
-                    Asserts.assertTrue(vmOperationsSingle.contains(safepointId));
-                    revokeCount++;
-                }
-            } else if (event.getEventType().getName().equals(EventNames.BiasedLockClassRevocation)) {
-                Integer safepointId = event.getValue("safepointId");
+            if (event.getEventType().getName().equals(EventNames.BiasedLockClassRevocation)) {
+                Long safepointId = event.getValue("safepointId");
                 String lockClass = ((RecordedClass)event.getValue("revokedClass")).getName();
                 if (lockClass.toString().equals(MyLock.class.getName())) {
                     Asserts.assertTrue(vmOperationsBulk.contains(safepointId));
@@ -314,6 +302,5 @@ public class TestBiasedLockRevocationEvents {
         }
 
         Asserts.assertGT(bulkRevokeCount, 0);
-        Asserts.assertGT(revokeCount, bulkRevokeCount);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiCodeBlobEvents.hpp"
 #include "prims/jvmtiExport.hpp"
-#include "runtime/handles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/vmThread.hpp"
 
@@ -204,7 +203,7 @@ jvmtiError JvmtiCodeBlobEvents::generate_dynamic_code_events(JvmtiEnv* env) {
   // there isn't any safe way to iterate over regular CodeBlobs since
   // they can be freed at any point.
   {
-    MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     collector.collect();
   }
 
@@ -226,18 +225,18 @@ jvmtiError JvmtiCodeBlobEvents::generate_compiled_method_load_events(JvmtiEnv* e
   // may be changing while this is happening which is ok since newly
   // created nmethod will notify normally and nmethods which are freed
   // can be safely skipped.
-  MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   // Iterate over non-profiled and profiled nmethods
-  NMethodIterator iter;
-  while(iter.next_alive()) {
+  NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
+  while(iter.next()) {
     nmethod* current = iter.method();
     // Lock the nmethod so it can't be freed
     nmethodLocker nml(current);
 
     // Don't hold the lock over the notify or jmethodID creation
-    MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexUnlocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     current->get_and_cache_jmethod_id();
-    JvmtiExport::post_compiled_method_load(current);
+    JvmtiExport::post_compiled_method_load(env, current);
   }
   return JVMTI_ERROR_NONE;
 }

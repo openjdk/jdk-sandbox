@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -151,11 +151,27 @@ public:
   // Other clients must use serial iteration.
   template<bool concurrent, bool is_const> class ParState;
 
-  // Block cleanup functions are for the exclusive use of the GC.
-  // Both stop deleting if there is an in-progress concurrent iteration.
-  // Concurrent deletion locks both the _allocation_mutex and the _active_mutex.
-  void delete_empty_blocks_safepoint();
-  void delete_empty_blocks_concurrent();
+  // Service thread cleanup support.
+
+  // Called by the service thread to process any pending cleanups for this
+  // storage object.  Drains the _deferred_updates list, and deletes empty
+  // blocks.  Stops deleting if there is an in-progress concurrent
+  // iteration.  Locks both the _allocation_mutex and the _active_mutex, and
+  // may safepoint.  Deletion may be throttled, with only some available
+  // work performed, in order to allow other Service thread subtasks to run.
+  // Returns true if there may be more work to do, false if nothing to do.
+  bool delete_empty_blocks();
+
+  // Called by safepoint cleanup to notify the service thread (via
+  // Service_lock) that there may be some OopStorage objects with pending
+  // cleanups to process.
+  static void trigger_cleanup_if_needed();
+
+  // Called by the service thread (while holding Service_lock) to to test
+  // for pending cleanup requests, and resets the request state to allow
+  // recognition of new requests.  Returns true if there was a pending
+  // request.
+  static bool has_cleanup_work_and_reset();
 
   // Debugging and logging support.
   const char* name() const;
@@ -167,10 +183,7 @@ public:
   // private types by providing public typedefs for them.
   class TestAccess;
 
-  // xlC on AIX can't compile test_oopStorage.cpp with following private
-  // classes. C++03 introduced access for nested classes with DR45, but xlC
-  // version 12 rejects it.
-NOT_AIX( private: )
+private:
   class Block;                  // Fixed-size array of oops, plus bookkeeping.
   class ActiveArray;            // Array of Blocks, plus bookkeeping.
   class AllocationListEntry;    // Provides AllocationList links in a Block.
@@ -209,7 +222,6 @@ private:
   ActiveArray* _active_array;
   AllocationList _allocation_list;
   Block* volatile _deferred_updates;
-
   Mutex* _allocation_mutex;
   Mutex* _active_mutex;
 
@@ -220,11 +232,17 @@ private:
   mutable SingleWriterSynchronizer _protect_active;
 
   // mutable because this gets set even for const iteration.
-  mutable bool _concurrent_iteration_active;
+  mutable int _concurrent_iteration_count;
+
+  volatile bool _needs_cleanup;
+
+  bool try_add_block();
+  Block* block_for_allocation();
 
   Block* find_block_or_null(const oop* ptr) const;
   void delete_empty_block(const Block& block);
   bool reduce_deferred_updates();
+  void record_needs_cleanup();
 
   // Managing _active_array.
   bool expand_active_array();
@@ -256,4 +274,4 @@ private:
   template<typename F> static SkipNullFn<F> skip_null_fn(F f);
 };
 
-#endif // include guard
+#endif // SHARE_GC_SHARED_OOPSTORAGE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_NATIVEINST_SPARC_HPP
-#define CPU_SPARC_VM_NATIVEINST_SPARC_HPP
+#ifndef CPU_SPARC_NATIVEINST_SPARC_HPP
+#define CPU_SPARC_NATIVEINST_SPARC_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "runtime/icache.hpp"
@@ -311,9 +311,11 @@ inline NativeInstruction* nativeInstruction_at(address address) {
 
 // The NativeCall is an abstraction for accessing/manipulating native call imm32 instructions.
 // (used to manipulate inline caches, primitive & dll calls, etc.)
+class NativeCall;
+
 inline NativeCall* nativeCall_at(address instr);
 inline NativeCall* nativeCall_overwriting_at(address instr,
-                                             address destination);
+                                             address destination = NULL);
 inline NativeCall* nativeCall_before(address return_address);
 class NativeCall: public NativeInstruction {
  public:
@@ -342,7 +344,7 @@ class NativeCall: public NativeInstruction {
 
   // Creation
   friend inline NativeCall* nativeCall_at(address instr);
-  friend NativeCall* nativeCall_overwriting_at(address instr, address destination = NULL) {
+  friend NativeCall* nativeCall_overwriting_at(address instr, address destination) {
     // insert a "blank" call:
     NativeCall* call = (NativeCall*)instr;
     call->set_long_at(0 * BytesPerInstWord, call_instruction(destination, instr));
@@ -411,7 +413,7 @@ class NativeCallReg: public NativeInstruction {
 //      == sethi %hi54(addr), O7 ;  jumpl O7, %lo10(addr), O7 ;  <delay>
 // That is, it is essentially the same as a NativeJump.
 class NativeFarCall;
-inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination);
+inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination = NULL);
 inline NativeFarCall* nativeFarCall_at(address instr);
 class NativeFarCall: public NativeInstruction {
  public:
@@ -450,7 +452,7 @@ class NativeFarCall: public NativeInstruction {
     return call;
   }
 
-  friend inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination = NULL) {
+  friend inline NativeFarCall* nativeFarCall_overwriting_at(address instr, address destination) {
     Unimplemented();
     NativeFarCall* call = (NativeFarCall*)instr;
     return call;
@@ -807,4 +809,4 @@ class NativeIllegalInstruction: public NativeInstruction {
   static void insert(address code_pos);
 };
 
-#endif // CPU_SPARC_VM_NATIVEINST_SPARC_HPP
+#endif // CPU_SPARC_NATIVEINST_SPARC_HPP

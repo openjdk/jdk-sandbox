@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_OUTPUT_HPP
-#define SHARE_VM_OPTO_OUTPUT_HPP
+#ifndef SHARE_OPTO_OUTPUT_HPP
+#define SHARE_OPTO_OUTPUT_HPP
 
 #include "opto/ad.hpp"
 #include "opto/block.hpp"
@@ -40,7 +40,6 @@ class PhaseCFG;
 class PhaseChaitin;
 class Pipeline_Use_Element;
 class Pipeline_Use;
-
 #ifndef PRODUCT
 #define DEBUG_ARG(x) , x
 #else
@@ -49,10 +48,7 @@ class Pipeline_Use;
 
 // Define the initial sizes for allocation of the resizable code buffer
 enum {
-  initial_code_capacity  =  16 * 1024,
-  initial_stub_capacity  =   4 * 1024,
-  initial_const_capacity =   4 * 1024,
-  initial_locs_capacity  =   3 * 1024
+  initial_const_capacity =   4 * 1024
 };
 
 //------------------------------Scheduling----------------------------------
@@ -218,4 +214,4 @@ public:
 
 };
 
-#endif // SHARE_VM_OPTO_OUTPUT_HPP
+#endif // SHARE_OPTO_OUTPUT_HPP

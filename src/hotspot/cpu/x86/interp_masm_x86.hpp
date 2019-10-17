@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_INTERP_MASM_X86_HPP
-#define CPU_X86_VM_INTERP_MASM_X86_HPP
+#ifndef CPU_X86_INTERP_MASM_X86_HPP
+#define CPU_X86_INTERP_MASM_X86_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -124,9 +124,14 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_resolved_reference_at_index(Register result, Register index, Register tmp = rscratch2);
 
   // load cpool->resolved_klass_at(index)
-  void load_resolved_klass_at_index(Register cpool,  // the constant pool (corrupted on return)
-                                    Register index,  // the constant pool index (corrupted on return)
-                                    Register klass); // contains the Klass on return
+  void load_resolved_klass_at_index(Register klass,  // contains the Klass on return
+                                    Register cpool,  // the constant pool (corrupted on return)
+                                    Register index); // the constant pool index (corrupted on return)
+
+  void load_resolved_method_at_index(int byte_no,
+                                     Register method,
+                                     Register cache,
+                                     Register index);
 
   NOT_LP64(void f2ieee();)        // truncate ftos to 32bits
   NOT_LP64(void d2ieee();)        // truncate dtos to 64bits
@@ -298,4 +303,4 @@ class InterpreterMacroAssembler: public MacroAssembler {
 
 };
 
-#endif // CPU_X86_VM_INTERP_MASM_X86_HPP
+#endif // CPU_X86_INTERP_MASM_X86_HPP

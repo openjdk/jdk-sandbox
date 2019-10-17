@@ -23,8 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/collectedHeap.inline.hpp"
+#include "memory/universe.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -53,4 +52,5 @@ void oop::unregister_oop() {
     t->unhandled_oops()->unregister_unhandled_oop(this);
   }
 }
+
 #endif // CHECK_UNHANDLED_OOPS

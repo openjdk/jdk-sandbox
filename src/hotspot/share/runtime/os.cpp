@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,22 +32,22 @@
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
-#include "gc/shared/vmGCOperations.hpp"
+#include "gc/shared/gcVMOperations.hpp"
 #include "logging/log.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
-#ifdef ASSERT
 #include "memory/guardedMemory.hpp"
-#endif
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvm_misc.hpp"
-#include "prims/privilegedStack.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -72,8 +72,6 @@
 
 OSThread*         os::_starting_thread    = NULL;
 address           os::_polling_page       = NULL;
-volatile int32_t* os::_mem_serialize_page = NULL;
-uintptr_t         os::_serialize_page_mask = 0;
 volatile unsigned int os::_rand_seed      = 1;
 int               os::_processor_count    = 0;
 int               os::_initial_active_processor_count = 0;
@@ -88,11 +86,7 @@ julong os::free_bytes = 0;          // # of bytes freed
 
 static size_t cur_malloc_words = 0;  // current size for MallocMaxTestWords
 
-void os_init_globals() {
-  // Called from init_globals().
-  // See Threads::create_vm() in thread.cpp, and init.cpp.
-  os::init_globals();
-}
+DEBUG_ONLY(bool os::_mutex_init_done = false;)
 
 static time_t get_timezone(const struct tm* time_struct) {
 #if defined(_ALLBSD_SOURCE)
@@ -218,7 +212,8 @@ char* os::iso8601_time(char* buffer, size_t buffer_length, bool utc) {
 OSReturn os::set_priority(Thread* thread, ThreadPriority p) {
   debug_only(Thread::check_for_dangling_thread_pointer(thread);)
 
-  if (p >= MinPriority && p <= MaxPriority) {
+  if ((p >= MinPriority && p <= MaxPriority) ||
+      (p == CriticalPriority && thread->is_ConcurrentGC_thread())) {
     int priority = java_to_os_priority[p];
     return set_native_priority(thread, priority);
   } else {
@@ -278,12 +273,25 @@ static bool conc_path_file_and_check(char *buffer, char *printbuffer, size_t pri
   return false;
 }
 
+// Frees all memory allocated on the heap for the
+// supplied array of arrays of chars (a), where n
+// is the number of elements in the array.
+static void free_array_of_char_arrays(char** a, size_t n) {
+      while (n > 0) {
+          n--;
+          if (a[n] != NULL) {
+            FREE_C_HEAP_ARRAY(char, a[n]);
+          }
+      }
+      FREE_C_HEAP_ARRAY(char*, a);
+}
+
 bool os::dll_locate_lib(char *buffer, size_t buflen,
                         const char* pname, const char* fname) {
   bool retval = false;
 
   size_t fullfnamelen = strlen(JNI_LIB_PREFIX) + strlen(fname) + strlen(JNI_LIB_SUFFIX);
-  char* fullfname = (char*)NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
+  char* fullfname = NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
   if (dll_build_name(fullfname, fullfnamelen + 1, fname)) {
     const size_t pnamelen = pname ? strlen(pname) : 0;
 
@@ -298,10 +306,10 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
       }
     } else if (strchr(pname, *os::path_separator()) != NULL) {
       // A list of paths. Search for the path that contains the library.
-      int n;
-      char** pelements = split_path(pname, &n);
+      size_t n;
+      char** pelements = split_path(pname, &n, fullfnamelen);
       if (pelements != NULL) {
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
           char* path = pelements[i];
           // Really shouldn't be NULL, but check can't hurt.
           size_t plen = (path == NULL) ? 0 : strlen(path);
@@ -313,12 +321,7 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
           if (retval) break;
         }
         // Release the storage allocated by split_path.
-        for (int i = 0; i < n; i++) {
-          if (pelements[i] != NULL) {
-            FREE_C_HEAP_ARRAY(char, pelements[i]);
-          }
-        }
-        FREE_C_HEAP_ARRAY(char*, pelements);
+        free_array_of_char_arrays(pelements, n);
       }
     } else {
       // A definite path.
@@ -359,11 +362,33 @@ static void signal_thread_entry(JavaThread* thread, TRAPS) {
 
     switch (sig) {
       case SIGBREAK: {
+#if INCLUDE_SERVICES
         // Check if the signal is a trigger to start the Attach Listener - in that
         // case don't print stack traces.
-        if (!DisableAttachMechanism && AttachListener::is_init_trigger()) {
-          continue;
+        if (!DisableAttachMechanism) {
+          // Attempt to transit state to AL_INITIALIZING.
+          AttachListenerState cur_state = AttachListener::transit_state(AL_INITIALIZING, AL_NOT_INITIALIZED);
+          if (cur_state == AL_INITIALIZING) {
+            // Attach Listener has been started to initialize. Ignore this signal.
+            continue;
+          } else if (cur_state == AL_NOT_INITIALIZED) {
+            // Start to initialize.
+            if (AttachListener::is_init_trigger()) {
+              // Attach Listener has been initialized.
+              // Accept subsequent request.
+              continue;
+            } else {
+              // Attach Listener could not be started.
+              // So we need to transit the state to AL_NOT_INITIALIZED.
+              AttachListener::set_state(AL_NOT_INITIALIZED);
+            }
+          } else if (AttachListener::check_socket_file()) {
+            // Attach Listener has been started, but unix domain socket file
+            // does not exist. So restart Attach Listener.
+            continue;
+          }
         }
+#endif
         // Print stack traces
         // Any SIGBREAK operations added here should make sure to flush
         // the output stream (e.g. tty->flush()) after output.  See 4803766.
@@ -510,14 +535,6 @@ void* os::native_java_library() {
   if (_native_java_library == NULL) {
     char buffer[JVM_MAXPATHLEN];
     char ebuf[1024];
-
-    // Try to load verify dll first. In 1.3 java dll depends on it and is not
-    // always able to find it when the loading executable is outside the JDK.
-    // In order to keep working with 1.2 we ignore any loading errors.
-    if (dll_locate_lib(buffer, sizeof(buffer), Arguments::get_dll_dir(),
-                       "verify")) {
-      dll_load(buffer, ebuf, sizeof(ebuf));
-    }
 
     // Load java dll
     if (dll_locate_lib(buffer, sizeof(buffer), Arguments::get_dll_dir(),
@@ -703,12 +720,15 @@ void* os::malloc(size_t size, MEMFLAGS memflags, const NativeCallStack& stack) {
   // Wrap memory with guard
   GuardedMemory guarded(ptr, size + nmt_header_size);
   ptr = guarded.get_user_ptr();
-#endif
+
   if ((intptr_t)ptr == (intptr_t)MallocCatchPtr) {
     log_warning(malloc, free)("os::malloc caught, " SIZE_FORMAT " bytes --> " PTR_FORMAT, size, p2i(ptr));
     breakpoint();
   }
-  debug_only(if (paranoid) verify_memory(ptr));
+  if (paranoid) {
+    verify_memory(ptr);
+  }
+#endif
 
   // we do not track guard memory
   return MemTracker::record_malloc((address)ptr, size, memflags, stack, level);
@@ -759,10 +779,8 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
     // Guard's user data contains NMT header
     size_t memblock_size = guarded.get_user_size() - MemTracker::malloc_header_size(memblock);
     memcpy(ptr, memblock, MIN2(size, memblock_size));
-    if (paranoid) verify_memory(MemTracker::malloc_base(ptr));
-    if ((intptr_t)ptr == (intptr_t)MallocCatchPtr) {
-      log_warning(malloc, free)("os::realloc caught, " SIZE_FORMAT " bytes --> " PTR_FORMAT, size, p2i(ptr));
-      breakpoint();
+    if (paranoid) {
+      verify_memory(MemTracker::malloc_base(ptr));
     }
     os::free(memblock);
   }
@@ -770,7 +788,7 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
 #endif
 }
 
-
+// handles NULL pointers
 void  os::free(void *memblock) {
   NOT_PRODUCT(inc_stat_counter(&num_frees, 1));
 #ifdef ASSERT
@@ -856,7 +874,7 @@ int os::random() {
 
 void os::start_thread(Thread* thread) {
   // guard suspend/resume
-  MutexLockerEx ml(thread->SR_lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(thread->SR_lock(), Mutex::_no_safepoint_check_flag);
   OSThread* osthread = thread->osthread();
   osthread->set_state(RUNNABLE);
   pd_start_thread(thread);
@@ -872,6 +890,8 @@ void os::abort(bool dump_core) {
 void os::print_hex_dump(outputStream* st, address start, address end, int unitsize) {
   assert(unitsize == 1 || unitsize == 2 || unitsize == 4 || unitsize == 8, "just checking");
 
+  start = align_down(start, unitsize);
+
   int cols = 0;
   int cols_per_line = 0;
   switch (unitsize) {
@@ -885,11 +905,15 @@ void os::print_hex_dump(outputStream* st, address start, address end, int unitsi
   address p = start;
   st->print(PTR_FORMAT ":   ", p2i(start));
   while (p < end) {
-    switch (unitsize) {
-      case 1: st->print("%02x", *(u1*)p); break;
-      case 2: st->print("%04x", *(u2*)p); break;
-      case 4: st->print("%08x", *(u4*)p); break;
-      case 8: st->print("%016" FORMAT64_MODIFIER "x", *(u8*)p); break;
+    if (is_readable_pointer(p)) {
+      switch (unitsize) {
+        case 1: st->print("%02x", *(u1*)p); break;
+        case 2: st->print("%04x", *(u2*)p); break;
+        case 4: st->print("%08x", *(u4*)p); break;
+        case 8: st->print("%016" FORMAT64_MODIFIER "x", *(u8*)p); break;
+      }
+    } else {
+      st->print("%*.*s", 2*unitsize, 2*unitsize, "????????????????");
     }
     p += unitsize;
     cols++;
@@ -902,6 +926,11 @@ void os::print_hex_dump(outputStream* st, address start, address end, int unitsi
     }
   }
   st->cr();
+}
+
+void os::print_instructions(outputStream* st, address pc, int unitsize) {
+  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
+  print_hex_dump(st, pc - 256, pc + 256, unitsize);
 }
 
 void os::print_environment_variables(outputStream* st, const char** env_list) {
@@ -1010,6 +1039,16 @@ bool os::is_readable_pointer(const void* p) {
   return (SafeFetch32(aligned, cafebabe) != cafebabe) || (SafeFetch32(aligned, deadbeef) != deadbeef);
 }
 
+bool os::is_readable_range(const void* from, const void* to) {
+  if ((uintptr_t)from >= (uintptr_t)to) return false;
+  for (uintptr_t p = align_down((uintptr_t)from, min_page_size()); p < (uintptr_t)to; p += min_page_size()) {
+    if (!is_readable_pointer((const void*)p)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 
 // moved from debug.cpp (used to be find()) but still called from there
 // The verbose parameter is only set by the debug code in one case
@@ -1020,99 +1059,22 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     st->print_cr("0x0 is NULL");
     return;
   }
+
+  // Check if addr points into a code blob.
   CodeBlob* b = CodeCache::find_blob_unsafe(addr);
   if (b != NULL) {
-    if (b->is_buffer_blob()) {
-      // the interpreter is generated into a buffer blob
-      InterpreterCodelet* i = Interpreter::codelet_containing(addr);
-      if (i != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an Interpreter codelet", p2i(addr), (int)(addr - i->code_begin()));
-        i->print_on(st);
-        return;
-      }
-      if (Interpreter::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing into interpreter code"
-                     " (not bytecode specific)", p2i(addr));
-        return;
-      }
-      //
-      if (AdapterHandlerLibrary::contains(b)) {
-        st->print_cr(INTPTR_FORMAT " is at code_begin+%d in an AdapterHandler", p2i(addr), (int)(addr - b->code_begin()));
-        AdapterHandlerLibrary::print_handler_on(st, b);
-      }
-      // the stubroutines are generated into a buffer blob
-      StubCodeDesc* d = StubCodeDesc::desc_for(addr);
-      if (d != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at begin+%d in a stub", p2i(addr), (int)(addr - d->begin()));
-        d->print_on(st);
-        st->cr();
-        return;
-      }
-      if (StubRoutines::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing to an (unnamed) stub routine", p2i(addr));
-        return;
-      }
-      // the InlineCacheBuffer is using stubs generated into a buffer blob
-      if (InlineCacheBuffer::contains(addr)) {
-        st->print_cr(INTPTR_FORMAT " is pointing into InlineCacheBuffer", p2i(addr));
-        return;
-      }
-      VtableStub* v = VtableStubs::stub_containing(addr);
-      if (v != NULL) {
-        st->print_cr(INTPTR_FORMAT " is at entry_point+%d in a vtable stub", p2i(addr), (int)(addr - v->entry_point()));
-        v->print_on(st);
-        st->cr();
-        return;
-      }
-    }
-    nmethod* nm = b->as_nmethod_or_null();
-    if (nm != NULL) {
-      ResourceMark rm;
-      st->print(INTPTR_FORMAT " is at entry_point+%d in (nmethod*)" INTPTR_FORMAT,
-                p2i(addr), (int)(addr - nm->entry_point()), p2i(nm));
-      if (verbose) {
-        st->print(" for ");
-        nm->method()->print_value_on(st);
-      }
-      st->cr();
-      nm->print_nmethod(verbose);
-      return;
-    }
-    st->print_cr(INTPTR_FORMAT " is at code_begin+%d in ", p2i(addr), (int)(addr - b->code_begin()));
-    b->print_on(st);
+    b->dump_for_addr(addr, st, verbose);
     return;
   }
 
-  if (Universe::heap()->is_in(addr)) {
-    HeapWord* p = Universe::heap()->block_start(addr);
-    bool print = false;
-    // If we couldn't find it it just may mean that heap wasn't parsable
-    // See if we were just given an oop directly
-    if (p != NULL && Universe::heap()->block_is_obj(p)) {
-      print = true;
-    } else if (p == NULL && oopDesc::is_oop(oop(addr))) {
-      p = (HeapWord*) addr;
-      print = true;
-    }
-    if (print) {
-      if (p == (HeapWord*) addr) {
-        st->print_cr(INTPTR_FORMAT " is an oop", p2i(addr));
-      } else {
-        st->print_cr(INTPTR_FORMAT " is pointing into object: " INTPTR_FORMAT, p2i(addr), p2i(p));
-      }
-      oop(p)->print_on(st);
-      return;
-    }
-  } else {
-    if (Universe::heap()->is_in_reserved(addr)) {
-      st->print_cr(INTPTR_FORMAT " is an unallocated location "
-                   "in the heap", p2i(addr));
-      return;
-    }
+  // Check if addr points into Java heap.
+  if (Universe::heap()->print_location(st, addr)) {
+    return;
   }
 
   bool accessible = is_readable_pointer(addr);
 
+  // Check if addr is a JNI handle.
   if (align_down((intptr_t)addr, sizeof(intptr_t)) != 0 && accessible) {
     if (JNIHandles::is_global_handle((jobject) addr)) {
       st->print_cr(INTPTR_FORMAT " is a global jni handle", p2i(addr));
@@ -1131,15 +1093,8 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 #endif
   }
 
+  // Check if addr belongs to a Java thread.
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {
-    // Check for privilege stack
-    if (thread->privileged_stack_top() != NULL &&
-        thread->privileged_stack_top()->contains(addr)) {
-      st->print_cr(INTPTR_FORMAT " is pointing into the privilege stack "
-                   "for thread: " INTPTR_FORMAT, p2i(addr), p2i(thread));
-      if (verbose) thread->print_on(st);
-      return;
-    }
     // If the addr is a java thread print information about that.
     if (addr == (address)thread) {
       if (verbose) {
@@ -1159,9 +1114,12 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     }
   }
 
-  // Check if in metaspace and print types that have vptrs (only method now)
+  // Check if in metaspace and print types that have vptrs
   if (Metaspace::contains(addr)) {
-    if (Method::has_method_vptr((const void*)addr)) {
+    if (Klass::is_valid((Klass*)addr)) {
+      st->print_cr(INTPTR_FORMAT " is a pointer to class: ", p2i(addr));
+      ((Klass*)addr)->print_on(st);
+    } else if (Method::is_valid_method((const Method*)addr)) {
       ((Method*)addr)->print_value_on(st);
       st->cr();
     } else {
@@ -1171,13 +1129,31 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
     return;
   }
 
+  // Compressed klass needs to be decoded first.
+#ifdef _LP64
+  if (UseCompressedClassPointers && ((uintptr_t)addr &~ (uintptr_t)max_juint) == 0) {
+    narrowKlass narrow_klass = (narrowKlass)(uintptr_t)addr;
+    Klass* k = CompressedKlassPointers::decode_raw(narrow_klass);
+
+    if (Klass::is_valid(k)) {
+      st->print_cr(UINT32_FORMAT " is a compressed pointer to class: " INTPTR_FORMAT, narrow_klass, p2i((HeapWord*)k));
+      k->print_on(st);
+      return;
+    }
+  }
+#endif
+
   // Try an OS specific find
   if (os::find(addr, st)) {
     return;
   }
 
   if (accessible) {
-    st->print_cr(INTPTR_FORMAT " points into unknown readable memory", p2i(addr));
+    st->print(INTPTR_FORMAT " points into unknown readable memory:", p2i(addr));
+    for (address p = addr; p < align_up(addr + 1, sizeof(intptr_t)); ++p) {
+      st->print(" %02x", *(u1*)p);
+    }
+    st->cr();
     return;
   }
 
@@ -1240,9 +1216,6 @@ char* os::format_boot_path(const char* format_string,
     }
 
     char* formatted_path = NEW_C_HEAP_ARRAY(char, formatted_path_len + 1, mtInternal);
-    if (formatted_path == NULL) {
-        return NULL;
-    }
 
     // Create boot classpath from format, substituting separator chars and
     // java home directory.
@@ -1326,26 +1299,28 @@ bool os::set_boot_path(char fileSep, char pathSep) {
   return false;
 }
 
-/*
- * Splits a path, based on its separator, the number of
- * elements is returned back in n.
- * It is the callers responsibility to:
- *   a> check the value of n, and n may be 0.
- *   b> ignore any empty path elements
- *   c> free up the data.
- */
-char** os::split_path(const char* path, int* n) {
-  *n = 0;
-  if (path == NULL || strlen(path) == 0) {
+// Splits a path, based on its separator, the number of
+// elements is returned back in "elements".
+// file_name_length is used as a modifier for each path's
+// length when compared to JVM_MAXPATHLEN. So if you know
+// each returned path will have something appended when
+// in use, you can pass the length of that in
+// file_name_length, to ensure we detect if any path
+// exceeds the maximum path length once prepended onto
+// the sub-path/file name.
+// It is the callers responsibility to:
+//   a> check the value of "elements", which may be 0.
+//   b> ignore any empty path elements
+//   c> free up the data.
+char** os::split_path(const char* path, size_t* elements, size_t file_name_length) {
+  *elements = (size_t)0;
+  if (path == NULL || strlen(path) == 0 || file_name_length == (size_t)NULL) {
     return NULL;
   }
   const char psepchar = *os::path_separator();
-  char* inpath = (char*)NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
-  if (inpath == NULL) {
-    return NULL;
-  }
+  char* inpath = NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
   strcpy(inpath, path);
-  int count = 1;
+  size_t count = 1;
   char* p = strchr(inpath, psepchar);
   // Get a count of elements to allocate memory
   while (p != NULL) {
@@ -1353,74 +1328,30 @@ char** os::split_path(const char* path, int* n) {
     p++;
     p = strchr(p, psepchar);
   }
-  char** opath = (char**) NEW_C_HEAP_ARRAY(char*, count, mtInternal);
-  if (opath == NULL) {
-    return NULL;
-  }
+
+  char** opath = NEW_C_HEAP_ARRAY(char*, count, mtInternal);
 
   // do the actual splitting
   p = inpath;
-  for (int i = 0 ; i < count ; i++) {
+  for (size_t i = 0 ; i < count ; i++) {
     size_t len = strcspn(p, os::path_separator());
-    if (len > JVM_MAXPATHLEN) {
-      return NULL;
+    if (len + file_name_length > JVM_MAXPATHLEN) {
+      // release allocated storage before exiting the vm
+      free_array_of_char_arrays(opath, i++);
+      vm_exit_during_initialization("The VM tried to use a path that exceeds the maximum path length for "
+                                    "this system. Review path-containing parameters and properties, such as "
+                                    "sun.boot.library.path, to identify potential sources for this path.");
     }
     // allocate the string and add terminator storage
-    char* s  = (char*)NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
-    if (s == NULL) {
-      return NULL;
-    }
+    char* s = NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
     strncpy(s, p, len);
     s[len] = '\0';
     opath[i] = s;
     p += len + 1;
   }
   FREE_C_HEAP_ARRAY(char, inpath);
-  *n = count;
+  *elements = count;
   return opath;
-}
-
-void os::set_memory_serialize_page(address page) {
-  int count = log2_intptr(sizeof(class JavaThread)) - log2_intptr(64);
-  _mem_serialize_page = (volatile int32_t *)page;
-  // We initialize the serialization page shift count here
-  // We assume a cache line size of 64 bytes
-  assert(SerializePageShiftCount == count, "JavaThread size changed; "
-         "SerializePageShiftCount constant should be %d", count);
-  set_serialize_page_mask((uintptr_t)(vm_page_size() - sizeof(int32_t)));
-}
-
-static volatile intptr_t SerializePageLock = 0;
-
-// This method is called from signal handler when SIGSEGV occurs while the current
-// thread tries to store to the "read-only" memory serialize page during state
-// transition.
-void os::block_on_serialize_page_trap() {
-  log_debug(safepoint)("Block until the serialize page permission restored");
-
-  // When VMThread is holding the SerializePageLock during modifying the
-  // access permission of the memory serialize page, the following call
-  // will block until the permission of that page is restored to rw.
-  // Generally, it is unsafe to manipulate locks in signal handlers, but in
-  // this case, it's OK as the signal is synchronous and we know precisely when
-  // it can occur.
-  Thread::muxAcquire(&SerializePageLock, "set_memory_serialize_page");
-  Thread::muxRelease(&SerializePageLock);
-}
-
-// Serialize all thread state variables
-void os::serialize_thread_states() {
-  // On some platforms such as Solaris & Linux, the time duration of the page
-  // permission restoration is observed to be much longer than expected  due to
-  // scheduler starvation problem etc. To avoid the long synchronization
-  // time and expensive page trap spinning, 'SerializePageLock' is used to block
-  // the mutator thread if such case is encountered. See bug 6546278 for details.
-  Thread::muxAcquire(&SerializePageLock, "serialize_thread_states");
-  os::protect_memory((char *)os::get_memory_serialize_page(),
-                     os::vm_page_size(), MEM_PROT_READ);
-  os::protect_memory((char *)os::get_memory_serialize_page(),
-                     os::vm_page_size(), MEM_PROT_RW);
-  Thread::muxRelease(&SerializePageLock);
 }
 
 // Returns true if the current stack pointer is above the stack shadow
@@ -1881,3 +1812,15 @@ os::SuspendResume::State os::SuspendResume::switch_state(os::SuspendResume::Stat
   return result;
 }
 #endif
+
+// Convenience wrapper around naked_short_sleep to allow for longer sleep
+// times. Only for use by non-JavaThreads.
+void os::naked_sleep(jlong millis) {
+  assert(!Thread::current()->is_Java_thread(), "not for use by JavaThreads");
+  const jlong limit = 999;
+  while (millis > limit) {
+    naked_short_sleep(limit);
+    millis -= limit;
+  }
+  naked_short_sleep(millis);
+}

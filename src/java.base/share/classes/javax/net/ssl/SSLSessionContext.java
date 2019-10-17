@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,11 @@ import java.util.Enumeration;
  * it could be associated with a server or client who participates in many
  * sessions concurrently.
  * <p>
- * Not all environments will contain session contexts.
+ * Not all environments will contain session contexts.  For example, stateless
+ * session resumption.
+ * <p>
+ * Session contexts may not contain all sessions. For example, stateless
+ * sessions are not stored in the session context.
  * <p>
  * There are <code>SSLSessionContext</code> parameters that affect how
  * sessions are stored:
@@ -68,8 +72,11 @@ public interface SSLSessionContext {
     public SSLSession getSession(byte[] sessionId);
 
     /**
-     * Returns an Enumeration of all session id's grouped under this
+     * Returns an Enumeration of all known session id's grouped under this
      * <code>SSLSessionContext</code>.
+     * <p>Session contexts may not contain all sessions. For example,
+     * stateless sessions are not stored in the session context.
+     * <p>
      *
      * @return an enumeration of all the Session id's
      */
@@ -87,10 +94,17 @@ public interface SSLSessionContext {
      * A check for sessions exceeding the timeout is made immediately whenever
      * the timeout limit is changed for this <code>SSLSessionContext</code>.
      *
-     * @param seconds the new session timeout limit in seconds; zero means
-     *          there is no limit.
+     * @apiNote Note that the JDK Implementation uses default values for both
+     *          the session cache size and timeout.  See
+     *          {@code getSessionCacheSize} and {@code getSessionTimeout} for
+     *          more information.  Applications should consider their
+     *          performance requirements and override the defaults if necessary.
      *
-     * @exception IllegalArgumentException if the timeout specified is {@code < 0}.
+     * @param seconds the new session timeout limit in seconds; zero means
+     *        there is no limit.
+     *
+     * @throws IllegalArgumentException if the timeout specified is {@code < 0}.
+     *
      * @see #getSessionTimeout
      */
     public void setSessionTimeout(int seconds)
@@ -109,33 +123,50 @@ public interface SSLSessionContext {
      * whenever the timeout limit is changed for this
      * <code>SSLSessionContext</code>.
      *
+     * @implNote The JDK implementation returns the session timeout as set by
+     *           the {@code setSessionTimeout} method, or if not set, a default
+     *           value of 86400 seconds (24 hours).
+     *
      * @return the session timeout limit in seconds; zero means there is no
-     * limit.
+     *         limit.
+     *
      * @see #setSessionTimeout
      */
     public int getSessionTimeout();
 
     /**
-     * Sets the size of the cache used for storing
-     * <code>SSLSession</code> objects grouped under this
-     * <code>SSLSessionContext</code>.
+     * Sets the size of the cache used for storing <code>SSLSession</code>
+     * objects grouped under this <code>SSLSessionContext</code>.
+     *
+     * @apiNote Note that the JDK Implementation uses default values for both
+     *          the session cache size and timeout.  See
+     *          {@code getSessionCacheSize} and {@code getSessionTimeout} for
+     *          more information.  Applications should consider their
+     *          performance requirements and override the defaults if necessary.
      *
      * @param size the new session cache size limit; zero means there is no
-     * limit.
-     * @exception IllegalArgumentException if the specified size is {@code < 0}.
+     *        limit.
+     *
+     * @throws IllegalArgumentException if the specified size is {@code < 0}.
+     *
      * @see #getSessionCacheSize
      */
     public void setSessionCacheSize(int size)
                  throws IllegalArgumentException;
 
     /**
-     * Returns the size of the cache used for storing
-     * <code>SSLSession</code> objects grouped under this
-     * <code>SSLSessionContext</code>.
+     * Returns the size of the cache used for storing <code>SSLSession</code>
+     * objects grouped under this <code>SSLSessionContext</code>.
+     *
+     * @implNote The JDK implementation returns the cache size as set by
+     *           the {@code setSessionCacheSize} method, or if not set, the
+     *           value of the {@systemProperty javax.net.ssl.sessionCacheSize}
+     *           system property.  If neither is set, it returns a default
+     *           value of 20480.
      *
      * @return size of the session cache; zero means there is no size limit.
+     *
      * @see #setSessionCacheSize
      */
     public int getSessionCacheSize();
-
 }

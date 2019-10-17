@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -83,7 +83,7 @@ public class Handler extends URLStreamHandler {
         path = path.replace('/', '\\');
         path = path.replace('|', ':');
 
-        if ((host == null) || host.equals("") ||
+        if ((host == null) || host.isEmpty() ||
                 host.equalsIgnoreCase("localhost") ||
                 host.equals("~")) {
            return createFileURLConnection(url, new File(path));
@@ -95,7 +95,7 @@ public class Handler extends URLStreamHandler {
         path = "\\\\" + host + path;
         File f = new File(path);
         if (f.exists()) {
-            return createFileURLConnection(url, f);
+            return new UNCFileURLConnection(url, f, path);
         }
 
         /*
@@ -145,9 +145,9 @@ public class Handler extends URLStreamHandler {
          */
         String s1 = u1.getHost();
         String s2 = u2.getHost();
-        if ("localhost".equalsIgnoreCase(s1) && ( s2 == null || "".equals(s2)))
+        if ("localhost".equalsIgnoreCase(s1) && (s2 == null || s2.isEmpty()))
             return true;
-        if ("localhost".equalsIgnoreCase(s2) && ( s1 == null || "".equals(s1)))
+        if ("localhost".equalsIgnoreCase(s2) && (s1 == null || s1.isEmpty()))
             return true;
         return super.hostsEqual(u1, u2);
     }

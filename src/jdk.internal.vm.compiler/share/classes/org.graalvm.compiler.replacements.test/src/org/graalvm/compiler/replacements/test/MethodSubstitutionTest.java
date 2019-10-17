@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,11 +35,9 @@ import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
 import org.graalvm.compiler.nodes.java.MethodCallTargetNode;
 import org.graalvm.compiler.nodes.spi.LoweringTool;
-import org.graalvm.compiler.phases.BasePhase;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.DeadCodeEliminationPhase;
 import org.graalvm.compiler.phases.common.LoweringPhase;
-import org.graalvm.compiler.phases.common.inlining.InliningPhase;
 import org.graalvm.compiler.phases.tiers.HighTierContext;
 import org.graalvm.compiler.replacements.nodes.MacroNode;
 
@@ -58,19 +56,27 @@ public abstract class MethodSubstitutionTest extends GraalCompilerTest {
         return testGraph(snippet, null);
     }
 
-    @SuppressWarnings("unused")
-    public BasePhase<HighTierContext> createInliningPhase(StructuredGraph graph) {
-        return new InliningPhase(new CanonicalizerPhase());
+    protected StructuredGraph testGraph(final String snippet, boolean assertInvoke) {
+        return testGraph(snippet, null, assertInvoke);
+    }
+
+    protected StructuredGraph testGraph(final String snippet, String name) {
+        return testGraph(snippet, name, false);
     }
 
     @SuppressWarnings("try")
-    protected StructuredGraph testGraph(final String snippet, String name) {
+    protected StructuredGraph testGraph(final String snippet, String name, boolean assertInvoke) {
+        return testGraph(getResolvedJavaMethod(snippet), name, assertInvoke);
+    }
+
+    @SuppressWarnings("try")
+    protected StructuredGraph testGraph(final ResolvedJavaMethod method, String name, boolean assertInvoke) {
         DebugContext debug = getDebugContext();
-        try (DebugContext.Scope s = debug.scope("MethodSubstitutionTest", getResolvedJavaMethod(snippet))) {
-            StructuredGraph graph = parseEager(snippet, AllowAssumptions.YES, debug);
+        try (DebugContext.Scope s = debug.scope("MethodSubstitutionTest", method)) {
+            StructuredGraph graph = parseEager(method, AllowAssumptions.YES, debug);
             HighTierContext context = getDefaultHighTierContext();
             debug.dump(DebugContext.BASIC_LEVEL, graph, "Graph");
-            createInliningPhase(graph).apply(graph, context);
+            createInliningPhase().apply(graph, context);
             debug.dump(DebugContext.BASIC_LEVEL, graph, "Graph");
             new CanonicalizerPhase().apply(graph, context);
             new DeadCodeEliminationPhase().apply(graph);
@@ -88,13 +94,22 @@ public abstract class MethodSubstitutionTest extends GraalCompilerTest {
                         Invoke invoke = (Invoke) node;
                         if (invoke.callTarget() instanceof MethodCallTargetNode) {
                             MethodCallTargetNode call = (MethodCallTargetNode) invoke.callTarget();
-                            assertTrue(!call.targetMethod().getName().equals(name), "Unexpected invoke of intrinsic %s", call.targetMethod());
+                            boolean found = call.targetMethod().getName().equals(name);
+                            if (assertInvoke) {
+                                assertTrue(found, "Expected to find a call to %s", name);
+                            } else {
+                                assertFalse(found, "Unexpected call to %s", name);
+                            }
                         }
                     }
 
                 }
             } else {
-                assertNotInGraph(graph, Invoke.class);
+                if (assertInvoke) {
+                    assertInGraph(graph, Invoke.class);
+                } else {
+                    assertNotInGraph(graph, Invoke.class);
+                }
             }
             return graph;
         } catch (Throwable e) {
@@ -111,19 +126,20 @@ public abstract class MethodSubstitutionTest extends GraalCompilerTest {
         return graph;
     }
 
-    protected void testSubstitution(String testMethodName, Class<?> intrinsicClass, Class<?> holder, String methodName, Class<?>[] parameterTypes, boolean optional, Object[] args1, Object[] args2) {
+    protected void testSubstitution(String testMethodName, Class<?> intrinsicClass, Class<?> holder, String methodName, Class<?>[] parameterTypes, boolean optional, boolean forceCompilation,
+                    Object[] args1, Object[] args2) {
         ResolvedJavaMethod realMethod = getResolvedJavaMethod(holder, methodName, parameterTypes);
         ResolvedJavaMethod testMethod = getResolvedJavaMethod(testMethodName);
         StructuredGraph graph = testGraph(testMethodName);
 
         // Check to see if the resulting graph contains the expected node
-        StructuredGraph replacement = getReplacements().getSubstitution(realMethod, -1, false, null);
+        StructuredGraph replacement = getReplacements().getSubstitution(realMethod, -1, false, null, graph.getOptions());
         if (replacement == null && !optional) {
             assertInGraph(graph, intrinsicClass);
         }
 
         // Force compilation
-        InstalledCode code = getCode(testMethod);
+        InstalledCode code = getCode(testMethod, null, forceCompilation);
         assert optional || code != null;
 
         for (int i = 0; i < args1.length; i++) {

@@ -32,7 +32,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/ostream.hpp"
@@ -45,9 +45,6 @@
 // parallel iteration with varying numbers of threads on an storage
 // object containing a large number of entries, and logs some stats
 // about the distribution and performance of the iteration.
-
-// Parallel iteration not available unless INCLUDE_ALL_GCS
-#if INCLUDE_ALL_GCS
 
 const uint _max_workers = 10;
 static uint _num_workers = 0;
@@ -229,5 +226,3 @@ TEST_VM_F(OopStorageParIterPerf, test) {
     LogConfiguration::configure_stdout(old_level, true, LOG_TAGS(TEST_TAGS));
   }
 }
-
-#endif // INCLUDE_ALL_GCS

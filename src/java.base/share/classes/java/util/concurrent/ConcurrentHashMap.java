@@ -385,7 +385,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * cases where old nodes can be reused because their next fields
      * won't change.  On average, only about one-sixth of them need
      * cloning when a table doubles. The nodes they replace will be
-     * garbage collectable as soon as they are no longer referenced by
+     * garbage collectible as soon as they are no longer referenced by
      * any reader thread that may be in the midst of concurrently
      * traversing table.  Upon transfer, the old table bin contains
      * only a special forwarding node (with hash field "MOVED") that
@@ -757,16 +757,16 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("unchecked")
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
-        return (Node<K,V>)U.getObjectAcquire(tab, ((long)i << ASHIFT) + ABASE);
+        return (Node<K,V>)U.getReferenceAcquire(tab, ((long)i << ASHIFT) + ABASE);
     }
 
     static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
-        return U.compareAndSetObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
+        return U.compareAndSetReference(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
 
     static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
-        U.putObjectRelease(tab, ((long)i << ASHIFT) + ABASE, v);
+        U.putReferenceRelease(tab, ((long)i << ASHIFT) + ABASE, v);
     }
 
     /* ---------------- Fields -------------- */
@@ -2334,17 +2334,15 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             Node<K,V>[] tab, nt; int n, sc;
             while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
                    (n = tab.length) < MAXIMUM_CAPACITY) {
-                int rs = resizeStamp(n);
+                int rs = resizeStamp(n) << RESIZE_STAMP_SHIFT;
                 if (sc < 0) {
-                    if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                        sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
-                        transferIndex <= 0)
+                    if (sc == rs + MAX_RESIZERS || sc == rs + 1 ||
+                        (nt = nextTable) == null || transferIndex <= 0)
                         break;
                     if (U.compareAndSetInt(this, SIZECTL, sc, sc + 1))
                         transfer(tab, nt);
                 }
-                else if (U.compareAndSetInt(this, SIZECTL, sc,
-                                             (rs << RESIZE_STAMP_SHIFT) + 2))
+                else if (U.compareAndSetInt(this, SIZECTL, sc, rs + 2))
                     transfer(tab, null);
                 s = sumCount();
             }
@@ -2358,11 +2356,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         Node<K,V>[] nextTab; int sc;
         if (tab != null && (f instanceof ForwardingNode) &&
             (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
-            int rs = resizeStamp(tab.length);
+            int rs = resizeStamp(tab.length) << RESIZE_STAMP_SHIFT;
             while (nextTab == nextTable && table == tab &&
                    (sc = sizeCtl) < 0) {
-                if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
-                    sc == rs + MAX_RESIZERS || transferIndex <= 0)
+                if (sc == rs + MAX_RESIZERS || sc == rs + 1 ||
+                    transferIndex <= 0)
                     break;
                 if (U.compareAndSetInt(this, SIZECTL, sc, sc + 1)) {
                     transfer(tab, nextTab);
@@ -2542,6 +2540,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                             setTabAt(tab, i, fwd);
                             advance = true;
                         }
+                        else if (f instanceof ReservationNode)
+                            throw new IllegalStateException("Recursive update");
                     }
                 }
             }
@@ -3286,9 +3286,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             return true;
         }
 
-        private static final Unsafe U = Unsafe.getUnsafe();
         private static final long LOCKSTATE
-                = U.objectFieldOffset(TreeBin.class, "lockState");
+            = U.objectFieldOffset(TreeBin.class, "lockState");
     }
 
     /* ----------------Table Traversal -------------- */
@@ -4585,6 +4584,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     public static class KeySetView<K,V> extends CollectionView<K,V,K>
         implements Set<K>, java.io.Serializable {
         private static final long serialVersionUID = 7249069246763182397L;
+        @SuppressWarnings("serial") // Conditionally serializable
         private final V value;
         KeySetView(ConcurrentHashMap<K,V> map, V value) {  // non-public
             super(map);
@@ -6345,28 +6345,20 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     // Unsafe mechanics
     private static final Unsafe U = Unsafe.getUnsafe();
-    private static final long SIZECTL;
-    private static final long TRANSFERINDEX;
-    private static final long BASECOUNT;
-    private static final long CELLSBUSY;
-    private static final long CELLVALUE;
-    private static final int ABASE;
+    private static final long SIZECTL
+        = U.objectFieldOffset(ConcurrentHashMap.class, "sizeCtl");
+    private static final long TRANSFERINDEX
+        = U.objectFieldOffset(ConcurrentHashMap.class, "transferIndex");
+    private static final long BASECOUNT
+        = U.objectFieldOffset(ConcurrentHashMap.class, "baseCount");
+    private static final long CELLSBUSY
+        = U.objectFieldOffset(ConcurrentHashMap.class, "cellsBusy");
+    private static final long CELLVALUE
+        = U.objectFieldOffset(CounterCell.class, "value");
+    private static final int ABASE = U.arrayBaseOffset(Node[].class);
     private static final int ASHIFT;
 
     static {
-        SIZECTL = U.objectFieldOffset
-            (ConcurrentHashMap.class, "sizeCtl");
-        TRANSFERINDEX = U.objectFieldOffset
-            (ConcurrentHashMap.class, "transferIndex");
-        BASECOUNT = U.objectFieldOffset
-            (ConcurrentHashMap.class, "baseCount");
-        CELLSBUSY = U.objectFieldOffset
-            (ConcurrentHashMap.class, "cellsBusy");
-
-        CELLVALUE = U.objectFieldOffset
-            (CounterCell.class, "value");
-
-        ABASE = U.arrayBaseOffset(Node[].class);
         int scale = U.arrayIndexScale(Node[].class);
         if ((scale & (scale - 1)) != 0)
             throw new ExceptionInInitializerError("array index scale not a power of two");

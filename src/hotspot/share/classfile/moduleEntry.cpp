@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,11 +24,13 @@
 
 #include "precompiled.hpp"
 #include "jni.h"
+#include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/handles.inline.hpp"
@@ -204,7 +206,7 @@ bool ModuleEntry::has_reads_list() const {
 
 // Purge dead module entries out of reads list.
 void ModuleEntry::purge_reads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(Module_lock);
 
   if (_must_walk_reads && has_reads_list()) {
     // This module's _must_walk_reads flag will be reset based
@@ -245,7 +247,6 @@ void ModuleEntry::module_reads_do(ModuleClosure* f) {
 }
 
 void ModuleEntry::delete_reads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   delete _reads;
   _reads = NULL;
 }
@@ -283,7 +284,7 @@ ModuleEntry* ModuleEntry::create_boot_unnamed_module(ClassLoaderData* cld) {
 // This is okay because the unnamed module gets created before the ClassLoaderData
 // is available to other threads.
 ModuleEntry* ModuleEntry::new_unnamed_module_entry(Handle module_handle, ClassLoaderData* cld) {
-  ModuleEntry* entry = (ModuleEntry*) NEW_C_HEAP_ARRAY(char, sizeof(ModuleEntry), mtModule);
+  ModuleEntry* entry = NEW_C_HEAP_OBJ(ModuleEntry, mtModule);
 
   // Initialize everything BasicHashtable would
   entry->set_next(NULL);
@@ -310,7 +311,7 @@ ModuleEntry* ModuleEntry::new_unnamed_module_entry(Handle module_handle, ClassLo
 
 void ModuleEntry::delete_unnamed_module() {
   // Do not need unlink_entry() since the unnamed module is not in the hashtable
-  FREE_C_HEAP_ARRAY(char, this);
+  FREE_C_HEAP_OBJ(this);
 }
 
 ModuleEntryTable::ModuleEntryTable(int table_size)
@@ -319,8 +320,6 @@ ModuleEntryTable::ModuleEntryTable(int table_size)
 }
 
 ModuleEntryTable::~ModuleEntryTable() {
-  assert_locked_or_safepoint(Module_lock);
-
   // Walk through all buckets and all entries in each bucket,
   // freeing each entry.
   for (int i = 0; i < table_size(); ++i) {
@@ -355,7 +354,6 @@ ModuleEntryTable::~ModuleEntryTable() {
   }
   assert(number_of_entries() == 0, "should have removed all entries");
   assert(new_entry_free_list() == NULL, "entry present on ModuleEntryTable's free list");
-  free_buckets();
 }
 
 ModuleEntry* ModuleEntryTable::new_entry(unsigned int hash, Handle module_handle,
@@ -402,23 +400,22 @@ void ModuleEntryTable::add_entry(int index, ModuleEntry* new_entry) {
   Hashtable<Symbol*, mtModule>::add_entry(index, (HashtableEntry<Symbol*, mtModule>*)new_entry);
 }
 
-ModuleEntry* ModuleEntryTable::locked_create_entry_or_null(Handle module_handle,
-                                                           bool is_open,
-                                                           Symbol* module_name,
-                                                           Symbol* module_version,
-                                                           Symbol* module_location,
-                                                           ClassLoaderData* loader_data) {
-  assert(module_name != NULL, "ModuleEntryTable locked_create_entry_or_null should never be called for unnamed module.");
+// Create an entry in the class loader's module_entry_table.  It is the
+// caller's responsibility to ensure that the entry has not already been
+// created.
+ModuleEntry* ModuleEntryTable::locked_create_entry(Handle module_handle,
+                                                   bool is_open,
+                                                   Symbol* module_name,
+                                                   Symbol* module_version,
+                                                   Symbol* module_location,
+                                                   ClassLoaderData* loader_data) {
+  assert(module_name != NULL, "ModuleEntryTable locked_create_entry should never be called for unnamed module.");
   assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  // Check if module already exists.
-  if (lookup_only(module_name) != NULL) {
-    return NULL;
-  } else {
-    ModuleEntry* entry = new_entry(compute_hash(module_name), module_handle, is_open, module_name,
-                                   module_version, module_location, loader_data);
-    add_entry(index_for(module_name), entry);
-    return entry;
-  }
+  assert(lookup_only(module_name) == NULL, "Module already exists");
+  ModuleEntry* entry = new_entry(compute_hash(module_name), module_handle, is_open, module_name,
+                                 module_version, module_location, loader_data);
+  add_entry(index_for(module_name), entry);
+  return entry;
 }
 
 // lookup_only by Symbol* to find a ModuleEntry.

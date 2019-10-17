@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,7 +51,7 @@ public class ResultSet {
     static Hashtable ignoreprops;
 
     // Preferred props - will be listed even if undefined
-    static String preferredkeys[] = {
+    static String[] preferredkeys = {
         "java.version",
         "java.runtime.version",
         "java.class.version",
@@ -69,7 +69,7 @@ public class ResultSet {
     };
 
     // Ignored props - will not be copied to results file
-    static String ignoredkeys[] = {
+    static String[] ignoredkeys = {
         "user.dir",
         "user.home",
         "user.timezone",
@@ -81,7 +81,6 @@ public class ResultSet {
         "java.library.path",
         "java.io.tmpdir",
         "java.util.prefs.PreferencesFactory",
-        "sun.java2d.fontpath",
         "sun.boot.library.path",
     };
 
@@ -100,8 +99,6 @@ public class ResultSet {
      * java.vm.specification.vendor
      * java.vm.specification.version
      * java.vm.vendor
-     * java.awt.graphicsenv
-     * java.awt.printerjob
      * user.language
      * sun.os.patch.level
      * sun.arch.data.model

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,14 +29,15 @@ import org.graalvm.compiler.api.replacements.Fold;
 import org.graalvm.compiler.api.replacements.Fold.InjectedParameter;
 import org.graalvm.compiler.api.replacements.MethodSubstitution;
 import org.graalvm.compiler.core.common.SuppressFBWarnings;
-import org.graalvm.compiler.core.common.spi.ArrayOffsetProvider;
 import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
 import org.graalvm.compiler.replacements.StringSubstitutions;
 import org.graalvm.compiler.replacements.nodes.ArrayCompareToNode;
+import org.graalvm.compiler.replacements.nodes.ArrayRegionEqualsNode;
 import org.graalvm.compiler.word.Word;
 import jdk.internal.vm.compiler.word.Pointer;
 
 import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.MetaAccessProvider;
 
 // JaCoCo Exclude
 
@@ -47,17 +48,17 @@ import jdk.vm.ci.meta.JavaKind;
 public class AMD64StringSubstitutions {
 
     @Fold
-    static int charArrayBaseOffset(@InjectedParameter ArrayOffsetProvider arrayOffsetProvider) {
-        return arrayOffsetProvider.arrayBaseOffset(JavaKind.Char);
+    static int charArrayBaseOffset(@InjectedParameter MetaAccessProvider metaAccess) {
+        return metaAccess.getArrayBaseOffset(JavaKind.Char);
     }
 
     @Fold
-    static int charArrayIndexScale(@InjectedParameter ArrayOffsetProvider arrayOffsetProvider) {
-        return arrayOffsetProvider.arrayScalingFactor(JavaKind.Char);
+    static int charArrayIndexScale(@InjectedParameter MetaAccessProvider metaAccess) {
+        return metaAccess.getArrayIndexScale(JavaKind.Char);
     }
 
     /** Marker value for the {@link InjectedParameter} injected parameter. */
-    static final ArrayOffsetProvider INJECTED = null;
+    static final MetaAccessProvider INJECTED = null;
 
     // Only exists in JDK <= 8
     @MethodSubstitution(isStatic = true, optional = true)
@@ -81,15 +82,30 @@ public class AMD64StringSubstitutions {
             // The empty string contains nothing except the empty string.
             return -1;
         }
-        assert sourceCount - fromIndex > 0 && targetCount > 0;
 
-        Pointer sourcePointer = Word.objectToTrackedPointer(source).add(charArrayBaseOffset(INJECTED)).add(totalOffset * charArrayIndexScale(INJECTED));
-        Pointer targetPointer = Word.objectToTrackedPointer(target).add(charArrayBaseOffset(INJECTED)).add(targetOffset * charArrayIndexScale(INJECTED));
-        int result = AMD64StringIndexOfNode.optimizedStringIndexPointer(sourcePointer, sourceCount - fromIndex, targetPointer, targetCount);
-        if (result >= 0) {
-            return result + totalOffset;
+        if (targetCount == 1) {
+            return AMD64ArrayIndexOf.indexOf1Char(source, sourceCount, totalOffset, target[targetOffset]);
+        } else {
+            int haystackLength = sourceCount - (targetCount - 2);
+            while (totalOffset < haystackLength) {
+                int indexOfResult = AMD64ArrayIndexOf.indexOfTwoConsecutiveChars(source, haystackLength, totalOffset, target[targetOffset], target[targetOffset + 1]);
+                if (indexOfResult < 0) {
+                    return -1;
+                }
+                totalOffset = indexOfResult;
+                if (targetCount == 2) {
+                    return totalOffset;
+                } else {
+                    Pointer cmpSourcePointer = Word.objectToTrackedPointer(source).add(charArrayBaseOffset(INJECTED)).add(totalOffset * charArrayIndexScale(INJECTED));
+                    Pointer targetPointer = Word.objectToTrackedPointer(target).add(charArrayBaseOffset(INJECTED)).add(targetOffset * charArrayIndexScale(INJECTED));
+                    if (ArrayRegionEqualsNode.regionEquals(cmpSourcePointer, targetPointer, targetCount, JavaKind.Char)) {
+                        return totalOffset;
+                    }
+                }
+                totalOffset++;
+            }
+            return -1;
         }
-        return result;
     }
 
     // Only exists in JDK <= 8
@@ -107,13 +123,7 @@ public class AMD64StringSubstitutions {
 
         if (ch < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
             char[] sourceArray = StringSubstitutions.getValue(source);
-
-            Pointer sourcePointer = Word.objectToTrackedPointer(sourceArray).add(charArrayBaseOffset(INJECTED)).add(fromIndex * charArrayIndexScale(INJECTED));
-            int result = AMD64ArrayIndexOfNode.optimizedArrayIndexOf(sourcePointer, sourceCount - fromIndex, (char) ch, JavaKind.Char);
-            if (result != -1) {
-                return result + fromIndex;
-            }
-            return result;
+            return AMD64ArrayIndexOf.indexOf1Char(sourceArray, sourceCount, fromIndex, (char) ch);
         } else {
             return indexOf(source, ch, origFromIndex);
         }

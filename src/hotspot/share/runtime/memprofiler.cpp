@@ -23,12 +23,13 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.hpp"
 #include "runtime/memprofiler.hpp"

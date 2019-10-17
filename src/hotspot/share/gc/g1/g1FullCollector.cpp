@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
 #include "gc/g1/g1FullCollector.hpp"
 #include "gc/g1/g1FullGCAdjustTask.hpp"
 #include "gc/g1/g1FullGCCompactTask.hpp"
@@ -37,11 +36,12 @@
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1StringDedup.hpp"
-#include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/referenceProcessor.hpp"
+#include "gc/shared/verifyOption.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
+#include "gc/shared/workerPolicy.hpp"
 #include "logging/log.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/handles.inline.hpp"
@@ -88,15 +88,15 @@ uint G1FullCollector::calc_active_workers() {
   uint waste_worker_count = MAX2((max_wasted_regions_allowed * 2) , 1u);
   uint heap_waste_worker_limit = MIN2(waste_worker_count, max_worker_count);
 
-  // Also consider HeapSizePerGCThread by calling AdaptiveSizePolicy to calculate
+  // Also consider HeapSizePerGCThread by calling WorkerPolicy to calculate
   // the number of workers.
   uint current_active_workers = heap->workers()->active_workers();
-  uint adaptive_worker_limit = AdaptiveSizePolicy::calc_active_workers(max_worker_count, current_active_workers, 0);
+  uint active_worker_limit = WorkerPolicy::calc_active_workers(max_worker_count, current_active_workers, 0);
 
   // Update active workers to the lower of the limits.
-  uint worker_count = MIN2(heap_waste_worker_limit, adaptive_worker_limit);
+  uint worker_count = MIN2(heap_waste_worker_limit, active_worker_limit);
   log_debug(gc, task)("Requesting %u active workers for full compaction (waste limited workers: %u, adaptive workers: %u)",
-                      worker_count, heap_waste_worker_limit, adaptive_worker_limit);
+                      worker_count, heap_waste_worker_limit, active_worker_limit);
   worker_count = heap->workers()->update_active_workers(worker_count);
   log_info(gc, task)("Using %u workers of %u for full compaction", worker_count, max_worker_count);
 
@@ -138,7 +138,7 @@ G1FullCollector::~G1FullCollector() {
 }
 
 void G1FullCollector::prepare_collection() {
-  _heap->g1_policy()->record_full_collection_start();
+  _heap->policy()->record_full_collection_start();
 
   _heap->print_heap_before_gc();
   _heap->print_heap_regions();
@@ -151,10 +151,6 @@ void G1FullCollector::prepare_collection() {
 
   reference_processor()->enable_discovery();
   reference_processor()->setup_policy(scope()->should_clear_soft_refs());
-
-  // When collecting the permanent generation Method*s may be moving,
-  // so we either have to flush all bcp data or convert it into bci.
-  CodeCache::gc_prologue();
 
   // We should save the marks of the currently locked biased monitors.
   // The marking doesn't preserve the marks of biased objects.
@@ -187,12 +183,10 @@ void G1FullCollector::complete_collection() {
   update_derived_pointers();
 
   BiasedLocking::restore_marks();
-  CodeCache::gc_epilogue();
-  JvmtiExport::gc_epilogue();
 
   _heap->prepare_heap_for_mutators();
 
-  _heap->g1_policy()->record_full_collection_end();
+  _heap->policy()->record_full_collection_end();
   _heap->gc_epilogue(true);
 
   _heap->verify_after_full_collection();
@@ -224,10 +218,10 @@ void G1FullCollector::phase1_mark_live_objects() {
     // Unload classes and purge the SystemDictionary.
     bool purged_class = SystemDictionary::do_unloading(scope()->timer());
     _heap->complete_cleaning(&_is_alive, purged_class);
-  } else {
-    GCTraceTime(Debug, gc, phases) debug("Phase 1: String and Symbol Tables Cleanup", scope()->timer());
-    // If no class unloading just clean out strings.
-    _heap->partial_cleaning(&_is_alive, true, G1StringDedup::is_enabled());
+  } else if (G1StringDedup::is_enabled()) {
+    GCTraceTime(Debug, gc, phases) debug("Phase 1: String Dedup Cleanup", scope()->timer());
+    // If no class unloading just clean out string deduplication data.
+    _heap->string_dedup_cleaning(&_is_alive, NULL);
   }
 
   scope()->tracer()->report_object_count_after_gc(&_is_alive);
@@ -288,13 +282,13 @@ void G1FullCollector::verify_after_marking() {
   // Note: we can verify only the heap here. When an object is
   // marked, the previous value of the mark word (including
   // identity hash values, ages, etc) is preserved, and the mark
-  // word is set to markOop::marked_value - effectively removing
+  // word is set to markWord::marked_value - effectively removing
   // any hash values from the mark word. These hash values are
   // used when verifying the dictionaries and so removing them
   // from the mark word can make verification of the dictionaries
   // fail. At the end of the GC, the original mark word values
   // (including hash values) are restored to the appropriate
   // objects.
-  GCTraceTime(Info, gc, verify)("Verifying During GC (full)");
+  GCTraceTime(Info, gc, verify) tm("Verifying During GC (full)");
   _heap->verify(VerifyOption_G1UseFullMarking);
 }

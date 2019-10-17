@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_TASKQUEUE_INLINE_HPP
-#define SHARE_VM_GC_SHARED_TASKQUEUE_INLINE_HPP
+#ifndef SHARE_GC_SHARED_TASKQUEUE_INLINE_HPP
+#define SHARE_GC_SHARED_TASKQUEUE_INLINE_HPP
 
 #include "gc/shared/taskqueue.hpp"
 #include "memory/allocation.inline.hpp"
@@ -184,6 +184,11 @@ GenericTaskQueue<E, F, N>::pop_local(volatile E& t, uint threshold) {
   } else {
     // Otherwise, the queue contained exactly one element; we take the slow
     // path.
+
+    // The barrier is required to prevent reordering the two reads of _age:
+    // one is the _age.get() below, and the other is _age.top() above the if-stmt.
+    // The algorithm may fail if _age.get() reads an older value than _age.top().
+    OrderAccess::loadload();
     return pop_local_slow(localBot, _age.get());
   }
 }
@@ -202,7 +207,7 @@ bool GenericTaskQueue<E, F, N>::pop_global(volatile E& t) {
   // Architectures with weak memory model require a barrier here
   // to guarantee that bottom is not older than age,
   // which is crucial for the correctness of the algorithm.
-#if !(defined SPARC || defined IA32 || defined AMD64)
+#ifndef CPU_MULTI_COPY_ATOMIC
   OrderAccess::fence();
 #endif
   uint localBot = OrderAccess::load_acquire(&_bottom);
@@ -331,4 +336,4 @@ inline void GenericTaskQueue<E, F, N>::iterate(Fn fn) {
 }
 
 
-#endif // SHARE_VM_GC_SHARED_TASKQUEUE_INLINE_HPP
+#endif // SHARE_GC_SHARED_TASKQUEUE_INLINE_HPP

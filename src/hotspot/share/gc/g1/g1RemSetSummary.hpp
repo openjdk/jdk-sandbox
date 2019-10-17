@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1REMSETSUMMARY_HPP
-#define SHARE_VM_GC_G1_G1REMSETSUMMARY_HPP
+#ifndef SHARE_GC_G1_G1REMSETSUMMARY_HPP
+#define SHARE_GC_G1_G1REMSETSUMMARY_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
@@ -36,11 +36,8 @@ class G1RemSetSummary {
 private:
   friend class GetRSThreadVTimeClosure;
 
-  G1RemSet* _rem_set;
-
-  size_t _num_conc_refined_cards;
-  size_t _num_processed_buf_mutator;
-  size_t _num_processed_buf_rs_threads;
+  size_t _total_mutator_refined_cards;
+  size_t _total_concurrent_refined_cards;
 
   size_t _num_coarsenings;
 
@@ -58,8 +55,7 @@ private:
   void update();
 
 public:
-  G1RemSetSummary();
-  G1RemSetSummary(G1RemSet* remset);
+  G1RemSetSummary(bool should_update = true);
 
   ~G1RemSetSummary();
 
@@ -76,20 +72,16 @@ public:
     return _sampling_thread_vtime;
   }
 
-  size_t num_conc_refined_cards() const {
-    return _num_conc_refined_cards;
+  size_t total_mutator_refined_cards() const {
+    return _total_mutator_refined_cards;
   }
 
-  size_t num_processed_buf_mutator() const {
-    return _num_processed_buf_mutator;
+  size_t total_concurrent_refined_cards() const {
+    return _total_concurrent_refined_cards;
   }
 
-  size_t num_processed_buf_rs_threads() const {
-    return _num_processed_buf_rs_threads;
-  }
-
-  size_t num_processed_buf_total() const {
-    return num_processed_buf_mutator() + num_processed_buf_rs_threads();
+  size_t total_refined_cards() const {
+    return total_mutator_refined_cards() + total_concurrent_refined_cards();
   }
 
   size_t num_coarsenings() const {
@@ -97,4 +89,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_GC_G1_G1REMSETSUMMARY_HPP
+#endif // SHARE_GC_G1_G1REMSETSUMMARY_HPP

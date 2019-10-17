@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
-#define SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#ifndef SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#define SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
 
 #include "jni.h"
 #include "memory/allocation.hpp"
@@ -33,17 +33,18 @@ class Thread;
 
 class JfrJavaEventWriter : AllStatic {
   friend class JfrCheckpointThreadClosure;
-  friend class JfrJavaEventWriterNotifyOperation;
   friend class JfrJavaEventWriterNotificationClosure;
+  friend class JfrJavaEventWriterNotifyOperation;
+  friend class JfrRecorder;
  private:
+  static bool initialize();
   static void notify(JavaThread* jt);
 
  public:
-  static bool initialize();
   static void notify();
   static jobject event_writer(Thread* t);
   static jobject new_event_writer(TRAPS);
   static jboolean flush(jobject writer, jint used, jint requested, JavaThread* jt);
 };
 
-#endif // SHARE_VM_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP
+#endif // SHARE_JFR_WRITERS_JFRJAVAEVENTWRITER_HPP

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
 
 #include "asm/assembler.hpp"
+#include "oops/compressedOops.hpp"
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -85,10 +86,10 @@ class MacroAssembler: public Assembler {
  public:
   MacroAssembler(CodeBuffer* code) : Assembler(code) {
     use_XOR_for_compressed_class_base
-      = (operand_valid_for_logical_immediate(false /*is32*/,
-                                             (uint64_t)Universe::narrow_klass_base())
-         && ((uint64_t)Universe::narrow_klass_base()
-             > (1UL << log2_intptr(Universe::narrow_klass_range()))));
+      = operand_valid_for_logical_immediate
+           (/*is32*/false, (uint64_t)CompressedKlassPointers::base())
+         && ((uint64_t)CompressedKlassPointers::base()
+             > (1UL << log2_intptr(CompressedKlassPointers::range())));
   }
 
  // These routines should emit JVMTI PopFrame and ForceEarlyReturn handling code.
@@ -169,12 +170,9 @@ class MacroAssembler: public Assembler {
 
   virtual void _call_Unimplemented(address call_site) {
     mov(rscratch2, call_site);
-    haltsim();
   }
 
 #define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
-
-  virtual void notify(int type);
 
   // aliases defined in AARCH64 spec
 
@@ -444,11 +442,17 @@ private:
   int push(unsigned int bitset, Register stack);
   int pop(unsigned int bitset, Register stack);
 
+  int push_fp(unsigned int bitset, Register stack);
+  int pop_fp(unsigned int bitset, Register stack);
+
   void mov(Register dst, Address a);
 
 public:
   void push(RegSet regs, Register stack) { if (regs.bits()) push(regs.bits(), stack); }
   void pop(RegSet regs, Register stack) { if (regs.bits()) pop(regs.bits(), stack); }
+
+  void push_fp(RegSet regs, Register stack) { if (regs.bits()) push_fp(regs.bits(), stack); }
+  void pop_fp(RegSet regs, Register stack) { if (regs.bits()) pop_fp(regs.bits(), stack); }
 
   // Push and pop everything that might be clobbered by a native
   // runtime call except rscratch1 and rscratch2.  (They are always
@@ -582,6 +586,7 @@ public:
 
   virtual void null_check(Register reg, int offset = -1);
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn(address insn_addr) {
@@ -606,6 +611,7 @@ public:
   static int patch_narrow_klass(address insn_addr, narrowKlass n);
 
   address emit_trampoline_stub(int insts_call_instruction_offset, address target);
+  void emit_static_call_stub();
 
   // The following 4 methods return the offset of the appropriate move instruction
 
@@ -782,6 +788,11 @@ public:
 
   void resolve_jobject(Register value, Register thread, Register tmp);
 
+  // C 'boolean' to Java boolean: x == 0 ? 0 : 1
+  void c2bool(Register x);
+
+  void load_method_holder(Register holder, Register method);
+
   // oop manipulations
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
@@ -920,6 +931,11 @@ public:
                            Register temp_reg,
                            Label& L_success);
 
+  void clinit_barrier(Register klass,
+                      Register thread,
+                      Label* L_fast_path = NULL,
+                      Label* L_slow_path = NULL);
+
   Address argument_address(RegisterOrConstant arg_slot, int extra_slot_offset = 0);
 
 
@@ -972,9 +988,6 @@ public:
                                                 Register tmp,
                                                 int offset);
 
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp);
-
   // Arithmetics
 
   void addptr(const Address &dst, int32_t src);
@@ -1017,7 +1030,10 @@ public:
                enum operand_size size,
                bool acquire, bool release, bool weak,
                Register result);
+private:
+  void compare_eq(Register rn, Register rm, enum operand_size size);
 
+public:
   // Calls
 
   address trampoline_call(Address entry, CodeBuffer *cbuf = NULL);
@@ -1172,28 +1188,6 @@ public:
   //
 
   public:
-  // enum used for aarch64--x86 linkage to define return type of x86 function
-  enum ret_type { ret_type_void, ret_type_integral, ret_type_float, ret_type_double};
-
-#ifdef BUILTIN_SIM
-  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type, address *prolog_ptr = NULL);
-#else
-  void c_stub_prolog(int gp_arg_count, int fp_arg_count, int ret_type) { }
-#endif
-
-  // special version of call_VM_leaf_base needed for aarch64 simulator
-  // where we need to specify both the gp and fp arg counts and the
-  // return type so that the linkage routine from aarch64 to x86 and
-  // back knows which aarch64 registers to copy to x86 registers and
-  // which x86 result register to copy back to an aarch64 register
-
-  void call_VM_leaf_base1(
-    address  entry_point,             // the entry point
-    int      number_of_gp_arguments,  // the number of gp reg arguments to pass
-    int      number_of_fp_arguments,  // the number of fp reg arguments to pass
-    ret_type type,                    // the return type for the call
-    Label*   retaddr = NULL
-  );
 
   void ldr_constant(Register dest, const Address &const_addr) {
     if (NearCpool) {
@@ -1356,6 +1350,9 @@ public:
       spill(tmp1, true, dst_offset+8);
     }
   }
+
+  void cache_wb(Address line);
+  void cache_wbsync(bool is_pre);
 };
 
 #ifdef ASSERT
@@ -1387,4 +1384,4 @@ struct tableswitch {
   Label _branches;
 };
 
-#endif // CPU_AARCH64_VM_MACROASSEMBLER_AARCH64_HPP
+#endif // CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP

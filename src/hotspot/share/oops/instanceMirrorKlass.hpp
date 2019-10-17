@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCEMIRRORKLASS_HPP
-#define SHARE_VM_OOPS_INSTANCEMIRRORKLASS_HPP
+#ifndef SHARE_OOPS_INSTANCEMIRRORKLASS_HPP
+#define SHARE_OOPS_INSTANCEMIRRORKLASS_HPP
 
 #include "classfile/systemDictionary.hpp"
 #include "oops/instanceKlass.hpp"
@@ -89,16 +89,6 @@ class InstanceMirrorKlass: public InstanceKlass {
   // allocation
   instanceOop allocate_instance(Klass* k, TRAPS);
 
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
-  // Parallel Compact
-  void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
-  void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
-#endif
-
   static void serialize_offsets(class SerializeClosure* f) NOT_CDS_RETURN;
 
   // Oop fields (and metadata) iterators
@@ -131,4 +121,4 @@ class InstanceMirrorKlass: public InstanceKlass {
   inline void oop_oop_iterate_statics_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 };
 
-#endif // SHARE_VM_OOPS_INSTANCEMIRRORKLASS_HPP
+#endif // SHARE_OOPS_INSTANCEMIRRORKLASS_HPP

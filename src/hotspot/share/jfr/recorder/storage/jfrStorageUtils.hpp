@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP
-#define SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP
+#ifndef SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP
+#define SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP
 
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
@@ -92,7 +92,6 @@ class ConcurrentWriteOpExcludeRetired : private ConcurrentWriteOp<Operation> {
   size_t processed() const { return ConcurrentWriteOp<Operation>::processed(); }
 };
 
-
 template <typename Operation>
 class MutexedWriteOp {
  private:
@@ -102,6 +101,15 @@ class MutexedWriteOp {
   MutexedWriteOp(Operation& operation) : _operation(operation) {}
   bool process(Type* t);
   size_t processed() const { return _operation.processed(); }
+};
+
+template <typename Operation>
+class ExclusiveOp : private MutexedWriteOp<Operation> {
+ public:
+  typedef typename Operation::Type Type;
+  ExclusiveOp(Operation& operation) : MutexedWriteOp<Operation>(operation) {}
+  bool process(Type* t);
+  size_t processed() const { return MutexedWriteOp<Operation>::processed(); }
 };
 
 enum jfr_operation_mode {
@@ -121,4 +129,4 @@ class DiscardOp {
   size_t processed() const { return _operation.processed(); }
 };
 
-#endif // SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP
+#endif // SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_HPP

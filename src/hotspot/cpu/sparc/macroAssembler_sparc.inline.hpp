@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_MACROASSEMBLER_SPARC_INLINE_HPP
-#define CPU_SPARC_VM_MACROASSEMBLER_SPARC_INLINE_HPP
+#ifndef CPU_SPARC_MACROASSEMBLER_SPARC_INLINE_HPP
+#define CPU_SPARC_MACROASSEMBLER_SPARC_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
@@ -614,17 +614,12 @@ inline void MacroAssembler::ldfl(FloatRegisterImpl::Width w, Register s1, Regist
 // returns if membar generates anything, obviously this code should mirror
 // membar below.
 inline bool MacroAssembler::membar_has_effect( Membar_mask_bits const7a ) {
-  if (!os::is_MP())
-    return false;  // Not needed on single CPU
   const Membar_mask_bits effective_mask =
       Membar_mask_bits(const7a & ~(LoadLoad | LoadStore | StoreStore));
   return (effective_mask != 0);
 }
 
 inline void MacroAssembler::membar( Membar_mask_bits const7a ) {
-  // Uniprocessors do not need memory barriers
-  if (!os::is_MP())
-    return;
   // Weakened for current Sparcs and TSO.  See the v9 manual, sections 8.4.3,
   // 8.4.4.3, a.31 and a.50.
   // Under TSO, setting bit 3, 2, or 0 is redundant, so the only value
@@ -724,4 +719,4 @@ inline void MacroAssembler::swap(const Address& a, Register d, int offset) {
   if (a.has_index()) { assert(offset == 0, ""); swap(a.base(), a.index(), d        ); }
   else               {                          swap(a.base(), a.disp() + offset, d); }
 }
-#endif // CPU_SPARC_VM_MACROASSEMBLER_SPARC_INLINE_HPP
+#endif // CPU_SPARC_MACROASSEMBLER_SPARC_INLINE_HPP

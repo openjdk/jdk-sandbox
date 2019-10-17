@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -44,35 +43,26 @@
 #include "runtime/handles.inline.hpp"
 #include "utilities/macros.hpp"
 
-bool TypeArrayKlass::compute_is_subtype_of(Klass* k) {
-  if (!k->is_typeArray_klass()) {
-    return ArrayKlass::compute_is_subtype_of(k);
-  }
-
-  TypeArrayKlass* tak = TypeArrayKlass::cast(k);
-  if (dimension() != tak->dimension()) return false;
-
-  return element_type() == tak->element_type();
-}
-
 TypeArrayKlass* TypeArrayKlass::create_klass(BasicType type,
                                       const char* name_str, TRAPS) {
   Symbol* sym = NULL;
   if (name_str != NULL) {
-    sym = SymbolTable::new_permanent_symbol(name_str, CHECK_NULL);
+    sym = SymbolTable::new_permanent_symbol(name_str);
   }
 
   ClassLoaderData* null_loader_data = ClassLoaderData::the_null_class_loader_data();
 
   TypeArrayKlass* ak = TypeArrayKlass::allocate(null_loader_data, type, sym, CHECK_NULL);
 
-  // Add all classes to our internal class loader list here,
-  // including classes in the bootstrap (NULL) class loader.
-  // GC walks these as strong roots.
-  null_loader_data->add_class(ak);
-
   // Call complete_create_array_klass after all instance variables have been initialized.
   complete_create_array_klass(ak, ak->super(), ModuleEntryTable::javabase_moduleEntry(), CHECK_NULL);
+
+  // Add all classes to our internal class loader list here,
+  // including classes in the bootstrap (NULL) class loader.
+  // Do this step after creating the mirror so that if the
+  // mirror creation fails, loaded_classes_do() doesn't find
+  // an array class without a mirror.
+  null_loader_data->add_class(ak);
 
   return ak;
 }
@@ -99,19 +89,10 @@ TypeArrayKlass::TypeArrayKlass(BasicType type, Symbol* name) : ArrayKlass(name, 
 
 typeArrayOop TypeArrayKlass::allocate_common(int length, bool do_zero, TRAPS) {
   assert(log2_element_size() >= 0, "bad scale");
-  if (length >= 0) {
-    if (length <= max_length()) {
-      size_t size = typeArrayOopDesc::object_size(layout_helper(), length);
-      return (typeArrayOop)Universe::heap()->array_allocate(this, (int)size, length,
-                                                            do_zero, CHECK_NULL);
-    } else {
-      report_java_out_of_memory("Requested array size exceeds VM limit");
-      JvmtiExport::post_array_size_exhausted();
-      THROW_OOP_0(Universe::out_of_memory_error_array_size());
-    }
-  } else {
-    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
-  }
+  check_array_allocation_length(length, max_length(), CHECK_NULL);
+  size_t size = typeArrayOopDesc::object_size(layout_helper(), length);
+  return (typeArrayOop)Universe::heap()->array_allocate(this, (int)size, length,
+                                                        do_zero, CHECK_NULL);
 }
 
 oop TypeArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
@@ -204,7 +185,6 @@ Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
     ResourceMark rm;
     JavaThread *jt = (JavaThread *)THREAD;
     {
-      MutexLocker mc(Compile_lock, THREAD);   // for vtables
       // Atomic create higher dimension and link into list
       MutexLocker mu(MultiArray_lock, THREAD);
 
@@ -218,13 +198,13 @@ Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
         assert(h_ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-  } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
+
   ObjArrayKlass* h_ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
     return h_ak->array_klass_or_null(n);
   }
+  THREAD->check_possible_safepoint();
   return h_ak->array_klass(n, THREAD);
 }
 

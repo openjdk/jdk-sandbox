@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -391,9 +391,9 @@ public class PolicyParser {
         out.print("keystore \"");
         out.print(keyStoreUrlString);
         out.print('"');
-        if (keyStoreType != null && keyStoreType.length() > 0)
+        if (keyStoreType != null && !keyStoreType.isEmpty())
             out.print(", \"" + keyStoreType + "\"");
-        if (keyStoreProvider != null && keyStoreProvider.length() > 0)
+        if (keyStoreProvider != null && !keyStoreProvider.isEmpty())
             out.print(", \"" + keyStoreProvider + "\"");
         out.println(";");
         out.println();
@@ -446,7 +446,7 @@ public class PolicyParser {
                     String alias = aliases.nextToken().trim();
                     if (alias.equals(","))
                         cctr++;
-                    else if (alias.length() > 0)
+                    else if (!alias.isEmpty())
                         actr++;
                 }
                 if (actr <= cctr)
@@ -1311,10 +1311,13 @@ public class PolicyParser {
 
     public static class ParsingException extends GeneralSecurityException {
 
+        @java.io.Serial
         private static final long serialVersionUID = -4330692689482574072L;
 
         private String i18nMessage;
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         private LocalizedMessage localizedMsg;
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         private Object[] source;
 
         /**

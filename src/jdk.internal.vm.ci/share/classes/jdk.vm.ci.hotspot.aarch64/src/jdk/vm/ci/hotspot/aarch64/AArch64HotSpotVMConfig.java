@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@ package jdk.vm.ci.hotspot.aarch64;
 
 import jdk.vm.ci.hotspot.HotSpotVMConfigAccess;
 import jdk.vm.ci.hotspot.HotSpotVMConfigStore;
+import jdk.vm.ci.services.Services;
 
 /**
  * Used to access native configuration details.
@@ -36,7 +37,7 @@ class AArch64HotSpotVMConfig extends HotSpotVMConfigAccess {
         super(config);
     }
 
-    final boolean linuxOs = System.getProperty("os.name", "").startsWith("Linux");
+    final boolean linuxOs = Services.getSavedProperty("os.name", "").startsWith("Linux");
 
     final boolean useCompressedOops = getFlag("UseCompressedOops", Boolean.class);
 
@@ -58,6 +59,7 @@ class AArch64HotSpotVMConfig extends HotSpotVMConfigAccess {
     /*
      * These flags are set if the corresponding support is in the hardware.
      */
+    // Checkstyle: stop
     final long aarch64FP = getConstant("VM_Version::CPU_FP", Long.class);
     final long aarch64ASIMD = getConstant("VM_Version::CPU_ASIMD", Long.class);
     final long aarch64EVTSTRM = getConstant("VM_Version::CPU_EVTSTRM", Long.class);
@@ -70,4 +72,5 @@ class AArch64HotSpotVMConfig extends HotSpotVMConfigAccess {
     final long aarch64STXR_PREFETCH = getConstant("VM_Version::CPU_STXR_PREFETCH", Long.class);
     final long aarch64A53MAC = getConstant("VM_Version::CPU_A53MAC", Long.class);
     final long aarch64DMB_ATOMICS = getConstant("VM_Version::CPU_DMB_ATOMICS", Long.class);
+    // Checkstyle: resume
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,18 +23,14 @@
  *
  */
 
-#ifndef CPU_PPC_VM_GLOBALS_PPC_HPP
-#define CPU_PPC_VM_GLOBALS_PPC_HPP
+#ifndef CPU_PPC_GLOBALS_PPC_HPP
+#define CPU_PPC_GLOBALS_PPC_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 // Sets the default values for platform dependent flags used by the runtime system.
 // (see globals.hpp)
-
-define_pd_global(bool, ShareVtableStubs,      true);
-define_pd_global(bool, NeedsDeoptSuspend,     false); // Only register window machines need this.
-
 
 define_pd_global(bool, ImplicitNullChecks,    true);  // Generate code for implicit null checks.
 define_pd_global(bool, TrapBasedNullChecks,   true);
@@ -68,8 +64,6 @@ define_pd_global(intx,  InlineSmallCode,       1500);
 // Flags for template interpreter.
 define_pd_global(bool, RewriteBytecodes,      true);
 define_pd_global(bool, RewriteFrequentPairs,  true);
-
-define_pd_global(bool, UseMembar,             true);
 
 define_pd_global(bool, PreserveFramePointer,  false);
 
@@ -127,6 +121,9 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
                                                                             \
   product(bool, UseCountLeadingZerosInstructionsPPC64, true,                \
           "Use count leading zeros instructions.")                          \
+                                                                            \
+  product(bool, UseCountTrailingZerosInstructionsPPC64, false,              \
+          "Use count trailing zeros instructions.")                         \
                                                                             \
   product(bool, UseExtendedLoadAndReserveInstructionsPPC64, false,          \
           "Use extended versions of load-and-reserve instructions.")        \
@@ -206,4 +203,4 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
   experimental(bool, UseRTMXendForLockBusy, true,                           \
           "Use RTM Xend instead of Xabort when lock busy")                  \
 
-#endif // CPU_PPC_VM_GLOBALS_PPC_HPP
+#endif // CPU_PPC_GLOBALS_PPC_HPP

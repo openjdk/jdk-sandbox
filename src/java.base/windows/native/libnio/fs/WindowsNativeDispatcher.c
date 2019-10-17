@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -177,6 +177,14 @@ Java_sun_nio_fs_WindowsNativeDispatcher_FormatMessage(JNIEnv* env, jclass this, 
     if (len == 0) {
         return NULL;
     } else {
+        if (len > 3) {
+            // Drop final '.', CR, LF
+            if (message[len - 1] == L'\n') len--;
+            if (message[len - 1] == L'\r') len--;
+            if (message[len - 1] == L'.') len--;
+            message[len] = L'\0';
+        }
+
         return (*env)->NewString(env, (const jchar *)message, (jsize)wcslen(message));
     }
 }
@@ -311,8 +319,10 @@ Java_sun_nio_fs_WindowsNativeDispatcher_FindFirstFile0(JNIEnv* env, jclass this,
     HANDLE handle = FindFirstFileW(lpFileName, &data);
     if (handle != INVALID_HANDLE_VALUE) {
         jstring name = (*env)->NewString(env, data.cFileName, (jsize)wcslen(data.cFileName));
-        if (name == NULL)
+        if (name == NULL) {
+            FindClose(handle);
             return;
+        }
         (*env)->SetLongField(env, obj, findFirst_handle, ptr_to_jlong(handle));
         (*env)->SetObjectField(env, obj, findFirst_name, name);
         (*env)->SetIntField(env, obj, findFirst_attributes, data.dwFileAttributes);
@@ -362,8 +372,10 @@ Java_sun_nio_fs_WindowsNativeDispatcher_FindFirstStream0(JNIEnv* env, jclass thi
     handle = FindFirstStreamW(lpFileName, FindStreamInfoStandard, &data, 0);
     if (handle != INVALID_HANDLE_VALUE) {
         jstring name = (*env)->NewString(env, data.cStreamName, (jsize)wcslen(data.cStreamName));
-        if (name == NULL)
+        if (name == NULL) {
+            FindClose(handle);
             return;
+        }
         (*env)->SetLongField(env, obj, findStream_handle, ptr_to_jlong(handle));
         (*env)->SetObjectField(env, obj, findStream_name, name);
     } else {
@@ -1059,7 +1071,6 @@ Java_sun_nio_fs_WindowsNativeDispatcher_CreateSymbolicLink0(JNIEnv* env,
     LPCWSTR link = jlong_to_ptr(linkAddress);
     LPCWSTR target = jlong_to_ptr(targetAddress);
 
-    /* On Windows 64-bit this appears to succeed even when there is insufficient privileges */
     if (CreateSymbolicLinkW(link, target, (DWORD)flags) == 0)
         throwWindowsException(env, GetLastError());
 }

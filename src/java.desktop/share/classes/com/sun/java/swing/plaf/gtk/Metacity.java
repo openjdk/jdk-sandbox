@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1471,7 +1471,14 @@ class Metacity implements SynthConstants {
         JComponent comp = context.getComponent();
         JComponent titlePane = findChild(comp, "InternalFrame.northPane");
 
-        JInternalFrame jif = findInternalFrame(comp);
+        JInternalFrame jif;
+        if (comp instanceof JButton) {
+            JComponent bTitlePane = (JComponent)comp.getParent();
+            Container titlePaneParent = bTitlePane.getParent();
+            jif = findInternalFrame(titlePaneParent);
+        } else {
+            jif = findInternalFrame(comp);
+        }
         if (jif == null) {
             return;
         }
@@ -2028,8 +2035,8 @@ class Metacity implements SynthConstants {
             AffineTransform affine;
             int index;
 
-            double ctrlpts[][];
-            int types[];
+            double[][] ctrlpts;
+            int[] types;
 
             private static final double angle = Math.PI / 4.0;
             private static final double a = 1.0 - Math.cos(angle);
@@ -2042,7 +2049,7 @@ class Metacity implements SynthConstants {
             //     4 values for each point {v0, v1, v2, v3}:
             //         point = (x + v0 * w + v1 * arcWidth,
             //                  y + v2 * h + v3 * arcHeight);
-            private static final double CtrlPtTemplate[][] = {
+            private static final double[][] CtrlPtTemplate = {
                 {  0.0,  0.0,  1.0,  0.0 },     /* BOTTOM LEFT corner */
                 {  0.0,  0.0,  1.0, -0.5 },     /* BOTTOM LEFT arc start */
                 {  0.0,  0.0,  1.0, -acv,       /* BOTTOM LEFT arc curve */
@@ -2065,7 +2072,7 @@ class Metacity implements SynthConstants {
                    0.0,  0.0,  0.0,  0.5 },
                 {},                             /* Closing path element */
             };
-            private static final int CornerFlags[] = {
+            private static final int[] CornerFlags = {
                 RoundRectClipShape.BOTTOM_LEFT,
                 RoundRectClipShape.BOTTOM_RIGHT,
                 RoundRectClipShape.TOP_RIGHT,
@@ -2126,7 +2133,7 @@ class Metacity implements SynthConstants {
                 if (isDone()) {
                     throw new NoSuchElementException("roundrect iterator out of bounds");
                 }
-                double ctrls[] = ctrlpts[index];
+                double[] ctrls = ctrlpts[index];
                 int nc = 0;
                 for (int i = 0; i < ctrls.length; i += 4) {
                     coords[nc++] = (float) (x + ctrls[i + 0] * w + ctrls[i + 1] * aw);
@@ -2142,7 +2149,7 @@ class Metacity implements SynthConstants {
                 if (isDone()) {
                     throw new NoSuchElementException("roundrect iterator out of bounds");
                 }
-                double ctrls[] = ctrlpts[index];
+                double[] ctrls = ctrlpts[index];
                 int nc = 0;
                 for (int i = 0; i < ctrls.length; i += 4) {
                     coords[nc++] = x + ctrls[i + 0] * w + ctrls[i + 1] * aw;

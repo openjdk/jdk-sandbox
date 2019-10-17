@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSSCAVENGE_HPP
-#define SHARE_VM_GC_PARALLEL_PSSCAVENGE_HPP
+#ifndef SHARE_GC_PARALLEL_PSSCAVENGE_HPP
+#define SHARE_GC_PARALLEL_PSSCAVENGE_HPP
 
 #include "gc/parallel/psCardTable.hpp"
 #include "gc/parallel/psVirtualspace.hpp"
@@ -33,8 +33,6 @@
 #include "oops/oop.hpp"
 #include "utilities/stack.hpp"
 
-class GCTaskManager;
-class GCTaskQueue;
 class OopStack;
 class ReferenceProcessor;
 class ParallelScavengeHeap;
@@ -111,8 +109,6 @@ class PSScavenge: AllStatic {
     assert(_ref_processor != NULL, "Sanity");
     return _ref_processor;
   }
-  // Used to add tasks
-  static GCTaskManager* const gc_task_manager();
   // The promotion managers tell us if they encountered overflow
   static void set_survivor_overflow(bool state) {
     _survivor_overflow = state;
@@ -157,4 +153,4 @@ class PSScavenge: AllStatic {
   }
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSSCAVENGE_HPP
+#endif // SHARE_GC_PARALLEL_PSSCAVENGE_HPP

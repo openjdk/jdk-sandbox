@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_MEM_ALLOCATOR_HPP
-#define SHARE_GC_SHARED_MEM_ALLOCATOR_HPP
+#ifndef SHARE_GC_SHARED_MEMALLOCATOR_HPP
+#define SHARE_GC_SHARED_MEMALLOCATOR_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "memory/memRegion.hpp"
@@ -34,10 +34,9 @@
 // These fascilities are used for allocating, and initializing newly allocated objects.
 
 class MemAllocator: StackObj {
+protected:
   class Allocation;
 
-protected:
-  CollectedHeap* const _heap;
   Thread* const        _thread;
   Klass* const         _klass;
   const size_t         _word_size;
@@ -50,8 +49,7 @@ private:
 
 protected:
   MemAllocator(Klass* klass, size_t word_size, Thread* thread)
-    : _heap(Universe::heap()),
-      _thread(thread),
+    : _thread(thread),
       _klass(klass),
       _word_size(word_size)
   { }
@@ -61,13 +59,11 @@ protected:
   // This finish constructing an oop by installing the mark word and the Klass* pointer
   // last. At the point when the Klass pointer is initialized, this is a constructed object
   // that must be parseable as an oop by concurrent collectors.
-  oop finish(HeapWord* mem) const;
+  virtual oop finish(HeapWord* mem) const;
 
-  // Raw memory allocation. This may or may not use TLAB allocations to satisfy the
-  // allocation. A GC implementation may override this function to satisfy the allocation
-  // in any way. But the default is to try a TLAB allocation, and otherwise perform
-  // mem_allocate.
-  virtual HeapWord* mem_allocate(Allocation& allocation) const;
+  // Raw memory allocation. This will try to do a TLAB allocation, and otherwise fall
+  // back to calling CollectedHeap::mem_allocate().
+  HeapWord* mem_allocate(Allocation& allocation) const;
 
   virtual MemRegion obj_memory_range(oop obj) const {
     return MemRegion((HeapWord*)obj, _word_size);
@@ -107,4 +103,4 @@ public:
   virtual oop initialize(HeapWord* mem) const;
 };
 
-#endif // SHARE_GC_SHARED_MEM_ALLOCATOR_HPP
+#endif // SHARE_GC_SHARED_MEMALLOCATOR_HPP

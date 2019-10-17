@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -39,11 +39,11 @@ LIBAWT_DEFAULT_HEADER_DIRS := \
 
 # We must not include java.desktop/unix/native/libmlib_image, which is only
 # for usage by solaris-sparc in libmlib_image_v.
-BUILD_LIBMLIB_EXCLUDE_SRC_PATTERNS := unix
+BUILD_LIBMLIB_EXCLUDE_SRC_PATTERNS := /unix/
 
 BUILD_LIBMLIB_CFLAGS := -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES -DMLIB_NO_LIBSUNMATH
 
-ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+ifeq ($(call isTargetCpuBits, 64), true)
   BUILD_LIBMLIB_CFLAGS += -DMLIB_OS64BIT
 endif
 
@@ -55,6 +55,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBMLIB_IMAGE, \
     OPTIMIZATION := HIGHEST, \
     CFLAGS := $(CFLAGS_JDKLIB) \
         $(BUILD_LIBMLIB_CFLAGS), \
+    DISABLED_WARNINGS_gcc := unused-function, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(JDKLIB_LIBS), \
@@ -67,7 +68,7 @@ TARGETS += $(BUILD_LIBMLIB_IMAGE)
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
+ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpuArch, sparc)), true)
 
   # libmlib_image_v is basically built from mlib_image sources, with some additions
   # and some exclusions.
@@ -79,7 +80,7 @@ ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
   LIBMLIB_IMAGE_V_CFLAGS := -xarch=sparcvis -D__USE_J2D_NAMES -D__MEDIALIB_OLD_NAMES \
       $(TOPDIR)/src/$(MODULE)/unix/native/libmlib_image/vis_$(OPENJDK_TARGET_CPU_BITS).il
 
-  ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+  ifeq ($(call isTargetCpuBits, 64), true)
     LIBMLIB_IMAGE_V_CFLAGS += -DMLIB_OS64BIT
   endif
 
@@ -126,11 +127,11 @@ LIBAWT_EXTRA_SRC := \
     $(TOPDIR)/src/$(MODULE)/$(OPENJDK_TARGET_OS_TYPE)/native/common/awt \
     #
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU_ARCH), solaris-sparc)
+ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpuArch, sparc)), true)
   LIBAWT_EXTRA_SRC += $(TOPDIR)/src/$(MODULE)/share/native/common/awt/medialib
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   LIBAWT_EXTRA_SRC += \
       $(TOPDIR)/src/$(MODULE)/share/native/common/awt/utility \
       $(TOPDIR)/src/$(MODULE)/share/native/common/font \
@@ -139,22 +140,22 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       #
 endif
 
-ifneq ($(filter $(OPENJDK_TARGET_OS), solaris linux macosx aix), )
+ifeq ($(call isTargetOs, solaris linux macosx aix), true)
   LIBAWT_EXFILES += awt_Font.c CUPSfuncs.c fontpath.c X11Color.c
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
   LIBAWT_EXFILES += initIDs.c awt/image/cvutils/img_colors.c
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   LIBAWT_EXFILES += \
       java2d/d3d/D3DShaderGen.c \
       awt/image/cvutils/img_colors.c \
       #
 endif
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
+ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpu, sparcv9)), true)
   LIBAWT_EXFILES += java2d/loops/MapAccelFunc.c
 else
   LIBAWT_EXCLUDES += \
@@ -181,20 +182,20 @@ LIBAWT_EXTRA_HEADER_DIRS := \
 
 LIBAWT_CFLAGS += -D__MEDIALIB_OLD_NAMES -D__USE_J2D_NAMES $(X_CFLAGS)
 
-ifeq ($(OPENJDK_TARGET_OS)-$(OPENJDK_TARGET_CPU), solaris-sparcv9)
+ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpu, sparcv9)), true)
   LIBAWT_CFLAGS += -xarch=sparcvis -DMLIB_ADD_SUFF \
       $(TOPDIR)/src/$(MODULE)/unix/native/libmlib_image/vis_$(OPENJDK_TARGET_CPU_BITS).il
 
   LIBAWT_ASFLAGS = -P -xarch=v9a
 endif
 
-ifneq ($(OPENJDK_TARGET_OS), solaris)
+ifeq ($(call isTargetOs, solaris), false)
   LIBAWT_CFLAGS += -DMLIB_NO_LIBSUNMATH
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   LIBAWT_CFLAGS += -EHsc -DUNICODE -D_UNICODE
-  ifeq ($(OPENJDK_TARGET_CPU_BITS), 64)
+  ifeq ($(call isTargetCpuBits, 64), true)
     LIBAWT_CFLAGS += -DMLIB_OS64BIT
   endif
 
@@ -202,7 +203,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
   LIBAWT_VERSIONINFO_RESOURCE := $(TOPDIR)/src/$(MODULE)/windows/native/libawt/windows/awt.rc
 endif
 
-ifeq ($(OPENJDK_TARGET_OS), linux)
+ifeq ($(call isTargetOs, linux), true)
   # FIXME: This is probably not what we want to do, but keep it now for compatibility.
   LIBAWT_CFLAGS += $(EXPORT_ALL_SYMBOLS)
 endif
@@ -225,8 +226,9 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
     CFLAGS := $(CFLAGS_JDKLIB) $(LIBAWT_CFLAGS), \
     EXTRA_HEADER_DIRS := $(LIBAWT_EXTRA_HEADER_DIRS), \
     DISABLED_WARNINGS_gcc := sign-compare unused-result maybe-uninitialized \
-        format-nonliteral parentheses, \
-    DISABLED_WARNINGS_clang := logical-op-parentheses extern-initializer, \
+        format-nonliteral parentheses unused-value unused-function, \
+    DISABLED_WARNINGS_clang := logical-op-parentheses extern-initializer \
+        sign-compare format-nonliteral, \
     DISABLED_WARNINGS_microsoft := 4244 4267 4996, \
     ASFLAGS := $(LIBAWT_ASFLAGS), \
     LDFLAGS := $(LDFLAGS_JDKLIB) $(call SET_SHARED_LIBRARY_ORIGIN), \
@@ -260,7 +262,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBAWT, \
 
 $(BUILD_LIBAWT): $(call FindLib, java.base, java)
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
   $(BUILD_LIBAWT): $(BUILD_LIBMLIB_IMAGE)
 endif
 
@@ -268,7 +270,7 @@ TARGETS += $(BUILD_LIBAWT)
 
 ################################################################################
 
-ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
+ifeq ($(call isTargetOs, windows macosx), false)
   ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
     LIBAWT_XAWT_EXTRA_SRC := \
@@ -277,7 +279,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
         common/font \
         #
 
-    LIBAWT_XAWT_EXCLUDES := medialib
+    LIBAWT_XAWT_EXCLUDES := medialib debug
 
     LIBAWT_XAWT_EXTRA_HEADER_DIRS := \
         $(LIBAWT_DEFAULT_HEADER_DIRS) \
@@ -294,11 +296,11 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
         $(FONTCONFIG_CFLAGS) \
         $(CUPS_CFLAGS)
 
-    ifeq ($(OPENJDK_TARGET_OS), solaris)
+    ifeq ($(call isTargetOs, solaris), true)
       LIBAWT_XAWT_CFLAGS += -DFUNCPROTO=15
     endif
 
-    ifeq ($(OPENJDK_TARGET_OS), linux)
+    ifeq ($(call isTargetOs, linux), true)
       ifeq ($(DISABLE_XRENDER), true)
         LIBAWT_XAWT_CFLAGS += -DDISABLE_XRENDER_BY_DEFAULT=true
       endif
@@ -306,7 +308,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
 
     LIBAWT_XAWT_LIBS := $(LIBM) -lawt -lXext -lX11 -lXrender $(LIBDL) -lXtst -lXi -ljava -ljvm
 
-    ifeq ($(OPENJDK_TARGET_OS), linux)
+    ifeq ($(call isTargetOs, linux), true)
       LIBAWT_XAWT_LIBS += -lpthread
     endif
 
@@ -333,7 +335,9 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx), )
         DISABLED_WARNINGS_gcc := type-limits pointer-to-int-cast \
             unused-result maybe-uninitialized format \
             format-security int-to-pointer-cast parentheses \
-            implicit-fallthrough, \
+            implicit-fallthrough undef unused-function, \
+        DISABLED_WARNINGS_clang := parentheses format undef \
+            logical-op-parentheses format-nonliteral int-conversion, \
         DISABLED_WARNINGS_solstudio := E_ASSIGNMENT_TYPE_MISMATCH \
              E_NON_CONST_INIT, \
         LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -373,14 +377,14 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBLCMS, \
     OPTIMIZATION := HIGHEST, \
     CFLAGS := $(CFLAGS_JDKLIB) \
         $(LCMS_CFLAGS), \
-    CFLAGS_solaris := -xc99=no_lib, \
     CFLAGS_windows := -DCMS_IS_WINDOWS_, \
     EXTRA_HEADER_DIRS := \
         common/awt/debug \
         libawt/java2d, \
     HEADERS_FROM_SRC := $(LIBLCMS_HEADERS_FROM_SRC), \
-    DISABLED_WARNINGS_gcc := format-nonliteral type-limits misleading-indentation, \
-    DISABLED_WARNINGS_clang := tautological-compare, \
+    DISABLED_WARNINGS_gcc := format-nonliteral type-limits \
+        misleading-indentation undef unused-function, \
+    DISABLED_WARNINGS_clang := tautological-compare format-nonliteral undef, \
     DISABLED_WARNINGS_solstudio := E_STATEMENT_NOT_REACHED, \
     DISABLED_WARNINGS_microsoft := 4819, \
     LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -437,7 +441,7 @@ TARGETS += $(BUILD_LIBJAVAJPEG)
 ################################################################################
 
 # Mac and Windows only use the native AWT lib, do not build libawt_headless
-ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
+ifeq ($(call isTargetOs, windows macosx), false)
 
   LIBAWT_HEADLESS_EXTRA_SRC := \
       common/font \
@@ -465,7 +469,7 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(LIBAWT_HEADLESS_CFLAGS), \
       EXTRA_HEADER_DIRS := $(LIBAWT_HEADLESS_EXTRA_HEADER_DIRS), \
-      DISABLED_WARNINGS_xlc := 1506-356, \
+      DISABLED_WARNINGS_gcc := unused-function, \
       DISABLED_WARNINGS_solstudio := E_EMPTY_TRANSLATION_UNIT, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
@@ -474,10 +478,6 @@ ifeq ($(findstring $(OPENJDK_TARGET_OS), windows macosx),)
       LIBS_linux := $(LIBM) $(LIBDL), \
       LIBS_solaris := $(LIBM) $(LIBDL) $(LIBCXX), \
   ))
-
-  # AIX warning explanation:
-  # 1506-356 : (W) Compilation unit is empty.
-  #            This happens during the headless build
 
   $(BUILD_LIBAWT_HEADLESS): $(BUILD_LIBAWT)
 
@@ -497,8 +497,10 @@ else
 
   # For use by libfontmanager:
   LIBFREETYPE_CFLAGS := -I$(BUILD_LIBFREETYPE_HEADER_DIRS)
-  ifeq ($(OPENJDK_TARGET_OS), windows)
+  ifeq ($(call isTargetOs, windows), true)
     LIBFREETYPE_LIBS := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/libfreetype/freetype.lib
+    # freetype now requires you to manually define this (see ftconfig.h)
+    BUILD_LIBFREETYPE_CFLAGS += -DDLL_EXPORT
   else
     LIBFREETYPE_LIBS := -lfreetype
   endif
@@ -512,7 +514,8 @@ else
       DISABLED_WARNINGS_solstudio := \
          E_STATEMENT_NOT_REACHED \
          E_END_OF_LOOP_CODE_NOT_REACHED, \
-      DISABLED_WARNINGS_microsoft := 4267 4244 4312, \
+      DISABLED_WARNINGS_microsoft := 4018 4267 4244 4312 4819, \
+      DISABLED_WARNINGS_gcc := cast-function-type bad-function-cast, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
   ))
@@ -526,20 +529,21 @@ endif
 
 HARFBUZZ_CFLAGS := -DHAVE_OT -DHAVE_FALLBACK -DHAVE_UCDN -DHAVE_ROUND
 
-ifneq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), false)
   HARFBUZZ_CFLAGS += -DGETPAGESIZE -DHAVE_MPROTECT -DHAVE_PTHREAD \
-                      -DHAVE_SYSCONF -DHAVE_SYS_MMAN_H -DHAVE_UNISTD_H
+                      -DHAVE_SYSCONF -DHAVE_SYS_MMAN_H -DHAVE_UNISTD_H \
+                      -DHB_NO_PRAGMA_GCC_DIAGNOSTIC
 endif
-ifneq (, $(findstring $(OPENJDK_TARGET_OS), linux macosx))
+ifeq ($(call isTargetOs, linux macosx), true)
   HARFBUZZ_CFLAGS += -DHAVE_INTEL_ATOMIC_PRIMITIVES
 endif
-ifeq ($(OPENJDK_TARGET_OS), solaris)
+ifeq ($(call isTargetOs, solaris), true)
   HARFBUZZ_CFLAGS += -DHAVE_SOLARIS_ATOMIC_OPS
 endif
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
   HARFBUZZ_CFLAGS += -DHAVE_CORETEXT
 endif
-ifneq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), false)
   LIBFONTMANAGER_EXCLUDE_FILES += harfbuzz/hb-coretext.cc
 endif
 # hb-ft.cc is not presently needed, and requires freetype 2.4.2 or later.
@@ -564,11 +568,11 @@ BUILD_LIBFONTMANAGER_FONTLIB += $(LIBFREETYPE_LIBS)
 
 LIBFONTMANAGER_OPTIMIZATION := HIGH
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   LIBFONTMANAGER_EXCLUDE_FILES += X11FontScaler.c \
       X11TextRenderer.c
   LIBFONTMANAGER_OPTIMIZATION := HIGHEST
-else ifeq ($(OPENJDK_TARGET_OS), macosx)
+else ifeq ($(call isTargetOs, macosx), true)
   LIBFONTMANAGER_EXCLUDE_FILES += X11FontScaler.c \
       X11TextRenderer.c \
       fontpath.c \
@@ -602,19 +606,21 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBFONTMANAGER, \
     EXTRA_HEADER_DIRS := $(LIBFONTMANAGER_EXTRA_HEADER_DIRS), \
     WARNINGS_AS_ERRORS_xlc := false, \
     DISABLED_WARNINGS_gcc := sign-compare int-to-pointer-cast \
-        type-limits missing-field-initializers implicit-fallthrough strict-aliasing, \
+        type-limits missing-field-initializers implicit-fallthrough \
+        strict-aliasing undef unused-function, \
     DISABLED_WARNINGS_CXX_gcc := reorder delete-non-virtual-dtor strict-overflow \
-        maybe-uninitialized, \
+        maybe-uninitialized class-memaccess, \
     DISABLED_WARNINGS_clang := unused-value incompatible-pointer-types \
-        tautological-constant-out-of-range-compare int-to-pointer-cast, \
+        tautological-constant-out-of-range-compare int-to-pointer-cast \
+        sign-compare undef missing-field-initializers, \
     DISABLED_WARNINGS_C_solstudio = \
         E_INTEGER_OVERFLOW_DETECTED \
         E_ARG_INCOMPATIBLE_WITH_ARG_L \
         E_ENUM_VAL_OVERFLOWS_INT_MAX, \
     DISABLED_WARNINGS_CXX_solstudio := \
         truncwarn wvarhidenmem wvarhidemem wbadlkginit identexpected \
-        hidevf w_novirtualdescr arrowrtn2, \
-    DISABLED_WARNINGS_microsoft := 4267 4244 4018 4090 4996 4146 4334 4819 4101, \
+        hidevf w_novirtualdescr arrowrtn2 refmemnoconstr_aggr unknownpragma, \
+    DISABLED_WARNINGS_microsoft := 4267 4244 4018 4090 4996 4146 4334 4819 4101 4068 4805 4138, \
     LDFLAGS := $(subst -Xlinker -z -Xlinker defs,, \
         $(subst -Wl$(COMMA)-z$(COMMA)defs,,$(LDFLAGS_JDKLIB))) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
@@ -630,7 +636,7 @@ $(eval $(call SetupJdkLibrary, BUILD_LIBFONTMANAGER, \
 
 $(BUILD_LIBFONTMANAGER): $(BUILD_LIBAWT)
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
   $(BUILD_LIBFONTMANAGER): $(call FindLib, $(MODULE), awt_lwawt)
 endif
 
@@ -642,7 +648,7 @@ TARGETS += $(BUILD_LIBFONTMANAGER)
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
 
   LIBJAWT_CFLAGS := -EHsc -DUNICODE -D_UNICODE
 
@@ -657,7 +663,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
       java.base:libjava \
       #
 
-  ifeq ($(OPENJDK_TARGET_CPU), x86)
+  ifeq ($(call isTargetCpu, x86), true)
     KERNEL32_LIB := kernel32.lib
   endif
 
@@ -682,25 +688,25 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
   TARGETS += $(COPY_JAWT_LIB)
 
-else # OPENJDK_TARGET_OS not windows
+else # not windows
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     # libjawt on macosx do not use the unix code
-    LIBJAWT_EXCLUDE_SRC_PATTERNS := unix
+    LIBJAWT_EXCLUDE_SRC_PATTERNS := /unix/
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     JAWT_LIBS := -lawt_lwawt
   else
     JAWT_LIBS :=
-    ifneq ($(OPENJDK_TARGET_OS), solaris)
+    ifeq ($(call isTargetOs, solaris), false)
       JAWT_LIBS += -lawt
     endif
     ifeq ($(ENABLE_HEADLESS_ONLY), false)
       JAWT_LIBS += -lawt_xawt
     else
       JAWT_LIBS += -lawt_headless
-      ifeq ($(OPENJDK_TARGET_OS), linux)
+      ifeq ($(call isTargetOs, linux), true)
         JAWT_CFLAGS += -DHEADLESS
       endif
     endif
@@ -713,6 +719,7 @@ else # OPENJDK_TARGET_OS not windows
       OPTIMIZATION := LOW, \
       CFLAGS := $(CFLAGS_JDKLIB) \
           $(JAWT_CFLAGS), \
+      DISABLED_WARNINGS_clang := sign-compare, \
       EXTRA_HEADER_DIRS := \
           include \
           common/awt, \
@@ -728,14 +735,14 @@ else # OPENJDK_TARGET_OS not windows
   ifeq ($(ENABLE_HEADLESS_ONLY), false)
     $(BUILD_LIBJAWT): $(BUILD_LIBAWT_XAWT)
   else
-    $(BUILD_LIBJAWT): $(INSTALL_LIBRARIES_HERE)/$(LIBRARY_PREFIX)awt_headless$(SHARED_LIBRARY_SUFFIX)
+    $(BUILD_LIBJAWT): $(call FindLib, $(MODULE), awt_headless)
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
-    $(BUILD_LIBJAWT): $(INSTALL_LIBRARIES_HERE)/$(LIBRARY_PREFIX)awt_lwawt$(SHARED_LIBRARY_SUFFIX)
+  ifeq ($(call isTargetOs, macosx), true)
+   $(BUILD_LIBJAWT): $(call FindLib, $(MODULE), awt_lwawt)
   endif
 
-endif # OPENJDK_TARGET_OS
+endif
 
 TARGETS += $(BUILD_LIBJAWT)
 
@@ -765,17 +772,6 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
   ifeq ($(USE_EXTERNAL_LIBPNG), false)
     LIBSPLASHSCREEN_HEADER_DIRS += libsplashscreen/libpng
-
-    ifeq ($(OPENJDK_TARGET_OS), macosx)
-      ifeq ($(USE_EXTERNAL_LIBZ), true)
-        # When building our own libpng and using an external libz, we need to
-        # inject our own libz.h to tweak the exported ZLIB_VERNUM macro. See
-        # $(TOPDIR)/src/java.desktop/macosx/native/libsplashscreen/libpng/zlibwrapper/zlib.h
-        # for details. This must be specified with -iquote, not -I to avoid a
-        # circular include.
-        LIBSPLASHSCREEN_CFLAGS += -iquote $(TOPDIR)/src/$(MODULE)/macosx/native/libsplashscreen/libpng/zlibwrapper
-      endif
-    endif
   else
     LIBSPLASHSCREEN_EXCLUDES += libpng
   endif
@@ -784,20 +780,21 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
     LIBSPLASHSCREEN_EXTRA_SRC += java.base:libzip/zlib
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     # libsplashscreen on macosx do not use the unix code
-    LIBSPLASHSCREEN_EXCLUDE_SRC_PATTERNS := unix
+    LIBSPLASHSCREEN_EXCLUDE_SRC_PATTERNS := /unix/
   endif
 
-  LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0
+  LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE \
+                            -DPNG_ARM_NEON_OPT=0 -DPNG_ARM_NEON_IMPLEMENTATION=0
 
-  ifeq ($(OPENJDK_TARGET_OS), linux)
-    ifeq ($(OPENJDK_TARGET_CPU_ARCH), ppc)
+  ifeq ($(call isTargetOs, linux), true)
+    ifeq ($(call isTargetCpuArch, ppc), true)
       LIBSPLASHSCREEN_CFLAGS += -DPNG_POWERPC_VSX_OPT=0
     endif
   endif
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_MACOSX
 
     BUILD_LIBSPLASHSCREEN_java_awt_SplashScreen.c_CFLAGS := -x objective-c -O0
@@ -808,7 +805,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
     BUILD_LIBSPLASHSCREEN_splashscreen_png.c_CFLAGS := -x objective-c -O0
     BUILD_LIBSPLASHSCREEN_splashscreen_sys.m_CFLAGS := -O0
 
-  else ifeq ($(OPENJDK_TARGET_OS), windows)
+  else ifeq ($(call isTargetOs, windows), true)
     LIBSPLASHSCREEN_CFLAGS += -DWITH_WIN32
   else
     LIBSPLASHSCREEN_CFLAGS += -DWITH_X11 $(X_CFLAGS)
@@ -816,14 +813,15 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
   LIBSPLASHSCREEN_LIBS :=
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     LIBSPLASHSCREEN_LIBS += \
         $(LIBM) -lpthread -liconv -losxapp \
         -framework ApplicationServices \
         -framework Foundation \
+        -framework Security \
         -framework Cocoa \
         -framework JavaNativeFoundation
-  else ifeq ($(OPENJDK_TARGET_OS), windows)
+  else ifeq ($(call isTargetOs, windows), true)
     LIBSPLASHSCREEN_LIBS += kernel32.lib user32.lib gdi32.lib delayimp.lib $(WIN_JAVA_LIB) jvm.lib
   else
     LIBSPLASHSCREEN_LIBS += $(X_LIBS) -lX11 -lXext $(LIBM) -lpthread -ldl
@@ -846,8 +844,9 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
           $(GIFLIB_CFLAGS) $(LIBJPEG_CFLAGS) $(PNG_CFLAGS) $(LIBZ_CFLAGS), \
       EXTRA_HEADER_DIRS := $(LIBSPLASHSCREEN_HEADER_DIRS), \
       DISABLED_WARNINGS_gcc := sign-compare type-limits unused-result \
-          maybe-uninitialized shift-negative-value implicit-fallthrough, \
-      DISABLED_WARNINGS_clang := incompatible-pointer-types, \
+          maybe-uninitialized shift-negative-value implicit-fallthrough \
+          unused-function, \
+      DISABLED_WARNINGS_clang := incompatible-pointer-types sign-compare, \
       DISABLED_WARNINGS_solstudio := E_STATEMENT_NOT_REACHED, \
       DISABLED_WARNINGS_microsoft := 4018 4244 4267, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
@@ -861,7 +860,7 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
 
   TARGETS += $(BUILD_LIBSPLASHSCREEN)
 
-  ifeq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), true)
     $(BUILD_LIBSPLASHSCREEN): $(call FindLib, $(MODULE), osxapp)
   endif
 
@@ -869,7 +868,7 @@ endif
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
 
   LIBAWT_LWAWT_EXTRA_SRC := \
       $(TOPDIR)/src/$(MODULE)/unix/native/common/awt \
@@ -905,7 +904,9 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       EXTRA_HEADER_DIRS := $(LIBAWT_LWAWT_EXTRA_HEADER_DIRS), \
       DISABLED_WARNINGS_clang := incomplete-implementation enum-conversion \
           deprecated-declarations objc-method-access bitwise-op-parentheses \
-          incompatible-pointer-types parentheses-equality extra-tokens, \
+          incompatible-pointer-types parentheses-equality extra-tokens \
+          sign-compare semicolon-before-method-body format-nonliteral undef \
+          pointer-arith, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN) \
           -L$(INSTALL_LIBRARIES_HERE), \
@@ -937,7 +938,7 @@ endif
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), macosx)
+ifeq ($(call isTargetOs, macosx), true)
 
   $(eval $(call SetupJdkLibrary, BUILD_LIBOSXUI, \
       NAME := osxui, \
@@ -946,7 +947,7 @@ ifeq ($(OPENJDK_TARGET_OS), macosx)
       EXTRA_HEADER_DIRS := \
           libawt_lwawt/awt \
           libosxapp, \
-      DISABLED_WARNINGS_clang := deprecated-declarations, \
+      DISABLED_WARNINGS_clang := deprecated-declarations sign-compare, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN) \
           -Wl$(COMMA)-rpath$(COMMA)@loader_path \

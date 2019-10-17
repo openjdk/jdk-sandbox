@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -114,10 +114,6 @@ char* os::non_memory_address_word() {
   // if the CPU splits constants across multiple instructions).
 
   return (char*) -1;
-}
-
-void os::initialize_thread(Thread* thr) {
-// Nothing to do.
 }
 
 address os::Linux::ucontext_get_pc(const ucontext_t * uc) {
@@ -307,8 +303,9 @@ JVM_handle_linux_signal(int sig,
 
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return 1;
+    }
   }
 #endif
 
@@ -439,8 +436,12 @@ JVM_handle_linux_signal(int sig,
         // Do not crash the VM in such a case.
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
-        if (nm != NULL && nm->has_unsafe_access()) {
+        bool is_unsafe_arraycopy = thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc);
+        if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
           address next_pc = Assembler::locate_next_instruction(pc);
+          if (is_unsafe_arraycopy) {
+            next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+          }
           stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
         }
       }
@@ -483,14 +484,18 @@ JVM_handle_linux_signal(int sig,
         }
 #endif // AMD64
       } else if (sig == SIGSEGV &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t)info->si_addr)) {
+                 MacroAssembler::uses_implicit_null_check(info->si_addr)) {
           // Determination of interpreter/vtable stub/compiled code null exception
           stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
-    } else if (thread->thread_state() == _thread_in_vm &&
-               sig == SIGBUS && /* info->si_code == BUS_OBJERR && */
-               thread->doing_unsafe_access()) {
+    } else if ((thread->thread_state() == _thread_in_vm ||
+                thread->thread_state() == _thread_in_native) &&
+               (sig == SIGBUS && /* info->si_code == BUS_OBJERR && */
+               thread->doing_unsafe_access())) {
         address next_pc = Assembler::locate_next_instruction(pc);
+        if (UnsafeCopyMemory::contains_pc(pc)) {
+          next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
         stub = SharedRuntime::handle_unsafe_access(thread, next_pc);
     }
 
@@ -501,17 +506,6 @@ JVM_handle_linux_signal(int sig,
       if (addr != (address)-1) {
         stub = addr;
       }
-    }
-
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) &&
-        os::is_memory_serialize_page(thread, (address) info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
     }
   }
 
@@ -770,8 +764,8 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  print_instructions(st, pc, sizeof(char));
+  st->cr();
 }
 
 void os::print_register_info(outputStream *st, const void *context) {
@@ -842,6 +836,7 @@ void os::verify_stack_alignment() {
  */
 void os::workaround_expand_exec_shield_cs_limit() {
 #if defined(IA32)
+  assert(Linux::initial_thread_stack_bottom() != NULL, "sanity");
   size_t page_size = os::vm_page_size();
 
   /*

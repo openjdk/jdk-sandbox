@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -172,6 +172,15 @@ public abstract class TagletWriter {
     protected abstract Content simpleTagOutput(Element element, DocTree simpleTag, String header);
 
     /**
+     * Return the system property tag output.
+     *
+     * @param element
+     * @param systemPropertyTag the system property tag
+     * @return the output of system property tag
+     */
+    protected abstract Content systemPropertyTagOutput(Element element, DocTree systemPropertyTag);
+
+    /**
      * Return the header for the throws tag.
      *
      * @return the header for the throws tag.
@@ -250,7 +259,7 @@ public abstract class TagletWriter {
             }
             if (currentOutput != null) {
                 tagletManager.seenCustomTag(taglet.getName());
-                output.addContent(currentOutput);
+                output.add(currentOutput);
             }
         }
     }

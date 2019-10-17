@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -326,7 +326,7 @@ public abstract class DCTree implements DocTree {
         }
     }
 
-    public static class DCEndElement extends DCTree implements EndElementTree {
+    public static class DCEndElement extends DCEndPosTree<DCStartElement> implements EndElementTree {
         public final Name name;
 
         DCEndElement(Name name) {
@@ -884,6 +884,29 @@ public abstract class DCTree implements DocTree {
         @Override @DefinedBy(Api.COMPILER_TREE)
         public List<? extends DocTree> getSummary() {
             return summary;
+        }
+    }
+
+    public static class DCSystemProperty extends DCInlineTag implements SystemPropertyTree {
+        public final Name propertyName;
+
+        DCSystemProperty(Name propertyName) {
+            this.propertyName = propertyName;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public Kind getKind() {
+            return Kind.SYSTEM_PROPERTY;
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public <R, D> R accept(DocTreeVisitor<R, D> v, D d) {
+            return v.visitSystemProperty(this, d);
+        }
+
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public Name getPropertyName() {
+            return propertyName;
         }
     }
 

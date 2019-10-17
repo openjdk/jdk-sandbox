@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,15 @@
 package jdk.internal.net.http;
 
 import java.io.IOException;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Function;
-import java.net.http.HttpResponse;
+
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.MinimalFuture;
 import jdk.internal.net.http.common.Utils;
+
 import static java.net.http.HttpClient.Version.HTTP_1_1;
 
 /**
@@ -64,6 +66,9 @@ abstract class ExchangeImpl<T> {
         return exchange;
     }
 
+    HttpClient client() {
+        return exchange.client();
+    }
 
     /**
      * Returns the {@link HttpConnection} instance to which this exchange is
@@ -88,8 +93,10 @@ abstract class ExchangeImpl<T> {
             CompletableFuture<Http2Connection> c2f = c2.getConnectionFor(request, exchange);
             if (debug.on())
                 debug.log("get: Trying to get HTTP/2 connection");
-            return c2f.handle((h2c, t) -> createExchangeImpl(h2c, t, exchange, connection))
-                    .thenCompose(Function.identity());
+            // local variable required here; see JDK-8223553
+            CompletableFuture<CompletableFuture<? extends ExchangeImpl<U>>> fxi =
+                c2f.handle((h2c, t) -> createExchangeImpl(h2c, t, exchange, connection));
+            return fxi.thenCompose(x->x);
         }
     }
 
@@ -157,6 +164,12 @@ abstract class ExchangeImpl<T> {
         }
     }
 
+    // Called for 204 response - when no body is permitted
+    void nullBody(HttpResponse<T> resp, Throwable t) {
+        // only needed for HTTP/1.1 to close the connection
+        // or return it to the pool
+    }
+
     /* The following methods have separate HTTP/1.1 and HTTP/2 implementations */
 
     abstract CompletableFuture<ExchangeImpl<T>> sendHeadersAsync();
@@ -172,6 +185,7 @@ abstract class ExchangeImpl<T> {
      * Ignore/consume the body.
      */
     abstract CompletableFuture<Void> ignoreBody();
+
 
     /** Gets the response headers. Completes before body is read. */
     abstract CompletableFuture<Response> getResponseAsync(Executor executor);

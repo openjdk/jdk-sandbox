@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_C1_MACROASSEMBLER_S390_HPP
-#define CPU_S390_VM_C1_MACROASSEMBLER_S390_HPP
+#ifndef CPU_S390_C1_MACROASSEMBLER_S390_HPP
+#define CPU_S390_C1_MACROASSEMBLER_S390_HPP
 
   void pd_init() { /* nothing to do */ }
 
@@ -41,14 +41,14 @@
   void initialize_body(Register objectFields, Register len_in_bytes, Register Rzero);
 
   // locking
-  // hdr     : Used to hold locked markOop to be CASed into obj, contents destroyed.
+  // hdr     : Used to hold locked markWord to be CASed into obj, contents destroyed.
   // obj     : Must point to the object to lock, contents preserved.
   // disp_hdr: Must point to the displaced header location, contents preserved.
   // Returns code offset at which to add null check debug information.
   void lock_object(Register hdr, Register obj, Register disp_hdr, Label& slow_case);
 
   // unlocking
-  // hdr     : Used to hold original markOop to be CASed back into obj, contents destroyed.
+  // hdr     : Used to hold original markWord to be CASed back into obj, contents destroyed.
   // obj     : Must point to the object to lock, contents preserved.
   // disp_hdr: Must point to the displaced header location, contents destroyed.
   void unlock_object(Register hdr, Register obj, Register lock, Label& slow_case);
@@ -98,4 +98,4 @@
   // This platform only uses signal-based null checks. The Label is not needed.
   void null_check(Register r, Label *Lnull = NULL) { MacroAssembler::null_check(r); }
 
-#endif // CPU_S390_VM_C1_MACROASSEMBLER_S390_HPP
+#endif // CPU_S390_C1_MACROASSEMBLER_S390_HPP

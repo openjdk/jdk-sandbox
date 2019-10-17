@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/markBitMap.inline.hpp"
+#include "memory/universe.hpp"
 #include "memory/virtualspace.hpp"
 
 void MarkBitMap::print_on_error(outputStream* st, const char* prefix) const {
@@ -44,19 +45,24 @@ void MarkBitMap::initialize(MemRegion heap, MemRegion storage) {
   _bm = BitMapView((BitMap::bm_word_t*) storage.start(), _covered.word_size() >> _shifter);
 }
 
-void MarkBitMap::clear_range(MemRegion mr) {
+void MarkBitMap::do_clear(MemRegion mr, bool large) {
   MemRegion intersection = mr.intersection(_covered);
   assert(!intersection.is_empty(),
          "Given range from " PTR_FORMAT " to " PTR_FORMAT " is completely outside the heap",
          p2i(mr.start()), p2i(mr.end()));
   // convert address range into offset range
-  _bm.at_put_range(addr_to_offset(intersection.start()),
-                   addr_to_offset(intersection.end()), false);
+  size_t beg = addr_to_offset(intersection.start());
+  size_t end = addr_to_offset(intersection.end());
+  if (large) {
+    _bm.clear_large_range(beg, end);
+  } else {
+    _bm.clear_range(beg, end);
+  }
 }
 
 #ifdef ASSERT
 void MarkBitMap::check_mark(HeapWord* addr) {
-  assert(Universe::heap()->is_in_reserved(addr),
+  assert(Universe::heap()->is_in(addr),
          "Trying to access bitmap " PTR_FORMAT " for address " PTR_FORMAT " not in the heap.",
          p2i(this), p2i(addr));
 }

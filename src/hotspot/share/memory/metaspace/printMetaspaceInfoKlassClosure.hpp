@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, SAP and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP_
-#define SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP_
+#ifndef SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP
+#define SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP
 
 #include "memory/iterator.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -38,15 +38,11 @@ namespace metaspace {
 class PrintMetaspaceInfoKlassClosure : public KlassClosure {
 private:
   outputStream* const _out;
-  const bool          _do_print;
+  uintx _cnt;
 
   bool print_reflection_invocation_target(outputStream* out, InstanceKlass* magic_accessor_impl_class);
 
 public:
-
-  uintx _num_classes;
-  uintx _num_instance_classes;
-  uintx _num_array_classes;
 
   PrintMetaspaceInfoKlassClosure(outputStream* out, bool do_print);
   void do_klass(Klass* k);
@@ -55,4 +51,4 @@ public:
 
 } // namespace metaspace
 
-#endif /* SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP_ */
+#endif // SHARE_MEMORY_METASPACE_PRINTMETASPACEINFOKLASSCLOSURE_HPP

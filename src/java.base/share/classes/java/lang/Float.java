@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,11 @@
 
 package java.lang;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.constant.Constable;
+import java.lang.constant.ConstantDesc;
+import java.util.Optional;
+
 import jdk.internal.math.FloatingDecimal;
 import jdk.internal.HotSpotIntrinsicCandidate;
 
@@ -45,7 +50,8 @@ import jdk.internal.HotSpotIntrinsicCandidate;
  * @author  Joseph D. Darcy
  * @since 1.0
  */
-public final class Float extends Number implements Comparable<Float> {
+public final class Float extends Number
+        implements Comparable<Float>, Constable, ConstantDesc {
     /**
      * A constant holding the positive infinity of type
      * {@code float}. It is equal to the value returned by
@@ -596,7 +602,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code byte}
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public byte byteValue() {
         return (byte)value;
@@ -608,7 +614,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code short}
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      * @since 1.1
      */
     public short shortValue() {
@@ -621,7 +627,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code int}
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public int intValue() {
         return (int)value;
@@ -633,7 +639,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return  the {@code float} value represented by this object
      *          converted to type {@code long}
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public long longValue() {
         return (long)value;
@@ -655,7 +661,7 @@ public final class Float extends Number implements Comparable<Float> {
      *
      * @return the {@code float} value represented by this
      *         object converted to type {@code double}
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public double doubleValue() {
         return (double)value;
@@ -982,6 +988,32 @@ public final class Float extends Number implements Comparable<Float> {
         return Math.min(a, b);
     }
 
+    /**
+     * Returns an {@link Optional} containing the nominal descriptor for this
+     * instance, which is the instance itself.
+     *
+     * @return an {@link Optional} describing the {@linkplain Float} instance
+     * @since 12
+     */
+    @Override
+    public Optional<Float> describeConstable() {
+        return Optional.of(this);
+    }
+
+    /**
+     * Resolves this instance as a {@link ConstantDesc}, the result of which is
+     * the instance itself.
+     *
+     * @param lookup ignored
+     * @return the {@linkplain Float} instance
+     * @since 12
+     */
+    @Override
+    public Float resolveConstantDesc(MethodHandles.Lookup lookup) {
+        return this;
+    }
+
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = -2671257302660747028L;
 }

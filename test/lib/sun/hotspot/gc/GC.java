@@ -38,7 +38,8 @@ public enum GC {
     ConcMarkSweep(3),
     G1(4),
     Epsilon(5),
-    Z(6);
+    Z(6),
+    Shenandoah(7);
 
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
 
@@ -68,5 +69,17 @@ public enum GC {
      */
     public static boolean isSelectedErgonomically() {
         return WB.isGCSelectedErgonomically();
+    }
+
+    /**
+     * @return the selected GC.
+     */
+    public static GC selected() {
+      for (GC gc : values()) {
+        if (gc.isSelected()) {
+          return gc;
+        }
+      }
+      throw new IllegalStateException("No selected GC found");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,11 @@
 
 package sun.awt;
 
-import java.awt.*;
-import java.awt.geom.*;
-import java.awt.image.*;
+import java.awt.GraphicsConfiguration;
+import java.awt.Rectangle;
+import java.awt.Transparency;
+import java.awt.geom.AffineTransform;
+import java.awt.image.ColorModel;
 
 import sun.java2d.SurfaceData;
 import sun.java2d.opengl.CGLLayer;
@@ -45,16 +47,8 @@ public abstract class CGraphicsConfig extends GraphicsConfiguration
     }
 
     @Override
-    public BufferedImage createCompatibleImage(int width, int height) {
-        throw new UnsupportedOperationException("not implemented");
-    }
-
-    private static native Rectangle2D nativeGetBounds(int screen);
-
-    @Override
-    public Rectangle getBounds() {
-        final Rectangle2D nativeBounds = nativeGetBounds(device.getCGDisplayID());
-        return nativeBounds.getBounds(); // does integer rounding
+    public final Rectangle getBounds() {
+        return device.getBounds();
     }
 
     @Override
@@ -63,11 +57,6 @@ public abstract class CGraphicsConfig extends GraphicsConfiguration
             colorModel = getColorModel(Transparency.OPAQUE);
         }
         return colorModel;
-    }
-
-    @Override
-    public ColorModel getColorModel(int transparency) {
-        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override

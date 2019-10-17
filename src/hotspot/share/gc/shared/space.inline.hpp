@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
-#define SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
+#ifndef SHARE_GC_SHARED_SPACE_INLINE_HPP
+#define SHARE_GC_SHARED_SPACE_INLINE_HPP
 
 #include "gc/shared/blockOffsetTable.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/generation.hpp"
 #include "gc/shared/space.hpp"
 #include "gc/shared/spaceDecorator.hpp"
-#include "memory/universe.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
@@ -118,7 +117,7 @@ public:
       _allowed_deadspace_words -= dead_length;
       CollectedHeap::fill_with_object(dead_start, dead_length);
       oop obj = oop(dead_start);
-      obj->set_mark_raw(obj->mark_raw()->set_marked());
+      obj->set_mark_raw(obj->mark_raw().set_marked());
 
       assert(dead_length == (size_t)obj->size(), "bad filler object size");
       log_develop_trace(gc, compaction)("Inserting object to dead space: " PTR_FORMAT ", " PTR_FORMAT ", " SIZE_FORMAT "b",
@@ -165,8 +164,8 @@ inline void CompactibleSpace::scan_and_forward(SpaceType* space, CompactPoint* c
 
   while (cur_obj < scan_limit) {
     assert(!space->scanned_block_is_obj(cur_obj) ||
-           oop(cur_obj)->mark_raw()->is_marked() || oop(cur_obj)->mark_raw()->is_unlocked() ||
-           oop(cur_obj)->mark_raw()->has_bias_pattern(),
+           oop(cur_obj)->mark_raw().is_marked() || oop(cur_obj)->mark_raw().is_unlocked() ||
+           oop(cur_obj)->mark_raw().has_bias_pattern(),
            "these are the only valid states during a mark sweep");
     if (space->scanned_block_is_obj(cur_obj) && oop(cur_obj)->is_gc_marked()) {
       // prefetch beyond cur_obj
@@ -388,4 +387,4 @@ void ContiguousSpace::par_oop_iterate(MemRegion mr, OopClosureType* blk) {
   }
 }
 
-#endif // SHARE_VM_GC_SHARED_SPACE_INLINE_HPP
+#endif // SHARE_GC_SHARED_SPACE_INLINE_HPP

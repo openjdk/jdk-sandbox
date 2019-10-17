@@ -87,8 +87,9 @@ public class FutureTaskTest extends JSR166TestCase {
             pf.run();
             pf.runAndReset();
             assertEquals(savedRunCount, pf.runCount());
+            Object r2 = null;
             try {
-                assertSame(r, f.get());
+                r2 = f.get();
             } catch (CancellationException t) {
                 assertSame(exInfo, CancellationException.class);
             } catch (ExecutionException t) {
@@ -96,6 +97,8 @@ public class FutureTaskTest extends JSR166TestCase {
             } catch (Throwable t) {
                 threadUnexpectedException(t);
             }
+            if (exInfo == null)
+                assertSame(r, r2);
             assertTrue(f.isDone());
         }
     }
@@ -128,14 +131,17 @@ public class FutureTaskTest extends JSR166TestCase {
         }
     }
 
-    <T> void checkCompletedNormally(Future<T> f, T expected) {
+    <T> void checkCompletedNormally(Future<T> f, T expectedValue) {
         checkIsDone(f);
         assertFalse(f.isCancelled());
 
+        T v1 = null, v2 = null;
         try {
-            assertSame(expected, f.get());
-            assertSame(expected, f.get(randomTimeout(), randomTimeUnit()));
+            v1 = f.get();
+            v2 = f.get(randomTimeout(), randomTimeUnit());
         } catch (Throwable fail) { threadUnexpectedException(fail); }
+        assertSame(expectedValue, v1);
+        assertSame(expectedValue, v2);
     }
 
     void checkCancelled(Future<?> f) {
@@ -485,7 +491,7 @@ public class FutureTaskTest extends JSR166TestCase {
         try {
             task.cancel(true);
             shouldThrow();
-        } catch (SecurityException expected) {}
+        } catch (SecurityException success) {}
 
         // We failed to deliver the interrupt, but the world retains
         // its sanity, as if we had done task.cancel(false)
@@ -741,7 +747,7 @@ public class FutureTaskTest extends JSR166TestCase {
     /**
      * get is interruptible
      */
-    public void testGet_interruptible() {
+    public void testGet_Interruptible() {
         final CountDownLatch pleaseInterrupt = new CountDownLatch(1);
         final FutureTask task = new FutureTask(new NoOpCallable());
         Thread t = newStartedThread(new CheckedRunnable() {
@@ -770,27 +776,28 @@ public class FutureTaskTest extends JSR166TestCase {
     /**
      * timed get is interruptible
      */
-    public void testTimedGet_interruptible() {
+    public void testTimedGet_Interruptible() {
         final CountDownLatch pleaseInterrupt = new CountDownLatch(1);
         final FutureTask task = new FutureTask(new NoOpCallable());
         Thread t = newStartedThread(new CheckedRunnable() {
             public void realRun() throws Exception {
                 Thread.currentThread().interrupt();
                 try {
-                    task.get(2*LONG_DELAY_MS, MILLISECONDS);
+                    task.get(randomTimeout(), randomTimeUnit());
                     shouldThrow();
                 } catch (InterruptedException success) {}
                 assertFalse(Thread.interrupted());
 
                 pleaseInterrupt.countDown();
                 try {
-                    task.get(2*LONG_DELAY_MS, MILLISECONDS);
+                    task.get(LONGER_DELAY_MS, MILLISECONDS);
                     shouldThrow();
                 } catch (InterruptedException success) {}
                 assertFalse(Thread.interrupted());
             }});
 
         await(pleaseInterrupt);
+        if (randomBoolean()) assertThreadBlocks(t, Thread.State.TIMED_WAITING);
         t.interrupt();
         awaitTermination(t);
         checkNotDone(task);

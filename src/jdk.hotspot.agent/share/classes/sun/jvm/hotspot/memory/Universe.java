@@ -36,6 +36,7 @@ import sun.jvm.hotspot.gc.g1.G1CollectedHeap;
 import sun.jvm.hotspot.gc.parallel.ParallelScavengeHeap;
 import sun.jvm.hotspot.gc.serial.SerialHeap;
 import sun.jvm.hotspot.gc.shared.CollectedHeap;
+import sun.jvm.hotspot.gc.shenandoah.ShenandoahHeap;
 import sun.jvm.hotspot.gc.z.ZCollectedHeap;
 import sun.jvm.hotspot.oops.Oop;
 import sun.jvm.hotspot.runtime.BasicType;
@@ -52,17 +53,6 @@ public class Universe {
   private static VirtualConstructor heapConstructor;
   private static sun.jvm.hotspot.types.OopField mainThreadGroupField;
   private static sun.jvm.hotspot.types.OopField systemThreadGroupField;
-
-  private static AddressField narrowOopBaseField;
-  private static CIntegerField narrowOopShiftField;
-  private static AddressField narrowKlassBaseField;
-  private static CIntegerField narrowKlassShiftField;
-
-  public enum NARROW_OOP_MODE {
-    UnscaledNarrowOop,
-    ZeroBasedNarrowOop,
-    HeapBasedNarrowOop
-  }
 
   static {
     VM.registerVMInitializedObserver(new Observer() {
@@ -100,57 +90,18 @@ public class Universe {
     addHeapTypeIfInDB(db, G1CollectedHeap.class);
     addHeapTypeIfInDB(db, EpsilonHeap.class);
     addHeapTypeIfInDB(db, ZCollectedHeap.class);
+    addHeapTypeIfInDB(db, ShenandoahHeap.class);
 
     mainThreadGroupField   = type.getOopField("_main_thread_group");
     systemThreadGroupField = type.getOopField("_system_thread_group");
-
-    narrowOopBaseField = type.getAddressField("_narrow_oop._base");
-    narrowOopShiftField = type.getCIntegerField("_narrow_oop._shift");
-    narrowKlassBaseField = type.getAddressField("_narrow_klass._base");
-    narrowKlassShiftField = type.getCIntegerField("_narrow_klass._shift");
 
     UniverseExt.initialize(heapConstructor);
   }
 
   public Universe() {
   }
-  public static String narrowOopModeToString(NARROW_OOP_MODE mode) {
-    switch (mode) {
-    case UnscaledNarrowOop:
-      return "32-bits Oops";
-    case ZeroBasedNarrowOop:
-      return "zero based Compressed Oops";
-    case HeapBasedNarrowOop:
-      return "Compressed Oops with base";
-    }
-    return "";
-  }
   public CollectedHeap heap() {
     return (CollectedHeap) heapConstructor.instantiateWrapperFor(collectedHeapField.getValue());
-  }
-
-  public static long getNarrowOopBase() {
-    if (narrowOopBaseField.getValue() == null) {
-      return 0;
-    } else {
-      return narrowOopBaseField.getValue().minus(null);
-    }
-  }
-
-  public static int getNarrowOopShift() {
-    return (int)narrowOopShiftField.getValue();
-  }
-
-  public static long getNarrowKlassBase() {
-    if (narrowKlassBaseField.getValue() == null) {
-      return 0;
-    } else {
-      return narrowKlassBaseField.getValue().minus(null);
-    }
-  }
-
-  public static int getNarrowKlassShift() {
-    return (int)narrowKlassShiftField.getValue();
   }
 
 

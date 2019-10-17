@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -25,8 +25,8 @@
 
 // Major contributions by AHa, JL, LS
 
-#ifndef CPU_S390_VM_NATIVEINST_S390_HPP
-#define CPU_S390_VM_NATIVEINST_S390_HPP
+#ifndef CPU_S390_NATIVEINST_S390_HPP
+#define CPU_S390_NATIVEINST_S390_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "runtime/icache.hpp"
@@ -102,12 +102,6 @@ class NativeInstruction {
   uint get_poll_register() {
     // Extract poll register from instruction.
     return MacroAssembler::get_poll_register(addr_at(0));
-  }
-
-  bool is_memory_serialization(JavaThread *thread, void *ucontext) {
-    // Is the current instruction a write access of thread to the
-    // memory serialization page?
-    return MacroAssembler::is_memory_serialization(long_at(0), thread, ucontext);
   }
 
  public:
@@ -496,13 +490,13 @@ class NativeMovConstReg: public NativeInstruction {
   // Patch data in code stream.
   address set_data_plain(intptr_t x, CodeBlob *code);
   // Patch data in code stream and oop pool if necessary.
-  void set_data(intptr_t x);
+  void set_data(intptr_t x, relocInfo::relocType expected_type = relocInfo::none);
 
   // Patch narrow oop constant in code stream.
   void set_narrow_oop(intptr_t data);
   void set_narrow_klass(intptr_t data);
-  void set_pcrel_addr(intptr_t addr, CompiledMethod *nm = NULL, bool copy_back_to_oop_pool=false);
-  void set_pcrel_data(intptr_t data, CompiledMethod *nm = NULL, bool copy_back_to_oop_pool=false);
+  void set_pcrel_addr(intptr_t addr, CompiledMethod *nm = NULL);
+  void set_pcrel_data(intptr_t data, CompiledMethod *nm = NULL);
 
   void verify();
 
@@ -669,4 +663,4 @@ class NativeGeneralJump: public NativeInstruction {
   void verify() PRODUCT_RETURN;
 };
 
-#endif // CPU_S390_VM_NATIVEINST_S390_HPP
+#endif // CPU_S390_NATIVEINST_S390_HPP

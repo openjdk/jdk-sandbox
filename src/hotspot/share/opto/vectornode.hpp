@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_OPTO_VECTORNODE_HPP
-#define SHARE_VM_OPTO_VECTORNODE_HPP
+#ifndef SHARE_OPTO_VECTORNODE_HPP
+#define SHARE_OPTO_VECTORNODE_HPP
 
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
@@ -67,6 +67,10 @@ class VectorNode : public TypeNode {
   static int  opcode(int opc, BasicType bt);
   static bool implemented(int opc, uint vlen, BasicType bt);
   static bool is_shift(Node* n);
+  static bool is_type_transition_short_to_int(Node* n);
+  static bool is_type_transition_to_int(Node* n);
+  static bool is_muladds2i(Node* n);
+  static bool is_roundopD(Node * n);
   static bool is_invariant_vector(Node* n);
   // [Start, end) half-open range defining which operands are vectors
   static void vector_operands(Node* n, uint* start, uint* end);
@@ -221,6 +225,14 @@ class SubVDNode : public VectorNode {
   virtual int Opcode() const;
 };
 
+//------------------------------MulVBNode--------------------------------------
+// Vector multiply byte
+class MulVBNode : public VectorNode {
+ public:
+  MulVBNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------MulVSNode--------------------------------------
 // Vector multiply short
 class MulVSNode : public VectorNode {
@@ -259,6 +271,14 @@ class MulVDNode : public VectorNode {
 public:
   MulVDNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
   virtual int Opcode() const;
+};
+
+//------------------------------MulAddVS2VINode--------------------------------
+// Vector multiply shorts to int and add adjacent ints.
+class MulAddVS2VINode : public VectorNode {
+  public:
+    MulAddVS2VINode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+    virtual int Opcode() const;
 };
 
 //------------------------------FmaVDNode--------------------------------------
@@ -349,6 +369,38 @@ class DivVDNode : public VectorNode {
   virtual int Opcode() const;
 };
 
+//------------------------------AbsVBNode--------------------------------------
+// Vector Abs byte
+class AbsVBNode : public VectorNode {
+public:
+  AbsVBNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------AbsVSNode--------------------------------------
+// Vector Abs short
+class AbsVSNode : public VectorNode {
+public:
+  AbsVSNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------AbsVINode--------------------------------------
+// Vector Abs int
+class AbsVINode : public VectorNode {
+public:
+  AbsVINode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------AbsVLNode--------------------------------------
+// Vector Abs long
+class AbsVLNode : public VectorNode {
+public:
+  AbsVLNode(Node* in, const TypeVect* vt) : VectorNode(in, vt) {}
+  virtual int Opcode() const;
+};
+
 //------------------------------AbsVFNode--------------------------------------
 // Vector Abs float
 class AbsVFNode : public VectorNode {
@@ -394,6 +446,13 @@ class PopCountVINode : public VectorNode {
 class SqrtVFNode : public VectorNode {
  public:
   SqrtVFNode(Node* in, const TypeVect* vt) : VectorNode(in,vt) {}
+  virtual int Opcode() const;
+};
+//------------------------------RoundDoubleVNode--------------------------------
+// Vector round double
+class RoundDoubleModeVNode : public VectorNode {
+ public:
+  RoundDoubleModeVNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
   virtual int Opcode() const;
 };
 
@@ -544,6 +603,78 @@ class XorVNode : public VectorNode {
   virtual int Opcode() const;
 };
 
+//------------------------------MinVNode--------------------------------------
+// Vector min
+class MinVNode : public VectorNode {
+public:
+  MinVNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------MaxVNode--------------------------------------
+// Vector max
+class MaxVNode : public VectorNode {
+public:
+  MaxVNode(Node* in1, Node* in2, const TypeVect* vt) : VectorNode(in1, in2, vt) {}
+  virtual int Opcode() const;
+};
+
+//------------------------------MinReductionVNode--------------------------------------
+// Vector min as a reduction
+class MinReductionVNode : public ReductionNode {
+public:
+  MinReductionVNode(Node *ctrl, Node* in1, Node* in2) : ReductionNode(ctrl, in1, in2) {}
+  virtual int Opcode() const;
+  virtual const Type* bottom_type() const {
+    BasicType bt = in(1)->bottom_type()->basic_type();
+    if (bt == T_FLOAT) {
+      return Type::FLOAT;
+    } else if (bt == T_DOUBLE) {
+      return Type::DOUBLE;
+    }
+    assert(false, "unsupported basic type");
+    return NULL;
+  }
+  virtual uint ideal_reg() const {
+    BasicType bt = in(1)->bottom_type()->basic_type();
+    if (bt == T_FLOAT) {
+      return Op_RegF;
+    } else if (bt == T_DOUBLE) {
+      return Op_RegD;
+    }
+    assert(false, "unsupported basic type");
+    return 0;
+  }
+};
+
+//------------------------------MaxReductionVNode--------------------------------------
+// Vector max as a reduction
+class MaxReductionVNode : public ReductionNode {
+public:
+  MaxReductionVNode(Node *ctrl, Node* in1, Node* in2) : ReductionNode(ctrl, in1, in2) {}
+  virtual int Opcode() const;
+  virtual const Type* bottom_type() const {
+    BasicType bt = in(1)->bottom_type()->basic_type();
+    if (bt == T_FLOAT) {
+      return Type::FLOAT;
+    } else {
+      return Type::DOUBLE;
+    }
+    assert(false, "unsupported basic type");
+    return NULL;
+  }
+  virtual uint ideal_reg() const {
+    BasicType bt = in(1)->bottom_type()->basic_type();
+    if (bt == T_FLOAT) {
+      return Op_RegF;
+    } else {
+      return Op_RegD;
+    }
+    assert(false, "unsupported basic type");
+    return 0;
+  }
+};
+
 //================================= M E M O R Y ===============================
 
 //------------------------------LoadVectorNode---------------------------------
@@ -553,6 +684,7 @@ class LoadVectorNode : public LoadNode {
   LoadVectorNode(Node* c, Node* mem, Node* adr, const TypePtr* at, const TypeVect* vt, ControlDependency control_dependency = LoadNode::DependsOnlyOnTest)
     : LoadNode(c, mem, adr, at, vt, MemNode::unordered, control_dependency) {
     init_class_id(Class_LoadVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return type()->is_vect(); }
@@ -581,6 +713,7 @@ class StoreVectorNode : public StoreNode {
     : StoreNode(c, mem, adr, at, val, MemNode::unordered) {
     assert(val->is_Vector() || val->is_LoadVector(), "sanity");
     init_class_id(Class_StoreVector);
+    set_mismatched_access();
   }
 
   const TypeVect* vect_type() const { return in(MemNode::ValueIn)->bottom_type()->is_vect(); }
@@ -846,4 +979,4 @@ public:
   virtual const Type *Value(PhaseGVN *phase) const { return TypeInt::INT; }
 };
 
-#endif // SHARE_VM_OPTO_VECTORNODE_HPP
+#endif // SHARE_OPTO_VECTORNODE_HPP

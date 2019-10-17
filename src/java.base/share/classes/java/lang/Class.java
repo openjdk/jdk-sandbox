@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 package java.lang;
 
 import java.lang.annotation.Annotation;
+import java.lang.constant.ClassDesc;
+import java.lang.invoke.TypeDescriptor;
 import java.lang.module.ModuleReader;
 import java.lang.ref.SoftReference;
 import java.io.IOException;
@@ -46,6 +48,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.lang.constant.Constable;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -58,19 +61,22 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.StringJoiner;
+import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
-import jdk.internal.misc.VM;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.vm.annotation.ForceInline;
+import sun.invoke.util.Wrapper;
 import sun.reflect.generics.factory.CoreReflectionFactory;
 import sun.reflect.generics.factory.GenericsFactory;
 import sun.reflect.generics.repository.ClassRepository;
@@ -153,7 +159,9 @@ import sun.reflect.misc.ReflectUtil;
 public final class Class<T> implements java.io.Serializable,
                               GenericDeclaration,
                               Type,
-                              AnnotatedElement {
+                              AnnotatedElement,
+                              TypeDescriptor.OfField<Class<?>>,
+                              Constable {
     private static final int ANNOTATION= 0x00002000;
     private static final int ENUM      = 0x00004000;
     private static final int SYNTHETIC = 0x00001000;
@@ -201,7 +209,8 @@ public final class Class<T> implements java.io.Serializable,
      * and {@code class}, {@code enum}, {@code interface}, or
      * <code>&#64;</code>{@code interface}, as appropriate), followed
      * by the type's name, followed by an angle-bracketed
-     * comma-separated list of the type's type parameters, if any.
+     * comma-separated list of the type's type parameters, if any,
+     * including informative bounds on the type parameters, if any.
      *
      * A space is used to separate modifiers from one another and to
      * separate any modifiers from the kind of type. The modifiers
@@ -263,17 +272,26 @@ public final class Class<T> implements java.io.Serializable,
 
             TypeVariable<?>[] typeparms = component.getTypeParameters();
             if (typeparms.length > 0) {
-                StringJoiner sj = new StringJoiner(",", "<", ">");
-                for(TypeVariable<?> typeparm: typeparms) {
-                    sj.add(typeparm.getTypeName());
-                }
-                sb.append(sj.toString());
+                sb.append(Arrays.stream(typeparms)
+                          .map(Class::typeVarBounds)
+                          .collect(Collectors.joining(",", "<", ">")));
             }
 
-            for (int i = 0; i < arrayDepth; i++)
-                sb.append("[]");
+            if (arrayDepth > 0) sb.append("[]".repeat(arrayDepth));
 
             return sb.toString();
+        }
+    }
+
+    static String typeVarBounds(TypeVariable<?> typeVar) {
+        Type[] bounds = typeVar.getBounds();
+        if (bounds.length == 1 && bounds[0].equals(Object.class)) {
+            return typeVar.getName();
+        } else {
+            return typeVar.getName() + " extends " +
+                Arrays.stream(bounds)
+                .map(Type::getTypeName)
+                .collect(Collectors.joining(" & "));
         }
     }
 
@@ -303,10 +321,10 @@ public final class Class<T> implements java.io.Serializable,
      * @param      className   the fully qualified name of the desired class.
      * @return     the {@code Class} object for the class with the
      *             specified name.
-     * @exception LinkageError if the linkage fails
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    LinkageError if the linkage fails
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *            by this method fails
-     * @exception ClassNotFoundException if the class cannot be located
+     * @throws    ClassNotFoundException if the class cannot be located
      */
     @CallerSensitive
     public static Class<?> forName(String className)
@@ -361,12 +379,12 @@ public final class Class<T> implements java.io.Serializable,
      * @param loader     class loader from which the class must be loaded
      * @return           class object representing the desired class
      *
-     * @exception LinkageError if the linkage fails
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    LinkageError if the linkage fails
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *            by this method fails
-     * @exception ClassNotFoundException if the class cannot be located by
+     * @throws    ClassNotFoundException if the class cannot be located by
      *            the specified class loader
-     * @exception SecurityException
+     * @throws    SecurityException
      *            if a security manager is present, and the {@code loader} is
      *            {@code null}, and the caller's class loader is not
      *            {@code null}, and the caller does not have the
@@ -374,6 +392,10 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see       java.lang.Class#forName(String)
      * @see       java.lang.ClassLoader
+     *
+     * @jls 12.2 Loading of Classes and Interfaces
+     * @jls 12.3 Linking of Classes and Interfaces
+     * @jls 12.4 Initialization of Classes and Interfaces
      * @since     1.2
      */
     @CallerSensitive
@@ -406,7 +428,7 @@ public final class Class<T> implements java.io.Serializable,
 
 
     /**
-     * Returns the {@code Class} with the given <a href="ClassLoader.html#name">
+     * Returns the {@code Class} with the given <a href="ClassLoader.html#binary-name">
      * binary name</a> in the given module.
      *
      * <p> This method attempts to locate, load, and link the class or interface.
@@ -420,6 +442,10 @@ public final class Class<T> implements java.io.Serializable,
      * <p> This method does not check whether the requested class is
      * accessible to its caller. </p>
      *
+     * <p> Note that this method throws errors related to loading and linking as
+     * specified in Sections 12.2 and 12.3 of <em>The Java Language
+     * Specification</em>.
+     *
      * @apiNote
      * This method returns {@code null} on failure rather than
      * throwing a {@link ClassNotFoundException}, as is done by
@@ -428,7 +454,7 @@ public final class Class<T> implements java.io.Serializable,
      * loads a class in another module.
      *
      * @param  module   A module
-     * @param  name     The <a href="ClassLoader.html#name">binary name</a>
+     * @param  name     The <a href="ClassLoader.html#binary-name">binary name</a>
      *                  of the class
      * @return {@code Class} object of the given name defined in the given module;
      *         {@code null} if not found.
@@ -447,6 +473,8 @@ public final class Class<T> implements java.io.Serializable,
      *         in a module.</li>
      *         </ul>
      *
+     * @jls 12.2 Loading of Classes and Interfaces
+     * @jls 12.3 Linking of Classes and Interfaces
      * @since 9
      * @spec JPMS
      */
@@ -470,12 +498,20 @@ public final class Class<T> implements java.io.Serializable,
             cl = module.getClassLoader();
         }
 
+        Class<?> ret;
         if (cl != null) {
-            return cl.loadClass(module, name);
+            ret = cl.loadClass(module, name);
         } else {
-            return BootLoader.loadClass(module, name);
+            ret = BootLoader.loadClass(module, name);
         }
+        if (ret != null) {
+            // The loaded class should also be linked
+            linkClass(ret);
+        }
+        return ret;
     }
+
+    private static native void linkClass(Class<?> c);
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -540,11 +576,9 @@ public final class Class<T> implements java.io.Serializable,
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), false);
         }
 
-        // NOTE: the following code may not be strictly correct under
-        // the current Java memory model.
-
         // Constructor lookup
-        if (cachedConstructor == null) {
+        Constructor<T> tmpConstructor = cachedConstructor;
+        if (tmpConstructor == null) {
             if (this == Class.class) {
                 throw new IllegalAccessException(
                     "Can not call newInstance() on the Class for java.lang.Class"
@@ -555,9 +589,7 @@ public final class Class<T> implements java.io.Serializable,
                 final Constructor<T> c = getReflectionFactory().copyConstructor(
                     getConstructor0(empty, Member.DECLARED));
                 // Disable accessibility checks on the constructor
-                // since we have to do the security check here anyway
-                // (the stack depth is wrong for the Constructor's
-                // security check to work)
+                // access check is done with the true caller
                 java.security.AccessController.doPrivileged(
                     new java.security.PrivilegedAction<>() {
                         public Void run() {
@@ -565,32 +597,24 @@ public final class Class<T> implements java.io.Serializable,
                                 return null;
                             }
                         });
-                cachedConstructor = c;
+                cachedConstructor = tmpConstructor = c;
             } catch (NoSuchMethodException e) {
                 throw (InstantiationException)
                     new InstantiationException(getName()).initCause(e);
             }
         }
-        Constructor<T> tmpConstructor = cachedConstructor;
-        // Security check (same as in java.lang.reflect.Constructor)
-        Class<?> caller = Reflection.getCallerClass();
-        if (newInstanceCallerCache != caller) {
-            int modifiers = tmpConstructor.getModifiers();
-            Reflection.ensureMemberAccess(caller, this, this, modifiers);
-            newInstanceCallerCache = caller;
-        }
-        // Run constructor
+
         try {
-            return tmpConstructor.newInstance((Object[])null);
+            Class<?> caller = Reflection.getCallerClass();
+            return getReflectionFactory().newInstance(tmpConstructor, null, caller);
         } catch (InvocationTargetException e) {
             Unsafe.getUnsafe().throwException(e.getTargetException());
             // Not reached
             return null;
         }
     }
-    private transient volatile Constructor<T> cachedConstructor;
-    private transient volatile Class<?>       newInstanceCallerCache;
 
+    private transient volatile Constructor<T> cachedConstructor;
 
     /**
      * Determines if the specified {@code Object} is assignment-compatible
@@ -643,12 +667,12 @@ public final class Class<T> implements java.io.Serializable,
      * or via a widening reference conversion. See <em>The Java Language
      * Specification</em>, sections 5.1.1 and 5.1.4 , for details.
      *
-     * @param cls the {@code Class} object to be checked
-     * @return the {@code boolean} value indicating whether objects of the
-     * type {@code cls} can be assigned to objects of this class
-     * @exception NullPointerException if the specified Class parameter is
+     * @param     cls the {@code Class} object to be checked
+     * @return    the {@code boolean} value indicating whether objects of the
+     *            type {@code cls} can be assigned to objects of this class
+     * @throws    NullPointerException if the specified Class parameter is
      *            null.
-     * @since 1.1
+     * @since     1.1
      */
     @HotSpotIntrinsicCandidate
     public native boolean isAssignableFrom(Class<?> cls);
@@ -790,14 +814,13 @@ public final class Class<T> implements java.io.Serializable,
      */
     public String getName() {
         String name = this.name;
-        if (name == null)
-            this.name = name = getName0();
-        return name;
+        return name != null ? name : initClassName();
     }
 
-    // cache the name to reduce the number of calls into the VM
+    // Cache the name to reduce the number of calls into the VM.
+    // This field would be set by VM itself during initClassName call.
     private transient String name;
-    private native String getName0();
+    private native String initClassName();
 
     /**
      * Returns the class loader for the class.  Some implementations may use
@@ -912,7 +935,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p>If the superclass is a parameterized type, the {@code Type}
      * object returned must accurately reflect the actual type
-     * parameters used in the source code. The parameterized type
+     * arguments used in the source code. The parameterized type
      * representing the superclass is created if it had not been
      * created before. See the declaration of {@link
      * java.lang.reflect.ParameterizedType ParameterizedType} for the
@@ -994,7 +1017,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 9
      * @spec JPMS
-     * @jls 6.7  Fully Qualified Names
+     * @jls 6.7 Fully Qualified Names
      */
     public String getPackageName() {
         String pn = this.packageName;
@@ -1092,7 +1115,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p>If a superinterface is a parameterized type, the
      * {@code Type} object returned for it must accurately reflect
-     * the actual type parameters used in the source code. The
+     * the actual type arguments used in the source code. The
      * parameterized type representing each superinterface is created
      * if it had not been created before. See the declaration of
      * {@link java.lang.reflect.ParameterizedType ParameterizedType}
@@ -1489,7 +1512,7 @@ public final class Class<T> implements java.io.Serializable,
      * class.  If the underlying class is a top level class this
      * method returns {@code null}.
      * @return the immediately enclosing class of the underlying class
-     * @exception  SecurityException
+     * @throws     SecurityException
      *             If a security manager, <i>s</i>, is present and the caller's
      *             class loader is not the same as or an ancestor of the class
      *             loader for the enclosing class and invocation of {@link
@@ -1583,12 +1606,7 @@ public final class Class<T> implements java.io.Serializable,
                     dimensions++;
                     cl = cl.getComponentType();
                 } while (cl.isArray());
-                StringBuilder sb = new StringBuilder();
-                sb.append(cl.getName());
-                for (int i = 0; i < dimensions; i++) {
-                    sb.append("[]");
-                }
-                return sb.toString();
+                return cl.getName() + "[]".repeat(dimensions);
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
         return getName();
@@ -2917,19 +2935,19 @@ public final class Class<T> implements java.io.Serializable,
         static <T> boolean casReflectionData(Class<?> clazz,
                                              SoftReference<ReflectionData<T>> oldData,
                                              SoftReference<ReflectionData<T>> newData) {
-            return unsafe.compareAndSetObject(clazz, reflectionDataOffset, oldData, newData);
+            return unsafe.compareAndSetReference(clazz, reflectionDataOffset, oldData, newData);
         }
 
         static <T> boolean casAnnotationType(Class<?> clazz,
                                              AnnotationType oldType,
                                              AnnotationType newType) {
-            return unsafe.compareAndSetObject(clazz, annotationTypeOffset, oldType, newType);
+            return unsafe.compareAndSetReference(clazz, annotationTypeOffset, oldType, newType);
         }
 
         static <T> boolean casAnnotationData(Class<?> clazz,
                                              AnnotationData oldData,
                                              AnnotationData newData) {
-            return unsafe.compareAndSetObject(clazz, annotationDataOffset, oldData, newData);
+            return unsafe.compareAndSetReference(clazz, annotationDataOffset, oldData, newData);
         }
     }
 
@@ -3412,17 +3430,16 @@ public final class Class<T> implements java.io.Serializable,
      * Helper method to get the method name from arguments.
      */
     private String methodToString(String name, Class<?>[] argTypes) {
-        StringJoiner sj = new StringJoiner(", ", getName() + "." + name + "(", ")");
-        if (argTypes != null) {
-            for (int i = 0; i < argTypes.length; i++) {
-                Class<?> c = argTypes[i];
-                sj.add((c == null) ? "null" : c.getName());
-            }
-        }
-        return sj.toString();
+        return getName() + '.' + name +
+                ((argTypes == null || argTypes.length == 0) ?
+                "()" :
+                Arrays.stream(argTypes)
+                        .map(c -> c == null ? "null" : c.getName())
+                        .collect(Collectors.joining(",", "(", ")")));
     }
 
     /** use serialVersionUID from JDK 1.1 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = 3206093459760846163L;
 
 
@@ -3442,6 +3459,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see java.io.ObjectStreamClass
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields =
         new ObjectStreamField[0];
 
@@ -3493,9 +3511,17 @@ public final class Class<T> implements java.io.Serializable,
      * Returns true if and only if this class was declared as an enum in the
      * source code.
      *
+     * Note that if an enum constant is declared with a class body,
+     * the class of that enum constant object is an anonymous class
+     * and <em>not</em> the class of the declaring enum type. The
+     * {@link Enum#getDeclaringClass} method of an enum constant can
+     * be used to get the class of the enum type declaring the
+     * constant.
+     *
      * @return true if and only if this class was declared as an enum in the
      *     source code
      * @since 1.5
+     * @jls 8.9.1 Enum Constants
      */
     public boolean isEnum() {
         // An enum must both directly extend java.lang.Enum and have
@@ -3912,7 +3938,8 @@ public final class Class<T> implements java.io.Serializable,
      *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
      *         denies access to the package of the returned class
      * @since 11
-     * @jvms 4.7.28 and 4.7.29 NestHost and NestMembers attributes
+     * @jvms 4.7.28 The {@code NestHost} Attribute
+     * @jvms 4.7.29 The {@code NestMembers} Attribute
      * @jvms 5.4.4 Access Control
      */
     @CallerSensitive
@@ -4028,5 +4055,69 @@ public final class Class<T> implements java.io.Serializable,
             }
         }
         return members;
+    }
+
+    /**
+     * Returns the type descriptor string for this class.
+     * <p>
+     * Note that this is not a strict inverse of {@link #forName};
+     * distinct classes which share a common name but have different class loaders
+     * will have identical descriptor strings.
+     *
+     * @return the type descriptor representation
+     * @jvms 4.3.2 Field Descriptors
+     * @since 12
+     */
+    @Override
+    public String descriptorString() {
+        if (isPrimitive())
+            return Wrapper.forPrimitiveType(this).basicTypeString();
+        else if (isArray()) {
+            return "[" + componentType.descriptorString();
+        }
+        else {
+            return "L" + getName().replace('.', '/') + ";";
+        }
+    }
+
+    /**
+     * Returns the component type of this {@code Class}, if it describes
+     * an array type, or {@code null} otherwise.
+     *
+     * @implSpec
+     * Equivalent to {@link Class#getComponentType()}.
+     *
+     * @return a {@code Class} describing the component type, or {@code null}
+     * if this {@code Class} does not describe an array type
+     * @since 12
+     */
+    @Override
+    public Class<?> componentType() {
+        return isArray() ? componentType : null;
+    }
+
+    /**
+     * Returns a {@code Class} for an array type whose component type
+     * is described by this {@linkplain Class}.
+     *
+     * @return a {@code Class} describing the array type
+     * @since 12
+     */
+    @Override
+    public Class<?> arrayType() {
+        return Array.newInstance(this, 0).getClass();
+    }
+
+    /**
+     * Returns a nominal descriptor for this instance, if one can be
+     * constructed, or an empty {@link Optional} if one cannot be.
+     *
+     * @return An {@link Optional} containing the resulting nominal descriptor,
+     * or an empty {@link Optional} if one cannot be constructed.
+     * @since 12
+     */
+    @Override
+    public Optional<ClassDesc> describeConstable() {
+        return Optional.of(ClassDesc.ofDescriptor(descriptorString()));
     }
 }

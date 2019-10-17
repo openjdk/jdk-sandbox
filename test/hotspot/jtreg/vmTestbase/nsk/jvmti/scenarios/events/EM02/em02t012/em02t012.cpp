@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include <string.h>
 #include "jvmti.h"
 #include "agent_common.h"
+#include "ExceptionCheckingJniEnv.hpp"
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 #include "JVMTITools.h"
@@ -48,12 +49,11 @@ static int newEventCount[JVMTI_EVENT_COUNT];
 
 /* ============================================================================= */
 JNIEXPORT void JNICALL
-Java_nsk_jvmti_scenarios_events_EM02_em02t012_setThread(JNIEnv *jni_env,
+Java_nsk_jvmti_scenarios_events_EM02_em02t012_setThread(JNIEnv *jni,
                         jobject o, jthread thrd) {
-
+    ExceptionCheckingJniEnvPtr ec_jni(jni);
     /* make thread accessable for a long time */
-    NSK_JNI_VERIFY(jni_env, (testedThread =
-            NSK_CPP_STUB2(NewGlobalRef, jni_env, thrd)) != NULL);
+    testedThread = ec_jni->NewGlobalRef(thrd, TRACE_JNI_CALL);
 }
 
 static void
@@ -75,10 +75,10 @@ showEventStatistics(int step) {
 
 /* ========================================================================== */
 
-int checkEvents(int step) {
+bool checkEvents(int step) {
     int i;
     jvmtiEvent curr;
-    int result = NSK_TRUE;
+    bool result = true;
     int *currentCounts;
     int isExpected = 0;
 
@@ -94,7 +94,7 @@ int checkEvents(int step) {
 
         default:
             NSK_COMPLAIN1("Unexpected step no: %d\n", step);
-            return NSK_FALSE;
+            return false;
     }
 
     for (i = 0; i < JVMTI_EVENT_COUNT; i++) {
@@ -123,14 +123,14 @@ int checkEvents(int step) {
                                         TranslateEvent(curr),
                                         currentCounts[i],
                                         NUMBER_OF_INVOCATIONS);
-                    result = NSK_FALSE;
+                    result = false;
                 }
             } else {
                 if (currentCounts[i] < 1) {
                         NSK_COMPLAIN2("Unexpected events number %7d for %s\n\texpected value must be greater than 1\n",
                                             currentCounts[i],
                                             TranslateEvent(curr));
-                    result = NSK_FALSE;
+                    result = false;
                 }
             }
 
@@ -140,7 +140,7 @@ int checkEvents(int step) {
                 NSK_COMPLAIN2("Unexpected event %s was sent %d times\n",
                                     TranslateEvent(curr),
                                     currentCounts[i]);
-                result = NSK_FALSE;
+                result = false;
             }
         }
     }
@@ -151,12 +151,12 @@ int checkEvents(int step) {
 static void
 changeCount(jvmtiEvent event, int *currentCounts) {
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorEnter, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorEnter(syncLock)))
         nsk_jvmti_setFailStatus();
 
     currentCounts[event - JVMTI_MIN_EVENT_TYPE_VAL]++;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(RawMonitorExit, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->RawMonitorExit(syncLock)))
         nsk_jvmti_setFailStatus();
 
 }
@@ -176,8 +176,7 @@ cbVMDeath(jvmtiEnv* jvmti, JNIEnv* jni_env) {
     if (!checkEvents(STEP_NUMBER))
         nsk_jvmti_setFailStatus();
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(DestroyRawMonitor, jvmti, syncLock)))
+    if (!NSK_JVMTI_VERIFY(jvmti->DestroyRawMonitor(syncLock)))
         nsk_jvmti_setFailStatus();
 
 }
@@ -326,34 +325,31 @@ cbVMObjectAlloc(jvmtiEnv *jvmti_env, JNIEnv* jni_env, jthread thread,
 
 /* ============================================================================= */
 
-static int enableEvent(jvmtiEvent event) {
+static bool enableEvent(jvmtiEvent event) {
 
     if (nsk_jvmti_isOptionalEvent(event)
             && (event != JVMTI_EVENT_FRAME_POP)) {
         if (!NSK_JVMTI_VERIFY_CODE(JVMTI_ERROR_MUST_POSSESS_CAPABILITY,
-                NSK_CPP_STUB4(SetEventNotificationMode, jvmti,
-                    JVMTI_ENABLE, event, NULL))) {
+                jvmti->SetEventNotificationMode(JVMTI_ENABLE, event, NULL))) {
             NSK_COMPLAIN1("Unexpected error enabling %s\n",
                 TranslateEvent(event));
-            return NSK_FALSE;
+            return false;
         }
     } else {
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB4(SetEventNotificationMode, jvmti,
-                    JVMTI_ENABLE, event, NULL))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE, event, NULL))) {
             NSK_COMPLAIN1("Unexpected error enabling %s\n",
                 TranslateEvent(event));
-            return NSK_FALSE;
+            return false;
         }
     }
 
-    return NSK_TRUE;
+    return true;
 }
 
 /**
  * Enable or disable tested events.
  */
-static int enableEventList() {
+static bool enableEventList() {
 
     int i, result;
 
@@ -369,18 +365,17 @@ static int enableEventList() {
             result = result && enableEvent(event);
     }
 
-    if (result == NSK_FALSE) {
+    if (!result) {
         nsk_jvmti_setFailStatus();
-        return NSK_FALSE;
+        return false;
     }
 
-    return NSK_TRUE;
+    return true;
 }
 
 /* ============================================================================= */
 
-static int
-setCallBacks(int step) {
+static bool setCallBacks(int step) {
 
     int i;
 
@@ -433,13 +428,10 @@ setCallBacks(int step) {
             break;
 
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                &eventCallbacks,
-                                sizeof(eventCallbacks))))
-        return NSK_FALSE;
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks))))
+        return false;
 
-    return NSK_TRUE;
+    return true;
 }
 
 /* ============================================================================= */
@@ -455,18 +447,15 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
         if (!nsk_jvmti_waitForSync(timeout))
             return;
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(SuspendThread, jvmti, testedThread)))
+        if (!NSK_JVMTI_VERIFY(jvmti->SuspendThread(testedThread)))
             return;
 
         for (j = 2; j < 1002; j++) {
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB3(NotifyFramePop, jvmti, testedThread, j)))
+            if (!NSK_JVMTI_VERIFY(jvmti->NotifyFramePop(testedThread, j)))
                 return;
         }
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(ResumeThread, jvmti, testedThread)))
+        if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(testedThread)))
             return;
 
         if (!nsk_jvmti_resumeSync())
@@ -489,7 +478,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
             return;
     }
 
-    NSK_CPP_STUB2(DeleteGlobalRef, agentJNI, testedThread);
+    agentJNI->DeleteGlobalRef(testedThread);
 }
 
 /* ============================================================================= */
@@ -513,11 +502,11 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(CreateRawMonitor, jvmti, "_syncLock", &syncLock))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->CreateRawMonitor("_syncLock", &syncLock))) {
         nsk_jvmti_setFailStatus();
         return JNI_ERR;
     }
@@ -528,7 +517,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         caps.can_suspend = 1;
         caps.can_generate_frame_pop_events = 1;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 

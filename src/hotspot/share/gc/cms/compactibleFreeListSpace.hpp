@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
-#define SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#ifndef SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#define SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
 
 #include "gc/cms/adaptiveFreeList.hpp"
 #include "gc/cms/promotionInfo.hpp"
@@ -191,6 +191,9 @@ class CompactibleFreeListSpace: public CompactibleSpace {
 
   // Used to keep track of limit of sweep for the space
   HeapWord* _sweep_limit;
+
+  // Stable value of used().
+  size_t _used_stable;
 
   // Used to make the young collector update the mod union table
   MemRegionClosure* _preconsumptionDirtyCardClosure;
@@ -411,6 +414,17 @@ class CompactibleFreeListSpace: public CompactibleSpace {
   // For now, however, we'll just use the default used_region()
   // which overestimates the region by returning the entire
   // committed region (this is safe, but inefficient).
+
+  // Returns monotonically increasing stable used space bytes for CMS.
+  // This is required for jstat and other memory monitoring tools
+  // that might otherwise see inconsistent used space values during a garbage
+  // collection, promotion or allocation into compactibleFreeListSpace.
+  // The value returned by this function might be smaller than the
+  // actual value.
+  size_t used_stable() const;
+  // Recalculate and cache the current stable used() value. Only to be called
+  // in places where we can be sure that the result is stable.
+  void recalculate_used_stable();
 
   // Returns a subregion of the space containing all the objects in
   // the space.
@@ -736,9 +750,9 @@ public:
 
 size_t PromotionInfo::refillSize() const {
   const size_t CMSSpoolBlockSize = 256;
-  const size_t sz = heap_word_size(sizeof(SpoolBlock) + sizeof(markOop)
+  const size_t sz = heap_word_size(sizeof(SpoolBlock) + sizeof(markWord)
                                    * CMSSpoolBlockSize);
   return CompactibleFreeListSpace::adjustObjectSize(sz);
 }
 
-#endif // SHARE_VM_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP
+#endif // SHARE_GC_CMS_COMPACTIBLEFREELISTSPACE_HPP

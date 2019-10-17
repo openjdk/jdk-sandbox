@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,11 @@
 
 #include "precompiled.hpp"
 #include "gc/parallel/objectStartArray.inline.hpp"
+#include "gc/parallel/parallelArguments.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
 #include "gc/parallel/psCardTable.hpp"
+#include "gc/parallel/psFileBackedVirtualspace.hpp"
 #include "gc/parallel/psMarkSweepDecorator.hpp"
 #include "gc/parallel/psOldGen.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
@@ -71,7 +73,14 @@ void PSOldGen::initialize(ReservedSpace rs, size_t alignment,
 
 void PSOldGen::initialize_virtual_space(ReservedSpace rs, size_t alignment) {
 
-  _virtual_space = new PSVirtualSpace(rs, alignment);
+  if(ParallelArguments::is_heterogeneous_heap()) {
+    _virtual_space = new PSFileBackedVirtualSpace(rs, alignment, AllocateOldGenAt);
+    if (!(static_cast <PSFileBackedVirtualSpace*>(_virtual_space))->initialize()) {
+      vm_exit_during_initialization("Could not map space for PSOldGen at given AllocateOldGenAt path");
+    }
+  } else {
+    _virtual_space = new PSVirtualSpace(rs, alignment);
+  }
   if (!_virtual_space->expand_by(_init_gen_size)) {
     vm_exit_during_initialization("Could not reserve enough space for "
                                   "object heap");
@@ -216,7 +225,7 @@ HeapWord* PSOldGen::allocate(size_t word_size) {
 HeapWord* PSOldGen::expand_and_allocate(size_t word_size) {
   expand(word_size*HeapWordSize);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return allocate_noexpand(word_size);
 }
@@ -224,7 +233,7 @@ HeapWord* PSOldGen::expand_and_allocate(size_t word_size) {
 HeapWord* PSOldGen::expand_and_cas_allocate(size_t word_size) {
   expand(word_size*HeapWordSize);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return cas_allocate_noexpand(word_size);
 }
@@ -432,11 +441,6 @@ void PSOldGen::print_on(outputStream* st) const {
                 p2i(virtual_space()->high_boundary()));
 
   st->print("  object"); object_space()->print_on(st);
-}
-
-void PSOldGen::print_used_change(size_t prev_used) const {
-  log_info(gc, heap)("%s: "  SIZE_FORMAT "K->" SIZE_FORMAT "K("  SIZE_FORMAT "K)",
-      name(), prev_used / K, used_in_bytes() / K, capacity_in_bytes() / K);
 }
 
 void PSOldGen::update_counters() {

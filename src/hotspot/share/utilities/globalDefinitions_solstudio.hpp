@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP
-#define SHARE_VM_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP
+#ifndef SHARE_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP
+#define SHARE_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP
 
 #include "jni.h"
 
@@ -236,11 +236,6 @@ inline int g_isfinite(jdouble f)                 { return finite(f); }
 
 inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 
-// Portability macros
-#define PRAGMA_INTERFACE
-#define PRAGMA_IMPLEMENTATION
-#define PRAGMA_IMPLEMENTATION_(arg)
-
 // Formatting.
 #ifdef _LP64
 #define FORMAT64_MODIFIER "l"
@@ -250,9 +245,7 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 
 #define offset_of(klass,field) offsetof(klass,field)
 
-#ifndef USE_LIBRARY_BASED_TLS_ONLY
-#define THREAD_LOCAL_DECL __thread
-#endif
+#define THREAD_LOCAL __thread
 
 // Inlining support
 #define NOINLINE
@@ -261,4 +254,4 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 // Alignment
 #define ATTRIBUTE_ALIGNED(x) __attribute__((aligned(x)))
 
-#endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP
+#endif // SHARE_UTILITIES_GLOBALDEFINITIONS_SOLSTUDIO_HPP

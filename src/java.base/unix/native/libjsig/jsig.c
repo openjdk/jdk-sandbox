@@ -5,7 +5,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -77,7 +79,7 @@ static __thread bool reentry = false; /* prevent reentry deadlock (per-thread) *
 /* Used to synchronize the installation of signal handlers. */
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-static pthread_t tid = 0;
+static pthread_t tid;
 
 typedef void (*sa_handler_t)(int);
 typedef void (*sa_sigaction_t)(int, siginfo_t *, void *);
@@ -110,8 +112,11 @@ static void signal_lock() {
   /* When the jvm is installing its set of signal handlers, threads
    * other than the jvm thread should wait. */
   if (jvm_signal_installing) {
-    if (tid != pthread_self()) {
-      pthread_cond_wait(&cond, &mutex);
+    /* tid is not initialized until jvm_signal_installing is set to true. */
+    if (pthread_equal(tid, pthread_self()) == 0) {
+      do {
+        pthread_cond_wait(&cond, &mutex);
+      } while (jvm_signal_installing);
     }
   }
 }
@@ -312,7 +317,7 @@ JNIEXPORT int sigaction(int sig, const struct sigaction *act, struct sigaction *
 }
 
 /* The three functions for the jvm to call into. */
-void JVM_begin_signal_setting() {
+JNIEXPORT void JVM_begin_signal_setting() {
   signal_lock();
   sigemptyset(&jvmsigs);
   jvm_signal_installing = true;
@@ -320,7 +325,7 @@ void JVM_begin_signal_setting() {
   signal_unlock();
 }
 
-void JVM_end_signal_setting() {
+JNIEXPORT void JVM_end_signal_setting() {
   signal_lock();
   jvm_signal_installed = true;
   jvm_signal_installing = false;
@@ -328,7 +333,7 @@ void JVM_end_signal_setting() {
   signal_unlock();
 }
 
-struct sigaction *JVM_get_signal_action(int sig) {
+JNIEXPORT struct sigaction *JVM_get_signal_action(int sig) {
   allocate_sact();
   /* Does race condition make sense here? */
   if (sigismember(&jvmsigs, sig)) {

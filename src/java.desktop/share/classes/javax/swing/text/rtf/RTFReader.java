@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1185,6 +1185,10 @@ abstract class AttributeTrackingDestination implements Destination
             parserState.put(keyword, Integer.valueOf(parameter));
             return true;
         }
+        if (keyword.equals("cb")) {
+            parserState.put(keyword, Integer.valueOf(parameter));
+            return true;
+        }
 
         {
             RTFAttribute attr = straightforwardAttributes.get(keyword);
@@ -1421,7 +1425,7 @@ abstract class AttributeTrackingDestination implements Destination
         Integer stateItem;
 
         /*** Tab stops ***/
-        TabStop tabs[];
+        TabStop[] tabs;
 
         tabs = (TabStop[])parserState.get("_tabs_immutable");
         if (tabs == null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,16 +25,17 @@
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/javaClasses.inline.hpp"
-#include "memory/metaspaceShared.inline.hpp"
+#include "memory/heapShared.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
-
-bool always_do_update_barrier = false;
+#include "utilities/macros.hpp"
 
 void oopDesc::print_on(outputStream* st) const {
   klass()->oop_print_on(oop(this), st);
@@ -97,35 +98,20 @@ intptr_t oopDesc::slow_identity_hash() {
   return ObjectSynchronizer::identity_hash_value_for(object);
 }
 
-// When String table needs to rehash
-unsigned int oopDesc::new_hash(juint seed) {
-  EXCEPTION_MARK;
-  ResourceMark rm;
-  int length;
-  jchar* chars = java_lang_String::as_unicode_string(this, length, THREAD);
-  if (chars != NULL) {
-    // Use alternate hashing algorithm on the string
-    return AltHashing::murmur3_32(seed, chars, length);
-  } else {
-    vm_exit_out_of_memory(length, OOM_MALLOC_ERROR, "unable to create Unicode strings for String table rehash");
-    return 0;
-  }
-}
-
 // used only for asserts and guarantees
 bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
   if (!Universe::heap()->is_oop(obj)) {
     return false;
   }
 
-  // Header verification: the mark is typically non-NULL. If we're
-  // at a safepoint, it must not be null.
+  // Header verification: the mark is typically non-zero. If we're
+  // at a safepoint, it must not be zero.
   // Outside of a safepoint, the header could be changing (for example,
   // another thread could be inflating a lock on this object).
   if (ignore_mark_word) {
     return true;
   }
-  if (obj->mark_raw() != NULL) {
+  if (obj->mark_raw().value() != 0) {
     return true;
   }
   return !SafepointSynchronize::is_at_safepoint();
@@ -135,20 +121,6 @@ bool oopDesc::is_oop(oop obj, bool ignore_mark_word) {
 bool oopDesc::is_oop_or_null(oop obj, bool ignore_mark_word) {
   return obj == NULL ? true : is_oop(obj, ignore_mark_word);
 }
-
-#ifndef PRODUCT
-// used only for asserts
-bool oopDesc::is_unlocked_oop() const {
-  if (!Universe::heap()->is_in_reserved(this)) return false;
-  return mark()->is_unlocked();
-}
-
-#if INCLUDE_CDS_JAVA_HEAP
-bool oopDesc::is_archive_object(oop p) {
-  return MetaspaceShared::is_archive_object(p);
-}
-#endif
-#endif // PRODUCT
 
 VerifyOopClosure VerifyOopClosure::verify_oop;
 
@@ -169,6 +141,27 @@ bool oopDesc::is_typeArray_noinline()         const { return is_typeArray();    
 bool oopDesc::has_klass_gap() {
   // Only has a klass gap when compressed class pointers are used.
   return UseCompressedClassPointers;
+}
+
+void* oopDesc::load_klass_raw(oop obj) {
+  if (UseCompressedClassPointers) {
+    narrowKlass narrow_klass = *(obj->compressed_klass_addr());
+    if (narrow_klass == 0) return NULL;
+    return (void*)CompressedKlassPointers::decode_raw(narrow_klass);
+  } else {
+    return *(void**)(obj->klass_addr());
+  }
+}
+
+void* oopDesc::load_oop_raw(oop obj, int offset) {
+  uintptr_t addr = (uintptr_t)(void*)obj + (uint)offset;
+  if (UseCompressedOops) {
+    narrowOop narrow_oop = *(narrowOop*)addr;
+    if (narrow_oop == 0) return NULL;
+    return (void*)CompressedOops::decode_raw(narrow_oop);
+  } else {
+    return *(void**)addr;
+  }
 }
 
 oop oopDesc::obj_field_acquire(int offset) const                      { return HeapAccess<MO_ACQUIRE>::oop_load_at(as_oop(), offset); }
@@ -213,3 +206,12 @@ void oopDesc::release_float_field_put(int offset, jfloat value)       { HeapAcce
 
 jdouble oopDesc::double_field_acquire(int offset) const               { return HeapAccess<MO_ACQUIRE>::load_at(as_oop(), offset); }
 void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAccess<MO_RELEASE>::store_at(as_oop(), offset, value); }
+
+#ifdef ASSERT
+void oopDesc::verify_forwardee(oop forwardee) {
+#if INCLUDE_CDS_JAVA_HEAP
+  assert(!HeapShared::is_archived_object(forwardee) && !HeapShared::is_archived_object(this),
+         "forwarding archive object");
+#endif
+}
+#endif

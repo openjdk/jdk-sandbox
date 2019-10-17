@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -284,11 +284,11 @@ void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr bas
 bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result, LIR_Opr tmp) {
   assert(left != result, "should be different registers");
   if (is_power_of_2(c + 1)) {
-    __ shift_left(left, log2_intptr(c + 1), result);
+    __ shift_left(left, log2_int(c + 1), result);
     __ sub(result, left, result);
     return true;
   } else if (is_power_of_2(c - 1)) {
-    __ shift_left(left, log2_intptr(c - 1), result);
+    __ shift_left(left, log2_int(c - 1), result);
     __ add(result, left, result);
     return true;
   }
@@ -568,7 +568,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
   LIR_Opr t2 = FrameMap::G3_opr;
   cmp_value.load_item();
   new_value.load_item();
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), t1, t2);
   } else if (type == T_INT) {
     __ cas_int(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), t1, t2);
@@ -583,7 +583,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
 }
 
 LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) {
-  bool is_obj = type == T_OBJECT || type == T_ARRAY;
+  bool is_obj = is_reference_type(type);
   LIR_Opr result = new_register(type);
   LIR_Opr tmp = LIR_OprFact::illegalOpr;
 

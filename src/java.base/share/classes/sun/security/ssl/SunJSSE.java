@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,15 +26,12 @@
 package sun.security.ssl;
 
 import java.security.*;
+import java.util.*;
 import static sun.security.util.SecurityConstants.PROVIDER_VER;
+import static sun.security.provider.SunEntries.createAliases;
 
 /**
  * The JSSE provider.
- *
- * The RSA implementation has been removed from JSSE, but we still need to
- * register the same algorithms for compatibility. We just point to the RSA
- * implementation in the SunRsaSign provider. This works because all classes
- * are in the bootclasspath and therefore loaded by the same classloader.
  *
  * SunJSSE now supports an experimental FIPS compliant mode when used with an
  * appropriate FIPS certified crypto provider. In FIPS mode, we:
@@ -55,203 +52,76 @@ import static sun.security.util.SecurityConstants.PROVIDER_VER;
  * FIPS mode.
  *
  */
-public abstract class SunJSSE extends java.security.Provider {
+public class SunJSSE extends java.security.Provider {
 
+    @java.io.Serial
     private static final long serialVersionUID = 3231825739635378733L;
 
     private static String info = "Sun JSSE provider" +
         "(PKCS12, SunX509/PKIX key/trust factories, " +
         "SSLv3/TLSv1/TLSv1.1/TLSv1.2/TLSv1.3/DTLSv1.0/DTLSv1.2)";
 
-    private static String fipsInfo =
-        "Sun JSSE provider (FIPS mode, crypto provider ";
-
-    // tri-valued flag:
-    // null  := no final decision made
-    // false := data structures initialized in non-FIPS mode
-    // true  := data structures initialized in FIPS mode
-    private static Boolean fips;
-
-    // the FIPS certificate crypto provider that we use to perform all crypto
-    // operations. null in non-FIPS mode
-    static java.security.Provider cryptoProvider;
-
-    protected static synchronized boolean isFIPS() {
-        if (fips == null) {
-            fips = false;
-        }
-        return fips;
-    }
-
-    // ensure we can use FIPS mode using the specified crypto provider.
-    // enable FIPS mode if not already enabled.
-    private static synchronized void ensureFIPS(java.security.Provider p) {
-        if (fips == null) {
-            fips = true;
-            cryptoProvider = p;
-        } else {
-            if (fips == false) {
-                throw new ProviderException
-                    ("SunJSSE already initialized in non-FIPS mode");
-            }
-            if (cryptoProvider != p) {
-                throw new ProviderException
-                    ("SunJSSE already initialized with FIPS crypto provider "
-                    + cryptoProvider);
-            }
-        }
-    }
-
-    // standard constructor
-    protected SunJSSE() {
+    public SunJSSE() {
         super("SunJSSE", PROVIDER_VER, info);
-        subclassCheck();
-        if (Boolean.TRUE.equals(fips)) {
-            throw new ProviderException
-                ("SunJSSE is already initialized in FIPS mode");
-        }
-        registerAlgorithms(false);
+        registerAlgorithms();
     }
 
-    // preferred constructor to enable FIPS mode at runtime
-    protected SunJSSE(java.security.Provider cryptoProvider){
-        this(checkNull(cryptoProvider), cryptoProvider.getName());
-    }
-
-    // constructor to enable FIPS mode from java.security file
-    protected SunJSSE(String cryptoProvider){
-        this(null, checkNull(cryptoProvider));
-    }
-
-    private static <T> T checkNull(T t) {
-        if (t == null) {
-            throw new ProviderException("cryptoProvider must not be null");
-        }
-        return t;
-    }
-
-    private SunJSSE(java.security.Provider cryptoProvider,
-            String providerName) {
-        super("SunJSSE", PROVIDER_VER, fipsInfo + providerName + ")");
-        subclassCheck();
-        if (cryptoProvider == null) {
-            // Calling Security.getProvider() will cause other providers to be
-            // loaded. That is not good but unavoidable here.
-            cryptoProvider = Security.getProvider(providerName);
-            if (cryptoProvider == null) {
-                throw new ProviderException
-                    ("Crypto provider not installed: " + providerName);
-            }
-        }
-        ensureFIPS(cryptoProvider);
-        registerAlgorithms(true);
-    }
-
-    private void registerAlgorithms(final boolean isfips) {
-        AccessController.doPrivileged(new PrivilegedAction<Object>() {
-            @Override
-            public Object run() {
-                doRegister(isfips);
-                return null;
-            }
+    private void registerAlgorithms() {
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            doRegister();
+            return null;
         });
     }
 
-    private void doRegister(boolean isfips) {
-        if (isfips == false) {
-            put("KeyFactory.RSA",
-                "sun.security.rsa.RSAKeyFactory$Legacy");
-            put("Alg.Alias.KeyFactory.1.2.840.113549.1.1", "RSA");
-            put("Alg.Alias.KeyFactory.OID.1.2.840.113549.1.1", "RSA");
+    private void ps(String type, String algo, String cn,
+            List<String> aliases, HashMap<String, String> attrs) {
+        putService(new Provider.Service(this, type, algo, cn, aliases, attrs));
+    }
 
-            put("KeyPairGenerator.RSA",
-                "sun.security.rsa.RSAKeyPairGenerator$Legacy");
-            put("Alg.Alias.KeyPairGenerator.1.2.840.113549.1.1", "RSA");
-            put("Alg.Alias.KeyPairGenerator.OID.1.2.840.113549.1.1", "RSA");
+    private void doRegister() {
+        ps("Signature", "MD5andSHA1withRSA",
+            "sun.security.ssl.RSASignature", null, null);
 
-            put("Signature.MD2withRSA",
-                "sun.security.rsa.RSASignature$MD2withRSA");
-            put("Alg.Alias.Signature.1.2.840.113549.1.1.2", "MD2withRSA");
-            put("Alg.Alias.Signature.OID.1.2.840.113549.1.1.2",
-                "MD2withRSA");
+        ps("KeyManagerFactory", "SunX509",
+            "sun.security.ssl.KeyManagerFactoryImpl$SunX509", null, null);
+        ps("KeyManagerFactory", "NewSunX509",
+            "sun.security.ssl.KeyManagerFactoryImpl$X509",
+            createAliases("PKIX"), null);
 
-            put("Signature.MD5withRSA",
-                "sun.security.rsa.RSASignature$MD5withRSA");
-            put("Alg.Alias.Signature.1.2.840.113549.1.1.4", "MD5withRSA");
-            put("Alg.Alias.Signature.OID.1.2.840.113549.1.1.4",
-                "MD5withRSA");
+        ps("TrustManagerFactory", "SunX509",
+            "sun.security.ssl.TrustManagerFactoryImpl$SimpleFactory",
+            null, null);
+        ps("TrustManagerFactory", "PKIX",
+            "sun.security.ssl.TrustManagerFactoryImpl$PKIXFactory",
+            createAliases("SunPKIX", "X509", "X.509"), null);
 
-            put("Signature.SHA1withRSA",
-                "sun.security.rsa.RSASignature$SHA1withRSA");
-            put("Alg.Alias.Signature.1.2.840.113549.1.1.5", "SHA1withRSA");
-            put("Alg.Alias.Signature.OID.1.2.840.113549.1.1.5",
-                "SHA1withRSA");
-            put("Alg.Alias.Signature.1.3.14.3.2.29", "SHA1withRSA");
-            put("Alg.Alias.Signature.OID.1.3.14.3.2.29", "SHA1withRSA");
+        ps("SSLContext", "TLSv1",
+            "sun.security.ssl.SSLContextImpl$TLS10Context",
+            createAliases("SSLv3"), null);
+        ps("SSLContext", "TLSv1.1",
+            "sun.security.ssl.SSLContextImpl$TLS11Context", null, null);
+        ps("SSLContext", "TLSv1.2",
+            "sun.security.ssl.SSLContextImpl$TLS12Context", null, null);
+        ps("SSLContext", "TLSv1.3",
+            "sun.security.ssl.SSLContextImpl$TLS13Context", null, null);
+        ps("SSLContext", "TLS",
+            "sun.security.ssl.SSLContextImpl$TLSContext",
+            createAliases("SSL"), null);
 
-        }
-        put("Signature.MD5andSHA1withRSA",
-            "sun.security.ssl.RSASignature");
+        ps("SSLContext", "DTLSv1.0",
+            "sun.security.ssl.SSLContextImpl$DTLS10Context", null, null);
+        ps("SSLContext", "DTLSv1.2",
+            "sun.security.ssl.SSLContextImpl$DTLS12Context", null, null);
+        ps("SSLContext", "DTLS",
+            "sun.security.ssl.SSLContextImpl$DTLSContext", null, null);
 
-        put("KeyManagerFactory.SunX509",
-            "sun.security.ssl.KeyManagerFactoryImpl$SunX509");
-        put("KeyManagerFactory.NewSunX509",
-            "sun.security.ssl.KeyManagerFactoryImpl$X509");
-        put("Alg.Alias.KeyManagerFactory.PKIX", "NewSunX509");
-
-        put("TrustManagerFactory.SunX509",
-            "sun.security.ssl.TrustManagerFactoryImpl$SimpleFactory");
-        put("TrustManagerFactory.PKIX",
-            "sun.security.ssl.TrustManagerFactoryImpl$PKIXFactory");
-        put("Alg.Alias.TrustManagerFactory.SunPKIX", "PKIX");
-        put("Alg.Alias.TrustManagerFactory.X509", "PKIX");
-        put("Alg.Alias.TrustManagerFactory.X.509", "PKIX");
-
-        put("SSLContext.TLSv1",
-            "sun.security.ssl.SSLContextImpl$TLS10Context");
-        put("SSLContext.TLSv1.1",
-            "sun.security.ssl.SSLContextImpl$TLS11Context");
-        put("SSLContext.TLSv1.2",
-            "sun.security.ssl.SSLContextImpl$TLS12Context");
-        put("SSLContext.TLSv1.3",
-            "sun.security.ssl.SSLContextImpl$TLS13Context");
-        put("SSLContext.TLS",
-            "sun.security.ssl.SSLContextImpl$TLSContext");
-        if (isfips == false) {
-            put("Alg.Alias.SSLContext.SSL", "TLS");
-            put("Alg.Alias.SSLContext.SSLv3", "TLSv1");
-        }
-
-        put("SSLContext.DTLSv1.0",
-            "sun.security.ssl.SSLContextImpl$DTLS10Context");
-        put("SSLContext.DTLSv1.2",
-            "sun.security.ssl.SSLContextImpl$DTLS12Context");
-        put("SSLContext.DTLS",
-            "sun.security.ssl.SSLContextImpl$DTLSContext");
-
-        put("SSLContext.Default",
-            "sun.security.ssl.SSLContextImpl$DefaultSSLContext");
+        ps("SSLContext", "Default",
+            "sun.security.ssl.SSLContextImpl$DefaultSSLContext", null, null);
 
         /*
          * KeyStore
          */
-        put("KeyStore.PKCS12",
-            "sun.security.pkcs12.PKCS12KeyStore");
+        ps("KeyStore", "PKCS12",
+            "sun.security.pkcs12.PKCS12KeyStore", null, null);
     }
-
-    // com.sun.net.ssl.internal.ssl.Provider has been deprecated since JDK 9
-    @SuppressWarnings("deprecation")
-    private void subclassCheck() {
-        if (getClass() != com.sun.net.ssl.internal.ssl.Provider.class) {
-            throw new AssertionError("Illegal subclass: " + getClass());
-        }
-    }
-
-    @Override
-    @SuppressWarnings("deprecation")
-    protected final void finalize() throws Throwable {
-        // empty
-        super.finalize();
-    }
-
 }

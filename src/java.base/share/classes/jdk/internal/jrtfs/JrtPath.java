@@ -25,6 +25,7 @@
 package jdk.internal.jrtfs;
 
 import java.io.File;
+import java.io.IOError;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -88,7 +89,7 @@ final class JrtPath implements Path {
 
     @Override
     public final JrtPath getFileName() {
-        if (path.length() == 0)
+        if (path.isEmpty())
             return this;
         if (path.length() == 1 && path.charAt(0) == '/')
             return null;
@@ -170,7 +171,16 @@ final class JrtPath implements Path {
     @Override
     public final URI toUri() {
         try {
-            return new URI("jrt", toAbsolutePath().path, null);
+            String p = toAbsolutePath().path;
+            if (!p.startsWith("/modules") || p.contains("..")) {
+                throw new IOError(new RuntimeException(p + " cannot be represented as URI"));
+            }
+
+            p = p.substring("/modules".length());
+            if (p.isEmpty()) {
+                p = "/";
+            }
+            return new URI("jrt", p, null);
         } catch (URISyntaxException ex) {
             throw new AssertionError(ex);
         }
@@ -210,7 +220,7 @@ final class JrtPath implements Path {
         if (o.equals(this)) {
             return new JrtPath(jrtfs, "", true);
         }
-        if (path.length() == 0) {
+        if (path.isEmpty()) {
             return o;
         }
         if (jrtfs != o.jrtfs || isAbsolute() != o.isAbsolute()) {
@@ -262,16 +272,16 @@ final class JrtPath implements Path {
 
     @Override
     public final boolean isAbsolute() {
-        return path.length() > 0 && path.charAt(0) == '/';
+        return !path.isEmpty() && path.charAt(0) == '/';
     }
 
     @Override
     public final JrtPath resolve(Path other) {
         final JrtPath o = checkPath(other);
-        if (this.path.length() == 0 || o.isAbsolute()) {
+        if (this.path.isEmpty() || o.isAbsolute()) {
             return o;
         }
-        if (o.path.length() == 0) {
+        if (o.path.isEmpty()) {
             return this;
         }
         StringBuilder sb = new StringBuilder(path.length() + o.path.length() + 1);
@@ -301,7 +311,7 @@ final class JrtPath implements Path {
         }
         int off = op.length();
         if (off == 0) {
-            return tp.length() == 0;
+            return tp.isEmpty();
         }
         // check match is on name boundary
         return tp.length() == off || tp.charAt(off) == '/' ||

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include <jvmti.h>
 #include <aod.h>
 #include <jvmti_aod.h>
+#include "ExceptionCheckingJniEnv.hpp"
 
 extern "C" {
 
@@ -52,7 +53,7 @@ static volatile jboolean agentGotCapabilities = JNI_FALSE;
 static jvmtiEvent testEvents[] = {
         JVMTI_EVENT_CLASS_LOAD,
         JVMTI_EVENT_CLASS_PREPARE,
-        JVMTI_EVENT_CLASS_FILE_LOAD_HOOK};
+        JVMTI_EVENT_CLASS_FILE_LOAD_HOOK };
 
 static const int testEventsNumber = 3;
 
@@ -67,23 +68,15 @@ Java_nsk_jvmti_AttachOnDemand_attach002_attach002Target_agentGotCapabilities(JNI
 
 #define ATTACH002_TARGET_APP_CLASS_NAME "nsk/jvmti/AttachOnDemand/attach002/attach002Target"
 
-int registerNativeMethods(JNIEnv* jni) {
+void registerNativeMethods(JNIEnv* jni_env) {
+    ExceptionCheckingJniEnvPtr ec_jni(jni_env);
     jclass appClass;
     JNINativeMethod nativeMethods[] = {
-            {(char*) "agentGotCapabilities", (char*) "()Z", (void*) Java_nsk_jvmti_AttachOnDemand_attach002_attach002Target_agentGotCapabilities}};
+            { (char*) "agentGotCapabilities", (char*) "()Z", (void*) Java_nsk_jvmti_AttachOnDemand_attach002_attach002Target_agentGotCapabilities } };
     jint nativeMethodsNumber = 1;
 
-    if (!NSK_JNI_VERIFY(jni, (appClass =
-        NSK_CPP_STUB2(FindClass, jni, ATTACH002_TARGET_APP_CLASS_NAME)) != NULL)) {
-        return NSK_FALSE;
-    }
-
-    if (!NSK_JNI_VERIFY(jni,
-            (NSK_CPP_STUB4(RegisterNatives, jni, appClass, nativeMethods, nativeMethodsNumber) == 0))) {
-        return NSK_FALSE;
-    }
-
-    return NSK_TRUE;
+    appClass = ec_jni->FindClass(ATTACH002_TARGET_APP_CLASS_NAME, TRACE_JNI_CALL);
+    ec_jni->RegisterNatives(appClass, nativeMethods, nativeMethodsNumber, TRACE_JNI_CALL);
 }
 
 void JNICALL  classLoadHandler(
@@ -187,25 +180,26 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
     jvmtiEnv* jvmti = NULL;
     JNIEnv* jni = NULL;
 
-    if (!NSK_VERIFY((options = (Options*) nsk_aod_createOptions(optionsString)) != NULL))
+    options = (Options*) nsk_aod_createOptions(optionsString);
+    if (!NSK_VERIFY(options != NULL))
         return JNI_ERR;
 
     agentName = nsk_aod_getOptionValue(options, NSK_AOD_AGENT_NAME_OPTION);
 
-    if ((jni = (JNIEnv*) nsk_aod_createJNIEnv(vm)) == NULL)
+    jni = (JNIEnv*) nsk_aod_createJNIEnv(vm);
+    if (jni == NULL)
         return NSK_FALSE;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(vm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
-    if (!NSK_VERIFY(registerNativeMethods(jni))) {
-        return JNI_ERR;
-    }
+    registerNativeMethods(jni);
 
     memset(&caps, 0, sizeof(caps));
     caps.can_generate_all_class_hook_events = 1;
     caps.can_redefine_classes = 1;
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)) ) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps))) {
         /*
          * If VM is run with -Xshare:on agent can't get required capabilities (see 6718407)
          */
@@ -222,7 +216,7 @@ Agent_OnAttach(JavaVM *vm, char *optionsString, void *reserved)
         eventCallbacks.ClassLoad = classLoadHandler;
         eventCallbacks.ClassPrepare = classPrepareHandler;
         eventCallbacks.ClassFileLoadHook = classFileLoadHoockHandler;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti, &eventCallbacks, sizeof(eventCallbacks))) ) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             return JNI_ERR;
         }
 

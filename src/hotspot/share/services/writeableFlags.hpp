@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_WRITEABLEFLAG_HPP
-#define SHARE_VM_SERVICES_WRITEABLEFLAG_HPP
+#ifndef SHARE_SERVICES_WRITEABLEFLAGS_HPP
+#define SHARE_SERVICES_WRITEABLEFLAGS_HPP
 
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/globals.hpp"
@@ -52,6 +52,8 @@ private:
   static JVMFlag::Error set_uint64_t_flag(const char* name, const char* value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
   // set a size_t global flag using value from AttachOperation
   static JVMFlag::Error set_size_t_flag(const char* name, const char* value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
+  // set a double global flag using value from AttachOperation
+  static JVMFlag::Error set_double_flag(const char* name, const char* value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
   // set a boolean global flag
   static JVMFlag::Error set_bool_flag(const char* name, bool value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
   // set a int global flag
@@ -66,6 +68,8 @@ private:
   static JVMFlag::Error set_uint64_t_flag(const char* name, uint64_t value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
   // set a size_t global flag using value from AttachOperation
   static JVMFlag::Error set_size_t_flag(const char* name, size_t value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
+  // set a double global flag using value from AttachOperation
+  static JVMFlag::Error set_double_flag(const char* name, double value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
   // set a string global flag
   static JVMFlag::Error set_ccstr_flag(const char* name, const char* value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
 
@@ -85,4 +89,4 @@ public:
   static JVMFlag::Error set_flag(const char* flag_name, jvalue flag_value, JVMFlag::Flags origin, FormatBuffer<80>& err_msg);
 };
 
-#endif /* SHARE_VM_SERVICES_WRITEABLEFLAG_HPP */
+#endif // SHARE_SERVICES_WRITEABLEFLAGS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,7 @@ void PackageEntry::set_is_exported_allUnnamed() {
 // get deleted.  This prevents the package from illegally transitioning from
 // exported to non-exported.
 void PackageEntry::purge_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(Module_lock);
   if (_must_walk_exports &&
       _qualified_exports != NULL &&
       !_qualified_exports->is_empty()) {
@@ -160,7 +160,6 @@ void PackageEntry::purge_qualified_exports() {
 }
 
 void PackageEntry::delete_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   if (_qualified_exports != NULL) {
     delete _qualified_exports;
   }
@@ -192,7 +191,6 @@ PackageEntryTable::~PackageEntryTable() {
   }
   assert(number_of_entries() == 0, "should have removed all entries");
   assert(new_entry_free_list() == NULL, "entry present on PackageEntryTable's free list");
-  free_buckets();
 }
 
 PackageEntry* PackageEntryTable::new_entry(unsigned int hash, Symbol* name, ModuleEntry* module) {
@@ -213,44 +211,46 @@ void PackageEntryTable::add_entry(int index, PackageEntry* new_entry) {
   Hashtable<Symbol*, mtModule>::add_entry(index, (HashtableEntry<Symbol*, mtModule>*)new_entry);
 }
 
-// Create package in loader's package entry table and return the entry.
-// If entry already exists, return null.  Assume Module lock was taken by caller.
-PackageEntry* PackageEntryTable::locked_create_entry_or_null(Symbol* name, ModuleEntry* module) {
+// Create package entry in loader's package entry table.  Assume Module lock
+// was taken by caller.
+void PackageEntryTable::locked_create_entry(Symbol* name, ModuleEntry* module) {
   assert(Module_lock->owned_by_self(), "should have the Module_lock");
-  // Check if package already exists.  Return NULL if it does.
-  if (lookup_only(name) != NULL) {
-    return NULL;
+  assert(locked_lookup_only(name) == NULL, "Package entry already exists");
+  PackageEntry* entry = new_entry(compute_hash(name), name, module);
+  add_entry(index_for(name), entry);
+}
+
+// Create package entry in loader's package entry table if it does not already
+// exist.  Assume Module lock was taken by caller.
+void PackageEntryTable::locked_create_entry_if_not_exist(Symbol* name, ModuleEntry* module) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
+  // Check if package entry already exists.  If not, create it.
+  if (locked_lookup_only(name) == NULL) {
+    locked_create_entry(name, module);
+  }
+}
+
+PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
+  MutexLocker ml(Module_lock);
+  PackageEntry* p = locked_lookup_only(name);
+  if (p != NULL) {
+    return p;
   } else {
+    assert(module != NULL, "module should never be null");
     PackageEntry* entry = new_entry(compute_hash(name), name, module);
     add_entry(index_for(name), entry);
     return entry;
   }
 }
 
-PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
-  PackageEntry* p = lookup_only(name);
-  if (p != NULL) {
-    return p;
-  } else {
-    // If not found, add to table. Grab the PackageEntryTable lock first.
-    MutexLocker ml(Module_lock);
-
-    // Since look-up was done lock-free, we need to check if another thread beat
-    // us in the race to insert the package.
-    PackageEntry* test = lookup_only(name);
-    if (test != NULL) {
-      // A race occurred and another thread introduced the package.
-      return test;
-    } else {
-      assert(module != NULL, "module should never be null");
-      PackageEntry* entry = new_entry(compute_hash(name), name, module);
-      add_entry(index_for(name), entry);
-      return entry;
-    }
-  }
+PackageEntry* PackageEntryTable::lookup_only(Symbol* name) {
+  assert(!Module_lock->owned_by_self(), "should not have the Module_lock - use locked_lookup_only");
+  MutexLocker ml(Module_lock);
+  return locked_lookup_only(name);
 }
 
-PackageEntry* PackageEntryTable::lookup_only(Symbol* name) {
+PackageEntry* PackageEntryTable::locked_lookup_only(Symbol* name) {
+  assert(Module_lock->owned_by_self(), "should have the Module_lock");
   int index = index_for(name);
   for (PackageEntry* p = bucket(index); p != NULL; p = p->next()) {
     if (p->name()->fast_compare(name) == 0) {
@@ -296,7 +296,7 @@ void PackageEntry::package_exports_do(ModuleClosure* f) {
 }
 
 bool PackageEntry::exported_pending_delete() const {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert_locked_or_safepoint(Module_lock);
   return (is_unqual_exported() && _qualified_exports != NULL);
 }
 

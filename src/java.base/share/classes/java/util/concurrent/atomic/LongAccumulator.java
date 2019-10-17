@@ -82,6 +82,7 @@ import java.util.function.LongBinaryOperator;
 public class LongAccumulator extends Striped64 implements Serializable {
     private static final long serialVersionUID = 7249069246863182397L;
 
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private final LongBinaryOperator function;
     private final long identity;
 
@@ -239,6 +240,7 @@ public class LongAccumulator extends Striped64 implements Serializable {
          * The function used for updates.
          * @serial
          */
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         private final LongBinaryOperator function;
 
         /**
@@ -271,7 +273,7 @@ public class LongAccumulator extends Striped64 implements Serializable {
 
     /**
      * Returns a
-     * <a href="../../../../serialized-form.html#java.util.concurrent.atomic.LongAccumulator.SerializationProxy">
+     * <a href="{@docRoot}/serialized-form.html#java.util.concurrent.atomic.LongAccumulator.SerializationProxy">
      * SerializationProxy</a>
      * representing the state of this instance.
      *

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 package org.graalvm.compiler.hotspot.test;
 
 import org.graalvm.compiler.core.test.GraalCompilerTest;
-import org.graalvm.compiler.hotspot.meta.HotSpotClassInitializationPlugin;
+import org.graalvm.compiler.hotspot.meta.HotSpotAOTClassInitializationPlugin;
 import org.graalvm.compiler.hotspot.nodes.aot.InitializeKlassNode;
 import org.graalvm.compiler.hotspot.phases.aot.EliminateRedundantInitializationPhase;
 import org.graalvm.compiler.nodes.StructuredGraph;
@@ -39,7 +39,7 @@ public class EliminateRedundantInitializationPhaseTest extends GraalCompilerTest
     @Override
     protected Plugins getDefaultGraphBuilderPlugins() {
         Plugins plugins = super.getDefaultGraphBuilderPlugins();
-        plugins.setClassInitializationPlugin(new HotSpotClassInitializationPlugin());
+        plugins.setClassInitializationPlugin(new HotSpotAOTClassInitializationPlugin());
         return plugins;
     }
 
@@ -136,6 +136,24 @@ public class EliminateRedundantInitializationPhaseTest extends GraalCompilerTest
         X.z = 3;
     }
 
+    static class SomeClass {
+        @BytecodeParserNeverInline
+        static void method() {
+        }
+
+        @BytecodeParserForceInline
+        static void inlinedMethod() {
+        }
+    }
+
+    public static void invokestatic() {
+        SomeClass.method();
+    }
+
+    public static void invokestaticInlined() {
+        SomeClass.inlinedMethod();
+    }
+
     private void test(String name, int initNodesAfterParse, int initNodesAfterOpt) {
         StructuredGraph graph = parseEager(name, AllowAssumptions.NO);
         Assert.assertEquals(initNodesAfterParse, graph.getNodes().filter(InitializeKlassNode.class).count());
@@ -192,5 +210,17 @@ public class EliminateRedundantInitializationPhaseTest extends GraalCompilerTest
     @Test
     public void test10() {
         test("assignFieldsInBranchesMixed", 3, 2);
+    }
+
+    @Test
+    public void test11() {
+        test("invokestatic", 1, 0);
+    }
+
+    @Test
+    public void test12() {
+        // Force initialization of SomeClass
+        SomeClass.inlinedMethod();
+        test("invokestaticInlined", 1, 1);
     }
 }

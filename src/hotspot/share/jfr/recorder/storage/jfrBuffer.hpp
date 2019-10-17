@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_STORAGE_JFRBUFFER_HPP
-#define SHARE_VM_JFR_RECORDER_STORAGE_JFRBUFFER_HPP
+#ifndef SHARE_JFR_RECORDER_STORAGE_JFRBUFFER_HPP
+#define SHARE_JFR_RECORDER_STORAGE_JFRBUFFER_HPP
 
 #include "memory/allocation.hpp"
 
@@ -57,7 +57,6 @@ class JfrBuffer {
   u4 _size;
 
   const u1* stable_top() const;
-  void clear_flags();
 
  public:
   JfrBuffer();
@@ -146,10 +145,10 @@ class JfrBuffer {
     return _identity;
   }
 
-  void clear_identity();
-
   void acquire(const void* id);
   bool try_acquire(const void* id);
+  bool acquired_by(const void* id) const;
+  bool acquired_by_self() const;
   void release();
 
   void move(JfrBuffer* const to, size_t size);
@@ -166,8 +165,6 @@ class JfrBuffer {
   bool retired() const;
   void set_retired();
   void clear_retired();
-
-  debug_only(bool acquired_by_self() const;)
 };
 
 class JfrAgeNode : public JfrBuffer {
@@ -184,4 +181,4 @@ class JfrAgeNode : public JfrBuffer {
   }
 };
 
-#endif // SHARE_VM_JFR_RECORDER_STORAGE_JFRBUFFER_HPP
+#endif // SHARE_JFR_RECORDER_STORAGE_JFRBUFFER_HPP

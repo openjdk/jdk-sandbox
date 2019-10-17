@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -244,12 +244,12 @@ bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, jint c, LIR_Opr result
   if (tmp->is_valid() && c > 0 && c < max_jint) {
     if (is_power_of_2(c + 1)) {
       __ move(left, tmp);
-      __ shift_left(left, log2_intptr(c + 1), left);
+      __ shift_left(left, log2_jint(c + 1), left);
       __ sub(left, tmp, result);
       return true;
     } else if (is_power_of_2(c - 1)) {
       __ move(left, tmp);
-      __ shift_left(left, log2_intptr(c - 1), left);
+      __ shift_left(left, log2_jint(c - 1), left);
       __ add(left, tmp, result);
       return true;
     }
@@ -320,7 +320,21 @@ void LIRGenerator::do_NegateOp(NegateOp* x) {
   value.set_destroys_register();
   value.load_item();
   LIR_Opr reg = rlock(x);
-  __ negate(value.result(), reg);
+
+  LIR_Opr tmp = LIR_OprFact::illegalOpr;
+#ifdef _LP64
+  if (UseAVX > 2 && !VM_Version::supports_avx512vl()) {
+    if (x->type()->tag() == doubleTag) {
+      tmp = new_register(T_DOUBLE);
+      __ move(LIR_OprFact::doubleConst(-0.0), tmp);
+    }
+    else if (x->type()->tag() == floatTag) {
+      tmp = new_register(T_FLOAT);
+      __ move(LIR_OprFact::floatConst(-0.0), tmp);
+    }
+  }
+#endif
+  __ negate(value.result(), reg, tmp);
 
   set_result(x, round_item(reg));
 }
@@ -657,7 +671,7 @@ void LIRGenerator::do_CompareOp(CompareOp* x) {
 
 LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_value, LIRItem& new_value) {
   LIR_Opr ill = LIR_OprFact::illegalOpr;  // for convenience
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     cmp_value.load_item_force(FrameMap::rax_oop_opr);
     new_value.load_item();
     __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
@@ -674,12 +688,12 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
   }
   LIR_Opr result = new_register(T_INT);
   __ cmove(lir_cond_equal, LIR_OprFact::intConst(1), LIR_OprFact::intConst(0),
-           result, type);
+           result, T_INT);
   return result;
 }
 
 LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) {
-  bool is_oop = type == T_OBJECT || type == T_ARRAY;
+  bool is_oop = is_reference_type(type);
   LIR_Opr result = new_register(type);
   value.load_item();
   // Because we want a 2-arg form of xchg and xadd
@@ -748,8 +762,17 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
   LIR_Opr calc_input = value.result();
   LIR_Opr calc_result = rlock_result(x);
 
+  LIR_Opr tmp = LIR_OprFact::illegalOpr;
+#ifdef _LP64
+  if (UseAVX > 2 && (!VM_Version::supports_avx512vl()) &&
+      (x->id() == vmIntrinsics::_dabs)) {
+    tmp = new_register(T_DOUBLE);
+    __ move(LIR_OprFact::doubleConst(-0.0), tmp);
+  }
+#endif
+
   switch(x->id()) {
-    case vmIntrinsics::_dabs:   __ abs  (calc_input, calc_result, LIR_OprFact::illegalOpr); break;
+    case vmIntrinsics::_dabs:   __ abs  (calc_input, calc_result, tmp); break;
     case vmIntrinsics::_dsqrt:  __ sqrt (calc_input, calc_result, LIR_OprFact::illegalOpr); break;
     default:                    ShouldNotReachHere();
   }

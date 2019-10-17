@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010, 2011 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,17 +23,14 @@
  *
  */
 
-#ifndef CPU_ZERO_VM_GLOBALS_ZERO_HPP
-#define CPU_ZERO_VM_GLOBALS_ZERO_HPP
+#ifndef CPU_ZERO_GLOBALS_ZERO_HPP
+#define CPU_ZERO_GLOBALS_ZERO_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 // Set the default values for platform dependent flags used by the
 // runtime system.  See globals.hpp for details of what they do.
-
-define_pd_global(bool,  ShareVtableStubs,     true);
-define_pd_global(bool,  NeedsDeoptSuspend,    false);
 
 define_pd_global(bool,  ImplicitNullChecks,   true);
 define_pd_global(bool,  TrapBasedNullChecks,  false);
@@ -69,8 +66,6 @@ define_pd_global(intx,  StackReservedPages,   DEFAULT_STACK_RESERVED_PAGES);
 define_pd_global(bool,  RewriteBytecodes,     true);
 define_pd_global(bool,  RewriteFrequentPairs, true);
 
-define_pd_global(bool,  UseMembar,            true);
-
 // GC Ergo Flags
 define_pd_global(size_t, CMSYoungGenPerWorker, 16*M);  // default max size of CMS young gen, per GC worker thread
 
@@ -81,7 +76,7 @@ define_pd_global(bool, PreserveFramePointer, false);
 // No performance work done here yet.
 define_pd_global(bool, CompactStrings, false);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
+define_pd_global(bool, ThreadLocalHandshakes, true);
 
 #define ARCH_FLAGS(develop, \
                    product, \
@@ -99,4 +94,4 @@ define_pd_global(bool, ThreadLocalHandshakes, false);
           "Use fast method entry code for accessor methods")                \
                                                                             \
 
-#endif // CPU_ZERO_VM_GLOBALS_ZERO_HPP
+#endif // CPU_ZERO_GLOBALS_ZERO_HPP

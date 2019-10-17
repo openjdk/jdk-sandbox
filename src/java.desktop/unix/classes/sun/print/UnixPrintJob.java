@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -394,7 +394,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         String repClassName = flavor.getRepresentationClassName();
         String val = flavor.getParameter("charset");
         String encoding = "us-ascii";
-        if (val != null && !val.equals("")) {
+        if (val != null && !val.isEmpty()) {
             encoding = val;
         }
 
@@ -733,7 +733,7 @@ public class UnixPrintJob implements CancelablePrintJob {
         } catch (SecurityException se) {
         }
 
-        if (userName == null || userName.equals("")) {
+        if (userName == null || userName.isEmpty()) {
             RequestingUserName ruName =
                 (RequestingUserName)reqSet.get(RequestingUserName.class);
             if (ruName != null) {
@@ -860,20 +860,20 @@ public class UnixPrintJob implements CancelablePrintJob {
         int COPIES  = 0x8;
         int NOSHEET  = 0x10;
         int pFlags = 0;
-        String execCmd[];
+        String[] execCmd;
         int ncomps = 2; // minimum number of print args
         int n = 0;
 
         // conveniently "lp" is the default destination for both lp and lpr.
-        if (printer != null && !printer.equals("") && !printer.equals("lp")) {
+        if (printer != null && !printer.isEmpty() && !printer.equals("lp")) {
             pFlags |= PRINTER;
             ncomps+=1;
         }
-        if (options != null && !options.equals("")) {
+        if (options != null && !options.isEmpty()) {
             pFlags |= OPTIONS;
             ncomps+=1;
         }
-        if (jobTitle != null && !jobTitle.equals("")) {
+        if (jobTitle != null && !jobTitle.isEmpty()) {
             pFlags |= JOBTITLE;
             ncomps+=1;
         }
@@ -1022,7 +1022,7 @@ public class UnixPrintJob implements CancelablePrintJob {
                  * Spool to the printer.
                  */
                 String fileName = spoolFile.getAbsolutePath();
-                String execCmd[] = printExecCmd(mDestination, mOptions,
+                String[] execCmd = printExecCmd(mDestination, mOptions,
                                mNoJobSheet, jobName, copies, fileName);
 
                 Process process = Runtime.getRuntime().exec(execCmd);

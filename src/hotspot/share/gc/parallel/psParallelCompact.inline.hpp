@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP
-#define SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP
+#ifndef SHARE_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP
+#define SHARE_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP
 
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/parMarkBitMap.inline.hpp"
@@ -124,12 +124,21 @@ inline void PSParallelCompact::adjust_pointer(T* p, ParCompactionManager* cm) {
   }
 }
 
-template <typename T>
-void PSParallelCompact::AdjustPointerClosure::do_oop_work(T* p) {
-  adjust_pointer(p, _cm);
-}
+class PCAdjustPointerClosure: public BasicOopIterateClosure {
+public:
+  PCAdjustPointerClosure(ParCompactionManager* cm) {
+    assert(cm != NULL, "associate ParCompactionManage should not be NULL");
+    _cm = cm;
+  }
+  template <typename T> void do_oop_nv(T* p) { PSParallelCompact::adjust_pointer(p, _cm); }
+  virtual void do_oop(oop* p)                { do_oop_nv(p); }
+  virtual void do_oop(narrowOop* p)          { do_oop_nv(p); }
 
-inline void PSParallelCompact::AdjustPointerClosure::do_oop(oop* p)       { do_oop_work(p); }
-inline void PSParallelCompact::AdjustPointerClosure::do_oop(narrowOop* p) { do_oop_work(p); }
+  // This closure provides its own oop verification code.
+  debug_only(virtual bool should_verify_oops() { return false; })
+  virtual ReferenceIterationMode reference_iteration_mode() { return DO_FIELDS; }
+private:
+  ParCompactionManager* _cm;
+};
 
-#endif // SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP
+#endif // SHARE_GC_PARALLEL_PSPARALLELCOMPACT_INLINE_HPP

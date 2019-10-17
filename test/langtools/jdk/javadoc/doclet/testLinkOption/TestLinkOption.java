@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,17 +23,19 @@
 
 /*
  * @test
- * @bug 4720957 5020118 8026567 8038976 8184969 8164407 8182765
+ * @bug 4720957 5020118 8026567 8038976 8184969 8164407 8182765 8205593
  * @summary Test to make sure that -link and -linkoffline link to
  * right files, and URLs with and without trailing slash are accepted.
  * @author jamieh
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main TestLinkOption
  */
 
 import java.io.File;
+
+import javadoc.tester.JavadocTester;
 
 public class TestLinkOption extends JavadocTester {
     /**
@@ -50,7 +52,7 @@ public class TestLinkOption extends JavadocTester {
     // it generates. Therefore we run everything serially in a single @Test
     // method and not in independent @Test methods.
     @Test
-    void test() {
+    public void test() {
         String mylib = "mylib";
         String[] javacArgs = {
             "-d", mylib, testSrc + "/extra/StringBuilder.java"
@@ -61,38 +63,37 @@ public class TestLinkOption extends JavadocTester {
         String out1 = "out1";
         String url = "http://acme.com/jdk/";
         javadoc("-d", out1,
+                "-source", "8",
                 "-classpath", mylib,
                 "-sourcepath", testSrc,
                 "-linkoffline", url, testSrc + "/jdk",
                 "-package",
                 "pkg", "mylib.lang");
-        checkExit(Exit.ERROR);
-        checkOutput(Output.OUT, true,
-                "tag not supported in the generated HTML version: tt");
+        checkExit(Exit.OK);
 
         checkOutput("pkg/C.html", true,
                 "<a href=\"" + url + "java/lang/String.html?is-external=true\" "
                 + "title=\"class or interface in java.lang\" class=\"externalLink\"><code>Link to String Class</code></a>",
-                //Make sure the parameters are indented properly when the -link option is used.
+                //Make sure the parameters are formatted properly when the -link option is used.
                 "(int&nbsp;p1,\n"
-                + "      int&nbsp;p2,\n"
-                + "      int&nbsp;p3)",
+                + "int&nbsp;p2,\n"
+                + "int&nbsp;p3)",
                 "(int&nbsp;p1,\n"
-                + "      int&nbsp;p2,\n"
-                + "      <a href=\"" + url + "java/lang/Object.html?is-external=true\" title=\"class or interface in java.lang\" class=\"externalLink\">"
+                + "int&nbsp;p2,\n"
+                + "<a href=\"" + url + "java/lang/Object.html?is-external=true\" title=\"class or interface in java.lang\" class=\"externalLink\">"
                 + "Object</a>&nbsp;p3)");
 
         checkOutput("pkg/B.html", true,
                 "<div class=\"block\">A method with html tag the method "
                 + "<a href=\"" + url + "java/lang/ClassLoader.html?is-external=true#getSystemClassLoader()\""
-                + " title=\"class or interface in java.lang\" class=\"externalLink\"><code><tt>getSystemClassLoader()</tt>"
+                + " title=\"class or interface in java.lang\" class=\"externalLink\"><code><b>getSystemClassLoader()</b>"
                 + "</code></a> as the parent class loader.</div>",
                 "<div class=\"block\">is equivalent to invoking <code>"
                 + "<a href=\"#createTempFile(java.lang.String,java.lang.String,java.io.File)\">"
                 + "<code>createTempFile(prefix,&nbsp;suffix,&nbsp;null)</code></a></code>.</div>",
                 "<a href=\"" + url + "java/lang/String.html?is-external=true\" "
                 + "title=\"class or interface in java.lang\" class=\"externalLink\">Link-Plain to String Class</a>",
-                "<code><tt>getSystemClassLoader()</tt></code>",
+                "<code><b>getSystemClassLoader()</b></code>",
                 "<code>createTempFile(prefix,&nbsp;suffix,&nbsp;null)</code>",
                 "<dd><a href=\"http://www.ietf.org/rfc/rfc2279.txt\"><i>RFC&nbsp;2279: UTF-8, a\n" +
                 " transformation format of ISO 10646</i></a>, <br><a " +
@@ -101,8 +102,8 @@ public class TestLinkOption extends JavadocTester {
                 "<i>RFC&nbsp;2396: Uniform\n" +
                 " Resource Identifiers (URI): Generic Syntax</i></a>, " +
                 "<br><a href=\"http://www.ietf.org/rfc/rfc2732.txt\"><i>RFC&nbsp;2732: Format for\n" +
-                " Literal IPv6 Addresses in URLs</i></a>, <br><a href=\"URISyntaxException.html\">" +
-                "URISyntaxException</a></dd>\n" +
+                " Literal IPv6 Addresses in URLs</i></a>, <br><a href=\"C.html\">" +
+                "A nearby file</a></dd>\n" +
                 "</dl>");
 
         checkOutput("mylib/lang/StringBuilderChild.html", true,
@@ -110,25 +111,6 @@ public class TestLinkOption extends JavadocTester {
                 + "extends <a href=\"" + url + "java/lang/Object.html?is-external=true\" "
                 + "title=\"class or interface in java.lang\" class=\"externalLink\">Object</a></pre>"
         );
-
-        String out1_html4 = "out1-html4";
-        javadoc("-d", out1_html4,
-                "-html4",
-                "-classpath", mylib,
-                "-sourcepath", testSrc,
-                "-linkoffline", url, testSrc + "/jdk",
-                "-package",
-                "pkg", "mylib.lang");
-        checkExit(Exit.OK);
-
-        checkOutput("pkg/B.html", true,
-                "<div class=\"block\">A method with html tag the method "
-                + "<a href=\"" + url + "java/lang/ClassLoader.html?is-external=true#getSystemClassLoader--\""
-                + " title=\"class or interface in java.lang\" class=\"externalLink\"><code><tt>getSystemClassLoader()</tt>"
-                + "</code></a> as the parent class loader.</div>",
-                "<div class=\"block\">is equivalent to invoking <code>"
-                + "<a href=\"#createTempFile-java.lang.String-java.lang.String-java.io.File-\">"
-                + "<code>createTempFile(prefix,&nbsp;suffix,&nbsp;null)</code></a></code>.</div>");
 
         // Generate the documentation using -linkoffline and a relative path as the first parameter.
         // We will try linking to the docs generated in test 1 with a relative path.
@@ -178,6 +160,7 @@ public class TestLinkOption extends JavadocTester {
         );
 
         // check multiple linkoffline options
+        setAutomaticCheckLinks(false); // The example code has toy/bad links
         javadoc("-d", "out6",
                 "-sourcepath", testSrc,
                 "-linkoffline", "../copy/out1", "out1",
@@ -196,6 +179,8 @@ public class TestLinkOption extends JavadocTester {
                         + "title=\"class or interface in mylib.lang\" class=\"externalLink\">"
                         + "<code>link to mylib.lang.StringBuilderChild</code></a>.</div>\n"
         );
+
+        setAutomaticCheckLinks(true); // re-enable checks
     }
 
     /*

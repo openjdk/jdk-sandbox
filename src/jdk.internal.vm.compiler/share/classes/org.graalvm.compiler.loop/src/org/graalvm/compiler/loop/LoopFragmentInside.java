@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ import java.util.List;
 
 import jdk.internal.vm.compiler.collections.EconomicMap;
 import jdk.internal.vm.compiler.collections.Equivalence;
+import org.graalvm.compiler.core.common.type.IntegerStamp;
 import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
@@ -64,9 +65,13 @@ import org.graalvm.compiler.nodes.ValuePhiNode;
 import org.graalvm.compiler.nodes.VirtualState.NodeClosure;
 import org.graalvm.compiler.nodes.calc.AddNode;
 import org.graalvm.compiler.nodes.calc.CompareNode;
+import org.graalvm.compiler.nodes.calc.ConditionalNode;
+import org.graalvm.compiler.nodes.calc.IntegerBelowNode;
 import org.graalvm.compiler.nodes.calc.SubNode;
+import org.graalvm.compiler.nodes.extended.OpaqueNode;
 import org.graalvm.compiler.nodes.memory.MemoryPhiNode;
 import org.graalvm.compiler.nodes.util.GraphUtil;
+import org.graalvm.compiler.nodes.util.IntegerHelper;
 
 public class LoopFragmentInside extends LoopFragment {
 
@@ -150,20 +155,8 @@ public class LoopFragmentInside extends LoopFragment {
     /**
      * Duplicate the body within the loop after the current copy copy of the body, updating the
      * iteration limit to account for the duplication.
-     *
-     * @param loop
      */
-    public void insertWithinAfter(LoopEx loop) {
-        insertWithinAfter(loop, true);
-    }
-
-    /**
-     * Duplicate the body within the loop after the current copy copy of the body.
-     *
-     * @param loop
-     * @param updateLimit true if the iteration limit should be adjusted.
-     */
-    public void insertWithinAfter(LoopEx loop, boolean updateLimit) {
+    public void insertWithinAfter(LoopEx loop, EconomicMap<LoopBeginNode, OpaqueNode> opaqueUnrolledStrides) {
         assert isDuplicate() && original().loop() == loop;
 
         patchNodes(dataFixWithinAfter);
@@ -175,12 +168,13 @@ public class LoopFragmentInside extends LoopFragment {
         LoopBeginNode mainLoopBegin = loop.loopBegin();
         ArrayList<ValueNode> backedgeValues = new ArrayList<>();
         for (PhiNode mainPhiNode : mainLoopBegin.phis()) {
-            ValueNode duplicatedNode = getDuplicatedNode(mainPhiNode.valueAt(1));
+            ValueNode originalNode = mainPhiNode.valueAt(1);
+            ValueNode duplicatedNode = getDuplicatedNode(originalNode);
             if (duplicatedNode == null) {
-                if (mainLoopBegin.isPhiAtMerge(mainPhiNode.valueAt(1))) {
-                    duplicatedNode = ((PhiNode) (mainPhiNode.valueAt(1))).valueAt(1);
+                if (mainLoopBegin.isPhiAtMerge(originalNode)) {
+                    duplicatedNode = ((PhiNode) (originalNode)).valueAt(1);
                 } else {
-                    assert mainPhiNode.valueAt(1).isConstant() : mainPhiNode.valueAt(1);
+                    assert originalNode.isConstant() || loop.isOutsideLoop(originalNode) : "Not duplicated node " + originalNode;
                 }
             }
             backedgeValues.add(duplicatedNode);
@@ -201,32 +195,44 @@ public class LoopFragmentInside extends LoopFragment {
             graph().removeFixed(safepoint);
         }
 
-        int unrollFactor = mainLoopBegin.getUnrollFactor();
         StructuredGraph graph = mainLoopBegin.graph();
-        if (updateLimit) {
-            // Now use the previous unrollFactor to update the exit condition to power of two
-            InductionVariable iv = loop.counted().getCounter();
-            CompareNode compareNode = (CompareNode) loop.counted().getLimitTest().condition();
-            ValueNode compareBound;
-            if (compareNode.getX() == iv.valueNode()) {
-                compareBound = compareNode.getY();
-            } else if (compareNode.getY() == iv.valueNode()) {
-                compareBound = compareNode.getX();
+        if (opaqueUnrolledStrides != null) {
+            OpaqueNode opaque = opaqueUnrolledStrides.get(loop.loopBegin());
+            CountedLoopInfo counted = loop.counted();
+            ValueNode counterStride = counted.getCounter().strideNode();
+            if (opaque == null) {
+                opaque = new OpaqueNode(AddNode.add(counterStride, counterStride, NodeView.DEFAULT));
+                ValueNode limit = counted.getLimit();
+                int bits = ((IntegerStamp) limit.stamp(NodeView.DEFAULT)).getBits();
+                ValueNode newLimit = SubNode.create(limit, opaque, NodeView.DEFAULT);
+                IntegerHelper helper = counted.getCounterIntegerHelper();
+                LogicNode overflowCheck;
+                ConstantNode extremum;
+                if (counted.getDirection() == InductionVariable.Direction.Up) {
+                    // limit - counterStride could overflow negatively if limit - min <
+                    // counterStride
+                    extremum = ConstantNode.forIntegerBits(bits, helper.minValue());
+                    overflowCheck = IntegerBelowNode.create(SubNode.create(limit, extremum, NodeView.DEFAULT), opaque, NodeView.DEFAULT);
+                } else {
+                    assert counted.getDirection() == InductionVariable.Direction.Down;
+                    // limit - counterStride could overflow if max - limit < -counterStride
+                    // i.e., counterStride < limit - max
+                    extremum = ConstantNode.forIntegerBits(bits, helper.maxValue());
+                    overflowCheck = IntegerBelowNode.create(opaque, SubNode.create(limit, extremum, NodeView.DEFAULT), NodeView.DEFAULT);
+                }
+                newLimit = ConditionalNode.create(overflowCheck, extremum, newLimit, NodeView.DEFAULT);
+                CompareNode compareNode = (CompareNode) counted.getLimitTest().condition();
+                compareNode.replaceFirstInput(limit, graph.addOrUniqueWithInputs(newLimit));
+                opaqueUnrolledStrides.put(loop.loopBegin(), opaque);
             } else {
-                throw GraalError.shouldNotReachHere();
-            }
-            long originalStride = unrollFactor == 1 ? iv.constantStride() : iv.constantStride() / unrollFactor;
-            if (iv.direction() == InductionVariable.Direction.Up) {
-                ConstantNode aboveVal = graph.unique(ConstantNode.forIntegerStamp(iv.initNode().stamp(NodeView.DEFAULT), unrollFactor * originalStride));
-                ValueNode newLimit = graph.addWithoutUnique(new SubNode(compareBound, aboveVal));
-                compareNode.replaceFirstInput(compareBound, newLimit);
-            } else if (iv.direction() == InductionVariable.Direction.Down) {
-                ConstantNode aboveVal = graph.unique(ConstantNode.forIntegerStamp(iv.initNode().stamp(NodeView.DEFAULT), unrollFactor * -originalStride));
-                ValueNode newLimit = graph.addWithoutUnique(new AddNode(compareBound, aboveVal));
-                compareNode.replaceFirstInput(compareBound, newLimit);
+                assert counted.getCounter().isConstantStride();
+                assert Math.addExact(counted.getCounter().constantStride(), counted.getCounter().constantStride()) == counted.getCounter().constantStride() * 2;
+                ValueNode previousValue = opaque.getValue();
+                opaque.setValue(graph.addOrUniqueWithInputs(AddNode.add(counterStride, previousValue, NodeView.DEFAULT)));
+                GraphUtil.tryKillUnused(previousValue);
             }
         }
-        mainLoopBegin.setUnrollFactor(unrollFactor * 2);
+        mainLoopBegin.setUnrollFactor(mainLoopBegin.getUnrollFactor() * 2);
         mainLoopBegin.setLoopFrequency(mainLoopBegin.loopFrequency() / 2);
         graph.getDebug().dump(DebugContext.DETAILED_LEVEL, graph, "LoopPartialUnroll %s", loop);
 
@@ -239,60 +245,40 @@ public class LoopFragmentInside extends LoopFragment {
         // Discard the segment entry and its flow, after if merging it into the loop
         StructuredGraph graph = mainLoopBegin.graph();
         IfNode loopTest = mainCounted.getLimitTest();
-        IfNode newSegmentTest = getDuplicatedNode(loopTest);
-        AbstractBeginNode trueSuccessor = loopTest.trueSuccessor();
-        AbstractBeginNode falseSuccessor = loopTest.falseSuccessor();
-        FixedNode firstNode;
-        boolean codeInTrueSide = false;
-        if (trueSuccessor == mainCounted.getBody()) {
-            firstNode = trueSuccessor.next();
-            codeInTrueSide = true;
-        } else {
-            assert (falseSuccessor == mainCounted.getBody());
-            firstNode = falseSuccessor.next();
-        }
-        trueSuccessor = newSegmentTest.trueSuccessor();
-        falseSuccessor = newSegmentTest.falseSuccessor();
+        IfNode newSegmentLoopTest = getDuplicatedNode(loopTest);
+
+        // Redirect anchors
+        AbstractBeginNode falseSuccessor = newSegmentLoopTest.falseSuccessor();
         for (Node usage : falseSuccessor.anchored().snapshot()) {
             usage.replaceFirstInput(falseSuccessor, loopTest.falseSuccessor());
         }
+        AbstractBeginNode trueSuccessor = newSegmentLoopTest.trueSuccessor();
         for (Node usage : trueSuccessor.anchored().snapshot()) {
             usage.replaceFirstInput(trueSuccessor, loopTest.trueSuccessor());
         }
-        AbstractBeginNode startBlockNode;
-        if (codeInTrueSide) {
-            startBlockNode = trueSuccessor;
-        } else {
-            graph.getDebug().dump(DebugContext.VERBOSE_LEVEL, mainLoopBegin.graph(), "before");
-            startBlockNode = falseSuccessor;
-        }
-        FixedNode lastNode = getBlockEnd(startBlockNode);
-        LoopEndNode loopEndNode = mainLoopBegin.getSingleLoopEnd();
-        FixedWithNextNode lastCodeNode = (FixedWithNextNode) loopEndNode.predecessor();
-        FixedNode newSegmentFirstNode = getDuplicatedNode(firstNode);
-        FixedWithNextNode newSegmentLastNode = getDuplicatedNode(lastCodeNode);
-        graph.getDebug().dump(DebugContext.DETAILED_LEVEL, loopEndNode.graph(), "Before placing segment");
-        if (firstNode instanceof LoopEndNode) {
+
+        // remove if test
+        graph.removeSplitPropagate(newSegmentLoopTest, loopTest.trueSuccessor() == mainCounted.getBody() ? trueSuccessor : falseSuccessor);
+
+        graph.getDebug().dump(DebugContext.DETAILED_LEVEL, graph, "Before placing segment");
+        if (mainCounted.getBody().next() instanceof LoopEndNode) {
             GraphUtil.killCFG(getDuplicatedNode(mainLoopBegin));
         } else {
-            newSegmentLastNode.clearSuccessors();
-            startBlockNode.setNext(lastNode);
+            AbstractBeginNode newSegmentBegin = getDuplicatedNode(mainLoopBegin);
+            FixedNode newSegmentFirstNode = newSegmentBegin.next();
+            EndNode newSegmentEnd = getBlockEnd(newSegmentBegin);
+            FixedWithNextNode newSegmentLastNode = (FixedWithNextNode) newSegmentEnd.predecessor();
+            LoopEndNode loopEndNode = mainLoopBegin.getSingleLoopEnd();
+            FixedWithNextNode lastCodeNode = (FixedWithNextNode) loopEndNode.predecessor();
+
+            newSegmentBegin.clearSuccessors();
             lastCodeNode.replaceFirstSuccessor(loopEndNode, newSegmentFirstNode);
-            newSegmentLastNode.replaceFirstSuccessor(lastNode, loopEndNode);
-            lastCodeNode.setNext(newSegmentFirstNode);
-            newSegmentLastNode.setNext(loopEndNode);
-            startBlockNode.clearSuccessors();
-            lastNode.safeDelete();
-            Node newSegmentTestStart = newSegmentTest.predecessor();
-            LogicNode newSegmentIfTest = newSegmentTest.condition();
-            newSegmentTestStart.clearSuccessors();
-            newSegmentTest.safeDelete();
-            newSegmentIfTest.safeDelete();
-            trueSuccessor.safeDelete();
-            falseSuccessor.safeDelete();
-            newSegmentTestStart.safeDelete();
+            newSegmentLastNode.replaceFirstSuccessor(newSegmentEnd, loopEndNode);
+
+            newSegmentBegin.safeDelete();
+            newSegmentEnd.safeDelete();
         }
-        graph.getDebug().dump(DebugContext.DETAILED_LEVEL, loopEndNode.graph(), "After placing segment");
+        graph.getDebug().dump(DebugContext.DETAILED_LEVEL, graph, "After placing segment");
     }
 
     private static EndNode getBlockEnd(FixedNode node) {
@@ -383,11 +369,6 @@ public class LoopFragmentInside extends LoopFragment {
                 }
             }
         };
-    }
-
-    @Override
-    protected void finishDuplication() {
-        // TODO (gd) ?
     }
 
     @Override

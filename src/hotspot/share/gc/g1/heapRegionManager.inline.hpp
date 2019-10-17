@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_HEAPREGIONMANAGER_INLINE_HPP
-#define SHARE_VM_GC_G1_HEAPREGIONMANAGER_INLINE_HPP
+#ifndef SHARE_GC_G1_HEAPREGIONMANAGER_INLINE_HPP
+#define SHARE_GC_G1_HEAPREGIONMANAGER_INLINE_HPP
 
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/heapRegionManager.hpp"
@@ -43,6 +43,16 @@ inline HeapRegion* HeapRegionManager::at(uint index) const {
   assert(is_available(index), "pre-condition");
   HeapRegion* hr = _regions.get_by_index(index);
   assert(hr != NULL, "sanity");
+  assert(hr->hrm_index() == index, "sanity");
+  return hr;
+}
+
+inline HeapRegion* HeapRegionManager::at_or_null(uint index) const {
+  if (!is_available(index)) {
+    return NULL;
+  }
+  HeapRegion* hr = _regions.get_by_index(index);
+  assert(hr != NULL, "All available regions must have a HeapRegion but index %u has not.", index);
   assert(hr->hrm_index() == index, "sanity");
   return hr;
 }
@@ -67,4 +77,4 @@ inline void HeapRegionManager::allocate_free_regions_starting_at(uint first, uin
   _free_list.remove_starting_at(at(first), num_regions);
 }
 
-#endif // SHARE_VM_GC_G1_HEAPREGIONMANAGER_INLINE_HPP
+#endif // SHARE_GC_G1_HEAPREGIONMANAGER_INLINE_HPP

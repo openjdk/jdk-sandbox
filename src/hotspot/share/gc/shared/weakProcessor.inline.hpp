@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,70 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_WEAKPROCESSOR_INLINE_HPP
-#define SHARE_VM_GC_SHARED_WEAKPROCESSOR_INLINE_HPP
+#ifndef SHARE_GC_SHARED_WEAKPROCESSOR_INLINE_HPP
+#define SHARE_GC_SHARED_WEAKPROCESSOR_INLINE_HPP
 
+#include "classfile/stringTable.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
 #include "gc/shared/oopStorageParState.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/weakProcessorPhases.hpp"
 #include "gc/shared/weakProcessorPhaseTimes.hpp"
 #include "gc/shared/workgroup.hpp"
+#include "prims/resolvedMethodTable.hpp"
 #include "utilities/debug.hpp"
 
 class BoolObjectClosure;
 class OopClosure;
+
+template<typename IsAlive>
+class CountingIsAliveClosure : public BoolObjectClosure {
+  IsAlive* _inner;
+
+  size_t _num_dead;
+  size_t _num_total;
+
+public:
+  CountingIsAliveClosure(IsAlive* cl) : _inner(cl), _num_dead(0), _num_total(0) { }
+
+  virtual bool do_object_b(oop obj) {
+    bool result = _inner->do_object_b(obj);
+    _num_dead += !result;
+    _num_total++;
+    return result;
+  }
+
+  size_t num_dead() const { return _num_dead; }
+  size_t num_total() const { return _num_total; }
+};
+
+template <typename IsAlive, typename KeepAlive>
+class CountingSkippedIsAliveClosure : public Closure {
+  CountingIsAliveClosure<IsAlive> _counting_is_alive;
+  KeepAlive* _keep_alive;
+
+  size_t _num_skipped;
+
+public:
+  CountingSkippedIsAliveClosure(IsAlive* is_alive, KeepAlive* keep_alive) :
+    _counting_is_alive(is_alive), _keep_alive(keep_alive), _num_skipped(0) { }
+
+  void do_oop(oop* p) {
+    oop obj = *p;
+    if (obj == NULL) {
+      _num_skipped++;
+    } else if (_counting_is_alive.do_object_b(obj)) {
+      _keep_alive->do_oop(p);
+    } else {
+      *p = NULL;
+    }
+  }
+
+  size_t num_dead() const { return _counting_is_alive.num_dead(); }
+  size_t num_skipped() const { return _num_skipped; }
+  size_t num_total() const { return _counting_is_alive.num_total() + num_skipped(); }
+};
 
 template<typename IsAlive, typename KeepAlive>
 void WeakProcessor::Task::work(uint worker_id,
@@ -44,17 +95,36 @@ void WeakProcessor::Task::work(uint worker_id,
          "worker_id (%u) exceeds task's configured workers (%u)",
          worker_id, _nworkers);
 
-  FOR_EACH_WEAK_PROCESSOR_PHASE(phase) {
-    if (WeakProcessorPhases::is_serial(phase)) {
-      uint serial_index = WeakProcessorPhases::serial_index(phase);
-      if (_serial_phases_done.try_claim_task(serial_index)) {
-        WeakProcessorPhaseTimeTracker pt(_phase_times, phase);
-        WeakProcessorPhases::processor(phase)(is_alive, keep_alive);
+  typedef WeakProcessorPhases::Iterator Iterator;
+
+  for (Iterator it = WeakProcessorPhases::serial_iterator(); !it.is_end(); ++it) {
+    WeakProcessorPhase phase = *it;
+    CountingIsAliveClosure<IsAlive> cl(is_alive);
+    uint serial_index = WeakProcessorPhases::serial_index(phase);
+    if (_serial_phases_done.try_claim_task(serial_index)) {
+      WeakProcessorPhaseTimeTracker pt(_phase_times, phase);
+      WeakProcessorPhases::processor(phase)(&cl, keep_alive);
+      if (_phase_times != NULL) {
+        _phase_times->record_phase_items(phase, cl.num_dead(), cl.num_total());
       }
-    } else {
-      WeakProcessorPhaseTimeTracker pt(_phase_times, phase, worker_id);
-      uint storage_index = WeakProcessorPhases::oop_storage_index(phase);
-      _storage_states[storage_index].weak_oops_do(is_alive, keep_alive);
+    }
+  }
+
+  for (Iterator it = WeakProcessorPhases::oopstorage_iterator(); !it.is_end(); ++it) {
+    WeakProcessorPhase phase = *it;
+    CountingSkippedIsAliveClosure<IsAlive, KeepAlive> cl(is_alive, keep_alive);
+    WeakProcessorPhaseTimeTracker pt(_phase_times, phase, worker_id);
+    uint oopstorage_index = WeakProcessorPhases::oopstorage_index(phase);
+    StorageState& cur_state = _storage_states[oopstorage_index];
+    cur_state.oops_do(&cl);
+    if (_phase_times != NULL) {
+      _phase_times->record_worker_items(worker_id, phase, cl.num_dead(), cl.num_total());
+    }
+    const OopStorage* cur_storage = cur_state.storage();
+    if (cur_storage == OopStorageSet::string_table_weak()) {
+      StringTable::inc_dead_counter(cl.num_dead() + cl.num_skipped());
+    } else if (cur_storage == OopStorageSet::resolved_method_table_weak()) {
+      ResolvedMethodTable::inc_dead_counter(cl.num_dead() + cl.num_skipped());
     }
   }
 
@@ -116,4 +186,4 @@ void WeakProcessor::weak_oops_do(WorkGang* workers,
   pt.log_print_phases(indent_log);
 }
 
-#endif // SHARE_VM_GC_SHARED_WEAKPROCESSOR_INLINE_HPP
+#endif // SHARE_GC_SHARED_WEAKPROCESSOR_INLINE_HPP

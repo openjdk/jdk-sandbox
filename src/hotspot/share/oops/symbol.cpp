@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,16 @@
 #include "precompiled.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/classLoaderData.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_length_and_refcount(int length, int refcount) {
   STATIC_ASSERT(max_symbol_length == ((1 << 16) - 1));
@@ -54,13 +57,13 @@ Symbol::Symbol(const u1* name, int length, int refcount) {
   }
 }
 
-void* Symbol::operator new(size_t sz, int len, TRAPS) throw() {
+void* Symbol::operator new(size_t sz, int len) throw() {
   int alloc_size = size(len)*wordSize;
   address res = (address) AllocateHeap(alloc_size, mtSymbol);
   return res;
 }
 
-void* Symbol::operator new(size_t sz, int len, Arena* arena, TRAPS) throw() {
+void* Symbol::operator new(size_t sz, int len, Arena* arena) throw() {
   int alloc_size = size(len)*wordSize;
   address res = (address)arena->Amalloc_4(alloc_size);
   return res;
@@ -71,6 +74,13 @@ void Symbol::operator delete(void *p) {
   FreeHeap(p);
 }
 
+void Symbol::set_permanent() {
+  // This is called at a safepoint during dumping of a dynamic CDS archive.
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
+  _length_and_refcount =  pack_length_and_refcount(length(), PERM_REFCOUNT);
+}
+
+
 // ------------------------------------------------------------------
 // Symbol::starts_with
 //
@@ -79,7 +89,7 @@ void Symbol::operator delete(void *p) {
 bool Symbol::starts_with(const char* prefix, int len) const {
   if (len > utf8_length()) return false;
   while (len-- > 0) {
-    if (prefix[len] != (char) byte_at(len))
+    if (prefix[len] != char_at(len))
       return false;
   }
   assert(len == -1, "we should be at the beginning");
@@ -117,7 +127,7 @@ char* Symbol::as_C_string(char* buf, int size) const {
   if (size > 0) {
     int len = MIN2(size - 1, utf8_length());
     for (int i = 0; i < len; i++) {
-      buf[i] = byte_at(i);
+      buf[i] = char_at(i);
     }
     buf[len] = '\0';
   }
@@ -128,19 +138,6 @@ char* Symbol::as_C_string() const {
   int len = utf8_length();
   char* str = NEW_RESOURCE_ARRAY(char, len + 1);
   return as_C_string(str, len + 1);
-}
-
-char* Symbol::as_C_string_flexible_buffer(Thread* t,
-                                                 char* buf, int size) const {
-  char* str;
-  int len = utf8_length();
-  int buf_len = len + 1;
-  if (size < buf_len) {
-    str = NEW_RESOURCE_ARRAY(char, buf_len);
-  } else {
-    str = buf;
-  }
-  return as_C_string(str, buf_len);
 }
 
 void Symbol::print_utf8_on(outputStream* st) const {
@@ -211,11 +208,64 @@ const char* Symbol::as_klass_external_name() const {
   return str;
 }
 
-// Alternate hashing for unbalanced symbol tables.
-unsigned int Symbol::new_hash(juint seed) {
-  ResourceMark rm;
-  // Use alternate hashing algorithm on this symbol.
-  return AltHashing::murmur3_32(seed, (const jbyte*)as_C_string(), utf8_length());
+static void print_class(outputStream *os, char *class_str, int len) {
+  for (int i = 0; i < len; ++i) {
+    if (class_str[i] == '/') {
+      os->put('.');
+    } else {
+      os->put(class_str[i]);
+    }
+  }
+}
+
+static void print_array(outputStream *os, char *array_str, int len) {
+  int dimensions = 0;
+  for (int i = 0; i < len; ++i) {
+    if (array_str[i] == '[') {
+      dimensions++;
+    } else if (array_str[i] == 'L') {
+      // Expected format: L<type name>;. Skip 'L' and ';' delimiting the type name.
+      print_class(os, array_str+i+1, len-i-2);
+      break;
+    } else {
+      os->print("%s", type2name(char2type(array_str[i])));
+    }
+  }
+  for (int i = 0; i < dimensions; ++i) {
+    os->print("[]");
+  }
+}
+
+void Symbol::print_as_signature_external_return_type(outputStream *os) {
+  for (SignatureStream ss(this); !ss.is_done(); ss.next()) {
+    if (ss.at_return_type()) {
+      if (ss.is_array()) {
+        print_array(os, (char*)ss.raw_bytes(), (int)ss.raw_length());
+      } else if (ss.is_object()) {
+        // Expected format: L<type name>;. Skip 'L' and ';' delimiting the class name.
+        print_class(os, (char*)ss.raw_bytes()+1, (int)ss.raw_length()-2);
+      } else {
+        os->print("%s", type2name(ss.type()));
+      }
+    }
+  }
+}
+
+void Symbol::print_as_signature_external_parameters(outputStream *os) {
+  bool first = true;
+  for (SignatureStream ss(this); !ss.is_done(); ss.next()) {
+    if (ss.at_return_type()) break;
+    if (!first) { os->print(", "); }
+    if (ss.is_array()) {
+      print_array(os, (char*)ss.raw_bytes(), (int)ss.raw_length());
+    } else if (ss.is_object()) {
+      // Skip 'L' and ';'.
+      print_class(os, (char*)ss.raw_bytes()+1, (int)ss.raw_length()-2);
+    } else {
+      os->print("%s", type2name(ss.type()));
+    }
+    first = false;
+  }
 }
 
 // Increment refcount while checking for zero.  If the Symbol's refcount becomes zero
@@ -283,6 +333,30 @@ void Symbol::decrement_refcount() {
   }
 }
 
+void Symbol::make_permanent() {
+  uint32_t found = _length_and_refcount;
+  while (true) {
+    uint32_t old_value = found;
+    int refc = extract_refcount(old_value);
+    if (refc == PERM_REFCOUNT) {
+      return;  // refcount is permanent, permanent is sticky
+    } else if (refc == 0) {
+#ifdef ASSERT
+      print();
+      fatal("refcount underflow");
+#endif
+      return;
+    } else {
+      int len = extract_length(old_value);
+      found = Atomic::cmpxchg(pack_length_and_refcount(len, PERM_REFCOUNT), &_length_and_refcount, old_value);
+      if (found == old_value) {
+        return;  // successfully updated.
+      }
+      // refcount changed, try again.
+    }
+  }
+}
+
 void Symbol::metaspace_pointers_do(MetaspaceClosure* it) {
   if (log_is_enabled(Trace, cds)) {
     LogStream trace_stream(Log(cds)::trace());
@@ -293,28 +367,40 @@ void Symbol::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Symbol::print_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print_cr("NULL");
-  } else {
-    st->print("Symbol: '");
-    print_symbol_on(st);
-    st->print("'");
-    st->print(" count %d", refcount());
-  }
+  st->print("Symbol: '");
+  print_symbol_on(st);
+  st->print("'");
+  st->print(" count %d", refcount());
 }
+
+void Symbol::print() const { print_on(tty); }
 
 // The print_value functions are present in all builds, to support the
 // disassembler and error reporting.
 void Symbol::print_value_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print("NULL");
-  } else {
-    st->print("'");
-    for (int i = 0; i < utf8_length(); i++) {
-      st->print("%c", byte_at(i));
-    }
-    st->print("'");
+  st->print("'");
+  for (int i = 0; i < utf8_length(); i++) {
+    st->print("%c", char_at(i));
   }
+  st->print("'");
+}
+
+void Symbol::print_value() const { print_value_on(tty); }
+
+bool Symbol::is_valid(Symbol* s) {
+  if (!is_aligned(s, sizeof(MetaWord))) return false;
+  if ((size_t)s < os::min_page_size()) return false;
+
+  if (!os::is_readable_range(s, s + 1)) return false;
+
+  // Symbols are not allocated in Java heap.
+  if (Universe::heap()->is_in(s)) return false;
+
+  int len = s->utf8_length();
+  if (len < 0) return false;
+
+  jbyte* bytes = (jbyte*) s->bytes();
+  return os::is_readable_range(bytes, bytes + len);
 }
 
 // SymbolTable prints this in its statistics

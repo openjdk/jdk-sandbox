@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_ITERATOR_HPP
-#define SHARE_VM_MEMORY_ITERATOR_HPP
+#ifndef SHARE_MEMORY_ITERATOR_HPP
+#define SHARE_MEMORY_ITERATOR_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
@@ -36,6 +36,7 @@ class DataLayout;
 class KlassClosure;
 class ClassLoaderData;
 class Symbol;
+class Metadata;
 
 // The following classes are C++ `closures` for iterating over objects, roots and spaces
 
@@ -124,29 +125,45 @@ class CLDClosure : public Closure {
   virtual void do_cld(ClassLoaderData* cld) = 0;
 };
 
+class MetadataClosure : public Closure {
+ public:
+  virtual void do_metadata(Metadata* md) = 0;
+};
+
 
 class CLDToOopClosure : public CLDClosure {
   OopClosure*       _oop_closure;
-  bool              _must_claim_cld;
+  int               _cld_claim;
 
  public:
-  CLDToOopClosure(OopClosure* oop_closure, bool must_claim_cld = true) :
+  CLDToOopClosure(OopClosure* oop_closure,
+                  int cld_claim) :
       _oop_closure(oop_closure),
-      _must_claim_cld(must_claim_cld) {}
+      _cld_claim(cld_claim) {}
 
   void do_cld(ClassLoaderData* cld);
+};
+
+class ClaimMetadataVisitingOopIterateClosure : public OopIterateClosure {
+ protected:
+  const int _claim;
+
+ public:
+  ClaimMetadataVisitingOopIterateClosure(int claim, ReferenceDiscoverer* rd = NULL) :
+      OopIterateClosure(rd),
+      _claim(claim) { }
+
+  virtual bool do_metadata() { return true; }
+  virtual void do_klass(Klass* k);
+  virtual void do_cld(ClassLoaderData* cld);
 };
 
 // The base class for all concurrent marking closures,
 // that participates in class unloading.
 // It's used to proxy through the metadata to the oops defined in them.
-class MetadataVisitingOopIterateClosure: public OopIterateClosure {
+class MetadataVisitingOopIterateClosure: public ClaimMetadataVisitingOopIterateClosure {
  public:
-  MetadataVisitingOopIterateClosure(ReferenceDiscoverer* rd = NULL) : OopIterateClosure(rd) { }
-
-  virtual bool do_metadata() { return true; }
-  virtual void do_klass(Klass* k);
-  virtual void do_cld(ClassLoaderData* cld);
+  MetadataVisitingOopIterateClosure(ReferenceDiscoverer* rd = NULL);
 };
 
 // ObjectClosure is used for iterating through an object space
@@ -262,6 +279,11 @@ class MarkingCodeBlobClosure : public CodeBlobToOopClosure {
   virtual void do_code_blob(CodeBlob* cb);
 };
 
+class NMethodClosure : public Closure {
+ public:
+  virtual void do_nmethod(nmethod* n) = 0;
+};
+
 // MonitorClosure is used for iterating over monitors in the monitors cache
 
 class ObjectMonitor;
@@ -309,6 +331,9 @@ public:
 
   // Read/write the 32-bit unsigned integer pointed to by p.
   virtual void do_u4(u4* p) = 0;
+
+  // Read/write the bool pointed to by p.
+  virtual void do_bool(bool* p) = 0;
 
   // Read/write the region specified.
   virtual void do_region(u_char* start, size_t size) = 0;
@@ -361,4 +386,4 @@ class OopIteratorClosureDispatch {
   template <typename OopClosureType> static void oop_oop_iterate_backwards(OopClosureType* cl, oop obj, Klass* klass);
 };
 
-#endif // SHARE_VM_MEMORY_ITERATOR_HPP
+#endif // SHARE_MEMORY_ITERATOR_HPP

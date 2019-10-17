@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
 #include "logging/log.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/handles.inline.hpp"
 
 VerificationType VerificationType::from_tag(u1 tag) {
@@ -50,7 +51,6 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
   Klass* this_class = SystemDictionary::resolve_or_fail(
       name, Handle(THREAD, klass->class_loader()),
       Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-  klass->class_loader_data()->record_dependency(this_class);
   if (log_is_enabled(Debug, class, resolve)) {
     Verifier::trace_class_resolution(this_class, klass);
   }
@@ -68,7 +68,6 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     Klass* from_class = SystemDictionary::resolve_or_fail(
         from_name, Handle(THREAD, klass->class_loader()),
         Handle(THREAD, klass->protection_domain()), true, CHECK_false);
-    klass->class_loader_data()->record_dependency(from_class);
     if (log_is_enabled(Debug, class, resolve)) {
       Verifier::trace_class_resolution(from_class, klass);
     }
@@ -96,12 +95,14 @@ bool VerificationType::is_reference_assignable_from(
       return true;
     }
 
-    if (DumpSharedSpaces && SystemDictionaryShared::add_verification_constraint(klass,
+    if (Arguments::is_dumping_archive()) {
+      if (SystemDictionaryShared::add_verification_constraint(klass,
               name(), from.name(), from_field_is_protected, from.is_array(),
               from.is_object())) {
-      // If add_verification_constraint() returns true, the resolution/check should be
-      // delayed until runtime.
-      return true;
+        // If add_verification_constraint() returns true, the resolution/check should be
+        // delayed until runtime.
+        return true;
+      }
     }
 
     return resolve_and_check_assignability(klass, name(), from.name(),
@@ -111,7 +112,7 @@ bool VerificationType::is_reference_assignable_from(
     VerificationType comp_from = from.get_component(context, CHECK_false);
     if (!comp_this.is_bogus() && !comp_from.is_bogus()) {
       return comp_this.is_component_assignable_from(comp_from, context,
-                                          from_field_is_protected, CHECK_false);
+                                                    from_field_is_protected, THREAD);
     }
   }
   return false;
@@ -120,7 +121,7 @@ bool VerificationType::is_reference_assignable_from(
 VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) const {
   assert(is_array() && name()->utf8_length() >= 2, "Must be a valid array");
   Symbol* component;
-  switch (name()->byte_at(1)) {
+  switch (name()->char_at(1)) {
     case 'Z': return VerificationType(Boolean);
     case 'B': return VerificationType(Byte);
     case 'C': return VerificationType(Char);
@@ -131,13 +132,11 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
     case 'D': return VerificationType(Double);
     case '[':
       component = context->create_temporary_symbol(
-        name(), 1, name()->utf8_length(),
-        CHECK_(VerificationType::bogus_type()));
+        name(), 1, name()->utf8_length());
       return VerificationType::reference_type(component);
     case 'L':
       component = context->create_temporary_symbol(
-        name(), 2, name()->utf8_length() - 1,
-        CHECK_(VerificationType::bogus_type()));
+        name(), 2, name()->utf8_length() - 1);
       return VerificationType::reference_type(component);
     default:
       // Met an invalid type signature, e.g. [X
@@ -172,7 +171,11 @@ void VerificationType::print_on(outputStream* st) const {
       } else if (is_uninitialized()) {
         st->print("uninitialized %d", bci());
       } else {
-        name()->print_value_on(st);
+        if (name() != NULL) {
+          name()->print_value_on(st);
+        } else {
+          st->print_cr("NULL");
+        }
       }
   }
 }

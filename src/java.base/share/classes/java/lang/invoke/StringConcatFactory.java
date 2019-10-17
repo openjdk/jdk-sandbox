@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,18 @@
 package java.lang.invoke;
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Opcodes;
-import jdk.internal.vm.annotation.ForceInline;
 import sun.invoke.util.Wrapper;
-import sun.security.action.GetPropertyAction;
 
 import java.lang.invoke.MethodHandles.Lookup;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
@@ -191,6 +189,8 @@ public final class StringConcatFactory {
      */
     private static final ProxyClassesDumper DUMPER;
 
+    private static final Class<?> STRING_HELPER;
+
     static {
         // In case we need to double-back onto the StringConcatFactory during this
         // static initialization, make sure we have the reasonable defaults to complete
@@ -202,15 +202,20 @@ public final class StringConcatFactory {
         // DEBUG = false;        // implied
         // DUMPER = null;        // implied
 
-        Properties props = GetPropertyAction.privilegedGetProperties();
+        try {
+            STRING_HELPER = Class.forName("java.lang.StringConcatHelper");
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+
         final String strategy =
-                props.getProperty("java.lang.invoke.stringConcat");
+                VM.getSavedProperty("java.lang.invoke.stringConcat");
         CACHE_ENABLE = Boolean.parseBoolean(
-                props.getProperty("java.lang.invoke.stringConcat.cache"));
+                VM.getSavedProperty("java.lang.invoke.stringConcat.cache"));
         DEBUG = Boolean.parseBoolean(
-                props.getProperty("java.lang.invoke.stringConcat.debug"));
+                VM.getSavedProperty("java.lang.invoke.stringConcat.debug"));
         final String dumpPath =
-                props.getProperty("java.lang.invoke.stringConcat.dumpClasses");
+                VM.getSavedProperty("java.lang.invoke.stringConcat.dumpClasses");
 
         STRATEGY = (strategy == null) ? DEFAULT_STRATEGY : Strategy.valueOf(strategy);
         CACHE = CACHE_ENABLE ? new ConcurrentHashMap<>() : null;
@@ -318,6 +323,13 @@ public final class StringConcatFactory {
         }
 
         @Override
+        public String toString() {
+            return "Recipe{" +
+                    "elements=" + elements +
+                    '}';
+        }
+
+        @Override
         public int hashCode() {
             return elements.hashCode();
         }
@@ -365,6 +377,15 @@ public final class StringConcatFactory {
             if (this.tag == TAG_CONST && (!value.equals(that.value))) return false;
             if (this.tag == TAG_ARG && (argPos != that.argPos)) return false;
             return true;
+        }
+
+        @Override
+        public String toString() {
+            return "RecipeElement{" +
+                    "value='" + value + '\'' +
+                    ", argPos=" + argPos +
+                    ", tag=" + tag +
+                    '}';
         }
 
         @Override
@@ -1503,6 +1524,39 @@ public final class StringConcatFactory {
 
         static MethodHandle generate(MethodType mt, Recipe recipe) throws Throwable {
 
+            // Fast-path two-argument Object + Object concatenations
+            if (recipe.getElements().size() == 2) {
+                // Two object arguments
+                if (mt.parameterCount() == 2 &&
+                    !mt.parameterType(0).isPrimitive() &&
+                    !mt.parameterType(1).isPrimitive() &&
+                    recipe.getElements().get(0).getTag() == TAG_ARG &&
+                    recipe.getElements().get(1).getTag() == TAG_ARG) {
+
+                    return SIMPLE;
+
+                } else if (mt.parameterCount() == 1 &&
+                           !mt.parameterType(0).isPrimitive()) {
+                    // One Object argument, one constant
+                    MethodHandle mh = SIMPLE;
+
+                    if (recipe.getElements().get(0).getTag() == TAG_CONST &&
+                        recipe.getElements().get(1).getTag() == TAG_ARG) {
+                        // First recipe element is a constant
+                        return MethodHandles.insertArguments(mh, 0,
+                                recipe.getElements().get(0).getValue());
+
+                    } else if (recipe.getElements().get(1).getTag() == TAG_CONST &&
+                               recipe.getElements().get(0).getTag() == TAG_ARG) {
+                        // Second recipe element is a constant
+                        return MethodHandles.insertArguments(mh, 1,
+                                recipe.getElements().get(1).getValue());
+
+                    }
+                }
+                // else... fall-through to slow-path
+            }
+
             // Create filters and obtain filtered parameter types. Filters would be used in the beginning
             // to convert the incoming arguments into the arguments we can process (e.g. Objects -> Strings).
             // The filtered argument type list is used all over in the combinators below.
@@ -1520,35 +1574,57 @@ public final class StringConcatFactory {
             }
 
             // Start building the combinator tree. The tree "starts" with (<parameters>)String, and "finishes"
-            // with the (int, byte[], byte)String in String helper. The combinators are assembled bottom-up,
-            // which makes the code arguably hard to read.
+            // with the (byte[], long)String shape to invoke newString in StringConcatHelper. The combinators are
+            // assembled bottom-up, which makes the code arguably hard to read.
 
             // Drop all remaining parameter types, leave only helper arguments:
             MethodHandle mh;
 
-            mh = MethodHandles.dropArguments(NEW_STRING, 3, ptypes);
+            mh = MethodHandles.dropArguments(NEW_STRING, 2, ptypes);
 
-            // Mix in prependers. This happens when (byte[], int, byte) = (storage, index, coder) is already
-            // known from the combinators below. We are assembling the string backwards, so "index" is the
-            // *ending* index.
+            long initialLengthCoder = INITIAL_CODER;
+
+            // Mix in prependers. This happens when (byte[], long) = (storage, indexCoder) is already
+            // known from the combinators below. We are assembling the string backwards, so the index coded
+            // into indexCoder is the *ending* index.
+
+            // We need one prepender per argument, but also need to fold in constants. We do so by greedily
+            // create prependers that fold in surrounding constants into the argument prepender. This reduces
+            // the number of unique MH combinator tree shapes we'll create in an application.
+            String prefixConstant = null, suffixConstant = null;
+            int pos = -1;
             for (RecipeElement el : recipe.getElements()) {
                 // Do the prepend, and put "new" index at index 1
-                mh = MethodHandles.dropArguments(mh, 2, int.class);
                 switch (el.getTag()) {
                     case TAG_CONST: {
-                        MethodHandle prepender = MethodHandles.insertArguments(prepender(String.class), 3, el.getValue());
-                        mh = MethodHandles.foldArguments(mh, 1, prepender,
-                                2, 0, 3 // index, storage, coder
-                        );
+                        String constantValue = el.getValue();
+
+                        // Eagerly update the initialLengthCoder value
+                        initialLengthCoder = (long)mixer(String.class).invoke(initialLengthCoder, constantValue);
+
+                        if (pos < 0) {
+                            // Collecting into prefixConstant
+                            prefixConstant = prefixConstant == null ? constantValue : prefixConstant + constantValue;
+                        } else {
+                            // Collecting into suffixConstant
+                            suffixConstant = suffixConstant == null ? constantValue : suffixConstant + constantValue;
+                        }
                         break;
                     }
                     case TAG_ARG: {
-                        int pos = el.getArgPos();
-                        MethodHandle prepender = prepender(ptypes[pos]);
-                        mh = MethodHandles.foldArguments(mh, 1, prepender,
-                                2, 0, 3, // index, storage, coder
-                                4 + pos  // selected argument
-                        );
+
+                        if (pos >= 0) {
+                            // Flush the previous non-constant arg with any prefix/suffix constant
+                            mh = MethodHandles.filterArgumentsWithCombiner(
+                                mh, 1,
+                                prepender(prefixConstant, ptypes[pos], suffixConstant),
+                                1, 0, // indexCoder, storage
+                                2 + pos  // selected argument
+                            );
+                            prefixConstant = suffixConstant = null;
+                        }
+                        // Mark the pos of next non-constant arg
+                        pos = el.getArgPos();
                         break;
                     }
                     default:
@@ -1556,9 +1632,27 @@ public final class StringConcatFactory {
                 }
             }
 
+            // Insert any trailing args, constants
+            if (pos >= 0) {
+                mh = MethodHandles.filterArgumentsWithCombiner(
+                    mh, 1,
+                    prepender(prefixConstant, ptypes[pos], suffixConstant),
+                    1, 0, // indexCoder, storage
+                    2 + pos  // selected argument
+                );
+            } else if (prefixConstant != null) {
+                assert (suffixConstant == null);
+                // Sole prefixConstant can only happen if there were no non-constant arguments
+                mh = MethodHandles.filterArgumentsWithCombiner(
+                    mh, 1,
+                    MethodHandles.insertArguments(prepender(null, String.class, null), 2, prefixConstant),
+                    1, 0 // indexCoder, storage
+                );
+            }
+
             // Fold in byte[] instantiation at argument 0
-            mh = MethodHandles.foldArguments(mh, 0, NEW_ARRAY,
-                    1, 2 // index, coder
+            mh = MethodHandles.foldArgumentsWithCombiner(mh, 0, NEW_ARRAY,
+                    1 // index
             );
 
             // Start combining length and coder mixers.
@@ -1570,55 +1664,55 @@ public final class StringConcatFactory {
             // Coders are more interesting. Only Object, String and char arguments (and constants)
             // can have non-Latin1 encoding. It is easier to blindly convert constants to String,
             // and deduce the coder from there. Arguments would be either converted to Strings
-            // during the initial filtering, or handled by primitive specializations in CODER_MIXERS.
+            // during the initial filtering, or handled by specializations in MIXERS.
             //
-            // The method handle shape after all length and coder mixers is:
-            //   (int, byte, <args>)String = ("index", "coder", <args>)
-            byte initialCoder = INITIAL_CODER;
-            int initialLen = 0;    // initial length, in characters
+            // The method handle shape before all mixers are combined in is:
+            //   (long, <args>)String = ("indexCoder", <args>)
+            //
+            // We will bind the initialLengthCoder value to the last mixer (the one that will be
+            // executed first), then fold that in. This leaves the shape after all mixers are
+            // combined in as:
+            //   (<args>)String = (<args>)
+
+            int ac = -1;
+            MethodHandle mix = null;
             for (RecipeElement el : recipe.getElements()) {
                 switch (el.getTag()) {
                     case TAG_CONST:
-                        String constant = el.getValue();
-                        initialCoder = (byte) coderMixer(String.class).invoke(initialCoder, constant);
-                        initialLen += constant.length();
+                        // Constants already handled in the code above
                         break;
                     case TAG_ARG:
-                        int ac = el.getArgPos();
+                        if (ac >= 0) {
+                            // Compute new "index" in-place using old value plus the appropriate argument.
+                            mh = MethodHandles.filterArgumentsWithCombiner(mh, 0, mix,
+                                    0, // old-index
+                                    1 + ac // selected argument
+                            );
+                        }
 
+                        ac = el.getArgPos();
                         Class<?> argClass = ptypes[ac];
-                        MethodHandle lm = lengthMixer(argClass);
-                        MethodHandle cm = coderMixer(argClass);
+                        mix = mixer(argClass);
 
-                        // Read this bottom up:
-
-                        // 4. Drop old index and coder, producing ("new-index", "new-coder", <args>)
-                        mh = MethodHandles.dropArguments(mh, 2, int.class, byte.class);
-
-                        // 3. Compute "new-index", producing ("new-index", "new-coder", "old-index", "old-coder", <args>)
-                        //    Length mixer needs old index, plus the appropriate argument
-                        mh = MethodHandles.foldArguments(mh, 0, lm,
-                                2, // old-index
-                                4 + ac // selected argument
-                        );
-
-                        // 2. Compute "new-coder", producing ("new-coder", "old-index", "old-coder", <args>)
-                        //    Coder mixer needs old coder, plus the appropriate argument.
-                        mh = MethodHandles.foldArguments(mh, 0, cm,
-                                2, // old-coder
-                                3 + ac // selected argument
-                        );
-
-                        // 1. The mh shape here is ("old-index", "old-coder", <args>)
                         break;
                     default:
                         throw new StringConcatException("Unhandled tag: " + el.getTag());
                 }
             }
 
-            // Insert initial lengths and coders here.
+            // Insert the initialLengthCoder value into the final mixer, then
+            // fold that into the base method handle
+            if (ac >= 0) {
+                mix = MethodHandles.insertArguments(mix, 0, initialLengthCoder);
+                mh = MethodHandles.foldArgumentsWithCombiner(mh, 0, mix,
+                        1 + ac // selected argument
+                );
+            } else {
+                // No mixer (constants only concat), insert initialLengthCoder directly
+                mh = MethodHandles.insertArguments(mh, 0, initialLengthCoder);
+            }
+
             // The method handle shape here is (<args>).
-            mh = MethodHandles.insertArguments(mh, 0, initialLen, initialCoder);
 
             // Apply filters, converting the arguments:
             if (filters != null) {
@@ -1628,73 +1722,55 @@ public final class StringConcatFactory {
             return mh;
         }
 
-        @ForceInline
-        private static byte[] newArray(int length, byte coder) {
-            return (byte[]) UNSAFE.allocateUninitializedArray(byte.class, length << coder);
+        private static MethodHandle prepender(String prefix, Class<?> cl, String suffix) {
+            return MethodHandles.insertArguments(
+                    MethodHandles.insertArguments(
+                        PREPENDERS.computeIfAbsent(cl, PREPEND),2, prefix), 3, suffix);
         }
 
-        private static MethodHandle prepender(Class<?> cl) {
-            return PREPENDERS.computeIfAbsent(cl, PREPEND);
-        }
-
-        private static MethodHandle coderMixer(Class<?> cl) {
-            return CODER_MIXERS.computeIfAbsent(cl, CODER_MIX);
-        }
-
-        private static MethodHandle lengthMixer(Class<?> cl) {
-            return LENGTH_MIXERS.computeIfAbsent(cl, LENGTH_MIX);
+        private static MethodHandle mixer(Class<?> cl) {
+            return MIXERS.computeIfAbsent(cl, MIX);
         }
 
         // This one is deliberately non-lambdified to optimize startup time:
-        private static final Function<Class<?>, MethodHandle> PREPEND = new Function<Class<?>, MethodHandle>() {
+        private static final Function<Class<?>, MethodHandle> PREPEND = new Function<>() {
             @Override
             public MethodHandle apply(Class<?> c) {
-                return lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "prepend", int.class, int.class, byte[].class, byte.class,
-                        Wrapper.asPrimitiveType(c));
+                return lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "prepend", long.class, long.class, byte[].class,
+                        String.class, Wrapper.asPrimitiveType(c), String.class);
             }
         };
 
         // This one is deliberately non-lambdified to optimize startup time:
-        private static final Function<Class<?>, MethodHandle> CODER_MIX = new Function<Class<?>, MethodHandle>() {
+        private static final Function<Class<?>, MethodHandle> MIX = new Function<>() {
             @Override
             public MethodHandle apply(Class<?> c) {
-                return lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "mixCoder", byte.class, byte.class,
+                return lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "mix", long.class, long.class,
                         Wrapper.asPrimitiveType(c));
             }
         };
 
-        // This one is deliberately non-lambdified to optimize startup time:
-        private static final Function<Class<?>, MethodHandle> LENGTH_MIX = new Function<Class<?>, MethodHandle>() {
-            @Override
-            public MethodHandle apply(Class<?> c) {
-                return lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "mixLen", int.class, int.class,
-                        Wrapper.asPrimitiveType(c));
-            }
-        };
-
+        private static final MethodHandle SIMPLE;
         private static final MethodHandle NEW_STRING;
         private static final MethodHandle NEW_ARRAY;
         private static final ConcurrentMap<Class<?>, MethodHandle> PREPENDERS;
-        private static final ConcurrentMap<Class<?>, MethodHandle> LENGTH_MIXERS;
-        private static final ConcurrentMap<Class<?>, MethodHandle> CODER_MIXERS;
-        private static final byte INITIAL_CODER;
-        static final Class<?> STRING_HELPER;
+        private static final ConcurrentMap<Class<?>, MethodHandle> MIXERS;
+        private static final long INITIAL_CODER;
 
         static {
             try {
-                STRING_HELPER = Class.forName("java.lang.StringConcatHelper");
-                MethodHandle initCoder = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "initialCoder", byte.class);
-                INITIAL_CODER = (byte) initCoder.invoke();
+                MethodHandle initCoder = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "initialCoder", long.class);
+                INITIAL_CODER = (long) initCoder.invoke();
             } catch (Throwable e) {
                 throw new AssertionError(e);
             }
 
             PREPENDERS = new ConcurrentHashMap<>();
-            LENGTH_MIXERS = new ConcurrentHashMap<>();
-            CODER_MIXERS = new ConcurrentHashMap<>();
+            MIXERS = new ConcurrentHashMap<>();
 
-            NEW_STRING = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "newString", String.class, byte[].class, int.class, byte.class);
-            NEW_ARRAY  = lookupStatic(Lookup.IMPL_LOOKUP, MethodHandleInlineCopyStrategy.class, "newArray", byte[].class, int.class, byte.class);
+            SIMPLE     = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "simpleConcat", String.class, Object.class, Object.class);
+            NEW_STRING = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "newString", String.class, byte[].class, long.class);
+            NEW_ARRAY  = lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "newArray", byte[].class, long.class);
         }
     }
 
@@ -1707,30 +1783,21 @@ public final class StringConcatFactory {
             // no instantiation
         }
 
-        private static class StringifierMost extends ClassValue<MethodHandle> {
-            @Override
-            protected MethodHandle computeValue(Class<?> cl) {
-                if (cl == String.class) {
-                    return lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, Object.class);
-                } else if (cl == float.class) {
-                    return lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, float.class);
-                } else if (cl == double.class) {
-                    return lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, double.class);
-                } else if (!cl.isPrimitive()) {
-                    MethodHandle mhObject = lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, Object.class);
+        private static final MethodHandle OBJECT_INSTANCE =
+            lookupStatic(Lookup.IMPL_LOOKUP, STRING_HELPER, "stringOf", String.class, Object.class);
 
-                    // We need the additional conversion here, because String.valueOf(Object) may return null.
-                    // String conversion rules in Java state we need to produce "null" String in this case.
-                    // It can be easily done with applying valueOf the second time.
-                    return MethodHandles.filterReturnValue(mhObject,
-                            mhObject.asType(MethodType.methodType(String.class, String.class)));
-                }
+        private static class FloatStringifiers {
+            private static final MethodHandle FLOAT_INSTANCE =
+                    lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, float.class);
 
-                return null;
-            }
+            private static final MethodHandle DOUBLE_INSTANCE =
+                    lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, double.class);
         }
 
         private static class StringifierAny extends ClassValue<MethodHandle> {
+
+            private static final ClassValue<MethodHandle> INSTANCE = new StringifierAny();
+
             @Override
             protected MethodHandle computeValue(Class<?> cl) {
                 if (cl == byte.class || cl == short.class || cl == int.class) {
@@ -1742,7 +1809,7 @@ public final class StringConcatFactory {
                 } else if (cl == long.class) {
                     return lookupStatic(MethodHandles.publicLookup(), String.class, "valueOf", String.class, long.class);
                 } else {
-                    MethodHandle mh = STRINGIFIERS_MOST.get(cl);
+                    MethodHandle mh = forMost(cl);
                     if (mh != null) {
                         return mh;
                     } else {
@@ -1752,9 +1819,6 @@ public final class StringConcatFactory {
             }
         }
 
-        private static final ClassValue<MethodHandle> STRINGIFIERS_MOST = new StringifierMost();
-        private static final ClassValue<MethodHandle> STRINGIFIERS_ANY = new StringifierAny();
-
         /**
          * Returns a stringifier for references and floats/doubles only.
          * Always returns null for other primitives.
@@ -1763,7 +1827,14 @@ public final class StringConcatFactory {
          * @return stringifier; null, if not available
          */
         static MethodHandle forMost(Class<?> t) {
-            return STRINGIFIERS_MOST.get(t);
+            if (!t.isPrimitive()) {
+                return OBJECT_INSTANCE;
+            } else if (t == float.class) {
+                return FloatStringifiers.FLOAT_INSTANCE;
+            } else if (t == double.class) {
+                return FloatStringifiers.DOUBLE_INSTANCE;
+            }
+            return null;
         }
 
         /**
@@ -1773,7 +1844,7 @@ public final class StringConcatFactory {
          * @return stringifier
          */
         static MethodHandle forAny(Class<?> t) {
-            return STRINGIFIERS_ANY.get(t);
+            return StringifierAny.INSTANCE.get(t);
         }
     }
 

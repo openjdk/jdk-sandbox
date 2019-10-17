@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
-#define CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
+#ifndef CPU_SPARC_ASSEMBLER_SPARC_HPP
+#define CPU_SPARC_ASSEMBLER_SPARC_HPP
 
 #include "asm/register.hpp"
 
@@ -334,6 +334,14 @@ class Assembler : public AbstractAssembler {
     MemIssue   = 1 << 5,
     Lookaside  = 1 << 4
   };
+
+  //---<  calculate length of instruction  >---
+  // With SPARC being a RISC architecture, this always is BytesPerInstWord
+  // instruction must start at passed address
+  static unsigned int instr_len(unsigned char *instr) { return BytesPerInstWord; }
+
+  //---<  longest instructions  >---
+  static unsigned int instr_maxlen() { return BytesPerInstWord; }
 
   static bool is_in_wdisp_range(address a, address b, int nbits) {
     intptr_t d = intptr_t(b) - intptr_t(a);
@@ -1328,4 +1336,4 @@ class Assembler : public AbstractAssembler {
   }
 };
 
-#endif // CPU_SPARC_VM_ASSEMBLER_SPARC_HPP
+#endif // CPU_SPARC_ASSEMBLER_SPARC_HPP

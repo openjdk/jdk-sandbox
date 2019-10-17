@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_PARSE_HPP
-#define SHARE_VM_OPTO_PARSE_HPP
+#ifndef SHARE_OPTO_PARSE_HPP
+#define SHARE_OPTO_PARSE_HPP
 
 #include "ci/ciMethodData.hpp"
 #include "ci/ciTypeFlow.hpp"
@@ -57,6 +57,8 @@ class InlineTree : public ResourceObj {
 
   GrowableArray<InlineTree*> _subtrees;
 
+  bool pass_initial_checks(ciMethod* caller_method, int caller_bci, ciMethod* callee_method);
+
   void print_impl(outputStream* stj, int indent) const PRODUCT_RETURN;
   const char* _msg;
 protected:
@@ -86,6 +88,10 @@ protected:
                                 ciMethod* caller_method,
                                 JVMState* jvms,
                                 WarmCallInfo* wci_result);
+  bool        is_not_reached(ciMethod* callee_method,
+                             ciMethod* caller_method,
+                             int caller_bci,
+                             ciCallProfile& profile);
   void        print_inlining(ciMethod* callee_method, int caller_bci,
                              ciMethod* caller_method, bool success) const;
 
@@ -476,6 +482,8 @@ class Parse : public GraphKit {
   // Helper function to compute array addressing
   Node* array_addressing(BasicType type, int vals, const Type* *result2=NULL);
 
+  void clinit_deopt();
+
   void rtm_deopt();
 
   // Pass current map to exits
@@ -524,14 +532,12 @@ class Parse : public GraphKit {
 
   // common code for making initial checks and forming addresses
   void do_field_access(bool is_get, bool is_field);
-  bool static_field_ok_in_clinit(ciField *field, ciMethod *method);
 
   // common code for actually performing the load or store
   void do_get_xxx(Node* obj, ciField* field, bool is_field);
   void do_put_xxx(Node* obj, ciField* field, bool is_field);
 
   // implementation of object creation bytecodes
-  void emit_guard_for_new(ciInstanceKlass* klass);
   void do_new();
   void do_newarray(BasicType elemtype);
   void do_anewarray();
@@ -629,4 +635,4 @@ class Parse : public GraphKit {
 #endif
 };
 
-#endif // SHARE_VM_OPTO_PARSE_HPP
+#endif // SHARE_OPTO_PARSE_HPP

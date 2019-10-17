@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,21 +25,32 @@
 
 package java.lang.invoke;
 
-import jdk.internal.vm.annotation.Stable;
-import sun.invoke.util.Wrapper;
-import java.lang.ref.WeakReference;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.Constable;
+import java.lang.constant.MethodTypeDesc;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.StringJoiner;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Stream;
+
+import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.BytecodeDescriptor;
-import static java.lang.invoke.MethodHandleStatics.*;
 import sun.invoke.util.VerifyType;
+import sun.invoke.util.Wrapper;
+import sun.security.util.SecurityConstants;
+
+import static java.lang.invoke.MethodHandleStatics.UNSAFE;
+import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
+import static java.lang.invoke.MethodType.fromDescriptor;
 
 /**
  * A method type represents the arguments and return type accepted and
@@ -91,7 +102,11 @@ import sun.invoke.util.VerifyType;
  * @since 1.7
  */
 public final
-class MethodType implements java.io.Serializable {
+class MethodType
+        implements Constable,
+                   TypeDescriptor.OfMethod<Class<?>, MethodType>,
+                   java.io.Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = 292L;  // {rtype, {ptype...}}
 
     // The rtype and ptypes fields define the structural identity of the method type:
@@ -913,8 +928,8 @@ class MethodType implements java.io.Serializable {
                 return false;
             return true;
         }
-        if ((oldForm.primitiveParameterCount() == 0 && oldForm.erasedType == this) ||
-            (newForm.primitiveParameterCount() == 0 && newForm.erasedType == newType)) {
+        if ((!oldForm.hasPrimitives() && oldForm.erasedType == this) ||
+            (!newForm.hasPrimitives() && newForm.erasedType == newType)) {
             // Somewhat complicated test to avoid a loop of 2 or more trips.
             // If either type has only Object parameters, we know we can convert.
             assert(canConvertParameters(srcTypes, dstTypes));
@@ -1060,55 +1075,11 @@ class MethodType implements java.io.Serializable {
         return inv;
     }
 
-    /** Reports the number of JVM stack slots which carry all parameters including and after
-     * the given position, which must be in the range of 0 to
-     * {@code parameterCount} inclusive.  Successive parameters are
-     * more shallowly stacked, and parameters are indexed in the bytecodes
-     * according to their trailing edge.  Thus, to obtain the depth
-     * in the outgoing call stack of parameter {@code N}, obtain
-     * the {@code parameterSlotDepth} of its trailing edge
-     * at position {@code N+1}.
-     * <p>
-     * Parameters of type {@code long} and {@code double} occupy
-     * two stack slots (for historical reasons) and all others occupy one.
-     * Therefore, the number returned is the number of arguments
-     * <em>including</em> and <em>after</em> the given parameter,
-     * <em>plus</em> the number of long or double arguments
-     * at or after the argument for the given parameter.
-     * <p>
-     * This method is included for the benefit of applications that must
-     * generate bytecodes that process method handles and invokedynamic.
-     * @param num an index (zero-based, inclusive) within the parameter types
-     * @return the index of the (shallowest) JVM stack slot transmitting the
-     *         given parameter
-     * @throws IllegalArgumentException if {@code num} is negative or greater than {@code parameterCount()}
-     */
-    /*non-public*/ int parameterSlotDepth(int num) {
-        if (num < 0 || num > ptypes.length)
-            parameterType(num);  // force a range check
-        return form.parameterToArgSlot(num-1);
-    }
-
-    /** Reports the number of JVM stack slots required to receive a return value
-     * from a method of this type.
-     * If the {@link #returnType() return type} is void, it will be zero,
-     * else if the return type is long or double, it will be two, else one.
-     * <p>
-     * This method is included for the benefit of applications that must
-     * generate bytecodes that process method handles and invokedynamic.
-     * @return the number of JVM stack slots (0, 1, or 2) for this type's return value
-     * Will be removed for PFD.
-     */
-    /*non-public*/ int returnSlotCount() {
-        return form.returnSlotCount();
-    }
-
     /**
      * Finds or creates an instance of a method type, given the spelling of its bytecode descriptor.
      * Convenience method for {@link #methodType(java.lang.Class, java.lang.Class[]) methodType}.
-     * Any class or interface name embedded in the descriptor string
-     * will be resolved by calling {@link ClassLoader#loadClass(java.lang.String)}
-     * on the given loader (or if it is null, on the system class loader).
+     * Any class or interface name embedded in the descriptor string will be
+     * resolved by the given loader (or if it is null, on the system class loader).
      * <p>
      * Note that it is possible to encounter method types which cannot be
      * constructed by this method, because their component types are
@@ -1122,10 +1093,19 @@ class MethodType implements java.io.Serializable {
      * @throws NullPointerException if the string is null
      * @throws IllegalArgumentException if the string is not well-formed
      * @throws TypeNotPresentException if a named type cannot be found
+     * @throws SecurityException if the security manager is present and
+     *         {@code loader} is {@code null} and the caller does not have the
+     *         {@link RuntimePermission}{@code ("getClassLoader")}
      */
     public static MethodType fromMethodDescriptorString(String descriptor, ClassLoader loader)
         throws IllegalArgumentException, TypeNotPresentException
     {
+        if (loader == null) {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkPermission(SecurityConstants.GET_CLASSLOADER_PERMISSION);
+            }
+        }
         return fromDescriptor(descriptor,
                               (loader == null) ? ClassLoader.getSystemClassLoader() : loader);
     }
@@ -1175,8 +1155,41 @@ class MethodType implements java.io.Serializable {
         return desc;
     }
 
+    /**
+     * Return a field type descriptor string for this type
+     *
+     * @return the descriptor string
+     * @jvms 4.3.2 Field Descriptors
+     * @since 12
+     */
+    @Override
+    public String descriptorString() {
+        return toMethodDescriptorString();
+    }
+
     /*non-public*/ static String toFieldDescriptorString(Class<?> cls) {
         return BytecodeDescriptor.unparse(cls);
+    }
+
+    /**
+     * Return a nominal descriptor for this instance, if one can be
+     * constructed, or an empty {@link Optional} if one cannot be.
+     *
+     * @return An {@link Optional} containing the resulting nominal descriptor,
+     * or an empty {@link Optional} if one cannot be constructed.
+     * @since 12
+     */
+    @Override
+    public Optional<MethodTypeDesc> describeConstable() {
+        try {
+            return Optional.of(MethodTypeDesc.of(returnType().describeConstable().orElseThrow(),
+                                                 Stream.of(parameterArray())
+                                                      .map(p -> p.describeConstable().orElseThrow())
+                                                      .toArray(ClassDesc[]::new)));
+        }
+        catch (NoSuchElementException e) {
+            return Optional.empty();
+        }
     }
 
     /// Serialization.
@@ -1184,6 +1197,7 @@ class MethodType implements java.io.Serializable {
     /**
      * There are no serializable fields for {@code MethodType}.
      */
+    @java.io.Serial
     private static final java.io.ObjectStreamField[] serialPersistentFields = { };
 
     /**
@@ -1206,6 +1220,7 @@ s.writeObject(this.parameterArray());
      * @param s the stream to write the object to
      * @throws java.io.IOException if there is a problem writing the object
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s) throws java.io.IOException {
         s.defaultWriteObject();  // requires serialPersistentFields to be an empty array
         s.writeObject(returnType());
@@ -1225,6 +1240,7 @@ s.writeObject(this.parameterArray());
      * @see #readResolve
      * @see #writeObject
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
         // Assign temporary defaults in case this object escapes
         MethodType_init(void.class, NO_PTYPES);
@@ -1245,8 +1261,8 @@ s.writeObject(this.parameterArray());
         // store them into the implementation-specific final fields.
         checkRtype(rtype);
         checkPtypes(ptypes);
-        UNSAFE.putObject(this, OffsetHolder.rtypeOffset, rtype);
-        UNSAFE.putObject(this, OffsetHolder.ptypesOffset, ptypes);
+        UNSAFE.putReference(this, OffsetHolder.rtypeOffset, rtype);
+        UNSAFE.putReference(this, OffsetHolder.ptypesOffset, ptypes);
     }
 
     // Support for resetting final fields while deserializing. Implement Holder
@@ -1264,6 +1280,7 @@ s.writeObject(this.parameterArray());
      * after serialization.
      * @return the fully initialized {@code MethodType} object
      */
+    @java.io.Serial
     private Object readResolve() {
         // Do not use a trusted path for deserialization:
         //    return makeImpl(rtype, ptypes, true);

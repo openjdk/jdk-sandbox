@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ import java.util.LinkedHashSet;
  * (closing, resizing, etc).
  * <p>
  * For further documentation and examples see
- * <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/internalframe.html">How to Use Internal Frames</a>,
+ * <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/internalframe.html">How to Use Internal Frames</a>,
  * a section in <em>The Java Tutorial</em>.
  * <p>
  * <strong>Warning:</strong> Swing is not thread safe. For more
@@ -133,7 +133,7 @@ public class JDesktopPane extends JLayeredPane implements Accessible
 
         setFocusTraversalPolicy(new LayoutFocusTraversalPolicy() {
             public Component getDefaultComponent(Container c) {
-                JInternalFrame jifArray[] = getAllFrames();
+                JInternalFrame[] jifArray = getAllFrames();
                 Component comp = null;
                 for (JInternalFrame jif : jifArray) {
                     comp = jif.getFocusTraversalPolicy().getDefaultComponent(jif);

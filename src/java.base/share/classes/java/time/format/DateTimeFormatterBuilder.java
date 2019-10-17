@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,7 +85,6 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.chrono.ChronoLocalDate;
-import java.time.chrono.ChronoLocalDateTime;
 import java.time.chrono.Chronology;
 import java.time.chrono.Era;
 import java.time.chrono.IsoChronology;
@@ -122,7 +121,6 @@ import java.util.concurrent.ConcurrentMap;
 import sun.text.spi.JavaTimeDateTimePatternProvider;
 import sun.util.locale.provider.CalendarDataUtility;
 import sun.util.locale.provider.LocaleProviderAdapter;
-import sun.util.locale.provider.LocaleResources;
 import sun.util.locale.provider.TimeZoneNameUtility;
 
 /**
@@ -308,7 +306,7 @@ public final class DateTimeFormatterBuilder {
     /**
      * Changes the parse style to be strict for the remainder of the formatter.
      * <p>
-     * Parsing can be strict or lenient - by default its strict.
+     * Parsing can be strict or lenient - by default it is strict.
      * This controls the degree of flexibility in matching the text and sign styles.
      * <p>
      * When used, this method changes the parsing to be strict from this point onwards.
@@ -327,7 +325,7 @@ public final class DateTimeFormatterBuilder {
      * Changes the parse style to be lenient for the remainder of the formatter.
      * Note that case sensitivity is set separately to this method.
      * <p>
-     * Parsing can be strict or lenient - by default its strict.
+     * Parsing can be strict or lenient - by default it is strict.
      * This controls the degree of flexibility in matching the text and sign styles.
      * Applications calling this method should typically also call {@link #parseCaseInsensitive()}.
      * <p>
@@ -802,7 +800,13 @@ public final class DateTimeFormatterBuilder {
                 return store.getText(value, style);
             }
             @Override
-            public Iterator<Entry<String, Long>> getTextIterator(TemporalField field, TextStyle style, Locale locale) {
+            public Iterator<Entry<String, Long>> getTextIterator(Chronology chrono,
+                    TemporalField field, TextStyle style, Locale locale) {
+                return store.getTextIterator(style);
+            }
+            @Override
+            public Iterator<Entry<String, Long>> getTextIterator(TemporalField field,
+                    TextStyle style, Locale locale) {
                 return store.getTextIterator(style);
             }
         };
@@ -830,6 +834,10 @@ public final class DateTimeFormatterBuilder {
      * The end-of-day time of '24:00' is handled as midnight at the start of the following day.
      * The leap-second time of '23:59:59' is handled to some degree, see
      * {@link DateTimeFormatter#parsedLeapSecond()} for full details.
+     * <p>
+     * When formatting, the instant will always be suffixed by 'Z' to indicate UTC.
+     * When parsing, the behaviour of {@link DateTimeFormatterBuilder#appendOffsetId()}
+     * will be used to parse the offset, converting the instant to UTC as necessary.
      * <p>
      * An alternative to this method is to format/parse the instant as a single
      * epoch-seconds value. That is achieved using {@code appendValue(INSTANT_SECONDS)}.
@@ -1429,7 +1437,7 @@ public final class DateTimeFormatterBuilder {
      */
     public DateTimeFormatterBuilder appendLiteral(String literal) {
         Objects.requireNonNull(literal, "literal");
-        if (literal.length() > 0) {
+        if (!literal.isEmpty()) {
             if (literal.length() == 1) {
                 appendInternal(new CharLiteralPrinterParser(literal.charAt(0)));
             } else {
@@ -1822,7 +1830,7 @@ public final class DateTimeFormatterBuilder {
                     throw new IllegalArgumentException("Pattern ends with an incomplete string literal: " + pattern);
                 }
                 String str = pattern.substring(start + 1, pos);
-                if (str.length() == 0) {
+                if (str.isEmpty()) {
                     appendLiteral('\'');
                 } else {
                     appendLiteral(str.replace("''", "'"));
@@ -3192,7 +3200,7 @@ public final class DateTimeFormatterBuilder {
                 char ch = text.charAt(pos++);
                 int digit = context.getDecimalStyle().convertToDigit(ch);
                 if (digit < 0) {
-                    if (pos < minEndPos) {
+                    if (pos <= minEndPos) {
                         return ~position;  // need at least min width digits
                     }
                     pos--;
@@ -3462,7 +3470,7 @@ public final class DateTimeFormatterBuilder {
                     .appendValue(MINUTE_OF_HOUR, 2).appendLiteral(':')
                     .appendValue(SECOND_OF_MINUTE, 2)
                     .appendFraction(NANO_OF_SECOND, minDigits, maxDigits, true)
-                    .appendLiteral('Z')
+                    .appendOffsetId()
                     .toFormatter().toPrinterParser(false);
             DateTimeParseContext newContext = context.copy();
             int pos = parser.parse(newContext, text, position);
@@ -3480,6 +3488,7 @@ public final class DateTimeFormatterBuilder {
             Long nanoVal = newContext.getParsed(NANO_OF_SECOND);
             int sec = (secVal != null ? secVal.intValue() : 0);
             int nano = (nanoVal != null ? nanoVal.intValue() : 0);
+            int offset = newContext.getParsed(OFFSET_SECONDS).intValue();
             int days = 0;
             if (hour == 24 && min == 0 && sec == 0 && nano == 0) {
                 hour = 0;
@@ -3492,7 +3501,7 @@ public final class DateTimeFormatterBuilder {
             long instantSecs;
             try {
                 LocalDateTime ldt = LocalDateTime.of(year, month, day, hour, min, sec, 0).plusDays(days);
-                instantSecs = ldt.toEpochSecond(ZoneOffset.UTC);
+                instantSecs = ldt.toEpochSecond(ZoneOffset.ofTotalSeconds(offset));
                 instantSecs += Math.multiplyExact(yearParsed / 10_000L, SECONDS_PER_10000_YEARS);
             } catch (RuntimeException ex) {
                 return ~position;
@@ -3860,7 +3869,11 @@ public final class DateTimeFormatterBuilder {
             if (offsetSecs == null) {
                 return false;
             }
-            String gmtText = "GMT";  // TODO: get localized version of 'GMT'
+            String key = "timezone.gmtZeroFormat";
+            String gmtText = DateTimeTextProvider.getLocalizedResource(key, context.getLocale());
+            if (gmtText == null) {
+                gmtText = "GMT";  // Default to "GMT"
+            }
             buf.append(gmtText);
             int totalSecs = Math.toIntExact(offsetSecs);
             if (totalSecs != 0) {
@@ -3906,7 +3919,11 @@ public final class DateTimeFormatterBuilder {
         public int parse(DateTimeParseContext context, CharSequence text, int position) {
             int pos = position;
             int end = text.length();
-            String gmtText = "GMT";  // TODO: get localized version of 'GMT'
+            String key = "timezone.gmtZeroFormat";
+            String gmtText = DateTimeTextProvider.getLocalizedResource(key, context.getLocale());
+            if (gmtText == null) {
+                gmtText = "GMT";  // Default to "GMT"
+            }
             if (!context.subSequenceEquals(text, pos, gmtText, 0, gmtText.length())) {
                     return ~position;
                 }
@@ -4321,7 +4338,7 @@ public final class DateTimeFormatterBuilder {
             this.key = k;
             this.value = v;
             this.child = child;
-            if (k.length() == 0){
+            if (k.isEmpty()) {
                 c0 = 0xffff;
             } else {
                 c0 = key.charAt(0);

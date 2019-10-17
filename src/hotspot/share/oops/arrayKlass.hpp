@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_ARRAYKLASS_HPP
-#define SHARE_VM_OOPS_ARRAYKLASS_HPP
+#ifndef SHARE_OOPS_ARRAYKLASS_HPP
+#define SHARE_OOPS_ARRAYKLASS_HPP
 
-#include "memory/universe.hpp"
 #include "oops/klass.hpp"
 
 class fieldDescriptor;
@@ -61,11 +60,9 @@ class ArrayKlass: public Klass {
   inline Klass* higher_dimension_acquire() const; // load with acquire semantics
   void set_higher_dimension(Klass* k) { _higher_dimension = k; }
   inline void release_set_higher_dimension(Klass* k); // store with release semantics
-  Klass** adr_higher_dimension()      { return (Klass**)&this->_higher_dimension;}
 
   Klass* lower_dimension() const      { return _lower_dimension; }
   void set_lower_dimension(Klass* k)  { _lower_dimension = k; }
-  Klass** adr_lower_dimension()       { return (Klass**)&this->_lower_dimension;}
 
   // offset of first element, including any padding for the sake of alignment
   int  array_header_in_bytes() const    { return layout_helper_header_size(layout_helper()); }
@@ -101,7 +98,6 @@ class ArrayKlass: public Klass {
 
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
                                                   Array<InstanceKlass*>* transitive_interfaces);
-  bool compute_is_subtype_of(Klass* k);
 
   // Sizing
   static int static_size(int header_size);
@@ -147,4 +143,4 @@ class ArrayKlass: public Klass {
   void oop_verify_on(oop obj, outputStream* st);
 };
 
-#endif // SHARE_VM_OOPS_ARRAYKLASS_HPP
+#endif // SHARE_OOPS_ARRAYKLASS_HPP

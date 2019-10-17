@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
@@ -45,6 +46,7 @@
 #include "gc/shared/space.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/weakProcessor.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceRefKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -55,6 +57,9 @@
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
 #include "utilities/stack.inline.hpp"
+#if INCLUDE_JVMCI
+#include "jvmci/jvmci.hpp"
+#endif
 
 void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_softrefs) {
   assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
@@ -73,10 +78,6 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
   rp->setup_policy(clear_all_softrefs);
 
   gch->trace_heap_before_gc(_gc_tracer);
-
-  // When collecting the permanent generation Method*s may be moving,
-  // so we either have to flush all bcp data or convert it into bci.
-  CodeCache::gc_prologue();
 
   // Increment the invocation count
   _total_invocations++;
@@ -127,8 +128,7 @@ void GenMarkSweep::invoke_at_safepoint(ReferenceProcessor* rp, bool clear_all_so
     rs->invalidate_or_clear(old_gen);
   }
 
-  CodeCache::gc_epilogue();
-  JvmtiExport::gc_epilogue();
+  gch->prune_scavengable_nmethods();
 
   // refs processing: clean slate
   set_ref_processor(NULL);
@@ -236,18 +236,9 @@ void GenMarkSweep::mark_sweep_phase1(bool clear_all_softrefs) {
 
     // Prune dead klasses from subklass/sibling/implementor lists.
     Klass::clean_weak_klass_links(purged_class);
-  }
 
-  {
-    GCTraceTime(Debug, gc, phases) t("Scrub String Table", gc_timer());
-    // Delete entries for dead interned strings.
-    StringTable::unlink(&is_alive);
-  }
-
-  {
-    GCTraceTime(Debug, gc, phases) t("Scrub Symbol Table", gc_timer());
-    // Clean up unreferenced symbols in symbol table.
-    SymbolTable::unlink();
+    // Clean JVMCI metadata handles.
+    JVMCI_ONLY(JVMCI::do_unloading(purged_class));
   }
 
   gc_tracer()->report_object_count_after_gc(&is_alive);

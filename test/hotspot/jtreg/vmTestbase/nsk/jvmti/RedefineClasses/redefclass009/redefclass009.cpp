@@ -42,33 +42,33 @@ typedef struct {   /* local variable info */
 
 /* local variables of redefined methods */
 static localVar constr_lv[] = { /* constructor's local variables */
-    {(char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;"},
-    {(char*) "constr_i", (char*) "I"},
-    {(char*) "constr_l", (char*) "J"},
-    {(char*) "constr_d", (char*) "D"},
-    {(char*) "constr_f", (char*) "F"},
-    {(char*) "constr_c", (char*) "C"}
+    { (char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;" },
+    { (char*) "constr_i", (char*) "I" },
+    { (char*) "constr_l", (char*) "J" },
+    { (char*) "constr_d", (char*) "D" },
+    { (char*) "constr_f", (char*) "F" },
+    { (char*) "constr_c", (char*) "C" }
 };
 static localVar checkIt_lv[] = { /* checkIt()'s local variables */
-    {(char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;"},
-    {(char*) "out", (char*) "Ljava/io/PrintStream;"},
-    {(char*) "DEBUG_MODE", (char*) "Z"}
+    { (char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;" },
+    { (char*) "out", (char*) "Ljava/io/PrintStream;" },
+    { (char*) "DEBUG_MODE", (char*) "Z" }
 };
 static localVar finMeth_lv[] = { /* finMethod()'s local variables */
-    {(char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;"},
-    {(char*) "fin_c", (char*) "C"},
-    {(char*) "fin_i", (char*) "J"},
-    {(char*) "fin_j", (char*) "I"},
-    {(char*) "fin_k", (char*) "J"},
-    {(char*) "fin_l", (char*) "J"},
-    {(char*) "fin_f", (char*) "F"}
+    { (char*) "this", (char*) "Lnsk/jvmti/RedefineClasses/redefclass009r;" },
+    { (char*) "fin_c", (char*) "C" },
+    { (char*) "fin_i", (char*) "J" },
+    { (char*) "fin_j", (char*) "I" },
+    { (char*) "fin_k", (char*) "J" },
+    { (char*) "fin_l", (char*) "J" },
+    { (char*) "fin_f", (char*) "F" }
 };
 static localVar statMeth_lv[] = { /* statMethod()'s local variables */
-    {(char*) "stat_x", (char*) "I"},
-    {(char*) "stat_y", (char*) "I"},
-    {(char*) "stat_z", (char*) "I"},
-    {(char*) "stat_j", (char*) "D"},
-    {(char*) "stat_i", (char*) "I"}
+    { (char*) "stat_x", (char*) "I" },
+    { (char*) "stat_y", (char*) "I" },
+    { (char*) "stat_z", (char*) "I" },
+    { (char*) "stat_j", (char*) "D" },
+    { (char*) "stat_i", (char*) "I" }
 };
 
 typedef struct {    /* local variables of a method */
@@ -82,18 +82,18 @@ typedef struct {    /* local variables of a method */
 
 /* list of original methods with NULL pointers to localVar */
 static methInfo origMethInfo[] = {
-    {1, (char*) "<init>", (char*) "()V", 1, NULL, NULL},
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 4, NULL, NULL},
-    {1, (char*) "finMethod", (char*) "(CJIJ)V", 5, NULL, NULL},
-    {0, (char*) "statMethod", (char*) "(III)D", 3, NULL, NULL}
+    { 1, (char*) "<init>", (char*) "()V", 1, NULL, NULL },
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 4, NULL, NULL },
+    { 1, (char*) "finMethod", (char*) "(CJIJ)V", 5, NULL, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)D", 3, NULL, NULL }
 };
 
 /* list of redefined methods */
 static methInfo redefMethInfo[] = {
-    {1, (char*) "<init>", (char*) "()V", 6, constr_lv, NULL},
-    {1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, checkIt_lv, NULL},
-    {1, (char*) "finMethod", (char*) "(CJIJ)V", 7, finMeth_lv, NULL},
-    {0, (char*) "statMethod", (char*) "(III)D", 5, statMeth_lv, NULL}
+    { 1, (char*) "<init>", (char*) "()V", 6, constr_lv, NULL },
+    { 1, (char*) "checkIt", (char*) "(Ljava/io/PrintStream;Z)I", 3, checkIt_lv, NULL },
+    { 1, (char*) "finMethod", (char*) "(CJIJ)V", 7, finMeth_lv, NULL },
+    { 0, (char*) "statMethod", (char*) "(III)D", 5, statMeth_lv, NULL }
 };
 
 static jvmtiEnv *jvmti = NULL;
@@ -114,7 +114,8 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
     jint res;
     jvmtiError err;
 
-    if ((res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1)) != JNI_OK) {
+    res = vm->GetEnv((void **) &jvmti, JVMTI_VERSION_1_1);
+    if (res != JNI_OK) {
         printf("%s: Failed to call GetEnv: error=%d\n", __FILE__, res);
         return JNI_ERR;
     }
@@ -174,36 +175,38 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[],
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
         }
         if (methodsInfo[i].mid == NULL) {
-            printf("%s: Failed to get the method ID for the%s%s method\
- \"%s\", signature \"%s\"\n",
-                __FILE__, full?" ":" original ", methodsInfo[i].inst?"instance":"static",
+            printf("%s: Failed to get the method ID for the%s%s method \"%s\", signature \"%s\"\n",
+                __FILE__, full ? " " : " original ", methodsInfo[i].inst ? "instance":"static",
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
             return STATUS_FAILED;
         }
 
         /* get the LocalVariableTable attribute */
-        if ((err = (jvmti->GetLocalVariableTable(methodsInfo[i].mid,
-                &count, &lv_table))) != JVMTI_ERROR_NONE) {
+        err = jvmti->GetLocalVariableTable(methodsInfo[i].mid, &count, &lv_table);
+        if (err != JVMTI_ERROR_NONE) {
             printf("%s: Failed to call GetLocalVariableTable(): error=%d: %s\n",
                 __FILE__, err, TranslateError(err));
             printf("\tfor the%s%s method \"%s\", signature \"%s\"\n\n",
-                full?" ":" original ", methodsInfo[i].inst?"instance":"static",
+                full ? " " : " original ", methodsInfo[i].inst ? "instance":"static",
                 methodsInfo[i].m_name, methodsInfo[i].m_sign);
             return STATUS_FAILED;
         } else {
             if (count != methodsInfo[i].vcount) {
-                printf("TEST FAILED: %s%s method \"%s\", signature \"%s\":\
- found %d vars in the LocalVariableTable, expected %d\n",
-                    full?" ":" original ", methodsInfo[i].inst?"instance":"static",
+                printf(
+                    "TEST FAILED: %s%s method \"%s\", signature \"%s\": "
+                    "found %d vars in the LocalVariableTable, expected %d\n",
+                    full ? " " : " original ", methodsInfo[i].inst ? "instance":"static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign,
                     count, methodsInfo[i].vcount);
                 totRes = STATUS_FAILED;
                 continue;
             }
             else if (vrb)
-                printf("\nChecking vars in the LocalVariableTable of the %s method \"%s\",\
- signature \"%s\" ...\n\tfound %d local vars as expected\n",
-                    methodsInfo[i].inst?"instance":"static",
+                printf(
+                    "\nChecking vars in the LocalVariableTable of the %s method \"%s\", "
+                    "signature \"%s\" ...\n"
+                    "\tfound %d local vars as expected\n",
+                    methodsInfo[i].inst ? "instance" : "static",
                     methodsInfo[i].m_name, methodsInfo[i].m_sign, count);
 
             if (full) {
@@ -211,9 +214,10 @@ int checkAttr(JNIEnv *env, jclass redefCls, methInfo methodsInfo[],
                     for (k=0; k<count; k++) {
                         if (strcmp(lv_table[j].name, methodsInfo[i].vars[k].v_name) == 0) {
                             if (strcmp(lv_table[j].signature, methodsInfo[i].vars[k].v_sign) != 0) {
-                                printf("TEST FAILED: %s method \"%s\", signature \"%s\": var \"%s\"\
- has signature \"%s\" in the LocalVariableTable, expected \"%s\"\n",
-                                    methodsInfo[i].inst?"instance":"static",
+                                printf(
+                                    "TEST FAILED: %s method \"%s\", signature \"%s\": var \"%s\" "
+                                    "has signature \"%s\" in the LocalVariableTable, expected \"%s\"\n",
+                                    methodsInfo[i].inst ? "instance" : "static",
                                     methodsInfo[i].m_name, methodsInfo[i].m_sign,
                                     lv_table[j].name, lv_table[j].signature,
                                     methodsInfo[i].vars[k].v_sign);
@@ -263,7 +267,8 @@ Java_nsk_jvmti_RedefineClasses_redefclass009_makeRedefinition(JNIEnv *env,
     if (vrb)
         printf("\n>>>>>>>> Invoke RedefineClasses():\n\tnew class byte count=%d\n",
             classDef.class_byte_count);
-    if ((err = (jvmti->RedefineClasses(1, &classDef))) != JVMTI_ERROR_NONE) {
+    err = jvmti->RedefineClasses(1, &classDef);
+    if (err != JVMTI_ERROR_NONE) {
         printf("%s: Failed to call RedefineClasses(): error=%d: %s\n",
             __FILE__, err, TranslateError(err));
         printf("\tFor more info about this error see the JVMTI spec.\n");

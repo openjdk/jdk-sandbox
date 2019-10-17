@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -244,6 +244,28 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
     COPYRIGHT_YEAR=`$DATE +'%Y'`
   fi
   AC_SUBST(COPYRIGHT_YEAR)
+
+  # Override default library path
+  AC_ARG_WITH([jni-libpath], [AS_HELP_STRING([--with-jni-libpath],
+      [override default JNI library search path])])
+  AC_MSG_CHECKING([for jni library path])
+  if test "x${with_jni_libpath}" = "x" || test "x${with_jni_libpath}" = "xno"; then
+    AC_MSG_RESULT([default])
+  elif test "x${with_jni_libpath}" = "xyes"; then
+    AC_MSG_RESULT([invalid])
+    AC_MSG_ERROR([The --with-jni-libpath option requires an argument.])
+  else
+    HOTSPOT_OVERRIDE_LIBPATH=${with_jni_libpath}
+    if test "x$OPENJDK_TARGET_OS" != "xlinux" &&
+         test "x$OPENJDK_TARGET_OS" != "xbsd" &&
+         test "x$OPENJDK_TARGET_OS" != "xaix"; then
+      AC_MSG_RESULT([fail])
+      AC_MSG_ERROR([Overriding JNI library path is supported only on Linux, BSD and AIX.])
+    fi
+    AC_MSG_RESULT(${HOTSPOT_OVERRIDE_LIBPATH})
+  fi
+  AC_SUBST(HOTSPOT_OVERRIDE_LIBPATH)
+
 ])
 
 ###############################################################################
@@ -342,7 +364,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 
 ################################################################################
 #
-# Gcov coverage data for hotspot
+# Native and Java code coverage
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
 [
@@ -350,31 +372,70 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       [enable native compilation with code coverage data@<:@disabled@:>@])])
   GCOV_ENABLED="false"
   if test "x$enable_native_coverage" = "xyes"; then
-    if test "x$TOOLCHAIN_TYPE" = "xgcc"; then
-      AC_MSG_CHECKING([if native coverage is enabled])
-      AC_MSG_RESULT([yes])
-      GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
-      GCOV_LDFLAGS="-fprofile-arcs"
-      JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
-      JVM_LDFLAGS="$JVM_LDFLAGS $GCOV_LDFLAGS"
-      CFLAGS_JDKLIB="$CFLAGS_JDKLIB $GCOV_CFLAGS"
-      CFLAGS_JDKEXE="$CFLAGS_JDKEXE $GCOV_CFLAGS"
-      CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $GCOV_CFLAGS"
-      CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
-      LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
-      LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
-      GCOV_ENABLED="true"
-    else
-      AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc])
-    fi
+    case $TOOLCHAIN_TYPE in
+      gcc | clang)
+        AC_MSG_CHECKING([if native coverage is enabled])
+        AC_MSG_RESULT([yes])
+        GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
+        GCOV_LDFLAGS="-fprofile-arcs"
+        JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
+        JVM_LDFLAGS="$JVM_LDFLAGS $GCOV_LDFLAGS"
+        CFLAGS_JDKLIB="$CFLAGS_JDKLIB $GCOV_CFLAGS"
+        CFLAGS_JDKEXE="$CFLAGS_JDKEXE $GCOV_CFLAGS"
+        CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $GCOV_CFLAGS"
+        CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
+        LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
+        LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
+        GCOV_ENABLED="true"
+        ;;
+      *)
+        AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc or clang])
+        ;;
+    esac
   elif test "x$enable_native_coverage" = "xno"; then
     AC_MSG_CHECKING([if native coverage is enabled])
     AC_MSG_RESULT([no])
   elif test "x$enable_native_coverage" != "x"; then
     AC_MSG_ERROR([--enable-native-coverage can only be assigned "yes" or "no"])
   fi
-
   AC_SUBST(GCOV_ENABLED)
+
+  AC_ARG_WITH(jcov, [AS_HELP_STRING([--with-jcov],
+      [jcov library location])])
+  AC_ARG_WITH(jcov-input-jdk, [AS_HELP_STRING([--with-jcov-input-jdk],
+      [jdk image to instrument])])
+  AC_ARG_WITH(jcov-filters, [AS_HELP_STRING([--with-jcov-filters],
+      [filters to limit code for jcov instrumentation and report generation])])
+  JCOV_HOME=
+  JCOV_INPUT_JDK=
+  JCOV_ENABLED=
+  JCOV_FILTERS=
+  if test "x$with_jcov" = "x" ; then
+    JCOV_ENABLED="false"
+  else
+    JCOV_HOME="$with_jcov"
+    if test ! -f "$JCOV_HOME/lib/jcov.jar"; then
+      AC_MSG_RESULT([fail])
+      AC_MSG_ERROR([Invalid JCov bundle: "$JCOV_HOME/lib/jcov.jar" does not exist])
+    fi
+    JCOV_ENABLED="true"
+    BASIC_FIXUP_PATH(JCOV_HOME)
+    if test "x$with_jcov_input_jdk" != "x" ; then
+      JCOV_INPUT_JDK="$with_jcov_input_jdk"
+      if test ! -f "$JCOV_INPUT_JDK/bin/java$EXE_SUFFIX"; then
+        AC_MSG_RESULT([fail])
+        AC_MSG_ERROR([Invalid JDK bundle: "$JCOV_INPUT_JDK/bin/java$EXE_SUFFIX" does not exist])
+      fi
+      BASIC_FIXUP_PATH(JCOV_INPUT_JDK)
+    fi
+    if test "x$with_jcov_filters" != "x" ; then
+      JCOV_FILTERS="$with_jcov_filters"
+    fi
+  fi
+  AC_SUBST(JCOV_ENABLED)
+  AC_SUBST(JCOV_HOME)
+  AC_SUBST(JCOV_INPUT_JDK)
+  AC_SUBST(JCOV_FILTERS)
 ])
 
 ###############################################################################
@@ -527,7 +588,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
 
   # Check if it's likely that it's possible to generate the classlist. Depending
   # on exact jvm configuration it could be possible anyway.
-  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client)); then
+  if test "x$ENABLE_CDS" = "xtrue" && (HOTSPOT_CHECK_JVM_VARIANT(server) || HOTSPOT_CHECK_JVM_VARIANT(client) || HOTSPOT_CHECK_JVM_FEATURE(cds)); then
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="true"
   else
     ENABLE_GENERATE_CLASSLIST_POSSIBLE="false"
@@ -587,10 +648,10 @@ AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
 AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
 [
   AC_ARG_ENABLE([manpages], [AS_HELP_STRING([--disable-manpages],
-      [Set to disable building of man pages @<:@enabled@:>@])])
+      [Set to disable copy of static man pages @<:@enabled@:>@])])
 
   BUILD_MANPAGES="true"
-  AC_MSG_CHECKING([if man pages should be built])
+  AC_MSG_CHECKING([if static man pages should be copied])
   if test "x$enable_manpages" = "x"; then
     AC_MSG_RESULT([yes])
   elif test "x$enable_manpages" = "xyes"; then
@@ -604,4 +665,38 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
   fi
 
   AC_SUBST(BUILD_MANPAGES)
+])
+
+################################################################################
+#
+# Disable the default CDS archive generation
+#   cross compilation - disabled
+#
+AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
+[
+  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
+      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
+
+  AC_MSG_CHECKING([if a default CDS archive should be generated])
+  if test "x$ENABLE_CDS" = "xfalse"; then
+    AC_MSG_RESULT([no, because CDS is disabled])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$COMPILE_TYPE" = "xcross"; then
+    AC_MSG_RESULT([no, not possible with cross compilation])
+    BUILD_CDS_ARCHIVE="false"
+  elif test "x$enable_cds_archive" = "xyes"; then
+    AC_MSG_RESULT([yes, forced])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "x"; then
+    AC_MSG_RESULT([yes])
+    BUILD_CDS_ARCHIVE="true"
+  elif test "x$enable_cds_archive" = "xno"; then
+    AC_MSG_RESULT([no, forced])
+    BUILD_CDS_ARCHIVE="false"
+  else
+    AC_MSG_RESULT([no])
+    AC_MSG_ERROR([--enable-cds_archive can only be yes/no or empty])
+  fi
+
+  AC_SUBST(BUILD_CDS_ARCHIVE)
 ])

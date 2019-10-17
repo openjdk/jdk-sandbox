@@ -37,7 +37,7 @@ static jlong timeout = 0;
 static char segment1[3000] = "";
 static char segment2[3000] = "";
 
-static const char* const illegal_segments[] = {"", "tmp/"};
+static const char* const illegal_segments[] = { "", "tmp/" };
 
 jboolean use_segment2 = JNI_FALSE;
 
@@ -51,8 +51,7 @@ jvmtiPhase jvmti_phase_to_check = JVMTI_PHASE_ONLOAD;
  */
 static int addSegment(jvmtiEnv* jvmti, const char segment[], const char where[]) {
     NSK_DISPLAY1("Add segment: \"%s\"\n", segment);
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(AddToSystemClassLoaderSearch, jvmti, segment))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->AddToSystemClassLoaderSearch(segment))) {
         NSK_COMPLAIN1("TEST FAILURE: failed to add segment %s\n", segment);
         return NSK_FALSE;
     }
@@ -68,8 +67,7 @@ static int addSegment(jvmtiEnv* jvmti, const char segment[], const char where[])
  */
 static int addIllegalSegment(jvmtiEnv* jvmti, const char segment[], const char where[], jvmtiError expectedError) {
     NSK_DISPLAY1("Add illegal segment: \"%s\"\n", segment);
-    if (!NSK_JVMTI_VERIFY_CODE(expectedError,
-            NSK_CPP_STUB2(AddToSystemClassLoaderSearch, jvmti, segment))) {
+    if (!NSK_JVMTI_VERIFY_CODE(expectedError, jvmti->AddToSystemClassLoaderSearch(segment))) {
 
         NSK_COMPLAIN2("TEST FAILURE: got wrong error when tried to add segment %s (expected error=%s)\n",
                       segment, TranslateError(expectedError));
@@ -123,7 +121,7 @@ void JNICALL
 callbackVMDeath(jvmtiEnv *jvmti, JNIEnv* jni) {
     jvmtiPhase phase;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(GetPhase, jvmti, &phase))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetPhase(&phase))) {
         NSK_COMPLAIN0("TEST FAILURE: unable to get phase\n");
         nsk_jvmti_setFailStatus();
         NSK_BEFORE_TRACE(exit(nsk_jvmti_getStatus()));
@@ -218,8 +216,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         eventCallbacks.VMInit = callbackVMInit;
         eventCallbacks.VMDeath = callbackVMDeath;
 
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                            &eventCallbacks, sizeof(eventCallbacks)))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks)))) {
             return JNI_ERR;
         }
     }

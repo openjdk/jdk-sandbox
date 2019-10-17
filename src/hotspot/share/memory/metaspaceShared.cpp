@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,19 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classListParser.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/dictionary.hpp"
 #include "classfile/loaderConstraints.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/placeholders.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "code/codeCache.hpp"
+#include "gc/shared/softRefPolicy.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "logging/log.hpp"
@@ -44,10 +47,13 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "memory/dynamicArchive.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/instanceRefKlass.hpp"
+#include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
@@ -59,7 +65,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/align.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/defaultStream.hpp"
@@ -74,29 +80,27 @@ MetaspaceSharedStats MetaspaceShared::_stats;
 bool MetaspaceShared::_has_error_classes;
 bool MetaspaceShared::_archive_loading_failed = false;
 bool MetaspaceShared::_remapped_readwrite = false;
-bool MetaspaceShared::_open_archive_heap_region_mapped = false;
-bool MetaspaceShared::_archive_heap_region_fixed = false;
-address MetaspaceShared::_cds_i2i_entry_code_buffers = NULL;
-size_t MetaspaceShared::_cds_i2i_entry_code_buffers_size = 0;
+address MetaspaceShared::_i2i_entry_code_buffers = NULL;
+size_t MetaspaceShared::_i2i_entry_code_buffers_size = 0;
 size_t MetaspaceShared::_core_spaces_size = 0;
+void* MetaspaceShared::_shared_metaspace_static_top = NULL;
 
 // The CDS archive is divided into the following regions:
 //     mc  - misc code (the method entry trampolines)
 //     rw  - read-write metadata
 //     ro  - read-only metadata and read-only tables
 //     md  - misc data (the c++ vtables)
-//     od  - optional data (original class files)
 //
-//     s0  - shared strings(closed archive heap space) #0
-//     s1  - shared strings(closed archive heap space) #1 (may be empty)
+//     ca0 - closed archive heap space #0
+//     ca1 - closed archive heap space #1 (may be empty)
 //     oa0 - open archive heap space #0
 //     oa1 - open archive heap space #1 (may be empty)
 //
-// The mc, rw, ro, md and od regions are linearly allocated, starting from
-// SharedBaseAddress, in the order of mc->rw->ro->md->od. The size of these 5 regions
+// The mc, rw, ro, and md regions are linearly allocated, starting from
+// SharedBaseAddress, in the order of mc->rw->ro->md. The size of these 4 regions
 // are page-aligned, and there's no gap between any consecutive regions.
 //
-// These 5 regions are populated in the following steps:
+// These 4 regions are populated in the following steps:
 // [1] All classes are loaded in MetaspaceShared::preload_classes(). All metadata are
 //     temporarily allocated outside of the shared regions. Only the method entry
 //     trampolines are written into the mc region.
@@ -105,101 +109,97 @@ size_t MetaspaceShared::_core_spaces_size = 0;
 // [4] SymbolTable, StringTable, SystemDictionary, and a few other read-only data
 //     are copied into the ro region as read-only tables.
 // [5] C++ vtables are copied into the md region.
-// [6] Original class files are copied into the od region.
 //
-// The s0/s1 and oa0/oa1 regions are populated inside MetaspaceShared::dump_java_heap_objects.
-// Their layout is independent of the other 5 regions.
+// The s0/s1 and oa0/oa1 regions are populated inside HeapShared::archive_java_heap_objects.
+// Their layout is independent of the other 4 regions.
 
-class DumpRegion {
-private:
-  const char* _name;
-  char* _base;
-  char* _top;
-  char* _end;
-  bool _is_packed;
-
-  char* expand_top_to(char* newtop) {
-    assert(is_allocatable(), "must be initialized and not packed");
-    assert(newtop >= _top, "must not grow backwards");
-    if (newtop > _end) {
-      MetaspaceShared::report_out_of_space(_name, newtop - _top);
-      ShouldNotReachHere();
-    }
-    MetaspaceShared::commit_shared_space_to(newtop);
-    _top = newtop;
-    return _top;
+char* DumpRegion::expand_top_to(char* newtop) {
+  assert(is_allocatable(), "must be initialized and not packed");
+  assert(newtop >= _top, "must not grow backwards");
+  if (newtop > _end) {
+    MetaspaceShared::report_out_of_space(_name, newtop - _top);
+    ShouldNotReachHere();
+  }
+  uintx delta;
+  if (DynamicDumpSharedSpaces) {
+    delta = DynamicArchive::object_delta_uintx(newtop);
+  } else {
+    delta = MetaspaceShared::object_delta_uintx(newtop);
+  }
+  if (delta > MAX_SHARED_DELTA) {
+    // This is just a sanity check and should not appear in any real world usage. This
+    // happens only if you allocate more than 2GB of shared objects and would require
+    // millions of shared classes.
+    vm_exit_during_initialization("Out of memory in the CDS archive",
+                                  "Please reduce the number of shared classes.");
   }
 
-public:
-  DumpRegion(const char* name) : _name(name), _base(NULL), _top(NULL), _end(NULL), _is_packed(false) {}
+  MetaspaceShared::commit_shared_space_to(newtop);
+  _top = newtop;
+  return _top;
+}
 
-  char* allocate(size_t num_bytes, size_t alignment=BytesPerWord) {
-    char* p = (char*)align_up(_top, alignment);
-    char* newtop = p + align_up(num_bytes, alignment);
-    expand_top_to(newtop);
-    memset(p, 0, newtop - p);
-    return p;
-  }
+char* DumpRegion::allocate(size_t num_bytes, size_t alignment) {
+  char* p = (char*)align_up(_top, alignment);
+  char* newtop = p + align_up(num_bytes, alignment);
+  expand_top_to(newtop);
+  memset(p, 0, newtop - p);
+  return p;
+}
 
-  void append_intptr_t(intptr_t n) {
-    assert(is_aligned(_top, sizeof(intptr_t)), "bad alignment");
-    intptr_t *p = (intptr_t*)_top;
-    char* newtop = _top + sizeof(intptr_t);
-    expand_top_to(newtop);
-    *p = n;
-  }
+void DumpRegion::print(size_t total_bytes) const {
+  tty->print_cr("%-3s space: " SIZE_FORMAT_W(9) " [ %4.1f%% of total] out of " SIZE_FORMAT_W(9) " bytes [%5.1f%% used] at " INTPTR_FORMAT,
+                _name, used(), percent_of(used(), total_bytes), reserved(), percent_of(used(), reserved()), p2i(_base));
+}
 
-  char* base()      const { return _base;        }
-  char* top()       const { return _top;         }
-  char* end()       const { return _end;         }
-  size_t reserved() const { return _end - _base; }
-  size_t used()     const { return _top - _base; }
-  bool is_packed()  const { return _is_packed;   }
-  bool is_allocatable() const {
-    return !is_packed() && _base != NULL;
+void DumpRegion::print_out_of_space_msg(const char* failing_region, size_t needed_bytes) {
+  tty->print("[%-8s] " PTR_FORMAT " - " PTR_FORMAT " capacity =%9d, allocated =%9d",
+             _name, p2i(_base), p2i(_top), int(_end - _base), int(_top - _base));
+  if (strcmp(_name, failing_region) == 0) {
+    tty->print_cr(" required = %d", int(needed_bytes));
+  } else {
+    tty->cr();
   }
+}
 
-  void print(size_t total_bytes) const {
-    tty->print_cr("%-3s space: " SIZE_FORMAT_W(9) " [ %4.1f%% of total] out of " SIZE_FORMAT_W(9) " bytes [%5.1f%% used] at " INTPTR_FORMAT,
-                  _name, used(), percent_of(used(), total_bytes), reserved(), percent_of(used(), reserved()), p2i(_base));
+void DumpRegion::pack(DumpRegion* next) {
+  assert(!is_packed(), "sanity");
+  _end = (char*)align_up(_top, Metaspace::reserve_alignment());
+  _is_packed = true;
+  if (next != NULL) {
+    next->_base = next->_top = this->_end;
+    next->_end = MetaspaceShared::shared_rs()->end();
   }
-  void print_out_of_space_msg(const char* failing_region, size_t needed_bytes) {
-    tty->print("[%-8s] " PTR_FORMAT " - " PTR_FORMAT " capacity =%9d, allocated =%9d",
-               _name, p2i(_base), p2i(_top), int(_end - _base), int(_top - _base));
-    if (strcmp(_name, failing_region) == 0) {
-      tty->print_cr(" required = %d", int(needed_bytes));
-    } else {
-      tty->cr();
-    }
-  }
+}
 
-  void init(const ReservedSpace* rs) {
-    _base = _top = rs->base();
-    _end = rs->end();
-  }
-  void init(char* b, char* t, char* e) {
-    _base = b;
-    _top = t;
-    _end = e;
-  }
+DumpRegion _mc_region("mc"), _ro_region("ro"), _rw_region("rw"), _md_region("md");
+size_t _total_closed_archive_region_size = 0, _total_open_archive_region_size = 0;
 
-  void pack(DumpRegion* next = NULL) {
-    assert(!is_packed(), "sanity");
-    _end = (char*)align_up(_top, Metaspace::reserve_alignment());
-    _is_packed = true;
-    if (next != NULL) {
-      next->_base = next->_top = this->_end;
-      next->_end = MetaspaceShared::shared_rs()->end();
-    }
+void MetaspaceShared::init_shared_dump_space(DumpRegion* first_space, address first_space_bottom) {
+  // Start with 0 committed bytes. The memory will be committed as needed by
+  // MetaspaceShared::commit_shared_space_to().
+  if (!_shared_vs.initialize(_shared_rs, 0)) {
+    vm_exit_during_initialization("Unable to allocate memory for shared space");
   }
-  bool contains(char* p) {
-    return base() <= p && p < top();
-  }
-};
+  first_space->init(&_shared_rs, (char*)first_space_bottom);
+}
 
+DumpRegion* MetaspaceShared::misc_code_dump_space() {
+  return &_mc_region;
+}
 
-DumpRegion _mc_region("mc"), _ro_region("ro"), _rw_region("rw"), _md_region("md"), _od_region("od");
-size_t _total_string_region_size = 0, _total_open_archive_region_size = 0;
+DumpRegion* MetaspaceShared::read_write_dump_space() {
+  return &_rw_region;
+}
+
+DumpRegion* MetaspaceShared::read_only_dump_space() {
+  return &_ro_region;
+}
+
+void MetaspaceShared::pack_dump_space(DumpRegion* current, DumpRegion* next,
+                                      ReservedSpace* rs) {
+  current->pack(next);
+}
 
 char* MetaspaceShared::misc_code_space_alloc(size_t num_bytes) {
   return _mc_region.allocate(num_bytes);
@@ -209,30 +209,29 @@ char* MetaspaceShared::read_only_space_alloc(size_t num_bytes) {
   return _ro_region.allocate(num_bytes);
 }
 
-char* MetaspaceShared::read_only_space_top() {
-  return _ro_region.top();
-}
-
 void MetaspaceShared::initialize_runtime_shared_and_meta_spaces() {
   assert(UseSharedSpaces, "Must be called when UseSharedSpaces is enabled");
 
   // If using shared space, open the file that contains the shared space
   // and map in the memory before initializing the rest of metaspace (so
   // the addresses don't conflict)
-  address cds_address = NULL;
-  FileMapInfo* mapinfo = new FileMapInfo();
+  FileMapInfo* mapinfo = new FileMapInfo(true);
 
   // Open the shared archive file, read and validate the header. If
   // initialization fails, shared spaces [UseSharedSpaces] are
   // disabled and the file is closed.
   // Map in spaces now also
-  if (mapinfo->initialize() && map_shared_spaces(mapinfo)) {
+  if (mapinfo->initialize(true) && map_shared_spaces(mapinfo)) {
     size_t cds_total = core_spaces_size();
-    cds_address = (address)mapinfo->region_addr(0);
+    address cds_address = (address)mapinfo->region_addr(0);
+    char* cds_end = (char *)align_up(cds_address + cds_total,
+                                     Metaspace::reserve_alignment());
+
+    // Mapping the dynamic archive before allocating the class space
+    cds_end = initialize_dynamic_runtime_shared_spaces((char*)cds_address, cds_end);
+
 #ifdef _LP64
     if (Metaspace::using_class_space()) {
-      char* cds_end = (char*)(cds_address + cds_total);
-      cds_end = (char *)align_up(cds_end, Metaspace::reserve_alignment());
       // If UseCompressedClassPointers is set then allocate the metaspace area
       // above the heap and above the CDS area (if it exists).
       Metaspace::allocate_metaspace_compressed_klass_ptrs(cds_end, cds_address);
@@ -240,12 +239,37 @@ void MetaspaceShared::initialize_runtime_shared_and_meta_spaces() {
       // with the archived ones, so it must be done after all encodings are determined.
       mapinfo->map_heap_regions();
     }
-    Universe::set_narrow_klass_range(CompressedClassSpaceSize);
+    CompressedKlassPointers::set_range(CompressedClassSpaceSize);
 #endif // _LP64
   } else {
     assert(!mapinfo->is_open() && !UseSharedSpaces,
            "archive file not closed or shared spaces not disabled.");
   }
+}
+
+char* MetaspaceShared::initialize_dynamic_runtime_shared_spaces(
+        char* static_start, char* static_end) {
+  assert(UseSharedSpaces, "must be runtime");
+  char* cds_end = static_end;
+  if (!DynamicDumpSharedSpaces) {
+    address dynamic_top = DynamicArchive::map();
+    if (dynamic_top != NULL) {
+      assert(dynamic_top > (address)static_start, "Unexpected layout");
+      MetaspaceObj::expand_shared_metaspace_range(dynamic_top);
+      cds_end = (char *)align_up(dynamic_top, Metaspace::reserve_alignment());
+    }
+  }
+  return cds_end;
+}
+
+ReservedSpace* MetaspaceShared::reserve_shared_rs(size_t size, size_t alignment,
+                                                  bool large, char* requested_address) {
+  if (requested_address != NULL) {
+    _shared_rs = ReservedSpace(size, alignment, large, requested_address);
+  } else {
+    _shared_rs = ReservedSpace(size, alignment, large);
+  }
+  return &_shared_rs;
 }
 
 void MetaspaceShared::initialize_dumptime_shared_and_meta_spaces() {
@@ -260,10 +284,10 @@ void MetaspaceShared::initialize_dumptime_shared_and_meta_spaces() {
   //
   //                              +-- SharedBaseAddress (default = 0x800000000)
   //                              v
-  // +-..---------+---------+ ... +----+----+----+----+----+---------------+
-  // |    Heap    | Archive |     | MC | RW | RO | MD | OD | class space   |
-  // +-..---------+---------+ ... +----+----+----+----+----+---------------+
-  // |<--   MaxHeapSize  -->|     |<-- UnscaledClassSpaceMax = 4GB ------->|
+  // +-..---------+---------+ ... +----+----+----+----+---------------+
+  // |    Heap    | Archive |     | MC | RW | RO | MD | class space   |
+  // +-..---------+---------+ ... +----+----+----+----+---------------+
+  // |<--   MaxHeapSize  -->|     |<-- UnscaledClassSpaceMax = 4GB -->|
   //
   const uint64_t UnscaledClassSpaceMax = (uint64_t(max_juint) + 1);
   const size_t cds_total = align_down(UnscaledClassSpaceMax, reserve_alignment);
@@ -273,12 +297,14 @@ void MetaspaceShared::initialize_dumptime_shared_and_meta_spaces() {
 #endif
 
   // First try to reserve the space at the specified SharedBaseAddress.
-  _shared_rs = ReservedSpace(cds_total, reserve_alignment, large_pages, shared_base);
+  //_shared_rs = ReservedSpace(cds_total, reserve_alignment, large_pages, shared_base);
+  reserve_shared_rs(cds_total, reserve_alignment, large_pages, shared_base);
   if (_shared_rs.is_reserved()) {
     assert(shared_base == 0 || _shared_rs.base() == shared_base, "should match");
   } else {
     // Get a mmap region anywhere if the SharedBaseAddress fails.
-    _shared_rs = ReservedSpace(cds_total, reserve_alignment, large_pages);
+    //_shared_rs = ReservedSpace(cds_total, reserve_alignment, large_pages);
+    reserve_shared_rs(cds_total, reserve_alignment, large_pages, NULL);
   }
   if (!_shared_rs.is_reserved()) {
     vm_exit_during_initialization("Unable to reserve memory for shared space",
@@ -302,28 +328,23 @@ void MetaspaceShared::initialize_dumptime_shared_and_meta_spaces() {
   _shared_rs = _shared_rs.first_part(max_archive_size);
 
   // Set up compress class pointers.
-  Universe::set_narrow_klass_base((address)_shared_rs.base());
+  CompressedKlassPointers::set_base((address)_shared_rs.base());
   // Set narrow_klass_shift to be LogKlassAlignmentInBytes. This is consistent
   // with AOT.
-  Universe::set_narrow_klass_shift(LogKlassAlignmentInBytes);
+  CompressedKlassPointers::set_shift(LogKlassAlignmentInBytes);
   // Set the range of klass addresses to 4GB.
-  Universe::set_narrow_klass_range(cds_total);
+  CompressedKlassPointers::set_range(cds_total);
 
   Metaspace::initialize_class_space(tmp_class_space);
   log_info(cds)("narrow_klass_base = " PTR_FORMAT ", narrow_klass_shift = %d",
-                p2i(Universe::narrow_klass_base()), Universe::narrow_klass_shift());
+                p2i(CompressedKlassPointers::base()), CompressedKlassPointers::shift());
 
   log_info(cds)("Allocated temporary class space: " SIZE_FORMAT " bytes at " PTR_FORMAT,
                 CompressedClassSpaceSize, p2i(tmp_class_space.base()));
 #endif
 
-  // Start with 0 committed bytes. The memory will be committed as needed by
-  // MetaspaceShared::commit_shared_space_to().
-  if (!_shared_vs.initialize(_shared_rs, 0)) {
-    vm_exit_during_initialization("Unable to allocate memory for shared space");
-  }
-
-  _mc_region.init(&_shared_rs);
+  init_shared_dump_space(&_mc_region);
+  SharedBaseAddress = (size_t)_shared_rs.base();
   tty->print_cr("Allocated shared space: " SIZE_FORMAT " bytes at " PTR_FORMAT,
                 _shared_rs.size(), p2i(_shared_rs.base()));
 }
@@ -334,20 +355,25 @@ void MetaspaceShared::post_initialize(TRAPS) {
     int size = FileMapInfo::get_number_of_shared_paths();
     if (size > 0) {
       SystemDictionaryShared::allocate_shared_data_arrays(size, THREAD);
-      FileMapHeader* header = FileMapInfo::current_info()->header();
-      ClassLoaderExt::init_paths_start_index(header->_app_class_paths_start_index);
-      ClassLoaderExt::init_app_module_paths_start_index(header->_app_module_paths_start_index);
-    }
-  }
-
-  if (DumpSharedSpaces) {
-    if (SharedArchiveConfigFile) {
-      read_extra_data(SharedArchiveConfigFile, THREAD);
+      if (!DynamicDumpSharedSpaces) {
+        FileMapInfo* info;
+        if (FileMapInfo::dynamic_info() == NULL) {
+          info = FileMapInfo::current_info();
+        } else {
+          info = FileMapInfo::dynamic_info();
+        }
+        ClassLoaderExt::init_paths_start_index(info->app_class_paths_start_index());
+        ClassLoaderExt::init_app_module_paths_start_index(info->app_module_paths_start_index());
+      }
     }
   }
 }
 
+static GrowableArray<Handle>* _extra_interned_strings = NULL;
+
 void MetaspaceShared::read_extra_data(const char* filename, TRAPS) {
+  _extra_interned_strings = new (ResourceObj::C_HEAP, mtInternal)GrowableArray<Handle>(10000, true);
+
   HashtableTextDump reader(filename);
   reader.check_version("VERSION: 1.0");
 
@@ -355,21 +381,51 @@ void MetaspaceShared::read_extra_data(const char* filename, TRAPS) {
     int utf8_length;
     int prefix_type = reader.scan_prefix(&utf8_length);
     ResourceMark rm(THREAD);
-    char* utf8_buffer = NEW_RESOURCE_ARRAY(char, utf8_length);
+    if (utf8_length == 0x7fffffff) {
+      // buf_len will overflown 32-bit value.
+      vm_exit_during_initialization(err_msg("string length too large: %d", utf8_length));
+    }
+    int buf_len = utf8_length+1;
+    char* utf8_buffer = NEW_RESOURCE_ARRAY(char, buf_len);
     reader.get_utf8(utf8_buffer, utf8_length);
+    utf8_buffer[utf8_length] = '\0';
 
     if (prefix_type == HashtableTextDump::SymbolPrefix) {
-      SymbolTable::new_symbol(utf8_buffer, utf8_length, THREAD);
+      SymbolTable::new_permanent_symbol(utf8_buffer);
     } else{
       assert(prefix_type == HashtableTextDump::StringPrefix, "Sanity");
-      utf8_buffer[utf8_length] = '\0';
       oop s = StringTable::intern(utf8_buffer, THREAD);
+
+      if (HAS_PENDING_EXCEPTION) {
+        log_warning(cds, heap)("[line %d] extra interned string allocation failed; size too large: %d",
+                               reader.last_line_no(), utf8_length);
+        CLEAR_PENDING_EXCEPTION;
+      } else {
+#if INCLUDE_G1GC
+        if (UseG1GC) {
+          typeArrayOop body = java_lang_String::value(s);
+          const HeapRegion* hr = G1CollectedHeap::heap()->heap_region_containing(body);
+          if (hr->is_humongous()) {
+            // Don't keep it alive, so it will be GC'ed before we dump the strings, in order
+            // to maximize free heap space and minimize fragmentation.
+            log_warning(cds, heap)("[line %d] extra interned string ignored; size too large: %d",
+                                reader.last_line_no(), utf8_length);
+            continue;
+          }
+        }
+#endif
+        // Interned strings are GC'ed if there are no references to it, so let's
+        // add a reference to keep this string alive.
+        assert(s != NULL, "must succeed");
+        Handle h(THREAD, s);
+        _extra_interned_strings->append(h);
+      }
     }
   }
 }
 
 void MetaspaceShared::commit_shared_space_to(char* newtop) {
-  assert(DumpSharedSpaces, "dump-time only");
+  Arguments::assert_is_dumping_archive();
   char* base = _shared_rs.base();
   size_t need_committed_size = newtop - base;
   size_t has_committed_size = _shared_vs.committed_size();
@@ -381,7 +437,8 @@ void MetaspaceShared::commit_shared_space_to(char* newtop) {
   size_t preferred_bytes = 1 * M;
   size_t uncommitted = _shared_vs.reserved_size() - has_committed_size;
 
-  size_t commit = MAX2(min_bytes, preferred_bytes);
+  size_t commit =MAX2(min_bytes, preferred_bytes);
+  commit = MIN2(commit, uncommitted);
   assert(commit <= uncommitted, "sanity");
 
   bool result = _shared_vs.expand_by(commit, false);
@@ -419,39 +476,57 @@ void MetaspaceShared::serialize(SerializeClosure* soc) {
   vmSymbols::serialize(soc);
   soc->do_tag(--tag);
 
-  // Dump/restore the symbol and string tables
-  SymbolTable::serialize(soc);
-  StringTable::serialize(soc);
-  soc->do_tag(--tag);
+  // Dump/restore the symbol/string/subgraph_info tables
+  SymbolTable::serialize_shared_table_header(soc);
+  StringTable::serialize_shared_table_header(soc);
+  HeapShared::serialize_subgraph_info_table_header(soc);
+  SystemDictionaryShared::serialize_dictionary_headers(soc);
 
   JavaClasses::serialize_offsets(soc);
   InstanceMirrorKlass::serialize_offsets(soc);
   soc->do_tag(--tag);
 
+  serialize_cloned_cpp_vtptrs(soc);
+  soc->do_tag(--tag);
+
   soc->do_tag(666);
 }
 
-address MetaspaceShared::cds_i2i_entry_code_buffers(size_t total_size) {
+address MetaspaceShared::i2i_entry_code_buffers(size_t total_size) {
   if (DumpSharedSpaces) {
-    if (_cds_i2i_entry_code_buffers == NULL) {
-      _cds_i2i_entry_code_buffers = (address)misc_code_space_alloc(total_size);
-      _cds_i2i_entry_code_buffers_size = total_size;
+    if (_i2i_entry_code_buffers == NULL) {
+      _i2i_entry_code_buffers = (address)misc_code_space_alloc(total_size);
+      _i2i_entry_code_buffers_size = total_size;
     }
   } else if (UseSharedSpaces) {
-    assert(_cds_i2i_entry_code_buffers != NULL, "must already been initialized");
+    assert(_i2i_entry_code_buffers != NULL, "must already been initialized");
   } else {
     return NULL;
   }
 
-  assert(_cds_i2i_entry_code_buffers_size == total_size, "must not change");
-  return _cds_i2i_entry_code_buffers;
+  assert(_i2i_entry_code_buffers_size == total_size, "must not change");
+  return _i2i_entry_code_buffers;
 }
 
-// CDS code for dumping shared archive.
+uintx MetaspaceShared::object_delta_uintx(void* obj) {
+  Arguments::assert_is_dumping_archive();
+  if (DumpSharedSpaces) {
+    assert(shared_rs()->contains(obj), "must be");
+  } else {
+    assert(is_in_shared_metaspace(obj) || DynamicArchive::is_in_target_space(obj), "must be");
+  }
+  address base_address = address(SharedBaseAddress);
+  uintx deltax = address(obj) - base_address;
+  return deltax;
+}
 
 // Global object for holding classes that have been loaded.  Since this
 // is run at a safepoint just before exit, this is the entire set of classes.
 static GrowableArray<Klass*>* _global_klass_objects;
+
+GrowableArray<Klass*>* MetaspaceShared::collected_klasses() {
+  return _global_klass_objects;
+}
 
 static void collect_array_classes(Klass* k) {
   _global_klass_objects->append_if_missing(k);
@@ -467,13 +542,11 @@ static void collect_array_classes(Klass* k) {
 
 class CollectClassesClosure : public KlassClosure {
   void do_klass(Klass* k) {
-    if (!(k->is_instance_klass() && InstanceKlass::cast(k)->is_in_error_state())) {
-      if (k->is_instance_klass() && InstanceKlass::cast(k)->signers() != NULL) {
-        // Mark any class with signers and don't add to the _global_klass_objects
-        k->set_has_signer_and_not_archived();
-      } else {
-        _global_klass_objects->append_if_missing(k);
-      }
+    if (k->is_instance_klass() &&
+        SystemDictionaryShared::is_excluded_class(InstanceKlass::cast(k))) {
+      // Don't add to the _global_klass_objects
+    } else {
+      _global_klass_objects->append_if_missing(k);
     }
     if (k->is_array_klass()) {
       // Add in the array classes too
@@ -511,7 +584,7 @@ static void remove_java_mirror_in_classes() {
 }
 
 static void clear_basic_type_mirrors() {
-  assert(!MetaspaceShared::is_heap_object_archiving_allowed(), "Sanity");
+  assert(!HeapShared::is_heap_object_archiving_allowed(), "Sanity");
   Universe::set_int_mirror(NULL);
   Universe::set_float_mirror(NULL);
   Universe::set_double_mirror(NULL);
@@ -552,43 +625,20 @@ static void rewrite_nofast_bytecodes_and_calculate_fingerprints() {
     Klass* k = _global_klass_objects->at(i);
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      for (int i = 0; i < ik->methods()->length(); i++) {
-        Method* m = ik->methods()->at(i);
-        rewrite_nofast_bytecode(m);
-        Fingerprinter fp(m);
-        // The side effect of this call sets method's fingerprint field.
-        fp.fingerprint();
-      }
+      MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(ik);
     }
   }
 }
 
-static void relocate_cached_class_file() {
-  for (int i = 0; i < _global_klass_objects->length(); i++) {
-    Klass* k = _global_klass_objects->at(i);
-    if (k->is_instance_klass()) {
-      InstanceKlass* ik = InstanceKlass::cast(k);
-      JvmtiCachedClassFileData* p = ik->get_archived_class_data();
-      if (p != NULL) {
-        int size = offset_of(JvmtiCachedClassFileData, data) + p->length;
-        JvmtiCachedClassFileData* q = (JvmtiCachedClassFileData*)_od_region.allocate(size);
-        q->length = p->length;
-        memcpy(q->data, p->data, p->length);
-        ik->set_archived_class_data(q);
-      }
-    }
+void MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(InstanceKlass* ik) {
+  for (int i = 0; i < ik->methods()->length(); i++) {
+    Method* m = ik->methods()->at(i);
+    rewrite_nofast_bytecode(m);
+    Fingerprinter fp(m);
+    // The side effect of this call sets method's fingerprint field.
+    fp.fingerprint();
   }
 }
-
-NOT_PRODUCT(
-static void assert_not_unsafe_anonymous_class(InstanceKlass* k) {
-  assert(!(k->is_unsafe_anonymous()), "cannot archive unsafe anonymous classes");
-}
-
-// Unsafe anonymous classes are not stored inside any dictionaries.
-static void assert_no_unsafe_anonymous_classes_in_dictionaries() {
-  ClassLoaderDataGraph::dictionary_classes_do(assert_not_unsafe_anonymous_class);
-})
 
 // Objects of the Metadata types (such as Klass and ConstantPool) have C++ vtables.
 // (In GCC this is the field <Type>::_vptr, i.e., first word in the object.)
@@ -676,7 +726,7 @@ intptr_t* CppVtableCloner<T>::allocate(const char* name) {
   intptr_t* p = clone_vtable(name, _info);
   assert((char*)p == _md_region.top(), "must be");
 
-  return p;
+  return _info->cloned_vtable();
 }
 
 template <class T>
@@ -749,13 +799,92 @@ int CppVtableCloner<T>::get_vtable_length(const char* name) {
 }
 
 #define ALLOC_CPP_VTABLE_CLONE(c) \
-  CppVtableCloner<c>::allocate(#c);
+  _cloned_cpp_vtptrs[c##_Kind] = CppVtableCloner<c>::allocate(#c);
 
 #define CLONE_CPP_VTABLE(c) \
   p = CppVtableCloner<c>::clone_vtable(#c, (CppVtableInfo*)p);
 
 #define ZERO_CPP_VTABLE(c) \
  CppVtableCloner<c>::zero_vtable_clone();
+
+//------------------------------ for DynamicDumpSharedSpaces - start
+#define DECLARE_CLONED_VTABLE_KIND(c) c ## _Kind,
+
+enum {
+  CPP_VTABLE_PATCH_TYPES_DO(DECLARE_CLONED_VTABLE_KIND)
+  _num_cloned_vtable_kinds
+};
+
+static intptr_t** _cloned_cpp_vtptrs = NULL;
+
+void MetaspaceShared::serialize_cloned_cpp_vtptrs(SerializeClosure* soc) {
+  soc->do_ptr((void**)&_cloned_cpp_vtptrs);
+}
+
+intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type msotype, address obj) {
+  assert(DynamicDumpSharedSpaces, "must");
+  int kind = -1;
+  switch (msotype) {
+  case MetaspaceObj::SymbolType:
+  case MetaspaceObj::TypeArrayU1Type:
+  case MetaspaceObj::TypeArrayU2Type:
+  case MetaspaceObj::TypeArrayU4Type:
+  case MetaspaceObj::TypeArrayU8Type:
+  case MetaspaceObj::TypeArrayOtherType:
+  case MetaspaceObj::ConstMethodType:
+  case MetaspaceObj::ConstantPoolCacheType:
+  case MetaspaceObj::AnnotationsType:
+  case MetaspaceObj::MethodCountersType:
+    // These have no vtables.
+    break;
+  case MetaspaceObj::ClassType:
+    {
+      Klass* k = (Klass*)obj;
+      assert(k->is_klass(), "must be");
+      if (k->is_instance_klass()) {
+        kind = InstanceKlass_Kind;
+      } else {
+        assert(k->is_objArray_klass(),
+               "We shouldn't archive any other klasses in DynamicDumpSharedSpaces");
+        kind = ObjArrayKlass_Kind;
+      }
+    }
+    break;
+
+  case MetaspaceObj::MethodType:
+    {
+      Method* m = (Method*)obj;
+      assert(m->is_method(), "must be");
+      kind = Method_Kind;
+    }
+    break;
+
+  case MetaspaceObj::MethodDataType:
+    // We don't archive MethodData <-- should have been removed in removed_unsharable_info
+    ShouldNotReachHere();
+    break;
+
+  case MetaspaceObj::ConstantPoolType:
+    {
+      ConstantPool *cp = (ConstantPool*)obj;
+      assert(cp->is_constantPool(), "must be");
+      kind = ConstantPool_Kind;
+    }
+    break;
+
+  default:
+    ShouldNotReachHere();
+  }
+
+  if (kind >= 0) {
+    assert(kind < _num_cloned_vtable_kinds, "must be");
+    return _cloned_cpp_vtptrs[kind];
+  } else {
+    return NULL;
+  }
+}
+
+//------------------------------ for DynamicDumpSharedSpaces - end
 
 // This can be called at both dump time and run time.
 intptr_t* MetaspaceShared::clone_cpp_vtables(intptr_t* p) {
@@ -820,55 +949,27 @@ bool MetaspaceShared::is_valid_shared_method(const Method* m) {
   return CppVtableCloner<Method>::is_valid_shared_object(m);
 }
 
-// Closure for serializing initialization data out to a data area to be
-// written to the shared file.
-
-class WriteClosure : public SerializeClosure {
-private:
-  DumpRegion* _dump_region;
-
-public:
-  WriteClosure(DumpRegion* r) {
-    _dump_region = r;
+void WriteClosure::do_oop(oop* o) {
+  if (*o == NULL) {
+    _dump_region->append_intptr_t(0);
+  } else {
+    assert(HeapShared::is_heap_object_archiving_allowed(),
+           "Archiving heap object is not allowed");
+    _dump_region->append_intptr_t(
+      (intptr_t)CompressedOops::encode_not_null(*o));
   }
+}
 
-  void do_ptr(void** p) {
-    _dump_region->append_intptr_t((intptr_t)*p);
+void WriteClosure::do_region(u_char* start, size_t size) {
+  assert((intptr_t)start % sizeof(intptr_t) == 0, "bad alignment");
+  assert(size % sizeof(intptr_t) == 0, "bad size");
+  do_tag((int)size);
+  while (size > 0) {
+    _dump_region->append_intptr_t(*(intptr_t*)start);
+    start += sizeof(intptr_t);
+    size -= sizeof(intptr_t);
   }
-
-  void do_u4(u4* p) {
-    void* ptr = (void*)(uintx(*p));
-    do_ptr(&ptr);
-  }
-
-  void do_tag(int tag) {
-    _dump_region->append_intptr_t((intptr_t)tag);
-  }
-
-  void do_oop(oop* o) {
-    if (*o == NULL) {
-      _dump_region->append_intptr_t(0);
-    } else {
-      assert(MetaspaceShared::is_heap_object_archiving_allowed(),
-             "Archiving heap object is not allowed");
-      _dump_region->append_intptr_t(
-        (intptr_t)CompressedOops::encode_not_null(*o));
-    }
-  }
-
-  void do_region(u_char* start, size_t size) {
-    assert((intptr_t)start % sizeof(intptr_t) == 0, "bad alignment");
-    assert(size % sizeof(intptr_t) == 0, "bad size");
-    do_tag((int)size);
-    while (size > 0) {
-      _dump_region->append_intptr_t(*(intptr_t*)start);
-      start += sizeof(intptr_t);
-      size -= sizeof(intptr_t);
-    }
-  }
-
-  bool reading() const { return false; }
-};
+}
 
 // This is for dumping detailed statistics for the allocations
 // in the shared spaces.
@@ -966,7 +1067,7 @@ void DumpAllocStats::print_stats(int ro_all, int rw_all, int mc_all, int md_all)
 
   LogMessage(cds) msg;
 
-  msg.info("Detailed metadata info (excluding od/st regions; rw stats include md/mc regions):");
+  msg.info("Detailed metadata info (excluding st regions; rw stats include md/mc regions):");
   msg.info("%s", hdr);
   msg.info("%s", sep);
   for (int type = 0; type < int(_number_of_types); type ++) {
@@ -1035,7 +1136,9 @@ public:
 
   VMOp_Type type() const { return VMOp_PopulateDumpSharedSpace; }
   void doit();   // outline because gdb sucks
-  static void write_region(FileMapInfo* mapinfo, int region, DumpRegion* space, bool read_only,  bool allow_exec);
+  static void write_region(FileMapInfo* mapinfo, int region_idx, DumpRegion* dump_region, bool read_only,  bool allow_exec) {
+    mapinfo->write_region(region_idx, dump_region->base(), dump_region->used(), read_only, allow_exec);
+  }
   bool allow_nested_vm_operations() const { return true; }
 }; // class VM_PopulateDumpSharedSpace
 
@@ -1072,30 +1175,38 @@ public:
 // metaspace data into their final location in the shared regions.
 
 class ArchiveCompactor : AllStatic {
+  static const int INITIAL_TABLE_SIZE = 8087;
+  static const int MAX_TABLE_SIZE     = 1000000;
+
   static DumpAllocStats* _alloc_stats;
   static SortedSymbolClosure* _ssc;
 
-  static unsigned my_hash(const address& a) {
-    return primitive_hash<address>(a);
-  }
-  static bool my_equals(const address& a0, const address& a1) {
-    return primitive_equals<address>(a0, a1);
-  }
-  typedef ResourceHashtable<
-      address, address,
-      ArchiveCompactor::my_hash,   // solaris compiler doesn't like: primitive_hash<address>
-      ArchiveCompactor::my_equals, // solaris compiler doesn't like: primitive_equals<address>
-      16384, ResourceObj::C_HEAP> RelocationTable;
+  typedef KVHashtable<address, address, mtInternal> RelocationTable;
   static RelocationTable* _new_loc_table;
 
 public:
   static void initialize() {
     _alloc_stats = new(ResourceObj::C_HEAP, mtInternal)DumpAllocStats;
-    _new_loc_table = new(ResourceObj::C_HEAP, mtInternal)RelocationTable;
+    _new_loc_table = new RelocationTable(INITIAL_TABLE_SIZE);
   }
   static DumpAllocStats* alloc_stats() {
     return _alloc_stats;
   }
+
+  // Use this when you allocate space with MetaspaceShare::read_only_space_alloc()
+  // outside of ArchiveCompactor::allocate(). These are usually for misc tables
+  // that are allocated in the RO space.
+  class OtherROAllocMark {
+    char* _oldtop;
+  public:
+    OtherROAllocMark() {
+      _oldtop = _ro_region.top();
+    }
+    ~OtherROAllocMark() {
+      char* newtop = _ro_region.top();
+      ArchiveCompactor::alloc_stats()->record_other_type(int(newtop - _oldtop), true);
+    }
+  };
 
   static void allocate(MetaspaceClosure::Ref* ref, bool read_only) {
     address obj = ref->obj();
@@ -1111,29 +1222,32 @@ public:
       newtop = _ro_region.top();
     } else {
       oldtop = _rw_region.top();
+      if (ref->msotype() == MetaspaceObj::ClassType) {
+        // Save a pointer immediate in front of an InstanceKlass, so
+        // we can do a quick lookup from InstanceKlass* -> RunTimeSharedClassInfo*
+        // without building another hashtable. See RunTimeSharedClassInfo::get_for()
+        // in systemDictionaryShared.cpp.
+        Klass* klass = (Klass*)obj;
+        if (klass->is_instance_klass()) {
+          SystemDictionaryShared::validate_before_archiving(InstanceKlass::cast(klass));
+          _rw_region.allocate(sizeof(address), BytesPerWord);
+        }
+      }
       p = _rw_region.allocate(bytes, alignment);
       newtop = _rw_region.top();
     }
     memcpy(p, obj, bytes);
-    bool isnew = _new_loc_table->put(obj, (address)p);
+    assert(_new_loc_table->lookup(obj) == NULL, "each object can be relocated at most once");
+    _new_loc_table->add(obj, (address)p);
     log_trace(cds)("Copy: " PTR_FORMAT " ==> " PTR_FORMAT " %d", p2i(obj), p2i(p), bytes);
-    assert(isnew, "must be");
-
-    _alloc_stats->record(ref->msotype(), int(newtop - oldtop), read_only);
-    if (ref->msotype() == MetaspaceObj::SymbolType) {
-      uintx delta = MetaspaceShared::object_delta(p);
-      if (delta > MAX_SHARED_DELTA) {
-        // This is just a sanity check and should not appear in any real world usage. This
-        // happens only if you allocate more than 2GB of Symbols and would require
-        // millions of shared classes.
-        vm_exit_during_initialization("Too many Symbols in the CDS archive",
-                                      "Please reduce the number of shared classes.");
-      }
+    if (_new_loc_table->maybe_grow(MAX_TABLE_SIZE)) {
+      log_info(cds, hashtables)("Expanded _new_loc_table to %d", _new_loc_table->table_size());
     }
+    _alloc_stats->record(ref->msotype(), int(newtop - oldtop), read_only);
   }
 
   static address get_new_loc(MetaspaceClosure::Ref* ref) {
-    address* pp = _new_loc_table->get(ref->obj());
+    address* pp = _new_loc_table->lookup(ref->obj());
     assert(pp != NULL, "must be");
     return *pp;
   }
@@ -1145,20 +1259,22 @@ private:
   public:
     ShallowCopier(bool read_only) : _read_only(read_only) {}
 
-    virtual void do_unique_ref(Ref* ref, bool read_only) {
+    virtual bool do_unique_ref(Ref* ref, bool read_only) {
       if (read_only == _read_only) {
         allocate(ref, read_only);
       }
+      return true; // recurse into ref.obj()
     }
   };
 
   // Relocate embedded pointers within a MetaspaceObj's shallow copy
   class ShallowCopyEmbeddedRefRelocator: public UniqueMetaspaceClosure {
   public:
-    virtual void do_unique_ref(Ref* ref, bool read_only) {
+    virtual bool do_unique_ref(Ref* ref, bool read_only) {
       address new_loc = get_new_loc(ref);
       RefRelocator refer;
       ref->metaspace_pointers_do_at(&refer, new_loc);
+      return true; // recurse into ref.obj()
     }
   };
 
@@ -1189,10 +1305,6 @@ private:
 
 public:
   static void copy_and_compact() {
-    // We should no longer allocate anything from the metaspace, so that
-    // we can have a stable set of MetaspaceObjs to work with.
-    Metaspace::freeze();
-
     ResourceMark rm;
     SortedSymbolClosure the_ssc; // StackObj
     _ssc = &the_ssc;
@@ -1256,9 +1368,8 @@ public:
     // NOTE: after this point, we shouldn't have any globals that can reach the old
     // objects.
 
-    // We cannot use any of the objects in the heap anymore (except for the objects
-    // in the CDS shared string regions) because their headers no longer point to
-    // valid Klasses.
+    // We cannot use any of the objects in the heap anymore (except for the
+    // shared strings) because their headers no longer point to valid Klasses.
   }
 
   static void iterate_roots(MetaspaceClosure* it) {
@@ -1274,15 +1385,17 @@ public:
       }
     }
     FileMapInfo::metaspace_pointers_do(it);
-    SystemDictionary::classes_do(it);
+    SystemDictionaryShared::dumptime_classes_do(it);
     Universe::metaspace_pointers_do(it);
     SymbolTable::metaspace_pointers_do(it);
     vmSymbols::metaspace_pointers_do(it);
+
+    it->finish();
   }
 
   static Klass* get_relocated_klass(Klass* orig_klass) {
     assert(DumpSharedSpaces, "dump time only");
-    address* pp = _new_loc_table->get((address)orig_klass);
+    address* pp = _new_loc_table->lookup((address)orig_klass);
     assert(pp != NULL, "must be");
     Klass* klass = (Klass*)(*pp);
     assert(klass->is_klass(), "must be");
@@ -1294,11 +1407,6 @@ DumpAllocStats* ArchiveCompactor::_alloc_stats;
 SortedSymbolClosure* ArchiveCompactor::_ssc;
 ArchiveCompactor::RelocationTable* ArchiveCompactor::_new_loc_table;
 
-void VM_PopulateDumpSharedSpace::write_region(FileMapInfo* mapinfo, int region_idx,
-                                              DumpRegion* dump_region, bool read_only,  bool allow_exec) {
-  mapinfo->write_region(region_idx, dump_region->base(), dump_region->used(), read_only, allow_exec);
-}
-
 void VM_PopulateDumpSharedSpace::dump_symbols() {
   tty->print_cr("Dumping symbol table ...");
 
@@ -1307,45 +1415,41 @@ void VM_PopulateDumpSharedSpace::dump_symbols() {
 }
 
 char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
-  char* oldtop = _ro_region.top();
-  // Reorder the system dictionary. Moving the symbols affects
-  // how the hash table indices are calculated.
-  SystemDictionary::reorder_dictionary_for_sharing();
+  ArchiveCompactor::OtherROAllocMark mark;
 
   tty->print("Removing java_mirror ... ");
-  if (!MetaspaceShared::is_heap_object_archiving_allowed()) {
+  if (!HeapShared::is_heap_object_archiving_allowed()) {
     clear_basic_type_mirrors();
   }
   remove_java_mirror_in_classes();
   tty->print_cr("done. ");
-  NOT_PRODUCT(SystemDictionary::verify();)
 
-  size_t buckets_bytes = SystemDictionary::count_bytes_for_buckets();
-  char* buckets_top = _ro_region.allocate(buckets_bytes, sizeof(intptr_t));
-  SystemDictionary::copy_buckets(buckets_top, _ro_region.top());
+  SystemDictionaryShared::write_to_archive();
 
-  size_t table_bytes = SystemDictionary::count_bytes_for_table();
-  char* table_top = _ro_region.allocate(table_bytes, sizeof(intptr_t));
-  SystemDictionary::copy_table(table_top, _ro_region.top());
-
-  // Write the archived object sub-graph infos. For each klass with sub-graphs,
-  // the info includes the static fields (sub-graph entry points) and Klasses
-  // of objects included in the sub-graph.
-  HeapShared::write_archived_subgraph_infos();
+  size_t vtptrs_bytes = _num_cloned_vtable_kinds * sizeof(intptr_t*);
+  _cloned_cpp_vtptrs = (intptr_t**)_ro_region.allocate(vtptrs_bytes, sizeof(intptr_t*));
 
   // Write the other data to the output array.
+  char* start = _ro_region.top();
   WriteClosure wc(&_ro_region);
   MetaspaceShared::serialize(&wc);
 
   // Write the bitmaps for patching the archive heap regions
   dump_archive_heap_oopmaps();
 
-  char* newtop = _ro_region.top();
-  ArchiveCompactor::alloc_stats()->record_other_type(int(newtop - oldtop), true);
-  return buckets_top;
+  return start;
 }
 
 void VM_PopulateDumpSharedSpace::doit() {
+  // We should no longer allocate anything from the metaspace, so that:
+  //
+  // (1) Metaspace::allocate might trigger GC if we have run out of
+  //     committed metaspace, but we can't GC because we're running
+  //     in the VM thread.
+  // (2) ArchiveCompactor needs to work with a stable set of MetaspaceObjs.
+  Metaspace::freeze();
+  DEBUG_ONLY(SystemDictionaryShared::NoClassLoadingMark nclm);
+
   Thread* THREAD = VMThread::vm_thread();
 
   FileMapInfo::check_nonempty_dir_in_shared_path_table();
@@ -1359,14 +1463,11 @@ void VM_PopulateDumpSharedSpace::doit() {
             "loader constraints are not saved");
   guarantee(SystemDictionary::placeholders()->number_of_entries() == 0,
           "placeholders are not saved");
-  // Revisit and implement this if we prelink method handle call sites:
-  guarantee(SystemDictionary::invoke_method_table() == NULL ||
-            SystemDictionary::invoke_method_table()->number_of_entries() == 0,
-            "invoke method table is not saved");
 
   // At this point, many classes have been loaded.
   // Gather systemDictionary classes in a global array and do everything to
   // that so we don't have to walk the SystemDictionary again.
+  SystemDictionaryShared::check_excluded_classes();
   _global_klass_objects = new GrowableArray<Klass*>(1000);
   CollectClassesClosure collect_classes;
   ClassLoaderDataGraph::loaded_classes_do(&collect_classes);
@@ -1395,22 +1496,10 @@ void VM_PopulateDumpSharedSpace::doit() {
   rewrite_nofast_bytecodes_and_calculate_fingerprints();
   tty->print_cr("done. ");
 
-  // Move classes from platform/system dictionaries into the boot dictionary
-  SystemDictionary::combine_shared_dictionaries();
-
-  // Make sure all classes have a correct loader type.
-  ClassLoaderData::the_null_class_loader_data()->dictionary()->classes_do(MetaspaceShared::check_shared_class_loader_type);
-
   // Remove all references outside the metadata
   tty->print("Removing unshareable information ... ");
   remove_unshareable_in_classes();
   tty->print_cr("done. ");
-
-  // We don't support archiving unsafe anonymous classes. Verify that they are not stored in
-  // any dictionaries.
-  NOT_PRODUCT(assert_no_unsafe_anonymous_classes_in_dictionaries());
-
-  SystemDictionaryShared::finalize_verification_constraints();
 
   ArchiveCompactor::initialize();
   ArchiveCompactor::copy_and_compact();
@@ -1424,20 +1513,16 @@ void VM_PopulateDumpSharedSpace::doit() {
 
   ArchiveCompactor::relocate_well_known_klasses();
 
-  char* read_only_tables_start = dump_read_only_tables();
+  char* serialized_data_start = dump_read_only_tables();
   _ro_region.pack(&_md_region);
 
   char* vtbl_list = _md_region.top();
   MetaspaceShared::allocate_cpp_vtable_clones();
-  _md_region.pack(&_od_region);
+  _md_region.pack();
 
-  // Relocate the archived class file data into the od region
-  relocate_cached_class_file();
-  _od_region.pack();
-
-  // The 5 core spaces are allocated consecutively mc->rw->ro->md->od, so there total size
+  // The 4 core spaces are allocated consecutively mc->rw->ro->md, so there total size
   // is just the spaces between the two ends.
-  size_t core_spaces_size = _od_region.end() - _mc_region.base();
+  size_t core_spaces_size = _md_region.end() - _mc_region.base();
   assert(core_spaces_size == (size_t)align_up(core_spaces_size, Metaspace::reserve_alignment()),
          "should already be aligned");
 
@@ -1451,47 +1536,35 @@ void VM_PopulateDumpSharedSpace::doit() {
 
   // Create and write the archive file that maps the shared spaces.
 
-  FileMapInfo* mapinfo = new FileMapInfo();
+  FileMapInfo* mapinfo = new FileMapInfo(true);
   mapinfo->populate_header(os::vm_allocation_granularity());
-  mapinfo->set_read_only_tables_start(read_only_tables_start);
+  mapinfo->set_serialized_data_start(serialized_data_start);
   mapinfo->set_misc_data_patching_start(vtbl_list);
-  mapinfo->set_cds_i2i_entry_code_buffers(MetaspaceShared::cds_i2i_entry_code_buffers());
-  mapinfo->set_cds_i2i_entry_code_buffers_size(MetaspaceShared::cds_i2i_entry_code_buffers_size());
+  mapinfo->set_i2i_entry_code_buffers(MetaspaceShared::i2i_entry_code_buffers(),
+                                      MetaspaceShared::i2i_entry_code_buffers_size());
   mapinfo->set_core_spaces_size(core_spaces_size);
+  mapinfo->open_for_write();
 
-  for (int pass=1; pass<=2; pass++) {
-    if (pass == 1) {
-      // The first pass doesn't actually write the data to disk. All it
-      // does is to update the fields in the mapinfo->_header.
-    } else {
-      // After the first pass, the contents of mapinfo->_header are finalized,
-      // so we can compute the header's CRC, and write the contents of the header
-      // and the regions into disk.
-      mapinfo->open_for_write();
-      mapinfo->set_header_crc(mapinfo->compute_header_crc());
-    }
-    mapinfo->write_header();
+  // NOTE: md contains the trampoline code for method entries, which are patched at run time,
+  // so it needs to be read/write.
+  write_region(mapinfo, MetaspaceShared::mc, &_mc_region, /*read_only=*/false,/*allow_exec=*/true);
+  write_region(mapinfo, MetaspaceShared::rw, &_rw_region, /*read_only=*/false,/*allow_exec=*/false);
+  write_region(mapinfo, MetaspaceShared::ro, &_ro_region, /*read_only=*/true, /*allow_exec=*/false);
+  write_region(mapinfo, MetaspaceShared::md, &_md_region, /*read_only=*/false,/*allow_exec=*/false);
 
-    // NOTE: md contains the trampoline code for method entries, which are patched at run time,
-    // so it needs to be read/write.
-    write_region(mapinfo, MetaspaceShared::mc, &_mc_region, /*read_only=*/false,/*allow_exec=*/true);
-    write_region(mapinfo, MetaspaceShared::rw, &_rw_region, /*read_only=*/false,/*allow_exec=*/false);
-    write_region(mapinfo, MetaspaceShared::ro, &_ro_region, /*read_only=*/true, /*allow_exec=*/false);
-    write_region(mapinfo, MetaspaceShared::md, &_md_region, /*read_only=*/false,/*allow_exec=*/false);
-    write_region(mapinfo, MetaspaceShared::od, &_od_region, /*read_only=*/true, /*allow_exec=*/false);
-
-    _total_string_region_size = mapinfo->write_archive_heap_regions(
+  _total_closed_archive_region_size = mapinfo->write_archive_heap_regions(
                                         _closed_archive_heap_regions,
                                         _closed_archive_heap_oopmaps,
-                                        MetaspaceShared::first_string,
-                                        MetaspaceShared::max_strings);
-    _total_open_archive_region_size = mapinfo->write_archive_heap_regions(
+                                        MetaspaceShared::first_closed_archive_heap_region,
+                                        MetaspaceShared::max_closed_archive_heap_region);
+  _total_open_archive_region_size = mapinfo->write_archive_heap_regions(
                                         _open_archive_heap_regions,
                                         _open_archive_heap_oopmaps,
                                         MetaspaceShared::first_open_archive_heap_region,
                                         MetaspaceShared::max_open_archive_heap_region);
-  }
 
+  mapinfo->set_header_crc(mapinfo->compute_header_crc());
+  mapinfo->write_header();
   mapinfo->close();
 
   // Restore the vtable in case we invoke any virtual methods.
@@ -1507,6 +1580,12 @@ void VM_PopulateDumpSharedSpace::doit() {
   if (PrintSystemDictionaryAtExit) {
     SystemDictionary::print();
   }
+
+  if (AllowArchivingWithJavaAgent) {
+    warning("This archive was created with AllowArchivingWithJavaAgent. It should be used "
+            "for testing purposes only and should not be used in a production environment");
+  }
+
   // There may be other pending VM operations that operate on the InstanceKlasses,
   // which will fail because InstanceKlasses::remove_unshareable_info()
   // has been called. Forget these operations and exit the VM directly.
@@ -1517,13 +1596,11 @@ void VM_PopulateDumpSharedSpace::print_region_stats() {
   // Print statistics of all the regions
   const size_t total_reserved = _ro_region.reserved()  + _rw_region.reserved() +
                                 _mc_region.reserved()  + _md_region.reserved() +
-                                _od_region.reserved()  +
-                                _total_string_region_size +
+                                _total_closed_archive_region_size +
                                 _total_open_archive_region_size;
   const size_t total_bytes = _ro_region.used()  + _rw_region.used() +
                              _mc_region.used()  + _md_region.used() +
-                             _od_region.used()  +
-                             _total_string_region_size +
+                             _total_closed_archive_region_size +
                              _total_open_archive_region_size;
   const double total_u_perc = percent_of(total_bytes, total_reserved);
 
@@ -1531,8 +1608,7 @@ void VM_PopulateDumpSharedSpace::print_region_stats() {
   _rw_region.print(total_reserved);
   _ro_region.print(total_reserved);
   _md_region.print(total_reserved);
-  _od_region.print(total_reserved);
-  print_heap_region_stats(_closed_archive_heap_regions, "st", total_reserved);
+  print_heap_region_stats(_closed_archive_heap_regions, "ca", total_reserved);
   print_heap_region_stats(_open_archive_heap_regions, "oa", total_reserved);
 
   tty->print_cr("total    : " SIZE_FORMAT_W(9) " [100.0%% of total] out of " SIZE_FORMAT_W(9) " bytes [%5.1f%% used]",
@@ -1602,17 +1678,6 @@ class CheckSharedClassesClosure : public KlassClosure {
   }
 };
 
-void MetaspaceShared::check_shared_class_loader_type(InstanceKlass* ik) {
-  ResourceMark rm;
-  if (ik->shared_classpath_index() == UNREGISTERED_INDEX) {
-    guarantee(ik->loader_type() == 0,
-            "Class loader type must not be set for this class %s", ik->name()->as_C_string());
-  } else {
-    guarantee(ik->loader_type() != 0,
-            "Class loader type must be set for this class %s", ik->name()->as_C_string());
-  }
-}
-
 void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
   // We need to iterate because verification may cause additional classes
   // to be loaded.
@@ -1633,15 +1698,6 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
       check_closure.reset();
       ClassLoaderDataGraph::unlocked_loaded_classes_do(&check_closure);
     } while (check_closure.made_progress());
-
-    if (IgnoreUnverifiableClassesDuringDump) {
-      // This is useful when running JCK or SQE tests. You should not
-      // enable this when running real apps.
-      SystemDictionary::remove_classes_in_error_state();
-    } else {
-      tty->print_cr("Please remove the unverifiable classes from your class list and try again");
-      exit(1);
-    }
   }
 }
 
@@ -1657,7 +1713,6 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
     ResourceMark rm;
     char class_list_path_str[JVM_MAXPATHLEN];
     // Preload classes to be shared.
-    // Should use some os:: method rather than fopen() here. aB.
     const char* class_list_path;
     if (SharedClassListFile == NULL) {
       // Construct the path to the class list (in jre/lib)
@@ -1699,6 +1754,14 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
 
     log_info(cds)("Shared spaces: preloaded %d classes", class_count);
 
+    if (SharedArchiveConfigFile) {
+      tty->print_cr("Reading extra data from %s ...", SharedArchiveConfigFile);
+      read_extra_data(SharedArchiveConfigFile, THREAD);
+    }
+    tty->print_cr("Reading extra data: done.");
+
+    HeapShared::init_subgraph_entry_fields(THREAD);
+
     // Rewrite and link classes
     tty->print_cr("Rewriting and linking classes ...");
 
@@ -1709,8 +1772,12 @@ void MetaspaceShared::preload_and_dump(TRAPS) {
     link_and_cleanup_shared_classes(CATCH);
     tty->print_cr("Rewriting and linking classes: done");
 
-    SystemDictionary::clear_invoke_method_table();
-    HeapShared::init_archivable_static_fields(THREAD);
+    if (HeapShared::is_heap_object_archiving_allowed()) {
+      // Avoid fragmentation while archiving heap objects.
+      Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(true);
+      Universe::heap()->collect(GCCause::_archive_time_gc);
+      Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(false);
+    }
 
     VM_PopulateDumpSharedSpace op;
     VMThread::execute(&op);
@@ -1722,36 +1789,36 @@ int MetaspaceShared::preload_classes(const char* class_list_path, TRAPS) {
   ClassListParser parser(class_list_path);
   int class_count = 0;
 
-    while (parser.parse_one_line()) {
-      Klass* klass = ClassLoaderExt::load_one_class(&parser, THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-        if (klass == NULL &&
-             (PENDING_EXCEPTION->klass()->name() == vmSymbols::java_lang_ClassNotFoundException())) {
-          // print a warning only when the pending exception is class not found
-          tty->print_cr("Preload Warning: Cannot find %s", parser.current_class_name());
-        }
-        CLEAR_PENDING_EXCEPTION;
+  while (parser.parse_one_line()) {
+    Klass* klass = parser.load_current_class(THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      if (klass == NULL &&
+          (PENDING_EXCEPTION->klass()->name() == vmSymbols::java_lang_ClassNotFoundException())) {
+        // print a warning only when the pending exception is class not found
+        log_warning(cds)("Preload Warning: Cannot find %s", parser.current_class_name());
       }
-      if (klass != NULL) {
-        if (log_is_enabled(Trace, cds)) {
-          ResourceMark rm;
-          log_trace(cds)("Shared spaces preloaded: %s", klass->external_name());
-        }
-
-        if (klass->is_instance_klass()) {
-          InstanceKlass* ik = InstanceKlass::cast(klass);
-
-          // Link the class to cause the bytecodes to be rewritten and the
-          // cpcache to be created. The linking is done as soon as classes
-          // are loaded in order that the related data structures (klass and
-          // cpCache) are located together.
-          try_link_class(ik, THREAD);
-          guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
-        }
-
-        class_count++;
-      }
+      CLEAR_PENDING_EXCEPTION;
     }
+    if (klass != NULL) {
+      if (log_is_enabled(Trace, cds)) {
+        ResourceMark rm;
+        log_trace(cds)("Shared spaces preloaded: %s", klass->external_name());
+      }
+
+      if (klass->is_instance_klass()) {
+        InstanceKlass* ik = InstanceKlass::cast(klass);
+
+        // Link the class to cause the bytecodes to be rewritten and the
+        // cpcache to be created. The linking is done as soon as classes
+        // are loaded in order that the related data structures (klass and
+        // cpCache) are located together.
+        try_link_class(ik, THREAD);
+        guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
+      }
+
+      class_count++;
+    }
+  }
 
   return class_count;
 }
@@ -1774,7 +1841,7 @@ bool MetaspaceShared::try_link_class(InstanceKlass* ik, TRAPS) {
     ik->link_class(THREAD);
     if (HAS_PENDING_EXCEPTION) {
       ResourceMark rm;
-      tty->print_cr("Preload Warning: Verification failed for %s",
+      log_warning(cds)("Preload Warning: Verification failed for %s",
                     ik->external_name());
       CLEAR_PENDING_EXCEPTION;
       ik->set_in_error_state();
@@ -1789,42 +1856,18 @@ bool MetaspaceShared::try_link_class(InstanceKlass* ik, TRAPS) {
 
 #if INCLUDE_CDS_JAVA_HEAP
 void VM_PopulateDumpSharedSpace::dump_java_heap_objects() {
-  if (!MetaspaceShared::is_heap_object_archiving_allowed()) {
-    if (log_is_enabled(Info, cds)) {
-      log_info(cds)(
-        "Archived java heap is not supported as UseG1GC, "
-        "UseCompressedOops and UseCompressedClassPointers are required."
-        "Current settings: UseG1GC=%s, UseCompressedOops=%s, UseCompressedClassPointers=%s.",
-        BOOL_TO_STR(UseG1GC), BOOL_TO_STR(UseCompressedOops),
-        BOOL_TO_STR(UseCompressedClassPointers));
-    }
-    return;
-  }
-
-  {
-    NoSafepointVerifier nsv;
-
-    // Cache for recording where the archived objects are copied to
-    MetaspaceShared::create_archive_object_cache();
-
-    tty->print_cr("Dumping objects to closed archive heap region ...");
-    NOT_PRODUCT(StringTable::verify());
-    // The closed space has maximum two regions. See FileMapInfo::write_archive_heap_regions() for details.
-    _closed_archive_heap_regions = new GrowableArray<MemRegion>(2);
-    MetaspaceShared::dump_closed_archive_heap_objects(_closed_archive_heap_regions);
-
-    tty->print_cr("Dumping objects to open archive heap region ...");
-    _open_archive_heap_regions = new GrowableArray<MemRegion>(2);
-    MetaspaceShared::dump_open_archive_heap_objects(_open_archive_heap_regions);
-
-    MetaspaceShared::destroy_archive_object_cache();
-  }
-
-  G1HeapVerifier::verify_archive_regions();
+  // The closed and open archive heap space has maximum two regions.
+  // See FileMapInfo::write_archive_heap_regions() for details.
+  _closed_archive_heap_regions = new GrowableArray<MemRegion>(2);
+  _open_archive_heap_regions = new GrowableArray<MemRegion>(2);
+  HeapShared::archive_java_heap_objects(_closed_archive_heap_regions,
+                                        _open_archive_heap_regions);
+  ArchiveCompactor::OtherROAllocMark mark;
+  HeapShared::write_subgraph_info_table();
 }
 
 void VM_PopulateDumpSharedSpace::dump_archive_heap_oopmaps() {
-  if (MetaspaceShared::is_heap_object_archiving_allowed()) {
+  if (HeapShared::is_heap_object_archiving_allowed()) {
     _closed_archive_heap_oopmaps = new GrowableArray<ArchiveHeapOopmapInfo>(2);
     dump_archive_heap_oopmaps(_closed_archive_heap_regions, _closed_archive_heap_oopmaps);
 
@@ -1852,187 +1895,62 @@ void VM_PopulateDumpSharedSpace::dump_archive_heap_oopmaps(GrowableArray<MemRegi
     oopmaps->append(info);
   }
 }
-
-void MetaspaceShared::dump_closed_archive_heap_objects(
-                                    GrowableArray<MemRegion> * closed_archive) {
-  assert(is_heap_object_archiving_allowed(), "Cannot dump java heap objects");
-
-  Thread* THREAD = Thread::current();
-  G1CollectedHeap::heap()->begin_archive_alloc_range();
-
-  // Archive interned string objects
-  StringTable::write_to_archive();
-
-  G1CollectedHeap::heap()->end_archive_alloc_range(closed_archive,
-                                                   os::vm_allocation_granularity());
-}
-
-void MetaspaceShared::dump_open_archive_heap_objects(
-                                    GrowableArray<MemRegion> * open_archive) {
-  assert(UseG1GC, "Only support G1 GC");
-  assert(UseCompressedOops && UseCompressedClassPointers,
-         "Only support UseCompressedOops and UseCompressedClassPointers enabled");
-
-  Thread* THREAD = Thread::current();
-  G1CollectedHeap::heap()->begin_archive_alloc_range(true /* open */);
-
-  java_lang_Class::archive_basic_type_mirrors(THREAD);
-
-  MetaspaceShared::archive_klass_objects(THREAD);
-
-  HeapShared::archive_static_fields(THREAD);
-
-  G1CollectedHeap::heap()->end_archive_alloc_range(open_archive,
-                                                   os::vm_allocation_granularity());
-}
-
-unsigned MetaspaceShared::obj_hash(oop const& p) {
-  assert(!p->mark()->has_bias_pattern(),
-         "this object should never have been locked");  // so identity_hash won't safepoin
-  unsigned hash = (unsigned)p->identity_hash();
-  return hash;
-}
-
-MetaspaceShared::ArchivedObjectCache* MetaspaceShared::_archive_object_cache = NULL;
-oop MetaspaceShared::find_archived_heap_object(oop obj) {
-  assert(DumpSharedSpaces, "dump-time only");
-  ArchivedObjectCache* cache = MetaspaceShared::archive_object_cache();
-  oop* p = cache->get(obj);
-  if (p != NULL) {
-    return *p;
-  } else {
-    return NULL;
-  }
-}
-
-oop MetaspaceShared::archive_heap_object(oop obj, Thread* THREAD) {
-  assert(DumpSharedSpaces, "dump-time only");
-
-  oop ao = find_archived_heap_object(obj);
-  if (ao != NULL) {
-    // already archived
-    return ao;
-  }
-
-  int len = obj->size();
-  if (G1CollectedHeap::heap()->is_archive_alloc_too_large(len)) {
-    log_debug(cds, heap)("Cannot archive, object (" PTR_FORMAT ") is too large: " SIZE_FORMAT,
-                         p2i(obj), (size_t)obj->size());
-    return NULL;
-  }
-
-  int hash = obj->identity_hash();
-  oop archived_oop = (oop)G1CollectedHeap::heap()->archive_mem_allocate(len);
-  if (archived_oop != NULL) {
-    Copy::aligned_disjoint_words((HeapWord*)obj, (HeapWord*)archived_oop, len);
-    relocate_klass_ptr(archived_oop);
-    ArchivedObjectCache* cache = MetaspaceShared::archive_object_cache();
-    cache->put(obj, archived_oop);
-    log_debug(cds, heap)("Archived heap object " PTR_FORMAT " ==> " PTR_FORMAT,
-                         p2i(obj), p2i(archived_oop));
-  } else {
-    log_error(cds, heap)(
-      "Cannot allocate space for object " PTR_FORMAT " in archived heap region",
-      p2i(obj));
-    vm_exit(1);
-  }
-  return archived_oop;
-}
-
-oop MetaspaceShared::materialize_archived_object(narrowOop v) {
-  assert(archive_heap_region_fixed(),
-         "must be called after archive heap regions are fixed");
-  if (!CompressedOops::is_null(v)) {
-    oop obj = HeapShared::decode_from_archive(v);
-    return G1CollectedHeap::heap()->materialize_archived_object(obj);
-  }
-  return NULL;
-}
-
-void MetaspaceShared::archive_klass_objects(Thread* THREAD) {
-  int i;
-  for (i = 0; i < _global_klass_objects->length(); i++) {
-    Klass* k = _global_klass_objects->at(i);
-
-    // archive mirror object
-    java_lang_Class::archive_mirror(k, CHECK);
-
-    // archive the resolved_referenes array
-    if (k->is_instance_klass()) {
-      InstanceKlass* ik = InstanceKlass::cast(k);
-      ik->constants()->archive_resolved_references(THREAD);
-    }
-  }
-}
-
-void MetaspaceShared::fixup_mapped_heap_regions() {
-  FileMapInfo *mapinfo = FileMapInfo::current_info();
-  mapinfo->fixup_mapped_heap_regions();
-  set_archive_heap_region_fixed();
-}
 #endif // INCLUDE_CDS_JAVA_HEAP
 
-// Closure for serializing initialization data in from a data area
-// (ptr_array) read from the shared file.
+void ReadClosure::do_ptr(void** p) {
+  assert(*p == NULL, "initializing previous initialized pointer.");
+  intptr_t obj = nextPtr();
+  assert((intptr_t)obj >= 0 || (intptr_t)obj < -100,
+         "hit tag while initializing ptrs.");
+  *p = (void*)obj;
+}
 
-class ReadClosure : public SerializeClosure {
-private:
-  intptr_t** _ptr_array;
+void ReadClosure::do_u4(u4* p) {
+  intptr_t obj = nextPtr();
+  *p = (u4)(uintx(obj));
+}
 
-  inline intptr_t nextPtr() {
-    return *(*_ptr_array)++;
+void ReadClosure::do_bool(bool* p) {
+  intptr_t obj = nextPtr();
+  *p = (bool)(uintx(obj));
+}
+
+void ReadClosure::do_tag(int tag) {
+  int old_tag;
+  old_tag = (int)(intptr_t)nextPtr();
+  // do_int(&old_tag);
+  assert(tag == old_tag, "old tag doesn't match");
+  FileMapInfo::assert_mark(tag == old_tag);
+}
+
+void ReadClosure::do_oop(oop *p) {
+  narrowOop o = (narrowOop)nextPtr();
+  if (o == 0 || !HeapShared::open_archive_heap_region_mapped()) {
+    p = NULL;
+  } else {
+    assert(HeapShared::is_heap_object_archiving_allowed(),
+           "Archived heap object is not allowed");
+    assert(HeapShared::open_archive_heap_region_mapped(),
+           "Open archive heap region is not mapped");
+    *p = HeapShared::decode_from_archive(o);
   }
+}
 
-public:
-  ReadClosure(intptr_t** ptr_array) { _ptr_array = ptr_array; }
-
-  void do_ptr(void** p) {
-    assert(*p == NULL, "initializing previous initialized pointer.");
-    intptr_t obj = nextPtr();
-    assert((intptr_t)obj >= 0 || (intptr_t)obj < -100,
-           "hit tag while initializing ptrs.");
-    *p = (void*)obj;
+void ReadClosure::do_region(u_char* start, size_t size) {
+  assert((intptr_t)start % sizeof(intptr_t) == 0, "bad alignment");
+  assert(size % sizeof(intptr_t) == 0, "bad size");
+  do_tag((int)size);
+  while (size > 0) {
+    *(intptr_t*)start = nextPtr();
+    start += sizeof(intptr_t);
+    size -= sizeof(intptr_t);
   }
+}
 
-  void do_u4(u4* p) {
-    intptr_t obj = nextPtr();
-    *p = (u4)(uintx(obj));
-  }
-
-  void do_tag(int tag) {
-    int old_tag;
-    old_tag = (int)(intptr_t)nextPtr();
-    // do_int(&old_tag);
-    assert(tag == old_tag, "old tag doesn't match");
-    FileMapInfo::assert_mark(tag == old_tag);
-  }
-
-  void do_oop(oop *p) {
-    narrowOop o = (narrowOop)nextPtr();
-    if (o == 0 || !MetaspaceShared::open_archive_heap_region_mapped()) {
-      p = NULL;
-    } else {
-      assert(MetaspaceShared::is_heap_object_archiving_allowed(),
-             "Archived heap object is not allowed");
-      assert(MetaspaceShared::open_archive_heap_region_mapped(),
-             "Open archive heap region is not mapped");
-      *p = HeapShared::decode_from_archive(o);
-    }
-  }
-
-  void do_region(u_char* start, size_t size) {
-    assert((intptr_t)start % sizeof(intptr_t) == 0, "bad alignment");
-    assert(size % sizeof(intptr_t) == 0, "bad size");
-    do_tag((int)size);
-    while (size > 0) {
-      *(intptr_t*)start = nextPtr();
-      start += sizeof(intptr_t);
-      size -= sizeof(intptr_t);
-    }
-  }
-
-  bool reading() const { return true; }
-};
+void MetaspaceShared::set_shared_metaspace_range(void* base, void* top) {
+  _shared_metaspace_static_top = top;
+  MetaspaceObj::set_shared_metaspace_range(base, top);
+}
 
 // Return true if given address is in the misc data region
 bool MetaspaceShared::is_in_shared_region(const void* p, int idx) {
@@ -2044,6 +1962,15 @@ bool MetaspaceShared::is_in_trampoline_frame(address addr) {
     return true;
   }
   return false;
+}
+
+bool MetaspaceShared::is_shared_dynamic(void* p) {
+  if ((p < MetaspaceObj::shared_metaspace_top()) &&
+      (p >= _shared_metaspace_static_top)) {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 // Map shared spaces at requested addresses and return if succeeded.
@@ -2060,46 +1987,23 @@ bool MetaspaceShared::map_shared_spaces(FileMapInfo* mapinfo) {
 
   assert(!DumpSharedSpaces, "Should not be called with DumpSharedSpaces");
 
-  char* ro_base = NULL; char* ro_top;
-  char* rw_base = NULL; char* rw_top;
-  char* mc_base = NULL; char* mc_top;
-  char* md_base = NULL; char* md_top;
-  char* od_base = NULL; char* od_top;
-
   // Map each shared region
-  if ((mc_base = mapinfo->map_region(mc, &mc_top)) != NULL &&
-      (rw_base = mapinfo->map_region(rw, &rw_top)) != NULL &&
-      (ro_base = mapinfo->map_region(ro, &ro_top)) != NULL &&
-      (md_base = mapinfo->map_region(md, &md_top)) != NULL &&
-      (od_base = mapinfo->map_region(od, &od_top)) != NULL &&
+  int regions[] = {mc, rw, ro, md};
+  size_t len = sizeof(regions)/sizeof(int);
+  char* saved_base[] = {NULL, NULL, NULL, NULL};
+  char* top = mapinfo->map_regions(regions, saved_base, len );
+
+  if (top != NULL &&
       (image_alignment == (size_t)os::vm_allocation_granularity()) &&
       mapinfo->validate_shared_path_table()) {
     // Success -- set up MetaspaceObj::_shared_metaspace_{base,top} for
     // fast checking in MetaspaceShared::is_in_shared_metaspace() and
     // MetaspaceObj::is_shared().
-    //
-    // We require that mc->rw->ro->md->od to be laid out consecutively, with no
-    // gaps between them. That way, we can ensure that the OS won't be able to
-    // allocate any new memory spaces inside _shared_metaspace_{base,top}, which
-    // would mess up the simple comparision in MetaspaceShared::is_in_shared_metaspace().
-    assert(mc_base < ro_base && mc_base < rw_base && mc_base < md_base && mc_base < od_base, "must be");
-    assert(od_top  > ro_top  && od_top  > rw_top  && od_top  > md_top  && od_top  > mc_top , "must be");
-    assert(mc_top == rw_base, "must be");
-    assert(rw_top == ro_base, "must be");
-    assert(ro_top == md_base, "must be");
-    assert(md_top == od_base, "must be");
-
-    MetaspaceObj::_shared_metaspace_base = (void*)mc_base;
-    MetaspaceObj::_shared_metaspace_top  = (void*)od_top;
+    _core_spaces_size = mapinfo->core_spaces_size();
+    set_shared_metaspace_range((void*)saved_base[0], (void*)top);
     return true;
   } else {
-    // If there was a failure in mapping any of the spaces, unmap the ones
-    // that succeeded
-    if (ro_base != NULL) mapinfo->unmap_region(ro);
-    if (rw_base != NULL) mapinfo->unmap_region(rw);
-    if (mc_base != NULL) mapinfo->unmap_region(mc);
-    if (md_base != NULL) mapinfo->unmap_region(md);
-    if (od_base != NULL) mapinfo->unmap_region(od);
+    mapinfo->unmap_regions(regions, saved_base, len);
 #ifndef _WINDOWS
     // Release the entire mapped region
     shared_rs.release();
@@ -2120,35 +2024,16 @@ bool MetaspaceShared::map_shared_spaces(FileMapInfo* mapinfo) {
 
 void MetaspaceShared::initialize_shared_spaces() {
   FileMapInfo *mapinfo = FileMapInfo::current_info();
-  _cds_i2i_entry_code_buffers = mapinfo->cds_i2i_entry_code_buffers();
-  _cds_i2i_entry_code_buffers_size = mapinfo->cds_i2i_entry_code_buffers_size();
-  _core_spaces_size = mapinfo->core_spaces_size();
+  _i2i_entry_code_buffers = mapinfo->i2i_entry_code_buffers();
+  _i2i_entry_code_buffers_size = mapinfo->i2i_entry_code_buffers_size();
+  // _core_spaces_size is loaded from the shared archive immediatelly after mapping
+  assert(_core_spaces_size == mapinfo->core_spaces_size(), "sanity");
   char* buffer = mapinfo->misc_data_patching_start();
   clone_cpp_vtables((intptr_t*)buffer);
 
-  // The rest of the data is now stored in the RW region
-  buffer = mapinfo->read_only_tables_start();
-  int sharedDictionaryLen = *(intptr_t*)buffer;
-  buffer += sizeof(intptr_t);
-  int number_of_entries = *(intptr_t*)buffer;
-  buffer += sizeof(intptr_t);
-  SystemDictionary::set_shared_dictionary((HashtableBucket<mtClass>*)buffer,
-                                          sharedDictionaryLen,
-                                          number_of_entries);
-  buffer += sharedDictionaryLen;
-
-  // The following data are the linked list elements
-  // (HashtableEntry objects) for the shared dictionary table.
-
-  int len = *(intptr_t*)buffer;     // skip over shared dictionary entries
-  buffer += sizeof(intptr_t);
-  buffer += len;
-
-  // The table of archived java heap object sub-graph infos
-  buffer = HeapShared::read_archived_subgraph_infos(buffer);
-
   // Verify various attributes of the archive, plus initialize the
   // shared string/symbol tables
+  buffer = mapinfo->serialized_data_start();
   intptr_t* array = (intptr_t*)buffer;
   ReadClosure rc(&array);
   serialize(&rc);
@@ -2164,7 +2049,7 @@ void MetaspaceShared::initialize_shared_spaces() {
   if (PrintSharedArchiveAndExit) {
     if (PrintSharedDictionary) {
       tty->print_cr("\nShared classes:\n");
-      SystemDictionary::print_shared(tty);
+      SystemDictionaryShared::print_on(tty);
     }
     if (_archive_loading_failed) {
       tty->print_cr("archive is invalid");
@@ -2186,6 +2071,12 @@ bool MetaspaceShared::remap_shared_readonly_as_readwrite() {
     if (!mapinfo->remap_shared_readonly_as_readwrite()) {
       return false;
     }
+    if (FileMapInfo::dynamic_info() != NULL) {
+      mapinfo = FileMapInfo::dynamic_info();
+      if (!mapinfo->remap_shared_readonly_as_readwrite()) {
+        return false;
+      }
+    }
     _remapped_readwrite = true;
   }
   return true;
@@ -2199,7 +2090,6 @@ void MetaspaceShared::report_out_of_space(const char* name, size_t needed_bytes)
   _rw_region.print_out_of_space_msg(name, needed_bytes);
   _ro_region.print_out_of_space_msg(name, needed_bytes);
   _md_region.print_out_of_space_msg(name, needed_bytes);
-  _od_region.print_out_of_space_msg(name, needed_bytes);
 
   vm_exit_during_initialization(err_msg("Unable to allocate from '%s' region", name),
                                 "Please reduce the number of shared classes.");

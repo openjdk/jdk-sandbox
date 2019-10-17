@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          jdk.jdeps/com.sun.tools.javap
  *          jdk.jshell/jdk.internal.jshell.tool
  * @build KullaTesting TestingInputStream ToolSimpleTest
- * @run testng ToolLocalSimpleTest
+ * @run testng/othervm ToolLocalSimpleTest
  */
 
 import java.util.Locale;
@@ -87,6 +87,16 @@ public class ToolLocalSimpleTest extends ToolSimpleTest {
 
     @Test
     public void testRawString() {
+        // can't set --enable-preview for local, ignore
+    }
+
+    @Test
+    public void testSwitchExpression() {
+        // can't set --enable-preview for local, ignore
+    }
+
+    @Test
+    public void testSwitchExpressionCompletion() {
         // can't set --enable-preview for local, ignore
     }
 

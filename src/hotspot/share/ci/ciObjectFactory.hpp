@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIOBJECTFACTORY_HPP
-#define SHARE_VM_CI_CIOBJECTFACTORY_HPP
+#ifndef SHARE_CI_CIOBJECTFACTORY_HPP
+#define SHARE_CI_CIOBJECTFACTORY_HPP
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciObject.hpp"
@@ -74,7 +74,7 @@ private:
   ciMetadata* create_new_metadata(Metadata* o);
 
   static bool is_equal(NonPermObject* p, oop key) {
-    return oopDesc::equals(p->object()->get_oop(), key);
+    return p->object()->get_oop() == key;
   }
 
   NonPermObject* &find_non_perm(oop key);
@@ -100,6 +100,7 @@ public:
   // Get the ciObject corresponding to some oop.
   ciObject* get(oop key);
   ciMetadata* get_metadata(Metadata* key);
+  ciMetadata* cached_metadata(Metadata* key);
   ciSymbol* get_symbol(Symbol* key);
 
   // Get the ciSymbol corresponding to one of the vmSymbols.
@@ -139,10 +140,10 @@ public:
 
   GrowableArray<ciMetadata*>* get_ci_metadata() const { return _ci_metadata; }
   // RedefineClasses support
-  void metadata_do(void f(Metadata*));
+  void metadata_do(MetadataClosure* f);
 
   void print_contents();
   void print();
 };
 
-#endif // SHARE_VM_CI_CIOBJECTFACTORY_HPP
+#endif // SHARE_CI_CIOBJECTFACTORY_HPP

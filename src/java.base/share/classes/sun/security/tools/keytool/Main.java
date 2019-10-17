@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,15 +28,16 @@ package sun.security.tools.keytool;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.AlgorithmParameters;
 import java.security.CodeSigner;
 import java.security.CryptoPrimitive;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.Key;
-import java.security.NoSuchProviderException;
 import java.security.PublicKey;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.Timestamp;
 import java.security.UnrecoverableEntryException;
@@ -51,6 +52,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.URICertStoreParameters;
 
 
+import java.security.interfaces.ECKey;
+import java.security.spec.AlgorithmParameterSpec;
+import java.security.spec.ECParameterSpec;
 import java.text.Collator;
 import java.text.MessageFormat;
 import java.util.*;
@@ -68,14 +72,19 @@ import java.security.cert.X509CRLSelector;
 import javax.security.auth.x500.X500Principal;
 import java.util.Base64;
 
+import sun.security.pkcs12.PKCS12KeyStore;
+import sun.security.util.ECKeySizeParameterSpec;
 import sun.security.util.KeyUtil;
+import sun.security.util.NamedCurve;
 import sun.security.util.ObjectIdentifier;
 import sun.security.pkcs10.PKCS10;
 import sun.security.pkcs10.PKCS10Attribute;
 import sun.security.provider.X509Factory;
 import sun.security.provider.certpath.ssl.SSLServerCertStore;
 import sun.security.util.Password;
+import sun.security.util.SecurityProperties;
 import sun.security.util.SecurityProviderConstants;
+import sun.security.util.SignatureUtil;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
@@ -116,6 +125,7 @@ public final class Main {
     private String keyAlgName = null;
     private boolean verbose = false;
     private int keysize = -1;
+    private String groupName = null;
     private boolean rfc = false;
     private long validity = (long)90;
     private String alias = null;
@@ -166,6 +176,8 @@ public final class Main {
     private Set<char[]> passwords = new HashSet<>();
     private String startDate = null;
 
+    private boolean tlsInfo = false;
+
     private List<String> ids = new ArrayList<>();   // used in GENCRL
     private List<String> v3ext = new ArrayList<>();
 
@@ -183,6 +195,7 @@ public final class Main {
 
     private static final Set<CryptoPrimitive> SIG_PRIMITIVE_SET = Collections
             .unmodifiableSet(EnumSet.of(CryptoPrimitive.SIGNATURE));
+    private boolean isPasswordlessKeyStore = false;
 
     enum Command {
         CERTREQ("Generates.a.certificate.request",
@@ -202,7 +215,7 @@ public final class Main {
             STORETYPE, PROVIDERNAME, ADDPROVIDER, PROVIDERCLASS,
             PROVIDERPATH, V, PROTECTED),
         GENKEYPAIR("Generates.a.key.pair",
-            ALIAS, KEYALG, KEYSIZE, SIGALG, DESTALIAS, DNAME,
+            ALIAS, KEYALG, KEYSIZE, CURVENAME, SIGALG, DNAME,
             STARTDATE, EXT, VALIDITY, KEYPASS, KEYSTORE,
             STOREPASS, STORETYPE, PROVIDERNAME, ADDPROVIDER,
             PROVIDERCLASS, PROVIDERPATH, V, PROTECTED),
@@ -250,6 +263,8 @@ public final class Main {
         STOREPASSWD("Changes.the.store.password.of.a.keystore",
             NEW, KEYSTORE, CACERTS, STOREPASS, STORETYPE, PROVIDERNAME,
             ADDPROVIDER, PROVIDERCLASS, PROVIDERPATH, V),
+        SHOWINFO("showinfo.command.help",
+            TLS, V),
 
         // Undocumented start here, KEYCLONE is used a marker in -help;
 
@@ -314,6 +329,7 @@ public final class Main {
     // in the optionsSet.contains() block in parseArgs().
     enum Option {
         ALIAS("alias", "<alias>", "alias.name.of.the.entry.to.process"),
+        CURVENAME("groupname", "<name>", "groupname.option.help"),
         DESTALIAS("destalias", "<alias>", "destination.alias"),
         DESTKEYPASS("destkeypass", "<arg>", "destination.key.password"),
         DESTKEYSTORE("destkeystore", "<keystore>", "destination.keystore.name"),
@@ -354,6 +370,7 @@ public final class Main {
         STARTDATE("startdate", "<date>", "certificate.validity.start.date.time"),
         STOREPASS("storepass", "<arg>", "keystore.password"),
         STORETYPE("storetype", "<type>", "keystore.type"),
+        TLS("tls", null, "tls.option.help"),
         TRUSTCACERTS("trustcacerts", null, "trust.certificates.from.cacerts"),
         V("v", null, "verbose.output"),
         VALIDITY("validity", "<days>", "validity.number.of.days");
@@ -586,6 +603,8 @@ public final class Main {
                 dname = args[++i];
             } else if (collator.compare(flags, "-keysize") == 0) {
                 keysize = Integer.parseInt(args[++i]);
+            } else if (collator.compare(flags, "-groupname") == 0) {
+                groupName = args[++i];
             } else if (collator.compare(flags, "-keyalg") == 0) {
                 keyAlgName = args[++i];
             } else if (collator.compare(flags, "-sigalg") == 0) {
@@ -665,6 +684,8 @@ public final class Main {
                 protectedPath = true;
             } else if (collator.compare(flags, "-srcprotected") == 0) {
                 srcprotectedPath = true;
+            } else if (collator.compare(flags, "-tls") == 0) {
+                tlsInfo = true;
             } else  {
                 System.err.println(rb.getString("Illegal.option.") + flags);
                 tinyHelp();
@@ -692,7 +713,7 @@ public final class Main {
     }
 
     boolean isKeyStoreRelated(Command cmd) {
-        return cmd != PRINTCERT && cmd != PRINTCERTREQ;
+        return cmd != PRINTCERT && cmd != PRINTCERTREQ && cmd != SHOWINFO;
     }
 
     /**
@@ -861,8 +882,7 @@ public final class Main {
         // Check if keystore exists.
         // If no keystore has been specified at the command line, try to use
         // the default, which is located in $HOME/.keystore.
-        // If the command is "genkey", "identitydb", "import", or "printcert",
-        // it is OK not to have a keystore.
+        // No need to check if isKeyStoreRelated(command) is false.
 
         // DO NOT open the existing keystore if this is an in-place import.
         // The keystore should be created as brand new.
@@ -876,6 +896,9 @@ public final class Main {
                 }
                 ksStream = new FileInputStream(ksfile);
             } catch (FileNotFoundException e) {
+                // These commands do not need the keystore to be existing.
+                // Either it will create a new one or the keystore is
+                // optional (i.e. PRINTCRL).
                 if (command != GENKEYPAIR &&
                         command != GENSECKEY &&
                         command != IDENTITYDB &&
@@ -911,6 +934,9 @@ public final class Main {
                 storetype == null && !inplaceImport) {
             keyStore = KeyStore.getInstance(ksfile, storePass);
             storetype = keyStore.getType();
+            if (storetype.equalsIgnoreCase("pkcs12")) {
+                isPasswordlessKeyStore = PKCS12KeyStore.isPasswordless(ksfile);
+            }
         } else {
             if (storetype == null) {
                 storetype = KeyStore.getDefaultType();
@@ -919,6 +945,15 @@ public final class Main {
                 keyStore = KeyStore.getInstance(storetype);
             } else {
                 keyStore = KeyStore.getInstance(storetype, providerName);
+            }
+            // When creating a new pkcs12 file, Do not prompt for storepass
+            // if certProtectionAlgorithm and macAlgorithm are both NONE.
+            if (storetype.equalsIgnoreCase("pkcs12")) {
+                isPasswordlessKeyStore =
+                        "NONE".equals(SecurityProperties.privilegedGetOverridable(
+                                "keystore.pkcs12.certProtectionAlgorithm"))
+                        && "NONE".equals(SecurityProperties.privilegedGetOverridable(
+                                "keystore.pkcs12.macAlgorithm"));
             }
 
             /*
@@ -971,11 +1006,10 @@ public final class Main {
                         ("Keystore.password.must.be.at.least.6.characters"));
             }
         } else if (storePass == null) {
-
-            // only prompt if (protectedPath == false)
-
-            if (!protectedPath && !KeyStoreUtil.isWindowsKeyStore(storetype) &&
-                (command == CERTREQ ||
+            if (!protectedPath && !KeyStoreUtil.isWindowsKeyStore(storetype)
+                    && isKeyStoreRelated(command)
+                    && !isPasswordlessKeyStore) {
+                if (command == CERTREQ ||
                         command == DELETE ||
                         command == GENKEYPAIR ||
                         command == GENSECKEY ||
@@ -987,59 +1021,58 @@ public final class Main {
                         command == SELFCERT ||
                         command == STOREPASSWD ||
                         command == KEYPASSWD ||
-                        command == IDENTITYDB)) {
-                int count = 0;
-                do {
-                    if (command == IMPORTKEYSTORE) {
-                        System.err.print
-                                (rb.getString("Enter.destination.keystore.password."));
-                    } else {
-                        System.err.print
-                                (rb.getString("Enter.keystore.password."));
-                    }
-                    System.err.flush();
-                    storePass = Password.readPassword(System.in);
-                    passwords.add(storePass);
+                        command == IDENTITYDB) {
+                    int count = 0;
+                    do {
+                        if (command == IMPORTKEYSTORE) {
+                            System.err.print
+                                    (rb.getString("Enter.destination.keystore.password."));
+                        } else {
+                            System.err.print
+                                    (rb.getString("Enter.keystore.password."));
+                        }
+                        System.err.flush();
+                        storePass = Password.readPassword(System.in);
+                        passwords.add(storePass);
 
-                    // If we are creating a new non nullStream-based keystore,
-                    // insist that the password be at least 6 characters
-                    if (!nullStream && (storePass == null || storePass.length < 6)) {
-                        System.err.println(rb.getString
-                                ("Keystore.password.is.too.short.must.be.at.least.6.characters"));
-                        storePass = null;
-                    }
-
-                    // If the keystore file does not exist and needs to be
-                    // created, the storepass should be prompted twice.
-                    if (storePass != null && !nullStream && ksStream == null) {
-                        System.err.print(rb.getString("Re.enter.new.password."));
-                        char[] storePassAgain = Password.readPassword(System.in);
-                        passwords.add(storePassAgain);
-                        if (!Arrays.equals(storePass, storePassAgain)) {
-                            System.err.println
-                                (rb.getString("They.don.t.match.Try.again"));
+                        // If we are creating a new non nullStream-based keystore,
+                        // insist that the password be at least 6 characters
+                        if (!nullStream && (storePass == null || storePass.length < 6)) {
+                            System.err.println(rb.getString
+                                    ("Keystore.password.is.too.short.must.be.at.least.6.characters"));
                             storePass = null;
                         }
+
+                        // If the keystore file does not exist and needs to be
+                        // created, the storepass should be prompted twice.
+                        if (storePass != null && !nullStream && ksStream == null) {
+                            System.err.print(rb.getString("Re.enter.new.password."));
+                            char[] storePassAgain = Password.readPassword(System.in);
+                            passwords.add(storePassAgain);
+                            if (!Arrays.equals(storePass, storePassAgain)) {
+                                System.err.println
+                                        (rb.getString("They.don.t.match.Try.again"));
+                                storePass = null;
+                            }
+                        }
+
+                        count++;
+                    } while ((storePass == null) && count < 3);
+
+
+                    if (storePass == null) {
+                        System.err.println
+                                (rb.getString("Too.many.failures.try.later"));
+                        return;
                     }
-
-                    count++;
-                } while ((storePass == null) && count < 3);
-
-
-                if (storePass == null) {
-                    System.err.println
-                        (rb.getString("Too.many.failures.try.later"));
-                    return;
-                }
-            } else if (!protectedPath
-                    && !KeyStoreUtil.isWindowsKeyStore(storetype)
-                    && isKeyStoreRelated(command)) {
-                // here we have EXPORTCERT and LIST (info valid until STOREPASSWD)
-                if (command != PRINTCRL) {
-                    System.err.print(rb.getString("Enter.keystore.password."));
-                    System.err.flush();
-                    storePass = Password.readPassword(System.in);
-                    passwords.add(storePass);
+                } else {
+                    // here we have EXPORTCERT and LIST (info valid until STOREPASSWD)
+                    if (command != PRINTCRL) {
+                        System.err.print(rb.getString("Enter.keystore.password."));
+                        System.err.flush();
+                        storePass = Password.readPassword(System.in);
+                        passwords.add(storePass);
+                    }
                 }
             }
 
@@ -1118,12 +1151,16 @@ public final class Main {
         } else if (command == GENKEYPAIR) {
             if (keyAlgName == null) {
                 keyAlgName = "DSA";
+                weakWarnings.add(String.format(rb.getString(
+                        "keyalg.option.1.missing.warning"), keyAlgName));
             }
-            doGenKeyPair(alias, dname, keyAlgName, keysize, sigAlgName);
+            doGenKeyPair(alias, dname, keyAlgName, keysize, groupName, sigAlgName);
             kssave = true;
         } else if (command == GENSECKEY) {
             if (keyAlgName == null) {
                 keyAlgName = "DES";
+                weakWarnings.add(String.format(rb.getString(
+                        "keyalg.option.1.missing.warning"), keyAlgName));
             }
             doGenSecretKey(alias, keyAlgName, keysize);
             kssave = true;
@@ -1221,7 +1258,8 @@ public final class Main {
             kssave = true;
         } else if (command == LIST) {
             if (storePass == null
-                    && !KeyStoreUtil.isWindowsKeyStore(storetype)) {
+                    && !KeyStoreUtil.isWindowsKeyStore(storetype)
+                    && !isPasswordlessKeyStore) {
                 printNoIntegrityWarning();
             }
 
@@ -1283,6 +1321,8 @@ public final class Main {
             }
         } else if (command == PRINTCRL) {
             doPrintCRL(filename, out);
+        } else if (command == SHOWINFO) {
+            doShowInfo();
         }
 
         // If we need to save the keystore, do so.
@@ -1319,28 +1359,39 @@ public final class Main {
             if (f.exists()) {
                 // Probe for real type. A JKS can be loaded as PKCS12 because
                 // DualFormat support, vice versa.
-                keyStore = KeyStore.getInstance(f, pass);
-                String realType = keyStore.getType();
-                if (realType.equalsIgnoreCase("JKS")
-                        || realType.equalsIgnoreCase("JCEKS")) {
-                    boolean allCerts = true;
-                    for (String a : Collections.list(keyStore.aliases())) {
-                        if (!keyStore.entryInstanceOf(
-                                a, TrustedCertificateEntry.class)) {
-                            allCerts = false;
-                            break;
+                String realType = storetype;
+                try {
+                    keyStore = KeyStore.getInstance(f, pass);
+                    realType = keyStore.getType();
+                    if (realType.equalsIgnoreCase("JKS")
+                            || realType.equalsIgnoreCase("JCEKS")) {
+                        boolean allCerts = true;
+                        for (String a : Collections.list(keyStore.aliases())) {
+                            if (!keyStore.entryInstanceOf(
+                                    a, TrustedCertificateEntry.class)) {
+                                allCerts = false;
+                                break;
+                            }
+                        }
+                        // Don't warn for "cacerts" style keystore.
+                        if (!allCerts) {
+                            weakWarnings.add(String.format(
+                                    rb.getString("jks.storetype.warning"),
+                                    realType, ksfname));
                         }
                     }
-                    // Don't warn for "cacerts" style keystore.
-                    if (!allCerts) {
-                        weakWarnings.add(String.format(
-                                rb.getString("jks.storetype.warning"),
-                                realType, ksfname));
-                    }
+                } catch (KeyStoreException e) {
+                    // Probing not supported, therefore cannot be JKS or JCEKS.
+                    // Skip the legacy type warning at all.
                 }
                 if (inplaceImport) {
-                    String realSourceStoreType = KeyStore.getInstance(
-                            new File(inplaceBackupName), srcstorePass).getType();
+                    String realSourceStoreType = srcstoretype;
+                    try {
+                        realSourceStoreType = KeyStore.getInstance(
+                                new File(inplaceBackupName), srcstorePass).getType();
+                    } catch (KeyStoreException e) {
+                        // Probing not supported. Assuming srcstoretype.
+                    }
                     String format =
                             realType.equalsIgnoreCase(realSourceStoreType) ?
                             rb.getString("backup.keystore.warning") :
@@ -1391,17 +1442,20 @@ public final class Main {
             sigAlgName = getCompatibleSigAlgName(privateKey);
         }
         Signature signature = Signature.getInstance(sigAlgName);
-        signature.initSign(privateKey);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privateKey);
+
+        SignatureUtil.initSignWithParam(signature, privateKey, params, null);
 
         X509CertInfo info = new X509CertInfo();
+        AlgorithmId algID = AlgorithmId.getWithParameterSpec(sigAlgName, params);
         info.set(X509CertInfo.VALIDITY, interval);
-        info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
-                    new java.util.Random().nextInt() & 0x7fffffff));
+        info.set(X509CertInfo.SERIAL_NUMBER,
+                CertificateSerialNumber.newRandom64bit(new SecureRandom()));
         info.set(X509CertInfo.VERSION,
                     new CertificateVersion(CertificateVersion.V3));
         info.set(X509CertInfo.ALGORITHM_ID,
-                    new CertificateAlgorithmId(
-                        AlgorithmId.get(sigAlgName)));
+                    new CertificateAlgorithmId(algID));
         info.set(X509CertInfo.ISSUER, issuer);
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(in));
@@ -1445,7 +1499,7 @@ public final class Main {
                 signerCert.getPublicKey());
         info.set(X509CertInfo.EXTENSIONS, ext);
         X509CertImpl cert = new X509CertImpl(info);
-        cert.sign(privateKey, sigAlgName);
+        cert.sign(privateKey, params, sigAlgName, null);
         dumpCert(cert, out);
         for (Certificate ca: keyStore.getCertificateChain(alias)) {
             if (ca instanceof X509Certificate) {
@@ -1547,7 +1601,10 @@ public final class Main {
         }
 
         Signature signature = Signature.getInstance(sigAlgName);
-        signature.initSign(privKey);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privKey);
+        SignatureUtil.initSignWithParam(signature, privKey, params, null);
+
         X500Name subject = dname == null?
                 new X500Name(((X509Certificate)cert).getSubjectDN().toString()):
                 new X500Name(dname);
@@ -1579,7 +1636,8 @@ public final class Main {
         throws Exception
     {
         if (storePass == null
-                && !KeyStoreUtil.isWindowsKeyStore(storetype)) {
+                && !KeyStoreUtil.isWindowsKeyStore(storetype)
+                && !isPasswordlessKeyStore) {
             printNoIntegrityWarning();
         }
         if (alias == null) {
@@ -1610,7 +1668,7 @@ public final class Main {
      * @param origPass the password to copy from if user press ENTER
      */
     private char[] promptForKeyPass(String alias, String orig, char[] origPass) throws Exception{
-        if (P12KEYSTORE.equalsIgnoreCase(storetype)) {
+        if (origPass != null && P12KEYSTORE.equalsIgnoreCase(storetype)) {
             return origPass;
         } else if (!token && !protectedPath) {
             // Prompt for key password
@@ -1619,22 +1677,25 @@ public final class Main {
                 MessageFormat form = new MessageFormat(rb.getString
                         ("Enter.key.password.for.alias."));
                 Object[] source = {alias};
-                System.err.println(form.format(source));
-                if (orig == null) {
-                    System.err.print(rb.getString
-                            (".RETURN.if.same.as.keystore.password."));
-                } else {
-                    form = new MessageFormat(rb.getString
-                            (".RETURN.if.same.as.for.otherAlias."));
-                    Object[] src = {orig};
-                    System.err.print(form.format(src));
+                System.err.print(form.format(source));
+                if (origPass != null) {
+                    System.err.println();
+                    if (orig == null) {
+                        System.err.print(rb.getString
+                                (".RETURN.if.same.as.keystore.password."));
+                    } else {
+                        form = new MessageFormat(rb.getString
+                                (".RETURN.if.same.as.for.otherAlias."));
+                        Object[] src = {orig};
+                        System.err.print(form.format(src));
+                    }
                 }
                 System.err.flush();
                 char[] entered = Password.readPassword(System.in);
                 passwords.add(entered);
-                if (entered == null) {
+                if (entered == null && origPass != null) {
                     return origPass;
-                } else if (entered.length >= 6) {
+                } else if (entered != null && entered.length >= 6) {
                     System.err.print(rb.getString("Re.enter.new.password."));
                     char[] passAgain = Password.readPassword(System.in);
                     passwords.add(passAgain);
@@ -1753,13 +1814,11 @@ public final class Main {
             keygen.init(keysize);
             secKey = keygen.generateKey();
 
-            if (verbose) {
-                MessageFormat form = new MessageFormat(rb.getString
-                    ("Generated.keysize.bit.keyAlgName.secret.key"));
-                Object[] source = {keysize,
-                                    secKey.getAlgorithm()};
-                System.err.println(form.format(source));
-            }
+            MessageFormat form = new MessageFormat(rb.getString
+                ("Generated.keysize.bit.keyAlgName.secret.key"));
+            Object[] source = {keysize,
+                                secKey.getAlgorithm()};
+            System.err.println(form.format(source));
         }
 
         if (keyPass == null) {
@@ -1793,16 +1852,28 @@ public final class Main {
      * Creates a new key pair and self-signed certificate.
      */
     private void doGenKeyPair(String alias, String dname, String keyAlgName,
-                              int keysize, String sigAlgName)
+                              int keysize, String groupName, String sigAlgName)
         throws Exception
     {
-        if (keysize == -1) {
-            if ("EC".equalsIgnoreCase(keyAlgName)) {
-                keysize = SecurityProviderConstants.DEF_EC_KEY_SIZE;
-            } else if ("RSA".equalsIgnoreCase(keyAlgName)) {
-                keysize = SecurityProviderConstants.DEF_RSA_KEY_SIZE;
-            } else if ("DSA".equalsIgnoreCase(keyAlgName)) {
-                keysize = SecurityProviderConstants.DEF_DSA_KEY_SIZE;
+        if (groupName != null) {
+            if (keysize != -1) {
+                throw new Exception(rb.getString("groupname.keysize.coexist"));
+            }
+        } else {
+            if (keysize == -1) {
+                if ("EC".equalsIgnoreCase(keyAlgName)) {
+                    keysize = SecurityProviderConstants.DEF_EC_KEY_SIZE;
+                } else if ("RSA".equalsIgnoreCase(keyAlgName)) {
+                    keysize = SecurityProviderConstants.DEF_RSA_KEY_SIZE;
+                } else if ("DSA".equalsIgnoreCase(keyAlgName)) {
+                    keysize = SecurityProviderConstants.DEF_DSA_KEY_SIZE;
+                }
+            } else {
+                if ("EC".equalsIgnoreCase(keyAlgName)) {
+                    weakWarnings.add(String.format(
+                            rb.getString("deprecate.keysize.for.ec"),
+                            ecGroupNameForSize(keysize)));
+                }
             }
         }
 
@@ -1824,12 +1895,19 @@ public final class Main {
         // If DN is provided, parse it. Otherwise, prompt the user for it.
         X500Name x500Name;
         if (dname == null) {
+            printWeakWarnings(true);
             x500Name = getX500Name();
         } else {
             x500Name = new X500Name(dname);
         }
 
-        keypair.generate(keysize);
+        if (groupName != null) {
+            keypair.generate(groupName);
+        } else {
+            // This covers keysize both specified and unspecified
+            keypair.generate(keysize);
+        }
+
         PrivateKey privKey = keypair.getPrivateKey();
 
         CertificateExtensions ext = createV3Extensions(
@@ -1843,22 +1921,28 @@ public final class Main {
         chain[0] = keypair.getSelfCertificate(
                 x500Name, getStartDate(startDate), validity*24L*60L*60L, ext);
 
-        if (verbose) {
-            MessageFormat form = new MessageFormat(rb.getString
-                ("Generating.keysize.bit.keyAlgName.key.pair.and.self.signed.certificate.sigAlgName.with.a.validity.of.validality.days.for"));
-            Object[] source = {keysize,
-                                privKey.getAlgorithm(),
-                                chain[0].getSigAlgName(),
-                                validity,
-                                x500Name};
-            System.err.println(form.format(source));
-        }
+        MessageFormat form = new MessageFormat(rb.getString
+            ("Generating.keysize.bit.keyAlgName.key.pair.and.self.signed.certificate.sigAlgName.with.a.validity.of.validality.days.for"));
+        Object[] source = {
+                groupName == null ? keysize : KeyUtil.getKeySize(privKey),
+                fullDisplayAlgName(privKey),
+                chain[0].getSigAlgName(),
+                validity,
+                x500Name};
+        System.err.println(form.format(source));
 
         if (keyPass == null) {
             keyPass = promptForKeyPass(alias, null, storePass);
         }
         checkWeak(rb.getString("the.generated.certificate"), chain[0]);
         keyStore.setKeyEntry(alias, privKey, keyPass, chain);
+    }
+
+    private String ecGroupNameForSize(int size) throws Exception {
+        AlgorithmParameters ap = AlgorithmParameters.getInstance("EC");
+        ap.init(new ECKeySizeParameterSpec(size));
+        // The following line assumes the toString value is "name (oid)"
+        return ap.toString().split(" ")[0];
     }
 
     /**
@@ -2020,6 +2104,9 @@ public final class Main {
                         getCertFingerPrint("SHA-256", chain[0]));
                     checkWeak(label, chain);
                 }
+            } else {
+                out.println(rb.getString
+                        ("Certificate.chain.length.") + 0);
             }
         } else if (keyStore.entryInstanceOf(alias,
                 KeyStore.TrustedCertificateEntry.class)) {
@@ -2084,6 +2171,7 @@ public final class Main {
 
         InputStream is = null;
         File srcksfile = null;
+        boolean srcIsPasswordless = false;
 
         if (P11KEYSTORE.equalsIgnoreCase(srcstoretype) ||
                 KeyStoreUtil.isWindowsKeyStore(srcstoretype)) {
@@ -2105,6 +2193,9 @@ public final class Main {
                     srcstoretype == null) {
                 store = KeyStore.getInstance(srcksfile, srcstorePass);
                 srcstoretype = store.getType();
+                if (srcstoretype.equalsIgnoreCase("pkcs12")) {
+                    srcIsPasswordless = PKCS12KeyStore.isPasswordless(srcksfile);
+                }
             } else {
                 if (srcstoretype == null) {
                     srcstoretype = KeyStore.getDefaultType();
@@ -2118,7 +2209,8 @@ public final class Main {
 
             if (srcstorePass == null
                     && !srcprotectedPath
-                    && !KeyStoreUtil.isWindowsKeyStore(srcstoretype)) {
+                    && !KeyStoreUtil.isWindowsKeyStore(srcstoretype)
+                    && !srcIsPasswordless) {
                 System.err.print(rb.getString("Enter.source.keystore.password."));
                 System.err.flush();
                 srcstorePass = Password.readPassword(System.in);
@@ -2145,6 +2237,7 @@ public final class Main {
         }
 
         if (srcstorePass == null
+                && !srcIsPasswordless
                 && !KeyStoreUtil.isWindowsKeyStore(srcstoretype)) {
             // anti refactoring, copied from printNoIntegrityWarning(),
             // but change 2 lines
@@ -2325,9 +2418,9 @@ public final class Main {
         out.println(form.format(source));
         out.println();
 
-        for (Enumeration<String> e = keyStore.aliases();
-                                        e.hasMoreElements(); ) {
-            String alias = e.nextElement();
+        List<String> aliases = Collections.list(keyStore.aliases());
+        aliases.sort(String::compareTo);
+        for (String alias : aliases) {
             doPrintEntry("<" + alias + ">", alias, out);
             if (verbose || rfc) {
                 out.println(rb.getString("NEWLINE"));
@@ -2624,6 +2717,14 @@ public final class Main {
         }
     }
 
+    private void doShowInfo() throws Exception {
+        if (tlsInfo) {
+            ShowInfo.tls(verbose);
+        } else {
+            System.out.println(rb.getString("showinfo.no.option"));
+        }
+    }
+
     private Collection<? extends Certificate> generateCertificates(InputStream in)
             throws CertificateException, IOException {
         byte[] data = in.readAllBytes();
@@ -2865,8 +2966,8 @@ public final class Main {
         certInfo.set(X509CertInfo.VALIDITY, interval);
 
         // Make new serial number
-        certInfo.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(
-                    new java.util.Random().nextInt() & 0x7fffffff));
+        certInfo.set(X509CertInfo.SERIAL_NUMBER,
+                CertificateSerialNumber.newRandom64bit(new SecureRandom()));
 
         // Set owner and issuer fields
         X500Name owner;
@@ -2889,7 +2990,9 @@ public final class Main {
         // other solution: We first sign the cert, then retrieve the
         // outer sigalg and use it to set the inner sigalg
         X509CertImpl newCert = new X509CertImpl(certInfo);
-        newCert.sign(privKey, sigAlgName);
+        AlgorithmParameterSpec params = AlgorithmId
+                .getDefaultAlgorithmParameterSpec(sigAlgName, privKey);
+        newCert.sign(privKey, params, sigAlgName, null);
         AlgorithmId sigAlgid = (AlgorithmId)newCert.get(X509CertImpl.SIG_ALG);
         certInfo.set(CertificateAlgorithmId.NAME + "." +
                      CertificateAlgorithmId.ALGORITHM, sigAlgid);
@@ -2906,7 +3009,7 @@ public final class Main {
         certInfo.set(X509CertInfo.EXTENSIONS, ext);
         // Sign the new certificate
         newCert = new X509CertImpl(certInfo);
-        newCert.sign(privKey, sigAlgName);
+        newCert.sign(privKey, params, sigAlgName, null);
 
         // Store the new certificate as a single-element certificate chain
         keyStore.setKeyEntry(alias, privKey,
@@ -3224,19 +3327,28 @@ public final class Main {
         }
     }
 
-    private String withWeak(PublicKey key) {
+    private String fullDisplayAlgName(Key key) {
+        String result = key.getAlgorithm();
+        if (key instanceof ECKey) {
+            ECParameterSpec paramSpec = ((ECKey) key).getParams();
+            if (paramSpec instanceof NamedCurve) {
+                result += " (" + paramSpec.toString().split(" ")[0] + ")";
+            }
+        }
+        return result;
+    }
+
+    private String withWeak(Key key) {
+        int kLen = KeyUtil.getKeySize(key);
+        String displayAlg = fullDisplayAlgName(key);
         if (DISABLED_CHECK.permits(SIG_PRIMITIVE_SET, key)) {
-            int kLen = KeyUtil.getKeySize(key);
             if (kLen >= 0) {
-                return String.format(rb.getString("key.bit"),
-                        kLen, key.getAlgorithm());
+                return String.format(rb.getString("key.bit"), kLen, displayAlg);
             } else {
-                return String.format(
-                        rb.getString("unknown.size.1"), key.getAlgorithm());
+                return String.format(rb.getString("unknown.size.1"), displayAlg);
             }
         } else {
-            return String.format(rb.getString("key.bit.weak"),
-                    KeyUtil.getKeySize(key), key.getAlgorithm());
+            return String.format(rb.getString("key.bit.weak"), kLen, displayAlg);
         }
     }
 
@@ -3466,6 +3578,11 @@ public final class Main {
     {
         Key key = null;
 
+        if (KeyStoreUtil.isWindowsKeyStore(storetype)) {
+            key = keyStore.getKey(alias, null);
+            return Pair.of(key, null);
+        }
+
         if (keyStore.containsAlias(alias) == false) {
             MessageFormat form = new MessageFormat
                 (rb.getString("Alias.alias.does.not.exist"));
@@ -3482,25 +3599,25 @@ public final class Main {
 
         if (keyPass == null) {
             // Try to recover the key using the keystore password
-            try {
-                key = keyStore.getKey(alias, storePass);
-
-                keyPass = storePass;
-                passwords.add(keyPass);
-            } catch (UnrecoverableKeyException e) {
-                // Did not work out, so prompt user for key password
-                if (!token) {
-                    keyPass = getKeyPasswd(alias, null, null);
-                    key = keyStore.getKey(alias, keyPass);
-                } else {
-                    throw e;
+            if (storePass != null) {
+                try {
+                    key = keyStore.getKey(alias, storePass);
+                    passwords.add(storePass);
+                    return Pair.of(key, storePass);
+                } catch (UnrecoverableKeyException e) {
+                    if (token) {
+                        throw e;
+                    }
                 }
             }
+            // prompt user for key password
+            keyPass = getKeyPasswd(alias, null, null);
+            key = keyStore.getKey(alias, keyPass);
+            return Pair.of(key, keyPass);
         } else {
             key = keyStore.getKey(alias, keyPass);
+            return Pair.of(key, keyPass);
         }
-
-        return Pair.of(key, keyPass);
     }
 
     /**
@@ -3515,68 +3632,59 @@ public final class Main {
                             char[] pstore,
                             char[] pkey) throws Exception {
 
-        if (ks.containsAlias(alias) == false) {
-            MessageFormat form = new MessageFormat
-                (rb.getString("Alias.alias.does.not.exist"));
+        if (!ks.containsAlias(alias)) {
+            MessageFormat form = new MessageFormat(
+                    rb.getString("Alias.alias.does.not.exist"));
             Object[] source = {alias};
             throw new Exception(form.format(source));
         }
 
-        PasswordProtection pp = null;
-        Entry entry;
-
+        // Step 1: First attempt to access entry without key password
+        // (PKCS11 entry or trusted certificate entry, for example).
+        // If fail, go next.
         try {
-            // First attempt to access entry without key password
-            // (PKCS11 entry or trusted certificate entry, for example)
-
-            entry = ks.getEntry(alias, pp);
-            pkey = null;
+            Entry entry = ks.getEntry(alias, null);
+            return Pair.of(entry, null);
         } catch (UnrecoverableEntryException une) {
-
             if(P11KEYSTORE.equalsIgnoreCase(ks.getType()) ||
-                KeyStoreUtil.isWindowsKeyStore(ks.getType())) {
+                    KeyStoreUtil.isWindowsKeyStore(ks.getType())) {
                 // should not happen, but a possibility
                 throw une;
             }
+        }
 
-            // entry is protected
+        // entry is protected
 
-            if (pkey != null) {
+        // Step 2: try pkey if not null. If fail, fail.
+        if (pkey != null) {
+            PasswordProtection pp = new PasswordProtection(pkey);
+            Entry entry = ks.getEntry(alias, pp);
+            return Pair.of(entry, pkey);
+        }
 
-                // try provided key password
-
-                pp = new PasswordProtection(pkey);
-                entry = ks.getEntry(alias, pp);
-
-            } else {
-
-                // try store pass
-
-                try {
-                    pp = new PasswordProtection(pstore);
-                    entry = ks.getEntry(alias, pp);
-                    pkey = pstore;
-                } catch (UnrecoverableEntryException une2) {
-                    if (P12KEYSTORE.equalsIgnoreCase(ks.getType())) {
-
-                        // P12 keystore currently does not support separate
-                        // store and entry passwords
-
-                        throw une2;
-                    } else {
-
-                        // prompt for entry password
-
-                        pkey = getKeyPasswd(alias, null, null);
-                        pp = new PasswordProtection(pkey);
-                        entry = ks.getEntry(alias, pp);
-                    }
+        // Step 3: try pstore if not null. If fail, go next.
+        if (pstore != null) {
+            try {
+                PasswordProtection pp = new PasswordProtection(pstore);
+                Entry entry = ks.getEntry(alias, pp);
+                return Pair.of(entry, pstore);
+            } catch (UnrecoverableEntryException une) {
+                if (P12KEYSTORE.equalsIgnoreCase(ks.getType())) {
+                    // P12 keystore currently does not support separate
+                    // store and entry passwords. We will not prompt for
+                    // entry password.
+                    throw une;
                 }
             }
         }
 
+        // Step 4: prompt for entry password
+        pkey = getKeyPasswd(alias, null, null);
+        PasswordProtection pp = new PasswordProtection(pkey);
+        Entry entry = ks.getEntry(alias, pp);
         return Pair.of(entry, pkey);
     }
+
     /**
      * Gets the requested finger print of the certificate.
      */
@@ -3700,9 +3808,9 @@ public final class Main {
                                  replyCerts.length);
                 tmpCerts[tmpCerts.length-1] = root.snd;
                 replyCerts = tmpCerts;
-                checkWeak(String.format(rb.getString(fromKeyStore ?
-                                            "alias.in.keystore" :
-                                            "alias.in.cacerts"),
+                checkWeak(String.format(fromKeyStore
+                                ? rb.getString("alias.in.keystore")
+                                : rb.getString("alias.in.cacerts"),
                                         root.fst),
                           root.snd);
             }

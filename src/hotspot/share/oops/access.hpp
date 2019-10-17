@@ -58,7 +58,6 @@
 // * arraycopy: Copy data from one heap array to another heap array. The ArrayAccess class has convenience functions for this.
 // * clone: Clone the contents of an object to a newly allocated object.
 // * resolve: Resolve a stable to-space invariant oop that is guaranteed not to relocate its payload until a subsequent thread transition.
-// * equals: Object equality, e.g. when different copies of the same objects are in use (from-space vs. to-space)
 //
 // == IMPLEMENTATION ==
 // Each access goes through the following steps in a template pipeline.
@@ -92,7 +91,7 @@
 // access.inline.hpp. The accesses that are allowed through the access.hpp file
 // must be instantiated in access.cpp using the INSTANTIATE_HPP_ACCESS macro.
 
-template <DecoratorSet decorators = INTERNAL_EMPTY>
+template <DecoratorSet decorators = DECORATORS_NONE>
 class Access: public AllStatic {
   // This function asserts that if an access gets passed in a decorator outside
   // of the expected_decorators, then something is wrong. It additionally checks
@@ -272,33 +271,28 @@ public:
   }
 
   static oop resolve(oop obj) {
-    verify_decorators<INTERNAL_EMPTY>();
+    verify_decorators<DECORATORS_NONE>();
     return AccessInternal::resolve<decorators>(obj);
-  }
-
-  static bool equals(oop o1, oop o2) {
-    verify_decorators<INTERNAL_EMPTY>();
-    return AccessInternal::equals<decorators>(o1, o2);
   }
 };
 
 // Helper for performing raw accesses (knows only of memory ordering
 // atomicity decorators as well as compressed oops)
-template <DecoratorSet decorators = INTERNAL_EMPTY>
+template <DecoratorSet decorators = DECORATORS_NONE>
 class RawAccess: public Access<AS_RAW | decorators> {};
 
 // Helper for performing normal accesses on the heap. These accesses
 // may resolve an accessor on a GC barrier set
-template <DecoratorSet decorators = INTERNAL_EMPTY>
+template <DecoratorSet decorators = DECORATORS_NONE>
 class HeapAccess: public Access<IN_HEAP | decorators> {};
 
 // Helper for performing normal accesses in roots. These accesses
 // may resolve an accessor on a GC barrier set
-template <DecoratorSet decorators = INTERNAL_EMPTY>
+template <DecoratorSet decorators = DECORATORS_NONE>
 class NativeAccess: public Access<IN_NATIVE | decorators> {};
 
 // Helper for array access.
-template <DecoratorSet decorators = INTERNAL_EMPTY>
+template <DecoratorSet decorators = DECORATORS_NONE>
 class ArrayAccess: public HeapAccess<IS_ARRAY | decorators> {
   typedef HeapAccess<IS_ARRAY | decorators> AccessT;
 public:

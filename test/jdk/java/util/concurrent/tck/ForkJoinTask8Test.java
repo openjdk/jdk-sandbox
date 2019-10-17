@@ -140,13 +140,13 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         checkCompletedNormally(a, null);
     }
 
-    <T> void checkCompletedNormally(ForkJoinTask<T> a, T expected) {
+    <T> void checkCompletedNormally(ForkJoinTask<T> a, T expectedValue) {
         assertTrue(a.isDone());
         assertFalse(a.isCancelled());
         assertTrue(a.isCompletedNormally());
         assertFalse(a.isCompletedAbnormally());
         assertNull(a.getException());
-        assertSame(expected, a.getRawResult());
+        assertSame(expectedValue, a.getRawResult());
         if (a instanceof BinaryAsyncAction)
             assertEquals(COMPLETE_STATE,
                          ((BinaryAsyncAction)a).getForkJoinTaskTag());
@@ -154,7 +154,7 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         {
             Thread.currentThread().interrupt();
             long startTime = System.nanoTime();
-            assertSame(expected, a.join());
+            assertSame(expectedValue, a.join());
             assertTrue(millisElapsedSince(startTime) < LONG_DELAY_MS);
             Thread.interrupted();
         }
@@ -169,10 +169,14 @@ public class ForkJoinTask8Test extends JSR166TestCase {
 
         assertFalse(a.cancel(false));
         assertFalse(a.cancel(true));
+
+        T v1 = null, v2 = null;
         try {
-            assertSame(expected, a.get());
-            assertSame(expected, a.get(randomTimeout(), randomTimeUnit()));
+            v1 = a.get();
+            v2 = a.get(randomTimeout(), randomTimeUnit());
         } catch (Throwable fail) { threadUnexpectedException(fail); }
+        assertSame(expectedValue, v1);
+        assertSame(expectedValue, v2);
     }
 
     void checkCompletedAbnormally(ForkJoinTask a, Throwable t) {
@@ -555,6 +559,8 @@ public class ForkJoinTask8Test extends JSR166TestCase {
                 AsyncFib f = new AsyncFib(8);
                 assertSame(f, f.fork());
                 helpQuiesce();
+                while (!f.isDone()) // wait out race
+                    ;
                 assertEquals(0, getQueuedTaskCount());
                 f.checkCompletedNormally();
             }};
@@ -896,14 +902,13 @@ public class ForkJoinTask8Test extends JSR166TestCase {
         RecursiveAction a = new CheckedRecursiveAction() {
             protected void realCompute() {
                 AsyncFib nul = null;
-                Runnable[] throwingActions = {
+                assertThrows(
+                    NullPointerException.class,
                     () -> invokeAll(nul),
                     () -> invokeAll(nul, nul),
                     () -> invokeAll(new AsyncFib(8), new AsyncFib(9), nul),
                     () -> invokeAll(new AsyncFib(8), nul, new AsyncFib(9)),
-                    () -> invokeAll(nul, new AsyncFib(8), new AsyncFib(9)),
-                };
-                assertThrows(NullPointerException.class, throwingActions);
+                    () -> invokeAll(nul, new AsyncFib(8), new AsyncFib(9)));
             }};
         testInvokeOnPool(pool, a);
     }

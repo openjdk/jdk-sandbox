@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,14 +202,14 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
     }
 
     // Try using the type profile.
-    if (call_does_dispatch && site_count > 0 && receiver_count > 0) {
+    if (call_does_dispatch && site_count > 0 && UseTypeProfile) {
       // The major receiver's count >= TypeProfileMajorReceiverPercent of site_count.
-      bool have_major_receiver = (100.*profile.receiver_prob(0) >= (float)TypeProfileMajorReceiverPercent);
+      bool have_major_receiver = profile.has_receiver(0) && (100.*profile.receiver_prob(0) >= (float)TypeProfileMajorReceiverPercent);
       ciMethod* receiver_method = NULL;
 
       int morphism = profile.morphism();
       if (speculative_receiver_type != NULL) {
-        if (!too_many_traps(caller, bci, Deoptimization::Reason_speculate_class_check)) {
+        if (!too_many_traps_or_recompiles(caller, bci, Deoptimization::Reason_speculate_class_check)) {
           // We have a speculative type, we should be able to resolve
           // the call. We do that before looking at the profiling at
           // this invoke because it may lead to bimorphic inlining which
@@ -258,10 +258,11 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
             }
           }
           CallGenerator* miss_cg;
-          Deoptimization::DeoptReason reason = morphism == 2 ?
-            Deoptimization::Reason_bimorphic : Deoptimization::reason_class_check(speculative_receiver_type != NULL);
+          Deoptimization::DeoptReason reason = (morphism == 2
+                                               ? Deoptimization::Reason_bimorphic
+                                               : Deoptimization::reason_class_check(speculative_receiver_type != NULL));
           if ((morphism == 1 || (morphism == 2 && next_hit_cg != NULL)) &&
-              !too_many_traps(caller, bci, reason)
+              !too_many_traps_or_recompiles(caller, bci, reason)
              ) {
             // Generate uncommon trap for class check failure path
             // in case of monomorphic or bimorphic virtual call site.
@@ -281,12 +282,59 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
               miss_cg = CallGenerator::for_predicted_call(profile.receiver(1), miss_cg, next_hit_cg, PROB_MAX);
             }
             if (miss_cg != NULL) {
-              trace_type_profile(C, jvms->method(), jvms->depth() - 1, jvms->bci(), receiver_method, profile.receiver(0), site_count, receiver_count);
               ciKlass* k = speculative_receiver_type != NULL ? speculative_receiver_type : profile.receiver(0);
+              trace_type_profile(C, jvms->method(), jvms->depth() - 1, jvms->bci(), receiver_method, k, site_count, receiver_count);
               float hit_prob = speculative_receiver_type != NULL ? 1.0 : profile.receiver_prob(0);
               CallGenerator* cg = CallGenerator::for_predicted_call(k, miss_cg, hit_cg, hit_prob);
               if (cg != NULL)  return cg;
             }
+          }
+        }
+      }
+    }
+
+    // If there is only one implementor of this interface then we
+    // may be able to bind this invoke directly to the implementing
+    // klass but we need both a dependence on the single interface
+    // and on the method we bind to. Additionally since all we know
+    // about the receiver type is that it's supposed to implement the
+    // interface we have to insert a check that it's the class we
+    // expect.  Interface types are not checked by the verifier so
+    // they are roughly equivalent to Object.
+    // The number of implementors for declared_interface is less or
+    // equal to the number of implementors for target->holder() so
+    // if number of implementors of target->holder() == 1 then
+    // number of implementors for decl_interface is 0 or 1. If
+    // it's 0 then no class implements decl_interface and there's
+    // no point in inlining.
+    if (call_does_dispatch && bytecode == Bytecodes::_invokeinterface) {
+      ciInstanceKlass* declared_interface =
+          caller->get_declared_method_holder_at_bci(bci)->as_instance_klass();
+      ciInstanceKlass* singleton = declared_interface->unique_implementor();
+
+      if (singleton != NULL &&
+          (!callee->is_default_method() || callee->is_overpass()) /* CHA doesn't support default methods yet */) {
+        assert(singleton != declared_interface, "not a unique implementor");
+
+        ciMethod* cha_monomorphic_target =
+            callee->find_monomorphic_target(caller->holder(), declared_interface, singleton);
+
+        if (cha_monomorphic_target != NULL &&
+            cha_monomorphic_target->holder() != env()->Object_klass()) { // subtype check against Object is useless
+          ciKlass* holder = cha_monomorphic_target->holder();
+
+          // Try to inline the method found by CHA. Inlined method is guarded by the type check.
+          CallGenerator* hit_cg = call_generator(cha_monomorphic_target,
+              vtable_index, !call_does_dispatch, jvms, allow_inline, prof_factor);
+
+          // Deoptimize on type check fail. The interpreter will throw ICCE for us.
+          CallGenerator* miss_cg = CallGenerator::for_uncommon_trap(callee,
+              Deoptimization::Reason_class_check, Deoptimization::Action_none);
+
+          CallGenerator* cg = CallGenerator::for_guarded_call(holder, miss_cg, hit_cg);
+          if (hit_cg != NULL && cg != NULL) {
+            dependencies()->assert_unique_concrete_method(declared_interface, cha_monomorphic_target);
+            return cg;
           }
         }
       }
@@ -470,7 +518,7 @@ void Parse::do_call() {
   // Push appendix argument (MethodType, CallSite, etc.), if one.
   if (iter().has_appendix()) {
     ciObject* appendix_arg = iter().get_appendix();
-    const TypeOopPtr* appendix_arg_type = TypeOopPtr::make_from_constant(appendix_arg);
+    const TypeOopPtr* appendix_arg_type = TypeOopPtr::make_from_constant(appendix_arg, /* require_const= */ true);
     Node* appendix_arg_node = _gvn.makecon(appendix_arg_type);
     push(appendix_arg_node);
   }
@@ -654,8 +702,8 @@ void Parse::do_call() {
         } else if (rt == T_INT || is_subword_type(rt)) {
           // Nothing.  These cases are handled in lambda form bytecode.
           assert(ct == T_INT || is_subword_type(ct), "must match: rt=%s, ct=%s", type2name(rt), type2name(ct));
-        } else if (rt == T_OBJECT || rt == T_ARRAY) {
-          assert(ct == T_OBJECT || ct == T_ARRAY, "rt=%s, ct=%s", type2name(rt), type2name(ct));
+        } else if (is_reference_type(rt)) {
+          assert(is_reference_type(ct), "rt=%s, ct=%s", type2name(rt), type2name(ct));
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
@@ -702,7 +750,7 @@ void Parse::do_call() {
       set_bci(iter().cur_bci()); // put it back
     }
     BasicType ct = ctype->basic_type();
-    if (ct == T_OBJECT || ct == T_ARRAY) {
+    if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
   }
@@ -1106,14 +1154,19 @@ ciMethod* Compile::optimize_inlining(ciMethod* caller, int bci, ciInstanceKlass*
       cha_monomorphic_target = NULL;
     }
   }
+
   if (cha_monomorphic_target != NULL) {
     // Hardwiring a virtual.
-    // If we inlined because CHA revealed only a single target method,
-    // then we are dependent on that target method not getting overridden
-    // by dynamic class loading.  Be sure to test the "static" receiver
-    // dest_method here, as opposed to the actual receiver, which may
-    // falsely lead us to believe that the receiver is final or private.
-    dependencies()->assert_unique_concrete_method(actual_receiver, cha_monomorphic_target);
+    assert(!callee->can_be_statically_bound(), "should have been handled earlier");
+    assert(!cha_monomorphic_target->is_abstract(), "");
+    if (!cha_monomorphic_target->can_be_statically_bound(actual_receiver)) {
+      // If we inlined because CHA revealed only a single target method,
+      // then we are dependent on that target method not getting overridden
+      // by dynamic class loading.  Be sure to test the "static" receiver
+      // dest_method here, as opposed to the actual receiver, which may
+      // falsely lead us to believe that the receiver is final or private.
+      dependencies()->assert_unique_concrete_method(actual_receiver, cha_monomorphic_target);
+    }
     return cha_monomorphic_target;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,26 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_BASICLOCK_HPP
-#define SHARE_VM_RUNTIME_BASICLOCK_HPP
+#ifndef SHARE_RUNTIME_BASICLOCK_HPP
+#define SHARE_RUNTIME_BASICLOCK_HPP
 
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/handles.hpp"
 
 class BasicLock {
   friend class VMStructs;
   friend class JVMCIVMStructs;
  private:
-  volatile markOop _displaced_header;
+  volatile markWord _displaced_header;
  public:
-  markOop      displaced_header() const               { return _displaced_header; }
-  void         set_displaced_header(markOop header)   { _displaced_header = header; }
+  markWord displaced_header() const {
+    return Atomic::load(&_displaced_header);
+  }
+
+  void set_displaced_header(markWord header) {
+    Atomic::store(header, &_displaced_header);
+  }
 
   void print_on(outputStream* st) const;
 
@@ -78,4 +84,4 @@ class BasicObjectLock {
 };
 
 
-#endif // SHARE_VM_RUNTIME_BASICLOCK_HPP
+#endif // SHARE_RUNTIME_BASICLOCK_HPP

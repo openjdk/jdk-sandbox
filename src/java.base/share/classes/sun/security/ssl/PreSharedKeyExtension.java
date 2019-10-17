@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.Collection;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
@@ -42,6 +41,9 @@ import sun.security.ssl.ClientHello.ClientHelloMessage;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLExtension.SSLExtensionSpec;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
+import sun.security.ssl.SessionTicketExtension.SessionTicketSpec;
+import sun.security.util.HexDumpEncoder;
+
 import static sun.security.ssl.SSLExtension.*;
 
 /**
@@ -88,7 +90,7 @@ final class PreSharedKeyExtension {
 
         @Override
         public String toString() {
-            return "{" + Utilities.toHexString(identity) + "," +
+            return "{" + Utilities.toHexString(identity) + ", " +
                 obfuscatedAge + "}";
         }
     }
@@ -110,14 +112,14 @@ final class PreSharedKeyExtension {
             //     PskBinderEntry binders<33..2^16-1>;
             // } OfferedPsks;
             if (m.remaining() < 44) {
-                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Invalid pre_shared_key extension: " +
                     "insufficient data (length=" + m.remaining() + ")");
             }
 
             int idEncodedLength = Record.getInt16(m);
             if (idEncodedLength < 7) {
-                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Invalid pre_shared_key extension: " +
                     "insufficient identities (length=" + idEncodedLength + ")");
             }
@@ -127,7 +129,7 @@ final class PreSharedKeyExtension {
             while (idReadLength < idEncodedLength) {
                 byte[] id = Record.getBytes16(m);
                 if (id.length < 1) {
-                    context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Invalid pre_shared_key extension: " +
                         "insufficient identity (length=" + id.length + ")");
                 }
@@ -139,7 +141,7 @@ final class PreSharedKeyExtension {
             }
 
             if (m.remaining() < 35) {
-                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Invalid pre_shared_key extension: " +
                         "insufficient binders data (length=" +
                         m.remaining() + ")");
@@ -147,7 +149,7 @@ final class PreSharedKeyExtension {
 
             int bindersEncodedLen = Record.getInt16(m);
             if (bindersEncodedLen < 33) {
-                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Invalid pre_shared_key extension: " +
                         "insufficient binders (length=" +
                         bindersEncodedLen + ")");
@@ -158,7 +160,7 @@ final class PreSharedKeyExtension {
             while (bindersReadLength < bindersEncodedLen) {
                 byte[] binder = Record.getBytes8(m);
                 if (binder.length < 32) {
-                    context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                             "Invalid pre_shared_key extension: " +
                             "insufficient binder entry (length=" +
                             binder.length + ")");
@@ -208,8 +210,10 @@ final class PreSharedKeyExtension {
         public String toString() {
             MessageFormat messageFormat = new MessageFormat(
                 "\"PreSharedKey\": '{'\n" +
-                "  \"identities\"    : \"{0}\",\n" +
-                "  \"binders\"       : \"{1}\",\n" +
+                "  \"identities\": '{'\n" +
+                "{0}\n" +
+                "  '}'" +
+                "  \"binders\": \"{1}\",\n" +
                 "'}'",
                 Locale.ENGLISH);
 
@@ -222,9 +226,13 @@ final class PreSharedKeyExtension {
         }
 
         String identitiesString() {
+            HexDumpEncoder hexEncoder = new HexDumpEncoder();
+
             StringBuilder result = new StringBuilder();
             for (PskIdentity curId : identities) {
-                result.append(curId.toString() + "\n");
+                result.append("  {\n"+ Utilities.indent(
+                        hexEncoder.encode(curId.identity), "    ") +
+                        "\n  }\n");
             }
 
             return result.toString();
@@ -270,7 +278,7 @@ final class PreSharedKeyExtension {
         SHPreSharedKeySpec(HandshakeContext context,
                 ByteBuffer m) throws IOException {
             if (m.remaining() < 2) {
-                context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw context.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Invalid pre_shared_key extension: " +
                         "insufficient selected_identity (length=" +
                         m.remaining() + ")");
@@ -278,7 +286,7 @@ final class PreSharedKeyExtension {
             this.selectedIdentity = Record.getInt16(m);
         }
 
-        byte[] getEncoded() throws IOException {
+        byte[] getEncoded() {
             return new byte[] {
                 (byte)((selectedIdentity >> 8) & 0xFF),
                 (byte)(selectedIdentity & 0xFF)
@@ -347,21 +355,20 @@ final class PreSharedKeyExtension {
             try {
                 pskSpec = new CHPreSharedKeySpec(shc, buffer);
             } catch (IOException ioe) {
-                shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
-                return;     // fatal() always throws, make the compiler happy.
+                throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE, ioe);
             }
 
             // The "psk_key_exchange_modes" extension should have been loaded.
             if (!shc.handshakeExtensions.containsKey(
                     SSLExtension.PSK_KEY_EXCHANGE_MODES)) {
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "Client sent PSK but not PSK modes, or the PSK " +
                         "extension is not the last extension");
             }
 
             // error if id and binder lists are not the same length
             if (pskSpec.identities.size() != pskSpec.binders.size()) {
-                shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                         "PSK extension has incorrect number of binders");
             }
 
@@ -369,8 +376,36 @@ final class PreSharedKeyExtension {
                 SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
                         shc.sslContext.engineGetServerSessionContext();
                 int idIndex = 0;
+                SSLSessionImpl s = null;
+
                 for (PskIdentity requestedId : pskSpec.identities) {
-                    SSLSessionImpl s = sessionCache.get(requestedId.identity);
+                    // If we are keeping state, see if the identity is in the cache
+                    if (requestedId.identity.length == SessionId.MAX_LENGTH) {
+                        s = sessionCache.get(requestedId.identity);
+                    }
+                    // See if the identity is a stateless ticket
+                    if (s == null &&
+                            requestedId.identity.length > SessionId.MAX_LENGTH &&
+                            sessionCache.statelessEnabled()) {
+                        ByteBuffer b =
+                                new SessionTicketSpec(requestedId.identity).
+                                        decrypt(shc);
+                        if (b != null) {
+                            try {
+                                s = new SSLSessionImpl(shc, b);
+                            } catch (IOException | RuntimeException e) {
+                                s = null;
+                            }
+                        }
+                        if (b == null || s == null) {
+                            if (SSLLogger.isOn &&
+                                    SSLLogger.isOn("ssl,handshake")) {
+                                SSLLogger.fine(
+                                        "Stateless session ticket invalid");
+                            }
+                        }
+                    }
+
                     if (s != null && canRejoin(clientHello, shc, s)) {
                         if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                             SSLLogger.fine("Resuming session: ", s);
@@ -392,7 +427,6 @@ final class PreSharedKeyExtension {
                     shc.resumingSession = null;
                 }
             }
-
             // update the context
             shc.handshakeExtensions.put(
                 SSLExtension.CH_PRE_SHARED_KEY, pskSpec);
@@ -402,7 +436,7 @@ final class PreSharedKeyExtension {
     private static boolean canRejoin(ClientHelloMessage clientHello,
         ServerHandshakeContext shc, SSLSessionImpl s) {
 
-        boolean result = s.isRejoinable() && s.getPreSharedKey().isPresent();
+        boolean result = s.isRejoinable() && (s.getPreSharedKey() != null);
 
         // Check protocol version
         if (result && s.getProtocolVersion() != shc.negotiatedProtocol) {
@@ -412,6 +446,16 @@ final class PreSharedKeyExtension {
                 SSLLogger.finest("Can't resume, incorrect protocol version");
             }
             result = false;
+        }
+
+        // Make sure that the server handshake context's localSupportedSignAlgs
+        // field is populated.  This is particularly important when
+        // client authentication was used in an initial session and it is
+        // now being resumed.
+        if (shc.localSupportedSignAlgs == null) {
+            shc.localSupportedSignAlgs =
+                    SignatureScheme.getSupportedAlgorithms(
+                            shc.algorithmConstraints, shc.activeProtocols);
         }
 
         // Validate the required client authentication.
@@ -438,6 +482,23 @@ final class PreSharedKeyExtension {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine("Can't resume. Session uses different " +
                         "signature algorithms");
+                }
+                result = false;
+            }
+        }
+
+        // ensure that the endpoint identification algorithm matches the
+        // one in the session
+        String identityAlg = shc.sslConfig.identificationProtocol;
+        if (result && identityAlg != null) {
+            String sessionIdentityAlg = s.getIdentificationProtocol();
+            if (!identityAlg.equalsIgnoreCase(sessionIdentityAlg)) {
+                if (SSLLogger.isOn &&
+                    SSLLogger.isOn("ssl,handshake,verbose")) {
+
+                    SSLLogger.finest("Can't resume, endpoint id" +
+                        " algorithm does not match, requested: " +
+                        identityAlg + ", cached: " + sessionIdentityAlg);
                 }
                 result = false;
             }
@@ -478,7 +539,7 @@ final class PreSharedKeyExtension {
             SHPreSharedKeySpec shPsk = (SHPreSharedKeySpec)
                     shc.handshakeExtensions.get(SSLExtension.SH_PRE_SHARED_KEY);
             if (chPsk == null || shPsk == null) {
-                shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Required extensions are unavailable");
             }
 
@@ -503,19 +564,18 @@ final class PreSharedKeyExtension {
     private static void checkBinder(ServerHandshakeContext shc,
             SSLSessionImpl session,
             HandshakeHash pskBinderHash, byte[] binder) throws IOException {
-        Optional<SecretKey> pskOpt = session.getPreSharedKey();
-        if (!pskOpt.isPresent()) {
-            shc.conContext.fatal(Alert.INTERNAL_ERROR,
+        SecretKey psk = session.getPreSharedKey();
+        if (psk == null) {
+            throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                     "Session has no PSK");
         }
-        SecretKey psk = pskOpt.get();
 
-        SecretKey binderKey = deriveBinderKey(psk, session);
+        SecretKey binderKey = deriveBinderKey(shc, psk, session);
         byte[] computedBinder =
-                computeBinder(binderKey, session, pskBinderHash);
+                computeBinder(shc, binderKey, session, pskBinderHash);
         if (!Arrays.equals(binder, computedBinder)) {
-            shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-            "Incorect PSK binder value");
+            throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                    "Incorect PSK binder value");
         }
     }
 
@@ -620,23 +680,33 @@ final class PreSharedKeyExtension {
             }
 
             // The session must have a pre-shared key
-            Optional<SecretKey> pskOpt = chc.resumingSession.getPreSharedKey();
-            if (!pskOpt.isPresent()) {
+            SecretKey psk = chc.resumingSession.getPreSharedKey();
+            if (psk == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine("Existing session has no PSK.");
                 }
                 return null;
             }
-            SecretKey psk = pskOpt.get();
-            Optional<byte[]> pskIdOpt = chc.resumingSession.getPskIdentity();
-            if (!pskIdOpt.isPresent()) {
+
+            // The PSK ID can only be used in one connections, but this method
+            // may be called twice in a connection if the server sends HRR.
+            // ID is saved in the context so it can be used in the second call.
+            if (chc.pskIdentity == null) {
+                chc.pskIdentity = chc.resumingSession.consumePskIdentity();
+            }
+
+            if (chc.pskIdentity == null) {
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine(
                         "PSK has no identity, or identity was already used");
                 }
                 return null;
             }
-            byte[] pskId = pskIdOpt.get();
+
+            //The session cannot be used again. Remove it from the cache.
+            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
+                chc.sslContext.engineGetClientSessionContext();
+            sessionCache.remove(chc.resumingSession.getSessionId());
 
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -648,15 +718,16 @@ final class PreSharedKeyExtension {
                     chc.resumingSession.getTicketCreationTime());
             int obfuscatedAge =
                     ageMillis + chc.resumingSession.getTicketAgeAdd();
-            identities.add(new PskIdentity(pskId, obfuscatedAge));
+            identities.add(new PskIdentity(chc.pskIdentity, obfuscatedAge));
 
-            SecretKey binderKey = deriveBinderKey(psk, chc.resumingSession);
+            SecretKey binderKey =
+                    deriveBinderKey(chc, psk, chc.resumingSession);
             ClientHelloMessage clientHello = (ClientHelloMessage)message;
             CHPreSharedKeySpec pskPrototype = createPskPrototype(
                 chc.resumingSession.getSuite().hashAlg.hashLength, identities);
             HandshakeHash pskBinderHash = chc.handshakeHash.copy();
 
-            byte[] binder = computeBinder(binderKey, pskBinderHash,
+            byte[] binder = computeBinder(chc, binderKey, pskBinderHash,
                     chc.resumingSession, chc, clientHello, pskPrototype);
 
             List<byte[]> binders = new ArrayList<>();
@@ -672,7 +743,8 @@ final class PreSharedKeyExtension {
                 int hashLength, List<PskIdentity> identities) {
             List<byte[]> binders = new ArrayList<>();
             byte[] binderProto = new byte[hashLength];
-            for (PskIdentity curId : identities) {
+            int i = identities.size();
+            while (i-- > 0) {
                 binders.add(binderProto);
             }
 
@@ -680,7 +752,8 @@ final class PreSharedKeyExtension {
         }
     }
 
-    private static byte[] computeBinder(SecretKey binderKey,
+    private static byte[] computeBinder(
+            HandshakeContext context, SecretKey binderKey,
             SSLSessionImpl session,
             HandshakeHash pskBinderHash) throws IOException {
 
@@ -689,10 +762,11 @@ final class PreSharedKeyExtension {
         pskBinderHash.update();
         byte[] digest = pskBinderHash.digest();
 
-        return computeBinder(binderKey, session, digest);
+        return computeBinder(context, binderKey, session, digest);
     }
 
-    private static byte[] computeBinder(SecretKey binderKey,
+    private static byte[] computeBinder(
+            HandshakeContext context, SecretKey binderKey,
             HandshakeHash hash, SSLSessionImpl session,
             HandshakeContext ctx, ClientHello.ClientHelloMessage hello,
             CHPreSharedKeySpec pskPrototype) throws IOException {
@@ -708,10 +782,11 @@ final class PreSharedKeyExtension {
         hash.update();
         byte[] digest = hash.digest();
 
-        return computeBinder(binderKey, session, digest);
+        return computeBinder(context, binderKey, session, digest);
     }
 
-    private static byte[] computeBinder(SecretKey binderKey,
+    private static byte[] computeBinder(HandshakeContext context,
+            SecretKey binderKey,
             SSLSessionImpl session, byte[] digest) throws IOException {
         try {
             CipherSuite.HashAlg hashAlg = session.getSuite().hashAlg;
@@ -725,19 +800,19 @@ final class PreSharedKeyExtension {
             String hmacAlg =
                 "Hmac" + hashAlg.name.replace("-", "");
             try {
-                Mac hmac = JsseJce.getMac(hmacAlg);
+                Mac hmac = Mac.getInstance(hmacAlg);
                 hmac.init(finishedKey);
                 return hmac.doFinal(digest);
             } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
-                throw new IOException(ex);
+                throw context.conContext.fatal(Alert.INTERNAL_ERROR, ex);
             }
         } catch (GeneralSecurityException ex) {
-            throw new IOException(ex);
+            throw context.conContext.fatal(Alert.INTERNAL_ERROR, ex);
         }
     }
 
-    private static SecretKey deriveBinderKey(SecretKey psk,
-            SSLSessionImpl session) throws IOException {
+    private static SecretKey deriveBinderKey(HandshakeContext context,
+            SecretKey psk, SSLSessionImpl session) throws IOException {
         try {
             CipherSuite.HashAlg hashAlg = session.getSuite().hashAlg;
             HKDF hkdf = new HKDF(hashAlg.name);
@@ -745,13 +820,13 @@ final class PreSharedKeyExtension {
             SecretKey earlySecret = hkdf.extract(zeros, psk, "TlsEarlySecret");
 
             byte[] label = ("tls13 res binder").getBytes();
-            MessageDigest md = MessageDigest.getInstance(hashAlg.toString());;
+            MessageDigest md = MessageDigest.getInstance(hashAlg.name);
             byte[] hkdfInfo = SSLSecretDerivation.createHkdfInfo(
                     label, md.digest(new byte[0]), hashAlg.hashLength);
             return hkdf.expand(earlySecret,
                     hkdfInfo, hashAlg.hashLength, "TlsBinderKey");
         } catch (GeneralSecurityException ex) {
-            throw new IOException(ex);
+            throw context.conContext.fatal(Alert.INTERNAL_ERROR, ex);
         }
     }
 
@@ -790,7 +865,7 @@ final class PreSharedKeyExtension {
             // Is it a response of the specific request?
             if (!chc.handshakeExtensions.containsKey(
                     SSLExtension.CH_PRE_SHARED_KEY)) {
-                chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
                     "Server sent unexpected pre_shared_key extension");
             }
 
@@ -800,24 +875,15 @@ final class PreSharedKeyExtension {
                     "Received pre_shared_key extension: ", shPsk);
             }
 
-            // The PSK identity should not be reused, even if it is
-            // not selected.
-            chc.resumingSession.consumePskIdentity();
-
             if (shPsk.selectedIdentity != 0) {
-                chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
                     "Selected identity index is not in correct range.");
             }
 
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
-                "Resuming session: ", chc.resumingSession);
+                        "Resuming session: ", chc.resumingSession);
             }
-
-            // remove the session from the cache
-            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
-                    chc.sslContext.engineGetClientSessionContext();
-            sessionCache.remove(chc.resumingSession.getSessionId());
         }
     }
 
@@ -830,13 +896,6 @@ final class PreSharedKeyExtension {
 
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine("Handling pre_shared_key absence.");
-            }
-
-            if (chc.handshakeExtensions.containsKey(
-                    SSLExtension.CH_PRE_SHARED_KEY)) {
-                // The PSK identity should not be reused, even if it is
-                // not selected.
-                chc.resumingSession.consumePskIdentity();
             }
 
             // The server refused to resume, or the client did not

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,20 +19,19 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
 #include "precompiled.hpp"
 #include "gc/z/zArguments.hpp"
 #include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zCollectorPolicy.hpp"
 #include "gc/z/zWorkers.hpp"
-#include "gc/shared/gcArguments.inline.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 
-size_t ZArguments::conservative_max_heap_alignment() {
-  return 0;
+void ZArguments::initialize_alignments() {
+  SpaceAlignment = ZGranuleSize;
+  HeapAlignment = SpaceAlignment;
 }
 
 void ZArguments::initialize() {
@@ -80,10 +79,6 @@ void ZArguments::initialize() {
   FLAG_SET_DEFAULT(UseCompressedOops, false);
   FLAG_SET_DEFAULT(UseCompressedClassPointers, false);
 
-  // ClassUnloading not (yet) supported
-  FLAG_SET_DEFAULT(ClassUnloading, false);
-  FLAG_SET_DEFAULT(ClassUnloadingWithConcurrentMark, false);
-
   // Verification before startup and after exit not (yet) supported
   FLAG_SET_DEFAULT(VerifyDuringStartup, false);
   FLAG_SET_DEFAULT(VerifyBeforeExit, false);
@@ -92,11 +87,23 @@ void ZArguments::initialize() {
   // same reason we need fixup_partial_loads
   FLAG_SET_DEFAULT(VerifyBeforeIteration, false);
 
+  if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
+    FLAG_SET_DEFAULT(ZVerifyRoots, true);
+    FLAG_SET_DEFAULT(ZVerifyObjects, true);
+  }
+
   // Verification of stacks not (yet) supported, for the same reason
   // we need fixup_partial_loads
   DEBUG_ONLY(FLAG_SET_DEFAULT(VerifyStack, false));
+
+  // Initialize platform specific arguments
+  initialize_platform();
+}
+
+size_t ZArguments::conservative_max_heap_alignment() {
+  return 0;
 }
 
 CollectedHeap* ZArguments::create_heap() {
-  return create_heap_with_policy<ZCollectedHeap, ZCollectorPolicy>();
+  return new ZCollectedHeap();
 }

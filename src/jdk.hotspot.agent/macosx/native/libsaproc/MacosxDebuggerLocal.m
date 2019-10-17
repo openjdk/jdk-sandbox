@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -373,7 +373,16 @@ Java_sun_jvm_hotspot_debugger_bsd_BsdDebuggerLocal_readBytesFromProcess0(
 
   // Allocate storage for pages and flags.
   pages = malloc(pageCount * sizeof(vm_offset_t));
+  if (pages == NULL) {
+    (*env)->DeleteLocalRef(env, array);
+    return NULL;
+  }
   mapped = calloc(pageCount, sizeof(int));
+  if (mapped == NULL) {
+    (*env)->DeleteLocalRef(env, array);
+    free(pages);
+    return NULL;
+  }
 
   task_t gTask = getTask(env, this_obj);
   // Try to read each of the pages.
@@ -441,6 +450,7 @@ bool fill_java_threads(JNIEnv* env, jobject this_obj, struct ps_prochandle* ph) 
   for (i = 0; i < n; i++) {
     if (!get_nth_lwp_regs(ph, i, &regs)) {
       print_debug("Could not get regs of thread %d, already set!\n", i);
+      (*env)->ReleaseLongArrayElements(env, thrinfos, (jlong*)cinfos, 0);
       return false;
     }
     for (j = 0; j < len; j += 3) {
@@ -519,8 +529,8 @@ jlongArray getThreadIntegerRegisterSetFromCore(JNIEnv *env, jobject this_obj, lo
   regs[REG_INDEX(TRAPNO)] = gregs.r_trapno;
   regs[REG_INDEX(RFL)]    = gregs.r_rflags;
 
-#endif /* amd64 */
   (*env)->ReleaseLongArrayElements(env, array, regs, JNI_COMMIT);
+#endif /* amd64 */
   return array;
 }
 

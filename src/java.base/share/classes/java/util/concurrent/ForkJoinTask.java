@@ -1230,14 +1230,13 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
     /**
      * Immediately performs the base action of this task and returns
      * true if, upon return from this method, this task is guaranteed
-     * to have completed normally. This method may return false
-     * otherwise, to indicate that this task is not necessarily
-     * complete (or is not known to be complete), for example in
-     * asynchronous actions that require explicit invocations of
-     * completion methods. This method may also throw an (unchecked)
-     * exception to indicate abnormal exit. This method is designed to
-     * support extensions, and should not in general be called
-     * otherwise.
+     * to have completed. This method may return false otherwise, to
+     * indicate that this task is not necessarily complete (or is not
+     * known to be complete), for example in asynchronous actions that
+     * require explicit invocations of completion methods. This method
+     * may also throw an (unchecked) exception to indicate abnormal
+     * exit. This method is designed to support extensions, and should
+     * not in general be called otherwise.
      *
      * @return {@code true} if this task is known to have completed normally
      */
@@ -1375,7 +1374,9 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      */
     static final class AdaptedRunnable<T> extends ForkJoinTask<T>
         implements RunnableFuture<T> {
+        @SuppressWarnings("serial") // Conditionally serializable
         final Runnable runnable;
+        @SuppressWarnings("serial") // Conditionally serializable
         T result;
         AdaptedRunnable(Runnable runnable, T result) {
             if (runnable == null) throw new NullPointerException();
@@ -1397,6 +1398,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      */
     static final class AdaptedRunnableAction extends ForkJoinTask<Void>
         implements RunnableFuture<Void> {
+        @SuppressWarnings("serial") // Conditionally serializable
         final Runnable runnable;
         AdaptedRunnableAction(Runnable runnable) {
             if (runnable == null) throw new NullPointerException();
@@ -1416,6 +1418,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      * Adapter for Runnables in which failure forces worker exception.
      */
     static final class RunnableExecuteAction extends ForkJoinTask<Void> {
+        @SuppressWarnings("serial") // Conditionally serializable
         final Runnable runnable;
         RunnableExecuteAction(Runnable runnable) {
             if (runnable == null) throw new NullPointerException();
@@ -1435,7 +1438,9 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      */
     static final class AdaptedCallable<T> extends ForkJoinTask<T>
         implements RunnableFuture<T> {
+        @SuppressWarnings("serial") // Conditionally serializable
         final Callable<? extends T> callable;
+        @SuppressWarnings("serial") // Conditionally serializable
         T result;
         AdaptedCallable(Callable<? extends T> callable) {
             if (callable == null) throw new NullPointerException();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OSCONTAINER_LINUX_HPP
-#define OS_LINUX_VM_OSCONTAINER_LINUX_HPP
+#ifndef OS_LINUX_OSCONTAINER_LINUX_HPP
+#define OS_LINUX_OSCONTAINER_LINUX_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -36,12 +36,14 @@ class OSContainer: AllStatic {
  private:
   static bool   _is_initialized;
   static bool   _is_containerized;
+  static jlong read_memory_limit_in_bytes();
 
  public:
   static void init();
   static inline bool is_containerized();
   static const char * container_type();
 
+  static jlong uses_mem_hierarchy();
   static jlong memory_limit_in_bytes();
   static jlong memory_and_swap_limit_in_bytes();
   static jlong memory_soft_limit_in_bytes();
@@ -61,8 +63,7 @@ class OSContainer: AllStatic {
 };
 
 inline bool OSContainer::is_containerized() {
-  assert(_is_initialized, "OSContainer not initialized");
   return _is_containerized;
 }
 
-#endif // OS_LINUX_VM_OSCONTAINER_LINUX_HPP
+#endif // OS_LINUX_OSCONTAINER_LINUX_HPP

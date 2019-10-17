@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,9 @@
 import java.io.*;
 import java.lang.module.ModuleDescriptor;
 import java.lang.reflect.Method;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.jar.JarEntry;
@@ -32,6 +34,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
+import java.util.spi.ToolProvider;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -46,7 +49,7 @@ import static java.lang.System.out;
 
 /*
  * @test
- * @bug 8167328 8171830 8165640 8174248 8176772 8196748 8191533
+ * @bug 8167328 8171830 8165640 8174248 8176772 8196748 8191533 8210454
  * @library /test/lib
  * @modules jdk.compiler
  *          jdk.jartool
@@ -59,6 +62,16 @@ import static java.lang.System.out;
  */
 
 public class Basic {
+
+    private static final ToolProvider JAR_TOOL = ToolProvider.findFirst("jar")
+            .orElseThrow(()
+                    -> new RuntimeException("jar tool not found")
+            );
+    private static final ToolProvider JAVAC_TOOL = ToolProvider.findFirst("javac")
+            .orElseThrow(()
+                    -> new RuntimeException("javac tool not found")
+            );
+
     static final Path TEST_SRC = Paths.get(System.getProperty("test.src", "."));
     static final Path TEST_CLASSES = Paths.get(System.getProperty("test.classes", "."));
     static final Path MODULE_CLASSES = TEST_CLASSES.resolve("build");
@@ -878,6 +891,50 @@ public class Basic {
         }
     }
 
+    /**
+     * Validate that you can update a jar only specifying --module-version
+     * @throws IOException
+     */
+    @Test
+    public void updateFooModuleVersion() throws IOException {
+        Path mp = Paths.get("updateFooModuleVersion");
+        createTestDir(mp);
+        Path modClasses = MODULE_CLASSES.resolve(FOO.moduleName);
+        Path modularJar = mp.resolve(FOO.moduleName + ".jar");
+        String newFooVersion = "87.0";
+
+        jar("--create",
+            "--file=" + modularJar.toString(),
+            "--main-class=" + FOO.mainClass,
+            "--module-version=" + FOO.version,
+            "--no-manifest",
+            "-C", modClasses.toString(), ".")
+            .assertSuccess();
+
+        jarWithStdin(modularJar.toFile(), "--describe-module")
+                .assertSuccess()
+                .resultChecker(r ->
+                        assertTrue(r.output.contains(FOO.moduleName + "@" + FOO.version),
+                                "Expected to find ", FOO.moduleName + "@" + FOO.version,
+                                " in [", r.output, "]")
+                );
+
+        jar("--update",
+            "--file=" + modularJar.toString(),
+            "--module-version=" + newFooVersion)
+            .assertSuccess();
+
+        for (String option : new String[]  {"--describe-module", "-d" }) {
+            jarWithStdin(modularJar.toFile(),
+                         option)
+                         .assertSuccess()
+                         .resultChecker(r ->
+                             assertTrue(r.output.contains(FOO.moduleName + "@" + newFooVersion),
+                                "Expected to find ", FOO.moduleName + "@" + newFooVersion,
+                                " in [", r.output, "]")
+                );
+        }
+    }
 
     @DataProvider(name = "autoNames")
     public Object[][] autoNames() {
@@ -933,13 +990,14 @@ public class Basic {
         }
         Stream.of(args).forEach(commands::add);
         ProcessBuilder p = new ProcessBuilder(commands);
-        if (stdinSource != null)
+        if (stdinSource != null) {
             p.redirectInput(stdinSource);
+        }
         return run(p);
     }
 
     static Result jar(String... args) {
-        return jarWithStdin(null, args);
+        return run(JAR_TOOL, args);
     }
 
     static Path compileModule(String mn) throws IOException {
@@ -1027,10 +1085,8 @@ public class Basic {
     static void javac(Path dest, Path modulePath, Path... sourceFiles)
         throws IOException
     {
-        String javac = getJDKTool("javac");
 
         List<String> commands = new ArrayList<>();
-        commands.add(javac);
         if (!TOOL_VM_OPTIONS.isEmpty()) {
             commands.addAll(Arrays.asList(TOOL_VM_OPTIONS.split("\\s+", -1)));
         }
@@ -1048,7 +1104,13 @@ public class Basic {
         }
         Stream.of(sourceFiles).map(Object::toString).forEach(x -> commands.add(x));
 
-        quickFail(run(new ProcessBuilder(commands)));
+        StringWriter sw = new StringWriter();
+        try (PrintWriter pw = new PrintWriter(sw)) {
+            int rc = JAVAC_TOOL.run(pw, pw, commands.toArray(new String[0]));
+            if(rc != 0) {
+                throw new RuntimeException(sw.toString());
+            }
+        }
     }
 
     static Result java(Path modulePath, String entryPoint, String... args) {
@@ -1094,9 +1156,13 @@ public class Basic {
         return false;
     }
 
-    static void quickFail(Result r) {
-        if (r.ec != 0)
-            throw new RuntimeException(r.output);
+    static Result run(ToolProvider tp, String[] commands) {
+        int rc = 0;
+        StringWriter sw = new StringWriter();
+        try (PrintWriter pw = new PrintWriter(sw)) {
+            rc = tp.run(pw, pw, commands);
+        }
+        return new Result(rc, sw.toString());
     }
 
     static Result run(ProcessBuilder pb) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_MODREFBARRIERSET_HPP
-#define SHARE_VM_GC_SHARED_MODREFBARRIERSET_HPP
+#ifndef SHARE_GC_SHARED_MODREFBARRIERSET_HPP
+#define SHARE_GC_SHARED_MODREFBARRIERSET_HPP
 
 #include "gc/shared/barrierSet.hpp"
 #include "memory/memRegion.hpp"
@@ -39,6 +39,7 @@ protected:
     : BarrierSet(barrier_set_assembler,
                  barrier_set_c1,
                  barrier_set_c2,
+                 NULL /* barrier_set_nmethod */,
                  fake_rtti.add_tag(BarrierSet::ModRef)) { }
   ~ModRefBarrierSet() { }
 
@@ -108,4 +109,4 @@ struct BarrierSet::GetName<ModRefBarrierSet> {
   static const BarrierSet::Name value = BarrierSet::ModRef;
 };
 
-#endif // SHARE_VM_GC_SHARED_MODREFBARRIERSET_HPP
+#endif // SHARE_GC_SHARED_MODREFBARRIERSET_HPP

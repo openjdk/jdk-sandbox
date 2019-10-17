@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2012, 2013 SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,12 +25,13 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/ldr.h>
 #include <errno.h>
 
 #include "porting_aix.h"
 
-static unsigned char dladdr_buffer[0x4000];
+static unsigned char dladdr_buffer[0x8000];
 
 static void fill_dll_info(void) {
   int rc = loadquery(L_GETINFO,dladdr_buffer, sizeof(dladdr_buffer));
@@ -40,11 +43,10 @@ static void fill_dll_info(void) {
 
 static int dladdr_dont_reload(void* addr, Dl_info* info) {
   const struct ld_info* p = (struct ld_info*) dladdr_buffer;
-  info->dli_fbase = 0; info->dli_fname = 0;
-  info->dli_sname = 0; info->dli_saddr = 0;
+  memset((void *)info, 0, sizeof(Dl_info));
   for (;;) {
     if (addr >= p->ldinfo_textorg &&
-        addr < (((char*)p->ldinfo_textorg) + p->ldinfo_textsize)) {
+        addr < p->ldinfo_textorg + p->ldinfo_textsize) {
       info->dli_fname = p->ldinfo_filename;
       info->dli_fbase = p->ldinfo_textorg;
       return 1; /* [sic] */

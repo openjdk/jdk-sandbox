@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,10 +52,12 @@ import org.graalvm.compiler.options.OptionDescriptors;
 import org.graalvm.compiler.options.OptionsParser;
 import org.graalvm.compiler.serviceprovider.GraalServices;
 
+import jdk.vm.ci.services.Services;
+
 /**
  * MBean used to access properties and operations of a {@link HotSpotGraalRuntime} instance.
  */
-final class HotSpotGraalRuntimeMBean implements DynamicMBean {
+public final class HotSpotGraalRuntimeMBean implements DynamicMBean {
 
     /**
      * The runtime instance to which this bean provides a management connection.
@@ -67,20 +69,29 @@ final class HotSpotGraalRuntimeMBean implements DynamicMBean {
      */
     private final ObjectName objectName;
 
-    HotSpotGraalRuntimeMBean(ObjectName objectName, HotSpotGraalRuntime runtime) {
+    public HotSpotGraalRuntimeMBean(ObjectName objectName, HotSpotGraalRuntime runtime) {
         this.objectName = objectName;
         this.runtime = runtime;
     }
 
-    ObjectName getObjectName() {
+    public ObjectName getObjectName() {
         return objectName;
     }
 
-    HotSpotGraalRuntime getRuntime() {
+    public HotSpotGraalRuntime getRuntime() {
         return runtime;
     }
 
-    private static final boolean DEBUG = Boolean.getBoolean(HotSpotGraalRuntimeMBean.class.getSimpleName() + ".debug");
+    private static final boolean DEBUG = initDebug();
+
+    private static boolean initDebug() {
+        try {
+            return Boolean.parseBoolean(Services.getSavedProperties().get(HotSpotGraalRuntimeMBean.class.getSimpleName() + ".debug"));
+        } catch (SecurityException e) {
+            // Swallow the exception
+            return false;
+        }
+    }
 
     @Override
     public Object getAttribute(String name) throws AttributeNotFoundException {

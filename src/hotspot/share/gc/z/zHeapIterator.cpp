@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddressRangeMap.inline.hpp"
+#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zGlobals.hpp"
+#include "gc/z/zGranuleMap.inline.hpp"
 #include "gc/z/zHeapIterator.hpp"
 #include "gc/z/zOop.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
+#include "gc/z/zStat.hpp"
 #include "memory/iterator.inline.hpp"
-#include "oops/oop.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -51,22 +53,30 @@ public:
   }
 };
 
+template <bool Concurrent, bool Weak>
 class ZHeapIteratorRootOopClosure : public ZRootsIteratorClosure {
 private:
   ZHeapIterator* const _iter;
-  ObjectClosure* const _cl;
+
+  oop load_oop(oop* p) {
+    if (Weak) {
+      return NativeAccess<AS_NO_KEEPALIVE | ON_PHANTOM_OOP_REF>::oop_load(p);
+    }
+
+    if (Concurrent) {
+      return NativeAccess<AS_NO_KEEPALIVE>::oop_load(p);
+    }
+
+    return RawAccess<>::oop_load(p);
+  }
 
 public:
-  ZHeapIteratorRootOopClosure(ZHeapIterator* iter, ObjectClosure* cl) :
-      _iter(iter),
-      _cl(cl) {}
+  ZHeapIteratorRootOopClosure(ZHeapIterator* iter) :
+      _iter(iter) {}
 
   virtual void do_oop(oop* p) {
-    // Load barrier needed here for the same reason we
-    // need fixup_partial_loads() in ZHeap::mark_end()
-    const oop obj = ZBarrier::load_barrier_on_oop_field(p);
+    const oop obj = load_oop(p);
     _iter->push(obj);
-    _iter->drain(_cl);
   }
 
   virtual void do_oop(narrowOop* p) {
@@ -74,28 +84,28 @@ public:
   }
 };
 
-class ZHeapIteratorPushOopClosure : public BasicOopIterateClosure {
+template <bool VisitReferents>
+class ZHeapIteratorOopClosure : public ClaimMetadataVisitingOopIterateClosure {
 private:
   ZHeapIterator* const _iter;
   const oop            _base;
-  const bool           _visit_referents;
-
-public:
-  ZHeapIteratorPushOopClosure(ZHeapIterator* iter, oop base) :
-      _iter(iter),
-      _base(base),
-      _visit_referents(iter->visit_referents()) {}
 
   oop load_oop(oop* p) {
-    if (_visit_referents) {
-      return HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(_base, _base->field_offset(p));
-    } else {
-      return HeapAccess<>::oop_load(p);
+    if (VisitReferents) {
+      return HeapAccess<AS_NO_KEEPALIVE | ON_UNKNOWN_OOP_REF>::oop_load_at(_base, _base->field_offset(p));
     }
+
+    return HeapAccess<AS_NO_KEEPALIVE>::oop_load(p);
   }
 
+public:
+  ZHeapIteratorOopClosure(ZHeapIterator* iter, oop base) :
+      ClaimMetadataVisitingOopIterateClosure(ClassLoaderData::_claim_other),
+      _iter(iter),
+      _base(base) {}
+
   virtual ReferenceIterationMode reference_iteration_mode() {
-    return _visit_referents ? DO_FIELDS : DO_FIELDS_EXCEPT_REFERENT;
+    return VisitReferents ? DO_FIELDS : DO_FIELDS_EXCEPT_REFERENT;
   }
 
   virtual void do_oop(oop* p) {
@@ -114,26 +124,26 @@ public:
 #endif
 };
 
-ZHeapIterator::ZHeapIterator(bool visit_referents) :
+ZHeapIterator::ZHeapIterator() :
     _visit_stack(),
-    _visit_map(),
-    _visit_referents(visit_referents) {}
+    _visit_map() {}
 
 ZHeapIterator::~ZHeapIterator() {
   ZVisitMapIterator iter(&_visit_map);
   for (ZHeapIteratorBitMap* map; iter.next(&map);) {
     delete map;
   }
+  ClassLoaderDataGraph::clear_claimed_marks(ClassLoaderData::_claim_other);
 }
 
-size_t ZHeapIterator::object_index_max() const {
-  return ZPageSizeMin >> ZObjectAlignmentSmallShift;
+static size_t object_index_max() {
+  return ZGranuleSize >> ZObjectAlignmentSmallShift;
 }
 
-size_t ZHeapIterator::object_index(oop obj) const {
+static size_t object_index(oop obj) {
   const uintptr_t addr = ZOop::to_address(obj);
   const uintptr_t offset = ZAddress::offset(addr);
-  const uintptr_t mask = (1 << ZPageSizeMinShift) - 1;
+  const uintptr_t mask = ZGranuleSize - 1;
   return (offset & mask) >> ZObjectAlignmentSmallShift;
 }
 
@@ -165,31 +175,47 @@ void ZHeapIterator::push(oop obj) {
   _visit_stack.push(obj);
 }
 
-void ZHeapIterator::drain(ObjectClosure* cl) {
+template <typename RootsIterator, bool Concurrent, bool Weak>
+void ZHeapIterator::push_roots() {
+  ZHeapIteratorRootOopClosure<Concurrent, Weak> cl(this);
+  RootsIterator roots;
+  roots.oops_do(&cl);
+}
+
+template <bool VisitReferents>
+void ZHeapIterator::push_fields(oop obj) {
+  ZHeapIteratorOopClosure<VisitReferents> cl(this, obj);
+  obj->oop_iterate(&cl);
+}
+
+template <bool VisitWeaks>
+void ZHeapIterator::objects_do(ObjectClosure* cl) {
+  ZStatTimerDisable disable;
+
+  // Push roots to visit
+  push_roots<ZRootsIterator,                     false /* Concurrent */, false /* Weak */>();
+  push_roots<ZConcurrentRootsIteratorClaimOther, true  /* Concurrent */, false /* Weak */>();
+  if (VisitWeaks) {
+    push_roots<ZWeakRootsIterator,           false /* Concurrent */, true  /* Weak */>();
+    push_roots<ZConcurrentWeakRootsIterator, true  /* Concurrent */, true  /* Weak */>();
+  }
+
+  // Drain stack
   while (!_visit_stack.is_empty()) {
     const oop obj = _visit_stack.pop();
 
-    // Visit
+    // Visit object
     cl->do_object(obj);
 
-    // Push members to visit
-    ZHeapIteratorPushOopClosure push_cl(this, obj);
-    obj->oop_iterate(&push_cl);
+    // Push fields to visit
+    push_fields<VisitWeaks>(obj);
   }
 }
 
-bool ZHeapIterator::visit_referents() const {
-  return _visit_referents;
-}
-
-void ZHeapIterator::objects_do(ObjectClosure* cl) {
-  ZHeapIteratorRootOopClosure root_cl(this, cl);
-  ZRootsIterator roots;
-
-  // Follow roots. Note that we also visit the JVMTI weak tag map
-  // as if they were strong roots to make sure we visit all tagged
-  // objects, even those that might now have become unreachable.
-  // If we didn't do this the user would have expected to see
-  // ObjectFree events for unreachable objects in the tag map.
-  roots.oops_do(&root_cl, true /* visit_jvmti_weak_export */);
+void ZHeapIterator::objects_do(ObjectClosure* cl, bool visit_weaks) {
+  if (visit_weaks) {
+    objects_do<true /* VisitWeaks */>(cl);
+  } else {
+    objects_do<false /* VisitWeaks */>(cl);
+  }
 }

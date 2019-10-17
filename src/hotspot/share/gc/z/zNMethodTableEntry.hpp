@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,50 +32,38 @@
 // --------------------------
 //
 //   6
-//   3                                                                  3 2 1 0
-//  +--------------------------------------------------------------------+-+-+-+
-//  |11111111 11111111 11111111 11111111 11111111 11111111 11111111 11111|1|1|1|
-//  +--------------------------------------------------------------------+-+-+-+
-//  |                                                                    | | |
-//  |                               2-2 Non-immediate Oops Flag (1-bits) * | |
-//  |                                                                      | |
-//  |                        1-1 Immediate Oops/Unregistered Flag (1-bits) * |
-//  |                                                                        |
-//  |                                           0-0 Registered Flag (1-bits) *
+//   3                                                                   2 1 0
+//  +---------------------------------------------------------------------+-+-+
+//  |11111111 11111111 11111111 11111111 11111111 11111111 11111111 111111|1|1|
+//  +---------------------------------------------------------------------+-+-+
+//  |                                                                     | |
+//  |                                      1-1 Unregistered Flag (1-bits) * |
+//  |                                                                       |
+//  |                                          0-0 Registered Flag (1-bits) *
 //  |
-//  * 63-3 NMethod/ZNMethodWithImmediateOops Address (61-bits)
+//  * 63-2 NMethod Address (62-bits)
 //
 
 class nmethod;
-class ZNMethodWithImmediateOops;
 
 class ZNMethodTableEntry : public CHeapObj<mtGC> {
 private:
-  typedef ZBitField<uint64_t, bool,                       0,  1>    field_registered;
-  typedef ZBitField<uint64_t, bool,                       1,  1>    field_unregistered;
-  typedef ZBitField<uint64_t, bool,                       1,  1>    field_immediate_oops;
-  typedef ZBitField<uint64_t, bool,                       2,  1>    field_non_immediate_oops;
-  typedef ZBitField<uint64_t, nmethod*,                   3, 61, 3> field_method;
-  typedef ZBitField<uint64_t, ZNMethodWithImmediateOops*, 3, 61, 3> field_method_with_immediate_oops;
+  typedef ZBitField<uint64_t, bool,     0,  1>    field_registered;
+  typedef ZBitField<uint64_t, bool,     1,  1>    field_unregistered;
+  typedef ZBitField<uint64_t, nmethod*, 2, 62, 2> field_method;
 
   uint64_t _entry;
 
 public:
-  ZNMethodTableEntry(bool unregistered = false) :
-      _entry(field_unregistered::encode(unregistered) |
-             field_registered::encode(false)) {}
+  explicit ZNMethodTableEntry(bool unregistered = false) :
+      _entry(field_registered::encode(false) |
+             field_unregistered::encode(unregistered) |
+             field_method::encode(NULL)) {}
 
-  ZNMethodTableEntry(nmethod* method, bool non_immediate_oops) :
-      _entry(field_method::encode(method) |
-             field_non_immediate_oops::encode(non_immediate_oops) |
-             field_immediate_oops::encode(false) |
-             field_registered::encode(true)) {}
-
-  ZNMethodTableEntry(ZNMethodWithImmediateOops* method_with_immediate_oops, bool non_immediate_oops) :
-      _entry(field_method_with_immediate_oops::encode(method_with_immediate_oops) |
-             field_non_immediate_oops::encode(non_immediate_oops) |
-             field_immediate_oops::encode(true) |
-             field_registered::encode(true)) {}
+  explicit ZNMethodTableEntry(nmethod* method) :
+      _entry(field_registered::encode(true) |
+             field_unregistered::encode(false) |
+             field_method::encode(method)) {}
 
   bool registered() const {
     return field_registered::decode(_entry);
@@ -85,20 +73,8 @@ public:
     return field_unregistered::decode(_entry);
   }
 
-  bool immediate_oops() const {
-    return field_immediate_oops::decode(_entry);
-  }
-
-  bool non_immediate_oops() const {
-    return field_non_immediate_oops::decode(_entry);
-  }
-
   nmethod* method() const {
     return field_method::decode(_entry);
-  }
-
-  ZNMethodWithImmediateOops* method_with_immediate_oops() const {
-    return field_method_with_immediate_oops::decode(_entry);
   }
 };
 

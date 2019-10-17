@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,15 +27,19 @@
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.AlgorithmParameters;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchProviderException;
+import java.security.Policy;
 import java.security.Provider;
 import java.security.ProviderException;
 import java.security.Security;
@@ -304,6 +308,22 @@ public abstract class PKCS11Test {
     }
 
     static String getNSSLibDir(String library) throws Exception {
+        Path libPath = getNSSLibPath(library);
+        if (libPath == null) {
+            return null;
+        }
+
+        String libDir = String.valueOf(libPath.getParent()) + File.separatorChar;
+        System.out.println("nssLibDir: " + libDir);
+        System.setProperty("pkcs11test.nss.libdir", libDir);
+        return libDir;
+    }
+
+    private static Path getNSSLibPath() throws Exception {
+        return getNSSLibPath(nss_library);
+    }
+
+    static Path getNSSLibPath(String library) throws Exception {
         String osid = getOsId();
         String[] nssLibDirs = getNssLibPaths(osid);
         if (nssLibDirs == null) {
@@ -315,21 +335,20 @@ public abstract class PKCS11Test {
             System.out.println("Warning: NSS not supported on this platform, skipping test");
             return null;
         }
-        String nssLibDir = null;
+
+        Path nssLibPath = null;
         for (String dir : nssLibDirs) {
-            if (new File(dir).exists() &&
-                new File(dir + System.mapLibraryName(library)).exists()) {
-                nssLibDir = dir;
-                System.out.println("nssLibDir: " + nssLibDir);
-                System.setProperty("pkcs11test.nss.libdir", nssLibDir);
+            Path libPath = Paths.get(dir).resolve(System.mapLibraryName(library));
+            if (Files.exists(libPath)) {
+                nssLibPath = libPath;
                 break;
             }
         }
-        if (nssLibDir == null) {
+        if (nssLibPath == null) {
             System.out.println("Warning: can't find NSS librarys on this machine, skipping test");
             return null;
         }
-        return nssLibDir;
+        return nssLibPath;
     }
 
     private static String getOsId() {
@@ -366,11 +385,14 @@ public abstract class PKCS11Test {
 
     static boolean loadNSPR(String libdir) throws Exception {
         // load NSS softoken dependencies in advance to avoid resolver issues
-        safeReload(libdir + System.mapLibraryName("nspr4"));
-        safeReload(libdir + System.mapLibraryName("plc4"));
-        safeReload(libdir + System.mapLibraryName("plds4"));
-        safeReload(libdir + System.mapLibraryName("sqlite3"));
-        safeReload(libdir + System.mapLibraryName("nssutil3"));
+        String dir = libdir.endsWith(File.separator)
+                     ? libdir
+                     : libdir + File.separator;
+        safeReload(dir + System.mapLibraryName("nspr4"));
+        safeReload(dir + System.mapLibraryName("plc4"));
+        safeReload(dir + System.mapLibraryName("plds4"));
+        safeReload(dir + System.mapLibraryName("sqlite3"));
+        safeReload(dir + System.mapLibraryName("nssutil3"));
         return true;
     }
 
@@ -420,7 +442,7 @@ public abstract class PKCS11Test {
         boolean found = false;
         String s = null;
         int i = 0;
-        String libfile = "";
+        Path libfile = null;
 
         if (library.compareTo("softokn3") == 0 && softoken3_version > -1)
             return softoken3_version;
@@ -428,12 +450,11 @@ public abstract class PKCS11Test {
             return nss3_version;
 
         try {
-            String libdir = getNSSLibDir();
-            if (libdir == null) {
+            libfile = getNSSLibPath();
+            if (libfile == null) {
                 return 0.0;
             }
-            libfile = libdir + System.mapLibraryName(library);
-            try (FileInputStream is = new FileInputStream(libfile)) {
+            try (InputStream is = Files.newInputStream(libfile)) {
                 byte[] data = new byte[1000];
                 int read = 0;
 
@@ -859,6 +880,9 @@ public abstract class PKCS11Test {
         case "MacOSX-x86_64-64":
             return fetchNssLib(MACOSX_X64.class);
 
+        case "Linux-amd64-64":
+            return fetchNssLib(LINUX_X64.class);
+
         default:
             return null;
         }
@@ -880,27 +904,35 @@ public abstract class PKCS11Test {
                         + "\nPlease make sure the artifact is available.");
             }
         }
+        Policy.setPolicy(null); // Clear the policy created by JIB if any
         return path;
     }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-windows_x64",
-            revision = "3.35",
+            revision = "3.46-VS2017",
             extension = "zip")
     private static class WINDOWS_X64 { }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-windows_x86",
-            revision = "3.35",
+            revision = "3.46-VS2017",
             extension = "zip")
     private static class WINDOWS_X86 { }
 
     @Artifact(
             organization = "jpg.tests.jdk.nsslib",
             name = "nsslib-macosx_x64",
-            revision = "3.35",
+            revision = "3.46",
             extension = "zip")
     private static class MACOSX_X64 { }
+
+    @Artifact(
+            organization = "jpg.tests.jdk.nsslib",
+            name = "nsslib-linux_x64",
+            revision = "3.46",
+            extension = "zip")
+    private static class LINUX_X64 { }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_JVMFLAGRANGELIST_HPP
-#define SHARE_VM_RUNTIME_JVMFLAGRANGELIST_HPP
+#ifndef SHARE_RUNTIME_FLAGS_JVMFLAGRANGELIST_HPP
+#define SHARE_RUNTIME_FLAGS_JVMFLAGRANGELIST_HPP
 
 #include "runtime/flags/jvmFlag.hpp"
 #include "utilities/growableArray.hpp"
@@ -39,13 +39,14 @@
  */
 
 class JVMFlagRange : public CHeapObj<mtArguments> {
-private:
-  const char* _name;
+protected:
+  const JVMFlag* const _flag;
 public:
   // the "name" argument must be a string literal
-  JVMFlagRange(const char* name) { _name=name; }
+  JVMFlagRange(const JVMFlag* flag) : _flag(flag) {}
   ~JVMFlagRange() {}
-  const char* name() { return _name; }
+  const JVMFlag* flag() const { return _flag; }
+  const char* name() const { return _flag->_name; }
   virtual JVMFlag::Error check(bool verbose = true) { ShouldNotReachHere(); return JVMFlag::ERR_OTHER; }
   virtual JVMFlag::Error check_int(int value, bool verbose = true) { ShouldNotReachHere(); return JVMFlag::ERR_OTHER; }
   virtual JVMFlag::Error check_intx(intx value, bool verbose = true) { ShouldNotReachHere(); return JVMFlag::ERR_OTHER; }
@@ -63,11 +64,11 @@ public:
   static void init();
   static int length() { return (_ranges != NULL) ? _ranges->length() : 0; }
   static JVMFlagRange* at(int i) { return (_ranges != NULL) ? _ranges->at(i) : NULL; }
-  static JVMFlagRange* find(const char* name);
+  static JVMFlagRange* find(const JVMFlag* flag);
   static void add(JVMFlagRange* range) { _ranges->append(range); }
-  static void print(outputStream* st, const char* name, RangeStrFunc default_range_str_func);
+  static void print(outputStream* st, const JVMFlag* flag, RangeStrFunc default_range_str_func);
   // Check the final values of all flags for ranges.
   static bool check_ranges();
 };
 
-#endif // SHARE_VM_RUNTIME_JVMFLAGRANGELIST_HPP
+#endif // SHARE_RUNTIME_FLAGS_JVMFLAGRANGELIST_HPP

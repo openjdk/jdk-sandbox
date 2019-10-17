@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
-#define SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#ifndef SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#define SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
 
 #include "gc/cms/cmsOopClosures.hpp"
 #include "gc/cms/gSpaceCounters.hpp"
@@ -225,13 +225,13 @@ class CMSMarkStack: public CHeapObj<mtGC>  {
   // "Parallel versions" of some of the above
   oop par_pop() {
     // lock and pop
-    MutexLockerEx x(&_par_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(&_par_lock, Mutex::_no_safepoint_check_flag);
     return pop();
   }
 
   bool par_push(oop ptr) {
     // lock and push
-    MutexLockerEx x(&_par_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker x(&_par_lock, Mutex::_no_safepoint_check_flag);
     return push(ptr);
   }
 
@@ -541,8 +541,8 @@ class CMSCollector: public CHeapObj<mtGC> {
   // The following array-pair keeps track of mark words
   // displaced for accommodating overflow list above.
   // This code will likely be revisited under RFE#4922830.
-  Stack<oop, mtGC>     _preserved_oop_stack;
-  Stack<markOop, mtGC> _preserved_mark_stack;
+  Stack<oop, mtGC>      _preserved_oop_stack;
+  Stack<markWord, mtGC> _preserved_mark_stack;
 
   // In support of multi-threaded concurrent phases
   YieldingFlexibleWorkGang* _conc_workers;
@@ -584,10 +584,6 @@ class CMSCollector: public CHeapObj<mtGC> {
   bool _verifying;
   bool verifying() const { return _verifying; }
   void set_verifying(bool v) { _verifying = v; }
-
-  // Collector policy
-  ConcurrentMarkSweepPolicy* _collector_policy;
-  ConcurrentMarkSweepPolicy* collector_policy() { return _collector_policy; }
 
   void set_did_compact(bool v);
 
@@ -746,7 +742,7 @@ class CMSCollector: public CHeapObj<mtGC> {
 
   void preserve_mark_if_necessary(oop p);
   void par_preserve_mark_if_necessary(oop p);
-  void preserve_mark_work(oop p, markOop m);
+  void preserve_mark_work(oop p, markWord m);
   void restore_preserved_marks_if_any();
   NOT_PRODUCT(bool no_preserved_marks() const;)
   // In support of testing overflow code
@@ -833,8 +829,7 @@ class CMSCollector: public CHeapObj<mtGC> {
   void setup_cms_unloading_and_verification_state();
  public:
   CMSCollector(ConcurrentMarkSweepGeneration* cmsGen,
-               CardTableRS*                   ct,
-               ConcurrentMarkSweepPolicy*     cp);
+               CardTableRS*                   ct);
   ConcurrentMarkSweepThread* cmsThread() { return _cmsThread; }
 
   MemRegion ref_processor_span() const { return _span_based_discoverer.span(); }
@@ -1075,7 +1070,11 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   void assert_correct_size_change_locking();
 
  public:
-  ConcurrentMarkSweepGeneration(ReservedSpace rs, size_t initial_byte_size, CardTableRS* ct);
+  ConcurrentMarkSweepGeneration(ReservedSpace rs,
+                                size_t initial_byte_size,
+                                size_t min_byte_size,
+                                size_t max_byte_size,
+                                CardTableRS* ct);
 
   // Accessors
   CMSCollector* collector() const { return _collector; }
@@ -1113,6 +1112,7 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   double occupancy() const { return ((double)used())/((double)capacity()); }
   size_t contiguous_available() const;
   size_t unsafe_max_alloc_nogc() const;
+  size_t used_stable() const;
 
   // over-rides
   MemRegion used_region_at_save_marks() const;
@@ -1137,7 +1137,7 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
 
   // Overrides for parallel promotion.
   virtual oop par_promote(int thread_num,
-                          oop obj, markOop m, size_t word_sz);
+                          oop obj, markWord m, size_t word_sz);
   virtual void par_promote_alloc_done(int thread_num);
   virtual void par_oop_since_save_marks_iterate_done(int thread_num);
 
@@ -1212,7 +1212,7 @@ class ConcurrentMarkSweepGeneration: public CardGeneration {
   // Performance Counters support
   virtual void update_counters();
   virtual void update_counters(size_t used);
-  void initialize_performance_counters();
+  void initialize_performance_counters(size_t min_old_size, size_t max_old_size);
   CollectorCounters* counters()  { return collector()->counters(); }
 
   // Support for parallel remark of survivor space
@@ -1793,4 +1793,4 @@ class TraceCMSMemoryManagerStats : public TraceMemoryManagerStats {
 };
 
 
-#endif // SHARE_VM_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP
+#endif // SHARE_GC_CMS_CONCURRENTMARKSWEEPGENERATION_HPP

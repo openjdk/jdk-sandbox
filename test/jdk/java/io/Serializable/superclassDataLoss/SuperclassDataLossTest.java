@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 4325590
- * @library /lib/testlibrary
- * @build JarUtils A B
+ * @library /test/lib
+ * @build jdk.test.lib.util.JarUtils A B
  * @run main SuperclassDataLossTest
  * @summary Verify that superclass data is not lost when incoming superclass
  *          descriptor is matched with local class that is not a superclass of
@@ -47,6 +47,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
+import jdk.test.lib.util.JarUtils;
+
 class MixedSuperclassStream extends ObjectInputStream {
     private boolean ldr12A;
     private URLClassLoader ldr1;
@@ -60,7 +62,7 @@ class MixedSuperclassStream extends ObjectInputStream {
         this.ldr12A = ldr12A;
     }
 
-    protected Class resolveClass(ObjectStreamClass desc)
+    protected Class<?> resolveClass(ObjectStreamClass desc)
         throws IOException, ClassNotFoundException
     {
         // resolve A's classdesc to class != B's superclass
@@ -89,7 +91,8 @@ public class SuperclassDataLossTest {
              URLClassLoader ldr2 = new URLClassLoader(new URL[] { new URL("file:cb2.jar") })) {
             setup();
 
-            Runnable a = (Runnable) Class.forName("B", true, ldr1).newInstance();
+            Runnable a = (Runnable) Class.forName("B", true, ldr1)
+                    .getConstructor().newInstance();
             a.run();
 
             ByteArrayOutputStream bout = new ByteArrayOutputStream();

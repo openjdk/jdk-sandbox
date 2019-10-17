@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_HEAPREGION_INLINE_HPP
-#define SHARE_VM_GC_G1_HEAPREGION_INLINE_HPP
+#ifndef SHARE_GC_G1_HEAPREGION_INLINE_HPP
+#define SHARE_GC_G1_HEAPREGION_INLINE_HPP
 
 #include "gc/g1/g1BlockOffsetTable.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -252,57 +252,14 @@ inline void HeapRegion::note_end_of_marking() {
   _next_marked_bytes = 0;
 }
 
-inline void HeapRegion::note_start_of_copying(bool during_initial_mark) {
-  if (is_survivor()) {
-    // This is how we always allocate survivors.
-    assert(_next_top_at_mark_start == bottom(), "invariant");
-  } else {
-    if (during_initial_mark) {
-      // During initial-mark we'll explicitly mark any objects on old
-      // regions that are pointed to by roots. Given that explicit
-      // marks only make sense under NTAMS it'd be nice if we could
-      // check that condition if we wanted to. Given that we don't
-      // know where the top of this region will end up, we simply set
-      // NTAMS to the end of the region so all marks will be below
-      // NTAMS. We'll set it to the actual top when we retire this region.
-      _next_top_at_mark_start = end();
-    } else {
-      // We could have re-used this old region as to-space over a
-      // couple of GCs since the start of the concurrent marking
-      // cycle. This means that [bottom,NTAMS) will contain objects
-      // copied up to and including initial-mark and [NTAMS, top)
-      // will contain objects copied during the concurrent marking cycle.
-      assert(top() >= _next_top_at_mark_start, "invariant");
-    }
-  }
-}
-
-inline void HeapRegion::note_end_of_copying(bool during_initial_mark) {
-  if (is_survivor()) {
-    // This is how we always allocate survivors.
-    assert(_next_top_at_mark_start == bottom(), "invariant");
-  } else {
-    if (during_initial_mark) {
-      // See the comment for note_start_of_copying() for the details
-      // on this.
-      assert(_next_top_at_mark_start == end(), "pre-condition");
-      _next_top_at_mark_start = top();
-    } else {
-      // See the comment for note_start_of_copying() for the details
-      // on this.
-      assert(top() >= _next_top_at_mark_start, "invariant");
-    }
-  }
-}
-
 inline bool HeapRegion::in_collection_set() const {
   return G1CollectedHeap::heap()->is_in_cset(this);
 }
 
 template <class Closure, bool is_gc_active>
-bool HeapRegion::do_oops_on_card_in_humongous(MemRegion mr,
-                                              Closure* cl,
-                                              G1CollectedHeap* g1h) {
+HeapWord* HeapRegion::do_oops_on_memregion_in_humongous(MemRegion mr,
+                                                        Closure* cl,
+                                                        G1CollectedHeap* g1h) {
   assert(is_humongous(), "precondition");
   HeapRegion* sr = humongous_start_region();
   oop obj = oop(sr->bottom());
@@ -314,41 +271,48 @@ bool HeapRegion::do_oops_on_card_in_humongous(MemRegion mr,
   // since the allocating thread could have performed a write to the
   // card that might be missed otherwise.
   if (!is_gc_active && (obj->klass_or_null_acquire() == NULL)) {
-    return false;
+    return NULL;
   }
 
   // We have a well-formed humongous object at the start of sr.
   // Only filler objects follow a humongous object in the containing
   // regions, and we can ignore those.  So only process the one
   // humongous object.
-  if (!g1h->is_obj_dead(obj, sr)) {
-    if (obj->is_objArray() || (sr->bottom() < mr.start())) {
-      // objArrays are always marked precisely, so limit processing
-      // with mr.  Non-objArrays might be precisely marked, and since
-      // it's humongous it's worthwhile avoiding full processing.
-      // However, the card could be stale and only cover filler
-      // objects.  That should be rare, so not worth checking for;
-      // instead let it fall out from the bounded iteration.
-      obj->oop_iterate(cl, mr);
-    } else {
-      // If obj is not an objArray and mr contains the start of the
-      // obj, then this could be an imprecise mark, and we need to
-      // process the entire object.
-      obj->oop_iterate(cl);
-    }
+  if (g1h->is_obj_dead(obj, sr)) {
+    // The object is dead. There can be no other object in this region, so return
+    // the end of that region.
+    return end();
   }
-  return true;
+  if (obj->is_objArray() || (sr->bottom() < mr.start())) {
+    // objArrays are always marked precisely, so limit processing
+    // with mr.  Non-objArrays might be precisely marked, and since
+    // it's humongous it's worthwhile avoiding full processing.
+    // However, the card could be stale and only cover filler
+    // objects.  That should be rare, so not worth checking for;
+    // instead let it fall out from the bounded iteration.
+    obj->oop_iterate(cl, mr);
+    return mr.end();
+  } else {
+    // If obj is not an objArray and mr contains the start of the
+    // obj, then this could be an imprecise mark, and we need to
+    // process the entire object.
+    int size = obj->oop_iterate_size(cl);
+    // We have scanned to the end of the object, but since there can be no objects
+    // after this humongous object in the region, we can return the end of the
+    // region if it is greater.
+    return MAX2((HeapWord*)obj + size, mr.end());
+  }
 }
 
 template <bool is_gc_active, class Closure>
-bool HeapRegion::oops_on_card_seq_iterate_careful(MemRegion mr,
-                                                  Closure* cl) {
+HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful(MemRegion mr,
+                                                       Closure* cl) {
   assert(MemRegion(bottom(), end()).contains(mr), "Card region not in heap region");
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
   // Special handling for humongous regions.
   if (is_humongous()) {
-    return do_oops_on_card_in_humongous<Closure, is_gc_active>(mr, cl, g1h);
+    return do_oops_on_memregion_in_humongous<Closure, is_gc_active>(mr, cl, g1h);
   }
   assert(is_old() || is_archive(), "Wrongly trying to iterate over region %u type %s", _hrm_index, get_type_str());
 
@@ -377,7 +341,7 @@ bool HeapRegion::oops_on_card_seq_iterate_careful(MemRegion mr,
 #endif
 
   const G1CMBitMap* const bitmap = g1h->concurrent_mark()->prev_mark_bitmap();
-  do {
+  while (true) {
     oop obj = oop(cur);
     assert(oopDesc::is_oop(obj, true), "Not an oop at " PTR_FORMAT, p2i(cur));
     assert(obj->klass_or_null() != NULL,
@@ -385,6 +349,7 @@ bool HeapRegion::oops_on_card_seq_iterate_careful(MemRegion mr,
 
     size_t size;
     bool is_dead = is_obj_dead_with_size(obj, bitmap, &size);
+    bool is_precise = false;
 
     cur += size;
     if (!is_dead) {
@@ -398,11 +363,13 @@ bool HeapRegion::oops_on_card_seq_iterate_careful(MemRegion mr,
         obj->oop_iterate(cl);
       } else {
         obj->oop_iterate(cl, mr);
+        is_precise = true;
       }
     }
-  } while (cur < end);
-
-  return true;
+    if (cur >= end) {
+      return is_precise ? end : cur;
+    }
+  }
 }
 
-#endif // SHARE_VM_GC_G1_HEAPREGION_INLINE_HPP
+#endif // SHARE_GC_G1_HEAPREGION_INLINE_HPP

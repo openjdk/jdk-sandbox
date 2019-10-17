@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zTask.hpp"
+#include "gc/z/zThread.hpp"
 #include "gc/z/zWorkers.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -64,28 +65,34 @@ uint ZWorkers::calculate_nconcurrent() {
   return calculate_nworkers(12.5);
 }
 
-class ZWorkersWarmupTask : public ZTask {
+class ZWorkersInitializeTask : public ZTask {
 private:
   const uint _nworkers;
   uint       _started;
   Monitor    _monitor;
 
 public:
-  ZWorkersWarmupTask(uint nworkers) :
-      ZTask("ZWorkersWarmupTask"),
+  ZWorkersInitializeTask(uint nworkers) :
+      ZTask("ZWorkersInitializeTask"),
       _nworkers(nworkers),
       _started(0),
-      _monitor(Monitor::leaf, "ZWorkersWarmup", false, Monitor::_safepoint_check_never) {}
+      _monitor(Monitor::leaf,
+               "ZWorkersInitialize",
+               false /* allow_vm_block */,
+               Monitor::_safepoint_check_never) {}
 
   virtual void work() {
+    // Register as worker
+    ZThread::set_worker();
+
     // Wait for all threads to start
-    MonitorLockerEx ml(&_monitor, Monitor::_no_safepoint_check_flag);
+    MonitorLocker ml(&_monitor, Monitor::_no_safepoint_check_flag);
     if (++_started == _nworkers) {
       // All threads started
       ml.notify_all();
     } else {
       while (_started != _nworkers) {
-        ml.wait(Monitor::_no_safepoint_check_flag);
+        ml.wait();
       }
     }
   }
@@ -107,10 +114,10 @@ ZWorkers::ZWorkers() :
     vm_exit_during_initialization("Failed to create ZWorkers");
   }
 
-  // Warm up worker threads by having them execute a dummy task.
-  // This helps reduce latency in early GC pauses, which otherwise
-  // would have to take on any warmup costs.
-  ZWorkersWarmupTask task(nworkers());
+  // Execute task to register threads as workers. This also helps
+  // reduce latency in early GC pauses, which otherwise would have
+  // to take on any warmup costs.
+  ZWorkersInitializeTask task(nworkers());
   run(&task, nworkers());
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_COMPACTHASHTABLE_HPP
-#define SHARE_VM_CLASSFILE_COMPACTHASHTABLE_HPP
+#ifndef SHARE_CLASSFILE_COMPACTHASHTABLE_HPP
+#define SHARE_CLASSFILE_COMPACTHASHTABLE_HPP
 
 #include "oops/array.hpp"
 #include "oops/symbol.hpp"
-#include "utilities/hashtable.hpp"
+#include "utilities/growableArray.hpp"
 
 
 template <
@@ -100,7 +100,7 @@ public:
   }; // class CompactHashtableWriter::Entry
 
 private:
-  int _num_entries;
+  int _num_entries_written;
   int _num_buckets;
   int _num_empty_buckets;
   int _num_value_only_buckets;
@@ -112,7 +112,7 @@ private:
 
 public:
   // This is called at dump-time only
-  CompactHashtableWriter(int num_buckets, CompactHashtableStats* stats);
+  CompactHashtableWriter(int num_entries, CompactHashtableStats* stats);
   ~CompactHashtableWriter();
 
   void add(unsigned int hash, u4 value);
@@ -120,9 +120,16 @@ public:
 private:
   void allocate_table();
   void dump_table(NumberSeq* summary);
+  static int calculate_num_buckets(int num_entries) {
+    int num_buckets = num_entries / SharedSymbolTableBucketSize;
+    // calculation of num_buckets can result in zero buckets, we need at least one
+    return (num_buckets < 1) ? 1 : num_buckets;
+  }
 
 public:
   void dump(SimpleCompactHashtable *cht, const char* table_name);
+
+  static size_t estimate_size(int num_entries);
 };
 #endif // INCLUDE_CDS
 
@@ -205,20 +212,16 @@ public:
     _entries = 0;
   }
 
-  void init(address base_address, u4 entry_count, u4 bucket_count, u4* buckets, u4* entries) {
-    _base_address = base_address;
-    _bucket_count = bucket_count;
-    _entry_count = entry_count;
-    _buckets = buckets;
-    _entries = entries;
-  }
+  void init(address base_address, u4 entry_count, u4 bucket_count, u4* buckets, u4* entries);
 
-  // For reading from/writing to the CDS archive
-  void serialize(SerializeClosure* soc) NOT_CDS_RETURN;
+  // Read/Write the table's header from/to the CDS archive
+  void serialize_header(SerializeClosure* soc) NOT_CDS_RETURN;
 
   inline bool empty() {
     return (_entry_count == 0);
   }
+
+  static size_t calculate_header_size();
 };
 
 template <
@@ -235,8 +238,6 @@ class CompactHashtable : public SimpleCompactHashtable {
   }
 
 public:
-  CompactHashtable() : SimpleCompactHashtable() {}
-
   // Lookup a value V from the compact table using key K
   inline V lookup(K key, unsigned int hash, int len) const {
     if (_entry_count > 0) {
@@ -290,7 +291,52 @@ public:
       }
     }
   }
+
+  void print_table_statistics(outputStream* st, const char* name) {
+    st->print_cr("%s statistics:", name);
+    int total_entries = 0;
+    int max_bucket = 0;
+    for (u4 i = 0; i < _bucket_count; i++) {
+      u4 bucket_info = _buckets[i];
+      int bucket_type = BUCKET_TYPE(bucket_info);
+      int bucket_size;
+
+      if (bucket_type == VALUE_ONLY_BUCKET_TYPE) {
+        bucket_size = 1;
+      } else {
+        bucket_size = (BUCKET_OFFSET(_buckets[i + 1]) - BUCKET_OFFSET(bucket_info)) / 2;
+      }
+      total_entries += bucket_size;
+      if (max_bucket < bucket_size) {
+        max_bucket = bucket_size;
+      }
+    }
+    st->print_cr("Number of buckets       : %9d", _bucket_count);
+    st->print_cr("Number of entries       : %9d", total_entries);
+    st->print_cr("Maximum bucket size     : %9d", max_bucket);
+  }
 };
+
+////////////////////////////////////////////////////////////////////////
+//
+// OffsetCompactHashtable -- This is used to store many types of objects
+// in the CDS archive. On 64-bit platforms, we save space by using a 32-bit
+// offset from the CDS base address.
+
+template <typename V>
+inline V read_value_from_compact_hashtable(address base_address, u4 offset) {
+  return (V)(base_address + offset);
+}
+
+template <
+  typename K,
+  typename V,
+  bool (*EQUALS)(V value, K key, int len)
+  >
+class OffsetCompactHashtable : public CompactHashtable<
+    K, V, read_value_from_compact_hashtable<V>, EQUALS> {
+};
+
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -322,6 +368,9 @@ public:
 
   inline int remain() {
     return (int)(_end - _p);
+  }
+  int last_line_no() {
+    return _line_no - 1;
   }
 
   void corrupted(const char *p, const char *msg);
@@ -373,4 +422,4 @@ public:
   static void put_utf8(outputStream* st, const char* utf8_string, int utf8_length);
 };
 
-#endif // SHARE_VM_CLASSFILE_COMPACTHASHTABLE_HPP
+#endif // SHARE_CLASSFILE_COMPACTHASHTABLE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -174,6 +174,12 @@ void CE_Eliminator::block_do(BlockBegin* block) {
   for_each_phi_fun(t_block, phi, return; );
   for_each_phi_fun(f_block, phi, return; );
 
+  // Only replace safepoint gotos if state_before information is available (if is a safepoint)
+  bool is_safepoint = if_->is_safepoint();
+  if (!is_safepoint && (t_goto->is_safepoint() || f_goto->is_safepoint())) {
+    return;
+  }
+
   // 2) substitute conditional expression
   //    with an IfOp followed by a Goto
   // cut if_ away and get node before
@@ -202,7 +208,7 @@ void CE_Eliminator::block_do(BlockBegin* block) {
 
   // append Goto to successor
   ValueStack* state_before = if_->state_before();
-  Goto* goto_ = new Goto(sux, state_before, if_->is_safepoint() || t_goto->is_safepoint() || f_goto->is_safepoint());
+  Goto* goto_ = new Goto(sux, state_before, is_safepoint);
 
   // prepare state for Goto
   ValueStack* goto_state = if_state;
@@ -862,7 +868,7 @@ void NullCheckEliminator::handle_AccessField(AccessField* x) {
       if (field->is_constant()) {
         ciConstant field_val = field->constant_value();
         BasicType field_type = field_val.basic_type();
-        if (field_type == T_OBJECT || field_type == T_ARRAY) {
+        if (is_reference_type(field_type)) {
           ciObject* obj_val = field_val.as_object();
           if (!obj_val->is_null_object()) {
             if (PrintNullCheckElimination) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@ import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.StructuredGraph.AllowAssumptions;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
 import org.graalvm.compiler.phases.common.DeadCodeEliminationPhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -63,7 +62,7 @@ public class CompiledMethodTest extends GraalCompilerTest {
     public void test1() {
         final ResolvedJavaMethod javaMethod = getResolvedJavaMethod("testMethod");
         final StructuredGraph graph = parseEager(javaMethod, AllowAssumptions.NO);
-        new CanonicalizerPhase().apply(graph, new PhaseContext(getProviders()));
+        new CanonicalizerPhase().apply(graph, getProviders());
         new DeadCodeEliminationPhase().apply(graph);
 
         for (ConstantNode node : ConstantNode.getConstantNodes(graph)) {
@@ -72,7 +71,7 @@ public class CompiledMethodTest extends GraalCompilerTest {
             }
         }
 
-        InstalledCode compiledMethod = getCode(javaMethod, graph);
+        InstalledCode compiledMethod = getCode(javaMethod, graph, true);
         try {
             Object result = compiledMethod.executeVarargs("1", "2", "3");
             if (!"1-2-3".equals(result)) {

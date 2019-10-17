@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ package javax.security.auth.callback;
  */
 public class TextInputCallback implements Callback, java.io.Serializable {
 
+    @java.io.Serial
     private static final long serialVersionUID = -8064222478852811804L;
 
     /**
@@ -63,7 +64,7 @@ public class TextInputCallback implements Callback, java.io.Serializable {
      *                  or if {@code prompt} has a length of 0.
      */
     public TextInputCallback(String prompt) {
-        if (prompt == null || prompt.length() == 0)
+        if (prompt == null || prompt.isEmpty())
             throw new IllegalArgumentException();
         this.prompt = prompt;
     }
@@ -83,8 +84,8 @@ public class TextInputCallback implements Callback, java.io.Serializable {
      *                  or if {@code defaultText} has a length of 0.
      */
     public TextInputCallback(String prompt, String defaultText) {
-        if (prompt == null || prompt.length() == 0 ||
-            defaultText == null || defaultText.length() == 0)
+        if (prompt == null || prompt.isEmpty() ||
+            defaultText == null || defaultText.isEmpty())
             throw new IllegalArgumentException();
 
         this.prompt = prompt;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package javax.lang.model.element;
 
 import java.util.List;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Represents a module program element.  Provides access to
@@ -37,6 +38,16 @@ import java.util.List;
  * @spec JPMS
  */
 public interface ModuleElement extends Element, QualifiedNameable {
+    /**
+     * Returns a {@linkplain javax.lang.model.type.NoType pseudo-type}
+     * for this module.
+     * @return a pseudo-type for this module
+     *
+     * @see javax.lang.model.type.NoType
+     * @see javax.lang.model.type.TypeKind#MODULE
+     */
+    @Override
+    TypeMirror asType();
 
     /**
      * Returns the fully qualified name of this module.  For an
@@ -317,7 +328,7 @@ public interface ModuleElement extends Element, QualifiedNameable {
 
         /**
          * Returns the specific modules to which the package is being exported,
-         * or null, if the package is exported to all modules which
+         * or {@code null}, if the package is exported to all modules which
          * have readability to this module.
          * @return the specific modules to which the package is being exported
          */
@@ -339,7 +350,7 @@ public interface ModuleElement extends Element, QualifiedNameable {
 
         /**
          * Returns the specific modules to which the package is being open
-         * or null, if the package is open all modules which
+         * or {@code null}, if the package is open all modules which
          * have readability to this module.
          * @return the specific modules to which the package is being opened
          */

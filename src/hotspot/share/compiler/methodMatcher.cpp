@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/symbolTable.hpp"
 #include "compiler/methodMatcher.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -237,6 +238,10 @@ void skip_leading_spaces(char*& line, int* total_bytes_read ) {
   }
 }
 
+PRAGMA_DIAG_PUSH
+// warning C4189: The file contains a character that cannot be represented
+//                in the current code page
+PRAGMA_DISABLE_MSVC_WARNING(4819)
 void MethodMatcher::parse_method_pattern(char*& line, const char*& error_msg, MethodMatcher* matcher) {
   MethodMatcher::Mode c_match;
   MethodMatcher::Mode m_match;
@@ -295,10 +300,10 @@ void MethodMatcher::parse_method_pattern(char*& line, const char*& error_msg, Me
         }
         line += bytes_read;
       }
-      signature = SymbolTable::new_symbol(sig, CHECK);
+      signature = SymbolTable::new_symbol(sig);
     }
-    Symbol* c_name = SymbolTable::new_symbol(class_name, CHECK);
-    Symbol* m_name = SymbolTable::new_symbol(method_name, CHECK);
+    Symbol* c_name = SymbolTable::new_symbol(class_name);
+    Symbol* m_name = SymbolTable::new_symbol(method_name);
 
     matcher->init(c_name, c_match, m_name, m_match, signature);
     return;
@@ -306,6 +311,7 @@ void MethodMatcher::parse_method_pattern(char*& line, const char*& error_msg, Me
     error_msg = "Could not parse method pattern";
   }
 }
+PRAGMA_DIAG_POP
 
 bool MethodMatcher::matches(const methodHandle& method) const {
   Symbol* class_name  = method->method_holder()->name();

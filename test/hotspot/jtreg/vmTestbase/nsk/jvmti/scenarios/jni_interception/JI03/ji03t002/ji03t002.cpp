@@ -53,8 +53,8 @@ typedef struct {   /* line numbers of a method */
 } methInfo;
 
 static methInfo meth_info[] = {
-    {0, "statMeth", "(I)D", NULL, "statMeth_calls", NULL, 0, 0},
-    {1, "voidMeth", "()V", NULL, "voidMeth_calls", NULL, 0, 0}
+    { 0, "statMeth", "(I)D", NULL, "statMeth_calls", NULL, 0, 0 },
+    { 1, "voidMeth", "()V", NULL, "voidMeth_calls", NULL, 0, 0 }
 };
 
 /* the original JNI function table */
@@ -98,15 +98,15 @@ void doRedirect(JNIEnv *env, jclass cls) {
 
     if (verbose)
         printf("\ndoRedirect: obtaining the JNI function table ...\n");
-    if ((err = jvmti->GetJNIFunctionTable(&orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
         env->FatalError("failed to get original JNI function table");
     }
-    if ((err = jvmti->GetJNIFunctionTable(&redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->GetJNIFunctionTable(&redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to get redirected JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
@@ -137,15 +137,15 @@ void doRedirect(JNIEnv *env, jclass cls) {
         if (verbose)
             printf("\ndoRedirect: obtaining field ID for \"%s\"...\n",
                 meth_info[i].f_name);
-        if ((meth_info[i].fid = env->GetStaticFieldID(
-                cls, meth_info[i].f_name, "I")) == 0) {
+        meth_info[i].fid = env->GetStaticFieldID(cls, meth_info[i].f_name, "I");
+        if (meth_info[i].fid == 0) {
             result = STATUS_FAILED;
             printf("(%s,%d): TEST FAILED: failed to get ID for the field %s\n",
                 __FILE__, __LINE__, meth_info[i].f_name);
             env->FatalError("cannot get field ID");
         }
 
-        switch(i) {
+        switch (i) {
         case 0:
             if (verbose)
                 printf("\ndoRedirect: overwriting the function CallStaticDoubleMethodV ...\n");
@@ -159,8 +159,8 @@ void doRedirect(JNIEnv *env, jclass cls) {
         }
     }
 
-    if ((err = jvmti->SetJNIFunctionTable(redir_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(redir_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to set new JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
@@ -176,8 +176,8 @@ void doRestore(JNIEnv *env) {
 
     if (verbose)
         printf("\ndoRestore: restoring the original JNI function table ...\n");
-    if ((err = jvmti->SetJNIFunctionTable(orig_jni_functions)) !=
-            JVMTI_ERROR_NONE) {
+    err = jvmti->SetJNIFunctionTable(orig_jni_functions);
+    if (err != JVMTI_ERROR_NONE) {
         result = STATUS_FAILED;
         printf("(%s,%d): TEST FAILED: failed to restore original JNI function table: %s\n",
             __FILE__, __LINE__, TranslateError(err));
@@ -199,7 +199,7 @@ void doCall(JNIEnv *env, jobject obj, jclass objCls, const char *msg) {
         if (verbose)
             printf("\ndoCall: calling %s JNI method for \"%s %s\"...\n",
                 msg, meth_info[i].m_name, meth_info[i].m_sign);
-        switch(i) {
+        switch (i) {
         case 0:
             dVal = env->CallStaticDoubleMethod(objCls, meth_info[i].mid, 73);
             break;
@@ -236,17 +236,17 @@ void checkCall(int step, int exJniCalls, int exJavaCalls) {
         if (meth_info[i].jni_calls == exJniCalls) {
             if (verbose)
                 printf("\nCHECK PASSED: the %s JNI function for calling method \"%s %s\" has been %s\n\t%d intercepted call(s) as expected\n",
-                    (step==1)?"tested":"original",
+                    (step == 1) ? "tested" : "original",
                     meth_info[i].m_name, meth_info[i].m_sign,
-                    (step==1)?"redirected":"restored",
+                    (step == 1) ? "redirected" : "restored",
                     meth_info[i].jni_calls);
         }
         else {
             result = STATUS_FAILED;
             printf("\nTEST FAILED: the %s JNI function for calling method \"%s %s\" has not been %s\n\t%d intercepted call(s) instead of %d as expected\n",
-                (step==1)?"tested":"original",
+                (step == 1) ? "tested" : "original",
                 meth_info[i].m_name, meth_info[i].m_sign,
-                (step==1)?"redirected":"restored",
+                (step == 1) ? "redirected" : "restored",
                 meth_info[i].jni_calls, exJniCalls);
         }
         meth_info[i].jni_calls = 0; /* zeroing interception counter */
@@ -255,13 +255,13 @@ void checkCall(int step, int exJniCalls, int exJavaCalls) {
             if (verbose)
                 printf("CHECK PASSED: the java method \"%s %s\" has been really invoked by the %s JNI function\n",
                     meth_info[i].m_name, meth_info[i].m_sign,
-                    (step==1)?"redirected":"restored");
+                    (step == 1) ? "redirected" : "restored");
         }
         else {
             result = STATUS_FAILED;
             printf("TEST FAILED: the tested java method \"%s %s\" has not been really invoked by the %s JNI function\n",
                 meth_info[i].m_name, meth_info[i].m_sign,
-                (step==1)?"redirected":"restored");
+                (step == 1) ? "redirected" : "restored");
         }
     }
 }

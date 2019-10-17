@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,15 @@
  *
  */
 
-#ifndef OS_WINDOWS_VM_OS_WINDOWS_HPP
-#define OS_WINDOWS_VM_OS_WINDOWS_HPP
+#ifndef OS_WINDOWS_OS_WINDOWS_HPP
+#define OS_WINDOWS_OS_WINDOWS_HPP
 // Win32_OS defines the interface to windows operating systems
+
+// strtok_s is the Windows thread-safe equivalent of POSIX strtok_r
+#define strtok_r strtok_s
+
+#define S_ISCHR(mode)   (((mode) & _S_IFCHR) == _S_IFCHR)
+#define S_ISFIFO(mode)  (((mode) & _S_IFIFO) == _S_IFIFO)
 
 // Information about the protection of the page at address '0' on this os.
 static bool zero_page_read_protected() { return true; }
@@ -108,9 +114,6 @@ class win32 {
   static address fast_jni_accessor_wrapper(BasicType);
 #endif
 
-  // filter function to ignore faults on serializations page
-  static LONG WINAPI serialize_fault_filter(struct _EXCEPTION_POINTERS* e);
-
   // Fast access to current thread
 protected:
   static int _thread_ptr_offset;
@@ -122,21 +125,6 @@ public:
   }
   static inline int get_thread_ptr_offset() { return _thread_ptr_offset; }
 };
-
-static void write_memory_serialize_page_with_handler(JavaThread* thread) {
-  // Due to chained nature of SEH handlers we have to be sure
-  // that our handler is always last handler before an attempt to write
-  // into serialization page - it can fault if we access this page
-  // right in the middle of protect/unprotect sequence by remote
-  // membar logic.
-  // __try/__except are very lightweight operations (only several
-  // instructions not affecting control flow directly on x86)
-  // so we can use it here, on very time critical path
-  __try {
-    write_memory_serialize_page(thread);
-  } __except (win32::serialize_fault_filter((_EXCEPTION_POINTERS*)_exception_info()))
-    {}
-}
 
 /*
  * Crash protection for the watcher thread. Wrap the callback
@@ -160,7 +148,7 @@ private:
   static volatile intptr_t _crash_mux;
 };
 
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
   private:
     double CachePad [4] ;   // increase odds that _Event is sole occupant of cache line
     volatile int _Event ;
@@ -186,7 +174,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
 
 
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
   protected:
     HANDLE _ParkEvent ;
 
@@ -199,4 +187,37 @@ class PlatformParker : public CHeapObj<mtInternal> {
 
 } ;
 
-#endif // OS_WINDOWS_VM_OS_WINDOWS_HPP
+// Platform specific implementations that underpin VM Mutex/Monitor classes
+
+class PlatformMutex : public CHeapObj<mtSynchronizer> {
+  // Disable copying
+  PlatformMutex(const PlatformMutex&);
+  PlatformMutex& operator=(const PlatformMutex&);
+
+ protected:
+  CRITICAL_SECTION   _mutex; // Native mutex for locking
+
+ public:
+  PlatformMutex();
+  ~PlatformMutex();
+  void lock();
+  void unlock();
+  bool try_lock();
+};
+
+class PlatformMonitor : public PlatformMutex {
+ private:
+  CONDITION_VARIABLE _cond;  // Native condition variable for blocking
+  // Disable copying
+  PlatformMonitor(const PlatformMonitor&);
+  PlatformMonitor& operator=(const PlatformMonitor&);
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
+};
+
+#endif // OS_WINDOWS_OS_WINDOWS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,6 +93,14 @@ public abstract class UNIXToolkit extends SunToolkit
         }
     }
 
+    @Override
+    public String getDesktop() {
+        String gsi = AccessController.doPrivileged(
+                        (PrivilegedAction<String>) ()
+                                -> System.getenv("GNOME_DESKTOP_SESSION_ID"));
+        return (gsi != null) ? "gnome" : null;
+    }
+
     /**
      * Returns true if the native GTK libraries are capable of being
      * loaded and are expected to work properly, false otherwise.  Note
@@ -168,7 +176,7 @@ public abstract class UNIXToolkit extends SunToolkit
         }
 
         // We need to have at least gtk.icon.<stock_id>.<size>.<orientation>
-        String str[] = longname.split("\\.");
+        String[] str = longname.split("\\.");
         if (str.length != 5) {
             return null;
         }

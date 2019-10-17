@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import static sun.net.www.protocol.http.HttpURLConnection.HTTP_CONNECT;
 
 class DigestAuthentication extends AuthenticationInfo {
 
+    @java.io.Serial
     private static final long serialVersionUID = 100L;
 
     private String authMethod;
@@ -279,7 +280,7 @@ class DigestAuthentication extends AuthenticationInfo {
         if (s == null || !s.equals("true"))
             return false;
         String newNonce = p.findValue ("nonce");
-        if (newNonce == null || "".equals(newNonce)) {
+        if (newNonce == null || newNonce.isEmpty()) {
             return false;
         }
         params.setNonce (newNonce);
@@ -323,7 +324,7 @@ class DigestAuthentication extends AuthenticationInfo {
                         + authMethod.substring(1).toLowerCase();
         }
         String algorithm = p.findValue("algorithm");
-        if (algorithm == null || "".equals(algorithm)) {
+        if (algorithm == null || algorithm.isEmpty()) {
             algorithm = "MD5";  // The default, accoriding to rfc2069
         }
         params.setAlgorithm (algorithm);
@@ -451,7 +452,7 @@ class DigestAuthentication extends AuthenticationInfo {
             }
             /* Check if there is a nextnonce field */
             String nextnonce = p.findValue ("nextnonce");
-            if (nextnonce != null && ! "".equals(nextnonce)) {
+            if (nextnonce != null && !nextnonce.isEmpty()) {
                 params.setNonce (nextnonce);
             }
 

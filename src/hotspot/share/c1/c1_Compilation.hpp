@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_COMPILATION_HPP
-#define SHARE_VM_C1_C1_COMPILATION_HPP
+#ifndef SHARE_C1_C1_COMPILATION_HPP
+#define SHARE_C1_C1_COMPILATION_HPP
 
 #include "ci/ciEnv.hpp"
 #include "ci/ciMethodData.hpp"
@@ -296,6 +296,11 @@ class Compilation: public StackObj {
 #define CHECK_BAILOUT()            { if (bailed_out()) return;          }
 #define CHECK_BAILOUT_(res)        { if (bailed_out()) return res;      }
 
+// BAILOUT check with reset of bound labels
+#define CHECK_BAILOUT1(l1)         { if (bailed_out()) { l1.reset();                         return; } }
+#define CHECK_BAILOUT2(l1, l2)     { if (bailed_out()) { l1.reset(); l2.reset();             return; } }
+#define CHECK_BAILOUT3(l1, l2, l3) { if (bailed_out()) { l1.reset(); l2.reset(); l3.reset(); return; } }
+
 
 class InstructionMark: public StackObj {
  private:
@@ -347,4 +352,4 @@ class ExceptionInfo: public CompilationResourceObj {
   XHandlers* exception_handlers()                { return _exception_handlers; }
 };
 
-#endif // SHARE_VM_C1_C1_COMPILATION_HPP
+#endif // SHARE_C1_C1_COMPILATION_HPP

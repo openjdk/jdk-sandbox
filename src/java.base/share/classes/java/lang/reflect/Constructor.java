@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package java.lang.reflect;
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.ConstructorAccessor;
 import jdk.internal.reflect.Reflection;
@@ -111,7 +111,7 @@ public final class Constructor<T> extends Executable {
     /**
      * Package-private constructor used by ReflectAccess to enable
      * instantiation of these objects in Java code from the java.lang
-     * package via sun.reflect.LangReflectAccess.
+     * package via jdk.internal.access.JavaLangReflectAccess.
      */
     Constructor(Class<T> declaringClass,
                 Class<?>[] parameterTypes,
@@ -382,7 +382,8 @@ public final class Constructor<T> extends Executable {
      * including type parameters.  The string is formatted as the
      * constructor access modifiers, if any, followed by an
      * angle-bracketed comma separated list of the constructor's type
-     * parameters, if any, followed by the fully-qualified name of the
+     * parameters, if any, including  informative bounds of the
+     * type parameters, if any, followed by the fully-qualified name of the
      * declaring class, followed by a parenthesized, comma-separated
      * list of the constructor's generic formal parameter types.
      *
@@ -453,21 +454,21 @@ public final class Constructor<T> extends Executable {
      * @return a new object created by calling the constructor
      * this object represents
      *
-     * @exception IllegalAccessException    if this {@code Constructor} object
+     * @throws    IllegalAccessException    if this {@code Constructor} object
      *              is enforcing Java language access control and the underlying
      *              constructor is inaccessible.
-     * @exception IllegalArgumentException  if the number of actual
+     * @throws    IllegalArgumentException  if the number of actual
      *              and formal parameters differ; if an unwrapping
      *              conversion for primitive arguments fails; or if,
      *              after possible unwrapping, a parameter value
      *              cannot be converted to the corresponding formal
      *              parameter type by a method invocation conversion; if
      *              this constructor pertains to an enum type.
-     * @exception InstantiationException    if the class that declares the
+     * @throws    InstantiationException    if the class that declares the
      *              underlying constructor represents an abstract class.
-     * @exception InvocationTargetException if the underlying constructor
+     * @throws    InvocationTargetException if the underlying constructor
      *              throws an exception.
-     * @exception ExceptionInInitializerError if the initialization provoked
+     * @throws    ExceptionInInitializerError if the initialization provoked
      *              by this method fails.
      */
     @CallerSensitive
@@ -476,18 +477,27 @@ public final class Constructor<T> extends Executable {
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
-        if (!override) {
-            Class<?> caller = Reflection.getCallerClass();
+        Class<?> caller = override ? null : Reflection.getCallerClass();
+        return newInstanceWithCaller(initargs, !override, caller);
+    }
+
+    /* package-private */
+    T newInstanceWithCaller(Object[] args, boolean checkAccess, Class<?> caller)
+        throws InstantiationException, IllegalAccessException,
+               InvocationTargetException
+    {
+        if (checkAccess)
             checkAccess(caller, clazz, clazz, modifiers);
-        }
+
         if ((clazz.getModifiers() & Modifier.ENUM) != 0)
             throw new IllegalArgumentException("Cannot reflectively create enum objects");
+
         ConstructorAccessor ca = constructorAccessor;   // read volatile
         if (ca == null) {
             ca = acquireConstructorAccessor();
         }
         @SuppressWarnings("unchecked")
-        T inst = (T) ca.newInstance(initargs);
+        T inst = (T) ca.newInstance(args);
         return inst;
     }
 

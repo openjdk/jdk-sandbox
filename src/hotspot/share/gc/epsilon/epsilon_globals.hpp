@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_EPSILON_GLOBALS_HPP
-#define SHARE_VM_GC_EPSILON_GLOBALS_HPP
+#ifndef SHARE_GC_EPSILON_EPSILON_GLOBALS_HPP
+#define SHARE_GC_EPSILON_EPSILON_GLOBALS_HPP
 
-#include "runtime/globals.hpp"
+#include "runtime/globals_shared.hpp"
+
 //
 // Defines all globals flags used by the Epsilon GC.
 //
@@ -93,4 +94,4 @@
           "at the potential expense of memory waste.")                      \
           range(1, max_intx)
 
-#endif // SHARE_VM_GC_EPSILON_GLOBALS_HPP
+#endif // SHARE_GC_EPSILON_EPSILON_GLOBALS_HPP

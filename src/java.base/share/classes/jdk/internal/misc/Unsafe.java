@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,11 +26,14 @@
 package jdk.internal.misc;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.ref.Cleaner;
 import jdk.internal.vm.annotation.ForceInline;
+import sun.nio.ch.DirectBuffer;
 
 import java.lang.reflect.Field;
 import java.security.ProtectionDomain;
 
+import static jdk.internal.misc.UnsafeConstants.*;
 
 /**
  * A collection of methods for performing low-level, unsafe operations.
@@ -179,7 +182,7 @@ public final class Unsafe {
      * @see #getInt(Object, long)
      */
     @HotSpotIntrinsicCandidate
-    public native Object getObject(Object o, long offset);
+    public native Object getReference(Object o, long offset);
 
     /**
      * Stores a reference value into a given Java variable.
@@ -192,7 +195,7 @@ public final class Unsafe {
      * @see #putInt(Object, long, int)
      */
     @HotSpotIntrinsicCandidate
-    public native void putObject(Object o, long offset, Object x);
+    public native void putReference(Object o, long offset, Object x);
 
     /** @see #getInt(Object, long) */
     @HotSpotIntrinsicCandidate
@@ -918,6 +921,101 @@ public final class Unsafe {
         checkPointer(null, address);
     }
 
+    /**
+     * Ensure writeback of a specified virtual memory address range
+     * from cache to physical memory. All bytes in the address range
+     * are guaranteed to have been written back to physical memory on
+     * return from this call i.e. subsequently executed store
+     * instructions are guaranteed not to be visible before the
+     * writeback is completed.
+     *
+     * @param address
+     *        the lowest byte address that must be guaranteed written
+     *        back to memory. bytes at lower addresses may also be
+     *        written back.
+     *
+     * @param length
+     *        the length in bytes of the region starting at address
+     *        that must be guaranteed written back to memory.
+     *
+     * @throws RuntimeException if memory writeback is not supported
+     *         on the current hardware of if the arguments are invalid.
+     *         (<em>Note:</em> after optimization, invalid inputs may
+     *         go undetected, which will lead to unpredictable
+     *         behavior)
+     *
+     * @since 14
+     */
+
+    public void writebackMemory(long address, long length) {
+        checkWritebackEnabled();
+        checkWritebackMemory(address, length);
+
+        // perform any required pre-writeback barrier
+        writebackPreSync0();
+
+        // write back one cache line at a time
+        long line = dataCacheLineAlignDown(address);
+        long end = address + length;
+        while (line < end) {
+            writeback0(line);
+            line += dataCacheLineFlushSize();
+        }
+
+        // perform any required post-writeback barrier
+        writebackPostSync0();
+    }
+
+    /**
+     * Validate the arguments to writebackMemory
+     *
+     * @throws RuntimeException if the arguments are invalid
+     *         (<em>Note:</em> after optimization, invalid inputs may
+     *         go undetected, which will lead to unpredictable
+     *         behavior)
+     */
+    private void checkWritebackMemory(long address, long length) {
+        checkNativeAddress(address);
+        checkSize(length);
+    }
+
+    /**
+     * Validate that the current hardware supports memory writeback.
+     * (<em>Note:</em> this is a belt and braces check.  Clients are
+     * expected to test whether writeback is enabled by calling
+     * ({@link isWritebackEnabled #isWritebackEnabled} and avoid
+     * calling method {@link writeback #writeback} if it is disabled).
+     *
+     *
+     * @throws RuntimeException if memory writeback is not supported
+     */
+    private void checkWritebackEnabled() {
+        if (!isWritebackEnabled()) {
+            throw new RuntimeException("writebackMemory not enabled!");
+        }
+    }
+
+    /**
+     * force writeback of an individual cache line.
+     *
+     * @param address
+     *        the start address of the cache line to be written back
+     */
+    @HotSpotIntrinsicCandidate
+    private native void writeback0(long address);
+
+     /**
+      * Serialize writeback operations relative to preceding memory writes.
+      */
+    @HotSpotIntrinsicCandidate
+    private native void writebackPreSync0();
+
+     /**
+      * Serialize writeback operations relative to following memory writes.
+      */
+    @HotSpotIntrinsicCandidate
+    private native void writebackPostSync0();
+
     /// random queries
 
     /**
@@ -1164,14 +1262,34 @@ public final class Unsafe {
     }
 
     /** The value of {@code addressSize()} */
-    public static final int ADDRESS_SIZE = theUnsafe.addressSize0();
+    public static final int ADDRESS_SIZE = ADDRESS_SIZE0;
 
     /**
      * Reports the size in bytes of a native memory page (whatever that is).
      * This value will always be a power of two.
      */
-    public native int pageSize();
+    public int pageSize() { return PAGE_SIZE; }
 
+    /**
+     * Reports the size in bytes of a data cache line written back by
+     * the hardware cache line flush operation available to the JVM or
+     * 0 if data cache line flushing is not enabled.
+     */
+    public int dataCacheLineFlushSize() { return DATA_CACHE_LINE_FLUSH_SIZE; }
+
+    /**
+     * Rounds down address to a data cache line boundary as
+     * determined by {@link #dataCacheLineFlushSize}
+     * @return the rounded down address
+     */
+    public long dataCacheLineAlignDown(long address) {
+        return (address & ~(DATA_CACHE_LINE_FLUSH_SIZE - 1));
+    }
+
+    /**
+     * Returns true if data cache line writeback
+     */
+    public static boolean isWritebackEnabled() { return DATA_CACHE_LINE_FLUSH_SIZE != 0; }
 
     /// random trusted operations from JNI:
 
@@ -1297,55 +1415,55 @@ public final class Unsafe {
      * @return {@code true} if successful
      */
     @HotSpotIntrinsicCandidate
-    public final native boolean compareAndSetObject(Object o, long offset,
+    public final native boolean compareAndSetReference(Object o, long offset,
+                                                       Object expected,
+                                                       Object x);
+
+    @HotSpotIntrinsicCandidate
+    public final native Object compareAndExchangeReference(Object o, long offset,
+                                                           Object expected,
+                                                           Object x);
+
+    @HotSpotIntrinsicCandidate
+    public final Object compareAndExchangeReferenceAcquire(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
+    }
+
+    @HotSpotIntrinsicCandidate
+    public final Object compareAndExchangeReferenceRelease(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
+    }
+
+    @HotSpotIntrinsicCandidate
+    public final boolean weakCompareAndSetReferencePlain(Object o, long offset,
+                                                         Object expected,
+                                                         Object x) {
+        return compareAndSetReference(o, offset, expected, x);
+    }
+
+    @HotSpotIntrinsicCandidate
+    public final boolean weakCompareAndSetReferenceAcquire(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndSetReference(o, offset, expected, x);
+    }
+
+    @HotSpotIntrinsicCandidate
+    public final boolean weakCompareAndSetReferenceRelease(Object o, long offset,
+                                                           Object expected,
+                                                           Object x) {
+        return compareAndSetReference(o, offset, expected, x);
+    }
+
+    @HotSpotIntrinsicCandidate
+    public final boolean weakCompareAndSetReference(Object o, long offset,
                                                     Object expected,
-                                                    Object x);
-
-    @HotSpotIntrinsicCandidate
-    public final native Object compareAndExchangeObject(Object o, long offset,
-                                                        Object expected,
-                                                        Object x);
-
-    @HotSpotIntrinsicCandidate
-    public final Object compareAndExchangeObjectAcquire(Object o, long offset,
-                                                               Object expected,
-                                                               Object x) {
-        return compareAndExchangeObject(o, offset, expected, x);
-    }
-
-    @HotSpotIntrinsicCandidate
-    public final Object compareAndExchangeObjectRelease(Object o, long offset,
-                                                               Object expected,
-                                                               Object x) {
-        return compareAndExchangeObject(o, offset, expected, x);
-    }
-
-    @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectPlain(Object o, long offset,
-                                                      Object expected,
-                                                      Object x) {
-        return compareAndSetObject(o, offset, expected, x);
-    }
-
-    @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectAcquire(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndSetObject(o, offset, expected, x);
-    }
-
-    @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObjectRelease(Object o, long offset,
-                                                        Object expected,
-                                                        Object x) {
-        return compareAndSetObject(o, offset, expected, x);
-    }
-
-    @HotSpotIntrinsicCandidate
-    public final boolean weakCompareAndSetObject(Object o, long offset,
-                                                 Object expected,
-                                                 Object x) {
-        return compareAndSetObject(o, offset, expected, x);
+                                                    Object x) {
+        return compareAndSetReference(o, offset, expected, x);
     }
 
     /**
@@ -1415,7 +1533,7 @@ public final class Unsafe {
                                              byte x) {
         long wordOffset = offset & ~3;
         int shift = (int) (offset & 3) << 3;
-        if (BE) {
+        if (BIG_ENDIAN) {
             shift = 24 - shift;
         }
         int mask           = 0xFF << shift;
@@ -1489,7 +1607,7 @@ public final class Unsafe {
         }
         long wordOffset = offset & ~3;
         int shift = (int) (offset & 3) << 3;
-        if (BE) {
+        if (BIG_ENDIAN) {
             shift = 16 - shift;
         }
         int mask           = 0xFFFF << shift;
@@ -1958,17 +2076,17 @@ public final class Unsafe {
 
     /**
      * Fetches a reference value from a given Java variable, with volatile
-     * load semantics. Otherwise identical to {@link #getObject(Object, long)}
+     * load semantics. Otherwise identical to {@link #getReference(Object, long)}
      */
     @HotSpotIntrinsicCandidate
-    public native Object getObjectVolatile(Object o, long offset);
+    public native Object getReferenceVolatile(Object o, long offset);
 
     /**
      * Stores a reference value into a given Java variable, with
-     * volatile store semantics. Otherwise identical to {@link #putObject(Object, long, Object)}
+     * volatile store semantics. Otherwise identical to {@link #putReference(Object, long, Object)}
      */
     @HotSpotIntrinsicCandidate
-    public native void    putObjectVolatile(Object o, long offset, Object x);
+    public native void putReferenceVolatile(Object o, long offset, Object x);
 
     /** Volatile version of {@link #getInt(Object, long)}  */
     @HotSpotIntrinsicCandidate
@@ -2036,10 +2154,10 @@ public final class Unsafe {
 
 
 
-    /** Acquire version of {@link #getObjectVolatile(Object, long)} */
+    /** Acquire version of {@link #getReferenceVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
-    public final Object getObjectAcquire(Object o, long offset) {
-        return getObjectVolatile(o, offset);
+    public final Object getReferenceAcquire(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
     }
 
     /** Acquire version of {@link #getBooleanVolatile(Object, long)} */
@@ -2091,7 +2209,7 @@ public final class Unsafe {
     }
 
     /*
-      * Versions of {@link #putObjectVolatile(Object, long, Object)}
+      * Versions of {@link #putReferenceVolatile(Object, long, Object)}
       * that do not guarantee immediate visibility of the store to
       * other threads. This method is generally only useful if the
       * underlying field is a Java volatile (or if an array cell, one
@@ -2100,10 +2218,10 @@ public final class Unsafe {
       * Corresponds to C11 atomic_store_explicit(..., memory_order_release).
       */
 
-    /** Release version of {@link #putObjectVolatile(Object, long, Object)} */
+    /** Release version of {@link #putReferenceVolatile(Object, long, Object)} */
     @HotSpotIntrinsicCandidate
-    public final void putObjectRelease(Object o, long offset, Object x) {
-        putObjectVolatile(o, offset, x);
+    public final void putReferenceRelease(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
     }
 
     /** Release version of {@link #putBooleanVolatile(Object, long, boolean)} */
@@ -2156,10 +2274,10 @@ public final class Unsafe {
 
     // ------------------------------ Opaque --------------------------------------
 
-    /** Opaque version of {@link #getObjectVolatile(Object, long)} */
+    /** Opaque version of {@link #getReferenceVolatile(Object, long)} */
     @HotSpotIntrinsicCandidate
-    public final Object getObjectOpaque(Object o, long offset) {
-        return getObjectVolatile(o, offset);
+    public final Object getReferenceOpaque(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
     }
 
     /** Opaque version of {@link #getBooleanVolatile(Object, long)} */
@@ -2210,10 +2328,10 @@ public final class Unsafe {
         return getDoubleVolatile(o, offset);
     }
 
-    /** Opaque version of {@link #putObjectVolatile(Object, long, Object)} */
+    /** Opaque version of {@link #putReferenceVolatile(Object, long, Object)} */
     @HotSpotIntrinsicCandidate
-    public final void putObjectOpaque(Object o, long offset, Object x) {
-        putObjectVolatile(o, offset, x);
+    public final void putReferenceOpaque(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
     }
 
     /** Opaque version of {@link #putBooleanVolatile(Object, long, boolean)} */
@@ -2642,29 +2760,29 @@ public final class Unsafe {
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
-    public final Object getAndSetObject(Object o, long offset, Object newValue) {
+    public final Object getAndSetReference(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObjectVolatile(o, offset);
-        } while (!weakCompareAndSetObject(o, offset, v, newValue));
+            v = getReferenceVolatile(o, offset);
+        } while (!weakCompareAndSetReference(o, offset, v, newValue));
         return v;
     }
 
     @ForceInline
-    public final Object getAndSetObjectRelease(Object o, long offset, Object newValue) {
+    public final Object getAndSetReferenceRelease(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObject(o, offset);
-        } while (!weakCompareAndSetObjectRelease(o, offset, v, newValue));
+            v = getReference(o, offset);
+        } while (!weakCompareAndSetReferenceRelease(o, offset, v, newValue));
         return v;
     }
 
     @ForceInline
-    public final Object getAndSetObjectAcquire(Object o, long offset, Object newValue) {
+    public final Object getAndSetReferenceAcquire(Object o, long offset, Object newValue) {
         Object v;
         do {
-            v = getObjectAcquire(o, offset);
-        } while (!weakCompareAndSetObjectAcquire(o, offset, v, newValue));
+            v = getReferenceAcquire(o, offset);
+        } while (!weakCompareAndSetReferenceAcquire(o, offset, v, newValue));
         return v;
     }
 
@@ -3112,7 +3230,7 @@ public final class Unsafe {
      * @param offset field/element offset
      * @param mask the mask value
      * @return the previous value
-     * @since 1.9
+     * @since 9
      */
     @ForceInline
     public final int getAndBitwiseAndInt(Object o, long offset, int mask) {
@@ -3341,17 +3459,25 @@ public final class Unsafe {
     }
 
     /**
+     * Throws NoSuchMethodError; for use by the VM for redefinition support.
+     * @since 13
+     */
+    private static void throwNoSuchMethodError() {
+        throw new NoSuchMethodError();
+    }
+
+    /**
      * @return Returns true if the native byte ordering of this
      * platform is big-endian, false if it is little-endian.
      */
-    public final boolean isBigEndian() { return BE; }
+    public final boolean isBigEndian() { return BIG_ENDIAN; }
 
     /**
      * @return Returns true if this platform is capable of performing
      * accesses at addresses which are not aligned for the type of the
      * primitive type being accessed, false otherwise.
      */
-    public final boolean unalignedAccess() { return unalignedAccess; }
+    public final boolean unalignedAccess() { return UNALIGNED_ACCESS; }
 
     /**
      * Fetches a value at some byte offset into a given Java object.
@@ -3593,14 +3719,7 @@ public final class Unsafe {
         putCharUnaligned(o, offset, convEndian(bigEndian, x));
     }
 
-    // JVM interface methods
-    // BE is true iff the native endianness of this platform is big.
-    private static final boolean BE = theUnsafe.isBigEndian0();
-
-    // unalignedAccess is true iff this platform can perform unaligned accesses.
-    private static final boolean unalignedAccess = theUnsafe.unalignedAccess0();
-
-    private static int pickPos(int top, int pos) { return BE ? top - pos : pos; }
+    private static int pickPos(int top, int pos) { return BIG_ENDIAN ? top - pos : pos; }
 
     // These methods construct integers from bytes.  The byte ordering
     // is the native endianness of this platform.
@@ -3639,9 +3758,9 @@ public final class Unsafe {
                      | (toUnsignedInt(i1) << pickPos(8, 8)));
     }
 
-    private static byte  pick(byte  le, byte  be) { return BE ? be : le; }
-    private static short pick(short le, short be) { return BE ? be : le; }
-    private static int   pick(int   le, int   be) { return BE ? be : le; }
+    private static byte  pick(byte  le, byte  be) { return BIG_ENDIAN ? be : le; }
+    private static short pick(short le, short be) { return BIG_ENDIAN ? be : le; }
+    private static int   pick(int   le, int   be) { return BIG_ENDIAN ? be : le; }
 
     // These methods write integers to memory from smaller parts
     // provided by their caller.  The ordering in which these parts
@@ -3689,10 +3808,10 @@ public final class Unsafe {
     private static long toUnsignedLong(int n)   { return n & 0xffffffffl; }
 
     // Maybe byte-reverse an integer
-    private static char convEndian(boolean big, char n)   { return big == BE ? n : Character.reverseBytes(n); }
-    private static short convEndian(boolean big, short n) { return big == BE ? n : Short.reverseBytes(n)    ; }
-    private static int convEndian(boolean big, int n)     { return big == BE ? n : Integer.reverseBytes(n)  ; }
-    private static long convEndian(boolean big, long n)   { return big == BE ? n : Long.reverseBytes(n)     ; }
+    private static char convEndian(boolean big, char n)   { return big == BIG_ENDIAN ? n : Character.reverseBytes(n); }
+    private static short convEndian(boolean big, short n) { return big == BIG_ENDIAN ? n : Short.reverseBytes(n)    ; }
+    private static int convEndian(boolean big, int n)     { return big == BIG_ENDIAN ? n : Integer.reverseBytes(n)  ; }
+    private static long convEndian(boolean big, long n)   { return big == BIG_ENDIAN ? n : Long.reverseBytes(n)     ; }
 
 
 
@@ -3711,9 +3830,117 @@ public final class Unsafe {
     private native void ensureClassInitialized0(Class<?> c);
     private native int arrayBaseOffset0(Class<?> arrayClass);
     private native int arrayIndexScale0(Class<?> arrayClass);
-    private native int addressSize0();
     private native Class<?> defineAnonymousClass0(Class<?> hostClass, byte[] data, Object[] cpPatches);
     private native int getLoadAverage0(double[] loadavg, int nelems);
-    private native boolean unalignedAccess0();
-    private native boolean isBigEndian0();
+
+
+    /**
+     * Invokes the given direct byte buffer's cleaner, if any.
+     *
+     * @param directBuffer a direct byte buffer
+     * @throws NullPointerException     if {@code directBuffer} is null
+     * @throws IllegalArgumentException if {@code directBuffer} is non-direct,
+     *                                  or is a {@link java.nio.Buffer#slice slice}, or is a
+     *                                  {@link java.nio.Buffer#duplicate duplicate}
+     */
+    public void invokeCleaner(java.nio.ByteBuffer directBuffer) {
+        if (!directBuffer.isDirect())
+            throw new IllegalArgumentException("buffer is non-direct");
+
+        DirectBuffer db = (DirectBuffer) directBuffer;
+        if (db.attachment() != null)
+            throw new IllegalArgumentException("duplicate or slice");
+
+        Cleaner cleaner = db.cleaner();
+        if (cleaner != null) {
+            cleaner.clean();
+        }
+    }
+
+    // The following deprecated methods are used by JSR 166.
+
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObject(Object o, long offset) {
+        return getReference(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectVolatile(Object o, long offset) {
+        return getReferenceVolatile(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectAcquire(Object o, long offset) {
+        return getReferenceAcquire(o, offset);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getObjectOpaque(Object o, long offset) {
+        return getReferenceOpaque(o, offset);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObject(Object o, long offset, Object x) {
+        putReference(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectVolatile(Object o, long offset, Object x) {
+        putReferenceVolatile(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectOpaque(Object o, long offset, Object x) {
+        putReferenceOpaque(o, offset, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final void putObjectRelease(Object o, long offset, Object x) {
+        putReferenceRelease(o, offset, x);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObject(Object o, long offset, Object newValue) {
+        return getAndSetReference(o, offset, newValue);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObjectAcquire(Object o, long offset, Object newValue) {
+        return getAndSetReferenceAcquire(o, offset, newValue);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object getAndSetObjectRelease(Object o, long offset, Object newValue) {
+        return getAndSetReferenceRelease(o, offset, newValue);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean compareAndSetObject(Object o, long offset, Object expected, Object x) {
+        return compareAndSetReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObject(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObjectAcquire(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReferenceAcquire(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final Object compareAndExchangeObjectRelease(Object o, long offset, Object expected, Object x) {
+        return compareAndExchangeReferenceRelease(o, offset, expected, x);
+    }
+
+
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObject(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReference(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectAcquire(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferenceAcquire(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectPlain(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferencePlain(o, offset, expected, x);
+    }
+    @Deprecated(since="12", forRemoval=true)
+    public final boolean weakCompareAndSetObjectRelease(Object o, long offset, Object expected, Object x) {
+        return weakCompareAndSetReferenceRelease(o, offset, expected, x);
+    }
 }

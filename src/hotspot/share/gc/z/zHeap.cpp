@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,32 +22,26 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/shared/oopStorage.hpp"
-#include "gc/z/zAddress.hpp"
+#include "gc/shared/locationPrinter.hpp"
+#include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zHeapIterator.hpp"
-#include "gc/z/zList.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
 #include "gc/z/zMark.inline.hpp"
-#include "gc/z/zOopClosures.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageTable.inline.hpp"
 #include "gc/z/zRelocationSet.inline.hpp"
+#include "gc/z/zRelocationSetSelector.hpp"
 #include "gc/z/zResurrection.hpp"
-#include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
 #include "gc/z/zThread.hpp"
-#include "gc/z/zTracer.inline.hpp"
-#include "gc/z/zVirtualMemory.inline.hpp"
+#include "gc/z/zVerify.hpp"
 #include "gc/z/zWorkers.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
-#include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
 static const ZStatSampler ZSamplerHeapUsedBeforeMark("Memory", "Heap Used Before Mark", ZStatUnitBytes);
@@ -61,31 +55,35 @@ ZHeap* ZHeap::_heap = NULL;
 
 ZHeap::ZHeap() :
     _workers(),
-    _object_allocator(_workers.nworkers()),
-    _page_allocator(heap_min_size(), heap_max_size(), heap_max_reserve_size()),
-    _pagetable(),
-    _mark(&_workers, &_pagetable),
+    _object_allocator(),
+    _page_allocator(heap_min_size(), heap_initial_size(), heap_max_size(), heap_max_reserve_size()),
+    _page_table(),
+    _forwarding_table(),
+    _mark(&_workers, &_page_table),
     _reference_processor(&_workers),
     _weak_roots_processor(&_workers),
     _relocate(&_workers),
     _relocation_set(),
+    _unload(&_workers),
     _serviceability(heap_min_size(), heap_max_size()) {
   // Install global heap instance
   assert(_heap == NULL, "Already initialized");
   _heap = this;
 
   // Update statistics
-  ZStatHeap::set_at_initialize(heap_max_size(), heap_max_reserve_size());
+  ZStatHeap::set_at_initialize(heap_min_size(), heap_max_size(), heap_max_reserve_size());
 }
 
 size_t ZHeap::heap_min_size() const {
-  const size_t aligned_min_size = align_up(InitialHeapSize, ZPageSizeMin);
-  return MIN2(aligned_min_size, heap_max_size());
+  return MinHeapSize;
+}
+
+size_t ZHeap::heap_initial_size() const {
+  return InitialHeapSize;
 }
 
 size_t ZHeap::heap_max_size() const {
-  const size_t aligned_max_size = align_up(MaxHeapSize, ZPageSizeMin);
-  return MIN2(aligned_max_size, ZAddressOffsetMax);
+  return MaxHeapSize;
 }
 
 size_t ZHeap::heap_max_reserve_size() const {
@@ -100,15 +98,15 @@ bool ZHeap::is_initialized() const {
 }
 
 size_t ZHeap::min_capacity() const {
-  return heap_min_size();
+  return _page_allocator.min_capacity();
 }
 
 size_t ZHeap::max_capacity() const {
   return _page_allocator.max_capacity();
 }
 
-size_t ZHeap::current_max_capacity() const {
-  return _page_allocator.current_max_capacity();
+size_t ZHeap::soft_max_capacity() const {
+  return _page_allocator.soft_max_capacity();
 }
 
 size_t ZHeap::capacity() const {
@@ -129,6 +127,10 @@ size_t ZHeap::used_low() const {
 
 size_t ZHeap::used() const {
   return _page_allocator.used();
+}
+
+size_t ZHeap::unused() const {
+  return _page_allocator.unused();
 }
 
 size_t ZHeap::allocated() const {
@@ -167,31 +169,20 @@ size_t ZHeap::unsafe_max_tlab_alloc() const {
 }
 
 bool ZHeap::is_in(uintptr_t addr) const {
-  if (addr < ZAddressReservedStart() || addr >= ZAddressReservedEnd()) {
-    return false;
-  }
+  // An address is considered to be "in the heap" if it points into
+  // the allocated part of a page, regardless of which heap view is
+  // used. Note that an address with the finalizable metadata bit set
+  // is not pointing into a heap view, and therefore not considered
+  // to be "in the heap".
 
-  const ZPage* const page = _pagetable.get(addr);
-  if (page != NULL) {
-    return page->is_in(addr);
+  if (ZAddress::is_in(addr)) {
+    const ZPage* const page = _page_table.get(addr);
+    if (page != NULL) {
+      return page->is_in(addr);
+    }
   }
 
   return false;
-}
-
-uintptr_t ZHeap::block_start(uintptr_t addr) const {
-  const ZPage* const page = _pagetable.get(addr);
-  return page->block_start(addr);
-}
-
-size_t ZHeap::block_size(uintptr_t addr) const {
-  const ZPage* const page = _pagetable.get(addr);
-  return page->block_size(addr);
-}
-
-bool ZHeap::block_is_obj(uintptr_t addr) const {
-  const ZPage* const page = _pagetable.get(addr);
-  return page->block_is_obj(addr);
 }
 
 uint ZHeap::nconcurrent_worker_threads() const {
@@ -224,8 +215,8 @@ void ZHeap::out_of_memory() {
 ZPage* ZHeap::alloc_page(uint8_t type, size_t size, ZAllocationFlags flags) {
   ZPage* const page = _page_allocator.alloc_page(type, size, flags);
   if (page != NULL) {
-    // Update pagetable
-    _pagetable.insert(page);
+    // Insert page table entry
+    _page_table.insert(page);
   }
 
   return page;
@@ -238,33 +229,49 @@ void ZHeap::undo_alloc_page(ZPage* page) {
   log_trace(gc)("Undo page allocation, thread: " PTR_FORMAT " (%s), page: " PTR_FORMAT ", size: " SIZE_FORMAT,
                 ZThread::id(), ZThread::name(), p2i(page), page->size());
 
-  release_page(page, false /* reclaimed */);
+  free_page(page, false /* reclaimed */);
 }
 
-bool ZHeap::retain_page(ZPage* page) {
-  return page->inc_refcount();
+void ZHeap::free_page(ZPage* page, bool reclaimed) {
+  // Remove page table entry
+  _page_table.remove(page);
+
+  // Free page
+  _page_allocator.free_page(page, reclaimed);
 }
 
-void ZHeap::release_page(ZPage* page, bool reclaimed) {
-  if (page->dec_refcount()) {
-    _page_allocator.free_page(page, reclaimed);
+uint64_t ZHeap::uncommit(uint64_t delay) {
+  return _page_allocator.uncommit(delay);
+}
+
+void ZHeap::before_flip() {
+  if (ZVerifyViews) {
+    // Unmap all pages
+    _page_allocator.debug_unmap_all_pages();
   }
 }
 
-void ZHeap::flip_views() {
-  // For debugging only
-  if (ZUnmapBadViews) {
-    // Flip pages
-    ZPageTableIterator iter(&_pagetable);
+void ZHeap::after_flip() {
+  if (ZVerifyViews) {
+    // Map all pages
+    ZPageTableIterator iter(&_page_table);
     for (ZPage* page; iter.next(&page);) {
-      if (!page->is_detached()) {
-        _page_allocator.flip_page(page);
-      }
+      _page_allocator.debug_map_page(page);
     }
-
-    // Flip pre-mapped memory
-    _page_allocator.flip_pre_mapped();
+    _page_allocator.debug_map_cached_pages();
   }
+}
+
+void ZHeap::flip_to_marked() {
+  before_flip();
+  ZAddress::flip_to_marked();
+  after_flip();
+}
+
+void ZHeap::flip_to_remapped() {
+  before_flip();
+  ZAddress::flip_to_remapped();
+  after_flip();
 }
 
 void ZHeap::mark_start() {
@@ -274,8 +281,7 @@ void ZHeap::mark_start() {
   ZStatSample(ZSamplerHeapUsedBeforeMark, used());
 
   // Flip address view
-  ZAddressMasks::flip_to_marked();
-  flip_views();
+  flip_to_marked();
 
   // Retire allocating pages
   _object_allocator.retire_pages();
@@ -293,56 +299,19 @@ void ZHeap::mark_start() {
   _mark.start();
 
   // Update statistics
-  ZStatHeap::set_at_mark_start(capacity(), used());
+  ZStatHeap::set_at_mark_start(soft_max_capacity(), capacity(), used());
 }
 
-void ZHeap::mark() {
-  _mark.mark();
+void ZHeap::mark(bool initial) {
+  _mark.mark(initial);
 }
 
 void ZHeap::mark_flush_and_free(Thread* thread) {
   _mark.flush_and_free(thread);
 }
 
-class ZFixupPartialLoadsClosure : public ZRootsIteratorClosure {
-public:
-  virtual void do_oop(oop* p) {
-    ZBarrier::mark_barrier_on_root_oop_field(p);
-  }
-
-  virtual void do_oop(narrowOop* p) {
-    ShouldNotReachHere();
-  }
-};
-
-class ZFixupPartialLoadsTask : public ZTask {
-private:
-  ZThreadRootsIterator _thread_roots;
-
-public:
-  ZFixupPartialLoadsTask() :
-      ZTask("ZFixupPartialLoadsTask"),
-      _thread_roots() {}
-
-  virtual void work() {
-    ZFixupPartialLoadsClosure cl;
-    _thread_roots.oops_do(&cl);
-  }
-};
-
-void ZHeap::fixup_partial_loads() {
-  ZFixupPartialLoadsTask task;
-  _workers.run_parallel(&task);
-}
-
 bool ZHeap::mark_end() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
-
-  // C2 can generate code where a safepoint poll is inserted
-  // between a load and the associated load barrier. To handle
-  // this case we need to rescan the thread stack here to make
-  // sure such oops are marked.
-  fixup_partial_loads();
 
   // Try end marking
   if (!_mark.end()) {
@@ -353,8 +322,8 @@ bool ZHeap::mark_end() {
   // Enter mark completed phase
   ZGlobalPhase = ZPhaseMarkCompleted;
 
-  // Resize metaspace
-  MetaspaceGC::compute_new_size();
+  // Verify after mark
+  ZVerify::after_mark();
 
   // Update statistics
   ZStatSample(ZSamplerHeapUsedAfterMark, used());
@@ -366,10 +335,8 @@ bool ZHeap::mark_end() {
   // Process weak roots
   _weak_roots_processor.process_weak_roots();
 
-  // Verification
-  if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
-    Universe::verify();
-  }
+  // Prepare to unload unused classes and code
+  _unload.prepare();
 
   return true;
 }
@@ -385,6 +352,9 @@ void ZHeap::process_non_strong_references() {
   // Process concurrent weak roots
   _weak_roots_processor.process_concurrent_weak_roots();
 
+  // Unload unused classes and code
+  _unload.unload();
+
   // Unblock resurrection of weak/phantom references
   ZResurrection::unblock();
 
@@ -397,25 +367,14 @@ void ZHeap::process_non_strong_references() {
   _reference_processor.enqueue_references();
 }
 
-void ZHeap::destroy_detached_pages() {
-  ZList<ZPage> list;
-
-  _page_allocator.flush_detached_pages(&list);
-
-  for (ZPage* page = list.remove_first(); page != NULL; page = list.remove_first()) {
-    // Remove pagetable entry
-    _pagetable.remove(page);
-
-    // Delete the page
-    _page_allocator.destroy_page(page);
-  }
-}
-
 void ZHeap::select_relocation_set() {
+  // Do not allow pages to be deleted
+  _page_allocator.enable_deferred_delete();
+
   // Register relocatable pages with selector
   ZRelocationSetSelector selector;
-  ZPageTableIterator iter(&_pagetable);
-  for (ZPage* page; iter.next(&page);) {
+  ZPageTableIterator pt_iter(&_page_table);
+  for (ZPage* page; pt_iter.next(&page);) {
     if (!page->is_relocatable()) {
       // Not relocatable, don't register
       continue;
@@ -429,12 +388,21 @@ void ZHeap::select_relocation_set() {
       selector.register_garbage_page(page);
 
       // Reclaim page immediately
-      release_page(page, true /* reclaimed */);
+      free_page(page, true /* reclaimed */);
     }
   }
 
+  // Allow pages to be deleted
+  _page_allocator.disable_deferred_delete();
+
   // Select pages to relocate
   selector.select(&_relocation_set);
+
+  // Setup forwarding table
+  ZRelocationSetIterator rs_iter(&_relocation_set);
+  for (ZForwarding* forwarding; rs_iter.next(&forwarding);) {
+    _forwarding_table.insert(forwarding);
+  }
 
   // Update statistics
   ZStatRelocation::set_at_select_relocation_set(selector.relocating());
@@ -443,65 +411,35 @@ void ZHeap::select_relocation_set() {
                                           reclaimed());
 }
 
-void ZHeap::prepare_relocation_set() {
-  ZRelocationSetIterator iter(&_relocation_set);
-  for (ZPage* page; iter.next(&page);) {
-    // Prepare for relocation
-    page->set_forwarding();
-
-    // Update pagetable
-    _pagetable.set_relocating(page);
-  }
-}
-
 void ZHeap::reset_relocation_set() {
+  // Reset forwarding table
   ZRelocationSetIterator iter(&_relocation_set);
-  for (ZPage* page; iter.next(&page);) {
-    // Reset relocation information
-    page->reset_forwarding();
-
-    // Update pagetable
-    _pagetable.clear_relocating(page);
+  for (ZForwarding* forwarding; iter.next(&forwarding);) {
+    _forwarding_table.remove(forwarding);
   }
+
+  // Reset relocation set
+  _relocation_set.reset();
 }
 
 void ZHeap::relocate_start() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  // Update statistics
-  ZStatSample(ZSamplerHeapUsedBeforeRelocation, used());
+  // Finish unloading of classes and code
+  _unload.finish();
 
   // Flip address view
-  ZAddressMasks::flip_to_remapped();
-  flip_views();
+  flip_to_remapped();
 
   // Enter relocate phase
   ZGlobalPhase = ZPhaseRelocate;
 
   // Update statistics
+  ZStatSample(ZSamplerHeapUsedBeforeRelocation, used());
   ZStatHeap::set_at_relocate_start(capacity(), allocated(), used());
 
   // Remap/Relocate roots
   _relocate.start();
-}
-
-uintptr_t ZHeap::relocate_object(uintptr_t addr) {
-  assert(ZGlobalPhase == ZPhaseRelocate, "Relocate not allowed");
-  ZPage* const page = _pagetable.get(addr);
-  const bool retained = retain_page(page);
-  const uintptr_t new_addr = page->relocate_object(addr);
-  if (retained) {
-    release_page(page, true /* reclaimed */);
-  }
-
-  return new_addr;
-}
-
-uintptr_t ZHeap::forward_object(uintptr_t addr) {
-  assert(ZGlobalPhase == ZPhaseMark ||
-         ZGlobalPhase == ZPhaseMarkCompleted, "Forward not allowed");
-  ZPage* const page = _pagetable.get(addr);
-  return page->forward_object(addr);
 }
 
 void ZHeap::relocate() {
@@ -515,11 +453,11 @@ void ZHeap::relocate() {
                                  used(), used_high(), used_low());
 }
 
-void ZHeap::object_iterate(ObjectClosure* cl, bool visit_referents) {
+void ZHeap::object_iterate(ObjectClosure* cl, bool visit_weaks) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  ZHeapIterator iter(visit_referents);
-  iter.objects_do(cl);
+  ZHeapIterator iter;
+  iter.objects_do(cl, visit_weaks);
 }
 
 void ZHeap::serviceability_initialize() {
@@ -550,31 +488,30 @@ void ZHeap::print_extended_on(outputStream* st) const {
   print_on(st);
   st->cr();
 
-  ZPageTableIterator iter(&_pagetable);
+  // Do not allow pages to be deleted
+  _page_allocator.enable_deferred_delete();
+
+  // Print all pages
+  ZPageTableIterator iter(&_page_table);
   for (ZPage* page; iter.next(&page);) {
     page->print_on(st);
   }
 
+  // Allow pages to be deleted
+  _page_allocator.enable_deferred_delete();
+
   st->cr();
 }
 
-class ZVerifyRootsTask : public ZTask {
-private:
-  ZRootsIterator     _strong_roots;
-  ZWeakRootsIterator _weak_roots;
-
-public:
-  ZVerifyRootsTask() :
-      ZTask("ZVerifyRootsTask"),
-      _strong_roots(),
-      _weak_roots() {}
-
-  virtual void work() {
-    ZVerifyRootOopClosure cl;
-    _strong_roots.oops_do(&cl);
-    _weak_roots.oops_do(&cl);
+bool ZHeap::print_location(outputStream* st, uintptr_t addr) const {
+  if (LocationPrinter::is_valid_obj((void*)addr)) {
+    st->print(PTR_FORMAT " is a %s oop: ", addr, ZAddress::is_good(addr) ? "good" : "bad");
+    ZOop::from_address(addr)->print_on(st);
+    return true;
   }
-};
+
+  return false;
+}
 
 void ZHeap::verify() {
   // Heap verification can only be done between mark end and
@@ -582,13 +519,5 @@ void ZHeap::verify() {
   // good and the whole heap is in a consistent state.
   guarantee(ZGlobalPhase == ZPhaseMarkCompleted, "Invalid phase");
 
-  {
-    ZVerifyRootsTask task;
-    _workers.run_parallel(&task);
-  }
-
-  {
-    ZVerifyObjectClosure cl;
-    object_iterate(&cl, false /* visit_referents */);
-  }
+  ZVerify::after_weak_processing();
 }

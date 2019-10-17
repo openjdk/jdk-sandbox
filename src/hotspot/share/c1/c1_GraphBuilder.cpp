@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,13 @@
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 
@@ -1451,9 +1451,6 @@ void GraphBuilder::call_register_finalizer() {
   }
 
   if (needs_check) {
-    // Not a trivial method because C2 can do better with inlined check.
-    compilation()->set_would_profile(true);
-
     // Perform the registration of finalizable objects.
     ValueStack* state_before = copy_state_for_exception();
     load_local(objectType, 0);
@@ -1470,11 +1467,12 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
     call_register_finalizer();
   }
 
+  // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
   if (method()->name() == ciSymbol::object_initializer_name() &&
-      (scope()->wrote_final() || (AlwaysSafeConstructors && scope()->wrote_fields())
-                              || (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile())
-     )){
+       (scope()->wrote_final() ||
+         (AlwaysSafeConstructors && scope()->wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
     need_mem_bar = true;
   }
 
@@ -1945,7 +1943,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // Use CHA on the receiver to select a more precise method.
       cha_monomorphic_target = target->find_monomorphic_target(calling_klass, callee_holder, actual_recv);
     } else if (code == Bytecodes::_invokeinterface && callee_holder->is_loaded() && receiver != NULL) {
-      // if there is only one implementor of this interface then we
+      assert(callee_holder->is_interface(), "invokeinterface to non interface?");
+      // If there is only one implementor of this interface then we
       // may be able bind this invoke directly to the implementing
       // klass but we need both a dependence on the single interface
       // and on the method we bind to.  Additionally since all we know
@@ -1953,54 +1952,45 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // interface we have to insert a check that it's the class we
       // expect.  Interface types are not checked by the verifier so
       // they are roughly equivalent to Object.
-      ciInstanceKlass* singleton = NULL;
-      if (target->holder()->nof_implementors() == 1) {
-        singleton = target->holder()->implementor();
-        assert(singleton != NULL && singleton != target->holder(),
-               "just checking");
-
-        assert(holder->is_interface(), "invokeinterface to non interface?");
-        ciInstanceKlass* decl_interface = (ciInstanceKlass*)holder;
-        // the number of implementors for decl_interface is less or
-        // equal to the number of implementors for target->holder() so
-        // if number of implementors of target->holder() == 1 then
-        // number of implementors for decl_interface is 0 or 1. If
-        // it's 0 then no class implements decl_interface and there's
-        // no point in inlining.
-        if (!holder->is_loaded() || decl_interface->nof_implementors() != 1 || decl_interface->has_nonstatic_concrete_methods()) {
-          singleton = NULL;
-        }
-      }
-      if (singleton) {
-        cha_monomorphic_target = target->find_monomorphic_target(calling_klass, target->holder(), singleton);
+      // The number of implementors for declared_interface is less or
+      // equal to the number of implementors for target->holder() so
+      // if number of implementors of target->holder() == 1 then
+      // number of implementors for decl_interface is 0 or 1. If
+      // it's 0 then no class implements decl_interface and there's
+      // no point in inlining.
+      ciInstanceKlass* declared_interface = callee_holder;
+      ciInstanceKlass* singleton = declared_interface->unique_implementor();
+      if (singleton != NULL &&
+          (!target->is_default_method() || target->is_overpass()) /* CHA doesn't support default methods yet. */ ) {
+        assert(singleton != declared_interface, "not a unique implementor");
+        cha_monomorphic_target = target->find_monomorphic_target(calling_klass, declared_interface, singleton);
         if (cha_monomorphic_target != NULL) {
-          // If CHA is able to bind this invoke then update the class
-          // to match that class, otherwise klass will refer to the
-          // interface.
-          klass = cha_monomorphic_target->holder();
-          actual_recv = target->holder();
+          if (cha_monomorphic_target->holder() != compilation()->env()->Object_klass()) {
+            // If CHA is able to bind this invoke then update the class
+            // to match that class, otherwise klass will refer to the
+            // interface.
+            klass = cha_monomorphic_target->holder();
+            actual_recv = declared_interface;
 
-          // insert a check it's really the expected class.
-          CheckCast* c = new CheckCast(klass, receiver, copy_state_for_exception());
-          c->set_incompatible_class_change_check();
-          c->set_direct_compare(klass->is_final());
-          // pass the result of the checkcast so that the compiler has
-          // more accurate type info in the inlinee
-          better_receiver = append_split(c);
+            // insert a check it's really the expected class.
+            CheckCast* c = new CheckCast(klass, receiver, copy_state_for_exception());
+            c->set_incompatible_class_change_check();
+            c->set_direct_compare(klass->is_final());
+            // pass the result of the checkcast so that the compiler has
+            // more accurate type info in the inlinee
+            better_receiver = append_split(c);
+          } else {
+            cha_monomorphic_target = NULL; // subtype check against Object is useless
+          }
         }
       }
     }
   }
 
   if (cha_monomorphic_target != NULL) {
-    if (cha_monomorphic_target->is_abstract()) {
-      // Do not optimize for abstract methods
-      cha_monomorphic_target = NULL;
-    }
-  }
-
-  if (cha_monomorphic_target != NULL) {
-    if (!(target->is_final_method())) {
+    assert(!target->can_be_statically_bound() || target == cha_monomorphic_target, "");
+    assert(!cha_monomorphic_target->is_abstract(), "");
+    if (!cha_monomorphic_target->can_be_statically_bound(actual_recv)) {
       // If we inlined because CHA revealed only a single target method,
       // then we are dependent on that target method not getting overridden
       // by dynamic class loading.  Be sure to test the "static" receiver
@@ -3178,7 +3168,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     ciType* type = sig->type_at(i);
     BasicType basic_type = type->basic_type();
     // don't allow T_ARRAY to propagate into locals types
-    if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+    if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
     state->store_local(idx, new Local(type, vt, idx, false));
     idx += type->size();
@@ -3471,7 +3461,7 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
 
   // Some intrinsics need special IR nodes.
   switch(id) {
-  case vmIntrinsics::_getObject          : append_unsafe_get_obj(callee, T_OBJECT,  false); return;
+  case vmIntrinsics::_getReference       : append_unsafe_get_obj(callee, T_OBJECT,  false); return;
   case vmIntrinsics::_getBoolean         : append_unsafe_get_obj(callee, T_BOOLEAN, false); return;
   case vmIntrinsics::_getByte            : append_unsafe_get_obj(callee, T_BYTE,    false); return;
   case vmIntrinsics::_getShort           : append_unsafe_get_obj(callee, T_SHORT,   false); return;
@@ -3480,7 +3470,7 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
   case vmIntrinsics::_getLong            : append_unsafe_get_obj(callee, T_LONG,    false); return;
   case vmIntrinsics::_getFloat           : append_unsafe_get_obj(callee, T_FLOAT,   false); return;
   case vmIntrinsics::_getDouble          : append_unsafe_get_obj(callee, T_DOUBLE,  false); return;
-  case vmIntrinsics::_putObject          : append_unsafe_put_obj(callee, T_OBJECT,  false); return;
+  case vmIntrinsics::_putReference       : append_unsafe_put_obj(callee, T_OBJECT,  false); return;
   case vmIntrinsics::_putBoolean         : append_unsafe_put_obj(callee, T_BOOLEAN, false); return;
   case vmIntrinsics::_putByte            : append_unsafe_put_obj(callee, T_BYTE,    false); return;
   case vmIntrinsics::_putShort           : append_unsafe_put_obj(callee, T_SHORT,   false); return;
@@ -3497,7 +3487,7 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
   case vmIntrinsics::_putCharUnaligned   : append_unsafe_put_obj(callee, T_CHAR,    false); return;
   case vmIntrinsics::_putIntUnaligned    : append_unsafe_put_obj(callee, T_INT,     false); return;
   case vmIntrinsics::_putLongUnaligned   : append_unsafe_put_obj(callee, T_LONG,    false); return;
-  case vmIntrinsics::_getObjectVolatile  : append_unsafe_get_obj(callee, T_OBJECT,  true); return;
+  case vmIntrinsics::_getReferenceVolatile  : append_unsafe_get_obj(callee, T_OBJECT,  true); return;
   case vmIntrinsics::_getBooleanVolatile : append_unsafe_get_obj(callee, T_BOOLEAN, true); return;
   case vmIntrinsics::_getByteVolatile    : append_unsafe_get_obj(callee, T_BYTE,    true); return;
   case vmIntrinsics::_getShortVolatile   : append_unsafe_get_obj(callee, T_SHORT,   true); return;
@@ -3506,7 +3496,7 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
   case vmIntrinsics::_getLongVolatile    : append_unsafe_get_obj(callee, T_LONG,    true); return;
   case vmIntrinsics::_getFloatVolatile   : append_unsafe_get_obj(callee, T_FLOAT,   true); return;
   case vmIntrinsics::_getDoubleVolatile  : append_unsafe_get_obj(callee, T_DOUBLE,  true); return;
-  case vmIntrinsics::_putObjectVolatile  : append_unsafe_put_obj(callee, T_OBJECT,  true); return;
+  case vmIntrinsics::_putReferenceVolatile : append_unsafe_put_obj(callee, T_OBJECT,  true); return;
   case vmIntrinsics::_putBooleanVolatile : append_unsafe_put_obj(callee, T_BOOLEAN, true); return;
   case vmIntrinsics::_putByteVolatile    : append_unsafe_put_obj(callee, T_BYTE,    true); return;
   case vmIntrinsics::_putShortVolatile   : append_unsafe_put_obj(callee, T_SHORT,   true); return;
@@ -3517,12 +3507,12 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
   case vmIntrinsics::_putDoubleVolatile  : append_unsafe_put_obj(callee, T_DOUBLE,  true); return;
   case vmIntrinsics::_compareAndSetLong:
   case vmIntrinsics::_compareAndSetInt:
-  case vmIntrinsics::_compareAndSetObject: append_unsafe_CAS(callee); return;
+  case vmIntrinsics::_compareAndSetReference : append_unsafe_CAS(callee); return;
   case vmIntrinsics::_getAndAddInt:
   case vmIntrinsics::_getAndAddLong      : append_unsafe_get_and_set_obj(callee, true); return;
   case vmIntrinsics::_getAndSetInt       :
   case vmIntrinsics::_getAndSetLong      :
-  case vmIntrinsics::_getAndSetObject    : append_unsafe_get_and_set_obj(callee, false); return;
+  case vmIntrinsics::_getAndSetReference : append_unsafe_get_and_set_obj(callee, false); return;
   case vmIntrinsics::_getCharStringU     : append_char_access(callee, false); return;
   case vmIntrinsics::_putCharStringU     : append_char_access(callee, true); return;
   default:
@@ -3569,9 +3559,6 @@ void GraphBuilder::build_graph_for_intrinsic(ciMethod* callee, bool ignore_retur
 }
 
 bool GraphBuilder::try_inline_intrinsics(ciMethod* callee, bool ignore_return) {
-  // Not a trivial method because C2 may do intrinsics better.
-  compilation()->set_would_profile(true);
-
   // For calling is_intrinsic_available we need to transition to
   // the '_thread_in_vm' state because is_intrinsic_available()
   // accesses critical VM-internal data.

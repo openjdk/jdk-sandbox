@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ import org.graalvm.compiler.loop.LoopEx;
 import org.graalvm.compiler.loop.LoopPolicies;
 import org.graalvm.compiler.loop.LoopsData;
 import org.graalvm.compiler.nodes.StructuredGraph;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 
 public class LoopPeelingPhase extends LoopPhase<LoopPolicies> {
 
@@ -39,7 +39,7 @@ public class LoopPeelingPhase extends LoopPhase<LoopPolicies> {
 
     @Override
     @SuppressWarnings("try")
-    protected void run(StructuredGraph graph, PhaseContext context) {
+    protected void run(StructuredGraph graph, CoreProviders context) {
         DebugContext debug = graph.getDebug();
         if (graph.hasLoops()) {
             LoopsData data = new LoopsData(graph);

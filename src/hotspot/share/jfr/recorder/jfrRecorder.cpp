@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,31 +44,22 @@
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.inline.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/flags/jvmFlag.hpp"
-#include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "utilities/growableArray.hpp"
 
-static bool is_disabled_on_command_line() {
-  static const size_t length = strlen("FlightRecorder");
-  static JVMFlag* const flight_recorder_flag = JVMFlag::find_flag("FlightRecorder", length);
-  assert(flight_recorder_flag != NULL, "invariant");
-  return flight_recorder_flag->is_command_line() ? !FlightRecorder : false;
-}
-
 bool JfrRecorder::is_disabled() {
-  return is_disabled_on_command_line();
-}
-
-static bool set_flight_recorder_flag(bool flag_value) {
-  JVMFlag::boolAtPut((char*)"FlightRecorder", &flag_value, JVMFlag::MANAGEMENT);
-  return FlightRecorder;
+  // True if -XX:-FlightRecorder has been explicitly set on the
+  // command line
+  return FLAG_IS_CMDLINE(FlightRecorder) ? !FlightRecorder : false;
 }
 
 static bool _enabled = false;
 
 static bool enable() {
   assert(!_enabled, "invariant");
-  _enabled = set_flight_recorder_flag(true);
+  FLAG_SET_MGMT(FlightRecorder, true);
+  _enabled = FlightRecorder;
+  assert(_enabled, "invariant");
   return _enabled;
 }
 
@@ -177,7 +168,7 @@ static void log_jdk_jfr_module_resolution_error(TRAPS) {
 
 static bool is_cds_dump_requested() {
   // we will not be able to launch recordings if a cds dump is being requested
-  if (DumpSharedSpaces && (JfrOptionSet::startup_recording_options() != NULL)) {
+  if (Arguments::is_dumping_archive() && (JfrOptionSet::startup_recording_options() != NULL)) {
     warning("JFR will be disabled during CDS dumping");
     teardown_startup_support();
     return true;
@@ -201,9 +192,6 @@ bool JfrRecorder::on_vm_start() {
 
   if (in_graph) {
     if (!validate_recording_options(thread)) {
-      return false;
-    }
-    if (!JfrJavaEventWriter::initialize()) {
       return false;
     }
     if (!JfrOptionSet::configure(thread)) {
@@ -255,6 +243,9 @@ bool JfrRecorder::create_components() {
   ResourceMark rm;
   HandleMark hm;
 
+  if (!create_java_event_writer()) {
+    return false;
+  }
   if (!create_jvmti_agent()) {
     return false;
   }
@@ -295,6 +286,10 @@ static JfrStackTraceRepository* _stack_trace_repository;
 static JfrStringPool* _stringpool = NULL;
 static JfrOSInterface* _os_interface = NULL;
 static JfrThreadSampling* _thread_sampling = NULL;
+
+bool JfrRecorder::create_java_event_writer() {
+  return JfrJavaEventWriter::initialize();
+}
 
 bool JfrRecorder::create_jvmti_agent() {
   return JfrOptionSet::allow_retransforms() ? JfrJvmtiAgent::create() : true;

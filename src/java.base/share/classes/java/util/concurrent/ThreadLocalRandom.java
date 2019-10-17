@@ -976,13 +976,13 @@ public class ThreadLocalRandom extends Random {
      * Erases ThreadLocals by nulling out Thread maps.
      */
     static final void eraseThreadLocals(Thread thread) {
-        U.putObject(thread, THREADLOCALS, null);
-        U.putObject(thread, INHERITABLETHREADLOCALS, null);
+        U.putReference(thread, THREADLOCALS, null);
+        U.putReference(thread, INHERITABLETHREADLOCALS, null);
     }
 
     static final void setInheritedAccessControlContext(Thread thread,
                                                        AccessControlContext acc) {
-        U.putObjectRelease(thread, INHERITEDACCESSCONTROLCONTEXT, acc);
+        U.putReferenceRelease(thread, INHERITEDACCESSCONTROLCONTEXT, acc);
     }
 
     // Serialization support
@@ -1053,18 +1053,18 @@ public class ThreadLocalRandom extends Random {
 
     // Unsafe mechanics
     private static final Unsafe U = Unsafe.getUnsafe();
-    private static final long SEED = U.objectFieldOffset
-            (Thread.class, "threadLocalRandomSeed");
-    private static final long PROBE = U.objectFieldOffset
-            (Thread.class, "threadLocalRandomProbe");
-    private static final long SECONDARY = U.objectFieldOffset
-            (Thread.class, "threadLocalRandomSecondarySeed");
-    private static final long THREADLOCALS = U.objectFieldOffset
-            (Thread.class, "threadLocals");
-    private static final long INHERITABLETHREADLOCALS = U.objectFieldOffset
-            (Thread.class, "inheritableThreadLocals");
-    private static final long INHERITEDACCESSCONTROLCONTEXT = U.objectFieldOffset
-            (Thread.class, "inheritedAccessControlContext");
+    private static final long SEED
+        = U.objectFieldOffset(Thread.class, "threadLocalRandomSeed");
+    private static final long PROBE
+        = U.objectFieldOffset(Thread.class, "threadLocalRandomProbe");
+    private static final long SECONDARY
+        = U.objectFieldOffset(Thread.class, "threadLocalRandomSecondarySeed");
+    private static final long THREADLOCALS
+        = U.objectFieldOffset(Thread.class, "threadLocals");
+    private static final long INHERITABLETHREADLOCALS
+        = U.objectFieldOffset(Thread.class, "inheritableThreadLocals");
+    private static final long INHERITEDACCESSCONTROLCONTEXT
+        = U.objectFieldOffset(Thread.class, "inheritedAccessControlContext");
 
     /** Rarely-used holder for the second of a pair of Gaussians */
     private static final ThreadLocal<Double> nextLocalGaussian =

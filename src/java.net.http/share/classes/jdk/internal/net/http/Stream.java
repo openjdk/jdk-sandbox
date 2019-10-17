@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ import jdk.internal.net.http.hpack.DecodingCallback;
  * RESPONSES
  *
  * Multiple responses can be received per request. Responses are queued up on
- * a LinkedList of CF<HttpResponse> and the the first one on the list is completed
+ * a LinkedList of CF<HttpResponse> and the first one on the list is completed
  * with the next response
  *
  * getResponseAsync() -- queries list of response CFs and returns first one
@@ -333,21 +333,10 @@ class Stream<T> extends ExchangeImpl<T> {
     // pushes entire response body into response subscriber
     // blocking when required by local or remote flow control
     CompletableFuture<T> receiveData(BodySubscriber<T> bodySubscriber, Executor executor) {
-        responseBodyCF = new MinimalFuture<>();
         // We want to allow the subscriber's getBody() method to block so it
         // can work with InputStreams. So, we offload execution.
-        executor.execute(() -> {
-            try {
-                bodySubscriber.getBody().whenComplete((T body, Throwable t) -> {
-                    if (t == null)
-                        responseBodyCF.complete(body);
-                    else
-                        responseBodyCF.completeExceptionally(t);
-                });
-            } catch(Throwable t) {
-                cancelImpl(t);
-            }
-        });
+        responseBodyCF = ResponseSubscribers.getBodyAsync(executor, bodySubscriber,
+                new MinimalFuture<>(), this::cancelImpl);
 
         if (isCanceled()) {
             Throwable t = getCancelCause();
@@ -610,6 +599,14 @@ class Stream<T> extends ExchangeImpl<T> {
         }
         HttpHeaders sysh = filterHeaders(h.build());
         HttpHeaders userh = filterHeaders(request.getUserHeaders());
+        // Filter context restricted from userHeaders
+        userh = HttpHeaders.of(userh.map(), Utils.CONTEXT_RESTRICTED(client()));
+
+        final HttpHeaders uh = userh;
+
+        // Filter any headers from systemHeaders that are set in userHeaders
+        sysh = HttpHeaders.of(sysh.map(), (k,v) -> uh.firstValue(k).isEmpty());
+
         OutgoingHeaders<Stream<T>> f = new OutgoingHeaders<>(sysh, userh, this);
         if (contentLength == 0) {
             f.setFlag(HeadersFrame.END_STREAM);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,7 +44,7 @@ import java.io.InvalidObjectException;
 import java.text.AttributedCharacterIterator.Attribute;
 import java.util.Map;
 import java.util.HashMap;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * The {@code TextAttribute} class defines attribute keys and
@@ -67,7 +67,7 @@ import jdk.internal.misc.SharedSecrets;
  *   <LI>a description of the effect.
  * </UL>
  *
- * <H3>Values</H3>
+ * <H2>Values</H2>
  * <UL>
  *   <LI>The values of attributes must always be immutable.
  *   <LI>Where value limitations are given, any value outside of that
@@ -95,7 +95,7 @@ import jdk.internal.misc.SharedSecrets;
  *
  * </UL>
  *
- * <h4>Summary of attributes</h4>
+ * <h3>Summary of attributes</h3>
  *
  * <table style="width:95%;margin: 0px auto" class="striped">
  * <caption>Key, value type, principal constants, and default value behavior of

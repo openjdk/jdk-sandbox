@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
-#define CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
+#ifndef CPU_PPC_GLOBALDEFINITIONS_PPC_HPP
+#define CPU_PPC_GLOBALDEFINITIONS_PPC_HPP
 
 #ifdef CC_INTERP
 #error "CC_INTERP is no longer supported. Removed in change 8145117."
@@ -41,8 +41,8 @@ const bool CCallingConventionRequiresIntsAsLongs = true;
 
 #define SUPPORTS_NATIVE_CX8
 
-// The PPC CPUs are NOT multiple-copy-atomic.
-#define CPU_NOT_MULTIPLE_COPY_ATOMIC
+// PPC64 is not specified as multi-copy-atomic
+// So we must not #define CPU_MULTI_COPY_ATOMIC
 
 // The expected size in bytes of a cache line, used to pad data structures.
 #define DEFAULT_CACHE_LINE_SIZE 128
@@ -60,4 +60,4 @@ const bool CCallingConventionRequiresIntsAsLongs = true;
 // Define the condition to use this -XX flag.
 #define USE_POLL_BIT_ONLY UseSIGTRAP
 
-#endif // CPU_PPC_VM_GLOBALDEFINITIONS_PPC_HPP
+#endif // CPU_PPC_GLOBALDEFINITIONS_PPC_HPP

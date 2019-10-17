@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,7 @@ import com.sun.tools.doclint.DocLint;
 
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlConstants;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlVersion;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
-import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
 import jdk.javadoc.internal.doclets.toolkit.Messages;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
@@ -53,7 +49,6 @@ import jdk.javadoc.internal.doclets.toolkit.WriterFactory;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFile;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
-import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
 import static javax.tools.Diagnostic.Kind.*;
 
@@ -81,6 +76,11 @@ import static javax.tools.Diagnostic.Kind.*;
  * @author Bhavesh Patel (Modified)
  */
 public class HtmlConfiguration extends BaseConfiguration {
+
+    /**
+     * Default charset for HTML.
+     */
+    public static final String HTML_DEFAULT_CHARSET = "utf-8";
 
     /**
      * Argument for command line option "-header".
@@ -197,24 +197,6 @@ public class HtmlConfiguration extends BaseConfiguration {
     public boolean createoverview = false;
 
     /**
-     * Specifies whether or not frames should be generated.
-     * Defaults to false; can be set to true by --frames; can be set to false by --no-frames; last one wins.
-     */
-    public boolean frames = false;
-
-    /**
-     * This is the HTML version of the generated pages.
-     * The default value is determined later.
-     */
-    public HtmlVersion htmlVersion = null;
-
-    /**
-     * Flag to enable/disable use of module directories when generating docs for modules
-     * Default: on (module directories are enabled).
-     */
-    public boolean useModuleDirectories = true;
-
-    /**
      * Collected set of doclint options
      */
     public Map<Doclet.Option, String> doclintOpts = new LinkedHashMap<>();
@@ -251,6 +233,8 @@ public class HtmlConfiguration extends BaseConfiguration {
     protected final Messages messages;
 
     public DocPaths docPaths;
+
+    public Map<Element, List<DocPath>> localStylesheetMap = new HashMap<>();
 
     /**
      * Creates an object to hold the configuration for a doclet.
@@ -294,6 +278,10 @@ public class HtmlConfiguration extends BaseConfiguration {
         return resources;
     }
 
+    public Contents getContents() {
+        return contents;
+    }
+
     @Override
     public Messages getMessages() {
         return messages;
@@ -305,15 +293,11 @@ public class HtmlConfiguration extends BaseConfiguration {
             return false;
         }
 
-        if (htmlVersion == null) {
-            htmlVersion = HtmlVersion.HTML5;
-        }
-
         // check if helpfile exists
         if (!helpfile.isEmpty()) {
             DocFile help = DocFile.createFileForInput(this, helpfile);
             if (!help.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", helpfile));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", helpfile));
                 return false;
             }
         }
@@ -321,7 +305,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         if (!stylesheetfile.isEmpty()) {
             DocFile stylesheet = DocFile.createFileForInput(this, stylesheetfile);
             if (!stylesheet.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", stylesheetfile));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", stylesheetfile));
                 return false;
             }
         }
@@ -329,7 +313,7 @@ public class HtmlConfiguration extends BaseConfiguration {
         for (String ssheet : additionalStylesheets) {
             DocFile ssfile = DocFile.createFileForInput(this, ssheet);
             if (!ssfile.exists()) {
-                reporter.print(ERROR, getText("doclet.File_not_found", ssheet));
+                reporter.print(ERROR, resources.getText("doclet.File_not_found", ssheet));
                 return false;
             }
         }
@@ -363,26 +347,11 @@ public class HtmlConfiguration extends BaseConfiguration {
                 }
             }
         }
-        docPaths = new DocPaths(utils, useModuleDirectories);
+        docPaths = new DocPaths(utils);
         setCreateOverview();
         setTopFile(docEnv);
-        workArounds.initDocLint(doclintOpts.values(), tagletManager.getAllTagletNames(),
-                Utils.toLowerCase(htmlVersion.name()));
+        workArounds.initDocLint(doclintOpts.values(), tagletManager.getAllTagletNames());
         return true;
-    }
-
-    /**
-     * Return true if the generated output is HTML5.
-     */
-    public boolean isOutputHtml5() {
-        return htmlVersion == HtmlVersion.HTML5;
-    }
-
-    /**
-     * Return true if the tag is allowed for this specific version of HTML.
-     */
-    public boolean allowTag(HtmlTag htmlTag) {
-        return htmlTag.allowTag(this.htmlVersion);
     }
 
     /**
@@ -400,7 +369,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             return;
         }
         if (createoverview) {
-            topFile = DocPaths.overviewSummary(frames);
+            topFile = DocPaths.INDEX;
         } else {
             if (showModules) {
                 topFile = DocPath.empty.resolve(docPaths.moduleSummary(modules.first()));
@@ -483,13 +452,17 @@ public class HtmlConfiguration extends BaseConfiguration {
         return null;
     }
 
-    public DocFile getMainStylesheet() {
-        return stylesheetfile.isEmpty() ? null : DocFile.createFileForInput(this, stylesheetfile);
+    public DocPath getMainStylesheet() {
+        if(!stylesheetfile.isEmpty()){
+            DocFile docFile = DocFile.createFileForInput(this, stylesheetfile);
+            return DocPath.create(docFile.getName());
+        }
+        return  null;
     }
 
-    public List<DocFile> getAdditionalStylesheets() {
+    public List<DocPath> getAdditionalStylesheets() {
         return additionalStylesheets.stream()
-                .map(ssf -> DocFile.createFileForInput(this, ssf))
+                .map(ssf -> DocFile.createFileForInput(this, ssf)).map(file -> DocPath.create(file.getName()))
                 .collect(Collectors.toList());
     }
 
@@ -509,63 +482,6 @@ public class HtmlConfiguration extends BaseConfiguration {
     @Override
     public boolean showMessage(Element e, String key) {
         return (e == null || workArounds.haveDocLint());
-    }
-
-    @Override
-    public String getText(String key) {
-        return resources.getText(key);
-    }
-
-    @Override
-    public String getText(String key, String... args) {
-        return resources.getText(key, (Object[]) args);
-    }
-
-   /**
-     * {@inheritdoc}
-     */
-    @Override
-    public Content getContent(String key) {
-        return contents.getContent(key);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o   string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o) {
-        return contents.getContent(key, o);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o1 resource argument
-     * @param o2 resource argument
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o1, Object o2) {
-        return contents.getContent(key, o1, o2);
-    }
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key to look for in the configuration file
-     * @param o0  string or content argument added to configuration text
-     * @param o1  string or content argument added to configuration text
-     * @param o2  string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    @Override
-    public Content getContent(String key, Object o0, Object o1, Object o2) {
-        return contents.getContent(key, o0, o1, o2);
     }
 
     protected void buildSearchTagIndex() {
@@ -634,12 +550,12 @@ public class HtmlConfiguration extends BaseConfiguration {
                 @Override
                 public boolean process(String opt,  List<String> args) {
                     if (nohelp == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-helpfile", "-nohelp"));
                         return false;
                     }
                     if (!helpfile.isEmpty()) {
-                        reporter.print(ERROR, getText("doclet.Option_reuse",
+                        reporter.print(ERROR, resources.getText("doclet.Option_reuse",
                                 "-helpfile"));
                         return false;
                     }
@@ -647,18 +563,9 @@ public class HtmlConfiguration extends BaseConfiguration {
                     return true;
                 }
             },
-            new Option(resources, "-html4") {
-                @Override
-                public boolean process(String opt,  List<String> args) {
-                    reporter.print(WARNING, getText("doclet.HTML_4_specified", helpfile));
-                    htmlVersion = HtmlVersion.HTML4;
-                    return true;
-                }
-            },
             new Option(resources, "-html5") {
                 @Override
                 public boolean process(String opt,  List<String> args) {
-                    htmlVersion = HtmlVersion.HTML5;
                     return true;
                 }
             },
@@ -667,7 +574,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt, List<String> args) {
                     nohelp = true;
                     if (!helpfile.isEmpty()) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-nohelp", "-helpfile"));
                         return false;
                     }
@@ -686,7 +593,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     createindex = false;
                     if (splitindex == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-noindex", "-splitindex"));
                         return false;
                     }
@@ -705,7 +612,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     nooverview = true;
                     if (overviewpath != null) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-nooverview", "-overview"));
                         return false;
                     }
@@ -724,25 +631,10 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt,  List<String> args) {
                     overviewpath = args.get(0);
                     if (nooverview == true) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-overview", "-nooverview"));
                         return false;
                     }
-                    return true;
-                }
-            },
-            new Option(resources, "--frames") {
-                @Override
-                public boolean process(String opt,  List<String> args) {
-                    reporter.print(WARNING, getText("doclet.Frames_specified", helpfile));
-                    frames = true;
-                    return true;
-                }
-            },
-            new Option(resources, "--no-frames") {
-                @Override
-                public boolean process(String opt,  List<String> args) {
-                    frames = false;
                     return true;
                 }
             },
@@ -758,7 +650,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 public boolean process(String opt, List<String> args) {
                     splitindex = true;
                     if (createindex == false) {
-                        reporter.print(ERROR, getText("doclet.Option_conflict",
+                        reporter.print(ERROR, resources.getText("doclet.Option_conflict",
                                 "-splitindex", "-noindex"));
                         return false;
                     }
@@ -807,7 +699,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                     try {
                         URL ignored = new URL(docrootparent);
                     } catch (MalformedURLException e) {
-                        reporter.print(ERROR, getText("doclet.MalformedURL", docrootparent));
+                        reporter.print(ERROR, resources.getText("doclet.MalformedURL", docrootparent));
                         return false;
                     }
                     return true;
@@ -819,11 +711,11 @@ public class HtmlConfiguration extends BaseConfiguration {
                     String dopt = opt.replace("-Xdoclint:", DocLint.XMSGS_CUSTOM_PREFIX);
                     doclintOpts.put(this, dopt);
                     if (dopt.contains("/")) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_no_qualifiers"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_no_qualifiers"));
                         return false;
                     }
                     if (!DocLint.isValidOption(dopt)) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_invalid_arg"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_invalid_arg"));
                         return false;
                     }
                     return true;
@@ -835,16 +727,16 @@ public class HtmlConfiguration extends BaseConfiguration {
                     String dopt = opt.replace("-Xdoclint/package:", DocLint.XCHECK_PACKAGE);
                     doclintOpts.put(this, dopt);
                     if (!DocLint.isValidOption(dopt)) {
-                        reporter.print(ERROR, getText("doclet.Option_doclint_package_invalid_arg"));
+                        reporter.print(ERROR, resources.getText("doclet.Option_doclint_package_invalid_arg"));
                         return false;
                     }
                     return true;
                 }
             },
-            new XOption(resources, "--no-module-directories") {
+            new XOption(resources, "--no-frames") {
                 @Override
-                public boolean process(String option, List<String> args) {
-                    useModuleDirectories = false;
+                public boolean process(String opt, List<String> args) {
+                    reporter.print(WARNING, resources.getText("doclet.NoFrames_specified"));
                     return true;
                 }
             }
@@ -859,7 +751,7 @@ public class HtmlConfiguration extends BaseConfiguration {
     protected boolean finishOptionSettings0() throws DocletException {
         if (docencoding == null) {
             if (charset == null) {
-                docencoding = charset = (encoding == null) ? HtmlConstants.HTML_DEFAULT_CHARSET : encoding;
+                docencoding = charset = (encoding == null) ? HTML_DEFAULT_CHARSET : encoding;
             } else {
                 docencoding = charset;
             }
@@ -867,7 +759,7 @@ public class HtmlConfiguration extends BaseConfiguration {
             if (charset == null) {
                 charset = docencoding;
             } else if (!charset.equals(docencoding)) {
-                reporter.print(ERROR, getText("doclet.Option_conflict", "-charset", "-docencoding"));
+                reporter.print(ERROR, resources.getText("doclet.Option_conflict", "-charset", "-docencoding"));
                 return false;
             }
         }

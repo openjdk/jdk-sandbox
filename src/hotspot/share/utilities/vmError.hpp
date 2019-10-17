@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_UTILITIES_VMERROR_HPP
-#define SHARE_VM_UTILITIES_VMERROR_HPP
+#ifndef SHARE_UTILITIES_VMERROR_HPP
+#define SHARE_UTILITIES_VMERROR_HPP
 
 #include "utilities/globalDefinitions.hpp"
 
@@ -32,8 +32,6 @@ class frame;
 class VM_ReportJavaOutOfMemory;
 
 class VMError : public AllStatic {
-  friend class VM_ReportJavaOutOfMemory;
-  friend class Decoder;
   friend class VMStructs;
 
   static int         _id;               // Solaris/Linux signals: 0 - SIGRTMAX
@@ -65,7 +63,7 @@ class VMError : public AllStatic {
 
   // Thread id of the first error. We must be able to handle native thread,
   // so use thread id instead of Thread* to identify thread.
-  static volatile intptr_t first_error_tid;
+  static volatile intptr_t _first_error_tid;
 
   // Core dump status, false if we have been unable to write a core/minidump for some reason
   static bool coredump_status;
@@ -122,9 +120,6 @@ class VMError : public AllStatic {
                              void* context, const char* detail_fmt, ...) ATTRIBUTE_PRINTF(6, 7);
   static void report_and_die(const char* message, const char* detail_fmt, ...) ATTRIBUTE_PRINTF(2, 3);
 
-  static fdStream out;
-  static fdStream log; // error log used by VMError::report_and_die()
-
   // Timeout handling.
   // Hook functions for platform dependend functionality:
   static void reporting_started();
@@ -138,6 +133,7 @@ class VMError : public AllStatic {
   static jlong get_reporting_start_time();
   static void record_step_start_time();
   static jlong get_step_start_time();
+  static void clear_step_start_time();
 
 public:
 
@@ -179,9 +175,9 @@ public:
   static address get_resetted_sighandler(int sig);
 
   // check to see if fatal error reporting is in progress
-  static bool fatal_error_in_progress() { return first_error_tid != -1; }
+  static bool fatal_error_in_progress() { return _first_error_tid != -1; }
 
-  static intptr_t get_first_error_tid() { return first_error_tid; }
+  static intptr_t get_first_error_tid() { return _first_error_tid; }
 
   // Called by the WatcherThread to check if error reporting has timed-out.
   //  Returns true if error reporting has not completed within the ErrorLogTimeout limit.
@@ -198,4 +194,4 @@ public:
   // for test purposes, which is not NULL and contains bits in every word
   static void* get_segfault_address();
 };
-#endif // SHARE_VM_UTILITIES_VMERROR_HPP
+#endif // SHARE_UTILITIES_VMERROR_HPP

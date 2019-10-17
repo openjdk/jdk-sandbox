@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013, 2016 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef OS_AIX_VM_OS_AIX_HPP
-#define OS_AIX_VM_OS_AIX_HPP
+#ifndef OS_AIX_OS_AIX_HPP
+#define OS_AIX_OS_AIX_HPP
 
 // Information about the protection of the page at address '0' on this os.
 static bool zero_page_read_protected() { return false; }
@@ -37,8 +37,6 @@ class Aix {
   static bool libjsig_is_loaded;        // libjsig that interposes sigaction(),
                                         // __sigaction(), signal() is loaded
   static struct sigaction *(*get_signal_action)(int);
-  static struct sigaction *get_preinstalled_handler(int);
-  static void save_preinstalled_handler(int, struct sigaction&);
 
   static void check_signal_handler(int sig);
 
@@ -46,7 +44,6 @@ class Aix {
 
   static julong _physical_memory;
   static pthread_t _main_thread;
-  static Mutex* _createThread_lock;
   static int _page_size;
 
   // -1 = uninitialized, 0 = AIX, 1 = OS/400 (PASE)
@@ -92,8 +89,6 @@ class Aix {
  public:
   static void init_thread_fpu_state();
   static pthread_t main_thread(void)                                { return _main_thread; }
-  static void set_createThread_lock(Mutex* lk)                      { _createThread_lock = lk; }
-  static Mutex* createThread_lock(void)                             { return _createThread_lock; }
   static void hotspot_sigmask(Thread* thread);
 
   // Given an address, returns the size of the page backing that address
@@ -212,4 +207,4 @@ class Aix {
 
 };
 
-#endif // OS_AIX_VM_OS_AIX_HPP
+#endif // OS_AIX_OS_AIX_HPP

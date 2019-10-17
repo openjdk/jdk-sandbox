@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,35 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_STOPOPERATION_HPP
-#define SHARE_VM_LEAKPROFILER_STOPOPERATION_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP
+#define SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP
 
-#include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/leakprofiler/sampling/objectSampler.hpp"
-#include "jfr/recorder/service/jfrOptionSet.hpp"
-#include "logging/log.hpp"
-#include "runtime/vm_operations.hpp"
+#include "jfr/leakprofiler/utilities/vmOperation.hpp"
 
-// Safepoint operation for stopping leak profiler object sampler
-class StopOperation : public VM_Operation {
+// Safepoint operation for stopping and destroying the leak profiler object sampler
+class StopOperation : public OldObjectVMOperation {
  public:
-  StopOperation() {}
-
-  Mode evaluation_mode() const {
-    return _safepoint;
-  }
-
-  VMOp_Type type() const {
-    return VMOp_GC_HeapInspection;
-  }
-
   virtual void doit() {
-    assert(LeakProfiler::is_running(), "invariant");
-    ObjectSampler* object_sampler = LeakProfiler::object_sampler();
-    delete object_sampler;
-    LeakProfiler::set_object_sampler(NULL);
-    log_trace(jfr, system)( "Object sampling stopped");
+    ObjectSampler::destroy();
   }
 };
 
-#endif // SHARE_VM_LEAKPROFILER_STOPOPERATION_HPP
+#endif // SHARE_JFR_LEAKPROFILER_STOPOPERATION_HPP

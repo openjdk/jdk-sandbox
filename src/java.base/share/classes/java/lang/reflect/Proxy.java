@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,17 +39,17 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.module.Modules;
-import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.loader.ClassLoaderValue;
 import sun.reflect.misc.ReflectUtil;
+import sun.security.action.GetBooleanAction;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.SecurityConstants;
 
@@ -100,7 +100,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * <li>A proxy class extends {@code java.lang.reflect.Proxy}.
  *
  * <li>A proxy class implements exactly the interfaces specified at its
- * creation, in the same order. Invoking {@link Class#getInterfaces getInterfaces}
+ * creation, in the same order. Invoking {@link Class#getInterfaces() getInterfaces}
  * on its {@code Class} object will return an array containing the same
  * list of interfaces (in the order specified at its creation), invoking
  * {@link Class#getMethods getMethods} on its {@code Class} object will return
@@ -157,7 +157,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * like they do for instances of {@code java.lang.Object}.
  * </ul>
  *
- * <h3><a id="membership">Package and Module Membership of Proxy Class</a></h3>
+ * <h2><a id="membership">Package and Module Membership of Proxy Class</a></h2>
  *
  * The package and module to which a proxy class belongs are chosen such that
  * the accessibility of the proxy class is in line with the accessibility of
@@ -283,6 +283,7 @@ import static java.lang.module.ModuleDescriptor.Modifier.SYNTHETIC;
  * @spec JPMS
  */
 public class Proxy implements java.io.Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = -2222568056686623797L;
 
     /** parameter types of a proxy class constructor */
@@ -297,9 +298,17 @@ public class Proxy implements java.io.Serializable {
         new ClassLoaderValue<>();
 
     /**
+     * System property to revert to generation of proxy class files for version 1.5 (V49).
+     * Set to "true" to generate v49 class file format.
+     */
+    private static final boolean PROXY_GENERATOR_V49 =
+            GetBooleanAction.privilegedGetProperty("jdk.proxy.ProxyGenerator.v49");
+
+    /**
      * the invocation handler for this proxy instance.
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     protected InvocationHandler h;
 
     /**
@@ -468,7 +477,7 @@ public class Proxy implements java.io.Serializable {
      * in which the proxy class will be defined.
      */
     private static final class ProxyBuilder {
-        private static final Unsafe UNSAFE = Unsafe.getUnsafe();
+        private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
         // prefix for all proxy class names
         private static final String proxyClassNamePrefix = "$Proxy";
@@ -532,12 +541,12 @@ public class Proxy implements java.io.Serializable {
             /*
              * Generate the specified proxy class.
              */
-            byte[] proxyClassFile = ProxyGenerator.generateProxyClass(
-                    proxyName, interfaces.toArray(EMPTY_CLASS_ARRAY), accessFlags);
+            byte[] proxyClassFile = PROXY_GENERATOR_V49
+                    ? ProxyGenerator_v49.generateProxyClass(proxyName, interfaces, accessFlags)
+                    : ProxyGenerator.generateProxyClass(loader, proxyName, interfaces, accessFlags);
             try {
-                Class<?> pc = UNSAFE.defineClass(proxyName, proxyClassFile,
-                                                 0, proxyClassFile.length,
-                                                 loader, null);
+                Class<?> pc = JLA.defineClass(loader, proxyName, proxyClassFile,
+                                              null, "__dynamic_proxy__");
                 reverseProxyCache.sub(pc).putIfAbsent(loader, Boolean.TRUE);
                 return pc;
             } catch (ClassFormatError e) {
@@ -1118,6 +1127,5 @@ public class Proxy implements java.io.Serializable {
         return ih;
     }
 
-    private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
     private static final String PROXY_PACKAGE_PREFIX = ReflectUtil.PROXY_PACKAGE;
 }

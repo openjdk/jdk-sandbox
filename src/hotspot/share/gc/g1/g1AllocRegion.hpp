@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ALLOCREGION_HPP
-#define SHARE_VM_GC_G1_G1ALLOCREGION_HPP
+#ifndef SHARE_GC_G1_G1ALLOCREGION_HPP
+#define SHARE_GC_G1_G1ALLOCREGION_HPP
 
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/g1EvacStats.hpp"
-#include "gc/g1/g1InCSetState.hpp"
+#include "gc/g1/g1HeapRegionAttr.hpp"
 
 class G1CollectedHeap;
 
@@ -249,14 +249,14 @@ public:
 class G1GCAllocRegion : public G1AllocRegion {
 protected:
   G1EvacStats* _stats;
-  InCSetState::in_cset_state_t _purpose;
+  G1HeapRegionAttr::region_type_t _purpose;
 
   virtual HeapRegion* allocate_new_region(size_t word_size, bool force);
   virtual void retire_region(HeapRegion* alloc_region, size_t allocated_bytes);
 
   virtual size_t retire(bool fill_up);
 
-  G1GCAllocRegion(const char* name, bool bot_updates, G1EvacStats* stats, InCSetState::in_cset_state_t purpose)
+  G1GCAllocRegion(const char* name, bool bot_updates, G1EvacStats* stats, G1HeapRegionAttr::region_type_t purpose)
   : G1AllocRegion(name, bot_updates), _stats(stats), _purpose(purpose) {
     assert(stats != NULL, "Must pass non-NULL PLAB statistics");
   }
@@ -265,13 +265,13 @@ protected:
 class SurvivorGCAllocRegion : public G1GCAllocRegion {
 public:
   SurvivorGCAllocRegion(G1EvacStats* stats)
-  : G1GCAllocRegion("Survivor GC Alloc Region", false /* bot_updates */, stats, InCSetState::Young) { }
+  : G1GCAllocRegion("Survivor GC Alloc Region", false /* bot_updates */, stats, G1HeapRegionAttr::Young) { }
 };
 
 class OldGCAllocRegion : public G1GCAllocRegion {
 public:
   OldGCAllocRegion(G1EvacStats* stats)
-  : G1GCAllocRegion("Old GC Alloc Region", true /* bot_updates */, stats, InCSetState::Old) { }
+  : G1GCAllocRegion("Old GC Alloc Region", true /* bot_updates */, stats, G1HeapRegionAttr::Old) { }
 
   // This specialization of release() makes sure that the last card that has
   // been allocated into has been completely filled by a dummy object.  This
@@ -281,4 +281,4 @@ public:
   virtual HeapRegion* release();
 };
 
-#endif // SHARE_VM_GC_G1_G1ALLOCREGION_HPP
+#endif // SHARE_GC_G1_G1ALLOCREGION_HPP

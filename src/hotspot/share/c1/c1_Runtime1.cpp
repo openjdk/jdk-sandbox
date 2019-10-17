@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@
 #include "code/pcDesc.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/vtableStubs.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
@@ -48,15 +49,16 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -290,6 +292,12 @@ const char* Runtime1::name_for(StubID id) {
 const char* Runtime1::name_for_address(address entry) {
   for (int id = 0; id < number_of_ids; id++) {
     if (entry == entry_for((StubID)id)) return name_for((StubID)id);
+  }
+
+  BarrierSetC1* bsc1 = BarrierSet::barrier_set()->barrier_set_c1();
+  const char* name = bsc1->rtcall_name_for_address(entry);
+  if (name != NULL) {
+    return name;
   }
 
 #define FUNCTION_CASE(a, f) \
@@ -573,7 +581,7 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
       tempst.print("compiled method <%s>\n"
                    " at PC" INTPTR_FORMAT " for thread " INTPTR_FORMAT,
                    nm->method()->print_value_string(), p2i(pc), p2i(thread));
-      Exceptions::log_exception(exception, tempst);
+      Exceptions::log_exception(exception, tempst.as_string());
     }
     // for AbortVMOnException flag
     Exceptions::debug_check_abort(exception);
@@ -697,19 +705,11 @@ JRT_ENTRY_NO_ASYNC(void, Runtime1::monitorenter(JavaThread* thread, oopDesc* obj
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
   Handle h_obj(thread, obj);
-  if (UseBiasedLocking) {
-    // Retry fast entry if bias is revoked to avoid unnecessary inflation
-    ObjectSynchronizer::fast_enter(h_obj, lock->lock(), true, CHECK);
-  } else {
-    if (UseFastLocking) {
-      // When using fast locking, the compiled code has already tried the fast case
-      assert(obj == lock->obj(), "must match");
-      ObjectSynchronizer::slow_enter(h_obj, lock->lock(), THREAD);
-    } else {
-      lock->set_obj(obj);
-      ObjectSynchronizer::fast_enter(h_obj, lock->lock(), false, THREAD);
-    }
+  if (!UseFastLocking) {
+    lock->set_obj(obj);
   }
+  assert(obj == lock->obj(), "must match");
+  ObjectSynchronizer::enter(h_obj, lock->lock(), THREAD);
 JRT_END
 
 
@@ -722,12 +722,7 @@ JRT_LEAF(void, Runtime1::monitorexit(JavaThread* thread, BasicObjectLock* lock))
 
   oop obj = lock->obj();
   assert(oopDesc::is_oop(obj), "must be NULL or an object");
-  if (UseFastLocking) {
-    // When using fast locking, the compiled code has already tried the fast case
-    ObjectSynchronizer::slow_exit(obj, lock->lock(), THREAD);
-  } else {
-    ObjectSynchronizer::fast_exit(obj, lock->lock(), THREAD);
-  }
+  ObjectSynchronizer::exit(obj, lock->lock(), THREAD);
 JRT_END
 
 // Cf. OptoRuntime::deoptimize_caller_frame
@@ -847,8 +842,32 @@ static Klass* resolve_field_return_klass(const methodHandle& caller, int bci, TR
 // call into patch_code and complete the patching process by copying
 // the patch body back into the main part of the nmethod and resume
 // executing.
+
+// NB:
 //
+// Patchable instruction sequences inherently exhibit race conditions,
+// where thread A is patching an instruction at the same time thread B
+// is executing it.  The algorithms we use ensure that any observation
+// that B can make on any intermediate states during A's patching will
+// always end up with a correct outcome.  This is easiest if there are
+// few or no intermediate states.  (Some inline caches have two
+// related instructions that must be patched in tandem.  For those,
+// intermediate states seem to be unavoidable, but we will get the
+// right answer from all possible observation orders.)
 //
+// When patching the entry instruction at the head of a method, or a
+// linkable call instruction inside of a method, we try very hard to
+// use a patch sequence which executes as a single memory transaction.
+// This means, in practice, that when thread A patches an instruction,
+// it should patch a 32-bit or 64-bit word that somehow overlaps the
+// instruction or is contained in it.  We believe that memory hardware
+// will never break up such a word write, if it is naturally aligned
+// for the word being written.  We also know that some CPUs work very
+// hard to create atomic updates even of naturally unaligned words,
+// but we don't want to bet the farm on this always working.
+//
+// Therefore, if there is any chance of a race condition, we try to
+// patch only naturally aligned words, as single, full-word writes.
 
 JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_id ))
   NOT_PRODUCT(_patch_code_slowcase_cnt++;)
@@ -907,7 +926,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     // We need to only cover T_LONG and T_DOUBLE fields, as we can
     // break access atomicity only for them.
 
-    // Strictly speaking, the deoptimizaation on 64-bit platforms
+    // Strictly speaking, the deoptimization on 64-bit platforms
     // is unnecessary, and T_LONG stores on 32-bit platforms need
     // to be handled by special patching code when AlwaysAtomicAccesses
     // becomes product feature. At this point, we are still going
@@ -1021,7 +1040,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   // Now copy code back
 
   {
-    MutexLockerEx ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml_patch (Patching_lock, Mutex::_no_safepoint_check_flag);
     //
     // Deoptimization may have happened while we waited for the lock.
     // In that case we don't bother to do any patching we just return
@@ -1239,8 +1258,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
 
   // If we are patching in a non-perm oop, make sure the nmethod
   // is on the right list.
-  if (ScavengeRootsInCode) {
-    MutexLockerEx ml_code (CodeCache_lock, Mutex::_no_safepoint_check_flag);
+  {
+    MutexLocker ml_code (CodeCache_lock, Mutex::_no_safepoint_check_flag);
     nmethod* nm = CodeCache::find_nmethod(caller_frame.pc());
     guarantee(nm != NULL, "only nmethods can contain non-perm oops");
 

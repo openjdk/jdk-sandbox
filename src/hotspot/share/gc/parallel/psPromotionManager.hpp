@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
-#define SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#ifndef SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#define SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
 
 #include "gc/parallel/psPromotionLAB.hpp"
 #include "gc/shared/copyFailedInfo.hpp"
@@ -51,7 +51,10 @@ class ParCompactionManager;
 
 class PSPromotionManager {
   friend class PSScavenge;
+  friend class ScavengeRootsTask;
   friend class PSRefProcTaskExecutor;
+  friend class PSRefProcTask;
+
  private:
   static PaddedEnd<PSPromotionManager>* _manager_array;
   static OopStarTaskQueueSet*           _stack_array_depth;
@@ -175,7 +178,7 @@ class PSPromotionManager {
 
   // Promotion methods
   template<bool promote_immediately> oop copy_to_survivor_space(oop o);
-  oop oop_promotion_failed(oop obj, markOop obj_mark);
+  oop oop_promotion_failed(oop obj, markWord obj_mark);
 
   void reset();
   void register_preserved_marks(PreservedMarks* preserved_marks);
@@ -212,4 +215,4 @@ class PSPromotionManager {
   void push_contents(oop obj);
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_HPP
+#endif // SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP

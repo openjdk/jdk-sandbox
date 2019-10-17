@@ -69,7 +69,7 @@ import java.beans.*;
  * are desired, and use simple <code>ActionListener</code>s elsewhere.
  * <br>
  *
- * <h3><a id="buttonActions"></a>Swing Components Supporting <code>Action</code></h3>
+ * <h2><a id="buttonActions"></a>Swing Components Supporting <code>Action</code></h2>
  * <p>
  * Many of Swing's components have an <code>Action</code> property.  When
  * an <code>Action</code> is set on a component, the following things
@@ -370,7 +370,7 @@ public interface Action extends ActionListener {
      * Determines whether the action should be performed with the specified
      * sender object. The {@code sender} can be {@code null}.
      * The method must return false if the action is disabled.
-     * <p>
+     *
      * @param sender the object to check, can be null
      * @return {@code true} if the action should be performed with the sender
      *         object, must be false if the action is disabled.

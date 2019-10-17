@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
-#define SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#ifndef SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#define SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/objectStartArray.hpp"
@@ -40,8 +40,6 @@ class PSOldGen;
 class ParCompactionManager;
 class ParallelTaskTerminator;
 class PSParallelCompact;
-class GCTaskManager;
-class GCTaskQueue;
 class PreGCValues;
 class MoveAndUpdateClosure;
 class RefProcTaskExecutor;
@@ -914,6 +912,8 @@ inline void ParMarkBitMapClosure::decrement_words_remaining(size_t words) {
 // region that can be put on the ready list.  The regions are atomically added
 // and removed from the ready list.
 
+class TaskQueue;
+
 class PSParallelCompact : AllStatic {
  public:
   // Convenient access to type names.
@@ -926,6 +926,24 @@ class PSParallelCompact : AllStatic {
     from_space_id, to_space_id, last_space_id
   } SpaceId;
 
+  struct UpdateDensePrefixTask : public CHeapObj<mtGC> {
+    SpaceId _space_id;
+    size_t _region_index_start;
+    size_t _region_index_end;
+
+    UpdateDensePrefixTask() :
+        _space_id(SpaceId(0)),
+        _region_index_start(0),
+        _region_index_end(0) {}
+
+    UpdateDensePrefixTask(SpaceId space_id,
+                          size_t region_index_start,
+                          size_t region_index_end) :
+        _space_id(space_id),
+        _region_index_start(region_index_start),
+        _region_index_end(region_index_end) {}
+  };
+
  public:
   // Inline closure decls
   //
@@ -934,23 +952,6 @@ class PSParallelCompact : AllStatic {
     virtual bool do_object_b(oop p);
   };
 
-  class AdjustPointerClosure: public BasicOopIterateClosure {
-   public:
-    AdjustPointerClosure(ParCompactionManager* cm) {
-      assert(cm != NULL, "associate ParCompactionManage should not be NULL");
-      _cm = cm;
-    }
-    template <typename T> void do_oop_work(T* p);
-    virtual void do_oop(oop* p);
-    virtual void do_oop(narrowOop* p);
-
-    // This closure provides its own oop verification code.
-    debug_only(virtual bool should_verify_oops() { return false; })
-   private:
-    ParCompactionManager* _cm;
-  };
-
-  friend class AdjustPointerClosure;
   friend class RefProcTaskProxy;
   friend class PSParallelCompactTest;
 
@@ -1068,18 +1069,11 @@ class PSParallelCompact : AllStatic {
   static void compact();
 
   // Add available regions to the stack and draining tasks to the task queue.
-  static void prepare_region_draining_tasks(GCTaskQueue* q,
-                                            uint parallel_gc_threads);
+  static void prepare_region_draining_tasks(uint parallel_gc_threads);
 
   // Add dense prefix update tasks to the task queue.
-  static void enqueue_dense_prefix_tasks(GCTaskQueue* q,
+  static void enqueue_dense_prefix_tasks(TaskQueue& task_queue,
                                          uint parallel_gc_threads);
-
-  // Add region stealing tasks to the task queue.
-  static void enqueue_region_stealing_tasks(
-                                       GCTaskQueue* q,
-                                       ParallelTaskTerminator* terminator_ptr,
-                                       uint parallel_gc_threads);
 
   // If objects are left in eden after a collection, try to move the boundary
   // and absorb them into the old gen.  Returns true if eden was emptied.
@@ -1118,9 +1112,6 @@ class PSParallelCompact : AllStatic {
   static elapsedTimer* accumulated_time() { return &_accumulated_time; }
   static unsigned int total_invocations() { return _total_invocations; }
   static CollectorCounters* counters()    { return _counters; }
-
-  // Used to add tasks
-  static GCTaskManager* const gc_task_manager();
 
   // Marking support
   static inline bool mark_obj(oop obj);
@@ -1318,4 +1309,4 @@ class FillClosure: public ParMarkBitMapClosure {
   ObjectStartArray* const _start_array;
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSPARALLELCOMPACT_HPP
+#endif // SHARE_GC_PARALLEL_PSPARALLELCOMPACT_HPP

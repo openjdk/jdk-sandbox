@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,14 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1CONCURRENTREFINETHREAD_HPP
-#define SHARE_VM_GC_G1_G1CONCURRENTREFINETHREAD_HPP
+#ifndef SHARE_GC_G1_G1CONCURRENTREFINETHREAD_HPP
+#define SHARE_GC_G1_G1CONCURRENTREFINETHREAD_HPP
 
-#include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/shared/concurrentGCThread.hpp"
+#include "utilities/ticks.hpp"
 
 // Forward Decl.
-class CardTableEntryClosure;
 class G1ConcurrentRefine;
 
 // One or more G1 Concurrent Refinement Threads may be active if concurrent
@@ -40,6 +39,10 @@ class G1ConcurrentRefineThread: public ConcurrentGCThread {
 
   double _vtime_start;  // Initial virtual time.
   double _vtime_accum;  // Accumulated virtual time.
+
+  Tickspan _total_refinement_time;
+  size_t _total_refined_cards;
+
   uint _worker_id;
 
   bool _active;
@@ -63,8 +66,11 @@ public:
   // Activate this thread.
   void activate();
 
+  Tickspan total_refinement_time() const { return _total_refinement_time; }
+  size_t total_refined_cards() const { return _total_refined_cards; }
+
   // Total virtual time so far.
   double vtime_accum() { return _vtime_accum; }
 };
 
-#endif // SHARE_VM_GC_G1_G1CONCURRENTREFINETHREAD_HPP
+#endif // SHARE_GC_G1_G1CONCURRENTREFINETHREAD_HPP

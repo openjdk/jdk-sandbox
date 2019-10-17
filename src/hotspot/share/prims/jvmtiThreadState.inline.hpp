@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTITHREADSTATE_INLINE_HPP
-#define SHARE_VM_PRIMS_JVMTITHREADSTATE_INLINE_HPP
+#ifndef SHARE_PRIMS_JVMTITHREADSTATE_INLINE_HPP
+#define SHARE_PRIMS_JVMTITHREADSTATE_INLINE_HPP
 
 #include "prims/jvmtiEnvThreadState.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -90,9 +90,11 @@ inline JvmtiThreadState* JvmtiThreadState::state_for(JavaThread *thread) {
     // check again with the lock held
     state = state_for_while_locked(thread);
   } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
+    // Check possible safepoint even if state is non-null.
+    // (Note: the thread argument isn't the current thread)
+    DEBUG_ONLY(JavaThread::current()->check_possible_safepoint());
   }
   return state;
 }
 
-#endif // SHARE_VM_PRIMS_JVMTITHREADSTATE_INLINE_HPP
+#endif // SHARE_PRIMS_JVMTITHREADSTATE_INLINE_HPP

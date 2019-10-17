@@ -105,7 +105,6 @@ grant codeBase "jrt:/jdk.accessibility" {
 
 grant codeBase "jrt:/jdk.charsets" {
     permission java.util.PropertyPermission "os.name", "read";
-    permission java.util.PropertyPermission "sun.nio.cs.map", "read";
     permission java.lang.RuntimePermission "charsetProvider";
     permission java.lang.RuntimePermission
                    "accessClassInPackage.jdk.internal.misc";
@@ -127,6 +126,7 @@ grant codeBase "jrt:/jdk.crypto.cryptoki" {
     permission java.lang.RuntimePermission "accessClassInPackage.sun.nio.ch";
     permission java.lang.RuntimePermission "loadLibrary.j2pkcs11";
     permission java.util.PropertyPermission "sun.security.pkcs11.allowSingleThreadedModules", "read";
+    permission java.util.PropertyPermission "sun.security.pkcs11.disableKeyExtraction", "read";
     permission java.util.PropertyPermission "os.name", "read";
     permission java.util.PropertyPermission "os.arch", "read";
     permission java.util.PropertyPermission "jdk.crypto.KeyAgreement.legacyKDF", "read";
@@ -138,10 +138,6 @@ grant codeBase "jrt:/jdk.crypto.cryptoki" {
     permission java.security.SecurityPermission "authProvider.*";
     // Needed for reading PKCS11 config file and NSS library check
     permission java.io.FilePermission "<<ALL FILES>>", "read";
-};
-
-grant codeBase "jrt:/jdk.desktop" {
-    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.awt";
 };
 
 grant codeBase "jrt:/jdk.dynalink" {
@@ -161,10 +157,15 @@ grant codeBase "jrt:/jdk.internal.vm.compiler" {
 };
 
 grant codeBase "jrt:/jdk.internal.vm.compiler.management" {
-    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.hotspot";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.internal.vm.compiler.collections";
     permission java.lang.RuntimePermission "accessClassInPackage.jdk.vm.ci.runtime";
-    permission java.lang.RuntimePermission "accessClassInPackage.sun.management.spi";
-    permission java.lang.RuntimePermission "sun.management.spi.PlatformMBeanProvider.subclass";
+    permission java.lang.RuntimePermission "accessClassInPackage.jdk.vm.ci.services";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.core.common";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.debug";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.hotspot";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.options";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.phases.common.jmx";
+    permission java.lang.RuntimePermission "accessClassInPackage.org.graalvm.compiler.serviceprovider";
 };
 
 grant codeBase "jrt:/jdk.jsobject" {
@@ -199,7 +200,10 @@ grant codeBase "jrt:/jdk.security.jgss" {
 grant codeBase "jrt:/jdk.zipfs" {
     permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
     permission java.lang.RuntimePermission "fileSystemProvider";
+    permission java.lang.RuntimePermission "accessUserInformation";
     permission java.util.PropertyPermission "os.name", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.util.PropertyPermission "user.name", "read";
 };
 
 // permissions needed by applications using java.desktop module

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,11 +77,29 @@ static void setConnectionReset(SOCKET s, BOOL enable) {
              NULL, 0, &bytesReturned, NULL, NULL);
 }
 
+jint handleSocketError(JNIEnv *env, int errorValue)
+{
+    NET_ThrowNew(env, errorValue, NULL);
+    return IOS_THROWN;
+}
+
+static jclass isa_class;        /* java.net.InetSocketAddress */
+static jmethodID isa_ctorID;    /* InetSocketAddress(InetAddress, int) */
 
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_Net_initIDs(JNIEnv *env, jclass clazz)
 {
-    initInetAddressIDs(env);
+     jclass cls = (*env)->FindClass(env, "java/net/InetSocketAddress");
+     CHECK_NULL(cls);
+     isa_class = (*env)->NewGlobalRef(env, cls);
+     if (isa_class == NULL) {
+         JNU_ThrowOutOfMemoryError(env, NULL);
+         return;
+     }
+     isa_ctorID = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/net/InetAddress;I)V");
+     CHECK_NULL(isa_ctorID);
+
+     initInetAddressIDs(env);
 }
 
 JNIEXPORT jboolean JNICALL
@@ -187,7 +205,6 @@ Java_sun_nio_ch_Net_listen(JNIEnv *env, jclass cl, jobject fdo, jint backlog)
     }
 }
 
-
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, jobject fdo,
                              jobject iao, jint port)
@@ -217,6 +234,42 @@ Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, job
             setConnectionReset(s, TRUE);
         }
     }
+    return 1;
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_Net_accept(JNIEnv *env, jclass clazz, jobject fdo, jobject newfdo,
+                           jobjectArray isaa)
+{
+    jint fd = fdval(env,fdo);
+    jint newfd;
+    SOCKETADDRESS sa;
+    int addrlen = sizeof(sa);
+    jobject remote_ia;
+    jint remote_port = 0;
+    jobject isa;
+
+    memset((char *)&sa, 0, sizeof(sa));
+    newfd = (jint) accept(fd, &sa.sa, &addrlen);
+    if (newfd == INVALID_SOCKET) {
+        int theErr = (jint)WSAGetLastError();
+        if (theErr == WSAEWOULDBLOCK) {
+            return IOS_UNAVAILABLE;
+        }
+        JNU_ThrowIOExceptionWithLastError(env, "Accept failed");
+        return IOS_THROWN;
+    }
+
+    SetHandleInformation((HANDLE)(UINT_PTR)newfd, HANDLE_FLAG_INHERIT, 0);
+    setfdval(env, newfdo, newfd);
+
+    remote_ia = NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
+    CHECK_NULL_RETURN(remote_ia, IOS_THROWN);
+
+    isa = (*env)->NewObject(env, isa_class, isa_ctorID, remote_ia, remote_port);
+    CHECK_NULL_RETURN(isa, IOS_THROWN);
+    (*env)->SetObjectArrayElement(env, isaa, 0, isa);
+
     return 1;
 }
 
@@ -551,17 +604,24 @@ Java_sun_nio_ch_Net_shutdown(JNIEnv *env, jclass cl, jobject fdo, jint jhow) {
 }
 
 JNIEXPORT jint JNICALL
+Java_sun_nio_ch_Net_available(JNIEnv *env, jclass cl, jobject fdo)
+{
+    int count = 0;
+    if (NET_SocketAvailable(fdval(env, fdo), &count) != 0) {
+        handleSocketError(env, WSAGetLastError());
+        return IOS_THROWN;
+    }
+    return (jint) count;
+}
+
+JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_poll(JNIEnv* env, jclass this, jobject fdo, jint events, jlong timeout)
 {
     int rv;
     int revents = 0;
     struct timeval t;
-    int lastError = 0;
     fd_set rd, wr, ex;
     jint fd = fdval(env, fdo);
-
-    t.tv_sec = (long)(timeout / 1000);
-    t.tv_usec = (timeout % 1000) * 1000;
 
     FD_ZERO(&rd);
     FD_ZERO(&wr);
@@ -575,11 +635,16 @@ Java_sun_nio_ch_Net_poll(JNIEnv* env, jclass this, jobject fdo, jint events, jlo
     }
     FD_SET(fd, &ex);
 
-    rv = select(fd+1, &rd, &wr, &ex, &t);
+    if (timeout >= 0) {
+        t.tv_sec = (long)(timeout / 1000);
+        t.tv_usec = (timeout % 1000) * 1000;
+    }
+
+    rv = select(fd+1, &rd, &wr, &ex, (timeout >= 0) ? &t : NULL);
 
     /* save last winsock error */
     if (rv == SOCKET_ERROR) {
-        handleSocketError(env, lastError);
+        handleSocketError(env, WSAGetLastError());
         return IOS_THROWN;
     } else if (rv >= 0) {
         rv = 0;
@@ -594,6 +659,55 @@ Java_sun_nio_ch_Net_poll(JNIEnv* env, jclass this, jobject fdo, jint events, jlo
         }
     }
     return rv;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_sun_nio_ch_Net_pollConnect(JNIEnv* env, jclass this, jobject fdo, jlong timeout)
+{
+    int optError = 0;
+    int result;
+    int n = sizeof(int);
+    jint fd = fdval(env, fdo);
+    fd_set wr, ex;
+    struct timeval t;
+
+    FD_ZERO(&wr);
+    FD_ZERO(&ex);
+    FD_SET((u_int)fd, &wr);
+    FD_SET((u_int)fd, &ex);
+
+    if (timeout >= 0) {
+        t.tv_sec = (long)(timeout / 1000);
+        t.tv_usec = (timeout % 1000) * 1000;
+    }
+
+    result = select(fd+1, 0, &wr, &ex, (timeout >= 0) ? &t : NULL);
+
+    if (result == SOCKET_ERROR) {
+        handleSocketError(env, WSAGetLastError());
+        return JNI_FALSE;
+    } else if (result == 0) {
+        return JNI_FALSE;
+    } else {
+        // connection established if writable and no error to check
+        if (FD_ISSET(fd, &wr) && !FD_ISSET(fd, &ex)) {
+            return JNI_TRUE;
+        }
+        result = getsockopt((SOCKET)fd,
+                            SOL_SOCKET,
+                            SO_ERROR,
+                            (char *)&optError,
+                            &n);
+        if (result == SOCKET_ERROR) {
+            int lastError = WSAGetLastError();
+            if (lastError != WSAEINPROGRESS) {
+                NET_ThrowNew(env, lastError, "getsockopt");
+            }
+        } else if (optError != NO_ERROR) {
+            handleSocketError(env, optError);
+        }
+        return JNI_FALSE;
+    }
 }
 
 JNIEXPORT jshort JNICALL
@@ -630,4 +744,20 @@ JNIEXPORT jshort JNICALL
 Java_sun_nio_ch_Net_pollconnValue(JNIEnv *env, jclass this)
 {
     return (jshort)POLLCONN;
+}
+
+JNIEXPORT jint JNICALL
+Java_sun_nio_ch_Net_sendOOB(JNIEnv* env, jclass this, jobject fdo, jbyte b)
+{
+    int n = send(fdval(env, fdo), (const char*)&b, 1, MSG_OOB);
+    if (n == SOCKET_ERROR) {
+        if (WSAGetLastError() == WSAEWOULDBLOCK) {
+            return IOS_UNAVAILABLE;
+        } else {
+            JNU_ThrowIOExceptionWithLastError(env, "send failed");
+            return IOS_THROWN;
+        }
+    } else {
+        return n;
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,11 +27,9 @@ package org.graalvm.compiler.nodes.calc;
 import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_1;
 import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_1;
 
-import java.io.Serializable;
-import java.util.function.Function;
-
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable;
 import org.graalvm.compiler.core.common.type.ArithmeticOpTable.BinaryOp;
+import org.graalvm.compiler.core.common.type.IntegerStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.graph.Graph;
@@ -57,20 +55,20 @@ public abstract class BinaryArithmeticNode<OP> extends BinaryNode implements Ari
 
     @SuppressWarnings("rawtypes") public static final NodeClass<BinaryArithmeticNode> TYPE = NodeClass.create(BinaryArithmeticNode.class);
 
-    protected interface SerializableBinaryFunction<T> extends Function<ArithmeticOpTable, BinaryOp<T>>, Serializable {
+    protected BinaryArithmeticNode(NodeClass<? extends BinaryArithmeticNode<OP>> c, BinaryOp<OP> opForStampComputation, ValueNode x, ValueNode y) {
+        super(c, opForStampComputation.foldStamp(x.stamp(NodeView.DEFAULT), y.stamp(NodeView.DEFAULT)), x, y);
     }
 
-    protected final SerializableBinaryFunction<OP> getOp;
-
-    protected BinaryArithmeticNode(NodeClass<? extends BinaryArithmeticNode<OP>> c, SerializableBinaryFunction<OP> getOp, ValueNode x, ValueNode y) {
-        super(c, getOp.apply(ArithmeticOpTable.forStamp(x.stamp(NodeView.DEFAULT))).foldStamp(x.stamp(NodeView.DEFAULT), y.stamp(NodeView.DEFAULT)), x, y);
-        this.getOp = getOp;
+    public static ArithmeticOpTable getArithmeticOpTable(ValueNode forValue) {
+        return ArithmeticOpTable.forStamp(forValue.stamp(NodeView.DEFAULT));
     }
+
+    protected abstract BinaryOp<OP> getOp(ArithmeticOpTable table);
 
     protected final BinaryOp<OP> getOp(ValueNode forX, ValueNode forY) {
-        ArithmeticOpTable table = ArithmeticOpTable.forStamp(forX.stamp(NodeView.DEFAULT));
-        assert table.equals(ArithmeticOpTable.forStamp(forY.stamp(NodeView.DEFAULT)));
-        return getOp.apply(table);
+        ArithmeticOpTable table = getArithmeticOpTable(forX);
+        assert table.equals(getArithmeticOpTable(forY));
+        return getOp(table);
     }
 
     @Override
@@ -88,6 +86,26 @@ public abstract class BinaryArithmeticNode<OP> extends BinaryNode implements Ari
         ValueNode result = tryConstantFold(getOp(forX, forY), forX, forY, stamp(view), view);
         if (result != null) {
             return result;
+        }
+        if (forX instanceof ConditionalNode && forY.isConstant() && forX.hasExactlyOneUsage()) {
+            ConditionalNode conditionalNode = (ConditionalNode) forX;
+            BinaryOp<OP> arithmeticOp = getArithmeticOp();
+            ConstantNode trueConstant = tryConstantFold(arithmeticOp, conditionalNode.trueValue(), forY, this.stamp(view), view);
+            if (trueConstant != null) {
+                ConstantNode falseConstant = tryConstantFold(arithmeticOp, conditionalNode.falseValue(), forY, this.stamp(view), view);
+                if (falseConstant != null) {
+                    // @formatter:off
+                    /* The arithmetic is folded into a constant on both sides of the conditional.
+                     * Example:
+                     *            (cond ? -5 : 5) + 100
+                     * canonicalizes to:
+                     *            (cond ? 95 : 105)
+                     */
+                    // @formatter:on
+                    return ConditionalNode.create(conditionalNode.condition, trueConstant,
+                                    falseConstant, view);
+                }
+            }
         }
         return this;
     }
@@ -117,6 +135,10 @@ public abstract class BinaryArithmeticNode<OP> extends BinaryNode implements Ari
         return AddNode.create(v1, v2, view);
     }
 
+    public static ValueNode add(ValueNode v1, ValueNode v2) {
+        return add(v1, v2, NodeView.DEFAULT);
+    }
+
     public static ValueNode mul(StructuredGraph graph, ValueNode v1, ValueNode v2, NodeView view) {
         return graph.addOrUniqueWithInputs(MulNode.create(v1, v2, view));
     }
@@ -125,12 +147,49 @@ public abstract class BinaryArithmeticNode<OP> extends BinaryNode implements Ari
         return MulNode.create(v1, v2, view);
     }
 
+    public static ValueNode mul(ValueNode v1, ValueNode v2) {
+        return mul(v1, v2, NodeView.DEFAULT);
+    }
+
     public static ValueNode sub(StructuredGraph graph, ValueNode v1, ValueNode v2, NodeView view) {
         return graph.addOrUniqueWithInputs(SubNode.create(v1, v2, view));
     }
 
     public static ValueNode sub(ValueNode v1, ValueNode v2, NodeView view) {
         return SubNode.create(v1, v2, view);
+    }
+
+    public static ValueNode sub(ValueNode v1, ValueNode v2) {
+        return sub(v1, v2, NodeView.DEFAULT);
+    }
+
+    public static ValueNode branchlessMin(ValueNode v1, ValueNode v2, NodeView view) {
+        if (v1.isDefaultConstant() && !v2.isDefaultConstant()) {
+            return branchlessMin(v2, v1, view);
+        }
+        int bits = ((IntegerStamp) v1.stamp(view)).getBits();
+        assert ((IntegerStamp) v2.stamp(view)).getBits() == bits;
+        ValueNode t1 = sub(v1, v2, view);
+        ValueNode t2 = RightShiftNode.create(t1, bits - 1, view);
+        ValueNode t3 = AndNode.create(t1, t2, view);
+        return add(v2, t3, view);
+    }
+
+    public static ValueNode branchlessMax(ValueNode v1, ValueNode v2, NodeView view) {
+        if (v1.isDefaultConstant() && !v2.isDefaultConstant()) {
+            return branchlessMax(v2, v1, view);
+        }
+        int bits = ((IntegerStamp) v1.stamp(view)).getBits();
+        assert ((IntegerStamp) v2.stamp(view)).getBits() == bits;
+        if (v2.isDefaultConstant()) {
+            // prefer a & ~(a>>31) to a - (a & (a>>31))
+            return AndNode.create(v1, NotNode.create(RightShiftNode.create(v1, bits - 1, view)), view);
+        } else {
+            ValueNode t1 = sub(v1, v2, view);
+            ValueNode t2 = RightShiftNode.create(t1, bits - 1, view);
+            ValueNode t3 = AndNode.create(t1, t2, view);
+            return sub(v1, t3, view);
+        }
     }
 
     private enum ReassociateMatch {

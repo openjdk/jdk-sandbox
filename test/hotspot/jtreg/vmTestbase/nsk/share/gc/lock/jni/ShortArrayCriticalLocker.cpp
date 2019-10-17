@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
 #include <jni.h>
 #include <stdio.h>
 #include <time.h>
+#include "ExceptionCheckingJniEnv.hpp"
 #include "jni_tools.h"
 
 extern "C" {
@@ -35,7 +36,9 @@ static jfieldID objFieldId = NULL;
  * Signature: ([Z)Z
  */
 JNIEXPORT jshort JNICALL Java_nsk_share_gc_lock_jni_ShortArrayCriticalLocker_criticalNative
-(JNIEnv *env, jobject o, jlong enterTime, jlong sleepTime) {
+(JNIEnv *jni_env, jobject o, jlong enterTime, jlong sleepTime) {
+        ExceptionCheckingJniEnvPtr ec_jni(jni_env);
+
         jsize size, i;
         jshortArray arr;
         jshort *pa;
@@ -43,29 +46,18 @@ JNIEXPORT jshort JNICALL Java_nsk_share_gc_lock_jni_ShortArrayCriticalLocker_cri
         time_t start_time, current_time;
 
         if (objFieldId == NULL) {
-                jclass klass = env->GetObjectClass(o);
-                if (klass == NULL) {
-                        printf("Error: GetObjectClass returned NULL\n");
-                        return 0;
-                }
-                objFieldId = env->GetFieldID(klass, "obj", "Ljava/lang/Object;");
-                if (objFieldId == NULL) {
-                        printf("Error: GetFieldID returned NULL\n");
-                        return 0;
-                }
+                jclass klass = ec_jni->GetObjectClass(o, TRACE_JNI_CALL);
+                objFieldId = ec_jni->GetFieldID(klass, "obj", "Ljava/lang/Object;", TRACE_JNI_CALL);
         }
-        arr = (jshortArray) env->GetObjectField(o, objFieldId);
-        if (arr == NULL) {
-                printf("Error: GetObjectField returned NULL\n");
-                return JNI_FALSE;
-        }
-        env->SetObjectField(o, objFieldId, NULL);
-        size = env->GetArrayLength(arr);
+        arr = (jshortArray) ec_jni->GetObjectField(o, objFieldId, TRACE_JNI_CALL);
+        ec_jni->SetObjectField(o, objFieldId, NULL, TRACE_JNI_CALL);
+
+        size = ec_jni->GetArrayLength(arr, TRACE_JNI_CALL);
         start_time = time(NULL);
         enterTime /= 1000;
         current_time = 0;
         while (current_time - start_time < enterTime) {
-                pa = (jshort*) env->GetPrimitiveArrayCritical(arr, NULL);
+                pa = (jshort*) ec_jni->GetPrimitiveArrayCritical(arr, NULL, TRACE_JNI_CALL);
                 if (pa != NULL) {
                         for (i = 0; i < size; ++i)
                                 hash ^= pa[i];
@@ -73,11 +65,11 @@ JNIEXPORT jshort JNICALL Java_nsk_share_gc_lock_jni_ShortArrayCriticalLocker_cri
                         hash = 0;
                 }
                 mssleep((long) sleepTime);
-                env->ReleasePrimitiveArrayCritical(arr, pa, 0);
+                ec_jni->ReleasePrimitiveArrayCritical(arr, pa, 0, TRACE_JNI_CALL);
                 mssleep((long) sleepTime);
                 current_time = time(NULL);
         }
-        env->SetObjectField(o, objFieldId, arr);
+        ec_jni->SetObjectField(o, objFieldId, arr, TRACE_JNI_CALL);
         return hash;
 }
 

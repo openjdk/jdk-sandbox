@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +127,7 @@ import sun.security.util.SecurityConstants;
  * duration of the class loading process (see {@link #loadClass
  * loadClass} methods).
  *
- * <h3> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h3>
+ * <h2> <a id="builtinLoaders">Run-time Built-in Class Loaders</a></h2>
  *
  * The Java run-time has the following built-in class loaders:
  *
@@ -222,7 +223,7 @@ import sun.security.util.SecurityConstants;
  * or a fully qualified name as defined by
  * <cite>The Java&trade; Language Specification</cite>.
  *
- * @jls 6.7  Fully Qualified Names
+ * @jls 6.7 Fully Qualified Names
  * @jls 13.1 The Form of a Binary
  * @see      #resolveClass(Class)
  * @since 1.0
@@ -445,10 +446,10 @@ public abstract class ClassLoader {
      * @param  parent
      *         The parent class loader
      *
-     * @throws  SecurityException
-     *          If a security manager exists and its
-     *          {@code checkCreateClassLoader} method doesn't allow creation
-     *          of a new class loader.
+     * @throws SecurityException
+     *         If a security manager exists and its
+     *         {@code checkCreateClassLoader} method doesn't allow creation
+     *         of a new class loader.
      *
      * @since  1.2
      */
@@ -509,8 +510,8 @@ public abstract class ClassLoader {
      * to invoking {@link #loadClass(String, boolean) loadClass(name,
      * false)}.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -551,11 +552,11 @@ public abstract class ClassLoader {
      * {@link #getClassLoadingLock getClassLoadingLock} method
      * during the entire class loading process.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
-     * @param  resolve
-     *         If {@code true} then resolve the class
+     * @param   resolve
+     *          If {@code true} then resolve the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -704,8 +705,8 @@ public abstract class ClassLoader {
      *
      * @implSpec The default implementation throws {@code ClassNotFoundException}.
      *
-     * @param  name
-     *         The <a href="#binary-name">binary name</a> of the class
+     * @param   name
+     *          The <a href="#binary-name">binary name</a> of the class
      *
      * @return  The resulting {@code Class} object
      *
@@ -1119,7 +1120,7 @@ public abstract class ClassLoader {
 
     // true if the name is null or has the potential to be a valid binary name
     private boolean checkName(String name) {
-        if ((name == null) || (name.length() == 0))
+        if ((name == null) || (name.isEmpty()))
             return true;
         if ((name.indexOf('/') != -1) || (name.charAt(0) == '['))
             return false;
@@ -1864,12 +1865,12 @@ public abstract class ClassLoader {
      * <p> The default system class loader is an implementation-dependent
      * instance of this class.
      *
-     * <p> If the system property "{@code java.system.class.loader}" is defined
-     * when this method is first invoked then the value of that property is
-     * taken to be the name of a class that will be returned as the system
-     * class loader.  The class is loaded using the default system class loader
-     * and must define a public constructor that takes a single parameter of
-     * type {@code ClassLoader} which is used as the delegation parent.  An
+     * <p> If the system property "{@systemProperty java.system.class.loader}"
+     * is defined when this method is first invoked then the value of that
+     * property is taken to be the name of a class that will be returned as the
+     * system class loader. The class is loaded using the default system class
+     * loader and must define a public constructor that takes a single parameter
+     * of type {@code ClassLoader} which is used as the delegation parent. An
      * instance is then created using this constructor with the default system
      * class loader as the parameter.  The resulting class loader is defined
      * to be the system class loader. During construction, the class loader
@@ -1892,6 +1893,16 @@ public abstract class ClassLoader {
      * will search for classes and resources using the application module path;
      * otherwise, if unnamed, it will set the class path to the current
      * working directory.
+     *
+     * <p> JAR files on the class path may contain a {@code Class-Path} manifest
+     * attribute to specify dependent JAR files to be included in the class path.
+     * {@code Class-Path} entries must meet certain conditions for validity (see
+     * the <a href="{@docRoot}/../specs/jar/jar.html#class-path-attribute">
+     * JAR File Specification</a> for details).  Invalid {@code Class-Path}
+     * entries are ignored.  For debugging purposes, ignored entries can be
+     * printed to the console if the
+     * {@systemProperty jdk.net.URLClassPath.showIgnoredClassPathEntries} system
+     * property is set to {@code true}.
      *
      * @return  The system {@code ClassLoader}
      *
@@ -1992,6 +2003,17 @@ public abstract class ClassLoader {
             scl = builtinLoader;
         }
         return scl;
+    }
+
+    /*
+     * Initialize default paths for native libraries search.
+     * Must be done early as JDK may load libraries during bootstrap.
+     *
+     * @see java.lang.System#initPhase1
+     */
+    static void initLibraryPaths() {
+        usr_paths = initializePath("java.library.path");
+        sys_paths = initializePath("sun.boot.library.path");
     }
 
     // Returns true if the specified class loader can be found in this class
@@ -2184,7 +2206,7 @@ public abstract class ClassLoader {
      * @revised 9
      * @spec JPMS
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      * @see <a href="{@docRoot}/../specs/jar/jar.html#package-sealing">
      *      The JAR File Specification: Package Sealing</a>
      */
@@ -2218,7 +2240,7 @@ public abstract class ClassLoader {
      * @throws  NullPointerException
      *          if {@code name} is {@code null}.
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      *
      * @since  9
      * @spec JPMS
@@ -2245,7 +2267,7 @@ public abstract class ClassLoader {
      *         this class loader; or an zero length array if no package has been
      *         defined by this class loader.
      *
-     * @jvms 5.3 Run-time package
+     * @jvms 5.3 Creation and Loading
      *
      * @since  9
      * @spec JPMS
@@ -2430,7 +2452,7 @@ public abstract class ClassLoader {
             if (!load0(name, isBuiltin)) return false;
 
             // register the class loader for cleanup when unloaded
-            // built class loaders are never unloaded
+            // builtin class loaders are never unloaded
             ClassLoader loader = fromClass.getClassLoader();
             if (loader != null &&
                 loader != getBuiltinPlatformClassLoader() &&
@@ -2463,8 +2485,7 @@ public abstract class ClassLoader {
                  *
                  * We use a static stack to hold the list of libraries we are
                  * loading because this can happen only when called by the
-                 * same thread because Runtime.load and Runtime.loadLibrary
-                 * are synchronous.
+                 * same thread because this block is synchronous.
                  *
                  * If there is a pending load operation for the library, we
                  * immediately return success; otherwise, we raise
@@ -2609,10 +2630,9 @@ public abstract class ClassLoader {
                             boolean isAbsolute) {
         ClassLoader loader =
             (fromClass == null) ? null : fromClass.getClassLoader();
-        if (sys_paths == null) {
-            usr_paths = initializePath("java.library.path");
-            sys_paths = initializePath("sun.boot.library.path");
-        }
+        assert sys_paths != null : "should be initialized at this point";
+        assert usr_paths != null : "should be initialized at this point";
+
         if (isAbsolute) {
             if (loadLibrary0(fromClass, new File(name))) {
                 return;
@@ -3002,7 +3022,7 @@ public abstract class ClassLoader {
         Class<?> k = ClassLoader.class;
         long offset;
         offset = unsafe.objectFieldOffset(k, name);
-        return unsafe.compareAndSetObject(this, offset, null, obj);
+        return unsafe.compareAndSetReference(this, offset, null, obj);
     }
 }
 

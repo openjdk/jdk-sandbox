@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -94,9 +94,6 @@ char* os::non_memory_address_word() {
   // if the CPU splits constants across multiple instructions).
   return (char*) -1;
 }
-
-// OS specific thread initialization.
-void os::initialize_thread(Thread* thread) { }
 
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
@@ -273,8 +270,9 @@ JVM_handle_linux_signal(int sig,
 
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return 1;
+    }
   }
 #endif
 
@@ -421,7 +419,7 @@ JVM_handle_linux_signal(int sig,
 
       else if (sig == SIGSEGV && ImplicitNullChecks &&
                CodeCache::contains((void*) pc) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
@@ -470,7 +468,8 @@ JVM_handle_linux_signal(int sig,
         // when the vector facility is installed, but operating system support is missing.
         VM_Version::reset_has_VectorFacility();
         stub = pc; // Continue with next instruction.
-      } else if (thread->thread_state() == _thread_in_vm &&
+      } else if ((thread->thread_state() == _thread_in_vm ||
+                  thread->thread_state() == _thread_in_native) &&
                  sig == SIGBUS && thread->doing_unsafe_access()) {
         // We don't really need a stub here! Just set the pending exeption and
         // continue at the next instruction after the faulting read. Returning
@@ -481,17 +480,13 @@ JVM_handle_linux_signal(int sig,
       }
     }
 
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    // Info->si_addr need not be the exact address, it is only
-    // guaranteed to be on the same page as the address that caused
-    // the SIGSEGV.
-    if ((sig == SIGSEGV) && !UseMembar &&
-        (os::get_memory_serialize_page() ==
-         (address)((uintptr_t)info->si_addr & ~(os::vm_page_size()-1)))) {
-      return true;
+    // jni_fast_Get<Primitive>Field can trap at certain pc's if a GC kicks in
+    // and the heap gets shrunk before the field access.
+    if ((sig == SIGSEGV) || (sig == SIGBUS)) {
+      address addr = JNI_FastGetField::find_slowcase_pc(pc);
+      if (addr != (address)-1) {
+        stub = addr;
+      }
     }
   }
 
@@ -621,9 +616,7 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  if (Verbose) { st->print_cr("pc at " PTR_FORMAT, p2i(pc)); }
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc-64, pc+64, /*intrsize=*/4);
+  print_instructions(st, pc, /*intrsize=*/4);
   st->cr();
 }
 

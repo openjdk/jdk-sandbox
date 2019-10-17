@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -371,7 +371,7 @@ public final class TimeZoneNames_it extends TimeZoneNamesBundle {
             {"Africa/Nouakchott", GMT},
             {"Africa/Ouagadougou", GMT},
             {"Africa/Porto-Novo", WAT},
-            {"Africa/Sao_Tome", WAT},
+            {"Africa/Sao_Tome", GMT},
             {"Africa/Timbuktu", GMT},
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
@@ -667,9 +667,9 @@ public final class TimeZoneNames_it extends TimeZoneNamesBundle {
                                            "Ora estiva di Magadan", "MAGST",
                                            "Ora di Magadan", "MAGT"}},
             {"Asia/Makassar", CIT},
-            {"Asia/Manila", new String[] {"Ora delle Filippine", "PHT",
-                                          "Ora estiva delle Filippine", "PHST",
-                                          "Ora delle Filippine", "PHT"}},
+            {"Asia/Manila", new String[] {"Philippines Standard Time", "PST",
+                                          "Philippines Daylight Time", "PDT",
+                                          "Philippines Time", "PT"}},
             {"Asia/Muscat", GST},
             {"Asia/Nicosia", EET},
             {"Asia/Novokuznetsk", KRAT},

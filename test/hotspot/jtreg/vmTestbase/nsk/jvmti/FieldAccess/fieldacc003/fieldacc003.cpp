@@ -165,7 +165,7 @@ void JNICALL FieldAccess(jvmtiEnv *jvmti_env, JNIEnv *env,
             }
             if (watch.m_sig == NULL ||
                     strcmp(watch.m_sig, watches[i].m_sig) != 0) {
-                printf("(watch#%" PRIuPTR " ) wrong method sig: \"%s\"",
+                printf("(watch#%" PRIuPTR ") wrong method sig: \"%s\"",
                        i, watch.m_sig);
                 printf(", expected: \"%s\"\n", watches[i].m_sig);
                 result = STATUS_FAILED;
@@ -193,9 +193,9 @@ void JNICALL FieldAccess(jvmtiEnv *jvmti_env, JNIEnv *env,
             }
             if (watch.is_static != watches[i].is_static) {
                 printf("(watch#%" PRIuPTR ") wrong field type: %s", i,
-                    (watch.is_static==JNI_TRUE)?"static":"instance");
+                    (watch.is_static == JNI_TRUE) ? "static" : "instance");
                 printf(", expected: %s\n",
-                    (watches[i].is_static==JNI_TRUE)?"static":"instance");
+                    (watches[i].is_static == JNI_TRUE) ? "static" : "instance");
                 result = STATUS_FAILED;
             }
             return;

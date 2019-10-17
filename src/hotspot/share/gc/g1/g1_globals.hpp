@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1_GLOBALS_HPP
-#define SHARE_VM_GC_G1_G1_GLOBALS_HPP
+#ifndef SHARE_GC_G1_G1_GLOBALS_HPP
+#define SHARE_GC_G1_G1_GLOBALS_HPP
 
-#include <float.h> // for DBL_MAX
+#include "runtime/globals_shared.hpp"
+
 //
 // Defines all globals flags used by the garbage-first compiler.
 //
@@ -190,9 +191,6 @@
           "to minimize the probability of promotion failure.")              \
           range(0, 50)                                                      \
                                                                             \
-  develop(bool, G1HRRSUseSparseTable, true,                                 \
-          "When true, use sparse table to save space.")                     \
-                                                                            \
   product(size_t, G1HeapRegionSize, 0,                                      \
           "Size of the G1 regions.")                                        \
           range(0, 32*M)                                                    \
@@ -247,9 +245,6 @@
           "The target number of mixed GCs after a marking cycle.")          \
           range(0, max_uintx)                                               \
                                                                             \
-  experimental(bool, G1PretouchAuxiliaryMemory, false,                      \
-          "Pre-touch large auxiliary data structures used by the GC.")      \
-                                                                            \
   experimental(bool, G1EagerReclaimHumongousObjects, true,                  \
           "Try to reclaim dead large objects at every young GC.")           \
                                                                             \
@@ -302,6 +297,33 @@
           "Verify the code root lists attached to each heap region.")       \
                                                                             \
   develop(bool, G1VerifyBitmaps, false,                                     \
-          "Verifies the consistency of the marking bitmaps")
+          "Verifies the consistency of the marking bitmaps")                \
+                                                                            \
+  manageable(uintx, G1PeriodicGCInterval, 0,                                \
+          "Number of milliseconds after a previous GC to wait before "      \
+          "triggering a periodic gc. A value of zero disables periodically "\
+          "enforced gc cycles.")                                            \
+                                                                            \
+  product(bool, G1PeriodicGCInvokesConcurrent, true,                        \
+          "Determines the kind of periodic GC. Set to true to have G1 "     \
+          "perform a concurrent GC as periodic GC, otherwise use a STW "    \
+          "Full GC.")                                                       \
+                                                                            \
+  manageable(double, G1PeriodicGCSystemLoadThreshold, 0.0,                  \
+          "Maximum recent system wide load as returned by the 1m value "    \
+          "of getloadavg() at which G1 triggers a periodic GC. A load "     \
+          "above this value cancels a given periodic GC. A value of zero "  \
+          "disables this check.")                                           \
+          range(0.0, (double)max_uintx)                                     \
+                                                                            \
+  experimental(uintx, G1YoungExpansionBufferPercent, 10,                    \
+               "When heterogenous heap is enabled by AllocateOldGenAt "     \
+               "option, after every GC, young gen is re-sized which "       \
+               "involves system calls to commit/uncommit memory. To "       \
+               "reduce these calls, we keep a buffer of extra regions to "  \
+               "absorb small changes in young gen length. This flag takes " \
+               "the buffer size as an percentage of young gen length")      \
+               range(0, 100)                                                \
 
-#endif // SHARE_VM_GC_G1_G1_GLOBALS_HPP
+
+#endif // SHARE_GC_G1_G1_GLOBALS_HPP

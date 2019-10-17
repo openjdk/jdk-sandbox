@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2007, 2008, 2009, 2010 Red Hat, Inc.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -94,10 +94,6 @@ char* os::non_memory_address_word() {
   // This is the value for x86; works pretty well for PPC too.
   return (char *) -1;
 #endif // SPARC
-}
-
-void os::initialize_thread(Thread * thr){
-  // Nothing to do.
 }
 
 address os::Linux::ucontext_get_pc(const ucontext_t* uc) {
@@ -211,7 +207,8 @@ JVM_handle_linux_signal(int sig,
     /*if (thread->thread_state() == _thread_in_Java) {
       ShouldNotCallThis();
     }
-    else*/ if (thread->thread_state() == _thread_in_vm &&
+    else*/ if ((thread->thread_state() == _thread_in_vm ||
+               thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && thread->doing_unsafe_access()) {
       ShouldNotCallThis();
     }
@@ -224,17 +221,6 @@ JVM_handle_linux_signal(int sig,
         stub = addr;
       }
     }*/
-
-    // Check to see if we caught the safepoint code in the process
-    // of write protecting the memory serialization page.  It write
-    // enables the page immediately after protecting it so we can
-    // just return to retry the write.
-    if (sig == SIGSEGV &&
-        os::is_memory_serialize_page(thread, (address) info->si_addr)) {
-      // Block current thread until permission is restored.
-      os::block_on_serialize_page_trap();
-      return true;
-    }
   }
 
   // signal-chaining

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,18 @@
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "interpreter/bootstrapInfo.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/heapInspection.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/array.inline.hpp"
+#include "memory/universe.hpp"
+#include "oops/array.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/instanceKlass.hpp"
@@ -51,12 +54,9 @@
 #include "runtime/init.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/copy.hpp"
-
-constantTag ConstantPool::tag_at(int which) const { return (constantTag)tags()->at_acquire(which); }
-
-void ConstantPool::release_tag_at_put(int which, jbyte t) { tags()->release_at_put(which, t); }
 
 ConstantPool* ConstantPool::allocate(ClassLoaderData* loader_data, int length, TRAPS) {
   Array<u1>* tags = MetadataFactory::new_array<u1>(loader_data, length, 0, CHECK_NULL);
@@ -282,9 +282,7 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
       rr->obj_at_put(i, NULL);
       if (p != NULL && i < ref_map_len) {
         int index = object_to_cp_index(i);
-        // Skip the entry if the string hash code is 0 since the string
-        // is not included in the shared string_table, see StringTable::copy_shared_string.
-        if (tag_at(index).is_string() && java_lang_String::hash_code(p) != 0) {
+        if (tag_at(index).is_string()) {
           oop op = StringTable::create_archived_string(p, THREAD);
           // If the String object is not archived (possibly too large),
           // NULL is returned. Also set it in the array, so we won't
@@ -295,7 +293,7 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
       }
     }
 
-    oop archived = MetaspaceShared::archive_heap_object(rr, THREAD);
+    oop archived = HeapShared::archive_heap_object(rr, THREAD);
     // If the resolved references array is not archived (too large),
     // the 'archived' object is NULL. No need to explicitly check
     // the return value of archive_heap_object here. At runtime, the
@@ -340,7 +338,7 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
   if (SystemDictionary::Object_klass_loaded()) {
     ClassLoaderData* loader_data = pool_holder()->class_loader_data();
 #if INCLUDE_CDS_JAVA_HEAP
-    if (MetaspaceShared::open_archive_heap_region_mapped() &&
+    if (HeapShared::open_archive_heap_region_mapped() &&
         _cache->archived_references() != NULL) {
       oop archived = _cache->archived_references();
       // Create handle for the archived resolved reference array object
@@ -373,7 +371,9 @@ void ConstantPool::remove_unshareable_info() {
   // If archiving heap objects is not allowed, clear the resolved references.
   // Otherwise, it is cleared after the resolved references array is cached
   // (see archive_resolved_references()).
-  if (!MetaspaceShared::is_heap_object_archiving_allowed()) {
+  // If DynamicDumpSharedSpaces is enabled, clear the resolved references also
+  // as java objects are not archived in the top layer.
+  if (!HeapShared::is_heap_object_archiving_allowed() || DynamicDumpSharedSpaces) {
     set_resolved_references(NULL);
   }
 
@@ -384,7 +384,16 @@ void ConstantPool::remove_unshareable_info() {
   _flags |= (_on_stack | _is_shared);
   int num_klasses = 0;
   for (int index = 1; index < length(); index++) { // Index 0 is unused
-    assert(!tag_at(index).is_unresolved_klass_in_error(), "This must not happen during dump time");
+    if (!DynamicDumpSharedSpaces) {
+      assert(!tag_at(index).is_unresolved_klass_in_error(), "This must not happen during static dump time");
+    } else {
+      if (tag_at(index).is_unresolved_klass_in_error() ||
+          tag_at(index).is_method_handle_in_error()    ||
+          tag_at(index).is_method_type_in_error()      ||
+          tag_at(index).is_dynamic_constant_in_error()) {
+        tag_at_put(index, JVM_CONSTANT_UnresolvedClass);
+      }
+    }
     if (tag_at(index).is_klass()) {
       // This class was resolved as a side effect of executing Java code
       // during dump time. We need to restore it back to an UnresolvedClass,
@@ -447,6 +456,7 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
 Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
                                    bool save_resolution_error, TRAPS) {
   assert(THREAD->is_Java_thread(), "must be a Java thread");
+  JavaThread* javaThread = (JavaThread*)THREAD;
 
   // A resolved constantPool entry will contain a Klass*, otherwise a Symbol*.
   // It is not safe to rely on the tag bit's here, since we don't have a lock, and
@@ -471,7 +481,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     // or any internal exception fields such as cause or stacktrace.  But since the
     // detail message is often a class name or other literal string, we will repeat it
     // if we can find it in the symbol table.
-    throw_resolution_error(this_cp, which, CHECK_0);
+    throw_resolution_error(this_cp, which, CHECK_NULL);
     ShouldNotReachHere();
   }
 
@@ -479,7 +489,14 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   Symbol* name = this_cp->symbol_at(name_index);
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
-  Klass* k = SystemDictionary::resolve_or_fail(name, loader, protection_domain, true, THREAD);
+
+  Klass* k;
+  {
+    // Turn off the single stepping while doing class resolution
+    JvmtiHideSingleStepping jhss(javaThread);
+    k = SystemDictionary::resolve_or_fail(name, loader, protection_domain, true, THREAD);
+  } //  JvmtiHideSingleStepping jhss(javaThread);
+
   if (!HAS_PENDING_EXCEPTION) {
     // preserve the resolved klass from unloading
     mirror_handle = Handle(THREAD, k->java_mirror());
@@ -502,10 +519,6 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
       return NULL;  // return the pending exception
     }
   }
-
-  // Make this class loader depend upon the class loader owning the class reference
-  ClassLoaderData* this_key = this_cp->pool_holder()->class_loader_data();
-  this_key->record_dependency(k);
 
   // logging for class+resolve.
   if (log_is_enabled(Debug, class, resolve)){
@@ -543,7 +556,8 @@ Klass* ConstantPool::klass_at_if_loaded(const constantPoolHandle& this_cp, int w
     Handle h_loader (thread, loader);
     Klass* k = SystemDictionary::find(name, h_loader, h_prot, thread);
 
-    if (k != NULL) {
+    // Avoid constant pool verification at a safepoint, which takes the Module_lock.
+    if (k != NULL && !SafepointSynchronize::is_at_safepoint()) {
       // Make sure that resolving is legal
       EXCEPTION_MARK;
       // return NULL if verification fails
@@ -588,20 +602,12 @@ oop ConstantPool::appendix_at_if_loaded(const constantPoolHandle& cpool, int whi
 }
 
 
-bool ConstantPool::has_method_type_at_if_loaded(const constantPoolHandle& cpool, int which) {
+bool ConstantPool::has_local_signature_at_if_loaded(const constantPoolHandle& cpool, int which) {
   if (cpool->cache() == NULL)  return false;  // nothing to load yet
   int cache_index = decode_cpcache_index(which, true);
   ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-  return e->has_method_type();
+  return e->has_local_signature();
 }
-
-oop ConstantPool::method_type_at_if_loaded(const constantPoolHandle& cpool, int which) {
-  if (cpool->cache() == NULL)  return NULL;  // nothing to load yet
-  int cache_index = decode_cpcache_index(which, true);
-  ConstantPoolCacheEntry* e = cpool->cache()->entry_at(cache_index);
-  return e->method_type_if_resolved(cpool);
-}
-
 
 Symbol* ConstantPool::impl_name_ref_at(int which, bool uncached) {
   int name_index = name_ref_index_at(impl_name_and_type_ref_index_at(which, uncached));
@@ -619,26 +625,22 @@ int ConstantPool::impl_name_and_type_ref_index_at(int which, bool uncached) {
   if (!uncached && cache() != NULL) {
     if (ConstantPool::is_invokedynamic_index(which)) {
       // Invokedynamic index is index into the constant pool cache
-      int pool_index = invokedynamic_cp_cache_entry_at(which)->constant_pool_index();
-      pool_index = invoke_dynamic_name_and_type_ref_index_at(pool_index);
+      int pool_index = invokedynamic_bootstrap_ref_index_at(which);
+      pool_index = bootstrap_name_and_type_ref_index_at(pool_index);
       assert(tag_at(pool_index).is_name_and_type(), "");
       return pool_index;
     }
     // change byte-ordering and go via cache
     i = remap_instruction_operand_from_cache(which);
   } else {
-    if (tag_at(which).is_invoke_dynamic() ||
-        tag_at(which).is_dynamic_constant() ||
-        tag_at(which).is_dynamic_constant_in_error()) {
-      int pool_index = invoke_dynamic_name_and_type_ref_index_at(which);
+    if (tag_at(which).has_bootstrap()) {
+      int pool_index = bootstrap_name_and_type_ref_index_at(which);
       assert(tag_at(pool_index).is_name_and_type(), "");
       return pool_index;
     }
   }
   assert(tag_at(i).is_field_or_method(), "Corrupted constant pool");
-  assert(!tag_at(i).is_invoke_dynamic() &&
-         !tag_at(i).is_dynamic_constant() &&
-         !tag_at(i).is_dynamic_constant_in_error(), "Must be handled above");
+  assert(!tag_at(i).has_bootstrap(), "Must be handled above");
   jint ref_index = *int_at_addr(i);
   return extract_high_short_from_int(ref_index);
 }
@@ -648,7 +650,7 @@ constantTag ConstantPool::impl_tag_ref_at(int which, bool uncached) {
   if (!uncached && cache() != NULL) {
     if (ConstantPool::is_invokedynamic_index(which)) {
       // Invokedynamic index is index into resolved_references
-      pool_index = invokedynamic_cp_cache_entry_at(which)->constant_pool_index();
+      pool_index = invokedynamic_bootstrap_ref_index_at(which);
     } else {
       // change byte-ordering and go via cache
       pool_index = remap_instruction_operand_from_cache(which);
@@ -759,6 +761,10 @@ Symbol* ConstantPool::exception_message(const constantPoolHandle& this_cp, int w
     // return the method type signature in the error message
     message = this_cp->method_type_signature_at(which);
     break;
+  case JVM_CONSTANT_Dynamic:
+    // return the name of the condy in the error message
+    message = this_cp->uncached_name_ref_at(which);
+    break;
   default:
     ShouldNotReachHere();
   }
@@ -820,9 +826,9 @@ constantTag ConstantPool::constant_tag_at(int which) {
   constantTag tag = tag_at(which);
   if (tag.is_dynamic_constant() ||
       tag.is_dynamic_constant_in_error()) {
-    // have to look at the signature for this one
-    Symbol* constant_type = uncached_signature_ref_at(which);
-    return constantTag::ofBasicType(FieldType::basic_type(constant_type));
+    BasicType bt = basic_type_for_constant_at(which);
+    // dynamic constant could return an array, treat as object
+    return constantTag::ofBasicType(is_reference_type(bt) ? T_OBJECT : bt);
   }
   return tag;
 }
@@ -861,7 +867,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
   if (cache_index >= 0) {
     result_oop = this_cp->resolved_references()->obj_at(cache_index);
     if (result_oop != NULL) {
-      if (oopDesc::equals(result_oop, Universe::the_null_sentinel())) {
+      if (result_oop == Universe::the_null_sentinel()) {
         DEBUG_ONLY(int temp_index = (index >= 0 ? index : this_cp->object_to_cp_index(cache_index)));
         assert(this_cp->tag_at(temp_index).is_dynamic_constant(), "only condy uses the null sentinel");
         result_oop = NULL;
@@ -921,9 +927,8 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
 
   case JVM_CONSTANT_Dynamic:
     {
-      Klass* current_klass  = this_cp->pool_holder();
-      Symbol* constant_name = this_cp->uncached_name_ref_at(index);
-      Symbol* constant_type = this_cp->uncached_signature_ref_at(index);
+      // Resolve the Dynamically-Computed constant to invoke the BSM in order to obtain the resulting oop.
+      BootstrapInfo bootstrap_specifier(this_cp, index);
 
       // The initial step in resolving an unresolved symbolic reference to a
       // dynamically-computed constant is to resolve the symbolic reference to a
@@ -933,27 +938,18 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       // bootstrap method's CP index for the CONSTANT_MethodHandle_info. No need to
       // set a DynamicConstantInError here since any subsequent use of this
       // bootstrap method will encounter the resolution of MethodHandleInError.
-      oop bsm_info = this_cp->resolve_bootstrap_specifier_at(index, THREAD);
-      Exceptions::wrap_dynamic_exception(CHECK_NULL);
-      assert(bsm_info != NULL, "");
-      // FIXME: Cache this once per BootstrapMethods entry, not once per CONSTANT_Dynamic.
-      Handle bootstrap_specifier = Handle(THREAD, bsm_info);
-
-      // Resolve the Dynamically-Computed constant to invoke the BSM in order to obtain the resulting oop.
-      Handle value = SystemDictionary::link_dynamic_constant(current_klass,
-                                                             index,
-                                                             bootstrap_specifier,
-                                                             constant_name,
-                                                             constant_type,
-                                                             THREAD);
-      result_oop = value();
+      // Both the first, (resolution of the BSM and its static arguments), and the second tasks,
+      // (invocation of the BSM), of JVMS Section 5.4.3.6 occur within invoke_bootstrap_method()
+      // for the bootstrap_specifier created above.
+      SystemDictionary::invoke_bootstrap_method(bootstrap_specifier, THREAD);
       Exceptions::wrap_dynamic_exception(THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // Resolution failure of the dynamically-computed constant, save_and_throw_exception
         // will check for a LinkageError and store a DynamicConstantInError.
         save_and_throw_exception(this_cp, index, tag, CHECK_NULL);
       }
-      BasicType type = FieldType::basic_type(constant_type);
+      result_oop = bootstrap_specifier.resolved_value()();
+      BasicType type = FieldType::basic_type(bootstrap_specifier.signature());
       if (!is_reference_type(type)) {
         // Make sure the primitive value is properly boxed.
         // This is a JDK responsibility.
@@ -972,6 +968,10 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
           // See section 5.4.3 of the VM spec.
           THROW_MSG_NULL(vmSymbols::java_lang_InternalError(), fail);
         }
+      }
+
+      if (TraceMethodHandles) {
+        bootstrap_specifier.print_msg_on(tty, "resolve_constant_at_impl");
       }
       break;
     }
@@ -1012,14 +1012,17 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       if ((callee->is_interface() && m_tag.is_method()) ||
           ((!callee->is_interface() && m_tag.is_interface_method()))) {
         ResourceMark rm(THREAD);
-        char buf[400];
-        jio_snprintf(buf, sizeof(buf),
-          "Inconsistent constant pool data in classfile for class %s. "
-          "Method %s%s at index %d is %s and should be %s",
-          callee->name()->as_C_string(), name->as_C_string(), signature->as_C_string(), index,
-          callee->is_interface() ? "CONSTANT_MethodRef" : "CONSTANT_InterfaceMethodRef",
-          callee->is_interface() ? "CONSTANT_InterfaceMethodRef" : "CONSTANT_MethodRef");
-        THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), buf);
+        stringStream ss;
+        ss.print("Inconsistent constant pool data in classfile for class %s. "
+                 "Method '", callee->name()->as_C_string());
+        signature->print_as_signature_external_return_type(&ss);
+        ss.print(" %s(", name->as_C_string());
+        signature->print_as_signature_external_parameters(&ss);
+        ss.print(")' at index %d is %s and should be %s",
+                 index,
+                 callee->is_interface() ? "CONSTANT_MethodRef" : "CONSTANT_InterfaceMethodRef",
+                 callee->is_interface() ? "CONSTANT_InterfaceMethodRef" : "CONSTANT_MethodRef");
+        THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), ss.as_string());
       }
 
       Klass* klass = this_cp->pool_holder();
@@ -1094,12 +1097,12 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
     } else {
       // Return the winning thread's result.  This can be different than
       // the result here for MethodHandles.
-      if (oopDesc::equals(old_result, Universe::the_null_sentinel()))
+      if (old_result == Universe::the_null_sentinel())
         old_result = NULL;
       return old_result;
     }
   } else {
-    assert(!oopDesc::equals(result_oop, Universe::the_null_sentinel()), "");
+    assert(result_oop != Universe::the_null_sentinel(), "");
     return result_oop;
   }
 }
@@ -1109,119 +1112,6 @@ oop ConstantPool::uncached_string_at(int which, TRAPS) {
   oop str = StringTable::intern(sym, CHECK_(NULL));
   assert(java_lang_String::is_instance(str), "must be string");
   return str;
-}
-
-
-oop ConstantPool::resolve_bootstrap_specifier_at_impl(const constantPoolHandle& this_cp, int index, TRAPS) {
-  assert((this_cp->tag_at(index).is_invoke_dynamic() ||
-          this_cp->tag_at(index).is_dynamic_constant()), "Corrupted constant pool");
-  Handle bsm;
-  int argc;
-  {
-    // JVM_CONSTANT_InvokeDynamic is an ordered pair of [bootm, name&mtype], plus optional arguments
-    // JVM_CONSTANT_Dynamic is an ordered pair of [bootm, name&ftype], plus optional arguments
-    // In both cases, the bootm, being a JVM_CONSTANT_MethodHandle, has its own cache entry.
-    // It is accompanied by the optional arguments.
-    int bsm_index = this_cp->invoke_dynamic_bootstrap_method_ref_index_at(index);
-    oop bsm_oop = this_cp->resolve_possibly_cached_constant_at(bsm_index, CHECK_NULL);
-    if (!java_lang_invoke_MethodHandle::is_instance(bsm_oop)) {
-      THROW_MSG_NULL(vmSymbols::java_lang_LinkageError(), "BSM not an MethodHandle");
-    }
-
-    // Extract the optional static arguments.
-    argc = this_cp->invoke_dynamic_argument_count_at(index);
-
-    // if there are no static arguments, return the bsm by itself:
-    if (argc == 0 && UseBootstrapCallInfo < 2)  return bsm_oop;
-
-    bsm = Handle(THREAD, bsm_oop);
-  }
-
-  // We are going to return an ordered pair of {bsm, info}, using a 2-array.
-  objArrayHandle info;
-  {
-    objArrayOop info_oop = oopFactory::new_objArray(SystemDictionary::Object_klass(), 2, CHECK_NULL);
-    info = objArrayHandle(THREAD, info_oop);
-  }
-
-  info->obj_at_put(0, bsm());
-
-  bool use_BSCI;
-  switch (UseBootstrapCallInfo) {
-  default: use_BSCI = true;  break;  // stress mode
-  case 0:  use_BSCI = false; break;  // stress mode
-  case 1:                            // normal mode
-    // If we were to support an alternative mode of BSM invocation,
-    // we'd convert to pull mode here if the BSM could be a candidate
-    // for that alternative mode.  We can't easily test for things
-    // like varargs here, but we can get away with approximate testing,
-    // since the JDK runtime will make up the difference either way.
-    // For now, exercise the pull-mode path if the BSM is of arity 2,
-    // or if there is a potential condy loop (see below).
-    oop mt_oop = java_lang_invoke_MethodHandle::type(bsm());
-    use_BSCI = (java_lang_invoke_MethodType::ptype_count(mt_oop) == 2);
-    break;
-  }
-
-  // Here's a reason to use BSCI even if it wasn't requested:
-  // If a condy uses a condy argument, we want to avoid infinite
-  // recursion (condy loops) in the C code.  It's OK in Java,
-  // because Java has stack overflow checking, so we punt
-  // potentially cyclic cases from C to Java.
-  if (!use_BSCI && this_cp->tag_at(index).is_dynamic_constant()) {
-    bool found_unresolved_condy = false;
-    for (int i = 0; i < argc; i++) {
-      int arg_index = this_cp->invoke_dynamic_argument_index_at(index, i);
-      if (this_cp->tag_at(arg_index).is_dynamic_constant()) {
-        // potential recursion point condy -> condy
-        bool found_it = false;
-        this_cp->find_cached_constant_at(arg_index, found_it, CHECK_NULL);
-        if (!found_it) { found_unresolved_condy = true; break; }
-      }
-    }
-    if (found_unresolved_condy)
-      use_BSCI = true;
-  }
-
-  const int SMALL_ARITY = 5;
-  if (use_BSCI && argc <= SMALL_ARITY && UseBootstrapCallInfo <= 2) {
-    // If there are only a few arguments, and none of them need linking,
-    // push them, instead of asking the JDK runtime to turn around and
-    // pull them, saving a JVM/JDK transition in some simple cases.
-    bool all_resolved = true;
-    for (int i = 0; i < argc; i++) {
-      bool found_it = false;
-      int arg_index = this_cp->invoke_dynamic_argument_index_at(index, i);
-      this_cp->find_cached_constant_at(arg_index, found_it, CHECK_NULL);
-      if (!found_it) { all_resolved = false; break; }
-    }
-    if (all_resolved)
-      use_BSCI = false;
-  }
-
-  if (!use_BSCI) {
-    // return {bsm, {arg...}}; resolution of arguments is done immediately, before JDK code is called
-    objArrayOop args_oop = oopFactory::new_objArray(SystemDictionary::Object_klass(), argc, CHECK_NULL);
-    info->obj_at_put(1, args_oop);   // may overwrite with args[0] below
-    objArrayHandle args(THREAD, args_oop);
-    copy_bootstrap_arguments_at_impl(this_cp, index, 0, argc, args, 0, true, Handle(), CHECK_NULL);
-    if (argc == 1) {
-      // try to discard the singleton array
-      oop arg_oop = args->obj_at(0);
-      if (arg_oop != NULL && !arg_oop->is_array()) {
-        // JVM treats arrays and nulls specially in this position,
-        // but other things are just single arguments
-        info->obj_at_put(1, arg_oop);
-      }
-    }
-  } else {
-    // return {bsm, {arg_count, pool_index}}; JDK code must pull the arguments as needed
-    typeArrayOop ints_oop = oopFactory::new_typeArray(T_INT, 2, CHECK_NULL);
-    ints_oop->int_at_put(0, argc);
-    ints_oop->int_at_put(1, index);
-    info->obj_at_put(1, ints_oop);
-  }
-  return info();
 }
 
 void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& this_cp, int index,
@@ -1238,7 +1128,7 @@ void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& th
       !(this_cp->tag_at(index).is_invoke_dynamic()    ||
         this_cp->tag_at(index).is_dynamic_constant()) ||
       (0 > start_arg || start_arg > end_arg) ||
-      (end_arg > (argc = this_cp->invoke_dynamic_argument_count_at(index))) ||
+      (end_arg > (argc = this_cp->bootstrap_argument_count_at(index))) ||
       (0 > pos       || pos > limit)         ||
       (info.is_null() || limit > info->length())) {
     // An index or something else went wrong; throw an error.
@@ -1249,7 +1139,7 @@ void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& th
   // now we can loop safely
   int info_i = pos;
   for (int i = start_arg; i < end_arg; i++) {
-    int arg_index = this_cp->invoke_dynamic_argument_index_at(index, i);
+    int arg_index = this_cp->bootstrap_argument_index_at(index, i);
     oop arg_oop;
     if (must_resolve) {
       arg_oop = this_cp->resolve_possibly_cached_constant_at(arg_index, CHECK);
@@ -1265,7 +1155,7 @@ void ConstantPool::copy_bootstrap_arguments_at_impl(const constantPoolHandle& th
 oop ConstantPool::string_at_impl(const constantPoolHandle& this_cp, int which, int obj_index, TRAPS) {
   // If the string has already been interned, this entry will be non-null
   oop str = this_cp->resolved_references()->obj_at(obj_index);
-  assert(!oopDesc::equals(str, Universe::the_null_sentinel()), "");
+  assert(str != Universe::the_null_sentinel(), "");
   if (str != NULL) return str;
   Symbol* sym = this_cp->unresolved_string_at(which);
   str = StringTable::intern(sym, CHECK_(NULL));
@@ -1448,10 +1338,10 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
 
   case JVM_CONSTANT_Dynamic:
   {
-    int k1 = invoke_dynamic_name_and_type_ref_index_at(index1);
-    int k2 = cp2->invoke_dynamic_name_and_type_ref_index_at(index2);
-    int i1 = invoke_dynamic_bootstrap_specifier_index(index1);
-    int i2 = cp2->invoke_dynamic_bootstrap_specifier_index(index2);
+    int k1 = bootstrap_name_and_type_ref_index_at(index1);
+    int k2 = cp2->bootstrap_name_and_type_ref_index_at(index2);
+    int i1 = bootstrap_methods_attribute_index(index1);
+    int i2 = cp2->bootstrap_methods_attribute_index(index2);
     // separate statements and variables because CHECK_false is used
     bool match_entry = compare_entry_to(k1, cp2, k2, CHECK_false);
     bool match_operand = compare_operand_to(i1, cp2, i2, CHECK_false);
@@ -1460,10 +1350,10 @@ bool ConstantPool::compare_entry_to(int index1, const constantPoolHandle& cp2,
 
   case JVM_CONSTANT_InvokeDynamic:
   {
-    int k1 = invoke_dynamic_name_and_type_ref_index_at(index1);
-    int k2 = cp2->invoke_dynamic_name_and_type_ref_index_at(index2);
-    int i1 = invoke_dynamic_bootstrap_specifier_index(index1);
-    int i2 = cp2->invoke_dynamic_bootstrap_specifier_index(index2);
+    int k1 = bootstrap_name_and_type_ref_index_at(index1);
+    int k2 = cp2->bootstrap_name_and_type_ref_index_at(index2);
+    int i1 = bootstrap_methods_attribute_index(index1);
+    int i2 = cp2->bootstrap_methods_attribute_index(index2);
     // separate statements and variables because CHECK_false is used
     bool match_entry = compare_entry_to(k1, cp2, k2, CHECK_false);
     bool match_operand = compare_operand_to(i1, cp2, i2, CHECK_false);
@@ -1787,16 +1677,16 @@ void ConstantPool::copy_entry_to(const constantPoolHandle& from_cp, int from_i,
   case JVM_CONSTANT_Dynamic:
   case JVM_CONSTANT_DynamicInError:
   {
-    int k1 = from_cp->invoke_dynamic_bootstrap_specifier_index(from_i);
-    int k2 = from_cp->invoke_dynamic_name_and_type_ref_index_at(from_i);
+    int k1 = from_cp->bootstrap_methods_attribute_index(from_i);
+    int k2 = from_cp->bootstrap_name_and_type_ref_index_at(from_i);
     k1 += operand_array_length(to_cp->operands());  // to_cp might already have operands
     to_cp->dynamic_constant_at_put(to_i, k1, k2);
   } break;
 
   case JVM_CONSTANT_InvokeDynamic:
   {
-    int k1 = from_cp->invoke_dynamic_bootstrap_specifier_index(from_i);
-    int k2 = from_cp->invoke_dynamic_name_and_type_ref_index_at(from_i);
+    int k1 = from_cp->bootstrap_methods_attribute_index(from_i);
+    int k2 = from_cp->bootstrap_name_and_type_ref_index_at(from_i);
     k1 += operand_array_length(to_cp->operands());  // to_cp might already have operands
     to_cp->invoke_dynamic_at_put(to_i, k1, k2);
   } break;
@@ -1857,8 +1747,8 @@ bool ConstantPool::compare_operand_to(int idx1, const constantPoolHandle& cp2, i
 } // end compare_operand_to()
 
 // Search constant pool search_cp for a bootstrap specifier that matches
-// this constant pool's bootstrap specifier at pattern_i index.
-// Return the index of a matching bootstrap specifier or (-1) if there is no match.
+// this constant pool's bootstrap specifier data at pattern_i index.
+// Return the index of a matching bootstrap attribute record or (-1) if there is no match.
 int ConstantPool::find_matching_operand(int pattern_i,
                     const constantPoolHandle& search_cp, int search_len, TRAPS) {
   for (int i = 0; i < search_len; i++) {
@@ -1867,7 +1757,7 @@ int ConstantPool::find_matching_operand(int pattern_i,
       return i;
     }
   }
-  return -1;  // bootstrap specifier not found; return unused index (-1)
+  return -1;  // bootstrap specifier data not found; return unused index (-1)
 } // end find_matching_operand()
 
 
@@ -2246,7 +2136,7 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
         *bytes = tag;
         idx1 = extract_low_short_from_int(*int_at_addr(idx));
         idx2 = extract_high_short_from_int(*int_at_addr(idx));
-        assert(idx2 == invoke_dynamic_name_and_type_ref_index_at(idx), "correct half of u4");
+        assert(idx2 == bootstrap_name_and_type_ref_index_at(idx), "correct half of u4");
         Bytes::put_Java_u2((address) (bytes+1), idx1);
         Bytes::put_Java_u2((address) (bytes+3), idx2);
         DBG(printf("JVM_CONSTANT_Dynamic: %hd %hd", idx1, idx2));
@@ -2256,7 +2146,7 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
         *bytes = tag;
         idx1 = extract_low_short_from_int(*int_at_addr(idx));
         idx2 = extract_high_short_from_int(*int_at_addr(idx));
-        assert(idx2 == invoke_dynamic_name_and_type_ref_index_at(idx), "correct half of u4");
+        assert(idx2 == bootstrap_name_and_type_ref_index_at(idx), "correct half of u4");
         Bytes::put_Java_u2((address) (bytes+1), idx1);
         Bytes::put_Java_u2((address) (bytes+3), idx2);
         DBG(printf("JVM_CONSTANT_InvokeDynamic: %hd %hd", idx1, idx2));
@@ -2324,29 +2214,6 @@ void ConstantPool::patch_resolved_references(GrowableArray<Handle>* cp_patches) 
   }
 #endif // ASSERT
 }
-
-#ifndef PRODUCT
-
-// CompileTheWorld support. Preload all classes loaded references in the passed in constantpool
-void ConstantPool::preload_and_initialize_all_classes(ConstantPool* obj, TRAPS) {
-  guarantee(obj->is_constantPool(), "object must be constant pool");
-  constantPoolHandle cp(THREAD, (ConstantPool*)obj);
-  guarantee(cp->pool_holder() != NULL, "must be fully loaded");
-
-  for (int i = 0; i< cp->length();  i++) {
-    if (cp->tag_at(i).is_unresolved_klass()) {
-      // This will force loading of the class
-      Klass* klass = cp->klass_at(i, CHECK);
-      if (klass->is_instance_klass()) {
-        // Force initialization of class
-        InstanceKlass::cast(klass)->initialize(CHECK);
-      }
-    }
-  }
-}
-
-#endif
-
 
 // Printing
 
@@ -2460,12 +2327,12 @@ void ConstantPool::print_entry_on(const int index, outputStream* st) {
     case JVM_CONSTANT_Dynamic :
     case JVM_CONSTANT_DynamicInError :
       {
-        st->print("bootstrap_method_index=%d", invoke_dynamic_bootstrap_method_ref_index_at(index));
-        st->print(" type_index=%d", invoke_dynamic_name_and_type_ref_index_at(index));
-        int argc = invoke_dynamic_argument_count_at(index);
+        st->print("bootstrap_method_index=%d", bootstrap_method_ref_index_at(index));
+        st->print(" type_index=%d", bootstrap_name_and_type_ref_index_at(index));
+        int argc = bootstrap_argument_count_at(index);
         if (argc > 0) {
           for (int arg_i = 0; arg_i < argc; arg_i++) {
-            int arg = invoke_dynamic_argument_index_at(index, arg_i);
+            int arg = bootstrap_argument_index_at(index, arg_i);
             st->print((arg_i == 0 ? " arguments={%d" : ", %d"), arg);
           }
           st->print("}");
@@ -2474,12 +2341,12 @@ void ConstantPool::print_entry_on(const int index, outputStream* st) {
       break;
     case JVM_CONSTANT_InvokeDynamic :
       {
-        st->print("bootstrap_method_index=%d", invoke_dynamic_bootstrap_method_ref_index_at(index));
-        st->print(" name_and_type_index=%d", invoke_dynamic_name_and_type_ref_index_at(index));
-        int argc = invoke_dynamic_argument_count_at(index);
+        st->print("bootstrap_method_index=%d", bootstrap_method_ref_index_at(index));
+        st->print(" name_and_type_index=%d", bootstrap_name_and_type_ref_index_at(index));
+        int argc = bootstrap_argument_count_at(index);
         if (argc > 0) {
           for (int arg_i = 0; arg_i < argc; arg_i++) {
-            int arg = invoke_dynamic_argument_index_at(index, arg_i);
+            int arg = bootstrap_argument_index_at(index, arg_i);
             st->print((arg_i == 0 ? " arguments={%d" : ", %d"), arg);
           }
           st->print("}");
@@ -2540,11 +2407,6 @@ void ConstantPool::verify_on(outputStream* st) {
       CPSlot entry = slot_at(i);
       guarantee(entry.get_symbol()->refcount() != 0, "should have nonzero reference count");
     }
-  }
-  if (cache() != NULL) {
-    // Note: cache() can be NULL before a class is completely setup or
-    // in temporary constant pools used during constant pool merging
-    guarantee(cache()->is_constantPoolCache(), "should be constant pool cache");
   }
   if (pool_holder() != NULL) {
     // Note: pool_holder() can be NULL in temporary constant pools

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
@@ -118,9 +119,6 @@ ReferenceProcessor::ReferenceProcessor(BoolObjectClosure* is_subject_to_discover
   _discovered_refs     = NEW_C_HEAP_ARRAY(DiscoveredList,
             _max_num_queues * number_of_subclasses_of_ref(), mtGC);
 
-  if (_discovered_refs == NULL) {
-    vm_exit_during_initialization("Could not allocated RefProc Array");
-  }
   _discoveredSoftRefs    = &_discovered_refs[0];
   _discoveredWeakRefs    = &_discoveredSoftRefs[_max_num_queues];
   _discoveredFinalRefs   = &_discoveredWeakRefs[_max_num_queues];
@@ -268,7 +266,7 @@ void DiscoveredListIterator::load_ptrs(DEBUG_ONLY(bool allow_null_referent)) {
 
   _referent_addr = java_lang_ref_Reference::referent_addr_raw(_current_discovered);
   _referent = java_lang_ref_Reference::referent(_current_discovered);
-  assert(Universe::heap()->is_in_reserved_or_null(_referent),
+  assert(Universe::heap()->is_in_or_null(_referent),
          "Wrong oop found in java.lang.Reference object");
   assert(allow_null_referent ?
              oopDesc::is_oop_or_null(_referent)
@@ -1156,7 +1154,7 @@ bool ReferenceProcessor::discover_reference(oop obj, ReferenceType rt) {
       // Check assumption that an object is not potentially
       // discovered twice except by concurrent collectors that potentially
       // trace the same Reference object twice.
-      assert(UseConcMarkSweepGC || UseG1GC,
+      assert(UseConcMarkSweepGC || UseG1GC || UseShenandoahGC,
              "Only possible with a concurrent marking collector");
       return true;
     }

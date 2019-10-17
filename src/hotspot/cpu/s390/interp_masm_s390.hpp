@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_INTERP_MASM_ZARCH_64_64_HPP
-#define CPU_S390_VM_INTERP_MASM_ZARCH_64_64_HPP
+#ifndef CPU_S390_INTERP_MASM_S390_HPP
+#define CPU_S390_INTERP_MASM_S390_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -119,6 +119,8 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void load_resolved_reference_at_index(Register result, Register index);
   // load cpool->resolved_klass_at(index)
   void load_resolved_klass_at_offset(Register cpool, Register offset, Register iklass);
+
+  void load_resolved_method_at_index(int byte_no, Register cache, Register cpe_offset, Register method);
 
   // Pop topmost element from stack. It just disappears. Useful if
   // consumed previously by access via stackTop().
@@ -330,4 +332,4 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void pop_interpreter_frame(Register return_pc, Register tmp1, Register tmp2);
 };
 
-#endif // CPU_S390_VM_INTERP_MASM_ZARCH_64_64_HPP
+#endif // CPU_S390_INTERP_MASM_S390_HPP

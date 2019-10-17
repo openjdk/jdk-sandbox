@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,9 @@
  * @bug 4524350 4662945 4633447 8196202
  * @summary stddoclet: {@docRoot} inserts an extra trailing "/"
  * @author dkramer
- * @library ../lib
+ * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build JavadocTester
+ * @build javadoc.tester.*
  * @run main DocRootSlash
  */
 
@@ -39,6 +39,8 @@ import java.util.regex.*;
  * It reads each file, complete with newlines, into a string to easily
  * find strings that contain newlines.
  */
+import javadoc.tester.JavadocTester;
+
 public class DocRootSlash extends JavadocTester {
 
     public static void main(String... args) throws Exception {
@@ -47,30 +49,22 @@ public class DocRootSlash extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         // Directory that contains source files that javadoc runs on
         String srcdir = System.getProperty("test.src", ".");
 
-        setAutomaticCheckLinks(false); // @ignore JDK-8202621
 
         javadoc("-d", "out",
                 "-Xdoclint:none",
                 "-overview", (srcdir + "/overview.html"),
-                "--frames",
-                "-header", "<A HREF=\"{@docroot}/package-list\">{&#064;docroot}</A> <A HREF=\"{@docRoot}/help-doc\">{&#064;docRoot}</A>",
+                "-header", "<A HREF=\"{@docroot}/element-list\">{&#064;docroot}</A> <A HREF=\"{@docRoot}/help-doc.html\">{&#064;docRoot}</A>",
                 "-sourcepath", srcdir,
                 "p1", "p2");
 
         checkFiles(
                 "p1/C1.html",
                 "p1/package-summary.html",
-                "overview-summary.html");
-
-        // Bug 4633447: Special test for overview-frame.html
-        // Find two strings in file "overview-frame.html"
-        checkOutput("overview-frame.html", true,
-                "<A HREF=\"./package-list\">",
-                "<A HREF=\"./help-doc\">");
+                "index.html");
     }
 
     void checkFiles(String... filenameArray) {
@@ -81,7 +75,7 @@ public class DocRootSlash extends JavadocTester {
             String fileString = readFile(f);
             System.out.println("\nSub-tests for file: " + f + " --------------");
             // Loop over all tests in a single file
-            for ( int j = 0; j < 11; j++ ) {
+            for ( int j = 0; j < 7; j++ ) {
 
                 // Compare actual to expected string for a single subtest
                 compareActualToExpected(++count, fileString);
@@ -107,9 +101,6 @@ public class DocRootSlash extends JavadocTester {
      */
     private static final String prefix = "(?i)(<a\\s+href=";    // <a href=     (start group1)
     private static final String ref1   = "\")([^\"]*)(\".*?>)"; // doublequotes (end group1, group2, group3)
-    private static final String ref2   = ")(\\S+?)([^<>]*>)";   // no quotes    (end group1, group2, group3)
-    private static final String label  = "(.*?)";               // text label   (group4)
-    private static final String end    = "(</a>)";              // </a>         (group5)
 
     /**
      * Compares the actual string to the expected string in the specified string

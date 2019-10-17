@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@
 #ifndef SO_REUSEPORT
 #ifdef __linux__
 #define SO_REUSEPORT 15
-#elif __solaris__
+#elif defined(__solaris__)
 #define SO_REUSEPORT 0x100e
 #elif defined(AIX) || defined(MACOSX)
 #define SO_REUSEPORT 0x0200
@@ -86,13 +86,11 @@ int NET_ReadV(int s, const struct iovec * vector, int count);
 int NET_Send(int s, void *msg, int len, unsigned int flags);
 int NET_SendTo(int s, const void *msg, int len,  unsigned  int
                flags, const struct sockaddr *to, int tolen);
-int NET_Writev(int s, const struct iovec * vector, int count);
 int NET_Connect(int s, struct sockaddr *addr, int addrlen);
 int NET_Accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int NET_SocketClose(int s);
 int NET_Dup2(int oldfd, int newfd);
 int NET_Poll(struct pollfd *ufds, unsigned int nfds, int timeout);
-int NET_SocketAvailable(int s, jint *pbytes);
 
 void NET_ThrowUnknownHostExceptionWithGaiError(JNIEnv *env,
                                                const char* hostname,
@@ -103,7 +101,6 @@ void NET_SetTrafficClass(SOCKETADDRESS *sa, int trafficClass);
 
 #ifdef __linux__
 int kernelIsV24();
-int getDefaultIPv6Interface(struct in6_addr *target_addr);
 #endif
 
 #ifdef __solaris__

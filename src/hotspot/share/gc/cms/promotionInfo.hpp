@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_PROMOTIONINFO_HPP
-#define SHARE_VM_GC_CMS_PROMOTIONINFO_HPP
+#ifndef SHARE_GC_CMS_PROMOTIONINFO_HPP
+#define SHARE_GC_CMS_PROMOTIONINFO_HPP
 
 #include "gc/cms/freeChunk.hpp"
 
@@ -93,19 +93,19 @@ class SpoolBlock: public FreeChunk {
  protected:
   SpoolBlock*  nextSpoolBlock;
   size_t       bufferSize;        // number of usable words in this block
-  markOop*     displacedHdr;      // the displaced headers start here
+  markWord*    displacedHdr;      // the displaced headers start here
 
   // Note about bufferSize: it denotes the number of entries available plus 1;
   // legal indices range from 1 through BufferSize - 1.  See the verification
   // code verify() that counts the number of displaced headers spooled.
   size_t computeBufferSize() {
-    return (size() * sizeof(HeapWord) - sizeof(*this)) / sizeof(markOop);
+    return (size() * sizeof(HeapWord) - sizeof(*this)) / sizeof(markWord);
   }
 
  public:
   void init() {
     bufferSize = computeBufferSize();
-    displacedHdr = (markOop*)&displacedHdr;
+    displacedHdr = (markWord*)&displacedHdr;
     nextSpoolBlock = NULL;
   }
 
@@ -151,8 +151,8 @@ class PromotionInfo {
   void track(PromotedObject* trackOop, Klass* klassOfOop); // keep track of a promoted oop
   void setSpace(CompactibleFreeListSpace* sp) { _space = sp; }
   CompactibleFreeListSpace* space() const     { return _space; }
-  markOop nextDisplacedHeader(); // get next header & forward spool pointer
-  void    saveDisplacedHeader(markOop hdr);
+  markWord nextDisplacedHeader(); // get next header & forward spool pointer
+  void    saveDisplacedHeader(markWord hdr);
                                  // save header and forward spool
 
   inline size_t refillSize() const;
@@ -185,4 +185,4 @@ class PromotionInfo {
 };
 
 
-#endif // SHARE_VM_GC_CMS_PROMOTIONINFO_HPP
+#endif // SHARE_GC_CMS_PROMOTIONINFO_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,13 +33,11 @@ import org.graalvm.compiler.core.common.cfg.Loop;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodeinfo.Verbosity;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
-import org.graalvm.compiler.nodes.BeginNode;
 import org.graalvm.compiler.nodes.FixedNode;
 import org.graalvm.compiler.nodes.FixedWithNextNode;
 import org.graalvm.compiler.nodes.InvokeWithExceptionNode;
 import org.graalvm.compiler.nodes.LoopBeginNode;
 import org.graalvm.compiler.nodes.LoopEndNode;
-import org.graalvm.compiler.nodes.LoopExitNode;
 import org.graalvm.compiler.nodes.memory.MemoryCheckpoint;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
@@ -50,7 +48,7 @@ public final class Block extends AbstractBlockBase<Block> {
 
     protected FixedNode endNode;
 
-    protected double probability;
+    protected double relativeFrequency;
     private Loop<Block> loop;
 
     protected Block postdominator;
@@ -67,21 +65,6 @@ public final class Block extends AbstractBlockBase<Block> {
 
     public FixedNode getEndNode() {
         return endNode;
-    }
-
-    /**
-     * Return the {@link LoopExitNode} for this block if it exists.
-     */
-    public LoopExitNode getLoopExit() {
-        if (beginNode instanceof BeginNode) {
-            if (beginNode.next() instanceof LoopExitNode) {
-                return (LoopExitNode) beginNode.next();
-            }
-        }
-        if (beginNode instanceof LoopExitNode) {
-            return (LoopExitNode) beginNode;
-        }
-        return null;
     }
 
     @Override
@@ -236,14 +219,18 @@ public final class Block extends AbstractBlockBase<Block> {
         return sb.toString();
     }
 
+    /**
+     * The execution frequency of this block relative to the start block as estimated by the
+     * profiling information.
+     */
     @Override
-    public double probability() {
-        return probability;
+    public double getRelativeFrequency() {
+        return relativeFrequency;
     }
 
-    public void setProbability(double probability) {
-        assert probability >= 0 && Double.isFinite(probability);
-        this.probability = probability;
+    public void setRelativeFrequency(double relativeFrequency) {
+        assert relativeFrequency >= 0 && Double.isFinite(relativeFrequency);
+        this.relativeFrequency = relativeFrequency;
     }
 
     @Override

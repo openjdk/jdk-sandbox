@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,6 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
         Klass* ek = NULL;
         {
           MutexUnlocker mu(MultiArray_lock);
-          MutexUnlocker mc(Compile_lock);   // for vtables
           super_klass = element_super->array_klass(CHECK_0);
           for( int i = element_supers->length()-1; i >= 0; i-- ) {
             Klass* elem_super = element_supers->at(i);
@@ -117,7 +116,7 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
       new_str[idx++] = ';';
     }
     new_str[idx++] = '\0';
-    name = SymbolTable::new_permanent_symbol(new_str, CHECK_0);
+    name = SymbolTable::new_permanent_symbol(new_str);
     if (element_klass->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(element_klass);
       ik->set_array_name(name);
@@ -127,16 +126,18 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
   // Initialize instance variables
   ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_0);
 
-  // Add all classes to our internal class loader list here,
-  // including classes in the bootstrap (NULL) class loader.
-  // GC walks these as strong roots.
-  loader_data->add_class(oak);
-
   ModuleEntry* module = oak->module();
   assert(module != NULL, "No module entry for array");
 
   // Call complete_create_array_klass after all instance variables has been initialized.
   ArrayKlass::complete_create_array_klass(oak, super_klass, module, CHECK_0);
+
+  // Add all classes to our internal class loader list here,
+  // including classes in the bootstrap (NULL) class loader.
+  // Do this step after creating the mirror so that if the
+  // mirror creation fails, loaded_classes_do() doesn't find
+  // an array class without a mirror.
+  loader_data->add_class(oak);
 
   return oak;
 }
@@ -170,19 +171,10 @@ int ObjArrayKlass::oop_size(oop obj) const {
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
-  if (length >= 0) {
-    if (length <= arrayOopDesc::max_array_length(T_OBJECT)) {
-      int size = objArrayOopDesc::object_size(length);
-      return (objArrayOop)Universe::heap()->array_allocate(this, size, length,
-                                                           /* do_zero */ true, THREAD);
-    } else {
-      report_java_out_of_memory("Requested array size exceeds VM limit");
-      JvmtiExport::post_array_size_exhausted();
-      THROW_OOP_0(Universe::out_of_memory_error_array_size());
-    }
-  } else {
-    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
-  }
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_0);
+  int size = objArrayOopDesc::object_size(length);
+  return (objArrayOop)Universe::heap()->array_allocate(this, size, length,
+                                                       /* do_zero */ true, THREAD);
 }
 
 static int multi_alloc_counter = 0;
@@ -220,7 +212,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
 // Either oop or narrowOop depending on UseCompressedOops.
 void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
                             arrayOop d, size_t dst_offset, int length, TRAPS) {
-  if (oopDesc::equals(s, d)) {
+  if (s == d) {
     // since source and destination are equal we do not need conversion checks.
     assert(length > 0, "sanity check");
     ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
@@ -336,12 +328,11 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
   // lock-free read needs acquire semantics
   if (higher_dimension_acquire() == NULL) {
-    if (or_null)  return NULL;
+    if (or_null) return NULL;
 
     ResourceMark rm;
     JavaThread *jt = (JavaThread *)THREAD;
     {
-      MutexLocker mc(Compile_lock, THREAD);   // for vtables
       // Ensure atomic creation of higher dimensions
       MutexLocker mu(MultiArray_lock, THREAD);
 
@@ -358,14 +349,13 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
         assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-  } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
     return ak->array_klass_or_null(n);
   }
+  THREAD->check_possible_safepoint();
   return ak->array_klass(n, THREAD);
 }
 
@@ -404,14 +394,6 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
     }
     return secondaries;
   }
-}
-
-bool ObjArrayKlass::compute_is_subtype_of(Klass* k) {
-  if (!k->is_objArray_klass())
-    return ArrayKlass::compute_is_subtype_of(k);
-
-  ObjArrayKlass* oak = ObjArrayKlass::cast(k);
-  return element_klass()->is_subtype_of(oak->element_klass());
 }
 
 void ObjArrayKlass::initialize(TRAPS) {

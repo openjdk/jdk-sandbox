@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -584,11 +584,13 @@ class JarVerifier {
      * signing data that can be compared by object reference identity.
      */
     private static class VerifierCodeSource extends CodeSource {
+        @java.io.Serial
         private static final long serialVersionUID = -9047366145967768825L;
 
         URL vlocation;
         CodeSigner[] vsigners;
         java.security.cert.Certificate[] vcerts;
+        @SuppressWarnings("serial") // Not statically typed as Serializable
         Object csdomain;
 
         VerifierCodeSource(Object csdomain, URL location, CodeSigner[] signers) {
@@ -865,5 +867,25 @@ class JarVerifier {
 
     static CodeSource getUnsignedCS(URL url) {
         return new VerifierCodeSource(null, url, (java.security.cert.Certificate[]) null);
+    }
+
+    /**
+     * Returns whether the name is trusted. Used by
+     * {@link Manifest#getTrustedAttributes(String)}.
+     */
+    boolean isTrustedManifestEntry(String name) {
+        // How many signers? MANIFEST.MF is always verified
+        CodeSigner[] forMan = verifiedSigners.get(JarFile.MANIFEST_NAME);
+        if (forMan == null) {
+            return true;
+        }
+        // Check sigFileSigners first, because we are mainly dealing with
+        // non-file entries which will stay in sigFileSigners forever.
+        CodeSigner[] forName = sigFileSigners.get(name);
+        if (forName == null) {
+            forName = verifiedSigners.get(name);
+        }
+        // Returns trusted if all signers sign the entry
+        return forName != null && forName.length == forMan.length;
     }
 }

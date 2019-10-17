@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,15 +30,11 @@ package org.graalvm.compiler.test;
  */
 public class ExportingClassLoader extends ClassLoader {
     public ExportingClassLoader() {
-        if (!GraalTest.Java8OrEarlier) {
-            JLModule.fromClass(getClass()).exportAllPackagesTo(JLModule.getUnnamedModuleFor(this));
-        }
+        ModuleSupport.exportAllPackagesTo(getClass(), this);
     }
 
     public ExportingClassLoader(ClassLoader parent) {
         super(parent);
-        if (!GraalTest.Java8OrEarlier) {
-            JLModule.fromClass(getClass()).exportAllPackagesTo(JLModule.getUnnamedModuleFor(this));
-        }
+        ModuleSupport.exportAllPackagesTo(getClass(), this);
     }
 }

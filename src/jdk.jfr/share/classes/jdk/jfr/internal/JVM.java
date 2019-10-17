@@ -106,11 +106,11 @@ public final class JVM {
     public native void endRecording();
 
     /**
-     * Return a list of all classes deriving from {@link Event}
+     * Return a list of all classes deriving from {@link jdk.internal.event.Event}
      *
      * @return list of event classes.
      */
-    public native List<Class<? extends Event>> getAllEventClasses();
+    public native List<Class<? extends jdk.internal.event.Event>> getAllEventClasses();
 
     /**
      * Return a count of the number of unloaded classes deriving from {@link Event}
@@ -516,4 +516,11 @@ public final class JVM {
      * @param emitAll emit all samples in old object queue
      */
     public native void emitOldObjectSamples(long cutoff, boolean emitAll);
+
+    /**
+     * Test if a chunk rotation is warranted.
+     *
+     * @return if it is time to perform a chunk rotation
+     */
+    public native boolean shouldRotateDisk();
 }

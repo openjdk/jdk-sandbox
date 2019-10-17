@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,14 +23,28 @@
 
 /*
  * @test
- * @bug 8206986
- * @summary Verify than an empty switch expression is rejected.
- * @compile/fail/ref=EmptySwitch.out --enable-preview -source 12 -XDrawDiagnostics EmptySwitch.java
+ * @bug 8206986 8226510
+ * @summary Verify than a switch that does not yield a value is rejected.
+ * @compile/fail/ref=EmptySwitch.out --enable-preview -source ${jdk.version} -XDrawDiagnostics -XDshould-stop.at=FLOW EmptySwitch.java
  */
 
 public class EmptySwitch {
     private void print(EmptySwitchEnum t) {
         (switch (t) {
+        }).toString();
+        (switch (t) {
+            default -> throw new IllegalStateException();
+        }).toString();
+        (switch (t) {
+            default: throw new IllegalStateException();
+        }).toString();
+        (switch (0) {
+            case 0: yield "";
+            default:
+        }).toString();
+        (switch (0) {
+            case 0 -> { yield ""; }
+            default -> { }
         }).toString();
     }
 

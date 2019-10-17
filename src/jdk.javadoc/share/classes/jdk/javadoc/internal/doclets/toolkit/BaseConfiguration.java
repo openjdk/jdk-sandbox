@@ -271,7 +271,7 @@ public abstract class BaseConfiguration {
     /**
      * The tracker of external package links.
      */
-    public final Extern extern = new Extern(this);
+    public Extern extern;
 
     public Reporter reporter;
 
@@ -294,7 +294,6 @@ public abstract class BaseConfiguration {
 
      // A list of pairs containing urls and package list
     private final List<Pair<String, String>> linkOfflineList = new ArrayList<>();
-
 
     public boolean dumpOnError = false;
 
@@ -393,6 +392,10 @@ public abstract class BaseConfiguration {
         this.docEnv = docEnv;
         // Utils needs docEnv, safe to init now.
         utils = new Utils(this);
+
+        if (!javafx) {
+            javafx = isJavaFXMode();
+        }
 
         // Once docEnv and Utils have been initialized, others should be safe.
         cmtUtils = new CommentUtils(this);
@@ -639,8 +642,8 @@ public abstract class BaseConfiguration {
                                 summarizeOverriddenMethods = false;
                                 break;
                             default:
-                                reporter.print(ERROR, getText("doclet.Option_invalid",
-                                        o, "--override-methods"));
+                                reporter.print(ERROR,
+                                        getResources().getText("doclet.Option_invalid",o, "--override-methods"));
                                 return false;
                         }
                         return true;
@@ -739,7 +742,7 @@ public abstract class BaseConfiguration {
                         showTaglets = true;
                         return true;
                     }
-                },
+                }
         };
         Set<Doclet.Option> set = new TreeSet<>();
         set.addAll(Arrays.asList(options));
@@ -753,7 +756,7 @@ public abstract class BaseConfiguration {
      * initializes certain components before anything else is started.
      */
     protected boolean finishOptionSettings0() throws DocletException {
-
+        extern = new Extern(this);
         initDestDirectory();
         for (String link : linkList) {
             extern.link(link, reporter);
@@ -791,17 +794,18 @@ public abstract class BaseConfiguration {
 
     private void initDestDirectory() throws DocletException {
         if (!destDirName.isEmpty()) {
+            Resources resources = getResources();
             DocFile destDir = DocFile.createFileForDirectory(this, destDirName);
             if (!destDir.exists()) {
                 //Create the output directory (in case it doesn't exist yet)
-                reporter.print(NOTE, getText("doclet.dest_dir_create", destDirName));
+                reporter.print(NOTE, resources.getText("doclet.dest_dir_create", destDirName));
                 destDir.mkdirs();
             } else if (!destDir.isDirectory()) {
-                throw new SimpleDocletException(getText(
+                throw new SimpleDocletException(resources.getText(
                         "doclet.destination_directory_not_directory_0",
                         destDir.getPath()));
             } else if (!destDir.canWrite()) {
-                throw new SimpleDocletException(getText(
+                throw new SimpleDocletException(resources.getText(
                         "doclet.destination_directory_not_writable_0",
                         destDir.getPath()));
             }
@@ -820,39 +824,47 @@ public abstract class BaseConfiguration {
         tagletManager = tagletManager == null ?
                 new TagletManager(nosince, showversion, showauthor, javafx, this) :
                 tagletManager;
-        for (List<String> args : customTagStrs) {
-            if (args.get(0).equals("-taglet")) {
-                tagletManager.addCustomTag(args.get(1), getFileManager(), tagletpath);
-                continue;
+        JavaFileManager fileManager = getFileManager();
+        Messages messages = getMessages();
+        try {
+            tagletManager.initTagletPath(fileManager, tagletpath);
+            tagletManager.loadTaglets(fileManager);
+
+            for (List<String> args : customTagStrs) {
+                if (args.get(0).equals("-taglet")) {
+                    tagletManager.addCustomTag(args.get(1), fileManager);
+                    continue;
+                }
+                List<String> tokens = tokenize(args.get(1), TagletManager.SIMPLE_TAGLET_OPT_SEPARATOR, 3);
+                switch (tokens.size()) {
+                    case 1:
+                        String tagName = args.get(1);
+                        if (tagletManager.isKnownCustomTag(tagName)) {
+                            //reorder a standard tag
+                            tagletManager.addNewSimpleCustomTag(tagName, null, "");
+                        } else {
+                            //Create a simple tag with the heading that has the same name as the tag.
+                            StringBuilder heading = new StringBuilder(tagName + ":");
+                            heading.setCharAt(0, Character.toUpperCase(tagName.charAt(0)));
+                            tagletManager.addNewSimpleCustomTag(tagName, heading.toString(), "a");
+                        }
+                        break;
+
+                    case 2:
+                        //Add simple taglet without heading, probably to excluding it in the output.
+                        tagletManager.addNewSimpleCustomTag(tokens.get(0), tokens.get(1), "");
+                        break;
+
+                    case 3:
+                        tagletManager.addNewSimpleCustomTag(tokens.get(0), tokens.get(2), tokens.get(1));
+                        break;
+
+                    default:
+                        messages.error("doclet.Error_invalid_custom_tag_argument", args.get(1));
+                }
             }
-            List<String> tokens = tokenize(args.get(1), TagletManager.SIMPLE_TAGLET_OPT_SEPARATOR, 3);
-            switch (tokens.size()) {
-                case 1:
-                    String tagName = args.get(1);
-                    if (tagletManager.isKnownCustomTag(tagName)) {
-                        //reorder a standard tag
-                        tagletManager.addNewSimpleCustomTag(tagName, null, "");
-                    } else {
-                        //Create a simple tag with the heading that has the same name as the tag.
-                        StringBuilder heading = new StringBuilder(tagName + ":");
-                        heading.setCharAt(0, Character.toUpperCase(tagName.charAt(0)));
-                        tagletManager.addNewSimpleCustomTag(tagName, heading.toString(), "a");
-                    }
-                    break;
-
-                case 2:
-                    //Add simple taglet without heading, probably to excluding it in the output.
-                    tagletManager.addNewSimpleCustomTag(tokens.get(0), tokens.get(1), "");
-                    break;
-
-                case 3:
-                    tagletManager.addNewSimpleCustomTag(tokens.get(0), tokens.get(2), tokens.get(1));
-                    break;
-
-                default:
-                    Messages messages = getMessages();
-                    messages.error("doclet.Error_invalid_custom_tag_argument", args.get(1));
-            }
+        } catch (IOException e) {
+            messages.error("doclet.taglet_could_not_set_location", e.toString());
         }
     }
 
@@ -958,7 +970,7 @@ public abstract class BaseConfiguration {
         try {
             osw = new OutputStreamWriter(ost, docencoding);
         } catch (UnsupportedEncodingException exc) {
-            reporter.print(ERROR, getText("doclet.Encoding_not_supported", docencoding));
+            reporter.print(ERROR, getResources().getText("doclet.Encoding_not_supported", docencoding));
             return false;
         } finally {
             try {
@@ -1017,72 +1029,6 @@ public abstract class BaseConfiguration {
                 ? utils.getSimpleName(te)
                 : utils.getFullyQualifiedName(te);
     }
-
-    /**
-     * Convenience method to obtain a resource from the doclet's
-     * {@link Resources resources}.
-     * Equivalent to <code>getResources.getText(key);</code>.
-     *
-     * @param key the key for the desired string
-     * @return the string for the given key
-     * @throws MissingResourceException if the key is not found in either
-     *                                  bundle.
-     */
-    public abstract String getText(String key);
-
-    /**
-     * Convenience method to obtain a resource from the doclet's
-     * {@link Resources resources}.
-     * Equivalent to <code>getResources.getText(key, args);</code>.
-     *
-     * @param key  the key for the desired string
-     * @param args values to be substituted into the resulting string
-     * @return the string for the given key
-     * @throws MissingResourceException if the key is not found in either
-     *                                  bundle.
-     */
-    public abstract String getText(String key, String... args);
-
-    /**
-     * Convenience method to obtain a resource from the doclet's
-     * {@link Resources resources} as a {@code Content} object.
-     *
-     * @param key the key for the desired string
-     * @return a content tree for the text
-     */
-    public abstract Content getContent(String key);
-
-    /**
-     * Convenience method to obtain a resource from the doclet's
-     * {@link Resources resources} as a {@code Content} object.
-     *
-     * @param key the key for the desired string
-     * @param o   string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    public abstract Content getContent(String key, Object o);
-
-    /**
-     * Convenience method to obtain a resource from the doclet's
-     * {@link Resources resources} as a {@code Content} object.
-     *
-     * @param key the key for the desired string
-     * @param o1  resource argument
-     * @param o2  resource argument
-     * @return a content tree for the text
-     */
-    public abstract Content getContent(String key, Object o1, Object o2);
-
-    /**
-     * Get the configuration string as a content.
-     *
-     * @param key the key for the desired string
-     * @param o0  string or content argument added to configuration text
-     * @param o1  string or content argument added to configuration text
-     * @param o2  string or content argument added to configuration text
-     * @return a content tree for the text
-     */
-    public abstract Content getContent(String key, Object o0, Object o1, Object o2);
 
     /**
      * Return true if the TypeElement element is getting documented, depending upon
@@ -1334,5 +1280,20 @@ public abstract class BaseConfiguration {
 
     public synchronized VisibleMemberTable getVisibleMemberTable(TypeElement te) {
         return visibleMemberCache.getVisibleMemberTable(te);
+    }
+
+    /**
+     * Determines if JavaFX is available in the compilation environment.
+     * @return true if JavaFX is available
+     */
+    public boolean isJavaFXMode() {
+        TypeElement observable = utils.elementUtils.getTypeElement("javafx.beans.Observable");
+        if (observable != null) {
+            ModuleElement javafxModule = utils.elementUtils.getModuleOf(observable);
+            if (javafxModule == null || javafxModule.isUnnamed() || javafxModule.getQualifiedName().contentEquals("javafx.base")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

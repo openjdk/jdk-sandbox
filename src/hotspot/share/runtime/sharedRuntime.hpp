@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
-#define SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
+#ifndef SHARE_RUNTIME_SHAREDRUNTIME_HPP
+#define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeTracer.hpp"
@@ -48,6 +48,9 @@ class SharedRuntime: AllStatic {
   friend class VMStructs;
 
  private:
+  static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
+                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                          Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
   static methodHandle resolve_sub_helper(JavaThread *thread,
                                          bool is_virtual,
                                          bool is_optimized, TRAPS);
@@ -201,9 +204,6 @@ class SharedRuntime: AllStatic {
   static address continuation_for_implicit_exception(JavaThread* thread,
                                                      address faulting_pc,
                                                      ImplicitExceptionKind exception_kind);
-#if INCLUDE_JVMCI
-  static address deoptimize_for_implicit_exception(JavaThread* thread, address pc, CompiledMethod* nm, int deopt_reason);
-#endif
 
   // Post-slow-path-allocation, pre-initializing-stores step for
   // implementing e.g. ReduceInitialCardMarks
@@ -323,6 +323,10 @@ class SharedRuntime: AllStatic {
  private:
   // deopt blob
   static void generate_deopt_blob(void);
+
+  static bool handle_ic_miss_helper_internal(Handle receiver, CompiledMethod* caller_nm, const frame& caller_frame,
+                                             methodHandle callee_method, Bytecodes::Code bc, CallInfo& call_info,
+                                             bool& needs_ic_stub_refill, TRAPS);
 
  public:
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
@@ -481,7 +485,8 @@ class SharedRuntime: AllStatic {
                                           int compile_id,
                                           BasicType* sig_bt,
                                           VMRegPair* regs,
-                                          BasicType ret_type);
+                                          BasicType ret_type,
+                                          address critical_entry);
 
   // Block before entering a JNI critical method
   static void block_for_jni_critical(JavaThread* thread);
@@ -632,6 +637,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address _i2c_entry;
   address _c2i_entry;
   address _c2i_unverified_entry;
+  address _c2i_no_clinit_check_entry;
 
 #ifdef ASSERT
   // Captures code and signature used to generate this adapter when
@@ -640,11 +646,12 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_unverified_entry, address c2i_no_clinit_check_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
+    _c2i_no_clinit_check_entry = c2i_no_clinit_check_entry;
 #ifdef ASSERT
     _saved_code = NULL;
     _saved_code_length = 0;
@@ -657,9 +664,11 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   AdapterHandlerEntry();
 
  public:
-  address get_i2c_entry()            const { return _i2c_entry; }
-  address get_c2i_entry()            const { return _c2i_entry; }
-  address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
+  address get_i2c_entry()                  const { return _i2c_entry; }
+  address get_c2i_entry()                  const { return _c2i_entry; }
+  address get_c2i_unverified_entry()       const { return _c2i_unverified_entry; }
+  address get_c2i_no_clinit_check_entry()  const { return _c2i_no_clinit_check_entry; }
+
   address base_address();
   void relocate(address new_base);
 
@@ -705,7 +714,10 @@ class AdapterHandlerLibrary: public AllStatic {
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_unverified_entry);
+                                        address i2c_entry,
+                                        address c2i_entry,
+                                        address c2i_unverified_entry,
+                                        address c2i_no_clinit_check_entry = NULL);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 
@@ -718,4 +730,4 @@ class AdapterHandlerLibrary: public AllStatic {
 
 };
 
-#endif // SHARE_VM_RUNTIME_SHAREDRUNTIME_HPP
+#endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

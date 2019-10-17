@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,7 @@
 #include "interpreter/interp_masm.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compiledICHolder.hpp"
+#include "oops/klass.inline.hpp"
 #include "registerSaver_s390.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -587,6 +588,9 @@ void SharedRuntime::save_native_result(MacroAssembler * masm,
     case T_DOUBLE:
       __ freg2mem_opt(Z_FRET, memaddr);
       break;
+    default:
+      ShouldNotReachHere();
+      break;
   }
 }
 
@@ -615,6 +619,9 @@ void SharedRuntime::restore_native_result(MacroAssembler *masm,
       break;
     case T_DOUBLE:
       __ mem2freg_opt(Z_FRET, memaddr);
+      break;
+    default:
+      ShouldNotReachHere();
       break;
   }
 }
@@ -877,7 +884,7 @@ static void verify_oop_args(MacroAssembler *masm,
   if (!VerifyOops) { return; }
 
   for (int i = 0; i < total_args_passed; i++) {
-    if (sig_bt[i] == T_OBJECT || sig_bt[i] == T_ARRAY) {
+    if (is_reference_type(sig_bt[i])) {
       VMReg r = regs[i].first();
       assert(r->is_valid(), "bad oop arg");
 
@@ -1512,7 +1519,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 int compile_id,
                                                 BasicType *in_sig_bt,
                                                 VMRegPair *in_regs,
-                                                BasicType ret_type) {
+                                                BasicType ret_type,
+                                                address critical_entry) {
 #ifdef COMPILER2
   int total_in_args = method->size_of_parameters();
   if (method->is_method_handle_intrinsic()) {
@@ -1548,7 +1556,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   ///////////////////////////////////////////////////////////////////////
 
   bool is_critical_native = true;
-  address native_func = method->critical_native_function();
+  address native_func = critical_entry;
   if (native_func == NULL) {
     native_func = method->native_function();
     is_critical_native = false;
@@ -1612,14 +1620,13 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
       out_sig_bt[argc++] = in_sig_bt[i];
     }
   } else {
-    Thread* THREAD = Thread::current();
     in_elem_bt = NEW_RESOURCE_ARRAY(BasicType, total_in_args);
     SignatureStream ss(method->signature());
     int o = 0;
     for (int i = 0; i < total_in_args; i++, o++) {
       if (in_sig_bt[i] == T_ARRAY) {
         // Arrays are passed as tuples (int, elem*).
-        Symbol* atype = ss.as_symbol(CHECK_NULL);
+        Symbol* atype = ss.as_symbol();
         const char* at = atype->as_C_string();
         if (strlen(at) == 2) {
           assert(at[0] == '[', "must be");
@@ -1826,6 +1833,20 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   // Verified entry point (VEP)
   //---------------------------------------------------------------------
   wrapper_VEPStart = __ offset();
+
+  if (VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier()) {
+    Label L_skip_barrier;
+    Register klass = Z_R1_scratch;
+    // Notify OOP recorder (don't need the relocation)
+    AddressLiteral md = __ constant_metadata_address(method->method_holder());
+    __ load_const_optimized(klass, md.value());
+    __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+    __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+    __ z_br(klass);
+
+    __ bind(L_skip_barrier);
+  }
 
   __ save_return_pc();
   __ generate_stack_overflow_check(frame_size_in_bytes);  // Check before creating frame.
@@ -2155,18 +2176,9 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
 
     save_native_result(masm, ret_type, workspace_slot_offset); // Make Z_R2 available as work reg.
 
-    if (os::is_MP()) {
-      if (UseMembar) {
-        // Force this write out before the read below.
-        __ z_fence();
-      } else {
-        // Write serialization page so VM thread can do a pseudo remote membar.
-        // We use the current thread pointer to calculate a thread specific
-        // offset to write to within the page. This minimizes bus traffic
-        // due to cache line collision.
-        __ serialize_memory(Z_thread, Z_R1, Z_R2);
-      }
-    }
+    // Force this write out before the read below.
+    __ z_fence();
+
     __ safepoint_poll(sync, Z_R1);
 
     __ load_and_test_int(Z_R0, Address(Z_thread, JavaThread::suspend_flags_offset()));
@@ -2307,7 +2319,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   __ reset_last_Java_frame();
 
   // Unpack oop result, e.g. JNIHandles::resolve result.
-  if (ret_type == T_OBJECT || ret_type == T_ARRAY) {
+  if (is_reference_type(ret_type)) {
     __ resolve_jobject(Z_RET, /* tmp1 */ Z_R13, /* tmp2 */ Z_R7);
   }
 
@@ -2610,7 +2622,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
       } else {
         if (!r_2->is_valid()) {
           // Not sure we need to do this but it shouldn't hurt.
-          if (sig_bt[i] == T_OBJECT || sig_bt[i] == T_ADDRESS || sig_bt[i] == T_ARRAY) {
+          if (is_reference_type(sig_bt[i]) || sig_bt[i] == T_ADDRESS) {
             __ z_lg(r_1->as_Register(), ld_offset, ld_ptr);
           } else {
             __ z_l(r_1->as_Register(), ld_offset, ld_ptr);
@@ -2700,10 +2712,32 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     // Fallthru to VEP. Duplicate LTG, but saved taken branch.
   }
 
-  address c2i_entry;
-  c2i_entry = gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  address c2i_entry = __ pc();
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+  // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
+  if (VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+
+    { // Bypass the barrier for non-static methods
+      __ testbit(Address(Z_method, Method::access_flags_offset()), JVM_ACC_STATIC_BIT);
+      __ z_bfalse(L_skip_barrier); // non-static
+    }
+
+    Register klass = Z_R11;
+    __ load_method_holder(klass, Z_method);
+    __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+    __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+    __ z_br(klass);
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
+  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
 // This function returns the adjust size (in number of words) to a c2i adapter

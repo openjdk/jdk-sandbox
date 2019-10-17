@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -27,7 +25,7 @@
  * @test
  * @bug 8206986
  * @summary Check switch expressions embedded in switch expressions.
- * @compile --enable-preview -source 12 ExpressionSwitchInExpressionSwitch.java
+ * @compile --enable-preview -source ${jdk.version} ExpressionSwitchInExpressionSwitch.java
  * @run main/othervm --enable-preview ExpressionSwitchInExpressionSwitch
  */
 
@@ -45,11 +43,11 @@ public class ExpressionSwitchInExpressionSwitch {
             default -> {
                 int k = switch (j) {
                     default -> {
-                        break 42;
+                        yield 42;
                     }
                 };
-                System.out.println("didn't break to the top level");
-                break 43;
+                System.out.println("didn't yield to the top level");
+                yield 43;
             }
         };
         if (i!=43) {

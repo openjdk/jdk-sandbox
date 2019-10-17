@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
-#define SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
+#ifndef SHARE_GC_G1_G1ROOTCLOSURES_HPP
+#define SHARE_GC_G1_G1ROOTCLOSURES_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -49,13 +49,6 @@ public:
 
 class G1EvacuationRootClosures : public G1RootClosures {
 public:
-  // Applied to the weakly reachable CLDs when all strongly reachable
-  // CLDs are guaranteed to have been processed.
-  virtual CLDClosure* second_pass_weak_clds() = 0;
-
-  // Get a raw oop closure for processing oops, bypassing the flushing above.
-  virtual OopClosure* raw_strong_oops() = 0;
-
   // Applied to code blobs treated as weak roots.
   virtual CodeBlobClosure* weak_codeblobs() = 0;
 
@@ -65,4 +58,4 @@ public:
   static G1EvacuationRootClosures* create_root_closures(G1ParScanThreadState* pss, G1CollectedHeap* g1h);
 };
 
-#endif // SHARE_VM_GC_G1_G1ROOTCLOSURESET_HPP
+#endif // SHARE_GC_G1_G1ROOTCLOSURES_HPP

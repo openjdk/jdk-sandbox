@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -183,8 +183,7 @@ public class JMap extends Tool {
             System.out.println("heap written to " + fileName);
             return true;
         } catch (IOException exp) {
-            System.err.println(exp.getMessage());
-            return false;
+            throw new RuntimeException(exp);
         }
     }
 
@@ -199,8 +198,7 @@ public class JMap extends Tool {
             System.out.println("heap written to " + fileName);
             return true;
         } catch (IOException exp) {
-            System.err.println(exp.getMessage());
-            return false;
+            throw new RuntimeException(exp);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,17 +24,18 @@
 
 #include "precompiled.hpp"
 #include "gc/cms/cmsCardTable.hpp"
+#include "gc/cms/cmsVMOperations.hpp"
 #include "gc/cms/compactibleFreeListSpace.hpp"
 #include "gc/cms/concurrentMarkSweepGeneration.hpp"
 #include "gc/cms/concurrentMarkSweepThread.hpp"
 #include "gc/cms/cmsHeap.hpp"
 #include "gc/cms/parNewGeneration.hpp"
-#include "gc/cms/vmCMSOperations.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "gc/shared/genMemoryPools.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/workgroup.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/vmThread.hpp"
 #include "services/memoryManager.hpp"
@@ -61,27 +62,31 @@ public:
   }
 
   size_t used_in_bytes() {
-    return _space->used();
+    return _space->used_stable();
   }
 };
 
-CMSHeap::CMSHeap(GenCollectorPolicy *policy) :
-    GenCollectedHeap(policy,
-                     Generation::ParNew,
+CMSHeap::CMSHeap() :
+    GenCollectedHeap(Generation::ParNew,
                      Generation::ConcurrentMarkSweep,
                      "ParNew:CMS"),
+    _workers(NULL),
     _eden_pool(NULL),
     _survivor_pool(NULL),
     _old_pool(NULL) {
-  _workers = new WorkGang("GC Thread", ParallelGCThreads,
-                          /* are_GC_task_threads */true,
-                          /* are_ConcurrentGC_threads */false);
-  _workers->initialize_workers();
 }
 
 jint CMSHeap::initialize() {
   jint status = GenCollectedHeap::initialize();
   if (status != JNI_OK) return status;
+
+  _workers = new WorkGang("GC Thread", ParallelGCThreads,
+                          /* are_GC_task_threads */true,
+                          /* are_ConcurrentGC_threads */false);
+  if (_workers == NULL) {
+    return JNI_ENOMEM;
+  }
+  _workers->initialize_workers();
 
   // If we are running CMS, create the collector responsible
   // for collecting the CMS generations.
@@ -157,9 +162,7 @@ bool CMSHeap::create_cms_collector() {
   assert(old_gen()->kind() == Generation::ConcurrentMarkSweep,
          "Unexpected generation kinds");
   CMSCollector* collector =
-    new CMSCollector((ConcurrentMarkSweepGeneration*) old_gen(),
-                     rem_set(),
-                     (ConcurrentMarkSweepPolicy*) gen_policy());
+    new CMSCollector((ConcurrentMarkSweepGeneration*) old_gen(), rem_set());
 
   if (collector == NULL || !collector->completed_initialization()) {
     if (collector) {
@@ -220,15 +223,11 @@ void CMSHeap::cms_process_roots(StrongRootsScope* scope,
                                 ScanningOption so,
                                 bool only_strong_roots,
                                 OopsInGenClosure* root_closure,
-                                CLDClosure* cld_closure,
-                                OopStorage::ParState<false, false>* par_state_string) {
+                                CLDClosure* cld_closure) {
   MarkingCodeBlobClosure mark_code_closure(root_closure, !CodeBlobToOopClosure::FixRelocations);
   CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
 
   process_roots(scope, so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
-  if (!only_strong_roots) {
-    process_string_table_roots(scope, root_closure, par_state_string);
-  }
 
   if (young_gen_as_roots &&
       _process_strong_tasks->try_claim_task(GCH_PS_younger_gens)) {
@@ -241,13 +240,11 @@ void CMSHeap::cms_process_roots(StrongRootsScope* scope,
 }
 
 void CMSHeap::gc_prologue(bool full) {
-  always_do_update_barrier = false;
   GenCollectedHeap::gc_prologue(full);
 };
 
 void CMSHeap::gc_epilogue(bool full) {
   GenCollectedHeap::gc_epilogue(full);
-  always_do_update_barrier = true;
 };
 
 GrowableArray<GCMemoryManager*> CMSHeap::memory_managers() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIMETHOD_HPP
-#define SHARE_VM_CI_CIMETHOD_HPP
+#ifndef SHARE_CI_CIMETHOD_HPP
+#define SHARE_CI_CIMETHOD_HPP
 
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstanceKlass.hpp"
@@ -89,6 +89,7 @@ class ciMethod : public ciMetadata {
   bool _can_be_parsed;
   bool _can_be_statically_bound;
   bool _has_reserved_stack_access;
+  bool _is_overpass;
 
   // Lazy fields, filled in on demand
   address              _code;
@@ -124,6 +125,9 @@ class ciMethod : public ciMetadata {
   // Check bytecode and profile data collected are compatible
   void assert_virtual_call_type_ok(int bci);
   void assert_call_type_ok(int bci);
+
+  // Check and update the profile counter in case of overflow
+  static int check_overflow(int c, Bytecodes::Code code);
 
  public:
   void check_is_loaded() const                   { assert(is_loaded(), "not loaded"); }
@@ -190,10 +194,11 @@ class ciMethod : public ciMetadata {
   // Code size for inlining decisions.
   int code_size_for_inlining();
 
-  bool caller_sensitive()    const { return get_Method()->caller_sensitive();    }
-  bool force_inline()        const { return get_Method()->force_inline();        }
-  bool dont_inline()         const { return get_Method()->dont_inline();         }
-  bool intrinsic_candidate() const { return get_Method()->intrinsic_candidate(); }
+  bool caller_sensitive()      const { return get_Method()->caller_sensitive();      }
+  bool force_inline()          const { return get_Method()->force_inline();          }
+  bool dont_inline()           const { return get_Method()->dont_inline();           }
+  bool intrinsic_candidate()   const { return get_Method()->intrinsic_candidate();   }
+  bool is_static_initializer() const { return get_Method()->is_static_initializer(); }
 
   int comp_level();
   int highest_osr_comp_level();
@@ -243,6 +248,8 @@ class ciMethod : public ciMetadata {
 
   ResourceBitMap live_local_oops_at_bci(int bci);
 
+  bool needs_clinit_barrier() const;
+
 #ifdef COMPILER1
   const BitMap& bci_block_start();
 #endif
@@ -264,6 +271,8 @@ class ciMethod : public ciMetadata {
     ciSignature* ignored_declared_signature;
     return get_method_at_bci(bci, ignored_will_link, &ignored_declared_signature);
   }
+
+  ciKlass*      get_declared_method_holder_at_bci(int bci);
 
   ciSignature*  get_declared_signature_at_bci(int bci) {
     bool ignored_will_link;
@@ -333,6 +342,9 @@ class ciMethod : public ciMetadata {
   bool is_empty_method() const;
   bool is_vanilla_constructor() const;
   bool is_final_method() const                   { return is_final() || holder()->is_final(); }
+  bool is_default_method() const                 { return !is_abstract() && !is_private() &&
+                                                          holder()->is_interface(); }
+  bool is_overpass    () const                   { check_is_loaded(); return _is_overpass; }
   bool has_loops      () const;
   bool has_jsrs       () const;
   bool is_getter      () const;
@@ -344,6 +356,8 @@ class ciMethod : public ciMetadata {
   bool is_boxing_method() const;
   bool is_unboxing_method() const;
   bool is_object_initializer() const;
+
+  bool can_be_statically_bound(ciInstanceKlass* context) const;
 
   // Replay data methods
   void dump_name_as_ascii(outputStream* st);
@@ -363,4 +377,4 @@ class ciMethod : public ciMetadata {
   static bool is_consistent_info(ciMethod* declared_method, ciMethod* resolved_method);
 };
 
-#endif // SHARE_VM_CI_CIMETHOD_HPP
+#endif // SHARE_CI_CIMETHOD_HPP

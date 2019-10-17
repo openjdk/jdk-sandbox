@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,10 @@
 #include "compiler/disassembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/filemap.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "os_share_solaris.hpp"
 #include "os_solaris.inline.hpp"
@@ -199,6 +201,10 @@ static inline stack_t get_stack_info() {
   return st;
 }
 
+static void _handle_uncaught_cxx_exception() {
+  VMError::report_and_die("An uncaught C++ exception");
+}
+
 bool os::is_primordial_thread(void) {
   int r = thr_main();
   guarantee(r == 0 || r == 1, "CR6501650 or CR6493689");
@@ -259,8 +265,6 @@ void os::Solaris::try_enable_extended_io() {
   }
 }
 
-static int _processors_online = 0;
-
 jint os::Solaris::_os_thread_limit = 0;
 volatile jint os::Solaris::_os_thread_count = 0;
 
@@ -285,7 +289,6 @@ static volatile hrtime_t max_hrtime = 0;
 
 void os::Solaris::initialize_system_info() {
   set_processor_count(sysconf(_SC_NPROCESSORS_CONF));
-  _processors_online = sysconf(_SC_NPROCESSORS_ONLN);
   _physical_memory = (julong)sysconf(_SC_PHYS_PAGES) *
                                      (julong)sysconf(_SC_PAGESIZE);
 }
@@ -314,144 +317,11 @@ int os::active_processor_count() {
     // Query the number of cpus available to us.
     if (pset_info(pset, NULL, &pset_cpus, NULL) == 0) {
       assert(pset_cpus > 0 && pset_cpus <= online_cpus, "sanity check");
-      _processors_online = pset_cpus;
       return pset_cpus;
     }
   }
   // Otherwise return number of online cpus
   return online_cpus;
-}
-
-static bool find_processors_in_pset(psetid_t        pset,
-                                    processorid_t** id_array,
-                                    uint_t*         id_length) {
-  bool result = false;
-  // Find the number of processors in the processor set.
-  if (pset_info(pset, NULL, id_length, NULL) == 0) {
-    // Make up an array to hold their ids.
-    *id_array = NEW_C_HEAP_ARRAY(processorid_t, *id_length, mtInternal);
-    // Fill in the array with their processor ids.
-    if (pset_info(pset, NULL, id_length, *id_array) == 0) {
-      result = true;
-    }
-  }
-  return result;
-}
-
-// Callers of find_processors_online() must tolerate imprecise results --
-// the system configuration can change asynchronously because of DR
-// or explicit psradm operations.
-//
-// We also need to take care that the loop (below) terminates as the
-// number of processors online can change between the _SC_NPROCESSORS_ONLN
-// request and the loop that builds the list of processor ids.   Unfortunately
-// there's no reliable way to determine the maximum valid processor id,
-// so we use a manifest constant, MAX_PROCESSOR_ID, instead.  See p_online
-// man pages, which claim the processor id set is "sparse, but
-// not too sparse".  MAX_PROCESSOR_ID is used to ensure that we eventually
-// exit the loop.
-//
-// In the future we'll be able to use sysconf(_SC_CPUID_MAX), but that's
-// not available on S8.0.
-
-static bool find_processors_online(processorid_t** id_array,
-                                   uint*           id_length) {
-  const processorid_t MAX_PROCESSOR_ID = 100000;
-  // Find the number of processors online.
-  *id_length = sysconf(_SC_NPROCESSORS_ONLN);
-  // Make up an array to hold their ids.
-  *id_array = NEW_C_HEAP_ARRAY(processorid_t, *id_length, mtInternal);
-  // Processors need not be numbered consecutively.
-  long found = 0;
-  processorid_t next = 0;
-  while (found < *id_length && next < MAX_PROCESSOR_ID) {
-    processor_info_t info;
-    if (processor_info(next, &info) == 0) {
-      // NB, PI_NOINTR processors are effectively online ...
-      if (info.pi_state == P_ONLINE || info.pi_state == P_NOINTR) {
-        (*id_array)[found] = next;
-        found += 1;
-      }
-    }
-    next += 1;
-  }
-  if (found < *id_length) {
-    // The loop above didn't identify the expected number of processors.
-    // We could always retry the operation, calling sysconf(_SC_NPROCESSORS_ONLN)
-    // and re-running the loop, above, but there's no guarantee of progress
-    // if the system configuration is in flux.  Instead, we just return what
-    // we've got.  Note that in the worst case find_processors_online() could
-    // return an empty set.  (As a fall-back in the case of the empty set we
-    // could just return the ID of the current processor).
-    *id_length = found;
-  }
-
-  return true;
-}
-
-static bool assign_distribution(processorid_t* id_array,
-                                uint           id_length,
-                                uint*          distribution,
-                                uint           distribution_length) {
-  // We assume we can assign processorid_t's to uint's.
-  assert(sizeof(processorid_t) == sizeof(uint),
-         "can't convert processorid_t to uint");
-  // Quick check to see if we won't succeed.
-  if (id_length < distribution_length) {
-    return false;
-  }
-  // Assign processor ids to the distribution.
-  // Try to shuffle processors to distribute work across boards,
-  // assuming 4 processors per board.
-  const uint processors_per_board = ProcessDistributionStride;
-  // Find the maximum processor id.
-  processorid_t max_id = 0;
-  for (uint m = 0; m < id_length; m += 1) {
-    max_id = MAX2(max_id, id_array[m]);
-  }
-  // The next id, to limit loops.
-  const processorid_t limit_id = max_id + 1;
-  // Make up markers for available processors.
-  bool* available_id = NEW_C_HEAP_ARRAY(bool, limit_id, mtInternal);
-  for (uint c = 0; c < limit_id; c += 1) {
-    available_id[c] = false;
-  }
-  for (uint a = 0; a < id_length; a += 1) {
-    available_id[id_array[a]] = true;
-  }
-  // Step by "boards", then by "slot", copying to "assigned".
-  // NEEDS_CLEANUP: The assignment of processors should be stateful,
-  //                remembering which processors have been assigned by
-  //                previous calls, etc., so as to distribute several
-  //                independent calls of this method.  What we'd like is
-  //                It would be nice to have an API that let us ask
-  //                how many processes are bound to a processor,
-  //                but we don't have that, either.
-  //                In the short term, "board" is static so that
-  //                subsequent distributions don't all start at board 0.
-  static uint board = 0;
-  uint assigned = 0;
-  // Until we've found enough processors ....
-  while (assigned < distribution_length) {
-    // ... find the next available processor in the board.
-    for (uint slot = 0; slot < processors_per_board; slot += 1) {
-      uint try_id = board * processors_per_board + slot;
-      if ((try_id < limit_id) && (available_id[try_id] == true)) {
-        distribution[assigned] = try_id;
-        available_id[try_id] = false;
-        assigned += 1;
-        break;
-      }
-    }
-    board += 1;
-    if (board * processors_per_board + 0 >= limit_id) {
-      board = 0;
-    }
-  }
-  if (available_id != NULL) {
-    FREE_C_HEAP_ARRAY(bool, available_id);
-  }
-  return true;
 }
 
 void os::set_native_thread_name(const char *name) {
@@ -464,33 +334,6 @@ void os::set_native_thread_name(const char *name) {
     buf[sizeof(buf) - 1] = '\0';
     Solaris::_pthread_setname_np(pthread_self(), buf);
   }
-}
-
-bool os::distribute_processes(uint length, uint* distribution) {
-  bool result = false;
-  // Find the processor id's of all the available CPUs.
-  processorid_t* id_array  = NULL;
-  uint           id_length = 0;
-  // There are some races between querying information and using it,
-  // since processor sets can change dynamically.
-  psetid_t pset = PS_NONE;
-  // Are we running in a processor set?
-  if ((pset_bind(PS_QUERY, P_PID, P_MYID, &pset) == 0) && pset != PS_NONE) {
-    result = find_processors_in_pset(pset, &id_array, &id_length);
-  } else {
-    result = find_processors_online(&id_array, &id_length);
-  }
-  if (result == true) {
-    if (id_length >= length) {
-      result = assign_distribution(id_array, id_length, distribution, length);
-    } else {
-      result = false;
-    }
-  }
-  if (id_array != NULL) {
-    FREE_C_HEAP_ARRAY(processorid_t, id_array);
-  }
-  return result;
 }
 
 bool os::bind_to_processor(uint processor_id) {
@@ -556,7 +399,7 @@ void os::init_system_properties_values() {
     MAX3((size_t)MAXPATHLEN,  // For dll_dir & friends.
          sizeof(SYS_EXT_DIR) + sizeof("/lib/"), // invariant ld_library_path
          (size_t)MAXPATHLEN + sizeof(EXTENSIONS_DIR) + sizeof(SYS_EXT_DIR) + sizeof(EXTENSIONS_DIR)); // extensions dir
-  char *buf = (char *)NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
+  char *buf = NEW_C_HEAP_ARRAY(char, bufsize, mtInternal);
 
   // sysclasspath, java_home, dll_dir
   {
@@ -642,7 +485,7 @@ void os::init_system_properties_values() {
     // through the dlinfo() call, so only add additional space for the path
     // components explicitly added here.
     size_t library_path_size = info->dls_size + strlen(common_path);
-    library_path = (char *)NEW_C_HEAP_ARRAY(char, library_path_size, mtInternal);
+    library_path = NEW_C_HEAP_ARRAY(char, library_path_size, mtInternal);
     library_path[0] = '\0';
 
     // Construct the desired Java library path from the linker's library
@@ -696,19 +539,6 @@ void os::breakpoint() {
   BREAKPOINT;
 }
 
-bool os::obsolete_option(const JavaVMOption *option) {
-  if (!strncmp(option->optionString, "-Xt", 3)) {
-    return true;
-  } else if (!strncmp(option->optionString, "-Xtm", 4)) {
-    return true;
-  } else if (!strncmp(option->optionString, "-Xverifyheap", 12)) {
-    return true;
-  } else if (!strncmp(option->optionString, "-Xmaxjitcodesize", 16)) {
-    return true;
-  }
-  return false;
-}
-
 bool os::Solaris::valid_stack_address(Thread* thread, address sp) {
   address  stackStart  = (address)thread->stack_base();
   address  stackEnd    = (address)(stackStart - (address)thread->stack_size());
@@ -724,6 +554,11 @@ static thread_t main_thread;
 
 // Thread start routine for all newly created threads
 extern "C" void* thread_native_entry(void* thread_addr) {
+
+  Thread* thread = (Thread*)thread_addr;
+
+  thread->record_stack_base_and_size();
+
   // Try to randomize the cache line index of hot stack frames.
   // This helps when threads of the same stack traces evict each other's
   // cache lines. The threads can be either from the same JVM instance, or
@@ -734,7 +569,6 @@ extern "C" void* thread_native_entry(void* thread_addr) {
   alloca(((pid ^ counter++) & 7) * 128);
 
   int prio;
-  Thread* thread = (Thread*)thread_addr;
 
   thread->initialize_thread_current();
 
@@ -775,7 +609,13 @@ extern "C" void* thread_native_entry(void* thread_addr) {
   // initialize signal mask for this thread
   os::Solaris::hotspot_sigmask(thread);
 
-  thread->run();
+  os::Solaris::init_thread_fpu_state();
+  std::set_terminate(_handle_uncaught_cxx_exception);
+
+  thread->call_run();
+
+  // Note: at this point the thread object may already have deleted itself.
+  // Do not dereference it from here on out.
 
   // One less thread is executing
   // When the VMThread gets here, the main thread may have already exited
@@ -785,15 +625,6 @@ extern "C" void* thread_native_entry(void* thread_addr) {
   }
 
   log_info(os, thread)("Thread finished (tid: " UINTX_FORMAT ").", os::current_thread_id());
-
-  // If a thread has not deleted itself ("delete this") as part of its
-  // termination sequence, we have to ensure thread-local-storage is
-  // cleared before we actually terminate. No threads should ever be
-  // deleted asynchronously with respect to their termination.
-  if (Thread::current_or_null_safe() != NULL) {
-    assert(Thread::current_or_null_safe() == thread, "current thread is wrong");
-    thread->clear_thread_current();
-  }
 
   if (UseDetachedThreads) {
     thr_exit(NULL);
@@ -1000,6 +831,11 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
   } else {
     log_warning(os, thread)("Failed to start thread - thr_create failed (%s) for attributes: %s.",
       os::errno_name(status), describe_thr_create_attributes(buf, sizeof(buf), stack_size, flags));
+    // Log some OS information which might explain why creating the thread failed.
+    log_info(os, thread)("Number of threads approx. running in the VM: %d", Threads::number_of_threads());
+    LogStream st(Log(os, thread)::info());
+    os::Posix::print_rlimit_info(&st);
+    os::print_memory_info(&st);
   }
 
   if (status != 0) {
@@ -1090,67 +926,58 @@ sigset_t* os::Solaris::vm_signals() {
   return &vm_sigs;
 }
 
-void _handle_uncaught_cxx_exception() {
-  VMError::report_and_die("An uncaught C++ exception");
-}
+// CR 7190089: on Solaris, primordial thread's stack needs adjusting.
+// Without the adjustment, stack size is incorrect if stack is set to unlimited (ulimit -s unlimited).
+void os::Solaris::correct_stack_boundaries_for_primordial_thread(Thread* thr) {
+  assert(is_primordial_thread(), "Call only for primordial thread");
 
+  JavaThread* jt = (JavaThread *)thr;
+  assert(jt != NULL, "Sanity check");
+  size_t stack_size;
+  address base = jt->stack_base();
+  if (Arguments::created_by_java_launcher()) {
+    // Use 2MB to allow for Solaris 7 64 bit mode.
+    stack_size = JavaThread::stack_size_at_create() == 0
+      ? 2048*K : JavaThread::stack_size_at_create();
 
-// First crack at OS-specific initialization, from inside the new thread.
-void os::initialize_thread(Thread* thr) {
-  if (is_primordial_thread()) {
-    JavaThread* jt = (JavaThread *)thr;
-    assert(jt != NULL, "Sanity check");
-    size_t stack_size;
-    address base = jt->stack_base();
-    if (Arguments::created_by_java_launcher()) {
-      // Use 2MB to allow for Solaris 7 64 bit mode.
-      stack_size = JavaThread::stack_size_at_create() == 0
-        ? 2048*K : JavaThread::stack_size_at_create();
-
-      // There are rare cases when we may have already used more than
-      // the basic stack size allotment before this method is invoked.
-      // Attempt to allow for a normally sized java_stack.
-      size_t current_stack_offset = (size_t)(base - (address)&stack_size);
-      stack_size += ReservedSpace::page_align_size_down(current_stack_offset);
-    } else {
-      // 6269555: If we were not created by a Java launcher, i.e. if we are
-      // running embedded in a native application, treat the primordial thread
-      // as much like a native attached thread as possible.  This means using
-      // the current stack size from thr_stksegment(), unless it is too large
-      // to reliably setup guard pages.  A reasonable max size is 8MB.
-      size_t current_size = current_stack_size();
-      // This should never happen, but just in case....
-      if (current_size == 0) current_size = 2 * K * K;
-      stack_size = current_size > (8 * K * K) ? (8 * K * K) : current_size;
-    }
-    address bottom = align_up(base - stack_size, os::vm_page_size());;
-    stack_size = (size_t)(base - bottom);
-
-    assert(stack_size > 0, "Stack size calculation problem");
-
-    if (stack_size > jt->stack_size()) {
-#ifndef PRODUCT
-      struct rlimit limits;
-      getrlimit(RLIMIT_STACK, &limits);
-      size_t size = adjust_stack_size(base, (size_t)limits.rlim_cur);
-      assert(size >= jt->stack_size(), "Stack size problem in main thread");
-#endif
-      tty->print_cr("Stack size of %d Kb exceeds current limit of %d Kb.\n"
-                    "(Stack sizes are rounded up to a multiple of the system page size.)\n"
-                    "See limit(1) to increase the stack size limit.",
-                    stack_size / K, jt->stack_size() / K);
-      vm_exit(1);
-    }
-    assert(jt->stack_size() >= stack_size,
-           "Attempt to map more stack than was allocated");
-    jt->set_stack_size(stack_size);
+    // There are rare cases when we may have already used more than
+    // the basic stack size allotment before this method is invoked.
+    // Attempt to allow for a normally sized java_stack.
+    size_t current_stack_offset = (size_t)(base - (address)&stack_size);
+    stack_size += ReservedSpace::page_align_size_down(current_stack_offset);
+  } else {
+    // 6269555: If we were not created by a Java launcher, i.e. if we are
+    // running embedded in a native application, treat the primordial thread
+    // as much like a native attached thread as possible.  This means using
+    // the current stack size from thr_stksegment(), unless it is too large
+    // to reliably setup guard pages.  A reasonable max size is 8MB.
+    size_t current_size = os::current_stack_size();
+    // This should never happen, but just in case....
+    if (current_size == 0) current_size = 2 * K * K;
+    stack_size = current_size > (8 * K * K) ? (8 * K * K) : current_size;
   }
+  address bottom = align_up(base - stack_size, os::vm_page_size());;
+  stack_size = (size_t)(base - bottom);
 
-  // With the T2 libthread (T1 is no longer supported) threads are always bound
-  // and we use stackbanging in all cases.
+  assert(stack_size > 0, "Stack size calculation problem");
 
-  os::Solaris::init_thread_fpu_state();
-  std::set_terminate(_handle_uncaught_cxx_exception);
+  if (stack_size > jt->stack_size()) {
+#ifndef PRODUCT
+    struct rlimit limits;
+    getrlimit(RLIMIT_STACK, &limits);
+    size_t size = adjust_stack_size(base, (size_t)limits.rlim_cur);
+    assert(size >= jt->stack_size(), "Stack size problem in main thread");
+#endif
+    tty->print_cr("Stack size of %d Kb exceeds current limit of %d Kb.\n"
+                  "(Stack sizes are rounded up to a multiple of the system page size.)\n"
+                  "See limit(1) to increase the stack size limit.",
+                  stack_size / K, jt->stack_size() / K);
+    vm_exit(1);
+  }
+  assert(jt->stack_size() >= stack_size,
+         "Attempt to map more stack than was allocated");
+  jt->set_stack_size(stack_size);
+
 }
 
 
@@ -1251,8 +1078,6 @@ bool os::getTimesSecs(double* process_real_time,
 }
 
 bool os::supports_vtime() { return true; }
-bool os::enable_vtime() { return false; }
-bool os::vtime_enabled() { return false; }
 
 double os::elapsedVTime() {
   return (double)gethrvtime() / (double)hrtime_hz;
@@ -1344,8 +1169,15 @@ void os::abort(bool dump_core, void* siginfo, const void* context) {
 }
 
 // Die immediately, no exit hook, no abort hook, no cleanup.
+// Dump a core file, if possible, for debugging.
 void os::die() {
-  ::abort(); // dump core (for debugging)
+  if (TestUnresponsiveErrorHandler && !CreateCoredumpOnCrash) {
+    // For TimeoutInErrorHandlingTest.java, we just kill the VM
+    // and don't take the time to generate a core file.
+    os::signal_raise(SIGKILL);
+  } else {
+    ::abort();
+  }
 }
 
 // DLL functions
@@ -1523,23 +1355,41 @@ void os::print_dll_info(outputStream * st) {
   }
 }
 
+static void change_endianness(Elf32_Half& val) {
+  unsigned char *ptr = (unsigned char *)&val;
+  unsigned char swp = ptr[0];
+  ptr[0] = ptr[1];
+  ptr[1] = swp;
+}
+
 // Loads .dll/.so and
 // in case of error it checks if .dll/.so was built for the
 // same architecture as Hotspot is running on
 
 void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
+  log_info(os)("attempting shared library load of %s", filename);
+
   void * result= ::dlopen(filename, RTLD_LAZY);
   if (result != NULL) {
     // Successful loading
+    Events::log(NULL, "Loaded shared library %s", filename);
+    log_info(os)("shared library load of %s was successful", filename);
     return result;
   }
 
   Elf32_Ehdr elf_head;
+  const char* error_report = ::dlerror();
+  if (error_report == NULL) {
+    error_report = "dlerror returned no error description";
+  }
+  if (ebuf != NULL && ebuflen > 0) {
+    ::strncpy(ebuf, error_report, ebuflen-1);
+    ebuf[ebuflen-1]='\0';
+  }
 
-  // Read system error message into ebuf
-  // It may or may not be overwritten below
-  ::strncpy(ebuf, ::dlerror(), ebuflen-1);
-  ebuf[ebuflen-1]='\0';
+  Events::log(NULL, "Loading shared library %s failed, %s", filename, error_report);
+  log_info(os)("shared library load of %s failed, %s", filename, error_report);
+
   int diag_msg_max_length=ebuflen-strlen(ebuf);
   char* diag_msg_buf=ebuf+strlen(ebuf);
 
@@ -1566,13 +1416,25 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     return NULL;
   }
 
+  if (elf_head.e_ident[EI_DATA] != LITTLE_ENDIAN_ONLY(ELFDATA2LSB) BIG_ENDIAN_ONLY(ELFDATA2MSB)) {
+    // handle invalid/out of range endianness values
+    if (elf_head.e_ident[EI_DATA] == 0 || elf_head.e_ident[EI_DATA] > 2) {
+      return NULL;
+    }
+    change_endianness(elf_head.e_machine);
+  }
+
   typedef struct {
-    Elf32_Half  code;         // Actual value as defined in elf.h
-    Elf32_Half  compat_class; // Compatibility of archs at VM's sense
-    char        elf_class;    // 32 or 64 bit
-    char        endianess;    // MSB or LSB
-    char*       name;         // String representation
+    Elf32_Half    code;         // Actual value as defined in elf.h
+    Elf32_Half    compat_class; // Compatibility of archs at VM's sense
+    unsigned char elf_class;    // 32 or 64 bit
+    unsigned char endianess;    // MSB or LSB
+    char*         name;         // String representation
   } arch_t;
+
+#ifndef EM_AARCH64
+  #define EM_AARCH64    183               /* ARM AARCH64 */
+#endif
 
   static const arch_t arch_array[]={
     {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
@@ -1584,7 +1446,10 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_SPARCV9,     EM_SPARCV9, ELFCLASS64, ELFDATA2MSB, (char*)"Sparc v9 64"},
     {EM_PPC,         EM_PPC,     ELFCLASS32, ELFDATA2MSB, (char*)"Power PC 32"},
     {EM_PPC64,       EM_PPC64,   ELFCLASS64, ELFDATA2MSB, (char*)"Power PC 64"},
-    {EM_ARM,         EM_ARM,     ELFCLASS32, ELFDATA2LSB, (char*)"ARM 32"}
+    {EM_ARM,         EM_ARM,     ELFCLASS32, ELFDATA2LSB, (char*)"ARM"},
+    // we only support 64 bit z architecture
+    {EM_S390,        EM_S390,    ELFCLASS64, ELFDATA2MSB, (char*)"IBM System/390"},
+    {EM_AARCH64,     EM_AARCH64, ELFCLASS64, ELFDATA2LSB, (char*)"AARCH64"}
   };
 
 #if  (defined IA32)
@@ -1608,7 +1473,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
        IA32, AMD64, IA64, __sparc, __powerpc__, ARM, ARM
 #endif
 
-  // Identify compatability class for VM's architecture and library's architecture
+  // Identify compatibility class for VM's architecture and library's architecture
   // Obtain string descriptions for architectures
 
   arch_t lib_arch={elf_head.e_machine,0,elf_head.e_ident[EI_CLASS], elf_head.e_ident[EI_DATA], NULL};
@@ -1632,27 +1497,35 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     return NULL;
   }
 
+  if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
+    if (lib_arch.name != NULL) {
+      ::snprintf(diag_msg_buf, diag_msg_max_length-1,
+                 " (Possible cause: can't load %s .so on a %s platform)",
+                 lib_arch.name, arch_array[running_arch_index].name);
+    } else {
+      ::snprintf(diag_msg_buf, diag_msg_max_length-1,
+                 " (Possible cause: can't load this .so (machine code=0x%x) on a %s platform)",
+                 lib_arch.code, arch_array[running_arch_index].name);
+    }
+    return NULL;
+  }
+
   if (lib_arch.endianess != arch_array[running_arch_index].endianess) {
     ::snprintf(diag_msg_buf, diag_msg_max_length-1," (Possible cause: endianness mismatch)");
     return NULL;
   }
 
-  if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
-    ::snprintf(diag_msg_buf, diag_msg_max_length-1," (Possible cause: architecture word width mismatch)");
+  // ELF file class/capacity : 0 - invalid, 1 - 32bit, 2 - 64bit
+  if (lib_arch.elf_class > 2 || lib_arch.elf_class < 1) {
+    ::snprintf(diag_msg_buf, diag_msg_max_length-1, " (Possible cause: invalid ELF file class)");
     return NULL;
   }
 
-  if (lib_arch.compat_class != arch_array[running_arch_index].compat_class) {
-    if (lib_arch.name!=NULL) {
-      ::snprintf(diag_msg_buf, diag_msg_max_length-1,
-                 " (Possible cause: can't load %s-bit .so on a %s-bit platform)",
-                 lib_arch.name, arch_array[running_arch_index].name);
-    } else {
-      ::snprintf(diag_msg_buf, diag_msg_max_length-1,
-                 " (Possible cause: can't load this .so (machine code=0x%x) on a %s-bit platform)",
-                 lib_arch.code,
-                 arch_array[running_arch_index].name);
-    }
+  if (lib_arch.elf_class != arch_array[running_arch_index].elf_class) {
+    ::snprintf(diag_msg_buf, diag_msg_max_length-1,
+               " (Possible cause: architecture word width mismatch, can't load %d-bit .so on a %d-bit platform)",
+               (int) lib_arch.elf_class * 32, arch_array[running_arch_index].elf_class * 32);
+    return NULL;
   }
 
   return NULL;
@@ -1669,7 +1542,7 @@ void* os::get_default_process_handle() {
 static inline time_t get_mtime(const char* filename) {
   struct stat st;
   int ret = os::stat(filename, &st);
-  assert(ret == 0, "failed to stat() file '%s': %s", filename, strerror(errno));
+  assert(ret == 0, "failed to stat() file '%s': %s", filename, os::strerror(errno));
   return st.st_mtime;
 }
 
@@ -2028,13 +1901,6 @@ void* os::user_handler() {
   return CAST_FROM_FN_PTR(void*, UserHandler);
 }
 
-static struct timespec create_semaphore_timespec(unsigned int sec, int nsec) {
-  struct timespec ts;
-  unpackTime(&ts, false, (sec * NANOSECS_PER_SEC) + nsec);
-
-  return ts;
-}
-
 extern "C" {
   typedef void (*sa_handler_t)(int);
   typedef void (*sa_sigaction_t)(int, siginfo_t *, void *);
@@ -2044,6 +1910,7 @@ void* os::signal(int signal_number, void* handler) {
   struct sigaction sigAct, oldSigAct;
   sigfillset(&(sigAct.sa_mask));
   sigAct.sa_flags = SA_RESTART & ~SA_RESETHAND;
+  sigAct.sa_flags |= SA_SIGINFO;
   sigAct.sa_handler = CAST_TO_FN_PTR(sa_handler_t, handler);
 
   if (sigaction(signal_number, &sigAct, &oldSigAct)) {
@@ -2555,17 +2422,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int f
 // available (and not reserved for something else).
 
 char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
-  const int max_tries = 10;
-  char* base[max_tries];
-  size_t size[max_tries];
-
-  // Solaris adds a gap between mmap'ed regions.  The size of the gap
-  // is dependent on the requested size and the MMU.  Our initial gap
-  // value here is just a guess and will be corrected later.
-  bool had_top_overlap = false;
-  bool have_adjusted_gap = false;
-  size_t gap = 0x400000;
-
   // Assert only that the size is a multiple of the page size, since
   // that's all that mmap requires, and since that's all we really know
   // about at this low abstraction level.  If we need higher alignment,
@@ -2574,105 +2430,18 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
   assert(bytes % os::vm_page_size() == 0, "reserving unexpected size block");
 
   // Since snv_84, Solaris attempts to honor the address hint - see 5003415.
-  // Give it a try, if the kernel honors the hint we can return immediately.
   char* addr = Solaris::anon_mmap(requested_addr, bytes, 0, false);
 
   volatile int err = errno;
   if (addr == requested_addr) {
     return addr;
-  } else if (addr != NULL) {
+  }
+
+  if (addr != NULL) {
     pd_unmap_memory(addr, bytes);
   }
 
-  if (log_is_enabled(Warning, os)) {
-    char buf[256];
-    buf[0] = '\0';
-    if (addr == NULL) {
-      jio_snprintf(buf, sizeof(buf), ": %s", os::strerror(err));
-    }
-    log_info(os)("attempt_reserve_memory_at: couldn't reserve " SIZE_FORMAT " bytes at "
-            PTR_FORMAT ": reserve_memory_helper returned " PTR_FORMAT
-            "%s", bytes, requested_addr, addr, buf);
-  }
-
-  // Address hint method didn't work.  Fall back to the old method.
-  // In theory, once SNV becomes our oldest supported platform, this
-  // code will no longer be needed.
-  //
-  // Repeatedly allocate blocks until the block is allocated at the
-  // right spot. Give up after max_tries.
-  int i;
-  for (i = 0; i < max_tries; ++i) {
-    base[i] = reserve_memory(bytes);
-
-    if (base[i] != NULL) {
-      // Is this the block we wanted?
-      if (base[i] == requested_addr) {
-        size[i] = bytes;
-        break;
-      }
-
-      // check that the gap value is right
-      if (had_top_overlap && !have_adjusted_gap) {
-        size_t actual_gap = base[i-1] - base[i] - bytes;
-        if (gap != actual_gap) {
-          // adjust the gap value and retry the last 2 allocations
-          assert(i > 0, "gap adjustment code problem");
-          have_adjusted_gap = true;  // adjust the gap only once, just in case
-          gap = actual_gap;
-          log_info(os)("attempt_reserve_memory_at: adjusted gap to 0x%lx", gap);
-          unmap_memory(base[i], bytes);
-          unmap_memory(base[i-1], size[i-1]);
-          i-=2;
-          continue;
-        }
-      }
-
-      // Does this overlap the block we wanted? Give back the overlapped
-      // parts and try again.
-      //
-      // There is still a bug in this code: if top_overlap == bytes,
-      // the overlap is offset from requested region by the value of gap.
-      // In this case giving back the overlapped part will not work,
-      // because we'll give back the entire block at base[i] and
-      // therefore the subsequent allocation will not generate a new gap.
-      // This could be fixed with a new algorithm that used larger
-      // or variable size chunks to find the requested region -
-      // but such a change would introduce additional complications.
-      // It's rare enough that the planets align for this bug,
-      // so we'll just wait for a fix for 6204603/5003415 which
-      // will provide a mmap flag to allow us to avoid this business.
-
-      size_t top_overlap = requested_addr + (bytes + gap) - base[i];
-      if (top_overlap >= 0 && top_overlap < bytes) {
-        had_top_overlap = true;
-        unmap_memory(base[i], top_overlap);
-        base[i] += top_overlap;
-        size[i] = bytes - top_overlap;
-      } else {
-        size_t bottom_overlap = base[i] + bytes - requested_addr;
-        if (bottom_overlap >= 0 && bottom_overlap < bytes) {
-          if (bottom_overlap == 0) {
-            log_info(os)("attempt_reserve_memory_at: possible alignment bug");
-          }
-          unmap_memory(requested_addr, bottom_overlap);
-          size[i] = bytes - bottom_overlap;
-        } else {
-          size[i] = bytes;
-        }
-      }
-    }
-  }
-
-  // Give back the unused reserved pieces.
-
-  for (int j = 0; j < i; ++j) {
-    if (base[j] != NULL) {
-      unmap_memory(base[j], size[j]);
-    }
-  }
-
-  return (i < max_tries) ? requested_addr : NULL;
+  return NULL;
 }
 
 bool os::pd_release_memory(char* addr, size_t bytes) {
@@ -2683,6 +2452,7 @@ bool os::pd_release_memory(char* addr, size_t bytes) {
 static bool solaris_mprotect(char* addr, size_t bytes, int prot) {
   assert(addr == (char*)align_down((uintptr_t)addr, os::vm_page_size()),
          "addr must be page aligned");
+  Events::log(NULL, "Protecting memory [" INTPTR_FORMAT "," INTPTR_FORMAT "] with protection modes %x", p2i(addr), p2i(addr+bytes), prot);
   int retVal = mprotect(addr, bytes, prot);
   return retVal == 0;
 }
@@ -2859,43 +2629,6 @@ bool os::can_commit_large_page_memory() {
 
 bool os::can_execute_large_page_memory() {
   return true;
-}
-
-// Read calls from inside the vm need to perform state transitions
-size_t os::read(int fd, void *buf, unsigned int nBytes) {
-  size_t res;
-  JavaThread* thread = (JavaThread*)Thread::current();
-  assert(thread->thread_state() == _thread_in_vm, "Assumed _thread_in_vm");
-  ThreadBlockInVM tbiv(thread);
-  RESTARTABLE(::read(fd, buf, (size_t) nBytes), res);
-  return res;
-}
-
-size_t os::read_at(int fd, void *buf, unsigned int nBytes, jlong offset) {
-  size_t res;
-  JavaThread* thread = (JavaThread*)Thread::current();
-  assert(thread->thread_state() == _thread_in_vm, "Assumed _thread_in_vm");
-  ThreadBlockInVM tbiv(thread);
-  RESTARTABLE(::pread(fd, buf, (size_t) nBytes, offset), res);
-  return res;
-}
-
-size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {
-  size_t res;
-  assert(((JavaThread*)Thread::current())->thread_state() == _thread_in_native,
-         "Assumed _thread_in_native");
-  RESTARTABLE(::read(fd, buf, (size_t) nBytes), res);
-  return res;
-}
-
-void os::naked_short_sleep(jlong ms) {
-  assert(ms < 1000, "Un-interruptable sleep, short time use only");
-
-  // usleep is deprecated and removed from POSIX, in favour of nanosleep, but
-  // Solaris requires -lrt for this.
-  usleep((ms * 1000));
-
-  return;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
@@ -3547,7 +3280,7 @@ static bool do_suspend(OSThread* osthread) {
 
   // managed to send the signal and switch to SUSPEND_REQUEST, now wait for SUSPENDED
   while (true) {
-    if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2000 * NANOSECS_PER_MILLISEC))) {
+    if (sr_semaphore.timedwait(2000)) {
       break;
     } else {
       // timeout
@@ -3581,7 +3314,7 @@ static void do_resume(OSThread* osthread) {
 
   while (true) {
     if (sr_notify(osthread) == 0) {
-      if (sr_semaphore.timedwait(create_semaphore_timespec(0, 2 * NANOSECS_PER_MILLISEC))) {
+      if (sr_semaphore.timedwait(2)) {
         if (osthread->sr.is_running()) {
           return;
         }
@@ -4166,6 +3899,9 @@ void os::init(void) {
     Solaris::_pthread_setname_np =  // from 11.3
         (Solaris::pthread_setname_np_func_t)dlsym(handle, "pthread_setname_np");
   }
+
+  // Shared Posix initialization
+  os::Posix::init();
 }
 
 // To install functions for atexit system call
@@ -4216,6 +3952,7 @@ jint os::init_2(void) {
   // initialize synchronization primitives to use either thread or
   // lwp synchronization (controlled by UseLWPSynchronization)
   Solaris::synchronization_init();
+  DEBUG_ONLY(os::set_mutex_init_done();)
 
   if (MaxFDLimit) {
     // set the number of file descriptors to max. print out error
@@ -4271,11 +4008,15 @@ jint os::init_2(void) {
   // Init pset_loadavg function pointer
   init_pset_getloadavg_ptr();
 
+  // Shared Posix initialization
+  os::Posix::init_2();
+
   return JNI_OK;
 }
 
 // Mark the polling page as unreadable
 void os::make_polling_page_unreadable(void) {
+  Events::log(NULL, "Protecting polling page " INTPTR_FORMAT " with PROT_NONE", p2i(_polling_page));
   if (mprotect((char *)_polling_page, page_size, PROT_NONE) != 0) {
     fatal("Could not disable polling page");
   }
@@ -4283,6 +4024,7 @@ void os::make_polling_page_unreadable(void) {
 
 // Mark the polling page as readable
 void os::make_polling_page_readable(void) {
+  Events::log(NULL, "Protecting polling page " INTPTR_FORMAT " with PROT_READ", p2i(_polling_page));
   if (mprotect((char *)_polling_page, page_size, PROT_READ) != 0) {
     fatal("Could not enable polling page");
   }
@@ -4525,7 +4267,7 @@ bool os::pd_unmap_memory(char* addr, size_t bytes) {
 void os::pause() {
   char filename[MAX_PATH];
   if (PauseAtStartupFile && PauseAtStartupFile[0]) {
-    jio_snprintf(filename, MAX_PATH, PauseAtStartupFile);
+    jio_snprintf(filename, MAX_PATH, "%s", PauseAtStartupFile);
   } else {
     jio_snprintf(filename, MAX_PATH, "./vm.paused.%d", current_process_id());
   }
@@ -5160,7 +4902,7 @@ void Parker::park(bool isAbsolute, jlong time) {
   Thread* thread = Thread::current();
   assert(thread->is_Java_thread(), "Must be JavaThread");
   JavaThread *jt = (JavaThread *)thread;
-  if (Thread::is_interrupted(thread, false)) {
+  if (jt->is_interrupted(false)) {
     return;
   }
 
@@ -5185,7 +4927,7 @@ void Parker::park(bool isAbsolute, jlong time) {
 
   // Don't wait if cannot get lock since interference arises from
   // unblocking.  Also. check interrupt before trying wait
-  if (Thread::is_interrupted(thread, false) ||
+  if (jt->is_interrupted(false) ||
       os::Solaris::mutex_trylock(_mutex) != 0) {
     return;
   }
@@ -5246,13 +4988,85 @@ void Parker::unpark() {
   }
 }
 
+// Platform Mutex/Monitor implementations
+
+os::PlatformMutex::PlatformMutex() {
+  int status = os::Solaris::mutex_init(&_mutex);
+  assert_status(status == 0, status, "mutex_init");
+}
+
+os::PlatformMutex::~PlatformMutex() {
+  int status = os::Solaris::mutex_destroy(&_mutex);
+  assert_status(status == 0, status, "mutex_destroy");
+}
+
+void os::PlatformMutex::lock() {
+  int status = os::Solaris::mutex_lock(&_mutex);
+  assert_status(status == 0, status, "mutex_lock");
+}
+
+void os::PlatformMutex::unlock() {
+  int status = os::Solaris::mutex_unlock(&_mutex);
+  assert_status(status == 0, status, "mutex_unlock");
+}
+
+bool os::PlatformMutex::try_lock() {
+  int status = os::Solaris::mutex_trylock(&_mutex);
+  assert_status(status == 0 || status == EBUSY, status, "mutex_trylock");
+  return status == 0;
+}
+
+os::PlatformMonitor::PlatformMonitor() {
+  int status = os::Solaris::cond_init(&_cond);
+  assert_status(status == 0, status, "cond_init");
+}
+
+os::PlatformMonitor::~PlatformMonitor() {
+  int status = os::Solaris::cond_destroy(&_cond);
+  assert_status(status == 0, status, "cond_destroy");
+}
+
+// Must already be locked
+int os::PlatformMonitor::wait(jlong millis) {
+  assert(millis >= 0, "negative timeout");
+  if (millis > 0) {
+    timestruc_t abst;
+    int ret = OS_TIMEOUT;
+    compute_abstime(&abst, millis);
+    int status = os::Solaris::cond_timedwait(&_cond, &_mutex, &abst);
+    assert_status(status == 0 || status == EINTR ||
+                  status == ETIME || status == ETIMEDOUT,
+                  status, "cond_timedwait");
+    // EINTR acts as spurious wakeup - which is permitted anyway
+    if (status == 0 || status == EINTR) {
+      ret = OS_OK;
+    }
+    return ret;
+  } else {
+    int status = os::Solaris::cond_wait(&_cond, &_mutex);
+    assert_status(status == 0 || status == EINTR,
+                  status, "cond_wait");
+    return OS_OK;
+  }
+}
+
+void os::PlatformMonitor::notify() {
+  int status = os::Solaris::cond_signal(&_cond);
+  assert_status(status == 0, status, "cond_signal");
+}
+
+void os::PlatformMonitor::notify_all() {
+  int status = os::Solaris::cond_broadcast(&_cond);
+  assert_status(status == 0, status, "cond_broadcast");
+}
+
 extern char** environ;
 
 // Run the specified command in a separate process. Return its exit value,
 // or -1 on failure (e.g. can't fork a new process).
 // Unlike system(), this function can be called from signal handler. It
 // doesn't block SIGINT et al.
-int os::fork_and_exec(char* cmd) {
+int os::fork_and_exec(char* cmd, bool use_vfork_if_available) {
   char * argv[4];
   argv[0] = (char *)"sh";
   argv[1] = (char *)"-c";
@@ -5403,6 +5217,10 @@ int os::get_core_path(char* buffer, size_t bufferSize) {
                                               p, current_process_id());
 
   return strlen(buffer);
+}
+
+bool os::supports_map_sync() {
+  return false;
 }
 
 #ifndef PRODUCT

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_SOLARIS_VM_OS_SOLARIS_INLINE_HPP
-#define OS_SOLARIS_VM_OS_SOLARIS_INLINE_HPP
+#ifndef OS_SOLARIS_OS_SOLARIS_INLINE_HPP
+#define OS_SOLARIS_OS_SOLARIS_INLINE_HPP
 
 #include "runtime/os.hpp"
 
@@ -36,11 +36,6 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <setjmp.h>
-
-// File names are case-insensitive on windows only
-inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
-  return strncmp(s1, s2, num);
-}
 
 inline bool os::uses_stack_guard_pages() {
   return true;
@@ -65,8 +60,6 @@ inline void os::map_stack_shadow_pages(address sp) {
 }
 
 inline void os::dll_unload(void *lib) { ::dlclose(lib); }
-
-inline const int os::default_file_open_flags() { return 0;}
 
 //////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -105,4 +98,4 @@ inline void os::exit(int num) {
   ::exit(num);
 }
 
-#endif // OS_SOLARIS_VM_OS_SOLARIS_INLINE_HPP
+#endif // OS_SOLARIS_OS_SOLARIS_INLINE_HPP

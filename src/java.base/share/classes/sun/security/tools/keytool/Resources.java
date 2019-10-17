@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,9 +96,13 @@ public class Resources extends java.util.ListResourceBundle {
                 "Generates a self-signed certificate"}, //-selfcert
         {"Changes.the.store.password.of.a.keystore",
                 "Changes the store password of a keystore"}, //-storepasswd
+        {"showinfo.command.help", "Displays security-related information"},
+
         // keytool: help: options
         {"alias.name.of.the.entry.to.process",
                 "alias name of the entry to process"}, //-alias
+        {"groupname.option.help",
+                "Group name. For example, an Elliptic Curve name."}, //-groupname
         {"destination.alias",
                 "destination alias"}, //-destalias
         {"destination.key.password",
@@ -139,6 +143,7 @@ public class Resources extends java.util.ListResourceBundle {
                 "do not prompt"}, //-noprompt
         {"password.through.protected.mechanism",
                 "password through protected mechanism"}, //-protected
+        {"tls.option.help", "Displays TLS configuration information"},
 
         // The following 2 values should span 2 lines, the first for the
         // option itself, the second for its -providerArg value.
@@ -251,7 +256,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"Keystore.password.is.too.short.must.be.at.least.6.characters",
          "Keystore password is too short - must be at least 6 characters"},
         {"Unknown.Entry.Type", "Unknown Entry Type"},
-        {"Too.many.failures.Alias.not.changed", "Too many failures. Alias not changed"},
         {"Entry.for.alias.alias.successfully.imported.",
                  "Entry for alias {0} successfully imported."},
         {"Entry.for.alias.alias.not.imported.", "Entry for alias {0} not imported."},
@@ -290,6 +294,10 @@ public class Resources extends java.util.ListResourceBundle {
                 "Alias <{0}> does not exist"},
         {"Alias.alias.has.no.certificate",
                 "Alias <{0}> has no certificate"},
+        {"groupname.keysize.coexist",
+                "Cannot specify both -groupname and -keysize"},
+        {"deprecate.keysize.for.ec",
+                "Specifying -keysize for generating EC keys is deprecated, please use \"-groupname %s\" instead."},
         {"Key.pair.not.generated.alias.alias.already.exists",
                 "Key pair not generated, alias <{0}> already exists"},
         {"Generating.keysize.bit.keyAlgName.key.pair.and.self.signed.certificate.sigAlgName.with.a.validity.of.validality.days.for",
@@ -308,10 +316,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"Too.many.failures.Key.entry.not.cloned",
                 "Too many failures. Key entry not cloned"},
         {"key.password.for.alias.", "key password for <{0}>"},
-        {"Keystore.entry.for.id.getName.already.exists",
-                "Keystore entry for <{0}> already exists"},
-        {"Creating.keystore.entry.for.id.getName.",
-                "Creating keystore entry for <{0}> ..."},
         {"No.entries.from.identity.database.added",
                 "No entries from identity database added"},
         {"Alias.name.alias", "Alias name: {0}"},
@@ -349,7 +353,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"Do.you.still.want.to.add.it.to.your.own.keystore.no.",
                 "Do you still want to add it to your own keystore? [no]:  "},
         {"Trust.this.certificate.no.", "Trust this certificate? [no]:  "},
-        {"YES", "YES"},
         {"New.prompt.", "New {0}: "},
         {"Passwords.must.differ", "Passwords must differ"},
         {"Re.enter.new.prompt.", "Re-enter new {0}: "},
@@ -389,7 +392,6 @@ public class Resources extends java.util.ListResourceBundle {
         {"Signer.d.", "Signer #%d:"},
         {"Timestamp.", "Timestamp:"},
         {"Signature.", "Signature:"},
-        {"CRLs.", "CRLs:"},
         {"Certificate.owner.", "Certificate owner: "},
         {"Not.a.signed.jar.file", "Not a signed jar file"},
         {"No.certificate.from.the.SSL.server",
@@ -408,13 +410,10 @@ public class Resources extends java.util.ListResourceBundle {
                 "Certificate reply does not contain public key for <{0}>"},
         {"Incomplete.certificate.chain.in.reply",
                 "Incomplete certificate chain in reply"},
-        {"Certificate.chain.in.reply.does.not.verify.",
-                "Certificate chain in reply does not verify: "},
         {"Top.level.certificate.in.reply.",
                 "Top-level certificate in reply:\n"},
         {".is.not.trusted.", "... is not trusted. "},
         {"Install.reply.anyway.no.", "Install reply anyway? [no]:  "},
-        {"NO", "NO"},
         {"Public.keys.in.reply.and.keystore.don.t.match",
                 "Public keys in reply and keystore don't match"},
         {"Certificate.reply.and.certificate.in.keystore.are.identical",
@@ -475,6 +474,9 @@ public class Resources extends java.util.ListResourceBundle {
         {"migrate.keystore.warning", "Migrated \"%1$s\" to %4$s. The %2$s keystore is backed up as \"%3$s\"."},
         {"backup.keystore.warning", "The original keystore \"%1$s\" is backed up as \"%3$s\"..."},
         {"importing.keystore.status", "Importing keystore %1$s to %2$s..."},
+        {"keyalg.option.1.missing.warning", "No -keyalg option. The default key algorithm (%s) is a legacy algorithm and is no longer recommended. In a subsequent release of the JDK, the default will be removed and the -keyalg option must be specified."},
+
+        {"showinfo.no.option", "Missing option for -showinfo. Try \"keytool -showinfo -tls\"."},
     };
 
 

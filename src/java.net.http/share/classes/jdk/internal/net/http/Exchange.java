@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLPermission;
 import java.security.AccessControlContext;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -125,6 +127,10 @@ final class Exchange<T> {
         return request;
     }
 
+    public Optional<Duration> remainingConnectTimeout() {
+        return multi.remainingConnectTimeout();
+    }
+
     HttpClientImpl client() {
         return client;
     }
@@ -149,6 +155,13 @@ final class Exchange<T> {
                 }
             }
         }
+    }
+
+    // Called for 204 response - when no body is permitted
+    // This is actually only needed for HTTP/1.1 in order
+    // to return the connection to the pool (or close it)
+    void nullBody(HttpResponse<T> resp, Throwable t) {
+        exchImpl.nullBody(resp, t);
     }
 
     public CompletableFuture<T> readBodyAsync(HttpResponse.BodyHandler<T> handler) {
@@ -585,6 +598,19 @@ final class Exchange<T> {
         } catch (SecurityException e) {
             return e;
         }
+        String hostHeader = userHeaders.firstValue("Host").orElse(null);
+        if (hostHeader != null && !hostHeader.equalsIgnoreCase(u.getHost())) {
+            // user has set a Host header different to request URI
+            // must check that for URLPermission also
+            URI u1 = replaceHostInURI(u, hostHeader);
+            URLPermission p1 = permissionForServer(u1, method, userHeaders.map());
+            try {
+                assert acc != null;
+                sm.checkPermission(p1, acc);
+            } catch (SecurityException e) {
+                return e;
+            }
+        }
         ProxySelector ps = client.proxySelector();
         if (ps != null) {
             if (!method.equals("CONNECT")) {
@@ -600,6 +626,15 @@ final class Exchange<T> {
             }
         }
         return null;
+    }
+
+    private static URI replaceHostInURI(URI u, String hostPort) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(u.getScheme())
+                .append("://")
+                .append(hostPort)
+                .append(u.getRawPath());
+        return URI.create(sb.toString());
     }
 
     HttpClient.Version version() {

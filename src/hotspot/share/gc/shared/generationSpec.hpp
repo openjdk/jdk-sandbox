@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GENERATIONSPEC_HPP
-#define SHARE_VM_GC_SHARED_GENERATIONSPEC_HPP
+#ifndef SHARE_GC_SHARED_GENERATIONSPEC_HPP
+#define SHARE_GC_SHARED_GENERATIONSPEC_HPP
 
 #include "gc/shared/generation.hpp"
 #include "utilities/align.hpp"
@@ -37,6 +37,7 @@ class GenerationSpec : public CHeapObj<mtGC> {
 private:
   Generation::Name _name;
   size_t           _init_size;
+  size_t           _min_size;
   size_t           _max_size;
 
 public:
@@ -48,14 +49,12 @@ public:
 
   Generation* init(ReservedSpace rs, CardTableRS* remset);
 
-  // Accessors
-  Generation::Name name()        const { return _name; }
-  size_t init_size()             const { return _init_size; }
-  void set_init_size(size_t size)      { _init_size = size; }
-  size_t max_size()              const { return _max_size; }
-  void set_max_size(size_t size)       { _max_size = size; }
+  Generation::Name name() const { return _name; }
+  size_t init_size()      const { return _init_size; }
+  size_t min_size()       const { return _min_size; }
+  size_t max_size()       const { return _max_size; }
 };
 
 typedef GenerationSpec* GenerationSpecPtr;
 
-#endif // SHARE_VM_GC_SHARED_GENERATIONSPEC_HPP
+#endif // SHARE_GC_SHARED_GENERATIONSPEC_HPP

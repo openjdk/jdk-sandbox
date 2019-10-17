@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,8 +44,10 @@ public class VMDeprecatedOptions {
         {"MaxRAMFraction",            "8"},
         {"MinRAMFraction",            "2"},
         {"InitialRAMFraction",        "64"},
-        {"AssumeMP",                  "false"},
-        {"UseMembar",                 "true"},
+        {"TLABStats",                 "false"},
+        {"AllowRedefinitionToAddDeleteMethods", "true"},
+        {"CompactFields", "true"},
+        {"FieldsAllocationStyle", "1"},
 
         // deprecated alias flags (see also aliased_jvm_flags):
         {"DefaultMaxRAMFraction", "4"},
@@ -103,6 +105,5 @@ public class VMDeprecatedOptions {
 
     public static void main(String[] args) throws Throwable {
         testDeprecated(DEPRECATED_OPTIONS);  // Make sure that each deprecated option is mentioned in the output.
-        testDeprecatedDiagnostic("IgnoreUnverifiableClassesDuringDump", "false");
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 /*
  * @test
  * @bug 4413434
- * @library /lib/testlibrary
- * @build JarUtils SetupJar Boot
+ * @library /test/lib
+ * @build jdk.test.lib.util.JarUtils SetupJar Boot
  * @run driver SetupJar
  * @run main/othervm -Xbootclasspath/a:boot.jar ConsTest
  * @summary Verify that generated java.lang.reflect implementation classes do
@@ -39,10 +39,13 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 
+import jdk.test.lib.util.JarUtils;
+
 public class ConsTest implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     public static void main(String[] args) throws Exception {
-        Constructor cons = Boot.class.getConstructor(
-            new Class[] { ObjectInputStream.class });
+        Constructor<?> cons = Boot.class.getConstructor(ObjectInputStream.class);
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         ObjectOutputStream oout = new ObjectOutputStream(bout);
         oout.writeObject(new ConsTest());
@@ -51,7 +54,7 @@ public class ConsTest implements Serializable {
         for (int i = 0; i < 100; i++) {
             ObjectInputStream oin = new ObjectInputStream(
                 new ByteArrayInputStream(bout.toByteArray()));
-            cons.newInstance(new Object[]{ oin });
+            cons.newInstance(oin);
         }
     }
 }

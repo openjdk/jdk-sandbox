@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -187,7 +187,7 @@ public abstract class Path2D implements Shape, Cloneable {
      * @since 1.6
      */
     public static class Float extends Path2D implements Serializable {
-        transient float floatCoords[];
+        transient float[] floatCoords;
 
         /**
          * Constructs a new empty single precision {@code Path2D} object
@@ -290,7 +290,7 @@ public abstract class Path2D implements Shape, Cloneable {
         @Override
         float[] cloneCoordsFloat(AffineTransform at) {
             // trim arrays:
-            float ret[];
+            float[] ret;
             if (at == null) {
                 ret = Arrays.copyOf(floatCoords, numCoords);
             } else {
@@ -303,7 +303,7 @@ public abstract class Path2D implements Shape, Cloneable {
         @Override
         double[] cloneCoordsDouble(AffineTransform at) {
             // trim arrays:
-            double ret[] = new double[numCoords];
+            double[] ret = new double[numCoords];
             if (at == null) {
                 for (int i = 0; i < numCoords; i++) {
                     ret[i] = floatCoords[i];
@@ -555,7 +555,7 @@ public abstract class Path2D implements Shape, Cloneable {
                 return 0;
             }
             double movx, movy, curx, cury, endx, endy;
-            float coords[] = floatCoords;
+            float[] coords = floatCoords;
             curx = movx = coords[0];
             cury = movy = coords[1];
             int crossings = 0;
@@ -634,7 +634,7 @@ public abstract class Path2D implements Shape, Cloneable {
             if (numTypes == 0) {
                 return 0;
             }
-            float coords[] = floatCoords;
+            float[] coords = floatCoords;
             double curx, cury, movx, movy, endx, endy;
             curx = movx = coords[0];
             cury = movy = coords[1];
@@ -736,7 +736,7 @@ public abstract class Path2D implements Shape, Cloneable {
          * @since 1.6
          */
         public final void append(PathIterator pi, boolean connect) {
-            float coords[] = new float[6];
+            float[] coords = new float[6];
             while (!pi.isDone()) {
                 switch (pi.currentSegment(coords)) {
                 case SEG_MOVETO:
@@ -858,7 +858,6 @@ public abstract class Path2D implements Shape, Cloneable {
          * path.
          *
          * @serialData
-         * <a id="Path2DSerialData"><!-- --></a>
          * <ol>
          * <li>The default serializable fields.
          * There are no default serializable fields as of 1.6.
@@ -893,83 +892,83 @@ public abstract class Path2D implements Shape, Cloneable {
          * <caption>Constants</caption>
          * <thead>
          * <tr>
-         * <th>Constant Name</th>
-         * <th>Byte Value</th>
-         * <th>Followed by</th>
-         * <th>Description</th>
+         * <th scope="col">Constant Name</th>
+         * <th scope="col">Byte Value</th>
+         * <th scope="col">Followed by</th>
+         * <th scope="col">Description</th>
          * </tr>
          * </thead>
          * <tbody>
          * <tr>
-         * <td>{@code SERIAL_STORAGE_FLT_ARRAY}</td>
+         * <th scope="row">{@code SERIAL_STORAGE_FLT_ARRAY}</th>
          * <td>0x30</td>
          * <td></td>
          * <td>A hint that the original {@code Path2D} object stored
          * the coordinates in a Java array of floats.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_STORAGE_DBL_ARRAY}</td>
+         * <th scope="row">{@code SERIAL_STORAGE_DBL_ARRAY}</th>
          * <td>0x31</td>
          * <td></td>
          * <td>A hint that the original {@code Path2D} object stored
          * the coordinates in a Java array of doubles.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_MOVETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_MOVETO}</th>
          * <td>0x40</td>
          * <td>2 floats</td>
          * <td>A {@link #moveTo moveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_LINETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_LINETO}</th>
          * <td>0x41</td>
          * <td>2 floats</td>
          * <td>A {@link #lineTo lineTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_QUADTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_QUADTO}</th>
          * <td>0x42</td>
          * <td>4 floats</td>
          * <td>A {@link #quadTo quadTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_CUBICTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_CUBICTO}</th>
          * <td>0x43</td>
          * <td>6 floats</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_MOVETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_MOVETO}</th>
          * <td>0x50</td>
          * <td>2 doubles</td>
          * <td>A {@link #moveTo moveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_LINETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_LINETO}</th>
          * <td>0x51</td>
          * <td>2 doubles</td>
          * <td>A {@link #lineTo lineTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_QUADTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_QUADTO}</th>
          * <td>0x52</td>
          * <td>4 doubles</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_CUBICTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_CUBICTO}</th>
          * <td>0x53</td>
          * <td>6 doubles</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_CLOSE}</td>
+         * <th scope="row">{@code SERIAL_SEG_CLOSE}</th>
          * <td>0x60</td>
          * <td></td>
          * <td>A {@link #closePath closePath} path segment.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_PATH_END}</td>
+         * <th scope="row">{@code SERIAL_PATH_END}</th>
          * <td>0x61</td>
          * <td></td>
          * <td>There are no more path segments following.</td>
@@ -1004,7 +1003,7 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         static class CopyIterator extends Path2D.Iterator {
-            float floatCoords[];
+            float[] floatCoords;
 
             CopyIterator(Path2D.Float p2df) {
                 super(p2df);
@@ -1034,7 +1033,7 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         static class TxIterator extends Path2D.Iterator {
-            float floatCoords[];
+            float[] floatCoords;
             AffineTransform affine;
 
             TxIterator(Path2D.Float p2df, AffineTransform at) {
@@ -1073,7 +1072,7 @@ public abstract class Path2D implements Shape, Cloneable {
      * @since 1.6
      */
     public static class Double extends Path2D implements Serializable {
-        transient double doubleCoords[];
+        transient double[] doubleCoords;
 
         /**
          * Constructs a new empty double precision {@code Path2D} object
@@ -1176,7 +1175,7 @@ public abstract class Path2D implements Shape, Cloneable {
         @Override
         float[] cloneCoordsFloat(AffineTransform at) {
             // trim arrays:
-            float ret[] = new float[numCoords];
+            float[] ret = new float[numCoords];
             if (at == null) {
                 for (int i = 0; i < numCoords; i++) {
                     ret[i] = (float) doubleCoords[i];
@@ -1190,7 +1189,7 @@ public abstract class Path2D implements Shape, Cloneable {
         @Override
         double[] cloneCoordsDouble(AffineTransform at) {
             // trim arrays:
-            double ret[];
+            double[] ret;
             if (at == null) {
                 ret = Arrays.copyOf(doubleCoords, numCoords);
             } else {
@@ -1330,7 +1329,7 @@ public abstract class Path2D implements Shape, Cloneable {
                 return 0;
             }
             double movx, movy, curx, cury, endx, endy;
-            double coords[] = doubleCoords;
+            double[] coords = doubleCoords;
             curx = movx = coords[0];
             cury = movy = coords[1];
             int crossings = 0;
@@ -1409,7 +1408,7 @@ public abstract class Path2D implements Shape, Cloneable {
             if (numTypes == 0) {
                 return 0;
             }
-            double coords[] = doubleCoords;
+            double[] coords = doubleCoords;
             double curx, cury, movx, movy, endx, endy;
             curx = movx = coords[0];
             cury = movy = coords[1];
@@ -1512,7 +1511,7 @@ public abstract class Path2D implements Shape, Cloneable {
          * @since 1.6
          */
         public final void append(PathIterator pi, boolean connect) {
-            double coords[] = new double[6];
+            double[] coords = new double[6];
             while (!pi.isDone()) {
                 switch (pi.currentSegment(coords)) {
                 case SEG_MOVETO:
@@ -1634,7 +1633,6 @@ public abstract class Path2D implements Shape, Cloneable {
          * path.
          *
          * @serialData
-         * <a id="Path2DSerialData"><!-- --></a>
          * <ol>
          * <li>The default serializable fields.
          * There are no default serializable fields as of 1.6.
@@ -1668,83 +1666,83 @@ public abstract class Path2D implements Shape, Cloneable {
          * <caption>Constants</caption>
          * <thead>
          * <tr>
-         * <th>Constant Name</th>
-         * <th>Byte Value</th>
-         * <th>Followed by</th>
-         * <th>Description</th>
+         * <th scope="col">Constant Name</th>
+         * <th scope="col">Byte Value</th>
+         * <th scope="col">Followed by</th>
+         * <th scope="col">Description</th>
          * </tr>
          * </thead>
          * <tbody>
          * <tr>
-         * <td>{@code SERIAL_STORAGE_FLT_ARRAY}</td>
+         * <th scope="row">{@code SERIAL_STORAGE_FLT_ARRAY}</th>
          * <td>0x30</td>
          * <td></td>
          * <td>A hint that the original {@code Path2D} object stored
          * the coordinates in a Java array of floats.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_STORAGE_DBL_ARRAY}</td>
+         * <th scope="row">{@code SERIAL_STORAGE_DBL_ARRAY}</th>
          * <td>0x31</td>
          * <td></td>
          * <td>A hint that the original {@code Path2D} object stored
          * the coordinates in a Java array of doubles.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_MOVETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_MOVETO}</th>
          * <td>0x40</td>
          * <td>2 floats</td>
          * <td>A {@link #moveTo moveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_LINETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_LINETO}</th>
          * <td>0x41</td>
          * <td>2 floats</td>
          * <td>A {@link #lineTo lineTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_QUADTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_QUADTO}</th>
          * <td>0x42</td>
          * <td>4 floats</td>
          * <td>A {@link #quadTo quadTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_FLT_CUBICTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_FLT_CUBICTO}</th>
          * <td>0x43</td>
          * <td>6 floats</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_MOVETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_MOVETO}</th>
          * <td>0x50</td>
          * <td>2 doubles</td>
          * <td>A {@link #moveTo moveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_LINETO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_LINETO}</th>
          * <td>0x51</td>
          * <td>2 doubles</td>
          * <td>A {@link #lineTo lineTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_QUADTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_QUADTO}</th>
          * <td>0x52</td>
          * <td>4 doubles</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_DBL_CUBICTO}</td>
+         * <th scope="row">{@code SERIAL_SEG_DBL_CUBICTO}</th>
          * <td>0x53</td>
          * <td>6 doubles</td>
          * <td>A {@link #curveTo curveTo} path segment follows.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_SEG_CLOSE}</td>
+         * <th scope="row">{@code SERIAL_SEG_CLOSE}</th>
          * <td>0x60</td>
          * <td></td>
          * <td>A {@link #closePath closePath} path segment.</td>
          * </tr>
          * <tr>
-         * <td>{@code SERIAL_PATH_END}</td>
+         * <th scope="row">{@code SERIAL_PATH_END}</th>
          * <td>0x61</td>
          * <td></td>
          * <td>There are no more path segments following.</td>
@@ -1779,7 +1777,7 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         static class CopyIterator extends Path2D.Iterator {
-            double doubleCoords[];
+            double[] doubleCoords;
 
             CopyIterator(Path2D.Double p2dd) {
                 super(p2dd);
@@ -1809,7 +1807,7 @@ public abstract class Path2D implements Shape, Cloneable {
         }
 
         static class TxIterator extends Path2D.Iterator {
-            double doubleCoords[];
+            double[] doubleCoords;
             AffineTransform affine;
 
             TxIterator(Path2D.Double p2dd, AffineTransform at) {
@@ -2537,8 +2535,8 @@ public abstract class Path2D implements Shape, Cloneable {
     {
         s.defaultWriteObject();
 
-        float fCoords[];
-        double dCoords[];
+        float[] fCoords;
+        double[] dCoords;
 
         if (isdbl) {
             dCoords = ((Path2D.Double) this).doubleCoords;
@@ -2726,7 +2724,7 @@ public abstract class Path2D implements Shape, Cloneable {
         int pointIdx;
         Path2D path;
 
-        static final int curvecoords[] = {2, 2, 4, 6, 0};
+        static final int[] curvecoords = {2, 2, 4, 6, 0};
 
         Iterator(Path2D path) {
             this.path = path;

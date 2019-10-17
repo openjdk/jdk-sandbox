@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_MEMORY_HEAP_HPP
-#define SHARE_VM_MEMORY_HEAP_HPP
+#ifndef SHARE_MEMORY_HEAP_HPP
+#define SHARE_MEMORY_HEAP_HPP
 
 #include "code/codeBlob.hpp"
 #include "memory/allocation.hpp"
@@ -51,6 +51,8 @@ class HeapBlock {
  public:
   // Initialization
   void initialize(size_t length)                 { _header._length = length; set_used(); }
+  // Merging/splitting
+  void set_length(size_t length)                 { _header._length = length; }
 
   // Accessors
   void* allocated_space() const                  { return (void*)(this + 1); }
@@ -70,9 +72,6 @@ class FreeBlock: public HeapBlock {
  public:
   // Initialization
   void initialize(size_t length)             { HeapBlock::initialize(length); _link= NULL; }
-
-  // Merging
-  void set_length(size_t l)                  { _header._length = l; }
 
   // Accessors
   FreeBlock* link() const                    { return _link; }
@@ -115,8 +114,12 @@ class CodeHeap : public CHeapObj<mtCode> {
   bool     is_segment_unused(int val) const      { return val == free_sentinel; }
   HeapBlock* block_at(size_t i) const            { return (HeapBlock*)(_memory.low() + (i << _log2_segment_size)); }
 
-  void  mark_segmap_as_free(size_t beg, size_t end);
-  void  mark_segmap_as_used(size_t beg, size_t end);
+  // These methods take segment map indices as range boundaries
+  void mark_segmap_as_free(size_t beg, size_t end);
+  void mark_segmap_as_used(size_t beg, size_t end);
+  void invalidate(size_t beg, size_t end, size_t header_bytes);
+  void clear(size_t beg, size_t end);
+  void clear();                                 // clears all heap contents
 
   // Freelist management helpers
   FreeBlock* following_block(FreeBlock* b);
@@ -125,7 +128,7 @@ class CodeHeap : public CHeapObj<mtCode> {
 
   // Toplevel freelist management
   void add_to_freelist(HeapBlock* b);
-  FreeBlock* search_freelist(size_t length);
+  HeapBlock* search_freelist(size_t length);
 
   // Iteration helpers
   void*      next_used(HeapBlock* b) const;
@@ -133,7 +136,6 @@ class CodeHeap : public CHeapObj<mtCode> {
 
   // to perform additional actions on creation of executable code
   void on_code_mapping(char* base, size_t size);
-  void clear();                                 // clears all heap contents
 
  public:
   CodeHeap(const char* name, const int code_blob_type);
@@ -180,6 +182,7 @@ class CodeHeap : public CHeapObj<mtCode> {
   size_t segment_size()         const { return _segment_size; }  // for CodeHeapState
   HeapBlock* first_block() const;                                // for CodeHeapState
   HeapBlock* next_block(HeapBlock* b) const;                     // for CodeHeapState
+  HeapBlock* split_block(HeapBlock* b, size_t split_seg);        // split one block into two
 
   FreeBlock* freelist()         const { return _freelist; }      // for CodeHeapState
 
@@ -223,4 +226,4 @@ public:
   void print()  PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_MEMORY_HEAP_HPP
+#endif // SHARE_MEMORY_HEAP_HPP

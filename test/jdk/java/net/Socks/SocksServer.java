@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@ import java.net.*;
 import java.io.*;
 import java.util.HashMap;
 
-public class SocksServer extends Thread {
+public class SocksServer extends Thread implements Closeable {
     // Some useful SOCKS constant
 
     static final int PROTO_VERS4        = 4;
@@ -491,6 +491,25 @@ public class SocksServer extends Thread {
         }
     }
 
+    public SocksServer(InetAddress addr, int port, boolean useV4) throws IOException {
+        this.port = port;
+        this.useV4 = useV4;
+        server = new ServerSocket();
+        if (port == 0 && addr == null) {
+            server.bind(null);
+            this.port = server.getLocalPort();
+        } else if (port == 0 && addr != null) {
+            server.bind(new InetSocketAddress(addr, 0));
+            this.port = server.getLocalPort();
+        } else if (addr == null) {
+            assert port != 0;
+            server.bind(new InetSocketAddress(port));
+        } else {
+            assert port != 0;
+            server.bind(new InetSocketAddress(addr, port));
+        }
+    }
+
     public SocksServer() throws IOException {
         this (DEFAULT_PORT);
     }
@@ -503,7 +522,7 @@ public class SocksServer extends Thread {
         return port;
     }
 
-    public void terminate() {
+    public void close() {
         done = true;
         try { server.close(); } catch (IOException unused) {}
     }

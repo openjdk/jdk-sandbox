@@ -40,15 +40,15 @@ extern "C" {
 
 /* expected class signatures are below */
 static const char *class_sig[][CLS_NUM] = {
-    {"getclsig006", "Lnsk/jvmti/GetClassSignature/getclsig006;", "NULL"},
-    {"getclsig006b", "Lnsk/jvmti/GetClassSignature/getclsig006b;",
-        "<L:Ljava/lang/String;>Ljava/lang/Object;"},
-    {"getclsig006c", "Lnsk/jvmti/GetClassSignature/getclsig006c;",
-        "<A:Ljava/lang/Object;B:Ljava/lang/Integer;>Ljava/lang/Object;"},
-    {"getclsig006if", "Lnsk/jvmti/GetClassSignature/getclsig006if;",
-        "<I:Ljava/lang/Object;>Ljava/lang/Object;"},
-    {"getclsig006g", "Lnsk/jvmti/GetClassSignature/getclsig006g;",
-        "<E:Lnsk/jvmti/GetClassSignature/getclsig006e;:Lnsk/jvmti/GetClassSignature/getclsig006if;>Ljava/lang/Object;"}
+    { "getclsig006", "Lnsk/jvmti/GetClassSignature/getclsig006;", "NULL" },
+    { "getclsig006b", "Lnsk/jvmti/GetClassSignature/getclsig006b;",
+      "<L:Ljava/lang/String;>Ljava/lang/Object;" },
+    { "getclsig006c", "Lnsk/jvmti/GetClassSignature/getclsig006c;",
+      "<A:Ljava/lang/Object;B:Ljava/lang/Integer;>Ljava/lang/Object;" },
+    { "getclsig006if", "Lnsk/jvmti/GetClassSignature/getclsig006if;",
+      "<I:Ljava/lang/Object;>Ljava/lang/Object;" },
+    { "getclsig006g", "Lnsk/jvmti/GetClassSignature/getclsig006g;",
+      "<E:Lnsk/jvmti/GetClassSignature/getclsig006e;:Lnsk/jvmti/GetClassSignature/getclsig006if;>Ljava/lang/Object;" }
 };
 
 static jvmtiEnv *jvmti = NULL;
@@ -58,8 +58,7 @@ static int checkSig(JNIEnv *jni_env, jclass testedCls, int idx) {
     char *sign;
     char *gen_sign;
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB4(GetClassSignature,
-            jvmti, testedCls, &sign, &gen_sign))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GetClassSignature(testedCls, &sign, &gen_sign))) {
         NSK_COMPLAIN1("TEST FAILED: unable to get class signature for \"%s\"\n\n",
             class_sig[idx][0]);
         return STATUS_FAILED;
@@ -68,26 +67,28 @@ static int checkSig(JNIEnv *jni_env, jclass testedCls, int idx) {
             class_sig[idx][0]);
 
         if (strcmp(class_sig[idx][1], sign) != 0 ||
-                strcmp(class_sig[idx][2], (gen_sign==NULL)?"NULL":gen_sign) != 0) {
-            NSK_COMPLAIN5("TEST FAILED: class: \"%s\" \
-has\n\tsignature: \"%s\"\n\tgeneric signature: \"%s\"\n\n\tExpected: \"%s\"\n\t\"%s\"\n\n",
+                strcmp(class_sig[idx][2], (gen_sign == NULL) ? "NULL" : gen_sign) != 0) {
+            NSK_COMPLAIN5(
+                "TEST FAILED: class: \"%s\" has\n"
+                "\tsignature: \"%s\"\n"
+                "\tgeneric signature: \"%s\"\n\n"
+                "\tExpected: \"%s\"\n"
+                "\t\"%s\"\n\n",
                 class_sig[idx][0],
-                sign, (gen_sign==NULL)?"NULL":gen_sign,
+                sign, (gen_sign == NULL) ? "NULL" : gen_sign,
                 class_sig[idx][1], class_sig[idx][2]);
             totRes = STATUS_FAILED;
         }
         else
             NSK_DISPLAY2("CHECK PASSED: signature: \"%s\",\n\tgeneric signature: \"%s\"\n",
-                sign, (gen_sign==NULL)?"NULL":gen_sign);
+                sign, (gen_sign == NULL) ? "NULL" : gen_sign);
 
         NSK_DISPLAY0("Deallocating the signature array\n");
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-                jvmti, (unsigned char*) sign))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->Deallocate((unsigned char*) sign))) {
             totRes = STATUS_FAILED;
         }
-        if (gen_sign!=NULL)
-            if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(Deallocate,
-                    jvmti, (unsigned char*) gen_sign))) {
+        if (gen_sign != NULL)
+            if (!NSK_JVMTI_VERIFY(jvmti->Deallocate((unsigned char*) gen_sign))) {
                 totRes = STATUS_FAILED;
             }
 
@@ -104,8 +105,7 @@ Java_nsk_jvmti_GetClassSignature_getclsig006_check(
     jclass testedCls;
 
     for (i=0; i<CLS_NUM; i++) {
-        if (!NSK_JNI_VERIFY(jni, (testedCls = NSK_CPP_STUB2(
-                FindClass, jni, class_sig[i][1])) != NULL)) {
+        if (!NSK_JNI_VERIFY(jni, (testedCls = jni->FindClass(class_sig[i][1])) != NULL)) {
             NSK_COMPLAIN1("TEST FAILURE: unable to find class \"%s\"\n\n",
                 class_sig[i][0]);
             res = STATUS_FAILED;

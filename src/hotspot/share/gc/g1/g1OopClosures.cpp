@@ -38,21 +38,19 @@ G1ParCopyHelper::G1ParCopyHelper(G1CollectedHeap* g1h,  G1ParScanThreadState* pa
 { }
 
 G1ScanClosureBase::G1ScanClosureBase(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
-  _g1h(g1h), _par_scan_state(par_scan_state), _from(NULL)
+  _g1h(g1h), _par_scan_state(par_scan_state)
 { }
 
 void G1CLDScanClosure::do_cld(ClassLoaderData* cld) {
   // If the class loader data has not been dirtied we know that there's
-  // no references into  the young gen and we can skip it.
+  // no references into the young gen and we can skip it.
   if (!_process_only_dirty || cld->has_modified_oops()) {
 
     // Tell the closure that this class loader data is the CLD to scavenge
     // and is the one to dirty if oops are left pointing into the young gen.
     _closure->set_scanned_cld(cld);
-
-    // Clean the cld since we're going to scavenge all the metadata.
-    // Clear modified oops only if this cld is claimed.
-    cld->oops_do(_closure, _must_claim, /*clear_modified_oops*/true);
+    // Clean modified oops since we're going to scavenge all the metadata.
+    cld->oops_do(_closure, ClassLoaderData::_claim_none, true /*clear_modified_oops*/);
 
     _closure->set_scanned_cld(NULL);
 

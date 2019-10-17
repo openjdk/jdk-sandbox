@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,13 +36,13 @@ import java.util.StringTokenizer;
 public class ResolverConfigurationImpl
     extends ResolverConfiguration
 {
-    // Lock helds whilst loading configuration or checking
+    // Lock held whilst loading configuration or checking
     private static Object lock = new Object();
 
     // Resolver options
     private final Options opts;
 
-    // Addreses have changed
+    // Addresses have changed
     private static boolean changed = false;
 
     // Time of last refresh.
@@ -65,7 +65,7 @@ public class ResolverConfigurationImpl
     private LinkedList<String> stringToList(String str) {
         LinkedList<String> ll = new LinkedList<>();
 
-        // comma and space are valid delimites
+        // comma and space are valid delimiters
         StringTokenizer st = new StringTokenizer(str, ", ");
         while (st.hasMoreTokens()) {
             String s = st.nextToken();
@@ -81,7 +81,7 @@ public class ResolverConfigurationImpl
     private void loadConfig() {
         assert Thread.holdsLock(lock);
 
-        // if address have changed then DNS probably changed aswell;
+        // if address have changed then DNS probably changed as well;
         // otherwise check if cached settings have expired.
         //
         if (changed) {
@@ -160,13 +160,7 @@ public class ResolverConfigurationImpl
     static native int notifyAddrChange0();
 
     static {
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction<Void>() {
-                public Void run() {
-                    System.loadLibrary("net");
-                    return null;
-                }
-            });
+        jdk.internal.loader.BootLoader.loadLibrary("net");
         init0();
 
         // start the address listener thread

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,9 @@ groups=TEST.groups TEST.quick-groups
 # to determine additional characteristics of the system for use with the @requires tag.
 # Note: compiled bootlibs code will be located in the folder 'bootClasses'
 requires.extraPropDefns = ../../jtreg-ext/requires/VMProps.java
-requires.extraPropDefns.bootlibs = ../../lib/sun ../../lib/jdk/test/lib/Platform.java
+requires.extraPropDefns.bootlibs = ../../lib/sun \
+    ../../lib/jdk/test/lib/Platform.java \
+    ../../lib/jdk/test/lib/Container.java
 requires.extraPropDefns.vmOpts = -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:bootClasses
 requires.properties= \
     sun.arch.data.model \
@@ -46,6 +48,7 @@ requires.properties= \
     vm.gc.Serial \
     vm.gc.Parallel \
     vm.gc.ConcMarkSweep \
+    vm.gc.Shenandoah \
     vm.gc.Epsilon \
     vm.gc.Z \
     vm.jvmci \
@@ -58,16 +61,18 @@ requires.properties= \
     vm.rtm.cpu \
     vm.rtm.compiler \
     vm.aot \
+    vm.aot.enabled \
     vm.cds \
     vm.cds.custom.loaders \
     vm.cds.archived.java.heap \
     vm.graal.enabled \
     vm.compiler1.enabled \
     vm.compiler2.enabled \
-    docker.support
+    docker.support \
+    test.vm.gc.nvdimm
 
 # Minimum jtreg version
-requiredVersion=4.2 b13
+requiredVersion=4.2 b14
 
 # Path to libraries in the topmost test directory. This is needed so @library
 # does not need ../../../ notation to reach them
@@ -78,3 +83,6 @@ useNewOptions=true
 
 # Use --patch-module instead of -Xmodule:
 useNewPatchModule=true
+
+# disabled till JDK-8219140 is fixed
+allowSmartActionArgs=false

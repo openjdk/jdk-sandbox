@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,17 @@
 
 /*
  * @test
- * @bug      4973609 8015249 8025633 8026567 6469561 8071982 8162363 8182765
+ * @bug      4973609 8015249 8025633 8026567 6469561 8071982 8162363 8182765 8223364
  * @summary  Make sure that annotation types with 0 members does not have
  *           extra HR tags.
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestAnnotationTypes
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestAnnotationTypes extends JavadocTester {
 
@@ -41,7 +43,7 @@ public class TestAnnotationTypes extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out-1",
                 "-sourcepath", testSrc,
                 "pkg");
@@ -55,13 +57,14 @@ public class TestAnnotationTypes extends JavadocTester {
                 + "<li><a href=\"#annotation.type."
                 + "field.detail\">Field</a>&nbsp;|&nbsp;</li>",
                 "<!-- =========== ANNOTATION TYPE FIELD SUMMARY =========== -->",
-                "<h3>Field Summary</h3>",
+                "<h2>Field Summary</h2>",
                 "<th class=\"colSecond\" scope=\"row\"><code><span class=\"memberNameLink\"><a href=\"#DEFAULT_NAME\">DEFAULT_NAME</a></span>"
                 + "</code></th>",
                 "<!-- ============ ANNOTATION TYPE FIELD DETAIL =========== -->",
-                "<h4>DEFAULT_NAME</h4>\n"
-                + "<pre>static final&nbsp;java."
-                + "lang.String&nbsp;DEFAULT_NAME</pre>");
+                "<h3><a id=\"DEFAULT_NAME\">DEFAULT_NAME</a></h3>\n"
+                + "<div class=\"memberSignature\"><span class=\"modifiers\">static final</span>&nbsp;"
+                + "<span class=\"returnType\">java.lang.String</span>&nbsp;"
+                + "<span class=\"memberName\">DEFAULT_NAME</span></div>\n");
 
         checkOutput("pkg/AnnotationType.html", true,
                 "<li>Summary:&nbsp;</li>\n"
@@ -72,17 +75,18 @@ public class TestAnnotationTypes extends JavadocTester {
         checkOutput("pkg/AnnotationType.html", true,
                     "<!-- ============ ANNOTATION TYPE MEMBER DETAIL =========== -->",
                     "<ul class=\"blockList\">",
-                    "<li class=\"blockList\"><a id=\"annotation.type.element.detail\">",
-                    "<!--   -->",
-                    "</a>",
-                    "<h3>Element Detail</h3>",
-                    "<a id=\"value()\">",
-                    "<!--   -->",
-                    "</a>",
-                    "<ul class=\"blockListLast\">",
                     "<li class=\"blockList\">",
-                    "<h4>value</h4>",
-                    "<pre>int&nbsp;value</pre>" );
+                    "<section class=\"memberDetails\">",
+                    "<h2>Element Details</h2>",
+                    "<a id=\"annotation.type.element.detail\">",
+                    "<!--   -->",
+                    "</a>",
+                    "<ul class=\"blockList\">",
+                    "<li class=\"blockList\">",
+                    "<section class=\"detail\">",
+                    "<h3><a id=\"value()\">value</a></h3>",
+                    "<div class=\"memberSignature\"><span class=\"returnType\">int</span>"
+                    + "&nbsp;<span class=\"memberName\">value</span></div>");
 
         checkOutput("pkg/AnnotationType.html", false,
                 "<HR>\n\n"
@@ -92,7 +96,7 @@ public class TestAnnotationTypes extends JavadocTester {
     }
 
     @Test
-    void testLinkSource() {
+    public void testLinkSource() {
         javadoc("-d", "out-2",
                 "-linksource",
                 "-sourcepath", testSrc,
@@ -115,16 +119,4 @@ public class TestAnnotationTypes extends JavadocTester {
                 "public @interface <a href=\"../src-html/pkg/AnnotationTypeField.html#line.31"
                 + "\">AnnotationTypeField</a></pre>");
     }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-        checkOutput("pkg/AnnotationType.html", true,
-                "<li class=\"blockList\"><a name=\"annotation.type.element.detail\">",
-                "<a name=\"value--\">");
-}
 }

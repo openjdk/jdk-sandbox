@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -145,7 +145,7 @@ public abstract class BasicObjectCloneNode extends MacroStateSplitNode implement
                 tool.createVirtualObject(newVirtual, state, Collections.<MonitorIdNode> emptyList(), false);
                 tool.replaceWithVirtual(newVirtual);
             } else {
-                ValueNode length = findLength(FindLengthMode.SEARCH_ONLY, tool.getConstantReflectionProvider());
+                ValueNode length = findLength(FindLengthMode.SEARCH_ONLY, tool.getConstantReflection());
                 if (length == null) {
                     return;
                 }
@@ -154,7 +154,7 @@ public abstract class BasicObjectCloneNode extends MacroStateSplitNode implement
                     return;
                 }
                 int constantLength = lengthAlias.asJavaConstant().asInt();
-                if (constantLength >= 0 && constantLength < tool.getMaximumEntryCount()) {
+                if (constantLength >= 0 && constantLength <= tool.getMaximumEntryCount()) {
                     ValueNode[] state = new ValueNode[constantLength];
                     ResolvedJavaType componentType = type.getComponentType();
                     for (int i = 0; i < constantLength; i++) {

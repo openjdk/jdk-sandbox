@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_SHARED_GC_GLOBALS_HPP
 #define SHARE_GC_SHARED_GC_GLOBALS_HPP
 
+#include "runtime/globals_shared.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_CMSGC
 #include "gc/cms/cms_globals.hpp"
@@ -40,6 +41,9 @@
 #endif
 #if INCLUDE_SERIALGC
 #include "gc/serial/serial_globals.hpp"
+#endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoah_globals.hpp"
 #endif
 #if INCLUDE_ZGC
 #include "gc/z/z_globals.hpp"
@@ -140,6 +144,22 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
+  SHENANDOAHGC_ONLY(GC_SHENANDOAH_FLAGS(                                    \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
   ZGC_ONLY(GC_Z_FLAGS(                                                      \
     develop,                                                                \
     develop_pd,                                                             \
@@ -178,6 +198,9 @@
                                                                             \
   experimental(bool, UseZGC, false,                                         \
           "Use the Z garbage collector")                                    \
+                                                                            \
+  experimental(bool, UseShenandoahGC, false,                                \
+          "Use the Shenandoah garbage collector")                           \
                                                                             \
   product(uint, ParallelGCThreads, 0,                                       \
           "Number of parallel threads parallel gc will use")                \
@@ -348,6 +371,10 @@
   develop(uintx, PromotionFailureALotInterval, 5,                           \
           "Total collections between promotion failures a lot")             \
                                                                             \
+  diagnostic(bool, UseOWSTTaskTerminator, true,                             \
+          "Use Optimized Work Stealing Threads task termination "           \
+          "protocol")                                                       \
+                                                                            \
   experimental(uintx, WorkStealingSleepMillis, 1,                           \
           "Sleep time when sleep is used for yields")                       \
                                                                             \
@@ -371,12 +398,6 @@
                                                                             \
   develop(uintx, MetadataAllocationFailALotInterval, 1000,                  \
           "Metadata allocation failure a lot interval")                     \
-                                                                            \
-  notproduct(bool, ExecuteInternalVMTests, false,                           \
-          "Enable execution of internal VM tests")                          \
-                                                                            \
-  notproduct(bool, VerboseInternalVMTests, false,                           \
-          "Turn on logging for internal VM tests.")                         \
                                                                             \
   product(bool, ExecutingUnitTests, false,                                  \
           "Whether the JVM is running unit tests or not")                   \
@@ -596,7 +617,7 @@
           "OutOfMemoryError is thrown (used with GCTimeLimit)")             \
           range(0, 100)                                                     \
                                                                             \
-  develop(uintx, AdaptiveSizePolicyGCTimeLimitThreshold, 5,                 \
+  develop(uintx, GCOverheadLimitThreshold, 5,                               \
           "Number of consecutive collections before gc time limit fires")   \
           range(1, max_uintx)                                               \
                                                                             \
@@ -659,12 +680,6 @@
   product(bool, DisableExplicitGC, false,                                   \
           "Ignore calls to System.gc()")                                    \
                                                                             \
-  product(bool, BindGCTaskThreadsToCPUs, false,                             \
-          "Bind GCTaskThreads to CPUs if possible")                         \
-                                                                            \
-  product(bool, UseGCTaskAffinity, false,                                   \
-          "Use worker affinity when asking for GCTasks")                    \
-                                                                            \
   product(bool, PrintGC, false,                                             \
           "Print message at garbage collection. "                           \
           "Deprecated, use -Xlog:gc instead.")                              \
@@ -692,6 +707,10 @@
           "to move")                                                        \
                                                                             \
   /* gc parameters */                                                       \
+  product(size_t, MinHeapSize, 0,                                           \
+          "Minimum heap size (in bytes); zero means use ergonomics")        \
+          constraint(MinHeapSizeConstraintFunc,AfterErgo)                   \
+                                                                            \
   product(size_t, InitialHeapSize, 0,                                       \
           "Initial heap size (in bytes); zero means use ergonomics")        \
           constraint(InitialHeapSizeConstraintFunc,AfterErgo)               \
@@ -699,6 +718,10 @@
   product(size_t, MaxHeapSize, ScaleForWordSize(96*M),                      \
           "Maximum heap size (in bytes)")                                   \
           constraint(MaxHeapSizeConstraintFunc,AfterErgo)                   \
+                                                                            \
+  manageable(size_t, SoftMaxHeapSize, 0,                                    \
+          "Soft limit for maximum heap size (in bytes)")                    \
+          constraint(SoftMaxHeapSizeConstraintFunc,AfterMemoryInit)         \
                                                                             \
   product(size_t, OldSize, ScaleForWordSize(4*M),                           \
           "Initial tenured generation size (in bytes)")                     \
@@ -788,12 +811,12 @@
                                                                             \
   product(uintx, MaxTenuringThreshold,    15,                               \
           "Maximum value for tenuring threshold")                           \
-          range(0, markOopDesc::max_age + 1)                                \
+          range(0, markWord::max_age + 1)                                   \
           constraint(MaxTenuringThresholdConstraintFunc,AfterErgo)          \
                                                                             \
   product(uintx, InitialTenuringThreshold,    7,                            \
           "Initial value for tenuring threshold")                           \
-          range(0, markOopDesc::max_age + 1)                                \
+          range(0, markWord::max_age + 1)                                   \
           constraint(InitialTenuringThresholdConstraintFunc,AfterErgo)      \
                                                                             \
   product(uintx, TargetSurvivorRatio,    50,                                \

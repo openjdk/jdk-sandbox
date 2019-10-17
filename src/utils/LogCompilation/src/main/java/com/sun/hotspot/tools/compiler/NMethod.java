@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,16 @@ public class NMethod extends BasicLogEvent {
      */
     private long size;
 
+    /**
+     * The nmethod's compilation level.
+     */
+    private long level;
+
+    /**
+     * The name of the compiler performing this compilation.
+     */
+    private String compiler;
+
     NMethod(double s, String i, long a, long sz) {
         super(s, i);
         address = a;
@@ -67,5 +77,34 @@ public class NMethod extends BasicLogEvent {
 
     public void setSize(long size) {
         this.size = size;
+    }
+
+    /**
+     * @return the level
+     */
+    public long getLevel() {
+        return level;
+    }
+
+    /**
+     * @param level the level to set
+     */
+    public void setLevel(long level) {
+        assert this.level == 0 || this.level == level;
+        this.level = level;
+    }
+
+    /**
+     * @return the compiler
+     */
+    public String getCompiler() {
+        return compiler;
+    }
+
+    /**
+     * @param compiler the compiler to set
+     */
+    public void setCompiler(String compiler) {
+        this.compiler = compiler;
     }
 }

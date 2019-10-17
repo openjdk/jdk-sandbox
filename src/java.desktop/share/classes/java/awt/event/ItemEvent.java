@@ -58,7 +58,7 @@ import java.awt.ItemSelectable;
  *
  * @see java.awt.ItemSelectable
  * @see ItemListener
- * @see <a href="http://docs.oracle.com/javase/tutorial/uiswing/events/itemlistener.html">Tutorial: Writing an Item Listener</a>
+ * @see <a href="https://docs.oracle.com/javase/tutorial/uiswing/events/itemlistener.html">Tutorial: Writing an Item Listener</a>
  *
  * @since 1.1
  */
@@ -95,6 +95,7 @@ public class ItemEvent extends AWTEvent {
      * @serial
      * @see #getItem()
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     Object item;
 
     /**

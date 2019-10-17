@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -186,6 +186,7 @@ AWT_NS_WINDOW_IMPLEMENTATION
 @synthesize preFullScreenLevel;
 @synthesize standardFrame;
 @synthesize isMinimizing;
+@synthesize keyNotificationRecd;
 
 - (void) updateMinMaxSize:(BOOL)resizable {
     if (resizable) {
@@ -203,18 +204,19 @@ AWT_NS_WINDOW_IMPLEMENTATION
     NSUInteger type = 0;
     if (IS(styleBits, DECORATED)) {
         type |= NSTitledWindowMask;
-        if (IS(styleBits, CLOSEABLE))   type |= NSClosableWindowMask;
-        if (IS(styleBits, MINIMIZABLE)) type |= NSMiniaturizableWindowMask;
-        if (IS(styleBits, RESIZABLE))   type |= NSResizableWindowMask;
+        if (IS(styleBits, CLOSEABLE))            type |= NSClosableWindowMask;
+        if (IS(styleBits, RESIZABLE))            type |= NSResizableWindowMask;
+        if (IS(styleBits, FULL_WINDOW_CONTENT))  type |= NSFullSizeContentViewWindowMask;
     } else {
         type |= NSBorderlessWindowMask;
     }
 
+    if (IS(styleBits, MINIMIZABLE))   type |= NSMiniaturizableWindowMask;
     if (IS(styleBits, TEXTURED))      type |= NSTexturedBackgroundWindowMask;
     if (IS(styleBits, UNIFIED))       type |= NSUnifiedTitleAndToolbarWindowMask;
     if (IS(styleBits, UTILITY))       type |= NSUtilityWindowMask;
     if (IS(styleBits, HUD))           type |= NSHUDWindowMask;
-    if (IS(styleBits, SHEET))         type |= NSDocModalWindowMask;
+    if (IS(styleBits, SHEET))         type |= NSWindowStyleMaskDocModalWindow;
     if (IS(styleBits, NONACTIVATING)) type |= NSNonactivatingPanelMask;
 
     return type;
@@ -263,6 +265,10 @@ AWT_NS_WINDOW_IMPLEMENTATION
             [self.nsWindow setCollectionBehavior:NSWindowCollectionBehaviorDefault];
         }
     }
+
+    if (IS(mask, TRANSPARENT_TITLE_BAR) && [self.nsWindow respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+        [self.nsWindow setTitlebarAppearsTransparent:IS(bits, TRANSPARENT_TITLE_BAR)];
+    }
 }
 
 - (id) initWithPlatformWindow:(JNFWeakJObjectWrapper *)platformWindow
@@ -273,7 +279,12 @@ AWT_NS_WINDOW_IMPLEMENTATION
 {
 AWT_ASSERT_APPKIT_THREAD;
 
-    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:bits];
+    NSUInteger newBits = bits;
+    if (IS(bits, SHEET) && owner == nil) {
+        newBits = bits & ~NSWindowStyleMaskDocModalWindow;
+    }
+    NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:newBits];
+
     NSRect contentRect = rect; //[NSWindow contentRectForFrameRect:rect styleMask:styleMask];
     if (contentRect.size.width <= 0.0) {
         contentRect.size.width = 1.0;
@@ -289,7 +300,8 @@ AWT_ASSERT_APPKIT_THREAD;
     if (IS(bits, UTILITY) ||
         IS(bits, NONACTIVATING) ||
         IS(bits, HUD) ||
-        IS(bits, HIDES_ON_DEACTIVATE))
+        IS(bits, HIDES_ON_DEACTIVATE) ||
+        IS(bits, SHEET))
     {
         self.nsWindow = [[AWTWindow_Panel alloc] initWithDelegate:self
                             frameRect:contentRect
@@ -308,6 +320,7 @@ AWT_ASSERT_APPKIT_THREAD;
     if (self.nsWindow == nil) return nil; // no hope either
     [self.nsWindow release]; // the property retains the object already
 
+    self.keyNotificationRecd = NO;
     self.isEnabled = YES;
     self.isMinimizing = NO;
     self.javaPlatformWindow = platformWindow;
@@ -317,6 +330,10 @@ AWT_ASSERT_APPKIT_THREAD;
 
     if (IS(self.styleBits, IS_POPUP)) {
         [self.nsWindow setCollectionBehavior:(1 << 8) /*NSWindowCollectionBehaviorFullScreenAuxiliary*/];
+    }
+
+    if (IS(bits, SHEET) && owner != nil) {
+        [self.nsWindow setStyleMask: NSWindowStyleMaskDocModalWindow];
     }
 
     return self;
@@ -456,7 +473,7 @@ AWT_ASSERT_APPKIT_THREAD;
 
     JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
     [self.javaPlatformWindow setJObject:nil withEnv:env];
-
+    self.javaPlatformWindow = nil;
     self.nsWindow = nil;
     self.ownerWindow = nil;
     [super dealloc];
@@ -475,6 +492,21 @@ AWT_ASSERT_APPKIT_THREAD;
     }
 
     return isBlocked;
+}
+
+// Test whether window is simple window and owned by embedded frame
+- (BOOL) isSimpleWindowOwnedByEmbeddedFrame {
+    BOOL isSimpleWindowOwnedByEmbeddedFrame = NO;
+
+    JNIEnv *env = [ThreadUtilities getJNIEnv];
+    jobject platformWindow = [self.javaPlatformWindow jObjectWithEnv:env];
+    if (platformWindow != NULL) {
+        static JNF_MEMBER_CACHE(jm_isBlocked, jc_CPlatformWindow, "isSimpleWindowOwnedByEmbeddedFrame", "()Z");
+        isSimpleWindowOwnedByEmbeddedFrame = JNFCallBooleanMethod(env, platformWindow, jm_isBlocked) == JNI_TRUE ? YES : NO;
+        (*env)->DeleteLocalRef(env, platformWindow);
+    }
+
+    return isSimpleWindowOwnedByEmbeddedFrame;
 }
 
 // Tests whether the corresponding Java platform window is visible or not
@@ -543,7 +575,7 @@ AWT_ASSERT_APPKIT_THREAD;
 // NSWindow overrides
 - (BOOL) canBecomeKeyWindow {
 AWT_ASSERT_APPKIT_THREAD;
-    return self.isEnabled && IS(self.styleBits, SHOULD_BECOME_KEY);
+    return self.isEnabled && (IS(self.styleBits, SHOULD_BECOME_KEY) || [self isSimpleWindowOwnedByEmbeddedFrame]);
 }
 
 - (BOOL) canBecomeMainWindow {
@@ -717,8 +749,15 @@ AWT_ASSERT_APPKIT_THREAD;
 AWT_ASSERT_APPKIT_THREAD;
     [AWTToolkit eventCountPlusPlus];
 #ifdef DEBUG
-    NSLog(@"became main: %d %@ %@", [self.nsWindow isKeyWindow], [self.nsWindow title], [self menuBarForWindow]);
+    NSLog(@"became main: %d %@ %@ %d", [self.nsWindow isKeyWindow], [self.nsWindow title], [self menuBarForWindow], self.keyNotificationRecd);
 #endif
+
+    // if for some reason, no KEY notification is received but this main window is also a key window
+    // then we need to execute the KEY notification functionality.
+    if(self.keyNotificationRecd != YES && [self.nsWindow isKeyWindow]) {
+        [self doWindowDidBecomeKey];
+    }
+    self.keyNotificationRecd = NO;
 
     if (![self.nsWindow isKeyWindow]) {
         [self activateWindowMenuBar];
@@ -739,6 +778,12 @@ AWT_ASSERT_APPKIT_THREAD;
 #ifdef DEBUG
     NSLog(@"became key: %d %@ %@", [self.nsWindow isMainWindow], [self.nsWindow title], [self menuBarForWindow]);
 #endif
+    [self doWindowDidBecomeKey];
+    self.keyNotificationRecd = YES;
+}
+
+- (void) doWindowDidBecomeKey {
+AWT_ASSERT_APPKIT_THREAD;
     AWTWindow *opposite = [AWTWindow lastKeyWindow];
 
     if (![self.nsWindow isMainWindow]) {
@@ -1043,13 +1088,33 @@ JNIEXPORT void JNICALL Java_sun_lwawt_macosx_CPlatformWindow_nativeSetNSWindowSt
 JNF_COCOA_ENTER(env);
 
     NSWindow *nsWindow = OBJC(windowPtr);
+
     [ThreadUtilities performOnMainThreadWaiting:NO block:^(){
 
         AWTWindow *window = (AWTWindow*)[nsWindow delegate];
 
         // scans the bit field, and only updates the values requested by the mask
-        // (this implicity handles the _CALLBACK_PROP_BITMASK case, since those are passive reads)
+        // (this implicitly handles the _CALLBACK_PROP_BITMASK case, since those are passive reads)
         jint newBits = window.styleBits & ~mask | bits & mask;
+
+        BOOL resized = NO;
+
+        // Check for a change to the full window content view option.
+        // The content view must be resized first, otherwise the window will be resized to fit the existing
+        // content view.
+        if (IS(mask, FULL_WINDOW_CONTENT)) {
+            if (IS(newBits, FULL_WINDOW_CONTENT) != IS(window.styleBits, FULL_WINDOW_CONTENT)) {
+                NSRect frame = [nsWindow frame];
+                NSUInteger styleMask = [AWTWindow styleMaskForStyleBits:newBits];
+                NSRect screenContentRect = [NSWindow contentRectForFrameRect:frame styleMask:styleMask];
+                NSRect contentFrame = NSMakeRect(screenContentRect.origin.x - frame.origin.x,
+                    screenContentRect.origin.y - frame.origin.y,
+                    screenContentRect.size.width,
+                    screenContentRect.size.height);
+                nsWindow.contentView.frame = contentFrame;
+                resized = YES;
+            }
+        }
 
         // resets the NSWindow's style mask if the mask intersects any of those bits
         if (mask & MASK(_STYLE_PROP_BITMASK)) {
@@ -1062,6 +1127,10 @@ JNF_COCOA_ENTER(env);
         }
 
         window.styleBits = newBits;
+
+        if (resized) {
+            [window _deliverMoveResizeEvent];
+        }
     }];
 
 JNF_COCOA_EXIT(env);

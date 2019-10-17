@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,67 +80,6 @@ OGLGC_DestroyOGLGraphicsConfig(jlong pConfigInfo)
 #pragma mark -
 #pragma mark "--- CGLGraphicsConfig methods ---"
 
-#ifdef REMOTELAYER
-mach_port_t JRSRemotePort;
-int remoteSocketFD = -1;
-
-static void *JRSRemoteThreadFn(void *data) {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
-    // Negotiate a unix domain socket to communicate the
-    // out of band data: to read the mach port server name, and
-    // subsequently write out the layer ID.
-    static char* sock_path = "/tmp/JRSRemoteDemoSocket";
-    struct sockaddr_un address;
-    int  socket_fd, nbytes;
-    int BUFLEN = 256;
-    char buffer[BUFLEN];
-
-    remoteSocketFD = socket(PF_LOCAL, SOCK_STREAM, 0);
-    if (remoteSocketFD < 0) {
-        NSLog(@"socket() failed");
-        return NULL;
-    }
-    memset(&address, 0, sizeof(struct sockaddr_un));
-    address.sun_family = AF_UNIX;
-    memcpy(address.sun_path, sock_path, strlen(sock_path)+1);
-    int tries=0, status=-1;
-    while (status !=0 && tries<600) {
-        status = connect(remoteSocketFD, (struct sockaddr *) &address,
-                         sizeof(struct sockaddr_un));
-        if (status != 0) {
-            tries++;
-            NSLog(@"connection attempt %d failed.", tries);
-            usleep(5000000);
-        }
-    }
-    if (status != 0) {
-        NSLog(@"failed to connect");
-        return NULL;
-    }
-    nbytes = read(remoteSocketFD, buffer, BUFLEN);
-    NSString* serverString = [[NSString alloc] initWithUTF8String:buffer];
-    CFRetain(serverString);
-    NSLog(@"Read server name %@", serverString);
-    JRSRemotePort = [JRSRenderServer recieveRenderServer:serverString];
-    NSLog(@"Read server port %d", JRSRemotePort);
-
-    [pool drain];
-    return NULL;
-}
-
-void sendLayerID(int layerID) {
-    if (JRSRemotePort == 0 || remoteSocketFD < 0) {
-        NSLog(@"No connection to send ID");
-        return;
-    }
-    int BUFLEN = 256;
-    char buffer[BUFLEN];
-    snprintf(buffer, BUFLEN, "%d", layerID);
-    write(remoteSocketFD, buffer, BUFLEN);
-}
-#endif  /* REMOTELAYER */
-
 /**
  * This is a globally shared context used when creating textures.  When any
  * new contexts are created, they specify this context as the "share list"
@@ -170,10 +109,6 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_initCGL
         OGLFuncs_CloseLibrary();
         return JNI_FALSE;
     }
-#ifdef REMOTELAYER
-    pthread_t jrsRemoteThread;
-    pthread_create(&jrsRemoteThread, NULL, JRSRemoteThreadFn, NULL);
-#endif
     return JNI_TRUE;
 }
 
@@ -217,7 +152,6 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
     AWT_ASSERT_APPKIT_THREAD;
 
     jint displayID = (jint)[(NSNumber *)[argValue objectAtIndex: 0] intValue];
-    jint pixfmt = (jint)[(NSNumber *)[argValue objectAtIndex: 1] intValue];
     jint swapInterval = (jint)[(NSNumber *)[argValue objectAtIndex: 2] intValue];
     JNIEnv *env = [ThreadUtilities getJNIEnvUncached];
     [argValue removeAllObjects];
@@ -226,11 +160,7 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
 
     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 
-    CGOpenGLDisplayMask glMask = (CGOpenGLDisplayMask)pixfmt;
     if (sharedContext == NULL) {
-        if (glMask == 0) {
-            glMask = CGDisplayIDToOpenGLDisplayMask(displayID);
-        }
 
         NSOpenGLPixelFormatAttribute attrs[] = {
             NSOpenGLPFAAllowOfflineRenderers,
@@ -241,16 +171,17 @@ Java_sun_java2d_opengl_CGLGraphicsConfig_getCGLConfigInfo
             NSOpenGLPFAColorSize, 32,
             NSOpenGLPFAAlphaSize, 8,
             NSOpenGLPFADepthSize, 16,
-            NSOpenGLPFAScreenMask, glMask,
             0
         };
 
         sharedPixelFormat =
             [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
         if (sharedPixelFormat == nil) {
-            J2dRlsTraceLn(J2D_TRACE_ERROR, "CGLGraphicsConfig_getCGLConfigInfo: shared NSOpenGLPixelFormat is NULL");
-            [argValue addObject: [NSNumber numberWithLong: 0L]];
-            return;
+            J2dRlsTraceLn(J2D_TRACE_ERROR, 
+                          "CGLGraphicsConfig_getCGLConfigInfo: shared NSOpenGLPixelFormat is NULL");
+                
+           [argValue addObject: [NSNumber numberWithLong: 0L]];
+           return;
         }
 
         sharedContext =

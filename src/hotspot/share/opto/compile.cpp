@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,12 +76,6 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
-#if INCLUDE_G1GC
-#include "gc/g1/g1ThreadLocalData.hpp"
-#endif // INCLUDE_G1GC
-#if INCLUDE_ZGC
-#include "gc/z/c2/zBarrierSetC2.hpp"
-#endif
 
 
 // -------------------- Compile::mach_constant_base_node -----------------------
@@ -421,7 +415,7 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
     }
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->eliminate_useless_gc_barriers(useful);
+  bs->eliminate_useless_gc_barriers(useful, this);
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -468,7 +462,6 @@ CompileWrapper::CompileWrapper(Compile* compile) : _compile(compile) {
   compile->set_type_dict(NULL);
   compile->set_clone_map(new Dict(cmpkey, hashkey, _compile->comp_arena()));
   compile->clone_map().set_clone_idx(0);
-  compile->set_type_hwm(NULL);
   compile->set_type_last_size(0);
   compile->set_last_tf(NULL, NULL);
   compile->set_indexSet_arena(NULL);
@@ -544,9 +537,7 @@ void Compile::init_scratch_buffer_blob(int const_size) {
 
     ResourceMark rm;
     _scratch_const_size = const_size;
-    int locs_size = sizeof(relocInfo) * MAX_locs_size;
-    int slop = 2 * CodeSection::end_slop(); // space between sections
-    int size = (MAX_inst_size + MAX_stubs_size + _scratch_const_size + slop + locs_size);
+    int size = C2Compiler::initial_code_buffer_size(const_size);
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);
@@ -653,11 +644,13 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
                   _orig_pc_slot_offset_in_bytes(0),
                   _inlining_progress(false),
                   _inlining_incrementally(false),
+                  _do_cleanup(false),
                   _has_reserved_stack_access(target->has_reserved_stack_access()),
 #ifndef PRODUCT
                   _trace_opto_output(directive->TraceOptoOutputOption),
 #endif
                   _has_method_handle_invokes(false),
+                  _clinit_barrier_on_entry(false),
                   _comp_arena(mtCompiler),
                   _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
                   _env(ci_env),
@@ -717,16 +710,19 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   TraceTime t1("Total compilation time", &_t_totalCompilation, CITime, CITimeVerbose);
   TraceTime t2(NULL, &_t_methodCompilation, CITime, false);
 
-#ifndef PRODUCT
+#if defined(SUPPORT_ASSEMBLY) || defined(SUPPORT_ABSTRACT_ASSEMBLY)
   bool print_opto_assembly = directive->PrintOptoAssemblyOption;
-  if (!print_opto_assembly) {
-    bool print_assembly = directive->PrintAssemblyOption;
-    if (print_assembly && !Disassembler::can_decode()) {
-      tty->print_cr("PrintAssembly request changed to PrintOptoAssembly");
-      print_opto_assembly = true;
-    }
-  }
-  set_print_assembly(print_opto_assembly);
+  // We can always print a disassembly, either abstract (hex dump) or
+  // with the help of a suitable hsdis library. Thus, we should not
+  // couple print_assembly and print_opto_assembly controls.
+  // But: always print opto and regular assembly on compile command 'print'.
+  bool print_assembly = directive->PrintAssemblyOption;
+  set_print_assembly(print_opto_assembly || print_assembly);
+#else
+  set_print_assembly(false); // must initialize.
+#endif
+
+#ifndef PRODUCT
   set_parsed_irreducible_loop(false);
 
   if (directive->ReplayInlineOption) {
@@ -894,7 +890,10 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
   }
 #endif
 
-  NOT_PRODUCT( verify_barriers(); )
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeCodeGen);
+#endif
 
   // Dump compilation data to replay it.
   if (directive->DumpReplayOption) {
@@ -986,7 +985,9 @@ Compile::Compile( ciEnv* ci_env,
     _trace_opto_output(directive->TraceOptoOutputOption),
 #endif
     _has_method_handle_invokes(false),
+    _clinit_barrier_on_entry(false),
     _comp_arena(mtCompiler),
+    _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
     _env(ci_env),
     _directive(directive),
     _log(ci_env->log()),
@@ -1028,6 +1029,8 @@ Compile::Compile( ciEnv* ci_env,
 #ifndef PRODUCT
   set_print_assembly(PrintFrameConverterAssembly);
   set_parsed_irreducible_loop(false);
+#else
+  set_print_assembly(false); // Must initialize.
 #endif
   set_has_irreducible_loop(false); // no loops
 
@@ -1124,7 +1127,7 @@ void Compile::Init(int aliaslevel) {
   set_decompile_count(0);
 
   set_do_freq_based_layout(_directive->BlockLayoutByFrequencyOption);
-  set_num_loop_opts(LoopOptsCount);
+  _loop_opts_cnt = LoopOptsCount;
   set_do_inlining(Inline);
   set_max_inline_size(MaxInlineSize);
   set_freq_inline_size(FreqInlineSize);
@@ -1166,6 +1169,9 @@ void Compile::Init(int aliaslevel) {
     }
   }
 #endif
+  if (VM_Version::supports_fast_class_init_checks() && has_method() && !is_osr_compilation() && method()->needs_clinit_barrier()) {
+    set_clinit_barrier_on_entry(true);
+  }
   if (debug_info()->recording_non_safepoints()) {
     set_node_note_array(new(comp_arena()) GrowableArray<Node_Notes*>
                         (comp_arena(), 8, 0, NULL));
@@ -1467,6 +1473,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         tj = TypeInstPtr::MARK;
         ta = TypeAryPtr::RANGE; // generic ignored junk
         ptr = TypePtr::BotPTR;
+      } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
+        ta = tj->isa_aryptr();
       } else {                  // Random constant offset into array body
         offset = Type::OffsetBot;   // Flatten constant access into array body
         tj = ta = TypeAryPtr::make(ptr,ta->ary(),ta->klass(),false,offset);
@@ -1531,6 +1539,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       if (!is_known_inst) { // Do it only for non-instance types
         tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, offset);
       }
+    } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
+      to = tj->is_instptr();
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
       // fields in the java.lang.Class instance.
@@ -1629,7 +1639,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
           (offset == Type::OffsetBot && tj == TypePtr::BOTTOM) ||
           (offset == oopDesc::mark_offset_in_bytes() && tj->base() == Type::AryPtr) ||
           (offset == oopDesc::klass_offset_in_bytes() && tj->base() == Type::AryPtr) ||
-          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr)  ,
+          (offset == arrayOopDesc::length_offset_in_bytes() && tj->base() == Type::AryPtr) ||
+          (BarrierSet::barrier_set()->barrier_set_c2()->verify_gc_alias_type(tj, offset)),
           "For oops, klasses, raw offset must be constant; for arrays the offset is never known" );
   assert( tj->ptr() != TypePtr::TopPTR &&
           tj->ptr() != TypePtr::AnyNull &&
@@ -2048,52 +2059,49 @@ void Compile::inline_boxing_calls(PhaseIterGVN& igvn) {
     }
     _boxing_late_inlines.trunc_to(0);
 
-    {
-      ResourceMark rm;
-      PhaseRemoveUseless pru(gvn, for_igvn());
-    }
+    inline_incrementally_cleanup(igvn);
 
-    igvn = PhaseIterGVN(gvn);
-    igvn.optimize();
-
-    set_inlining_progress(false);
     set_inlining_incrementally(false);
   }
 }
 
-void Compile::inline_incrementally_one(PhaseIterGVN& igvn) {
+bool Compile::inline_incrementally_one() {
   assert(IncrementalInline, "incremental inlining should be on");
-  PhaseGVN* gvn = initial_gvn();
+
+  TracePhase tp("incrementalInline_inline", &timers[_t_incrInline_inline]);
+  set_inlining_progress(false);
+  set_do_cleanup(false);
+  int i = 0;
+  for (; i <_late_inlines.length() && !inlining_progress(); i++) {
+    CallGenerator* cg = _late_inlines.at(i);
+    _late_inlines_pos = i+1;
+    cg->do_late_inline();
+    if (failing())  return false;
+  }
+  int j = 0;
+  for (; i < _late_inlines.length(); i++, j++) {
+    _late_inlines.at_put(j, _late_inlines.at(i));
+  }
+  _late_inlines.trunc_to(j);
+  assert(inlining_progress() || _late_inlines.length() == 0, "");
+
+  bool needs_cleanup = do_cleanup() || over_inlining_cutoff();
 
   set_inlining_progress(false);
-  for_igvn()->clear();
-  gvn->replace_with(&igvn);
+  set_do_cleanup(false);
+  return (_late_inlines.length() > 0) && !needs_cleanup;
+}
 
-  {
-    TracePhase tp("incrementalInline_inline", &timers[_t_incrInline_inline]);
-    int i = 0;
-    for (; i <_late_inlines.length() && !inlining_progress(); i++) {
-      CallGenerator* cg = _late_inlines.at(i);
-      _late_inlines_pos = i+1;
-      cg->do_late_inline();
-      if (failing())  return;
-    }
-    int j = 0;
-    for (; i < _late_inlines.length(); i++, j++) {
-      _late_inlines.at_put(j, _late_inlines.at(i));
-    }
-    _late_inlines.trunc_to(j);
-  }
-
+void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   {
     TracePhase tp("incrementalInline_pru", &timers[_t_incrInline_pru]);
     ResourceMark rm;
-    PhaseRemoveUseless pru(gvn, for_igvn());
+    PhaseRemoveUseless pru(initial_gvn(), for_igvn());
   }
-
   {
     TracePhase tp("incrementalInline_igvn", &timers[_t_incrInline_igvn]);
-    igvn = PhaseIterGVN(gvn);
+    igvn = PhaseIterGVN(initial_gvn());
+    igvn.optimize();
   }
 }
 
@@ -2101,43 +2109,40 @@ void Compile::inline_incrementally_one(PhaseIterGVN& igvn) {
 void Compile::inline_incrementally(PhaseIterGVN& igvn) {
   TracePhase tp("incrementalInline", &timers[_t_incrInline]);
 
-  PhaseGVN* gvn = initial_gvn();
-
   set_inlining_incrementally(true);
-  set_inlining_progress(true);
   uint low_live_nodes = 0;
 
-  while(inlining_progress() && _late_inlines.length() > 0) {
-
+  while (_late_inlines.length() > 0) {
     if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
       if (low_live_nodes < (uint)LiveNodeCountInliningCutoff * 8 / 10) {
         TracePhase tp("incrementalInline_ideal", &timers[_t_incrInline_ideal]);
         // PhaseIdealLoop is expensive so we only try it once we are
         // out of live nodes and we only try it again if the previous
         // helped got the number of nodes down significantly
-        PhaseIdealLoop ideal_loop(igvn, LoopOptsNone);
+        PhaseIdealLoop::optimize(igvn, LoopOptsNone);
         if (failing())  return;
         low_live_nodes = live_nodes();
         _major_progress = true;
       }
 
       if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
-        break;
+        break; // finish
       }
     }
 
-    inline_incrementally_one(igvn);
+    for_igvn()->clear();
+    initial_gvn()->replace_with(&igvn);
 
-    if (failing())  return;
-
-    {
-      TracePhase tp("incrementalInline_igvn", &timers[_t_incrInline_igvn]);
-      igvn.optimize();
+    while (inline_incrementally_one()) {
+      assert(!failing(), "inconsistent");
     }
 
     if (failing())  return;
-  }
 
+    inline_incrementally_cleanup(igvn);
+
+    if (failing())  return;
+  }
   assert( igvn._worklist.size() == 0, "should be done with igvn" );
 
   if (_string_late_inlines.length() > 0) {
@@ -2149,36 +2154,46 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
 
     if (failing())  return;
 
-    {
-      TracePhase tp("incrementalInline_pru", &timers[_t_incrInline_pru]);
-      ResourceMark rm;
-      PhaseRemoveUseless pru(initial_gvn(), for_igvn());
-    }
-
-    {
-      TracePhase tp("incrementalInline_igvn", &timers[_t_incrInline_igvn]);
-      igvn = PhaseIterGVN(gvn);
-      igvn.optimize();
-    }
+    inline_incrementally_cleanup(igvn);
   }
 
   set_inlining_incrementally(false);
 }
 
 
-bool Compile::optimize_loops(int& loop_opts_cnt, PhaseIterGVN& igvn, LoopOptsMode mode) {
-  if(loop_opts_cnt > 0) {
+bool Compile::optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode) {
+  if(_loop_opts_cnt > 0) {
     debug_only( int cnt = 0; );
-    while(major_progress() && (loop_opts_cnt > 0)) {
+    while(major_progress() && (_loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
       assert( cnt++ < 40, "infinite cycle in loop optimization" );
-      PhaseIdealLoop ideal_loop(igvn, mode);
-      loop_opts_cnt--;
+      PhaseIdealLoop::optimize(igvn, mode);
+      _loop_opts_cnt--;
       if (failing())  return false;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
     }
   }
   return true;
+}
+
+// Remove edges from "root" to each SafePoint at a backward branch.
+// They were inserted during parsing (see add_safepoint()) to make
+// infinite loops without calls or exceptions visible to root, i.e.,
+// useful.
+void Compile::remove_root_to_sfpts_edges(PhaseIterGVN& igvn) {
+  Node *r = root();
+  if (r != NULL) {
+    for (uint i = r->req(); i < r->len(); ++i) {
+      Node *n = r->in(i);
+      if (n != NULL && n->is_SafePoint()) {
+        r->rm_prec(i);
+        if (n->outcnt() == 0) {
+          igvn.remove_dead_node(n);
+        }
+        --i;
+      }
+    }
+  }
 }
 
 //------------------------------Optimize---------------------------------------
@@ -2193,13 +2208,12 @@ void Compile::Optimize() {
 
 #endif
 
-#ifdef ASSERT
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->verify_gc_barriers(true);
+#ifdef ASSERT
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeOptimize);
 #endif
 
   ResourceMark rm;
-  int          loop_opts_cnt;
 
   print_inlining_reinit();
 
@@ -2242,6 +2256,10 @@ void Compile::Optimize() {
     if (failing())  return;
   }
 
+  // Now that all inlining is over, cut edge from root to loop
+  // safepoints
+  remove_root_to_sfpts_edges(igvn);
+
   // Remove the speculative part of types and clean up the graph from
   // the extra CastPP nodes whose only purpose is to carry them. Do
   // that early so that optimizations are not disrupted by the extra
@@ -2271,7 +2289,7 @@ void Compile::Optimize() {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop(igvn, LoopOptsNone);
+      PhaseIdealLoop::optimize(igvn, LoopOptsNone);
       if (major_progress()) print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
       if (failing())  return;
     }
@@ -2302,28 +2320,27 @@ void Compile::Optimize() {
   // peeling, unrolling, etc.
 
   // Set loop opts counter
-  loop_opts_cnt = num_loop_opts();
-  if((loop_opts_cnt > 0) && (has_loops() || has_split_ifs())) {
+  if((_loop_opts_cnt > 0) && (has_loops() || has_split_ifs())) {
     {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop(igvn, LoopOptsDefault);
-      loop_opts_cnt--;
+      PhaseIdealLoop::optimize(igvn, LoopOptsDefault);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP1, 2);
       if (failing())  return;
     }
     // Loop opts pass if partial peeling occurred in previous pass
-    if(PartialPeelLoop && major_progress() && (loop_opts_cnt > 0)) {
+    if(PartialPeelLoop && major_progress() && (_loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop(igvn, LoopOptsSkipSplitIf);
-      loop_opts_cnt--;
+      PhaseIdealLoop::optimize(igvn, LoopOptsSkipSplitIf);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP2, 2);
       if (failing())  return;
     }
     // Loop opts pass for loop-unrolling before CCP
-    if(major_progress() && (loop_opts_cnt > 0)) {
+    if(major_progress() && (_loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop(igvn, LoopOptsSkipSplitIf);
-      loop_opts_cnt--;
+      PhaseIdealLoop::optimize(igvn, LoopOptsSkipSplitIf);
+      _loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP3, 2);
     }
     if (!failing()) {
@@ -2351,22 +2368,15 @@ void Compile::Optimize() {
     igvn = ccp;
     igvn.optimize();
   }
-
   print_method(PHASE_ITER_GVN2, 2);
 
   if (failing())  return;
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
   // peeling, unrolling, etc.
-  if (!optimize_loops(loop_opts_cnt, igvn, LoopOptsDefault)) {
+  if (!optimize_loops(igvn, LoopOptsDefault)) {
     return;
   }
-
-#if INCLUDE_ZGC
-  if (UseZGC) {
-    ZBarrierSetC2::find_dominating_barriers(igvn);
-  }
-#endif
 
   if (failing())  return;
 
@@ -2387,18 +2397,26 @@ void Compile::Optimize() {
   }
 
 #ifdef ASSERT
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->verify_gc_barriers(false);
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
 
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
     PhaseMacroExpand  mex(igvn);
-    print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
     }
+    print_method(PHASE_MACRO_EXPANSION, 2);
+  }
+
+  {
+    TracePhase tp("barrierExpand", &timers[_t_barrierExpand]);
+    if (bs->expand_barriers(this, igvn)) {
+      assert(failing(), "must bail out w/ explicit message");
+      return;
+    }
+    print_method(PHASE_BARRIER_EXPANSION, 2);
   }
 
   if (opaque4_count() > 0) {
@@ -2532,12 +2550,25 @@ void Compile::Code_Gen() {
 
 //------------------------------dump_asm---------------------------------------
 // Dump formatted assembly
-#ifndef PRODUCT
-void Compile::dump_asm(int *pcs, uint pc_limit) {
+#if defined(SUPPORT_OPTO_ASSEMBLY)
+void Compile::dump_asm_on(outputStream* st, int* pcs, uint pc_limit) {
+
+  int pc_digits = 3; // #chars required for pc
+  int sb_chars  = 3; // #chars for "start bundle" indicator
+  int tab_size  = 8;
+  if (pcs != NULL) {
+    int max_pc = 0;
+    for (uint i = 0; i < pc_limit; i++) {
+      max_pc = (max_pc < pcs[i]) ? pcs[i] : max_pc;
+    }
+    pc_digits  = ((max_pc < 4096) ? 3 : ((max_pc < 65536) ? 4 : ((max_pc < 65536*256) ? 6 : 8))); // #chars required for pc
+  }
+  int prefix_len = ((pc_digits + sb_chars + tab_size - 1)/tab_size)*tab_size;
+
   bool cut_short = false;
-  tty->print_cr("#");
-  tty->print("#  ");  _tf->dump();  tty->cr();
-  tty->print_cr("#");
+  st->print_cr("#");
+  st->print("#  ");  _tf->dump_on(st);  st->cr();
+  st->print_cr("#");
 
   // For all blocks
   int pc = 0x0;                 // Program counter
@@ -2555,16 +2586,18 @@ void Compile::dump_asm(int *pcs, uint pc_limit) {
       continue;
     }
     n = block->head();
-    if (pcs && n->_idx < pc_limit) {
-      tty->print("%3.3x   ", pcs[n->_idx]);
-    } else {
-      tty->print("      ");
+    if ((pcs != NULL) && (n->_idx < pc_limit)) {
+      pc = pcs[n->_idx];
+      st->print("%*.*x", pc_digits, pc_digits, pc);
     }
-    block->dump_head(_cfg);
+    st->fill_to(prefix_len);
+    block->dump_head(_cfg, st);
     if (block->is_connector()) {
-      tty->print_cr("        # Empty connector block");
+      st->fill_to(prefix_len);
+      st->print_cr("# Empty connector block");
     } else if (block->num_preds() == 2 && block->pred(1)->is_CatchProj() && block->pred(1)->as_CatchProj()->_con == CatchProjNode::fall_through_index) {
-      tty->print_cr("        # Block is sole successor of call");
+      st->fill_to(prefix_len);
+      st->print_cr("# Block is sole successor of call");
     }
 
     // For all instructions
@@ -2600,34 +2633,39 @@ void Compile::dump_asm(int *pcs, uint pc_limit) {
           !n->is_top() &&       // Debug info table constants
           !(n->is_Con() && !n->is_Mach())// Debug info table constants
           ) {
-        if (pcs && n->_idx < pc_limit)
-          tty->print("%3.3x", pcs[n->_idx]);
-        else
-          tty->print("   ");
-        tty->print(" %c ", starts_bundle);
+        if ((pcs != NULL) && (n->_idx < pc_limit)) {
+          pc = pcs[n->_idx];
+          st->print("%*.*x", pc_digits, pc_digits, pc);
+        } else {
+          st->fill_to(pc_digits);
+        }
+        st->print(" %c ", starts_bundle);
         starts_bundle = ' ';
-        tty->print("\t");
-        n->format(_regalloc, tty);
-        tty->cr();
+        st->fill_to(prefix_len);
+        n->format(_regalloc, st);
+        st->cr();
       }
 
       // If we have an instruction with a delay slot, and have seen a delay,
       // then back up and print it
       if (valid_bundle_info(n) && node_bundling(n)->use_unconditional_delay()) {
-        assert(delay != NULL, "no unconditional delay instruction");
+        // Coverity finding - Explicit null dereferenced.
+        guarantee(delay != NULL, "no unconditional delay instruction");
         if (WizardMode) delay->dump();
 
         if (node_bundling(delay)->starts_bundle())
           starts_bundle = '+';
-        if (pcs && n->_idx < pc_limit)
-          tty->print("%3.3x", pcs[n->_idx]);
-        else
-          tty->print("   ");
-        tty->print(" %c ", starts_bundle);
+        if ((pcs != NULL) && (n->_idx < pc_limit)) {
+          pc = pcs[n->_idx];
+          st->print("%*.*x", pc_digits, pc_digits, pc);
+        } else {
+          st->fill_to(pc_digits);
+        }
+        st->print(" %c ", starts_bundle);
         starts_bundle = ' ';
-        tty->print("\t");
-        delay->format(_regalloc, tty);
-        tty->cr();
+        st->fill_to(prefix_len);
+        delay->format(_regalloc, st);
+        st->cr();
         delay = NULL;
       }
 
@@ -2636,19 +2674,13 @@ void Compile::dump_asm(int *pcs, uint pc_limit) {
         // Print the exception table for this offset
         _handler_table.print_subtable_for(pc);
       }
+      st->bol(); // Make sure we start on a new line
     }
-
-    if (pcs && n->_idx < pc_limit)
-      tty->print_cr("%3.3x", pcs[n->_idx]);
-    else
-      tty->cr();
-
+    st->cr(); // one empty line between blocks
     assert(cut_short || delay == NULL, "no unconditional delay branch");
-
   } // End of per-block dump
-  tty->cr();
 
-  if (cut_short)  tty->print_cr("*** disassembly is cut short ***");
+  if (cut_short)  st->print_cr("*** disassembly is cut short ***");
 }
 #endif
 
@@ -2780,7 +2812,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     MemBarNode* mb = n->as_MemBar();
     if (mb->trailing_store() || mb->trailing_load_store()) {
       assert(mb->leading_membar()->trailing_membar() == mb, "bad membar pair");
-      Node* mem = mb->in(MemBarNode::Precedent);
+      Node* mem = BarrierSet::barrier_set()->barrier_set_c2()->step_over_gc_barrier(mb->in(MemBarNode::Precedent));
       assert((mb->trailing_store() && mem->is_Store() && mem->as_Store()->is_release()) ||
              (mb->trailing_load_store() && mem->is_LoadStore()), "missing mem op");
     } else if (mb->leading()) {
@@ -2789,6 +2821,18 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   }
 #endif
   // Count FPU ops and common calls, implements item (3)
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop);
+  if (!gc_handled) {
+    final_graph_reshaping_main_switch(n, frc, nop);
+  }
+
+  // Collect CFG split points
+  if (n->is_MultiBranch() && !n->is_RangeCheck()) {
+    frc._tests.push(n);
+  }
+}
+
+void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop) {
   switch( nop ) {
   // Count all float operations that may use FPU
   case Op_AddF:
@@ -2935,18 +2979,13 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_LoadL_unaligned:
   case Op_LoadPLocked:
   case Op_LoadP:
-#if INCLUDE_ZGC
-  case Op_LoadBarrierSlowReg:
-  case Op_LoadBarrierWeakSlowReg:
-#endif
   case Op_LoadN:
   case Op_LoadRange:
   case Op_LoadS: {
   handle_mem:
 #ifdef ASSERT
     if( VerifyOptoOopOffsets ) {
-      assert( n->is_Mem(), "" );
-      MemNode *mem  = (MemNode*)n;
+      MemNode* mem  = n->as_Mem();
       // Check to see if address types have grounded out somehow.
       const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
       assert( !tp || oop_offset_is_sane(tp), "" );
@@ -3230,8 +3269,10 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
             break;
           }
         }
-        assert(proj != NULL, "must be found");
-        p->subsume_by(proj, this);
+        assert(proj != NULL || p->_con == TypeFunc::I_O, "io may be dropped at an infinite loop");
+        if (proj != NULL) {
+          p->subsume_by(proj, this);
+        }
       }
     }
     break;
@@ -3320,6 +3361,8 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_MulReductionVL:
   case Op_MulReductionVF:
   case Op_MulReductionVD:
+  case Op_MinReductionV:
+  case Op_MaxReductionV:
     break;
 
   case Op_PackB:
@@ -3379,6 +3422,32 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       n->set_req(MemBarNode::Precedent, top());
     }
     break;
+  case Op_MemBarAcquire: {
+    if (n->as_MemBar()->trailing_load() && n->req() > MemBarNode::Precedent) {
+      // At parse time, the trailing MemBarAcquire for a volatile load
+      // is created with an edge to the load. After optimizations,
+      // that input may be a chain of Phis. If those phis have no
+      // other use, then the MemBarAcquire keeps them alive and
+      // register allocation can be confused.
+      ResourceMark rm;
+      Unique_Node_List wq;
+      wq.push(n->in(MemBarNode::Precedent));
+      n->set_req(MemBarNode::Precedent, top());
+      while (wq.size() > 0) {
+        Node* m = wq.pop();
+        if (m->outcnt() == 0) {
+          for (uint j = 0; j < m->req(); j++) {
+            Node* in = m->in(j);
+            if (in != NULL) {
+              wq.push(in);
+            }
+          }
+          m->disconnect_inputs(NULL, this);
+        }
+      }
+    }
+    break;
+  }
   case Op_RangeCheck: {
     RangeCheckNode* rc = n->as_RangeCheck();
     Node* iff = new IfNode(rc->in(0), rc->in(1), rc->_prob, rc->_fcnt);
@@ -3393,7 +3462,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       // address computations.
       n->as_Type()->set_type(TypeLong::INT);
       ResourceMark rm;
-      Node_List wq;
+      Unique_Node_List wq;
       wq.push(n);
       for (uint next = 0; next < wq.size(); next++) {
         Node *m = wq.at(next);
@@ -3408,7 +3477,6 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
           // redundant
           for (DUIterator_Fast imax, i = k->fast_outs(imax); i < imax; i++) {
             Node* u = k->fast_out(i);
-            assert(!wq.contains(u), "shouldn't process one node several times");
             if (u->Opcode() == Op_LShiftL ||
                 u->Opcode() == Op_AddL ||
                 u->Opcode() == Op_SubL ||
@@ -3425,8 +3493,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   }
   case Op_CmpUL: {
     if (!Matcher::has_match_rule(Op_CmpUL)) {
-      // We don't support unsigned long comparisons. Set 'max_idx_expr'
-      // to max_julong if < 0 to make the signed comparison fail.
+      // No support for unsigned long comparisons
       ConINode* sign_pos = new ConINode(TypeInt::make(BitsPerLong - 1));
       Node* sign_bit_mask = new RShiftLNode(n->in(1), sign_pos);
       Node* orl = new OrLNode(n->in(1), sign_bit_mask);
@@ -3438,15 +3505,10 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
     break;
   }
   default:
-    assert( !n->is_Call(), "" );
-    assert( !n->is_Mem(), "" );
-    assert( nop != Op_ProfileBoolean, "should be eliminated during IGVN");
+    assert(!n->is_Call(), "");
+    assert(!n->is_Mem(), "");
+    assert(nop != Op_ProfileBoolean, "should be eliminated during IGVN");
     break;
-  }
-
-  // Collect CFG split points
-  if (n->is_MultiBranch() && !n->is_RangeCheck()) {
-    frc._tests.push(n);
   }
 }
 
@@ -3771,6 +3833,44 @@ void Compile::set_allowed_deopt_reasons() {
   }
 }
 
+bool Compile::needs_clinit_barrier(ciMethod* method, ciMethod* accessing_method) {
+  return method->is_static() && needs_clinit_barrier(method->holder(), accessing_method);
+}
+
+bool Compile::needs_clinit_barrier(ciField* field, ciMethod* accessing_method) {
+  return field->is_static() && needs_clinit_barrier(field->holder(), accessing_method);
+}
+
+bool Compile::needs_clinit_barrier(ciInstanceKlass* holder, ciMethod* accessing_method) {
+  if (holder->is_initialized()) {
+    return false;
+  }
+  if (holder->is_being_initialized()) {
+    if (accessing_method->holder() == holder) {
+      // Access inside a class. The barrier can be elided when access happens in <clinit>,
+      // <init>, or a static method. In all those cases, there was an initialization
+      // barrier on the holder klass passed.
+      if (accessing_method->is_static_initializer() ||
+          accessing_method->is_object_initializer() ||
+          accessing_method->is_static()) {
+        return false;
+      }
+    } else if (accessing_method->holder()->is_subclass_of(holder)) {
+      // Access from a subclass. The barrier can be elided only when access happens in <clinit>.
+      // In case of <init> or a static method, the barrier is on the subclass is not enough:
+      // child class can become fully initialized while its parent class is still being initialized.
+      if (accessing_method->is_static_initializer()) {
+        return false;
+      }
+    }
+    ciMethod* root = method(); // the root method of compilation
+    if (root != accessing_method) {
+      return needs_clinit_barrier(holder, root); // check access in the context of compilation root
+    }
+  }
+  return true;
+}
+
 #ifndef PRODUCT
 //------------------------------verify_graph_edges---------------------------
 // Walk the Graph and verify that there is a one-to-one correspondence
@@ -3807,74 +3907,6 @@ void Compile::verify_graph_edges(bool no_dead_code) {
     }
   }
 }
-
-// Verify GC barriers consistency
-// Currently supported:
-// - G1 pre-barriers (see GraphKit::g1_write_barrier_pre())
-void Compile::verify_barriers() {
-#if INCLUDE_G1GC
-  if (UseG1GC) {
-    // Verify G1 pre-barriers
-    const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
-    Node_List worklist(area);
-    // We're going to walk control flow backwards starting from the Root
-    worklist.push(_root);
-    while (worklist.size() > 0) {
-      Node* x = worklist.pop();
-      if (x == NULL || x == top()) continue;
-      if (visited.member(x)) {
-        continue;
-      } else {
-        visited.push(x);
-      }
-
-      if (x->is_Region()) {
-        for (uint i = 1; i < x->req(); i++) {
-          worklist.push(x->in(i));
-        }
-      } else {
-        worklist.push(x->in(0));
-        // We are looking for the pattern:
-        //                            /->ThreadLocal
-        // If->Bool->CmpI->LoadB->AddP->ConL(marking_offset)
-        //              \->ConI(0)
-        // We want to verify that the If and the LoadB have the same control
-        // See GraphKit::g1_write_barrier_pre()
-        if (x->is_If()) {
-          IfNode *iff = x->as_If();
-          if (iff->in(1)->is_Bool() && iff->in(1)->in(1)->is_Cmp()) {
-            CmpNode *cmp = iff->in(1)->in(1)->as_Cmp();
-            if (cmp->Opcode() == Op_CmpI && cmp->in(2)->is_Con() && cmp->in(2)->bottom_type()->is_int()->get_con() == 0
-                && cmp->in(1)->is_Load()) {
-              LoadNode* load = cmp->in(1)->as_Load();
-              if (load->Opcode() == Op_LoadB && load->in(2)->is_AddP() && load->in(2)->in(2)->Opcode() == Op_ThreadLocal
-                  && load->in(2)->in(3)->is_Con()
-                  && load->in(2)->in(3)->bottom_type()->is_intptr_t()->get_con() == marking_offset) {
-
-                Node* if_ctrl = iff->in(0);
-                Node* load_ctrl = load->in(0);
-
-                if (if_ctrl != load_ctrl) {
-                  // Skip possible CProj->NeverBranch in infinite loops
-                  if ((if_ctrl->is_Proj() && if_ctrl->Opcode() == Op_CProj)
-                      && (if_ctrl->in(0)->is_MultiBranch() && if_ctrl->in(0)->Opcode() == Op_NeverBranch)) {
-                    if_ctrl = if_ctrl->in(0)->in(0);
-                  }
-                }
-                assert(load_ctrl != NULL && if_ctrl == load_ctrl, "controls must match");
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-#endif
-}
-
 #endif
 
 // The Compile object keeps track of failure reasons separately from the ciEnv.

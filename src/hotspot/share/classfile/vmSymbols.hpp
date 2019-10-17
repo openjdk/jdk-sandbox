@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,9 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
-#define SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
+#ifndef SHARE_CLASSFILE_VMSYMBOLS_HPP
+#define SHARE_CLASSFILE_VMSYMBOLS_HPP
 
-#include "classfile/moduleEntry.hpp"
 #include "jfr/support/jfrIntrinsics.hpp"
 #include "jvmci/vmSymbols_jvmci.hpp"
 #include "memory/iterator.hpp"
@@ -52,7 +51,7 @@
 
 #define VM_SYMBOLS_DO(template, do_alias)                                                         \
   /* commonly used class, package, module names */                                                \
-  template(java_base,                                 JAVA_BASE_NAME)                             \
+  template(java_base,                                 "java.base")                                \
   template(java_lang_System,                          "java/lang/System")                         \
   template(java_lang_Object,                          "java/lang/Object")                         \
   template(java_lang_Class,                           "java/lang/Class")                          \
@@ -71,6 +70,7 @@
   template(java_lang_Boolean,                         "java/lang/Boolean")                        \
   template(java_lang_Character,                       "java/lang/Character")                      \
   template(java_lang_Character_CharacterCache,        "java/lang/Character$CharacterCache")       \
+  template(java_lang_CharacterDataLatin1,             "java/lang/CharacterDataLatin1")            \
   template(java_lang_Float,                           "java/lang/Float")                          \
   template(java_lang_Double,                          "java/lang/Double")                         \
   template(java_lang_Byte,                            "java/lang/Byte")                           \
@@ -99,6 +99,8 @@
   template(java_lang_CharSequence,                    "java/lang/CharSequence")                   \
   template(java_lang_SecurityManager,                 "java/lang/SecurityManager")                \
   template(java_security_AccessControlContext,        "java/security/AccessControlContext")       \
+  template(java_security_AccessController,            "java/security/AccessController")           \
+  template(executePrivileged_name,                    "executePrivileged")                        \
   template(java_security_CodeSource,                  "java/security/CodeSource")                 \
   template(java_security_ProtectionDomain,            "java/security/ProtectionDomain")           \
   template(java_security_SecureClassLoader,           "java/security/SecureClassLoader")          \
@@ -124,6 +126,7 @@
   template(getBootClassPathEntryForClass_name,        "getBootClassPathEntryForClass")            \
   template(jdk_internal_vm_PostVMInitHook,            "jdk/internal/vm/PostVMInitHook")           \
   template(sun_net_www_ParseUtil,                     "sun/net/www/ParseUtil")                    \
+  template(java_util_Iterator,                        "java/util/Iterator")                       \
                                                                                                   \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
@@ -244,9 +247,6 @@
   template(clazz_name,                                "clazz")                                    \
   template(exceptionTypes_name,                       "exceptionTypes")                           \
   template(modifiers_name,                            "modifiers")                                \
-  template(newConstructor_name,                       "newConstructor")                           \
-  template(newField_name,                             "newField")                                 \
-  template(newMethod_name,                            "newMethod")                                \
   template(invokeBasic_name,                          "invokeBasic")                              \
   template(linkToVirtual_name,                        "linkToVirtual")                            \
   template(linkToStatic_name,                         "linkToStatic")                             \
@@ -275,9 +275,10 @@
                                                                                                   \
   /* Intrinsic Annotation (JDK 9 and above) */                                                    \
   template(jdk_internal_HotSpotIntrinsicCandidate_signature, "Ljdk/internal/HotSpotIntrinsicCandidate;") \
-  template(jdk_internal_vm_annotation_ForceInline_signature, "Ljdk/internal/vm/annotation/ForceInline;") \
   template(jdk_internal_vm_annotation_DontInline_signature,  "Ljdk/internal/vm/annotation/DontInline;")  \
-  template(jdk_internal_vm_annotation_Stable_signature,      "Ljdk/internal/vm/annotation/Stable;")      \
+  template(jdk_internal_vm_annotation_ForceInline_signature, "Ljdk/internal/vm/annotation/ForceInline;") \
+  template(jdk_internal_vm_annotation_Hidden_signature,      "Ljdk/internal/vm/annotation/Hidden;") \
+  template(jdk_internal_vm_annotation_Stable_signature,      "Ljdk/internal/vm/annotation/Stable;") \
                                                                                                   \
   /* Support for JSR 292 & invokedynamic (JDK 1.7 and above) */                                   \
   template(java_lang_invoke_CallSite,                 "java/lang/invoke/CallSite")                \
@@ -301,7 +302,6 @@
   template(java_lang_invoke_LambdaForm,               "java/lang/invoke/LambdaForm")              \
   template(java_lang_invoke_InjectedProfile_signature, "Ljava/lang/invoke/InjectedProfile;")      \
   template(java_lang_invoke_LambdaForm_Compiled_signature, "Ljava/lang/invoke/LambdaForm$Compiled;") \
-  template(java_lang_invoke_LambdaForm_Hidden_signature, "Ljava/lang/invoke/LambdaForm$Hidden;")  \
   template(java_lang_invoke_MethodHandleNatives_CallSiteContext_signature, "Ljava/lang/invoke/MethodHandleNatives$CallSiteContext;") \
   /* internal up-calls made only by the JVM, via class sun.invoke.MethodHandleNatives: */         \
   template(findMethodHandleType_name,                 "findMethodHandleType")                     \
@@ -356,8 +356,7 @@
   template(destroyed_name,                            "destroyed")                                \
   template(nthreads_name,                             "nthreads")                                 \
   template(ngroups_name,                              "ngroups")                                  \
-  template(shutdown_method_name,                      "shutdown")                                 \
-  template(bootstrapFinished_method_name,             "bootstrapFinished")                        \
+  template(shutdown_name,                             "shutdown")                                 \
   template(finalize_method_name,                      "finalize")                                 \
   template(reference_lock_name,                       "lock")                                     \
   template(reference_discovered_name,                 "discovered")                               \
@@ -421,8 +420,10 @@
   template(static_oop_field_count_name,               "static_oop_field_count")                   \
   template(protection_domain_name,                    "protection_domain")                        \
   template(signers_name,                              "signers_name")                             \
+  template(source_file_name,                          "source_file")                              \
   template(loader_data_name,                          "loader_data")                              \
   template(vmdependencies_name,                       "vmdependencies")                           \
+  template(last_cleanup_name,                         "last_cleanup")                             \
   template(loader_name,                               "loader")                                   \
   template(getModule_name,                            "getModule")                                \
   template(input_stream_void_signature,               "(Ljava/io/InputStream;)V")                 \
@@ -438,10 +439,20 @@
   template(getProtectionDomain_name,                  "getProtectionDomain")                      \
   template(getProtectionDomain_signature,             "(Ljava/security/CodeSource;)Ljava/security/ProtectionDomain;") \
   template(java_lang_Integer_array_signature,         "[Ljava/lang/Integer;")                     \
+  template(java_lang_Long_array_signature,            "[Ljava/lang/Long;")                        \
+  template(java_lang_Character_array_signature,       "[Ljava/lang/Character;")                   \
+  template(java_lang_Short_array_signature,           "[Ljava/lang/Short;")                       \
+  template(java_lang_Byte_array_signature,            "[Ljava/lang/Byte;")                        \
+  template(java_lang_Boolean_signature,               "Ljava/lang/Boolean;")                      \
   template(url_code_signer_array_void_signature,      "(Ljava/net/URL;[Ljava/security/CodeSigner;)V") \
   template(module_entry_name,                         "module_entry")                             \
   template(resolved_references_name,                  "<resolved_references>")                    \
   template(init_lock_name,                            "<init_lock>")                              \
+  template(address_size_name,                         "ADDRESS_SIZE0")                            \
+  template(page_size_name,                            "PAGE_SIZE")                                \
+  template(big_endian_name,                           "BIG_ENDIAN")                               \
+  template(use_unaligned_access_name,                 "UNALIGNED_ACCESS")                         \
+  template(data_cache_line_flush_size_name,           "DATA_CACHE_LINE_FLUSH_SIZE")               \
                                                                                                   \
   /* name symbols needed by intrinsics */                                                         \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, template, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \
@@ -465,10 +476,12 @@
   template(float_int_signature,                       "(F)I")                                     \
   template(double_long_signature,                     "(D)J")                                     \
   template(double_double_signature,                   "(D)D")                                     \
+  template(float_float_signature,                     "(F)F")                                     \
   template(int_float_signature,                       "(I)F")                                     \
   template(long_int_signature,                        "(J)I")                                     \
   template(long_long_signature,                       "(J)J")                                     \
   template(long_double_signature,                     "(J)D")                                     \
+  template(long_void_signature,                       "(J)V")                                     \
   template(byte_signature,                            "B")                                        \
   template(char_signature,                            "C")                                        \
   template(double_signature,                          "D")                                        \
@@ -546,7 +559,6 @@
   template(char_StringBuffer_signature,               "(C)Ljava/lang/StringBuffer;")                              \
   template(int_String_signature,                      "(I)Ljava/lang/String;")                                    \
   template(boolean_boolean_int_signature,             "(ZZ)I")                                                    \
-  template(codesource_permissioncollection_signature, "(Ljava/security/CodeSource;Ljava/security/PermissionCollection;)V") \
   /* signature symbols needed by intrinsics */                                                                    \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, template, VM_ALIAS_IGNORE)            \
                                                                                                                   \
@@ -744,6 +756,7 @@
   do_class(java_lang_StrictMath,          "java/lang/StrictMath")                                                       \
   do_signature(double2_double_signature,  "(DD)D")                                                                      \
   do_signature(double3_double_signature,  "(DDD)D")                                                                     \
+  do_signature(float2_float_signature,    "(FF)F")                                                                      \
   do_signature(float3_float_signature,    "(FFF)F")                                                                     \
   do_signature(int2_int_signature,        "(II)I")                                                                      \
   do_signature(long2_long_signature,      "(JJ)J")                                                                      \
@@ -753,6 +766,7 @@
   do_name(tan_name,"tan")       do_name(atan2_name,"atan2")     do_name(sqrt_name,"sqrt")                               \
   do_name(log_name,"log")       do_name(log10_name,"log10")     do_name(pow_name,"pow")                                 \
   do_name(exp_name,"exp")       do_name(min_name,"min")         do_name(max_name,"max")                                 \
+  do_name(floor_name, "floor")  do_name(ceil_name, "ceil")      do_name(rint_name, "rint")                              \
                                                                                                                         \
   do_name(addExact_name,"addExact")                                                                                     \
   do_name(decrementExact_name,"decrementExact")                                                                         \
@@ -764,7 +778,13 @@
   do_name(fma_name, "fma")                                                                                              \
                                                                                                                         \
   do_intrinsic(_dabs,                     java_lang_Math,         abs_name,   double_double_signature,           F_S)   \
+  do_intrinsic(_fabs,                     java_lang_Math,         abs_name,   float_float_signature,           F_S)   \
+  do_intrinsic(_iabs,                     java_lang_Math,         abs_name,   int_int_signature,           F_S)   \
+  do_intrinsic(_labs,                     java_lang_Math,         abs_name,   long_long_signature,           F_S)   \
   do_intrinsic(_dsin,                     java_lang_Math,         sin_name,   double_double_signature,           F_S)   \
+  do_intrinsic(_floor,                    java_lang_Math,         floor_name, double_double_signature,           F_S)   \
+  do_intrinsic(_ceil,                     java_lang_Math,         ceil_name,  double_double_signature,           F_S)   \
+  do_intrinsic(_rint,                     java_lang_Math,         rint_name,  double_double_signature,           F_S)   \
   do_intrinsic(_dcos,                     java_lang_Math,         cos_name,   double_double_signature,           F_S)   \
   do_intrinsic(_dtan,                     java_lang_Math,         tan_name,   double_double_signature,           F_S)   \
   do_intrinsic(_datan2,                   java_lang_Math,         atan2_name, double2_double_signature,          F_S)   \
@@ -790,6 +810,10 @@
   do_intrinsic(_subtractExactL,           java_lang_Math,         subtractExact_name, long2_long_signature,      F_S)   \
   do_intrinsic(_fmaD,                     java_lang_Math,         fma_name,           double3_double_signature,  F_S)   \
   do_intrinsic(_fmaF,                     java_lang_Math,         fma_name,           float3_float_signature,    F_S)   \
+  do_intrinsic(_maxF,                     java_lang_Math,         max_name,           float2_float_signature,    F_S)   \
+  do_intrinsic(_minF,                     java_lang_Math,         min_name,           float2_float_signature,    F_S)   \
+  do_intrinsic(_maxD,                     java_lang_Math,         max_name,           double2_double_signature,  F_S)   \
+  do_intrinsic(_minD,                     java_lang_Math,         min_name,           double2_double_signature,  F_S)   \
                                                                                                                         \
   do_intrinsic(_floatToRawIntBits,        java_lang_Float,        floatToRawIntBits_name,   float_int_signature, F_S)   \
    do_name(     floatToRawIntBits_name,                          "floatToRawIntBits")                                   \
@@ -930,6 +954,15 @@
   do_intrinsic(_equalsL,                  java_lang_StringLatin1,equals_name, equalsB_signature,                 F_S)   \
   do_intrinsic(_equalsU,                  java_lang_StringUTF16, equals_name, equalsB_signature,                 F_S)   \
                                                                                                                         \
+  do_intrinsic(_isDigit,                  java_lang_CharacterDataLatin1, isDigit_name,      int_bool_signature,  F_R)   \
+   do_name(     isDigit_name,                                           "isDigit")                                      \
+  do_intrinsic(_isLowerCase,              java_lang_CharacterDataLatin1, isLowerCase_name,  int_bool_signature,  F_R)   \
+   do_name(     isLowerCase_name,                                       "isLowerCase")                                  \
+  do_intrinsic(_isUpperCase,              java_lang_CharacterDataLatin1, isUpperCase_name,  int_bool_signature,  F_R)   \
+   do_name(     isUpperCase_name,                                       "isUpperCase")                                  \
+  do_intrinsic(_isWhitespace,             java_lang_CharacterDataLatin1, isWhitespace_name, int_bool_signature,  F_R)   \
+   do_name(     isWhitespace_name,                                      "isWhitespace")                                 \
+                                                                                                                        \
   do_intrinsic(_Preconditions_checkIndex, jdk_internal_util_Preconditions, checkIndex_name, Preconditions_checkIndex_signature, F_S)   \
    do_signature(Preconditions_checkIndex_signature,              "(IILjava/util/function/BiFunction;)I")                \
                                                                                                                         \
@@ -993,6 +1026,12 @@
    do_name(     decrypt_name,                                      "implDecrypt")                                       \
    do_signature(byteArray_int_int_byteArray_int_signature,         "([BII[BI)I")                                        \
                                                                                                                         \
+  do_class(com_sun_crypto_provider_electronicCodeBook, "com/sun/crypto/provider/ElectronicCodeBook")                    \
+   do_intrinsic(_electronicCodeBook_encryptAESCrypt, com_sun_crypto_provider_electronicCodeBook, ecb_encrypt_name, byteArray_int_int_byteArray_int_signature, F_R)  \
+   do_intrinsic(_electronicCodeBook_decryptAESCrypt, com_sun_crypto_provider_electronicCodeBook, ecb_decrypt_name, byteArray_int_int_byteArray_int_signature, F_R)  \
+   do_name(ecb_encrypt_name, "implECBEncrypt")                                                                          \
+   do_name(ecb_decrypt_name, "implECBDecrypt")                                                                          \
+                                                                                                                        \
   do_class(com_sun_crypto_provider_counterMode,      "com/sun/crypto/provider/CounterMode")                             \
    do_intrinsic(_counterMode_AESCrypt, com_sun_crypto_provider_counterMode, crypt_name, byteArray_int_int_byteArray_int_signature, F_R)   \
    do_name(     crypt_name,                                 "implCrypt")                                                    \
@@ -1053,9 +1092,19 @@
   do_intrinsic(_updateByteBufferAdler32,  java_util_zip_Adler32,  updateByteBuffer_A_name,  updateByteBuffer_signature,  F_SN) \
    do_name(     updateByteBuffer_A_name,                          "updateByteBuffer")                                   \
                                                                                                                         \
+  /* support for UnsafeConstants */                                                                                     \
+  do_class(jdk_internal_misc_UnsafeConstants,      "jdk/internal/misc/UnsafeConstants")                                 \
+                                                                                                                        \
   /* support for Unsafe */                                                                                              \
   do_class(jdk_internal_misc_Unsafe,               "jdk/internal/misc/Unsafe")                                          \
+  do_class(sun_misc_Unsafe,                        "sun/misc/Unsafe")                                                   \
                                                                                                                         \
+  do_intrinsic(_writeback0,               jdk_internal_misc_Unsafe,     writeback0_name, long_void_signature , F_RN)             \
+   do_name(     writeback0_name,                                        "writeback0")                                            \
+  do_intrinsic(_writebackPreSync0,        jdk_internal_misc_Unsafe,     writebackPreSync0_name, void_method_signature , F_RN)    \
+   do_name(     writebackPreSync0_name,                                 "writebackPreSync0")                                     \
+  do_intrinsic(_writebackPostSync0,       jdk_internal_misc_Unsafe,    writebackPostSync0_name, void_method_signature , F_RN)    \
+   do_name(     writebackPostSync0_name,                                "writebackPostSync0")                                    \
   do_intrinsic(_allocateInstance,         jdk_internal_misc_Unsafe,     allocateInstance_name, allocateInstance_signature, F_RN) \
    do_name(     allocateInstance_name,                                  "allocateInstance")                                      \
    do_signature(allocateInstance_signature,                             "(Ljava/lang/Class;)Ljava/lang/Object;")                 \
@@ -1084,8 +1133,8 @@
    do_alias(    isCompileConstant_signature,                      object_boolean_signature)                             \
                                                                                                                         \
   /* unsafe memory references (there are a lot of them...) */                                                           \
-  do_signature(getObject_signature,       "(Ljava/lang/Object;J)Ljava/lang/Object;")                                    \
-  do_signature(putObject_signature,       "(Ljava/lang/Object;JLjava/lang/Object;)V")                                   \
+  do_signature(getReference_signature,    "(Ljava/lang/Object;J)Ljava/lang/Object;")                                    \
+  do_signature(putReference_signature,    "(Ljava/lang/Object;JLjava/lang/Object;)V")                                   \
   do_signature(getBoolean_signature,      "(Ljava/lang/Object;J)Z")                                                     \
   do_signature(putBoolean_signature,      "(Ljava/lang/Object;JZ)V")                                                    \
   do_signature(getByte_signature,         "(Ljava/lang/Object;J)B")                                                     \
@@ -1103,7 +1152,7 @@
   do_signature(getDouble_signature,       "(Ljava/lang/Object;J)D")                                                     \
   do_signature(putDouble_signature,       "(Ljava/lang/Object;JD)V")                                                    \
                                                                                                                         \
-  do_name(getObject_name,"getObject")           do_name(putObject_name,"putObject")                                     \
+  do_name(getReference_name,"getReference")     do_name(putReference_name,"putReference")                               \
   do_name(getBoolean_name,"getBoolean")         do_name(putBoolean_name,"putBoolean")                                   \
   do_name(getByte_name,"getByte")               do_name(putByte_name,"putByte")                                         \
   do_name(getShort_name,"getShort")             do_name(putShort_name,"putShort")                                       \
@@ -1113,7 +1162,7 @@
   do_name(getFloat_name,"getFloat")             do_name(putFloat_name,"putFloat")                                       \
   do_name(getDouble_name,"getDouble")           do_name(putDouble_name,"putDouble")                                     \
                                                                                                                         \
-  do_intrinsic(_getObject,          jdk_internal_misc_Unsafe,     getObject_name, getObject_signature,           F_RN)  \
+  do_intrinsic(_getReference,       jdk_internal_misc_Unsafe,     getReference_name, getReference_signature,     F_RN)  \
   do_intrinsic(_getBoolean,         jdk_internal_misc_Unsafe,     getBoolean_name, getBoolean_signature,         F_RN)  \
   do_intrinsic(_getByte,            jdk_internal_misc_Unsafe,     getByte_name, getByte_signature,               F_RN)  \
   do_intrinsic(_getShort,           jdk_internal_misc_Unsafe,     getShort_name, getShort_signature,             F_RN)  \
@@ -1122,7 +1171,7 @@
   do_intrinsic(_getLong,            jdk_internal_misc_Unsafe,     getLong_name, getLong_signature,               F_RN)  \
   do_intrinsic(_getFloat,           jdk_internal_misc_Unsafe,     getFloat_name, getFloat_signature,             F_RN)  \
   do_intrinsic(_getDouble,          jdk_internal_misc_Unsafe,     getDouble_name, getDouble_signature,           F_RN)  \
-  do_intrinsic(_putObject,          jdk_internal_misc_Unsafe,     putObject_name, putObject_signature,           F_RN)  \
+  do_intrinsic(_putReference,       jdk_internal_misc_Unsafe,     putReference_name, putReference_signature,     F_RN)  \
   do_intrinsic(_putBoolean,         jdk_internal_misc_Unsafe,     putBoolean_name, putBoolean_signature,         F_RN)  \
   do_intrinsic(_putByte,            jdk_internal_misc_Unsafe,     putByte_name, putByte_signature,               F_RN)  \
   do_intrinsic(_putShort,           jdk_internal_misc_Unsafe,     putShort_name, putShort_signature,             F_RN)  \
@@ -1132,92 +1181,92 @@
   do_intrinsic(_putFloat,           jdk_internal_misc_Unsafe,     putFloat_name, putFloat_signature,             F_RN)  \
   do_intrinsic(_putDouble,          jdk_internal_misc_Unsafe,     putDouble_name, putDouble_signature,           F_RN)  \
                                                                                                                         \
-  do_name(getObjectVolatile_name,"getObjectVolatile")   do_name(putObjectVolatile_name,"putObjectVolatile")             \
-  do_name(getBooleanVolatile_name,"getBooleanVolatile") do_name(putBooleanVolatile_name,"putBooleanVolatile")           \
-  do_name(getByteVolatile_name,"getByteVolatile")       do_name(putByteVolatile_name,"putByteVolatile")                 \
-  do_name(getShortVolatile_name,"getShortVolatile")     do_name(putShortVolatile_name,"putShortVolatile")               \
-  do_name(getCharVolatile_name,"getCharVolatile")       do_name(putCharVolatile_name,"putCharVolatile")                 \
-  do_name(getIntVolatile_name,"getIntVolatile")         do_name(putIntVolatile_name,"putIntVolatile")                   \
-  do_name(getLongVolatile_name,"getLongVolatile")       do_name(putLongVolatile_name,"putLongVolatile")                 \
-  do_name(getFloatVolatile_name,"getFloatVolatile")     do_name(putFloatVolatile_name,"putFloatVolatile")               \
-  do_name(getDoubleVolatile_name,"getDoubleVolatile")   do_name(putDoubleVolatile_name,"putDoubleVolatile")             \
+  do_name(getReferenceVolatile_name,"getReferenceVolatile")   do_name(putReferenceVolatile_name,"putReferenceVolatile") \
+  do_name(getBooleanVolatile_name,"getBooleanVolatile")       do_name(putBooleanVolatile_name,"putBooleanVolatile")     \
+  do_name(getByteVolatile_name,"getByteVolatile")             do_name(putByteVolatile_name,"putByteVolatile")           \
+  do_name(getShortVolatile_name,"getShortVolatile")           do_name(putShortVolatile_name,"putShortVolatile")         \
+  do_name(getCharVolatile_name,"getCharVolatile")             do_name(putCharVolatile_name,"putCharVolatile")           \
+  do_name(getIntVolatile_name,"getIntVolatile")               do_name(putIntVolatile_name,"putIntVolatile")             \
+  do_name(getLongVolatile_name,"getLongVolatile")             do_name(putLongVolatile_name,"putLongVolatile")           \
+  do_name(getFloatVolatile_name,"getFloatVolatile")           do_name(putFloatVolatile_name,"putFloatVolatile")         \
+  do_name(getDoubleVolatile_name,"getDoubleVolatile")         do_name(putDoubleVolatile_name,"putDoubleVolatile")       \
                                                                                                                         \
-  do_intrinsic(_getObjectVolatile,        jdk_internal_misc_Unsafe,     getObjectVolatile_name, getObject_signature,   F_RN)  \
-  do_intrinsic(_getBooleanVolatile,       jdk_internal_misc_Unsafe,     getBooleanVolatile_name, getBoolean_signature, F_RN)  \
-  do_intrinsic(_getByteVolatile,          jdk_internal_misc_Unsafe,     getByteVolatile_name, getByte_signature,       F_RN)  \
-  do_intrinsic(_getShortVolatile,         jdk_internal_misc_Unsafe,     getShortVolatile_name, getShort_signature,     F_RN)  \
-  do_intrinsic(_getCharVolatile,          jdk_internal_misc_Unsafe,     getCharVolatile_name, getChar_signature,       F_RN)  \
-  do_intrinsic(_getIntVolatile,           jdk_internal_misc_Unsafe,     getIntVolatile_name, getInt_signature,         F_RN)  \
-  do_intrinsic(_getLongVolatile,          jdk_internal_misc_Unsafe,     getLongVolatile_name, getLong_signature,       F_RN)  \
-  do_intrinsic(_getFloatVolatile,         jdk_internal_misc_Unsafe,     getFloatVolatile_name, getFloat_signature,     F_RN)  \
-  do_intrinsic(_getDoubleVolatile,        jdk_internal_misc_Unsafe,     getDoubleVolatile_name, getDouble_signature,   F_RN)  \
-  do_intrinsic(_putObjectVolatile,        jdk_internal_misc_Unsafe,     putObjectVolatile_name, putObject_signature,   F_RN)  \
-  do_intrinsic(_putBooleanVolatile,       jdk_internal_misc_Unsafe,     putBooleanVolatile_name, putBoolean_signature, F_RN)  \
-  do_intrinsic(_putByteVolatile,          jdk_internal_misc_Unsafe,     putByteVolatile_name, putByte_signature,       F_RN)  \
-  do_intrinsic(_putShortVolatile,         jdk_internal_misc_Unsafe,     putShortVolatile_name, putShort_signature,     F_RN)  \
-  do_intrinsic(_putCharVolatile,          jdk_internal_misc_Unsafe,     putCharVolatile_name, putChar_signature,       F_RN)  \
-  do_intrinsic(_putIntVolatile,           jdk_internal_misc_Unsafe,     putIntVolatile_name, putInt_signature,         F_RN)  \
-  do_intrinsic(_putLongVolatile,          jdk_internal_misc_Unsafe,     putLongVolatile_name, putLong_signature,       F_RN)  \
-  do_intrinsic(_putFloatVolatile,         jdk_internal_misc_Unsafe,     putFloatVolatile_name, putFloat_signature,     F_RN)  \
-  do_intrinsic(_putDoubleVolatile,        jdk_internal_misc_Unsafe,     putDoubleVolatile_name, putDouble_signature,   F_RN)  \
+  do_intrinsic(_getReferenceVolatile,     jdk_internal_misc_Unsafe,     getReferenceVolatile_name, getReference_signature, F_RN)  \
+  do_intrinsic(_getBooleanVolatile,       jdk_internal_misc_Unsafe,     getBooleanVolatile_name, getBoolean_signature,     F_RN)  \
+  do_intrinsic(_getByteVolatile,          jdk_internal_misc_Unsafe,     getByteVolatile_name, getByte_signature,           F_RN)  \
+  do_intrinsic(_getShortVolatile,         jdk_internal_misc_Unsafe,     getShortVolatile_name, getShort_signature,         F_RN)  \
+  do_intrinsic(_getCharVolatile,          jdk_internal_misc_Unsafe,     getCharVolatile_name, getChar_signature,           F_RN)  \
+  do_intrinsic(_getIntVolatile,           jdk_internal_misc_Unsafe,     getIntVolatile_name, getInt_signature,             F_RN)  \
+  do_intrinsic(_getLongVolatile,          jdk_internal_misc_Unsafe,     getLongVolatile_name, getLong_signature,           F_RN)  \
+  do_intrinsic(_getFloatVolatile,         jdk_internal_misc_Unsafe,     getFloatVolatile_name, getFloat_signature,         F_RN)  \
+  do_intrinsic(_getDoubleVolatile,        jdk_internal_misc_Unsafe,     getDoubleVolatile_name, getDouble_signature,       F_RN)  \
+  do_intrinsic(_putReferenceVolatile,     jdk_internal_misc_Unsafe,     putReferenceVolatile_name, putReference_signature, F_RN)  \
+  do_intrinsic(_putBooleanVolatile,       jdk_internal_misc_Unsafe,     putBooleanVolatile_name, putBoolean_signature,     F_RN)  \
+  do_intrinsic(_putByteVolatile,          jdk_internal_misc_Unsafe,     putByteVolatile_name, putByte_signature,           F_RN)  \
+  do_intrinsic(_putShortVolatile,         jdk_internal_misc_Unsafe,     putShortVolatile_name, putShort_signature,         F_RN)  \
+  do_intrinsic(_putCharVolatile,          jdk_internal_misc_Unsafe,     putCharVolatile_name, putChar_signature,           F_RN)  \
+  do_intrinsic(_putIntVolatile,           jdk_internal_misc_Unsafe,     putIntVolatile_name, putInt_signature,             F_RN)  \
+  do_intrinsic(_putLongVolatile,          jdk_internal_misc_Unsafe,     putLongVolatile_name, putLong_signature,           F_RN)  \
+  do_intrinsic(_putFloatVolatile,         jdk_internal_misc_Unsafe,     putFloatVolatile_name, putFloat_signature,         F_RN)  \
+  do_intrinsic(_putDoubleVolatile,        jdk_internal_misc_Unsafe,     putDoubleVolatile_name, putDouble_signature,       F_RN)  \
                                                                                                                         \
-  do_name(getObjectOpaque_name,"getObjectOpaque")     do_name(putObjectOpaque_name,"putObjectOpaque")                   \
-  do_name(getBooleanOpaque_name,"getBooleanOpaque")   do_name(putBooleanOpaque_name,"putBooleanOpaque")                 \
-  do_name(getByteOpaque_name,"getByteOpaque")         do_name(putByteOpaque_name,"putByteOpaque")                       \
-  do_name(getShortOpaque_name,"getShortOpaque")       do_name(putShortOpaque_name,"putShortOpaque")                     \
-  do_name(getCharOpaque_name,"getCharOpaque")         do_name(putCharOpaque_name,"putCharOpaque")                       \
-  do_name(getIntOpaque_name,"getIntOpaque")           do_name(putIntOpaque_name,"putIntOpaque")                         \
-  do_name(getLongOpaque_name,"getLongOpaque")         do_name(putLongOpaque_name,"putLongOpaque")                       \
-  do_name(getFloatOpaque_name,"getFloatOpaque")       do_name(putFloatOpaque_name,"putFloatOpaque")                     \
-  do_name(getDoubleOpaque_name,"getDoubleOpaque")     do_name(putDoubleOpaque_name,"putDoubleOpaque")                   \
+  do_name(getReferenceOpaque_name,"getReferenceOpaque") do_name(putReferenceOpaque_name,"putReferenceOpaque")           \
+  do_name(getBooleanOpaque_name,"getBooleanOpaque")     do_name(putBooleanOpaque_name,"putBooleanOpaque")               \
+  do_name(getByteOpaque_name,"getByteOpaque")           do_name(putByteOpaque_name,"putByteOpaque")                     \
+  do_name(getShortOpaque_name,"getShortOpaque")         do_name(putShortOpaque_name,"putShortOpaque")                   \
+  do_name(getCharOpaque_name,"getCharOpaque")           do_name(putCharOpaque_name,"putCharOpaque")                     \
+  do_name(getIntOpaque_name,"getIntOpaque")             do_name(putIntOpaque_name,"putIntOpaque")                       \
+  do_name(getLongOpaque_name,"getLongOpaque")           do_name(putLongOpaque_name,"putLongOpaque")                     \
+  do_name(getFloatOpaque_name,"getFloatOpaque")         do_name(putFloatOpaque_name,"putFloatOpaque")                   \
+  do_name(getDoubleOpaque_name,"getDoubleOpaque")       do_name(putDoubleOpaque_name,"putDoubleOpaque")                 \
                                                                                                                         \
-  do_intrinsic(_getObjectOpaque,          jdk_internal_misc_Unsafe,        getObjectOpaque_name, getObject_signature,   F_R)  \
-  do_intrinsic(_getBooleanOpaque,         jdk_internal_misc_Unsafe,        getBooleanOpaque_name, getBoolean_signature, F_R)  \
-  do_intrinsic(_getByteOpaque,            jdk_internal_misc_Unsafe,        getByteOpaque_name, getByte_signature,       F_R)  \
-  do_intrinsic(_getShortOpaque,           jdk_internal_misc_Unsafe,        getShortOpaque_name, getShort_signature,     F_R)  \
-  do_intrinsic(_getCharOpaque,            jdk_internal_misc_Unsafe,        getCharOpaque_name, getChar_signature,       F_R)  \
-  do_intrinsic(_getIntOpaque,             jdk_internal_misc_Unsafe,        getIntOpaque_name, getInt_signature,         F_R)  \
-  do_intrinsic(_getLongOpaque,            jdk_internal_misc_Unsafe,        getLongOpaque_name, getLong_signature,       F_R)  \
-  do_intrinsic(_getFloatOpaque,           jdk_internal_misc_Unsafe,        getFloatOpaque_name, getFloat_signature,     F_R)  \
-  do_intrinsic(_getDoubleOpaque,          jdk_internal_misc_Unsafe,        getDoubleOpaque_name, getDouble_signature,   F_R)  \
-  do_intrinsic(_putObjectOpaque,          jdk_internal_misc_Unsafe,        putObjectOpaque_name, putObject_signature,   F_R)  \
-  do_intrinsic(_putBooleanOpaque,         jdk_internal_misc_Unsafe,        putBooleanOpaque_name, putBoolean_signature, F_R)  \
-  do_intrinsic(_putByteOpaque,            jdk_internal_misc_Unsafe,        putByteOpaque_name, putByte_signature,       F_R)  \
-  do_intrinsic(_putShortOpaque,           jdk_internal_misc_Unsafe,        putShortOpaque_name, putShort_signature,     F_R)  \
-  do_intrinsic(_putCharOpaque,            jdk_internal_misc_Unsafe,        putCharOpaque_name, putChar_signature,       F_R)  \
-  do_intrinsic(_putIntOpaque,             jdk_internal_misc_Unsafe,        putIntOpaque_name, putInt_signature,         F_R)  \
-  do_intrinsic(_putLongOpaque,            jdk_internal_misc_Unsafe,        putLongOpaque_name, putLong_signature,       F_R)  \
-  do_intrinsic(_putFloatOpaque,           jdk_internal_misc_Unsafe,        putFloatOpaque_name, putFloat_signature,     F_R)  \
-  do_intrinsic(_putDoubleOpaque,          jdk_internal_misc_Unsafe,        putDoubleOpaque_name, putDouble_signature,   F_R)  \
+  do_intrinsic(_getReferenceOpaque,       jdk_internal_misc_Unsafe,        getReferenceOpaque_name, getReference_signature, F_R)  \
+  do_intrinsic(_getBooleanOpaque,         jdk_internal_misc_Unsafe,        getBooleanOpaque_name, getBoolean_signature,     F_R)  \
+  do_intrinsic(_getByteOpaque,            jdk_internal_misc_Unsafe,        getByteOpaque_name, getByte_signature,           F_R)  \
+  do_intrinsic(_getShortOpaque,           jdk_internal_misc_Unsafe,        getShortOpaque_name, getShort_signature,         F_R)  \
+  do_intrinsic(_getCharOpaque,            jdk_internal_misc_Unsafe,        getCharOpaque_name, getChar_signature,           F_R)  \
+  do_intrinsic(_getIntOpaque,             jdk_internal_misc_Unsafe,        getIntOpaque_name, getInt_signature,             F_R)  \
+  do_intrinsic(_getLongOpaque,            jdk_internal_misc_Unsafe,        getLongOpaque_name, getLong_signature,           F_R)  \
+  do_intrinsic(_getFloatOpaque,           jdk_internal_misc_Unsafe,        getFloatOpaque_name, getFloat_signature,         F_R)  \
+  do_intrinsic(_getDoubleOpaque,          jdk_internal_misc_Unsafe,        getDoubleOpaque_name, getDouble_signature,       F_R)  \
+  do_intrinsic(_putReferenceOpaque,       jdk_internal_misc_Unsafe,        putReferenceOpaque_name, putReference_signature, F_R)  \
+  do_intrinsic(_putBooleanOpaque,         jdk_internal_misc_Unsafe,        putBooleanOpaque_name, putBoolean_signature,     F_R)  \
+  do_intrinsic(_putByteOpaque,            jdk_internal_misc_Unsafe,        putByteOpaque_name, putByte_signature,           F_R)  \
+  do_intrinsic(_putShortOpaque,           jdk_internal_misc_Unsafe,        putShortOpaque_name, putShort_signature,         F_R)  \
+  do_intrinsic(_putCharOpaque,            jdk_internal_misc_Unsafe,        putCharOpaque_name, putChar_signature,           F_R)  \
+  do_intrinsic(_putIntOpaque,             jdk_internal_misc_Unsafe,        putIntOpaque_name, putInt_signature,             F_R)  \
+  do_intrinsic(_putLongOpaque,            jdk_internal_misc_Unsafe,        putLongOpaque_name, putLong_signature,           F_R)  \
+  do_intrinsic(_putFloatOpaque,           jdk_internal_misc_Unsafe,        putFloatOpaque_name, putFloat_signature,         F_R)  \
+  do_intrinsic(_putDoubleOpaque,          jdk_internal_misc_Unsafe,        putDoubleOpaque_name, putDouble_signature,       F_R)  \
                                                                                                                         \
-  do_name(getObjectAcquire_name,  "getObjectAcquire")    do_name(putObjectRelease_name,  "putObjectRelease")            \
-  do_name(getBooleanAcquire_name, "getBooleanAcquire")   do_name(putBooleanRelease_name, "putBooleanRelease")           \
-  do_name(getByteAcquire_name,    "getByteAcquire")      do_name(putByteRelease_name,    "putByteRelease")              \
-  do_name(getShortAcquire_name,   "getShortAcquire")     do_name(putShortRelease_name,   "putShortRelease")             \
-  do_name(getCharAcquire_name,    "getCharAcquire")      do_name(putCharRelease_name,    "putCharRelease")              \
-  do_name(getIntAcquire_name,     "getIntAcquire")       do_name(putIntRelease_name,     "putIntRelease")               \
-  do_name(getLongAcquire_name,    "getLongAcquire")      do_name(putLongRelease_name,    "putLongRelease")              \
-  do_name(getFloatAcquire_name,   "getFloatAcquire")     do_name(putFloatRelease_name,   "putFloatRelease")             \
-  do_name(getDoubleAcquire_name,  "getDoubleAcquire")    do_name(putDoubleRelease_name,  "putDoubleRelease")            \
+  do_name(getReferenceAcquire_name,  "getReferenceAcquire") do_name(putReferenceRelease_name,  "putReferenceRelease")   \
+  do_name(getBooleanAcquire_name, "getBooleanAcquire")      do_name(putBooleanRelease_name, "putBooleanRelease")        \
+  do_name(getByteAcquire_name,    "getByteAcquire")         do_name(putByteRelease_name,    "putByteRelease")           \
+  do_name(getShortAcquire_name,   "getShortAcquire")        do_name(putShortRelease_name,   "putShortRelease")          \
+  do_name(getCharAcquire_name,    "getCharAcquire")         do_name(putCharRelease_name,    "putCharRelease")           \
+  do_name(getIntAcquire_name,     "getIntAcquire")          do_name(putIntRelease_name,     "putIntRelease")            \
+  do_name(getLongAcquire_name,    "getLongAcquire")         do_name(putLongRelease_name,    "putLongRelease")           \
+  do_name(getFloatAcquire_name,   "getFloatAcquire")        do_name(putFloatRelease_name,   "putFloatRelease")          \
+  do_name(getDoubleAcquire_name,  "getDoubleAcquire")       do_name(putDoubleRelease_name,  "putDoubleRelease")         \
                                                                                                                         \
-  do_intrinsic(_getObjectAcquire,        jdk_internal_misc_Unsafe,        getObjectAcquire_name, getObject_signature,   F_R)  \
-  do_intrinsic(_getBooleanAcquire,       jdk_internal_misc_Unsafe,        getBooleanAcquire_name, getBoolean_signature, F_R)  \
-  do_intrinsic(_getByteAcquire,          jdk_internal_misc_Unsafe,        getByteAcquire_name, getByte_signature,       F_R)  \
-  do_intrinsic(_getShortAcquire,         jdk_internal_misc_Unsafe,        getShortAcquire_name, getShort_signature,     F_R)  \
-  do_intrinsic(_getCharAcquire,          jdk_internal_misc_Unsafe,        getCharAcquire_name, getChar_signature,       F_R)  \
-  do_intrinsic(_getIntAcquire,           jdk_internal_misc_Unsafe,        getIntAcquire_name, getInt_signature,         F_R)  \
-  do_intrinsic(_getLongAcquire,          jdk_internal_misc_Unsafe,        getLongAcquire_name, getLong_signature,       F_R)  \
-  do_intrinsic(_getFloatAcquire,         jdk_internal_misc_Unsafe,        getFloatAcquire_name, getFloat_signature,     F_R)  \
-  do_intrinsic(_getDoubleAcquire,        jdk_internal_misc_Unsafe,        getDoubleAcquire_name, getDouble_signature,   F_R)  \
-  do_intrinsic(_putObjectRelease,        jdk_internal_misc_Unsafe,        putObjectRelease_name, putObject_signature,   F_R)  \
-  do_intrinsic(_putBooleanRelease,       jdk_internal_misc_Unsafe,        putBooleanRelease_name, putBoolean_signature, F_R)  \
-  do_intrinsic(_putByteRelease,          jdk_internal_misc_Unsafe,        putByteRelease_name, putByte_signature,       F_R)  \
-  do_intrinsic(_putShortRelease,         jdk_internal_misc_Unsafe,        putShortRelease_name, putShort_signature,     F_R)  \
-  do_intrinsic(_putCharRelease,          jdk_internal_misc_Unsafe,        putCharRelease_name, putChar_signature,       F_R)  \
-  do_intrinsic(_putIntRelease,           jdk_internal_misc_Unsafe,        putIntRelease_name, putInt_signature,         F_R)  \
-  do_intrinsic(_putLongRelease,          jdk_internal_misc_Unsafe,        putLongRelease_name, putLong_signature,       F_R)  \
-  do_intrinsic(_putFloatRelease,         jdk_internal_misc_Unsafe,        putFloatRelease_name, putFloat_signature,     F_R)  \
-  do_intrinsic(_putDoubleRelease,        jdk_internal_misc_Unsafe,        putDoubleRelease_name, putDouble_signature,   F_R)  \
+  do_intrinsic(_getReferenceAcquire,     jdk_internal_misc_Unsafe,        getReferenceAcquire_name, getReference_signature, F_R)  \
+  do_intrinsic(_getBooleanAcquire,       jdk_internal_misc_Unsafe,        getBooleanAcquire_name, getBoolean_signature,     F_R)  \
+  do_intrinsic(_getByteAcquire,          jdk_internal_misc_Unsafe,        getByteAcquire_name, getByte_signature,           F_R)  \
+  do_intrinsic(_getShortAcquire,         jdk_internal_misc_Unsafe,        getShortAcquire_name, getShort_signature,         F_R)  \
+  do_intrinsic(_getCharAcquire,          jdk_internal_misc_Unsafe,        getCharAcquire_name, getChar_signature,           F_R)  \
+  do_intrinsic(_getIntAcquire,           jdk_internal_misc_Unsafe,        getIntAcquire_name, getInt_signature,             F_R)  \
+  do_intrinsic(_getLongAcquire,          jdk_internal_misc_Unsafe,        getLongAcquire_name, getLong_signature,           F_R)  \
+  do_intrinsic(_getFloatAcquire,         jdk_internal_misc_Unsafe,        getFloatAcquire_name, getFloat_signature,         F_R)  \
+  do_intrinsic(_getDoubleAcquire,        jdk_internal_misc_Unsafe,        getDoubleAcquire_name, getDouble_signature,       F_R)  \
+  do_intrinsic(_putReferenceRelease,     jdk_internal_misc_Unsafe,        putReferenceRelease_name, putReference_signature, F_R)  \
+  do_intrinsic(_putBooleanRelease,       jdk_internal_misc_Unsafe,        putBooleanRelease_name, putBoolean_signature,     F_R)  \
+  do_intrinsic(_putByteRelease,          jdk_internal_misc_Unsafe,        putByteRelease_name, putByte_signature,           F_R)  \
+  do_intrinsic(_putShortRelease,         jdk_internal_misc_Unsafe,        putShortRelease_name, putShort_signature,         F_R)  \
+  do_intrinsic(_putCharRelease,          jdk_internal_misc_Unsafe,        putCharRelease_name, putChar_signature,           F_R)  \
+  do_intrinsic(_putIntRelease,           jdk_internal_misc_Unsafe,        putIntRelease_name, putInt_signature,             F_R)  \
+  do_intrinsic(_putLongRelease,          jdk_internal_misc_Unsafe,        putLongRelease_name, putLong_signature,           F_R)  \
+  do_intrinsic(_putFloatRelease,         jdk_internal_misc_Unsafe,        putFloatRelease_name, putFloat_signature,         F_R)  \
+  do_intrinsic(_putDoubleRelease,        jdk_internal_misc_Unsafe,        putDoubleRelease_name, putDouble_signature,       F_R)  \
                                                                                                                         \
   do_name(getShortUnaligned_name,"getShortUnaligned")     do_name(putShortUnaligned_name,"putShortUnaligned")           \
   do_name(getCharUnaligned_name,"getCharUnaligned")       do_name(putCharUnaligned_name,"putCharUnaligned")             \
@@ -1233,8 +1282,8 @@
   do_intrinsic(_putIntUnaligned,           jdk_internal_misc_Unsafe,    putIntUnaligned_name, putInt_signature,         F_R)  \
   do_intrinsic(_putLongUnaligned,          jdk_internal_misc_Unsafe,    putLongUnaligned_name, putLong_signature,       F_R)  \
                                                                                                                         \
-  do_signature(compareAndSetObject_signature,      "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Z")        \
-  do_signature(compareAndExchangeObject_signature, "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;") \
+  do_signature(compareAndSetReference_signature,      "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Z")        \
+  do_signature(compareAndExchangeReference_signature, "(Ljava/lang/Object;JLjava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;") \
   do_signature(compareAndSetLong_signature,        "(Ljava/lang/Object;JJJ)Z")                                          \
   do_signature(compareAndExchangeLong_signature,   "(Ljava/lang/Object;JJJ)J")                                          \
   do_signature(compareAndSetInt_signature,         "(Ljava/lang/Object;JII)Z")                                          \
@@ -1244,52 +1293,52 @@
   do_signature(compareAndSetShort_signature,       "(Ljava/lang/Object;JSS)Z")                                          \
   do_signature(compareAndExchangeShort_signature,  "(Ljava/lang/Object;JSS)S")                                          \
                                                                                                                         \
-  do_name(compareAndSetObject_name,              "compareAndSetObject")                                                 \
-  do_name(compareAndExchangeObject_name,         "compareAndExchangeObject")                                            \
-  do_name(compareAndExchangeObjectAcquire_name,  "compareAndExchangeObjectAcquire")                                     \
-  do_name(compareAndExchangeObjectRelease_name,  "compareAndExchangeObjectRelease")                                     \
-  do_name(compareAndSetLong_name,                "compareAndSetLong")                                                   \
-  do_name(compareAndExchangeLong_name,           "compareAndExchangeLong")                                              \
-  do_name(compareAndExchangeLongAcquire_name,    "compareAndExchangeLongAcquire")                                       \
-  do_name(compareAndExchangeLongRelease_name,    "compareAndExchangeLongRelease")                                       \
-  do_name(compareAndSetInt_name,                 "compareAndSetInt")                                                    \
-  do_name(compareAndExchangeInt_name,            "compareAndExchangeInt")                                               \
-  do_name(compareAndExchangeIntAcquire_name,     "compareAndExchangeIntAcquire")                                        \
-  do_name(compareAndExchangeIntRelease_name,     "compareAndExchangeIntRelease")                                        \
-  do_name(compareAndSetByte_name,                "compareAndSetByte")                                                   \
-  do_name(compareAndExchangeByte_name,           "compareAndExchangeByte")                                              \
-  do_name(compareAndExchangeByteAcquire_name,    "compareAndExchangeByteAcquire")                                       \
-  do_name(compareAndExchangeByteRelease_name,    "compareAndExchangeByteRelease")                                       \
-  do_name(compareAndSetShort_name,               "compareAndSetShort")                                                  \
-  do_name(compareAndExchangeShort_name,          "compareAndExchangeShort")                                             \
-  do_name(compareAndExchangeShortAcquire_name,   "compareAndExchangeShortAcquire")                                      \
-  do_name(compareAndExchangeShortRelease_name,   "compareAndExchangeShortRelease")                                      \
+  do_name(compareAndSetReference_name,              "compareAndSetReference")                                           \
+  do_name(compareAndExchangeReference_name,         "compareAndExchangeReference")                                      \
+  do_name(compareAndExchangeReferenceAcquire_name,  "compareAndExchangeReferenceAcquire")                               \
+  do_name(compareAndExchangeReferenceRelease_name,  "compareAndExchangeReferenceRelease")                               \
+  do_name(compareAndSetLong_name,                   "compareAndSetLong")                                                \
+  do_name(compareAndExchangeLong_name,              "compareAndExchangeLong")                                           \
+  do_name(compareAndExchangeLongAcquire_name,       "compareAndExchangeLongAcquire")                                    \
+  do_name(compareAndExchangeLongRelease_name,       "compareAndExchangeLongRelease")                                    \
+  do_name(compareAndSetInt_name,                    "compareAndSetInt")                                                 \
+  do_name(compareAndExchangeInt_name,               "compareAndExchangeInt")                                            \
+  do_name(compareAndExchangeIntAcquire_name,        "compareAndExchangeIntAcquire")                                     \
+  do_name(compareAndExchangeIntRelease_name,        "compareAndExchangeIntRelease")                                     \
+  do_name(compareAndSetByte_name,                   "compareAndSetByte")                                                \
+  do_name(compareAndExchangeByte_name,              "compareAndExchangeByte")                                           \
+  do_name(compareAndExchangeByteAcquire_name,       "compareAndExchangeByteAcquire")                                    \
+  do_name(compareAndExchangeByteRelease_name,       "compareAndExchangeByteRelease")                                    \
+  do_name(compareAndSetShort_name,                  "compareAndSetShort")                                               \
+  do_name(compareAndExchangeShort_name,             "compareAndExchangeShort")                                          \
+  do_name(compareAndExchangeShortAcquire_name,      "compareAndExchangeShortAcquire")                                   \
+  do_name(compareAndExchangeShortRelease_name,      "compareAndExchangeShortRelease")                                   \
                                                                                                                         \
-  do_name(weakCompareAndSetObjectPlain_name,     "weakCompareAndSetObjectPlain")                                        \
-  do_name(weakCompareAndSetObjectAcquire_name,   "weakCompareAndSetObjectAcquire")                                      \
-  do_name(weakCompareAndSetObjectRelease_name,   "weakCompareAndSetObjectRelease")                                      \
-  do_name(weakCompareAndSetObject_name,          "weakCompareAndSetObject")                                             \
-  do_name(weakCompareAndSetLongPlain_name,       "weakCompareAndSetLongPlain")                                          \
-  do_name(weakCompareAndSetLongAcquire_name,     "weakCompareAndSetLongAcquire")                                        \
-  do_name(weakCompareAndSetLongRelease_name,     "weakCompareAndSetLongRelease")                                        \
-  do_name(weakCompareAndSetLong_name,            "weakCompareAndSetLong")                                               \
-  do_name(weakCompareAndSetIntPlain_name,        "weakCompareAndSetIntPlain")                                           \
-  do_name(weakCompareAndSetIntAcquire_name,      "weakCompareAndSetIntAcquire")                                         \
-  do_name(weakCompareAndSetIntRelease_name,      "weakCompareAndSetIntRelease")                                         \
-  do_name(weakCompareAndSetInt_name,             "weakCompareAndSetInt")                                                \
-  do_name(weakCompareAndSetBytePlain_name,       "weakCompareAndSetBytePlain")                                          \
-  do_name(weakCompareAndSetByteAcquire_name,     "weakCompareAndSetByteAcquire")                                        \
-  do_name(weakCompareAndSetByteRelease_name,     "weakCompareAndSetByteRelease")                                        \
-  do_name(weakCompareAndSetByte_name,            "weakCompareAndSetByte")                                               \
-  do_name(weakCompareAndSetShortPlain_name,      "weakCompareAndSetShortPlain")                                         \
-  do_name(weakCompareAndSetShortAcquire_name,    "weakCompareAndSetShortAcquire")                                       \
-  do_name(weakCompareAndSetShortRelease_name,    "weakCompareAndSetShortRelease")                                       \
-  do_name(weakCompareAndSetShort_name,           "weakCompareAndSetShort")                                              \
+  do_name(weakCompareAndSetReferencePlain_name,     "weakCompareAndSetReferencePlain")                                  \
+  do_name(weakCompareAndSetReferenceAcquire_name,   "weakCompareAndSetReferenceAcquire")                                \
+  do_name(weakCompareAndSetReferenceRelease_name,   "weakCompareAndSetReferenceRelease")                                \
+  do_name(weakCompareAndSetReference_name,          "weakCompareAndSetReference")                                       \
+  do_name(weakCompareAndSetLongPlain_name,          "weakCompareAndSetLongPlain")                                       \
+  do_name(weakCompareAndSetLongAcquire_name,        "weakCompareAndSetLongAcquire")                                     \
+  do_name(weakCompareAndSetLongRelease_name,        "weakCompareAndSetLongRelease")                                     \
+  do_name(weakCompareAndSetLong_name,               "weakCompareAndSetLong")                                            \
+  do_name(weakCompareAndSetIntPlain_name,           "weakCompareAndSetIntPlain")                                        \
+  do_name(weakCompareAndSetIntAcquire_name,         "weakCompareAndSetIntAcquire")                                      \
+  do_name(weakCompareAndSetIntRelease_name,         "weakCompareAndSetIntRelease")                                      \
+  do_name(weakCompareAndSetInt_name,                "weakCompareAndSetInt")                                             \
+  do_name(weakCompareAndSetBytePlain_name,          "weakCompareAndSetBytePlain")                                       \
+  do_name(weakCompareAndSetByteAcquire_name,        "weakCompareAndSetByteAcquire")                                     \
+  do_name(weakCompareAndSetByteRelease_name,        "weakCompareAndSetByteRelease")                                     \
+  do_name(weakCompareAndSetByte_name,               "weakCompareAndSetByte")                                            \
+  do_name(weakCompareAndSetShortPlain_name,         "weakCompareAndSetShortPlain")                                      \
+  do_name(weakCompareAndSetShortAcquire_name,       "weakCompareAndSetShortAcquire")                                    \
+  do_name(weakCompareAndSetShortRelease_name,       "weakCompareAndSetShortRelease")                                    \
+  do_name(weakCompareAndSetShort_name,              "weakCompareAndSetShort")                                           \
                                                                                                                         \
-  do_intrinsic(_compareAndSetObject,              jdk_internal_misc_Unsafe,  compareAndSetObject_name,              compareAndSetObject_signature,      F_RN) \
-  do_intrinsic(_compareAndExchangeObject,         jdk_internal_misc_Unsafe,  compareAndExchangeObject_name,         compareAndExchangeObject_signature, F_RN) \
-  do_intrinsic(_compareAndExchangeObjectAcquire,  jdk_internal_misc_Unsafe,  compareAndExchangeObjectAcquire_name,  compareAndExchangeObject_signature, F_R)  \
-  do_intrinsic(_compareAndExchangeObjectRelease,  jdk_internal_misc_Unsafe,  compareAndExchangeObjectRelease_name,  compareAndExchangeObject_signature, F_R)  \
+  do_intrinsic(_compareAndSetReference,              jdk_internal_misc_Unsafe,  compareAndSetReference_name,              compareAndSetReference_signature,      F_RN) \
+  do_intrinsic(_compareAndExchangeReference,         jdk_internal_misc_Unsafe,  compareAndExchangeReference_name,         compareAndExchangeReference_signature, F_RN) \
+  do_intrinsic(_compareAndExchangeReferenceAcquire,  jdk_internal_misc_Unsafe,  compareAndExchangeReferenceAcquire_name,  compareAndExchangeReference_signature, F_R)  \
+  do_intrinsic(_compareAndExchangeReferenceRelease,  jdk_internal_misc_Unsafe,  compareAndExchangeReferenceRelease_name,  compareAndExchangeReference_signature, F_R)  \
   do_intrinsic(_compareAndSetLong,                jdk_internal_misc_Unsafe,  compareAndSetLong_name,                compareAndSetLong_signature,        F_RN) \
   do_intrinsic(_compareAndExchangeLong,           jdk_internal_misc_Unsafe,  compareAndExchangeLong_name,           compareAndExchangeLong_signature,   F_RN) \
   do_intrinsic(_compareAndExchangeLongAcquire,    jdk_internal_misc_Unsafe,  compareAndExchangeLongAcquire_name,    compareAndExchangeLong_signature,   F_R)  \
@@ -1307,10 +1356,10 @@
   do_intrinsic(_compareAndExchangeShortAcquire,   jdk_internal_misc_Unsafe,  compareAndExchangeShortAcquire_name,   compareAndExchangeShort_signature,  F_R)  \
   do_intrinsic(_compareAndExchangeShortRelease,   jdk_internal_misc_Unsafe,  compareAndExchangeShortRelease_name,   compareAndExchangeShort_signature,  F_R)  \
                                                                                                                                                              \
-  do_intrinsic(_weakCompareAndSetObjectPlain,     jdk_internal_misc_Unsafe,  weakCompareAndSetObjectPlain_name,     compareAndSetObject_signature,      F_R) \
-  do_intrinsic(_weakCompareAndSetObjectAcquire,   jdk_internal_misc_Unsafe,  weakCompareAndSetObjectAcquire_name,   compareAndSetObject_signature,      F_R) \
-  do_intrinsic(_weakCompareAndSetObjectRelease,   jdk_internal_misc_Unsafe,  weakCompareAndSetObjectRelease_name,   compareAndSetObject_signature,      F_R) \
-  do_intrinsic(_weakCompareAndSetObject,          jdk_internal_misc_Unsafe,  weakCompareAndSetObject_name,          compareAndSetObject_signature,      F_R) \
+  do_intrinsic(_weakCompareAndSetReferencePlain,  jdk_internal_misc_Unsafe,  weakCompareAndSetReferencePlain_name,     compareAndSetReference_signature,      F_R) \
+  do_intrinsic(_weakCompareAndSetReferenceAcquire,jdk_internal_misc_Unsafe,  weakCompareAndSetReferenceAcquire_name,   compareAndSetReference_signature,      F_R) \
+  do_intrinsic(_weakCompareAndSetReferenceRelease,jdk_internal_misc_Unsafe,  weakCompareAndSetReferenceRelease_name,   compareAndSetReference_signature,      F_R) \
+  do_intrinsic(_weakCompareAndSetReference,       jdk_internal_misc_Unsafe,  weakCompareAndSetReference_name,          compareAndSetReference_signature,      F_R) \
   do_intrinsic(_weakCompareAndSetLongPlain,       jdk_internal_misc_Unsafe,  weakCompareAndSetLongPlain_name,       compareAndSetLong_signature,        F_R) \
   do_intrinsic(_weakCompareAndSetLongAcquire,     jdk_internal_misc_Unsafe,  weakCompareAndSetLongAcquire_name,     compareAndSetLong_signature,        F_R) \
   do_intrinsic(_weakCompareAndSetLongRelease,     jdk_internal_misc_Unsafe,  weakCompareAndSetLongRelease_name,     compareAndSetLong_signature,        F_R) \
@@ -1352,9 +1401,9 @@
   do_intrinsic(_getAndSetShort,           jdk_internal_misc_Unsafe,     getAndSetShort_name, getAndSetShort_signature, F_R)   \
    do_name(     getAndSetShort_name,                                    "getAndSetShort")                                     \
    do_alias(    getAndSetShort_signature,                               /*"(Ljava/lang/Object;JS)S"*/ getAndAddShort_signature) \
-  do_intrinsic(_getAndSetObject,          jdk_internal_misc_Unsafe,     getAndSetObject_name, getAndSetObject_signature,  F_R)\
-   do_name(     getAndSetObject_name,                                   "getAndSetObject")                                    \
-   do_signature(getAndSetObject_signature,                              "(Ljava/lang/Object;JLjava/lang/Object;)Ljava/lang/Object;" ) \
+  do_intrinsic(_getAndSetReference,       jdk_internal_misc_Unsafe,     getAndSetReference_name, getAndSetReference_signature, F_R) \
+   do_name(     getAndSetReference_name,                                "getAndSetReference")                                  \
+   do_signature(getAndSetReference_signature,                           "(Ljava/lang/Object;JLjava/lang/Object;)Ljava/lang/Object;" ) \
                                                                                                                                \
    /* (2) Bytecode intrinsics                                                                        */                        \
                                                                                                                                \
@@ -1541,7 +1590,7 @@ class vmIntrinsics: AllStatic {
     #undef VM_INTRINSIC_ENUM
 
     ID_LIMIT,
-    LAST_COMPILER_INLINE = _getAndSetObject,
+    LAST_COMPILER_INLINE = _getAndSetReference,
     FIRST_MH_SIG_POLY    = _invokeGeneric,
     FIRST_MH_STATIC      = _linkToVirtual,
     LAST_MH_SIG_POLY     = _linkToInterface,
@@ -1638,4 +1687,4 @@ public:
   static bool is_intrinsic_available(vmIntrinsics::ID id);
 };
 
-#endif // SHARE_VM_CLASSFILE_VMSYMBOLS_HPP
+#endif // SHARE_CLASSFILE_VMSYMBOLS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OS_LINUX_HPP
-#define OS_LINUX_VM_OS_LINUX_HPP
+#ifndef OS_LINUX_OS_LINUX_HPP
+#define OS_LINUX_OS_LINUX_HPP
 
 // Linux_OS defines the interface to Linux operating systems
 
@@ -38,12 +38,9 @@ class Linux {
   static bool libjsig_is_loaded;        // libjsig that interposes sigaction(),
                                         // __sigaction(), signal() is loaded
   static struct sigaction *(*get_signal_action)(int);
-  static struct sigaction *get_preinstalled_handler(int);
-  static void save_preinstalled_handler(int, struct sigaction&);
 
   static void check_signal_handler(int sig);
 
-  static int (*_clock_gettime)(clockid_t, struct timespec *);
   static int (*_pthread_getcpuclockid)(pthread_t, clockid_t *);
   static int (*_pthread_setname_np)(pthread_t, const char*);
 
@@ -58,20 +55,10 @@ class Linux {
   static GrowableArray<int>* _cpu_to_node;
   static GrowableArray<int>* _nindex_to_node;
 
-  // 0x00000000 = uninitialized,
-  // 0x01000000 = kernel version unknown,
-  // otherwise a 32-bit number:
-  // Ox00AABBCC
-  // AA, Major Version
-  // BB, Minor Version
-  // CC, Fix   Version
-  static uint32_t _os_version;
-
  protected:
 
   static julong _physical_memory;
   static pthread_t _main_thread;
-  static Mutex* _createThread_lock;
   static int _page_size;
 
   static julong available_memory();
@@ -111,11 +98,23 @@ class Linux {
 
   static void print_full_memory_info(outputStream* st);
   static void print_container_info(outputStream* st);
+  static void print_steal_info(outputStream* st);
   static void print_distro_info(outputStream* st);
   static void print_libversion_info(outputStream* st);
   static void print_proc_sys_info(outputStream* st);
+  static void print_ld_preload_file(outputStream* st);
 
  public:
+  struct CPUPerfTicks {
+    uint64_t used;
+    uint64_t usedKernel;
+    uint64_t total;
+    uint64_t steal;
+    bool     has_steal_ticks;
+  };
+
+  // which_logical_cpu=-1 returns accumulated ticks for all cpus.
+  static bool get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu);
   static bool _stack_is_executable;
   static void *dlopen_helper(const char *name, char *ebuf, int ebuflen);
   static void *dll_load_in_vmthread(const char *name, char *ebuf, int ebuflen);
@@ -127,8 +126,6 @@ class Linux {
   // returns kernel thread id (similar to LWP id on Solaris), which can be
   // used to access /proc
   static pid_t gettid();
-  static void set_createThread_lock(Mutex* lk)                      { _createThread_lock = lk; }
-  static Mutex* createThread_lock(void)                             { return _createThread_lock; }
   static void hotspot_sigmask(Thread* thread);
 
   static address   initial_thread_stack_bottom(void)                { return _initial_thread_stack_bottom; }
@@ -187,17 +184,9 @@ class Linux {
 
   // Stack overflow handling
   static bool manually_expand_stack(JavaThread * t, address addr);
-  static int max_register_window_saves_before_flushing();
-
-  // Real-time clock functions
-  static void clock_init(void);
 
   // fast POSIX clocks support
   static void fast_thread_clock_init(void);
-
-  static int clock_gettime(clockid_t clock_id, struct timespec *tp) {
-    return _clock_gettime ? _clock_gettime(clock_id, tp) : -1;
-  }
 
   static int pthread_getcpuclockid(pthread_t tid, clockid_t *clock_id) {
     return _pthread_getcpuclockid ? _pthread_getcpuclockid(tid, clock_id) : -1;
@@ -209,15 +198,12 @@ class Linux {
 
   static jlong fast_thread_cpu_time(clockid_t clockid);
 
-  static void initialize_os_info();
-  static bool os_version_is_known();
-  static uint32_t os_version();
-
   // Stack repair handling
 
   // none present
 
  private:
+  static void numa_init();
   static void expand_stack_to(address bottom);
 
   typedef int (*sched_getcpu_func_t)(void);
@@ -229,6 +215,7 @@ class Linux {
   typedef void (*numa_interleave_memory_func_t)(void *start, size_t size, unsigned long *nodemask);
   typedef void (*numa_interleave_memory_v2_func_t)(void *start, size_t size, struct bitmask* mask);
   typedef struct bitmask* (*numa_get_membind_func_t)(void);
+  typedef struct bitmask* (*numa_get_interleave_mask_func_t)(void);
 
   typedef void (*numa_set_bind_policy_func_t)(int policy);
   typedef int (*numa_bitmask_isbitset_func_t)(struct bitmask *bmp, unsigned int n);
@@ -246,9 +233,12 @@ class Linux {
   static numa_bitmask_isbitset_func_t _numa_bitmask_isbitset;
   static numa_distance_func_t _numa_distance;
   static numa_get_membind_func_t _numa_get_membind;
+  static numa_get_interleave_mask_func_t _numa_get_interleave_mask;
   static unsigned long* _numa_all_nodes;
   static struct bitmask* _numa_all_nodes_ptr;
   static struct bitmask* _numa_nodes_ptr;
+  static struct bitmask* _numa_interleave_bitmask;
+  static struct bitmask* _numa_membind_bitmask;
 
   static void set_sched_getcpu(sched_getcpu_func_t func) { _sched_getcpu = func; }
   static void set_numa_node_to_cpus(numa_node_to_cpus_func_t func) { _numa_node_to_cpus = func; }
@@ -262,10 +252,21 @@ class Linux {
   static void set_numa_bitmask_isbitset(numa_bitmask_isbitset_func_t func) { _numa_bitmask_isbitset = func; }
   static void set_numa_distance(numa_distance_func_t func) { _numa_distance = func; }
   static void set_numa_get_membind(numa_get_membind_func_t func) { _numa_get_membind = func; }
+  static void set_numa_get_interleave_mask(numa_get_interleave_mask_func_t func) { _numa_get_interleave_mask = func; }
   static void set_numa_all_nodes(unsigned long* ptr) { _numa_all_nodes = ptr; }
   static void set_numa_all_nodes_ptr(struct bitmask **ptr) { _numa_all_nodes_ptr = (ptr == NULL ? NULL : *ptr); }
   static void set_numa_nodes_ptr(struct bitmask **ptr) { _numa_nodes_ptr = (ptr == NULL ? NULL : *ptr); }
+  static void set_numa_interleave_bitmask(struct bitmask* ptr)     { _numa_interleave_bitmask = ptr ;   }
+  static void set_numa_membind_bitmask(struct bitmask* ptr)        { _numa_membind_bitmask = ptr ;      }
   static int sched_getcpu_syscall(void);
+
+  enum NumaAllocationPolicy{
+    NotInitialized,
+    Membind,
+    Interleave
+  };
+  static NumaAllocationPolicy _current_numa_policy;
+
  public:
   static int sched_getcpu()  { return _sched_getcpu != NULL ? _sched_getcpu() : -1; }
   static int numa_node_to_cpus(int node, unsigned long *buffer, int bufferlen) {
@@ -279,11 +280,33 @@ class Linux {
   static int numa_tonode_memory(void *start, size_t size, int node) {
     return _numa_tonode_memory != NULL ? _numa_tonode_memory(start, size, node) : -1;
   }
+
+  static bool is_running_in_interleave_mode() {
+    return _current_numa_policy == Interleave;
+  }
+
+  static void set_configured_numa_policy(NumaAllocationPolicy numa_policy) {
+    _current_numa_policy = numa_policy;
+  }
+
+  static NumaAllocationPolicy identify_numa_policy() {
+    for (int node = 0; node <= Linux::numa_max_node(); node++) {
+      if (Linux::_numa_bitmask_isbitset(Linux::_numa_interleave_bitmask, node)) {
+        return Interleave;
+      }
+    }
+    return Membind;
+  }
+
   static void numa_interleave_memory(void *start, size_t size) {
-    // Use v2 api if available
-    if (_numa_interleave_memory_v2 != NULL && _numa_all_nodes_ptr != NULL) {
-      _numa_interleave_memory_v2(start, size, _numa_all_nodes_ptr);
-    } else if (_numa_interleave_memory != NULL && _numa_all_nodes != NULL) {
+    // Prefer v2 API
+    if (_numa_interleave_memory_v2 != NULL) {
+      if (is_running_in_interleave_mode()) {
+        _numa_interleave_memory_v2(start, size, _numa_interleave_bitmask);
+      } else if (_numa_membind_bitmask != NULL) {
+        _numa_interleave_memory_v2(start, size, _numa_membind_bitmask);
+      }
+    } else if (_numa_interleave_memory != NULL) {
       _numa_interleave_memory(start, size, _numa_all_nodes);
     }
   }
@@ -298,14 +321,14 @@ class Linux {
   static int get_node_by_cpu(int cpu_id);
   static int get_existing_num_nodes();
   // Check if numa node is configured (non-zero memory node).
-  static bool isnode_in_configured_nodes(unsigned int n) {
+  static bool is_node_in_configured_nodes(unsigned int n) {
     if (_numa_bitmask_isbitset != NULL && _numa_all_nodes_ptr != NULL) {
       return _numa_bitmask_isbitset(_numa_all_nodes_ptr, n);
     } else
       return false;
   }
   // Check if numa node exists in the system (including zero memory nodes).
-  static bool isnode_in_existing_nodes(unsigned int n) {
+  static bool is_node_in_existing_nodes(unsigned int n) {
     if (_numa_bitmask_isbitset != NULL && _numa_nodes_ptr != NULL) {
       return _numa_bitmask_isbitset(_numa_nodes_ptr, n);
     } else if (_numa_bitmask_isbitset != NULL && _numa_all_nodes_ptr != NULL) {
@@ -324,16 +347,19 @@ class Linux {
       return false;
   }
   // Check if node is in bound node set.
-  static bool isnode_in_bound_nodes(int node) {
-    if (_numa_get_membind != NULL && _numa_bitmask_isbitset != NULL) {
-      return _numa_bitmask_isbitset(_numa_get_membind(), node);
-    } else {
-      return false;
+  static bool is_node_in_bound_nodes(int node) {
+    if (_numa_bitmask_isbitset != NULL) {
+      if (is_running_in_interleave_mode()) {
+        return _numa_bitmask_isbitset(_numa_interleave_bitmask, node);
+      } else {
+        return _numa_membind_bitmask != NULL ? _numa_bitmask_isbitset(_numa_membind_bitmask, node) : false;
+      }
     }
+    return false;
   }
   // Check if bound to only one numa node.
   // Returns true if bound to a single numa node, otherwise returns false.
-  static bool isbound_to_single_node() {
+  static bool is_bound_to_single_node() {
     int nodes = 0;
     struct bitmask* bmp = NULL;
     unsigned int node = 0;
@@ -360,4 +386,4 @@ class Linux {
   }
 };
 
-#endif // OS_LINUX_VM_OS_LINUX_HPP
+#endif // OS_LINUX_OS_LINUX_HPP

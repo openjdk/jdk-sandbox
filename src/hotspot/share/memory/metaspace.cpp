@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  */
 
 #include "precompiled.hpp"
-
 #include "aot/aotLoader.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
@@ -39,6 +39,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceTracer.hpp"
 #include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
 #include "runtime/init.hpp"
 #include "runtime/orderAccess.hpp"
 #include "services/memTracker.hpp"
@@ -46,6 +47,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/vmError.hpp"
 
 
 using namespace metaspace;
@@ -132,7 +134,15 @@ size_t MetaspaceGC::capacity_until_GC() {
   return value;
 }
 
-bool MetaspaceGC::inc_capacity_until_GC(size_t v, size_t* new_cap_until_GC, size_t* old_cap_until_GC) {
+// Try to increase the _capacity_until_GC limit counter by v bytes.
+// Returns true if it succeeded. It may fail if either another thread
+// concurrently increased the limit or the new limit would be larger
+// than MaxMetaspaceSize.
+// On success, optionally returns new and old metaspace capacity in
+// new_cap_until_GC and old_cap_until_GC respectively.
+// On error, optionally sets can_retry to indicate whether if there is
+// actually enough space remaining to satisfy the request.
+bool MetaspaceGC::inc_capacity_until_GC(size_t v, size_t* new_cap_until_GC, size_t* old_cap_until_GC, bool* can_retry) {
   assert_is_aligned(v, Metaspace::commit_alignment());
 
   size_t old_capacity_until_GC = _capacity_until_GC;
@@ -143,6 +153,16 @@ bool MetaspaceGC::inc_capacity_until_GC(size_t v, size_t* new_cap_until_GC, size
     new_value = align_down(max_uintx, Metaspace::commit_alignment());
   }
 
+  if (new_value > MaxMetaspaceSize) {
+    if (can_retry != NULL) {
+      *can_retry = false;
+    }
+    return false;
+  }
+
+  if (can_retry != NULL) {
+    *can_retry = true;
+  }
   size_t prev_value = Atomic::cmpxchg(new_value, &_capacity_until_GC, old_capacity_until_GC);
 
   if (old_capacity_until_GC != prev_value) {
@@ -236,7 +256,7 @@ void MetaspaceGC::compute_new_size() {
 
   const double min_tmp = used_after_gc / maximum_used_percentage;
   size_t minimum_desired_capacity =
-    (size_t)MIN2(min_tmp, double(max_uintx));
+    (size_t)MIN2(min_tmp, double(MaxMetaspaceSize));
   // Don't shrink less than the initial generation size
   minimum_desired_capacity = MAX2(minimum_desired_capacity,
                                   MetaspaceSize);
@@ -283,7 +303,7 @@ void MetaspaceGC::compute_new_size() {
     const double maximum_free_percentage = MaxMetaspaceFreeRatio / 100.0;
     const double minimum_used_percentage = 1.0 - maximum_free_percentage;
     const double max_tmp = used_after_gc / minimum_used_percentage;
-    size_t maximum_desired_capacity = (size_t)MIN2(max_tmp, double(max_uintx));
+    size_t maximum_desired_capacity = (size_t)MIN2(max_tmp, double(MaxMetaspaceSize));
     maximum_desired_capacity = MAX2(maximum_desired_capacity,
                                     MetaspaceSize);
     log_trace(gc, metaspace)("    maximum_free_percentage: %6.2f  minimum_used_percentage: %6.2f",
@@ -422,7 +442,6 @@ size_t MetaspaceUtils::free_chunks_total_words(Metaspace::MetadataType mdtype) {
   if (chunk_manager == NULL) {
     return 0;
   }
-  chunk_manager->slow_verify();
   return chunk_manager->free_chunks_total_words();
 }
 
@@ -452,9 +471,36 @@ MetaspaceChunkFreeListSummary MetaspaceUtils::chunk_free_list_summary(Metaspace:
   return cm->chunk_free_list_summary();
 }
 
-void MetaspaceUtils::print_metaspace_change(size_t prev_metadata_used) {
-  log_info(gc, metaspace)("Metaspace: "  SIZE_FORMAT "K->" SIZE_FORMAT "K("  SIZE_FORMAT "K)",
-                          prev_metadata_used/K, used_bytes()/K, reserved_bytes()/K);
+void MetaspaceUtils::print_metaspace_change(const metaspace::MetaspaceSizesSnapshot& pre_meta_values) {
+  const metaspace::MetaspaceSizesSnapshot meta_values;
+
+  if (Metaspace::using_class_space()) {
+    log_info(gc, metaspace)(HEAP_CHANGE_FORMAT" "
+                            HEAP_CHANGE_FORMAT" "
+                            HEAP_CHANGE_FORMAT,
+                            HEAP_CHANGE_FORMAT_ARGS("Metaspace",
+                                                    pre_meta_values.used(),
+                                                    pre_meta_values.committed(),
+                                                    meta_values.used(),
+                                                    meta_values.committed()),
+                            HEAP_CHANGE_FORMAT_ARGS("NonClass",
+                                                    pre_meta_values.non_class_used(),
+                                                    pre_meta_values.non_class_committed(),
+                                                    meta_values.non_class_used(),
+                                                    meta_values.non_class_committed()),
+                            HEAP_CHANGE_FORMAT_ARGS("Class",
+                                                    pre_meta_values.class_used(),
+                                                    pre_meta_values.class_committed(),
+                                                    meta_values.class_used(),
+                                                    meta_values.class_committed()));
+  } else {
+    log_info(gc, metaspace)(HEAP_CHANGE_FORMAT,
+                            HEAP_CHANGE_FORMAT_ARGS("Metaspace",
+                                                    pre_meta_values.used(),
+                                                    pre_meta_values.committed(),
+                                                    meta_values.used(),
+                                                    meta_values.committed()));
+  }
 }
 
 void MetaspaceUtils::print_on(outputStream* out) {
@@ -517,9 +563,31 @@ void MetaspaceUtils::print_vs(outputStream* out, size_t scale) {
   }
 }
 
+static void print_basic_switches(outputStream* out, size_t scale) {
+  out->print("MaxMetaspaceSize: ");
+  if (MaxMetaspaceSize >= (max_uintx) - (2 * os::vm_page_size())) {
+    // aka "very big". Default is max_uintx, but due to rounding in arg parsing the real
+    // value is smaller.
+    out->print("unlimited");
+  } else {
+    print_human_readable_size(out, MaxMetaspaceSize, scale);
+  }
+  out->cr();
+  if (Metaspace::using_class_space()) {
+    out->print("CompressedClassSpaceSize: ");
+    print_human_readable_size(out, CompressedClassSpaceSize, scale);
+  }
+  out->cr();
+}
+
 // This will print out a basic metaspace usage report but
 // unlike print_report() is guaranteed not to lock or to walk the CLDG.
 void MetaspaceUtils::print_basic_report(outputStream* out, size_t scale) {
+
+  if (!Metaspace::initialized()) {
+    out->print_cr("Metaspace not yet initialized.");
+    return;
+  }
 
   out->cr();
   out->print_cr("Usage:");
@@ -586,22 +654,33 @@ void MetaspaceUtils::print_basic_report(outputStream* out, size_t scale) {
   if (Metaspace::using_class_space()) {
     out->print("   Non-Class:  ");
   }
-  print_human_readable_size(out, Metaspace::chunk_manager_metadata()->free_chunks_total_words(), scale);
+  print_human_readable_size(out, Metaspace::chunk_manager_metadata()->free_chunks_total_bytes(), scale);
   out->cr();
   if (Metaspace::using_class_space()) {
     out->print("       Class:  ");
-    print_human_readable_size(out, Metaspace::chunk_manager_class()->free_chunks_total_words(), scale);
+    print_human_readable_size(out, Metaspace::chunk_manager_class()->free_chunks_total_bytes(), scale);
     out->cr();
     out->print("        Both:  ");
-    print_human_readable_size(out, Metaspace::chunk_manager_class()->free_chunks_total_words() +
-                              Metaspace::chunk_manager_metadata()->free_chunks_total_words(), scale);
+    print_human_readable_size(out, Metaspace::chunk_manager_class()->free_chunks_total_bytes() +
+                              Metaspace::chunk_manager_metadata()->free_chunks_total_bytes(), scale);
     out->cr();
   }
+
+  out->cr();
+
+  // Print basic settings
+  print_basic_switches(out, scale);
+
   out->cr();
 
 }
 
 void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
+
+  if (!Metaspace::initialized()) {
+    out->print_cr("Metaspace not yet initialized.");
+    return;
+  }
 
   const bool print_loaders = (flags & rf_show_loaders) > 0;
   const bool print_classes = (flags & rf_show_classes) > 0;
@@ -616,7 +695,7 @@ void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
     out->cr();
   }
 
-  ClassLoaderDataGraph::cld_do(&cl); // collect data and optionally print
+  ClassLoaderDataGraph::loaded_cld_do(&cl); // collect data and optionally print
 
   // Print totals, broken up by space type.
   if (print_by_spacetype) {
@@ -626,12 +705,19 @@ void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
     for (int space_type = (int)Metaspace::ZeroMetaspaceType;
          space_type < (int)Metaspace::MetaspaceTypeCount; space_type ++)
     {
-      uintx num = cl._num_loaders_by_spacetype[space_type];
-      out->print("%s (" UINTX_FORMAT " loader%s)%c",
+      uintx num_loaders = cl._num_loaders_by_spacetype[space_type];
+      uintx num_classes = cl._num_classes_by_spacetype[space_type];
+      out->print("%s - " UINTX_FORMAT " %s",
         space_type_name((Metaspace::MetaspaceType)space_type),
-        num, (num == 1 ? "" : "s"), (num > 0 ? ':' : '.'));
-      if (num > 0) {
+        num_loaders, loaders_plural(num_loaders));
+      if (num_classes > 0) {
+        out->print(", ");
+        print_number_of_classes(out, num_classes, cl._num_classes_shared_by_spacetype[space_type]);
+        out->print(":");
         cl._stats_by_spacetype[space_type].print_on(out, scale, print_by_chunktype);
+      } else {
+        out->print(".");
+        out->cr();
       }
       out->cr();
     }
@@ -639,10 +725,15 @@ void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
 
   // Print totals for in-use data:
   out->cr();
-  out->print_cr("Total Usage ( " UINTX_FORMAT " loader%s)%c",
-      cl._num_loaders, (cl._num_loaders == 1 ? "" : "s"), (cl._num_loaders > 0 ? ':' : '.'));
-
-  cl._stats_total.print_on(out, scale, print_by_chunktype);
+  {
+    uintx num_loaders = cl._num_loaders;
+    out->print("Total Usage - " UINTX_FORMAT " %s, ",
+      num_loaders, loaders_plural(num_loaders));
+    print_number_of_classes(out, cl._num_classes, cl._num_classes_shared);
+    out->print(":");
+    cl._stats_total.print_on(out, scale, print_by_chunktype);
+    out->cr();
+  }
 
   // -- Print Virtual space.
   out->cr();
@@ -775,25 +866,24 @@ void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
   out->print_cr("Number of times virtual space nodes were expanded: " UINTX_FORMAT ".", g_internal_statistics.num_committed_space_expanded);
   out->print_cr("Number of deallocations: " UINTX_FORMAT " (" UINTX_FORMAT " external).", g_internal_statistics.num_deallocs, g_internal_statistics.num_external_deallocs);
   out->print_cr("Allocations from deallocated blocks: " UINTX_FORMAT ".", g_internal_statistics.num_allocs_from_deallocated_blocks);
+  out->print_cr("Number of chunks added to freelist: " UINTX_FORMAT ".",
+                g_internal_statistics.num_chunks_added_to_freelist);
+  out->print_cr("Number of chunks removed from freelist: " UINTX_FORMAT ".",
+                g_internal_statistics.num_chunks_removed_from_freelist);
+  out->print_cr("Number of chunk merges: " UINTX_FORMAT ", split-ups: " UINTX_FORMAT ".",
+                g_internal_statistics.num_chunk_merges, g_internal_statistics.num_chunk_splits);
+
   out->cr();
 #endif
 
   // Print some interesting settings
   out->cr();
   out->cr();
-  out->print("MaxMetaspaceSize: ");
-  print_human_readable_size(out, MaxMetaspaceSize, scale);
+  print_basic_switches(out, scale);
+
   out->cr();
   out->print("InitialBootClassLoaderMetaspaceSize: ");
   print_human_readable_size(out, InitialBootClassLoaderMetaspaceSize, scale);
-  out->cr();
-
-  out->print("UseCompressedClassPointers: %s", UseCompressedClassPointers ? "true" : "false");
-  out->cr();
-  if (Metaspace::using_class_space()) {
-    out->print("CompressedClassSpaceSize: ");
-    print_human_readable_size(out, CompressedClassSpaceSize, scale);
-  }
 
   out->cr();
   out->cr();
@@ -802,7 +892,7 @@ void MetaspaceUtils::print_report(outputStream* out, size_t scale, int flags) {
 
 // Prints an ASCII representation of the given space.
 void MetaspaceUtils::print_metaspace_map(outputStream* out, Metaspace::MetadataType mdtype) {
-  MutexLockerEx cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
   const bool for_class = mdtype == Metaspace::ClassType ? true : false;
   VirtualSpaceList* const vsl = for_class ? Metaspace::class_space_list() : Metaspace::space_list();
   if (vsl != NULL) {
@@ -826,10 +916,12 @@ void MetaspaceUtils::print_metaspace_map(outputStream* out, Metaspace::MetadataT
 }
 
 void MetaspaceUtils::verify_free_chunks() {
-  Metaspace::chunk_manager_metadata()->verify();
+#ifdef ASSERT
+  Metaspace::chunk_manager_metadata()->verify(false);
   if (Metaspace::using_class_space()) {
-    Metaspace::chunk_manager_class()->verify();
+    Metaspace::chunk_manager_class()->verify(false);
   }
+#endif
 }
 
 void MetaspaceUtils::verify_metrics() {
@@ -863,7 +955,6 @@ void MetaspaceUtils::verify_metrics() {
 #endif
 }
 
-
 // Metaspace methods
 
 size_t Metaspace::_first_chunk_word_size = 0;
@@ -877,6 +968,8 @@ VirtualSpaceList* Metaspace::_class_space_list = NULL;
 
 ChunkManager* Metaspace::_chunk_manager_metadata = NULL;
 ChunkManager* Metaspace::_chunk_manager_class = NULL;
+
+bool Metaspace::_initialized = false;
 
 #define VIRTUALSPACEMULTIPLIER 2
 
@@ -909,7 +1002,7 @@ void Metaspace::set_narrow_klass_base_and_shift(address metaspace_base, address 
     }
   }
 
-  Universe::set_narrow_klass_base(lower_base);
+  CompressedKlassPointers::set_base(lower_base);
 
   // CDS uses LogKlassAlignmentInBytes for narrow_klass_shift. See
   // MetaspaceShared::initialize_dumptime_shared_and_meta_spaces() for
@@ -919,9 +1012,9 @@ void Metaspace::set_narrow_klass_base_and_shift(address metaspace_base, address 
   // can be used at same time as AOT code.
   if (!UseSharedSpaces
       && (uint64_t)(higher_address - lower_base) <= UnscaledClassSpaceMax) {
-    Universe::set_narrow_klass_shift(0);
+    CompressedKlassPointers::set_shift(0);
   } else {
-    Universe::set_narrow_klass_shift(LogKlassAlignmentInBytes);
+    CompressedKlassPointers::set_shift(LogKlassAlignmentInBytes);
   }
   AOTLoader::set_narrow_klass_shift();
 }
@@ -1066,7 +1159,7 @@ void Metaspace::allocate_metaspace_compressed_klass_ptrs(char* requested_addr, a
 
 void Metaspace::print_compressed_class_space(outputStream* st, const char* requested_addr) {
   st->print_cr("Narrow klass base: " PTR_FORMAT ", Narrow klass shift: %d",
-               p2i(Universe::narrow_klass_base()), Universe::narrow_klass_shift());
+               p2i(CompressedKlassPointers::base()), CompressedKlassPointers::shift());
   if (_class_space_list != NULL) {
     address base = (address)_class_space_list->current_virtual_space()->bottom();
     st->print("Compressed class space size: " SIZE_FORMAT " Address: " PTR_FORMAT,
@@ -1098,7 +1191,7 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
 void Metaspace::ergo_initialize() {
   if (DumpSharedSpaces) {
     // Using large pages when dumping the shared archive is currently not implemented.
-    FLAG_SET_ERGO(bool, UseLargePagesInMetaspace, false);
+    FLAG_SET_ERGO(UseLargePagesInMetaspace, false);
   }
 
   size_t page_size = os::vm_page_size();
@@ -1140,12 +1233,12 @@ void Metaspace::ergo_initialize() {
       if (min_metaspace_sz >= MaxMetaspaceSize) {
         vm_exit_during_initialization("MaxMetaspaceSize is too small.");
       } else {
-        FLAG_SET_ERGO(size_t, CompressedClassSpaceSize,
+        FLAG_SET_ERGO(CompressedClassSpaceSize,
                       MaxMetaspaceSize - min_metaspace_sz);
       }
     }
   } else if (min_metaspace_sz >= MaxMetaspaceSize) {
-    FLAG_SET_ERGO(size_t, InitialBootClassLoaderMetaspaceSize,
+    FLAG_SET_ERGO(InitialBootClassLoaderMetaspaceSize,
                   min_metaspace_sz);
   }
 
@@ -1166,12 +1259,16 @@ void Metaspace::global_initialize() {
     MetaspaceShared::initialize_runtime_shared_and_meta_spaces();
   }
 
+  if (DynamicDumpSharedSpaces && !UseSharedSpaces) {
+    vm_exit_during_initialization("DynamicDumpSharedSpaces is unsupported when base CDS archive is not loaded", NULL);
+  }
+
   if (!DumpSharedSpaces && !UseSharedSpaces)
 #endif // INCLUDE_CDS
   {
 #ifdef _LP64
     if (using_class_space()) {
-      char* base = (char*)align_up(Universe::heap()->reserved_region().end(), _reserve_alignment);
+      char* base = (char*)align_up(CompressedOops::end(), _reserve_alignment);
       allocate_metaspace_compressed_klass_ptrs(base, 0);
     }
 #endif // _LP64
@@ -1200,6 +1297,9 @@ void Metaspace::global_initialize() {
   }
 
   _tracer = new MetaspaceTracer();
+
+  _initialized = true;
+
 }
 
 void Metaspace::post_initialize() {
@@ -1224,6 +1324,8 @@ size_t Metaspace::align_word_size_up(size_t word_size) {
 MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
                               MetaspaceObj::Type type, TRAPS) {
   assert(!_frozen, "sanity");
+  assert(!(DumpSharedSpaces && THREAD->is_VM_thread()), "sanity");
+
   if (HAS_PENDING_EXCEPTION) {
     assert(false, "Should not allocate with exception pending");
     return NULL;  // caller does a CHECK_NULL too
@@ -1241,12 +1343,10 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
     tracer()->report_metaspace_allocation_failure(loader_data, word_size, type, mdtype);
 
     // Allocation failed.
-    if (is_init_completed() && !(DumpSharedSpaces && THREAD->is_VM_thread())) {
+    if (is_init_completed()) {
       // Only start a GC if the bootstrapping has completed.
-      // Also, we cannot GC if we are at the end of the CDS dumping stage which runs inside
-      // the VM thread.
-
-      // Try to clean out some memory and retry.
+      // Try to clean out some heap memory and retry. This can prevent premature
+      // expansion of the metaspace.
       result = Universe::heap()->satisfy_failed_metadata_allocation(loader_data, word_size, mdtype);
     }
   }
@@ -1255,10 +1355,9 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
     if (DumpSharedSpaces) {
       // CDS dumping keeps loading classes, so if we hit an OOM we probably will keep hitting OOM.
       // We should abort to avoid generating a potentially bad archive.
-      tty->print_cr("Failed allocating metaspace object type %s of size " SIZE_FORMAT ". CDS dump aborted.",
-          MetaspaceObj::type_name(type), word_size * BytesPerWord);
-      tty->print_cr("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize);
-      vm_exit(1);
+      vm_exit_during_cds_dumping(err_msg("Failed allocating metaspace object type %s of size " SIZE_FORMAT ". CDS dump aborted.",
+          MetaspaceObj::type_name(type), word_size * BytesPerWord),
+        err_msg("Please increase MaxMetaspaceSize (currently " SIZE_FORMAT " bytes).", MaxMetaspaceSize));
     }
     report_metadata_oome(loader_data, word_size, type, mdtype, THREAD);
     assert(HAS_PENDING_EXCEPTION, "sanity");
@@ -1338,8 +1437,8 @@ void Metaspace::purge(MetadataType mdtype) {
 }
 
 void Metaspace::purge() {
-  MutexLockerEx cl(MetaspaceExpand_lock,
-                   Mutex::_no_safepoint_check_flag);
+  MutexLocker cl(MetaspaceExpand_lock,
+                 Mutex::_no_safepoint_check_flag);
   purge(NonClassType);
   if (using_class_space()) {
     purge(ClassType);
@@ -1373,6 +1472,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, Metaspace::MetaspaceType
 }
 
 ClassLoaderMetaspace::~ClassLoaderMetaspace() {
+  Metaspace::assert_not_frozen();
   DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_metaspace_deaths));
   delete _vsm;
   if (Metaspace::using_class_space()) {
@@ -1415,7 +1515,7 @@ void ClassLoaderMetaspace::initialize(Mutex* lock, Metaspace::MetaspaceType type
     _class_vsm = new SpaceManager(Metaspace::ClassType, type, lock);
   }
 
-  MutexLockerEx cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
 
   // Allocate chunk for metadata objects
   initialize_first_chunk(type, Metaspace::NonClassType);
@@ -1446,6 +1546,7 @@ MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace:
 
   size_t before = 0;
   size_t after = 0;
+  bool can_retry = true;
   MetaWord* res;
   bool incremented;
 
@@ -1453,9 +1554,9 @@ MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace:
   // the HWM, an allocation is still attempted. This is because another thread must then
   // have incremented the HWM and therefore the allocation might still succeed.
   do {
-    incremented = MetaspaceGC::inc_capacity_until_GC(delta_bytes, &after, &before);
+    incremented = MetaspaceGC::inc_capacity_until_GC(delta_bytes, &after, &before, &can_retry);
     res = allocate(word_size, mdtype);
-  } while (!incremented && res == NULL);
+  } while (!incremented && res == NULL && can_retry);
 
   if (incremented) {
     Metaspace::tracer()->report_gc_threshold(before, after,
@@ -1483,7 +1584,7 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
 
   DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_external_deallocs));
 
-  MutexLockerEx ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
 
   if (is_class && Metaspace::using_class_space()) {
     class_vsm()->deallocate(ptr, word_size);
@@ -1523,235 +1624,11 @@ void ClassLoaderMetaspace::add_to_statistics_locked(ClassLoaderMetaspaceStatisti
 }
 
 void ClassLoaderMetaspace::add_to_statistics(ClassLoaderMetaspaceStatistics* out) const {
-  MutexLockerEx cl(lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker cl(lock(), Mutex::_no_safepoint_check_flag);
   add_to_statistics_locked(out);
 }
 
 /////////////// Unit tests ///////////////
-
-#ifndef PRODUCT
-
-class TestMetaspaceUtilsTest : AllStatic {
- public:
-  static void test_reserved() {
-    size_t reserved = MetaspaceUtils::reserved_bytes();
-
-    assert(reserved > 0, "assert");
-
-    size_t committed  = MetaspaceUtils::committed_bytes();
-    assert(committed <= reserved, "assert");
-
-    size_t reserved_metadata = MetaspaceUtils::reserved_bytes(Metaspace::NonClassType);
-    assert(reserved_metadata > 0, "assert");
-    assert(reserved_metadata <= reserved, "assert");
-
-    if (UseCompressedClassPointers) {
-      size_t reserved_class    = MetaspaceUtils::reserved_bytes(Metaspace::ClassType);
-      assert(reserved_class > 0, "assert");
-      assert(reserved_class < reserved, "assert");
-    }
-  }
-
-  static void test_committed() {
-    size_t committed = MetaspaceUtils::committed_bytes();
-
-    assert(committed > 0, "assert");
-
-    size_t reserved  = MetaspaceUtils::reserved_bytes();
-    assert(committed <= reserved, "assert");
-
-    size_t committed_metadata = MetaspaceUtils::committed_bytes(Metaspace::NonClassType);
-    assert(committed_metadata > 0, "assert");
-    assert(committed_metadata <= committed, "assert");
-
-    if (UseCompressedClassPointers) {
-      size_t committed_class    = MetaspaceUtils::committed_bytes(Metaspace::ClassType);
-      assert(committed_class > 0, "assert");
-      assert(committed_class < committed, "assert");
-    }
-  }
-
-  static void test_virtual_space_list_large_chunk() {
-    VirtualSpaceList* vs_list = new VirtualSpaceList(os::vm_allocation_granularity());
-    MutexLockerEx cl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-    // A size larger than VirtualSpaceSize (256k) and add one page to make it _not_ be
-    // vm_allocation_granularity aligned on Windows.
-    size_t large_size = (size_t)(2*256*K + (os::vm_page_size()/BytesPerWord));
-    large_size += (os::vm_page_size()/BytesPerWord);
-    vs_list->get_new_chunk(large_size, 0);
-  }
-
-  static void test() {
-    test_reserved();
-    test_committed();
-    test_virtual_space_list_large_chunk();
-  }
-};
-
-void TestMetaspaceUtils_test() {
-  TestMetaspaceUtilsTest::test();
-}
-
-class TestVirtualSpaceNodeTest {
-  static void chunk_up(size_t words_left, size_t& num_medium_chunks,
-                                          size_t& num_small_chunks,
-                                          size_t& num_specialized_chunks) {
-    num_medium_chunks = words_left / MediumChunk;
-    words_left = words_left % MediumChunk;
-
-    num_small_chunks = words_left / SmallChunk;
-    words_left = words_left % SmallChunk;
-    // how many specialized chunks can we get?
-    num_specialized_chunks = words_left / SpecializedChunk;
-    assert(words_left % SpecializedChunk == 0, "should be nothing left");
-  }
-
- public:
-  static void test() {
-    MutexLockerEx ml(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
-    const size_t vsn_test_size_words = MediumChunk  * 4;
-    const size_t vsn_test_size_bytes = vsn_test_size_words * BytesPerWord;
-
-    // The chunk sizes must be multiples of eachother, or this will fail
-    STATIC_ASSERT(MediumChunk % SmallChunk == 0);
-    STATIC_ASSERT(SmallChunk % SpecializedChunk == 0);
-
-    { // No committed memory in VSN
-      ChunkManager cm(false);
-      VirtualSpaceNode vsn(false, vsn_test_size_bytes);
-      vsn.initialize();
-      vsn.retire(&cm);
-      assert(cm.sum_free_chunks_count() == 0, "did not commit any memory in the VSN");
-    }
-
-    { // All of VSN is committed, half is used by chunks
-      ChunkManager cm(false);
-      VirtualSpaceNode vsn(false, vsn_test_size_bytes);
-      vsn.initialize();
-      vsn.expand_by(vsn_test_size_words, vsn_test_size_words);
-      vsn.get_chunk_vs(MediumChunk);
-      vsn.get_chunk_vs(MediumChunk);
-      vsn.retire(&cm);
-      assert(cm.sum_free_chunks_count() == 2, "should have been memory left for 2 medium chunks");
-      assert(cm.sum_free_chunks() == 2*MediumChunk, "sizes should add up");
-    }
-
-    const size_t page_chunks = 4 * (size_t)os::vm_page_size() / BytesPerWord;
-    // This doesn't work for systems with vm_page_size >= 16K.
-    if (page_chunks < MediumChunk) {
-      // 4 pages of VSN is committed, some is used by chunks
-      ChunkManager cm(false);
-      VirtualSpaceNode vsn(false, vsn_test_size_bytes);
-
-      vsn.initialize();
-      vsn.expand_by(page_chunks, page_chunks);
-      vsn.get_chunk_vs(SmallChunk);
-      vsn.get_chunk_vs(SpecializedChunk);
-      vsn.retire(&cm);
-
-      // committed - used = words left to retire
-      const size_t words_left = page_chunks - SmallChunk - SpecializedChunk;
-
-      size_t num_medium_chunks, num_small_chunks, num_spec_chunks;
-      chunk_up(words_left, num_medium_chunks, num_small_chunks, num_spec_chunks);
-
-      assert(num_medium_chunks == 0, "should not get any medium chunks");
-      assert(cm.sum_free_chunks_count() == (num_small_chunks + num_spec_chunks), "should be space for 3 chunks");
-      assert(cm.sum_free_chunks() == words_left, "sizes should add up");
-    }
-
-    { // Half of VSN is committed, a humongous chunk is used
-      ChunkManager cm(false);
-      VirtualSpaceNode vsn(false, vsn_test_size_bytes);
-      vsn.initialize();
-      vsn.expand_by(MediumChunk * 2, MediumChunk * 2);
-      vsn.get_chunk_vs(MediumChunk + SpecializedChunk); // Humongous chunks will be aligned up to MediumChunk + SpecializedChunk
-      vsn.retire(&cm);
-
-      const size_t words_left = MediumChunk * 2 - (MediumChunk + SpecializedChunk);
-      size_t num_medium_chunks, num_small_chunks, num_spec_chunks;
-      chunk_up(words_left, num_medium_chunks, num_small_chunks, num_spec_chunks);
-
-      assert(num_medium_chunks == 0, "should not get any medium chunks");
-      assert(cm.sum_free_chunks_count() == (num_small_chunks + num_spec_chunks), "should be space for 3 chunks");
-      assert(cm.sum_free_chunks() == words_left, "sizes should add up");
-    }
-
-  }
-
-#define assert_is_available_positive(word_size) \
-  assert(vsn.is_available(word_size), \
-         #word_size ": " PTR_FORMAT " bytes were not available in " \
-         "VirtualSpaceNode [" PTR_FORMAT ", " PTR_FORMAT ")", \
-         (uintptr_t)(word_size * BytesPerWord), p2i(vsn.bottom()), p2i(vsn.end()));
-
-#define assert_is_available_negative(word_size) \
-  assert(!vsn.is_available(word_size), \
-         #word_size ": " PTR_FORMAT " bytes should not be available in " \
-         "VirtualSpaceNode [" PTR_FORMAT ", " PTR_FORMAT ")", \
-         (uintptr_t)(word_size * BytesPerWord), p2i(vsn.bottom()), p2i(vsn.end()));
-
-  static void test_is_available_positive() {
-    // Reserve some memory.
-    VirtualSpaceNode vsn(false, os::vm_allocation_granularity());
-    assert(vsn.initialize(), "Failed to setup VirtualSpaceNode");
-
-    // Commit some memory.
-    size_t commit_word_size = os::vm_allocation_granularity() / BytesPerWord;
-    bool expanded = vsn.expand_by(commit_word_size, commit_word_size);
-    assert(expanded, "Failed to commit");
-
-    // Check that is_available accepts the committed size.
-    assert_is_available_positive(commit_word_size);
-
-    // Check that is_available accepts half the committed size.
-    size_t expand_word_size = commit_word_size / 2;
-    assert_is_available_positive(expand_word_size);
-  }
-
-  static void test_is_available_negative() {
-    // Reserve some memory.
-    VirtualSpaceNode vsn(false, os::vm_allocation_granularity());
-    assert(vsn.initialize(), "Failed to setup VirtualSpaceNode");
-
-    // Commit some memory.
-    size_t commit_word_size = os::vm_allocation_granularity() / BytesPerWord;
-    bool expanded = vsn.expand_by(commit_word_size, commit_word_size);
-    assert(expanded, "Failed to commit");
-
-    // Check that is_available doesn't accept a too large size.
-    size_t two_times_commit_word_size = commit_word_size * 2;
-    assert_is_available_negative(two_times_commit_word_size);
-  }
-
-  static void test_is_available_overflow() {
-    // Reserve some memory.
-    VirtualSpaceNode vsn(false, os::vm_allocation_granularity());
-    assert(vsn.initialize(), "Failed to setup VirtualSpaceNode");
-
-    // Commit some memory.
-    size_t commit_word_size = os::vm_allocation_granularity() / BytesPerWord;
-    bool expanded = vsn.expand_by(commit_word_size, commit_word_size);
-    assert(expanded, "Failed to commit");
-
-    // Calculate a size that will overflow the virtual space size.
-    void* virtual_space_max = (void*)(uintptr_t)-1;
-    size_t bottom_to_max = pointer_delta(virtual_space_max, vsn.bottom(), 1);
-    size_t overflow_size = bottom_to_max + BytesPerWord;
-    size_t overflow_word_size = overflow_size / BytesPerWord;
-
-    // Check that is_available can handle the overflow.
-    assert_is_available_negative(overflow_word_size);
-  }
-
-  static void test_is_available() {
-    TestVirtualSpaceNodeTest::test_is_available_positive();
-    TestVirtualSpaceNodeTest::test_is_available_negative();
-    TestVirtualSpaceNodeTest::test_is_available_overflow();
-  }
-};
-
-#endif // !PRODUCT
 
 struct chunkmanager_statistics_t {
   int num_specialized_chunks;

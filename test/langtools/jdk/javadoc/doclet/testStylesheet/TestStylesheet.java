@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,14 +24,16 @@
 /*
  * @test
  * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461 8154261 8162363 8160196 8151743 8177417
- *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369 8182765 8196201
+ *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369 8182765 8196201 8184205
  * @summary  Run tests on doclet stylesheet.
  * @author   jamieh
- * @library  ../lib
+ * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    JavadocTester
+ * @build    javadoc.tester.*
  * @run main TestStylesheet
  */
+
+import javadoc.tester.JavadocTester;
 
 public class TestStylesheet extends JavadocTester {
 
@@ -41,7 +43,7 @@ public class TestStylesheet extends JavadocTester {
     }
 
     @Test
-    void test() {
+    public void test() {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "pkg");
@@ -105,29 +107,23 @@ public class TestStylesheet extends JavadocTester {
                 + "    border: none;\n"
                 + "    height:16px;\n"
                 + "}",
-                ".memberSummary caption span.activeTableTab span, .packagesSummary caption span.activeTableTab span,\n"
-                + ".overviewSummary caption span.activeTableTab span, .typeSummary caption span.activeTableTab span {\n"
-                + "    white-space:nowrap;\n"
-                + "    padding-top:5px;\n"
-                + "    padding-left:12px;\n"
-                + "    padding-right:12px;\n"
-                + "    margin-right:3px;\n"
-                + "    display:inline-block;\n"
-                + "    float:left;\n"
-                + "    background-color:#F8981D;\n"
-                + "    height:16px;\n"
+                ".overviewSummary [role=tablist] button, .memberSummary [role=tablist] button,\n"
+                + ".typeSummary [role=tablist] button, .packagesSummary [role=tablist] button {\n"
+                + "   border: none;\n"
+                + "   cursor: pointer;\n"
+                + "   padding: 5px 12px 7px 12px;\n"
+                + "   font-weight: bold;\n"
+                + "   margin-right: 3px;\n"
                 + "}",
-                ".memberSummary caption span.tableTab span, .packagesSummary caption span.tableTab span,\n"
-                + ".overviewSummary caption span.tableTab span, .typeSummary caption span.tableTab span {\n"
-                + "    white-space:nowrap;\n"
-                + "    padding-top:5px;\n"
-                + "    padding-left:12px;\n"
-                + "    padding-right:12px;\n"
-                + "    margin-right:3px;\n"
-                + "    display:inline-block;\n"
-                + "    float:left;\n"
-                + "    background-color:#4D7A97;\n"
-                + "    height:16px;\n"
+                ".overviewSummary [role=tablist] .activeTableTab, .memberSummary [role=tablist] .activeTableTab,\n"
+                + ".typeSummary [role=tablist] .activeTableTab, .packagesSummary [role=tablist] .activeTableTab {\n"
+                + "   background: #F8981D;\n"
+                + "   color: #253441;\n"
+                + "}",
+                ".overviewSummary [role=tablist] .tableTab, .memberSummary [role=tablist] .tableTab,\n"
+                + ".typeSummary [role=tablist] .tableTab, .packagesSummary [role=tablist] .tableTab {\n"
+                + "   background: #4D7A97;\n"
+                + "   color: #FFFFFF;\n"
                 + "}",
                 // Test the formatting styles for proper content display in use and constant values pages.
                 ".overviewSummary td.colFirst, .overviewSummary th.colFirst,\n"
@@ -145,17 +141,6 @@ public class TestStylesheet extends JavadocTester {
                 + ".requiresSummary td, .packagesSummary td, .providesSummary td, .usesSummary td {\n"
                 + "    text-align:left;\n"
                 + "    padding:0px 0px 12px 10px;\n"
-                + "}",
-                ".memberSummary caption span.tableTab, .memberSummary caption span.activeTableTab,\n"
-                + ".packagesSummary caption span.tableTab, .packagesSummary caption span.activeTableTab,\n"
-                + ".overviewSummary caption span.tableTab, .overviewSummary caption span.activeTableTab,\n"
-                + ".typeSummary caption span.tableTab, .typeSummary caption span.activeTableTab {\n"
-                + "    padding-top:0px;\n"
-                + "    padding-left:0px;\n"
-                + "    padding-right:0px;\n"
-                + "    background-image:none;\n"
-                + "    float:none;\n"
-                + "    display:inline;\n"
                 + "}",
                 "@import url('resources/fonts/dejavu.css');",
                 ".navPadding {\n"
@@ -180,9 +165,9 @@ public class TestStylesheet extends JavadocTester {
                 + "th.colFirst a:link, th.colFirst a:visited,\n"
                 + "th.colSecond a:link, th.colSecond a:visited,\n"
                 + "th.colConstructorName a:link, th.colConstructorName a:visited,\n"
-                + "th.colDeprecatedItemName a:link, th.colDeprecatedItemName a:visited, \n"
-                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited, \n"
-                + ".allClassesContainer td a:link, .allClassesContainer td a:visited, \n"
+                + "th.colDeprecatedItemName a:link, th.colDeprecatedItemName a:visited,\n"
+                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited,\n"
+                + ".allClassesContainer td a:link, .allClassesContainer td a:visited,\n"
                 + ".allPackagesContainer td a:link, .allPackagesContainer td a:visited {\n"
                 + "    font-weight:bold;\n"
                 + "}",
@@ -257,13 +242,4 @@ public class TestStylesheet extends JavadocTester {
                 + "    font-weight:bold;\n"
                 + "}");
     }
-
-    @Test
-    void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-}
 }

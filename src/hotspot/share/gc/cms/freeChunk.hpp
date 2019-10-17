@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_FREECHUNK_HPP
-#define SHARE_VM_GC_CMS_FREECHUNK_HPP
+#ifndef SHARE_GC_CMS_FREECHUNK_HPP
+#define SHARE_GC_CMS_FREECHUNK_HPP
 
 #include "memory/memRegion.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "runtime/mutex.hpp"
 #include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
@@ -56,14 +56,14 @@
 
 class FreeChunk {
   friend class VMStructs;
-  // For 64 bit compressed oops, the markOop encodes both the size and the
+  // For 64 bit compressed oops, the markWord encodes both the size and the
   // indication that this is a FreeChunk and not an object.
   volatile size_t   _size;
   FreeChunk* _prev;
   FreeChunk* _next;
 
-  markOop mark()     const volatile { return (markOop)_size; }
-  void set_mark(markOop m)          { _size = (size_t)m; }
+  markWord mark()     const volatile { return markWord((uintptr_t)_size); }
+  void set_mark(markWord m)          { _size = (size_t)m.value(); }
 
  public:
   NOT_PRODUCT(static const size_t header_size();)
@@ -79,7 +79,7 @@ class FreeChunk {
   }
 
   bool is_free() const volatile {
-    LP64_ONLY(if (UseCompressedOops) return mark()->is_cms_free_chunk(); else)
+    LP64_ONLY(if (UseCompressedOops) return mark().is_cms_free_chunk(); else)
     return (((intptr_t)_prev) & 0x1) == 0x1;
   }
   bool cantCoalesce() const {
@@ -100,11 +100,11 @@ class FreeChunk {
   debug_only(void* size_addr() const { return (void*)&_size; })
 
   size_t size() const volatile {
-    LP64_ONLY(if (UseCompressedOops) return mark()->get_size(); else )
+    LP64_ONLY(if (UseCompressedOops) return mark().get_size(); else )
     return _size;
   }
   void set_size(size_t sz) {
-    LP64_ONLY(if (UseCompressedOops) set_mark(markOopDesc::set_size_and_free(sz)); else )
+    LP64_ONLY(if (UseCompressedOops) set_mark(markWord::set_size_and_free(sz)); else )
     _size = sz;
   }
 
@@ -126,7 +126,7 @@ class FreeChunk {
 #ifdef _LP64
     if (UseCompressedOops) {
       OrderAccess::storestore();
-      set_mark(markOopDesc::prototype());
+      set_mark(markWord::prototype());
     }
 #endif
     assert(!is_free(), "Error");
@@ -147,4 +147,4 @@ class FreeChunk {
 extern size_t MinChunkSize;
 
 
-#endif // SHARE_VM_GC_CMS_FREECHUNK_HPP
+#endif // SHARE_GC_CMS_FREECHUNK_HPP

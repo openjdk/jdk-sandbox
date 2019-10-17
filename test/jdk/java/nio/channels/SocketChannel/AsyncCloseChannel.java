@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2008, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,20 +24,22 @@
 /* @test
  * @bug 6285901 6501089
  * @summary Check no data is written to wrong socket channel during async closing.
- * @author Xueming Shen
  */
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
-import java.net.*;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SocketChannel;
 
 public class AsyncCloseChannel {
     static volatile boolean failed = false;
     static volatile boolean keepGoing = true;
     static int maxAcceptCount = 100;
     static volatile int acceptCount = 0;
-    static String host = "127.0.0.1";
     static int sensorPort;
     static int targetPort;
 
@@ -109,7 +111,7 @@ public class AsyncCloseChannel {
                         public void run() {
                             boolean empty = true;
                             try {
-                                for(;;) {
+                                while (keepGoing) {
                                     int c = s.getInputStream().read();
                                     if(c == -1) {
                                         if(!empty)
@@ -147,7 +149,7 @@ public class AsyncCloseChannel {
                         }
                         wake = false;
                     }
-                    s.connect(new InetSocketAddress(host, sensorPort));
+                    s.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), sensorPort));
                     try {
                         Thread.sleep(10);
                     } catch (InterruptedException ex) { }
@@ -181,7 +183,7 @@ public class AsyncCloseChannel {
             while(keepGoing) {
                 try {
                     final SocketChannel s = SocketChannel.open(
-                        new InetSocketAddress(host, targetPort));
+                        new InetSocketAddress(InetAddress.getLoopbackAddress(), targetPort));
                     s.finishConnect();
                     s.socket().setSoLinger(false, 0);
                     ready = false;

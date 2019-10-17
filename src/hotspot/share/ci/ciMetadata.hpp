@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CI_CIMETADATA_HPP
-#define SHARE_VM_CI_CIMETADATA_HPP
+#ifndef SHARE_CI_CIMETADATA_HPP
+#define SHARE_CI_CIMETADATA_HPP
 
 #include "ci/ciBaseObject.hpp"
 #include "ci/ciClassList.hpp"
@@ -51,7 +51,6 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_metadata() const          { return true; }
 
   virtual bool is_type() const              { return false; }
-  virtual bool is_cpcache() const           { return false; }
   virtual bool is_return_address() const    { return false; }
   virtual bool is_method() const            { return false; }
   virtual bool is_method_data() const       { return false; }
@@ -117,4 +116,4 @@ class ciMetadata: public ciBaseObject {
   void print_metadata(outputStream* st = tty);
 
 };
-#endif // SHARE_VM_CI_CIMETADATA_HPP
+#endif // SHARE_CI_CIMETADATA_HPP

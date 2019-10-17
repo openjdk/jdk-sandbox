@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "gc/g1/g1BarrierSetAssembler.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
 #include "gc/g1/g1CardTable.hpp"
+#include "gc/g1/g1DirtyCardQueue.hpp"
 #include "gc/g1/g1SATBMarkQueueSet.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
@@ -212,7 +213,6 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm, Decorato
   assert_different_registers(store_addr, new_val, tmp1, tmp2);
 
   CardTableBarrierSet* ct = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
-  assert(sizeof(*ct->card_table()->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   // Does store cross heap regions?
   __ xorr(tmp1, store_addr, new_val);
@@ -305,7 +305,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     Register base, RegisterOrConstant ind_or_offs, Register dst,
                                     Register tmp1, Register tmp2, bool needs_frame, Label *L_handle_null) {
-  bool on_oop = type == T_OBJECT || type == T_ARRAY;
+  bool on_oop = is_reference_type(type);
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool on_reference = on_weak || on_phantom;
@@ -477,7 +477,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   Register tmp = R0;
   Register addr = R14;
   Register tmp2 = R15;
-  jbyte* byte_map_base = bs->card_table()->byte_map_base();
+  CardTable::CardValue* byte_map_base = bs->card_table()->byte_map_base();
 
   Label restart, refill, ret;
 
@@ -512,7 +512,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
 
   __ bind(restart);
 
-  // Get the index into the update buffer. DirtyCardQueue::_index is
+  // Get the index into the update buffer. G1DirtyCardQueue::_index is
   // a size_t so ld_ptr is appropriate here.
   __ ld(tmp2, dirty_card_q_index_byte_offset, R16_thread);
 
@@ -539,7 +539,7 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ mflr(R0);
   __ std(R0, _abi(lr), R1_SP);
   __ push_frame_reg_args(nbytes_save, R0); // dummy frame for C call
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, DirtyCardQueueSet::handle_zero_index_for_thread), R16_thread);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1DirtyCardQueueSet::handle_zero_index_for_thread), R16_thread);
   __ pop_frame();
   __ ld(R0, _abi(lr), R1_SP);
   __ mtlr(R0);

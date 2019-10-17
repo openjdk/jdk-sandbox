@@ -3,7 +3,7 @@
  * @bug 8206986
  * @summary Verify cases with multiple labels work properly.
  * @compile/fail/ref=MultipleLabelsExpression-old.out -source 9 -Xlint:-options -XDrawDiagnostics MultipleLabelsExpression.java
- * @compile --enable-preview -source 12 MultipleLabelsExpression.java
+ * @compile --enable-preview -source ${jdk.version} MultipleLabelsExpression.java
  * @run main/othervm --enable-preview MultipleLabelsExpression
  */
 
@@ -30,7 +30,7 @@ public class MultipleLabelsExpression {
     private String expression1(T t) {
         return switch (t) {
             case A -> "A";
-            case B, C -> { break "B-C"; }
+            case B, C -> { yield "B-C"; }
             case D -> "D";
             default -> "other";
         };

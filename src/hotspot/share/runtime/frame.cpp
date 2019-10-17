@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/moduleEntry.hpp"
 #include "code/codeCache.hpp"
 #include "code/vmreg.inline.hpp"
 #include "compiler/abstractCompiler.hpp"
@@ -32,7 +33,7 @@
 #include "interpreter/oopMapCache.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
@@ -270,63 +271,10 @@ bool frame::can_be_deoptimized() const {
 }
 
 void frame::deoptimize(JavaThread* thread) {
+  assert(thread->frame_anchor()->has_last_Java_frame() &&
+         thread->frame_anchor()->walkable(), "must be");
   // Schedule deoptimization of an nmethod activation with this frame.
   assert(_cb != NULL && _cb->is_compiled(), "must be");
-
-  // This is a fix for register window patching race
-  if (NeedsDeoptSuspend && Thread::current() != thread) {
-    assert(SafepointSynchronize::is_at_safepoint(),
-           "patching other threads for deopt may only occur at a safepoint");
-
-    // It is possible especially with DeoptimizeALot/DeoptimizeRandom that
-    // we could see the frame again and ask for it to be deoptimized since
-    // it might move for a long time. That is harmless and we just ignore it.
-    if (id() == thread->must_deopt_id()) {
-      assert(thread->is_deopt_suspend(), "lost suspension");
-      return;
-    }
-
-    // We are at a safepoint so the target thread can only be
-    // in 4 states:
-    //     blocked - no problem
-    //     blocked_trans - no problem (i.e. could have woken up from blocked
-    //                                 during a safepoint).
-    //     native - register window pc patching race
-    //     native_trans - momentary state
-    //
-    // We could just wait out a thread in native_trans to block.
-    // Then we'd have all the issues that the safepoint code has as to
-    // whether to spin or block. It isn't worth it. Just treat it like
-    // native and be done with it.
-    //
-    // Examine the state of the thread at the start of safepoint since
-    // threads that were in native at the start of the safepoint could
-    // come to a halt during the safepoint, changing the current value
-    // of the safepoint_state.
-    JavaThreadState state = thread->safepoint_state()->orig_thread_state();
-    if (state == _thread_in_native || state == _thread_in_native_trans) {
-      // Since we are at a safepoint the target thread will stop itself
-      // before it can return to java as long as we remain at the safepoint.
-      // Therefore we can put an additional request for the thread to stop
-      // no matter what no (like a suspend). This will cause the thread
-      // to notice it needs to do the deopt on its own once it leaves native.
-      //
-      // The only reason we must do this is because on machine with register
-      // windows we have a race with patching the return address and the
-      // window coming live as the thread returns to the Java code (but still
-      // in native mode) and then blocks. It is only this top most frame
-      // that is at risk. So in truth we could add an additional check to
-      // see if this frame is one that is at risk.
-      RegisterMap map(thread, false);
-      frame at_risk =  thread->last_frame().sender(&map);
-      if (id() == at_risk.id()) {
-        thread->set_must_deopt_id(id());
-        thread->set_deopt_suspend();
-        return;
-      }
-    }
-  } // NeedsDeoptSuspend
-
 
   // If the call site is a MethodHandle call site use the MH deopt
   // handler.
@@ -366,29 +314,6 @@ frame frame::real_sender(RegisterMap* map) const {
     result = result.sender(map);
   }
   return result;
-}
-
-// Note: called by profiler - NOT for current thread
-frame frame::profile_find_Java_sender_frame(JavaThread *thread) {
-// If we don't recognize this frame, walk back up the stack until we do
-  RegisterMap map(thread, false);
-  frame first_java_frame = frame();
-
-  // Find the first Java frame on the stack starting with input frame
-  if (is_java_frame()) {
-    // top frame is compiled frame or deoptimized frame
-    first_java_frame = *this;
-  } else if (safe_for_sender(thread)) {
-    for (frame sender_frame = sender(&map);
-      sender_frame.safe_for_sender(thread) && !sender_frame.is_first_frame();
-      sender_frame = sender_frame.sender(&map)) {
-      if (sender_frame.is_java_frame()) {
-        first_java_frame = sender_frame;
-        break;
-      }
-    }
-  }
-  return first_java_frame;
 }
 
 // Interpreter frames
@@ -704,7 +629,7 @@ void frame::print_on_error(outputStream* st, char* buf, int buflen, bool verbose
 #if INCLUDE_JVMCI
         if (cm->is_nmethod()) {
           nmethod* nm = cm->as_nmethod();
-          char* jvmciName = nm->jvmci_installed_code_name(buf, buflen);
+          const char* jvmciName = nm->jvmci_name();
           if (jvmciName != NULL) {
             st->print(" (%s)", jvmciName);
           }
@@ -798,7 +723,7 @@ class InterpretedArgumentOopFinder: public SignatureInfo {
 
   void set(int size, BasicType type) {
     _offset -= size;
-    if (type == T_OBJECT || type == T_ARRAY) oop_offset_do();
+    if (is_reference_type(type)) oop_offset_do();
   }
 
   void oop_offset_do() {
@@ -851,7 +776,7 @@ class EntryFrameOopFinder: public SignatureInfo {
 
   void set(int size, BasicType type) {
     assert (_offset >= 0, "illegal offset");
-    if (type == T_OBJECT || type == T_ARRAY) oop_at_offset_do(_offset);
+    if (is_reference_type(type)) oop_at_offset_do(_offset);
     _offset -= size;
   }
 
@@ -1002,7 +927,7 @@ class CompiledArgumentOopFinder: public SignatureInfo {
   VMRegPair*      _regs;        // VMReg list of arguments
 
   void set(int size, BasicType type) {
-    if (type == T_OBJECT || type == T_ARRAY) handle_oop_offset();
+    if (is_reference_type(type)) handle_oop_offset();
     _offset += size;
   }
 
@@ -1138,13 +1063,13 @@ void frame::nmethods_do(CodeBlobClosure* cf) {
 }
 
 
-// call f() on the interpreted Method*s in the stack.
-// Have to walk the entire code cache for the compiled frames Yuck.
-void frame::metadata_do(void f(Metadata*)) {
+// Call f closure on the interpreted Method*s in the stack.
+void frame::metadata_do(MetadataClosure* f) {
+  ResourceMark rm;
   if (is_interpreted_frame()) {
     Method* m = this->interpreter_frame_method();
     assert(m != NULL, "expecting a method in this frame");
-    f(m);
+    f->do_metadata(m);
   }
 }
 

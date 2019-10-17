@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -122,22 +123,8 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
   return NULL;
 }
 
-bool ArrayKlass::compute_is_subtype_of(Klass* k) {
-  // An array is a subtype of Serializable, Clonable, and Object
-  return    k == SystemDictionary::Object_klass()
-         || k == SystemDictionary::Cloneable_klass()
-         || k == SystemDictionary::Serializable_klass();
-}
-
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
-  if (length < 0) {
-    THROW_MSG_0(vmSymbols::java_lang_NegativeArraySizeException(), err_msg("%d", length));
-  }
-  if (length > arrayOopDesc::max_array_length(T_ARRAY)) {
-    report_java_out_of_memory("Requested array size exceeds VM limit");
-    JvmtiExport::post_array_size_exhausted();
-    THROW_OOP_0(Universe::out_of_memory_error_array_size());
-  }
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_0);
   int size = objArrayOopDesc::object_size(length);
   Klass* k = array_klass(n+dimension(), CHECK_0);
   ArrayKlass* ak = ArrayKlass::cast(k);

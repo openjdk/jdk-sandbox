@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -216,7 +216,7 @@ public class HttpClient extends NetworkClient {
     }
 
     /* This package-only CTOR should only be used for FTP piggy-backed on HTTP
-     * HTTP URL's that use this won't take advantage of keep-alive.
+     * URL's that use this won't take advantage of keep-alive.
      * Additionally, this constructor may be used as a last resort when the
      * first HttpClient gotten through New() failed (probably b/c of a
      * Keep-Alive mismatch).
@@ -603,7 +603,7 @@ public class HttpClient extends NetworkClient {
             StringBuilder result = new StringBuilder(128);
             result.append(url.getProtocol());
             result.append(":");
-            if (url.getAuthority() != null && url.getAuthority().length() > 0) {
+            if (url.getAuthority() != null && !url.getAuthority().isEmpty()) {
                 result.append("//");
                 result.append(url.getAuthority());
             }
@@ -619,7 +619,7 @@ public class HttpClient extends NetworkClient {
         } else {
             fileName = url.getFile();
 
-            if ((fileName == null) || (fileName.length() == 0)) {
+            if ((fileName == null) || (fileName.isEmpty())) {
                 fileName = "/";
             } else if (fileName.charAt(0) == '?') {
                 /* HTTP/1.1 spec says in 5.1.2. about Request-URI:
@@ -707,11 +707,7 @@ public class HttpClient extends NetworkClient {
                 }  else {
                     // try once more
                     openServer();
-                    if (needsTunneling()) {
-                        MessageHeader origRequests = requests;
-                        httpuc.doTunneling();
-                        requests = origRequests;
-                    }
+                    checkTunneling(httpuc);
                     afterConnect();
                     writeRequests(requests, poster);
                     return parseHTTP(responses, pi, httpuc);
@@ -720,6 +716,18 @@ public class HttpClient extends NetworkClient {
             throw e;
         }
 
+    }
+
+    // Check whether tunnel must be open and open it if necessary
+    // (in the case of HTTPS with proxy)
+    private void checkTunneling(HttpURLConnection httpuc) throws IOException {
+        if (needsTunneling()) {
+            MessageHeader origRequests = requests;
+            PosterOutputStream origPoster = poster;
+            httpuc.doTunneling();
+            requests = origRequests;
+            poster = origPoster;
+        }
     }
 
     private boolean parseHTTPHeader(MessageHeader responses, ProgressSource pi, HttpURLConnection httpuc)
@@ -849,11 +857,7 @@ public class HttpClient extends NetworkClient {
                         closeServer();
                         cachedHttpClient = false;
                         openServer();
-                        if (needsTunneling()) {
-                            MessageHeader origRequests = requests;
-                            httpuc.doTunneling();
-                            requests = origRequests;
-                        }
+                        checkTunneling(httpuc);
                         afterConnect();
                         writeRequests(requests, poster);
                         return parseHTTP(responses, pi, httpuc);

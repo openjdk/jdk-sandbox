@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,8 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import jdk.internal.misc.JavaNioAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaNioAccess;
+import jdk.internal.access.SharedSecrets;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -345,6 +345,8 @@ public class ManagementFactoryHelper {
                 .getDirectBufferPool()));
             bufferPools.add(createBufferPoolMXBean(sun.nio.ch.FileChannelImpl
                 .getMappedBufferPool()));
+            bufferPools.add(createBufferPoolMXBean(sun.nio.ch.FileChannelImpl
+                .getSyncMappedBufferPool()));
         }
         return bufferPools;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_RUNTIME_HPP
-#define SHARE_VM_OPTO_RUNTIME_HPP
+#ifndef SHARE_OPTO_RUNTIME_HPP
+#define SHARE_OPTO_RUNTIME_HPP
 
 #include "code/codeBlob.hpp"
 #include "opto/machnode.hpp"
@@ -275,6 +275,7 @@ private:
 
   static const TypeFunc* aescrypt_block_Type();
   static const TypeFunc* cipherBlockChaining_aescrypt_Type();
+  static const TypeFunc* electronicCodeBook_aescrypt_Type();
   static const TypeFunc* counterMode_aescrypt_Type();
 
   static const TypeFunc* sha_implCompress_Type();
@@ -331,4 +332,4 @@ private:
 
 };
 
-#endif // SHARE_VM_OPTO_RUNTIME_HPP
+#endif // SHARE_OPTO_RUNTIME_HPP

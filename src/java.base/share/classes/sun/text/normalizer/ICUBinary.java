@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,12 +86,44 @@ public final class ICUBinary {
                 }
             })) {
 
-            BufferedInputStream b=new BufferedInputStream(is, 4096 /* data buffer size */);
-            DataInputStream inputStream = new DataInputStream(b);
-            byte[] bb = new byte[130000];
-            int n = inputStream.read(bb);
-            ByteBuffer bytes = ByteBuffer.wrap(bb, 0, n);
-            return bytes;
+            // is.available() may return 0, or 1, or the total number of bytes in the stream,
+            // or some other number.
+            // Do not try to use is.available() == 0 to find the end of the stream!
+            byte[] bytes;
+            int avail = is.available();
+            if (avail > 32) {
+                // There are more bytes available than just the ICU data header length.
+                // With luck, it is the total number of bytes.
+                bytes = new byte[avail];
+            } else {
+                bytes = new byte[128];  // empty .res files are even smaller
+            }
+            // Call is.read(...) until one returns a negative value.
+            int length = 0;
+            for(;;) {
+                if (length < bytes.length) {
+                    int numRead = is.read(bytes, length, bytes.length - length);
+                    if (numRead < 0) {
+                        break;  // end of stream
+                    }
+                    length += numRead;
+                } else {
+                    // See if we are at the end of the stream before we grow the array.
+                    int nextByte = is.read();
+                    if (nextByte < 0) {
+                        break;
+                    }
+                    int capacity = 2 * bytes.length;
+                    if (capacity < 128) {
+                        capacity = 128;
+                    } else if (capacity < 0x4000) {
+                        capacity *= 2;  // Grow faster until we reach 16kB.
+                    }
+                    bytes = Arrays.copyOf(bytes, capacity);
+                    bytes[length++] = (byte) nextByte;
+                }
+           }
+            return ByteBuffer.wrap(bytes, 0, length);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -227,6 +259,36 @@ public final class ICUBinary {
         if (skipLength > 0) {
             bytes.position(bytes.position() + skipLength);
         }
+    }
+
+    public static byte[] getBytes(ByteBuffer bytes, int length, int additionalSkipLength) {
+        byte[] dest = new byte[length];
+        bytes.get(dest);
+        if (additionalSkipLength > 0) {
+            skipBytes(bytes, additionalSkipLength);
+        }
+        return dest;
+    }
+
+    public static String getString(ByteBuffer bytes, int length, int additionalSkipLength) {
+        CharSequence cs = bytes.asCharBuffer();
+        String s = cs.subSequence(0, length).toString();
+        skipBytes(bytes, length * 2 + additionalSkipLength);
+        return s;
+    }
+
+    public static char[] getChars(ByteBuffer bytes, int length, int additionalSkipLength) {
+        char[] dest = new char[length];
+        bytes.asCharBuffer().get(dest);
+        skipBytes(bytes, length * 2 + additionalSkipLength);
+        return dest;
+    }
+
+    public static int[] getInts(ByteBuffer bytes, int length, int additionalSkipLength) {
+        int[] dest = new int[length];
+        bytes.asIntBuffer().get(dest);
+        skipBytes(bytes, length * 4 + additionalSkipLength);
+        return dest;
     }
 
     /**

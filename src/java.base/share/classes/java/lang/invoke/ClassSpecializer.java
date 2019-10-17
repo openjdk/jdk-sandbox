@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.FieldVisitor;
@@ -458,6 +459,11 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
      */
     public class Factory {
         /**
+         * Constructs a factory.
+         */
+        Factory() {}
+
+        /**
          * Get a concrete subclass of the top class for a given combination of bound types.
          *
          * @param speciesData the species requiring the class, not yet linked
@@ -576,9 +582,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
 
             // load class
             InvokerBytecodeGenerator.maybeDump(classBCName(className), classFile);
-            Class<?> speciesCode;
-
-            ClassLoader cl = topClass().getClassLoader();
+            ClassLoader cl = topClass.getClassLoader();
             ProtectionDomain pd = null;
             if (cl != null) {
                 pd = AccessController.doPrivileged(
@@ -589,12 +593,8 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                             }
                         });
             }
-            try {
-                speciesCode = UNSAFE.defineClass(className, classFile, 0, classFile.length, cl, pd);
-            } catch (Exception ex) {
-                throw newInternalError(ex);
-            }
-
+            Class<?> speciesCode = SharedSecrets.getJavaLangAccess()
+                    .defineClass(cl, className, classFile, pd, "_ClassSpecializer_generateConcreteSpeciesCode");
             return speciesCode.asSubclass(topClass());
         }
 
@@ -947,7 +947,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                 Object base = MethodHandleNatives.staticFieldBase(sdField);
                 long offset = MethodHandleNatives.staticFieldOffset(sdField);
                 UNSAFE.loadFence();
-                return metaType.cast(UNSAFE.getObject(base, offset));
+                return metaType.cast(UNSAFE.getReference(base, offset));
             } catch (Error err) {
                 throw err;
             } catch (Exception ex) {
@@ -977,7 +977,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
                 Object base = MethodHandleNatives.staticFieldBase(sdField);
                 long offset = MethodHandleNatives.staticFieldOffset(sdField);
                 UNSAFE.storeFence();
-                UNSAFE.putObject(base, offset, speciesData);
+                UNSAFE.putReference(base, offset, speciesData);
                 UNSAFE.storeFence();
             } catch (Error err) {
                 throw err;

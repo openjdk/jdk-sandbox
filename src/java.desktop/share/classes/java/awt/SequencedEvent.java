@@ -27,6 +27,7 @@ package java.awt;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Iterator;
 import java.util.LinkedList;
 import sun.awt.AWTAccessor;
 import sun.awt.AppContext;
@@ -54,10 +55,13 @@ class SequencedEvent extends AWTEvent implements ActiveEvent {
     private static final LinkedList<SequencedEvent> list = new LinkedList<>();
 
     private final AWTEvent nested;
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private AppContext appContext;
     private boolean disposed;
+    private final LinkedList<AWTEvent> pendingEvents = new LinkedList<>();
 
     private static boolean fxAppThreadIsDispatchThread;
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Thread fxCheckSequenceThread;
     static {
         AWTAccessor.setSequencedEventAccessor(new AWTAccessor.SequencedEventAccessor() {
@@ -79,6 +83,35 @@ class SequencedEvent extends AWTEvent implements ActiveEvent {
                 return null;
             }
         });
+    }
+
+    private static final class SequencedEventsFilter implements EventFilter {
+        private final SequencedEvent currentSequencedEvent;
+        private SequencedEventsFilter(SequencedEvent currentSequencedEvent) {
+            this.currentSequencedEvent = currentSequencedEvent;
+        }
+        @Override
+        public FilterAction acceptEvent(AWTEvent ev) {
+            if (ev.getID() == ID) {
+                // Move forward dispatching only if the event is previous
+                // in SequencedEvent.list. Otherwise, hold it for reposting later.
+                synchronized (SequencedEvent.class) {
+                    Iterator<SequencedEvent> it = list.iterator();
+                    while (it.hasNext()) {
+                        SequencedEvent iev = it.next();
+                        if (iev.equals(currentSequencedEvent)) {
+                            break;
+                        } else if (iev.equals(ev)) {
+                            return FilterAction.ACCEPT;
+                        }
+                    }
+                }
+            } else if (ev.getID() == SentEvent.ID) {
+                return FilterAction.ACCEPT;
+            }
+            currentSequencedEvent.pendingEvents.add(ev);
+            return FilterAction.REJECT;
+        }
     }
 
     /**
@@ -135,7 +168,8 @@ class SequencedEvent extends AWTEvent implements ActiveEvent {
                     if (Thread.currentThread() instanceof EventDispatchThread) {
                         EventDispatchThread edt = (EventDispatchThread)
                                 Thread.currentThread();
-                        edt.pumpEvents(ID, () -> !SequencedEvent.this.isFirstOrDisposed());
+                        edt.pumpEventsForFilter(() -> !SequencedEvent.this.isFirstOrDisposed(),
+                                new SequencedEventsFilter(this));
                     } else {
                         if (fxAppThreadIsDispatchThread) {
                             fxCheckSequenceThread.start();
@@ -239,10 +273,6 @@ class SequencedEvent extends AWTEvent implements ActiveEvent {
             }
             disposed = true;
         }
-        // Wake myself up
-        if (appContext != null) {
-            SunToolkit.postEvent(appContext, new SentEvent());
-        }
 
         SequencedEvent next = null;
 
@@ -262,6 +292,10 @@ class SequencedEvent extends AWTEvent implements ActiveEvent {
         // Wake up waiting threads
         if (next != null && next.appContext != null) {
             SunToolkit.postEvent(next.appContext, new SentEvent());
+        }
+
+        for(AWTEvent e : pendingEvents) {
+            SunToolkit.postEvent(appContext, e);
         }
     }
 }

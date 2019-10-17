@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,12 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1HEAPVERIFIER_HPP
-#define SHARE_VM_GC_G1_G1HEAPVERIFIER_HPP
+#ifndef SHARE_GC_G1_G1HEAPVERIFIER_HPP
+#define SHARE_GC_G1_G1HEAPVERIFIER_HPP
 
 #include "gc/g1/heapRegionSet.hpp"
+#include "gc/shared/verifyOption.hpp"
 #include "memory/allocation.hpp"
-#include "memory/universe.hpp"
 #include "utilities/macros.hpp"
 
 class G1CollectedHeap;
@@ -107,7 +107,7 @@ public:
   void check_bitmaps(const char* caller) PRODUCT_RETURN;
 
   // Do sanity check on the contents of the in-cset fast test table.
-  bool check_cset_fast_test() PRODUCT_RETURN_( return true; );
+  bool check_region_attr_table() PRODUCT_RETURN_( return true; );
 
   void verify_card_table_cleanup() PRODUCT_RETURN;
 
@@ -115,7 +115,8 @@ public:
   void verify_dirty_region(HeapRegion* hr) PRODUCT_RETURN;
   void verify_dirty_young_regions() PRODUCT_RETURN;
 
+  static void verify_ready_for_archiving();
   static void verify_archive_regions();
 };
 
-#endif // SHARE_VM_GC_G1_G1HEAPVERIFIER_HPP
+#endif // SHARE_GC_G1_G1HEAPVERIFIER_HPP

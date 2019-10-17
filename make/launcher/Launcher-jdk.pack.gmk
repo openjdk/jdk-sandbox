@@ -39,21 +39,17 @@ $(eval $(call SetupBuildLauncher, pack200, \
 # On Mac, we have always exported all symbols, probably due to oversight
 # and/or misunderstanding. To emulate this, don't hide any symbols
 # by default.
-# On AIX/xlc we need at least xlc 13.1 for the symbol hiding
+# On AIX/xlc we need at least xlc 13.1 for the symbol hiding (see JDK-8214063)
 # Also provide an override for non-conformant libraries.
 ifeq ($(TOOLCHAIN_TYPE), gcc)
   CXXFLAGS_JDKEXE += -fvisibility=hidden
   LDFLAGS_JDKEXE += -Wl,--exclude-libs,ALL
 else ifeq ($(TOOLCHAIN_TYPE), clang)
-  ifneq ($(OPENJDK_TARGET_OS), macosx)
+  ifeq ($(call isTargetOs, macosx), false)
     CXXFLAGS_JDKEXE += -fvisibility=hidden
   endif
 else ifeq ($(TOOLCHAIN_TYPE), solstudio)
   CXXFLAGS_JDKEXE += -xldscope=hidden
-else ifeq ($(TOOLCHAIN_TYPE), xlc)
-  ifneq ($(CC_VERSION_NUMBER), 12.1)
-    CXXFLAGS_JDKEXE += -qvisibility=hidden
-  endif
 endif
 
 UNPACKEXE_SRC := $(TOPDIR)/src/jdk.pack/share/native/common-unpack \
@@ -90,21 +86,16 @@ $(eval $(call SetupJdkExecutable, BUILD_UNPACKEXE, \
     CFLAGS_linux := -fPIC, \
     CFLAGS_solaris := -KPIC, \
     CFLAGS_macosx := -fPIC, \
+    DISABLED_WARNINGS_clang := format-nonliteral, \
     DISABLED_WARNINGS_solstudio := wunreachable, \
-    LDFLAGS := $(UNPACKEXE_ZIPOBJS) \
-        $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
+    LDFLAGS := $(LDFLAGS_JDKEXE) $(LDFLAGS_CXX_JDK) \
         $(call SET_SHARED_LIBRARY_ORIGIN), \
     LIBS := $(UNPACKEXE_LIBS) $(LIBCXX), \
     OBJECT_DIR := $(SUPPORT_OUTPUTDIR)/native/$(MODULE)/unpackexe, \
     MANIFEST := $(TOPDIR)/src/jdk.pack/windows/native/unpack200/unpack200_proto.exe.manifest, \
     MANIFEST_VERSION := $(VERSION_NUMBER_FOUR_POSITIONS), \
+    EXTRA_OBJECT_FILES := $(UNPACKEXE_ZIPOBJS) \
 ))
-
-ifneq ($(USE_EXTERNAL_LIBZ), true)
-
-  $(BUILD_UNPACKEXE): $(UNPACKEXE_ZIPOBJS)
-
-endif
 
 TARGETS += $(BUILD_UNPACKEXE)
 

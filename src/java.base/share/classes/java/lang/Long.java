@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,15 @@
 package java.lang;
 
 import java.lang.annotation.Native;
+import java.lang.invoke.MethodHandles;
+import java.lang.constant.Constable;
+import java.lang.constant.ConstantDesc;
 import java.math.*;
 import java.util.Objects;
+import java.util.Optional;
+
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.misc.VM;
 
 import static java.lang.String.COMPACT_STRINGS;
 import static java.lang.String.LATIN1;
@@ -56,7 +62,8 @@ import static java.lang.String.UTF16;
  * @author  Joseph D. Darcy
  * @since   1.0
  */
-public final class Long extends Number implements Comparable<Long> {
+public final class Long extends Number
+        implements Comparable<Long>, Constable, ConstantDesc {
     /**
      * A constant holding the minimum value a {@code long} can
      * have, -2<sup>63</sup>.
@@ -391,19 +398,17 @@ public final class Long extends Number implements Comparable<Long> {
     }
 
     /**
-     * Format a long (treated as unsigned) into a character buffer. If
+     * Format a long (treated as unsigned) into a byte buffer (LATIN1 version). If
      * {@code len} exceeds the formatted ASCII representation of {@code val},
      * {@code buf} will be padded with leading zeroes.
      *
      * @param val the unsigned long to format
      * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
-     * @param buf the character buffer to write to
+     * @param buf the byte buffer to write to
      * @param offset the offset in the destination buffer to start at
      * @param len the number of characters to write
      */
-
-    /** byte[]/LATIN1 version    */
-    static void formatUnsignedLong0(long val, int shift, byte[] buf, int offset, int len) {
+    private static void formatUnsignedLong0(long val, int shift, byte[] buf, int offset, int len) {
         int charPos = offset + len;
         int radix = 1 << shift;
         int mask = radix - 1;
@@ -413,7 +418,17 @@ public final class Long extends Number implements Comparable<Long> {
         } while (charPos > offset);
     }
 
-    /** byte[]/UTF16 version    */
+    /**
+     * Format a long (treated as unsigned) into a byte buffer (UTF16 version). If
+     * {@code len} exceeds the formatted ASCII representation of {@code val},
+     * {@code buf} will be padded with leading zeroes.
+     *
+     * @param val the unsigned long to format
+     * @param shift the log2 of the base to format in (4 for hex, 3 for octal, 1 for binary)
+     * @param buf the byte buffer to write to
+     * @param offset the offset in the destination buffer to start at
+     * @param len the number of characters to write
+     */
     private static void formatUnsignedLong0UTF16(long val, int shift, byte[] buf, int offset, int len) {
         int charPos = offset + len;
         int radix = 1 << shift;
@@ -724,7 +739,7 @@ public final class Long extends Number implements Comparable<Long> {
      *             {@code endIndex} or if {@code endIndex} is greater than
      *             {@code s.length()}.
      * @throws     NumberFormatException  if the {@code CharSequence} does not
-     *             contain a parsable {@code int} in the specified
+     *             contain a parsable {@code long} in the specified
      *             {@code radix}, or if {@code radix} is either smaller than
      *             {@link java.lang.Character#MIN_RADIX} or larger than
      *             {@link java.lang.Character#MAX_RADIX}.
@@ -732,7 +747,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
     public static long parseLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
-        s = Objects.requireNonNull(s);
+        Objects.requireNonNull(s);
 
         if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
             throw new IndexOutOfBoundsException();
@@ -978,7 +993,7 @@ public final class Long extends Number implements Comparable<Long> {
      */
     public static long parseUnsignedLong(CharSequence s, int beginIndex, int endIndex, int radix)
                 throws NumberFormatException {
-        s = Objects.requireNonNull(s);
+        Objects.requireNonNull(s);
 
         if (beginIndex < 0 || beginIndex > endIndex || endIndex > s.length()) {
             throw new IndexOutOfBoundsException();
@@ -1145,13 +1160,25 @@ public final class Long extends Number implements Comparable<Long> {
     }
 
     private static class LongCache {
-        private LongCache(){}
+        private LongCache() {}
 
-        static final Long cache[] = new Long[-(-128) + 127 + 1];
+        static final Long[] cache;
+        static Long[] archivedCache;
 
         static {
-            for(int i = 0; i < cache.length; i++)
-                cache[i] = new Long(i - 128);
+            int size = -(-128) + 127 + 1;
+
+            // Load and use the archived cache if it exists
+            VM.initializeFromArchive(LongCache.class);
+            if (archivedCache == null || archivedCache.length != size) {
+                Long[] c = new Long[size];
+                long value = -128;
+                for(int i = 0; i < size; i++) {
+                    c[i] = new Long(value++);
+                }
+                archivedCache = c;
+            }
+            cache = archivedCache;
         }
     }
 
@@ -1229,7 +1256,7 @@ public final class Long extends Number implements Comparable<Long> {
         boolean negative = false;
         Long result;
 
-        if (nm.length() == 0)
+        if (nm.isEmpty())
             throw new NumberFormatException("Zero length string");
         char firstChar = nm.charAt(0);
         // Handle sign, if present
@@ -1320,7 +1347,7 @@ public final class Long extends Number implements Comparable<Long> {
     /**
      * Returns the value of this {@code Long} as a {@code byte} after
      * a narrowing primitive conversion.
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public byte byteValue() {
         return (byte)value;
@@ -1329,7 +1356,7 @@ public final class Long extends Number implements Comparable<Long> {
     /**
      * Returns the value of this {@code Long} as a {@code short} after
      * a narrowing primitive conversion.
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public short shortValue() {
         return (short)value;
@@ -1338,7 +1365,7 @@ public final class Long extends Number implements Comparable<Long> {
     /**
      * Returns the value of this {@code Long} as an {@code int} after
      * a narrowing primitive conversion.
-     * @jls 5.1.3 Narrowing Primitive Conversions
+     * @jls 5.1.3 Narrowing Primitive Conversion
      */
     public int intValue() {
         return (int)value;
@@ -1356,7 +1383,7 @@ public final class Long extends Number implements Comparable<Long> {
     /**
      * Returns the value of this {@code Long} as a {@code float} after
      * a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public float floatValue() {
         return (float)value;
@@ -1365,7 +1392,7 @@ public final class Long extends Number implements Comparable<Long> {
     /**
      * Returns the value of this {@code Long} as a {@code double}
      * after a widening primitive conversion.
-     * @jls 5.1.2 Widening Primitive Conversions
+     * @jls 5.1.2 Widening Primitive Conversion
      */
     public double doubleValue() {
         return (double)value;
@@ -1947,6 +1974,32 @@ public final class Long extends Number implements Comparable<Long> {
         return Math.min(a, b);
     }
 
+    /**
+     * Returns an {@link Optional} containing the nominal descriptor for this
+     * instance, which is the instance itself.
+     *
+     * @return an {@link Optional} describing the {@linkplain Long} instance
+     * @since 12
+     */
+    @Override
+    public Optional<Long> describeConstable() {
+        return Optional.of(this);
+    }
+
+    /**
+     * Resolves this instance as a {@link ConstantDesc}, the result of which is
+     * the instance itself.
+     *
+     * @param lookup ignored
+     * @return the {@linkplain Long} instance
+     * @since 12
+     */
+    @Override
+    public Long resolveConstantDesc(MethodHandles.Lookup lookup) {
+        return this;
+    }
+
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
+    @java.io.Serial
     @Native private static final long serialVersionUID = 4290774380558885855L;
 }

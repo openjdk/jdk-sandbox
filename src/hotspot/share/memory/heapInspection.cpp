@@ -24,11 +24,13 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/reflectionAccessorImplKlassHelper.hpp"
 #include "runtime/os.hpp"
@@ -120,6 +122,11 @@ void KlassInfoEntry::print_on(outputStream* st) const {
 }
 
 KlassInfoEntry* KlassInfoBucket::lookup(Klass* const k) {
+  // Can happen if k is an archived class that we haven't loaded yet.
+  if (k->java_mirror_no_keepalive() == NULL) {
+    return NULL;
+  }
+
   KlassInfoEntry* elt = _list;
   while (elt != NULL) {
     if (elt->is_equal(k)) {
@@ -167,14 +174,12 @@ public:
 
 KlassInfoTable::KlassInfoTable(bool add_all_classes) {
   _size_of_instances_in_words = 0;
-  _size = 0;
   _ref = (HeapWord*) Universe::boolArrayKlassObj();
   _buckets =
     (KlassInfoBucket*)  AllocateHeap(sizeof(KlassInfoBucket) * _num_buckets,
        mtInternal, CURRENT_PC, AllocFailStrategy::RETURN_NULL);
   if (_buckets != NULL) {
-    _size = _num_buckets;
-    for (int index = 0; index < _size; index++) {
+    for (int index = 0; index < _num_buckets; index++) {
       _buckets[index].initialize();
     }
     if (add_all_classes) {
@@ -186,11 +191,11 @@ KlassInfoTable::KlassInfoTable(bool add_all_classes) {
 
 KlassInfoTable::~KlassInfoTable() {
   if (_buckets != NULL) {
-    for (int index = 0; index < _size; index++) {
+    for (int index = 0; index < _num_buckets; index++) {
       _buckets[index].empty();
     }
     FREE_C_HEAP_ARRAY(KlassInfoBucket, _buckets);
-    _size = 0;
+    _buckets = NULL;
   }
 }
 
@@ -199,11 +204,12 @@ uint KlassInfoTable::hash(const Klass* p) {
 }
 
 KlassInfoEntry* KlassInfoTable::lookup(Klass* k) {
-  uint         idx = hash(k) % _size;
+  uint         idx = hash(k) % _num_buckets;
   assert(_buckets != NULL, "Allocation failure should have been caught");
   KlassInfoEntry*  e   = _buckets[idx].lookup(k);
   // Lookup may fail if this is a new klass for which we
-  // could not allocate space for an new entry.
+  // could not allocate space for an new entry, or if it's
+  // an archived class that we haven't loaded yet.
   assert(e == NULL || k == e->klass(), "must be equal");
   return e;
 }
@@ -226,8 +232,8 @@ bool KlassInfoTable::record_instance(const oop obj) {
 }
 
 void KlassInfoTable::iterate(KlassInfoClosure* cic) {
-  assert(_size == 0 || _buckets != NULL, "Allocation failure should have been caught");
-  for (int index = 0; index < _size; index++) {
+  assert(_buckets != NULL, "Allocation failure should have been caught");
+  for (int index = 0; index < _num_buckets; index++) {
     _buckets[index].iterate(cic);
   }
 }
@@ -713,7 +719,7 @@ size_t HeapInspection::populate_table(KlassInfoTable* cit, BoolObjectClosure *fi
   ResourceMark rm;
 
   RecordInstanceClosure ric(cit, filter);
-  Universe::heap()->object_iterate(&ric);
+  Universe::heap()->safe_object_iterate(&ric);
   return ric.missed_count();
 }
 
@@ -786,8 +792,5 @@ void HeapInspection::find_instances_at_safepoint(Klass* k, GrowableArray<oop>* r
 
   // Iterate over objects in the heap
   FindInstanceClosure fic(k, result);
-  // If this operation encounters a bad object when using CMS,
-  // consider using safe_object_iterate() which avoids metadata
-  // objects that may contain bad references.
-  Universe::heap()->object_iterate(&fic);
+  Universe::heap()->safe_object_iterate(&fic);
 }

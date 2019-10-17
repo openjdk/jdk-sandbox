@@ -119,44 +119,56 @@ final class DTransformingPathConsumer2D {
                 // Scale only
                 if (rdrCtx.doClip) {
                     // adjust clip rectangle (ymin, ymax, xmin, xmax):
-                    adjustClipScale(rdrCtx.clipRect, mxx, myy);
+                    rdrCtx.clipInvScale = adjustClipScale(rdrCtx.clipRect,
+                        mxx, myy);
                 }
                 return dt_DeltaScaleFilter.init(out, mxx, myy);
             }
         } else {
             if (rdrCtx.doClip) {
                 // adjust clip rectangle (ymin, ymax, xmin, xmax):
-                adjustClipInverseDelta(rdrCtx.clipRect, mxx, mxy, myx, myy);
+                rdrCtx.clipInvScale = adjustClipInverseDelta(rdrCtx.clipRect,
+                    mxx, mxy, myx, myy);
             }
             return dt_DeltaTransformFilter.init(out, mxx, mxy, myx, myy);
         }
     }
 
-    private static void adjustClipOffset(final double[] clipRect) {
-        clipRect[0] += Renderer.RDR_OFFSET_Y;
-        clipRect[1] += Renderer.RDR_OFFSET_Y;
-        clipRect[2] += Renderer.RDR_OFFSET_X;
-        clipRect[3] += Renderer.RDR_OFFSET_X;
-    }
-
-    private static void adjustClipScale(final double[] clipRect,
-                                        final double mxx, final double myy)
+    private static double adjustClipScale(final double[] clipRect,
+                                          final double mxx, final double myy)
     {
-        adjustClipOffset(clipRect);
-
         // Adjust the clipping rectangle (iv_DeltaScaleFilter):
-        clipRect[0] /= myy;
-        clipRect[1] /= myy;
-        clipRect[2] /= mxx;
-        clipRect[3] /= mxx;
+        final double scaleY = 1.0d / myy;
+        clipRect[0] *= scaleY;
+        clipRect[1] *= scaleY;
+
+        if (clipRect[1] < clipRect[0]) {
+            double tmp = clipRect[0];
+            clipRect[0] = clipRect[1];
+            clipRect[1] = tmp;
+        }
+
+        final double scaleX = 1.0d / mxx;
+        clipRect[2] *= scaleX;
+        clipRect[3] *= scaleX;
+
+        if (clipRect[3] < clipRect[2]) {
+            double tmp = clipRect[2];
+            clipRect[2] = clipRect[3];
+            clipRect[3] = tmp;
+        }
+
+        if (MarlinConst.DO_LOG_CLIP) {
+                MarlinUtils.logInfo("clipRect (ClipScale): "
+                                    + Arrays.toString(clipRect));
+        }
+        return 0.5d * (Math.abs(scaleX) + Math.abs(scaleY));
     }
 
-    private static void adjustClipInverseDelta(final double[] clipRect,
-                                               final double mxx, final double mxy,
-                                               final double myx, final double myy)
+    private static double adjustClipInverseDelta(final double[] clipRect,
+                                                 final double mxx, final double mxy,
+                                                 final double myx, final double myy)
     {
-        adjustClipOffset(clipRect);
-
         // Adjust the clipping rectangle (iv_DeltaTransformFilter):
         final double det = mxx * myy - mxy * myx;
         final double imxx =  myy / det;
@@ -198,6 +210,16 @@ final class DTransformingPathConsumer2D {
         clipRect[1] = ymax;
         clipRect[2] = xmin;
         clipRect[3] = xmax;
+
+        if (MarlinConst.DO_LOG_CLIP) {
+                MarlinUtils.logInfo("clipRect (ClipInverseDelta): "
+                                    + Arrays.toString(clipRect));
+        }
+
+        final double scaleX = Math.sqrt(imxx * imxx + imxy * imxy);
+        final double scaleY = Math.sqrt(imyx * imyx + imyy * imyy);
+
+        return 0.5d * (scaleX + scaleY);
     }
 
     DPathConsumer2D inverseDeltaTransformConsumer(DPathConsumer2D out,
@@ -215,7 +237,7 @@ final class DTransformingPathConsumer2D {
             if (mxx == 1.0d && myy == 1.0d) {
                 return out;
             } else {
-                return iv_DeltaScaleFilter.init(out, 1.0d/mxx, 1.0d/myy);
+                return iv_DeltaScaleFilter.init(out, 1.0d / mxx, 1.0d / myy);
             }
         } else {
             final double det = mxx * myy - mxy * myx;
@@ -508,6 +530,9 @@ final class DTransformingPathConsumer2D {
 
         private boolean outside = false;
 
+        // The starting point of the path
+        private double sx0, sy0;
+
         // The current point (TODO stupid repeated info)
         private double cx0, cy0;
 
@@ -531,19 +556,6 @@ final class DTransformingPathConsumer2D {
 
         PathClipFilter init(final DPathConsumer2D out) {
             this.out = out;
-
-            // Adjust the clipping rectangle with the renderer offsets
-            final double rdrOffX = DRenderer.RDR_OFFSET_X;
-            final double rdrOffY = DRenderer.RDR_OFFSET_Y;
-
-            // add a small rounding error:
-            final double margin = 1e-3d;
-
-            final double[] _clipRect = this.clipRect;
-            _clipRect[0] -= margin - rdrOffY;
-            _clipRect[1] += margin + rdrOffY;
-            _clipRect[2] -= margin - rdrOffX;
-            _clipRect[3] += margin + rdrOffX;
 
             if (MarlinConst.DO_CLIP_SUBDIVIDER) {
                 // adjust padded clip rectangle:
@@ -621,17 +633,26 @@ final class DTransformingPathConsumer2D {
             finishPath();
 
             out.closePath();
+
+            // back to starting point:
+            this.cOutCode = DHelpers.outcode(sx0, sy0, clipRect);
+            this.cx0 = sx0;
+            this.cy0 = sy0;
         }
 
         @Override
         public void moveTo(final double x0, final double y0) {
             finishPath();
 
-            this.cOutCode = DHelpers.outcode(x0, y0, clipRect);
-            this.outside = false;
             out.moveTo(x0, y0);
+
+            // update starting point:
+            this.cOutCode = DHelpers.outcode(x0, y0, clipRect);
             this.cx0 = x0;
             this.cy0 = y0;
+
+            this.sx0 = x0;
+            this.sy0 = y0;
         }
 
         @Override
@@ -646,7 +667,7 @@ final class DTransformingPathConsumer2D {
 
                 // basic rejection criteria:
                 if (sideCode == 0) {
-                    // ovelap clip:
+                    // overlap clip:
                     if (subdivide) {
                         // avoid reentrance
                         subdivide = false;
@@ -745,7 +766,7 @@ final class DTransformingPathConsumer2D {
 
                 // basic rejection criteria:
                 if (sideCode == 0) {
-                    // ovelap clip:
+                    // overlap clip:
                     if (subdivide) {
                         // avoid reentrance
                         subdivide = false;
@@ -807,7 +828,7 @@ final class DTransformingPathConsumer2D {
 
                 // basic rejection criteria:
                 if (sideCode == 0) {
-                    // ovelap clip:
+                    // overlap clip:
                     if (subdivide) {
                         // avoid reentrance
                         subdivide = false;
@@ -867,6 +888,11 @@ final class DTransformingPathConsumer2D {
 
         private static final int MAX_N_CURVES = 3 * 4;
 
+        private final DRendererContext rdrCtx;
+
+        // scaled length threshold:
+        private double minLength;
+
         // clip rectangle (ymin, ymax, xmin, xmax):
         final double[] clipRect;
 
@@ -884,12 +910,23 @@ final class DTransformingPathConsumer2D {
         private final DCurve curve;
 
         CurveClipSplitter(final DRendererContext rdrCtx) {
+            this.rdrCtx = rdrCtx;
             this.clipRect = rdrCtx.clipRect;
             this.curve = rdrCtx.curve;
         }
 
         void init() {
             this.init_clipRectPad = true;
+
+            if (DO_CHECK_LENGTH) {
+                this.minLength = (this.rdrCtx.clipInvScale == 0.0d) ? LEN_TH
+                                    : (LEN_TH * this.rdrCtx.clipInvScale);
+
+                if (MarlinConst.DO_LOG_CLIP) {
+                    MarlinUtils.logInfo("CurveClipSplitter.minLength = "
+                                            + minLength);
+                }
+            }
         }
 
         private void initPaddedClip() {
@@ -906,7 +943,7 @@ final class DTransformingPathConsumer2D {
 
             if (TRACE) {
                 MarlinUtils.logInfo("clip: X [" + _clipRectPad[2] + " .. " + _clipRectPad[3] +"] "
-                                        + "Y ["+ _clipRectPad[0] + " .. " + _clipRectPad[1] +"]");
+                                        + "Y [" + _clipRectPad[0] + " .. " + _clipRectPad[1] +"]");
             }
         }
 
@@ -919,7 +956,7 @@ final class DTransformingPathConsumer2D {
                 MarlinUtils.logInfo("divLine P0(" + x0 + ", " + y0 + ") P1(" + x1 + ", " + y1 + ")");
             }
 
-            if (DO_CHECK_LENGTH && DHelpers.fastLineLen(x0, y0, x1, y1) <= LEN_TH) {
+            if (DO_CHECK_LENGTH && DHelpers.fastLineLen(x0, y0, x1, y1) <= minLength) {
                 return false;
             }
 
@@ -940,7 +977,7 @@ final class DTransformingPathConsumer2D {
                 MarlinUtils.logInfo("divQuad P0(" + x0 + ", " + y0 + ") P1(" + x1 + ", " + y1 + ") P2(" + x2 + ", " + y2 + ")");
             }
 
-            if (DO_CHECK_LENGTH && DHelpers.fastQuadLen(x0, y0, x1, y1, x2, y2) <= LEN_TH) {
+            if (DO_CHECK_LENGTH && DHelpers.fastQuadLen(x0, y0, x1, y1, x2, y2) <= minLength) {
                 return false;
             }
 
@@ -963,7 +1000,7 @@ final class DTransformingPathConsumer2D {
                 MarlinUtils.logInfo("divCurve P0(" + x0 + ", " + y0 + ") P1(" + x1 + ", " + y1 + ") P2(" + x2 + ", " + y2 + ") P3(" + x3 + ", " + y3 + ")");
             }
 
-            if (DO_CHECK_LENGTH && DHelpers.fastCurvelen(x0, y0, x1, y1, x2, y2, x3, y3) <= LEN_TH) {
+            if (DO_CHECK_LENGTH && DHelpers.fastCurvelen(x0, y0, x1, y1, x2, y2, x3, y3) <= minLength) {
                 return false;
             }
 
@@ -991,8 +1028,8 @@ final class DTransformingPathConsumer2D {
                                                         outCodeOR, clipRectPad);
 
             if (TRACE) {
-                MarlinUtils.logInfo("nSplits: "+ nSplits);
-                MarlinUtils.logInfo("subTs: "+Arrays.toString(Arrays.copyOfRange(subTs, 0, nSplits)));
+                MarlinUtils.logInfo("nSplits: " + nSplits);
+                MarlinUtils.logInfo("subTs: " + Arrays.toString(Arrays.copyOfRange(subTs, 0, nSplits)));
             }
             if (nSplits == 0) {
                 // only curve support shortcut
@@ -1010,7 +1047,7 @@ final class DTransformingPathConsumer2D {
 
             for (int i = 0, off = 0; i <= nSplits; i++, off += type) {
                 if (TRACE) {
-                    MarlinUtils.logInfo("Part Curve "+Arrays.toString(Arrays.copyOfRange(mid, off, off + type)));
+                    MarlinUtils.logInfo("Part Curve " + Arrays.toString(Arrays.copyOfRange(mid, off, off + type)));
                 }
                 emitCurrent(type, mid, off, out);
             }
@@ -1128,13 +1165,13 @@ final class DTransformingPathConsumer2D {
 
         @Override
         public void moveTo(double x0, double y0) {
-            log("moveTo (" + x0 + ", " + y0 + ')');
+            log("p.moveTo(" + x0 + ", " + y0 + ");");
             out.moveTo(x0, y0);
         }
 
         @Override
         public void lineTo(double x1, double y1) {
-            log("lineTo (" + x1 + ", " + y1 + ')');
+            log("p.lineTo(" + x1 + ", " + y1 + ");");
             out.lineTo(x1, y1);
         }
 
@@ -1143,25 +1180,26 @@ final class DTransformingPathConsumer2D {
                             double x2, double y2,
                             double x3, double y3)
         {
-            log("curveTo P1(" + x1 + ", " + y1 + ") P2(" + x2 + ", " + y2  + ") P3(" + x3 + ", " + y3 + ')');
+            log("p.curveTo(" + x1 + ", " + y1 + ", " + x2 + ", " + y2  + ", " + x3 + ", " + y3 + ");");
             out.curveTo(x1, y1, x2, y2, x3, y3);
         }
 
         @Override
-        public void quadTo(double x1, double y1, double x2, double y2) {
-            log("quadTo P1(" + x1 + ", " + y1 + ") P2(" + x2 + ", " + y2  + ')');
+        public void quadTo(double x1, double y1,
+                           double x2, double y2) {
+            log("p.quadTo(" + x1 + ", " + y1 + ", " + x2 + ", " + y2  + ");");
             out.quadTo(x1, y1, x2, y2);
         }
 
         @Override
         public void closePath() {
-            log("closePath");
+            log("p.closePath();");
             out.closePath();
         }
 
         @Override
         public void pathDone() {
-            log("pathDone");
+            log("p.pathDone();");
             out.pathDone();
         }
 

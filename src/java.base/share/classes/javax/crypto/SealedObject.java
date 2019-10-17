@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 
 package javax.crypto;
 
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 import java.io.*;
 import java.security.AlgorithmParameters;
@@ -93,6 +93,7 @@ import java.security.NoSuchProviderException;
 
 public class SealedObject implements Serializable {
 
+    @java.io.Serial
     static final long serialVersionUID = 4482838265551344752L;
 
     /**
@@ -337,7 +338,7 @@ public class SealedObject implements Serializable {
         if (key == null) {
             throw new NullPointerException("key is null");
         }
-        if (provider == null || provider.length() == 0) {
+        if (provider == null || provider.isEmpty()) {
             throw new IllegalArgumentException("missing provider");
         }
 
@@ -423,6 +424,7 @@ public class SealedObject implements Serializable {
      * @param s the object input stream.
      * @exception NullPointerException if s is null.
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException
     {

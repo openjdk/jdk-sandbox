@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_CLASSLOADER_INLINE_HPP
-#define SHARE_VM_CLASSFILE_CLASSLOADER_INLINE_HPP
+#ifndef SHARE_CLASSFILE_CLASSLOADER_INLINE_HPP
+#define SHARE_CLASSFILE_CLASSLOADER_INLINE_HPP
 
 #include "classfile/classLoader.hpp"
 #include "runtime/orderAccess.hpp"
@@ -62,7 +62,7 @@ inline ClassPathEntry* ClassLoader::classpath_entry(int n) {
 // entries during shared classpath setup time.
 
 inline int ClassLoader::num_boot_classpath_entries() {
-  assert(DumpSharedSpaces, "Should only be called at CDS dump time");
+  Arguments::assert_is_dumping_archive();
   assert(has_jrt_entry(), "must have a java runtime image");
   int num_entries = 1; // count the runtime image
   ClassPathEntry* e = ClassLoader::_first_append_entry;
@@ -84,7 +84,7 @@ inline ClassPathEntry* ClassLoader::get_next_boot_classpath_entry(ClassPathEntry
 // Helper function used by CDS code to get the number of app classpath
 // entries during shared classpath setup time.
 inline int ClassLoader::num_app_classpath_entries() {
-  assert(DumpSharedSpaces, "Should only be called at CDS dump time");
+  Arguments::assert_is_dumping_archive();
   int num_entries = 0;
   ClassPathEntry* e= ClassLoader::_app_classpath_entries;
   while (e != NULL) {
@@ -96,4 +96,4 @@ inline int ClassLoader::num_app_classpath_entries() {
 
 #endif // INCLUDE_CDS
 
-#endif // SHARE_VM_CLASSFILE_CLASSLOADER_INLINE_HPP
+#endif // SHARE_CLASSFILE_CLASSLOADER_INLINE_HPP

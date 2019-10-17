@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,9 @@
 
 void BasicLock::print_on(outputStream* st) const {
   st->print("monitor");
-  markOop moop = displaced_header();
-  if (moop != NULL)
-    moop->print_on(st);
+  markWord mark_word = displaced_header();
+  if (mark_word.value() != 0)
+    mark_word.print_on(st);
 }
 
 void BasicLock::move_to(oop obj, BasicLock* dest) {
@@ -62,7 +62,7 @@ void BasicLock::move_to(oop obj, BasicLock* dest) {
   // is small (given the support for inflated fast-path locking in the fast_lock, etc)
   // we'll leave that optimization for another time.
 
-  if (displaced_header()->is_neutral()) {
+  if (displaced_header().is_neutral()) {
     ObjectSynchronizer::inflate_helper(obj);
     // WARNING: We can not put check here, because the inflation
     // will not update the displaced header. Once BasicLock is inflated,
@@ -74,7 +74,5 @@ void BasicLock::move_to(oop obj, BasicLock* dest) {
     // store-before-CAS avoidance in fast_lock/compiler_lock_object
     // we can find any flavor mark in the displaced mark.
   }
-// [RGV] The next line appears to do nothing!
-  intptr_t dh = (intptr_t) displaced_header();
   dest->set_displaced_header(displaced_header());
 }

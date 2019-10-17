@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 package org.graalvm.compiler.hotspot.stubs;
 
 import static java.util.Collections.singletonList;
-import static org.graalvm.compiler.core.GraalCompiler.emitBackEnd;
 import static org.graalvm.compiler.core.GraalCompiler.emitFrontEnd;
 import static org.graalvm.compiler.core.common.GraalOptions.GeneratePIC;
 import static org.graalvm.compiler.debug.DebugContext.DEFAULT_LOG_STREAM;
@@ -35,20 +34,6 @@ import static org.graalvm.util.CollectionsUtil.allMatch;
 
 import java.util.ListIterator;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import jdk.vm.ci.code.CodeCacheProvider;
-import jdk.vm.ci.code.InstalledCode;
-import jdk.vm.ci.code.Register;
-import jdk.vm.ci.code.RegisterConfig;
-import jdk.vm.ci.code.site.Call;
-import jdk.vm.ci.code.site.ConstantReference;
-import jdk.vm.ci.code.site.DataPatch;
-import jdk.vm.ci.code.site.Infopoint;
-import jdk.vm.ci.hotspot.HotSpotCompiledCode;
-import jdk.vm.ci.hotspot.HotSpotMetaspaceConstant;
-import jdk.vm.ci.meta.DefaultProfilingInfo;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
-import jdk.vm.ci.meta.TriState;
 
 import jdk.internal.vm.compiler.collections.EconomicSet;
 import org.graalvm.compiler.code.CompilationResult;
@@ -72,6 +57,20 @@ import org.graalvm.compiler.phases.OptimisticOptimizations;
 import org.graalvm.compiler.phases.PhaseSuite;
 import org.graalvm.compiler.phases.tiers.Suites;
 import org.graalvm.compiler.printer.GraalDebugHandlersFactory;
+
+import jdk.vm.ci.code.CodeCacheProvider;
+import jdk.vm.ci.code.InstalledCode;
+import jdk.vm.ci.code.Register;
+import jdk.vm.ci.code.RegisterConfig;
+import jdk.vm.ci.code.site.Call;
+import jdk.vm.ci.code.site.ConstantReference;
+import jdk.vm.ci.code.site.DataPatch;
+import jdk.vm.ci.code.site.Infopoint;
+import jdk.vm.ci.hotspot.HotSpotCompiledCode;
+import jdk.vm.ci.hotspot.HotSpotMetaspaceConstant;
+import jdk.vm.ci.meta.DefaultProfilingInfo;
+import jdk.vm.ci.meta.ResolvedJavaMethod;
+import jdk.vm.ci.meta.TriState;
 
 //JaCoCo Exclude
 
@@ -122,12 +121,8 @@ public abstract class Stub {
         return destroyedCallerRegisters;
     }
 
-    /**
-     * Determines if this stub preserves all registers apart from those it
-     * {@linkplain #getDestroyedCallerRegisters() destroys}.
-     */
-    public boolean preservesRegisters() {
-        return true;
+    public boolean shouldSaveRegistersAroundCalls() {
+        return linkage.getEffect() == HotSpotForeignCallLinkage.RegisterEffect.COMPUTES_REGISTERS_KILLED;
     }
 
     protected final OptionValues options;
@@ -184,7 +179,7 @@ public abstract class Stub {
             Description description = new Description(linkage, "Stub_" + nextStubId.incrementAndGet());
             return DebugContext.create(options, description, outer.getGlobalMetrics(), DEFAULT_LOG_STREAM, singletonList(new GraalDebugHandlersFactory(providers.getSnippetReflection())));
         }
-        return DebugContext.DISABLED;
+        return DebugContext.disabled(options);
     }
 
     /**
@@ -202,7 +197,7 @@ public abstract class Stub {
                         assert destroyedCallerRegisters != null;
                         // Add a GeneratePIC check here later, we don't want to install
                         // code if we don't have a corresponding VM global symbol.
-                        HotSpotCompiledCode compiledCode = HotSpotCompiledCodeBuilder.createCompiledCode(codeCache, null, null, compResult);
+                        HotSpotCompiledCode compiledCode = HotSpotCompiledCodeBuilder.createCompiledCode(codeCache, null, null, compResult, options);
                         code = codeCache.installCode(null, compiledCode, null, null, false);
                     } catch (Throwable e) {
                         throw debug.handle(e);
@@ -236,7 +231,7 @@ public abstract class Stub {
             Suites suites = createSuites();
             emitFrontEnd(providers, backend, graph, providers.getSuites().getDefaultGraphBuilderSuite(), OptimisticOptimizations.ALL, DefaultProfilingInfo.get(TriState.UNKNOWN), suites);
             LIRSuites lirSuites = createLIRSuites();
-            emitBackEnd(graph, Stub.this, getInstalledCodeOwner(), backend, compResult, CompilationResultBuilderFactory.Default, getRegisterConfig(), lirSuites);
+            backend.emitBackEnd(graph, Stub.this, getInstalledCodeOwner(), compResult, CompilationResultBuilderFactory.Default, getRegisterConfig(), lirSuites);
             assert checkStubInvariants(compResult);
         } catch (Throwable e) {
             throw debug.handle(e);

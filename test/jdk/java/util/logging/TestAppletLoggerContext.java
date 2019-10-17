@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
 import java.util.logging.LoggingPermission;
-import jdk.internal.misc.JavaAWTAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaAWTAccess;
+import jdk.internal.access.SharedSecrets;
 
 /*
  * @test
@@ -42,7 +42,7 @@ import jdk.internal.misc.SharedSecrets;
  * @summary  NPE when using Logger.getAnonymousLogger or
  *           LogManager.getLogManager().getLogger
  *
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  *          java.logging
  * @run main/othervm -Dtest.security=off TestAppletLoggerContext LoadingApplet
  * @run main/othervm -Dtest.security=on TestAppletLoggerContext  LoadingApplet
@@ -72,6 +72,9 @@ public class TestAppletLoggerContext {
 
     // Avoids the hassle of dealing with files and system props...
     static class SimplePolicy extends Policy {
+
+        static final Policy DEFAULT_POLICY = Policy.getPolicy();
+
         private final Permissions perms;
         public SimplePolicy(Permission... permissions) {
             perms = new Permissions();
@@ -89,7 +92,7 @@ public class TestAppletLoggerContext {
         }
         @Override
         public boolean implies(ProtectionDomain pd, Permission p) {
-           return perms.implies(p);
+           return perms.implies(p) || DEFAULT_POLICY.implies(pd, p);
         }
     }
 

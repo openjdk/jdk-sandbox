@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_MEMORYMANAGER_HPP
-#define SHARE_VM_SERVICES_MEMORYMANAGER_HPP
+#ifndef SHARE_SERVICES_MEMORYMANAGER_HPP
+#define SHARE_SERVICES_MEMORYMANAGER_HPP
 
 #include "gc/shared/gcCause.hpp"
 #include "memory/allocation.hpp"
@@ -70,7 +70,7 @@ public:
 
   int add_pool(MemoryPool* pool);
 
-  bool is_manager(instanceHandle mh)     { return oopDesc::equals(mh(), _memory_mgr_obj); }
+  bool is_manager(instanceHandle mh)     { return mh() == _memory_mgr_obj; }
 
   virtual instanceOop get_memory_manager_instance(TRAPS);
   virtual bool is_gc_memory_manager()    { return false; }
@@ -182,4 +182,4 @@ public:
   bool is_notification_enabled() { return _notification_enabled; }
 };
 
-#endif // SHARE_VM_SERVICES_MEMORYMANAGER_HPP
+#endif // SHARE_SERVICES_MEMORYMANAGER_HPP

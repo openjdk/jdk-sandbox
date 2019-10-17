@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,15 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_MEMORY_METASPACE_HPP
-#define SHARE_VM_MEMORY_METASPACE_HPP
+#ifndef SHARE_MEMORY_METASPACE_HPP
+#define SHARE_MEMORY_METASPACE_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "memory/metaspaceChunkFreeListSummary.hpp"
 #include "memory/virtualspace.hpp"
+#include "memory/metaspace/metaspaceSizesSnapshot.hpp"
+#include "runtime/globals.hpp"
 #include "utilities/exceptions.hpp"
 
 // Metaspace
@@ -57,7 +59,6 @@
 
 class ClassLoaderData;
 class MetaspaceTracer;
-class MetaWord;
 class Mutex;
 class outputStream;
 
@@ -71,6 +72,7 @@ namespace metaspace {
   class PrintCLDMetaspaceInfoClosure;
   class SpaceManager;
   class VirtualSpaceList;
+  class VirtualSpaceNode;
 }
 
 // Metaspaces each have a  SpaceManager and allocations
@@ -138,6 +140,8 @@ class Metaspace : public AllStatic {
   static metaspace::ChunkManager* _chunk_manager_class;
 
   static const MetaspaceTracer* _tracer;
+
+  static bool _initialized;
 
  public:
   static metaspace::VirtualSpaceList* space_list()       { return _space_list; }
@@ -224,12 +228,15 @@ class Metaspace : public AllStatic {
     return mdType == ClassType && using_class_space();
   }
 
+  static bool initialized() { return _initialized; }
+
 };
 
 // Manages the metaspace portion belonging to a class loader
 class ClassLoaderMetaspace : public CHeapObj<mtClass> {
   friend class CollectedHeap; // For expand_and_allocate()
   friend class ZCollectedHeap; // For expand_and_allocate()
+  friend class ShenandoahHeap; // For expand_and_allocate()
   friend class Metaspace;
   friend class MetaspaceUtils;
   friend class metaspace::PrintCLDMetaspaceInfoClosure;
@@ -296,6 +303,10 @@ class MetaspaceUtils : AllStatic {
 
   // Spacemanager updates running counters.
   friend class metaspace::SpaceManager;
+
+  // Special access for error reporting (checks without locks).
+  friend class oopDesc;
+  friend class Klass;
 
   // Running counters for statistics concerning in-use chunks.
   // Note: capacity = used + free + waste + overhead. Note that we do not
@@ -375,9 +386,6 @@ public:
   }
 
   static size_t min_chunk_size_words();
-  static size_t min_chunk_size_bytes() {
-    return min_chunk_size_words() * BytesPerWord;
-  }
 
   // Flags for print_report().
   enum ReportFlag {
@@ -408,8 +416,8 @@ public:
   static bool has_chunk_free_list(Metaspace::MetadataType mdtype);
   static MetaspaceChunkFreeListSummary chunk_free_list_summary(Metaspace::MetadataType mdtype);
 
-  // Print change in used metadata.
-  static void print_metaspace_change(size_t prev_metadata_used);
+  // Log change in used metadata.
+  static void print_metaspace_change(const metaspace::MetaspaceSizesSnapshot& pre_meta_values);
   static void print_on(outputStream * out);
 
   // Prints an ASCII representation of the given space.
@@ -449,7 +457,8 @@ class MetaspaceGC : AllStatic {
   static size_t capacity_until_GC();
   static bool inc_capacity_until_GC(size_t v,
                                     size_t* new_cap_until_GC = NULL,
-                                    size_t* old_cap_until_GC = NULL);
+                                    size_t* old_cap_until_GC = NULL,
+                                    bool* can_retry = NULL);
   static size_t dec_capacity_until_GC(size_t v);
 
   static bool should_concurrent_collect() { return _should_concurrent_collect; }
@@ -472,4 +481,4 @@ class MetaspaceGC : AllStatic {
   static void compute_new_size();
 };
 
-#endif // SHARE_VM_MEMORY_METASPACE_HPP
+#endif // SHARE_MEMORY_METASPACE_HPP

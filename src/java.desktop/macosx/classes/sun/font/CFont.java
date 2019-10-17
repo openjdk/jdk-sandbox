@@ -28,7 +28,7 @@ package sun.font;
 import java.awt.Font;
 import java.awt.font.FontRenderContext;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -78,16 +78,9 @@ public final class CFont extends PhysicalFont implements FontSubstitution {
     }
 
     @Override
-    protected long getLayoutTableCache() {
-        return getLayoutTableCacheNative(getNativeFontPtr());
-    }
-
-    @Override
     protected byte[] getTableBytes(int tag) {
         return getTableBytesNative(getNativeFontPtr(), tag);
     }
-
-    private native synchronized long getLayoutTableCacheNative(long nativeFontPtr);
 
     private native byte[] getTableBytesNative(long nativeFontPtr, int tag);
 

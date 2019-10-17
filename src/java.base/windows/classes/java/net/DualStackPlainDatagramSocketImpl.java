@@ -25,8 +25,8 @@
 package java.net;
 
 import java.io.IOException;
-import jdk.internal.misc.SharedSecrets;
-import jdk.internal.misc.JavaIOFileDescriptorAccess;
+import jdk.internal.access.SharedSecrets;
+import jdk.internal.access.JavaIOFileDescriptorAccess;
 
 /**
  * This class defines the plain DatagramSocketImpl that is used on
@@ -124,7 +124,7 @@ class DualStackPlainDatagramSocketImpl extends AbstractPlainDatagramSocketImpl
         socketReceiveOrPeekData(nativefd, p, timeout, connected, false /*receive*/);
     }
 
-    protected void send(DatagramPacket p) throws IOException {
+    protected void send0(DatagramPacket p) throws IOException {
         int nativefd = checkAndReturnNativeFD();
 
         if (p == null)

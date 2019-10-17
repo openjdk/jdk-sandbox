@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,15 +22,15 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ALLOCATOR_HPP
-#define SHARE_VM_GC_G1_G1ALLOCATOR_HPP
+#ifndef SHARE_GC_G1_G1ALLOCATOR_HPP
+#define SHARE_GC_G1_G1ALLOCATOR_HPP
 
 #include "gc/g1/g1AllocRegion.hpp"
-#include "gc/g1/g1InCSetState.hpp"
+#include "gc/g1/g1HeapRegionAttr.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/plab.hpp"
 
-class EvacuationInfo;
+class G1EvacuationInfo;
 
 // Interface to keep track of which regions G1 is currently allocating into. Provides
 // some accessors (e.g. allocating into them, or getting their occupancy).
@@ -63,7 +63,7 @@ private:
   void set_survivor_full();
   void set_old_full();
 
-  void reuse_retained_old_region(EvacuationInfo& evacuation_info,
+  void reuse_retained_old_region(G1EvacuationInfo& evacuation_info,
                                  OldGCAllocRegion* old,
                                  HeapRegion** retained);
 
@@ -92,8 +92,8 @@ public:
   void init_mutator_alloc_region();
   void release_mutator_alloc_region();
 
-  void init_gc_alloc_regions(EvacuationInfo& evacuation_info);
-  void release_gc_alloc_regions(EvacuationInfo& evacuation_info);
+  void init_gc_alloc_regions(G1EvacuationInfo& evacuation_info);
+  void release_gc_alloc_regions(G1EvacuationInfo& evacuation_info);
   void abandon_gc_alloc_regions();
   bool is_retained_old_region(HeapRegion* hr);
 
@@ -112,10 +112,10 @@ public:
   // allocation region, either by picking one or expanding the
   // heap, and then allocate a block of the given size. The block
   // may not be a humongous - it must fit into a single heap region.
-  HeapWord* par_allocate_during_gc(InCSetState dest,
+  HeapWord* par_allocate_during_gc(G1HeapRegionAttr dest,
                                    size_t word_size);
 
-  HeapWord* par_allocate_during_gc(InCSetState dest,
+  HeapWord* par_allocate_during_gc(G1HeapRegionAttr dest,
                                    size_t min_word_size,
                                    size_t desired_word_size,
                                    size_t* actual_word_size);
@@ -132,7 +132,7 @@ private:
 
   PLAB  _surviving_alloc_buffer;
   PLAB  _tenured_alloc_buffer;
-  PLAB* _alloc_buffers[InCSetState::Num];
+  PLAB* _alloc_buffers[G1HeapRegionAttr::Num];
 
   // The survivor alignment in effect in bytes.
   // == 0 : don't align survivors
@@ -142,10 +142,10 @@ private:
   const uint _survivor_alignment_bytes;
 
   // Number of words allocated directly (not counting PLAB allocation).
-  size_t _direct_allocated[InCSetState::Num];
+  size_t _direct_allocated[G1HeapRegionAttr::Num];
 
   void flush_and_retire_stats();
-  inline PLAB* alloc_buffer(InCSetState dest);
+  inline PLAB* alloc_buffer(G1HeapRegionAttr dest);
 
   // Calculate the survivor space object alignment in bytes. Returns that or 0 if
   // there are no restrictions on survivor alignment.
@@ -155,26 +155,27 @@ private:
 public:
   G1PLABAllocator(G1Allocator* allocator);
 
-  void waste(size_t& wasted, size_t& undo_wasted);
+  size_t waste() const;
+  size_t undo_waste() const;
 
   // Allocate word_sz words in dest, either directly into the regions or by
   // allocating a new PLAB. Returns the address of the allocated memory, NULL if
   // not successful. Plab_refill_failed indicates whether an attempt to refill the
   // PLAB failed or not.
-  HeapWord* allocate_direct_or_new_plab(InCSetState dest,
+  HeapWord* allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                         size_t word_sz,
                                         bool* plab_refill_failed);
 
   // Allocate word_sz words in the PLAB of dest.  Returns the address of the
   // allocated memory, NULL if not successful.
-  inline HeapWord* plab_allocate(InCSetState dest,
+  inline HeapWord* plab_allocate(G1HeapRegionAttr dest,
                                  size_t word_sz);
 
-  inline HeapWord* allocate(InCSetState dest,
+  inline HeapWord* allocate(G1HeapRegionAttr dest,
                             size_t word_sz,
                             bool* refill_failed);
 
-  void undo_allocation(InCSetState dest, HeapWord* obj, size_t word_sz);
+  void undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz);
 };
 
 // G1ArchiveRegionMap is a boolean array used to mark G1 regions as
@@ -262,15 +263,16 @@ public:
   // Create the _archive_region_map which is used to identify archive objects.
   static inline void enable_archive_object_check();
 
-  // Set the regions containing the specified address range as archive/non-archive.
+  // Mark regions containing the specified address range as archive/non-archive.
   static inline void set_range_archive(MemRegion range, bool open);
+  static inline void clear_range_archive(MemRegion range, bool open);
 
   // Check if the object is in closed archive
   static inline bool is_closed_archive_object(oop object);
   // Check if the object is in open archive
   static inline bool is_open_archive_object(oop object);
   // Check if the object is either in closed archive or open archive
-  static inline bool is_archive_object(oop object);
+  static inline bool is_archived_object(oop object);
 
 private:
   static bool _archive_check_enabled;
@@ -287,4 +289,4 @@ private:
   static inline bool archive_check_enabled();
 };
 
-#endif // SHARE_VM_GC_G1_G1ALLOCATOR_HPP
+#endif // SHARE_GC_G1_G1ALLOCATOR_HPP

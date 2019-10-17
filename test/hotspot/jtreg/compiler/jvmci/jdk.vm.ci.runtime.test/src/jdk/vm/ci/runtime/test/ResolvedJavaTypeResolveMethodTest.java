@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @requires vm.jvmci
  * @modules jdk.internal.vm.ci/jdk.vm.ci.meta
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
- * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Djvmci.Compiler=null jdk.vm.ci.runtime.test.ResolvedJavaTypeResolveMethodTest
+ * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:-UseJVMCICompiler jdk.vm.ci.runtime.test.ResolvedJavaTypeResolveMethodTest
  */
 
 package jdk.vm.ci.runtime.test;
@@ -166,6 +166,26 @@ public class ResolvedJavaTypeResolveMethodTest {
         assertEquals(v2b, c.resolveMethod(v2a, c));
         assertEquals(v2b, c.resolveMethod(v2b, c));
 
+    }
+
+    static class ClassType {
+    }
+
+    interface InterfaceType {
+    }
+
+    @Test
+    public void testCloneAccessibility() {
+        /*
+         * The resolution machinery for clone on arrays has some hacks in that show up in odd places
+         * so make sure that resolveMethod works as expected.
+         */
+        ResolvedJavaType interfaceType = getType(InterfaceType.class);
+        ResolvedJavaType classType = getType(ClassType.class);
+        ResolvedJavaType arrayType = getType(double[].class);
+        ResolvedJavaMethod cloneMethod = getMethod(getType(Object.class), "clone");
+        assertEquals("Can't resolve clone for class", cloneMethod, arrayType.resolveMethod(cloneMethod, classType));
+        assertEquals("Can't resolve clone for interface", cloneMethod, arrayType.resolveMethod(cloneMethod, interfaceType));
     }
 
     static ResolvedJavaMethod getMethod(ResolvedJavaType type, String methodName) {

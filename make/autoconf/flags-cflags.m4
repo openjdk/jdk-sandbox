@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -121,7 +121,7 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
     # -g0 enables debug symbols without disabling inlining.
     CFLAGS_DEBUG_SYMBOLS="-g0 -xs"
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    CFLAGS_DEBUG_SYMBOLS="-g"
+    CFLAGS_DEBUG_SYMBOLS="-g1"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     CFLAGS_DEBUG_SYMBOLS="-Z7 -d2Zi+"
   fi
@@ -179,6 +179,7 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
 # make sure we get this one:     WARNING_CFLAGS_JVM="-wd4800" (-Wreorder)
       #was: $RETRY_W4_HOTSPOT $RETRY_W4_JDK 4061 4242 4255 4265 4365 4456 4459 4514 4619 4623 4625 4626 4668 4710 4820 5026 5027 5038 5039 4596 4571 4577 4605 4774"
       ;;
+
     solstudio)
       DISABLE_WARNING_PREFIX="-erroff="
       CFLAGS_WARNINGS_ARE_ERRORS="-errwarn=%all"
@@ -191,10 +192,10 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       DISABLED_WARNINGS_CXX="inllargeuse inllargeint notused wemptydecl notemsource"
       # helpful quality checks, should not be disabled: inllargeuse inllargeint
       ;;
+
     gcc)
       DISABLE_WARNING_PREFIX="-Wno-"
       CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
-
       # -Wall -Wextra does not enable all warnings. We add some more that we
       # consider relevant:
       WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wundef -Wlogical-op -Winit-self -Wpacked -Wdisabled-optimization -Wtrampolines"
@@ -220,13 +221,32 @@ AC_DEFUN([FLAGS_SETUP_WARNINGS],
       CXX="$CXX_OLD"
       CFLAGS="$CFLAGS_OLD"
       ;;
+
     clang)
       DISABLE_WARNING_PREFIX="-Wno-"
       CFLAGS_WARNINGS_ARE_ERRORS="-Werror"
+
+      # Additional warnings that are not activated by -Wall and -Wextra
+      WARNINGS_ENABLE_ADDITIONAL="-Wpointer-arith -Wsign-compare -Wreorder \
+          -Wunused-function -Wundef -Wunused-value -Woverloaded-virtual"
+      WARNINGS_ENABLE_ALL="-Wall -Wextra -Wformat=2 $WARNINGS_ENABLE_ADDITIONAL"
+
+      DISABLED_WARNINGS="unknown-warning-option unused-parameter unused"
+
+      if test "x$OPENJDK_TARGET_OS" = xmacosx; then
+        # missing-method-return-type triggers in JavaNativeFoundation framework
+        DISABLED_WARNINGS="$DISABLED_WARNINGS missing-method-return-type"
+      fi
+
       ;;
+
     xlc)
-      DISABLE_WARNING_PREFIX="-qsuppress="
+      DISABLE_WARNING_PREFIX="-Wno-"
       CFLAGS_WARNINGS_ARE_ERRORS="-qhalt=w"
+
+      # Possibly a better subset than "all" is "lan:trx:ret:zea:cmp:ret"
+      WARNINGS_ENABLE_ALL="-qinfo=all -qformat=all"
+      DISABLED_WARNINGS=""
       ;;
   esac
   AC_SUBST(DISABLE_WARNING_PREFIX)
@@ -293,6 +313,20 @@ AC_DEFUN([FLAGS_SETUP_OPTIMIZATION],
     C_O_FLAG_DEBUG="-O0"
     C_O_FLAG_DEBUG_JVM="-O0"
     C_O_FLAG_NONE="-O0"
+    # -D_FORTIFY_SOURCE=2 hardening option needs optimization (at least -O1) enabled
+    # set for lower O-levels -U_FORTIFY_SOURCE to overwrite previous settings
+    if test "x$OPENJDK_TARGET_OS" = xlinux -a "x$DEBUG_LEVEL" = "xfastdebug"; then
+      ENABLE_FORTIFY_CFLAGS="-D_FORTIFY_SOURCE=2"
+      DISABLE_FORTIFY_CFLAGS="-U_FORTIFY_SOURCE"
+      C_O_FLAG_HIGHEST_JVM="${C_O_FLAG_HIGHEST_JVM} ${ENABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_HIGHEST="${C_O_FLAG_HIGHEST} ${ENABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_HI="${C_O_FLAG_HI} ${ENABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_NORM="${C_O_FLAG_NORM} ${ENABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_SIZE="${C_O_FLAG_SIZE} ${DISABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_DEBUG="${C_O_FLAG_DEBUG} ${DISABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_DEBUG_JVM="${C_O_FLAG_DEBUG_JVM} ${DISABLE_FORTIFY_CFLAGS}"
+      C_O_FLAG_NONE="${C_O_FLAG_NONE} ${DISABLE_FORTIFY_CFLAGS}"
+    fi
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     if test "x$OPENJDK_TARGET_OS" = xmacosx; then
       # On MacOSX we optimize for size, something
@@ -412,21 +446,7 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS],
   FLAGS_CPU_LEGACY=$OPENJDK_BUILD_CPU_LEGACY
   FLAGS_CPU_LEGACY_LIB=$OPENJDK_BUILD_CPU_LEGACY_LIB
 
-  FLAGS_SETUP_CFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_])
-
-  COMPILER_FP_CONTRACT_OFF_FLAG="-ffp-contract=off"
-  # Check that the compiler supports -ffp-contract=off flag
-  # Set FDLIBM_CFLAGS to -ffp-contract=off if it does. Empty
-  # otherwise.
-  # These flags are required for GCC-based builds of
-  # fdlibm with optimization without losing precision.
-  # Notably, -ffp-contract=off needs to be added for GCC >= 4.6.
-  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${COMPILER_FP_CONTRACT_OFF_FLAG}],
-	IF_TRUE: [FDLIBM_CFLAGS=${COMPILER_FP_CONTRACT_OFF_FLAG}],
-	IF_FALSE: [FDLIBM_CFLAGS=""])
-  fi
-  AC_SUBST(FDLIBM_CFLAGS)
+  FLAGS_SETUP_CFLAGS_CPU_DEP([BUILD], [OPENJDK_BUILD_], [BUILD_])
 ])
 
 ################################################################################
@@ -524,17 +544,11 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   fi
 
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -fcheck-new"
-    TOOLCHAIN_CFLAGS_JDK="-pipe"
-    TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX (but since this gives *worse* performance, use no-strict-aliasing everywhere!)
-
-    CXXSTD_CXXFLAG="-std=gnu++98"
-    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$CXXSTD_CXXFLAG -Werror],
-    						 IF_FALSE: [CXXSTD_CXXFLAG=""])
-    TOOLCHAIN_CFLAGS_JDK_CXXONLY="$CXXSTD_CXXFLAG"
-    TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM $CXXSTD_CXXFLAG"
-    ADLC_CXXFLAG="$CXXSTD_CXXFLAG"
-
+    TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -fcheck-new -fstack-protector"
+    TOOLCHAIN_CFLAGS_JDK="-pipe -fstack-protector"
+    # technically NOT for CXX (but since this gives *worse* performance, use
+    # no-strict-aliasing everywhere!)
+    TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing"
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     # Restrict the debug information created by Clang to avoid
@@ -549,6 +563,12 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mno-omit-leaf-frame-pointer -mstack-alignment=16"
 
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$DEBUG_LEVEL" = xrelease; then
+        # Clang does not inline as much as GCC does for functions with "inline" keyword by default.
+        # This causes noticeable slowdown in pause time for G1, and possibly in other areas.
+        # Increasing the inline hint threshold avoids the slowdown for Clang-built JVM.
+        TOOLCHAIN_CFLAGS_JVM="$TOOLCHAIN_CFLAGS_JVM -mllvm -inlinehint-threshold=100000"
+      fi
       TOOLCHAIN_CFLAGS_JDK="-pipe"
       TOOLCHAIN_CFLAGS_JDK_CONLY="-fno-strict-aliasing" # technically NOT for CXX
     fi
@@ -568,21 +588,45 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    TOOLCHAIN_CFLAGS_JDK="-qchars=signed -qfullpath -qsaveopt"  # add on both CFLAGS
-    TOOLCHAIN_CFLAGS_JVM="-qtune=balanced \
-        -qalias=noansi -qstrict -qtls=default -qlanglvl=c99vla \
-        -qlanglvl=noredefmac -qnortti -qnoeh -qignerrno"
+    # Suggested additions: -qsrcmsg to get improved error reporting
+    # set -qtbtable=full for a better traceback table/better stacks in hs_err when xlc16 is used
+    TOOLCHAIN_CFLAGS_JDK="-qtbtable=full -qchars=signed -qfullpath -qsaveopt -qstackprotect"  # add on both CFLAGS
+    TOOLCHAIN_CFLAGS_JVM="-qtbtable=full -qtune=balanced \
+        -qalias=noansi -qstrict -qtls=default -qnortti -qnoeh -qignerrno -qstackprotect"
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     TOOLCHAIN_CFLAGS_JVM="-nologo -MD -MP"
     TOOLCHAIN_CFLAGS_JDK="-nologo -MD -Zc:wchar_t-"
   fi
+
+  # CFLAGS C language level for JDK sources (hotspot only uses C++)
+  # Ideally we would have a common level across all toolchains so that all sources
+  # are sure to conform to the same standard. Unfortunately neither our sources nor
+  # our toolchains are in a condition to support that. But what we loosely aim for is
+  # C99 level.
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang || test "x$TOOLCHAIN_TYPE" = xxlc; then
+    # This raises the language level for older 4.8 gcc, while lowering it for later
+    # versions. clang and xlclang support the same flag.
+    LANGSTD_CFLAGS="-std=c99"
+  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    # We can't turn on -std=c99 without breaking compilation of the splashscreen/png
+    # utilities. But we can enable c99 as below (previously achieved by using -Xa).
+    # It is the no_lib that makes the difference.
+    LANGSTD_CFLAGS="-xc99=all,no_lib"
+  elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
+    # MSVC doesn't support C99/C11 explicitly, unless you compile as C++:
+    # LANGSTD_CFLAGS="/TP"
+    # but that requires numerous changes to the sources files. So we are limited
+    # to C89/C90 plus whatever extensions Visual Studio has decided to implement.
+    # This is the lowest bar for shared code.
+    LANGSTD_CFLAGS=""
+  fi
+  TOOLCHAIN_CFLAGS_JDK_CONLY="$LANGSTD_CFLAGS $TOOLCHAIN_CFLAGS_JDK_CONLY"
 
   # CFLAGS WARNINGS STUFF
   # Set JVM_CFLAGS warning handling
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
 #    JDK_DISABLED="-Wno-pointer-arith -Wno-undef -Wno-unused-function -Wno-unused-value -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable -Wno-unused-label"
 #    JVM_DISABLED="-Wno-unknown-pragmas -Wno-comment -Wno-delete-non-virtual-dtor -Wno-ignored-qualifiers -Wno-parentheses -Wno-reorder -Wno-unused-local-typedefs -Wno-unused-parameter -Wno-unused-variable -Wno-address -Wno-missing-field-initializers -Wno-unused-but-set-variable -Wno-char-subscripts -Wno-array-bounds -Wno-narrowing -Wno-empty-body -Wno-unused-but-set-parameter"
-
     WARNING_CFLAGS_JDK="$WARNINGS_ENABLE_ALL $JDK_DISABLED"
     WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
     WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
@@ -598,10 +642,14 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
     WARNING_CFLAGS_JDK_CONLY="$WARNINGS_ENABLE_ALL_CFLAGS"
     WARNING_CFLAGS_JDK_CXXONLY="$WARNINGS_ENABLE_ALL_CXXFLAGS"
     WARNING_CFLAGS_JVM="$WARNINGS_ENABLE_ALL_CXXFLAGS"
+
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then
     WARNING_CFLAGS="$WARNINGS_ENABLE_ALL"
     #WARNING_CFLAGS="-W3"
     #WARNING_CFLAGS_JDK="-wd4800"
+
+  elif test "x$TOOLCHAIN_TYPE" = xxlc; then
+    WARNING_CFLAGS=""  # currently left empty
   fi
 
   # Set some additional per-OS defines.
@@ -671,15 +719,13 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
       OS_CFLAGS_JVM="$OS_CFLAGS_JVM -DNEEDS_LIBRT"
     fi
   fi
-
-  # EXPORT
-  AC_SUBST(ADLC_CXXFLAG)
 ])
 
 ################################################################################
 # $1 - Either BUILD or TARGET to pick the correct OS/CPU variables to check
 #      conditionals against.
 # $2 - Optional prefix for each variable defined.
+# $3 - Optional prefix for compiler variables (either BUILD_ or nothing).
 AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
 [
   #### CPU DEFINES, these should (in theory) be independent on toolchain
@@ -749,10 +795,6 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
       # -Wno-psabi to get rid of annoying "note: the mangling of 'va_list' has changed in GCC 4.4"
       $1_CFLAGS_CPU="-fsigned-char -Wno-psabi $ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS -DJDK_ARCH_ABI_PROP_NAME='\"\$(JDK_ARCH_ABI_PROP_NAME)\"'"
       $1_CFLAGS_CPU_JVM="-DARM"
-    elif test "x$FLAGS_CPU" = xaarch64; then
-      if test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
-        $1_CFLAGS_CPU_JVM="-fsigned-char -DARM"
-      fi
     elif test "x$FLAGS_CPU_ARCH" = xppc; then
       $1_CFLAGS_CPU_JVM="-minsert-sched-nops=regroup_exact -mno-multiple -mno-string"
       if test "x$FLAGS_CPU" = xppc64; then
@@ -772,6 +814,13 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
       # for all archs except arm and ppc, prevent gcc to omit frame pointer
       $1_CFLAGS_CPU_JDK="${$1_CFLAGS_CPU_JDK} -fno-omit-frame-pointer"
     fi
+
+    $1_CXXSTD_CXXFLAG="-std=gnu++98"
+    FLAGS_CXX_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${$1_CXXSTD_CXXFLAG} -Werror],
+        PREFIX: $3, IF_FALSE: [$1_CXXSTD_CXXFLAG=""])
+    $1_TOOLCHAIN_CFLAGS_JDK_CXXONLY="${$1_CXXSTD_CXXFLAG}"
+    $1_TOOLCHAIN_CFLAGS_JVM="${$1_TOOLCHAIN_CFLAGS_JVM} ${$1_CXXSTD_CXXFLAG}"
+    $2ADLC_CXXFLAG="${$1_CXXSTD_CXXFLAG}"
 
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     if test "x$FLAGS_OS" = xlinux; then
@@ -809,20 +858,35 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   fi
 
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    TOOLCHAIN_CHECK_COMPILER_VERSION(VERSION: 6, PREFIX: $2, IF_AT_LEAST: FLAGS_SETUP_GCC6_COMPILER_FLAGS($1))
+    FLAGS_SETUP_GCC6_COMPILER_FLAGS($1, $3)
     $1_TOOLCHAIN_CFLAGS="${$1_GCC6_CFLAGS}"
 
     $1_WARNING_CFLAGS_JVM="-Wno-format-zero-length -Wtype-limits -Wuninitialized"
   fi
 
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    # Check if compiler supports -fmacro-prefix-map. If so, use that to make
+    # the __FILE__ macro resolve to paths relative to the workspace root.
+    workspace_root_trailing_slash="${WORKSPACE_ROOT%/}/"
+    FILE_MACRO_CFLAGS="-fmacro-prefix-map=${workspace_root_trailing_slash}="
+    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${FILE_MACRO_CFLAGS}],
+        PREFIX: $3,
+        IF_FALSE: [
+            FILE_MACRO_CFLAGS=
+        ]
+    )
+  fi
+
   # EXPORT to API
-  CFLAGS_JVM_COMMON="$ALWAYS_CFLAGS_JVM $ALWAYS_DEFINES_JVM $TOOLCHAIN_CFLAGS_JVM \
+  CFLAGS_JVM_COMMON="$ALWAYS_CFLAGS_JVM $ALWAYS_DEFINES_JVM \
+      $TOOLCHAIN_CFLAGS_JVM ${$1_TOOLCHAIN_CFLAGS_JVM} \
       $OS_CFLAGS $OS_CFLAGS_JVM $CFLAGS_OS_DEF_JVM $DEBUG_CFLAGS_JVM \
-      $WARNING_CFLAGS $WARNING_CFLAGS_JVM $JVM_PICFLAG"
+      $WARNING_CFLAGS $WARNING_CFLAGS_JVM $JVM_PICFLAG $FILE_MACRO_CFLAGS"
 
   CFLAGS_JDK_COMMON="$ALWAYS_CFLAGS_JDK $ALWAYS_DEFINES_JDK $TOOLCHAIN_CFLAGS_JDK \
       $OS_CFLAGS $CFLAGS_OS_DEF_JDK $DEBUG_CFLAGS_JDK $DEBUG_OPTIONS_FLAGS_JDK \
-      $WARNING_CFLAGS $WARNING_CFLAGS_JDK $DEBUG_SYMBOLS_CFLAGS_JDK"
+      $WARNING_CFLAGS $WARNING_CFLAGS_JDK $DEBUG_SYMBOLS_CFLAGS_JDK \
+      $FILE_MACRO_CFLAGS"
 
   # Use ${$2EXTRA_CFLAGS} to block EXTRA_CFLAGS to be added to build flags.
   # (Currently we don't have any OPENJDK_BUILD_EXTRA_CFLAGS, but that might
@@ -830,7 +894,9 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
 
   CFLAGS_JDK_COMMON_CONLY="$TOOLCHAIN_CFLAGS_JDK_CONLY  \
       $WARNING_CFLAGS_JDK_CONLY ${$2EXTRA_CFLAGS}"
-  CFLAGS_JDK_COMMON_CXXONLY="$ALWAYS_DEFINES_JDK_CXXONLY $TOOLCHAIN_CFLAGS_JDK_CXXONLY \
+  CFLAGS_JDK_COMMON_CXXONLY="$ALWAYS_DEFINES_JDK_CXXONLY \
+      $TOOLCHAIN_CFLAGS_JDK_CXXONLY \
+      ${$1_TOOLCHAIN_CFLAGS_JDK_CXXONLY} \
       $WARNING_CFLAGS_JDK_CXXONLY ${$2EXTRA_CXXFLAGS}"
 
   $1_CFLAGS_JVM="${$1_DEFINES_CPU_JVM} ${$1_CFLAGS_CPU} ${$1_CFLAGS_CPU_JVM} ${$1_TOOLCHAIN_CFLAGS} ${$1_WARNING_CFLAGS_JVM}"
@@ -848,11 +914,28 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_CPU_DEP],
   AC_SUBST($2CFLAGS_JDKEXE)
   AC_SUBST($2CXXFLAGS_JDKLIB)
   AC_SUBST($2CXXFLAGS_JDKEXE)
+  AC_SUBST($2ADLC_CXXFLAG)
+
+  COMPILER_FP_CONTRACT_OFF_FLAG="-ffp-contract=off"
+  # Check that the compiler supports -ffp-contract=off flag
+  # Set FDLIBM_CFLAGS to -ffp-contract=off if it does. Empty
+  # otherwise.
+  # These flags are required for GCC-based builds of
+  # fdlibm with optimization without losing precision.
+  # Notably, -ffp-contract=off needs to be added for GCC >= 4.6.
+  if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
+    FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [${COMPILER_FP_CONTRACT_OFF_FLAG}],
+        PREFIX: $3,
+        IF_TRUE: [$2FDLIBM_CFLAGS=${COMPILER_FP_CONTRACT_OFF_FLAG}],
+        IF_FALSE: [$2FDLIBM_CFLAGS=""])
+  fi
+  AC_SUBST($2FDLIBM_CFLAGS)
 ])
 
 # FLAGS_SETUP_GCC6_COMPILER_FLAGS([PREFIX])
 # Arguments:
 # $1 - Prefix for each variable defined.
+# $2 - Prefix for compiler variables (either BUILD_ or nothing).
 AC_DEFUN([FLAGS_SETUP_GCC6_COMPILER_FLAGS],
 [
   # These flags are required for GCC 6 builds as undefined behaviour in OpenJDK code
@@ -860,14 +943,11 @@ AC_DEFUN([FLAGS_SETUP_GCC6_COMPILER_FLAGS],
   # Notably, value range propagation now assumes that the this pointer of C++
   # member functions is non-null.
   NO_DELETE_NULL_POINTER_CHECKS_CFLAG="-fno-delete-null-pointer-checks"
-  dnl Argument check is disabled until FLAGS_COMPILER_CHECK_ARGUMENTS handles cross-compilation
-  dnl FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_DELETE_NULL_POINTER_CHECKS_CFLAG -Werror],
-  dnl					     IF_FALSE: [NO_DELETE_NULL_POINTER_CHECKS_CFLAG=""])
+  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_DELETE_NULL_POINTER_CHECKS_CFLAG -Werror],
+      PREFIX: $2, IF_FALSE: [NO_DELETE_NULL_POINTER_CHECKS_CFLAG=""])
   NO_LIFETIME_DSE_CFLAG="-fno-lifetime-dse"
-  dnl Argument check is disabled until FLAGS_COMPILER_CHECK_ARGUMENTS handles cross-compilation
-  dnl FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_LIFETIME_DSE_CFLAG -Werror],
-  dnl					     IF_FALSE: [NO_LIFETIME_DSE_CFLAG=""])
-  AC_MSG_NOTICE([GCC >= 6 detected; adding ${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} and ${NO_LIFETIME_DSE_CFLAG}])
+  FLAGS_COMPILER_CHECK_ARGUMENTS(ARGUMENT: [$NO_LIFETIME_DSE_CFLAG -Werror],
+      PREFIX: $2, IF_FALSE: [NO_LIFETIME_DSE_CFLAG=""])
   $1_GCC6_CFLAGS="${NO_DELETE_NULL_POINTER_CHECKS_CFLAG} ${NO_LIFETIME_DSE_CFLAG}"
 ])
 

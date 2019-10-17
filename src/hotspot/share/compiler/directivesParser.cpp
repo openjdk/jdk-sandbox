@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,11 +94,13 @@ bool DirectivesParser::parse_from_file_inner(const char* filename, outputStream*
     if (file_handle != -1) {
       // read contents into resource array
       char* buffer = NEW_RESOURCE_ARRAY(char, st.st_size+1);
-      size_t num_read = os::read(file_handle, (char*) buffer, st.st_size);
-      buffer[num_read] = '\0';
-      // close file
-      os::close(file_handle);
-      return parse_string(buffer, stream) > 0;
+      ssize_t num_read = os::read(file_handle, (char*) buffer, st.st_size);
+      if (num_read >= 0) {
+        buffer[num_read] = '\0';
+        // close file
+        os::close(file_handle);
+        return parse_string(buffer, stream) > 0;
+      }
     }
   }
   return false;
@@ -566,159 +568,3 @@ bool DirectivesParser::callback(JSON_TYPE t, JSON_VAL* v, uint rlimit) {
   }
 }
 
-#ifndef PRODUCT
-void DirectivesParser::test(const char* text, bool should_pass) {
-  DirectivesParser cd(text, tty, !VerboseInternalVMTests);
-  if (should_pass) {
-    assert(cd.valid() == true, "failed on a valid DirectivesParser string");
-    if (VerboseInternalVMTests) {
-      tty->print("-- DirectivesParser test passed as expected --\n");
-    }
-  } else {
-    assert(cd.valid() == false, "succeeded on an invalid DirectivesParser string");
-    if (VerboseInternalVMTests) {
-      tty->print("-- DirectivesParser test failed as expected --\n");
-    }
-  }
-  cd.clean_tmp();
-}
-
-void DirectivesParser::test() {
-  DirectivesParser::test("{}", false);
-  DirectivesParser::test("[]", true);
-  DirectivesParser::test("[{}]", false);
-  DirectivesParser::test("[{},{}]", false);
-  DirectivesParser::test("{},{}", false);
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  {" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "    inline : \"+java/util.*\"," "\n"
-    "    PrintAssembly: true," "\n"
-    "    BreakAtExecute: true," "\n"
-    "  }" "\n"
-    "]" "\n", true);
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  [" "\n"
-    "    {" "\n"
-    "      match: \"foo/bar.*\"," "\n"
-    "      inline : \"+java/util.*\"," "\n"
-    "      PrintAssembly: true," "\n"
-    "      BreakAtExecute: true," "\n"
-    "    }" "\n"
-    "  ]" "\n"
-    "]" "\n", false);
-
-  /*DirectivesParser::test(
-    "[" "\n"
-    "  {" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "    c1: {"
-    "      PrintIntrinsics: false," "\n"
-    "    }" "\n"
-    "  }" "\n"
-    "]" "\n", false);*/
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  {" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "    c2: {" "\n"
-    "      PrintInlining: false," "\n"
-    "    }" "\n"
-    "  }" "\n"
-    "]" "\n", true);
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  {" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "    c2: {" "\n"
-    "      VectorizeDebug: 1," "\n"
-    "      VectorizeDebug: -1," "\n"
-    "    }" "\n"
-    "  }" "\n"
-    "]" "\n", COMPILER2_PRESENT(true) NOT_COMPILER2(false));
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  {" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "    PrintInlining: [" "\n"
-    "      true," "\n"
-    "      false" "\n"
-    "    ]," "\n"
-    "  }" "\n"
-    "]" "\n", false);
-
-  DirectivesParser::test(
-    "[" "\n"
-    "  {"
-    "    // pattern to match against class+method+signature" "\n"
-    "    // leading and trailing wildcard (*) allowed" "\n"
-    "    match: \"foo/bar.*\"," "\n"
-    "" "\n"
-    "    // override defaults for specified compiler" "\n"
-    "    // we may differentiate between levels too. TBD." "\n"
-    "    c1:  {" "\n"
-    "      //override c1 presets " "\n"
-    "      DumpReplay: false," "\n"
-    "      BreakAtCompile: true," "\n"
-    "    }," "\n"
-    "" "\n"
-    "    c2: {" "\n"
-    "        // control inlining of method" "\n"
-    "        // + force inline, - dont inline" "\n"
-    "        inline : \"+java/util.*\"," "\n"
-    "        PrintInlining: true," "\n"
-    "    }," "\n"
-    "" "\n"
-    "    // directives outside a specific preset applies to all compilers" "\n"
-    "    inline : [ \"+java/util.*\", \"-com/sun.*\"]," "\n"
-    "    BreakAtExecute: true," "\n"
-    "    Log: true," "\n"
-    "  }," "\n"
-    "  {" "\n"
-    "    // matching several patterns require an array" "\n"
-    "    match: [\"baz.*\",\"frob.*\"]," "\n"
-    "" "\n"
-    "    // applies to all compilers" "\n"
-    "    // + force inline, - dont inline" "\n"
-    "    inline : [ \"+java/util.*\", \"-com/sun.*\" ]," "\n"
-    "    PrintInlining: true," "\n"
-    "" "\n"
-    "    // force matching compiles to be blocking/syncronous" "\n"
-    "    PrintNMethods: true" "\n"
-    "  }," "\n"
-    "]" "\n", true);
-
-  // Test max stack depth
-    DirectivesParser::test(
-      "[" "\n"             // depth 1: type_dir_array
-      "  {" "\n"           // depth 2: type_directives
-      "    match: \"*.*\"," // match required
-      "    c1:" "\n"       // depth 3: type_c1
-      "    {" "\n"
-      "      inline:" "\n" // depth 4: type_inline
-      "      [" "\n"       // depth 5: type_value_array
-      "        \"foo\"," "\n"
-      "        \"bar\"," "\n"
-      "      ]" "\n"       // depth 3: pop type_value_array and type_inline keys
-      "    }" "\n"         // depth 2: pop type_c1 key
-      "  }" "\n"           // depth 1: pop type_directives key
-      "]" "\n", true);     // depth 0: pop type_dir_array key
-
-    // Test max stack depth
-    DirectivesParser::test(
-      "[{c1:{c1:{c1:{c1:{c1:{c1:{c1:{}}}}}}}}]", false);
-
-}
-
-void DirectivesParser_test() {
-  DirectivesParser::test();
-}
-
-#endif

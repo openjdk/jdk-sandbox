@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 package org.graalvm.compiler.word;
 
-import static org.graalvm.compiler.word.UnsafeAccess.UNSAFE;
+import static org.graalvm.compiler.serviceprovider.GraalUnsafeAccess.getUnsafe;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -59,7 +59,11 @@ import jdk.internal.vm.compiler.word.WordBase;
 import jdk.internal.vm.compiler.word.WordFactory;
 import jdk.internal.vm.compiler.word.impl.WordBoxFactory;
 
+import sun.misc.Unsafe;
+
 public abstract class Word implements SignedWord, UnsignedWord, Pointer {
+
+    private static final Unsafe UNSAFE = getUnsafe();
 
     static {
         BoxFactoryImpl.initialize();

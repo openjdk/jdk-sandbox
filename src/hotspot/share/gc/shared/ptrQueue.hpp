@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,14 @@
 #ifndef SHARE_GC_SHARED_PTRQUEUE_HPP
 #define SHARE_GC_SHARED_PTRQUEUE_HPP
 
+#include "memory/padded.hpp"
 #include "utilities/align.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/lockFreeStack.hpp"
 #include "utilities/sizes.hpp"
+
+class Mutex;
+class Monitor;
 
 // There are various techniques that require threads to be able to log
 // addresses.  For example, a generational write barrier might log
@@ -48,11 +54,6 @@ class PtrQueue {
   // Whether updates should be logged.
   bool _active;
 
-  // If true, the queue is permanent, and doesn't need to deallocate
-  // its buffer in the destructor (since that obtains a lock which may not
-  // be legally locked by then.
-  const bool _permanent;
-
   // The (byte) index at which an object was last enqueued.  Starts at
   // capacity_in_bytes (indicating an empty buffer) and goes towards zero.
   // Value is always pointer-size aligned.
@@ -68,14 +69,6 @@ class PtrQueue {
   size_t capacity_in_bytes() const {
     assert(_capacity_in_bytes > 0, "capacity not set");
     return _capacity_in_bytes;
-  }
-
-  void set_capacity(size_t entries) {
-    size_t byte_capacity = index_to_byte_index(entries);
-    assert(_capacity_in_bytes == 0 || _capacity_in_bytes == byte_capacity,
-           "changing capacity " SIZE_FORMAT " -> " SIZE_FORMAT,
-           _capacity_in_bytes, byte_capacity);
-    _capacity_in_bytes = byte_capacity;
   }
 
   static size_t byte_index_to_index(size_t ind) {
@@ -105,26 +98,28 @@ protected:
     return byte_index_to_index(capacity_in_bytes());
   }
 
-  // If there is a lock associated with this buffer, this is that lock.
-  Mutex* _lock;
-
-  PtrQueueSet* qset() { return _qset; }
-  bool is_permanent() const { return _permanent; }
+  PtrQueueSet* qset() const { return _qset; }
 
   // Process queue entries and release resources.
   void flush_impl();
 
+  // Process (some of) the buffer and leave it in place for further use,
+  // or enqueue the buffer and allocate a new one.
+  virtual void handle_completed_buffer() = 0;
+
+  void allocate_buffer();
+
+  // Enqueue the current buffer in the qset and allocate a new buffer.
+  void enqueue_completed_buffer();
+
   // Initialize this queue to contain a null buffer, and be part of the
   // given PtrQueueSet.
-  PtrQueue(PtrQueueSet* qset, bool permanent = false, bool active = false);
+  PtrQueue(PtrQueueSet* qset, bool active = false);
 
-  // Requires queue flushed or permanent.
+  // Requires queue flushed.
   ~PtrQueue();
 
 public:
-
-  // Associate a lock with a ptr queue.
-  void set_lock(Mutex* lock) { _lock = lock; }
 
   // Forcibly set empty.
   void reset() {
@@ -143,16 +138,7 @@ public:
     else enqueue_known_active(ptr);
   }
 
-  // This method is called when we're doing the zero index handling
-  // and gives a chance to the queues to do any pre-enqueueing
-  // processing they might want to do on the buffer. It should return
-  // true if the buffer should be enqueued, or false if enough
-  // entries were cleared from it so that it can be re-used. It should
-  // not return false if the buffer is still full (otherwise we can
-  // get into an infinite loop).
-  virtual bool should_enqueue_buffer() { return true; }
   void handle_zero_index();
-  void locking_enqueue_completed_buffer(BufferNode* node);
 
   void enqueue_known_active(void* ptr);
 
@@ -213,7 +199,7 @@ protected:
 
 class BufferNode {
   size_t _index;
-  BufferNode* _next;
+  BufferNode* volatile _next;
   void* _buffer[1];             // Pseudo flexible array member.
 
   BufferNode() : _index(0), _next(NULL) { }
@@ -223,17 +209,21 @@ class BufferNode {
     return offset_of(BufferNode, _buffer);
   }
 
-public:
-  BufferNode* next() const     { return _next;  }
-  void set_next(BufferNode* n) { _next = n;     }
-  size_t index() const         { return _index; }
-  void set_index(size_t i)     { _index = i; }
+  static BufferNode* volatile* next_ptr(BufferNode& bn) { return &bn._next; }
 
   // Allocate a new BufferNode with the "buffer" having size elements.
   static BufferNode* allocate(size_t size);
 
   // Free a BufferNode.
   static void deallocate(BufferNode* node);
+
+public:
+  typedef LockFreeStack<BufferNode, &next_ptr> Stack;
+
+  BufferNode* next() const     { return _next;  }
+  void set_next(BufferNode* n) { _next = n;     }
+  size_t index() const         { return _index; }
+  void set_index(size_t i)     { _index = i; }
 
   // Return the BufferNode containing the buffer, after setting its index.
   static BufferNode* make_node_from_buffer(void** buffer, size_t index) {
@@ -250,69 +240,76 @@ public:
     return reinterpret_cast<void**>(
       reinterpret_cast<char*>(node) + buffer_offset());
   }
+
+  class Allocator;              // Free-list based allocator.
+  class TestSupport;            // Unit test support.
+};
+
+// Allocation is based on a lock-free free list of nodes, linked through
+// BufferNode::_next (see BufferNode::Stack).  To solve the ABA problem,
+// popping a node from the free list is performed within a GlobalCounter
+// critical section, and pushing nodes onto the free list is done after
+// a GlobalCounter synchronization associated with the nodes to be pushed.
+// This is documented behavior so that other parts of the node life-cycle
+// can depend on and make use of it too.
+class BufferNode::Allocator {
+  friend class TestSupport;
+
+  // Since we don't expect many instances, and measured >15% speedup
+  // on stress gtest, padding seems like a good tradeoff here.
+#define DECLARE_PADDED_MEMBER(Id, Type, Name) \
+  Type Name; DEFINE_PAD_MINUS_SIZE(Id, DEFAULT_CACHE_LINE_SIZE, sizeof(Type))
+
+  const size_t _buffer_size;
+  char _name[DEFAULT_CACHE_LINE_SIZE - sizeof(size_t)]; // Use name as padding.
+  DECLARE_PADDED_MEMBER(1, Stack, _pending_list);
+  DECLARE_PADDED_MEMBER(2, Stack, _free_list);
+  DECLARE_PADDED_MEMBER(3, volatile size_t, _pending_count);
+  DECLARE_PADDED_MEMBER(4, volatile size_t, _free_count);
+  DECLARE_PADDED_MEMBER(5, volatile bool, _transfer_lock);
+
+#undef DECLARE_PADDED_MEMBER
+
+  void delete_list(BufferNode* list);
+  bool try_transfer_pending();
+
+public:
+  Allocator(const char* name, size_t buffer_size);
+  ~Allocator();
+
+  const char* name() const { return _name; }
+  size_t buffer_size() const { return _buffer_size; }
+  size_t free_count() const;
+  BufferNode* allocate();
+  void release(BufferNode* node);
+
+  // Deallocate some of the available buffers.  remove_goal is the target
+  // number to remove.  Returns the number actually deallocated, which may
+  // be less than the goal if there were fewer available.
+  size_t reduce_free_list(size_t remove_goal);
 };
 
 // A PtrQueueSet represents resources common to a set of pointer queues.
 // In particular, the individual queues allocate buffers from this shared
 // set, and return completed buffers to the set.
-// All these variables are are protected by the TLOQ_CBL_mon. XXX ???
 class PtrQueueSet {
-  // The size of all buffers in the set.
-  size_t _buffer_size;
+  BufferNode::Allocator* _allocator;
+
+  // Noncopyable - not defined.
+  PtrQueueSet(const PtrQueueSet&);
+  PtrQueueSet& operator=(const PtrQueueSet&);
 
 protected:
-  Monitor* _cbl_mon;  // Protects the fields below.
-  BufferNode* _completed_buffers_head;
-  BufferNode* _completed_buffers_tail;
-  size_t _n_completed_buffers;
-  int _process_completed_threshold;
-  volatile bool _process_completed;
-
-  // This (and the interpretation of the first element as a "next"
-  // pointer) are protected by the TLOQ_FL_lock.
-  Mutex* _fl_lock;
-  BufferNode* _buf_free_list;
-  size_t _buf_free_list_sz;
-  // Queue set can share a freelist. The _fl_owner variable
-  // specifies the owner. It is set to "this" by default.
-  PtrQueueSet* _fl_owner;
-
   bool _all_active;
 
-  // If true, notify_all on _cbl_mon when the threshold is reached.
-  bool _notify_when_complete;
-
-  // Maximum number of elements allowed on completed queue: after that,
-  // enqueuer does the work itself.  Zero indicates no maximum.
-  int _max_completed_queue;
-  size_t _completed_queue_padding;
-
-  size_t completed_buffers_list_length();
-  void assert_completed_buffer_list_len_correct_locked();
-  void assert_completed_buffer_list_len_correct();
-
-protected:
-  // A mutator thread does the the work of processing a buffer.
-  // Returns "true" iff the work is complete (and the buffer may be
-  // deallocated).
-  virtual bool mut_process_buffer(BufferNode* node) {
-    ShouldNotReachHere();
-    return false;
-  }
-
   // Create an empty ptr queue set.
-  PtrQueueSet(bool notify_when_complete = false);
+  PtrQueueSet(BufferNode::Allocator* allocator);
   ~PtrQueueSet();
 
-  // Because of init-order concerns, we can't pass these as constructor
-  // arguments.
-  void initialize(Monitor* cbl_mon,
-                  Mutex* fl_lock,
-                  int process_completed_threshold,
-                  int max_completed_queue,
-                  PtrQueueSet *fl_owner = NULL);
-
 public:
+
+  // Return the associated BufferNode allocator.
+  BufferNode::Allocator* allocator() const { return _allocator; }
 
   // Return the buffer for a BufferNode of size buffer_size().
   void** allocate_buffer();
@@ -321,51 +318,17 @@ public:
   // to have been allocated with a size of buffer_size().
   void deallocate_buffer(BufferNode* node);
 
-  // Declares that "buf" is a complete buffer.
-  void enqueue_complete_buffer(BufferNode* node);
+  // A completed buffer is a buffer the mutator is finished with, and
+  // is ready to be processed by the collector.  It need not be full.
 
-  // To be invoked by the mutator.
-  bool process_or_enqueue_complete_buffer(BufferNode* node);
-
-  bool completed_buffers_exist_dirty() {
-    return _n_completed_buffers > 0;
-  }
-
-  bool process_completed_buffers() { return _process_completed; }
-  void set_process_completed(bool x) { _process_completed = x; }
+  // Adds node to the completed buffer list.
+  virtual void enqueue_completed_buffer(BufferNode* node) = 0;
 
   bool is_active() { return _all_active; }
 
-  // Set the buffer size.  Should be called before any "enqueue" operation
-  // can be called.  And should only be called once.
-  void set_buffer_size(size_t sz);
-
-  // Get the buffer size.  Must have been set.
   size_t buffer_size() const {
-    assert(_buffer_size > 0, "buffer size not set");
-    return _buffer_size;
+    return _allocator->buffer_size();
   }
-
-  // Get/Set the number of completed buffers that triggers log processing.
-  void set_process_completed_threshold(int sz) { _process_completed_threshold = sz; }
-  int process_completed_threshold() const { return _process_completed_threshold; }
-
-  // Must only be called at a safe point.  Indicates that the buffer free
-  // list size may be reduced, if that is deemed desirable.
-  void reduce_free_list();
-
-  size_t completed_buffers_num() { return _n_completed_buffers; }
-
-  void merge_bufferlists(PtrQueueSet* src);
-
-  void set_max_completed_queue(int m) { _max_completed_queue = m; }
-  int max_completed_queue() { return _max_completed_queue; }
-
-  void set_completed_queue_padding(size_t padding) { _completed_queue_padding = padding; }
-  size_t completed_queue_padding() { return _completed_queue_padding; }
-
-  // Notify the consumer if the number of buffers crossed the threshold
-  void notify_if_necessary();
 };
 
 #endif // SHARE_GC_SHARED_PTRQUEUE_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_STUBROUTINES_X86_HPP
-#define CPU_X86_VM_STUBROUTINES_X86_HPP
+#ifndef CPU_X86_STUBROUTINES_X86_HPP
+#define CPU_X86_STUBROUTINES_X86_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
@@ -33,7 +33,7 @@ static bool returns_to_call_stub(address return_pc) { return return_pc == _call_
 
 enum platform_dependent_constants {
   code_size1 = 20000 LP64_ONLY(+10000),         // simply increase if too small (assembler will crash if too small)
-  code_size2 = 33800 LP64_ONLY(+10000)           // simply increase if too small (assembler will crash if too small)
+  code_size2 = 35300 LP64_ONLY(+11400)          // simply increase if too small (assembler will crash if too small)
 };
 
 class x86 {
@@ -55,7 +55,13 @@ class x86 {
   static address _double_sign_mask;
   static address _double_sign_flip;
 
+  static address _method_entry_barrier;
+
  public:
+
+  static address method_entry_barrier() {
+    return _method_entry_barrier;
+  }
 
   static address get_previous_fp_entry() {
     return _get_previous_fp_entry;
@@ -96,6 +102,7 @@ class x86 {
   static address double_sign_flip() {
     return _double_sign_flip;
   }
+
 #else // !LP64
 
  private:
@@ -122,6 +129,8 @@ class x86 {
   // swap mask for ghash
   static address _ghash_long_swap_mask_addr;
   static address _ghash_byte_swap_mask_addr;
+  static address _ghash_poly_addr;
+  static address _ghash_shuffmask_addr;
 
   // upper word mask for sha1
   static address _upper_word_mask_addr;
@@ -131,6 +140,13 @@ class x86 {
   //k256 table for sha256
   static juint _k256[];
   static address _k256_adr;
+  static address _vector_short_to_byte_mask;
+  static address _vector_float_sign_mask;
+  static address _vector_float_sign_flip;
+  static address _vector_double_sign_mask;
+  static address _vector_double_sign_flip;
+  static address _vector_byte_perm_mask;
+  static address _vector_long_sign_mask;
 #ifdef _LP64
   static juint _k256_W[];
   static address _k256_W_adr;
@@ -199,9 +215,38 @@ class x86 {
   static address crc_by128_masks_addr()  { return (address)_crc_by128_masks; }
   static address ghash_long_swap_mask_addr() { return _ghash_long_swap_mask_addr; }
   static address ghash_byte_swap_mask_addr() { return _ghash_byte_swap_mask_addr; }
+  static address ghash_shufflemask_addr() { return _ghash_shuffmask_addr; }
+  static address ghash_polynomial_addr() { return _ghash_poly_addr; }
   static address upper_word_mask_addr() { return _upper_word_mask_addr; }
   static address shuffle_byte_flip_mask_addr() { return _shuffle_byte_flip_mask_addr; }
   static address k256_addr()      { return _k256_adr; }
+
+  static address vector_short_to_byte_mask() {
+    return _vector_short_to_byte_mask;
+  }
+  static address vector_float_sign_mask() {
+    return _vector_float_sign_mask;
+  }
+
+  static address vector_float_sign_flip() {
+    return _vector_float_sign_flip;
+  }
+
+  static address vector_double_sign_mask() {
+    return _vector_double_sign_mask;
+  }
+
+  static address vector_double_sign_flip() {
+    return _vector_double_sign_flip;
+  }
+
+  static address vector_byte_perm_mask() {
+    return _vector_byte_perm_mask;
+  }
+
+  static address vector_long_sign_mask() {
+    return _vector_long_sign_mask;
+  }
 #ifdef _LP64
   static address k256_W_addr()    { return _k256_W_adr; }
   static address k512_W_addr()    { return _k512_W_addr; }
@@ -238,4 +283,4 @@ class x86 {
 
 };
 
-#endif // CPU_X86_VM_STUBROUTINES_X86_HPP
+#endif // CPU_X86_STUBROUTINES_X86_HPP

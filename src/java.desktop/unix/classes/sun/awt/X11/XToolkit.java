@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -215,6 +215,12 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     static long awt_defaultFg; // Pixel
     private static XMouseInfoPeer xPeer;
 
+    /**
+     * Should we check "_NET_WM_STRUT/_NET_WM_STRUT_PARTIAL" during insets
+     * calculation.
+     */
+    private static Boolean checkSTRUT;
+
     static {
         initSecurityWarning();
         if (GraphicsEnvironment.isHeadless()) {
@@ -340,10 +346,14 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
 
             arrowCursor = XlibWrapper.XCreateFontCursor(XToolkit.getDisplay(),
                 XCursorFontConstants.XC_arrow);
-            areExtraMouseButtonsEnabled = Boolean.parseBoolean(System.getProperty("sun.awt.enableExtraMouseButtons", "true"));
-            //set system property if not yet assigned
-            System.setProperty("sun.awt.enableExtraMouseButtons", ""+areExtraMouseButtonsEnabled);
-
+            final String extraButtons = "sun.awt.enableExtraMouseButtons";
+            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+                areExtraMouseButtonsEnabled =
+                    Boolean.parseBoolean(System.getProperty(extraButtons, "true"));
+                //set system property if not yet assigned
+                System.setProperty(extraButtons, ""+areExtraMouseButtonsEnabled);
+                return null;
+            });
             // Detect display mode changes
             XlibWrapper.XSelectInput(XToolkit.getDisplay(), XToolkit.getDefaultRootWindow(), XConstants.StructureNotifyMask);
             XToolkit.addEventDispatcher(XToolkit.getDefaultRootWindow(), new XEventDispatcher() {
@@ -412,12 +422,12 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         if (!GraphicsEnvironment.isHeadless()) {
             String mainClassName = null;
 
-            StackTraceElement trace[] = (new Throwable()).getStackTrace();
+            StackTraceElement[] trace = (new Throwable()).getStackTrace();
             int bottom = trace.length - 1;
             if (bottom >= 0) {
                 mainClassName = trace[bottom].getClassName();
             }
-            if (mainClassName == null || mainClassName.equals("")) {
+            if (mainClassName == null || mainClassName.isEmpty()) {
                 mainClassName = "AWT";
             }
             awtAppClassName = getCorrectXIDString(mainClassName);
@@ -826,13 +836,26 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
     }
 
     /*
-     * If we're running in non-Xinerama environment and the current
-     * window manager supports _NET protocol then the screen insets
-     * are calculated using _NET_WM_WORKAREA property of the root
-     * window.
-     * Otherwise, i. e. if Xinerama is on or _NET_WM_WORKAREA is
-     * not set, we try to calculate the insets ourselves using
-     * getScreenInsetsManually method.
+     * If the current window manager supports _NET protocol then the screen
+     * insets are calculated using _NET_WORKAREA property of the root window.
+     * <p>
+     * Note that _NET_WORKAREA is a rectangular area and it does not work
+     * well in the Xinerama mode.
+     * <p>
+     * We will trust the part of this rectangular area only if it starts at the
+     * requested graphics configuration. Below is an example when the
+     * _NET_WORKAREA intersects with the requested graphics configuration but
+     * produces wrong result.
+     *
+     *         //<-x1,y1///////
+     *         //            // ////////////////
+     *         //  SCREEN1   // // SCREEN2    //
+     *         // ********** // //     x2,y2->//
+     *         //////////////// //            //
+     *                          ////////////////
+     *
+     * When two screens overlap and the first contains a dock(*****), then
+     * _NET_WORKAREA may start at point x1,y1 and end at point x2,y2.
      */
     @Override
     public Insets getScreenInsets(GraphicsConfiguration gc)
@@ -846,30 +869,33 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         XToolkit.awtLock();
         try
         {
-            X11GraphicsConfig x11gc = (X11GraphicsConfig)gc;
-            X11GraphicsDevice x11gd = x11gc.getDevice();
-            long root = XlibUtil.getRootWindow(x11gd.getScreen());
-            int scale = x11gc.getScale();
-            Rectangle rootBounds = XlibUtil.getWindowGeometry(root, scale);
-
             X11GraphicsEnvironment x11ge = (X11GraphicsEnvironment)
-                GraphicsEnvironment.getLocalGraphicsEnvironment();
-            if (!x11ge.runningXinerama())
-            {
-                Insets screenInsets = getInsets(root, rootBounds, scale);
-                if (screenInsets != null) return screenInsets;
+                    GraphicsEnvironment.getLocalGraphicsEnvironment();
+            X11GraphicsConfig x11gc = (X11GraphicsConfig) gc;
+            long root = XlibUtil.getRootWindow(x11gc.getDevice().getScreen());
+            int scale = x11gc.getScale();
+            if (x11ge.runningXinerama() && checkSTRUT()) {
+                // implementation based on _NET_WM_STRUT/_NET_WM_STRUT_PARTIAL
+                Rectangle rootBounds = XlibUtil.getWindowGeometry(root, scale);
+                Insets insets = getScreenInsetsManually(root, rootBounds,
+                                                        gc.getBounds(), scale);
+                if ((insets.left | insets.top | insets.bottom | insets.right) != 0
+                        || rootBounds == null) {
+                    return insets;
+                }
             }
-
-            Insets insets = getScreenInsetsManually(root, rootBounds,
-                    gc.getBounds(), scale);
-            if ((insets.left | insets.top | insets.bottom | insets.right) == 0
-                    && rootBounds != null ) {
-                root = XlibWrapper.RootWindow(XToolkit.getDisplay(),
-                        x11gd.getScreen());
-                Insets screenInsets = getInsets(root, rootBounds, scale);
-                if (screenInsets != null) return screenInsets;
+            Rectangle workArea = XToolkit.getWorkArea(root, scale);
+            Rectangle screen = gc.getBounds();
+            if (workArea != null && screen.contains(workArea.getLocation())) {
+                workArea = workArea.intersection(screen);
+                int top = workArea.y - screen.y;
+                int left = workArea.x - screen.x;
+                int bottom = screen.height - workArea.height - top;
+                int right = screen.width - workArea.width - left;
+                return new Insets(top, left, bottom, right);
             }
-            return insets;
+            // Note that it is better to return zeros than inadequate values
+            return new Insets(0, 0, 0, 0);
         }
         finally
         {
@@ -877,14 +903,16 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         }
     }
 
-    private Insets getInsets(long root, Rectangle rootBounds, int scale) {
-        Rectangle workArea = XToolkit.getWorkArea(root, scale);
-        if (workArea == null) {
-            return null;
+    /**
+     * Returns the value of "sun.awt.X11.checkSTRUT" property. Default value is
+     * {@code false}.
+     */
+    private static boolean checkSTRUT() {
+        if (checkSTRUT == null) {
+            checkSTRUT = AccessController.doPrivileged(
+                    new GetBooleanAction("sun.awt.X11.checkSTRUT"));
         }
-        return new Insets(workArea.y, workArea.x,
-                rootBounds.height - workArea.height - workArea.y,
-                rootBounds.width - workArea.width - workArea.x);
+        return checkSTRUT;
     }
 
     /*
@@ -893,6 +921,14 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
      * hints' values to screen insets.
      *
      * This method should be called under XToolkit.awtLock()
+     *
+     * This method is unused by default because of two reasons:
+     *  - Iteration over windows may be extremely slow, and execution of
+     *    getScreenInsets() can be x100 slower than in one monitor config.
+     *  - _NET_WM_STRUT/_NET_WM_STRUT_PARTIAL are hints for the applications.
+     *    WM should take into account these hints when "_NET_WORKAREA" is
+     *    calculated, but the system panels do not necessarily contain these
+     *    hints(Gnome 3 for example).
      */
     private Insets getScreenInsetsManually(long root, Rectangle rootBounds,
                                            Rectangle screenBounds, int scale)
@@ -1917,7 +1953,7 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
         final int shiftLock = keysymToPrimaryKeycode(XKeySymConstants.XK_Shift_Lock);
         final int capsLock  = keysymToPrimaryKeycode(XKeySymConstants.XK_Caps_Lock);
 
-        final int modmask[] = { XConstants.ShiftMask, XConstants.LockMask, XConstants.ControlMask, XConstants.Mod1Mask,
+        final int[] modmask = { XConstants.ShiftMask, XConstants.LockMask, XConstants.ControlMask, XConstants.Mod1Mask,
             XConstants.Mod2Mask, XConstants.Mod3Mask, XConstants.Mod4Mask, XConstants.Mod5Mask };
 
         log.fine("In setupModifierMap");
@@ -2522,14 +2558,16 @@ public final class XToolkit extends UNIXToolkit implements Runnable {
                  //System.out.println("XkbNewKeyboard:"+(xke.get_new_kbd()));
                  break;
             case XConstants.XkbMapNotify :
-                 //TODO: provide a simple unit test.
-                 XlibWrapper.XkbGetUpdatedMap(getDisplay(),
-                                              XConstants.XkbKeyTypesMask    |
-                                              XConstants.XkbKeySymsMask     |
-                                              XConstants.XkbModifierMapMask |
-                                              XConstants.XkbVirtualModsMask,
-                                              awt_XKBDescPtr);
-                 //System.out.println("XkbMap:"+(xke.get_map()));
+                 if (awt_XKBDescPtr != 0) {
+                    //TODO: provide a simple unit test.
+                    XlibWrapper.XkbGetUpdatedMap(getDisplay(),
+                                                 XConstants.XkbKeyTypesMask    |
+                                                 XConstants.XkbKeySymsMask     |
+                                                 XConstants.XkbModifierMapMask |
+                                                 XConstants.XkbVirtualModsMask,
+                                                 awt_XKBDescPtr);
+                 }
+                //System.out.println("XkbMap:"+(xke.get_map()));
                  break;
             case XConstants.XkbStateNotify :
                  // May use it later e.g. to obtain an effective group etc.

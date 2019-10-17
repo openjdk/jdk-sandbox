@@ -26,10 +26,12 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/os.hpp"
@@ -59,13 +61,13 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // Load object header
   movptr(hdr, Address(obj, hdr_offset));
   // and mark it as unlocked
-  orptr(hdr, markOopDesc::unlocked_value);
+  orptr(hdr, markWord::unlocked_value);
   // save unlocked object header into the displaced header location on the stack
   movptr(Address(disp_hdr, 0), hdr);
   // test if object header is still the same (i.e. unlocked), and if so, store the
   // displaced header address in the object header - if it is not the same, get the
   // object header instead
-  if (os::is_MP()) MacroAssembler::lock(); // must be immediately before cmpxchg!
+  MacroAssembler::lock(); // must be immediately before cmpxchg!
   cmpxchgptr(disp_hdr, Address(obj, hdr_offset));
   // if the object header was the same, we're done
   if (PrintBiasedLockingStatistics) {
@@ -126,7 +128,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   // test if object header is pointing to the displaced header, and if so, restore
   // the displaced header in the object - if the object header is not pointing to
   // the displaced header, get the object header instead
-  if (os::is_MP()) MacroAssembler::lock(); // must be immediately before cmpxchg!
+  MacroAssembler::lock(); // must be immediately before cmpxchg!
   cmpxchgptr(hdr, Address(obj, hdr_offset));
   // if the object header was not pointing to the displaced header,
   // we do unlocking via runtime call
@@ -154,7 +156,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     movptr(Address(obj, oopDesc::mark_offset_in_bytes()), t1);
   } else {
     // This assumes that all prototype bits fit in an int32_t
-    movptr(Address(obj, oopDesc::mark_offset_in_bytes ()), (int32_t)(intptr_t)markOopDesc::prototype());
+    movptr(Address(obj, oopDesc::mark_offset_in_bytes ()), (int32_t)(intptr_t)markWord::prototype().value());
   }
 #ifdef _LP64
   if (UseCompressedClassPointers) { // Take care not to kill klass
@@ -330,6 +332,9 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   }
 #endif // TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
+
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
 }
 
 

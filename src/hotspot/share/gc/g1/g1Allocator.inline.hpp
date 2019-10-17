@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_GC_G1_G1ALLOCATOR_INLINE_HPP
-#define SHARE_VM_GC_G1_G1ALLOCATOR_INLINE_HPP
+#ifndef SHARE_GC_G1_G1ALLOCATOR_INLINE_HPP
+#define SHARE_GC_G1_G1ALLOCATOR_INLINE_HPP
 
 #include "gc/g1/g1Allocator.hpp"
 #include "gc/g1/g1AllocRegion.inline.hpp"
 #include "gc/shared/plab.inline.hpp"
+#include "memory/universe.hpp"
 
 inline MutatorAllocRegion* G1Allocator::mutator_alloc_region() {
   return &_mutator_alloc_region;
@@ -62,15 +63,15 @@ inline HeapWord* G1Allocator::attempt_allocation_force(size_t word_size) {
   return mutator_alloc_region()->attempt_allocation_force(word_size);
 }
 
-inline PLAB* G1PLABAllocator::alloc_buffer(InCSetState dest) {
+inline PLAB* G1PLABAllocator::alloc_buffer(G1HeapRegionAttr dest) {
   assert(dest.is_valid(),
-         "Allocation buffer index out of bounds: " CSETSTATE_FORMAT, dest.value());
-  assert(_alloc_buffers[dest.value()] != NULL,
-         "Allocation buffer is NULL: " CSETSTATE_FORMAT, dest.value());
-  return _alloc_buffers[dest.value()];
+         "Allocation buffer index out of bounds: %s", dest.get_type_str());
+  assert(_alloc_buffers[dest.type()] != NULL,
+         "Allocation buffer is NULL: %s", dest.get_type_str());
+  return _alloc_buffers[dest.type()];
 }
 
-inline HeapWord* G1PLABAllocator::plab_allocate(InCSetState dest,
+inline HeapWord* G1PLABAllocator::plab_allocate(G1HeapRegionAttr dest,
                                                 size_t word_sz) {
   PLAB* buffer = alloc_buffer(dest);
   if (_survivor_alignment_bytes == 0 || !dest.is_young()) {
@@ -80,7 +81,7 @@ inline HeapWord* G1PLABAllocator::plab_allocate(InCSetState dest,
   }
 }
 
-inline HeapWord* G1PLABAllocator::allocate(InCSetState dest,
+inline HeapWord* G1PLABAllocator::allocate(G1HeapRegionAttr dest,
                                            size_t word_sz,
                                            bool* refill_failed) {
   HeapWord* const obj = plab_allocate(dest, word_sz);
@@ -97,22 +98,40 @@ inline void G1ArchiveAllocator::enable_archive_object_check() {
   }
 
   _archive_check_enabled = true;
-  size_t length = Universe::heap()->max_capacity();
-  _closed_archive_region_map.initialize((HeapWord*)Universe::heap()->base(),
-                                        (HeapWord*)Universe::heap()->base() + length,
+  size_t length = G1CollectedHeap::heap()->max_reserved_capacity();
+  _closed_archive_region_map.initialize(G1CollectedHeap::heap()->base(),
+                                        G1CollectedHeap::heap()->base() + length,
                                         HeapRegion::GrainBytes);
-  _open_archive_region_map.initialize((HeapWord*)Universe::heap()->base(),
-                                      (HeapWord*)Universe::heap()->base() + length,
+  _open_archive_region_map.initialize(G1CollectedHeap::heap()->base(),
+                                      G1CollectedHeap::heap()->base() + length,
                                       HeapRegion::GrainBytes);
 }
 
 // Set the regions containing the specified address range as archive.
 inline void G1ArchiveAllocator::set_range_archive(MemRegion range, bool open) {
   assert(_archive_check_enabled, "archive range check not enabled");
+  log_info(gc, cds)("Mark %s archive regions in map: [" PTR_FORMAT ", " PTR_FORMAT "]",
+                     open ? "open" : "closed",
+                     p2i(range.start()),
+                     p2i(range.last()));
   if (open) {
     _open_archive_region_map.set_by_address(range, true);
   } else {
     _closed_archive_region_map.set_by_address(range, true);
+  }
+}
+
+// Clear the archive regions map containing the specified address range.
+inline void G1ArchiveAllocator::clear_range_archive(MemRegion range, bool open) {
+  assert(_archive_check_enabled, "archive range check not enabled");
+  log_info(gc, cds)("Clear %s archive regions in map: [" PTR_FORMAT ", " PTR_FORMAT "]",
+                    open ? "open" : "closed",
+                    p2i(range.start()),
+                    p2i(range.last()));
+  if (open) {
+    _open_archive_region_map.set_by_address(range, false);
+  } else {
+    _closed_archive_region_map.set_by_address(range, false);
   }
 }
 
@@ -141,9 +160,9 @@ inline bool G1ArchiveAllocator::is_open_archive_object(oop object) {
   return (archive_check_enabled() && in_open_archive_range(object));
 }
 
-inline bool G1ArchiveAllocator::is_archive_object(oop object) {
+inline bool G1ArchiveAllocator::is_archived_object(oop object) {
   return (archive_check_enabled() && (in_closed_archive_range(object) ||
                                       in_open_archive_range(object)));
 }
 
-#endif // SHARE_VM_GC_G1_G1ALLOCATOR_HPP
+#endif // SHARE_GC_G1_G1ALLOCATOR_INLINE_HPP

@@ -23,10 +23,14 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
+#include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interp_masm.hpp"
+#include "memory/universe.hpp"
 #include "runtime/jniHandles.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.hpp"
 
 #define __ masm->
@@ -321,4 +325,53 @@ void BarrierSetAssembler::incr_allocated_bytes(MacroAssembler* masm, Register th
   }
   __ adcl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())+4), 0);
 #endif
+}
+
+void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm) {
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (bs_nm == NULL) {
+    return;
+  }
+#ifndef _LP64
+  ShouldNotReachHere();
+#else
+  Label continuation;
+  Register thread = LP64_ONLY(r15_thread);
+  Address disarmed_addr(thread, in_bytes(bs_nm->thread_disarmed_offset()));
+  __ align(8);
+  __ cmpl(disarmed_addr, 0);
+  __ jcc(Assembler::equal, continuation);
+  __ call(RuntimeAddress(StubRoutines::x86::method_entry_barrier()));
+  __ bind(continuation);
+#endif
+}
+
+void BarrierSetAssembler::c2i_entry_barrier(MacroAssembler* masm) {
+  BarrierSetNMethod* bs = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (bs == NULL) {
+    return;
+  }
+
+  Label bad_call;
+  __ cmpptr(rbx, 0); // rbx contains the incoming method for c2i adapters.
+  __ jcc(Assembler::equal, bad_call);
+
+  // Pointer chase to the method holder to find out if the method is concurrently unloading.
+  Label method_live;
+  __ load_method_holder_cld(rscratch1, rbx);
+
+  // Is it a strong CLD?
+  __ movl(rscratch2, Address(rscratch1, ClassLoaderData::keep_alive_offset()));
+  __ cmpptr(rscratch2, 0);
+  __ jcc(Assembler::greater, method_live);
+
+  // Is it a weak but alive CLD?
+  __ movptr(rscratch1, Address(rscratch1, ClassLoaderData::holder_offset()));
+  __ resolve_weak_handle(rscratch1, rscratch2);
+  __ cmpptr(rscratch1, 0);
+  __ jcc(Assembler::notEqual, method_live);
+
+  __ bind(bad_call);
+  __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
+  __ bind(method_live);
 }

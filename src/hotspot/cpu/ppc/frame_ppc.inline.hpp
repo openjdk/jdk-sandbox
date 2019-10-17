@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_FRAME_PPC_INLINE_HPP
-#define CPU_PPC_VM_FRAME_PPC_INLINE_HPP
+#ifndef CPU_PPC_FRAME_PPC_INLINE_HPP
+#define CPU_PPC_FRAME_PPC_INLINE_HPP
 
 #include "code/codeCache.hpp"
 #include "code/vmreg.inline.hpp"
@@ -130,19 +130,22 @@ inline frame::ijava_state* frame::get_ijava_state() const {
 inline intptr_t** frame::interpreter_frame_locals_addr() const {
   return (intptr_t**) &(get_ijava_state()->locals);
 }
+
 inline intptr_t* frame::interpreter_frame_bcp_addr() const {
   return (intptr_t*) &(get_ijava_state()->bcp);
 }
+
 inline intptr_t* frame::interpreter_frame_mdp_addr() const {
   return (intptr_t*) &(get_ijava_state()->mdx);
 }
+
 // Pointer beyond the "oldest/deepest" BasicObjectLock on stack.
 inline BasicObjectLock* frame::interpreter_frame_monitor_end() const {
-  return (BasicObjectLock *) get_ijava_state()->monitors;
+  return (BasicObjectLock*) get_ijava_state()->monitors;
 }
 
 inline BasicObjectLock* frame::interpreter_frame_monitor_begin() const {
-  return (BasicObjectLock *) get_ijava_state();
+  return (BasicObjectLock*) get_ijava_state();
 }
 
 // Return register stack slot addr at which currently interpreted method is found.
@@ -154,23 +157,21 @@ inline oop* frame::interpreter_frame_mirror_addr() const {
   return (oop*) &(get_ijava_state()->mirror);
 }
 
-inline ConstantPoolCache** frame::interpreter_frame_cpoolcache_addr() const {
-  return (ConstantPoolCache**) &(get_ijava_state()->cpoolCache);
-}
 inline ConstantPoolCache** frame::interpreter_frame_cache_addr() const {
   return (ConstantPoolCache**) &(get_ijava_state()->cpoolCache);
 }
 
 inline oop* frame::interpreter_frame_temp_oop_addr() const {
-  return (oop *) &(get_ijava_state()->oop_tmp);
+  return (oop*) &(get_ijava_state()->oop_tmp);
 }
+
 inline intptr_t* frame::interpreter_frame_esp() const {
   return (intptr_t*) get_ijava_state()->esp;
 }
 
 // Convenient setters
 inline void frame::interpreter_frame_set_monitor_end(BasicObjectLock* end)    { get_ijava_state()->monitors = (intptr_t) end;}
-inline void frame::interpreter_frame_set_cpcache(ConstantPoolCache* cp)       { *frame::interpreter_frame_cpoolcache_addr() = cp; }
+inline void frame::interpreter_frame_set_cpcache(ConstantPoolCache* cp)       { *interpreter_frame_cache_addr() = cp; }
 inline void frame::interpreter_frame_set_esp(intptr_t* esp)                   { get_ijava_state()->esp = (intptr_t) esp; }
 inline void frame::interpreter_frame_set_top_frame_sp(intptr_t* top_frame_sp) { get_ijava_state()->top_frame_sp = (intptr_t) top_frame_sp; }
 inline void frame::interpreter_frame_set_sender_sp(intptr_t* sender_sp)       { get_ijava_state()->sender_sp = (intptr_t) sender_sp; }
@@ -220,4 +221,4 @@ inline void frame::set_saved_oop_result(RegisterMap* map, oop obj) {
   *((oop*)map->location(R3->as_VMReg())) = obj;
 }
 
-#endif // CPU_PPC_VM_FRAME_PPC_INLINE_HPP
+#endif // CPU_PPC_FRAME_PPC_INLINE_HPP

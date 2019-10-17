@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/threadLocalAllocBuffer.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
@@ -90,7 +91,9 @@ void ThreadLocalAllocBuffer::accumulate_and_reset_statistics(ThreadLocalAllocSta
 
 void ThreadLocalAllocBuffer::insert_filler() {
   assert(end() != NULL, "Must not be retired");
-  Universe::heap()->fill_with_dummy_object(top(), hard_end(), true);
+  if (top() < hard_end()) {
+    Universe::heap()->fill_with_dummy_object(top(), hard_end(), true);
+  }
 }
 
 void ThreadLocalAllocBuffer::make_parsable() {
@@ -278,29 +281,21 @@ void ThreadLocalAllocBuffer::print_stats(const char* tag) {
             _fast_refill_waste * HeapWordSize);
 }
 
-void ThreadLocalAllocBuffer::verify() {
-  HeapWord* p = start();
-  HeapWord* t = top();
-  HeapWord* prev_p = NULL;
-  while (p < t) {
-    oopDesc::verify(oop(p));
-    prev_p = p;
-    p += oop(p)->size();
-  }
-  guarantee(p == top(), "end of last object must match end of space");
-}
-
-void ThreadLocalAllocBuffer::set_sample_end() {
+void ThreadLocalAllocBuffer::set_sample_end(bool reset_byte_accumulation) {
   size_t heap_words_remaining = pointer_delta(_end, _top);
   size_t bytes_until_sample = thread()->heap_sampler().bytes_until_sample();
   size_t words_until_sample = bytes_until_sample / HeapWordSize;
 
+  if (reset_byte_accumulation) {
+    _bytes_since_last_sample_point = 0;
+  }
+
   if (heap_words_remaining > words_until_sample) {
     HeapWord* new_end = _top + words_until_sample;
     set_end(new_end);
-    _bytes_since_last_sample_point = bytes_until_sample;
+    _bytes_since_last_sample_point += bytes_until_sample;
   } else {
-    _bytes_since_last_sample_point = heap_words_remaining * HeapWordSize;
+    _bytes_since_last_sample_point += heap_words_remaining * HeapWordSize;
   }
 }
 
@@ -460,4 +455,9 @@ void ThreadLocalAllocStats::publish() {
     _perf_total_slow_allocations  ->set_value(_total_slow_allocations);
     _perf_max_slow_allocations    ->set_value(_max_slow_allocations);
   }
+}
+
+size_t ThreadLocalAllocBuffer::end_reserve() {
+  size_t reserve_size = Universe::heap()->tlab_alloc_reserve();
+  return MAX2(reserve_size, (size_t)_reserve_for_allocation_prefetch);
 }

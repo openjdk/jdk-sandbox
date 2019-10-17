@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -523,11 +523,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 #ifdef ASSERT
   if (depth() == 1) {
     assert(C->is_osr_compilation() == this->is_osr_parse(), "OSR in sync");
-    if (C->tf() != tf()) {
-      MutexLockerEx ml(Compile_lock, Mutex::_no_safepoint_check_flag);
-      assert(C->env()->system_dictionary_modification_counter_changed(),
-             "Must invalidate if TypeFuncs differ");
-    }
   } else {
     assert(!this->is_osr_parse(), "no recursive OSR");
   }
@@ -585,6 +580,11 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   }
 
   if (depth() == 1 && !failing()) {
+    if (C->clinit_barrier_on_entry()) {
+      // Add check to deoptimize the nmethod once the holder class is fully initialized
+      clinit_deopt();
+    }
+
     // Add check to deoptimize the nmethod if RTM state was changed
     rtm_deopt();
   }
@@ -979,15 +979,18 @@ void Parse::do_exits() {
   //    Rather than put a barrier on only those writes which are required
   //    to complete, we force all writes to complete.
   //
-  // 2. On PPC64, also add MemBarRelease for constructors which write
-  //    volatile fields. As support_IRIW_for_not_multiple_copy_atomic_cpu
-  //    is set on PPC64, no sync instruction is issued after volatile
-  //    stores. We want to guarantee the same behavior as on platforms
-  //    with total store order, although this is not required by the Java
-  //    memory model. So as with finals, we add a barrier here.
-  //
-  // 3. Experimental VM option is used to force the barrier if any field
+  // 2. Experimental VM option is used to force the barrier if any field
   //    was written out in the constructor.
+  //
+  // 3. On processors which are not CPU_MULTI_COPY_ATOMIC (e.g. PPC64),
+  //    support_IRIW_for_not_multiple_copy_atomic_cpu selects that
+  //    MemBarVolatile is used before volatile load instead of after volatile
+  //    store, so there's no barrier after the store.
+  //    We want to guarantee the same behavior as on platforms with total store
+  //    order, although this is not required by the Java memory model.
+  //    In this case, we want to enforce visibility of volatile field
+  //    initializations which are performed in constructors.
+  //    So as with finals, we add a barrier here.
   //
   // "All bets are off" unless the first publication occurs after a
   // normal return from the constructor.  We do not attempt to detect
@@ -995,9 +998,9 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if (method()->is_initializer() &&
-        (wrote_final() ||
-           PPC64_ONLY(wrote_volatile() ||)
-           (AlwaysSafeConstructors && wrote_fields()))) {
+       (wrote_final() ||
+         (AlwaysSafeConstructors && wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     _exits.insert_mem_bar(Op_MemBarRelease, alloc_with_final());
 
     // If Memory barrier is created for final fields write
@@ -1029,25 +1032,19 @@ void Parse::do_exits() {
     // transform each slice of the original memphi:
     mms.set_memory(_gvn.transform(mms.memory()));
   }
+  // Clean up input MergeMems created by transforming the slices
+  _gvn.transform(_exits.merged_memory());
 
   if (tf()->range()->cnt() > TypeFunc::Parms) {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
     if (!_exits.control()->is_top() && _gvn.type(ret_phi)->empty()) {
-      // In case of concurrent class loading, the type we set for the
-      // ret_phi in build_exits() may have been too optimistic and the
-      // ret_phi may be top now.
-      // Otherwise, we've encountered an error and have to mark the method as
-      // not compilable. Just using an assertion instead would be dangerous
-      // as this could lead to an infinite compile loop in non-debug builds.
-      {
-        MutexLockerEx ml(Compile_lock, Mutex::_no_safepoint_check_flag);
-        if (C->env()->system_dictionary_modification_counter_changed()) {
-          C->record_failure(C2Compiler::retry_class_loading_during_parsing());
-        } else {
-          C->record_method_not_compilable("Can't determine return type.");
-        }
-      }
+      // If the type we set for the ret_phi in build_exits() is too optimistic and
+      // the ret_phi is top now, there's an extremely small chance that it may be due to class
+      // loading.  It could also be due to an error, so mark this method as not compilable because
+      // otherwise this could lead to an infinite compile loop.
+      // In any case, this code path is rarely (and never in my testing) reached.
+      C->record_method_not_compilable("Can't determine return type.");
       return;
     }
     if (ret_type->isa_int()) {
@@ -1192,7 +1189,7 @@ SafePointNode* Parse::create_entry_map() {
 // The main thing to do is lock the receiver of a synchronized method.
 void Parse::do_method_entry() {
   set_parse_bci(InvocationEntryBci); // Pseudo-BCP
-  set_sp(0);                      // Java Stack Pointer
+  set_sp(0);                         // Java Stack Pointer
 
   NOT_PRODUCT( count_compiled_calls(true/*at_method_entry*/, false/*is_inline*/); )
 
@@ -2102,11 +2099,24 @@ void Parse::call_register_finalizer() {
   set_control( _gvn.transform(result_rgn) );
 }
 
+// Add check to deoptimize once holder klass is fully initialized.
+void Parse::clinit_deopt() {
+  assert(C->has_method(), "only for normal compilations");
+  assert(depth() == 1, "only for main compiled method");
+  assert(is_normal_parse(), "no barrier needed on osr entry");
+  assert(!method()->holder()->is_not_initialized(), "initialization should have been started");
+
+  set_parse_bci(0);
+
+  Node* holder = makecon(TypeKlassPtr::make(method()->holder()));
+  guard_klass_being_initialized(holder);
+}
+
 // Add check to deoptimize if RTM state is not ProfileRTM
 void Parse::rtm_deopt() {
 #if INCLUDE_RTM_OPT
   if (C->profile_rtm()) {
-    assert(C->method() != NULL, "only for normal compilations");
+    assert(C->has_method(), "only for normal compilations");
     assert(!C->method()->method_data()->is_empty(), "MDO is needed to record RTM state");
     assert(depth() == 1, "generate check only for main compiled method");
 

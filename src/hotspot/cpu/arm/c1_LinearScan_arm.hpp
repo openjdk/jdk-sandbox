@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_C1_LINEARSCAN_ARM_HPP
-#define CPU_ARM_VM_C1_LINEARSCAN_ARM_HPP
+#ifndef CPU_ARM_C1_LINEARSCAN_ARM_HPP
+#define CPU_ARM_C1_LINEARSCAN_ARM_HPP
 
 inline bool LinearScan::is_processed_reg_num(int reg_num) {
   return reg_num < pd_nof_cpu_regs_processed_in_linearscan ||
@@ -31,24 +31,17 @@ inline bool LinearScan::is_processed_reg_num(int reg_num) {
 }
 
 inline int LinearScan::num_physical_regs(BasicType type) {
-#ifndef AARCH64
   if (type == T_LONG || type == T_DOUBLE) return 2;
-#endif // !AARCH64
   return 1;
 }
 
 
 inline bool LinearScan::requires_adjacent_regs(BasicType type) {
-#ifdef AARCH64
-  return false;
-#else
   return type == T_DOUBLE || type == T_LONG;
-#endif // AARCH64
 }
 
 inline bool LinearScan::is_caller_save(int assigned_reg) {
   assert(assigned_reg >= 0 && assigned_reg < nof_regs, "should call this only for registers");
-  // TODO-AARCH64 try to add callee-saved registers
   return true;
 }
 
@@ -75,4 +68,4 @@ inline bool LinearScanWalker::pd_init_regs_for_alloc(Interval* cur) {
   return true;
 }
 
-#endif // CPU_ARM_VM_C1_LINEARSCAN_ARM_HPP
+#endif // CPU_ARM_C1_LINEARSCAN_ARM_HPP

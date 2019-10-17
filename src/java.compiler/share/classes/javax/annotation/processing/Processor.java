@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,7 +59,7 @@ import javax.lang.model.SourceVersion;
  * constructor of the processor class.
  *
  * <li>Next, the tool calls the {@link #init init} method with
- * an appropriate {@code ProcessingEnvironment}.
+ * an appropriate {@link ProcessingEnvironment}.
  *
  * <li>Afterwards, the tool calls {@link #getSupportedAnnotationTypes
  * getSupportedAnnotationTypes}, {@link #getSupportedOptions
@@ -252,7 +252,7 @@ public interface Processor {
      * "/"} character. For example, if a processor supports {@code
      * "a.B"}, this can include multiple annotation types named {@code
      * a.B} which reside in different modules. To only support {@code
-     * a.B} in the {@code Foo} module, instead use {@code "Foo/a.B"}.
+     * a.B} in the {@code foo} module, instead use {@code "foo/a.B"}.
      *
      * If a module name is included, only an annotation in that module
      * is matched. In particular, if a module name is given in an

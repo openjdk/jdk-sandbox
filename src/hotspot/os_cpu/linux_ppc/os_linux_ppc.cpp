@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,8 +94,6 @@ char* os::non_memory_address_word() {
   return (char*) -1;
 }
 
-void os::initialize_thread(Thread *thread) { }
-
 // Frame information (pc, sp, fp) retrieved via ucontext
 // always looks like a C-frame according to the frame
 // conventions in frame_ppc64.hpp.
@@ -132,6 +130,10 @@ intptr_t* os::Linux::ucontext_get_sp(const ucontext_t * uc) {
 
 intptr_t* os::Linux::ucontext_get_fp(const ucontext_t * uc) {
   return NULL;
+}
+
+static unsigned long ucontext_get_trap(const ucontext_t * uc) {
+  return uc->uc_mcontext.regs->trap;
 }
 
 ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
@@ -269,8 +271,9 @@ JVM_handle_linux_signal(int sig,
 
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return 1;
+    }
   }
 #endif
 
@@ -300,15 +303,27 @@ JVM_handle_linux_signal(int sig,
   address stub = NULL;
   address pc   = NULL;
 
-  //%note os_trap_1
   if (info != NULL && uc != NULL && thread != NULL) {
     pc = (address) os::Linux::ucontext_get_pc(uc);
 
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {
-      // Si_addr may not be valid due to a bug in the linux-ppc64 kernel (see
+      // si_addr may not be valid due to a bug in the linux-ppc64 kernel (see
       // comment below). Use get_stack_bang_address instead of si_addr.
-      address addr = ((NativeInstruction*)pc)->get_stack_bang_address(uc);
+      // If SIGSEGV is caused due to a branch to an invalid address an
+      // "Instruction Storage Interrupt" is generated and 'pc' (NIP) already
+      // contains the invalid address. Otherwise, the SIGSEGV is caused due to
+      // load/store instruction trying to load/store from/to an invalid address
+      // and causing a "Data Storage Interrupt", so we inspect the intruction
+      // in order to extract the faulty data addresss.
+      address addr;
+      if ((ucontext_get_trap(uc) & 0x0F00 /* no IRQ reply bits */) == 0x0400) {
+        // Instruction Storage Interrupt (ISI)
+        addr = pc;
+      } else {
+        // Data Storage Interrupt (DSI), i.e. 0x0300: extract faulty data address
+        addr = ((NativeInstruction*)pc)->get_stack_bang_address(uc);
+      }
 
       // Check if fault address is within thread stack.
       if (thread->on_local_stack(addr)) {
@@ -433,7 +448,7 @@ JVM_handle_linux_signal(int sig,
       // SIGSEGV-based implicit null check in compiled code.
       else if (sig == SIGSEGV && ImplicitNullChecks &&
                CodeCache::contains((void*) pc) &&
-               !MacroAssembler::needs_explicit_null_check((intptr_t) info->si_addr)) {
+               MacroAssembler::uses_implicit_null_check(info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: null_check at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }
@@ -455,8 +470,12 @@ JVM_handle_linux_signal(int sig,
         // underlying file has been truncated. Do not crash the VM in such a case.
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         CompiledMethod* nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
-        if (nm != NULL && nm->has_unsafe_access()) {
+        bool is_unsafe_arraycopy = (thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc));
+        if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
           address next_pc = pc + 4;
+          if (is_unsafe_arraycopy) {
+            next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+          }
           next_pc = SharedRuntime::handle_unsafe_access(thread, next_pc);
           os::Linux::ucontext_set_pc(uc, next_pc);
           return true;
@@ -471,27 +490,26 @@ JVM_handle_linux_signal(int sig,
                         // flushing of icache is not necessary.
         stub = pc + 4;  // continue with next instruction.
       }
-      else if (thread->thread_state() == _thread_in_vm &&
+      else if ((thread->thread_state() == _thread_in_vm ||
+                thread->thread_state() == _thread_in_native) &&
                sig == SIGBUS && thread->doing_unsafe_access()) {
         address next_pc = pc + 4;
+        if (UnsafeCopyMemory::contains_pc(pc)) {
+          next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
         next_pc = SharedRuntime::handle_unsafe_access(thread, next_pc);
-        os::Linux::ucontext_set_pc(uc, pc + 4);
+        os::Linux::ucontext_set_pc(uc, next_pc);
         return true;
       }
     }
 
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) &&
-        // Si_addr may not be valid due to a bug in the linux-ppc64 kernel (see comment above).
-        // Use is_memory_serialization instead of si_addr.
-        ((NativeInstruction*)pc)->is_memory_serialization(thread, ucVoid)) {
-      // Synchronization problem in the pseudo memory barrier code (bug id 6546278)
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return true;
+    // jni_fast_Get<Primitive>Field can trap at certain pc's if a GC kicks in
+    // and the heap gets shrunk before the field access.
+    if ((sig == SIGSEGV) || (sig == SIGBUS)) {
+      address addr = JNI_FastGetField::find_slowcase_pc(pc);
+      if (addr != (address)-1) {
+        stub = addr;
+      }
     }
   }
 
@@ -590,8 +608,7 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" PTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc - 64, pc + 64, /*instrsize=*/4);
+  print_instructions(st, pc, /*instrsize=*/4);
   st->cr();
 }
 

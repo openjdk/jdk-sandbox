@@ -213,8 +213,7 @@ pathToNTPath(JNIEnv *env, jstring path, jboolean throwFNFE) {
     return pathbuf;
 }
 
-JNIEXPORT FD JNICALL
-winFileHandleOpen(JNIEnv *env, jstring path, int flags)
+FD winFileHandleOpen(JNIEnv *env, jstring path, int flags)
 {
     const DWORD access =
         (flags & O_WRONLY) ?  GENERIC_WRITE :
@@ -560,8 +559,6 @@ JNIEXPORT jlong JNICALL
 handleLseek(FD fd, jlong offset, jint whence)
 {
     LARGE_INTEGER pos, distance;
-    DWORD lowPos = 0;
-    long highPos = 0;
     DWORD op = FILE_CURRENT;
     HANDLE h = (HANDLE)fd;
 

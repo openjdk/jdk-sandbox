@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
-    BASIC_LDFLAGS="-b64 -brtl -bnolibpath -bexpall -bernotok -btextpsize:64K \
+    BASIC_LDFLAGS="-b64 -brtl -bnorwexec -bnolibpath -bexpall -bernotok -btextpsize:64K \
         -bdatapsize:64K -bstackpsize:64K"
     # libjvm.so has gotten too large for normal TOC size; compile with qpic=large and link with bigtoc
     BASIC_LDFLAGS_JVM_ONLY="-Wl,-lC_r -bbigtoc"
@@ -139,6 +139,14 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     fi
   fi
 
+  # Setup warning flags
+  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
+    LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
+  else
+    LDFLAGS_WARNINGS_ARE_ERRORS=""
+  fi
+  AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
+
   # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
@@ -165,10 +173,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
     elif test "x$OPENJDK_$1_CPU" = xarm; then
       $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
       $1_CPU_LDFLAGS="$ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    elif test "x$FLAGS_CPU" = xaarch64; then
-      if test "x$HOTSPOT_TARGET_CPU_PORT" = xarm64; then
-        $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
-      fi
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,8 @@
 
 package java.util.zip;
 
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.file.attribute.FileTime;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -40,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import static java.util.zip.ZipConstants.ENDHDR;
 
 import jdk.internal.misc.Unsafe;
-import sun.nio.ch.DirectBuffer;
 
 class ZipUtils {
 
@@ -280,13 +276,7 @@ class ZipUtils {
      * Loads zip native library, if not already laoded
      */
     static void loadLibrary() {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm == null) {
-            System.loadLibrary("zip");
-        } else {
-            PrivilegedAction<Void> pa = () -> { System.loadLibrary("zip"); return null; };
-            AccessController.doPrivileged(pa);
-        }
+        jdk.internal.loader.BootLoader.loadLibrary("zip");
     }
 
     private static final Unsafe unsafe = Unsafe.getUnsafe();
@@ -295,7 +285,7 @@ class ZipUtils {
     private static final long byteBufferOffsetOffset = unsafe.objectFieldOffset(ByteBuffer.class, "offset");
 
     static byte[] getBufferArray(ByteBuffer byteBuffer) {
-        return (byte[]) unsafe.getObject(byteBuffer, byteBufferArrayOffset);
+        return (byte[]) unsafe.getReference(byteBuffer, byteBufferArrayOffset);
     }
 
     static int getBufferOffset(ByteBuffer byteBuffer) {

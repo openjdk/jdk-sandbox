@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP
-#define SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP
+#ifndef SHARE_CLASSFILE_CLASSFILEPARSER_HPP
+#define SHARE_CLASSFILE_CLASSFILEPARSER_HPP
 
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
@@ -68,8 +68,7 @@ class ClassFileParser {
   //
   enum Publicity {
     INTERNAL,
-    BROADCAST,
-    NOF_PUBLICITY_LEVELS
+    BROADCAST
   };
 
   enum { LegalClass, LegalField, LegalMethod }; // used to verify unqualified names
@@ -102,8 +101,8 @@ class ClassFileParser {
   Array<InstanceKlass*>* _local_interfaces;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
-  AnnotationArray* _annotations;
-  AnnotationArray* _type_annotations;
+  AnnotationArray* _class_annotations;
+  AnnotationArray* _class_type_annotations;
   Array<AnnotationArray*>* _fields_annotations;
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass* _klass;  // InstanceKlass* once created.
@@ -269,14 +268,6 @@ class ClassFileParser {
                                             u2* const checked_exceptions_length,
                                             u4 method_attribute_length,
                                             TRAPS);
-
-  void parse_type_array(u2 array_length,
-                        u4 code_length,
-                        u4* const u1_index,
-                        u4* const u2_index,
-                        u1* const u1_array,
-                        u2* const u2_array,
-                        TRAPS);
 
   // Classfile attribute parsing
   u2 parse_generic_signature_attribute(const ClassFileStream* const cfs, TRAPS);
@@ -496,6 +487,8 @@ class ClassFileParser {
                      FieldLayoutInfo* info,
                      TRAPS);
 
+   void update_class_name(Symbol* new_name);
+
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
@@ -522,7 +515,6 @@ class ClassFileParser {
   int itable_size() const { return _itable_size; }
 
   u2 this_class_index() const { return _this_class_index; }
-  u2 super_class_index() const { return _super_class_index; }
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }
@@ -546,4 +538,4 @@ class ClassFileParser {
 
 };
 
-#endif // SHARE_VM_CLASSFILE_CLASSFILEPARSER_HPP
+#endif // SHARE_CLASSFILE_CLASSFILEPARSER_HPP

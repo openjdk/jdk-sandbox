@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2017 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
-#define CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
+#ifndef CPU_PPC_ASSEMBLER_PPC_INLINE_HPP
+#define CPU_PPC_ASSEMBLER_PPC_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/codeBuffer.hpp"
@@ -171,6 +171,8 @@ inline void Assembler::cmpi(  ConditionRegister f, int l, Register a, int si16) 
 inline void Assembler::cmp(   ConditionRegister f, int l, Register a, Register b) { emit_int32( CMP_OPCODE   | bf(f) | l10(l) | ra(a) | rb(b)); }
 inline void Assembler::cmpli( ConditionRegister f, int l, Register a, int ui16)   { emit_int32( CMPLI_OPCODE | bf(f) | l10(l) | ra(a) | uimm(ui16,16)); }
 inline void Assembler::cmpl(  ConditionRegister f, int l, Register a, Register b) { emit_int32( CMPL_OPCODE  | bf(f) | l10(l) | ra(a) | rb(b)); }
+inline void Assembler::cmprb( ConditionRegister f, int l, Register a, Register b) { emit_int32( CMPRB_OPCODE | bf(f) | l10(l) | ra(a) | rb(b)); }
+inline void Assembler::cmpeqb(ConditionRegister f, Register a, Register b)        { emit_int32( CMPEQB_OPCODE| bf(f) | ra(a)  | rb(b)); }
 
 // extended mnemonics of Compare Instructions
 inline void Assembler::cmpwi( ConditionRegister crx, Register a, int si16)   { Assembler::cmpi( crx, 0, a, si16); }
@@ -235,6 +237,10 @@ inline void Assembler::cntlzw(  Register a, Register s)              { emit_int3
 inline void Assembler::cntlzw_( Register a, Register s)              { emit_int32(CNTLZW_OPCODE | rta(a) | rs(s) | rc(1)); }
 inline void Assembler::cntlzd(  Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(0)); }
 inline void Assembler::cntlzd_( Register a, Register s)              { emit_int32(CNTLZD_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzw(  Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzw_( Register a, Register s)              { emit_int32(CNTTZW_OPCODE | rta(a) | rs(s) | rc(1)); }
+inline void Assembler::cnttzd(  Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(0)); }
+inline void Assembler::cnttzd_( Register a, Register s)              { emit_int32(CNTTZD_OPCODE | rta(a) | rs(s) | rc(1)); }
 
 // PPC 1, section 3.3.12, Fixed-Point Rotate and Shift Instructions
 inline void Assembler::sld(     Register a, Register s, Register b)  { emit_int32(SLD_OPCODE    | rta(a) | rs(s) | rb(b) | rc(0)); }
@@ -367,6 +373,8 @@ inline void Assembler::mfcr( Register d )         { emit_int32(MFCR_OPCODE  | rt
 inline void Assembler::mcrf( ConditionRegister crd, ConditionRegister cra)
                                                       { emit_int32(MCRF_OPCODE | bf(crd) | bfa(cra)); }
 inline void Assembler::mtcr( Register s)          { Assembler::mtcrf(0xff, s); }
+inline void Assembler::setb(Register d, ConditionRegister cra)
+                                                  { emit_int32(SETB_OPCODE | rt(d) | bfa(cra)); }
 
 // Special purpose registers
 // Exception Register
@@ -782,6 +790,12 @@ inline void Assembler::xvadddp( VectorSRegister d, VectorSRegister a, VectorSReg
 inline void Assembler::xvsubdp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVSUBDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xvmulsp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMULSP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::xvmuldp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMULDP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmaddasp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMADDASP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmaddadp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMADDADP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmsubasp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMSUBASP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvmsubadp( VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVMSUBADP_OPCODE  | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvnmsubasp(VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVNMSUBASP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
+inline void Assembler::xvnmsubadp(VectorSRegister d, VectorSRegister a, VectorSRegister b) { emit_int32( XVNMSUBADP_OPCODE | vsrt(d) | vsra(a) | vsrb(b)); }
 inline void Assembler::mtvrd(   VectorRegister d, Register a)               { emit_int32( MTVSRD_OPCODE  | vsrt(d->to_vsr()) | ra(a)); }
 inline void Assembler::mfvrd(   Register        a, VectorRegister d)         { emit_int32( MFVSRD_OPCODE  | vsrt(d->to_vsr()) | ra(a)); }
 inline void Assembler::mtvrwz(  VectorRegister  d, Register a)               { emit_int32( MTVSRWZ_OPCODE | vsrt(d->to_vsr()) | ra(a)); }
@@ -979,6 +993,9 @@ inline void Assembler::tsuspend_()                              { emit_int32( TS
 inline void Assembler::tresume_()                               { emit_int32( TSR_OPCODE | /*L=1*/ 1u << (31-10) | rc(1)); }
 inline void Assembler::tcheck(int f)                            { emit_int32( TCHECK_OPCODE | bf(f)); }
 
+// Deliver A Random Number (introduced with POWER9)
+inline void Assembler::darn(Register d, int l /* =1 */) { emit_int32( DARN_OPCODE | rt(d) | l14(l)); }
+
 // ra0 version
 inline void Assembler::lwzx( Register d, Register s2) { emit_int32( LWZX_OPCODE | rt(d) | rb(s2));}
 inline void Assembler::lwz(  Register d, int si16   ) { emit_int32( LWZ_OPCODE  | rt(d) | d1(si16));}
@@ -1110,4 +1127,4 @@ inline void Assembler::load_const32(Register d, int i) {
   ori(d, d, i & 0xFFFF);
 }
 
-#endif // CPU_PPC_VM_ASSEMBLER_PPC_INLINE_HPP
+#endif // CPU_PPC_ASSEMBLER_PPC_INLINE_HPP

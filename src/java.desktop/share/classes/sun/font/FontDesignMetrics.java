@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,22 +25,18 @@
 
 package sun.font;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.SoftReference;
-
-import java.awt.FontMetrics;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.GraphicsEnvironment;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.NoninvertibleTransformException;
-import java.awt.geom.Rectangle2D;
 import java.awt.font.FontRenderContext;
 import java.awt.font.TextLayout;
-
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.SoftReference;
 import java.util.concurrent.ConcurrentHashMap;
 
 import sun.java2d.Disposer;
@@ -263,7 +259,7 @@ public final class FontDesignMetrics extends FontMetrics {
          * by this code as they use the metrics of the physical anyway.
          */
         SunFontManager fm = SunFontManager.getInstance();
-        if (fm.maybeUsingAlternateCompositeFonts() &&
+        if (fm.usingAlternateCompositeFonts() &&
             FontUtilities.getFont2D(font) instanceof CompositeFont) {
             return new FontDesignMetrics(font, frc);
         }
@@ -487,7 +483,7 @@ public final class FontDesignMetrics extends FontMetrics {
         return (int) (0.5 + width);
     }
 
-    public int charsWidth(char data[], int off, int len) {
+    public int charsWidth(char[] data, int off, int len) {
 
         float width = 0;
         if (font.hasLayoutAttributes()) {
@@ -524,7 +520,7 @@ public final class FontDesignMetrics extends FontMetrics {
      * the arguments and that the text is simple and there are no
      * layout attributes, font transform etc.
      */
-    public Rectangle2D getSimpleBounds(char data[], int off, int len) {
+    public Rectangle2D getSimpleBounds(char[] data, int off, int len) {
 
         float width = 0;
         int limit = off + len;

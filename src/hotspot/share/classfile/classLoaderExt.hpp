@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CLASSFILE_CLASSLOADEREXT_HPP
-#define SHARE_VM_CLASSFILE_CLASSLOADEREXT_HPP
+#ifndef SHARE_CLASSFILE_CLASSLOADEREXT_HPP
+#define SHARE_CLASSFILE_CLASSLOADEREXT_HPP
 
 #include "classfile/classLoader.hpp"
 #include "classfile/moduleEntry.hpp"
@@ -33,18 +33,20 @@ class ClassListParser;
 
 class ClassLoaderExt: public ClassLoader { // AllStatic
 public:
+  static bool should_verify(int classpath_index) {
+    CDS_ONLY(return (classpath_index >= _app_class_paths_start_index);)
+    NOT_CDS(return false;)
+  }
+
+#if INCLUDE_CDS
+private:
   enum SomeConstants {
     max_classpath_index = 0x7fff
   };
 
-private:
-#if INCLUDE_CDS
   static char* get_class_path_attr(const char* jar_path, char* manifest, jint manifest_size);
   static void setup_app_search_path(); // Only when -Xshare:dump
   static void process_module_table(ModuleEntryTable* met, TRAPS);
-  static SharedPathsMiscInfo* shared_paths_misc_info() {
-    return (SharedPathsMiscInfo*)_shared_paths_misc_info;
-  }
   // index of first app JAR in shared classpath entry table
   static jshort _app_class_paths_start_index;
   // index of first modular JAR in shared modulepath entry table
@@ -54,27 +56,19 @@ private:
 
   static bool _has_app_classes;
   static bool _has_platform_classes;
-#endif
 
-public:
-  CDS_ONLY(static void process_jar_manifest(ClassPathEntry* entry, bool check_for_duplicates);)
-
-  static bool should_verify(int classpath_index) {
-    CDS_ONLY(return (classpath_index >= _app_class_paths_start_index);)
-    NOT_CDS(return false;)
-  }
-  // Called by JVMTI code to add boot classpath
-  static void append_boot_classpath(ClassPathEntry* new_entry);
-
-  static void setup_search_paths() NOT_CDS_RETURN;
-  static void setup_module_paths(TRAPS) NOT_CDS_RETURN;
-
-#if INCLUDE_CDS
-private:
   static char* read_manifest(ClassPathEntry* entry, jint *manifest_size, bool clean_text, TRAPS);
   static ClassPathEntry* find_classpath_entry_from_cache(const char* path, TRAPS);
 
 public:
+  static void process_jar_manifest(ClassPathEntry* entry, bool check_for_duplicates);
+
+  // Called by JVMTI code to add boot classpath
+  static void append_boot_classpath(ClassPathEntry* new_entry);
+
+  static void setup_search_paths();
+  static void setup_module_paths(TRAPS);
+
   static char* read_manifest(ClassPathEntry* entry, jint *manifest_size, TRAPS) {
     // Remove all the new-line continuations (which wrap long lines at 72 characters, see
     // http://docs.oracle.com/javase/6/docs/technotes/guides/jar/jar.html#JAR%20Manifest), so
@@ -86,8 +80,6 @@ public:
     // java.util.jar.Manifest.getManifest() at run-time.
     return read_manifest(entry, manifest_size, false, THREAD);
   }
-
-  static void finalize_shared_paths_misc_info();
 
   static jshort app_class_paths_start_index() { return _app_class_paths_start_index; }
 
@@ -118,7 +110,6 @@ public:
   static void record_result(const s2 classpath_index,
                             InstanceKlass* result, TRAPS);
   static InstanceKlass* load_class(Symbol* h_name, const char* path, TRAPS);
-  static Klass* load_one_class(ClassListParser* parser, TRAPS);
   static void set_has_app_classes() {
     _has_app_classes = true;
   }
@@ -128,4 +119,4 @@ public:
 #endif
 };
 
-#endif // SHARE_VM_CLASSFILE_CLASSLOADEREXT_HPP
+#endif // SHARE_CLASSFILE_CLASSLOADEREXT_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ VMReg   VtableStub::_receiver_location = VMRegImpl::Bad();
 
 
 void* VtableStub::operator new(size_t size, int code_size) throw() {
+  assert_lock_strong(VtableStubs_lock);
   assert(size == sizeof(VtableStub), "mismatched size");
   // compute real VtableStub size (rounded to nearest word)
   const int real_size = align_up(code_size + (int)sizeof(VtableStub), wordSize);
@@ -79,10 +80,11 @@ void* VtableStub::operator new(size_t size, int code_size) throw() {
 
 
 void VtableStub::print_on(outputStream* st) const {
-  st->print("vtable stub (index = %d, receiver_location = " INTX_FORMAT ", code = [" INTPTR_FORMAT ", " INTPTR_FORMAT "[)",
+  st->print("vtable stub (index = %d, receiver_location = " INTX_FORMAT ", code = [" INTPTR_FORMAT ", " INTPTR_FORMAT "])",
              index(), p2i(receiver_location()), p2i(code_begin()), p2i(code_end()));
 }
 
+void VtableStub::print() const { print_on(tty); }
 
 // -----------------------------------------------------------------------------------------
 // Implementation of VtableStubs
@@ -124,7 +126,7 @@ int VtableStubs::_itab_stub_size = 0;
 void VtableStubs::initialize() {
   VtableStub::_receiver_location = SharedRuntime::name_for_receiver();
   {
-    MutexLocker ml(VtableStubs_lock);
+    MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
     assert(_number_of_vtable_stubs == 0, "potential performance bug: VtableStubs initialized more than once");
     assert(is_power_of_2(N), "N must be a power of 2");
     for (int i = 0; i < N; i++) {
@@ -208,31 +210,36 @@ void VtableStubs::bookkeeping(MacroAssembler* masm, outputStream* out, VtableStu
 address VtableStubs::find_stub(bool is_vtable_stub, int vtable_index) {
   assert(vtable_index >= 0, "must be positive");
 
-  VtableStub* s = ShareVtableStubs ? lookup(is_vtable_stub, vtable_index) : NULL;
-  if (s == NULL) {
-    if (is_vtable_stub) {
-      s = create_vtable_stub(vtable_index);
-    } else {
-      s = create_itable_stub(vtable_index);
-    }
-
-    // Creation of vtable or itable can fail if there is not enough free space in the code cache.
+  VtableStub* s;
+  {
+    MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
+    s = lookup(is_vtable_stub, vtable_index);
     if (s == NULL) {
-      return NULL;
-    }
+      if (is_vtable_stub) {
+        s = create_vtable_stub(vtable_index);
+      } else {
+        s = create_itable_stub(vtable_index);
+      }
 
-    enter(is_vtable_stub, vtable_index, s);
-    if (PrintAdapterHandlers) {
-      tty->print_cr("Decoding VtableStub %s[%d]@" INTX_FORMAT,
-                    is_vtable_stub? "vtbl": "itbl", vtable_index, p2i(VtableStub::receiver_location()));
-      Disassembler::decode(s->code_begin(), s->code_end());
-    }
-    // Notify JVMTI about this stub. The event will be recorded by the enclosing
-    // JvmtiDynamicCodeEventCollector and posted when this thread has released
-    // all locks.
-    if (JvmtiExport::should_post_dynamic_code_generated()) {
-      JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",
-                                                                   s->code_begin(), s->code_end());
+      // Creation of vtable or itable can fail if there is not enough free space in the code cache.
+      if (s == NULL) {
+        return NULL;
+      }
+
+      enter(is_vtable_stub, vtable_index, s);
+      if (PrintAdapterHandlers) {
+        tty->print_cr("Decoding VtableStub %s[%d]@" INTX_FORMAT,
+                      is_vtable_stub? "vtbl": "itbl", vtable_index, p2i(VtableStub::receiver_location()));
+        Disassembler::decode(s->code_begin(), s->code_end());
+      }
+      // Notify JVMTI about this stub. The event will be recorded by the enclosing
+      // JvmtiDynamicCodeEventCollector and posted when this thread has released
+      // all locks. Only post this event if a new state is not required. Creating a new state would
+      // cause a safepoint and the caller of this code has a NoSafepointVerifier.
+      if (JvmtiExport::should_post_dynamic_code_generated()) {
+        JvmtiExport::post_dynamic_code_generated_while_holding_locks(is_vtable_stub? "vtable stub": "itable stub",
+                                                                     s->code_begin(), s->code_end());
+      }
     }
   }
   return s->entry_point();
@@ -247,7 +254,7 @@ inline uint VtableStubs::hash(bool is_vtable_stub, int vtable_index){
 
 
 VtableStub* VtableStubs::lookup(bool is_vtable_stub, int vtable_index) {
-  MutexLocker ml(VtableStubs_lock);
+  assert_lock_strong(VtableStubs_lock);
   unsigned hash = VtableStubs::hash(is_vtable_stub, vtable_index);
   VtableStub* s = _table[hash];
   while( s && !s->matches(is_vtable_stub, vtable_index)) s = s->next();
@@ -256,7 +263,7 @@ VtableStub* VtableStubs::lookup(bool is_vtable_stub, int vtable_index) {
 
 
 void VtableStubs::enter(bool is_vtable_stub, int vtable_index, VtableStub* s) {
-  MutexLocker ml(VtableStubs_lock);
+  assert_lock_strong(VtableStubs_lock);
   assert(s->matches(is_vtable_stub, vtable_index), "bad vtable stub");
   unsigned int h = VtableStubs::hash(is_vtable_stub, vtable_index);
   // enter s at the beginning of the corresponding list
@@ -266,7 +273,7 @@ void VtableStubs::enter(bool is_vtable_stub, int vtable_index, VtableStub* s) {
 }
 
 VtableStub* VtableStubs::entry_point(address pc) {
-  MutexLocker ml(VtableStubs_lock);
+  MutexLocker ml(VtableStubs_lock, Mutex::_no_safepoint_check_flag);
   VtableStub* stub = (VtableStub*)(pc - VtableStub::entry_offset());
   uint hash = VtableStubs::hash(stub->is_vtable_stub(), stub->index());
   VtableStub* s;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_SERVICES_LOWMEMORYDETECTOR_HPP
-#define SHARE_VM_SERVICES_LOWMEMORYDETECTOR_HPP
+#ifndef SHARE_SERVICES_LOWMEMORYDETECTOR_HPP
+#define SHARE_SERVICES_LOWMEMORYDETECTOR_HPP
 
 #include "memory/allocation.hpp"
 #include "services/memoryPool.hpp"
@@ -59,7 +59,8 @@
 //
 // May need to deal with hysteresis effect.
 //
-// Memory detection code runs in the Service thread (serviceThread.hpp).
+// Memory detection code runs in the Notification thread or
+// ServiceThread depending on UseNotificationThread flag.
 
 class OopClosure;
 class MemoryPool;
@@ -214,6 +215,7 @@ public:
 class LowMemoryDetector : public AllStatic {
   friend class LowMemoryDetectorDisabler;
   friend class ServiceThread;
+  friend class NotificationThread;
 private:
   // true if any collected heap has low memory detection enabled
   static volatile bool _enabled_for_collected_pools;
@@ -290,4 +292,4 @@ public:
   }
 };
 
-#endif // SHARE_VM_SERVICES_LOWMEMORYDETECTOR_HPP
+#endif // SHARE_SERVICES_LOWMEMORYDETECTOR_HPP

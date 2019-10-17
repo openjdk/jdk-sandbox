@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -455,6 +455,7 @@ public class Event implements java.io.Serializable {
      * @serial
      * @see java.awt.AWTEvent#getSource()
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     public Object target;
 
     /**
@@ -537,6 +538,7 @@ public class Event implements java.io.Serializable {
      *
      * @serial
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     public Object arg;
 
     /**
@@ -550,7 +552,7 @@ public class Event implements java.io.Serializable {
     public Event evt;
 
     /* table for mapping old Event action keys to KeyEvent virtual keys. */
-    private static final int actionKeyCodes[][] = {
+    private static final int[][] actionKeyCodes = {
     /*    virtual key              action key   */
         { KeyEvent.VK_HOME,        Event.HOME         },
         { KeyEvent.VK_END,         Event.END          },

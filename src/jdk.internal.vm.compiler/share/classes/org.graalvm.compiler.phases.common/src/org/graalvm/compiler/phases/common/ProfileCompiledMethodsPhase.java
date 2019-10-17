@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,6 +69,8 @@ import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
 import org.graalvm.compiler.phases.Phase;
 import org.graalvm.compiler.phases.schedule.SchedulePhase;
 
+import jdk.vm.ci.services.Services;
+
 /**
  * This phase add counters for the dynamically executed number of nodes. Incrementing the counter
  * for each node would be too costly, so this phase takes the compromise that it trusts split
@@ -87,9 +89,17 @@ public class ProfileCompiledMethodsPhase extends Phase {
     private static final String GROUP_NAME_WITHOUT = "~profiled weight (invoke-free sections)";
     private static final String GROUP_NAME_INVOKES = "~profiled invokes";
 
-    private static final boolean WITH_SECTION_HEADER = Boolean.parseBoolean(System.getProperty("ProfileCompiledMethodsPhase.WITH_SECTION_HEADER", "false"));
-    private static final boolean WITH_INVOKE_FREE_SECTIONS = Boolean.parseBoolean(System.getProperty("ProfileCompiledMethodsPhase.WITH_FREE_SECTIONS", "false"));
-    private static final boolean WITH_INVOKES = Boolean.parseBoolean(System.getProperty("ProfileCompiledMethodsPhase.WITH_INVOKES", "true"));
+    private static String getProperty(String name, String def) {
+        String value = Services.getSavedProperties().get(name);
+        if (value == null) {
+            return def;
+        }
+        return value;
+    }
+
+    private static final boolean WITH_SECTION_HEADER = Boolean.parseBoolean(getProperty("ProfileCompiledMethodsPhase.WITH_SECTION_HEADER", "false"));
+    private static final boolean WITH_INVOKE_FREE_SECTIONS = Boolean.parseBoolean(getProperty("ProfileCompiledMethodsPhase.WITH_FREE_SECTIONS", "false"));
+    private static final boolean WITH_INVOKES = Boolean.parseBoolean(getProperty("ProfileCompiledMethodsPhase.WITH_INVOKES", "true"));
 
     @Override
     protected void run(StructuredGraph graph) {
@@ -98,7 +108,7 @@ public class ProfileCompiledMethodsPhase extends Phase {
 
         ControlFlowGraph cfg = ControlFlowGraph.compute(graph, true, true, true, true);
         for (Loop<Block> loop : cfg.getLoops()) {
-            double loopProbability = cfg.blockFor(loop.getHeader().getBeginNode()).probability();
+            double loopProbability = cfg.blockFor(loop.getHeader().getBeginNode()).getRelativeFrequency();
             if (loopProbability > (1D / Integer.MAX_VALUE)) {
                 addSectionCounters(loop.getHeader().getBeginNode(), loop.getBlocks(), loop.getChildren(), graph.getLastSchedule(), cfg);
             }
@@ -126,10 +136,10 @@ public class ProfileCompiledMethodsPhase extends Phase {
         for (Loop<Block> loop : childLoops) {
             blocks.removeAll(loop.getBlocks());
         }
-        double weight = getSectionWeight(schedule, blocks) / cfg.blockFor(start).probability();
-        DynamicCounterNode.addCounterBefore(GROUP_NAME, sectionHead(start), (long) weight, true, start.next());
+        long increment = DynamicCounterNode.clampIncrement((long) (getSectionWeight(schedule, blocks) / cfg.blockFor(start).getRelativeFrequency()));
+        DynamicCounterNode.addCounterBefore(GROUP_NAME, sectionHead(start), increment, true, start.next());
         if (WITH_INVOKE_FREE_SECTIONS && !hasInvoke(blocks)) {
-            DynamicCounterNode.addCounterBefore(GROUP_NAME_WITHOUT, sectionHead(start), (long) weight, true, start.next());
+            DynamicCounterNode.addCounterBefore(GROUP_NAME_WITHOUT, sectionHead(start), increment, true, start.next());
         }
     }
 
@@ -144,7 +154,7 @@ public class ProfileCompiledMethodsPhase extends Phase {
     private static double getSectionWeight(ScheduleResult schedule, Collection<Block> blocks) {
         double count = 0;
         for (Block block : blocks) {
-            double blockProbability = block.probability();
+            double blockProbability = block.getRelativeFrequency();
             for (Node node : schedule.getBlockToNodesMap().get(block)) {
                 count += blockProbability * getNodeWeight(node);
             }

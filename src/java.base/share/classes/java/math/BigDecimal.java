@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ package java.math;
 
 import static java.math.BigInteger.LONG_MASK;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * Immutable, arbitrary-precision signed decimal numbers.  A
@@ -279,6 +280,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     private static final int MAX_COMPACT_DIGITS = 18;
 
     /* Appease the serialization gods */
+    @java.io.Serial
     private static final long serialVersionUID = 6108874887143696463L;
 
     private static final ThreadLocal<StringBuilderHelper>
@@ -424,9 +426,14 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @since  1.5
      */
     public BigDecimal(char[] in, int offset, int len, MathContext mc) {
-        // protect against huge length.
-        if (offset + len > in.length || offset < 0)
-            throw new NumberFormatException("Bad offset or len arguments for char[] input.");
+        // protect against huge length, negative values, and integer overflow
+        try {
+            Objects.checkFromIndexSize(offset, len, in.length);
+        } catch (IndexOutOfBoundsException e) {
+            throw new NumberFormatException
+                ("Bad offset or len arguments for char[] input.");
+        }
+
         // This is the primary string to BigDecimal constructor; all
         // incoming strings end up here; it uses explicit (inline)
         // parsing for speed and generates at most one intermediate
@@ -2871,6 +2878,8 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @throws ArithmeticException if scale overflows.
      */
     public BigDecimal movePointLeft(int n) {
+        if (n == 0) return this;
+
         // Cannot use movePointRight(-n) in case of n==Integer.MIN_VALUE
         int newScale = checkScale((long)scale + n);
         BigDecimal num = new BigDecimal(intVal, intCompact, newScale, 0);
@@ -2893,6 +2902,8 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      * @throws ArithmeticException if scale overflows.
      */
     public BigDecimal movePointRight(int n) {
+        if (n == 0) return this;
+
         // Cannot use movePointLeft(-n) in case of n==Integer.MIN_VALUE
         int newScale = checkScale((long)scale - n);
         BigDecimal num = new BigDecimal(intVal, intCompact, newScale, 0);
@@ -3404,9 +3415,32 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      */
     @Override
     public long longValue(){
-        return (intCompact != INFLATED && scale == 0) ?
-            intCompact:
-            toBigInteger().longValue();
+        if (intCompact != INFLATED && scale == 0) {
+            return intCompact;
+        } else {
+            // Fastpath zero and small values
+            if (this.signum() == 0 || fractionOnly() ||
+                // Fastpath very large-scale values that will result
+                // in a truncated value of zero. If the scale is -64
+                // or less, there are at least 64 powers of 10 in the
+                // value of the numerical result. Since 10 = 2*5, in
+                // that case there would also be 64 powers of 2 in the
+                // result, meaning all 64 bits of a long will be zero.
+                scale <= -64) {
+                return 0;
+            } else {
+                return toBigInteger().longValue();
+            }
+        }
+    }
+
+    /**
+     * Return true if a nonzero BigDecimal has an absolute value less
+     * than one; i.e. only has fraction digits.
+     */
+    private boolean fractionOnly() {
+        assert this.signum() != 0;
+        return (this.precision() - this.scale) <= 0;
     }
 
     /**
@@ -3424,15 +3458,20 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     public long longValueExact() {
         if (intCompact != INFLATED && scale == 0)
             return intCompact;
+
+        // Fastpath zero
+        if (this.signum() == 0)
+            return 0;
+
+        // Fastpath numbers less than 1.0 (the latter can be very slow
+        // to round if very small)
+        if (fractionOnly())
+            throw new ArithmeticException("Rounding necessary");
+
         // If more than 19 digits in integer part it cannot possibly fit
         if ((precision() - scale) > 19) // [OK for negative scale too]
             throw new java.lang.ArithmeticException("Overflow");
-        // Fastpath zero and < 1.0 numbers (the latter can be very slow
-        // to round if very small)
-        if (this.signum() == 0)
-            return 0;
-        if ((this.precision() - this.scale) <= 0)
-            throw new ArithmeticException("Rounding necessary");
+
         // round to an integer, with Exception if decimal part non-0
         BigDecimal num = this.setScale(0, ROUND_UNNECESSARY);
         if (num.precision() >= 19) // need to check carefully
@@ -3476,7 +3515,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     public int intValue() {
         return  (intCompact != INFLATED && scale == 0) ?
             (int)intCompact :
-            toBigInteger().intValue();
+            (int)longValue();
     }
 
     /**
@@ -4079,7 +4118,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
         }
 
         static void setIntValVolatile(BigDecimal bd, BigInteger val) {
-            unsafe.putObjectVolatile(bd, intValOffset, val);
+            unsafe.putReferenceVolatile(bd, intValOffset, val);
         }
     }
 
@@ -4089,6 +4128,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
      *
      * @param s the stream being read.
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException {
         // Read in all fields
@@ -4107,6 +4147,7 @@ public class BigDecimal extends Number implements Comparable<BigDecimal> {
     *
     * @param s the stream to serialize to.
     */
+    @java.io.Serial
    private void writeObject(java.io.ObjectOutputStream s)
        throws java.io.IOException {
        // Must inflate to maintain compatible serial form.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_PRIMS_JVMTIEXPORT_HPP
-#define SHARE_VM_PRIMS_JVMTIEXPORT_HPP
+#ifndef SHARE_PRIMS_JVMTIEXPORT_HPP
+#define SHARE_PRIMS_JVMTIEXPORT_HPP
 
 #include "jvmtifiles/jvmti.h"
 #include "memory/allocation.hpp"
@@ -91,6 +91,7 @@ class JvmtiExport : public AllStatic {
   JVMTI_SUPPORT_FLAG(can_force_early_return)
 
   JVMTI_SUPPORT_FLAG(early_vmstart_recorded)
+  JVMTI_SUPPORT_FLAG(can_get_owned_monitor_info) // includes can_get_owned_monitor_stack_depth_info
 
   friend class JvmtiEventControllerPrivate;  // should only modify these flags
   JVMTI_SUPPORT_FLAG(should_post_single_step)
@@ -165,9 +166,7 @@ class JvmtiExport : public AllStatic {
   // DynamicCodeGenerated events for a given environment.
   friend class JvmtiCodeBlobEvents;
 
-  static void post_compiled_method_load(JvmtiEnv* env, const jmethodID method, const jint length,
-                                        const void *code_begin, const jint map_length,
-                                        const jvmtiAddrLocationMap* map) NOT_JVMTI_RETURN;
+  static void post_compiled_method_load(JvmtiEnv* env, nmethod *nm) NOT_JVMTI_RETURN;
   static void post_dynamic_code_generated(JvmtiEnv* env, const char *name, const void *code_begin,
                                           const void *code_end) NOT_JVMTI_RETURN;
 
@@ -175,10 +174,10 @@ class JvmtiExport : public AllStatic {
   // one or more classes during the lifetime of the VM. The flag should
   // only be set by the friend class and can be queried by other sub
   // systems as needed to relax invariant checks.
-  static bool _has_redefined_a_class;
+  static uint64_t _redefinition_count;
   friend class VM_RedefineClasses;
-  inline static void set_has_redefined_a_class() {
-    JVMTI_ONLY(_has_redefined_a_class = true;)
+  inline static void increment_redefinition_count() {
+    JVMTI_ONLY(_redefinition_count++;)
   }
   // Flag to indicate if the compiler has recorded all dependencies. When the
   // can_redefine_classes capability is enabled in the OnLoad phase then the compiler
@@ -190,8 +189,14 @@ class JvmtiExport : public AllStatic {
 
  public:
   inline static bool has_redefined_a_class() {
-    JVMTI_ONLY(return _has_redefined_a_class);
+    JVMTI_ONLY(return _redefinition_count != 0);
     NOT_JVMTI(return false);
+  }
+
+  // Only set in safepoint, so no memory ordering needed.
+  inline static uint64_t redefinition_count() {
+    JVMTI_ONLY(return _redefinition_count);
+    NOT_JVMTI(return 0);
   }
 
   inline static bool all_dependencies_are_recorded() {
@@ -328,6 +333,8 @@ class JvmtiExport : public AllStatic {
     JVMTI_ONLY(return _should_post_class_file_load_hook);
     NOT_JVMTI(return false;)
   }
+  static bool is_early_phase() NOT_JVMTI_RETURN_(false);
+  static bool has_early_class_hook_env() NOT_JVMTI_RETURN_(false);
   // Return true if the class was modified by the hook.
   static bool post_class_file_load_hook(Symbol* h_name, Handle class_loader,
                                         Handle h_protection_domain,
@@ -388,7 +395,6 @@ class JvmtiExport : public AllStatic {
 
   static void oops_do(OopClosure* f) NOT_JVMTI_RETURN;
   static void weak_oops_do(BoolObjectClosure* b, OopClosure* f) NOT_JVMTI_RETURN;
-  static void gc_epilogue() NOT_JVMTI_RETURN;
 
   static void transition_pending_onload_raw_monitors() NOT_JVMTI_RETURN;
 
@@ -420,7 +426,7 @@ class JvmtiCodeBlobDesc : public CHeapObj<mtInternal> {
  public:
   JvmtiCodeBlobDesc(const char *name, address code_begin, address code_end) {
     assert(name != NULL, "all code blobs must be named");
-    strncpy(_name, name, sizeof(_name));
+    strncpy(_name, name, sizeof(_name) - 1);
     _name[sizeof(_name)-1] = '\0';
     _code_begin = code_begin;
     _code_end = code_end;
@@ -538,7 +544,7 @@ class JvmtiSampledObjectAllocEventCollector : public JvmtiObjectAllocEventCollec
   JvmtiSampledObjectAllocEventCollector()  NOT_JVMTI_RETURN;
   ~JvmtiSampledObjectAllocEventCollector()  NOT_JVMTI_RETURN;
   bool is_sampled_object_alloc_event()    { return true; }
-  static bool object_alloc_is_safe_to_sample();
+  static bool object_alloc_is_safe_to_sample() NOT_JVMTI_RETURN_(false);
 };
 
 // Marker class to disable the posting of VMObjectAlloc events
@@ -599,4 +605,4 @@ class JvmtiHideSingleStepping : public StackObj {
   }
 };
 
-#endif // SHARE_VM_PRIMS_JVMTIEXPORT_HPP
+#endif // SHARE_PRIMS_JVMTIEXPORT_HPP

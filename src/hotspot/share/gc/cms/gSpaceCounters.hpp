@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_GSPACECOUNTERS_HPP
-#define SHARE_VM_GC_CMS_GSPACECOUNTERS_HPP
+#ifndef SHARE_GC_CMS_GSPACECOUNTERS_HPP
+#define SHARE_GC_CMS_GSPACECOUNTERS_HPP
 
 #include "gc/shared/generation.hpp"
 #include "gc/shared/generationCounters.hpp"
@@ -59,7 +59,7 @@ class GSpaceCounters: public CHeapObj<mtGC> {
   }
 
   inline void update_used() {
-    _used->set_value(_gen->used());
+    _used->set_value(_gen->used_stable());
   }
 
   // special version of update_used() to allow the used value to be
@@ -103,8 +103,8 @@ class GenerationUsedHelper : public PerfLongSampleHelper {
     GenerationUsedHelper(Generation* g) : _gen(g) { }
 
     inline jlong take_sample() {
-      return _gen->used();
+      return _gen->used_stable();
     }
 };
 
-#endif // SHARE_VM_GC_CMS_GSPACECOUNTERS_HPP
+#endif // SHARE_GC_CMS_GSPACECOUNTERS_HPP

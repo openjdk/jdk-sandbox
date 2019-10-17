@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_CONVERTNODE_HPP
-#define SHARE_VM_OPTO_CONVERTNODE_HPP
+#ifndef SHARE_OPTO_CONVERTNODE_HPP
+#define SHARE_OPTO_CONVERTNODE_HPP
 
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -212,5 +212,16 @@ class RoundDoubleNode: public Node {
   virtual const Type* Value(PhaseGVN* phase) const;
 };
 
+//-----------------------------RoundDoubleModeNode-----------------------------
+class RoundDoubleModeNode: public Node {
+  public:
+  RoundDoubleModeNode(Node *in1, Node * rmode): Node(0, in1, rmode) {}
+  virtual int   Opcode() const;
+  virtual const Type *bottom_type() const { return Type::DOUBLE; }
+  virtual uint  ideal_reg() const { return Op_RegD; }
+  virtual Node* Identity(PhaseGVN* phase);
+  virtual const Type* Value(PhaseGVN* phase) const;
+};
 
-#endif // SHARE_VM_OPTO_CONVERTNODE_HPP
+
+#endif // SHARE_OPTO_CONVERTNODE_HPP

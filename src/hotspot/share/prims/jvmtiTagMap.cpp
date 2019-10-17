@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,16 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
-#include "code/codeCache.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
 #include "oops/constantPool.inline.hpp"
@@ -57,7 +58,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vmThread.hpp"
-#include "runtime/vm_operations.hpp"
+#include "runtime/vmOperations.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_ZGC
 #include "gc/z/zGlobals.hpp"
@@ -181,16 +182,9 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
   // hash a given key (oop) with the specified size
   static unsigned int hash(oop key, int size) {
-    ZGC_ONLY(assert(ZAddressMetadataShift >= sizeof(unsigned int) * BitsPerByte, "cast removes the metadata bits");)
-
-    // shift right to get better distribution (as these bits will be zero
-    // with aligned addresses)
-    unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
-#ifdef _LP64
-    return (addr >> 3) % size;
-#else
-    return (addr >> 2) % size;
-#endif
+    const oop obj = Access<>::resolve(key);
+    const unsigned int hash = Universe::heap()->hash_oop(obj);
+    return hash % size;
   }
 
   // hash a given key (oop)
@@ -449,7 +443,7 @@ JvmtiTagMap::JvmtiTagMap(JvmtiEnv* env) :
   _hashmap = new JvmtiTagHashmap();
 
   // finally add us to the environment
-  ((JvmtiEnvBase *)env)->set_tag_map(this);
+  ((JvmtiEnvBase *)env)->release_set_tag_map(this);
 }
 
 
@@ -518,7 +512,7 @@ void JvmtiTagMap::destroy_entry(JvmtiTagHashmapEntry* entry) {
 // returns the tag map for the given environments. If the tag map
 // doesn't exist then it is created.
 JvmtiTagMap* JvmtiTagMap::tag_map_for(JvmtiEnv* env) {
-  JvmtiTagMap* tag_map = ((JvmtiEnvBase*)env)->tag_map();
+  JvmtiTagMap* tag_map = ((JvmtiEnvBase*)env)->tag_map_acquire();
   if (tag_map == NULL) {
     MutexLocker mu(JvmtiThreadState_lock);
     tag_map = ((JvmtiEnvBase*)env)->tag_map();
@@ -526,7 +520,7 @@ JvmtiTagMap* JvmtiTagMap::tag_map_for(JvmtiEnv* env) {
       tag_map = new JvmtiTagMap(env);
     }
   } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
+    DEBUG_ONLY(Thread::current()->check_possible_safepoint());
   }
   return tag_map;
 }
@@ -852,7 +846,7 @@ ClassFieldMap* ClassFieldMap::create_map_of_static_fields(Klass* k) {
     if (!fld.access_flags().is_static()) {
       continue;
     }
-    field_map->add(max_field_index - index, fld.signature()->byte_at(0), fld.offset());
+    field_map->add(max_field_index - index, fld.signature()->char_at(0), fld.offset());
   }
   return field_map;
 }
@@ -878,7 +872,7 @@ ClassFieldMap* ClassFieldMap::create_map_of_instance_fields(oop obj) {
     if (fld.access_flags().is_static()) {
       continue;
     }
-    field_map->add(max_field_index - index, fld.signature()->byte_at(0), fld.offset());
+    field_map->add(max_field_index - index, fld.signature()->char_at(0), fld.offset());
   }
 
   return field_map;
@@ -1551,7 +1545,7 @@ class TagObjectCollector : public JvmtiTagHashmapEntryClosure {
         // SATB marking similar to other j.l.ref.Reference referents. This is
         // achieved by using a phantom load in the object() accessor.
         oop o = entry->object();
-        assert(o != NULL && Universe::heap()->is_in_reserved(o), "sanity check");
+        assert(o != NULL && Universe::heap()->is_in(o), "sanity check");
         jobject ref = JNIHandles::make_local(JavaThread::current(), o);
         _object_results->append(ref);
         _tag_results->append((uint64_t)entry->tag());
@@ -1634,8 +1628,8 @@ class RestoreMarksClosure : public ObjectClosure {
  public:
   void do_object(oop o) {
     if (o != NULL) {
-      markOop mark = o->mark();
-      if (mark->is_marked()) {
+      markWord mark = o->mark();
+      if (mark.is_marked()) {
         o->init_mark();
       }
     }
@@ -1647,7 +1641,7 @@ class ObjectMarker : AllStatic {
  private:
   // saved headers
   static GrowableArray<oop>* _saved_oop_stack;
-  static GrowableArray<markOop>* _saved_mark_stack;
+  static GrowableArray<markWord>* _saved_mark_stack;
   static bool _needs_reset;                  // do we need to reset mark bits?
 
  public:
@@ -1662,7 +1656,7 @@ class ObjectMarker : AllStatic {
 };
 
 GrowableArray<oop>* ObjectMarker::_saved_oop_stack = NULL;
-GrowableArray<markOop>* ObjectMarker::_saved_mark_stack = NULL;
+GrowableArray<markWord>* ObjectMarker::_saved_mark_stack = NULL;
 bool ObjectMarker::_needs_reset = true;  // need to reset mark bits by default
 
 // initialize ObjectMarker - prepares for object marking
@@ -1673,7 +1667,7 @@ void ObjectMarker::init() {
   Universe::heap()->ensure_parsability(false);  // no need to retire TLABs
 
   // create stacks for interesting headers
-  _saved_mark_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<markOop>(4000, true);
+  _saved_mark_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<markWord>(4000, true);
   _saved_oop_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<oop>(4000, true);
 
   if (UseBiasedLocking) {
@@ -1697,7 +1691,7 @@ void ObjectMarker::done() {
   // now restore the interesting headers
   for (int i = 0; i < _saved_oop_stack->length(); i++) {
     oop o = _saved_oop_stack->at(i);
-    markOop mark = _saved_mark_stack->at(i);
+    markWord mark = _saved_mark_stack->at(i);
     o->set_mark(mark);
   }
 
@@ -1713,23 +1707,23 @@ void ObjectMarker::done() {
 // mark an object
 inline void ObjectMarker::mark(oop o) {
   assert(Universe::heap()->is_in(o), "sanity check");
-  assert(!o->mark()->is_marked(), "should only mark an object once");
+  assert(!o->mark().is_marked(), "should only mark an object once");
 
   // object's mark word
-  markOop mark = o->mark();
+  markWord mark = o->mark();
 
-  if (mark->must_be_preserved(o)) {
+  if (o->mark_must_be_preserved(mark)) {
     _saved_mark_stack->push(mark);
     _saved_oop_stack->push(o);
   }
 
   // mark the object
-  o->set_mark(markOopDesc::prototype()->set_marked());
+  o->set_mark(markWord::prototype().set_marked());
 }
 
 // return true if object is marked
 inline bool ObjectMarker::visited(oop o) {
-  return o->mark()->is_marked();
+  return o->mark().is_marked();
 }
 
 // Stack allocated class to help ensure that ObjectMarker is used
@@ -2572,13 +2566,13 @@ class SimpleRootsClosure : public OopClosure {
       return;
     }
 
-    oop o = *obj_p;
+    oop o = NativeAccess<AS_NO_KEEPALIVE>::oop_load(obj_p);
     // ignore null
     if (o == NULL) {
       return;
     }
 
-    assert(Universe::heap()->is_in_reserved(o), "should be impossible");
+    assert(Universe::heap()->is_in(o), "should be impossible");
 
     jvmtiHeapReferenceKind kind = root_kind();
     if (kind == JVMTI_HEAP_REFERENCE_SYSTEM_CLASS) {
@@ -2970,7 +2964,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(oop o) {
       oop fld_o = o->obj_field(field->field_offset());
       // ignore any objects that aren't visible to profiler
       if (fld_o != NULL) {
-        assert(Universe::heap()->is_in_reserved(fld_o), "unsafe code should not "
+        assert(Universe::heap()->is_in(fld_o), "unsafe code should not "
                "have references to Klass* anymore");
         int slot = field->field_index();
         if (!CallbackInvoker::report_field_reference(o, fld_o, slot)) {
@@ -3041,11 +3035,9 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
   // exceptions) will be visible.
   blk.set_kind(JVMTI_HEAP_REFERENCE_OTHER);
   Universe::oops_do(&blk);
-
-  // If there are any non-perm roots in the code cache, visit them.
-  blk.set_kind(JVMTI_HEAP_REFERENCE_OTHER);
-  CodeBlobToOopClosure look_in_blobs(&blk, !CodeBlobToOopClosure::FixRelocations);
-  CodeCache::scavenge_root_nmethods_do(&look_in_blobs);
+  if (blk.stopped()) {
+    return false;
+  }
 
   return true;
 }
@@ -3316,7 +3308,7 @@ void JvmtiTagMap::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
   if (JvmtiEnv::environments_might_exist()) {
     JvmtiEnvIterator it;
     for (JvmtiEnvBase* env = it.first(); env != NULL; env = it.next(env)) {
-      JvmtiTagMap* tag_map = env->tag_map();
+      JvmtiTagMap* tag_map = env->tag_map_acquire();
       if (tag_map != NULL && !tag_map->is_empty()) {
         tag_map->do_weak_oops(is_alive, f);
       }

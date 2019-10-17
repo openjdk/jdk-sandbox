@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,13 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_KLASS_HPP
-#define SHARE_VM_OOPS_KLASS_HPP
+#ifndef SHARE_OOPS_KLASS_HPP
+#define SHARE_OOPS_KLASS_HPP
 
 #include "classfile/classLoaderData.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
+#include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
 #include "oops/oopHandle.hpp"
@@ -140,9 +141,9 @@ class Klass : public Metadata {
   // Superclass
   Klass*      _super;
   // First subclass (NULL if none); _subklass->next_sibling() is next one
-  Klass*      _subklass;
+  Klass* volatile _subklass;
   // Sibling link (or NULL); links all subklasses of a klass
-  Klass*      _next_sibling;
+  Klass* volatile _next_sibling;
 
   // All klasses loaded by a class loader are chained through these links
   Klass*      _next_link;
@@ -159,7 +160,7 @@ class Klass : public Metadata {
   // Biased locking implementation and statistics
   // (the 64-bit chunk goes first, to avoid some fragmentation)
   jlong    _last_biased_lock_bulk_revocation_time;
-  markOop  _prototype_header;   // Used when biased locking is both enabled and disabled for this type
+  markWord _prototype_header;   // Used when biased locking is both enabled and disabled for this type
   jint     _biased_lock_revocation_count;
 
   // vtable length
@@ -176,8 +177,7 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1,
-    _has_signer_and_not_archived = 1 << 2
+    _has_raw_archived_mirror = 1
   };
 #endif
   // The _archived_mirror is set at CDS dump time pointing to the cached mirror
@@ -258,6 +258,7 @@ protected:
 
   // java mirror
   oop java_mirror() const;
+  oop java_mirror_no_keepalive() const;
   void set_java_mirror(Handle m);
 
   oop archived_java_mirror_raw() NOT_CDS_JAVA_HEAP_RETURN_(NULL); // no GC barrier
@@ -284,8 +285,9 @@ protected:
   // Use InstanceKlass::contains_field_offset to classify field offsets.
 
   // sub/superklass links
-  Klass* subklass() const              { return _subklass; }
-  Klass* next_sibling() const          { return _next_sibling; }
+  Klass* subklass(bool log = false) const;
+  Klass* next_sibling(bool log = false) const;
+
   InstanceKlass* superklass() const;
   void append_to_sibling_list();           // add newly created receiver to superklass' subklass list
 
@@ -314,15 +316,6 @@ protected:
     CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
     NOT_CDS(return false;)
   }
-#if INCLUDE_CDS
-  void set_has_signer_and_not_archived() {
-    _shared_class_flags |= _has_signer_and_not_archived;
-  }
-  bool has_signer_and_not_archived() const {
-    assert(DumpSharedSpaces, "dump time only");
-    return (_shared_class_flags & _has_signer_and_not_archived) != 0;
-  }
-#endif // INCLUDE_CDS
 
   // Obtain the module or package for this class
   virtual ModuleEntry* module() const = 0;
@@ -341,6 +334,7 @@ protected:
   static ByteSize secondary_super_cache_offset() { return in_ByteSize(offset_of(Klass, _secondary_super_cache)); }
   static ByteSize secondary_supers_offset()      { return in_ByteSize(offset_of(Klass, _secondary_supers)); }
   static ByteSize java_mirror_offset()           { return in_ByteSize(offset_of(Klass, _java_mirror)); }
+  static ByteSize class_loader_data_offset()     { return in_ByteSize(offset_of(Klass, _class_loader_data)); }
   static ByteSize modifier_flags_offset()        { return in_ByteSize(offset_of(Klass, _modifier_flags)); }
   static ByteSize layout_helper_offset()         { return in_ByteSize(offset_of(Klass, _layout_helper)); }
   static ByteSize access_flags_offset()          { return in_ByteSize(offset_of(Klass, _access_flags)); }
@@ -437,14 +431,7 @@ protected:
   static jint array_layout_helper(BasicType etype);
 
   // What is the maximum number of primary superclasses any klass can have?
-#ifdef PRODUCT
   static juint primary_super_limit()         { return _primary_super_limit; }
-#else
-  static juint primary_super_limit() {
-    assert(FastSuperclassLimit <= _primary_super_limit, "parameter oob");
-    return FastSuperclassLimit;
-  }
-#endif
 
   // vtables
   klassVtable vtable() const;
@@ -482,8 +469,6 @@ protected:
   virtual bool should_be_initialized() const    { return false; }
   // initializes the klass
   virtual void initialize(TRAPS);
-  // lookup operation for MethodLookupCache
-  friend class MethodLookupCache;
   virtual Klass* find_field(Symbol* name, Symbol* signature, fieldDescriptor* fd) const;
   virtual Method* uncached_lookup_method(const Symbol* name, const Symbol* signature,
                                          OverpassLookupMode overpass_mode,
@@ -508,11 +493,18 @@ protected:
 
   oop class_loader() const;
 
-  virtual oop klass_holder() const      { return class_loader(); }
+  // This loads the klass's holder as a phantom. This is useful when a weak Klass
+  // pointer has been "peeked" and then must be kept alive before it may
+  // be used safely.  All uses of klass_holder need to apply the appropriate barriers,
+  // except during GC.
+  oop klass_holder() const { return class_loader_data()->holder_phantom(); }
 
  protected:
   virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
   virtual Klass* array_klass_impl(bool or_null, TRAPS);
+
+  // Error handling when length > max_length or length < 0
+  static void check_array_allocation_length(int length, int max_length, TRAPS);
 
   void set_vtable_length(int len) { _vtable_len= len; }
 
@@ -530,12 +522,18 @@ protected:
   virtual void remove_java_mirror();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 
- protected:
-  // computes the subtype relationship
-  virtual bool compute_is_subtype_of(Klass* k);
- public:
-  // subclass accessor (here for convenience; undefined for non-klass objects)
-  virtual bool is_leaf_class() const { fatal("not a class"); return false; }
+  bool is_unshareable_info_restored() const {
+    assert(is_shared(), "use this for shared classes only");
+    if (has_raw_archived_mirror()) {
+      // _java_mirror is not a valid OopHandle but rather an encoded reference in the shared heap
+      return false;
+    } else if (_java_mirror.ptr_raw() == NULL) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
  public:
   // ALL FUNCTIONS BELOW THIS POINT ARE DISPATCHED FROM AN OOP
   // These functions describe behavior for the oop not the KLASS.
@@ -629,9 +627,9 @@ protected:
 
   // Biased locking support
   // Note: the prototype header is always set up to be at least the
-  // prototype markOop. If biased locking is enabled it may further be
+  // prototype markWord. If biased locking is enabled it may further be
   // biasable and have an epoch.
-  markOop prototype_header() const      { return _prototype_header; }
+  markWord prototype_header() const      { return _prototype_header; }
   // NOTE: once instances of this klass are floating around in the
   // system, this header must only be updated at a safepoint.
   // NOTE 2: currently we only ever set the prototype header to the
@@ -640,7 +638,7 @@ protected:
   // wanting to reduce the initial scope of this optimization. There
   // are potential problems in setting the bias pattern for
   // JVM-internal oops.
-  inline void set_prototype_header(markOop header);
+  inline void set_prototype_header(markWord header);
   static ByteSize prototype_header_offset() { return in_ByteSize(offset_of(Klass, _prototype_header)); }
 
   int  biased_lock_revocation_count() const { return (int) _biased_lock_revocation_count; }
@@ -660,25 +658,12 @@ protected:
   // unloading, and hence during concurrent class unloading.
   bool is_loader_alive() const { return class_loader_data()->is_alive(); }
 
-  // Load the klass's holder as a phantom. This is useful when a weak Klass
-  // pointer has been "peeked" and then must be kept alive before it may
-  // be used safely.
-  oop holder_phantom() const;
+  void clean_subklass();
 
   static void clean_weak_klass_links(bool unloading_occurred, bool clean_alive_klasses = true);
   static void clean_subklass_tree() {
     clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
   }
-
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  virtual void oop_ps_push_contents(  oop obj, PSPromotionManager* pm)   = 0;
-  // Parallel Compact
-  virtual void oop_pc_follow_contents(oop obj, ParCompactionManager* cm) = 0;
-  virtual void oop_pc_update_pointers(oop obj, ParCompactionManager* cm) = 0;
-#endif
 
   virtual void array_klasses_do(void f(Klass* k)) {}
 
@@ -715,15 +700,8 @@ protected:
 
   virtual void oop_verify_on(oop obj, outputStream* st);
 
-  static bool is_null(narrowKlass obj);
-  static bool is_null(Klass* obj);
-
-  // klass encoding for klass pointer in objects.
-  static narrowKlass encode_klass_not_null(Klass* v);
-  static narrowKlass encode_klass(Klass* v);
-
-  static Klass* decode_klass_not_null(narrowKlass v);
-  static Klass* decode_klass(narrowKlass v);
+  // for error reporting
+  static bool is_valid(Klass* k);
 };
 
-#endif // SHARE_VM_OOPS_KLASS_HPP
+#endif // SHARE_OOPS_KLASS_HPP

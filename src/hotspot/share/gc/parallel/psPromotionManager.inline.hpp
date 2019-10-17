@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,18 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
-#define SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#ifndef SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#define SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
 
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/parMarkBitMap.inline.hpp"
 #include "gc/parallel/psOldGen.hpp"
 #include "gc/parallel/psPromotionLAB.inline.hpp"
 #include "gc/parallel/psPromotionManager.hpp"
-#include "gc/parallel/psScavenge.hpp"
+#include "gc/parallel/psScavenge.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -99,8 +100,48 @@ inline void PSPromotionManager::promotion_trace_event(oop new_obj, oop old_obj,
   }
 }
 
+class PSPushContentsClosure: public BasicOopIterateClosure {
+  PSPromotionManager* _pm;
+ public:
+  PSPushContentsClosure(PSPromotionManager* pm) : BasicOopIterateClosure(PSScavenge::reference_processor()), _pm(pm) {}
+
+  template <typename T> void do_oop_nv(T* p) {
+    if (PSScavenge::should_scavenge(p)) {
+      _pm->claim_or_forward_depth(p);
+    }
+  }
+
+  virtual void do_oop(oop* p)       { do_oop_nv(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_nv(p); }
+
+  // Don't use the oop verification code in the oop_oop_iterate framework.
+  debug_only(virtual bool should_verify_oops() { return false; })
+};
+
+//
+// This closure specialization will override the one that is defined in
+// instanceRefKlass.inline.cpp. It swaps the order of oop_oop_iterate and
+// oop_oop_iterate_ref_processing. Unfortunately G1 and Parallel behaves
+// significantly better (especially in the Derby benchmark) using opposite
+// order of these function calls.
+//
+template <>
+inline void InstanceRefKlass::oop_oop_iterate_reverse<oop, PSPushContentsClosure>(oop obj, PSPushContentsClosure* closure) {
+  oop_oop_iterate_ref_processing<oop>(obj, closure);
+  InstanceKlass::oop_oop_iterate_reverse<oop>(obj, closure);
+}
+
+template <>
+inline void InstanceRefKlass::oop_oop_iterate_reverse<narrowOop, PSPushContentsClosure>(oop obj, PSPushContentsClosure* closure) {
+  oop_oop_iterate_ref_processing<narrowOop>(obj, closure);
+  InstanceKlass::oop_oop_iterate_reverse<narrowOop>(obj, closure);
+}
+
 inline void PSPromotionManager::push_contents(oop obj) {
-  obj->ps_push_contents(this);
+  if (!obj->klass()->is_typeArray_klass()) {
+    PSPushContentsClosure pcc(this);
+    obj->oop_iterate_backwards(&pcc);
+  }
 }
 //
 // This method is pretty bulky. It would be nice to split it up
@@ -116,16 +157,16 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
   // NOTE! We must be very careful with any methods that access the mark
   // in o. There may be multiple threads racing on it, and it may be forwarded
   // at any time. Do not use oop methods for accessing the mark!
-  markOop test_mark = o->mark_raw();
+  markWord test_mark = o->mark_raw();
 
   // The same test as "o->is_forwarded()"
-  if (!test_mark->is_marked()) {
+  if (!test_mark.is_marked()) {
     bool new_obj_is_tenured = false;
     size_t new_obj_size = o->size();
 
     // Find the objects age, MT safe.
-    uint age = (test_mark->has_displaced_mark_helper() /* o->has_displaced_mark() */) ?
-      test_mark->displaced_mark_helper()->age() : test_mark->age();
+    uint age = (test_mark.has_displaced_mark_helper() /* o->has_displaced_mark() */) ?
+      test_mark.displaced_mark_helper().age() : test_mark.age();
 
     if (!promote_immediately) {
       // Try allocating obj in to-space (unless too old)
@@ -183,7 +224,7 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
               // Delay the initialization of the promotion lab (plab).
               // This exposes uninitialized plabs to card table processing.
               if (GCWorkerDelayMillis > 0) {
-                os::sleep(Thread::current(), GCWorkerDelayMillis, false);
+                os::naked_sleep(GCWorkerDelayMillis);
               }
 #endif
               _old_lab.initialize(MemRegion(lab_base, OldPLABSize));
@@ -219,7 +260,7 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
       assert(new_obj == o->forwardee(), "Sanity");
 
       // Increment age if obj still in new generation. Now that
-      // we're dealing with a markOop that cannot change, it is
+      // we're dealing with a markWord that cannot change, it is
       // okay to use the non mt safe oop methods.
       if (!new_obj_is_tenured) {
         new_obj->incr_age();
@@ -334,4 +375,4 @@ void PSPromotionManager::record_steal(StarTask& p) {
 }
 #endif // TASKQUEUE_STATS
 
-#endif // SHARE_VM_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP
+#endif // SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_INLINE_HPP

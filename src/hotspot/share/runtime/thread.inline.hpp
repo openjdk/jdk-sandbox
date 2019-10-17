@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,13 +22,14 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_THREAD_INLINE_HPP
-#define SHARE_VM_RUNTIME_THREAD_INLINE_HPP
+#ifndef SHARE_RUNTIME_THREAD_INLINE_HPP
+#define SHARE_RUNTIME_THREAD_INLINE_HPP
 
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.inline.hpp"
+#include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 
 inline void Thread::set_suspend_flag(SuspendFlags f) {
@@ -107,28 +108,56 @@ inline void JavaThread::clear_external_suspend() {
   clear_suspend_flag(_external_suspend);
 }
 
-inline void JavaThread::set_deopt_suspend() {
-  set_suspend_flag(_deopt_suspend);
-}
-inline void JavaThread::clear_deopt_suspend() {
-  clear_suspend_flag(_deopt_suspend);
-}
-
 inline void JavaThread::set_pending_async_exception(oop e) {
   _pending_async_exception = e;
   _special_runtime_exit_condition = _async_exception;
   set_has_async_exception();
 }
 
-#if defined(PPC64) || defined (AARCH64)
 inline JavaThreadState JavaThread::thread_state() const    {
+#if defined(PPC64) || defined (AARCH64)
+  // Use membars when accessing volatile _thread_state. See
+  // Threads::create_vm() for size checks.
   return (JavaThreadState) OrderAccess::load_acquire((volatile jint*)&_thread_state);
+#else
+  return _thread_state;
+#endif
 }
 
 inline void JavaThread::set_thread_state(JavaThreadState s) {
+#if defined(PPC64) || defined (AARCH64)
+  // Use membars when accessing volatile _thread_state. See
+  // Threads::create_vm() for size checks.
   OrderAccess::release_store((volatile jint*)&_thread_state, (jint)s);
-}
+#else
+  _thread_state = s;
 #endif
+}
+
+inline void JavaThread::set_thread_state_fence(JavaThreadState s) {
+  set_thread_state(s);
+  OrderAccess::fence();
+}
+
+ThreadSafepointState* JavaThread::safepoint_state() const  {
+  return _safepoint_state;
+}
+
+void JavaThread::set_safepoint_state(ThreadSafepointState *state) {
+  _safepoint_state = state;
+}
+
+bool JavaThread::is_at_poll_safepoint() {
+  return _safepoint_state->is_at_poll_safepoint();
+}
+
+void JavaThread::enter_critical() {
+  assert(Thread::current() == this ||
+         (Thread::current()->is_VM_thread() &&
+         SafepointSynchronize::is_synchronizing()),
+         "this must be current thread or synchronizing");
+  _jni_active_critical++;
+}
 
 inline void JavaThread::set_done_attaching_via_jni() {
   _jni_attach_state = _attached_via_jni;
@@ -212,4 +241,16 @@ inline void JavaThread::set_terminated_value() {
   OrderAccess::release_store((volatile jint *) &_terminated, (jint) _thread_terminated);
 }
 
-#endif // SHARE_VM_RUNTIME_THREAD_INLINE_HPP
+// Allow tracking of class initialization monitor use
+inline void JavaThread::set_class_to_be_initialized(InstanceKlass* k) {
+  assert((k == NULL && _class_to_be_initialized != NULL) ||
+         (k != NULL && _class_to_be_initialized == NULL), "incorrect usage");
+  assert(this == Thread::current(), "Only the current thread can set this field");
+  _class_to_be_initialized = k;
+}
+
+inline InstanceKlass* JavaThread::class_to_be_initialized() const {
+  return _class_to_be_initialized;
+}
+
+#endif // SHARE_RUNTIME_THREAD_INLINE_HPP

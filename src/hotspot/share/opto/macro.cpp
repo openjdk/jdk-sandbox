@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "libadt/vectset.hpp"
+#include "memory/universe.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/callnode.hpp"
@@ -47,9 +48,13 @@
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/macros.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/g1ThreadLocalData.hpp"
 #endif // INCLUDE_G1GC
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
+#endif
 
 
 //
@@ -343,25 +348,49 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   }
   Node* res = NULL;
   if (ac->is_clonebasic()) {
+    assert(ac->in(ArrayCopyNode::Src) != ac->in(ArrayCopyNode::Dest), "clone source equals destination");
     Node* base = ac->in(ArrayCopyNode::Src)->in(AddPNode::Base);
     Node* adr = _igvn.transform(new AddPNode(base, base, MakeConX(offset)));
     const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
-    res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::Pinned);
+    res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::UnknownControl);
   } else {
     if (ac->modifies(offset, offset, &_igvn, true)) {
       assert(ac->in(ArrayCopyNode::Dest) == alloc->result_cast(), "arraycopy destination should be allocation's result");
-      uint shift  = exact_log2(type2aelembytes(bt));
-      Node* diff = _igvn.transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
-#ifdef _LP64
-      diff = _igvn.transform(new ConvI2LNode(diff));
-#endif
-      diff = _igvn.transform(new LShiftXNode(diff, intcon(shift)));
+      uint shift = exact_log2(type2aelembytes(bt));
+      Node* src_pos = ac->in(ArrayCopyNode::SrcPos);
+      Node* dest_pos = ac->in(ArrayCopyNode::DestPos);
+      const TypeInt* src_pos_t = _igvn.type(src_pos)->is_int();
+      const TypeInt* dest_pos_t = _igvn.type(dest_pos)->is_int();
 
-      Node* off = _igvn.transform(new AddXNode(MakeConX(offset), diff));
-      Node* base = ac->in(ArrayCopyNode::Src);
-      Node* adr = _igvn.transform(new AddPNode(base, base, off));
-      const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
-      res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::Pinned);
+      Node* adr = NULL;
+      const TypePtr* adr_type = NULL;
+      if (src_pos_t->is_con() && dest_pos_t->is_con()) {
+        intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
+        Node* base = ac->in(ArrayCopyNode::Src);
+        adr = _igvn.transform(new AddPNode(base, base, MakeConX(off)));
+        adr_type = _igvn.type(base)->is_ptr()->add_offset(off);
+        if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
+          // Don't emit a new load from src if src == dst but try to get the value from memory instead
+          return value_from_mem(ac->in(TypeFunc::Memory), ctl, ft, ftype, adr_type->isa_oopptr(), alloc);
+        }
+      } else {
+        Node* diff = _igvn.transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
+#ifdef _LP64
+        diff = _igvn.transform(new ConvI2LNode(diff));
+#endif
+        diff = _igvn.transform(new LShiftXNode(diff, intcon(shift)));
+
+        Node* off = _igvn.transform(new AddXNode(MakeConX(offset), diff));
+        Node* base = ac->in(ArrayCopyNode::Src);
+        adr = _igvn.transform(new AddPNode(base, base, off));
+        adr_type = _igvn.type(base)->is_ptr()->add_offset(Type::OffsetBot);
+        if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
+          // Non constant offset in the array: we can't statically
+          // determine the value
+          return NULL;
+        }
+      }
+      res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::UnknownControl);
     }
   }
   if (res != NULL) {
@@ -434,7 +463,10 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
       if (val == mem) {
         values.at_put(j, mem);
       } else if (val->is_Store()) {
-        values.at_put(j, val->in(MemNode::ValueIn));
+        Node* n = val->in(MemNode::ValueIn);
+        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+        n = bs->step_over_gc_barrier(n);
+        values.at_put(j, n);
       } else if(val->is_Proj() && val->in(0) == alloc) {
         values.at_put(j, _igvn.zerocon(ft));
       } else if (val->is_Phi()) {
@@ -488,7 +520,6 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
   Arena *a = Thread::current()->resource_area();
   VectorSet visited(a);
-
 
   bool done = sfpt_mem == alloc_mem;
   Node *mem = sfpt_mem;
@@ -546,7 +577,10 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
       // hit a sentinel, return appropriate 0 value
       return _igvn.zerocon(ft);
     } else if (mem->is_Store()) {
-      return mem->in(MemNode::ValueIn);
+      Node* n = mem->in(MemNode::ValueIn);
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      n = bs->step_over_gc_barrier(n);
+      return n;
     } else if (mem->is_Phi()) {
       // attempt to produce a Phi reflecting the values on the input paths of the Phi
       Node_Stack value_phis(a, 8);
@@ -623,6 +657,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
           if (!n->is_Store() && n->Opcode() != Op_CastP2X &&
+              SHENANDOAHGC_ONLY((!UseShenandoahGC || !ShenandoahBarrierSetC2::is_shenandoah_wb_pre_call(n)) &&)
               !(n->is_ArrayCopy() &&
                 n->as_ArrayCopy()->is_clonebasic() &&
                 n->in(ArrayCopyNode::Dest) == use)) {
@@ -775,7 +810,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
       const Type *field_type;
       // The next code is taken from Parse::do_get_xxx().
-      if (basic_elem_type == T_OBJECT || basic_elem_type == T_ARRAY) {
+      if (is_reference_type(basic_elem_type)) {
         if (!elem_type->is_loaded()) {
           field_type = TypeInstPtr::BOTTOM;
         } else if (field != NULL && field->is_static_constant()) {
@@ -934,6 +969,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
           }
           k -= (oc2 - use->outcnt());
         }
+        _igvn.remove_dead_node(use);
       } else if (use->is_ArrayCopy()) {
         // Disconnect ArrayCopy node
         ArrayCopyNode* ac = use->as_ArrayCopy();
@@ -995,8 +1031,17 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         assert(init->outcnt() <= 2, "only a control and memory projection expected");
         Node *ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
         if (ctrl_proj != NULL) {
-           assert(init->in(TypeFunc::Control) == _fallthroughcatchproj, "allocation control projection");
-          _igvn.replace_node(ctrl_proj, _fallthroughcatchproj);
+          _igvn.replace_node(ctrl_proj, init->in(TypeFunc::Control));
+#ifdef ASSERT
+          BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+          Node* tmp = init->in(TypeFunc::Control);
+          while (bs->is_gc_barrier_node(tmp)) {
+            Node* tmp2 = bs->step_over_gc_barrier_ctrl(tmp);
+            assert(tmp != tmp2, "Must make progress");
+            tmp = tmp2;
+          }
+          assert(tmp == _fallthroughcatchproj, "allocation control projection");
+#endif
         }
         Node *mem_proj = init->proj_out_or_null(TypeFunc::Memory);
         if (mem_proj != NULL) {
@@ -1607,14 +1652,11 @@ PhaseMacroExpand::initialize_object(AllocateNode* alloc,
                                     Node* size_in_bytes) {
   InitializeNode* init = alloc->initialization();
   // Store the klass & mark bits
-  Node* mark_node = NULL;
-  // For now only enable fast locking for non-array types
-  if (UseBiasedLocking && (length == NULL)) {
-    mark_node = make_load(control, rawmem, klass_node, in_bytes(Klass::prototype_header_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-  } else {
-    mark_node = makecon(TypeRawPtr::make((address)markOopDesc::prototype()));
+  Node* mark_node = alloc->make_ideal_mark(&_igvn, object, control, rawmem);
+  if (!mark_node->is_Con()) {
+    transform_later(mark_node);
   }
-  rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
+  rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
   rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   int header_size = alloc->minimum_header_size();  // conservatively small
@@ -2170,8 +2212,8 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
 
     // Get fast path - mark word has the biased lock pattern.
     ctrl = opt_bits_test(ctrl, fast_lock_region, 1, mark_node,
-                         markOopDesc::biased_lock_mask_in_place,
-                         markOopDesc::biased_lock_pattern, true);
+                         markWord::biased_lock_mask_in_place,
+                         markWord::biased_lock_pattern, true);
     // fast_lock_region->in(1) is set to slow path.
     fast_lock_mem_phi->init_req(1, mem);
 
@@ -2199,8 +2241,9 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     Node* x_node = transform_later(new XorXNode(o_node, mark_node));
 
     // Get slow path - mark word does NOT match the value.
+    STATIC_ASSERT(markWord::age_mask_in_place <= INT_MAX);
     Node* not_biased_ctrl =  opt_bits_test(ctrl, region, 3, x_node,
-                                      (~markOopDesc::age_mask_in_place), 0);
+                                      (~(int)markWord::age_mask_in_place), 0);
     // region->in(3) is set to fast path - the object is biased to the current thread.
     mem_phi->init_req(3, mem);
 
@@ -2211,7 +2254,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     // First, check biased pattern.
     // Get fast path - _prototype_header has the same biased lock pattern.
     ctrl =  opt_bits_test(not_biased_ctrl, fast_lock_region, 2, x_node,
-                          markOopDesc::biased_lock_mask_in_place, 0, true);
+                          markWord::biased_lock_mask_in_place, 0, true);
 
     not_biased_ctrl = fast_lock_region->in(2); // Slow path
     // fast_lock_region->in(2) - the prototype header is no longer biased
@@ -2233,7 +2276,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
 
     // Get slow path - mark word does NOT match epoch bits.
     Node* epoch_ctrl =  opt_bits_test(ctrl, rebiased_region, 1, x_node,
-                                      markOopDesc::epoch_mask_in_place, 0);
+                                      markWord::epoch_mask_in_place, 0);
     // The epoch of the current bias is not valid, attempt to rebias the object
     // toward the current thread.
     rebiased_region->init_req(2, epoch_ctrl);
@@ -2243,9 +2286,9 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     // rebiased_region->in(1) is set to fast path.
     // The epoch of the current bias is still valid but we know
     // nothing about the owner; it might be set or it might be clear.
-    Node* cmask   = MakeConX(markOopDesc::biased_lock_mask_in_place |
-                             markOopDesc::age_mask_in_place |
-                             markOopDesc::epoch_mask_in_place);
+    Node* cmask   = MakeConX(markWord::biased_lock_mask_in_place |
+                             markWord::age_mask_in_place |
+                             markWord::epoch_mask_in_place);
     Node* old = transform_later(new AndXNode(mark_node, cmask));
     cast_thread = transform_later(new CastP2XNode(ctrl, thread));
     Node* new_mark = transform_later(new OrXNode(cast_thread, old));
@@ -2360,8 +2403,8 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
 
     Node* mark_node = make_load(ctrl, mem, obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
     ctrl = opt_bits_test(ctrl, region, 3, mark_node,
-                         markOopDesc::biased_lock_mask_in_place,
-                         markOopDesc::biased_lock_pattern);
+                         markWord::biased_lock_mask_in_place,
+                         markWord::biased_lock_pattern);
   } else {
     region  = new RegionNode(3);
     // create a Phi for the memory state
@@ -2550,14 +2593,35 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
-    } else if (n->is_ArrayCopy()){
-      int macro_count = C->macro_count();
+      continue;
+    }
+    int macro_count = C->macro_count();
+    switch (n->class_id()) {
+    case Node::Class_Lock:
+      expand_lock_node(n->as_Lock());
+      assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
+    case Node::Class_Unlock:
+      expand_unlock_node(n->as_Unlock());
+      assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
+    case Node::Class_ArrayCopy:
       expand_arraycopy_node(n->as_ArrayCopy());
       assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
     }
     if (C->failing())  return true;
     macro_idx --;
   }
+
+  // All nodes except Allocate nodes are expanded now. There could be
+  // new optimization opportunities (such as folding newly created
+  // load from a just allocated object). Run IGVN.
+  _igvn.set_delay_transform(false);
+  _igvn.optimize();
+  if (C->failing())  return true;
+
+  _igvn.set_delay_transform(true);
 
   // expand "macro" nodes
   // nodes are removed from the macro list as they are processed
@@ -2577,12 +2641,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     case Node::Class_AllocateArray:
       expand_allocate_array(n->as_AllocateArray());
       break;
-    case Node::Class_Lock:
-      expand_lock_node(n->as_Lock());
-      break;
-    case Node::Class_Unlock:
-      expand_unlock_node(n->as_Unlock());
-      break;
     default:
       assert(false, "unknown node type in macro list");
     }
@@ -2593,6 +2651,5 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   _igvn.set_delay_transform(false);
   _igvn.optimize();
   if (C->failing())  return true;
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  return bs->expand_macro_nodes(this);
+  return false;
 }

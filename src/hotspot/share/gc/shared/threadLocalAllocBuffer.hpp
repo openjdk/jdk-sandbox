@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_THREADLOCALALLOCBUFFER_HPP
-#define SHARE_VM_GC_SHARED_THREADLOCALALLOCBUFFER_HPP
+#ifndef SHARE_GC_SHARED_THREADLOCALALLOCBUFFER_HPP
+#define SHARE_GC_SHARED_THREADLOCALALLOCBUFFER_HPP
 
 #include "gc/shared/gcUtil.hpp"
-#include "oops/typeArrayOop.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/vm_version.hpp"
 
@@ -138,10 +137,7 @@ public:
   inline HeapWord* allocate(size_t size);
 
   // Reserve space at the end of TLAB
-  static size_t end_reserve() {
-    int reserve_size = typeArrayOopDesc::header_size(T_INT);
-    return MAX2(reserve_size, _reserve_for_allocation_prefetch);
-  }
+  static size_t end_reserve();
   static size_t alignment_reserve()              { return align_object_size(end_reserve()); }
   static size_t alignment_reserve_in_bytes()     { return alignment_reserve() * HeapWordSize; }
 
@@ -175,7 +171,7 @@ public:
   void initialize();
 
   void set_back_allocation_end();
-  void set_sample_end();
+  void set_sample_end(bool reset_byte_accumulation);
 
   static size_t refill_waste_limit_increment()   { return TLABWasteIncrement; }
 
@@ -192,8 +188,6 @@ public:
   static ByteSize end_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _end); }
   static ByteSize top_offset()                   { return byte_offset_of(ThreadLocalAllocBuffer, _top); }
   static ByteSize pf_top_offset()                { return byte_offset_of(ThreadLocalAllocBuffer, _pf_top); }
-
-  void verify();
 };
 
 class ThreadLocalAllocStats : public StackObj {
@@ -244,4 +238,4 @@ public:
   void publish();
 };
 
-#endif // SHARE_VM_GC_SHARED_THREADLOCALALLOCBUFFER_HPP
+#endif // SHARE_GC_SHARED_THREADLOCALALLOCBUFFER_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -371,7 +371,7 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
             {"Africa/Nouakchott", GMT},
             {"Africa/Ouagadougou", GMT},
             {"Africa/Porto-Novo", WAT},
-            {"Africa/Sao_Tome", WAT},
+            {"Africa/Sao_Tome", GMT},
             {"Africa/Timbuktu", GMT},
             {"Africa/Tripoli", EET},
             {"Africa/Tunis", CET},
@@ -667,9 +667,9 @@ public final class TimeZoneNames_ja extends TimeZoneNamesBundle {
                                            "\u30de\u30ac\u30c0\u30f3\u590f\u6642\u9593", "MAGST",
                                            "\u30DE\u30AC\u30C0\u30F3\u6642\u9593", "MAGT"}},
             {"Asia/Makassar", CIT},
-            {"Asia/Manila", new String[] {"\u30d5\u30a3\u30ea\u30d4\u30f3\u6642\u9593", "PHT",
-                                          "\u30d5\u30a3\u30ea\u30d4\u30f3\u590f\u6642\u9593", "PHST",
-                                          "\u30D5\u30A3\u30EA\u30D4\u30F3\u6642\u9593", "PHT"}},
+            {"Asia/Manila", new String[] {"Philippines Standard Time", "PST",
+                                          "Philippines Daylight Time", "PDT",
+                                          "Philippines Time", "PT"}},
             {"Asia/Muscat", GST},
             {"Asia/Nicosia", EET},
             {"Asia/Novokuznetsk", KRAT},

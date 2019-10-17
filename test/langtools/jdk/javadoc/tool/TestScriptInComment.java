@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -25,7 +23,7 @@
 
 /**
  * @test
- * @bug 8138725
+ * @bug 8138725 8226765
  * @summary test --allow-script-in-comments
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  */
@@ -65,6 +63,10 @@ public class TestScriptInComment {
         WS("< script >#ALERT</script>", false, "-Xdoclint:none"), // script tag with invalid white space
         SP("<script src=\"file\"> #ALERT </script>", true), // script tag with an attribute
         ON("<a onclick='#ALERT'>x</a>", true), // event handler attribute
+        OME("<img alt='1' onmouseenter='#ALERT'>", true), // onmouseenter event handler attribute
+        OML("<img alt='1' onmouseleave='#ALERT'>", true), // onmouseleave event handler attribute
+        OFI("<a href='#' onfocusin='#ALERT'>x</a>", true), // onfocusin event handler attribute
+        OBE("<a onbogusevent='#ALERT'>x</a>", true), // bogus/future event handler attribute
         URI("<a href='javascript:#ALERT'>x</a>", true); // javascript URI
 
         /**
@@ -242,7 +244,6 @@ public class TestScriptInComment {
         opts.add(srcDir.getPath());
         opts.add("-d");
         opts.add(outDir.getPath());
-        opts.add("--frames");
         if (option.text != null)
             opts.add(option.text);
         for (String opt: template.getOpts(srcDir)) {

@@ -32,6 +32,7 @@
 #include "interpreter/templateInterpreter.hpp"
 #include "interpreter/templateTable.hpp"
 #include "memory/universe.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
@@ -2232,12 +2233,14 @@ void TemplateTable::_return(TosState state) {
 void TemplateTable::resolve_cache_and_index(int byte_no, Register Rcache, Register Rscratch, size_t index_size) {
 
   __ get_cache_and_index_at_bcp(Rcache, 1, index_size);
-  Label Lresolved, Ldone;
+  Label Lresolved, Ldone, L_clinit_barrier_slow;
 
   Bytecodes::Code code = bytecode();
   switch (code) {
-  case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
-  case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    case Bytecodes::_nofast_getfield: code = Bytecodes::_getfield; break;
+    case Bytecodes::_nofast_putfield: code = Bytecodes::_putfield; break;
+    default:
+      break;
   }
 
   assert(byte_no == f1_byte || byte_no == f2_byte, "byte_no out of range");
@@ -2251,6 +2254,9 @@ void TemplateTable::resolve_cache_and_index(int byte_no, Register Rcache, Regist
   __ cmpdi(CCR0, Rscratch, (int)code);
   __ beq(CCR0, Lresolved);
 
+  // Class initialization barrier slow path lands here as well.
+  __ bind(L_clinit_barrier_slow);
+
   address entry = CAST_FROM_FN_PTR(address, InterpreterRuntime::resolve_from_cache);
   __ li(R4_ARG2, code);
   __ call_VM(noreg, entry, R4_ARG2, true);
@@ -2261,6 +2267,17 @@ void TemplateTable::resolve_cache_and_index(int byte_no, Register Rcache, Regist
 
   __ bind(Lresolved);
   __ isync(); // Order load wrt. succeeding loads.
+
+  // Class initialization barrier for static methods
+  if (VM_Version::supports_fast_class_init_checks() && bytecode() == Bytecodes::_invokestatic) {
+    const Register method = Rscratch;
+    const Register klass  = Rscratch;
+
+    __ load_resolved_method_at_index(byte_no, Rcache, method);
+    __ load_method_holder(klass, method);
+    __ clinit_barrier(klass, R16_thread, NULL /*L_fast_path*/, &L_clinit_barrier_slow);
+  }
+
   __ bind(Ldone);
 }
 
@@ -2327,7 +2344,7 @@ void TemplateTable::load_invoke_cp_cache_entry(int byte_no,
     // Already resolved.
     __ get_cache_and_index_at_bcp(Rcache, 1);
   } else {
-    resolve_cache_and_index(byte_no, Rcache, R0, is_invokedynamic ? sizeof(u4) : sizeof(u2));
+    resolve_cache_and_index(byte_no, Rcache, /* temp */ Rmethod, is_invokedynamic ? sizeof(u4) : sizeof(u2));
   }
 
   __ ld(Rmethod, method_offset, Rcache);
@@ -3632,9 +3649,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // Find entry point to call.
 
   // Get declaring interface class from method
-  __ ld(Rinterface_klass, in_bytes(Method::const_offset()), Rmethod);
-  __ ld(Rinterface_klass, in_bytes(ConstMethod::constants_offset()), Rinterface_klass);
-  __ ld(Rinterface_klass, ConstantPool::pool_holder_offset_in_bytes(), Rinterface_klass);
+  __ load_method_holder(Rinterface_klass, Rmethod);
 
   // Get itable index from method
   __ lwa(Rindex, in_bytes(Method::itable_index_offset()), Rmethod);
@@ -3806,7 +3821,7 @@ void TemplateTable::_new() {
     if (UseBiasedLocking) {
       __ ld(Rscratch, in_bytes(Klass::prototype_header_offset()), RinstanceKlass);
     } else {
-      __ load_const_optimized(Rscratch, markOopDesc::prototype(), R0);
+      __ load_const_optimized(Rscratch, markWord::prototype().value(), R0);
     }
     __ std(Rscratch, oopDesc::mark_offset_in_bytes(), RallocatedObject);
 

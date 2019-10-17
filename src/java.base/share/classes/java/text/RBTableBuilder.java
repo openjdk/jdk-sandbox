@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,16 +72,13 @@ final class RBTableBuilder {
      * stores them back in the RBCollationTables object.  It is called
      * ONLY by the RBCollationTables constructor.
      * @see RuleBasedCollator#RuleBasedCollator
-     * @exception ParseException If the rules format is incorrect.
+     * @throws    ParseException If the rules format is incorrect.
      */
 
-    public void build(String pattern, int decmp) throws ParseException
-    {
-        boolean isSource = true;
-        int i = 0;
+    public void build(String pattern, int decmp) throws ParseException {
         String expChars;
         String groupChars;
-        if (pattern.length() == 0)
+        if (pattern.isEmpty())
             throw new ParseException("Build rules empty.", 0);
 
         // This array maps Unicode characters to their collation ordering
@@ -119,8 +116,7 @@ final class RBTableBuilder {
         int order = 0;
 
         // Now walk though each entry and add it to my own tables
-        for (i = 0; i < mPattern.getCount(); ++i)
-        {
+        for (int i = 0; i < mPattern.getCount(); ++i) {
             PatternEntry entry = mPattern.getItemAt(i);
             if (entry != null) {
                 groupChars = entry.getChars();
@@ -140,7 +136,7 @@ final class RBTableBuilder {
                 order = increment(entry.getStrength(), order);
                 expChars = entry.getExtension();
 
-                if (expChars.length() != 0) {
+                if (!expChars.isEmpty()) {
                     addExpandOrder(groupChars, expChars, order);
                 } else if (groupChars.length() > 1) {
                     char ch = groupChars.charAt(0);

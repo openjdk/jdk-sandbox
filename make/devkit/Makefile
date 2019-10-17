@@ -29,41 +29,50 @@
 # gcc based cross compilation, portable, self contained packages, capable
 # of building OpenJDK.
 #
-# In addition to the makefiles, access to Oracle Linux installation
-# media is required. This has been tested against Oracle Enterprise Linux
-# 6.4.
-#
 # By default this Makefile will build a native toolchain for the current
 # platform if called with something like this:
 #
-# make tars
+# make tars BASE_OS=OL
 #
 # To build the full set of crosstools for additional platforms, use a command
 # line looking like this:
 #
-# make cross_compile_target="aarch64-linux-gnu" BASE_OS=Fedora27
+# make TARGETS="aarch64-linux-gnu" BASE_OS=Fedora
 # or
-# make cross_compile_target="arm-linux-gnueabihf" BASE_OS=Fedora27
+# make TARGETS="arm-linux-gnueabihf ppc64-linux-gnu" BASE_OS=Fedora BASE_OS_VERSION=17
+#
+# to build several devkits for a specific OS version at once.
+# You can find the final results under ../../build/devkit/result/<host>-to-<target>
+#
+# You may want the native toolchain to be used when compiling the cross
+# compilation toolchains. To achieve this, first build the native toolchain,
+# then add the bin directory from this build to the path when invoking this
+# makefile again for cross compilation. Ex:
+#
+# PATH=$PWD/../../build/devkit/result/x86_64-linux-gnu-to-x86_64-linux-gnu/bin:$PATH \
+#    make TARGETS="arm-linux-gnueabihf,ppc64-linux-gnu" BASE_OS=Fedora
 #
 # This is the makefile which iterates over all host and target platforms.
 #
+
+COMMA := ,
 
 os := $(shell uname -o)
 cpu := $(shell uname -p)
 
 # Figure out what platform this is building on.
-me := $(cpu)-$(if $(findstring Linux,$(os)),unknown-linux-gnu)
+me := $(cpu)-$(if $(findstring Linux,$(os)),linux-gnu)
 
 $(info Building on platform $(me))
 
 #
 # By default just build for the current platform, which is assumed to be Linux
 #
-ifeq ($(cross_compile_target), )
+ifeq ($(TARGETS), )
   platforms := $(me)
   host_platforms := $(platforms)
 else
-  platforms := $(cross_compile_target)
+  platforms := $(subst $(COMMA), , $(TARGETS))
   host_platforms := $(me)
 endif
 target_platforms := $(platforms)
@@ -79,38 +88,35 @@ endif
 OUTPUT_ROOT = $(abspath ../../build/devkit)
 RESULT = $(OUTPUT_ROOT)/result
 
-submakevars = HOST=$@ BUILD=$(me) \
-    RESULT=$(RESULT) PREFIX=$(RESULT)/$@ \
-    OUTPUT_ROOT=$(OUTPUT_ROOT)
+submakevars = HOST=$@ BUILD=$(me) RESULT=$(RESULT) OUTPUT_ROOT=$(OUTPUT_ROOT)
+
 $(host_platforms) :
 	@echo 'Building compilers for $@'
 	@echo 'Targets: $(target_platforms)'
 	for p in $(filter $@, $(target_platforms)) $(filter-out $@, $(target_platforms)); do \
-	  $(MAKE) -f Tools.gmk download-rpms $(submakevars) TARGET=$$p && \
+	  $(MAKE) -f Tools.gmk download-rpms $(submakevars) \
+              TARGET=$$p PREFIX=$(RESULT)/$@-to-$$p && \
 	  $(MAKE) -f Tools.gmk all $(submakevars) \
-	      TARGET=$$p || exit 1 ; \
+              TARGET=$$p PREFIX=$(RESULT)/$@-to-$$p && \
+	  $(MAKE) -f Tools.gmk ccache $(submakevars) \
+              TARGET=$@ PREFIX=$(RESULT)/$@-to-$$p || exit 1 ; \
 	done
-	@echo 'Building ccache program for $@'
-	$(MAKE) -f Tools.gmk ccache $(submakevars) TARGET=$@
 	@echo 'All done"'
 
 today := $(shell date +%Y%m%d)
 
 define Mktar
-  $(1)_tar = $$(RESULT)/sdk-$(1)-$$(today).tar.gz
-  $$($(1)_tar) : PLATFORM = $(1)
-  TARFILES += $$($(1)_tar)
-  $$($(1)_tar) : $(1) $$(shell find $$(RESULT)/$(1))
+  $(1)-to-$(2)_tar = $$(RESULT)/sdk-$(1)-to-$(2)-$$(today).tar.gz
+  $$($(1)-to-$(2)_tar) : PLATFORM = $(1)-to-$(2)
+  TARFILES += $$($(1)-to-$(2)_tar)
 endef
 
-$(foreach p,$(host_platforms),$(eval $(call Mktar,$(p))))
+$(foreach p,$(host_platforms),$(foreach t,$(target_platforms),$(eval $(call Mktar,$(p),$(t)))))
 
 tars : all $(TARFILES)
 onlytars : $(TARFILES)
 %.tar.gz :
-	@echo 'Creating compiler package $@'
-	cd $(RESULT)/$(PLATFORM) && tar -czf $@ *
-	touch $@
+	$(MAKE) -r -f Tars.gmk SRC_DIR=$(RESULT)/$(PLATFORM) TAR_FILE=$@
 
 clean :
 	rm -rf $(addprefix ../../build/devkit/, result $(host_platforms))

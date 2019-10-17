@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_PARNEWGENERATION_HPP
-#define SHARE_VM_GC_CMS_PARNEWGENERATION_HPP
+#ifndef SHARE_GC_CMS_PARNEWGENERATION_HPP
+#define SHARE_GC_CMS_PARNEWGENERATION_HPP
 
 #include "gc/cms/parOopClosures.hpp"
 #include "gc/serial/defNewGeneration.hpp"
@@ -133,7 +133,7 @@ class ParScanThreadState {
                      Stack<oop, mtGC>* overflow_stacks_,
                      PreservedMarks* preserved_marks_,
                      size_t desired_plab_sz_,
-                     ParallelTaskTerminator& term_);
+                     TaskTerminator& term_);
 
  public:
   AgeTable* age_table() {return &_ageTable;}
@@ -235,7 +235,6 @@ class ParNewGenTask: public AbstractGangTask {
   HeapWord*                    _young_old_boundary;
   class ParScanThreadStateSet* _state_set;
   StrongRootsScope*            _strong_roots_scope;
-  OopStorage::ParState<false, false> _par_state_string;
 
 public:
   ParNewGenTask(ParNewGeneration*      young_gen,
@@ -346,15 +345,13 @@ class ParNewGeneration: public DefNewGeneration {
 
  protected:
 
-  bool _survivor_overflow;
-
-  bool survivor_overflow() { return _survivor_overflow; }
-  void set_survivor_overflow(bool v) { _survivor_overflow = v; }
-
   void restore_preserved_marks();
 
  public:
-  ParNewGeneration(ReservedSpace rs, size_t initial_byte_size);
+  ParNewGeneration(ReservedSpace rs,
+                   size_t initial_byte_size,
+                   size_t min_byte_size,
+                   size_t max_byte_size);
 
   ~ParNewGeneration() {
     for (uint i = 0; i < ParallelGCThreads; i++)
@@ -384,7 +381,7 @@ class ParNewGeneration: public DefNewGeneration {
   // that must not contain a forwarding pointer (though one might be
   // inserted in "obj"s mark word by a parallel thread).
   oop copy_to_survivor_space(ParScanThreadState* par_scan_state,
-                             oop obj, size_t obj_sz, markOop m);
+                             oop obj, size_t obj_sz, markWord m);
 
   // in support of testing overflow code
   NOT_PRODUCT(int _overflow_counter;)
@@ -420,4 +417,4 @@ class ParNewGeneration: public DefNewGeneration {
   static oop real_forwardee(oop obj);
 };
 
-#endif // SHARE_VM_GC_CMS_PARNEWGENERATION_HPP
+#endif // SHARE_GC_CMS_PARNEWGENERATION_HPP

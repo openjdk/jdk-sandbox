@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,6 @@ package sun.jvm.hotspot.gc.z;
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.runtime.VMObject;
-import sun.jvm.hotspot.runtime.VMObjectFactory;
-import sun.jvm.hotspot.types.AddressField;
 import sun.jvm.hotspot.types.CIntegerField;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
@@ -37,7 +35,8 @@ import sun.jvm.hotspot.types.TypeDataBase;
 
 public class ZPageAllocator extends VMObject {
 
-    private static AddressField physicalField;
+    private static CIntegerField maxCapacityField;
+    private static CIntegerField capacityField;
     private static CIntegerField usedField;
 
     static {
@@ -47,21 +46,17 @@ public class ZPageAllocator extends VMObject {
     static private synchronized void initialize(TypeDataBase db) {
         Type type = db.lookupType("ZPageAllocator");
 
-        physicalField = type.getAddressField("_physical");
+        maxCapacityField = type.getCIntegerField("_max_capacity");
+        capacityField = type.getCIntegerField("_capacity");
         usedField = type.getCIntegerField("_used");
     }
 
-    private ZPhysicalMemoryManager physical() {
-      Address physicalAddr = physicalField.getValue(addr);
-      return (ZPhysicalMemoryManager)VMObjectFactory.newObject(ZPhysicalMemoryManager.class, physicalAddr);
-    }
-
     public long maxCapacity() {
-        return physical().maxCapacity();
+        return maxCapacityField.getValue(addr);
     }
 
     public long capacity() {
-        return physical().capacity();
+        return capacityField.getValue(addr);
     }
 
     public long used() {

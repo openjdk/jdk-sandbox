@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,14 +102,10 @@ public final class KeychainStore extends KeyStoreSpi {
     private static final int iterationCount = 1024;
     private static final int SALT_LEN = 20;
 
+    private static final Debug debug = Debug.getInstance("keystore");
+
     static {
-        AccessController.doPrivileged(
-            new PrivilegedAction<Void>() {
-                public Void run() {
-                    System.loadLibrary("osxsecurity");
-                    return null;
-                }
-            });
+        jdk.internal.loader.BootLoader.loadLibrary("osxsecurity");
         try {
             PKCS8ShroudedKeyBag_OID = new ObjectIdentifier(keyBag);
             pbeWithSHAAnd3KeyTripleDESCBC_OID = new ObjectIdentifier(pbeWithSHAAnd3KeyTripleDESCBC);
@@ -773,6 +769,10 @@ public final class KeychainStore extends KeyStoreSpi {
 
             entries.clear();
             _scanKeychain();
+            if (debug != null) {
+                debug.println("KeychainStore load entry count: " +
+                        entries.size());
+            }
         }
     }
 
@@ -1044,7 +1044,7 @@ public final class KeychainStore extends KeyStoreSpi {
         if (random == null) {
             random = new SecureRandom();
         }
-        salt = random.generateSeed(SALT_LEN);
+        random.nextBytes(salt);
         return salt;
     }
 

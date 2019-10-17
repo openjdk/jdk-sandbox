@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,8 +84,10 @@ public class GeneratedFoldPlugin extends GeneratedPlugin {
             if (processor.getAnnotation(param, processor.getType(INJECTED_PARAMETER_CLASS_NAME)) == null) {
                 constantArgument(processor, out, deps, argCount, param.asType(), argCount);
             } else {
-                out.printf("            assert checkInjectedArgument(b, args[%d], targetMethod);\n", argCount);
-                out.printf("            %s arg%d = %s;\n", param.asType(), argCount, deps.use(processor, (DeclaredType) param.asType()));
+                out.printf("        if (!checkInjectedArgument(b, args[%d], targetMethod)) {\n", argCount);
+                out.printf("            return false;\n");
+                out.printf("        }\n", argCount);
+                out.printf("        %s arg%d = %s;\n", param.asType(), argCount, deps.use(processor, (DeclaredType) param.asType()));
             }
             argCount++;
         }
@@ -103,7 +105,7 @@ public class GeneratedFoldPlugin extends GeneratedPlugin {
             }
         }
         if (suppressWarnings.size() > 0) {
-            out.printf("            @SuppressWarnings({");
+            out.printf("        @SuppressWarnings({");
             String sep = "";
             for (String suppressWarning : suppressWarnings) {
                 out.printf("%s\"%s\"", sep, suppressWarning);
@@ -112,7 +114,7 @@ public class GeneratedFoldPlugin extends GeneratedPlugin {
             out.printf("})\n");
         }
 
-        out.printf("            %s result = %s.%s(", getErasedType(intrinsicMethod.getReturnType()), receiver, intrinsicMethod.getSimpleName());
+        out.printf("        %s result = %s.%s(", getErasedType(intrinsicMethod.getReturnType()), receiver, intrinsicMethod.getSimpleName());
         if (argCount > firstArg) {
             out.printf("arg%d", firstArg);
             for (int i = firstArg + 1; i < argCount; i++) {
@@ -124,40 +126,40 @@ public class GeneratedFoldPlugin extends GeneratedPlugin {
         TypeMirror returnType = intrinsicMethod.getReturnType();
         switch (returnType.getKind()) {
             case BOOLEAN:
-                out.printf("            JavaConstant constant = JavaConstant.forInt(result ? 1 : 0);\n");
+                out.printf("        JavaConstant constant = JavaConstant.forInt(result ? 1 : 0);\n");
                 break;
             case BYTE:
             case SHORT:
             case CHAR:
             case INT:
-                out.printf("            JavaConstant constant = JavaConstant.forInt(result);\n");
+                out.printf("        JavaConstant constant = JavaConstant.forInt(result);\n");
                 break;
             case LONG:
-                out.printf("            JavaConstant constant = JavaConstant.forLong(result);\n");
+                out.printf("        JavaConstant constant = JavaConstant.forLong(result);\n");
                 break;
             case FLOAT:
-                out.printf("            JavaConstant constant = JavaConstant.forFloat(result);\n");
+                out.printf("        JavaConstant constant = JavaConstant.forFloat(result);\n");
                 break;
             case DOUBLE:
-                out.printf("            JavaConstant constant = JavaConstant.forDouble(result);\n");
+                out.printf("        JavaConstant constant = JavaConstant.forDouble(result);\n");
                 break;
             case ARRAY:
             case TYPEVAR:
             case DECLARED:
                 if (returnType.equals(processor.getType("java.lang.String"))) {
-                    out.printf("            JavaConstant constant = %s.forString(result);\n", deps.use(WellKnownDependency.CONSTANT_REFLECTION));
+                    out.printf("        JavaConstant constant = %s.forString(result);\n", deps.use(WellKnownDependency.CONSTANT_REFLECTION));
                 } else {
-                    out.printf("            JavaConstant constant = %s.forObject(result);\n", deps.use(WellKnownDependency.SNIPPET_REFLECTION));
+                    out.printf("        JavaConstant constant = %s.forObject(result);\n", deps.use(WellKnownDependency.SNIPPET_REFLECTION));
                 }
                 break;
             default:
                 throw new IllegalArgumentException(returnType.toString());
         }
 
-        out.printf("            ConstantNode node = ConstantNode.forConstant(constant, %s, %s);\n", deps.use(WellKnownDependency.META_ACCESS), deps.use(WellKnownDependency.STRUCTURED_GRAPH));
-        out.printf("            b.push(JavaKind.%s, node);\n", getReturnKind(intrinsicMethod));
-        out.printf("            b.notifyReplacedCall(targetMethod, node);\n");
-        out.printf("            return true;\n");
+        out.printf("        ConstantNode node = ConstantNode.forConstant(constant, %s, %s);\n", deps.use(WellKnownDependency.META_ACCESS), deps.use(WellKnownDependency.STRUCTURED_GRAPH));
+        out.printf("        b.push(JavaKind.%s, node);\n", getReturnKind(intrinsicMethod));
+        out.printf("        b.notifyReplacedCall(targetMethod, node);\n");
+        out.printf("        return true;\n");
 
         return deps;
     }

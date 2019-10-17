@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import org.graalvm.compiler.graph.NodeSourcePosition;
 import org.graalvm.compiler.nodes.AbstractMergeNode;
 import org.graalvm.compiler.nodes.FrameState;
 import org.graalvm.compiler.nodes.Invoke;
+import org.graalvm.compiler.nodes.LoopExitNode;
 import org.graalvm.compiler.nodes.StateSplit;
 import org.graalvm.compiler.nodes.StructuredGraph;
 import org.graalvm.compiler.nodes.java.ExceptionObjectNode;
@@ -190,6 +191,11 @@ public class IntrinsicContext {
         void addSideEffect(StateSplit sideEffect);
     }
 
+    @SuppressWarnings("unused")
+    public boolean isDeferredInvoke(StateSplit stateSplit) {
+        return false;
+    }
+
     public FrameState createFrameState(StructuredGraph graph, SideEffectsState sideEffects, StateSplit forStateSplit, NodeSourcePosition sourcePosition) {
         assert forStateSplit != graph.start();
         if (forStateSplit.hasSideEffect()) {
@@ -204,19 +210,23 @@ public class IntrinsicContext {
                     lastSideEffect.setStateAfter(invalid);
                 }
             }
-            sideEffects.addSideEffect(forStateSplit);
             FrameState frameState;
-            if (forStateSplit instanceof ExceptionObjectNode) {
-                frameState = graph.add(new FrameState(AFTER_EXCEPTION_BCI, (ExceptionObjectNode) forStateSplit));
+            if (isDeferredInvoke(forStateSplit)) {
+                frameState = graph.add(new FrameState(INVALID_FRAMESTATE_BCI));
             } else {
-                frameState = graph.add(new FrameState(AFTER_BCI));
+                sideEffects.addSideEffect(forStateSplit);
+                if (forStateSplit instanceof ExceptionObjectNode) {
+                    frameState = graph.add(new FrameState(AFTER_EXCEPTION_BCI, (ExceptionObjectNode) forStateSplit));
+                } else {
+                    frameState = graph.add(new FrameState(AFTER_BCI));
+                }
             }
             if (graph.trackNodeSourcePosition()) {
                 frameState.setNodeSourcePosition(sourcePosition);
             }
             return frameState;
         } else {
-            if (forStateSplit instanceof AbstractMergeNode) {
+            if (forStateSplit instanceof AbstractMergeNode || forStateSplit instanceof LoopExitNode) {
                 // Merge nodes always need a frame state
                 if (sideEffects.isAfterSideEffect()) {
                     // A merge after one or more side effects
@@ -242,6 +252,7 @@ public class IntrinsicContext {
 
     @Override
     public String toString() {
-        return "Intrinsic{original: " + originalMethod.format("%H.%n(%p)") + ", intrinsic: " + intrinsicMethod.format("%H.%n(%p)") + ", context: " + compilationContext + "}";
+        return "Intrinsic{original: " + originalMethod.format("%H.%n(%p)") + ", intrinsic: " + (intrinsicMethod != null ? intrinsicMethod.format("%H.%n(%p)") : "null") + ", context: " +
+                        compilationContext + "}";
     }
 }

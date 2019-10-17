@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import org.graalvm.compiler.api.replacements.SnippetReflectionProvider;
 import org.graalvm.compiler.bytecode.Bytecode;
 import org.graalvm.compiler.core.common.cfg.BlockMap;
 import org.graalvm.compiler.debug.DebugContext;
-import org.graalvm.compiler.debug.DebugOptions;
 import org.graalvm.compiler.graph.CachedGraph;
 import org.graalvm.compiler.graph.Edges;
 import org.graalvm.compiler.graph.Graph;
@@ -66,9 +65,9 @@ import org.graalvm.compiler.nodes.VirtualState;
 import org.graalvm.compiler.nodes.cfg.Block;
 import org.graalvm.compiler.nodes.cfg.ControlFlowGraph;
 import org.graalvm.compiler.nodes.util.JavaConstantFormattable;
-import org.graalvm.compiler.phases.schedule.SchedulePhase;
 import org.graalvm.graphio.GraphBlocks;
 import org.graalvm.graphio.GraphElements;
+import org.graalvm.graphio.GraphLocations;
 import org.graalvm.graphio.GraphOutput;
 import org.graalvm.graphio.GraphStructure;
 import org.graalvm.graphio.GraphTypes;
@@ -77,7 +76,6 @@ import jdk.vm.ci.meta.JavaType;
 import jdk.vm.ci.meta.ResolvedJavaField;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.Signature;
-import org.graalvm.graphio.GraphLocations;
 
 public class BinaryGraphPrinter implements
                 GraphStructure<BinaryGraphPrinter.GraphInfo, Node, NodeClass<?>, Edges>,
@@ -91,7 +89,7 @@ public class BinaryGraphPrinter implements
     public BinaryGraphPrinter(DebugContext ctx, SnippetReflectionProvider snippetReflection) throws IOException {
         // @formatter:off
         this.output = ctx.buildOutput(GraphOutput.newBuilder(this).
-                        protocolVersion(6, 0).
+                        protocolVersion(6, 1).
                         blocks(this).
                         elementsAndLocations(this, this).
                         types(this)
@@ -229,29 +227,23 @@ public class BinaryGraphPrinter implements
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void nodeProperties(GraphInfo info, Node node, Map<String, Object> props) {
         node.getDebugProperties((Map) props);
-        Graph graph = info.graph;
-        ControlFlowGraph cfg = info.cfg;
         NodeMap<Block> nodeToBlocks = info.nodeToBlocks;
-        if (cfg != null && DebugOptions.PrintGraphProbabilities.getValue(graph.getOptions()) && node instanceof FixedNode) {
-            try {
-                props.put("probability", cfg.blockFor(node).probability());
-            } catch (Throwable t) {
-                props.put("probability", 0.0);
-                props.put("probability-exception", t);
+
+        if (nodeToBlocks != null) {
+            Block block = getBlockForNode(node, nodeToBlocks);
+            if (block != null) {
+                props.put("relativeFrequency", block.getRelativeFrequency());
+                props.put("nodeToBlock", block);
             }
         }
 
-        try {
-            props.put("NodeCost-Size", node.estimatedNodeSize());
-            props.put("NodeCost-Cycles", node.estimatedNodeCycles());
-        } catch (Throwable t) {
-            props.put("node-cost-exception", t.getMessage());
-        }
+        props.put("nodeCostSize", node.estimatedNodeSize());
+        props.put("nodeCostCycles", node.estimatedNodeCycles());
 
         if (nodeToBlocks != null) {
             Object block = getBlockForNode(node, nodeToBlocks);
             if (block != null) {
-                props.put("node-to-block", block);
+                props.put("nodeToBlock", block);
             }
         }
 
@@ -289,13 +281,13 @@ public class BinaryGraphPrinter implements
         }
     }
 
-    private Object getBlockForNode(Node node, NodeMap<Block> nodeToBlocks) {
+    private Block getBlockForNode(Node node, NodeMap<Block> nodeToBlocks) {
         if (nodeToBlocks.isNew(node)) {
-            return "NEW (not in schedule)";
+            return null;
         } else {
             Block block = nodeToBlocks.get(node);
             if (block != null) {
-                return block.getId();
+                return block;
             } else if (node instanceof PhiNode) {
                 return getBlockForNode(((PhiNode) node).merge(), nodeToBlocks);
             }
@@ -534,7 +526,7 @@ public class BinaryGraphPrinter implements
             public URI getURI() {
                 String path = e.getFileName();
                 try {
-                    return path == null ? null : new URI(null, null, path, null);
+                    return new URI(null, null, path == null ? "(Unknown Source)" : path, null);
                 } catch (URISyntaxException ex) {
                     throw new IllegalArgumentException(ex);
                 }
@@ -597,22 +589,8 @@ public class BinaryGraphPrinter implements
             this.graph = graph;
             StructuredGraph.ScheduleResult scheduleResult = null;
             if (graph instanceof StructuredGraph) {
-
                 StructuredGraph structuredGraph = (StructuredGraph) graph;
-                scheduleResult = structuredGraph.getLastSchedule();
-                if (scheduleResult == null) {
-
-                    // Also provide a schedule when an error occurs
-                    if (DebugOptions.PrintGraphWithSchedule.getValue(graph.getOptions()) || debug.contextLookup(Throwable.class) != null) {
-                        try {
-                            SchedulePhase schedule = new SchedulePhase(graph.getOptions());
-                            schedule.apply(structuredGraph);
-                            scheduleResult = structuredGraph.getLastSchedule();
-                        } catch (Throwable t) {
-                        }
-                    }
-
-                }
+                scheduleResult = GraalDebugHandlersFactory.tryGetSchedule(debug, structuredGraph);
             }
             cfg = scheduleResult == null ? debug.contextLookup(ControlFlowGraph.class) : scheduleResult.getCFG();
             blockToNodes = scheduleResult == null ? null : scheduleResult.getBlockToNodesMap();

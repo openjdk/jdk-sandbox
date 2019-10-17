@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,20 +23,15 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
-#define CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
+#ifndef CPU_AARCH64_STUBROUTINES_AARCH64_HPP
+#define CPU_AARCH64_STUBROUTINES_AARCH64_HPP
 
 // This file holds the platform specific parts of the StubRoutines
 // definition. See stubRoutines.hpp for a description on how to
 // extend it.
 
-// n.b. if we are notifying entry/exit to the simulator then the call
-// stub does a notify at normal return placing
-// call_stub_return_address one instruction beyond the notify. the
-// latter address is sued by the stack unwind code when doign an
-// exception return.
 static bool    returns_to_call_stub(address return_pc)   {
-  return return_pc == _call_stub_return_address + (NotifySimulator ? -4 : 0);
+  return return_pc == _call_stub_return_address;
 }
 
 enum platform_dependent_constants {
@@ -186,6 +181,7 @@ class aarch64 {
 
 private:
   static juint    _crc_table[];
+  static jubyte   _adler_table[];
   // begin trigonometric tables block. See comments in .cpp file
   static juint    _npio2_hw[];
   static jdouble   _two_over_pi[];
@@ -195,4 +191,4 @@ private:
   // end trigonometric tables block
 };
 
-#endif // CPU_AARCH64_VM_STUBROUTINES_AARCH64_HPP
+#endif // CPU_AARCH64_STUBROUTINES_AARCH64_HPP

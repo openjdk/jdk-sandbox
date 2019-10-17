@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zMark.inline.hpp"
 #include "gc/z/zMarkCache.inline.hpp"
@@ -32,9 +33,9 @@
 #include "gc/z/zPageTable.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
-#include "gc/z/zStatTLAB.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zThread.hpp"
+#include "gc/z/zThreadLocalAllocBuffer.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zWorkers.inline.hpp"
 #include "logging/log.hpp"
@@ -56,9 +57,9 @@ static const ZStatSubPhase ZSubPhaseConcurrentMarkIdle("Concurrent Mark Idle");
 static const ZStatSubPhase ZSubPhaseConcurrentMarkTryTerminate("Concurrent Mark Try Terminate");
 static const ZStatSubPhase ZSubPhaseMarkTryComplete("Pause Mark Try Complete");
 
-ZMark::ZMark(ZWorkers* workers, ZPageTable* pagetable) :
+ZMark::ZMark(ZWorkers* workers, ZPageTable* page_table) :
     _workers(workers),
-    _pagetable(pagetable),
+    _page_table(page_table),
     _allocator(),
     _stripes(),
     _terminate(),
@@ -121,24 +122,22 @@ void ZMark::prepare_mark() {
 class ZMarkRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkRootsIteratorClosure() {
-    ZStatTLAB::reset();
+    ZThreadLocalAllocBuffer::reset_statistics();
   }
 
   ~ZMarkRootsIteratorClosure() {
-    ZStatTLAB::publish();
+    ZThreadLocalAllocBuffer::publish_statistics();
   }
 
   virtual void do_thread(Thread* thread) {
-    ZRootsIteratorClosure::do_thread(thread);
-
     // Update thread local address bad mask
     ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
 
+    // Mark invisible root
+    ZThreadLocalData::do_invisible_root(thread, ZBarrier::mark_barrier_on_invisible_root_oop_field);
+
     // Retire TLAB
-    if (UseTLAB && thread->is_Java_thread()) {
-      thread->tlab().retire(ZStatTLAB::get());
-      thread->tlab().resize();
-    }
+    ZThreadLocalAllocBuffer::retire(thread);
   }
 
   virtual void do_oop(oop* p) {
@@ -160,7 +159,7 @@ public:
   ZMarkRootsTask(ZMark* mark) :
       ZTask("ZMarkRootsTask"),
       _mark(mark),
-      _roots() {}
+      _roots(false /* visit_jvmti_weak_export */) {}
 
   virtual void work() {
     _roots.oops_do(&_cl);
@@ -205,7 +204,7 @@ void ZMark::finish_work() {
 }
 
 bool ZMark::is_array(uintptr_t addr) const {
-  return ZOop::to_oop(addr)->is_objArray();
+  return ZOop::from_address(addr)->is_objArray();
 }
 
 void ZMark::push_partial_array(uintptr_t addr, size_t size, bool finalizable) {
@@ -287,6 +286,14 @@ void ZMark::follow_partial_array(ZMarkStackEntry entry, bool finalizable) {
 }
 
 void ZMark::follow_array_object(objArrayOop obj, bool finalizable) {
+  if (finalizable) {
+    ZMarkBarrierOopClosure<true /* finalizable */> cl;
+    cl.do_klass(obj->klass());
+  } else {
+    ZMarkBarrierOopClosure<false /* finalizable */> cl;
+    cl.do_klass(obj->klass());
+  }
+
   const uintptr_t addr = (uintptr_t)obj->base();
   const size_t size = (size_t)obj->length() * oopSize;
 
@@ -304,7 +311,7 @@ void ZMark::follow_object(oop obj, bool finalizable) {
 }
 
 bool ZMark::try_mark_object(ZMarkCache* cache, uintptr_t addr, bool finalizable) {
-  ZPage* const page = _pagetable->get(addr);
+  ZPage* const page = _page_table->get(addr);
   if (page->is_allocating()) {
     // Newly allocated objects are implicitly marked
     return false;
@@ -335,7 +342,7 @@ void ZMark::mark_and_follow(ZMarkCache* cache, ZMarkStackEntry entry) {
     return;
   }
 
-  // Decode object address
+  // Decode object address and follow flag
   const uintptr_t addr = entry.object_address();
 
   if (!try_mark_object(cache, addr, finalizable)) {
@@ -344,9 +351,15 @@ void ZMark::mark_and_follow(ZMarkCache* cache, ZMarkStackEntry entry) {
   }
 
   if (is_array(addr)) {
-    follow_array_object(objArrayOop(ZOop::to_oop(addr)), finalizable);
+    // Decode follow flag
+    const bool follow = entry.follow();
+
+    // The follow flag is currently only relevant for object arrays
+    if (follow) {
+      follow_array_object(objArrayOop(ZOop::from_address(addr)), finalizable);
+    }
   } else {
-    follow_object(ZOop::to_oop(addr), finalizable);
+    follow_object(ZOop::from_address(addr), finalizable);
   }
 }
 
@@ -615,6 +628,42 @@ void ZMark::work(uint64_t timeout_in_millis) {
   stacks->free(&_allocator);
 }
 
+class ZMarkConcurrentRootsIteratorClosure : public ZRootsIteratorClosure {
+public:
+  virtual void do_oop(oop* p) {
+    ZBarrier::mark_barrier_on_oop_field(p, false /* finalizable */);
+  }
+
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+};
+
+
+class ZMarkConcurrentRootsTask : public ZTask {
+private:
+  SuspendibleThreadSetJoiner          _sts_joiner;
+  ZConcurrentRootsIteratorClaimStrong _roots;
+  ZMarkConcurrentRootsIteratorClosure _cl;
+
+public:
+  ZMarkConcurrentRootsTask(ZMark* mark) :
+      ZTask("ZMarkConcurrentRootsTask"),
+      _sts_joiner(),
+      _roots(),
+      _cl() {
+    ClassLoaderDataGraph_lock->lock();
+  }
+
+  ~ZMarkConcurrentRootsTask() {
+    ClassLoaderDataGraph_lock->unlock();
+  }
+
+  virtual void work() {
+    _roots.oops_do(&_cl);
+  }
+};
+
 class ZMarkTask : public ZTask {
 private:
   ZMark* const   _mark;
@@ -637,7 +686,12 @@ public:
   }
 };
 
-void ZMark::mark() {
+void ZMark::mark(bool initial) {
+  if (initial) {
+    ZMarkConcurrentRootsTask task(this);
+    _workers->run_concurrent(&task);
+  }
+
   ZMarkTask task(this);
   _workers->run_concurrent(&task);
 }

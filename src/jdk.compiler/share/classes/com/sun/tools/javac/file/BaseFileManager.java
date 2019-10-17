@@ -198,6 +198,10 @@ public abstract class BaseFileManager implements JavaFileManager {
         return locations.isDefaultBootClassPath();
     }
 
+    public boolean isDefaultSystemModulesPath() {
+        return locations.isDefaultSystemModulesPath();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Option handling">
     @Override @DefinedBy(Api.COMPILER)
     public boolean handleOption(String current, Iterator<String> remaining) {
@@ -237,7 +241,7 @@ public abstract class BaseFileManager implements JavaFileManager {
         return true;
     }
     // where
-        private static final Set<Option> javacFileManagerOptions =
+        protected static final Set<Option> javacFileManagerOptions =
             Option.getJavacFileManagerOptions();
 
     @Override @DefinedBy(Api.COMPILER)

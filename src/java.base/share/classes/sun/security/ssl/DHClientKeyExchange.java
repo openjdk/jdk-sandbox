@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ import javax.net.ssl.SSLHandshakeException;
 import sun.security.ssl.DHKeyExchange.DHECredentials;
 import sun.security.ssl.DHKeyExchange.DHEPossession;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
-import sun.security.ssl.SupportedGroupsExtension.NamedGroup;
 import sun.security.util.HexDumpEncoder;
 
 /**
@@ -87,7 +86,7 @@ final class DHClientKeyExchange {
 
             if (dhePossession == null) {
                 // unlikely
-                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No DHE credentials negotiated for client key exchange");
             }
 
@@ -104,14 +103,14 @@ final class DHClientKeyExchange {
                     (ServerHandshakeContext)handshakeContext;
 
             if (m.remaining() < 3) {
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid DH ClientKeyExchange message: insufficient data");
             }
 
             this.y = Record.getBytes16(m);
 
             if (m.hasRemaining()) {
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Invalid DH ClientKeyExchange message: unknown extra data");
             }
         }
@@ -177,7 +176,7 @@ final class DHClientKeyExchange {
             }
 
             if (dheCredentials == null) {
-                chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No DHE credentials negotiated for client key exchange");
             }
 
@@ -202,7 +201,7 @@ final class DHClientKeyExchange {
                     chc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
-                chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             } else {
                 SSLKeyDerivation masterKD = ke.createKeyDerivation(chc);
@@ -214,7 +213,7 @@ final class DHClientKeyExchange {
                         SSLTrafficKeyDerivation.valueOf(chc.negotiatedProtocol);
                 if (kd == null) {
                     // unlikely
-                    chc.conContext.fatal(Alert.INTERNAL_ERROR,
+                    throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                             "Not supported key derivation: " +
                             chc.negotiatedProtocol);
                 } else {
@@ -254,7 +253,7 @@ final class DHClientKeyExchange {
 
             if (dhePossession == null) {
                 // unlikely
-                shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "No expected DHE possessions for client key exchange");
             }
 
@@ -263,7 +262,7 @@ final class DHClientKeyExchange {
                     shc.negotiatedProtocol);
             if (ke == null) {
                 // unlikely
-                shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Not supported key exchange type");
             }
 
@@ -280,7 +279,7 @@ final class DHClientKeyExchange {
                 DHPublicKeySpec spec = new DHPublicKeySpec(
                         new BigInteger(1, ckem.y),
                         params.getP(), params.getG());
-                KeyFactory kf = JsseJce.getKeyFactory("DiffieHellman");
+                KeyFactory kf = KeyFactory.getInstance("DiffieHellman");
                 DHPublicKey peerPublicKey =
                         (DHPublicKey)kf.generatePublic(spec);
 
@@ -310,7 +309,7 @@ final class DHClientKeyExchange {
                     SSLTrafficKeyDerivation.valueOf(shc.negotiatedProtocol);
             if (kd == null) {
                 // unlikely
-                shc.conContext.fatal(Alert.INTERNAL_ERROR,
+                throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                     "Not supported key derivation: " + shc.negotiatedProtocol);
             } else {
                 shc.handshakeKeyDerivation =

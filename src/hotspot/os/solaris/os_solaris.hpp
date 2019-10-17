@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef OS_SOLARIS_VM_OS_SOLARIS_HPP
-#define OS_SOLARIS_VM_OS_SOLARIS_HPP
+#ifndef OS_SOLARIS_OS_SOLARIS_HPP
+#define OS_SOLARIS_OS_SOLARIS_HPP
 
 // Solaris_OS defines the interface to Solaris operating systems
 
@@ -102,8 +102,6 @@ class Solaris {
   static size_t page_size_for_alignment(size_t alignment);
   static bool setup_large_pages(caddr_t start, size_t bytes, size_t align);
 
-  static void init_thread_fpu_state(void);
-
   static void try_enable_extended_io();
 
   static struct sigaction *(*get_signal_action)(int);
@@ -148,6 +146,9 @@ class Solaris {
 
   // SR_handler
   static void SR_handler(Thread* thread, ucontext_t* uc);
+
+  static void init_thread_fpu_state(void);
+
  protected:
   // Solaris-specific interface goes here
   static julong available_memory();
@@ -268,10 +269,7 @@ class Solaris {
   static          jint  _os_thread_limit;
   static volatile jint  _os_thread_count;
 
-
-  // Stack overflow handling
-
-  static int max_register_window_saves_before_flushing();
+  static void correct_stack_boundaries_for_primordial_thread(Thread* thr);
 
   // Stack repair handling
 
@@ -279,7 +277,7 @@ class Solaris {
 
 };
 
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
  private:
   double CachePad[4];   // increase odds that _mutex is sole occupant of cache line
   volatile int _Event;
@@ -315,7 +313,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
   void unpark();
 };
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
  protected:
   mutex_t _mutex[1];
   cond_t  _cond[1];
@@ -333,4 +331,37 @@ class PlatformParker : public CHeapObj<mtInternal> {
   }
 };
 
-#endif // OS_SOLARIS_VM_OS_SOLARIS_HPP
+// Platform specific implementations that underpin VM Mutex/Monitor classes
+
+class PlatformMutex : public CHeapObj<mtSynchronizer> {
+  // Disable copying
+  PlatformMutex(const PlatformMutex&);
+  PlatformMutex& operator=(const PlatformMutex&);
+
+ protected:
+  mutex_t _mutex; // Native mutex for locking
+
+ public:
+  PlatformMutex();
+  ~PlatformMutex();
+  void lock();
+  void unlock();
+  bool try_lock();
+};
+
+class PlatformMonitor : public PlatformMutex {
+ private:
+  cond_t  _cond;  // Native condition variable for blocking
+  // Disable copying
+  PlatformMonitor(const PlatformMonitor&);
+  PlatformMonitor& operator=(const PlatformMonitor&);
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
+};
+
+#endif // OS_SOLARIS_OS_SOLARIS_HPP

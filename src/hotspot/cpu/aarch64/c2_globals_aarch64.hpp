@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_C2_GLOBALS_AARCH64_HPP
-#define CPU_AARCH64_VM_C2_GLOBALS_AARCH64_HPP
+#ifndef CPU_AARCH64_C2_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_C2_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -76,7 +76,7 @@ define_pd_global(intx, ReservedCodeCacheSize,        48*M);
 define_pd_global(intx, NonProfiledCodeHeapSize,      21*M);
 define_pd_global(intx, ProfiledCodeHeapSize,         22*M);
 define_pd_global(intx, NonNMethodCodeHeapSize,       5*M );
-define_pd_global(uintx, CodeCacheMinBlockLength,     4);
+define_pd_global(uintx, CodeCacheMinBlockLength,     6);
 define_pd_global(uintx, CodeCacheMinimumUseSpace,    400*K);
 
 // Heap related flags
@@ -87,4 +87,4 @@ define_pd_global(bool, NeverActAsServerClassMachine, false);
 
 define_pd_global(bool,  TrapBasedRangeChecks,        false); // Not needed.
 
-#endif // CPU_AARCH64_VM_C2_GLOBALS_AARCH64_HPP
+#endif // CPU_AARCH64_C2_GLOBALS_AARCH64_HPP

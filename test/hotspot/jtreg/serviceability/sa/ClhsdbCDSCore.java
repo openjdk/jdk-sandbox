@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
 
 /**
  * @test
- * @bug 8174994
- * @summary Test the clhsdb commands 'printmdo', 'printall' on a CDS enabled corefile.
+ * @bug 8174994 8200613
+ * @summary Test the clhsdb commands 'printmdo', 'printall', 'jstack' on a CDS enabled corefile.
  * @requires vm.cds
  * @requires vm.hasSA
  * @requires os.family != "windows"
@@ -34,26 +34,30 @@
  * @run main/othervm/timeout=2400 -Xmx1g ClhsdbCDSCore
  */
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.Platform;
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.cds.CDSTestUtils;
-import jdk.test.lib.cds.CDSOptions;
-import java.io.IOException;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import jdk.test.lib.Asserts;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import jdk.internal.misc.Unsafe;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import jdk.internal.misc.Unsafe;
+
+import jdk.test.lib.Asserts;
+import jdk.test.lib.Platform;
+import jdk.test.lib.cds.CDSOptions;
+import jdk.test.lib.cds.CDSTestUtils;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.SA.SATestUtils;
+
 import jtreg.SkippedException;
 
 class CrashApp {
@@ -79,6 +83,7 @@ public class ClhsdbCDSCore {
             CDSTestUtils.createArchiveAndCheck(opts);
 
             String[] jArgs = {
+                "-Xmx512m",
                 "-XX:+UnlockDiagnosticVMOptions",
                 "-XX:SharedArchiveFile=" + SHARED_ARCHIVE_NAME,
                 "-XX:+CreateCoredumpOnCrash",
@@ -101,6 +106,7 @@ public class ClhsdbCDSCore {
 
             System.out.println(crashOut.getOutput());
             String crashOutputString = crashOut.getOutput();
+            SATestUtils.unzipCores(new File("."));
             String coreFileLocation = getCoreFileLocation(crashOutputString);
             if (coreFileLocation == null) {
                 if (Platform.isOSX()) {
@@ -155,7 +161,7 @@ public class ClhsdbCDSCore {
                 throw new SkippedException("The CDS archive is not mapped");
             }
 
-            cmds = List.of("printmdo -a", "printall");
+            cmds = List.of("printmdo -a", "printall", "jstack -v");
 
             Map<String, List<String>> expStrMap = new HashMap<>();
             Map<String, List<String>> unExpStrMap = new HashMap<>();
@@ -170,7 +176,7 @@ public class ClhsdbCDSCore {
                 "_nofast_getfield",
                 "_nofast_putfield",
                 "Constant Pool of",
-                "public static void main(java.lang.String[])",
+                "public static void main\\(java.lang.String\\[\\]\\)",
                 "Bytecode",
                 "invokevirtual",
                 "checkcast",
@@ -181,6 +187,11 @@ public class ClhsdbCDSCore {
                 "illegal code",
                 "Failure occurred at bci",
                 "No suitable match for type of address"));
+            expStrMap.put("jstack -v", List.of(
+                "Common-Cleaner",
+                "Method*"));
+            unExpStrMap.put("jstack -v", List.of(
+                "sun.jvm.hotspot.debugger.UnmappedAddressException"));
             test.runOnCore(TEST_CDS_CORE_FILE_NAME, cmds, expStrMap, unExpStrMap);
         } catch (SkippedException e) {
             throw e;

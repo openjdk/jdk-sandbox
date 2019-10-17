@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,7 +68,7 @@ import sun.swing.PrintingStatus;
 /**
  * The <code>JTable</code> is used to display and edit regular two-dimensional tables
  * of cells.
- * See <a href="http://docs.oracle.com/javase/tutorial/uiswing/components/table.html">How to Use Tables</a>
+ * See <a href="https://docs.oracle.com/javase/tutorial/uiswing/components/table.html">How to Use Tables</a>
  * in <em>The Java Tutorial</em>
  * for task-oriented documentation and examples of using <code>JTable</code>.
  *
@@ -2477,7 +2477,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionForeground  the <code>Color</code> to use in the foreground
      *                             for selected list items
@@ -2514,7 +2514,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * The default value of this property is defined by the look
      * and feel implementation.
      * <p>
-     * This is a <a href="http://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
+     * This is a <a href="https://docs.oracle.com/javase/tutorial/javabeans/writing/properties.html">JavaBeans</a> bound property.
      *
      * @param selectionBackground  the <code>Color</code> to use for the background
      *                             of selected cells
@@ -3050,9 +3050,9 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      *   of elements with a size, preferred size, maximum size and minimum size
      *   to have its elements manipulated by the algorithm.
      *
-     * <H3> Distributing the delta </H3>
+     * <H4> Distributing the delta </H4>
      *
-     * <H4> Overview </H4>
+     * <H5> Overview </H5>
      * <P>
      * Call "DELTA" the difference between the target size and the
      * sum of the preferred sizes of the elements in r. The individual
@@ -3061,7 +3061,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * how far each preferred size is from its limiting bound (minimum or
      * maximum).
      *
-     * <H4>Definition</H4>
+     * <H5>Definition</H5>
      * <P>
      * Call the individual constraints min[i], max[i], and pref[i].
      * <p>
@@ -3093,7 +3093,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * k, towards the total minimum or maximum and that percentage guarantees
      * accommodation of the required space, DELTA.
      *
-     * <H4>Details</H4>
+     * <H5>Details</H5>
      * <P>
      * Naive evaluation of the formulae presented here would be subject to
      * the aggregated rounding errors caused by doing this operation in finite
@@ -3104,7 +3104,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
      * <code>targetSize</code>, and does so by spreading the rounding
      * errors evenly over the given elements.
      *
-     * <H4>When the MAX and MIN bounds are hit</H4>
+     * <H5>When the MAX and MIN bounds are hit</H5>
      * <P>
      * When <code>targetSize</code> is outside the [MIN, MAX] range,
      * the algorithm sets all sizes to their appropriate limiting value
@@ -5278,7 +5278,8 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
                 // Don't start when just a modifier is pressed
                 int code = e.getKeyCode();
                 if (code == KeyEvent.VK_SHIFT || code == KeyEvent.VK_CONTROL ||
-                    code == KeyEvent.VK_ALT) {
+                    code == KeyEvent.VK_ALT || code == KeyEvent.VK_META ||
+                    code == KeyEvent.VK_ALT_GRAPH) {
                     return false;
                 }
                 // Try to install the editor
@@ -5302,7 +5303,9 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
                 // If we have started an editor as a result of the user
                 // pressing a key and the surrendersFocusOnKeystroke property
                 // is true, give the focus to the new editor.
-                if (getSurrendersFocusOnKeystroke()) {
+                Object prop = getClientProperty("JTable.forceAutoStartsEdit");
+                if (getSurrendersFocusOnKeystroke()
+                        || Boolean.TRUE.equals(prop)) {
                     editorComponent.requestFocus();
                 }
             }
@@ -6668,6 +6671,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
          */
         protected AccessibleJTable() {
             super();
+            JTable.this.putClientProperty("JTable.forceAutoStartsEdit", true);
             JTable.this.addPropertyChangeListener(this);
             JTable.this.getSelectionModel().addListSelectionListener(this);
             TableColumnModel tcm = JTable.this.getColumnModel();
@@ -7104,15 +7108,12 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
             int row = rowAtPoint(p);
 
             if ((column != -1) && (row != -1)) {
-                TableColumn aColumn = getColumnModel().getColumn(column);
-                TableCellRenderer renderer = aColumn.getCellRenderer();
-                if (renderer == null) {
-                    Class<?> columnClass = getColumnClass(column);
-                    renderer = getDefaultRenderer(columnClass);
+                if (row == getEditingRow() && column == getEditingColumn()) {
+                    Component editor = getEditorComponent();
+                    if (editor instanceof Accessible) {
+                        return (Accessible) editor;
+                    }
                 }
-                Component component = renderer.getTableCellRendererComponent(
-                                  JTable.this, null, false, false,
-                                  row, column);
                 return new AccessibleJTableCell(JTable.this, row, column,
                       getAccessibleIndexAt(row, column));
             }
@@ -7145,15 +7146,12 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
                 int column = getAccessibleColumnAtIndex(i);
                 int row = getAccessibleRowAtIndex(i);
 
-                TableColumn aColumn = getColumnModel().getColumn(column);
-                TableCellRenderer renderer = aColumn.getCellRenderer();
-                if (renderer == null) {
-                    Class<?> columnClass = getColumnClass(column);
-                    renderer = getDefaultRenderer(columnClass);
+                if (row == getEditingRow() && column == getEditingColumn()) {
+                    Component editor = getEditorComponent();
+                    if (editor instanceof Accessible) {
+                        return (Accessible) editor;
+                    }
                 }
-                Component component = renderer.getTableCellRendererComponent(
-                                  JTable.this, null, false, false,
-                                  row, column);
                 return new AccessibleJTableCell(JTable.this, row, column,
                       getAccessibleIndexAt(row, column));
             }
@@ -7217,8 +7215,8 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
 
             int rowsSel = JTable.this.getSelectedRowCount();
             int colsSel = JTable.this.getSelectedColumnCount();
-            int rowIndicies[] = getSelectedRows();
-            int colIndicies[] = getSelectedColumns();
+            int[] rowIndicies = getSelectedRows();
+            int[] colIndicies = getSelectedColumns();
             int ttlCols = JTable.this.getColumnCount();
             int ttlRows = JTable.this.getRowCount();
             int r;

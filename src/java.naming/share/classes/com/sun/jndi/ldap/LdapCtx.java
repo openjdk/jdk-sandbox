@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -224,7 +224,6 @@ final public class LdapCtx extends ComponentDirContext
     String hostname = null;             // host name of server (no brackets
                                         //   for IPv6 literals)
     LdapClient clnt = null;             // connection handle
-    private boolean reconnect = false;  // indicates that re-connect requested
     Hashtable<String, java.lang.Object> envprops = null; // environment properties of context
     int handleReferrals = DEFAULT_REFERRAL_MODE; // how referral is handled
     boolean hasLdapsScheme = false;     // true if the context was created
@@ -915,7 +914,7 @@ final public class LdapCtx extends ComponentDirContext
         boolean directUpdate) throws NamingException {
 
             // Handle the empty name
-            if (dn.equals("")) {
+            if (dn.isEmpty()) {
                 return attrs;
             }
 
@@ -1271,7 +1270,7 @@ final public class LdapCtx extends ComponentDirContext
         int prefixLast = prefix.size() - 1;
 
         if (name.isEmpty() || prefix.isEmpty() ||
-                name.get(0).equals("") || prefix.get(prefixLast).equals("")) {
+                name.get(0).isEmpty() || prefix.get(prefixLast).isEmpty()) {
             return super.composeName(name, prefix);
         }
 
@@ -1300,9 +1299,9 @@ final public class LdapCtx extends ComponentDirContext
 
     // used by LdapSearchEnumeration
     private static String concatNames(String lesser, String greater) {
-        if (lesser == null || lesser.equals("")) {
+        if (lesser == null || lesser.isEmpty()) {
             return greater;
-        } else if (greater == null || greater.equals("")) {
+        } else if (greater == null || greater.isEmpty()) {
             return lesser;
         } else {
             return (lesser + "," + greater);
@@ -2668,7 +2667,6 @@ final public class LdapCtx extends ComponentDirContext
         }
 
         sharable = false;  // can't share with existing contexts
-        reconnect = true;
         ensureOpen();      // open or reauthenticated
     }
 
@@ -2693,7 +2691,8 @@ final public class LdapCtx extends ComponentDirContext
                 synchronized (clnt) {
                     if (!clnt.isLdapv3
                         || clnt.referenceCount > 1
-                        || clnt.usingSaslStreams()) {
+                        || clnt.usingSaslStreams()
+                        || !clnt.conn.useable) {
                         closeConnection(SOFT_CLOSE);
                     }
                 }
@@ -2745,7 +2744,7 @@ final public class LdapCtx extends ComponentDirContext
         try {
             boolean initial = (clnt == null);
 
-            if (initial || reconnect) {
+            if (initial) {
                 ldapVersion = (ver != null) ? Integer.parseInt(ver) :
                     DEFAULT_LDAP_VERSION;
 
@@ -2772,8 +2771,6 @@ final public class LdapCtx extends ComponentDirContext
 
                     // Required for SASL client identity
                     envprops);
-
-                reconnect = false;
 
                 /**
                  * Pooled connections are preauthenticated;
@@ -3036,7 +3033,7 @@ final public class LdapCtx extends ComponentDirContext
             }
 
             // extract SLAPD-style referrals from errorMessage
-            if ((res.errorMessage != null) && (!res.errorMessage.equals(""))) {
+            if ((res.errorMessage != null) && (!res.errorMessage.isEmpty())) {
                 res.referrals = extractURLs(res.errorMessage);
             } else {
                 e = new PartialResultException(msg);

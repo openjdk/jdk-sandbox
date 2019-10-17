@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2017 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_S390_VM_ASSEMBLER_S390_INLINE_HPP
-#define CPU_S390_VM_ASSEMBLER_S390_INLINE_HPP
+#ifndef CPU_S390_ASSEMBLER_S390_INLINE_HPP
+#define CPU_S390_ASSEMBLER_S390_INLINE_HPP
 
 #include "asm/assembler.inline.hpp"
 #include "asm/codeBuffer.hpp"
@@ -1344,7 +1344,7 @@ inline void Assembler::z_brcl(branch_condition m, Label& L) { z_brcl(m, target(L
 
 // Instruction must start at passed address.
 // Extra check for illtraps with ID.
-inline int Assembler::instr_len(unsigned char *instr) {
+inline unsigned int Assembler::instr_len(unsigned char *instr) {
   switch ((*instr) >> 6) {
     case 0: return 2;
     case 1: // fallthru
@@ -1460,4 +1460,4 @@ inline bool Assembler::is_sigtrap_zero_check(address pc) {
   return (is_equal(pc, CGIT_ZOPC, RIE_MASK) || is_equal(pc, CIT_ZOPC, RIE_MASK));
 }
 
-#endif // CPU_S390_VM_ASSEMBLER_S390_INLINE_HPP
+#endif // CPU_S390_ASSEMBLER_S390_INLINE_HPP

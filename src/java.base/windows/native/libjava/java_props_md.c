@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -170,6 +170,10 @@ getJavaIDFromLangID(LANGID langID)
         return NULL;
     }
 
+    for (index = 0; index < 5; index++) {
+        elems[index] = NULL;
+    }
+
     if (SetupI18nProps(MAKELCID(langID, SORT_DEFAULT),
                    &(elems[0]), &(elems[1]), &(elems[2]), &(elems[3]), &(elems[4]))) {
 
@@ -183,13 +187,15 @@ getJavaIDFromLangID(LANGID langID)
                 strcat(ret, elems[index]);
             }
         }
-
-        for (index = 0; index < 5; index++) {
-            free(elems[index]);
-        }
     } else {
         free(ret);
         ret = NULL;
+    }
+
+    for (index = 0; index < 5; index++) {
+        if (elems[index] != NULL) {
+            free(elems[index]);
+        }
     }
 
     return ret;
@@ -353,13 +359,11 @@ GetJavaProperties(JNIEnv* env)
     static java_props_t sprops = {0};
     int majorVersion;
     int minorVersion;
+    int buildNumber = 0;
 
     if (sprops.line_separator) {
         return &sprops;
     }
-
-    /* AWT properties */
-    sprops.awt_toolkit = "sun.awt.windows.WToolkit";
 
     /* tmp dir */
     {
@@ -367,17 +371,6 @@ GetJavaProperties(JNIEnv* env)
         /* we might want to check that this succeed */
         GetTempPathW(MAX_PATH + 1, tmpdir);
         sprops.tmp_dir = _wcsdup(tmpdir);
-    }
-
-    /* Printing properties */
-    sprops.printerJob = "sun.awt.windows.WPrinterJob";
-
-    /* Java2D properties */
-    sprops.graphics_env = "sun.awt.Win32GraphicsEnvironment";
-
-    {    /* This is used only for debugging of font problems. */
-        WCHAR *path = _wgetenv(L"JAVA2D_FONTPATH");
-        sprops.font_dir = (path != NULL) ? _wcsdup(path) : NULL;
     }
 
     /* OS properties */
@@ -392,6 +385,8 @@ GetJavaProperties(JNIEnv* env)
             GetVersionEx((OSVERSIONINFO *) &ver);
             majorVersion = ver.dwMajorVersion;
             minorVersion = ver.dwMinorVersion;
+            /* distinguish Windows Server 2016 and 2019 by build number */
+            buildNumber = ver.dwBuildNumber;
             is_workstation = (ver.wProductType == VER_NT_WORKSTATION);
             platformId = ver.dwPlatformId;
             sprops.patch_level = _strdup(ver.szCSDVersion);
@@ -442,6 +437,7 @@ GetJavaProperties(JNIEnv* env)
             }
             majorVersion = HIWORD(file_info->dwProductVersionMS);
             minorVersion = LOWORD(file_info->dwProductVersionMS);
+            buildNumber  = HIWORD(file_info->dwProductVersionLS);
             free(version_info);
         } while (0);
 
@@ -472,6 +468,8 @@ GetJavaProperties(JNIEnv* env)
          * Windows Server 2012 R2       6               3  (!VER_NT_WORKSTATION)
          * Windows 10                   10              0  (VER_NT_WORKSTATION)
          * Windows Server 2016          10              0  (!VER_NT_WORKSTATION)
+         * Windows Server 2019          10              0  (!VER_NT_WORKSTATION)
+         *       where (buildNumber > 17762)
          *
          * This mapping will presumably be augmented as new Windows
          * versions are released.
@@ -545,7 +543,14 @@ GetJavaProperties(JNIEnv* env)
                     }
                 } else {
                     switch (minorVersion) {
-                    case  0: sprops.os_name = "Windows Server 2016";           break;
+                    case  0:
+                        /* Windows server 2019 GA 10/2018 build number is 17763 */
+                        if (buildNumber > 17762) {
+                            sprops.os_name = "Windows Server 2019";
+                        } else {
+                            sprops.os_name = "Windows Server 2016";
+                        }
+                        break;
                     default: sprops.os_name = "Windows NT (unknown)";
                     }
                 }
@@ -559,14 +564,13 @@ GetJavaProperties(JNIEnv* env)
         }
         sprintf(buf, "%d.%d", majorVersion, minorVersion);
         sprops.os_version = _strdup(buf);
-#if _M_AMD64
+#if defined(_M_AMD64)
         sprops.os_arch = "amd64";
-#elif _X86_
+#elif defined(_X86_)
         sprops.os_arch = "x86";
 #else
         sprops.os_arch = "unknown";
 #endif
-        sprops.desktop = "windows";
     }
 
     /* Endianness of platform */
@@ -655,12 +659,6 @@ GetJavaProperties(JNIEnv* env)
                 userDefaultUILang = userDefaultLCID;
             }
 
-            SetupI18nProps(userDefaultUILang,
-                           &sprops.language,
-                           &sprops.script,
-                           &sprops.country,
-                           &sprops.variant,
-                           &display_encoding);
             SetupI18nProps(userDefaultLCID,
                            &sprops.format_language,
                            &sprops.format_script,
@@ -704,17 +702,12 @@ GetJavaProperties(JNIEnv* env)
     }
 
     sprops.unicode_encoding = "UnicodeLittle";
-    /* User TIMEZONE */
-    {
-        /*
-         * We defer setting up timezone until it's actually necessary.
-         * Refer to TimeZone.getDefault(). However, the system
-         * property is necessary to be able to be set by the command
-         * line interface -D. Here temporarily set a null string to
-         * timezone.
-         */
-        sprops.timezone = "";
-    }
+
+    /* User TIMEZONE
+     * We defer setting up timezone until it's actually necessary.
+     * Refer to TimeZone.getDefault(). The system property
+     * is able to be set by the command line interface -Duser.timezone.
+     */
 
     /* Current directory */
     {

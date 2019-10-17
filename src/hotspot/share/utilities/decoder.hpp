@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  */
 
 
-#ifndef SHARE_VM_UTILITIES_DECODER_HPP
-#define SHARE_VM_UTILITIES_DECODER_HPP
+#ifndef SHARE_UTILITIES_DECODER_HPP
+#define SHARE_UTILITIES_DECODER_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
@@ -131,20 +131,9 @@ private:
   static NullDecoder          _do_nothing_decoder;
 
 protected:
-  static Mutex*               _shared_decoder_lock;
   static Mutex* shared_decoder_lock();
 
   friend class DecoderLocker;
 };
 
-class DecoderLocker : public MutexLockerEx {
-  AbstractDecoder* _decoder;
-  inline bool is_first_error_thread();
-public:
-  DecoderLocker();
-  AbstractDecoder* decoder() {
-    return _decoder;
-  }
-};
-
-#endif // SHARE_VM_UTILITIES_DECODER_HPP
+#endif // SHARE_UTILITIES_DECODER_HPP

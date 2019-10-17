@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_GC_SHARED_GCCONFIGURATION_HPP
-#define SHARE_VM_GC_SHARED_GCCONFIGURATION_HPP
+#ifndef SHARE_GC_SHARED_GCCONFIGURATION_HPP
+#define SHARE_GC_SHARED_GCCONFIGURATION_HPP
 
 #include "gc/shared/gcName.hpp"
-#include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class GCConfiguration {
@@ -63,7 +63,7 @@ class GCHeapConfiguration {
   size_t min_size() const;
   size_t initial_size() const;
   bool uses_compressed_oops() const;
-  Universe::NARROW_OOP_MODE narrow_oop_mode() const;
+  CompressedOops::Mode narrow_oop_mode() const;
   uint object_alignment_in_bytes() const;
   int heap_address_size_in_bits() const;
 };
@@ -77,4 +77,4 @@ class GCYoungGenerationConfiguration {
   intx new_ratio() const;
 };
 
-#endif // SHARE_VM_GC_SHARED_GCCONFIGURATION_HPP
+#endif // SHARE_GC_SHARED_GCCONFIGURATION_HPP

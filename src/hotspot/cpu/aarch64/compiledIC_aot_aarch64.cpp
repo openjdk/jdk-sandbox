@@ -25,6 +25,7 @@
 #include "aot/compiledIC_aot.hpp"
 #include "code/codeCache.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 
 void CompiledDirectStaticCall::set_to_far(const methodHandle& callee, address entry) {
   if (TraceICs) {
@@ -69,10 +70,10 @@ void CompiledPltStaticCall::set_to_interpreted(const methodHandle& callee, addre
 
 #ifdef NEVER_CALLED
 void CompiledPltStaticCall::set_stub_to_clean(static_stub_Relocation* static_stub) {
-  assert (CompiledIC_lock->is_locked() || SafepointSynchronize::is_at_safepoint(), "mt unsafe call");
   // Reset stub.
   address stub = static_stub->addr();
   assert(stub != NULL, "stub not found");
+  assert(CompiledICLocker::is_safe(stub), "mt unsafe call");
   // Creation also verifies the object.
   NativeLoadGot* method_loader = nativeLoadGot_at(stub);
   NativeGotJump* jump          = nativeGotJump_at(method_loader->next_instruction_address());

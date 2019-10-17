@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "asm/codeBuffer.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
@@ -38,6 +39,10 @@
 #include "opto/runtime.hpp"
 #endif
 
+UnsafeCopyMemory* UnsafeCopyMemory::_table                      = NULL;
+int UnsafeCopyMemory::_table_length                             = 0;
+int UnsafeCopyMemory::_table_max_length                         = 0;
+address UnsafeCopyMemory::_common_exit_stub_pc                  = NULL;
 
 // Implementation of StubRoutines - for a description
 // of how to extend it, see the header file.
@@ -73,7 +78,6 @@ address StubRoutines::_d2l_wrapper                              = NULL;
 
 jint    StubRoutines::_fpu_cntrl_wrd_std                        = 0;
 jint    StubRoutines::_fpu_cntrl_wrd_24                         = 0;
-jint    StubRoutines::_fpu_cntrl_wrd_64                         = 0;
 jint    StubRoutines::_fpu_cntrl_wrd_trunc                      = 0;
 jint    StubRoutines::_mxcsr_std                                = 0;
 jint    StubRoutines::_fpu_subnormal_bias1[3]                   = { 0, 0, 0 };
@@ -109,11 +113,13 @@ address StubRoutines::_arrayof_oop_disjoint_arraycopy_uninit  = CAST_FROM_FN_PTR
 
 address StubRoutines::_zero_aligned_words = CAST_FROM_FN_PTR(address, Copy::zero_to_words);
 
+address StubRoutines::_data_cache_writeback              = NULL;
+address StubRoutines::_data_cache_writeback_sync         = NULL;
+
 address StubRoutines::_checkcast_arraycopy               = NULL;
 address StubRoutines::_checkcast_arraycopy_uninit        = NULL;
 address StubRoutines::_unsafe_arraycopy                  = NULL;
 address StubRoutines::_generic_arraycopy                 = NULL;
-
 
 address StubRoutines::_jbyte_fill;
 address StubRoutines::_jshort_fill;
@@ -126,6 +132,8 @@ address StubRoutines::_aescrypt_encryptBlock               = NULL;
 address StubRoutines::_aescrypt_decryptBlock               = NULL;
 address StubRoutines::_cipherBlockChaining_encryptAESCrypt = NULL;
 address StubRoutines::_cipherBlockChaining_decryptAESCrypt = NULL;
+address StubRoutines::_electronicCodeBook_encryptAESCrypt  = NULL;
+address StubRoutines::_electronicCodeBook_decryptAESCrypt  = NULL;
 address StubRoutines::_counterMode_AESCrypt                = NULL;
 address StubRoutines::_ghash_processBlocks                 = NULL;
 address StubRoutines::_base64_encodeBlock                  = NULL;
@@ -163,11 +171,6 @@ address StubRoutines::_dlibm_reduce_pi04l = NULL;
 address StubRoutines::_dlibm_tan_cot_huge = NULL;
 address StubRoutines::_dtan = NULL;
 
-double (* StubRoutines::_intrinsic_log10 )(double) = NULL;
-double (* StubRoutines::_intrinsic_sin   )(double) = NULL;
-double (* StubRoutines::_intrinsic_cos   )(double) = NULL;
-double (* StubRoutines::_intrinsic_tan   )(double) = NULL;
-
 address StubRoutines::_safefetch32_entry                 = NULL;
 address StubRoutines::_safefetch32_fault_pc              = NULL;
 address StubRoutines::_safefetch32_continuation_pc       = NULL;
@@ -182,6 +185,31 @@ address StubRoutines::_safefetchN_continuation_pc        = NULL;
 // The second phase includes all other stubs (which may depend on universe being initialized.)
 
 extern void StubGenerator_generate(CodeBuffer* code, bool all); // only interface to generators
+
+void UnsafeCopyMemory::create_table(int max_size) {
+  UnsafeCopyMemory::_table = new UnsafeCopyMemory[max_size];
+  UnsafeCopyMemory::_table_max_length = max_size;
+}
+
+bool UnsafeCopyMemory::contains_pc(address pc) {
+  for (int i = 0; i < UnsafeCopyMemory::_table_length; i++) {
+    UnsafeCopyMemory* entry = &UnsafeCopyMemory::_table[i];
+    if (pc >= entry->start_pc() && pc < entry->end_pc()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+address UnsafeCopyMemory::page_error_continue_pc(address pc) {
+  for (int i = 0; i < UnsafeCopyMemory::_table_length; i++) {
+    UnsafeCopyMemory* entry = &UnsafeCopyMemory::_table[i];
+    if (pc >= entry->start_pc() && pc < entry->end_pc()) {
+      return entry->error_exit_pc();
+    }
+  }
+  return NULL;
+}
 
 void StubRoutines::initialize1() {
   if (_code1 == NULL) {
@@ -574,4 +602,26 @@ StubRoutines::select_arraycopy_function(BasicType t, bool aligned, bool disjoint
 
 #undef RETURN_STUB
 #undef RETURN_STUB_PARM
+}
+
+UnsafeCopyMemoryMark::UnsafeCopyMemoryMark(StubCodeGenerator* cgen, bool add_entry, bool continue_at_scope_end, address error_exit_pc) {
+  _cgen = cgen;
+  _ucm_entry = NULL;
+  if (add_entry) {
+    address err_exit_pc = NULL;
+    if (!continue_at_scope_end) {
+      err_exit_pc = error_exit_pc != NULL ? error_exit_pc : UnsafeCopyMemory::common_exit_stub_pc();
+    }
+    assert(err_exit_pc != NULL || continue_at_scope_end, "error exit not set");
+    _ucm_entry = UnsafeCopyMemory::add_to_table(_cgen->assembler()->pc(), NULL, err_exit_pc);
+  }
+}
+
+UnsafeCopyMemoryMark::~UnsafeCopyMemoryMark() {
+  if (_ucm_entry != NULL) {
+    _ucm_entry->set_end_pc(_cgen->assembler()->pc());
+    if (_ucm_entry->error_exit_pc() == NULL) {
+      _ucm_entry->set_error_exit_pc(_cgen->assembler()->pc());
+    }
+  }
 }

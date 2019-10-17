@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package org.graalvm.compiler.core.gen;
 import static jdk.vm.ci.code.ValueUtil.asRegister;
 import static jdk.vm.ci.code.ValueUtil.isLegal;
 import static jdk.vm.ci.code.ValueUtil.isRegister;
+import static org.graalvm.compiler.core.common.SpeculativeExecutionAttacksMitigations.AllTargets;
+import static org.graalvm.compiler.core.common.SpeculativeExecutionAttacksMitigations.Options.MitigateSpeculativeExecutionAttacks;
 import static org.graalvm.compiler.core.common.GraalOptions.MatchExpressions;
 import static org.graalvm.compiler.debug.DebugOptions.LogVerbose;
 import static org.graalvm.compiler.lir.LIR.verifyBlock;
@@ -46,6 +48,7 @@ import org.graalvm.compiler.core.match.ComplexMatchValue;
 import org.graalvm.compiler.core.match.MatchPattern;
 import org.graalvm.compiler.core.match.MatchRuleRegistry;
 import org.graalvm.compiler.core.match.MatchStatement;
+import org.graalvm.compiler.debug.DebugCloseable;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TTY;
@@ -253,7 +256,7 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
 
             // get ValueKind for input
             final LIRKind valueKind;
-            if (value != null) {
+            if (value != null && !(value instanceof ComplexMatchValue)) {
                 valueKind = value.getValueKind(LIRKind.class);
             } else {
                 assert isPhiInputFromBackedge(phi, i) : String.format("Input %s to phi node %s is not yet available although it is not coming from a loop back edge", node, phi);
@@ -312,6 +315,19 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
 
     public void doBlockPrologue(@SuppressWarnings("unused") Block block, @SuppressWarnings("unused") OptionValues options) {
 
+        if (MitigateSpeculativeExecutionAttacks.getValue(options) == AllTargets) {
+            boolean hasControlSplitPredecessor = false;
+            for (Block b : block.getPredecessors()) {
+                if (b.getSuccessorCount() > 1) {
+                    hasControlSplitPredecessor = true;
+                    break;
+                }
+            }
+            boolean isStartBlock = block.getPredecessorCount() == 0;
+            if (hasControlSplitPredecessor || isStartBlock) {
+                getLIRGeneratorTool().emitSpeculationFence();
+            }
+        }
     }
 
     @Override
@@ -343,14 +359,11 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
 
             List<Node> nodes = blockMap.get(block);
 
-            // Allow NodeLIRBuilder subclass to specialize code generation of any interesting groups
-            // of instructions
-            matchComplexExpressions(nodes);
-
             boolean trace = traceLIRGeneratorLevel >= 3;
             for (int i = 0; i < nodes.size(); i++) {
                 Node node = nodes.get(i);
                 if (node instanceof ValueNode) {
+                    setSourcePosition(node.getNodeSourcePosition());
                     DebugContext debug = node.getDebug();
                     ValueNode valueNode = (ValueNode) node;
                     if (trace) {
@@ -372,6 +385,8 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
                         debug.log("interior match for %s", valueNode);
                     } else if (operand instanceof ComplexMatchValue) {
                         debug.log("complex match for %s", valueNode);
+                        // Set current position to the position of the root matched node.
+                        setSourcePosition(node.getNodeSourcePosition());
                         ComplexMatchValue match = (ComplexMatchValue) operand;
                         operand = match.evaluate(this);
                         if (operand != null) {
@@ -401,11 +416,23 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
         }
     }
 
+    @Override
     @SuppressWarnings("try")
-    protected void matchComplexExpressions(List<Node> nodes) {
+    public void matchBlock(Block block, StructuredGraph graph, StructuredGraph.ScheduleResult schedule) {
+        try (DebugCloseable matchScope = gen.getMatchScope(block)) {
+            // Allow NodeLIRBuilder subclass to specialize code generation of any interesting groups
+            // of instructions
+            matchComplexExpressions(block, schedule);
+        }
+    }
+
+    @SuppressWarnings("try")
+    protected void matchComplexExpressions(Block block, StructuredGraph.ScheduleResult schedule) {
+
         if (matchRules != null) {
             DebugContext debug = gen.getResult().getLIR().getDebug();
             try (DebugContext.Scope s = debug.scope("MatchComplexExpressions")) {
+                List<Node> nodes = schedule.getBlockToNodesMap().get(block);
                 if (LogVerbose.getValue(nodeOperands.graph().getOptions())) {
                     int i = 0;
                     for (Node node : nodes) {
@@ -423,7 +450,7 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
                     List<MatchStatement> statements = matchRules.get(node.getClass());
                     if (statements != null) {
                         for (MatchStatement statement : statements) {
-                            if (statement.generate(this, index, node, nodes)) {
+                            if (statement.generate(this, index, node, block, schedule)) {
                                 // Found a match so skip to the next
                                 break;
                             }
@@ -451,7 +478,6 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
         if (node.getDebug().isLogEnabled() && node.stamp(NodeView.DEFAULT).isEmpty()) {
             node.getDebug().log("This node has an empty stamp, we are emitting dead code(?): %s", node);
         }
-        setSourcePosition(node.getNodeSourcePosition());
         if (node instanceof LIRLowerable) {
             ((LIRLowerable) node).generate(this);
         } else {
@@ -750,5 +776,14 @@ public abstract class NodeLIRBuilder implements NodeLIRBuilderTool, LIRGeneratio
     @Override
     public LIRGeneratorTool getLIRGeneratorTool() {
         return gen;
+    }
+
+    @Override
+    public void emitReadExceptionObject(ValueNode node) {
+        LIRGeneratorTool lirGenTool = getLIRGeneratorTool();
+        Value returnRegister = lirGenTool.getRegisterConfig().getReturnRegister(node.getStackKind()).asValue(
+                        LIRKind.fromJavaKind(lirGenTool.target().arch, node.getStackKind()));
+        lirGenTool.emitIncomingValues(new Value[]{returnRegister});
+        setResult(node, lirGenTool.emitMove(returnRegister));
     }
 }

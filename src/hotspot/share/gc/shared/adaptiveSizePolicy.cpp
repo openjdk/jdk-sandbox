@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,18 +24,13 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
-#include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcUtil.inline.hpp"
-#include "gc/shared/softRefPolicy.hpp"
-#include "gc/shared/workgroup.hpp"
 #include "logging/log.hpp"
 #include "runtime/timer.hpp"
-#include "utilities/ostream.hpp"
 
 elapsedTimer AdaptiveSizePolicy::_minor_timer;
 elapsedTimer AdaptiveSizePolicy::_major_timer;
-bool AdaptiveSizePolicy::_debug_perturbation = false;
 
 // The throughput goal is implemented as
 //      _throughput_goal = 1 - ( 1 / (1 + gc_cost_ratio))
@@ -53,168 +48,38 @@ AdaptiveSizePolicy::AdaptiveSizePolicy(size_t init_eden_size,
     _eden_size(init_eden_size),
     _promo_size(init_promo_size),
     _survivor_size(init_survivor_size),
-    _gc_overhead_limit_exceeded(false),
-    _print_gc_overhead_limit_would_be_exceeded(false),
-    _gc_overhead_limit_count(0),
+    _avg_minor_pause(new AdaptivePaddedAverage(AdaptiveTimeWeight, PausePadding)),
+    _avg_minor_interval(new AdaptiveWeightedAverage(AdaptiveTimeWeight)),
+    _avg_minor_gc_cost(new AdaptiveWeightedAverage(AdaptiveTimeWeight)),
+    _avg_major_interval(new AdaptiveWeightedAverage(AdaptiveTimeWeight)),
+    _avg_major_gc_cost(new AdaptiveWeightedAverage(AdaptiveTimeWeight)),
+    _avg_young_live(new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight)),
+    _avg_eden_live(new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight)),
+    _avg_old_live(new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight)),
+    _avg_survived(new AdaptivePaddedAverage(AdaptiveSizePolicyWeight, SurvivorPadding)),
+    _avg_pretenured(new AdaptivePaddedNoZeroDevAverage(AdaptiveSizePolicyWeight, SurvivorPadding)),
+    _minor_pause_old_estimator(new LinearLeastSquareFit(AdaptiveSizePolicyWeight)),
+    _minor_pause_young_estimator(new LinearLeastSquareFit(AdaptiveSizePolicyWeight)),
+    _minor_collection_estimator(new LinearLeastSquareFit(AdaptiveSizePolicyWeight)),
+    _major_collection_estimator(new LinearLeastSquareFit(AdaptiveSizePolicyWeight)),
     _latest_minor_mutator_interval_seconds(0),
     _threshold_tolerance_percent(1.0 + ThresholdTolerance/100.0),
     _gc_pause_goal_sec(gc_pause_goal_sec),
+    _young_gen_policy_is_ready(false),
+    _change_young_gen_for_min_pauses(0),
+    _change_old_gen_for_maj_pauses(0),
+    _change_old_gen_for_throughput(0),
+    _change_young_gen_for_throughput(0),
+    _increment_tenuring_threshold_for_gc_cost(false),
+    _decrement_tenuring_threshold_for_gc_cost(false),
+    _decrement_tenuring_threshold_for_survivor_limit(false),
+    _decrease_for_footprint(0),
+    _decide_at_full_gc(0),
     _young_gen_change_for_minor_throughput(0),
     _old_gen_change_for_major_throughput(0) {
-  assert(AdaptiveSizePolicyGCTimeLimitThreshold > 0,
-    "No opportunity to clear SoftReferences before GC overhead limit");
-  _avg_minor_pause    =
-    new AdaptivePaddedAverage(AdaptiveTimeWeight, PausePadding);
-  _avg_minor_interval = new AdaptiveWeightedAverage(AdaptiveTimeWeight);
-  _avg_minor_gc_cost  = new AdaptiveWeightedAverage(AdaptiveTimeWeight);
-  _avg_major_gc_cost  = new AdaptiveWeightedAverage(AdaptiveTimeWeight);
-
-  _avg_young_live     = new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight);
-  _avg_old_live       = new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight);
-  _avg_eden_live      = new AdaptiveWeightedAverage(AdaptiveSizePolicyWeight);
-
-  _avg_survived       = new AdaptivePaddedAverage(AdaptiveSizePolicyWeight,
-                                                  SurvivorPadding);
-  _avg_pretenured     = new AdaptivePaddedNoZeroDevAverage(
-                                                  AdaptiveSizePolicyWeight,
-                                                  SurvivorPadding);
-
-  _minor_pause_old_estimator =
-    new LinearLeastSquareFit(AdaptiveSizePolicyWeight);
-  _minor_pause_young_estimator =
-    new LinearLeastSquareFit(AdaptiveSizePolicyWeight);
-  _minor_collection_estimator =
-    new LinearLeastSquareFit(AdaptiveSizePolicyWeight);
-  _major_collection_estimator =
-    new LinearLeastSquareFit(AdaptiveSizePolicyWeight);
 
   // Start the timers
   _minor_timer.start();
-
-  _young_gen_policy_is_ready = false;
-}
-
-//  If the number of GC threads was set on the command line,
-// use it.
-//  Else
-//    Calculate the number of GC threads based on the number of Java threads.
-//    Calculate the number of GC threads based on the size of the heap.
-//    Use the larger.
-
-uint AdaptiveSizePolicy::calc_default_active_workers(uintx total_workers,
-                                                     const uintx min_workers,
-                                                     uintx active_workers,
-                                                     uintx application_workers) {
-  // If the user has specifically set the number of
-  // GC threads, use them.
-
-  // If the user has turned off using a dynamic number of GC threads
-  // or the users has requested a specific number, set the active
-  // number of workers to all the workers.
-
-  uintx new_active_workers = total_workers;
-  uintx prev_active_workers = active_workers;
-  uintx active_workers_by_JT = 0;
-  uintx active_workers_by_heap_size = 0;
-
-  // Always use at least min_workers but use up to
-  // GCThreadsPerJavaThreads * application threads.
-  active_workers_by_JT =
-    MAX2((uintx) GCWorkersPerJavaThread * application_workers,
-         min_workers);
-
-  // Choose a number of GC threads based on the current size
-  // of the heap.  This may be complicated because the size of
-  // the heap depends on factors such as the throughput goal.
-  // Still a large heap should be collected by more GC threads.
-  active_workers_by_heap_size =
-      MAX2((size_t) 2U, Universe::heap()->capacity() / HeapSizePerGCThread);
-
-  uintx max_active_workers =
-    MAX2(active_workers_by_JT, active_workers_by_heap_size);
-
-  new_active_workers = MIN2(max_active_workers, (uintx) total_workers);
-
-  // Increase GC workers instantly but decrease them more
-  // slowly.
-  if (new_active_workers < prev_active_workers) {
-    new_active_workers =
-      MAX2(min_workers, (prev_active_workers + new_active_workers) / 2);
-  }
-
-  // Check once more that the number of workers is within the limits.
-  assert(min_workers <= total_workers, "Minimum workers not consistent with total workers");
-  assert(new_active_workers >= min_workers, "Minimum workers not observed");
-  assert(new_active_workers <= total_workers, "Total workers not observed");
-
-  if (ForceDynamicNumberOfGCThreads) {
-    // Assume this is debugging and jiggle the number of GC threads.
-    if (new_active_workers == prev_active_workers) {
-      if (new_active_workers < total_workers) {
-        new_active_workers++;
-      } else if (new_active_workers > min_workers) {
-        new_active_workers--;
-      }
-    }
-    if (new_active_workers == total_workers) {
-      if (_debug_perturbation) {
-        new_active_workers =  min_workers;
-      }
-      _debug_perturbation = !_debug_perturbation;
-    }
-    assert((new_active_workers <= ParallelGCThreads) &&
-           (new_active_workers >= min_workers),
-      "Jiggled active workers too much");
-  }
-
-  log_trace(gc, task)("GCTaskManager::calc_default_active_workers() : "
-     "active_workers(): " UINTX_FORMAT "  new_active_workers: " UINTX_FORMAT "  "
-     "prev_active_workers: " UINTX_FORMAT "\n"
-     " active_workers_by_JT: " UINTX_FORMAT "  active_workers_by_heap_size: " UINTX_FORMAT,
-     active_workers, new_active_workers, prev_active_workers,
-     active_workers_by_JT, active_workers_by_heap_size);
-  assert(new_active_workers > 0, "Always need at least 1");
-  return new_active_workers;
-}
-
-uint AdaptiveSizePolicy::calc_active_workers(uintx total_workers,
-                                             uintx active_workers,
-                                             uintx application_workers) {
-  // If the user has specifically set the number of
-  // GC threads, use them.
-
-  // If the user has turned off using a dynamic number of GC threads
-  // or the users has requested a specific number, set the active
-  // number of workers to all the workers.
-
-  uint new_active_workers;
-  if (!UseDynamicNumberOfGCThreads ||
-     (!FLAG_IS_DEFAULT(ParallelGCThreads) && !ForceDynamicNumberOfGCThreads)) {
-    new_active_workers = total_workers;
-  } else {
-    uintx min_workers = (total_workers == 1) ? 1 : 2;
-    new_active_workers = calc_default_active_workers(total_workers,
-                                                     min_workers,
-                                                     active_workers,
-                                                     application_workers);
-  }
-  assert(new_active_workers > 0, "Always need at least 1");
-  return new_active_workers;
-}
-
-uint AdaptiveSizePolicy::calc_active_conc_workers(uintx total_workers,
-                                                  uintx active_workers,
-                                                  uintx application_workers) {
-  if (!UseDynamicNumberOfGCThreads ||
-     (!FLAG_IS_DEFAULT(ConcGCThreads) && !ForceDynamicNumberOfGCThreads)) {
-    return ConcGCThreads;
-  } else {
-    uint no_of_gc_threads = calc_default_active_workers(total_workers,
-                                                        1, /* Minimum number of workers */
-                                                        active_workers,
-                                                        application_workers);
-    return no_of_gc_threads;
-  }
 }
 
 bool AdaptiveSizePolicy::tenuring_threshold_change() const {
@@ -404,8 +269,90 @@ void AdaptiveSizePolicy::clear_generation_free_space_flags() {
   set_decide_at_full_gc(0);
 }
 
+class AdaptiveSizePolicyTimeOverheadTester: public GCOverheadTester {
+  double _gc_cost;
+
+ public:
+  AdaptiveSizePolicyTimeOverheadTester(double gc_cost) : _gc_cost(gc_cost) {}
+
+  bool is_exceeded() {
+    return _gc_cost > (GCTimeLimit / 100.0);
+  }
+};
+
+class AdaptiveSizePolicySpaceOverheadTester: public GCOverheadTester {
+  size_t _eden_live;
+  size_t _max_old_gen_size;
+  size_t _max_eden_size;
+  size_t _promo_size;
+  double _avg_eden_live;
+  double _avg_old_live;
+
+ public:
+  AdaptiveSizePolicySpaceOverheadTester(size_t eden_live,
+                                        size_t max_old_gen_size,
+                                        size_t max_eden_size,
+                                        size_t promo_size,
+                                        double avg_eden_live,
+                                        double avg_old_live) :
+    _eden_live(eden_live),
+    _max_old_gen_size(max_old_gen_size),
+    _max_eden_size(max_eden_size),
+    _promo_size(promo_size),
+    _avg_eden_live(avg_eden_live),
+    _avg_old_live(avg_old_live) {}
+
+  bool is_exceeded() {
+    // _max_eden_size is the upper limit on the size of eden based on
+    // the maximum size of the young generation and the sizes
+    // of the survivor space.
+    // The question being asked is whether the space being recovered by
+    // a collection is low.
+    // free_in_eden is the free space in eden after a collection and
+    // free_in_old_gen is the free space in the old generation after
+    // a collection.
+    //
+    // Use the minimum of the current value of the live in eden
+    // or the average of the live in eden.
+    // If the current value drops quickly, that should be taken
+    // into account (i.e., don't trigger if the amount of free
+    // space has suddenly jumped up).  If the current is much
+    // higher than the average, use the average since it represents
+    // the longer term behavior.
+    const size_t live_in_eden =
+      MIN2(_eden_live, (size_t)_avg_eden_live);
+    const size_t free_in_eden = _max_eden_size > live_in_eden ?
+      _max_eden_size - live_in_eden : 0;
+    const size_t free_in_old_gen = (size_t)(_max_old_gen_size - _avg_old_live);
+    const size_t total_free_limit = free_in_old_gen + free_in_eden;
+    const size_t total_mem = _max_old_gen_size + _max_eden_size;
+    const double free_limit_ratio = GCHeapFreeLimit / 100.0;
+    const double mem_free_limit = total_mem * free_limit_ratio;
+    const double mem_free_old_limit = _max_old_gen_size * free_limit_ratio;
+    const double mem_free_eden_limit = _max_eden_size * free_limit_ratio;
+    size_t promo_limit = (size_t)(_max_old_gen_size - _avg_old_live);
+    // But don't force a promo size below the current promo size. Otherwise,
+    // the promo size will shrink for no good reason.
+    promo_limit = MAX2(promo_limit, _promo_size);
+
+    log_trace(gc, ergo)(
+          "AdaptiveSizePolicySpaceOverheadTester::is_exceeded:"
+          " promo_limit: " SIZE_FORMAT
+          " max_eden_size: " SIZE_FORMAT
+          " total_free_limit: " SIZE_FORMAT
+          " max_old_gen_size: " SIZE_FORMAT
+          " max_eden_size: " SIZE_FORMAT
+          " mem_free_limit: " SIZE_FORMAT,
+          promo_limit, _max_eden_size, total_free_limit,
+          _max_old_gen_size, _max_eden_size,
+          (size_t)mem_free_limit);
+
+    return free_in_old_gen < (size_t)mem_free_old_limit &&
+           free_in_eden < (size_t)mem_free_eden_limit;
+  }
+};
+
 void AdaptiveSizePolicy::check_gc_overhead_limit(
-                                          size_t young_live,
                                           size_t eden_live,
                                           size_t max_old_gen_size,
                                           size_t max_eden_size,
@@ -413,128 +360,18 @@ void AdaptiveSizePolicy::check_gc_overhead_limit(
                                           GCCause::Cause gc_cause,
                                           SoftRefPolicy* soft_ref_policy) {
 
-  // Ignore explicit GC's.  Exiting here does not set the flag and
-  // does not reset the count.  Updating of the averages for system
-  // GC's is still controlled by UseAdaptiveSizePolicyWithSystemGC.
-  if (GCCause::is_user_requested_gc(gc_cause) ||
-      GCCause::is_serviceability_requested_gc(gc_cause)) {
-    return;
-  }
-  // eden_limit is the upper limit on the size of eden based on
-  // the maximum size of the young generation and the sizes
-  // of the survivor space.
-  // The question being asked is whether the gc costs are high
-  // and the space being recovered by a collection is low.
-  // free_in_young_gen is the free space in the young generation
-  // after a collection and promo_live is the free space in the old
-  // generation after a collection.
-  //
-  // Use the minimum of the current value of the live in the
-  // young gen or the average of the live in the young gen.
-  // If the current value drops quickly, that should be taken
-  // into account (i.e., don't trigger if the amount of free
-  // space has suddenly jumped up).  If the current is much
-  // higher than the average, use the average since it represents
-  // the longer term behavior.
-  const size_t live_in_eden =
-    MIN2(eden_live, (size_t) avg_eden_live()->average());
-  const size_t free_in_eden = max_eden_size > live_in_eden ?
-    max_eden_size - live_in_eden : 0;
-  const size_t free_in_old_gen = (size_t)(max_old_gen_size - avg_old_live()->average());
-  const size_t total_free_limit = free_in_old_gen + free_in_eden;
-  const size_t total_mem = max_old_gen_size + max_eden_size;
-  const double mem_free_limit = total_mem * (GCHeapFreeLimit/100.0);
-  const double mem_free_old_limit = max_old_gen_size * (GCHeapFreeLimit/100.0);
-  const double mem_free_eden_limit = max_eden_size * (GCHeapFreeLimit/100.0);
-  const double gc_cost_limit = GCTimeLimit/100.0;
-  size_t promo_limit = (size_t)(max_old_gen_size - avg_old_live()->average());
-  // But don't force a promo size below the current promo size. Otherwise,
-  // the promo size will shrink for no good reason.
-  promo_limit = MAX2(promo_limit, _promo_size);
-
-
-  log_trace(gc, ergo)(
-        "PSAdaptiveSizePolicy::check_gc_overhead_limit:"
-        " promo_limit: " SIZE_FORMAT
-        " max_eden_size: " SIZE_FORMAT
-        " total_free_limit: " SIZE_FORMAT
-        " max_old_gen_size: " SIZE_FORMAT
-        " max_eden_size: " SIZE_FORMAT
-        " mem_free_limit: " SIZE_FORMAT,
-        promo_limit, max_eden_size, total_free_limit,
-        max_old_gen_size, max_eden_size,
-        (size_t) mem_free_limit);
-
-  bool print_gc_overhead_limit_would_be_exceeded = false;
-  if (is_full_gc) {
-    if (gc_cost() > gc_cost_limit &&
-      free_in_old_gen < (size_t) mem_free_old_limit &&
-      free_in_eden < (size_t) mem_free_eden_limit) {
-      // Collections, on average, are taking too much time, and
-      //      gc_cost() > gc_cost_limit
-      // we have too little space available after a full gc.
-      //      total_free_limit < mem_free_limit
-      // where
-      //   total_free_limit is the free space available in
-      //     both generations
-      //   total_mem is the total space available for allocation
-      //     in both generations (survivor spaces are not included
-      //     just as they are not included in eden_limit).
-      //   mem_free_limit is a fraction of total_mem judged to be an
-      //     acceptable amount that is still unused.
-      // The heap can ask for the value of this variable when deciding
-      // whether to thrown an OutOfMemory error.
-      // Note that the gc time limit test only works for the collections
-      // of the young gen + tenured gen and not for collections of the
-      // permanent gen.  That is because the calculation of the space
-      // freed by the collection is the free space in the young gen +
-      // tenured gen.
-      // At this point the GC overhead limit is being exceeded.
-      inc_gc_overhead_limit_count();
-      if (UseGCOverheadLimit) {
-        if (gc_overhead_limit_count() >=
-            AdaptiveSizePolicyGCTimeLimitThreshold){
-          // All conditions have been met for throwing an out-of-memory
-          set_gc_overhead_limit_exceeded(true);
-          // Avoid consecutive OOM due to the gc time limit by resetting
-          // the counter.
-          reset_gc_overhead_limit_count();
-        } else {
-          // The required consecutive collections which exceed the
-          // GC time limit may or may not have been reached. We
-          // are approaching that condition and so as not to
-          // throw an out-of-memory before all SoftRef's have been
-          // cleared, set _should_clear_all_soft_refs in CollectorPolicy.
-          // The clearing will be done on the next GC.
-          bool near_limit = gc_overhead_limit_near();
-          if (near_limit) {
-            soft_ref_policy->set_should_clear_all_soft_refs(true);
-            log_trace(gc, ergo)("Nearing GC overhead limit, will be clearing all SoftReference");
-          }
-        }
-      }
-      // Set this even when the overhead limit will not
-      // cause an out-of-memory.  Diagnostic message indicating
-      // that the overhead limit is being exceeded is sometimes
-      // printed.
-      print_gc_overhead_limit_would_be_exceeded = true;
-
-    } else {
-      // Did not exceed overhead limits
-      reset_gc_overhead_limit_count();
-    }
-  }
-
-  if (UseGCOverheadLimit) {
-    if (gc_overhead_limit_exceeded()) {
-      log_trace(gc, ergo)("GC is exceeding overhead limit of " UINTX_FORMAT "%%", GCTimeLimit);
-      reset_gc_overhead_limit_count();
-    } else if (print_gc_overhead_limit_would_be_exceeded) {
-      assert(gc_overhead_limit_count() > 0, "Should not be printing");
-      log_trace(gc, ergo)("GC would exceed overhead limit of " UINTX_FORMAT "%% %d consecutive time(s)",
-                          GCTimeLimit, gc_overhead_limit_count());
-    }
-  }
+  AdaptiveSizePolicyTimeOverheadTester time_overhead(gc_cost());
+  AdaptiveSizePolicySpaceOverheadTester space_overhead(eden_live,
+                                                       max_old_gen_size,
+                                                       max_eden_size,
+                                                       _promo_size,
+                                                       avg_eden_live()->average(),
+                                                       avg_old_live()->average());
+  _overhead_checker.check_gc_overhead_limit(&time_overhead,
+                                            &space_overhead,
+                                            is_full_gc,
+                                            gc_cause,
+                                            soft_ref_policy);
 }
 // Printing
 

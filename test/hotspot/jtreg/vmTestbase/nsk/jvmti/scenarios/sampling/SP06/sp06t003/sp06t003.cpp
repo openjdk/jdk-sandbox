@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,12 +62,12 @@ typedef struct {
 
 /* descriptions of tested threads */
 static ThreadDesc threadsDesc[THREADS_COUNT] = {
-    {"threadRunning", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE},
-    {"threadEntering", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE},
-    {"threadWaiting", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE},
-    {"threadSleeping", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE},
-    {"threadRunningInterrupted", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE},
-    {"threadRunningNative", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE}
+    { "threadRunning", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE },
+    { "threadEntering", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE },
+    { "threadWaiting", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE },
+    { "threadSleeping", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE },
+    { "threadRunningInterrupted", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE },
+    { "threadRunningNative", "testedMethod", "(ZI)V", NULL, NULL, NULL, NSK_JVMTI_INVALID_JLOCATION, NSK_FALSE }
 };
 
 /* indexes of known threads */
@@ -143,8 +143,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
  * Generate missed events (COMPILED_METHOD_LOAD only).
  */
 static int generateEvents() {
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(GenerateEvents, jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->GenerateEvents(JVMTI_EVENT_COMPILED_METHOD_LOAD))) {
         nsk_jvmti_setFailStatus();
         return NSK_FALSE;
     }
@@ -177,8 +176,7 @@ static int prepare() {
     }
 
     /* get all live threads */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(GetAllThreads, jvmti, &allThreadsCount, &allThreadsList)))
+    if (!NSK_JVMTI_VERIFY(jvmti->GetAllThreads(&allThreadsCount, &allThreadsList)))
         return NSK_FALSE;
 
     if (!NSK_VERIFY(allThreadsCount > 0 && allThreadsList != NULL))
@@ -191,8 +189,7 @@ static int prepare() {
         if (!NSK_VERIFY(allThreadsList[i] != NULL))
             return NSK_FALSE;
 
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(GetThreadInfo, jvmti, allThreadsList[i], &threadInfo)))
+        if (!NSK_JVMTI_VERIFY(jvmti->GetThreadInfo(allThreadsList[i], &threadInfo)))
             return NSK_FALSE;
 
         if (threadInfo.name != NULL) {
@@ -209,8 +206,7 @@ static int prepare() {
     }
 
     /* deallocate all threads list */
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB2(Deallocate, jvmti, (unsigned char*)allThreadsList)))
+    if (!NSK_JVMTI_VERIFY(jvmti->Deallocate((unsigned char*)allThreadsList)))
         return NSK_FALSE;
 
     /* check if all tested threads found */
@@ -231,12 +227,11 @@ static int prepare() {
     for (i = 0; i < THREADS_COUNT; i++) {
 
         if (!NSK_JNI_VERIFY(jni, (threadsDesc[i].cls =
-                NSK_CPP_STUB2(GetObjectClass, jni, threadsDesc[i].thread)) != NULL))
+                jni->GetObjectClass(threadsDesc[i].thread)) != NULL))
             return NSK_FALSE;
 
         if (!NSK_JNI_VERIFY(jni, (threadsDesc[i].method =
-                NSK_CPP_STUB4(GetMethodID, jni, threadsDesc[i].cls,
-                            threadsDesc[i].methodName, threadsDesc[i].methodSig)) != NULL))
+                jni->GetMethodID(threadsDesc[i].cls, threadsDesc[i].methodName, threadsDesc[i].methodSig)) != NULL))
             return NSK_FALSE;
 
         NSK_DISPLAY4("    thread #%d (%s): 0x%p (%s)\n",
@@ -248,10 +243,10 @@ static int prepare() {
     /* make global refs */
     for (i = 0; i < THREADS_COUNT; i++) {
         if (!NSK_JNI_VERIFY(jni, (threadsDesc[i].thread = (jthread)
-                NSK_CPP_STUB2(NewGlobalRef, jni, threadsDesc[i].thread)) != NULL))
+                jni->NewGlobalRef(threadsDesc[i].thread)) != NULL))
             return NSK_FALSE;
         if (!NSK_JNI_VERIFY(jni, (threadsDesc[i].cls = (jclass)
-                NSK_CPP_STUB2(NewGlobalRef, jni, threadsDesc[i].cls)) != NULL))
+                jni->NewGlobalRef(threadsDesc[i].cls)) != NULL))
             return NSK_FALSE;
     }
 
@@ -271,13 +266,11 @@ static int suspendThreadsIndividually(int suspend) {
     for (i = 0; i < THREADS_COUNT; i++) {
         if (suspend) {
             NSK_DISPLAY2("    suspend thread #%d (%s)\n", i, threadsDesc[i].threadName);
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB2(SuspendThread, jvmti, threadsDesc[i].thread)))
+            if (!NSK_JVMTI_VERIFY(jvmti->SuspendThread(threadsDesc[i].thread)))
                 nsk_jvmti_setFailStatus();
         } else {
             NSK_DISPLAY2("    resume thread #%d (%s)\n", i, threadsDesc[i].threadName);
-            if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB2(ResumeThread, jvmti, threadsDesc[i].thread)))
+            if (!NSK_JVMTI_VERIFY(jvmti->ResumeThread(threadsDesc[i].thread)))
                 nsk_jvmti_setFailStatus();
         }
     }
@@ -302,7 +295,6 @@ static int checkThreads(int suspended, const char* kind0) {
         jint frameCount = 0;
         jint frameStackSize = 0;
         jvmtiFrameInfo frameStack[MAX_STACK_SIZE];
-        int commonDepth = 0;
         int found = 0;
         int j;
 
@@ -312,9 +304,7 @@ static int checkThreads(int suspended, const char* kind0) {
         NSK_DISPLAY2("  thread #%d (%s):\n", i, threadsDesc[i].threadName);
 
         /* get frame count */
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(GetFrameCount, jvmti,
-                                    threadsDesc[i].thread, &frameCount))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->GetFrameCount(threadsDesc[i].thread, &frameCount))) {
             nsk_jvmti_setFailStatus();
             return NSK_TRUE;
         }
@@ -322,19 +312,14 @@ static int checkThreads(int suspended, const char* kind0) {
 
         /* get stack trace */
         if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB6(GetStackTrace, jvmti, threadsDesc[i].thread,
-                                    0, MAX_STACK_SIZE, frameStack, &frameStackSize))) {
+                jvmti->GetStackTrace(threadsDesc[i].thread, 0, MAX_STACK_SIZE, frameStack, &frameStackSize))) {
             nsk_jvmti_setFailStatus();
             return NSK_TRUE;
         }
         NSK_DISPLAY1("    stack depth: %d\n", (int)frameStackSize);
 
-        commonDepth = (frameCount < frameStackSize ? frameCount : frameStackSize);
-        NSK_DISPLAY1("         common: %d\n", (int)commonDepth);
-
-        /* check first commonDepth frames and find expected method there */
         found = 0;
-        for (j = 0; j < commonDepth; j++) {
+        for (j = 0; j < frameStackSize; j++) {
             jmethodID qMethod = (jmethodID)NULL;
             jlocation qLocation = NSK_JVMTI_INVALID_JLOCATION;
 
@@ -343,8 +328,8 @@ static int checkThreads(int suspended, const char* kind0) {
                                         (long)frameStack[j].location);
             /* query frame location */
             if (!NSK_JVMTI_VERIFY(
-                    NSK_CPP_STUB5(GetFrameLocation, jvmti, threadsDesc[i].thread,
-                                        j, &qMethod, &qLocation))) {
+                    jvmti->GetFrameLocation(threadsDesc[i].thread, j, &qMethod, &qLocation))
+                && suspended) {
                 nsk_jvmti_setFailStatus();
                 continue;
             }
@@ -352,8 +337,8 @@ static int checkThreads(int suspended, const char* kind0) {
             NSK_DISPLAY2("      queried: method: 0x%p, location: %ld\n",
                                         (void*)qMethod, (long)qLocation);
 
-            /* check frame equalaty */
-            if (frameStack[j].method != qMethod) {
+            /* check frame equality */
+            if (suspended && (frameStack[j].method != qMethod)) {
                 NSK_COMPLAIN6("Different method in stack frame #%d for %s thread #%d (%s):\n"
                             "#   GetStackTrace():    0x%p\n"
                             "#   GetFrameLocation(): 0x%p\n",
@@ -361,7 +346,7 @@ static int checkThreads(int suspended, const char* kind0) {
                             (void*)frameStack[j].method, (void*)qMethod);
                 nsk_jvmti_setFailStatus();
             }
-            if (frameStack[j].location != qLocation) {
+            if (suspended && (frameStack[j].location != qLocation)) {
                 NSK_COMPLAIN6("Different location in stack frame #%d for %s thread #%d (%s):\n"
                             "#   GetStackTrace():    %ld\n"
                             "#   GetFrameLocation(): %ld\n",
@@ -404,8 +389,8 @@ static int clean() {
 
     NSK_DISPLAY0("Dispose global references to threads\n");
     for (i = 0; i < THREADS_COUNT; i++) {
-        NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, threadsDesc[i].thread));
-        NSK_TRACE(NSK_CPP_STUB2(DeleteGlobalRef, jni, threadsDesc[i].cls));
+        NSK_TRACE(jni->DeleteGlobalRef(threadsDesc[i].thread));
+        NSK_TRACE(jni->DeleteGlobalRef(threadsDesc[i].cls));
     }
 
     return NSK_TRUE;
@@ -538,8 +523,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
         caps.can_suspend = 1;
         caps.can_generate_compiled_method_load_events = 1;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 
@@ -548,9 +532,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&eventCallbacks, 0, sizeof(eventCallbacks));
         eventCallbacks.CompiledMethodLoad = callbackCompiledMethodLoad;
         eventCallbacks.CompiledMethodUnload = callbackCompiledMethodUnload;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti,
-                                    &eventCallbacks, sizeof(eventCallbacks))))
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&eventCallbacks, sizeof(eventCallbacks))))
             return JNI_ERR;
     }
 

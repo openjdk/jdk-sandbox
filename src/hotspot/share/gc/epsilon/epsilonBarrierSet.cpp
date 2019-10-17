@@ -25,7 +25,6 @@
 #include "runtime/thread.hpp"
 #include "gc/epsilon/epsilonBarrierSet.hpp"
 #include "gc/epsilon/epsilonThreadLocalData.hpp"
-#include "gc/shared/collectorPolicy.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
@@ -40,6 +39,7 @@ EpsilonBarrierSet::EpsilonBarrierSet() : BarrierSet(
           make_barrier_set_assembler<BarrierSetAssembler>(),
           make_barrier_set_c1<BarrierSetC1>(),
           make_barrier_set_c2<BarrierSetC2>(),
+          NULL /* barrier_set_nmethod */,
           BarrierSet::FakeRtti(BarrierSet::EpsilonBarrierSet)) {};
 
 void EpsilonBarrierSet::on_thread_create(Thread *thread) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,7 @@ import java.beans.ConstructorProperties;
  *      [ y'] = [  m10  m11  m12  ] [ y ] = [ m10x + m11y + m12 ]
  *      [ 1 ]   [   0    0    1   ] [ 1 ]   [         1         ]
  * </pre>
- * <h3><a id="quadrantapproximation">Handling 90-Degree Rotations</a></h3>
+ * <h2><a id="quadrantapproximation">Handling 90-Degree Rotations</a></h2>
  * <p>
  * In some variations of the {@code rotate} methods in the
  * {@code AffineTransform} class, a double-precision argument
@@ -1344,7 +1344,7 @@ public class AffineTransform implements Cloneable, java.io.Serializable {
     // Utility methods to optimize rotate methods.
     // These tables translate the flags during predictable quadrant
     // rotations where the shear and scale values are swapped and negated.
-    private static final int rot90conversion[] = {
+    private static final int[] rot90conversion = {
         /* IDENTITY => */        APPLY_SHEAR,
         /* TRANSLATE (TR) => */  APPLY_SHEAR | APPLY_TRANSLATE,
         /* SCALE (SC) => */      APPLY_SHEAR,

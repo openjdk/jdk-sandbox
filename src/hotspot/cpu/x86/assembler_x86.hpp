@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_X86_VM_ASSEMBLER_X86_HPP
-#define CPU_X86_VM_ASSEMBLER_X86_HPP
+#ifndef CPU_X86_ASSEMBLER_X86_HPP
+#define CPU_X86_ASSEMBLER_X86_HPP
 
 #include "asm/register.hpp"
 #include "vm_version_x86.hpp"
@@ -630,6 +630,17 @@ class Assembler : public AbstractAssembler  {
     _true = 7
   };
 
+  //---<  calculate length of instruction  >---
+  // As instruction size can't be found out easily on x86/x64,
+  // we just use '4' for len and maxlen.
+  // instruction must start at passed address
+  static unsigned int instr_len(unsigned char *instr) { return 4; }
+
+  //---<  longest instructions  >---
+  // Max instruction length is not specified in architecture documentation.
+  // We could use a "safe enough" estimate (15), but just default to
+  // instruction length guess from above.
+  static unsigned int instr_maxlen() { return 4; }
 
   // NOTE: The general philopsophy of the declarations here is that 64bit versions
   // of instructions are freely declared without the need for wrapping them an ifdef.
@@ -871,11 +882,6 @@ private:
   void clear_managed(void) { _is_managed = false; }
   bool is_managed(void) { return _is_managed; }
 
-  // Following functions are for stub code use only
-  void set_vector_masking(void) { _vector_masking = true; }
-  void clear_vector_masking(void) { _vector_masking = false; }
-  bool is_vector_masking(void) { return _vector_masking; }
-
   void lea(Register dst, Address src);
 
   void mov(Register dst, Register src);
@@ -962,6 +968,9 @@ private:
   void aesenc(XMMRegister dst, XMMRegister src);
   void aesenclast(XMMRegister dst, Address src);
   void aesenclast(XMMRegister dst, XMMRegister src);
+  // Vector AES instructions
+  void vaesenc(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void vaesenclast(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vaesdec(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vaesdeclast(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
@@ -1019,6 +1028,8 @@ private:
   void cld();
 
   void clflush(Address adr);
+  void clflushopt(Address adr);
+  void clwb(Address adr);
 
   void cmovl(Condition cc, Register dst, Register src);
   void cmovl(Condition cc, Register dst, Address src);
@@ -1106,6 +1117,15 @@ private:
   void cvttss2siq(Register dst, XMMRegister src);
 
   void cvttpd2dq(XMMRegister dst, XMMRegister src);
+
+  //Abs of packed Integer values
+  void pabsb(XMMRegister dst, XMMRegister src);
+  void pabsw(XMMRegister dst, XMMRegister src);
+  void pabsd(XMMRegister dst, XMMRegister src);
+  void vpabsb(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpabsw(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpabsd(XMMRegister dst, XMMRegister src, int vector_len);
+  void evpabsq(XMMRegister dst, XMMRegister src, int vector_len);
 
   // Divide Scalar Double-Precision Floating-Point Values
   void divsd(XMMRegister dst, Address src);
@@ -1350,44 +1370,43 @@ private:
 
   // Serializes memory and blows flags
   void membar(Membar_mask_bits order_constraint) {
-    if (os::is_MP()) {
-      // We only have to handle StoreLoad
-      if (order_constraint & StoreLoad) {
-        // All usable chips support "locked" instructions which suffice
-        // as barriers, and are much faster than the alternative of
-        // using cpuid instruction. We use here a locked add [esp-C],0.
-        // This is conveniently otherwise a no-op except for blowing
-        // flags, and introducing a false dependency on target memory
-        // location. We can't do anything with flags, but we can avoid
-        // memory dependencies in the current method by locked-adding
-        // somewhere else on the stack. Doing [esp+C] will collide with
-        // something on stack in current method, hence we go for [esp-C].
-        // It is convenient since it is almost always in data cache, for
-        // any small C.  We need to step back from SP to avoid data
-        // dependencies with other things on below SP (callee-saves, for
-        // example). Without a clear way to figure out the minimal safe
-        // distance from SP, it makes sense to step back the complete
-        // cache line, as this will also avoid possible second-order effects
-        // with locked ops against the cache line. Our choice of offset
-        // is bounded by x86 operand encoding, which should stay within
-        // [-128; +127] to have the 8-byte displacement encoding.
-        //
-        // Any change to this code may need to revisit other places in
-        // the code where this idiom is used, in particular the
-        // orderAccess code.
+    // We only have to handle StoreLoad
+    if (order_constraint & StoreLoad) {
+      // All usable chips support "locked" instructions which suffice
+      // as barriers, and are much faster than the alternative of
+      // using cpuid instruction. We use here a locked add [esp-C],0.
+      // This is conveniently otherwise a no-op except for blowing
+      // flags, and introducing a false dependency on target memory
+      // location. We can't do anything with flags, but we can avoid
+      // memory dependencies in the current method by locked-adding
+      // somewhere else on the stack. Doing [esp+C] will collide with
+      // something on stack in current method, hence we go for [esp-C].
+      // It is convenient since it is almost always in data cache, for
+      // any small C.  We need to step back from SP to avoid data
+      // dependencies with other things on below SP (callee-saves, for
+      // example). Without a clear way to figure out the minimal safe
+      // distance from SP, it makes sense to step back the complete
+      // cache line, as this will also avoid possible second-order effects
+      // with locked ops against the cache line. Our choice of offset
+      // is bounded by x86 operand encoding, which should stay within
+      // [-128; +127] to have the 8-byte displacement encoding.
+      //
+      // Any change to this code may need to revisit other places in
+      // the code where this idiom is used, in particular the
+      // orderAccess code.
 
-        int offset = -VM_Version::L1_line_size();
-        if (offset < -128) {
-          offset = -128;
-        }
-
-        lock();
-        addl(Address(rsp, offset), 0);// Assert the lock# signal here
+      int offset = -VM_Version::L1_line_size();
+      if (offset < -128) {
+        offset = -128;
       }
+
+      lock();
+      addl(Address(rsp, offset), 0);// Assert the lock# signal here
     }
   }
 
   void mfence();
+  void sfence();
 
   // Moves
 
@@ -1596,6 +1615,7 @@ private:
   // Pemutation of 64bit words
   void vpermq(XMMRegister dst, XMMRegister src, int imm8, int vector_len);
   void vpermq(XMMRegister dst, XMMRegister src, int imm8);
+  void vpermq(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vperm2i128(XMMRegister dst,  XMMRegister nds, XMMRegister src, int imm8);
   void vperm2f128(XMMRegister dst, XMMRegister nds, XMMRegister src, int imm8);
   void evpermi2q(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
@@ -1674,6 +1694,16 @@ private:
   void vpmovzxwd(XMMRegister dst, XMMRegister src, int vector_len);
 
   void evpmovdb(Address dst, XMMRegister src, int vector_len);
+
+  // Sign extend moves
+  void pmovsxbw(XMMRegister dst, XMMRegister src);
+  void vpmovsxbw(XMMRegister dst, XMMRegister src, int vector_len);
+
+  // Multiply add
+  void pmaddwd(XMMRegister dst, XMMRegister src);
+  void vpmaddwd(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  // Multiply add accumulate
+  void evpdpwssd(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
 #ifndef _LP64 // no 32bit push/pop on amd64
   void popl(Address dst);
@@ -1826,6 +1856,9 @@ private:
   void sqrtsd(XMMRegister dst, Address src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
+  void roundsd(XMMRegister dst, Address src, int32_t rmode);
+  void roundsd(XMMRegister dst, XMMRegister src, int32_t rmode);
+
   // Compute Square Root of Scalar Single-Precision Floating-Point Value
   void sqrtss(XMMRegister dst, Address src);
   void sqrtss(XMMRegister dst, XMMRegister src);
@@ -1935,6 +1968,11 @@ private:
   void vsubss(XMMRegister dst, XMMRegister nds, Address src);
   void vsubss(XMMRegister dst, XMMRegister nds, XMMRegister src);
 
+  void vmaxss(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vmaxsd(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vminss(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vminsd(XMMRegister dst, XMMRegister nds, XMMRegister src);
+
   void shlxl(Register dst, Register src1, Register src2);
   void shlxq(Register dst, Register src1, Register src2);
 
@@ -1984,6 +2022,12 @@ private:
   void vsqrtpd(XMMRegister dst, Address src, int vector_len);
   void vsqrtps(XMMRegister dst, XMMRegister src, int vector_len);
   void vsqrtps(XMMRegister dst, Address src, int vector_len);
+
+  // Round Packed Double precision value.
+  void vroundpd(XMMRegister dst, XMMRegister src, int32_t rmode, int vector_len);
+  void vroundpd(XMMRegister dst, Address src, int32_t rmode, int vector_len);
+  void vrndscalepd(XMMRegister dst,  XMMRegister src,  int32_t rmode, int vector_len);
+  void vrndscalepd(XMMRegister dst, Address src, int32_t rmode, int vector_len);
 
   // Bitwise Logical AND of Packed Floating-Point Values
   void andpd(XMMRegister dst, XMMRegister src);
@@ -2062,6 +2106,7 @@ private:
   void vpsllw(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpslld(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpsllq(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
+  void vpslldq(XMMRegister dst, XMMRegister src, int shift, int vector_len);
 
   // Logical shift right packed integers
   void psrlw(XMMRegister dst, int shift);
@@ -2076,6 +2121,7 @@ private:
   void vpsrlw(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpsrld(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpsrlq(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
+  void vpsrldq(XMMRegister dst, XMMRegister src, int shift, int vector_len);
   void evpsrlvw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void evpsllvw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
@@ -2088,6 +2134,8 @@ private:
   void vpsrad(XMMRegister dst, XMMRegister src, int shift, int vector_len);
   void vpsraw(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpsrad(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
+  void evpsraq(XMMRegister dst, XMMRegister src, int shift, int vector_len);
+  void evpsraq(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
 
   // And packed integers
   void pand(XMMRegister dst, XMMRegister src);
@@ -2097,6 +2145,7 @@ private:
 
   // Andn packed integers
   void pandn(XMMRegister dst, XMMRegister src);
+  void vpandn(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
   // Or packed integers
   void por(XMMRegister dst, XMMRegister src);
@@ -2134,6 +2183,7 @@ private:
   void vextracti32x4(Address dst, XMMRegister src, uint8_t imm8);
   void vextracti64x2(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vextracti64x4(XMMRegister dst, XMMRegister src, uint8_t imm8);
+  void vextracti64x4(Address dst, XMMRegister src, uint8_t imm8);
 
   // vextractf forms
   void vextractf128(XMMRegister dst, XMMRegister src, uint8_t imm8);
@@ -2144,28 +2194,24 @@ private:
   void vextractf64x4(XMMRegister dst, XMMRegister src, uint8_t imm8);
   void vextractf64x4(Address dst, XMMRegister src, uint8_t imm8);
 
-  // legacy xmm sourced word/dword replicate
-  void vpbroadcastw(XMMRegister dst, XMMRegister src);
-  void vpbroadcastd(XMMRegister dst, XMMRegister src);
-
   // xmm/mem sourced byte/word/dword/qword replicate
-  void evpbroadcastb(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastb(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastw(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastw(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastd(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastd(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastq(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastq(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastb(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastb(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastw(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastw(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastd(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastd(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastq(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastq(XMMRegister dst, Address src, int vector_len);
 
   void evbroadcasti64x2(XMMRegister dst, XMMRegister src, int vector_len);
   void evbroadcasti64x2(XMMRegister dst, Address src, int vector_len);
 
   // scalar single/double precision replicate
-  void evpbroadcastss(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastss(XMMRegister dst, Address src, int vector_len);
-  void evpbroadcastsd(XMMRegister dst, XMMRegister src, int vector_len);
-  void evpbroadcastsd(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastss(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastss(XMMRegister dst, Address src, int vector_len);
+  void vpbroadcastsd(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpbroadcastsd(XMMRegister dst, Address src, int vector_len);
 
   // gpr sourced byte/word/dword/qword replicate
   void evpbroadcastb(XMMRegister dst, Register src, int vector_len);
@@ -2212,7 +2258,7 @@ public:
     int vector_len,     // The length of vector to be applied in encoding - for both AVX and EVEX
     bool rex_vex_w,     // Width of data: if 32-bits or less, false, else if 64-bit or specially defined, true
     bool legacy_mode,   // Details if either this instruction is conditionally encoded to AVX or earlier if true else possibly EVEX
-    bool no_reg_mask,   // when true, k0 is used when EVEX encoding is chosen, else k1 is used under the same condition
+    bool no_reg_mask,   // when true, k0 is used when EVEX encoding is chosen, else embedded_opmask_register_specifier is used
     bool uses_vl)       // This instruction may have legacy constraints based on vector length for EVEX
     :
       _avx_vector_len(vector_len),
@@ -2227,7 +2273,7 @@ public:
       _evex_encoding(0),
       _is_clear_context(true),
       _is_extended_context(false),
-      _embedded_opmask_register_specifier(1), // hard code k1, it will be initialized for now
+      _embedded_opmask_register_specifier(0), // hard code k0
       _current_assembler(NULL) {
     if (UseAVX < 3) _legacy_mode = true;
   }
@@ -2311,4 +2357,4 @@ public:
 
 };
 
-#endif // CPU_X86_VM_ASSEMBLER_X86_HPP
+#endif // CPU_X86_ASSEMBLER_X86_HPP

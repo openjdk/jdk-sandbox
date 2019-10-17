@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_VM_VERSION_ARM_HPP
-#define CPU_ARM_VM_VM_VERSION_ARM_HPP
+#ifndef CPU_ARM_VM_VERSION_ARM_HPP
+#define CPU_ARM_VM_VERSION_ARM_HPP
 
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
@@ -32,6 +32,7 @@ class VM_Version: public Abstract_VM_Version {
   friend class JVMCIVMStructs;
 
   static bool _has_simd;
+  static bool _has_mp_ext;
 
  protected:
   // Are we done with vm version initialization
@@ -41,29 +42,13 @@ class VM_Version: public Abstract_VM_Version {
   static void initialize();
   static bool is_initialized()      { return _is_initialized; }
 
-#ifdef AARCH64
-
- public:
-  static bool supports_ldrex()         { return true; }
-  static bool supports_ldrexd()        { return true; }
-  static bool supports_movw()          { return true; }
-
-  // Override Abstract_VM_Version implementation
-  static bool use_biased_locking();
-
-  static bool has_simd()               { return _has_simd; }
-  static bool has_vfp()                { return has_simd(); }
-  static bool simd_math_is_compliant() { return true; }
-
-  static bool prefer_moves_over_load_literal() { return true; }
-
-#else
 
  protected:
   enum Feature_Flag {
     vfp = 0,
     vfp3_32 = 1,
     simd = 2,
+    mp_ext = 3
   };
 
   enum Feature_Flag_Set {
@@ -73,6 +58,7 @@ class VM_Version: public Abstract_VM_Version {
     vfp_m     = 1 << vfp,
     vfp3_32_m = 1 << vfp3_32,
     simd_m    = 1 << simd,
+    mp_ext_m  = 1 << mp_ext
   };
 
   // The value stored by "STR PC, [addr]" instruction can be either
@@ -110,11 +96,11 @@ class VM_Version: public Abstract_VM_Version {
   static bool supports_kuser_cmpxchg64() { return _kuser_helper_version >= KUSER_VERSION_CMPXCHG64; }
   // Override Abstract_VM_Version implementation
   static bool use_biased_locking();
-  static const char* vm_info_string();
 
   static bool has_vfp()             { return (_features & vfp_m) != 0; }
   static bool has_vfp3_32()         { return (_features & vfp3_32_m) != 0; }
   static bool has_simd()            { return (_features & simd_m) != 0; }
+  static bool has_multiprocessing_extensions() { return (_features & mp_ext_m) != 0; }
 
   static bool simd_math_is_compliant() { return false; }
 
@@ -122,7 +108,6 @@ class VM_Version: public Abstract_VM_Version {
 
   friend class VM_Version_StubGenerator;
 
-#endif // AARCH64
 };
 
-#endif // CPU_ARM_VM_VM_VERSION_ARM_HPP
+#endif // CPU_ARM_VM_VERSION_ARM_HPP

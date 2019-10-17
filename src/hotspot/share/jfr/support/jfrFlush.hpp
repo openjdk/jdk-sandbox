@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_SUPPORT_JFRFLUSH_HPP
-#define SHARE_VM_JFR_SUPPORT_JFRFLUSH_HPP
+#ifndef SHARE_JFR_SUPPORT_JFRFLUSH_HPP
+#define SHARE_JFR_SUPPORT_JFRFLUSH_HPP
 
 #include "jfr/recorder/storage/jfrBuffer.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
@@ -48,10 +48,12 @@ void jfr_clear_stacktrace(Thread* t);
 
 template <typename Event>
 class JfrConditionalFlush {
+ protected:
+  bool _enabled;
  public:
   typedef JfrBuffer Type;
-  JfrConditionalFlush(Thread* t) {
-    if (jfr_is_event_enabled(Event::eventId)) {
+  JfrConditionalFlush(Thread* t) : _enabled(jfr_is_event_enabled(Event::eventId)) {
+    if (_enabled) {
       jfr_conditional_flush(Event::eventId, sizeof(Event), t);
     }
   }
@@ -63,7 +65,7 @@ class JfrConditionalFlushWithStacktrace : public JfrConditionalFlush<Event> {
   bool _owner;
  public:
   JfrConditionalFlushWithStacktrace(Thread* t) : JfrConditionalFlush<Event>(t), _t(t), _owner(false) {
-    if (Event::has_stacktrace() && jfr_has_stacktrace_enabled(Event::eventId)) {
+    if (this->_enabled && Event::has_stacktrace() && jfr_has_stacktrace_enabled(Event::eventId)) {
       _owner = jfr_save_stacktrace(t);
     }
   }
@@ -74,4 +76,4 @@ class JfrConditionalFlushWithStacktrace : public JfrConditionalFlush<Event> {
   }
 };
 
-#endif // SHARE_VM_JFR_SUPPORT_JFRFLUSH_HPP
+#endif // SHARE_JFR_SUPPORT_JFRFLUSH_HPP

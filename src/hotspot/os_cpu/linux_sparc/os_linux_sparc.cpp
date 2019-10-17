@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,8 +159,6 @@ char* os::non_memory_address_word() {
   return (char*) 0;
 }
 
-void os::initialize_thread(Thread* thr) {}
-
 void os::print_context(outputStream *st, const void *context) {
   if (context == NULL) return;
 
@@ -234,8 +232,8 @@ void os::print_context(outputStream *st, const void *context) {
   // point to garbage if entry point in an nmethod is corrupted. Leave
   // this at the end, and hope for the best.
   address pc = os::Linux::ucontext_get_pc(uc);
-  st->print_cr("Instructions: (pc=" INTPTR_FORMAT ")", p2i(pc));
-  print_hex_dump(st, pc - 32, pc + 32, sizeof(char));
+  print_instructions(st, pc, sizeof(char));
+  st->cr();
 }
 
 
@@ -387,7 +385,11 @@ inline static bool checkByteBuffer(address pc, address npc, JavaThread * thread,
   // Do not crash the VM in such a case.
   CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
   CompiledMethod* nm = cb->as_compiled_method_or_null();
-  if (nm != NULL && nm->has_unsafe_access()) {
+  bool is_unsafe_arraycopy = (thread->doing_unsafe_access() && UnsafeCopyMemory::contains_pc(pc));
+  if ((nm != NULL && nm->has_unsafe_access()) || is_unsafe_arraycopy) {
+    if (is_unsafe_arraycopy) {
+      npc = UnsafeCopyMemory::page_error_continue_pc(pc);
+    }
     *stub = SharedRuntime::handle_unsafe_access(thread, npc);
     return true;
   }
@@ -418,9 +420,9 @@ inline static bool checkFPFault(address pc, int code,
   return false;
 }
 
-inline static bool checkNullPointer(address pc, intptr_t fault,
+inline static bool checkNullPointer(address pc, void* fault,
                                     JavaThread* thread, address* stub) {
-  if (!MacroAssembler::needs_explicit_null_check(fault)) {
+  if (MacroAssembler::uses_implicit_null_check(fault)) {
     // Determination of interpreter/vtable stub/compiled code null
     // exception
     *stub =
@@ -439,10 +441,6 @@ inline static bool checkFastJNIAccess(address pc, address* stub) {
     return true;
   }
   return false;
-}
-
-inline static bool checkSerializePage(JavaThread* thread, address addr) {
-  return os::is_memory_serialize_page(thread, addr);
 }
 
 inline static bool checkZombie(sigcontext* uc, address* pc, address* stub) {
@@ -516,8 +514,9 @@ JVM_handle_linux_signal(int sig,
 
 #ifdef CAN_SHOW_REGISTERS_ON_ASSERT
   if ((sig == SIGSEGV || sig == SIGBUS) && info != NULL && info->si_addr == g_assert_poison) {
-    handle_assert_poison_fault(ucVoid, info->si_addr);
-    return 1;
+    if (handle_assert_poison_fault(ucVoid, info->si_addr)) {
+      return 1;
+    }
   }
 #endif
 
@@ -544,16 +543,6 @@ JVM_handle_linux_signal(int sig,
     pc = address(SIG_PC(uc));
     npc = address(SIG_NPC(uc));
 
-    // Check to see if we caught the safepoint code in the
-    // process of write protecting the memory serialization page.
-    // It write enables the page immediately after protecting it
-    // so we can just return to retry the write.
-    if ((sig == SIGSEGV) && checkSerializePage(thread, (address)info->si_addr)) {
-      // Block current thread until the memory serialize page permission restored.
-      os::block_on_serialize_page_trap();
-      return 1;
-    }
-
     if (checkPrefetch(uc, pc)) {
       return 1;
     }
@@ -566,8 +555,12 @@ JVM_handle_linux_signal(int sig,
     }
 
     if (sig == SIGBUS &&
-        thread->thread_state() == _thread_in_vm &&
+        (thread->thread_state() == _thread_in_vm ||
+         thread->thread_state() == _thread_in_native) &&
         thread->doing_unsafe_access()) {
+      if (UnsafeCopyMemory::contains_pc(pc)) {
+        npc = UnsafeCopyMemory::page_error_continue_pc(pc);
+      }
       stub = SharedRuntime::handle_unsafe_access(thread, npc);
     }
 
@@ -602,7 +595,7 @@ JVM_handle_linux_signal(int sig,
         }
 
         if ((sig == SIGSEGV) &&
-            checkNullPointer(pc, (intptr_t)info->si_addr, thread, &stub)) {
+            checkNullPointer(pc, info->si_addr, thread, &stub)) {
           break;
         }
       } while (0);

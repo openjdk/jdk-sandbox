@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -155,7 +155,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  * {@link #reset} method will reset the value of the scanner's radix to
  * {@code 10} regardless of whether it was previously changed.
  *
- * <h3> <a id="localized-numbers">Localized numbers</a> </h3>
+ * <h2> <a id="localized-numbers">Localized numbers</a> </h2>
  *
  * <p> An instance of this class is capable of scanning numbers in the standard
  * formats as well as in the formats of the scanner's locale. A scanner's
@@ -216,7 +216,7 @@ import sun.util.locale.provider.ResourceBundleBasedAdapter;
  *         getInfinity()}
  * </dl></blockquote>
  *
- * <h4> <a id="number-syntax">Number syntax</a> </h4>
+ * <h3> <a id="number-syntax">Number syntax</a> </h3>
  *
  * <p> The strings that can be parsed as numbers by an instance of this class
  * are specified in terms of the following regular-expression grammar, where
@@ -1297,16 +1297,16 @@ public final class Scanner implements Iterator<String>, Closeable {
         nanString = "\\Q" + dfs.getNaN() + "\\E";
         infinityString = "\\Q" + dfs.getInfinity() + "\\E";
         positivePrefix = df.getPositivePrefix();
-        if (positivePrefix.length() > 0)
+        if (!positivePrefix.isEmpty())
             positivePrefix = "\\Q" + positivePrefix + "\\E";
         negativePrefix = df.getNegativePrefix();
-        if (negativePrefix.length() > 0)
+        if (!negativePrefix.isEmpty())
             negativePrefix = "\\Q" + negativePrefix + "\\E";
         positiveSuffix = df.getPositiveSuffix();
-        if (positiveSuffix.length() > 0)
+        if (!positiveSuffix.isEmpty())
             positiveSuffix = "\\Q" + positiveSuffix + "\\E";
         negativeSuffix = df.getNegativeSuffix();
-        if (negativeSuffix.length() > 0)
+        if (!negativeSuffix.isEmpty())
             negativeSuffix = "\\Q" + negativeSuffix + "\\E";
 
         // Force rebuilding and recompilation of locale dependent

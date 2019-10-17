@@ -36,14 +36,13 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Enumeration;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.stream.Stream;
 
-import jdk.internal.misc.JavaLangAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaLangAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.module.Modules;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.util.StaticProperty;
@@ -126,6 +125,23 @@ public class BootLoader {
             return c;
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Loads a library from the system path.
+     */
+    public static void loadLibrary(String library) {
+        if (System.getSecurityManager() == null) {
+            SharedSecrets.getJavaLangAccess().loadLibrary(BootLoader.class, library);
+        } else {
+            AccessController.doPrivileged(
+                new java.security.PrivilegedAction<>() {
+                    public Void run() {
+                        SharedSecrets.getJavaLangAccess().loadLibrary(BootLoader.class, library);
+                        return null;
+                    }
+                });
         }
     }
 

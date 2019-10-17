@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,14 @@
 
 #include "precompiled.hpp"
 #include "jmm.h"
+#include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileBroker.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/klass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -42,6 +44,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/jniHandles.inline.hpp"
+#include "runtime/notificationThread.hpp"
 #include "runtime/os.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/thread.inline.hpp"
@@ -146,7 +149,9 @@ void Management::init() {
 void Management::initialize(TRAPS) {
   // Start the service thread
   ServiceThread::initialize();
-
+  if (UseNotificationThread) {
+    NotificationThread::initialize();
+  }
   if (ManagementServer) {
     ResourceMark rm(THREAD);
     HandleMark hm(THREAD);
@@ -178,7 +183,7 @@ void Management::get_optional_support(jmmOptionalSupport* support) {
 
 InstanceKlass* Management::load_and_initialize_klass(Symbol* sh, TRAPS) {
   Klass* k = SystemDictionary::resolve_or_fail(sh, true, CHECK_NULL);
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) {
@@ -186,7 +191,7 @@ InstanceKlass* Management::load_and_initialize_klass_or_null(Symbol* sh, TRAPS) 
   if (k == NULL) {
      return NULL;
   }
-  return initialize_klass(k, CHECK_NULL);
+  return initialize_klass(k, THREAD);
 }
 
 InstanceKlass* Management::initialize_klass(Klass* k, TRAPS) {
@@ -843,7 +848,7 @@ void VmThreadCountClosure::do_thread(Thread* thread) {
 static jint get_vm_thread_count() {
   VmThreadCountClosure vmtcc;
   {
-    MutexLockerEx ml(Threads_lock);
+    MutexLocker ml(Threads_lock);
     Threads::threads_do(&vmtcc);
   }
 
@@ -1097,15 +1102,13 @@ JVM_ENTRY(jint, jmm_GetThreadInfo(JNIEnv *env, jlongArray ids, jint maxDepth, jo
     for (int i = 0; i < num_threads; i++) {
       jlong tid = ids_ah->long_at(i);
       JavaThread* jt = dump_result.t_list()->find_JavaThread_from_java_tid(tid);
-      ThreadSnapshot* ts;
       if (jt == NULL) {
         // if the thread does not exist or now it is terminated,
         // create dummy snapshot
-        ts = new ThreadSnapshot();
+        dump_result.add_thread_snapshot();
       } else {
-        ts = new ThreadSnapshot(dump_result.t_list(), jt);
+        dump_result.add_thread_snapshot(jt);
       }
-      dump_result.add_thread_snapshot(ts);
     }
   } else {
     // obtain thread dump with the specific list of threads with stack trace
@@ -1546,7 +1549,7 @@ JVM_ENTRY(jint, jmm_GetVMGlobals(JNIEnv *env,
 
       Handle sh(THREAD, s);
       char* str = java_lang_String::as_utf8_string(s);
-      JVMFlag* flag = JVMFlag::find_flag(str, strlen(str));
+      JVMFlag* flag = JVMFlag::find_flag(str);
       if (flag != NULL &&
           add_global_entry(env, sh, &globals[i], flag, THREAD)) {
         num_entries++;
@@ -1705,7 +1708,7 @@ JVM_ENTRY(jint, jmm_GetInternalThreadTimes(JNIEnv *env,
 
   ThreadTimesClosure ttc(names_ah, times_ah);
   {
-    MutexLockerEx ml(Threads_lock);
+    MutexLocker ml(Threads_lock);
     Threads::threads_do(&ttc);
   }
   ttc.do_unlocked();
@@ -2068,6 +2071,31 @@ jlong Management::ticks_to_ms(jlong ticks) {
 }
 #endif // INCLUDE_MANAGEMENT
 
+// Gets the amount of memory allocated on the Java heap for a single thread.
+// Returns -1 if the thread does not exist or has terminated.
+JVM_ENTRY(jlong, jmm_GetOneThreadAllocatedMemory(JNIEnv *env, jlong thread_id))
+  if (thread_id < 0) {
+    THROW_MSG_(vmSymbols::java_lang_IllegalArgumentException(),
+               "Invalid thread ID", -1);
+  }
+
+  if (thread_id == 0) {
+    // current thread
+    if (THREAD->is_Java_thread()) {
+      return ((JavaThread*)THREAD)->cooked_allocated_bytes();
+    }
+    return -1;
+  }
+
+  ThreadsListHandle tlh;
+  JavaThread* java_thread = tlh.list()->find_JavaThread_from_java_tid(thread_id);
+
+  if (java_thread != NULL) {
+    return java_thread->cooked_allocated_bytes();
+  }
+  return -1;
+JVM_END
+
 // Gets an array containing the amount of memory allocated on the Java
 // heap for a set of threads (in bytes).  Each element of the array is
 // the amount of memory allocated for the thread ID specified in the
@@ -2192,6 +2220,7 @@ const struct jmmInterface_1_ jmm_interface = {
   jmm_GetMemoryManagers,
   jmm_GetMemoryPoolUsage,
   jmm_GetPeakMemoryPoolUsage,
+  jmm_GetOneThreadAllocatedMemory,
   jmm_GetThreadAllocatedMemory,
   jmm_GetMemoryUsage,
   jmm_GetLongAttribute,

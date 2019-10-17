@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,52 +22,16 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
-#define SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
 
 #include "jfr/utilities/jfrAllocation.hpp"
 
-class ClassLoaderData;
-class JfrArtifactClosure;
-class JfrArtifactSet;
 class JfrCheckpointWriter;
-class Klass;
-
-class ModuleEntry;
-class PackageEntry;
 
 class JfrTypeSet : AllStatic {
-  friend class CLDCallback;
-  friend class JfrTypeManager;
-  friend class TypeSetSerialization;
- private:
-  static JfrArtifactSet* _artifacts;
-  static JfrArtifactClosure* _subsystem_callback;
-  static bool _class_unload;
-
-  static void do_klass(Klass* k);
-  static void do_unloaded_klass(Klass* k);
-  static void do_klasses();
-
-  static void do_package(PackageEntry* entry);
-  static void do_unloaded_package(PackageEntry* entry);
-  static void do_packages();
-
-  static void do_module(ModuleEntry* entry);
-  static void do_unloaded_module(ModuleEntry* entry);
-  static void do_modules();
-
-  static void do_class_loader_data(ClassLoaderData* cld);
-  static void do_unloaded_class_loader_data(ClassLoaderData* cld);
-  static void do_class_loaders();
-
-  static void write_klass_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void write_package_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void write_module_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void write_class_loader_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void write_method_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void write_symbol_constants(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer);
-  static void serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload);
+ public:
+  static size_t serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer, bool class_unload);
 };
 
-#endif // SHARE_VM_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPESET_HPP

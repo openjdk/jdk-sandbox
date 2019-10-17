@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #import "OSVersion.h"
 #import "ThreadUtilities.h"
 
+#import <Carbon/Carbon.h>
 #import <JavaNativeFoundation/JavaNativeFoundation.h>
 
 @interface AWTView()
@@ -98,27 +99,6 @@ static BOOL shouldUsePressAndHold() {
         //[self setLayerContentsRedrawPolicy: NSViewLayerContentsRedrawDuringViewResize];
         //[self setLayerContentsPlacement: NSViewLayerContentsPlacementTopLeft];
         //[self setAutoresizingMask: NSViewHeightSizable | NSViewWidthSizable];
-
-#ifdef REMOTELAYER
-        CGLLayer *parentLayer = (CGLLayer*)self.cglLayer;
-        parentLayer.parentLayer = NULL;
-        parentLayer.remoteLayer = NULL;
-        if (JRSRemotePort != 0 && remoteSocketFD > 0) {
-            CGLLayer *remoteLayer = [[CGLLayer alloc] initWithJavaLayer: parentLayer.javaLayer];
-            remoteLayer.target = GL_TEXTURE_2D;
-            NSLog(@"Creating Parent=%p, Remote=%p", parentLayer, remoteLayer);
-            parentLayer.remoteLayer = remoteLayer;
-            remoteLayer.parentLayer = parentLayer;
-            remoteLayer.remoteLayer = NULL;
-            remoteLayer.jrsRemoteLayer = [remoteLayer createRemoteLayerBoundTo:JRSRemotePort];
-            [remoteLayer retain];  // REMIND
-            remoteLayer.frame = CGRectMake(0, 0, 720, 500); // REMIND
-            [remoteLayer.jrsRemoteLayer retain]; // REMIND
-            int layerID = [remoteLayer.jrsRemoteLayer layerID];
-            NSLog(@"layer id to send = %d", layerID);
-            sendLayerID(layerID);
-        }
-#endif /* REMOTELAYER */
     }
 
     return self;
@@ -141,6 +121,11 @@ static BOOL shouldUsePressAndHold() {
         fInputMethodLOCKABLE = NULL;
     }
 
+    if (rolloverTrackingArea != nil) {
+        [self removeTrackingArea:rolloverTrackingArea];
+        [rolloverTrackingArea release];
+        rolloverTrackingArea = nil;
+    }
 
     [super dealloc];
 }
@@ -281,11 +266,31 @@ static BOOL shouldUsePressAndHold() {
     // Allow TSM to look at the event and potentially send back NSTextInputClient messages.
     [self interpretKeyEvents:[NSArray arrayWithObject:event]];
 
-    if (fEnablePressAndHold && [event willBeHandledByComplexInputMethod] && fInputMethodLOCKABLE) {
+    if (fEnablePressAndHold && [event willBeHandledByComplexInputMethod] &&
+        fInputMethodLOCKABLE)
+    {
         fProcessingKeystroke = NO;
         if (!fInPressAndHold) {
             fInPressAndHold = YES;
             fPAHNeedsToSelect = YES;
+        } else {
+            // Abandon input to reset IM and unblock input after canceling
+            // input accented symbols
+
+            switch([event keyCode]) {
+                case kVK_Escape:
+                case kVK_Delete:
+                case kVK_Return:
+                case kVK_ForwardDelete:
+                case kVK_PageUp:
+                case kVK_PageDown:
+                case kVK_DownArrow:
+                case kVK_UpArrow:
+                case kVK_Home:
+                case kVK_End:
+                   [self abandonInput];
+                   break;
+            }
         }
         return;
     }
@@ -537,10 +542,14 @@ static BOOL shouldUsePressAndHold() {
 }
 
 -(BOOL) isCodePointInUnicodeBlockNeedingIMEvent: (unichar) codePoint {
-    if (((codePoint >= 0x3000) && (codePoint <= 0x303F)) ||
+    if ((codePoint == 0x0024) || (codePoint == 0x00A3) ||
+        (codePoint == 0x00A5) ||
+        ((codePoint >= 0x20A3) && (codePoint <= 0x20BF)) ||
+	((codePoint >= 0x3000) && (codePoint <= 0x303F)) ||
         ((codePoint >= 0xFF00) && (codePoint <= 0xFFEF))) {
         // Code point is in 'CJK Symbols and Punctuation' or
-        // 'Halfwidth and Fullwidth Forms' Unicode block.
+        // 'Halfwidth and Fullwidth Forms' Unicode block or
+	// currency symbols unicode
         return YES;
     }
     return NO;
@@ -974,6 +983,11 @@ JNF_CLASS_CACHE(jc_CInputMethod, "sun/lwawt/macosx/CInputMethod");
         }
     }
     fPAHNeedsToSelect = NO;
+
+    // Abandon input to reset IM and unblock input after entering accented
+    // symbols
+
+    [self abandonInput];
 }
 
 - (void) doCommandBySelector:(SEL)aSelector
@@ -1394,10 +1408,8 @@ Java_sun_lwawt_macosx_CPlatformView_nativeGetNSViewDisplayID
     JNF_COCOA_ENTER(env);
 
     NSView *view = (NSView *)jlong_to_ptr(viewPtr);
-    NSWindow *window = [view window];
-
     [ThreadUtilities performOnMainThreadWaiting:YES block:^(){
-
+        NSWindow *window = [view window];
         ret = (jint)[[AWTWindow getNSWindowDisplayID_AppKitThread: window] intValue];
     }];
 

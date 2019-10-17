@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_CMS_CMSHEAP_HPP
-#define SHARE_VM_GC_CMS_CMSHEAP_HPP
+#ifndef SHARE_GC_CMS_CMSHEAP_HPP
+#define SHARE_GC_CMS_CMSHEAP_HPP
 
 #include "gc/cms/concurrentMarkSweepGeneration.hpp"
 #include "gc/cms/parNewGeneration.hpp"
@@ -34,7 +34,6 @@
 #include "utilities/growableArray.hpp"
 
 class CLDClosure;
-class GenCollectorPolicy;
 class GCMemoryManager;
 class MemoryPool;
 class OopsInGenClosure;
@@ -45,7 +44,7 @@ class WorkGang;
 
 class CMSHeap : public GenCollectedHeap {
 public:
-  CMSHeap(GenCollectorPolicy *policy);
+  CMSHeap();
 
   // Returns JNI_OK on success
   virtual jint initialize();
@@ -91,8 +90,7 @@ public:
                          ScanningOption so,
                          bool only_strong_roots,
                          OopsInGenClosure* root_closure,
-                         CLDClosure* cld_closure,
-                         OopStorage::ParState<false, false>* par_state_string = NULL);
+                         CLDClosure* cld_closure);
 
   GCMemoryManager* old_manager() const { return _old_manager; }
 
@@ -139,4 +137,4 @@ private:
   void collect_mostly_concurrent(GCCause::Cause cause);
 };
 
-#endif // SHARE_VM_GC_CMS_CMSHEAP_HPP
+#endif // SHARE_GC_CMS_CMSHEAP_HPP

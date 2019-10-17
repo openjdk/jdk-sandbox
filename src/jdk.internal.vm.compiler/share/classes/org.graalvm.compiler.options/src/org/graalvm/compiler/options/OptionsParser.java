@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,9 @@
 
 package org.graalvm.compiler.options;
 
+import static jdk.vm.ci.services.Services.IS_BUILDING_NATIVE_IMAGE;
+import static jdk.vm.ci.services.Services.IS_IN_NATIVE_IMAGE;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Formatter;
@@ -39,26 +42,21 @@ import jdk.internal.vm.compiler.collections.MapCursor;
  */
 public class OptionsParser {
 
+    private static volatile List<OptionDescriptors> cachedOptionDescriptors;
+
     /**
-     * Gets an iterable composed of the {@link ServiceLoader}s to be used when looking for
-     * {@link OptionDescriptors} providers.
+     * Gets an iterable of available {@link OptionDescriptors}.
      */
     public static Iterable<OptionDescriptors> getOptionsLoader() {
-        boolean java8OrEarlier = System.getProperty("java.specification.version").compareTo("1.9") < 0;
-        ClassLoader loader;
-        if (java8OrEarlier) {
-            // On JDK 8, Graal and its extensions are loaded by same class loader.
-            loader = OptionDescriptors.class.getClassLoader();
-        } else {
-            /*
-             * The Graal module (i.e., jdk.internal.vm.compiler) is loaded by the platform class
-             * loader as of JDK 9. Modules that depend on and extend Graal are loaded by the app
-             * class loader. As such, we need to start the provider search at the app class loader
-             * instead of the platform class loader.
-             */
-            loader = ClassLoader.getSystemClassLoader();
+        if (IS_IN_NATIVE_IMAGE || cachedOptionDescriptors != null) {
+            return cachedOptionDescriptors;
         }
-        return ServiceLoader.load(OptionDescriptors.class, loader);
+        return ModuleSupport.getOptionsLoader();
+    }
+
+    public static void setCachedOptionDescriptors(List<OptionDescriptors> list) {
+        assert IS_BUILDING_NATIVE_IMAGE : "Used to pre-initialize the option descriptors during native image generation";
+        OptionsParser.cachedOptionDescriptors = list;
     }
 
     /**
@@ -178,7 +176,7 @@ public class OptionsParser {
             }
         }
 
-        desc.optionKey.update(values, value);
+        desc.getOptionKey().update(values, value);
     }
 
     private static long parseLong(String v) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_C1_C1_CODESTUBS_HPP
-#define SHARE_VM_C1_C1_CODESTUBS_HPP
+#ifndef SHARE_C1_C1_CODESTUBS_HPP
+#define SHARE_C1_C1_CODESTUBS_HPP
 
 #include "c1/c1_FrameMap.hpp"
 #include "c1/c1_IR.hpp"
@@ -394,11 +394,9 @@ class PatchingStub: public CodeStub {
       _id(id)
     , _info(NULL)
     , _index(index) {
-    if (os::is_MP()) {
-      // force alignment of patch sites on MP hardware so we
-      // can guarantee atomic writes to the patch site.
-      align_patch_site(masm);
-    }
+    // force alignment of patch sites so we
+    // can guarantee atomic writes to the patch site.
+    align_patch_site(masm);
     _pc_start = masm->pc();
     masm->bind(_patch_site_entry);
   }
@@ -538,4 +536,4 @@ class ArrayCopyStub: public CodeStub {
 #endif // PRODUCT
 };
 
-#endif // SHARE_VM_C1_C1_CODESTUBS_HPP
+#endif // SHARE_C1_C1_CODESTUBS_HPP

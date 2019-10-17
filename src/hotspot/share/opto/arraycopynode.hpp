@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,10 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_ARRAYCOPYNODE_HPP
-#define SHARE_VM_OPTO_ARRAYCOPYNODE_HPP
+#ifndef SHARE_OPTO_ARRAYCOPYNODE_HPP
+#define SHARE_OPTO_ARRAYCOPYNODE_HPP
 
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "opto/callnode.hpp"
 
 class GraphKit;
@@ -46,7 +47,7 @@ private:
   static const char* _kind_names[CopyOfRange+1];
 #endif
   // Is the alloc obtained with
-  // AllocateArrayNode::Ideal_array_allocation() tighly coupled
+  // AllocateArrayNode::Ideal_array_allocation() tightly coupled
   // (arraycopy follows immediately the allocation)?
   // We cache the result of LibraryCallKit::tightly_coupled_allocation
   // here because it's much easier to find whether there's a tightly
@@ -96,19 +97,22 @@ private:
   void array_copy_test_overlap(PhaseGVN *phase, bool can_reshape,
                                bool disjoint_bases, int count,
                                Node*& forward_ctl, Node*& backward_ctl);
-  Node* array_copy_forward(PhaseGVN *phase, bool can_reshape, Node* ctl,
-                           Node* start_mem_src, Node* start_mem_dest,
+  Node* array_copy_forward(PhaseGVN *phase, bool can_reshape, Node*& ctl,
+                           MergeMemNode* mm,
                            const TypePtr* atp_src, const TypePtr* atp_dest,
                            Node* adr_src, Node* base_src, Node* adr_dest, Node* base_dest,
                            BasicType copy_type, const Type* value_type, int count);
-  Node* array_copy_backward(PhaseGVN *phase, bool can_reshape, Node* ctl,
-                            Node *start_mem_src, Node* start_mem_dest,
+  Node* array_copy_backward(PhaseGVN *phase, bool can_reshape, Node*& ctl,
+                            MergeMemNode* mm,
                             const TypePtr* atp_src, const TypePtr* atp_dest,
                             Node* adr_src, Node* base_src, Node* adr_dest, Node* base_dest,
                             BasicType copy_type, const Type* value_type, int count);
   bool finish_transform(PhaseGVN *phase, bool can_reshape,
                         Node* ctl, Node *mem);
   static bool may_modify_helper(const TypeOopPtr *t_oop, Node* n, PhaseTransform *phase, CallNode*& call);
+
+  static Node* load(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMemNode* mem, Node* addr, const TypePtr* adr_type, const Type *type, BasicType bt);
+  void store(BarrierSetC2* bs, PhaseGVN *phase, Node*& ctl, MergeMemNode* mem, Node* addr, const TypePtr* adr_type, Node* val, const Type *type, BasicType bt);
 
 public:
 
@@ -174,4 +178,4 @@ public:
   virtual void dump_compact_spec(outputStream* st) const;
 #endif
 };
-#endif // SHARE_VM_OPTO_ARRAYCOPYNODE_HPP
+#endif // SHARE_OPTO_ARRAYCOPYNODE_HPP

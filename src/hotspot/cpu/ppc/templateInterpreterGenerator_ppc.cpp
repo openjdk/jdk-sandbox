@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2015, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -532,14 +532,8 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
   // these parameters the pre-barrier does not generate
   // the load of the previous value.
 
-  // Restore caller sp for c2i case.
-#ifdef ASSERT
-  __ ld(R9_ARG7, 0, R1_SP);
-  __ ld(R10_ARG8, 0, R21_sender_SP);
-  __ cmpd(CCR0, R9_ARG7, R10_ARG8);
-  __ asm_assert_eq("backlink", 0x544);
-#endif // ASSERT
-  __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
+  // Restore caller sp for c2i case (from compiled) and for resized sender frame (from interpreted).
+  __ resize_frame_absolute(R21_sender_SP, R11_scratch1, R0);
 
   __ blr();
 
@@ -835,8 +829,13 @@ void TemplateInterpreterGenerator::generate_stack_overflow_check(Register Rmem_f
   assert(StubRoutines::throw_StackOverflowError_entry() != NULL, "generated in wrong order");
   __ load_const_optimized(Rscratch1, (StubRoutines::throw_StackOverflowError_entry()), R0);
   __ mtctr(Rscratch1);
-  // Restore caller_sp.
+  // Restore caller_sp (c2i adapter may exist, but no shrinking of interpreted caller frame).
 #ifdef ASSERT
+  Label frame_not_shrunk;
+  __ cmpld(CCR0, R1_SP, R21_sender_SP);
+  __ ble(CCR0, frame_not_shrunk);
+  __ stop("frame shrunk", 0x546);
+  __ bind(frame_not_shrunk);
   __ ld(Rscratch1, 0, R1_SP);
   __ ld(R0, 0, R21_sender_SP);
   __ cmpd(CCR0, R0, Rscratch1);
@@ -1051,17 +1050,14 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   // Get mirror and store it in the frame as GC root for this Method*.
   __ load_mirror_from_const_method(R12_scratch2, Rconst_method);
 
-  __ addi(R26_monitor, R1_SP, - frame::ijava_state_size);
-  __ addi(R15_esp, R26_monitor, - Interpreter::stackElementSize);
+  __ addi(R26_monitor, R1_SP, -frame::ijava_state_size);
+  __ addi(R15_esp, R26_monitor, -Interpreter::stackElementSize);
 
   // Store values.
-  // R15_esp, R14_bcp, R26_monitor, R28_mdx are saved at java calls
-  // in InterpreterMacroAssembler::call_from_interpreter.
   __ std(R19_method, _ijava_state_neg(method), R1_SP);
   __ std(R12_scratch2, _ijava_state_neg(mirror), R1_SP);
-  __ std(R21_sender_SP, _ijava_state_neg(sender_sp), R1_SP);
-  __ std(R27_constPoolCache, _ijava_state_neg(cpoolCache), R1_SP);
   __ std(R18_locals, _ijava_state_neg(locals), R1_SP);
+  __ std(R27_constPoolCache, _ijava_state_neg(cpoolCache), R1_SP);
 
   // Note: esp, bcp, monitor, mdx live in registers. Hence, the correct version can only
   // be found in the frame after save_interpreter_state is done. This is always true
@@ -1069,31 +1065,20 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call, Regist
   // because e.g. frame::interpreter_frame_bcp() will not access the correct value
   // (Enhanced Stack Trace).
   // The signal handler does not save the interpreter state into the frame.
+
+  // We have to initialize some of these frame slots for native calls (accessed by GC).
+  // Also initialize them for non-native calls for better tool support (even though
+  // you may not get the most recent version as described above).
   __ li(R0, 0);
-#ifdef ASSERT
-  // Fill remaining slots with constants.
-  __ load_const_optimized(R11_scratch1, 0x5afe);
-  __ load_const_optimized(R12_scratch2, 0xdead);
-#endif
-  // We have to initialize some frame slots for native calls (accessed by GC).
-  if (native_call) {
-    __ std(R26_monitor, _ijava_state_neg(monitors), R1_SP);
-    __ std(R14_bcp, _ijava_state_neg(bcp), R1_SP);
-    if (ProfileInterpreter) { __ std(R28_mdx, _ijava_state_neg(mdx), R1_SP); }
-  }
-#ifdef ASSERT
-  else {
-    __ std(R12_scratch2, _ijava_state_neg(monitors), R1_SP);
-    __ std(R12_scratch2, _ijava_state_neg(bcp), R1_SP);
-    __ std(R12_scratch2, _ijava_state_neg(mdx), R1_SP);
-  }
-  __ std(R11_scratch1, _ijava_state_neg(ijava_reserved), R1_SP);
-  __ std(R12_scratch2, _ijava_state_neg(esp), R1_SP);
-  __ std(R12_scratch2, _ijava_state_neg(lresult), R1_SP);
-  __ std(R12_scratch2, _ijava_state_neg(fresult), R1_SP);
-#endif
+  __ std(R26_monitor, _ijava_state_neg(monitors), R1_SP);
+  __ std(R14_bcp, _ijava_state_neg(bcp), R1_SP);
+  if (ProfileInterpreter) { __ std(R28_mdx, _ijava_state_neg(mdx), R1_SP); }
+  __ std(R15_esp, _ijava_state_neg(esp), R1_SP);
+  __ std(R0, _ijava_state_neg(oop_tmp), R1_SP); // only used for native_call
+
+  // Store sender's SP and this frame's top SP.
   __ subf(R12_scratch2, top_frame_size, R1_SP);
-  __ std(R0, _ijava_state_neg(oop_tmp), R1_SP);
+  __ std(R21_sender_SP, _ijava_state_neg(sender_sp), R1_SP);
   __ std(R12_scratch2, _ijava_state_neg(top_frame_sp), R1_SP);
 
   // Push top frame.
@@ -1155,15 +1140,6 @@ address TemplateInterpreterGenerator::generate_math_entry(AbstractInterpreter::M
     }
   }
 
-  // Pop c2i arguments (if any) off when we return.
-#ifdef ASSERT
-  __ ld(R9_ARG7, 0, R1_SP);
-  __ ld(R10_ARG8, 0, R21_sender_SP);
-  __ cmpd(CCR0, R9_ARG7, R10_ARG8);
-  __ asm_assert_eq("backlink", 0x545);
-#endif // ASSERT
-  __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
-
   if (use_instruction) {
     switch (kind) {
       case Interpreter::java_lang_math_sqrt: __ fsqrt(F1_RET, F1);          break;
@@ -1188,6 +1164,8 @@ address TemplateInterpreterGenerator::generate_math_entry(AbstractInterpreter::M
     __ restore_LR_CR(R0);
   }
 
+  // Restore caller sp for c2i case (from compiled) and for resized sender frame (from interpreted).
+  __ resize_frame_absolute(R21_sender_SP, R11_scratch1, R0);
   __ blr();
 
   __ flush();
@@ -1486,16 +1464,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ li(R0/*thread_state*/, _thread_in_native_trans);
   __ release();
   __ stw(R0/*thread_state*/, thread_(thread_state));
-  if (UseMembar) {
-    __ fence();
-  }
-  // Write serialization page so that the VM thread can do a pseudo remote
-  // membar. We use the current thread pointer to calculate a thread
-  // specific offset to write to within the page. This minimizes bus
-  // traffic due to cache line collision.
-  else {
-    __ serialize_memory(R16_thread, R11_scratch1, R12_scratch2);
-  }
+  __ fence();
 
   // Now before we return to java we must look for a current safepoint
   // (a new safepoint can not start since we entered native_trans).
@@ -1832,28 +1801,26 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
     // R15_esp is callers operand stack pointer, i.e. it points to the parameters.
     const Register argP    = R15_esp;
     const Register crc     = R3_ARG1;  // crc value
-    const Register data    = R4_ARG2;  // address of java byte value (kernel_crc32 needs address)
-    const Register dataLen = R5_ARG3;  // source data len (1 byte). Not used because calling the single-byte emitter.
-    const Register table   = R6_ARG4;  // address of crc32 table
-    const Register tmp     = dataLen;  // Reuse unused len register to show we don't actually need a separate tmp here.
+    const Register data    = R4_ARG2;
+    const Register table   = R5_ARG3;  // address of crc32 table
 
     BLOCK_COMMENT("CRC32_update {");
 
     // Arguments are reversed on java expression stack
 #ifdef VM_LITTLE_ENDIAN
-    __ addi(data, argP, 0+1*wordSize); // (stack) address of byte value. Emitter expects address, not value.
+    int data_offs = 0+1*wordSize;      // (stack) address of byte value. Emitter expects address, not value.
                                        // Being passed as an int, the single byte is at offset +0.
 #else
-    __ addi(data, argP, 3+1*wordSize); // (stack) address of byte value. Emitter expects address, not value.
+    int data_offs = 3+1*wordSize;      // (stack) address of byte value. Emitter expects address, not value.
                                        // Being passed from java as an int, the single byte is at offset +3.
 #endif
-    __ lwz(crc,  2*wordSize, argP);    // Current crc state, zero extend to 64 bit to have a clean register.
+    __ lwz(crc, 2*wordSize, argP);     // Current crc state, zero extend to 64 bit to have a clean register.
+    __ lbz(data, data_offs, argP);     // Byte from buffer, zero-extended.
+    __ load_const_optimized(table, StubRoutines::crc_table_addr(), R0);
+    __ kernel_crc32_singleByteReg(crc, data, table, true);
 
-    StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
-    __ kernel_crc32_singleByte(crc, data, dataLen, table, tmp, true);
-
-    // Restore caller sp for c2i case and return.
-    __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
+    // Restore caller sp for c2i case (from compiled) and for resized sender frame (from interpreted).
+    __ resize_frame_absolute(R21_sender_SP, R11_scratch1, R0);
     __ blr();
 
     // Generate a vanilla native entry as the slow path.
@@ -1890,19 +1857,7 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
     const Register crc     = R3_ARG1;  // crc value
     const Register data    = R4_ARG2;  // address of java byte array
     const Register dataLen = R5_ARG3;  // source data len
-    const Register table   = R6_ARG4;  // address of crc32 table
-
-    const Register t0      = R9;       // scratch registers for crc calculation
-    const Register t1      = R10;
-    const Register t2      = R11;
-    const Register t3      = R12;
-
-    const Register tc0     = R2;       // registers to hold pre-calculated column addresses
-    const Register tc1     = R7;
-    const Register tc2     = R8;
-    const Register tc3     = table;    // table address is reconstructed at the end of kernel_crc32_* emitters
-
-    const Register tmp     = t0;       // Only used very locally to calculate byte buffer address.
+    const Register tmp     = R11_scratch1;
 
     // Arguments are reversed on java expression stack.
     // Calculate address of start element.
@@ -1933,15 +1888,10 @@ address TemplateInterpreterGenerator::generate_CRC32_updateBytes_entry(AbstractI
       __ addi(data, data, arrayOopDesc::base_offset_in_bytes(T_BYTE));
     }
 
-    StubRoutines::ppc64::generate_load_crc_table_addr(_masm, table);
+    __ crc32(crc, data, dataLen, R2, R6, R7, R8, R9, R10, R11, R12, false);
 
-    // Performance measurements show the 1word and 2word variants to be almost equivalent,
-    // with very light advantages for the 1word variant. We chose the 1word variant for
-    // code compactness.
-    __ kernel_crc32_1word(crc, data, dataLen, table, t0, t1, t2, t3, tc0, tc1, tc2, tc3, true);
-
-    // Restore caller sp for c2i case and return.
-    __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
+    // Restore caller sp for c2i case (from compiled) and for resized sender frame (from interpreted).
+    __ resize_frame_absolute(R21_sender_SP, R11_scratch1, R0);
     __ blr();
 
     // Generate a vanilla native entry as the slow path.
@@ -1976,19 +1926,7 @@ address TemplateInterpreterGenerator::generate_CRC32C_updateBytes_entry(Abstract
     const Register crc     = R3_ARG1;  // crc value
     const Register data    = R4_ARG2;  // address of java byte array
     const Register dataLen = R5_ARG3;  // source data len
-    const Register table   = R6_ARG4;  // address of crc32c table
-
-    const Register t0      = R9;       // scratch registers for crc calculation
-    const Register t1      = R10;
-    const Register t2      = R11;
-    const Register t3      = R12;
-
-    const Register tc0     = R2;       // registers to hold pre-calculated column addresses
-    const Register tc1     = R7;
-    const Register tc2     = R8;
-    const Register tc3     = table;    // table address is reconstructed at the end of kernel_crc32_* emitters
-
-    const Register tmp     = t0;       // Only used very locally to calculate byte buffer address.
+    const Register tmp     = R11_scratch1;
 
     // Arguments are reversed on java expression stack.
     // Calculate address of start element.
@@ -2021,15 +1959,10 @@ address TemplateInterpreterGenerator::generate_CRC32C_updateBytes_entry(Abstract
       __ addi(data, data, arrayOopDesc::base_offset_in_bytes(T_BYTE));
     }
 
-    StubRoutines::ppc64::generate_load_crc32c_table_addr(_masm, table);
+    __ crc32(crc, data, dataLen, R2, R6, R7, R8, R9, R10, R11, R12, true);
 
-    // Performance measurements show the 1word and 2word variants to be almost equivalent,
-    // with very light advantages for the 1word variant. We chose the 1word variant for
-    // code compactness.
-    __ kernel_crc32_1word(crc, data, dataLen, table, t0, t1, t2, t3, tc0, tc1, tc2, tc3, false);
-
-    // Restore caller sp for c2i case and return.
-    __ mr(R1_SP, R21_sender_SP); // Cut the stack back to where the caller started.
+    // Restore caller sp for c2i case (from compiled) and for resized sender frame (from interpreted).
+    __ resize_frame_absolute(R21_sender_SP, R11_scratch1, R0);
     __ blr();
 
     BLOCK_COMMENT("} CRC32C_update{Bytes|DirectByteBuffer}");

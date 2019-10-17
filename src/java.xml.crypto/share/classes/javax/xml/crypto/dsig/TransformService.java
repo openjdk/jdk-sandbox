@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,11 +68,11 @@ import javax.xml.crypto.dsig.spec.TransformParameterSpec;
  * </pre>
  * <code>TransformService</code> implementations that support the DOM
  * mechanism type must abide by the DOM interoperability requirements defined
- * in the
- * {@extLink security_guide_xmldsig_rqmts DOM Mechanism Requirements} section
- * of the API overview. See the
- * {@extLink security_guide_xmldsig_provider Service Providers} section of
- * the API overview for a list of standard mechanism types.
+ * in the <a href="package-summary.html#dom_req">DOM Mechanism
+ * Requirements</a>. See the {@code TransformService} section in the <a href=
+ * "{@docRoot}/../specs/security/standard-names.html#xml-signature-xmlsignaturefactorykeyinfofactorytransformservice-mechanisms">
+ * Java Security Standard Algorithm Names Specification</a> for a list of
+ * standard algorithm URIs and mechanism types.
  * <p>
  * Once a <code>TransformService</code> has been created, it can be used
  * to process <code>Transform</code> or <code>CanonicalizationMethod</code>
@@ -141,9 +141,18 @@ public abstract class TransformService implements Transform {
      * may be different than the order of providers returned by
      * {@link Security#getProviders() Security.getProviders()}.
      *
-     * @param algorithm the URI of the algorithm
+     * @param algorithm the URI of the algorithm. See the
+     *    {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-transform-transformservice-algorithms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard transform algorithms.
      * @param mechanismType the type of the XML processing mechanism and
-     *   representation
+     *    representation. See the {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-xmlsignaturefactorykeyinfofactorytransformservice-mechanisms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard mechanism types.
      * @return a new <code>TransformService</code>
      * @throws NullPointerException if <code>algorithm</code> or
      *   <code>mechanismType</code> is  <code>null</code>
@@ -193,9 +202,18 @@ public abstract class TransformService implements Transform {
      * <code>Provider</code> object does not have to be registered in the
      * provider list.
      *
-     * @param algorithm the URI of the algorithm
+     * @param algorithm the URI of the algorithm. See the
+     *    {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-transform-transformservice-algorithms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard transform algorithms.
      * @param mechanismType the type of the XML processing mechanism and
-     *   representation
+     *    representation. See the {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-xmlsignaturefactorykeyinfofactorytransformservice-mechanisms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard mechanism types.
      * @param provider the <code>Provider</code> object
      * @return a new <code>TransformService</code>
      * @throws NullPointerException if <code>provider</code>,
@@ -246,9 +264,18 @@ public abstract class TransformService implements Transform {
      * <p>Note that the list of registered providers may be retrieved via
      * the {@link Security#getProviders() Security.getProviders()} method.
      *
-     * @param algorithm the URI of the algorithm
+     * @param algorithm the URI of the algorithm. See the
+     *    {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-transform-transformservice-algorithms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard transform algorithms.
      * @param mechanismType the type of the XML processing mechanism and
-     *   representation
+     *    representation. See the {@code TransformService} section in the
+     *    <a href=
+     *    "{@docRoot}/../specs/security/standard-names.html#xml-signature-xmlsignaturefactorykeyinfofactorytransformservice-mechanisms">
+     *    Java Security Standard Algorithm Names Specification</a> for a list of
+     *    standard mechanism types.
      * @param provider the string name of the provider
      * @return a new <code>TransformService</code>
      * @throws NoSuchProviderException if the specified provider is not

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ADLC_ADLC_HPP
-#define SHARE_VM_ADLC_ADLC_HPP
+#ifndef SHARE_ADLC_ADLC_HPP
+#define SHARE_ADLC_ADLC_HPP
 
 //
 // Standard include file for ADLC parser
@@ -48,6 +48,10 @@ using namespace std;
 
 #if _MSC_VER >= 1400
 #define strdup _strdup
+#endif
+
+#if _MSC_VER < 1900
+#define snprintf _snprintf
 #endif
 
 #ifndef _INTPTR_T_DEFINED
@@ -104,4 +108,4 @@ typedef unsigned int uintptr_t;
 // it everywhere it needs to be available.
 extern ArchDesc* globalAD;
 
-#endif // SHARE_VM_ADLC_ADLC_HPP
+#endif // SHARE_ADLC_ADLC_HPP

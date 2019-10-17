@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_ARM_VM_C1_FRAMEMAP_ARM_HPP
-#define CPU_ARM_VM_C1_FRAMEMAP_ARM_HPP
+#ifndef CPU_ARM_C1_FRAMEMAP_ARM_HPP
+#define CPU_ARM_C1_FRAMEMAP_ARM_HPP
 
  public:
 
@@ -54,9 +54,6 @@
   static LIR_Opr R4_metadata_opr;
   static LIR_Opr R5_metadata_opr;
 
-#ifdef AARCH64
-  static LIR_Opr ZR_opr;
-#endif // AARCH64
 
   static LIR_Opr LR_opr;
   static LIR_Opr LR_oop_opr;
@@ -75,19 +72,6 @@
   static LIR_Opr Exception_oop_opr;
   static LIR_Opr Exception_pc_opr;
 
-#ifdef AARCH64
-  static LIR_Opr as_long_opr(Register r) {
-    return LIR_OprFact::double_cpu(cpu_reg2rnr(r), cpu_reg2rnr(r));
-  }
-
-  static LIR_Opr as_pointer_opr(Register r) {
-    return LIR_OprFact::double_cpu(cpu_reg2rnr(r), cpu_reg2rnr(r));
-  }
-
-  static LIR_Opr as_double_opr(FloatRegister r) {
-    return LIR_OprFact::double_fpu(r->encoding());
-  }
-#else
   static LIR_Opr as_long_opr(Register r, Register r2) {
     return LIR_OprFact::double_cpu(cpu_reg2rnr(r), cpu_reg2rnr(r2));
   }
@@ -99,7 +83,6 @@
   static LIR_Opr as_double_opr(FloatRegister r) {
     return LIR_OprFact::double_fpu(r->encoding(), r->successor()->encoding());
   }
-#endif
 
   static LIR_Opr as_float_opr(FloatRegister r) {
     return LIR_OprFact::single_fpu(r->encoding());
@@ -125,4 +108,4 @@
     return pd_last_cpu_reg;
   }
 
-#endif // CPU_ARM_VM_C1_FRAMEMAP_ARM_HPP
+#endif // CPU_ARM_C1_FRAMEMAP_ARM_HPP

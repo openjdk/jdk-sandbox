@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/symbolTable.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compilerDirectives.hpp"
 #include "memory/allocation.inline.hpp"
@@ -83,7 +84,7 @@ void vmSymbols::initialize(TRAPS) {
   if (!UseSharedSpaces) {
     const char* string = &vm_symbol_bodies[0];
     for (int index = (int)FIRST_SID; index < (int)SID_LIMIT; index++) {
-      Symbol* sym = SymbolTable::new_permanent_symbol(string, CHECK);
+      Symbol* sym = SymbolTable::new_permanent_symbol(string);
       _symbols[index] = sym;
       string += strlen(string); // skip string body
       string += 1;              // skip trailing null
@@ -140,7 +141,7 @@ void vmSymbols::initialize(TRAPS) {
     // Spot-check correspondence between strings, symbols, and enums:
     assert(_symbols[NO_SID] == NULL, "must be");
     const char* str = "java/lang/Object";
-    TempNewSymbol jlo = SymbolTable::new_permanent_symbol(str, CHECK);
+    TempNewSymbol jlo = SymbolTable::new_permanent_symbol(str);
     assert(strncmp(str, (char*)jlo->base(), jlo->utf8_length()) == 0, "");
     assert(jlo == java_lang_Object(), "");
     SID sid = VM_SYMBOL_ENUM_NAME(java_lang_Object);
@@ -159,7 +160,7 @@ void vmSymbols::initialize(TRAPS) {
     // The string "format" happens (at the moment) not to be a vmSymbol,
     // though it is a method name in java.lang.String.
     str = "format";
-    TempNewSymbol fmt = SymbolTable::new_permanent_symbol(str, CHECK);
+    TempNewSymbol fmt = SymbolTable::new_permanent_symbol(str);
     sid = find_sid(fmt);
     assert(sid == NO_SID, "symbol index works (negative test)");
   }
@@ -212,7 +213,7 @@ void vmSymbols::serialize(SerializeClosure* soc) {
 BasicType vmSymbols::signature_type(const Symbol* s) {
   assert(s != NULL, "checking");
   if (s->utf8_length() == 1) {
-    BasicType result = char2type(s->byte_at(0));
+    BasicType result = char2type(s->char_at(0));
     if (is_java_primitive(result) || result == T_VOID) {
       assert(s == _type_signatures[result], "");
       return result;
@@ -363,6 +364,9 @@ bool vmIntrinsics::preserves_state(vmIntrinsics::ID id) {
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_currentThread:
   case vmIntrinsics::_dabs:
+  case vmIntrinsics::_fabs:
+  case vmIntrinsics::_iabs:
+  case vmIntrinsics::_labs:
   case vmIntrinsics::_dsqrt:
   case vmIntrinsics::_dsin:
   case vmIntrinsics::_dcos:
@@ -379,6 +383,10 @@ bool vmIntrinsics::preserves_state(vmIntrinsics::ID id) {
   case vmIntrinsics::_vectorizedMismatch:
   case vmIntrinsics::_fmaD:
   case vmIntrinsics::_fmaF:
+  case vmIntrinsics::_isDigit:
+  case vmIntrinsics::_isLowerCase:
+  case vmIntrinsics::_isUpperCase:
+  case vmIntrinsics::_isWhitespace:
     return true;
   default:
     return false;
@@ -400,6 +408,9 @@ bool vmIntrinsics::can_trap(vmIntrinsics::ID id) {
   case vmIntrinsics::_longBitsToDouble:
   case vmIntrinsics::_currentThread:
   case vmIntrinsics::_dabs:
+  case vmIntrinsics::_fabs:
+  case vmIntrinsics::_iabs:
+  case vmIntrinsics::_labs:
   case vmIntrinsics::_dsqrt:
   case vmIntrinsics::_dsin:
   case vmIntrinsics::_dcos:
@@ -452,6 +463,8 @@ int vmIntrinsics::predicates_needed(vmIntrinsics::ID id) {
   switch (id) {
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:
   case vmIntrinsics::_cipherBlockChaining_decryptAESCrypt:
+  case vmIntrinsics::_electronicCodeBook_encryptAESCrypt:
+  case vmIntrinsics::_electronicCodeBook_decryptAESCrypt:
   case vmIntrinsics::_counterMode_AESCrypt:
     return 1;
   case vmIntrinsics::_digestBase_implCompressMB:
@@ -473,15 +486,16 @@ bool vmIntrinsics::is_intrinsic_disabled(vmIntrinsics::ID id) {
   // Note, DirectiveSet may not be created at this point yet since this code
   // is called from initial stub geenration code.
   char* local_list = (char*)DirectiveSet::canonicalize_disableintrinsic(DisableIntrinsic);
-
+  char* save_ptr;
   bool found = false;
-  char* token = strtok(local_list, ",");
+
+  char* token = strtok_r(local_list, ",", &save_ptr);
   while (token != NULL) {
     if (strcmp(token, vmIntrinsics::name_at(id)) == 0) {
       found = true;
       break;
     } else {
-      token = strtok(NULL, ",");
+      token = strtok_r(NULL, ",", &save_ptr);
     }
   }
 
@@ -527,7 +541,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
     case vmIntrinsics::_getAndAddLong:
     case vmIntrinsics::_getAndSetInt:
     case vmIntrinsics::_getAndSetLong:
-    case vmIntrinsics::_getAndSetObject:
+    case vmIntrinsics::_getAndSetReference:
     case vmIntrinsics::_loadFence:
     case vmIntrinsics::_storeFence:
     case vmIntrinsics::_fullFence:
@@ -561,7 +575,13 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_intBitsToFloat:
   case vmIntrinsics::_doubleToRawLongBits:
   case vmIntrinsics::_longBitsToDouble:
+  case vmIntrinsics::_ceil:
+  case vmIntrinsics::_floor:
+  case vmIntrinsics::_rint:
   case vmIntrinsics::_dabs:
+  case vmIntrinsics::_fabs:
+  case vmIntrinsics::_iabs:
+  case vmIntrinsics::_labs:
   case vmIntrinsics::_dsqrt:
   case vmIntrinsics::_dsin:
   case vmIntrinsics::_dcos:
@@ -575,6 +595,10 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_max:
   case vmIntrinsics::_floatToIntBits:
   case vmIntrinsics::_doubleToLongBits:
+  case vmIntrinsics::_maxF:
+  case vmIntrinsics::_minF:
+  case vmIntrinsics::_maxD:
+  case vmIntrinsics::_minD:
     if (!InlineMathNatives) return true;
     break;
   case vmIntrinsics::_fmaD:
@@ -589,7 +613,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_updateByteBufferCRC32:
     if (!UseCRC32Intrinsics) return true;
     break;
-  case vmIntrinsics::_getObject:
+  case vmIntrinsics::_getReference:
   case vmIntrinsics::_getBoolean:
   case vmIntrinsics::_getByte:
   case vmIntrinsics::_getShort:
@@ -598,7 +622,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_getLong:
   case vmIntrinsics::_getFloat:
   case vmIntrinsics::_getDouble:
-  case vmIntrinsics::_putObject:
+  case vmIntrinsics::_putReference:
   case vmIntrinsics::_putBoolean:
   case vmIntrinsics::_putByte:
   case vmIntrinsics::_putShort:
@@ -607,7 +631,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_putLong:
   case vmIntrinsics::_putFloat:
   case vmIntrinsics::_putDouble:
-  case vmIntrinsics::_getObjectVolatile:
+  case vmIntrinsics::_getReferenceVolatile:
   case vmIntrinsics::_getBooleanVolatile:
   case vmIntrinsics::_getByteVolatile:
   case vmIntrinsics::_getShortVolatile:
@@ -616,7 +640,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_getLongVolatile:
   case vmIntrinsics::_getFloatVolatile:
   case vmIntrinsics::_getDoubleVolatile:
-  case vmIntrinsics::_putObjectVolatile:
+  case vmIntrinsics::_putReferenceVolatile:
   case vmIntrinsics::_putBooleanVolatile:
   case vmIntrinsics::_putByteVolatile:
   case vmIntrinsics::_putShortVolatile:
@@ -625,7 +649,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_putLongVolatile:
   case vmIntrinsics::_putFloatVolatile:
   case vmIntrinsics::_putDoubleVolatile:
-  case vmIntrinsics::_getObjectAcquire:
+  case vmIntrinsics::_getReferenceAcquire:
   case vmIntrinsics::_getBooleanAcquire:
   case vmIntrinsics::_getByteAcquire:
   case vmIntrinsics::_getShortAcquire:
@@ -634,7 +658,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_getLongAcquire:
   case vmIntrinsics::_getFloatAcquire:
   case vmIntrinsics::_getDoubleAcquire:
-  case vmIntrinsics::_putObjectRelease:
+  case vmIntrinsics::_putReferenceRelease:
   case vmIntrinsics::_putBooleanRelease:
   case vmIntrinsics::_putByteRelease:
   case vmIntrinsics::_putShortRelease:
@@ -643,7 +667,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_putLongRelease:
   case vmIntrinsics::_putFloatRelease:
   case vmIntrinsics::_putDoubleRelease:
-  case vmIntrinsics::_getObjectOpaque:
+  case vmIntrinsics::_getReferenceOpaque:
   case vmIntrinsics::_getBooleanOpaque:
   case vmIntrinsics::_getByteOpaque:
   case vmIntrinsics::_getShortOpaque:
@@ -652,7 +676,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_getLongOpaque:
   case vmIntrinsics::_getFloatOpaque:
   case vmIntrinsics::_getDoubleOpaque:
-  case vmIntrinsics::_putObjectOpaque:
+  case vmIntrinsics::_putReferenceOpaque:
   case vmIntrinsics::_putBooleanOpaque:
   case vmIntrinsics::_putByteOpaque:
   case vmIntrinsics::_putShortOpaque:
@@ -665,7 +689,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_getAndAddLong:
   case vmIntrinsics::_getAndSetInt:
   case vmIntrinsics::_getAndSetLong:
-  case vmIntrinsics::_getAndSetObject:
+  case vmIntrinsics::_getAndSetReference:
   case vmIntrinsics::_loadFence:
   case vmIntrinsics::_storeFence:
   case vmIntrinsics::_fullFence:
@@ -679,20 +703,20 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_weakCompareAndSetIntPlain:
   case vmIntrinsics::_weakCompareAndSetIntAcquire:
   case vmIntrinsics::_weakCompareAndSetIntRelease:
-  case vmIntrinsics::_compareAndSetObject:
-  case vmIntrinsics::_weakCompareAndSetObject:
-  case vmIntrinsics::_weakCompareAndSetObjectPlain:
-  case vmIntrinsics::_weakCompareAndSetObjectAcquire:
-  case vmIntrinsics::_weakCompareAndSetObjectRelease:
+  case vmIntrinsics::_compareAndSetReference:
+  case vmIntrinsics::_weakCompareAndSetReference:
+  case vmIntrinsics::_weakCompareAndSetReferencePlain:
+  case vmIntrinsics::_weakCompareAndSetReferenceAcquire:
+  case vmIntrinsics::_weakCompareAndSetReferenceRelease:
   case vmIntrinsics::_compareAndExchangeInt:
   case vmIntrinsics::_compareAndExchangeIntAcquire:
   case vmIntrinsics::_compareAndExchangeIntRelease:
   case vmIntrinsics::_compareAndExchangeLong:
   case vmIntrinsics::_compareAndExchangeLongAcquire:
   case vmIntrinsics::_compareAndExchangeLongRelease:
-  case vmIntrinsics::_compareAndExchangeObject:
-  case vmIntrinsics::_compareAndExchangeObjectAcquire:
-  case vmIntrinsics::_compareAndExchangeObjectRelease:
+  case vmIntrinsics::_compareAndExchangeReference:
+  case vmIntrinsics::_compareAndExchangeReferenceAcquire:
+  case vmIntrinsics::_compareAndExchangeReferenceRelease:
     if (!InlineUnsafeOps) return true;
     break;
   case vmIntrinsics::_getShortUnaligned:
@@ -715,6 +739,10 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
     break;
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:
   case vmIntrinsics::_cipherBlockChaining_decryptAESCrypt:
+    if (!UseAESIntrinsics) return true;
+    break;
+  case vmIntrinsics::_electronicCodeBook_encryptAESCrypt:
+  case vmIntrinsics::_electronicCodeBook_decryptAESCrypt:
     if (!UseAESIntrinsics) return true;
     break;
   case vmIntrinsics::_counterMode_AESCrypt:
@@ -826,6 +854,12 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_subtractExactI:
   case vmIntrinsics::_subtractExactL:
     if (!UseMathExactIntrinsics || !InlineMathNatives) return true;
+    break;
+  case vmIntrinsics::_isDigit:
+  case vmIntrinsics::_isLowerCase:
+  case vmIntrinsics::_isUpperCase:
+  case vmIntrinsics::_isWhitespace:
+    if (!UseCharacterCompareIntrinsics) return true;
     break;
 #endif // COMPILER2
   default:

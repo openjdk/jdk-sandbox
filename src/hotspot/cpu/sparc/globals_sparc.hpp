@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef CPU_SPARC_VM_GLOBALS_SPARC_HPP
-#define CPU_SPARC_VM_GLOBALS_SPARC_HPP
+#ifndef CPU_SPARC_GLOBALS_SPARC_HPP
+#define CPU_SPARC_GLOBALS_SPARC_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -37,8 +37,6 @@
 // the load of the dispatch address and hence the jmp would still go to the location
 // according to the prior table. So, we let the thread continue and let it block by itself.
 define_pd_global(bool, DontYieldALot,               true);  // yield no more than 100 times per second
-define_pd_global(bool, ShareVtableStubs,            false); // improves performance markedly for mtrt and compress
-define_pd_global(bool, NeedsDeoptSuspend,           true); // register window machines need this
 
 define_pd_global(bool, ImplicitNullChecks,          true);  // Generate code for implicit null checks
 define_pd_global(bool, TrapBasedNullChecks,         false); // Not needed on sparc.
@@ -73,8 +71,6 @@ define_pd_global(intx, StackReservedPages, DEFAULT_STACK_RESERVED_PAGES);
 
 define_pd_global(bool, RewriteBytecodes,     true);
 define_pd_global(bool, RewriteFrequentPairs, true);
-
-define_pd_global(bool, UseMembar,            true);
 
 define_pd_global(bool, PreserveFramePointer, false);
 
@@ -136,4 +132,4 @@ define_pd_global(bool, ThreadLocalHandshakes, true);
           "Distance to prefetch destination array in arraycopy")            \
           constraint(ArraycopyDstPrefetchDistanceConstraintFunc, AfterErgo) \
 
-#endif // CPU_SPARC_VM_GLOBALS_SPARC_HPP
+#endif // CPU_SPARC_GLOBALS_SPARC_HPP

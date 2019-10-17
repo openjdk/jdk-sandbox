@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,10 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
-#define SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
+#ifndef SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP
+#define SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP
 
+#include "runtime/flags/jvmFlag.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #if INCLUDE_CMSGC
@@ -59,8 +60,10 @@ JVMFlag::Error MaxTenuringThresholdConstraintFunc(uintx value, bool verbose);
 JVMFlag::Error MaxGCPauseMillisConstraintFunc(uintx value, bool verbose);
 JVMFlag::Error GCPauseIntervalMillisConstraintFunc(uintx value, bool verbose);
 JVMFlag::Error InitialBootClassLoaderMetaspaceSizeConstraintFunc(size_t value, bool verbose);
+JVMFlag::Error MinHeapSizeConstraintFunc(size_t value, bool verbose);
 JVMFlag::Error InitialHeapSizeConstraintFunc(size_t value, bool verbose);
 JVMFlag::Error MaxHeapSizeConstraintFunc(size_t value, bool verbose);
+JVMFlag::Error SoftMaxHeapSizeConstraintFunc(size_t value, bool verbose);
 JVMFlag::Error HeapBaseMinAddressConstraintFunc(size_t value, bool verbose);
 JVMFlag::Error NewSizeConstraintFunc(size_t value, bool verbose);
 JVMFlag::Error MinTLABSizeConstraintFunc(size_t value, bool verbose);
@@ -74,4 +77,4 @@ JVMFlag::Error SurvivorAlignmentInBytesConstraintFunc(intx value, bool verbose);
 // Internal
 JVMFlag::Error MaxPLABSizeBounds(const char* name, size_t value, bool verbose);
 
-#endif // SHARE_GC_SHARED_COMMANDLINEFLAGCONSTRAINTSGC_HPP
+#endif // SHARE_GC_SHARED_JVMFLAGCONSTRAINTSGC_HPP

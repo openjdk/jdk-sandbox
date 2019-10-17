@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,12 +22,28 @@
  */
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package jdk.internal.vm.compiler.collections;
 
 /**
  * Cursor to iterate over a mutable map.
  *
- * @since 1.0
+ * @since 19.0
  */
 public interface MapCursor<K, V> extends UnmodifiableMapCursor<K, V> {
     /**
@@ -35,7 +51,7 @@ public interface MapCursor<K, V> extends UnmodifiableMapCursor<K, V> {
      * {@link #remove()}, it is no longer valid to call {@link #getKey()} or {@link #getValue()} on
      * the current entry.
      *
-     * @since 1.0
+     * @since 19.0
      */
     void remove();
 }

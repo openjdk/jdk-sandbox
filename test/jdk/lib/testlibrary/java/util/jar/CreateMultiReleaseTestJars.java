@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,7 +69,7 @@ public class CreateMultiReleaseTestJars {
             + "        return 9;\n"
             + "    }\n"
             + "}\n";
-    final int currentVersion = Runtime.version().major();
+    final int currentVersion = Runtime.version().feature();
     final String currentVersionStr = Integer.toString(currentVersion);
     final private String javaCurrent = java8.replace("8", currentVersionStr);
     final String readme8 = "This is the root readme file";
@@ -142,6 +142,12 @@ public class CreateMultiReleaseTestJars {
     }
 
     public void buildSignedMultiReleaseJar() throws Exception {
+        buildSignedMultiReleaseJar("multi-release.jar", "signed-multi-release.jar");
+    }
+
+    public void buildSignedMultiReleaseJar(String multiReleaseJar,
+                                           String signedMultiReleaseJar) throws Exception
+    {
         String testsrc = System.getProperty("test.src",".");
         String testdir = findTestDir(testsrc);
         String keystore = testdir + "/sun/security/tools/jarsigner/JarSigning.keystore";
@@ -155,8 +161,8 @@ public class CreateMultiReleaseTestJars {
         CertPath cp = CertificateFactory.getInstance("X.509")
                 .generateCertPath(Arrays.asList(ks.getCertificateChain("b")));
         JarSigner js = new JarSigner.Builder(pkb, cp).build();
-        try (ZipFile in = new ZipFile("multi-release.jar");
-             FileOutputStream os = new FileOutputStream("signed-multi-release.jar"))
+        try (ZipFile in = new ZipFile(multiReleaseJar);
+             FileOutputStream os = new FileOutputStream(signedMultiReleaseJar))
         {
             js.sign(in, os);
         }

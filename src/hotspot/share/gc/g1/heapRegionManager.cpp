@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,12 +23,15 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/g1/g1Arguments.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentRefine.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/g1/heterogeneousHeapRegionManager.hpp"
 #include "memory/allocation.hpp"
+#include "utilities/bitMap.inline.hpp"
 
 class MasterFreeRegionListChecker : public HeapRegionSetChecker {
 public:
@@ -53,17 +56,24 @@ public:
 };
 
 HeapRegionManager::HeapRegionManager() :
-  _regions(), _heap_mapper(NULL),
-  _prev_bitmap_mapper(NULL),
-  _next_bitmap_mapper(NULL),
   _bot_mapper(NULL),
   _cardtable_mapper(NULL),
   _card_counts_mapper(NULL),
-  _free_list("Free list", new MasterFreeRegionListChecker()),
   _available_map(mtGC),
   _num_committed(0),
-  _allocated_heapregions_length(0)
+  _allocated_heapregions_length(0),
+  _regions(), _heap_mapper(NULL),
+  _prev_bitmap_mapper(NULL),
+  _next_bitmap_mapper(NULL),
+  _free_list("Free list", new MasterFreeRegionListChecker())
 { }
+
+HeapRegionManager* HeapRegionManager::create_manager(G1CollectedHeap* heap) {
+  if (G1Arguments::is_heterogeneous_heap()) {
+    return new HeterogeneousHeapRegionManager((uint)(G1Arguments::heap_max_size_bytes() / HeapRegion::GrainBytes) /*heap size as num of regions*/);
+  }
+  return new HeapRegionManager();
+}
 
 void HeapRegionManager::initialize(G1RegionToSpaceMapper* heap_storage,
                                G1RegionToSpaceMapper* prev_bitmap,
@@ -320,7 +330,7 @@ uint HeapRegionManager::find_highest_free(bool* expanded) {
   uint curr = max_length() - 1;
   while (true) {
     HeapRegion *hr = _regions.get_by_index(curr);
-    if (hr == NULL) {
+    if (hr == NULL || !is_available(curr)) {
       uint res = expand_at(curr, 1, NULL);
       if (res == 1) {
         *expanded = true;
@@ -513,7 +523,7 @@ void HeapRegionManager::verify_optional() {
 #endif // PRODUCT
 
 HeapRegionClaimer::HeapRegionClaimer(uint n_workers) :
-    _n_workers(n_workers), _n_regions(G1CollectedHeap::heap()->_hrm._allocated_heapregions_length), _claims(NULL) {
+    _n_workers(n_workers), _n_regions(G1CollectedHeap::heap()->_hrm->_allocated_heapregions_length), _claims(NULL) {
   assert(n_workers > 0, "Need at least one worker.");
   uint* new_claims = NEW_C_HEAP_ARRAY(uint, _n_regions, mtGC);
   memset(new_claims, Unclaimed, sizeof(*_claims) * _n_regions);
@@ -521,9 +531,7 @@ HeapRegionClaimer::HeapRegionClaimer(uint n_workers) :
 }
 
 HeapRegionClaimer::~HeapRegionClaimer() {
-  if (_claims != NULL) {
-    FREE_C_HEAP_ARRAY(uint, _claims);
-  }
+  FREE_C_HEAP_ARRAY(uint, _claims);
 }
 
 uint HeapRegionClaimer::offset_for_worker(uint worker_id) const {

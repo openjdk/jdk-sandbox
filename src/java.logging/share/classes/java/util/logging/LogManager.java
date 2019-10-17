@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.internal.misc.JavaAWTAccess;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.JavaAWTAccess;
+import jdk.internal.access.SharedSecrets;
 import sun.util.logging.internal.LoggingProviderImpl;
 import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
 
@@ -64,7 +64,7 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  * At startup the LogManager class is located using the
  * java.util.logging.manager system property.
  *
- * <h3>LogManager Configuration</h3>
+ * <h2>LogManager Configuration</h2>
  *
  * A LogManager initializes the logging configuration via
  * the {@link #readConfiguration()} method during LogManager initialization.
@@ -76,8 +76,8 @@ import static jdk.internal.logger.DefaultLoggerFinder.isSystem;
  * the initial configuration, as specified in the {@link #readConfiguration()}
  * method:
  * <ul>
- * <li>"java.util.logging.config.class"
- * <li>"java.util.logging.config.file"
+ * <li>{@systemProperty java.util.logging.config.class}
+ * <li>{@systemProperty java.util.logging.config.file}
  * </ul>
  * <p>
  * These two system properties may be specified on the command line to the "java"
@@ -890,7 +890,7 @@ public class LogManager {
         // Gets a node in our tree of logger nodes.
         // If necessary, create it.
         LogNode getNode(String name) {
-            if (name == null || name.equals("")) {
+            if (name == null || name.isEmpty()) {
                 return root;
             }
             LogNode node = root;
@@ -1486,7 +1486,7 @@ public class LogManager {
 
         // Reset Logger level
         String name = logger.getName();
-        if (name != null && name.equals("")) {
+        if (name != null && name.isEmpty()) {
             // This is the root logger.
             logger.setLevel(defaultLevel);
         } else {

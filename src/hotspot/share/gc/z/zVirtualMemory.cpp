@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,24 +24,47 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zVirtualMemory.inline.hpp"
+#include "logging/log.hpp"
 #include "services/memTracker.hpp"
 
-ZVirtualMemoryManager::ZVirtualMemoryManager() :
+ZVirtualMemoryManager::ZVirtualMemoryManager(size_t max_capacity) :
     _manager(),
     _initialized(false) {
-  // Reserve address space
-  if (!reserve(ZAddressSpaceStart, ZAddressSpaceSize)) {
+
+  // Check max supported heap size
+  if (max_capacity > ZAddressOffsetMax) {
+    log_error(gc)("Java heap too large (max supported heap size is " SIZE_FORMAT "G)",
+                  ZAddressOffsetMax / G);
     return;
   }
 
-  // Make the complete address view free
-  _manager.free(0, ZAddressOffsetMax);
+  log_info(gc, init)("Address Space: " SIZE_FORMAT "T", ZAddressOffsetMax / K / G);
 
-  // Register address space with native memory tracker
-  nmt_reserve(ZAddressSpaceStart, ZAddressSpaceSize);
+  // Reserve address space
+  if (reserve(0, ZAddressOffsetMax) < max_capacity) {
+    log_error(gc)("Failed to reserve address space for Java heap");
+    return;
+  }
 
   // Successfully initialized
   _initialized = true;
+}
+
+size_t ZVirtualMemoryManager::reserve(uintptr_t start, size_t size) {
+  if (size < ZGranuleSize) {
+    // Too small
+    return 0;
+  }
+
+  if (!reserve_platform(start, size)) {
+    const size_t half = size / 2;
+    return reserve(start, half) + reserve(start + half, half);
+  }
+
+  // Make the address range free
+  _manager.free(start, size);
+
+  return size;
 }
 
 void ZVirtualMemoryManager::nmt_reserve(uintptr_t start, size_t size) {
@@ -67,6 +90,6 @@ ZVirtualMemory ZVirtualMemoryManager::alloc(size_t size, bool alloc_from_front) 
   return ZVirtualMemory(start, size);
 }
 
-void ZVirtualMemoryManager::free(ZVirtualMemory vmem) {
+void ZVirtualMemoryManager::free(const ZVirtualMemory& vmem) {
   _manager.free(vmem.start(), vmem.size());
 }

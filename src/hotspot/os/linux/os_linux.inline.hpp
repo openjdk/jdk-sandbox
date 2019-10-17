@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef OS_LINUX_VM_OS_LINUX_INLINE_HPP
-#define OS_LINUX_VM_OS_LINUX_INLINE_HPP
+#ifndef OS_LINUX_OS_LINUX_INLINE_HPP
+#define OS_LINUX_OS_LINUX_INLINE_HPP
 
 #include "runtime/os.hpp"
+#include "os_posix.inline.hpp"
 
 // System includes
 
@@ -33,15 +34,6 @@
 #include <sys/socket.h>
 #include <poll.h>
 #include <netdb.h>
-
-// File names are case-insensitive on windows only
-inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
-  return strncmp(s1, s2, num);
-}
-
-inline bool os::obsolete_option(const JavaVMOption *option) {
-  return false;
-}
 
 inline bool os::uses_stack_guard_pages() {
   return true;
@@ -66,8 +58,6 @@ inline void os::map_stack_shadow_pages(address sp) {
 inline void os::dll_unload(void *lib) {
   ::dlclose(lib);
 }
-
-inline const int os::default_file_open_flags() { return 0;}
 
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);
@@ -95,12 +85,6 @@ inline int os::ftruncate(int fd, jlong length) {
 
 inline bool os::numa_has_static_binding()   { return true; }
 inline bool os::numa_has_group_homing()     { return false;  }
-
-inline size_t os::restartable_read(int fd, void *buf, unsigned int nBytes) {
-  size_t res;
-  RESTARTABLE( (size_t) ::read(fd, buf, (size_t) nBytes), res);
-  return res;
-}
 
 inline size_t os::write(int fd, const void *buf, unsigned int nBytes) {
   size_t res;
@@ -141,11 +125,11 @@ inline struct hostent* os::get_host_by_name(char* name) {
 }
 
 inline bool os::supports_monotonic_clock() {
-  return Linux::_clock_gettime != NULL;
+  return os::Posix::supports_monotonic_clock();
 }
 
 inline void os::exit(int num) {
   ::exit(num);
 }
 
-#endif // OS_LINUX_VM_OS_LINUX_INLINE_HPP
+#endif // OS_LINUX_OS_LINUX_INLINE_HPP

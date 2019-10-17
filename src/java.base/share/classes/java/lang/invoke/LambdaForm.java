@@ -27,6 +27,7 @@ package java.lang.invoke;
 
 import jdk.internal.perf.PerfCounter;
 import jdk.internal.vm.annotation.DontInline;
+import jdk.internal.vm.annotation.Hidden;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.Wrapper;
 
@@ -296,10 +297,10 @@ class LambdaForm {
         DIRECT_NEW_INVOKE_SPECIAL("DMH.newInvokeSpecial", "newInvokeSpecial"),
         DIRECT_INVOKE_INTERFACE("DMH.invokeInterface", "invokeInterface"),
         DIRECT_INVOKE_STATIC_INIT("DMH.invokeStaticInit", "invokeStaticInit"),
-        GET_OBJECT("getObject"),
-        PUT_OBJECT("putObject"),
-        GET_OBJECT_VOLATILE("getObjectVolatile"),
-        PUT_OBJECT_VOLATILE("putObjectVolatile"),
+        GET_REFERENCE("getReference"),
+        PUT_REFERENCE("putReference"),
+        GET_REFERENCE_VOLATILE("getReferenceVolatile"),
+        PUT_REFERENCE_VOLATILE("putReferenceVolatile"),
         GET_INT("getInt"),
         PUT_INT("putInt"),
         GET_INT_VOLATILE("getIntVolatile"),
@@ -1826,15 +1827,6 @@ class LambdaForm {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @interface Compiled {
-    }
-
-    /**
-     * Internal marker for LambdaForm interpreter frames.
-     */
-    /*non-public*/
-    @Target(ElementType.METHOD)
-    @Retention(RetentionPolicy.RUNTIME)
-    @interface Hidden {
     }
 
     private static final HashMap<String,Integer> DEBUG_NAME_COUNTERS;

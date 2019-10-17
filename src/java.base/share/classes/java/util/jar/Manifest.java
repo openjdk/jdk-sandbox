@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,14 +25,17 @@
 
 package java.util.jar;
 
-import java.io.FilterInputStream;
 import java.io.DataOutputStream;
+import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.IOException;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.Map;
+
+import sun.security.util.SecurityProperties;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * The Manifest class is used to maintain Manifest entry names and their
@@ -47,16 +50,21 @@ import java.util.Iterator;
  * @since   1.2
  */
 public class Manifest implements Cloneable {
+
     // manifest main attributes
-    private Attributes attr = new Attributes();
+    private final Attributes attr = new Attributes();
 
     // manifest entries
-    private Map<String, Attributes> entries = new HashMap<>();
+    private final Map<String, Attributes> entries = new HashMap<>();
+
+    // associated JarVerifier, not null when called by JarFile::getManifest.
+    private final JarVerifier jv;
 
     /**
      * Constructs a new, empty Manifest.
      */
     public Manifest() {
+        jv = null;
     }
 
     /**
@@ -66,7 +74,32 @@ public class Manifest implements Cloneable {
      * @throws IOException if an I/O error has occurred
      */
     public Manifest(InputStream is) throws IOException {
-        read(is);
+        this(null, is, null);
+    }
+
+    /**
+     * Constructs a new Manifest from the specified input stream.
+     *
+     * @param is the input stream containing manifest data
+     * @param jarFilename the name of the corresponding jar archive if available
+     * @throws IOException if an I/O error has occurred
+     */
+    Manifest(InputStream is, String jarFilename) throws IOException {
+        this(null, is, jarFilename);
+    }
+
+    /**
+     * Constructs a new Manifest from the specified input stream
+     * and associates it with a JarVerifier.
+     *
+     * @param jv the JarVerifier to use
+     * @param is the input stream containing manifest data
+     * @param jarFilename the name of the corresponding jar archive if available
+     * @throws IOException if an I/O error has occurred
+     */
+    Manifest(JarVerifier jv, InputStream is, String jarFilename) throws IOException {
+        read(is, jarFilename);
+        this.jv = jv;
     }
 
     /**
@@ -77,6 +110,7 @@ public class Manifest implements Cloneable {
     public Manifest(Manifest man) {
         attr.putAll(man.getMainAttributes());
         entries.putAll(man.getEntries());
+        jv = man.jv;
     }
 
     /**
@@ -127,6 +161,27 @@ public class Manifest implements Cloneable {
     }
 
     /**
+     * Returns the Attributes for the specified entry name, if trusted.
+     *
+     * @param name entry name
+     * @return returns the same result as {@link #getAttributes(String)}
+     * @throws SecurityException if the associated jar is signed but this entry
+     *      has been modified after signing (i.e. the section in the manifest
+     *      does not exist in SF files of all signers).
+     */
+    Attributes getTrustedAttributes(String name) {
+        // Note: Before the verification of MANIFEST.MF/.SF/.RSA files is done,
+        // jv.isTrustedManifestEntry() isn't able to detect MANIFEST.MF change.
+        // Users of this method should call SharedSecrets.javaUtilJarAccess()
+        // .ensureInitialization() first.
+        Attributes result = getAttributes(name);
+        if (result != null && jv != null && ! jv.isTrustedManifestEntry(name)) {
+            throw new SecurityException("Untrusted manifest entry: " + name);
+        }
+        return result;
+    }
+
+    /**
      * Clears the main Attributes as well as the entries in this Manifest.
      */
     public void clear() {
@@ -140,34 +195,31 @@ public class Manifest implements Cloneable {
      * MainAttributes prior to invoking this method.
      *
      * @param out the output stream
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      * @see #getMainAttributes
      */
-    @SuppressWarnings("deprecation")
     public void write(OutputStream out) throws IOException {
         DataOutputStream dos = new DataOutputStream(out);
         // Write out the main attributes for the manifest
         attr.writeMain(dos);
         // Now write out the per-entry attributes
+        StringBuilder buffer = entries.isEmpty() ? null : new StringBuilder(72);
         for (Map.Entry<String, Attributes> e : entries.entrySet()) {
-            StringBuffer buffer = new StringBuffer("Name: ");
-            String value = e.getKey();
-            if (value != null) {
-                byte[] vb = value.getBytes("UTF8");
-                value = new String(vb, 0, 0, vb.length);
-            }
-            buffer.append(value);
-            make72Safe(buffer);
-            buffer.append("\r\n");
-            dos.writeBytes(buffer.toString());
+            buffer.setLength(0);
+            buffer.append("Name: ");
+            buffer.append(e.getKey());
+            println72(dos, buffer.toString());
             e.getValue().write(dos);
         }
         dos.flush();
     }
 
     /**
-     * Adds line breaks to enforce a maximum 72 bytes per line.
+     * Adds line breaks to enforce a maximum of 72 bytes per line.
+     *
+     * @deprecation Replaced with {@link #println72}.
      */
+    @Deprecated(since = "13")
     static void make72Safe(StringBuffer line) {
         int length = line.length();
         int index = 72;
@@ -176,7 +228,46 @@ public class Manifest implements Cloneable {
             index += 74; // + line width + line break ("\r\n")
             length += 3; // + line break ("\r\n") and space
         }
-        return;
+    }
+
+    /**
+     * Writes {@code line} to {@code out} with line breaks and continuation
+     * spaces within the limits of 72 bytes of contents per line followed
+     * by a line break.
+     */
+    static void println72(OutputStream out, String line) throws IOException {
+        if (!line.isEmpty()) {
+            byte[] lineBytes = line.getBytes(UTF_8);
+            int length = lineBytes.length;
+            // first line can hold one byte more than subsequent lines which
+            // start with a continuation line break space
+            out.write(lineBytes[0]);
+            int pos = 1;
+            while (length - pos > 71) {
+                out.write(lineBytes, pos, 71);
+                pos += 71;
+                println(out);
+                out.write(' ');
+            }
+            out.write(lineBytes, pos, length - pos);
+        }
+        println(out);
+    }
+
+    /**
+     * Writes a line break to {@code out}.
+     */
+    static void println(OutputStream out) throws IOException {
+        out.write('\r');
+        out.write('\n');
+    }
+
+    static String getErrorPosition(String filename, final int lineNumber) {
+        if (filename == null ||
+                !SecurityProperties.INCLUDE_JAR_NAME_IN_EXCEPTIONS) {
+            return "line " + lineNumber;
+        }
+        return "manifest of " + filename + ":" + lineNumber;
     }
 
     /**
@@ -185,15 +276,19 @@ public class Manifest implements Cloneable {
      * manifest entries.
      *
      * @param is the input stream
-     * @exception IOException if an I/O error has occurred
+     * @throws    IOException if an I/O error has occurred
      */
     public void read(InputStream is) throws IOException {
+        read(is, null);
+    }
+
+    private void read(InputStream is, String jarFilename) throws IOException {
         // Buffered input stream for reading manifest data
         FastInputStream fis = new FastInputStream(is);
         // Line buffer
         byte[] lbuf = new byte[512];
         // Read the main attributes for the manifest
-        attr.read(fis, lbuf);
+        int lineNumber = attr.read(fis, lbuf, jarFilename, 0);
         // Total number of entries, attributes read
         int ecount = 0, acount = 0;
         // Average size of entry attributes
@@ -206,8 +301,11 @@ public class Manifest implements Cloneable {
 
         while ((len = fis.readLine(lbuf)) != -1) {
             byte c = lbuf[--len];
+            lineNumber++;
+
             if (c != '\n' && c != '\r') {
-                throw new IOException("manifest line too long");
+                throw new IOException("manifest line too long ("
+                           + getErrorPosition(jarFilename, lineNumber) + ")");
             }
             if (len > 0 && lbuf[len-1] == '\r') {
                 --len;
@@ -220,7 +318,8 @@ public class Manifest implements Cloneable {
             if (name == null) {
                 name = parseName(lbuf, len);
                 if (name == null) {
-                    throw new IOException("invalid manifest format");
+                    throw new IOException("invalid manifest format ("
+                              + getErrorPosition(jarFilename, lineNumber) + ")");
                 }
                 if (fis.peek() == ' ') {
                     // name is wrapped
@@ -238,7 +337,7 @@ public class Manifest implements Cloneable {
                     lastline = buf;
                     continue;
                 }
-                name = new String(buf, 0, buf.length, "UTF8");
+                name = new String(buf, 0, buf.length, UTF_8);
                 lastline = null;
             }
             Attributes attr = getAttributes(name);
@@ -246,7 +345,7 @@ public class Manifest implements Cloneable {
                 attr = new Attributes(asize);
                 entries.put(name, attr);
             }
-            attr.read(fis, lbuf);
+            lineNumber = attr.read(fis, lbuf, jarFilename, lineNumber);
             ecount++;
             acount += attr.size();
             //XXX: Fix for when the average is 0. When it is 0,
@@ -264,7 +363,7 @@ public class Manifest implements Cloneable {
             toLower(lbuf[2]) == 'm' && toLower(lbuf[3]) == 'e' &&
             lbuf[4] == ':' && lbuf[5] == ' ') {
             try {
-                return new String(lbuf, 6, len - 6, "UTF8");
+                return new String(lbuf, 6, len - 6, UTF_8);
             }
             catch (Exception e) {
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,48 +23,96 @@
 
 /*
  * @test
- * @bug 8206986
+ * @bug 8206986 8214114 8214529
  * @summary Verify various corner cases with nested switch expressions.
- * @compile --enable-preview -source 12 ExpressionSwitchBugs.java
+ * @compile --enable-preview -source ${jdk.version} ExpressionSwitchBugs.java
  * @run main/othervm --enable-preview ExpressionSwitchBugs
  */
 
 public class ExpressionSwitchBugs {
     public static void main(String... args) {
         new ExpressionSwitchBugs().testNested();
+        new ExpressionSwitchBugs().testAnonymousClasses();
+        new ExpressionSwitchBugs().testFields();
+        check(3, new C(-1, 3).test(false));
+        check(3, new C(3, -1).test(true));
     }
 
     private void testNested() {
         int i = 0;
         check(42, id(switch (42) {
-            default: i++; break 42;
+            default: i++; yield 42;
         }));
         i = 0;
         check(43, id(switch (42) {
             case 42: while (i == 0) {
                 i++;
             }
-            break 42 + i;
-            default: i++; break 42;
+            yield 42 + i;
+            default: i++; yield 42;
         }));
         i = 0;
         check(42, id(switch (42) {
             case 42: if (i == 0) {
-                break 42;
+                yield 42;
             }
-            default: i++; break 43;
+            default: i++; yield 43;
         }));
         i = 0;
         check(42, id(switch (42) {
             case 42: if (i == 0) {
-                break 41 + switch (0) {
+                yield 41 + switch (0) {
                     case 0 -> 1;
                     default -> -1;
                 };
             }
-            default: i++; break 43;
+            default: i++; yield 43;
         }));
     }
+
+    private void testAnonymousClasses() {
+        for (int i : new int[] {1, 2}) {
+            check(3, id((switch (i) {
+                case 1: yield new I() {
+                    public int g() { return 3; }
+                };
+                default: yield (I) () -> { return 3; };
+            }).g()));
+            check(3, id((switch (i) {
+                case 1 -> new I() {
+                    public int g() { return 3; }
+                };
+                default -> (I) () -> { return 3; };
+            }).g()));
+        }
+    }
+
+    private void testFields() {
+        check(3, field);
+        check(3, ExpressionSwitchBugs.staticField);
+    }
+
+    private final int value = 2;
+    private final int field = id(switch(value) {
+        case 0 -> -1;
+        case 2 -> {
+            int temp = 0;
+            temp += 3;
+            yield temp;
+        }
+        default -> throw new IllegalStateException();
+    });
+
+    private static final int staticValue = 2;
+    private static final int staticField = new ExpressionSwitchBugs().id(switch(staticValue) {
+        case 0 -> -1;
+        case 2 -> {
+            int temp = 0;
+            temp += 3;
+            yield temp;
+        }
+        default -> throw new IllegalStateException();
+    });
 
     private int id(int i) {
         return i;
@@ -74,9 +122,41 @@ public class ExpressionSwitchBugs {
         return -1;
     }
 
-    private void check(int actual, int expected) {
+    private static void check(int actual, int expected) {
         if (actual != expected) {
             throw new AssertionError("Unexpected result: " + actual);
+        }
+    }
+
+    public interface I {
+        public int g();
+    }
+
+    static class Super {
+        public final int i;
+
+        public Super(int i) {
+            this.i = i;
+        }
+
+    }
+    static class C extends Super {
+        public final int i;
+
+        public C(int superI, int i) {
+            super(superI);
+            this.i = i;
+        }
+
+        public int test(boolean fromSuper) {
+            return switch (fromSuper ? 0 : 1) {
+                case 0 -> {
+                    yield super.i;
+                }
+                default -> {
+                    yield this.i;
+                }
+            };
         }
     }
 }

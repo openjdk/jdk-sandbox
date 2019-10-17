@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include <string.h>
 #include "jvmti.h"
 #include "agent_common.h"
+#include "ExceptionCheckingJniEnv.hpp"
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
@@ -47,28 +48,23 @@ static jvmtiClassDefinition oldClassDef;
  */
 JNIEXPORT jboolean JNICALL
 Java_nsk_jvmti_scenarios_bcinstr_BI01_bi01t001_setNewByteCode(JNIEnv *jni_env,
-                        jobject o, jbyteArray byteCode) {
-
+                                                              jobject o,
+                                                              jbyteArray byteCode) {
+    ExceptionCheckingJniEnvPtr ec_jni(jni_env);
     jbyte* elements;
     jboolean isCopy;
 
-    if (!NSK_JNI_VERIFY(jni_env, (newClassSize =
-            NSK_CPP_STUB2(GetArrayLength, jni_env, byteCode)) > 0)) {
+    newClassSize = ec_jni->GetArrayLength(byteCode, TRACE_JNI_CALL);
+    if (newClassSize <= 0) {
         nsk_jvmti_setFailStatus();
         return NSK_FALSE;
     }
     NSK_DISPLAY1("\t... got array size: %d\n", newClassSize);
 
-    if (!NSK_JNI_VERIFY(jni_env, (elements =
-            NSK_CPP_STUB3(GetByteArrayElements, jni_env, byteCode,
-                                                        &isCopy)) != NULL)) {
-        nsk_jvmti_setFailStatus();
-        return NSK_FALSE;
-    }
+    elements = ec_jni->GetByteArrayElements(byteCode, &isCopy, TRACE_JNI_CALL);
     NSK_DISPLAY1("\t... got elements list: 0x%p\n", (void*)elements);
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(Allocate, jvmti,
-                                newClassSize, &newClassBytes))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->Allocate(newClassSize, &newClassBytes))) {
         nsk_jvmti_setFailStatus();
         return NSK_FALSE;
     }
@@ -82,7 +78,7 @@ Java_nsk_jvmti_scenarios_bcinstr_BI01_bi01t001_setNewByteCode(JNIEnv *jni_env,
     NSK_DISPLAY1("\t... copied bytecode: %d bytes\n", (int)newClassSize);
 
     NSK_DISPLAY1("\t... release elements list: 0x%p\n", (void*)elements);
-    NSK_TRACE(NSK_CPP_STUB4(ReleaseByteArrayElements, jni_env, byteCode, elements, JNI_ABORT));
+    ec_jni->ReleaseByteArrayElements(byteCode, elements, JNI_ABORT, TRACE_JNI_CALL);
     NSK_DISPLAY0("\t... released\n");
     return NSK_TRUE;
 }
@@ -96,11 +92,8 @@ Java_nsk_jvmti_scenarios_bcinstr_BI01_bi01t001_setNewByteCode(JNIEnv *jni_env,
 JNIEXPORT void JNICALL
 Java_nsk_jvmti_scenarios_bcinstr_BI01_bi01t001_setClass(JNIEnv *jni_env,
                         jobject o, jclass cls) {
-
-    if (!NSK_JNI_VERIFY(jni_env, (oldClassDef.klass = (jclass)
-             NSK_CPP_STUB2(NewGlobalRef, jni_env, cls)) != NULL)) {
-        nsk_jvmti_setFailStatus();
-    }
+    ExceptionCheckingJniEnvPtr ec_jni(jni_env);
+    oldClassDef.klass = (jclass) ec_jni->NewGlobalRef(cls, TRACE_JNI_CALL);
 }
 
 /* ============================================================================= */
@@ -113,7 +106,7 @@ cbClassFileLoadHook(jvmtiEnv *jvmti_env, JNIEnv* jni_env,
             const unsigned char* class_data, jint* new_class_data_len,
             unsigned char** new_class_data) {
 
-    if ( name == NULL || strcmp(name, TESTED_CLASS_NAME) ) {
+    if (name == NULL || strcmp(name, TESTED_CLASS_NAME)) {
         return;
     }
 
@@ -129,9 +122,7 @@ cbClassFileLoadHook(jvmtiEnv *jvmti_env, JNIEnv* jni_env,
         unsigned char *arr;
 
         oldClassDef.class_byte_count = class_data_len;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(Allocate, jvmti_env, class_data_len,
-                                &arr))) {
+        if (!NSK_JVMTI_VERIFY(jvmti_env->Allocate(class_data_len, &arr))) {
             nsk_jvmti_setFailStatus();
             return;
         }
@@ -158,6 +149,7 @@ cbClassFileLoadHook(jvmtiEnv *jvmti_env, JNIEnv* jni_env,
 /** Agent algorithm. */
 static void JNICALL
 agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
+    ExceptionCheckingJniEnvPtr ec_jni(agentJNI);
 
     /*Wait for debuggee to read new byte codes nsk_jvmti_waitForSync#1*/
     NSK_DISPLAY0("Wait for debuggee to read new byte codes nsk_jvmti_waitForSync#1\n");
@@ -181,9 +173,9 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
         return;
 
     NSK_DISPLAY0("Notification disabled for CLASS_FILE_LOAD_HOOK event\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB4(SetEventNotificationMode, jvmti, JVMTI_DISABLE,
-                                JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_DISABLE,
+                                                          JVMTI_EVENT_CLASS_FILE_LOAD_HOOK,
+                                                          NULL))) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -205,8 +197,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
         nsk_printHexBytes("   ", 16, oldClassDef.class_byte_count,
                                 oldClassDef.class_bytes);
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(RedefineClasses, jvmti, 1, &oldClassDef))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RedefineClasses(1, &oldClassDef))) {
         nsk_jvmti_setFailStatus();
         return;
     }
@@ -219,7 +210,7 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* agentJNI, void* arg) {
     if (!nsk_jvmti_waitForSync(timeout))
         return;
 
-    NSK_CPP_STUB2(DeleteGlobalRef, agentJNI, oldClassDef.klass);
+    ec_jni->DeleteGlobalRef(oldClassDef.klass, TRACE_JNI_CALL);
 
     NSK_DISPLAY0("Let debuggee to finish\n");
     if (!nsk_jvmti_resumeSync())
@@ -248,7 +239,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     {
@@ -256,7 +248,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
         memset(&caps, 0, sizeof(caps));
 
         caps.can_redefine_classes = 1;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 
@@ -267,16 +259,15 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         memset(&callbacks, 0, size);
         callbacks.ClassFileLoadHook = cbClassFileLoadHook;
-        if (!NSK_JVMTI_VERIFY(
-                NSK_CPP_STUB3(SetEventCallbacks, jvmti, &callbacks, size))) {
+        if (!NSK_JVMTI_VERIFY(jvmti->SetEventCallbacks(&callbacks, size))) {
             return JNI_ERR;
         }
     }
 
     NSK_DISPLAY0("Set notification enabled for CLASS_FILE_LOAD_HOOK event\n");
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB4(SetEventNotificationMode, jvmti, JVMTI_ENABLE,
-                                JVMTI_EVENT_CLASS_FILE_LOAD_HOOK, NULL))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->SetEventNotificationMode(JVMTI_ENABLE,
+                                                          JVMTI_EVENT_CLASS_FILE_LOAD_HOOK,
+                                                          NULL))) {
         nsk_jvmti_setFailStatus();
         return NSK_FALSE;
     }

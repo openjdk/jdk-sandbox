@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
  * @requires vm.jvmci
  * @library /test/lib /
  * @library ../common/patches
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.access
  *          java.base/jdk.internal.reflect
  *          java.base/jdk.internal.org.objectweb.asm
  *          java.base/jdk.internal.org.objectweb.asm.tree
@@ -41,7 +41,7 @@
  *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI
- *                   -Djvmci.Compiler=null
+ *                   -XX:-UseJVMCICompiler
  *                   compiler.jvmci.compilerToVM.LookupSignatureInPoolTest
  */
 

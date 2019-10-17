@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,7 @@ import java.awt.image.DataBuffer;
 import java.awt.image.DirectColorModel;
 import java.awt.image.VolatileImage;
 import java.awt.image.WritableRaster;
+
 import sun.awt.X11ComponentPeer;
 import sun.awt.X11GraphicsConfig;
 import sun.awt.X11GraphicsDevice;
@@ -51,15 +52,18 @@ import sun.awt.image.SurfaceManager;
 import sun.java2d.SunGraphics2D;
 import sun.java2d.Surface;
 import sun.java2d.SurfaceData;
+import sun.java2d.opengl.GLXSurfaceData.GLXVSyncOffScreenSurfaceData;
 import sun.java2d.pipe.hw.AccelSurface;
 import sun.java2d.pipe.hw.AccelTypedVolatileImage;
 import sun.java2d.pipe.hw.ContextCapabilities;
-import static sun.java2d.opengl.OGLSurfaceData.*;
-import static sun.java2d.opengl.OGLContext.*;
-import static sun.java2d.opengl.OGLContext.OGLContextCaps.*;
-import sun.java2d.opengl.GLXSurfaceData.GLXVSyncOffScreenSurfaceData;
 
-public class GLXGraphicsConfig
+import static sun.java2d.opengl.OGLContext.OGLContextCaps;
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_DOUBLEBUFFERED;
+import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_EXT_FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.FBOBJECT;
+import static sun.java2d.opengl.OGLSurfaceData.TEXTURE;
+
+public final class GLXGraphicsConfig
     extends X11GraphicsConfig
     implements OGLGraphicsConfig
 {
@@ -67,7 +71,7 @@ public class GLXGraphicsConfig
     private BufferCapabilities bufferCaps;
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
-    private OGLContext context;
+    private final OGLContext context;
 
     private static native long getGLXConfigInfo(int screennum, int visualnum);
     private static native int getOGLCapabilities(long configInfo);
@@ -81,7 +85,7 @@ public class GLXGraphicsConfig
         pConfigInfo = configInfo;
         initConfig(getAData(), configInfo);
         this.oglCaps = oglCaps;
-        context = new OGLContext(OGLRenderQueue.getInstance(), this);
+        context = new OGLContext(OGLRenderQueue.getInstance());
     }
 
     @Override
@@ -105,7 +109,7 @@ public class GLXGraphicsConfig
         }
 
         long cfginfo = 0;
-        final String ids[] = new String[1];
+        final String[] ids = new String[1];
         OGLRenderQueue rq = OGLRenderQueue.getInstance();
         rq.lock();
         try {
@@ -172,11 +176,6 @@ public class GLXGraphicsConfig
         return pConfigInfo;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.BufferedContextProvider#getContext
-     */
     @Override
     public final OGLContext getContext() {
         return context;
@@ -211,7 +210,7 @@ public class GLXGraphicsConfig
     }
 
     public String toString() {
-        return ("GLXGraphicsConfig[dev="+screen+
+        return ("GLXGraphicsConfig[dev="+getDevice()+
                 ",vis=0x"+Integer.toHexString(visual)+
                 "]");
     }
@@ -386,11 +385,6 @@ public class GLXGraphicsConfig
         return imageCaps;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.AccelGraphicsConfig#createCompatibleVolatileImage
-     */
     @Override
     public VolatileImage
         createCompatibleVolatileImage(int width, int height,
@@ -414,11 +408,6 @@ public class GLXGraphicsConfig
         return vi;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.AccelGraphicsConfig#getContextCapabilities
-     */
     @Override
     public ContextCapabilities getContextCapabilities() {
         return oglCaps;

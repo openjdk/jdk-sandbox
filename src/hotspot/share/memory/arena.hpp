@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_ARENA_HPP
-#define SHARE_VM_ARENA_HPP
+#ifndef SHARE_MEMORY_ARENA_HPP
+#define SHARE_MEMORY_ARENA_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/globals.hpp"
@@ -106,11 +106,8 @@ protected:
   void* grow(size_t x, AllocFailType alloc_failmode = AllocFailStrategy::EXIT_OOM);
   size_t _size_in_bytes;        // Size of arena (used for native memory tracking)
 
-  NOT_PRODUCT(static julong _bytes_allocated;) // total #bytes allocated since start
-  friend class AllocStats;
   debug_only(void* malloc(size_t size);)
   debug_only(void* internal_malloc_4(size_t x);)
-  NOT_PRODUCT(void inc_bytes_allocated(size_t x);)
 
   void signal_out_of_memory(size_t request, const char* whence) const;
 
@@ -148,7 +145,6 @@ protected:
     debug_only(if (UseMallocOnly) return malloc(x);)
     if (!check_for_overflow(x, "Arena::Amalloc", alloc_failmode))
       return NULL;
-    NOT_PRODUCT(inc_bytes_allocated(x);)
     if (_hwm + x > _max) {
       return grow(x, alloc_failmode);
     } else {
@@ -163,7 +159,6 @@ protected:
     debug_only(if (UseMallocOnly) return malloc(x);)
     if (!check_for_overflow(x, "Arena::Amalloc_4", alloc_failmode))
       return NULL;
-    NOT_PRODUCT(inc_bytes_allocated(x);)
     if (_hwm + x > _max) {
       return grow(x, alloc_failmode);
     } else {
@@ -185,7 +180,6 @@ protected:
 #endif
     if (!check_for_overflow(x, "Arena::Amalloc_D", alloc_failmode))
       return NULL;
-    NOT_PRODUCT(inc_bytes_allocated(x);)
     if (_hwm + x > _max) {
       return grow(x, alloc_failmode); // grow() returns a result aligned >= 8 bytes.
     } else {
@@ -256,4 +250,4 @@ private:
 #define NEW_ARENA_OBJ(arena, type) \
   NEW_ARENA_ARRAY(arena, type, 1)
 
-#endif // SHARE_VM_ARENA_HPP
+#endif // SHARE_MEMORY_ARENA_HPP

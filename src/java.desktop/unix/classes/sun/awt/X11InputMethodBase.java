@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,7 +127,7 @@ public abstract class X11InputMethodBase extends InputMethodAdapter {
     // Initialize highlight mapping table
     static {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Map<TextAttribute, ?> styles[] = new Map[4];
+        Map<TextAttribute, ?>[] styles = new Map[4];
         HashMap<TextAttribute, Object> map;
 
         // UNSELECTED_RAW_TEXT_HIGHLIGHT
@@ -490,7 +490,7 @@ public abstract class X11InputMethodBase extends InputMethodAdapter {
     //       to insure that it cannot be overridden by client subclasses.
     //       DO NOT INVOKE CLIENT CODE ON THIS THREAD!
     abstract void dispatchComposedText(String chgText,
-                                           int chgStyles[],
+                                           int[] chgStyles,
                                            int chgOffset,
                                            int chgLength,
                                            int caretPosition,
@@ -511,7 +511,7 @@ public abstract class X11InputMethodBase extends InputMethodAdapter {
             flush += composedText.toString();
         }
 
-        if (!flush.equals("")) {
+        if (!flush.isEmpty()) {
             AttributedString attrstr = new AttributedString(flush);
             postInputMethodEvent(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED,
                                  attrstr.getIterator(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -273,110 +273,12 @@ static int SCANF_ARGS(2, 3) read_statdata(const char* procfile, _SCANFMT_ const 
   return n;
 }
 
-static FILE* open_statfile(void) {
-  FILE *f;
-
-  if ((f = fopen("/proc/stat", "r")) == NULL) {
-    static int haveWarned = 0;
-    if (!haveWarned) {
-      haveWarned = 1;
-    }
-  }
-  return f;
-}
-
-static void
-next_line(FILE *f) {
-  int c;
-  do {
-    c = fgetc(f);
-  } while (c != '\n' && c != EOF);
-}
-
 /**
- * Return the total number of ticks since the system was booted.
- * If the usedTicks parameter is not NULL, it will be filled with
- * the number of ticks spent on actual processes (user, system or
- * nice processes) since system boot. Note that this is the total number
- * of "executed" ticks on _all_ CPU:s, that is on a n-way system it is
- * n times the number of ticks that has passed in clock time.
- *
- * Returns a negative value if the reading of the ticks failed.
+ * on Linux we got the ticks related information from /proc/stat
+ * this does not work on AIX, libperfstat might be an alternative
  */
 static OSReturn get_total_ticks(int which_logical_cpu, CPUPerfTicks* pticks) {
-  FILE*         fh;
-  uint64_t      userTicks, niceTicks, systemTicks, idleTicks;
-  uint64_t      iowTicks = 0, irqTicks = 0, sirqTicks= 0;
-  int           logical_cpu = -1;
-  const int     expected_assign_count = (-1 == which_logical_cpu) ? 4 : 5;
-  int           n;
-
-  if ((fh = open_statfile()) == NULL) {
-    return OS_ERR;
-  }
-  if (-1 == which_logical_cpu) {
-    n = fscanf(fh, "cpu " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
-            UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT,
-            &userTicks, &niceTicks, &systemTicks, &idleTicks,
-            &iowTicks, &irqTicks, &sirqTicks);
-  } else {
-    // Move to next line
-    next_line(fh);
-
-    // find the line for requested cpu faster to just iterate linefeeds?
-    for (int i = 0; i < which_logical_cpu; i++) {
-      next_line(fh);
-    }
-
-    n = fscanf(fh, "cpu%u " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
-               UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT,
-               &logical_cpu, &userTicks, &niceTicks,
-               &systemTicks, &idleTicks, &iowTicks, &irqTicks, &sirqTicks);
-  }
-
-  fclose(fh);
-  if (n < expected_assign_count || logical_cpu != which_logical_cpu) {
-#ifdef DEBUG_LINUX_PROC_STAT
-    vm_fprintf(stderr, "[stat] read failed");
-#endif
-    return OS_ERR;
-  }
-
-#ifdef DEBUG_LINUX_PROC_STAT
-  vm_fprintf(stderr, "[stat] read "
-          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " "
-          UINT64_FORMAT " " UINT64_FORMAT " " UINT64_FORMAT " \n",
-          userTicks, niceTicks, systemTicks, idleTicks,
-          iowTicks, irqTicks, sirqTicks);
-#endif
-
-  pticks->used       = userTicks + niceTicks;
-  pticks->usedKernel = systemTicks + irqTicks + sirqTicks;
-  pticks->total      = userTicks + niceTicks + systemTicks + idleTicks +
-                       iowTicks + irqTicks + sirqTicks;
-
-  return OS_OK;
-}
-
-
-static int get_systemtype(void) {
-  static int procEntriesType = UNDETECTED;
-  DIR *taskDir;
-
-  if (procEntriesType != UNDETECTED) {
-    return procEntriesType;
-  }
-
-  // Check whether we have a task subdirectory
-  if ((taskDir = opendir("/proc/self/task")) == NULL) {
-    procEntriesType = UNDETECTABLE;
-  } else {
-    // The task subdirectory exists; we're on a Linux >= 2.6 system
-    closedir(taskDir);
-    procEntriesType = LINUX26_NPTL;
-  }
-
-  return procEntriesType;
+  return OS_ERR;
 }
 
 /** read user and system ticks from a named procfile, assumed to be in 'stat' format then. */
@@ -390,26 +292,7 @@ static int read_ticks(const char* procfile, uint64_t* userTicks, uint64_t* syste
  * to the JVM on any CPU.
  */
 static OSReturn get_jvm_ticks(CPUPerfTicks* pticks) {
-  uint64_t userTicks;
-  uint64_t systemTicks;
-
-  if (get_systemtype() != LINUX26_NPTL) {
-    return OS_ERR;
-  }
-
-  if (read_ticks("/proc/self/stat", &userTicks, &systemTicks) != 2) {
-    return OS_ERR;
-  }
-
-  // get the total
-  if (get_total_ticks(-1, pticks) != OS_OK) {
-    return OS_ERR;
-  }
-
-  pticks->used       = userTicks;
-  pticks->usedKernel = systemTicks;
-
-  return OS_OK;
+  return OS_ERR;
 }
 
 /**
@@ -473,29 +356,7 @@ static double get_cpu_load(int which_logical_cpu, CPUPerfCounters* counters, dou
 }
 
 static int SCANF_ARGS(1, 2) parse_stat(_SCANFMT_ const char* fmt, ...) {
-  FILE *f;
-  va_list args;
-
-  va_start(args, fmt);
-
-  if ((f = open_statfile()) == NULL) {
-    va_end(args);
-    return OS_ERR;
-  }
-  for (;;) {
-    char line[80];
-    if (fgets(line, sizeof(line), f) != NULL) {
-      if (vsscanf(line, fmt, args) == 1) {
-        fclose(f);
-        va_end(args);
-        return OS_OK;
-      }
-    } else {
-        fclose(f);
-        va_end(args);
-        return OS_ERR;
-    }
-  }
+  return OS_ERR;
 }
 
 static int get_noof_context_switches(uint64_t* switches) {
@@ -582,12 +443,9 @@ CPUPerformanceInterface::CPUPerformance::CPUPerformance() {
 }
 
 bool CPUPerformanceInterface::CPUPerformance::initialize() {
-  size_t tick_array_size = (_counters.nProcs +1) * sizeof(CPUPerfTicks);
-  _counters.cpus = (CPUPerfTicks*)NEW_C_HEAP_ARRAY(char, tick_array_size, mtInternal);
-  if (NULL == _counters.cpus) {
-    return false;
-  }
-  memset(_counters.cpus, 0, tick_array_size);
+  size_t array_entry_count = _counters.nProcs + 1;
+  _counters.cpus = NEW_C_HEAP_ARRAY(CPUPerfTicks, array_entry_count, mtInternal);
+  memset(_counters.cpus, 0, array_entry_count * sizeof(*_counters.cpus));
 
   // For the CPU load total
   get_total_ticks(-1, &_counters.cpus[_counters.nProcs]);
@@ -674,7 +532,7 @@ CPUPerformanceInterface::CPUPerformanceInterface() {
 
 bool CPUPerformanceInterface::initialize() {
   _impl = new CPUPerformanceInterface::CPUPerformance();
-  return NULL == _impl ? false : _impl->initialize();
+  return _impl->initialize();
 }
 
 CPUPerformanceInterface::~CPUPerformanceInterface() {
@@ -827,19 +685,17 @@ char* SystemProcessInterface::SystemProcesses::ProcessIterator::get_cmdline() {
     }
     if (size > 0) {
       cmdline = NEW_C_HEAP_ARRAY(char, size + 1, mtInternal);
-      if (cmdline != NULL) {
-        cmdline[0] = '\0';
-        if (fseek(fp, 0, SEEK_SET) == 0) {
-          if (fread(cmdline, 1, size, fp) == size) {
-            // the file has the arguments separated by '\0',
-            // so we translate '\0' to ' '
-            for (size_t i = 0; i < size; i++) {
-              if (cmdline[i] == '\0') {
-                cmdline[i] = ' ';
-              }
+      cmdline[0] = '\0';
+      if (fseek(fp, 0, SEEK_SET) == 0) {
+        if (fread(cmdline, 1, size, fp) == size) {
+          // the file has the arguments separated by '\0',
+          // so we translate '\0' to ' '
+          for (size_t i = 0; i < size; i++) {
+            if (cmdline[i] == '\0') {
+              cmdline[i] = ' ';
             }
-            cmdline[size] = '\0';
           }
+          cmdline[size] = '\0';
         }
       }
     }
@@ -859,11 +715,7 @@ char* SystemProcessInterface::SystemProcesses::ProcessIterator::get_exe_path() {
 
 char* SystemProcessInterface::SystemProcesses::ProcessIterator::allocate_string(const char* str) const {
   if (str != NULL) {
-    size_t len = strlen(str);
-    char* tmp = NEW_C_HEAP_ARRAY(char, len+1, mtInternal);
-    strncpy(tmp, str, len);
-    tmp[len] = '\0';
-    return tmp;
+    return os::strdup_check_oom(str, mtInternal);
   }
   return NULL;
 }
@@ -933,7 +785,7 @@ SystemProcessInterface::SystemProcesses::SystemProcesses() {
 
 bool SystemProcessInterface::SystemProcesses::initialize() {
   _iterator = new SystemProcessInterface::SystemProcesses::ProcessIterator();
-  return NULL == _iterator ? false : _iterator->initialize();
+  return _iterator->initialize();
 }
 
 SystemProcessInterface::SystemProcesses::~SystemProcesses() {
@@ -980,7 +832,7 @@ SystemProcessInterface::SystemProcessInterface() {
 
 bool SystemProcessInterface::initialize() {
   _impl = new SystemProcessInterface::SystemProcesses();
-  return NULL == _impl ? false : _impl->initialize();
+  return _impl->initialize();
 }
 
 SystemProcessInterface::~SystemProcessInterface() {
@@ -995,15 +847,11 @@ CPUInformationInterface::CPUInformationInterface() {
 
 bool CPUInformationInterface::initialize() {
   _cpu_info = new CPUInformation();
-  if (NULL == _cpu_info) {
-    return false;
-  }
   _cpu_info->set_number_of_hardware_threads(VM_Version_Ext::number_of_threads());
   _cpu_info->set_number_of_cores(VM_Version_Ext::number_of_cores());
   _cpu_info->set_number_of_sockets(VM_Version_Ext::number_of_sockets());
   _cpu_info->set_cpu_name(VM_Version_Ext::cpu_name());
   _cpu_info->set_cpu_description(VM_Version_Ext::cpu_description());
-
   return true;
 }
 
@@ -1071,7 +919,7 @@ NetworkPerformanceInterface::~NetworkPerformanceInterface() {
 
 bool NetworkPerformanceInterface::initialize() {
   _impl = new NetworkPerformanceInterface::NetworkPerformance();
-  return _impl != NULL && _impl->initialize();
+  return _impl->initialize();
 }
 
 int NetworkPerformanceInterface::network_utilization(NetworkInterface** network_interfaces) const {

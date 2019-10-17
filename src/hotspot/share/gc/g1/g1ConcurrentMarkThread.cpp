@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/classLoaderData.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/g1/g1Analytics.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentMark.inline.hpp"
@@ -31,10 +31,10 @@
 #include "gc/g1/g1MMUTracker.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RemSet.hpp"
-#include "gc/g1/vm_operations_g1.hpp"
+#include "gc/g1/g1Trace.hpp"
+#include "gc/g1/g1VMOperations.hpp"
 #include "gc/shared/concurrentGCPhaseManager.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "logging/log.hpp"
@@ -107,7 +107,7 @@ public:
   }
 };
 
-double G1ConcurrentMarkThread::mmu_sleep_time(G1Policy* g1_policy, bool remark) {
+double G1ConcurrentMarkThread::mmu_delay_end(G1Policy* g1_policy, bool remark) {
   // There are 3 reasons to use SuspendibleThreadSetJoiner.
   // 1. To avoid concurrency problem.
   //    - G1MMUTracker::add_pause(), when_sec() and its variation(when_ms() etc..) can be called
@@ -119,18 +119,30 @@ double G1ConcurrentMarkThread::mmu_sleep_time(G1Policy* g1_policy, bool remark) 
   SuspendibleThreadSetJoiner sts_join;
 
   const G1Analytics* analytics = g1_policy->analytics();
-  double now = os::elapsedTime();
   double prediction_ms = remark ? analytics->predict_remark_time_ms()
                                 : analytics->predict_cleanup_time_ms();
+  double prediction = prediction_ms / MILLIUNITS;
   G1MMUTracker *mmu_tracker = g1_policy->mmu_tracker();
-  return mmu_tracker->when_ms(now, prediction_ms);
+  double now = os::elapsedTime();
+  return now + mmu_tracker->when_sec(now, prediction);
 }
 
 void G1ConcurrentMarkThread::delay_to_keep_mmu(G1Policy* g1_policy, bool remark) {
-  if (g1_policy->adaptive_young_list_length()) {
-    jlong sleep_time_ms = mmu_sleep_time(g1_policy, remark);
-    if (!_cm->has_aborted() && sleep_time_ms > 0) {
-      os::sleep(this, sleep_time_ms, false);
+  if (g1_policy->use_adaptive_young_list_length()) {
+    double delay_end_sec = mmu_delay_end(g1_policy, remark);
+    // Wait for timeout or thread termination request.
+    MonitorLocker ml(CGC_lock, Monitor::_no_safepoint_check_flag);
+    while (!_cm->has_aborted()) {
+      double sleep_time_sec = (delay_end_sec - os::elapsedTime());
+      jlong sleep_time_ms = ceil(sleep_time_sec * MILLIUNITS);
+      if (sleep_time_ms <= 0) {
+        break;                  // Passed end time.
+      } else if (ml.wait(sleep_time_ms, Monitor::_no_safepoint_check_flag)) {
+        break;                  // Timeout => reached end time.
+      } else if (should_terminate()) {
+        break;                  // Wakeup for pending termination request.
+      }
+      // Other (possibly spurious) wakeup.  Retry with updated sleep time.
     }
   }
 }
@@ -224,10 +236,6 @@ public:
   { }
 };
 
-const char* const* G1ConcurrentMarkThread::concurrent_phases() const {
-  return concurrent_phase_names;
-}
-
 bool G1ConcurrentMarkThread::request_concurrent_phase(const char* phase_name) {
   int phase = lookup_concurrent_phase(phase_name);
   if (phase < 0) return false;
@@ -247,7 +255,7 @@ void G1ConcurrentMarkThread::run_service() {
   _vtime_start = os::elapsedVTime();
 
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
-  G1Policy* g1_policy = g1h->g1_policy();
+  G1Policy* policy = g1h->policy();
 
   G1ConcPhaseManager cpmanager(G1ConcurrentPhase::IDLE, this);
 
@@ -326,7 +334,7 @@ void G1ConcurrentMarkThread::run_service() {
           double mark_end_time = os::elapsedVTime();
           jlong mark_end = os::elapsed_counter();
           _vtime_mark_accum += (mark_end_time - cycle_start);
-          delay_to_keep_mmu(g1_policy, true /* remark */);
+          delay_to_keep_mmu(policy, true /* remark */);
           if (_cm->has_aborted()) {
             break;
           }
@@ -339,7 +347,7 @@ void G1ConcurrentMarkThread::run_service() {
                                 TimeHelper::counter_to_millis(mark_end - mark_start));
           mark_manager.set_phase(G1ConcurrentPhase::REMARK, false);
           CMRemark cl(_cm);
-          VM_CGC_Operation op(&cl, "Pause Remark");
+          VM_G1Concurrent op(&cl, "Pause Remark");
           VMThread::execute(&op);
           if (_cm->has_aborted()) {
             break;
@@ -365,12 +373,12 @@ void G1ConcurrentMarkThread::run_service() {
       _vtime_accum = (end_time - _vtime_start);
 
       if (!_cm->has_aborted()) {
-        delay_to_keep_mmu(g1_policy, false /* cleanup */);
+        delay_to_keep_mmu(policy, false /* cleanup */);
       }
 
       if (!_cm->has_aborted()) {
         CMCleanup cl_cl(_cm);
-        VM_CGC_Operation op(&cl_cl, "Pause Cleanup");
+        VM_G1Concurrent op(&cl_cl, "Pause Cleanup");
         VMThread::execute(&op);
       }
 
@@ -381,8 +389,6 @@ void G1ConcurrentMarkThread::run_service() {
       if (!_cm->has_aborted()) {
         G1ConcPhase p(G1ConcurrentPhase::CLEANUP_FOR_NEXT_MARK, this);
         _cm->cleanup_for_next_mark();
-      } else {
-        assert(!G1VerifyBitmaps || _cm->next_mark_bitmap_is_clear(), "Next mark bitmap must be clear");
       }
     }
 
@@ -403,7 +409,7 @@ void G1ConcurrentMarkThread::run_service() {
 }
 
 void G1ConcurrentMarkThread::stop_service() {
-  MutexLockerEx ml(CGC_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(CGC_lock, Mutex::_no_safepoint_check_flag);
   CGC_lock->notify_all();
 }
 
@@ -413,9 +419,9 @@ void G1ConcurrentMarkThread::sleep_before_next_cycle() {
   // below while the world is otherwise stopped.
   assert(!in_progress(), "should have been cleared");
 
-  MutexLockerEx x(CGC_lock, Mutex::_no_safepoint_check_flag);
+  MonitorLocker ml(CGC_lock, Mutex::_no_safepoint_check_flag);
   while (!started() && !should_terminate()) {
-    CGC_lock->wait(Mutex::_no_safepoint_check_flag);
+    ml.wait();
   }
 
   if (started()) {

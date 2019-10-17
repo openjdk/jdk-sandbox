@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
-#define CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
+#ifndef CPU_PPC_MACROASSEMBLER_PPC_HPP
+#define CPU_PPC_MACROASSEMBLER_PPC_HPP
 
 #include "asm/assembler.hpp"
 #include "oops/accessDecorators.hpp"
@@ -395,11 +395,6 @@ class MacroAssembler: public Assembler {
   static bool is_load_from_polling_page(int instruction, void* ucontext/*may be NULL*/,
                                         address* polling_address_ptr = NULL);
 
-  // Check whether instruction is a write access to the memory
-  // serialization page realized by one of the instructions stw, stwu,
-  // stwx, or stwux.
-  static bool is_memory_serialization(int instruction, JavaThread* thread, void* ucontext);
-
   // Support for NULL-checks
   //
   // Generates code that causes a NULL OS exception if the content of reg is NULL.
@@ -564,9 +559,12 @@ class MacroAssembler: public Assembler {
                            Register temp2_reg,
                            Label& L_success);
 
-  // Method handle support (JSR 292).
-  void check_method_handle_type(Register mtype_reg, Register mh_reg, Register temp_reg, Label& wrong_method_type);
+  void clinit_barrier(Register klass,
+                      Register thread,
+                      Label* L_fast_path = NULL,
+                      Label* L_slow_path = NULL);
 
+  // Method handle support (JSR 292).
   RegisterOrConstant argument_offset(RegisterOrConstant arg_slot, Register temp_reg, int extra_slot_offset = 0);
 
   // Biased locking support
@@ -645,9 +643,6 @@ class MacroAssembler: public Assembler {
                                    Register tmp1, Register tmp2, Register tmp3,
                                    bool try_bias = UseBiasedLocking, bool use_rtm = false);
 
-  // Support for serializing memory accesses between threads
-  void serialize_memory(Register thread, Register tmp1, Register tmp2);
-
   // Check if safepoint requested and if so branch
   void safepoint_poll(Label& slow_path, Register temp_reg);
 
@@ -667,6 +662,7 @@ class MacroAssembler: public Assembler {
   void get_vm_result_2(Register metadata_result);
 
   static bool needs_explicit_null_check(intptr_t offset);
+  static bool uses_implicit_null_check(void* address);
 
   // Trap-instruction-based checks.
   // Range checks can be distinguished from zero checks as they check 32 bit,
@@ -729,6 +725,7 @@ class MacroAssembler: public Assembler {
 
   void resolve_oop_handle(Register result);
   void load_mirror_from_const_method(Register mirror, Register const_method);
+  void load_method_holder(Register holder, Register method);
 
   static int instr_size_for_decode_klass_not_null();
   void decode_klass_not_null(Register dst, Register src = noreg);
@@ -835,34 +832,26 @@ class MacroAssembler: public Assembler {
   void load_reverse_32(Register dst, Register src);
   int  crc32_table_columns(Register table, Register tc0, Register tc1, Register tc2, Register tc3);
   void fold_byte_crc32(Register crc, Register val, Register table, Register tmp);
-  void fold_8bit_crc32(Register crc, Register table, Register tmp);
   void update_byte_crc32(Register crc, Register val, Register table);
   void update_byteLoop_crc32(Register crc, Register buf, Register len, Register table,
                              Register data, bool loopAlignment);
   void update_1word_crc32(Register crc, Register buf, Register table, int bufDisp, int bufInc,
                           Register t0,  Register t1,  Register t2,  Register t3,
                           Register tc0, Register tc1, Register tc2, Register tc3);
-  void kernel_crc32_2word(Register crc, Register buf, Register len, Register table,
-                          Register t0,  Register t1,  Register t2,  Register t3,
-                          Register tc0, Register tc1, Register tc2, Register tc3,
-                          bool invertCRC);
   void kernel_crc32_1word(Register crc, Register buf, Register len, Register table,
                           Register t0,  Register t1,  Register t2,  Register t3,
                           Register tc0, Register tc1, Register tc2, Register tc3,
                           bool invertCRC);
-  void kernel_crc32_1byte(Register crc, Register buf, Register len, Register table,
-                          Register t0,  Register t1,  Register t2,  Register t3,
-                          bool invertCRC);
-  void kernel_crc32_1word_vpmsum(Register crc, Register buf, Register len, Register table,
-                          Register constants, Register barretConstants,
-                          Register t0,  Register t1, Register t2, Register t3, Register t4,
-                          bool invertCRC);
-  void kernel_crc32_1word_aligned(Register crc, Register buf, Register len,
-                          Register constants, Register barretConstants,
-                          Register t0, Register t1, Register t2, Register t3, Register t4);
+  void kernel_crc32_vpmsum(Register crc, Register buf, Register len, Register constants,
+                           Register t0, Register t1, Register t2, Register t3, Register t4,
+                           Register t5, Register t6, bool invertCRC);
+  void kernel_crc32_vpmsum_aligned(Register crc, Register buf, Register len, Register constants,
+                                   Register t0, Register t1, Register t2, Register t3, Register t4,
+                                   Register t5, Register t6);
+  // Version which internally decides what to use.
+  void crc32(Register crc, Register buf, Register len, Register t0, Register t1, Register t2,
+             Register t3, Register t4, Register t5, Register t6, Register t7, bool is_crc32c);
 
-  void kernel_crc32_singleByte(Register crc, Register buf, Register len, Register table, Register tmp,
-                               bool invertCRC);
   void kernel_crc32_singleByteReg(Register crc, Register val, Register table,
                                   bool invertCRC);
 
@@ -981,4 +970,4 @@ class SkipIfEqualZero : public StackObj {
    ~SkipIfEqualZero();
 };
 
-#endif // CPU_PPC_VM_MACROASSEMBLER_PPC_HPP
+#endif // CPU_PPC_MACROASSEMBLER_PPC_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,7 +56,8 @@ import javax.net.ssl.SSLSession;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import jdk.testlibrary.SimpleSSLContext;
+import jdk.test.lib.net.SimpleSSLContext;
+import static java.net.Proxy.NO_PROXY;
 
 /**
  * @test
@@ -67,8 +68,8 @@ import jdk.testlibrary.SimpleSSLContext;
  *          an SSL Tunnel connection when the client is HTTP/2 and the server
  *          and proxy are HTTP/1.1
  * @modules java.net.http
- * @library /lib/testlibrary/
- * @build jdk.testlibrary.SimpleSSLContext ProxyTest
+ * @library /test/lib
+ * @build jdk.test.lib.net.SimpleSSLContext ProxyTest
  * @run main/othervm ProxyTest
  * @author danielfuchs
  */
@@ -167,7 +168,7 @@ public class ProxyTest {
         System.out.println("Verifying communication with server");
         URI uri = new URI("https://localhost:"
                           + server.getAddress().getPort() + PATH + "x");
-        try (InputStream is = uri.toURL().openConnection().getInputStream()) {
+        try (InputStream is = uri.toURL().openConnection(NO_PROXY).getInputStream()) {
             String resp = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             System.out.println(resp);
             if (!RESPONSE.equals(resp)) {

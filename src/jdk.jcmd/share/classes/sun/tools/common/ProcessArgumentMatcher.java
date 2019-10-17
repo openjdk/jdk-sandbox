@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,24 +78,31 @@ public class ProcessArgumentMatcher {
     }
 
     private static boolean check(VirtualMachineDescriptor vmd, String excludeClass, String partialMatch) {
-        String mainClass = null;
-        try {
-            VmIdentifier vmId = new VmIdentifier(vmd.id());
-            MonitoredHost monitoredHost = MonitoredHost.getMonitoredHost(vmId);
-            MonitoredVm monitoredVm = monitoredHost.getMonitoredVm(vmId, -1);
-            mainClass = MonitoredVmUtil.mainClass(monitoredVm, true);
-            monitoredHost.detach(monitoredVm);
-        } catch (NullPointerException npe) {
-            // There is a potential race, where a running java app is being
-            // queried, unfortunately the java app has shutdown after this
-            // method is started but before getMonitoredVM is called.
-            // If this is the case, then the /tmp/hsperfdata_xxx/pid file
-            // will have disappeared and we will get a NullPointerException.
-            // Handle this gracefully....
-            return false;
-        } catch (MonitorException | URISyntaxException e) {
-            return false;
+
+        // Try to get the main class name using (platform specific) ProcessHelper
+        String mainClass = ProcessHelper.getMainClass(vmd.id());
+
+        // If the main class name could not be retrieved by ProcessHelper, get it with the attach mechanism
+        if (mainClass == null) {
+            try {
+                VmIdentifier vmId = new VmIdentifier(vmd.id());
+                MonitoredHost monitoredHost = MonitoredHost.getMonitoredHost(vmId);
+                MonitoredVm monitoredVm = monitoredHost.getMonitoredVm(vmId, -1);
+                mainClass = MonitoredVmUtil.mainClass(monitoredVm, true);
+                monitoredHost.detach(monitoredVm);
+            } catch (NullPointerException npe) {
+                // There is a potential race, where a running java app is being
+                // queried, unfortunately the java app has shutdown after this
+                // method is started but before getMonitoredVM is called.
+                // If this is the case, then the /tmp/hsperfdata_xxx/pid file
+                // will have disappeared and we will get a NullPointerException.
+                // Handle this gracefully....
+                return false;
+            } catch (MonitorException | URISyntaxException e) {
+                return false;
+            }
         }
+
 
         if (excludeClass != null && mainClass.equals(excludeClass)) {
             return false;
@@ -133,16 +140,12 @@ public class ProcessArgumentMatcher {
         return vids;
     }
 
-    public Collection<VirtualMachineDescriptor> getVirtualMachineDescriptors(Class<?> excludeClass) {
+    public Collection<VirtualMachineDescriptor> getVirtualMachineDescriptors() {
         if (singlePid != null) {
             return getSingleVMD(singlePid);
         } else {
-            return getVMDs(excludeClass, matchClass);
+            return getVMDs(null, matchClass);
         }
-    }
-
-    public Collection<VirtualMachineDescriptor> getVirtualMachineDescriptors() {
-        return this.getVirtualMachineDescriptors(null);
     }
 
     public Collection<String> getVirtualMachinePids(Class<?> excludeClass) {
@@ -155,7 +158,4 @@ public class ProcessArgumentMatcher {
         }
     }
 
-    public Collection<String> getVirtualMachinePids() {
-        return this.getVirtualMachinePids(null);
-    }
 }

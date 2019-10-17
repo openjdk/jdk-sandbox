@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "memory/oopFactory.hpp"
 
 // ------------------------------------------------------------------
@@ -68,14 +69,14 @@ const char* ciSymbol::as_quoted_ascii() {
 
 // ------------------------------------------------------------------
 // ciSymbol::base
-const jbyte* ciSymbol::base() {
+const u1* ciSymbol::base() {
   GUARDED_VM_ENTRY(return get_symbol()->base();)
 }
 
 // ------------------------------------------------------------------
-// ciSymbol::byte_at
-int ciSymbol::byte_at(int i) {
-  GUARDED_VM_ENTRY(return get_symbol()->byte_at(i);)
+// ciSymbol::char_at
+char ciSymbol::char_at(int i) {
+  GUARDED_VM_ENTRY(return get_symbol()->char_at(i);)
 }
 
 // ------------------------------------------------------------------
@@ -131,12 +132,7 @@ const char* ciSymbol::as_klass_external_name() const {
 // Make a ciSymbol from a C string (implementation).
 ciSymbol* ciSymbol::make_impl(const char* s) {
   EXCEPTION_CONTEXT;
-  TempNewSymbol sym = SymbolTable::new_symbol(s, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    CLEAR_PENDING_EXCEPTION;
-    CURRENT_THREAD_ENV->record_out_of_memory_failure();
-    return ciEnv::_unloaded_cisymbol;
-  }
+  TempNewSymbol sym = SymbolTable::new_symbol(s);
   return CURRENT_THREAD_ENV->get_symbol(sym);
 }
 

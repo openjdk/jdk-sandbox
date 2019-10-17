@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -83,7 +83,7 @@ import org.w3c.dom.ls.LSSerializer;
  * @author Andy Clark, IBM
  * @author Ralf Pfeiffer, IBM
  * @since  PR-DOM-Level-1-19980818.
- * @LastModified: Nov 2017
+ * @LastModified: Sept 2019
  */
 public class CoreDocumentImpl
         extends ParentNode implements Document {
@@ -862,6 +862,9 @@ public class CoreDocumentImpl
      * the version number of this document.
      */
     public void setXmlVersion(String value) {
+        if (value == null) {
+            return;
+        }
         if(value.equals("1.0") || value.equals("1.1")){
             //we need to change the flag value only --
             // when the version set is different than already set.
@@ -1796,6 +1799,11 @@ public class CoreDocumentImpl
                     // Adopting between two dissimilar DOM's is not allowed
                     return null;
                 }
+            }
+            // Adopting from a deferred DOM into another deferred DOM
+            else if (otherImpl instanceof DeferredDOMImplementationImpl) {
+                // traverse the DOM and expand deferred nodes and then allow adoption
+                undeferChildren (node);
             }
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "ci/ciUtilities.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -53,16 +54,11 @@
 #define PATCHED_ADDR  (max_jint)
 #endif
 
-void PhiResolverState::reset(int max_vregs) {
-  // Initialize array sizes
-  _virtual_operands.at_put_grow(max_vregs - 1, NULL, NULL);
-  _virtual_operands.trunc_to(0);
-  _other_operands.at_put_grow(max_vregs - 1, NULL, NULL);
-  _other_operands.trunc_to(0);
-  _vreg_table.at_put_grow(max_vregs - 1, NULL, NULL);
-  _vreg_table.trunc_to(0);
+void PhiResolverState::reset() {
+  _virtual_operands.clear();
+  _other_operands.clear();
+  _vreg_table.clear();
 }
-
 
 
 //--------------------------------------------------------------
@@ -78,13 +74,13 @@ void PhiResolverState::reset(int max_vregs) {
 //  r2 := r3  becomes  r1 := r2
 //  r1 := r2           r2 := r3
 
-PhiResolver::PhiResolver(LIRGenerator* gen, int max_vregs)
+PhiResolver::PhiResolver(LIRGenerator* gen)
  : _gen(gen)
  , _state(gen->resolver_state())
  , _temp(LIR_OprFact::illegalOpr)
 {
   // reinitialize the shared state arrays
-  _state.reset(max_vregs);
+  _state.reset();
 }
 
 
@@ -1021,8 +1017,7 @@ void LIRGenerator::move_to_phi(ValueStack* cur_state) {
 
     // a block with only one predecessor never has phi functions
     if (sux->number_of_preds() > 1) {
-      int max_phis = cur_state->stack_size() + cur_state->locals_size();
-      PhiResolver resolver(this, _virtual_register_number + max_phis * 2);
+      PhiResolver resolver(this);
 
       ValueStack* sux_state = sux->state();
       Value sux_value;
@@ -1113,7 +1108,7 @@ void LIRGenerator::do_ExceptionObject(ExceptionObject* x) {
   // no moves are created for phi functions at the begin of exception
   // handlers, so assign operands manually here
   for_each_phi_fun(block(), phi,
-                   operand_for_instruction(phi));
+                   if (!phi->is_illegal()) { operand_for_instruction(phi); });
 
   LIR_Opr thread_reg = getThreadPointer();
   __ move_wide(new LIR_Address(thread_reg, in_bytes(JavaThread::exception_oop_offset()), T_OBJECT),
@@ -1552,7 +1547,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   assert(x->is_pinned(),"");
   bool needs_range_check = x->compute_needs_range_check();
   bool use_length = x->length() != NULL;
-  bool obj_store = x->elt_type() == T_ARRAY || x->elt_type() == T_OBJECT;
+  bool obj_store = is_reference_type(x->elt_type());
   bool needs_store_check = obj_store && (x->value()->as_Constant() == NULL ||
                                          !get_jobject_constant(x->value())->is_null_object() ||
                                          x->should_profile());
@@ -1653,7 +1648,7 @@ LIR_Opr LIRGenerator::access_atomic_cmpxchg_at(DecoratorSet decorators, BasicTyp
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_cmpxchg_at(access, cmp_value, new_value);
@@ -1667,7 +1662,7 @@ LIR_Opr LIRGenerator::access_atomic_xchg_at(DecoratorSet decorators, BasicType t
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_xchg_at(access, value);
@@ -1681,7 +1676,7 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   decorators |= ACCESS_READ;
   decorators |= ACCESS_WRITE;
   // Atomic operations are SEQ_CST by default
-  decorators |= ((decorators & MO_DECORATOR_MASK) != 0) ? MO_SEQ_CST : 0;
+  decorators |= ((decorators & MO_DECORATOR_MASK) == 0) ? MO_SEQ_CST : 0;
   LIRAccess access(this, decorators, base, offset, type);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC1::atomic_add_at(access, value);
@@ -2161,7 +2156,7 @@ void LIRGenerator::do_UnsafeGetObject(UnsafeGetObject* x) {
   off.load_item();
   src.load_item();
 
-  DecoratorSet decorators = IN_HEAP;
+  DecoratorSet decorators = IN_HEAP | C1_UNSAFE_ACCESS;
 
   if (x->is_volatile()) {
     decorators |= MO_SEQ_CST;
@@ -2169,7 +2164,7 @@ void LIRGenerator::do_UnsafeGetObject(UnsafeGetObject* x) {
   if (type == T_BOOLEAN) {
     decorators |= C1_MASK_BOOLEAN;
   }
-  if (type == T_ARRAY || type == T_OBJECT) {
+  if (is_reference_type(type)) {
     decorators |= ON_UNKNOWN_OOP_REF;
   }
 
@@ -2195,8 +2190,8 @@ void LIRGenerator::do_UnsafePutObject(UnsafePutObject* x) {
 
   set_no_result(x);
 
-  DecoratorSet decorators = IN_HEAP;
-  if (type == T_ARRAY || type == T_OBJECT) {
+  DecoratorSet decorators = IN_HEAP | C1_UNSAFE_ACCESS;
+  if (is_reference_type(type)) {
     decorators |= ON_UNKNOWN_OOP_REF;
   }
   if (x->is_volatile()) {
@@ -2211,9 +2206,9 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
   LIRItem off(x->offset(), this);
   LIRItem value(x->value(), this);
 
-  DecoratorSet decorators = IN_HEAP | MO_SEQ_CST;
+  DecoratorSet decorators = IN_HEAP | C1_UNSAFE_ACCESS | MO_SEQ_CST;
 
-  if (type == T_ARRAY || type == T_OBJECT) {
+  if (is_reference_type(type)) {
     decorators |= ON_UNKNOWN_OOP_REF;
   }
 
@@ -2606,7 +2601,7 @@ void LIRGenerator::profile_parameters(Base* x) {
         LIR_Opr src = args->at(i);
         assert(!src->is_illegal(), "check");
         BasicType t = src->type();
-        if (t == T_OBJECT || t == T_ARRAY) {
+        if (is_reference_type(t)) {
           intptr_t profiled_k = parameters->type(j);
           Local* local = x->state()->local_at(java_index)->as_Local();
           ciKlass* exact = profile_type(md, md->byte_offset_of_slot(parameters_type_data, ParametersTypeData::type_offset(0)),
@@ -3057,7 +3052,7 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   // java.nio.Buffer.checkIndex
   case vmIntrinsics::_checkIndex:     do_NIOCheckIndex(x); break;
 
-  case vmIntrinsics::_compareAndSetObject:
+  case vmIntrinsics::_compareAndSetReference:
     do_CompareAndSwap(x, objectType);
     break;
   case vmIntrinsics::_compareAndSetInt:
@@ -3068,13 +3063,13 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
     break;
 
   case vmIntrinsics::_loadFence :
-    if (os::is_MP()) __ membar_acquire();
+    __ membar_acquire();
     break;
   case vmIntrinsics::_storeFence:
-    if (os::is_MP()) __ membar_release();
+    __ membar_release();
     break;
   case vmIntrinsics::_fullFence :
-    if (os::is_MP()) __ membar();
+    __ membar();
     break;
   case vmIntrinsics::_onSpinWait:
     __ on_spin_wait();
@@ -3285,7 +3280,14 @@ void LIRGenerator::do_ProfileInvoke(ProfileInvoke* x) {
 
 void LIRGenerator::increment_backedge_counter_conditionally(LIR_Condition cond, LIR_Opr left, LIR_Opr right, CodeEmitInfo* info, int left_bci, int right_bci, int bci) {
   if (compilation()->count_backedges()) {
+#if defined(X86) && !defined(_LP64)
+    // BEWARE! On 32-bit x86 cmp clobbers its left argument so we need a temp copy.
+    LIR_Opr left_copy = new_register(left->type());
+    __ move(left, left_copy);
+    __ cmp(cond, left_copy, right);
+#else
     __ cmp(cond, left, right);
+#endif
     LIR_Opr step = new_register(T_INT);
     LIR_Opr plus_one = LIR_OprFact::intConst(InvocationCounter::count_increment);
     LIR_Opr zero = LIR_OprFact::intConst(0);
@@ -3623,18 +3625,16 @@ LIR_Opr LIRGenerator::call_runtime(BasicTypeArray* signature, LIRItemList* args,
 }
 
 void LIRGenerator::do_MemBar(MemBar* x) {
-  if (os::is_MP()) {
-    LIR_Code code = x->code();
-    switch(code) {
-      case lir_membar_acquire   : __ membar_acquire(); break;
-      case lir_membar_release   : __ membar_release(); break;
-      case lir_membar           : __ membar(); break;
-      case lir_membar_loadload  : __ membar_loadload(); break;
-      case lir_membar_storestore: __ membar_storestore(); break;
-      case lir_membar_loadstore : __ membar_loadstore(); break;
-      case lir_membar_storeload : __ membar_storeload(); break;
-      default                   : ShouldNotReachHere(); break;
-    }
+  LIR_Code code = x->code();
+  switch(code) {
+  case lir_membar_acquire   : __ membar_acquire(); break;
+  case lir_membar_release   : __ membar_release(); break;
+  case lir_membar           : __ membar(); break;
+  case lir_membar_loadload  : __ membar_loadload(); break;
+  case lir_membar_storestore: __ membar_storestore(); break;
+  case lir_membar_loadstore : __ membar_loadstore(); break;
+  case lir_membar_storeload : __ membar_storeload(); break;
+  default                   : ShouldNotReachHere(); break;
   }
 }
 

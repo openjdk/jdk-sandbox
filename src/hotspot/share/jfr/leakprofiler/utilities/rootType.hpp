@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP
-#define SHARE_VM_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP
+#ifndef SHARE_JFR_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP
+#define SHARE_JFR_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/debug.hpp"
@@ -43,6 +43,7 @@ class OldObjectRoot : public AllStatic {
     _code_cache,
     _string_table,
     _aot,
+    JVMCI_ONLY(_jvmci COMMA)
     _number_of_systems
   };
 
@@ -81,6 +82,10 @@ class OldObjectRoot : public AllStatic {
         return "String Table";
       case _aot:
         return "AOT";
+#if INCLUDE_JVMCI
+      case _jvmci:
+        return "JVMCI";
+#endif
       default:
         ShouldNotReachHere();
     }
@@ -106,4 +111,4 @@ class OldObjectRoot : public AllStatic {
   }
 };
 
-#endif // SHARE_VM_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP
+#endif // SHARE_JFR_LEAKPROFILER_UTILITIES_ROOTTYPE_HPP

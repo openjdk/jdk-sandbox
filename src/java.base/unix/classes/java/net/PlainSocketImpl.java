@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,9 @@
 package java.net;
 
 import java.io.IOException;
-import java.io.FileDescriptor;
 import java.util.Set;
 import java.util.HashSet;
 import sun.net.ext.ExtendedSocketOptions;
-import static sun.net.ext.ExtendedSocketOptions.SOCK_STREAM;
 
 /*
  * On Unix systems we simply delegate to native methods.
@@ -46,70 +44,10 @@ class PlainSocketImpl extends AbstractPlainSocketImpl
     /**
      * Constructs an empty instance.
      */
-    PlainSocketImpl() { }
-
-    /**
-     * Constructs an instance with the given file descriptor.
-     */
-    PlainSocketImpl(FileDescriptor fd) {
-        this.fd = fd;
+    PlainSocketImpl(boolean isServer) {
+        super(isServer);
     }
 
-    static final ExtendedSocketOptions extendedOptions =
-            ExtendedSocketOptions.getInstance();
-
-    protected <T> void setOption(SocketOption<T> name, T value) throws IOException {
-        if (isClosedOrPending()) {
-            throw new SocketException("Socket closed");
-        }
-        if (supportedOptions().contains(name)) {
-            if (extendedOptions.isOptionSupported(name)) {
-                extendedOptions.setOption(fd, name, value);
-            } else {
-                super.setOption(name, value);
-            }
-        } else {
-            throw new UnsupportedOperationException("unsupported option");
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    protected <T> T getOption(SocketOption<T> name) throws IOException {
-        if (isClosedOrPending()) {
-            throw new SocketException("Socket closed");
-        }
-        if (supportedOptions().contains(name)) {
-            if (extendedOptions.isOptionSupported(name)) {
-                return (T) extendedOptions.getOption(fd, name);
-            } else {
-                return super.getOption(name);
-            }
-        } else {
-            throw new UnsupportedOperationException("unsupported option");
-        }
-    }
-
-    protected Set<SocketOption<?>> supportedOptions() {
-        HashSet<SocketOption<?>> options = new HashSet<>(super.supportedOptions());
-        addExtSocketOptions(ExtendedSocketOptions.options(SOCK_STREAM), options);
-        return options;
-    }
-
-    private void addExtSocketOptions(Set<SocketOption<?>> extOptions,
-            Set<SocketOption<?>> options) {
-        extOptions.forEach((option) -> {
-            if (option.name().equals("SO_FLOW_SLA")) {
-                // SO_FLOW_SLA is Solaris specific option which is not applicable
-                // for ServerSockets.
-                // getSocket() will always return null for server socket
-                if (getSocket() != null) {
-                    options.add(option);
-                }
-            } else {
-                options.add(option);
-            }
-        });
-    }
     protected void socketSetOption(int opt, boolean b, Object val) throws SocketException {
         if (opt == SocketOptions.SO_REUSEPORT &&
             !supportedOptions().contains(StandardSocketOptions.SO_REUSEPORT)) {
@@ -118,12 +56,16 @@ class PlainSocketImpl extends AbstractPlainSocketImpl
         try {
             socketSetOption0(opt, b, val);
         } catch (SocketException se) {
-            if (socket == null || !socket.isConnected())
+            if (!isConnected)
                 throw se;
         }
     }
 
-    native void socketCreate(boolean isServer) throws IOException;
+    void socketCreate(boolean stream) throws IOException {
+        socketCreate(stream, isServer);
+    }
+
+    native void socketCreate(boolean stream, boolean isServer) throws IOException;
 
     native void socketConnect(InetAddress address, int port, int timeout)
         throws IOException;

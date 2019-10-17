@@ -162,6 +162,9 @@ bool LIR_Assembler::needs_icache(ciMethod* method) const {
   return !method->is_static();
 }
 
+bool LIR_Assembler::needs_clinit_barrier_on_entry(ciMethod* method) const {
+  return VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier();
+}
 
 int LIR_Assembler::code_offset() const {
   return _masm->offset();
@@ -446,10 +449,8 @@ void LIR_Assembler::emit_rtcall(LIR_OpRTCall* op) {
 void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   verify_oop_map(op->info());
 
-  if (os::is_MP()) {
-    // must align calls sites, otherwise they can't be updated atomically on MP hardware
-    align_call(op->code());
-  }
+  // must align calls sites, otherwise they can't be updated atomically
+  align_call(op->code());
 
   // emit the static call stub stuff out of line
   emit_static_call_stub();
@@ -554,10 +555,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       pop(op->in_opr());
       break;
 
-    case lir_neg:
-      negate(op->in_opr(), op->result_opr());
-      break;
-
     case lir_leal:
       leal(op->in_opr(), op->result_opr(), op->patch_code(), op->info());
       break;
@@ -627,6 +624,9 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
       }
       offsets()->set_value(CodeOffsets::Verified_Entry, _masm->offset());
       _masm->verified_entry();
+      if (needs_clinit_barrier_on_entry(compilation()->method())) {
+        clinit_barrier(compilation()->method());
+      }
       build_frame();
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
       break;
@@ -748,6 +748,10 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
     case lir_tan:
     case lir_log10:
       intrinsic_op(op->code(), op->in_opr1(), op->in_opr2(), op->result_opr(), op);
+      break;
+
+    case lir_neg:
+      negate(op->in_opr1(), op->result_opr(), op->in_opr2());
       break;
 
     case lir_logic_and:

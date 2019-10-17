@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ class OopStorage::Block /* No base class, to avoid messing up alignment. */ {
   static const unsigned _data_pos = 0; // Position of _data.
 
   volatile uintx _allocated_bitmask; // One bit per _data element.
-  const OopStorage* _owner;
+  intptr_t _owner_address;
   void* _memory;              // Unaligned storage containing block.
   size_t _active_index;
   AllocationListEntry _allocation_list_entry;
@@ -173,7 +173,8 @@ public:
   bool is_full() const;
   bool is_empty() const;
   uintx allocated_bitmask() const;
-  bool is_deletable() const;
+
+  bool is_safe_to_delete() const;
 
   Block* deferred_updates_next() const;
   void set_deferred_updates_next(Block* new_next);
@@ -191,7 +192,7 @@ public:
   static Block* new_block(const OopStorage* owner);
   static void delete_block(const Block& block);
 
-  void release_entries(uintx releasing, Block* volatile* deferred_list);
+  void release_entries(uintx releasing, OopStorage* owner);
 
   template<typename F> bool iterate(F f);
   template<typename F> bool iterate(F f) const;
@@ -402,4 +403,4 @@ inline void OopStorage::weak_oops_do(IsAliveClosure* is_alive, Closure* cl) {
   iterate_safepoint(if_alive_fn(is_alive, oop_fn(cl)));
 }
 
-#endif // include guard
+#endif // SHARE_GC_SHARED_OOPSTORAGE_INLINE_HPP

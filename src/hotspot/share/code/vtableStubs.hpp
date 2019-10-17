@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_CODE_VTABLESTUBS_HPP
-#define SHARE_VM_CODE_VTABLESTUBS_HPP
+#ifndef SHARE_CODE_VTABLESTUBS_HPP
+#define SHARE_CODE_VTABLESTUBS_HPP
 
 #include "asm/macroAssembler.hpp"
 #include "code/vmreg.hpp"
@@ -177,8 +177,8 @@ class VtableStub {
   bool is_null_pointer_exception(address epc)    { return epc == code_begin()+_npe_offset; }
 
   void print_on(outputStream* st) const;
-  void print() const                             { print_on(tty); }
+  void print() const;
 
 };
 
-#endif // SHARE_VM_CODE_VTABLESTUBS_HPP
+#endif // SHARE_CODE_VTABLESTUBS_HPP

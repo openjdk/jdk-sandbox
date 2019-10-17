@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP
-#define SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP
+#ifndef SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP
+#define SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP
 
 #include "jfr/recorder/storage/jfrStorageUtils.hpp"
+#include "runtime/thread.inline.hpp"
 
 template <typename T>
 inline bool UnBufferedWriteToChunk<T>::write(T* t, const u1* data, size_t size) {
@@ -75,6 +76,28 @@ inline bool MutexedWriteOp<Operation>::process(typename Operation::Type* t) {
   return result;
 }
 
+template <typename Type>
+static void retired_sensitive_acquire(Type* t) {
+  assert(t != NULL, "invariant");
+  if (t->retired()) {
+    return;
+  }
+  Thread* const thread = Thread::current();
+  while (!t->try_acquire(thread)) {
+    if (t->retired()) {
+      return;
+    }
+  }
+}
+
+template <typename Operation>
+inline bool ExclusiveOp<Operation>::process(typename Operation::Type* t) {
+  retired_sensitive_acquire(t);
+  assert(t->acquired_by_self() || t->retired(), "invariant");
+  // User is required to ensure proper release of the acquisition
+  return MutexedWriteOp<Operation>::process(t);
+}
+
 template <typename Operation>
 inline bool DiscardOp<Operation>::process(typename Operation::Type* t) {
   assert(t != NULL, "invariant");
@@ -95,4 +118,4 @@ inline bool DiscardOp<Operation>::process(typename Operation::Type* t) {
   return result;
 }
 
-#endif // SHARE_VM_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP
+#endif // SHARE_JFR_RECORDER_STORAGE_JFRSTORAGEUTILS_INLINE_HPP

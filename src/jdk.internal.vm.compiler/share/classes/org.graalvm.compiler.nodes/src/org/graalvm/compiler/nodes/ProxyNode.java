@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,4 +75,6 @@ public abstract class ProxyNode extends FloatingNode implements ValueNumberable 
     public static GuardProxyNode forGuard(GuardingNode value, LoopExitNode exit, StructuredGraph graph) {
         return graph.unique(new GuardProxyNode(value, exit));
     }
+
+    public abstract PhiNode createPhi(AbstractMergeNode merge);
 }

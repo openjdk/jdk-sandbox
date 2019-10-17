@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,6 +43,7 @@ import java.awt.*;
 import java.awt.font.*;
 import java.awt.geom.*;
 import java.awt.image.*;
+import java.lang.reflect.InvocationTargetException;
 import java.awt.event.*;
 
 /**
@@ -64,11 +65,11 @@ class BezierAnimationPanel extends JPanel implements Runnable {
 
     public final int NUMPTS = 6;
 
-    float animpts[] = new float[NUMPTS * 2];
+    float[] animpts = new float[NUMPTS * 2];
 
-    float deltas[] = new float[NUMPTS * 2];
+    float[] deltas = new float[NUMPTS * 2];
 
-    float staticpts[] = {
+    float[] staticpts = {
          50.0f,   0.0f,
         150.0f,   0.0f,
         200.0f,  75.0f,
@@ -77,7 +78,7 @@ class BezierAnimationPanel extends JPanel implements Runnable {
           0.0f,  75.0f,
     };
 
-    float movepts[] = new float[staticpts.length];
+    float[] movepts = new float[staticpts.length];
 
     BufferedImage img;
 
@@ -309,10 +310,19 @@ class BezierAnimationPanel extends JPanel implements Runnable {
             g2d.fill(gp);
         }
             if (g2d == BufferG2D) {
-                repaint();
+                try {
+                    SwingUtilities.invokeAndWait(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            repaint();
+                        }
+                    });
+                } catch (InvocationTargetException | InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
             ++frame;
-            Thread.yield();
         }
         if (g2d != null) {
             g2d.dispose();

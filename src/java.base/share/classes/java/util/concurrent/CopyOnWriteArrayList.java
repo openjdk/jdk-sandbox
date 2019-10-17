@@ -51,7 +51,7 @@ import java.util.Spliterators;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * A thread-safe variant of {@link java.util.ArrayList} in which all mutative
@@ -413,8 +413,9 @@ public class CopyOnWriteArrayList<E>
             if (oldValue != element) {
                 es = es.clone();
                 es[index] = element;
-                setArray(es);
             }
+            // Ensure volatile write semantics even when oldvalue == element
+            setArray(es);
             return oldValue;
         }
     }

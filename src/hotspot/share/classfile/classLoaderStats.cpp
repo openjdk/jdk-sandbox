@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classLoaderStats.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -158,7 +159,7 @@ void ClassLoaderStatsClosure::addEmptyParents(oop cl) {
 
 void ClassLoaderStatsVMOperation::doit() {
   ClassLoaderStatsClosure clsc (_out);
-  ClassLoaderDataGraph::cld_do(&clsc);
+  ClassLoaderDataGraph::loaded_cld_do(&clsc);
   clsc.print();
 }
 

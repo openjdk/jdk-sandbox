@@ -52,7 +52,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import jdk.internal.misc.SharedSecrets;
+import jdk.internal.access.SharedSecrets;
 
 /**
  * An unbounded {@linkplain BlockingQueue blocking queue} that uses
@@ -173,6 +173,7 @@ public class PriorityBlockingQueue<E> extends AbstractQueue<E>
     /**
      * Condition for blocking when empty.
      */
+    @SuppressWarnings("serial") // Classes implementing Condition may be serializable.
     private final Condition notEmpty = lock.newCondition();
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPE_HPP
-#define SHARE_VM_JFR_CHECKPOINT_TYPES_JFRTYPE_HPP
+#ifndef SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP
+#define SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP
 
 #include "jfr/metadata/jfrSerializer.hpp"
 
@@ -67,11 +67,6 @@ class GCWhenConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class G1HeapRegionTypeConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
 class GCThresholdUpdaterConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
@@ -83,11 +78,6 @@ class MetadataTypeConstant : public JfrSerializer {
 };
 
 class MetaspaceObjectTypeConstant : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class G1YCTypeConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };
@@ -118,7 +108,10 @@ class VMOperationTypeConstant : public JfrSerializer {
 };
 
 class TypeSet : public JfrSerializer {
+ private:
+  JfrCheckpointWriter* _leakp_writer;
  public:
+  explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
   void serialize(JfrCheckpointWriter& writer);
 };
 
@@ -135,4 +128,4 @@ class JfrThreadConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-#endif // SHARE_VM_JFR_CHECKPOINT_CONSTANT_JFRCONSTANT_HPP
+#endif // SHARE_JFR_RECORDER_CHECKPOINT_TYPES_JFRTYPE_HPP

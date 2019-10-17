@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_SIGNATURE_HPP
-#define SHARE_VM_RUNTIME_SIGNATURE_HPP
+#ifndef SHARE_RUNTIME_SIGNATURE_HPP
+#define SHARE_RUNTIME_SIGNATURE_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/method.hpp"
@@ -90,7 +90,6 @@ class SignatureIterator: public ResourceObj {
   SignatureIterator(Symbol* signature);
 
   // Iteration
-  void dispatch_field();               // dispatches once for field signatures
   void iterate_parameters();           // iterates over parameters only
   void iterate_parameters( uint64_t fingerprint );
   void iterate_returntype();           // iterates over returntype only
@@ -363,8 +362,8 @@ class SignatureStream : public StackObj {
   int          _end;
   BasicType    _type;
   bool         _at_return_type;
-  GrowableArray<Symbol*>* _names;  // symbols created while parsing signature
-
+  Symbol*      _previous_name;     // cache the previously looked up symbol to avoid lookups
+  GrowableArray<Symbol*>* _names;  // symbols created while parsing that need to be dereferenced
  public:
   bool at_return_type() const                    { return _at_return_type; }
   bool is_done() const;
@@ -378,7 +377,7 @@ class SignatureStream : public StackObj {
     }
 
     _begin = _end;
-    int t = sig->byte_at(_begin);
+    int t = sig->char_at(_begin);
     switch (t) {
       case 'B': _type = T_BYTE;    break;
       case 'C': _type = T_CHAR;    break;
@@ -401,12 +400,12 @@ class SignatureStream : public StackObj {
   bool is_object() const;                        // True if this argument is an object
   bool is_array() const;                         // True if this argument is an array
   BasicType type() const                         { return _type; }
-  Symbol* as_symbol(TRAPS);
-  enum FailureMode { ReturnNull, CNFException, NCDFError };
+  Symbol* as_symbol();
+  enum FailureMode { ReturnNull, NCDFError };
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
-  const jbyte* raw_bytes()  { return _signature->bytes() + _begin; }
-  int          raw_length() { return _end - _begin; }
+  const u1* raw_bytes()  { return _signature->bytes() + _begin; }
+  int       raw_length() { return _end - _begin; }
 
   // return same as_symbol except allocation of new symbols is avoided.
   Symbol* as_symbol_or_null();
@@ -415,17 +414,13 @@ class SignatureStream : public StackObj {
   int reference_parameter_count();
 };
 
+#ifdef ASSERT
 class SignatureVerifier : public StackObj {
   public:
-    // Returns true if the symbol is valid method or type signature
-    static bool is_valid_signature(Symbol* sig);
-
     static bool is_valid_method_signature(Symbol* sig);
     static bool is_valid_type_signature(Symbol* sig);
   private:
-
     static ssize_t is_valid_type(const char*, ssize_t);
-    static bool invalid_name_char(char);
 };
-
-#endif // SHARE_VM_RUNTIME_SIGNATURE_HPP
+#endif
+#endif // SHARE_RUNTIME_SIGNATURE_HPP

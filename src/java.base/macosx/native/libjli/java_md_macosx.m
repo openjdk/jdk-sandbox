@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -508,7 +508,7 @@ GetJREPath(char *path, jint pathsize, jboolean speculative)
         return JNI_FALSE;
     }
 
-    const char lastPathComponent[] = "/lib/jli/libjli.dylib";
+    const char lastPathComponent[] = "/lib/libjli.dylib";
     size_t sizeOfLastPathComponent = sizeof(lastPathComponent) - 1;
     if (pathLen < sizeOfLastPathComponent) {
         return JNI_FALSE;
@@ -717,10 +717,17 @@ void SplashFreeLibrary() {
 }
 
 /*
- * Block current thread and continue execution in a new thread
+ * Signature adapter for pthread_create().
+ */
+static void* ThreadJavaMain(void* args) {
+    return (void*)(intptr_t)JavaMain(args);
+}
+
+/*
+ * Block current thread and continue execution in a new thread.
  */
 int
-ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void * args) {
+CallJavaMainInNewThread(jlong stack_size, void* args) {
     int rslt;
     pthread_t tid;
     pthread_attr_t attr;
@@ -728,30 +735,26 @@ ContinueInNewThread0(int (JNICALL *continuation)(void *), jlong stack_size, void
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
     if (stack_size > 0) {
-      pthread_attr_setstacksize(&attr, stack_size);
+        pthread_attr_setstacksize(&attr, stack_size);
     }
     pthread_attr_setguardsize(&attr, 0); // no pthread guard page on java threads
 
-    if (pthread_create(&tid, &attr, (void *(*)(void*))continuation, (void*)args) == 0) {
-      void * tmp;
-      pthread_join(tid, &tmp);
-      rslt = (int)(intptr_t)tmp;
+    if (pthread_create(&tid, &attr, ThreadJavaMain, args) == 0) {
+        void* tmp;
+        pthread_join(tid, &tmp);
+        rslt = (int)(intptr_t)tmp;
     } else {
-     /*
-      * Continue execution in current thread if for some reason (e.g. out of
-      * memory/LWP)  a new thread can't be created. This will likely fail
-      * later in continuation as JNI_CreateJavaVM needs to create quite a
-      * few new threads, anyway, just give it a try..
-      */
-      rslt = continuation(args);
+       /*
+        * Continue execution in current thread if for some reason (e.g. out of
+        * memory/LWP)  a new thread can't be created. This will likely fail
+        * later in JavaMain as JNI_CreateJavaVM needs to create quite a
+        * few new threads, anyway, just give it a try..
+        */
+        rslt = JavaMain(args);
     }
 
     pthread_attr_destroy(&attr);
     return rslt;
-}
-
-void SetJavaLauncherPlatformProps() {
-   /* Linux only */
 }
 
 static JavaVM* jvmInstance = NULL;
@@ -761,7 +764,7 @@ static jboolean sameThread = JNI_FALSE; /* start VM in current thread */
  * Note there is a callback on this function from the splashscreen logic,
  * this as well SetJavaVMValue() needs to be simplified.
  */
-JavaVM*
+JNIEXPORT JavaVM* JNICALL
 JLI_GetJavaVMInstance()
 {
     return jvmInstance;

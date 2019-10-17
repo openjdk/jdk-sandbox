@@ -737,7 +737,7 @@ public class KullaTesting {
                 expectedSubKind, unressz, othersz);
         String signature = var.typeName();
         assertEquals(signature, expectedTypeName,
-                "Expected " + var.source() + " to have the name: " +
+                "Expected " + var.source() + " to have the type name: " +
                         expectedTypeName + ", got: " + signature);
     }
 
@@ -911,7 +911,10 @@ public class KullaTesting {
 
     public void assertCompletionIncludesExcludes(String code, Boolean isSmart, Set<String> expected, Set<String> notExpected) {
         List<String> completions = computeCompletions(code, isSmart);
-        assertTrue(completions.containsAll(expected), String.valueOf(completions));
+        assertTrue(completions.containsAll(expected), "Expected completions: "
+                + String.valueOf(expected)
+                + ", got: "
+                + String.valueOf(completions));
         assertTrue(Collections.disjoint(completions, notExpected), String.valueOf(completions));
     }
 

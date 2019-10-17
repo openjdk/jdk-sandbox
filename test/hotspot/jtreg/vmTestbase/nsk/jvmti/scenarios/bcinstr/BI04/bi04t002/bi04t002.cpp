@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include <string.h>
 #include "jvmti.h"
 #include "agent_common.h"
+#include "ExceptionCheckingJniEnv.hpp"
 #include "jni_tools.h"
 #include "jvmti_tools.h"
 
@@ -69,9 +70,7 @@ int readNewBytecode(jvmtiEnv* jvmti) {
     classDef.class_byte_count = ftell(bytecode);
     rewind(bytecode);
 
-    if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB3(Allocate, jvmti,
-                                classDef.class_byte_count,
-                                &newClassBytes))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->Allocate(classDef.class_byte_count, &newClassBytes))) {
         NSK_COMPLAIN0("buffer couldn't be allocated\n");
         return NSK_FALSE;
     }
@@ -93,23 +92,15 @@ int readNewBytecode(jvmtiEnv* jvmti) {
 static void JNICALL
 agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
 
+    ExceptionCheckingJniEnvPtr ec_jni(jni);
     /*Wait for debuggee to set classes to be redefined nsk_jvmti_waitForSync#4*/
     NSK_DISPLAY0("Wait for debuggee to set classes to be redefined nsk_jvmti_waitForSync#4\n");
     if (!nsk_jvmti_waitForSync(timeout))
         return;
 
     NSK_DISPLAY1("Find class: %s\n", TESTED_CLASS_NAME);
-    if (!NSK_JNI_VERIFY(jni, (classDef.klass =
-            NSK_CPP_STUB2(FindClass, jni, TESTED_CLASS_NAME)) != NULL)) {
-        nsk_jvmti_setFailStatus();
-        return;
-    }
-
-    if (!NSK_JNI_VERIFY(jni, (classDef.klass = (jclass)
-            NSK_CPP_STUB2(NewGlobalRef, jni, classDef.klass)) != NULL)) {
-        nsk_jvmti_setFailStatus();
-        return;
-    }
+    classDef.klass = ec_jni->FindClass(TESTED_CLASS_NAME, TRACE_JNI_CALL);
+    classDef.klass = (jclass) ec_jni->NewGlobalRef(classDef.klass, TRACE_JNI_CALL);
 
     NSK_DISPLAY0("Redfine class with new byte code\n");
     NSK_DISPLAY3("class definition:\n\t0x%p, 0x%p:%d\n",
@@ -120,13 +111,12 @@ agentProc(jvmtiEnv* jvmti, JNIEnv* jni, void* arg) {
         nsk_printHexBytes("   ", 16, classDef.class_byte_count,
                                 classDef.class_bytes);
     }
-    if (!NSK_JVMTI_VERIFY(
-            NSK_CPP_STUB3(RedefineClasses, jvmti, 1, &classDef))) {
+    if (!NSK_JVMTI_VERIFY(jvmti->RedefineClasses(1, &classDef))) {
         nsk_jvmti_setFailStatus();
         return;
     }
 
-    NSK_CPP_STUB2(DeleteGlobalRef, jni, classDef.klass);
+    ec_jni->DeleteGlobalRef(classDef.klass, TRACE_JNI_CALL);
 
     if (!nsk_jvmti_resumeSync())
         return;
@@ -154,7 +144,8 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
     timeout = nsk_jvmti_getWaitTime() * 60 * 1000;
 
-    if (!NSK_VERIFY((jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved)) != NULL))
+    jvmti = nsk_jvmti_createJVMTIEnv(jvm, reserved);
+    if (!NSK_VERIFY(jvmti != NULL))
         return JNI_ERR;
 
     {
@@ -163,7 +154,7 @@ jint Agent_Initialize(JavaVM *jvm, char *options, void *reserved) {
 
         caps.can_redefine_classes = 1;
         caps.can_redefine_any_class = 1;
-        if (!NSK_JVMTI_VERIFY(NSK_CPP_STUB2(AddCapabilities, jvmti, &caps)))
+        if (!NSK_JVMTI_VERIFY(jvmti->AddCapabilities(&caps)))
             return JNI_ERR;
     }
 

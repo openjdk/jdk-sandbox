@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_HPP
-#define SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_HPP
+#ifndef SHARE_OOPS_INSTANCECLASSLOADERKLASS_HPP
+#define SHARE_OOPS_INSTANCECLASSLOADERKLASS_HPP
 
 #include "oops/instanceKlass.hpp"
 #include "utilities/macros.hpp"
@@ -33,7 +33,7 @@ class ClassFileParser;
 // An InstanceClassLoaderKlass is a specialization of the InstanceKlass. It does
 // not add any field.  It is added to walk the dependencies for the class loader
 // key that this class loader points to.  This is how the loader_data graph is
-// walked and dependant class loaders are kept alive.  I thought we walked
+// walked and dependent class loaders are kept alive.  I thought we walked
 // the list later?
 
 class InstanceClassLoaderKlass: public InstanceKlass {
@@ -48,21 +48,10 @@ private:
 public:
   InstanceClassLoaderKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
-  // GC specific object visitors
-  //
-#if INCLUDE_PARALLELGC
-  // Parallel Scavenge
-  void oop_ps_push_contents(  oop obj, PSPromotionManager* pm);
-  // Parallel Compact
-  void oop_pc_follow_contents(oop obj, ParCompactionManager* cm);
-  void oop_pc_update_pointers(oop obj, ParCompactionManager* cm);
-#endif
-
   // Oop fields (and metadata) iterators
   //
   // The InstanceClassLoaderKlass iterators also visit the CLD pointer (or mirror of anonymous klasses.)
 
- public:
   // Forward iteration
   // Iterate over the oop fields and metadata.
   template <typename T, class OopClosureType>
@@ -79,4 +68,4 @@ public:
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 };
 
-#endif // SHARE_VM_OOPS_INSTANCECLASSLOADERKLASS_HPP
+#endif // SHARE_OOPS_INSTANCECLASSLOADERKLASS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef CPU_AARCH64_VM_C1_GLOBALS_AARCH64_HPP
-#define CPU_AARCH64_VM_C1_GLOBALS_AARCH64_HPP
+#ifndef CPU_AARCH64_C1_GLOBALS_AARCH64_HPP
+#define CPU_AARCH64_C1_GLOBALS_AARCH64_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -41,13 +41,7 @@ define_pd_global(bool, PreferInterpreterNativeStubs, false);
 define_pd_global(bool, ProfileTraps,                 false);
 define_pd_global(bool, UseOnStackReplacement,        true );
 define_pd_global(bool, TieredCompilation,            false);
-#ifdef BUILTIN_SIM
-// We compile very aggressively with the builtin simulator because
-// doing so greatly reduces run times and tests more code.
-define_pd_global(intx, CompileThreshold,             150 );
-#else
 define_pd_global(intx, CompileThreshold,             1500 );
-#endif
 
 define_pd_global(intx, OnStackReplacePercentage,     933  );
 define_pd_global(intx, FreqInlineSize,               325  );
@@ -74,4 +68,4 @@ define_pd_global(bool, OptimizeSinglePrecision,      true );
 define_pd_global(bool, CSEArrayLength,               false);
 define_pd_global(bool, TwoOperandLIRForm,            false );
 
-#endif // CPU_AARCH64_VM_C1_GLOBALS_AARCH64_HPP
+#endif // CPU_AARCH64_C1_GLOBALS_AARCH64_HPP

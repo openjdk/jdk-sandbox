@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_RUNTIME_VMSTRUCTS_HPP
-#define SHARE_VM_RUNTIME_VMSTRUCTS_HPP
+#ifndef SHARE_RUNTIME_VMSTRUCTS_HPP
+#define SHARE_RUNTIME_VMSTRUCTS_HPP
 
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -168,7 +168,7 @@ private:
  { QUOTE(typeName), QUOTE(fieldName), QUOTE(type), 1, 0, &typeName::fieldName },
 
 // This macro generates a VMStructEntry line for a static pointer volatile field,
-// e.g.: "static ObjectMonitor * volatile gBlockList;"
+// e.g.: "static ObjectMonitor * volatile g_block_list;"
 #define GENERATE_STATIC_PTR_VOLATILE_VM_STRUCT_ENTRY(typeName, fieldName, type)    \
  { QUOTE(typeName), QUOTE(fieldName), QUOTE(type), 1, 0, (void *)&typeName::fieldName },
 
@@ -202,7 +202,7 @@ private:
  {type* dummy = &typeName::fieldName; }
 
 // This macro checks the type of a static pointer volatile VMStructEntry by comparing pointer types,
-// e.g.: "static ObjectMonitor * volatile gBlockList;"
+// e.g.: "static ObjectMonitor * volatile g_block_list;"
 #define CHECK_STATIC_PTR_VOLATILE_VM_STRUCT_ENTRY(typeName, fieldName, type)       \
  {type volatile * dummy = &typeName::fieldName; }
 
@@ -299,4 +299,4 @@ private:
 #define GENERATE_VM_ADDRESS_LAST_ENTRY() \
  { NULL, NULL }
 
-#endif // SHARE_VM_RUNTIME_VMSTRUCTS_HPP
+#endif // SHARE_RUNTIME_VMSTRUCTS_HPP

@@ -23,13 +23,13 @@
 
 /*
  * @test
- * @bug 8178070 8196201
+ * @bug 8178070 8196201 8184205
  * @summary Test packages table in module summary pages
- * @library /tools/lib ../lib
+ * @library /tools/lib ../../lib
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.javadoc/jdk.javadoc.internal.tool
- * @build toolbox.ModuleBuilder toolbox.ToolBox JavadocTester
+ * @build toolbox.ModuleBuilder toolbox.ToolBox javadoc.tester.*
  * @run main TestModulePackages
  */
 
@@ -38,6 +38,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Set;
 
+import javadoc.tester.JavadocTester;
 import toolbox.ModuleBuilder;
 import toolbox.ToolBox;
 
@@ -413,26 +414,30 @@ public class TestModulePackages extends JavadocTester {
         if (kinds.length > 1) {
             Set<TabKind> kindSet = Set.of(kinds);
             StringBuilder sb = new StringBuilder();
-            sb.append("<caption>"
-                        + "<span id=\"t0\" class=\"activeTableTab\">"
-                        + "<span>All Packages</span>"
-                        + "<span class=\"tabEnd\">&nbsp;</span></span>");
+            sb.append("<div role=\"tablist\" aria-orientation=\"horizontal\">"
+                        + "<button role=\"tab\" aria-selected=\"true\""
+                        + " aria-controls=\"packagesSummary_tabpanel\" tabindex=\"0\""
+                        + " onkeydown=\"switchTab(event)\""
+                        + " id=\"t0\" class=\"activeTableTab\">All Packages</button>");
             if (kindSet.contains(TabKind.EXPORTS)) {
-                sb.append("<span id=\"t1\" class=\"tableTab\">"
-                        + "<span><a href=\"javascript:show(1);\">Exports</a></span>"
-                        + "<span class=\"tabEnd\">&nbsp;</span></span>");
+                sb.append("<button role=\"tab\" aria-selected=\"false\""
+                        + " aria-controls=\"packagesSummary_tabpanel\" tabindex=\"-1\""
+                        + " onkeydown=\"switchTab(event)\" id=\"t1\" class=\"tableTab\""
+                        + " onclick=\"show(1);\">Exports</button>");
             }
             if (kindSet.contains(TabKind.OPENS)) {
-                sb.append("<span id=\"t2\" class=\"tableTab\">"
-                        + "<span><a href=\"javascript:show(2);\">Opens</a></span>"
-                        + "<span class=\"tabEnd\">&nbsp;</span></span>");
+                sb.append("<button role=\"tab\" aria-selected=\"false\""
+                        + " aria-controls=\"packagesSummary_tabpanel\" tabindex=\"-1\""
+                        + " onkeydown=\"switchTab(event)\" id=\"t2\" class=\"tableTab\""
+                        + " onclick=\"show(2);\">Opens</button>");
             }
             if (kindSet.contains(TabKind.CONCEALED)) {
-                sb.append("<span id=\"t3\" class=\"tableTab\"><span>"
-                        + "<a href=\"javascript:show(4);\">Concealed</a></span>"
-                        + "<span class=\"tabEnd\">&nbsp;</span></span>");
+                sb.append("<button role=\"tab\" aria-selected=\"false\""
+                        + " aria-controls=\"packagesSummary_tabpanel\" tabindex=\"-1\" "
+                        + "onkeydown=\"switchTab(event)\" id=\"t3\" class=\"tableTab\" "
+                        + "onclick=\"show(4);\">Concealed</button>");
             }
-            sb.append("</caption>");
+            sb.append("</div>");
             expect = sb.toString();
         } else {
             TabKind k = kinds[0];

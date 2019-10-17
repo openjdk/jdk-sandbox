@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,10 @@ package java.lang.reflect;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
+import java.lang.ref.WeakReference;
 import java.security.AccessController;
 
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
 import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.reflect.CallerSensitive;
@@ -55,7 +57,10 @@ import sun.security.util.SecurityConstants;
  * {@code Field}s, {@code Method}s, or {@code Constructor}s are used to get or
  * set fields, to invoke methods, or to create and initialize new instances of
  * classes, respectively. Every reflected object checks that the code using it
- * is in an appropriate class, package, or module. </p>
+ * is in an appropriate class, package, or module. The check when invoked by
+ * <a href="{@docRoot}/../specs/jni/index.html">JNI code</a> with no Java
+ * class on the stack only succeeds if the member and the declaring class are
+ * public, and the class is in a package that is exported to all modules. </p>
  *
  * <p> The one variation from Java language access control is that the checks
  * by reflected objects assume readability. That is, the module containing
@@ -73,6 +78,10 @@ import sun.security.util.SecurityConstants;
  * @spec JPMS
  */
 public class AccessibleObject implements AnnotatedElement {
+    static {
+        // AccessibleObject is initialized early in initPhase1
+        SharedSecrets.setJavaLangReflectAccess(new ReflectAccess());
+    }
 
     static void checkPermission() {
         SecurityManager sm = System.getSecurityManager();
@@ -567,21 +576,68 @@ public class AccessibleObject implements AnnotatedElement {
     // Shared access checking logic.
 
     // For non-public members or members in package-private classes,
-    // it is necessary to perform somewhat expensive security checks.
-    // If the security check succeeds for a given class, it will
+    // it is necessary to perform somewhat expensive access checks.
+    // If the access check succeeds for a given class, it will
     // always succeed (it is not affected by the granting or revoking
     // of permissions); we speed up the check in the common case by
     // remembering the last Class for which the check succeeded.
     //
-    // The simple security check for Constructor is to see if
+    // The simple access check for Constructor is to see if
     // the caller has already been seen, verified, and cached.
-    // (See also Class.newInstance(), which uses a similar method.)
     //
-    // A more complicated security check cache is needed for Method and Field
-    // The cache can be either null (empty cache), a 2-array of {caller,targetClass},
+    // A more complicated access check cache is needed for Method and Field
+    // The cache can be either null (empty cache), {caller,targetClass} pair,
     // or a caller (with targetClass implicitly equal to memberClass).
-    // In the 2-array case, the targetClass is always different from the memberClass.
-    volatile Object securityCheckCache;
+    // In the {caller,targetClass} case, the targetClass is always different
+    // from the memberClass.
+    volatile Object accessCheckCache;
+
+    private static class Cache {
+        final WeakReference<Class<?>> callerRef;
+        final WeakReference<Class<?>> targetRef;
+
+        Cache(Class<?> caller, Class<?> target) {
+            this.callerRef = new WeakReference<>(caller);
+            this.targetRef = new WeakReference<>(target);
+        }
+
+        boolean isCacheFor(Class<?> caller, Class<?> refc) {
+            return callerRef.get() == caller && targetRef.get() == refc;
+        }
+
+        static Object protectedMemberCallerCache(Class<?> caller, Class<?> refc) {
+            return new Cache(caller, refc);
+        }
+    }
+
+    /*
+     * Returns true if the previous access check was verified for the
+     * given caller accessing a protected member with an instance of
+     * the given targetClass where the target class is different than
+     * the declaring member class.
+     */
+    private boolean isAccessChecked(Class<?> caller, Class<?> targetClass) {
+        Object cache = accessCheckCache;  // read volatile
+        if (cache instanceof Cache) {
+            return ((Cache) cache).isCacheFor(caller, targetClass);
+        }
+        return false;
+    }
+
+    /*
+     * Returns true if the previous access check was verified for the
+     * given caller accessing a static member or an instance member of
+     * the target class that is the same as the declaring member class.
+     */
+    private boolean isAccessChecked(Class<?> caller) {
+        Object cache = accessCheckCache;  // read volatile
+        if (cache instanceof WeakReference) {
+            @SuppressWarnings("unchecked")
+            WeakReference<Class<?>> ref = (WeakReference<Class<?>>) cache;
+            return ref.get() == caller;
+        }
+        return false;
+    }
 
     final void checkAccess(Class<?> caller, Class<?> memberClass,
                            Class<?> targetClass, int modifiers)
@@ -603,21 +659,13 @@ public class AccessibleObject implements AnnotatedElement {
         if (caller == memberClass) {  // quick check
             return true;             // ACCESS IS OK
         }
-        Object cache = securityCheckCache;  // read volatile
         if (targetClass != null // instance member or constructor
             && Modifier.isProtected(modifiers)
             && targetClass != memberClass) {
-            // Must match a 2-list of { caller, targetClass }.
-            if (cache instanceof Class[]) {
-                Class<?>[] cache2 = (Class<?>[]) cache;
-                if (cache2[1] == targetClass &&
-                    cache2[0] == caller) {
-                    return true;     // ACCESS IS OK
-                }
-                // (Test cache[1] first since range check for [1]
-                // subsumes range check for [0].)
+            if (isAccessChecked(caller, targetClass)) {
+                return true;         // ACCESS IS OK
             }
-        } else if (cache == caller) {
+        } else if (isAccessChecked(caller)) {
             // Non-protected case (or targetClass == memberClass or static member).
             return true;             // ACCESS IS OK
         }
@@ -630,6 +678,13 @@ public class AccessibleObject implements AnnotatedElement {
     private boolean slowVerifyAccess(Class<?> caller, Class<?> memberClass,
                                      Class<?> targetClass, int modifiers)
     {
+
+        if (caller == null) {
+            // No caller frame when a native thread attaches to the VM
+            // only allow access to a public accessible member
+            return Reflection.verifyPublicMemberAccess(memberClass, modifiers);
+        }
+
         if (!Reflection.verifyMemberAccess(caller, memberClass, targetClass, modifiers)) {
             // access denied
             return false;
@@ -642,14 +697,9 @@ public class AccessibleObject implements AnnotatedElement {
         Object cache = (targetClass != null
                         && Modifier.isProtected(modifiers)
                         && targetClass != memberClass)
-                        ? new Class<?>[] { caller, targetClass }
-                        : caller;
-
-        // Note:  The two cache elements are not volatile,
-        // but they are effectively final.  The Java memory model
-        // guarantees that the initializing stores for the cache
-        // elements will occur before the volatile write.
-        securityCheckCache = cache;         // write volatile
+                        ? Cache.protectedMemberCallerCache(caller, targetClass)
+                        : new WeakReference<>(caller);
+        accessCheckCache = cache;         // write volatile
         return true;
     }
 

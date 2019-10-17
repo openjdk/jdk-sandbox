@@ -633,7 +633,7 @@ Node* IfNode::up_one_dom(Node *curr, bool linear_only) {
     if( din4->is_Call() &&      // Handle a slow-path call on either arm
         (din4 = din4->in(0)) )
       din4 = din4->in(0);
-    if( din3 == din4 && din3->is_If() )
+    if (din3 != NULL && din3 == din4 && din3->is_If()) // Regions not degraded to a copy
       return din3;              // Skip around diamonds
   }
 
@@ -1480,12 +1480,6 @@ Node* IfNode::dominated_by(Node* prev_dom, PhaseIterGVN *igvn) {
   if (TraceIterativeGVN) {
     tty->print("   Removing IfNode: "); this->dump();
   }
-  if (VerifyOpto && !igvn->allow_progress()) {
-    // Found an equivalent dominating test,
-    // we can not guarantee reaching a fix-point for these during iterativeGVN
-    // since intervening nodes may not change.
-    return NULL;
-  }
 #endif
 
   igvn->hash_delete(this);      // Remove self to prevent spurious V-N
@@ -1551,7 +1545,6 @@ Node* IfNode::search_identical(int dist) {
   // Search up the dominator tree for an If with an identical test
   while (dom->Opcode() != op    ||  // Not same opcode?
          dom->in(1)    != in(1) ||  // Not same input 1?
-         (req() == 3 && dom->in(2) != in(2)) || // Not same input 2?
          prev_dom->in(0) != dom) {  // One path of test does not dominate?
     if (dist < 0) return NULL;
 

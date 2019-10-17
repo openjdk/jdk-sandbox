@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -310,7 +310,7 @@ public class SwingUtilities implements SwingConstants
             return null;
         }
         if (parent instanceof Container) {
-            Component components[] = ((Container)parent).getComponents();
+            Component[] components = ((Container)parent).getComponents();
             for (Component comp : components) {
                 if (comp != null && comp.isVisible()) {
                     Point loc = comp.getLocation();
@@ -606,7 +606,7 @@ public class SwingUtilities implements SwingConstants
 
         Rectangle t = new Rectangle();
         Rectangle a=null,b=null,c=null,d=null;
-        Rectangle result[];
+        Rectangle[] result;
         int rectCount = 0;
 
         /* rectA contains rectB */
@@ -1100,7 +1100,7 @@ public class SwingUtilities implements SwingConstants
          * and use 0,0,0,0 for textR.
          */
 
-        boolean textIsEmpty = (text == null) || text.equals("");
+        boolean textIsEmpty = (text == null) || text.isEmpty();
         int lsb = 0;
         int rsb = 0;
         /* Unless both text and icon are non-null, we effectively ignore
@@ -1408,7 +1408,7 @@ public class SwingUtilities implements SwingConstants
      * <p>
      * Additional documentation and examples for this method can be
      * found in
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency in Swing</a>.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency in Swing</a>.
      * <p>
      * As of 1.3 this method is just a cover for <code>java.awt.EventQueue.invokeLater()</code>.
      * <p>
@@ -1460,7 +1460,7 @@ public class SwingUtilities implements SwingConstants
      * <p>
      * Additional documentation and examples for this method can be
      * found in
-     * <A HREF="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency in Swing</a>.
+     * <A HREF="https://docs.oracle.com/javase/tutorial/uiswing/concurrency/index.html">Concurrency in Swing</a>.
      * <p>
      * As of 1.3 this method is just a cover for
      * <code>java.awt.EventQueue.invokeAndWait()</code>.

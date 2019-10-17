@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,11 @@
  *
  */
 
-#ifndef SHARE_VM_OPTO_C2COMPILER_HPP
-#define SHARE_VM_OPTO_C2COMPILER_HPP
+#ifndef SHARE_OPTO_C2COMPILER_HPP
+#define SHARE_OPTO_C2COMPILER_HPP
 
 #include "compiler/abstractCompiler.hpp"
+#include "opto/output.hpp"
 
 class C2Compiler : public AbstractCompiler {
  private:
@@ -66,7 +67,7 @@ public:
   virtual bool is_intrinsic_supported(const methodHandle& method, bool is_virtual);
 
   // Initial size of the code buffer (may be increased at runtime)
-  static int initial_code_buffer_size();
+  static int initial_code_buffer_size(int const_size = initial_const_capacity);
 };
 
-#endif // SHARE_VM_OPTO_C2COMPILER_HPP
+#endif // SHARE_OPTO_C2COMPILER_HPP

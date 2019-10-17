@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
  *          jdk.internal.vm.ci/jdk.vm.ci.common
  *          java.base/jdk.internal.misc
- * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -Djvmci.Compiler=null jdk.vm.ci.runtime.test.TestResolvedJavaType
+ * @run junit/othervm -XX:+UnlockExperimentalVMOptions -XX:+EnableJVMCI -XX:-UseJVMCICompiler jdk.vm.ci.runtime.test.TestResolvedJavaType
  */
 
 package jdk.vm.ci.runtime.test;
@@ -49,6 +49,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -160,7 +161,11 @@ public class TestResolvedJavaType extends TypeUniverse {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
             ResolvedJavaType host = type.getHostClass();
-            assertNull(host);
+            if (!type.equals(predicateType)) {
+                assertNull(host);
+            } else {
+                assertNotNull(host);
+            }
         }
 
         class LocalClass {}
@@ -764,11 +769,15 @@ public class TestResolvedJavaType extends TypeUniverse {
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class)) && f.getName().equals("classLoader")) {
             return true;
         }
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Lookup.class))) {
+            return f.getName().equals("allowedModes") || f.getName().equals("lookupClass");
+        }
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(ClassLoader.class)) ||
             f.getDeclaringClass().equals(metaAccess.lookupJavaType(AccessibleObject.class)) ||
             f.getDeclaringClass().equals(metaAccess.lookupJavaType(Constructor.class)) ||
             f.getDeclaringClass().equals(metaAccess.lookupJavaType(Field.class)) ||
-            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Method.class))) {
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Method.class)) ||
+            f.getDeclaringClass().equals(metaAccess.lookupJavaType(Module.class))) {
             return true;
         }
         return false;
@@ -855,17 +864,25 @@ public class TestResolvedJavaType extends TypeUniverse {
 
     }
 
+    private static ResolvedJavaMethod getClassInitializer(Class<?> c) {
+        ResolvedJavaMethod clinit = metaAccess.lookupJavaType(c).getClassInitializer();
+        if (clinit != null) {
+            assertEquals(0, clinit.getAnnotations().length);
+            assertEquals(0, clinit.getDeclaredAnnotations().length);
+        }
+        return clinit;
+    }
+
     @Test
     public void getClassInitializerTest() {
-        assertNotNull(metaAccess.lookupJavaType(A.class).getClassInitializer());
-        assertNotNull(metaAccess.lookupJavaType(D.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(B.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(C.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(int.class).getClassInitializer());
-        assertNull(metaAccess.lookupJavaType(void.class).getClassInitializer());
+        assertNotNull(getClassInitializer(A.class));
+        assertNotNull(getClassInitializer(D.class));
+        assertNull(getClassInitializer(B.class));
+        assertNull(getClassInitializer(C.class));
+        assertNull(getClassInitializer(int.class));
+        assertNull(getClassInitializer(void.class));
         for (Class<?> c : classes) {
-            ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            type.getClassInitializer();
+            getClassInitializer(c);
         }
     }
 

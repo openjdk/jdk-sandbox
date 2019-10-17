@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -96,8 +96,9 @@ import sun.util.logging.PlatformLogger;
  * possible, as shown in the following figure.
  * <p>
  * <img src="doc-files/MultiScreen.gif"
- * alt="Diagram shows virtual device containing 4 physical screens. Primary physical screen shows coords (0,0), other screen shows (-80,-100)."
- * style="float:center; margin: 7px 10px;">
+ * alt="Diagram shows virtual device containing 4 physical screens. Primary
+ * physical screen shows coords (0,0), other screen shows (-80,-100)."
+ * style="margin: 7px 10px;">
  * <p>
  * In such an environment, when calling {@code setLocation},
  * you must pass a virtual coordinate to this method.  Similarly,
@@ -371,6 +372,7 @@ public class Window extends Container implements Accessible {
      * @see #setShape(Shape)
      * @since 1.7
      */
+    @SuppressWarnings("serial") // Not statically typed as Serializable
     private Shape shape = null;
 
     private static final String base = "win";
@@ -393,16 +395,6 @@ public class Window extends Container implements Accessible {
      */
     private transient volatile int securityWarningWidth = 0;
     private transient volatile int securityWarningHeight = 0;
-
-    /**
-     * These fields represent the desired location for the security
-     * warning if this window is untrusted.
-     * See com.sun.awt.SecurityWarning for more details.
-     */
-    private transient double securityWarningPointX = 2.0;
-    private transient double securityWarningPointY = 0.0;
-    private transient float securityWarningAlignmentX = RIGHT_ALIGNMENT;
-    private transient float securityWarningAlignmentY = TOP_ALIGNMENT;
 
     static {
         /* ensure that the necessary native libraries are loaded */
@@ -1487,7 +1479,7 @@ public class Window extends Container implements Accessible {
         return getOwnedWindows_NoClientCode();
     }
     final Window[] getOwnedWindows_NoClientCode() {
-        Window realCopy[];
+        Window[] realCopy;
 
         synchronized(ownedWindowList) {
             // Recall that ownedWindowList is actually a Vector of
@@ -1497,7 +1489,7 @@ public class Window extends Container implements Accessible {
             // all non-null get()s (realCopy with size realSize).
             int fullSize = ownedWindowList.size();
             int realSize = 0;
-            Window fullCopy[] = new Window[fullSize];
+            Window[] fullCopy = new Window[fullSize];
 
             for (int i = 0; i < fullSize; i++) {
                 fullCopy[realSize] = ownedWindowList.elementAt(i).get();
@@ -1565,14 +1557,14 @@ public class Window extends Container implements Accessible {
 
     private static Window[] getWindows(AppContext appContext) {
         synchronized (Window.class) {
-            Window realCopy[];
+            Window[] realCopy;
             @SuppressWarnings("unchecked")
             Vector<WeakReference<Window>> windowList =
                 (Vector<WeakReference<Window>>)appContext.get(Window.class);
             if (windowList != null) {
                 int fullSize = windowList.size();
                 int realSize = 0;
-                Window fullCopy[] = new Window[fullSize];
+                Window[] fullCopy = new Window[fullSize];
                 for (int i = 0; i < fullSize; i++) {
                     Window w = windowList.get(i).get();
                     if (w != null) {
@@ -3127,10 +3119,6 @@ public class Window extends Container implements Accessible {
 
          this.securityWarningWidth = 0;
          this.securityWarningHeight = 0;
-         this.securityWarningPointX = 2.0;
-         this.securityWarningPointY = 0.0;
-         this.securityWarningAlignmentX = RIGHT_ALIGNMENT;
-         this.securityWarningAlignmentY = TOP_ALIGNMENT;
 
          deserializeResources(s);
     }
@@ -4031,9 +4019,9 @@ public class Window extends Container implements Accessible {
     private Point2D calculateSecurityWarningPosition(double x, double y,
             double w, double h)
     {
-        // The position according to the spec of SecurityWarning.setPosition()
-        double wx = x + w * securityWarningAlignmentX + securityWarningPointX;
-        double wy = y + h * securityWarningAlignmentY + securityWarningPointY;
+         // The desired location for the security warning
+        double wx = x + w * RIGHT_ALIGNMENT + 2.0;
+        double wy = y + h * TOP_ALIGNMENT + 0.0;
 
         // First, make sure the warning is not too far from the window bounds
         wx = Window.limit(wx,
@@ -4068,31 +4056,10 @@ public class Window extends Container implements Accessible {
                 window.updateWindow();
             }
 
-            public Dimension getSecurityWarningSize(Window window) {
-                return new Dimension(window.securityWarningWidth,
-                        window.securityWarningHeight);
-            }
-
             public void setSecurityWarningSize(Window window, int width, int height)
             {
                 window.securityWarningWidth = width;
                 window.securityWarningHeight = height;
-            }
-
-            public void setSecurityWarningPosition(Window window,
-                    Point2D point, float alignmentX, float alignmentY)
-            {
-                window.securityWarningPointX = point.getX();
-                window.securityWarningPointY = point.getY();
-                window.securityWarningAlignmentX = alignmentX;
-                window.securityWarningAlignmentY = alignmentY;
-
-                synchronized (window.getTreeLock()) {
-                    WindowPeer peer = (WindowPeer) window.peer;
-                    if (peer != null) {
-                        peer.repositionSecurityWarning();
-                    }
-                }
             }
 
             public Point2D calculateSecurityWarningPosition(Window window,

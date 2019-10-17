@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@
 #ifndef SO_REUSEPORT
 #ifdef __linux__
 #define SO_REUSEPORT 15
-#elif __solaris__
+#elif defined(__solaris__)
 #define SO_REUSEPORT 0x100e
 #elif defined(AIX) || defined(MACOSX)
 #define SO_REUSEPORT 0x0200
@@ -55,6 +55,7 @@
 /* Defined in IOUtil.c */
 
 jint fdval(JNIEnv *env, jobject fdo);
+void setfdval(JNIEnv *env, jobject fdo, jint value);
 
 jint convertReturnVal(JNIEnv *env, jint n, jboolean reading);
 jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading);
@@ -62,5 +63,4 @@ jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading);
 
 /* Defined in Net.c */
 
-JNIEXPORT jint JNICALL
-handleSocketError(JNIEnv *env, jint errorValue);
+jint handleSocketError(JNIEnv *env, jint errorValue);

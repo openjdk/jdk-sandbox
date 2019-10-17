@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ public class Infer {
     public static class InferenceException extends InapplicableMethodException {
         private static final long serialVersionUID = 0;
 
-        List<JCDiagnostic> messages = List.nil();
+        transient List<JCDiagnostic> messages = List.nil();
 
         InferenceException() {
             super(null);
@@ -537,8 +537,8 @@ public class Infer {
         for (Type t : todo) {
             UndetVar uv = (UndetVar)t;
             TypeVar ct = (TypeVar)uv.getInst();
-            ct.bound = types.glb(inferenceContext.asInstTypes(types.getBounds(ct)));
-            if (ct.bound.isErroneous()) {
+            ct.setUpperBound( types.glb(inferenceContext.asInstTypes(types.getBounds(ct))) );
+            if (ct.getUpperBound().isErroneous()) {
                 //report inference error if glb fails
                 reportBoundError(uv, InferenceBound.UPPER);
             }
@@ -1321,7 +1321,7 @@ public class Infer {
         public static class NodeNotFoundException extends RuntimeException {
             private static final long serialVersionUID = 0;
 
-            InferenceGraph graph;
+            transient InferenceGraph graph;
 
             public NodeNotFoundException(InferenceGraph graph) {
                 this.graph = graph;

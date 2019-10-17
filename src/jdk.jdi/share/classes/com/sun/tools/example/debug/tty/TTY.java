@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ import com.sun.jdi.request.*;
 import com.sun.jdi.connect.*;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.*;
 
 public class TTY implements EventNotifier {
@@ -48,7 +49,7 @@ public class TTY implements EventNotifier {
     /**
      * List of Strings to execute at each stop.
      */
-    private List<String> monitorCommands = new ArrayList<String>();
+    private List<String> monitorCommands = new CopyOnWriteArrayList<>();
     private int monitorCount = 0;
 
     /**
@@ -100,6 +101,17 @@ public class TTY implements EventNotifier {
     public void breakpointEvent(BreakpointEvent be)  {
         Thread.yield();  // fetch output
         MessageOutput.lnprint("Breakpoint hit:");
+        // Print breakpoint location and prompt if suspend policy is
+        // SUSPEND_NONE or SUSPEND_EVENT_THREAD. In case of SUSPEND_ALL
+        // policy this is handled by vmInterrupted() method.
+        int suspendPolicy = be.request().suspendPolicy();
+        switch (suspendPolicy) {
+            case EventRequest.SUSPEND_EVENT_THREAD:
+            case EventRequest.SUSPEND_NONE:
+                printBreakpointLocation(be);
+                MessageOutput.printPrompt();
+                break;
+        }
     }
 
     @Override
@@ -227,6 +239,10 @@ public class TTY implements EventNotifier {
                                              Commands.locationString(loc)});
     }
 
+    private void printBreakpointLocation(BreakpointEvent be) {
+        printLocationWithSourceLine(be.thread().name(), be.location());
+    }
+
     private void printCurrentLocation() {
         ThreadInfo threadInfo = ThreadInfo.getCurrentThreadInfo();
         StackFrame frame;
@@ -239,24 +255,27 @@ public class TTY implements EventNotifier {
         if (frame == null) {
             MessageOutput.println("No frames on the current call stack");
         } else {
-            Location loc = frame.location();
-            printBaseLocation(threadInfo.getThread().name(), loc);
-            // Output the current source line, if possible
-            if (loc.lineNumber() != -1) {
-                String line;
-                try {
-                    line = Env.sourceLine(loc, loc.lineNumber());
-                } catch (java.io.IOException e) {
-                    line = null;
-                }
-                if (line != null) {
-                    MessageOutput.println("source line number and line",
-                                          new Object [] {loc.lineNumber(),
-                                                         line});
-                }
-            }
+            printLocationWithSourceLine(threadInfo.getThread().name(), frame.location());
         }
         MessageOutput.println();
+    }
+
+    private void printLocationWithSourceLine(String threadName, Location loc) {
+        printBaseLocation(threadName, loc);
+        // Output the current source line, if possible
+        if (loc.lineNumber() != -1) {
+            String line;
+            try {
+                line = Env.sourceLine(loc, loc.lineNumber());
+            } catch (java.io.IOException e) {
+                line = null;
+            }
+            if (line != null) {
+                MessageOutput.println("source line number and line",
+                                           new Object [] {loc.lineNumber(),
+                                                          line});
+            }
+        }
     }
 
     private void printLocationOfEvent(LocatableEvent theEvent) {
@@ -286,6 +305,7 @@ public class TTY implements EventNotifier {
         {"clear",        "y",         "n"},
         {"connectors",   "y",         "y"},
         {"cont",         "n",         "n"},
+        {"dbgtrace",     "y",         "y"},
         {"disablegc",    "n",         "n"},
         {"down",         "n",         "y"},
         {"dump",         "n",         "y"},
@@ -464,6 +484,8 @@ public class TTY implements EventNotifier {
                         } else if (cmd.equals("resume")) {
                             evaluator.commandResume(t);
                         } else if (cmd.equals("cont")) {
+                            MessageOutput.printPrompt(true);
+                            showPrompt = false;
                             evaluator.commandCont();
                         } else if (cmd.equals("threadgroups")) {
                             evaluator.commandThreadGroups();
@@ -474,12 +496,19 @@ public class TTY implements EventNotifier {
                         } else if (cmd.equals("ignore")) {
                             evaluator.commandIgnoreException(t);
                         } else if (cmd.equals("step")) {
+                            MessageOutput.printPrompt(true);
+                            showPrompt = false;
                             evaluator.commandStep(t);
                         } else if (cmd.equals("stepi")) {
+                            MessageOutput.printPrompt(true);
+                            showPrompt = false;
                             evaluator.commandStepi();
                         } else if (cmd.equals("next")) {
+                            MessageOutput.printPrompt(true);
+                            showPrompt = false;
                             evaluator.commandNext();
                         } else if (cmd.equals("kill")) {
+                            showPrompt = false;        // asynchronous command
                             evaluator.commandKill(t);
                         } else if (cmd.equals("interrupt")) {
                             evaluator.commandInterrupt(t);
@@ -560,6 +589,8 @@ public class TTY implements EventNotifier {
                             evaluator.commandExclude(t);
                         } else if (cmd.equals("read")) {
                             readCommand(t);
+                        } else if (cmd.equals("dbgtrace")) {
+                            evaluator.commandDbgTrace(t);
                         } else if (cmd.equals("help") || cmd.equals("?")) {
                             help();
                         } else if (cmd.equals("version")) {
@@ -901,7 +932,7 @@ public class TTY implements EventNotifier {
                    // Old-style options (These should remain in place as long as
                    //  the standard VM accepts them)
                    token.equals("-noasyncgc") || token.equals("-prof") ||
-                   token.equals("-verify") || token.equals("-noverify") ||
+                   token.equals("-verify") ||
                    token.equals("-verifyremote") ||
                    token.equals("-verbosegc") ||
                    token.startsWith("-ms") || token.startsWith("-mx") ||

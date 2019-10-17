@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_GC_PARALLEL_PSYOUNGGEN_HPP
-#define SHARE_VM_GC_PARALLEL_PSYOUNGGEN_HPP
+#ifndef SHARE_GC_PARALLEL_PSYOUNGGEN_HPP
+#define SHARE_GC_PARALLEL_PSYOUNGGEN_HPP
 
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/objectStartArray.hpp"
@@ -180,7 +180,6 @@ class PSYoungGen : public CHeapObj<mtGC> {
   // Debugging - do not use for time critical operations
   void print() const;
   void print_on(outputStream* st) const;
-  void print_used_change(size_t prev_used) const;
   virtual const char* name() const { return "PSYoungGen"; }
 
   void verify();
@@ -197,4 +196,4 @@ class PSYoungGen : public CHeapObj<mtGC> {
   void record_spaces_top() PRODUCT_RETURN;
 };
 
-#endif // SHARE_VM_GC_PARALLEL_PSYOUNGGEN_HPP
+#endif // SHARE_GC_PARALLEL_PSYOUNGGEN_HPP
