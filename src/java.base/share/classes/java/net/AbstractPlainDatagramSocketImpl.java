@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-
+import sun.net.PlatformDatagramSocketImpl;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.IPAddressUtil;
@@ -46,13 +46,13 @@ import sun.security.action.GetPropertyAction;
  * @author Pavani Diwanji
  */
 
-abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
+abstract class AbstractPlainDatagramSocketImpl extends PlatformDatagramSocketImpl
 {
     /* timeout value for receive() */
-    int timeout = 0;
-    boolean connected = false;
-    private int trafficClass = 0;
-    protected InetAddress connectedAddress = null;
+    int timeout;
+    boolean connected;
+    private int trafficClass;
+    protected InetAddress connectedAddress;
     private int connectedPort = -1;
 
     private static final String os =
@@ -82,6 +82,12 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
             checkedReusePort = true;
         }
         return isReusePortAvailable;
+    }
+
+    private final boolean isMulticast;
+
+    AbstractPlainDatagramSocketImpl(boolean isMulticast) {
+        this.isMulticast = isMulticast;
     }
 
     /**
@@ -430,7 +436,7 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
 
     @Override
     protected Set<SocketOption<?>> supportedOptions() {
-        if (getDatagramSocket() instanceof MulticastSocket)
+        if (isMulticast)
             return multicastSocketOptions;
         else
             return datagramSocketOptions;
@@ -523,7 +529,8 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
     protected abstract void connect0(InetAddress address, int port) throws SocketException;
     protected abstract void disconnect0(int family);
 
-    protected boolean nativeConnectDisabled() {
+    @Override
+    public boolean nativeConnectDisabled() {
         return connectDisabled;
     }
 

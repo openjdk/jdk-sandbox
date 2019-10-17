@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,10 @@
 
 package java.net;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import sun.net.NetProperties;
+import sun.nio.ch.NioDatagramSocketImpl;
 import sun.security.action.GetPropertyAction;
 
 /**
@@ -52,13 +56,30 @@ class DefaultDatagramSocketImplFactory {
         }
     }
 
+    private static final boolean USE_PLAINDATAGRAMSOCKETIMPL = usePlainDatagramSocketImpl();
+
+    private static boolean usePlainDatagramSocketImpl() {
+        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainDatagramSocketImpl");
+        String s = AccessController.doPrivileged(pa);
+        return (s != null) && !s.equalsIgnoreCase("false");
+    }
+
+    /** Creates an instance of platform's DatagramSocketImpl */
+    static DatagramSocketImpl createPlatformSocketDatagramImpl(boolean isMulticast) {
+        if (USE_PLAINDATAGRAMSOCKETIMPL || isMulticast) {
+            return new PlainDatagramSocketImpl(isMulticast);
+        } else {
+            return new NioDatagramSocketImpl();
+        }
+    }
+
     /**
      * Creates a new <code>DatagramSocketImpl</code> instance.
      *
-     * @param   isMulticast     true if this impl if for a MutlicastSocket
+     * @param   isMulticast     true if this impl is for a MutlicastSocket
      * @return  a new instance of a <code>DatagramSocketImpl</code>.
      */
-    static DatagramSocketImpl createDatagramSocketImpl(boolean isMulticast /*unused on unix*/)
+    static DatagramSocketImpl createDatagramSocketImpl(boolean isMulticast)
         throws SocketException {
         if (prefixImplClass != null) {
             try {
@@ -69,7 +90,7 @@ class DefaultDatagramSocketImplFactory {
                 throw new SocketException("can't instantiate DatagramSocketImpl");
             }
         } else {
-            return new java.net.PlainDatagramSocketImpl();
+            return createPlatformSocketDatagramImpl(isMulticast);
         }
     }
 }

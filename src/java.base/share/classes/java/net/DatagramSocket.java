@@ -25,6 +25,8 @@
 
 package java.net;
 
+import sun.net.PlatformDatagramSocketImpl;
+
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
 import java.security.AccessController;
@@ -147,8 +149,8 @@ class DatagramSocket implements java.io.Closeable {
           bind(new InetSocketAddress(0));
 
         // old impls do not support connect/disconnect
-        if (oldImpl || (impl instanceof AbstractPlainDatagramSocketImpl &&
-             ((AbstractPlainDatagramSocketImpl)impl).nativeConnectDisabled())) {
+        if (oldImpl || (impl instanceof PlatformDatagramSocketImpl &&
+             ((PlatformDatagramSocketImpl)impl).nativeConnectDisabled())) {
             connectState = ST_CONNECTED_NO_IMPL;
         } else {
             try {
@@ -338,7 +340,6 @@ class DatagramSocket implements java.io.Closeable {
         }
         // creates a udp socket
         impl.create();
-        impl.setDatagramSocket(this);
         created = true;
     }
 

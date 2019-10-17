@@ -28,7 +28,10 @@
  */
 
 import java.net.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.DatagramChannel;
 import java.util.*;
+import static java.lang.System.out;
 
 public class B6411513 {
 
@@ -47,7 +50,7 @@ public class B6411513 {
                     // out IPv6 address here. The test should be revisited
                     // later when aforementioned bug gets fixed.
                     if (addr instanceof Inet4Address) {
-                        System.out.printf("%s : %s\n", nic.getName(), addr);
+                        out.printf("%s : %s\n", nic.getName(), addr);
                         testConnectedUDP(addr);
                     }
                 }
@@ -65,20 +68,23 @@ public class B6411513 {
         try {
             DatagramSocket s = new DatagramSocket(0, addr);
             DatagramSocket ss = new DatagramSocket(0, addr);
-            System.out.print("\tconnect...");
+            out.println("localaddress: " + s.getLocalSocketAddress());
+            out.println("\tconnect...");
             s.connect(ss.getLocalAddress(), ss.getLocalPort());
-            System.out.print("disconnect...");
+            out.println("localaddress: " + s.getLocalSocketAddress());
+            out.println("disconnect...");
             s.disconnect();
+            out.println("localaddress: " + s.getLocalSocketAddress());
 
             byte[] data = { 0, 1, 2 };
             DatagramPacket p = new DatagramPacket(data, data.length,
                     s.getLocalAddress(), s.getLocalPort());
             s.setSoTimeout( 10000 );
-            System.out.print("send...");
+            out.print("send...");
             s.send( p );
-            System.out.print("recv...");
+            out.print("recv...");
             s.receive( p );
-            System.out.println("OK");
+            out.println("OK");
 
             ss.close();
             s.close();
@@ -87,4 +93,29 @@ public class B6411513 {
             throw e;
         }
     }
+
+    // Tests with DatagramChannel
+//    private static void testConnectedUDPNIO(InetAddress addr) throws Exception {
+//        DatagramChannel s = DatagramChannel.open();
+//        s.bind(new InetSocketAddress(addr, 0));
+//        DatagramChannel ss = DatagramChannel.open();
+//        ss.bind(new InetSocketAddress(addr, 0));
+//        out.println("localaddress: " + s.getLocalAddress());
+//        out.println("\tconnect...");
+//        s.connect(ss.getLocalAddress());
+//        out.println("localaddress: " + s.getLocalAddress());
+//        out.println("disconnect...");
+//        s.disconnect();
+//        out.println("localaddress: " + s.getLocalAddress());
+//
+//        byte[] data = {0, 1, 2};
+//        out.print("send...");
+//        s.send(ByteBuffer.wrap(data), s.getLocalAddress());
+//        out.print("recv...");
+//        s.receive(ByteBuffer.allocate(100));
+//        out.println("OK");
+//
+//        ss.close();
+//        s.close();
+//    }
 }
