@@ -26,7 +26,7 @@
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include OS_CPU_HEADER(gc/z/zGlobals)
+#include CPU_HEADER(gc/z/zGlobals)
 
 // Collector name
 const char* const ZName                         = "The Z Garbage Collector";
@@ -43,10 +43,6 @@ extern uint32_t   ZGlobalSeqNum;
 // Granule shift/size
 const size_t      ZGranuleSizeShift             = ZPlatformGranuleSizeShift;
 const size_t      ZGranuleSize                  = (size_t)1 << ZGranuleSizeShift;
-
-// Max heap size shift/size
-const size_t      ZMaxHeapSizeShift             = ZPlatformMaxHeapSizeShift;
-const size_t      ZMaxHeapSize                  = (size_t)1 << ZMaxHeapSizeShift;
 
 // Page types
 const uint8_t     ZPageTypeSmall                = 0;
@@ -111,16 +107,6 @@ extern uintptr_t  ZAddressMetadataMarked0;
 extern uintptr_t  ZAddressMetadataMarked1;
 extern uintptr_t  ZAddressMetadataRemapped;
 extern uintptr_t  ZAddressMetadataFinalizable;
-
-// Address space start/end/size
-extern uintptr_t  ZAddressSpaceStart;
-extern uintptr_t  ZAddressSpaceEnd;
-extern size_t     ZAddressSpaceSize;
-
-// Reserved space start/end
-extern uintptr_t  ZAddressReservedStart;
-extern uintptr_t  ZAddressReservedEnd;
-extern size_t     ZAddressReservedSize;
 
 // NMethod entry barrier
 const size_t      ZNMethodDisarmedOffset        = ZPlatformNMethodDisarmedOffset;

@@ -205,7 +205,7 @@ C2V_VMENTRY_NULL(jobject, getFlagValue, (JNIEnv* env, jobject c2vm, jobject name
     JVMCI_THROW_NULL(NullPointerException);
   }
   const char* cstring = JVMCIENV->as_utf8_string(name);
-  JVMFlag* flag = JVMFlag::find_flag(cstring, strlen(cstring), /* allow_locked */ true, /* return_flag */ true);
+  const JVMFlag* flag = JVMFlag::find_declared_flag(cstring);
   if (flag == NULL) {
     return c2vm;
   }
@@ -453,6 +453,9 @@ C2V_VMENTRY_NULL(jobject, findUniqueConcreteMethod, (JNIEnv* env, jobject, jobje
   if (holder->is_interface()) {
     JVMCI_THROW_MSG_NULL(InternalError, err_msg("Interface %s should be handled in Java code", holder->external_name()));
   }
+  if (method->can_be_statically_bound()) {
+    JVMCI_THROW_MSG_NULL(InternalError, err_msg("Effectively static method %s.%s should be handled in Java code", method->method_holder()->external_name(), method->external_name()));
+  }
 
   methodHandle ucm;
   {
@@ -565,6 +568,33 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
   return JVMCIENV->get_jobject(result);
 C2V_END
 
+C2V_VMENTRY_NULL(jobject, getArrayType, (JNIEnv* env, jobject, jobject jvmci_type))
+  if (jvmci_type == NULL) {
+    JVMCI_THROW_0(NullPointerException);
+  }
+
+  JVMCIObject jvmci_type_object = JVMCIENV->wrap(jvmci_type);
+  JVMCIKlassHandle array_klass(THREAD);
+  if (JVMCIENV->isa_HotSpotResolvedPrimitiveType(jvmci_type_object)) {
+    BasicType type = JVMCIENV->kindToBasicType(JVMCIENV->get_HotSpotResolvedPrimitiveType_kind(jvmci_type_object), JVMCI_CHECK_0);
+    if (type == T_VOID) {
+      return NULL;
+    }
+    array_klass = Universe::typeArrayKlassObj(type);
+    if (array_klass == NULL) {
+      JVMCI_THROW_MSG_NULL(InternalError, err_msg("No array klass for primitive type %s", type2name(type)));
+    }
+  } else {
+    Klass* klass = JVMCIENV->asKlass(jvmci_type);
+    if (klass == NULL) {
+      JVMCI_THROW_0(NullPointerException);
+    }
+    array_klass = klass->array_klass(CHECK_NULL);
+  }
+  JVMCIObject result = JVMCIENV->get_jvmci_type(array_klass, JVMCI_CHECK_NULL);
+  return JVMCIENV->get_jobject(result);
+C2V_END
+
 C2V_VMENTRY_NULL(jobject, lookupClass, (JNIEnv* env, jobject, jclass mirror))
   requireInHotSpot("lookupClass", JVMCI_CHECK_NULL);
   if (mirror == NULL) {
@@ -578,12 +608,6 @@ C2V_VMENTRY_NULL(jobject, lookupClass, (JNIEnv* env, jobject, jclass mirror))
   JVMCIObject result = JVMCIENV->get_jvmci_type(klass, JVMCI_CHECK_NULL);
   return JVMCIENV->get_jobject(result);
 }
-
-C2V_VMENTRY_NULL(jobject, resolveConstantInPool, (JNIEnv* env, jobject, jobject jvmci_constant_pool, jint index))
-  constantPoolHandle cp = JVMCIENV->asConstantPool(jvmci_constant_pool);
-  oop result = cp->resolve_constant_at(index, CHECK_NULL);
-  return JVMCIENV->get_jobject(JVMCIENV->get_object_constant(result));
-C2V_END
 
 C2V_VMENTRY_NULL(jobject, resolvePossiblyCachedConstantInPool, (JNIEnv* env, jobject, jobject jvmci_constant_pool, jint index))
   constantPoolHandle cp = JVMCIENV->asConstantPool(jvmci_constant_pool);
@@ -921,6 +945,14 @@ C2V_VMENTRY_0(jint, getMetadata, (JNIEnv *env, jobject, jobject target, jobject 
   }
   HotSpotJVMCI::HotSpotMetaData::set_exceptionBytes(JVMCIENV, metadata_handle, exceptionArray);
 
+  ImplicitExceptionTable* implicit = code_metadata.get_implicit_exception_table();
+  int implicit_table_size = implicit->size_in_bytes();
+  JVMCIPrimitiveArray implicitExceptionArray = JVMCIENV->new_byteArray(implicit_table_size, JVMCI_CHECK_(JVMCI::cache_full));
+  if (implicit_table_size > 0) {
+    implicit->copy_bytes_to((address) HotSpotJVMCI::resolve(implicitExceptionArray)->byte_at_addr(0), implicit_table_size);
+  }
+  HotSpotJVMCI::HotSpotMetaData::set_implicitExceptionBytes(JVMCIENV, metadata_handle, implicitExceptionArray);
+
   return result;
 #else
   JVMCI_THROW_MSG_0(InternalError, "unimplemented");
@@ -1002,7 +1034,7 @@ C2V_VMENTRY_NULL(jobject, executeHotSpotNmethod, (JNIEnv* env, jobject, jobject 
 
   if (jap.get_ret_type() == T_VOID) {
     return NULL;
-  } else if (jap.get_ret_type() == T_OBJECT || jap.get_ret_type() == T_ARRAY) {
+  } else if (is_reference_type(jap.get_ret_type())) {
     return JNIHandles::make_local((oop) result.get_jobject());
   } else {
     jvalue *value = (jvalue *) result.get_value_addr();
@@ -1113,7 +1145,15 @@ C2V_VMENTRY_NULL(jlongArray, collectCounters, (JNIEnv* env, jobject))
   return (jlongArray) JVMCIENV->get_jobject(array);
 C2V_END
 
-C2V_VMENTRY_0(int, allocateCompileId, (JNIEnv* env, jobject, jobject jvmci_method, int entry_bci))
+C2V_VMENTRY_0(jint, getCountersSize, (JNIEnv* env, jobject))
+  return (jint) JVMCICounterSize;
+C2V_END
+
+C2V_VMENTRY(void, setCountersSize, (JNIEnv* env, jobject, jint new_size))
+  JavaThread::resize_all_jvmci_counters(new_size);
+C2V_END
+
+C2V_VMENTRY_0(jint, allocateCompileId, (JNIEnv* env, jobject, jobject jvmci_method, int entry_bci))
   HandleMark hm;
   if (jvmci_method == NULL) {
     JVMCI_THROW_0(NullPointerException);
@@ -1213,7 +1253,7 @@ C2V_VMENTRY_NULL(jobject, iterateFrames, (JNIEnv* env, jobject compilerToVM, job
                   }
                 }
               }
-              bool realloc_failures = Deoptimization::realloc_objects(thread, fst.current(), objects, CHECK_NULL);
+              bool realloc_failures = Deoptimization::realloc_objects(thread, fst.current(), fst.register_map(), objects, CHECK_NULL);
               Deoptimization::reassign_fields(fst.current(), fst.register_map(), objects, realloc_failures, false);
               realloc_called = true;
 
@@ -1471,7 +1511,7 @@ C2V_VMENTRY(void, materializeVirtualObjects, (JNIEnv* env, jobject, jobject _hs_
     return;
   }
 
-  bool realloc_failures = Deoptimization::realloc_objects(thread, fstAfterDeopt.current(), objects, CHECK);
+  bool realloc_failures = Deoptimization::realloc_objects(thread, fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, CHECK);
   Deoptimization::reassign_fields(fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, realloc_failures, false);
 
   for (int frame_index = 0; frame_index < virtualFrames->length(); frame_index++) {
@@ -1615,7 +1655,7 @@ C2V_VMENTRY(void, flushDebugOutput, (JNIEnv* env, jobject))
   tty->flush();
 C2V_END
 
-C2V_VMENTRY_0(int, methodDataProfileDataSize, (JNIEnv* env, jobject, jlong metaspace_method_data, jint position))
+C2V_VMENTRY_0(jint, methodDataProfileDataSize, (JNIEnv* env, jobject, jlong metaspace_method_data, jint position))
   MethodData* mdo = JVMCIENV->asMethodData(metaspace_method_data);
   ProfileData* profile_data = mdo->data_at(position);
   if (mdo->is_valid(profile_data)) {
@@ -1721,7 +1761,7 @@ C2V_VMENTRY(void, ensureInitialized, (JNIEnv* env, jobject, jobject jvmci_type))
   }
 C2V_END
 
-C2V_VMENTRY_0(int, interpreterFrameSize, (JNIEnv* env, jobject, jobject bytecode_frame_handle))
+C2V_VMENTRY_0(jint, interpreterFrameSize, (JNIEnv* env, jobject, jobject bytecode_frame_handle))
   if (bytecode_frame_handle == NULL) {
     JVMCI_THROW_0(NullPointerException);
   }
@@ -1769,7 +1809,7 @@ C2V_VMENTRY(void, compileToBytecode, (JNIEnv* env, jobject, jobject lambda_form_
   }
 C2V_END
 
-C2V_VMENTRY_0(int, getIdentityHashCode, (JNIEnv* env, jobject, jobject object))
+C2V_VMENTRY_0(jint, getIdentityHashCode, (JNIEnv* env, jobject, jobject object))
   Handle obj = JVMCIENV->asConstant(JVMCIENV->wrap(object), JVMCI_CHECK_0);
   return obj->identity_hash();
 C2V_END
@@ -2168,8 +2208,7 @@ C2V_VMENTRY_NULL(jobject, getObject, (JNIEnv* env, jobject, jobject x, long disp
 C2V_VMENTRY(void, deleteGlobalHandle, (JNIEnv* env, jobject, jlong h))
   jobject handle = (jobject)(address)h;
   if (handle != NULL) {
-    assert(JVMCI::is_global_handle(handle), "Invalid delete of global JNI handle");
-    *((oop*)handle) = NULL; // Mark the handle as deleted, allocate will reuse it
+    JVMCI::destroy_global(handle);
   }
 }
 
@@ -2397,7 +2436,7 @@ C2V_VMENTRY_0(jlong, translate, (JNIEnv* env, jobject, jobject obj_handle))
         if (peerEnv->is_hotspot()) {
           // Only the mirror in the HotSpot heap is accessible
           // through JVMCINMethodData
-          oop nmethod_mirror = data->get_nmethod_mirror(nm);
+          oop nmethod_mirror = data->get_nmethod_mirror(nm, /* phantom_ref */ true);
           if (nmethod_mirror != NULL) {
             result = HotSpotJVMCI::wrap(nmethod_mirror);
           }
@@ -2424,7 +2463,7 @@ C2V_VMENTRY_0(jlong, translate, (JNIEnv* env, jobject, jobject obj_handle))
           if (data == NULL) {
             JVMCI_THROW_MSG_0(IllegalArgumentException, "Cannot set HotSpotNmethod mirror for default nmethod");
           }
-          if (data->get_nmethod_mirror(nm) != NULL) {
+          if (data->get_nmethod_mirror(nm, /* phantom_ref */ false) != NULL) {
             JVMCI_THROW_MSG_0(IllegalArgumentException, "Cannot overwrite existing HotSpotNmethod mirror for nmethod");
           }
           oop nmethod_mirror = HotSpotJVMCI::resolve(result);
@@ -2551,12 +2590,24 @@ C2V_VMENTRY(void, releaseFailedSpeculations, (JNIEnv* env, jobject, jlong failed
   FailedSpeculation::free_failed_speculations((FailedSpeculation**)(address) failed_speculations_address);
 }
 
-C2V_VMENTRY_0(bool, addFailedSpeculation, (JNIEnv* env, jobject, jlong failed_speculations_address, jbyteArray speculation_obj))
+C2V_VMENTRY_0(jboolean, addFailedSpeculation, (JNIEnv* env, jobject, jlong failed_speculations_address, jbyteArray speculation_obj))
   JVMCIPrimitiveArray speculation_handle = JVMCIENV->wrap(speculation_obj);
   int speculation_len = JVMCIENV->get_length(speculation_handle);
   char* speculation = NEW_RESOURCE_ARRAY(char, speculation_len);
   JVMCIENV->copy_bytes_to(speculation_handle, (jbyte*) speculation, 0, speculation_len);
   return FailedSpeculation::add_failed_speculation(NULL, (FailedSpeculation**)(address) failed_speculations_address, (address) speculation, speculation_len);
+}
+
+C2V_VMENTRY(void, callSystemExit, (JNIEnv* env, jobject, jint status))
+  JavaValue result(T_VOID);
+  JavaCallArguments jargs(1);
+  jargs.push_int(status);
+  JavaCalls::call_static(&result,
+                       SystemDictionary::System_klass(),
+                       vmSymbols::exit_method_name(),
+                       vmSymbols::int_void_signature(),
+                       &jargs,
+                       CHECK);
 }
 
 #define CC (char*)  /*cast a literal from (const char*)*/
@@ -2605,6 +2656,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "hasNeverInlineDirective",                      CC "(" HS_RESOLVED_METHOD ")Z",                                                       FN_PTR(hasNeverInlineDirective)},
   {CC "shouldInlineMethod",                           CC "(" HS_RESOLVED_METHOD ")Z",                                                       FN_PTR(shouldInlineMethod)},
   {CC "lookupType",                                   CC "(" STRING HS_RESOLVED_KLASS "Z)" HS_RESOLVED_TYPE,                                FN_PTR(lookupType)},
+  {CC "getArrayType",                                 CC "(" HS_RESOLVED_TYPE ")" HS_RESOLVED_KLASS,                                        FN_PTR(getArrayType)},
   {CC "lookupClass",                                  CC "(" CLASS ")" HS_RESOLVED_TYPE,                                                    FN_PTR(lookupClass)},
   {CC "lookupNameInPool",                             CC "(" HS_CONSTANT_POOL "I)" STRING,                                                  FN_PTR(lookupNameInPool)},
   {CC "lookupNameAndTypeRefIndexInPool",              CC "(" HS_CONSTANT_POOL "I)I",                                                        FN_PTR(lookupNameAndTypeRefIndexInPool)},
@@ -2614,7 +2666,6 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "lookupAppendixInPool",                         CC "(" HS_CONSTANT_POOL "I)" OBJECTCONSTANT,                                          FN_PTR(lookupAppendixInPool)},
   {CC "lookupMethodInPool",                           CC "(" HS_CONSTANT_POOL "IB)" HS_RESOLVED_METHOD,                                     FN_PTR(lookupMethodInPool)},
   {CC "constantPoolRemapInstructionOperandFromCache", CC "(" HS_CONSTANT_POOL "I)I",                                                        FN_PTR(constantPoolRemapInstructionOperandFromCache)},
-  {CC "resolveConstantInPool",                        CC "(" HS_CONSTANT_POOL "I)" OBJECTCONSTANT,                                          FN_PTR(resolveConstantInPool)},
   {CC "resolvePossiblyCachedConstantInPool",          CC "(" HS_CONSTANT_POOL "I)" OBJECTCONSTANT,                                          FN_PTR(resolvePossiblyCachedConstantInPool)},
   {CC "resolveTypeInPool",                            CC "(" HS_CONSTANT_POOL "I)" HS_RESOLVED_KLASS,                                       FN_PTR(resolveTypeInPool)},
   {CC "resolveFieldInPool",                           CC "(" HS_CONSTANT_POOL "I" HS_RESOLVED_METHOD "B[I)" HS_RESOLVED_KLASS,              FN_PTR(resolveFieldInPool)},
@@ -2644,6 +2695,8 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "invalidateHotSpotNmethod",                     CC "(" HS_NMETHOD ")V",                                                               FN_PTR(invalidateHotSpotNmethod)},
   {CC "readUncompressedOop",                          CC "(J)" OBJECTCONSTANT,                                                              FN_PTR(readUncompressedOop)},
   {CC "collectCounters",                              CC "()[J",                                                                            FN_PTR(collectCounters)},
+  {CC "getCountersSize",                              CC "()I",                                                                             FN_PTR(getCountersSize)},
+  {CC "setCountersSize",                              CC "(I)V",                                                                            FN_PTR(setCountersSize)},
   {CC "allocateCompileId",                            CC "(" HS_RESOLVED_METHOD "I)I",                                                      FN_PTR(allocateCompileId)},
   {CC "isMature",                                     CC "(" METASPACE_METHOD_DATA ")Z",                                                    FN_PTR(isMature)},
   {CC "hasCompiledCodeForOSR",                        CC "(" HS_RESOLVED_METHOD "II)Z",                                                     FN_PTR(hasCompiledCodeForOSR)},
@@ -2702,6 +2755,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "getFailedSpeculationsAddress",                 CC "(" HS_RESOLVED_METHOD ")J",                                                       FN_PTR(getFailedSpeculationsAddress)},
   {CC "releaseFailedSpeculations",                    CC "(J)V",                                                                            FN_PTR(releaseFailedSpeculations)},
   {CC "addFailedSpeculation",                         CC "(J[B)Z",                                                                          FN_PTR(addFailedSpeculation)},
+  {CC "callSystemExit",                               CC "(I)V",                                                                            FN_PTR(callSystemExit)},
 };
 
 int CompilerToVM::methods_count() {

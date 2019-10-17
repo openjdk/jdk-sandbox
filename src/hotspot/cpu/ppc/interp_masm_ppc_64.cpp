@@ -516,6 +516,18 @@ void InterpreterMacroAssembler::load_resolved_klass_at_offset(Register Rcpool, R
   ldx(Rklass, Rklass, Roffset);
 }
 
+void InterpreterMacroAssembler::load_resolved_method_at_index(int byte_no,
+                                                              Register cache,
+                                                              Register method) {
+  const int method_offset = in_bytes(
+    ConstantPoolCache::base_offset() +
+      ((byte_no == TemplateTable::f2_byte)
+       ? ConstantPoolCacheEntry::f2_offset()
+       : ConstantPoolCacheEntry::f1_offset()));
+
+  ld(method, method_offset, cache); // get f1 Method*
+}
+
 // Generate a subtype check: branch to ok_is_subtype if sub_klass is
 // a subtype of super_klass. Blows registers Rsub_klass, tmp1, tmp2.
 void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass, Register Rsuper_klass, Register Rtmp1,
@@ -756,16 +768,6 @@ void InterpreterMacroAssembler::merge_frames(Register Rsender_sp, Register retur
   ld(Rscratch1, 0, R1_SP); // *SP
   ld(Rsender_sp, _ijava_state_neg(sender_sp), Rscratch1); // top_frame_sp
   ld(Rscratch2, 0, Rscratch1); // **SP
-#ifdef ASSERT
-  {
-    Label Lok;
-    ld(R0, _ijava_state_neg(ijava_reserved), Rscratch1);
-    cmpdi(CCR0, R0, 0x5afe);
-    beq(CCR0, Lok);
-    stop("frame corrupted (remove activation)", 0x5afe);
-    bind(Lok);
-  }
-#endif
   if (return_pc!=noreg) {
     ld(return_pc, _abi(lr), Rscratch1); // LR
   }
@@ -879,7 +881,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
   } else {
     // template code:
     //
-    // markOop displaced_header = obj->mark().set_unlocked();
+    // markWord displaced_header = obj->mark().set_unlocked();
     // monitor->lock()->set_displaced_header(displaced_header);
     // if (Atomic::cmpxchg(/*ex=*/monitor, /*addr*/obj->mark_addr(), /*cmp*/displaced_header) == displaced_header) {
     //   // We stored the monitor address into the object's mark word.
@@ -901,17 +903,17 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
     assert_different_registers(displaced_header, object_mark_addr, current_header, tmp);
 
-    // markOop displaced_header = obj->mark().set_unlocked();
+    // markWord displaced_header = obj->mark().set_unlocked();
 
-    // Load markOop from object into displaced_header.
+    // Load markWord from object into displaced_header.
     ld(displaced_header, oopDesc::mark_offset_in_bytes(), object);
 
     if (UseBiasedLocking) {
       biased_locking_enter(CCR0, object, displaced_header, tmp, current_header, done, &slow_case);
     }
 
-    // Set displaced_header to be (markOop of object | UNLOCK_VALUE).
-    ori(displaced_header, displaced_header, markOopDesc::unlocked_value);
+    // Set displaced_header to be (markWord of object | UNLOCK_VALUE).
+    ori(displaced_header, displaced_header, markWord::unlocked_value);
 
     // monitor->lock()->set_displaced_header(displaced_header);
 
@@ -947,12 +949,12 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
     // We did not see an unlocked object so try the fast recursive case.
 
-    // Check if owner is self by comparing the value in the markOop of object
+    // Check if owner is self by comparing the value in the markWord of object
     // (current_header) with the stack pointer.
     sub(current_header, current_header, R1_SP);
 
     assert(os::vm_page_size() > 0xfff, "page size too small - change the constant");
-    load_const_optimized(tmp, ~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place);
+    load_const_optimized(tmp, ~(os::vm_page_size()-1) | markWord::lock_mask_in_place);
 
     and_(R0/*==0?*/, current_header, tmp);
     // If condition is true we are done and hence we can store 0 in the displaced
@@ -2251,14 +2253,6 @@ void InterpreterMacroAssembler::restore_interpreter_state(Register scratch, bool
     stop("frame too small (restore istate)", 0x5432);
     bind(Lok);
   }
-  {
-    Label Lok;
-    ld(R0, _ijava_state_neg(ijava_reserved), scratch);
-    cmpdi(CCR0, R0, 0x5afe);
-    beq(CCR0, Lok);
-    stop("frame corrupted (restore istate)", 0x5afe);
-    bind(Lok);
-  }
 #endif
 }
 
@@ -2271,7 +2265,7 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   cmpdi(CCR0, Rcounters, 0);
   bne(CCR0, has_counters);
   call_VM(noreg, CAST_FROM_FN_PTR(address,
-                                  InterpreterRuntime::build_method_counters), method, false);
+                                  InterpreterRuntime::build_method_counters), method);
   ld(Rcounters, in_bytes(Method::method_counters_offset()), method);
   cmpdi(CCR0, Rcounters, 0);
   beq(CCR0, skip); // No MethodCounters, OutOfMemory.

@@ -208,13 +208,12 @@ public:
          not_used      = 1,  // not entrant, but revivable
          not_entrant   = 2,  // marked for deoptimization but activations may still exist,
                              // will be transformed to zombie when all activations are gone
-         zombie        = 3,  // no activations exist, nmethod is ready for purge
-         unloaded      = 4   // there should be no activations, should not be called,
-                             // will be transformed to zombie immediately
+         unloaded      = 3,  // there should be no activations, should not be called, will be
+                             // transformed to zombie by the sweeper, when not "locked in vm".
+         zombie        = 4   // no activations exist, nmethod is ready for purge
   };
 
   virtual bool  is_in_use() const = 0;
-  virtual bool  is_not_installed() const = 0;
   virtual int   comp_level() const = 0;
   virtual int   compile_id() const = 0;
 
@@ -245,10 +244,9 @@ public:
   bool is_at_poll_return(address pc);
   bool is_at_poll_or_poll_return(address pc);
 
-  bool  is_marked_for_deoptimization() const      { return _mark_for_deoptimization_status != not_marked; }
-  void  mark_for_deoptimization(bool inc_recompile_counts = true) {
-    _mark_for_deoptimization_status = (inc_recompile_counts ? deoptimize : deoptimize_noupdate);
-  }
+  bool  is_marked_for_deoptimization() const { return _mark_for_deoptimization_status != not_marked; }
+  void  mark_for_deoptimization(bool inc_recompile_counts = true);
+
   bool update_recompile_counts() const {
     // Update recompile counts when either the update is explicitly requested (deoptimize)
     // or the nmethod is not marked for deoptimization at all (not_marked).
@@ -350,13 +348,16 @@ public:
   void preserve_callee_argument_oops(frame fr, const RegisterMap *reg_map, OopClosure* f);
 
   // implicit exceptions support
-  virtual address continuation_for_implicit_exception(address pc) { return NULL; }
+  address continuation_for_implicit_div0_exception(address pc) { return continuation_for_implicit_exception(pc, true); }
+  address continuation_for_implicit_null_exception(address pc) { return continuation_for_implicit_exception(pc, false); }
 
   static address get_deopt_original_pc(const frame* fr);
 
   // Inline cache support for class unloading and nmethod unloading
  private:
   bool cleanup_inline_caches_impl(bool unloading_occurred, bool clean_all);
+
+  address continuation_for_implicit_exception(address pc, bool for_div0_check);
 
  public:
   // Serial version used by sweeper and whitebox test

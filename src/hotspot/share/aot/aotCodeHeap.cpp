@@ -37,6 +37,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
@@ -213,12 +214,8 @@ AOTLib::~AOTLib() {
 }
 
 AOTCodeHeap::~AOTCodeHeap() {
-  if (_classes != NULL) {
-    FREE_C_HEAP_ARRAY(AOTClass, _classes);
-  }
-  if (_code_to_aot != NULL) {
-    FREE_C_HEAP_ARRAY(CodeToAMethod, _code_to_aot);
-  }
+  FREE_C_HEAP_ARRAY(AOTClass, _classes);
+  FREE_C_HEAP_ARRAY(CodeToAMethod, _code_to_aot);
 }
 
 AOTLib::AOTLib(void* handle, const char* name, int dso_id) : _valid(true), _dl_handle(handle), _dso_id(dso_id) {
@@ -356,7 +353,10 @@ void AOTCodeHeap::publish_aot(const methodHandle& mh, AOTMethodData* method_data
 #ifdef TIERED
     mh->set_aot_code(aot);
 #endif
-    Method::set_code(mh, aot);
+    {
+      MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+      Method::set_code(mh, aot);
+    }
     if (PrintAOT || (PrintCompilation && PrintAOT)) {
       PauseNoSafepointVerifier pnsv(&nsv); // aot code is registered already
       aot->print_on(tty, NULL);
@@ -402,9 +402,6 @@ void AOTCodeHeap::register_stubs() {
     int len = Bytes::get_Java_u2((address)stub_name);
     stub_name += 2;
     char* full_name = NEW_C_HEAP_ARRAY(char, len+5, mtCode);
-    if (full_name == NULL) { // No memory?
-      break;
-    }
     memcpy(full_name, "AOT ", 4);
     memcpy(full_name+4, stub_name, len);
     full_name[len+4] = 0;
@@ -533,6 +530,8 @@ void AOTCodeHeap::link_stub_routines_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_aescrypt_decryptBlock", address, StubRoutines::_aescrypt_decryptBlock);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_cipherBlockChaining_encryptAESCrypt", address, StubRoutines::_cipherBlockChaining_encryptAESCrypt);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_cipherBlockChaining_decryptAESCrypt", address, StubRoutines::_cipherBlockChaining_decryptAESCrypt);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_electronicCodeBook_encryptAESCrypt", address, StubRoutines::_electronicCodeBook_encryptAESCrypt);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_electronicCodeBook_decryptAESCrypt", address, StubRoutines::_electronicCodeBook_decryptAESCrypt);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_update_bytes_crc32", address, StubRoutines::_updateBytesCRC32);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_crc_table_adr", address, StubRoutines::_crc_table_adr);
 

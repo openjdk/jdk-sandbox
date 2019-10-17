@@ -110,7 +110,8 @@ public class TagletWriterImpl extends TagletWriter {
 
         String tagText =  ch.getText(itt.getSearchTerm());
         if (tagText.charAt(0) == '"' && tagText.charAt(tagText.length() - 1) == '"') {
-            tagText = tagText.substring(1, tagText.length() - 1);
+            tagText = tagText.substring(1, tagText.length() - 1)
+                             .replaceAll("\\s+", " ");
         }
         String desc = ch.getText(itt.getDescription());
 
@@ -409,11 +410,16 @@ public class TagletWriterImpl extends TagletWriter {
     }
 
     private Content createAnchorAndSearchIndex(Element element, String tagText, String desc){
-        String anchorName = htmlWriter.links.getName(tagText);
         Content result = null;
         if (isFirstSentence && inSummary) {
             result = new StringContent(tagText);
         } else {
+            String anchorName = htmlWriter.links.getName(tagText);
+            int count = htmlWriter.indexAnchorTable.computeIfAbsent(anchorName, s -> 0);
+            htmlWriter.indexAnchorTable.put(anchorName, count + 1);
+            if (count > 0) {
+                anchorName += "-" + count;
+            }
             result = HtmlTree.A_ID(HtmlStyle.searchTagResult, anchorName, new StringContent(tagText));
             if (configuration.createindex && !tagText.isEmpty()) {
                 SearchIndexItem si = new SearchIndexItem();

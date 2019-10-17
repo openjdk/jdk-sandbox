@@ -37,11 +37,6 @@ void ZArguments::initialize_alignments() {
 void ZArguments::initialize() {
   GCArguments::initialize();
 
-  // Check max heap size
-  if (MaxHeapSize > ZMaxHeapSize) {
-    vm_exit_during_initialization("Java heap too large");
-  }
-
   // Enable NUMA by default
   if (FLAG_IS_DEFAULT(UseNUMA)) {
     FLAG_SET_DEFAULT(UseNUMA, true);
@@ -91,6 +86,11 @@ void ZArguments::initialize() {
   // Verification before heap iteration not (yet) supported, for the
   // same reason we need fixup_partial_loads
   FLAG_SET_DEFAULT(VerifyBeforeIteration, false);
+
+  if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
+    FLAG_SET_DEFAULT(ZVerifyRoots, true);
+    FLAG_SET_DEFAULT(ZVerifyObjects, true);
+  }
 
   // Verification of stacks not (yet) supported, for the same reason
   // we need fixup_partial_loads

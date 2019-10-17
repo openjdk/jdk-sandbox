@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "aot/aotCodeHeap.hpp"
 #include "aot/aotLoader.inline.hpp"
+#include "classfile/javaClasses.hpp"
 #include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
@@ -150,17 +151,15 @@ void AOTLoader::initialize() {
     if (AOTLibrary != NULL) {
       const int len = (int)strlen(AOTLibrary);
       char* cp  = NEW_C_HEAP_ARRAY(char, len+1, mtCode);
-      if (cp != NULL) { // No memory?
-        memcpy(cp, AOTLibrary, len);
-        cp[len] = '\0';
-        char* end = cp + len;
-        while (cp < end) {
-          const char* name = cp;
-          while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep) cp++;
-          cp[0] = '\0';  // Terminate name
-          cp++;
-          load_library(name, true);
-        }
+      memcpy(cp, AOTLibrary, len);
+      cp[len] = '\0';
+      char* end = cp + len;
+      while (cp < end) {
+        const char* name = cp;
+        while ((*cp) != '\0' && (*cp) != '\n' && (*cp) != ',' && (*cp) != pathSep) cp++;
+        cp[0] = '\0';  // Terminate name
+        cp++;
+        load_library(name, true);
       }
     }
 
@@ -318,4 +317,25 @@ bool AOTLoader::reconcile_dynamic_invoke(InstanceKlass* holder, int index, Metho
   bool success = caller_heap->reconcile_dynamic_invoke(aot, holder, index, adapter_method, appendix_klass);
   vmassert(success || thread->last_frame().sender(&map).is_deoptimized_frame(), "caller not deoptimized on failure");
   return success;
+}
+
+
+// This should be called very early during startup before any of the AOTed methods that use boxes can deoptimize.
+// Deoptimization machinery expects the caches to be present and populated.
+void AOTLoader::initialize_box_caches(TRAPS) {
+  if (!UseAOT || libraries_count() == 0) {
+    return;
+  }
+  TraceTime timer("AOT initialization of box caches", TRACETIME_LOG(Info, aot, startuptime));
+  Symbol* box_classes[] = { java_lang_Boolean::symbol(), java_lang_Byte_ByteCache::symbol(),
+    java_lang_Short_ShortCache::symbol(), java_lang_Character_CharacterCache::symbol(),
+    java_lang_Integer_IntegerCache::symbol(), java_lang_Long_LongCache::symbol() };
+
+  for (unsigned i = 0; i < sizeof(box_classes) / sizeof(Symbol*); i++) {
+    Klass* k = SystemDictionary::resolve_or_fail(box_classes[i], true, CHECK);
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    if (ik->is_not_initialized()) {
+      ik->initialize(CHECK);
+    }
+  }
 }

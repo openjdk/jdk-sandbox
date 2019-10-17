@@ -558,8 +558,14 @@ public:
   }
 
   // Direct accessor
-  uint count() const {
-    return uint_at(count_off);
+  int count() const {
+    intptr_t raw_data = intptr_at(count_off);
+    if (raw_data > max_jint) {
+      raw_data = max_jint;
+    } else if (raw_data < min_jint) {
+      raw_data = min_jint;
+    }
+    return int(raw_data);
   }
 
   // Code generation support
@@ -570,8 +576,8 @@ public:
     return cell_offset(counter_cell_count);
   }
 
-  void set_count(uint count) {
-    set_uint_at(count_off, count);
+  void set_count(int count) {
+    set_int_at(count_off, count);
   }
 
   void print_data_on(outputStream* st, const char* extra = NULL) const;
@@ -2005,14 +2011,14 @@ private:
   MethodData(const methodHandle& method, int size, TRAPS);
 public:
   static MethodData* allocate(ClassLoaderData* loader_data, const methodHandle& method, TRAPS);
-  MethodData() : _extra_data_lock(Monitor::leaf, "MDO extra data lock") {}; // For ciMethodData
+  MethodData() : _extra_data_lock(Mutex::leaf, "MDO extra data lock") {}; // For ciMethodData
 
   bool is_methodData() const volatile { return true; }
   void initialize();
 
   // Whole-method sticky bits and flags
   enum {
-    _trap_hist_limit    = 24 JVMCI_ONLY(+5),   // decoupled from Deoptimization::Reason_LIMIT
+    _trap_hist_limit    = 25 JVMCI_ONLY(+5),   // decoupled from Deoptimization::Reason_LIMIT
     _trap_hist_mask     = max_jubyte,
     _extra_data_count   = 4     // extra DataLayout headers, for trap history
   }; // Public flag values
@@ -2386,7 +2392,7 @@ public:
   void inc_decompile_count() {
     _nof_decompiles += 1;
     if (decompile_count() > (uint)PerMethodRecompilationCutoff) {
-      method()->set_not_compilable(CompLevel_full_optimization, true, "decompile_count > PerMethodRecompilationCutoff");
+      method()->set_not_compilable("decompile_count > PerMethodRecompilationCutoff", CompLevel_full_optimization);
     }
   }
   uint tenure_traps() const {
@@ -2439,7 +2445,7 @@ public:
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
   virtual MetaspaceObj::Type type() const { return MethodDataType; }
 
-  // Deallocation support - no pointer fields to deallocate
+  // Deallocation support - no metaspace pointer fields to deallocate
   void deallocate_contents(ClassLoaderData* loader_data) {}
 
   // GC support

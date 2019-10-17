@@ -225,13 +225,6 @@ void GrowableCache::metadata_do(void f(Metadata*)) {
   }
 }
 
-void GrowableCache::gc_epilogue() {
-  int len = _elements->length();
-  for (int i=0; i<len; i++) {
-    _cache[i] = _elements->at(i)->getCacheValue();
-  }
-}
-
 //
 // class JvmtiBreakpoint
 //
@@ -389,10 +382,6 @@ void  JvmtiBreakpoints::metadata_do(void f(Metadata*)) {
   _bps.metadata_do(f);
 }
 
-void JvmtiBreakpoints::gc_epilogue() {
-  _bps.gc_epilogue();
-}
-
 void JvmtiBreakpoints::print() {
 #ifndef PRODUCT
   LogTarget(Trace, jvmti) log;
@@ -511,12 +500,6 @@ void JvmtiCurrentBreakpoints::oops_do(OopClosure* f) {
 void JvmtiCurrentBreakpoints::metadata_do(void f(Metadata*)) {
   if (_jvmti_breakpoints != NULL) {
     _jvmti_breakpoints->metadata_do(f);
-  }
-}
-
-void JvmtiCurrentBreakpoints::gc_epilogue() {
-  if (_jvmti_breakpoints != NULL) {
-    _jvmti_breakpoints->gc_epilogue();
   }
 }
 
@@ -749,10 +732,11 @@ bool VM_GetOrSetLocal::doit_prologue() {
     }
   }
 
+  if (!check_slot_type_no_lvt(_jvf)) {
+    return false;
+  }
   if (method_oop->has_localvariable_table()) {
     return check_slot_type_lvt(_jvf);
-  } else {
-    return check_slot_type_no_lvt(_jvf);
   }
   return true;
 }
@@ -897,6 +881,7 @@ bool JvmtiSuspendControl::resume(JavaThread *java_thread) {
 
 void JvmtiSuspendControl::print() {
 #ifndef PRODUCT
+  ResourceMark rm;
   LogStreamHandle(Trace, jvmti) log_stream;
   log_stream.print("Suspended Threads: [");
   for (JavaThreadIteratorWithHandle jtiwh; JavaThread *thread = jtiwh.next(); ) {

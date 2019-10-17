@@ -31,9 +31,6 @@ import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.Una
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.LOG10;
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.SIN;
 import static org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation.TAN;
-import static org.graalvm.compiler.serviceprovider.JavaVersionUtil.JAVA_SPECIFICATION_VERSION;
-import static org.graalvm.compiler.serviceprovider.JavaVersionUtil.Java11OrEarlier;
-import static org.graalvm.compiler.serviceprovider.JavaVersionUtil.Java8OrEarlier;
 
 import org.graalvm.compiler.bytecode.BytecodeProvider;
 import org.graalvm.compiler.lir.aarch64.AArch64ArithmeticLIRGeneratorTool.RoundingMode;
@@ -48,24 +45,28 @@ import org.graalvm.compiler.nodes.java.AtomicReadAndAddNode;
 import org.graalvm.compiler.nodes.java.AtomicReadAndWriteNode;
 import org.graalvm.compiler.nodes.memory.address.AddressNode;
 import org.graalvm.compiler.nodes.memory.address.OffsetAddressNode;
+import org.graalvm.compiler.replacements.TargetGraphBuilderPlugins;
 import org.graalvm.compiler.replacements.nodes.BinaryMathIntrinsicNode;
+import org.graalvm.compiler.replacements.nodes.FusedMultiplyAddNode;
 import org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode;
 import org.graalvm.compiler.replacements.nodes.UnaryMathIntrinsicNode.UnaryOperation;
+import org.graalvm.compiler.serviceprovider.JavaVersionUtil;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
+import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import sun.misc.Unsafe;
 
-public class AArch64GraphBuilderPlugins {
-
-    public static void register(Plugins plugins, BytecodeProvider bytecodeProvider, boolean explicitUnsafeNullChecks,
-                    boolean registerMathPlugins) {
-        register(plugins, bytecodeProvider, explicitUnsafeNullChecks, registerMathPlugins, true);
+public class AArch64GraphBuilderPlugins implements TargetGraphBuilderPlugins {
+    @Override
+    public void register(Plugins plugins, BytecodeProvider replacementsBytecodeProvider, Architecture arch, boolean explicitUnsafeNullChecks, boolean registerMathPlugins,
+                    boolean emitJDK9StringSubstitutions, boolean useFMAIntrinsics) {
+        register(plugins, replacementsBytecodeProvider, explicitUnsafeNullChecks, registerMathPlugins, emitJDK9StringSubstitutions, useFMAIntrinsics);
     }
 
     public static void register(Plugins plugins, BytecodeProvider bytecodeProvider, boolean explicitUnsafeNullChecks,
-                    boolean registerMathPlugins, boolean emitJDK9StringSubstitutions) {
+                    boolean registerMathPlugins, boolean emitJDK9StringSubstitutions, boolean useFMAIntrinsics) {
         InvocationPlugins invocationPlugins = plugins.getInvocationPlugins();
         invocationPlugins.defer(new Runnable() {
             @Override
@@ -73,7 +74,7 @@ public class AArch64GraphBuilderPlugins {
                 registerIntegerLongPlugins(invocationPlugins, JavaKind.Int, bytecodeProvider);
                 registerIntegerLongPlugins(invocationPlugins, JavaKind.Long, bytecodeProvider);
                 if (registerMathPlugins) {
-                    registerMathPlugins(invocationPlugins);
+                    registerMathPlugins(invocationPlugins, useFMAIntrinsics);
                 }
                 if (emitJDK9StringSubstitutions) {
                     registerStringLatin1Plugins(invocationPlugins, bytecodeProvider);
@@ -125,7 +126,7 @@ public class AArch64GraphBuilderPlugins {
         });
     }
 
-    private static void registerMathPlugins(InvocationPlugins plugins) {
+    private static void registerMathPlugins(InvocationPlugins plugins, boolean useFMAIntrinsics) {
         Registration r = new Registration(plugins, Math.class);
         registerUnaryMath(r, "sin", SIN);
         registerUnaryMath(r, "cos", COS);
@@ -143,6 +144,36 @@ public class AArch64GraphBuilderPlugins {
         registerRound(r, "rint", RoundingMode.NEAREST);
         registerRound(r, "ceil", RoundingMode.UP);
         registerRound(r, "floor", RoundingMode.DOWN);
+        if (useFMAIntrinsics && JavaVersionUtil.JAVA_SPEC > 8) {
+            registerFMA(r);
+        }
+    }
+
+    private static void registerFMA(Registration r) {
+        r.register3("fma", Double.TYPE, Double.TYPE, Double.TYPE, new InvocationPlugin() {
+            @Override
+            public boolean apply(GraphBuilderContext b,
+                            ResolvedJavaMethod targetMethod,
+                            Receiver receiver,
+                            ValueNode na,
+                            ValueNode nb,
+                            ValueNode nc) {
+                b.push(JavaKind.Double, b.append(new FusedMultiplyAddNode(na, nb, nc)));
+                return true;
+            }
+        });
+        r.register3("fma", Float.TYPE, Float.TYPE, Float.TYPE, new InvocationPlugin() {
+            @Override
+            public boolean apply(GraphBuilderContext b,
+                            ResolvedJavaMethod targetMethod,
+                            Receiver receiver,
+                            ValueNode na,
+                            ValueNode nb,
+                            ValueNode nc) {
+                b.push(JavaKind.Float, b.append(new FusedMultiplyAddNode(na, nb, nc)));
+                return true;
+            }
+        });
     }
 
     private static void registerUnaryMath(Registration r, String name, UnaryOperation operation) {
@@ -166,7 +197,7 @@ public class AArch64GraphBuilderPlugins {
     }
 
     private static void registerStringLatin1Plugins(InvocationPlugins plugins, BytecodeProvider replacementsBytecodeProvider) {
-        if (JAVA_SPECIFICATION_VERSION >= 9) {
+        if (JavaVersionUtil.JAVA_SPEC >= 9) {
             Registration r = new Registration(plugins, "java.lang.StringLatin1", replacementsBytecodeProvider);
             r.setAllowOverwrite(true);
             r.registerMethodSubstitution(AArch64StringLatin1Substitutions.class, "compareTo", byte[].class, byte[].class);
@@ -175,7 +206,7 @@ public class AArch64GraphBuilderPlugins {
     }
 
     private static void registerStringUTF16Plugins(InvocationPlugins plugins, BytecodeProvider replacementsBytecodeProvider) {
-        if (JAVA_SPECIFICATION_VERSION >= 9) {
+        if (JavaVersionUtil.JAVA_SPEC >= 9) {
             Registration r = new Registration(plugins, "java.lang.StringUTF16", replacementsBytecodeProvider);
             r.setAllowOverwrite(true);
             r.registerMethodSubstitution(AArch64StringUTF16Substitutions.class, "compareTo", byte[].class, byte[].class);
@@ -186,10 +217,10 @@ public class AArch64GraphBuilderPlugins {
     private static void registerUnsafePlugins(InvocationPlugins plugins, BytecodeProvider replacementsBytecodeProvider) {
         registerUnsafePlugins(new Registration(plugins, Unsafe.class),
                         new JavaKind[]{JavaKind.Int, JavaKind.Long, JavaKind.Object}, "Object");
-        if (!Java8OrEarlier) {
+        if (JavaVersionUtil.JAVA_SPEC > 8) {
             registerUnsafePlugins(new Registration(plugins, "jdk.internal.misc.Unsafe", replacementsBytecodeProvider),
                             new JavaKind[]{JavaKind.Int, JavaKind.Long, JavaKind.Object},
-                            Java11OrEarlier ? "Object" : "Reference");
+                            JavaVersionUtil.JAVA_SPEC <= 11 ? "Object" : "Reference");
         }
     }
 

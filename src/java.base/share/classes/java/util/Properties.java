@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -142,6 +142,7 @@ class Properties extends Hashtable<Object,Object> {
     /**
      * use serialVersionUID from JDK 1.1.X for interoperability
      */
+    @java.io.Serial
     private static final long serialVersionUID = 4112578634029874840L;
 
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
@@ -393,7 +394,7 @@ class Properties extends Hashtable<Object,Object> {
      * The specified stream remains open after this method returns.
      *
      * @param      inStream   the input stream.
-     * @exception  IOException  if an error occurred when reading from the
+     * @throws     IOException  if an error occurred when reading from the
      *             input stream.
      * @throws     IllegalArgumentException if the input stream contains a
      *             malformed Unicode escape sequence.
@@ -641,11 +642,16 @@ class Properties extends Hashtable<Object,Object> {
         while (off < end) {
             aChar = in[off++];
             if (aChar == '\\') {
+                // No need to bounds check since LineReader::readLine excludes
+                // unescaped \s at the end of the line
                 aChar = in[off++];
                 if(aChar == 'u') {
                     // Read the xxxx
-                    int value=0;
-                    for (int i=0; i<4; i++) {
+                    if (off > end - 4)
+                        throw new IllegalArgumentException(
+                                     "Malformed \\uxxxx encoding.");
+                    int value = 0;
+                    for (int i = 0; i < 4; i++) {
                         aChar = in[off++];
                         switch (aChar) {
                           case '0': case '1': case '2': case '3': case '4':
@@ -795,7 +801,7 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   out      an output stream.
      * @param   comments   a description of the property list.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not
      *             {@code Strings}.
      */
@@ -847,11 +853,11 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   writer      an output character stream writer.
      * @param   comments   a description of the property list.
-     * @exception  IOException if writing this property list to the specified
+     * @throws     IOException if writing this property list to the specified
      *             output stream throws an {@code IOException}.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not {@code Strings}.
-     * @exception  NullPointerException  if {@code writer} is null.
+     * @throws     NullPointerException  if {@code writer} is null.
      * @since 1.6
      */
     public void store(Writer writer, String comments)
@@ -894,11 +900,11 @@ class Properties extends Hashtable<Object,Object> {
      *
      * @param   out      an output stream.
      * @param   comments   a description of the property list.
-     * @exception  IOException if writing this property list to the specified
+     * @throws     IOException if writing this property list to the specified
      *             output stream throws an {@code IOException}.
-     * @exception  ClassCastException  if this {@code Properties} object
+     * @throws     ClassCastException  if this {@code Properties} object
      *             contains any keys or values that are not {@code Strings}.
-     * @exception  NullPointerException  if {@code out} is null.
+     * @throws     NullPointerException  if {@code out} is null.
      * @since 1.2
      */
     public void store(OutputStream out, String comments)

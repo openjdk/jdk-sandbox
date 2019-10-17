@@ -76,16 +76,16 @@
   diagnostic(bool, ZVerifyViews, false,                                     \
           "Verify heap view accesses")                                      \
                                                                             \
+  diagnostic(bool, ZVerifyRoots, trueInDebug,                               \
+          "Verify roots")                                                   \
+                                                                            \
+  diagnostic(bool, ZVerifyObjects, false,                                   \
+          "Verify objects")                                                 \
+                                                                            \
   diagnostic(bool, ZVerifyMarking, false,                                   \
           "Verify marking stacks")                                          \
                                                                             \
   diagnostic(bool, ZVerifyForwarding, false,                                \
-          "Verify forwarding tables")                                       \
-                                                                            \
-  diagnostic(bool, ZOptimizeLoadBarriers, true,                             \
-          "Apply load barrier optimizations")                               \
-                                                                            \
-  develop(bool, ZVerifyLoadBarriers, false,                                 \
-          "Verify that reference loads are followed by barriers")
+          "Verify forwarding tables")
 
 #endif // SHARE_GC_Z_Z_GLOBALS_HPP

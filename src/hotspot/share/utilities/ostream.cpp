@@ -99,13 +99,14 @@ const char* outputStream::do_vsnprintf(char* buffer, size_t buflen,
     result_len = strlen(result);
     if (add_cr && result_len >= buflen)  result_len = buflen-1;  // truncate
   } else {
-    int written = os::vsnprintf(buffer, buflen, format, ap);
-    assert(written >= 0, "vsnprintf encoding error");
+    int required_len = os::vsnprintf(buffer, buflen, format, ap);
+    assert(required_len >= 0, "vsnprintf encoding error");
     result = buffer;
-    if ((size_t)written < buflen) {
-      result_len = written;
+    if ((size_t)required_len < buflen) {
+      result_len = required_len;
     } else {
-      DEBUG_ONLY(warning("increase O_BUFLEN in ostream.hpp -- output truncated");)
+      DEBUG_ONLY(warning("outputStream::do_vsnprintf output truncated -- buffer length is %d bytes but %d bytes are needed.",
+                         add_cr ? (int)buflen + 1 : (int)buflen, add_cr ? required_len + 2 : required_len + 1);)
       result_len = buflen - 1;
     }
   }
@@ -312,6 +313,7 @@ stringStream::stringStream(size_t initial_size) : outputStream() {
   buffer        = NEW_C_HEAP_ARRAY(char, buffer_length, mtInternal);
   buffer_pos    = 0;
   buffer_fixed  = false;
+  zero_terminate();
 }
 
 // useful for output to fixed chunks of memory, such as performance counters
@@ -320,6 +322,7 @@ stringStream::stringStream(char* fixed_buffer, size_t fixed_buffer_size) : outpu
   buffer        = fixed_buffer;
   buffer_pos    = 0;
   buffer_fixed  = true;
+  zero_terminate();
 }
 
 void stringStream::write(const char* s, size_t len) {
@@ -343,9 +346,9 @@ void stringStream::write(const char* s, size_t len) {
   // invariant: buffer is always null-terminated
   guarantee(buffer_pos + write_len + 1 <= buffer_length, "stringStream oob");
   if (write_len > 0) {
-    buffer[buffer_pos + write_len] = 0;
     memcpy(buffer + buffer_pos, s, write_len);
     buffer_pos += write_len;
+    zero_terminate();
   }
 
   // Note that the following does not depend on write_len.
@@ -354,7 +357,18 @@ void stringStream::write(const char* s, size_t len) {
   update_position(s, len);
 }
 
-char* stringStream::as_string() {
+void stringStream::zero_terminate() {
+  assert(buffer != NULL &&
+         buffer_pos < buffer_length, "sanity");
+  buffer[buffer_pos] = '\0';
+}
+
+void stringStream::reset() {
+  buffer_pos = 0; _precount = 0; _position = 0;
+  zero_terminate();
+}
+
+char* stringStream::as_string() const {
   char* copy = NEW_RESOURCE_ARRAY(char, buffer_pos + 1);
   strncpy(copy, buffer, buffer_pos);
   copy[buffer_pos] = 0;  // terminating null

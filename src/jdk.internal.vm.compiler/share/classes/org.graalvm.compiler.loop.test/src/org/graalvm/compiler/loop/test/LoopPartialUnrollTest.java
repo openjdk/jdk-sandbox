@@ -26,7 +26,9 @@ package org.graalvm.compiler.loop.test;
 
 import java.util.ListIterator;
 
+import org.graalvm.compiler.api.directives.GraalDirectives;
 import org.graalvm.compiler.core.common.CompilationIdentifier;
+import org.graalvm.compiler.core.common.GraalOptions;
 import org.graalvm.compiler.core.test.GraalCompilerTest;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.graph.iterators.NodeIterable;
@@ -62,14 +64,14 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class LoopPartialUnrollTest extends GraalCompilerTest {
 
     @Override
-    protected boolean checkMidTierGraph(StructuredGraph graph) {
+    protected void checkMidTierGraph(StructuredGraph graph) {
         NodeIterable<LoopBeginNode> loops = graph.getNodes().filter(LoopBeginNode.class);
         for (LoopBeginNode loop : loops) {
             if (loop.isMainLoop()) {
-                return true;
+                return;
             }
         }
-        return false;
+        fail("expected a main loop");
     }
 
     public static long sumWithEqualityLimit(int[] text) {
@@ -132,6 +134,35 @@ public class LoopPartialUnrollTest extends GraalCompilerTest {
             a = t1 + t2;
             t1 = volatileInt;
             t2 = a + b;
+            c = b;
+            b = a;
+            a = t1 + t2;
+        }
+
+        return c;
+    }
+
+    @Test
+    @Ignore
+    public void testUnsignedLoopCarried() {
+        for (int i = -1; i < 64; i++) {
+            for (int j = 0; j < 64; j++) {
+                test("testUnsignedLoopCarriedSnippet", i, j);
+            }
+        }
+        test("testUnsignedLoopCarriedSnippet", -1 - 32, -1);
+        test("testUnsignedLoopCarriedSnippet", -1 - 4, -1);
+        test("testUnsignedLoopCarriedSnippet", -1 - 32, 0);
+    }
+
+    public static int testUnsignedLoopCarriedSnippet(int start, int end) {
+        int a = 0;
+        int b = 0;
+        int c = 0;
+
+        for (int i = start; branchProbability(0.99, Integer.compareUnsigned(i, end) < 0); i++) {
+            int t1 = volatileInt;
+            int t2 = a + b;
             c = b;
             b = a;
             a = t1 + t2;
@@ -214,6 +245,25 @@ public class LoopPartialUnrollTest extends GraalCompilerTest {
     @Test
     public void testSignExtension() {
         test("testSignExtensionSnippet", 9L);
+    }
+
+    public static Object objectPhi(int n) {
+        Integer v = Integer.valueOf(200);
+        GraalDirectives.blackhole(v); // Prevents PEA
+        Integer r = 1;
+
+        for (int i = 0; iterationCount(100, i < n); i++) {
+            GraalDirectives.blackhole(r); // Create a phi of two loop invariants
+            r = v;
+        }
+
+        return r;
+    }
+
+    @Test
+    public void testObjectPhi() {
+        OptionValues options = new OptionValues(getInitialOptions(), GraalOptions.LoopPeeling, false);
+        test(options, "objectPhi", 1);
     }
 
     @Override

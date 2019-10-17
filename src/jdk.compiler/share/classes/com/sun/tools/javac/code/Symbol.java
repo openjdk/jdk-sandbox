@@ -2063,7 +2063,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public Type getReceiverType() {
-            return asType().getReceiverType();
+            Type result = asType().getReceiverType();
+            return (result == null) ? Type.noType : result;
         }
 
         @DefinedBy(Api.LANGUAGE_MODEL)
@@ -2344,14 +2345,14 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     public static class CompletionFailure extends RuntimeException {
         private static final long serialVersionUID = 0;
-        public final DeferredCompletionFailureHandler dcfh;
-        public Symbol sym;
+        public final transient DeferredCompletionFailureHandler dcfh;
+        public transient Symbol sym;
 
         /** A diagnostic object describing the failure
          */
-        private JCDiagnostic diag;
+        private transient JCDiagnostic diag;
 
-        private Supplier<JCDiagnostic> diagSupplier;
+        private transient Supplier<JCDiagnostic> diagSupplier;
 
         public CompletionFailure(Symbol sym, Supplier<JCDiagnostic> diagSupplier, DeferredCompletionFailureHandler dcfh) {
             this.dcfh = dcfh;

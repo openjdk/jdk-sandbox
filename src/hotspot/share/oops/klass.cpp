@@ -57,10 +57,6 @@ void Klass::set_java_mirror(Handle m) {
   _java_mirror = class_loader_data()->add_handle(m);
 }
 
-oop Klass::java_mirror() const {
-  return _java_mirror.resolve();
-}
-
 oop Klass::java_mirror_no_keepalive() const {
   return _java_mirror.peek();
 }
@@ -195,7 +191,7 @@ void* Klass::operator new(size_t size, ClassLoaderData* loader_data, size_t word
 // should be NULL before setting it.
 Klass::Klass(KlassID id) : _id(id),
                            _java_mirror(NULL),
-                           _prototype_header(markOopDesc::prototype()),
+                           _prototype_header(markWord::prototype()),
                            _shared_class_path_index(-1) {
   CDS_ONLY(_shared_class_flags = 0;)
   CDS_JAVA_HEAP_ONLY(_archived_mirror = 0;)
@@ -525,7 +521,7 @@ void Klass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Klass::remove_unshareable_info() {
-  assert (DumpSharedSpaces || DynamicDumpSharedSpaces,
+  assert (Arguments::is_dumping_archive(),
           "only called during CDS dump time");
   JFR_ONLY(REMOVE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
@@ -543,7 +539,7 @@ void Klass::remove_unshareable_info() {
 }
 
 void Klass::remove_java_mirror() {
-  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "only called during CDS dump time");
+  Arguments::assert_is_dumping_archive();
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
     log_trace(cds, unshareable)("remove java_mirror: %s", external_name());
@@ -567,6 +563,12 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   if (class_loader_data() == NULL) {
     // Restore class_loader_data to the null class loader data
     set_class_loader_data(loader_data);
+
+    // Workaround for suspected bug.  Make sure other threads see this assignment.
+    // This shouldn't be necessary but the compiler thread seems to be behind
+    // the times, even though this thread takes MethodCompileQueue_lock and the thread
+    // that doesn't see this value also takes that lock.
+    OrderAccess::fence();
 
     // Add to null class loader list first before creating the mirror
     // (same order as class file parsing)
@@ -675,8 +677,6 @@ void Klass::check_array_allocation_length(int length, int max_length, TRAPS) {
   }
 }
 
-oop Klass::class_loader() const { return class_loader_data()->class_loader(); }
-
 // In product mode, this function doesn't have virtual function calls so
 // there might be some performance advantage to handling InstanceKlass here.
 const char* Klass::external_name() const {
@@ -744,9 +744,9 @@ void Klass::oop_print_on(oop obj, outputStream* st) {
 
   if (WizardMode) {
      // print header
-     obj->mark()->print_on(st);
+     obj->mark().print_on(st);
      st->cr();
-     st->print(BULLET"prototype_header: " INTPTR_FORMAT, p2i(_prototype_header));
+     st->print(BULLET"prototype_header: " INTPTR_FORMAT, _prototype_header.value());
      st->cr();
   }
 
@@ -767,7 +767,7 @@ void Klass::oop_print_value_on(oop obj, outputStream* st) {
 // Size Statistics
 void Klass::collect_statistics(KlassSizeStats *sz) const {
   sz->_klass_bytes = sz->count(this);
-  sz->_mirror_bytes = sz->count(java_mirror());
+  sz->_mirror_bytes = sz->count(java_mirror_no_keepalive());
   sz->_secondary_supers_bytes = sz->count_array(secondary_supers());
 
   sz->_ro_bytes += sz->_secondary_supers_bytes;
@@ -820,14 +820,6 @@ bool Klass::is_valid(Klass* k) {
   return ClassLoaderDataGraph::is_valid(k->class_loader_data());
 }
 
-klassVtable Klass::vtable() const {
-  return klassVtable(const_cast<Klass*>(this), start_of_vtable(), vtable_length() / vtableEntry::size());
-}
-
-vtableEntry* Klass::start_of_vtable() const {
-  return (vtableEntry*) ((address)this + in_bytes(vtable_start_offset()));
-}
-
 Method* Klass::method_at_vtable(int index)  {
 #ifndef PRODUCT
   assert(index >= 0, "valid vtable index");
@@ -838,9 +830,6 @@ Method* Klass::method_at_vtable(int index)  {
   return start_of_vtable()[index].method();
 }
 
-ByteSize Klass::vtable_start_offset() {
-  return in_ByteSize(InstanceKlass::header_size() * wordSize);
-}
 
 #ifndef PRODUCT
 

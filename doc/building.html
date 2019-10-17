@@ -281,7 +281,7 @@
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">Linux</td>
-<td style="text-align: left;">gcc 8.2.0</td>
+<td style="text-align: left;">gcc 8.3.0</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">macOS</td>
@@ -293,17 +293,14 @@
 </tr>
 <tr class="even">
 <td style="text-align: left;">Windows</td>
-<td style="text-align: left;">Microsoft Visual Studio 2017 update 15.9.6</td>
+<td style="text-align: left;">Microsoft Visual Studio 2017 update 15.9.16</td>
 </tr>
 </tbody>
 </table>
-<p>All compilers are expected to be able to compile to the C99 language standard,
-as some C99 features are used in the source code. Microsoft Visual Studio
-doesn't fully support C99 so in practice shared code is limited to using C99
-features that it does support.</p>
+<p>All compilers are expected to be able to compile to the C99 language standard, as some C99 features are used in the source code. Microsoft Visual Studio doesn't fully support C99 so in practice shared code is limited to using C99 features that it does support.</p>
 <h3 id="gcc">gcc</h3>
 <p>The minimum accepted version of gcc is 4.8. Older versions will generate a warning by <code>configure</code> and are unlikely to work.</p>
-<p>The JDK is currently known to be able to compile with at least version 7.4 of gcc.</p>
+<p>The JDK is currently known to be able to compile with at least version 8.3 of gcc.</p>
 <p>In general, any version between these two should be usable.</p>
 <h3 id="clang">clang</h3>
 <p>The minimum accepted version of clang is 3.2. Older versions will not be accepted by <code>configure</code>.</p>
@@ -575,6 +572,7 @@ CC: Sun C++ 5.13 SunOS_i386 151846-10 2015/10/30</code></pre>
 <li><code>CONF_CHECK</code></li>
 <li><code>COMPARE_BUILD</code></li>
 <li><code>JDK_FILTER</code></li>
+<li><code>SPEC_FILTER</code></li>
 </ul>
 <h2 id="running-tests">Running Tests</h2>
 <p>Most of the JDK tests are using the <a href="http://openjdk.java.net/jtreg">JTReg</a> test framework. Make sure that your configuration knows where to find your installation of JTReg. If this is not picked up automatically, use the <code>--with-jtreg=&lt;path to jtreg home&gt;</code> option to point to the JTReg framework. Note that this option should point to the JTReg home, i.e. the top directory, containing <code>lib/jtreg.jar</code> etc.</p>

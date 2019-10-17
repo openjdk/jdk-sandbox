@@ -46,9 +46,8 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
-
-#ifdef BUILTIN_SIM
-#include "../../../../../../simulator/simulator.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zThreadLocalData.hpp"
 #endif
 
 // Declaration and definition of StubGenerator (no .hpp file).
@@ -218,16 +217,8 @@ class StubGenerator: public StubCodeGenerator {
 
     // stub code
 
-    // we need a C prolog to bootstrap the x86 caller into the sim
-    __ c_stub_prolog(8, 0, MacroAssembler::ret_type_void);
-
     address aarch64_entry = __ pc();
 
-#ifdef BUILTIN_SIM
-    // Save sender's SP for stack traces.
-    __ mov(rscratch1, sp);
-    __ str(rscratch1, Address(__ pre(sp, -2 * wordSize)));
-#endif
     // set up frame and move sp to end of save area
     __ enter();
     __ sub(sp, rfp, -sp_after_call_off * wordSize);
@@ -298,8 +289,6 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(r13, sp);
     __ blr(c_rarg4);
 
-    // tell the simulator we have returned to the stub
-
     // we do this here because the notify will already have been done
     // if we get to the next instruction via an exception
     //
@@ -309,9 +298,6 @@ class StubGenerator: public StubCodeGenerator {
     // pc against the address saved below. so we may need to allow for
     // this extra instruction in the check.
 
-    if (NotifySimulator) {
-      __ notify(Assembler::method_reentry);
-    }
     // save current address for use by exception handling code
 
     return_address = __ pc();
@@ -374,12 +360,6 @@ class StubGenerator: public StubCodeGenerator {
     __ ldp(c_rarg4, c_rarg5,  entry_point);
     __ ldp(c_rarg6, c_rarg7,  parameter_size);
 
-#ifndef PRODUCT
-    // tell the simulator we are about to end Java execution
-    if (NotifySimulator) {
-      __ notify(Assembler::method_exit);
-    }
-#endif
     // leave frame and return to caller
     __ leave();
     __ ret(lr);
@@ -412,13 +392,6 @@ class StubGenerator: public StubCodeGenerator {
   // rsp.
   //
   // r0: exception oop
-
-  // NOTE: this is used as a target from the signal handler so it
-  // needs an x86 prolog which returns into the current simulator
-  // executing the generated catch_exception code. so the prolog
-  // needs to install rax in a sim register and adjust the sim's
-  // restart pc to enter the generated code at the start position
-  // then return from native to simulated execution.
 
   address generate_catch_exception() {
     StubCodeMark mark(this, "StubRoutines", "catch_exception");
@@ -580,6 +553,16 @@ class StubGenerator: public StubCodeGenerator {
     // make sure object is 'reasonable'
     __ cbz(r0, exit); // if obj is NULL it is OK
 
+#if INCLUDE_ZGC
+    if (UseZGC) {
+      // Check if mask is good.
+      // verifies that ZAddressBadMask & r0 == 0
+      __ ldr(c_rarg3, Address(rthread, ZThreadLocalData::address_bad_mask_offset()));
+      __ andr(c_rarg2, r0, c_rarg3);
+      __ cbnz(c_rarg2, error);
+    }
+#endif
+
     // Check if the oop is in the right area of memory
     __ mov(c_rarg3, (intptr_t) Universe::verify_oop_mask());
     __ andr(c_rarg2, r0, c_rarg3);
@@ -614,7 +597,8 @@ class StubGenerator: public StubCodeGenerator {
 #endif
     BLOCK_COMMENT("call MacroAssembler::debug");
     __ mov(rscratch1, CAST_FROM_FN_PTR(address, MacroAssembler::debug64));
-    __ blrt(rscratch1, 3, 0, 1);
+    __ blr(rscratch1);
+    __ hlt(0);
 
     return start;
   }
@@ -1370,7 +1354,12 @@ class StubGenerator: public StubCodeGenerator {
       // save regs before copy_memory
       __ push(RegSet::of(d, count), sp);
     }
-    copy_memory(aligned, s, d, count, rscratch1, size);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      bool add_entry = !is_oop && (!aligned || sizeof(jlong) == size);
+      UnsafeCopyMemoryMark ucmm(this, add_entry, true);
+      copy_memory(aligned, s, d, count, rscratch1, size);
+    }
 
     if (is_oop) {
       __ pop(RegSet::of(d, count), sp);
@@ -1383,12 +1372,6 @@ class StubGenerator: public StubCodeGenerator {
     __ leave();
     __ mov(r0, zr); // return 0
     __ ret(lr);
-#ifdef BUILTIN_SIM
-    {
-      AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
-      sim->notifyCompile(const_cast<char*>(name), start);
-    }
-#endif
     return start;
   }
 
@@ -1442,7 +1425,12 @@ class StubGenerator: public StubCodeGenerator {
       // save regs before copy_memory
       __ push(RegSet::of(d, count), sp);
     }
-    copy_memory(aligned, s, d, count, rscratch1, -size);
+    {
+      // UnsafeCopyMemory page error: continue after ucm
+      bool add_entry = !is_oop && (!aligned || sizeof(jlong) == size);
+      UnsafeCopyMemoryMark ucmm(this, add_entry, true);
+      copy_memory(aligned, s, d, count, rscratch1, -size);
+    }
     if (is_oop) {
       __ pop(RegSet::of(d, count), sp);
       if (VerifyOops)
@@ -1452,12 +1440,6 @@ class StubGenerator: public StubCodeGenerator {
     __ leave();
     __ mov(r0, zr); // return 0
     __ ret(lr);
-#ifdef BUILTIN_SIM
-    {
-      AArch64Simulator *sim = AArch64Simulator::get_current(UseSimulatorCache, DisableBCCheck);
-      sim->notifyCompile(const_cast<char*>(name), start);
-    }
-#endif
     return start;
 }
 
@@ -2369,6 +2351,44 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  address generate_data_cache_writeback() {
+    const Register line        = c_rarg0;  // address of line to write back
+
+    __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback");
+
+    address start = __ pc();
+    __ enter();
+    __ cache_wb(Address(line, 0));
+    __ leave();
+    __ ret(lr);
+
+    return start;
+  }
+
+  address generate_data_cache_writeback_sync() {
+    const Register is_pre     = c_rarg0;  // pre or post sync
+
+    __ align(CodeEntryAlignment);
+
+    StubCodeMark mark(this, "StubRoutines", "_data_cache_writeback_sync");
+
+    // pre wbsync is a no-op
+    // post wbsync translates to an sfence
+
+    Label skip;
+    address start = __ pc();
+    __ enter();
+    __ cbnz(is_pre, skip);
+    __ cache_wbsync(false);
+    __ bind(skip);
+    __ leave();
+    __ ret(lr);
+
+    return start;
+  }
+
   void generate_arraycopy_stubs() {
     address entry;
     address entry_jbyte_arraycopy;
@@ -3105,7 +3125,6 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-#ifndef BUILTIN_SIM
   // Safefetch stubs.
   void generate_safefetch(const char* name, int size, address* entry,
                           address* fault_pc, address* continuation_pc) {
@@ -3145,7 +3164,6 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(r0, c_rarg1);
     __ ret(lr);
   }
-#endif
 
   /**
    *  Arguments:
@@ -4781,7 +4799,7 @@ class StubGenerator: public StubCodeGenerator {
     __ mov(c_rarg0, rthread);
     BLOCK_COMMENT("call runtime_entry");
     __ mov(rscratch1, runtime_entry);
-    __ blrt(rscratch1, 3 /* number_of_arguments */, 0, 1);
+    __ blr(rscratch1);
 
     // Generate oop map
     OopMap* map = new OopMap(framesize, 0);
@@ -5755,11 +5773,14 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif // COMPILER2
 
-#ifndef BUILTIN_SIM
     // generate GHASH intrinsics code
     if (UseGHASHIntrinsics) {
       StubRoutines::_ghash_processBlocks = generate_ghash_processBlocks();
     }
+
+    // data cache line writeback
+    StubRoutines::_data_cache_writeback = generate_data_cache_writeback();
+    StubRoutines::_data_cache_writeback_sync = generate_data_cache_writeback_sync();
 
     if (UseAESIntrinsics) {
       StubRoutines::_aescrypt_encryptBlock = generate_aescrypt_encryptBlock();
@@ -5789,7 +5810,6 @@ class StubGenerator: public StubCodeGenerator {
     generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
                                                        &StubRoutines::_safefetchN_fault_pc,
                                                        &StubRoutines::_safefetchN_continuation_pc);
-#endif
     StubRoutines::aarch64::set_completed();
   }
 
@@ -5803,6 +5823,10 @@ class StubGenerator: public StubCodeGenerator {
   }
 }; // end class declaration
 
+#define UCM_TABLE_MAX_ENTRIES 8
 void StubGenerator_generate(CodeBuffer* code, bool all) {
+  if (UnsafeCopyMemory::_table == NULL) {
+    UnsafeCopyMemory::create_table(UCM_TABLE_MAX_ENTRIES);
+  }
   StubGenerator g(code, all);
 }

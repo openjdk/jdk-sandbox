@@ -212,7 +212,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
 // Either oop or narrowOop depending on UseCompressedOops.
 void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
                             arrayOop d, size_t dst_offset, int length, TRAPS) {
-  if (oopDesc::equals(s, d)) {
+  if (s == d) {
     // since source and destination are equal we do not need conversion checks.
     assert(length > 0, "sanity check");
     ArrayAccess<>::oop_arraycopy(s, src_offset, d, dst_offset, length);
@@ -328,7 +328,7 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
   // lock-free read needs acquire semantics
   if (higher_dimension_acquire() == NULL) {
-    if (or_null)  return NULL;
+    if (or_null) return NULL;
 
     ResourceMark rm;
     JavaThread *jt = (JavaThread *)THREAD;
@@ -349,14 +349,13 @@ Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
         assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-  } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
     return ak->array_klass_or_null(n);
   }
+  THREAD->check_possible_safepoint();
   return ak->array_klass(n, THREAD);
 }
 

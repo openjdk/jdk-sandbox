@@ -125,6 +125,11 @@ public:
     do_ptr(&ptr);
   }
 
+  void do_bool(bool *p) {
+    void* ptr = (void*)(uintx(*p));
+    do_ptr(&ptr);
+  }
+
   void do_tag(int tag) {
     _dump_region->append_intptr_t((intptr_t)tag);
   }
@@ -154,6 +159,8 @@ public:
 
   void do_u4(u4* p);
 
+  void do_bool(bool *p);
+
   void do_tag(int tag);
 
   void do_oop(oop *p);
@@ -176,8 +183,8 @@ class MetaspaceShared : AllStatic {
   static bool _has_error_classes;
   static bool _archive_loading_failed;
   static bool _remapped_readwrite;
-  static address _cds_i2i_entry_code_buffers;
-  static size_t  _cds_i2i_entry_code_buffers_size;
+  static address _i2i_entry_code_buffers;
+  static size_t  _i2i_entry_code_buffers_size;
   static size_t  _core_spaces_size;
   static void* _shared_metaspace_static_top;
  public:
@@ -297,7 +304,6 @@ class MetaspaceShared : AllStatic {
   static DumpRegion* misc_code_dump_space();
   static DumpRegion* read_write_dump_space();
   static DumpRegion* read_only_dump_space();
-  static DumpRegion* optional_data_dump_space();
   static void pack_dump_space(DumpRegion* current, DumpRegion* next,
                               ReservedSpace* rs);
 
@@ -326,13 +332,13 @@ class MetaspaceShared : AllStatic {
     return align_up(byte_size, BytesPerWord);
   }
 
-  static address cds_i2i_entry_code_buffers(size_t total_size);
+  static address i2i_entry_code_buffers(size_t total_size);
 
-  static address cds_i2i_entry_code_buffers() {
-    return _cds_i2i_entry_code_buffers;
+  static address i2i_entry_code_buffers() {
+    return _i2i_entry_code_buffers;
   }
-  static size_t cds_i2i_entry_code_buffers_size() {
-    return _cds_i2i_entry_code_buffers_size;
+  static size_t i2i_entry_code_buffers_size() {
+    return _i2i_entry_code_buffers_size;
   }
   static void relocate_klass_ptr(oop o);
 

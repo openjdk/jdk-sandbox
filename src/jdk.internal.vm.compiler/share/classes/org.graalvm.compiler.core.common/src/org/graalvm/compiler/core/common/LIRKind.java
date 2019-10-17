@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,7 @@ public final class LIRKind extends ValueKind<LIRKind> {
         this.referenceCompressionMask = referenceCompressionMask;
         this.derivedReferenceBase = derivedReferenceBase;
 
-        assert this.referenceCompressionMask == 0 || this.referenceMask == this.referenceCompressionMask : "mixing compressed and uncompressed references is untested";
+        assert this.referenceCompressionMask == 0 || this.referenceMask == this.referenceCompressionMask : "mixing compressed and uncompressed references is unsupported";
         assert derivedReferenceBase == null || !derivedReferenceBase.getValueKind(LIRKind.class).isDerivedReference() : "derived reference can't have another derived reference as base";
     }
 

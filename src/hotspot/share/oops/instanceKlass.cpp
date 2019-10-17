@@ -438,6 +438,8 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
+  _init_thread(NULL),
+  _init_state(allocated),
   _reference_type(parser.reference_type())
 {
   set_vtable_length(parser.vtable_size());
@@ -451,7 +453,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::init_dumptime_info(this);
   }
 }
@@ -601,7 +603,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_annotations(NULL);
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::remove_dumptime_info(this);
   }
 }
@@ -944,7 +946,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
     while (is_being_initialized() && !is_reentrant_initialization(jt)) {
       wait = true;
       jt->set_class_to_be_initialized(this);
-      ol.waitUninterruptibly(jt);
+      ol.wait_uninterruptibly(jt);
       jt->set_class_to_be_initialized(NULL);
     }
 
@@ -1071,11 +1073,13 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
   Handle h_init_lock(THREAD, init_lock());
   if (h_init_lock() != NULL) {
     ObjectLocker ol(h_init_lock, THREAD);
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
     fence_and_clear_init_lock();
     ol.notify_all(CHECK);
   } else {
     assert(h_init_lock() != NULL, "The initialization state should never be set twice");
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
   }
 }
@@ -1097,7 +1101,7 @@ Klass* InstanceKlass::implementor() const {
 
 
 void InstanceKlass::set_implementor(Klass* k) {
-  assert_lock_strong(Compile_lock);
+  assert_locked_or_safepoint(Compile_lock);
   assert(is_interface(), "not interface");
   Klass* volatile* addr = adr_implementor();
   assert(addr != NULL, "null addr");
@@ -2225,7 +2229,7 @@ bool InstanceKlass::should_store_fingerprint(bool is_unsafe_anonymous) {
     // (1) We are running AOT to generate a shared library.
     return true;
   }
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     // (2) We are running -Xshare:dump or -XX:ArchiveClassesAtExit to create a shared archive
     return true;
   }
@@ -2329,8 +2333,8 @@ void InstanceKlass::remove_unshareable_info() {
   // being added to class hierarchy (see SystemDictionary:::add_to_hierarchy()).
   _init_state = allocated;
 
-  {
-    MutexLocker ml(Compile_lock);
+  { // Otherwise this needs to take out the Compile_lock.
+    assert(SafepointSynchronize::is_at_safepoint(), "only called at safepoint");
     init_implementor();
   }
 
@@ -2473,7 +2477,7 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
   // notify ClassLoadingService of class unload
   ClassLoadingService::notify_class_unloaded(ik);
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::remove_dumptime_info(ik);
   }
 
@@ -2493,10 +2497,18 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
 #endif
 }
 
+static void method_release_C_heap_structures(Method* m) {
+  m->release_C_heap_structures();
+}
+
 void InstanceKlass::release_C_heap_structures(InstanceKlass* ik) {
   // Clean up C heap
   ik->release_C_heap_structures();
   ik->constants()->release_C_heap_structures();
+
+  // Deallocate and call destructors for MDO mutexes
+  ik->methods_do(method_release_C_heap_structures);
+
 }
 
 void InstanceKlass::release_C_heap_structures() {
@@ -2542,7 +2554,7 @@ void InstanceKlass::release_C_heap_structures() {
   // unreference array name derived from this class name (arrays of an unloaded
   // class can't be referenced anymore).
   if (_array_name != NULL)  _array_name->decrement_refcount();
-  if (_source_debug_extension != NULL) FREE_C_HEAP_ARRAY(char, _source_debug_extension);
+  FREE_C_HEAP_ARRAY(char, _source_debug_extension);
 }
 
 void InstanceKlass::set_source_debug_extension(const char* array, int length) {
@@ -2713,7 +2725,7 @@ bool InstanceKlass::is_same_class_package(const Klass* class2) const {
   // and package entries. Both must be the same. This rule
   // applies even to classes that are defined in the unnamed
   // package, they still must have the same class loader.
-  if (oopDesc::equals(classloader1, classloader2) && (classpkg1 == classpkg2)) {
+  if ((classloader1 == classloader2) && (classpkg1 == classpkg2)) {
     return true;
   }
 
@@ -2724,7 +2736,7 @@ bool InstanceKlass::is_same_class_package(const Klass* class2) const {
 // and classname information is enough to determine a class's package
 bool InstanceKlass::is_same_class_package(oop other_class_loader,
                                           const Symbol* other_class_name) const {
-  if (!oopDesc::equals(class_loader(), other_class_loader)) {
+  if (class_loader() != other_class_loader) {
     return false;
   }
   if (name()->fast_compare(other_class_name) == 0) {
@@ -2969,6 +2981,7 @@ void InstanceKlass::adjust_default_methods(bool* trace_name_printed) {
 
 // On-stack replacement stuff
 void InstanceKlass::add_osr_nmethod(nmethod* n) {
+  assert_lock_strong(CompiledMethod_lock);
 #ifndef PRODUCT
   if (TieredCompilation) {
       nmethod * prev = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), n->comp_level(), true);
@@ -2978,8 +2991,6 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
 #endif
   // only one compilation can be active
   {
-    // This is a short non-blocking critical region, so the no safepoint check is ok.
-    MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
     assert(n->is_osr_method(), "wrong kind of nmethod");
     n->set_osr_link(osr_nmethods_head());
     set_osr_nmethods_head(n);
@@ -3004,7 +3015,8 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
 // Remove osr nmethod from the list. Return true if found and removed.
 bool InstanceKlass::remove_osr_nmethod(nmethod* n) {
   // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock
+                 , Mutex::_no_safepoint_check_flag);
   assert(n->is_osr_method(), "wrong kind of nmethod");
   nmethod* last = NULL;
   nmethod* cur  = osr_nmethods_head();
@@ -3047,8 +3059,8 @@ bool InstanceKlass::remove_osr_nmethod(nmethod* n) {
 }
 
 int InstanceKlass::mark_osr_nmethods(const Method* m) {
-  // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock,
+                 Mutex::_no_safepoint_check_flag);
   nmethod* osr = osr_nmethods_head();
   int found = 0;
   while (osr != NULL) {
@@ -3063,8 +3075,8 @@ int InstanceKlass::mark_osr_nmethods(const Method* m) {
 }
 
 nmethod* InstanceKlass::lookup_osr_nmethod(const Method* m, int bci, int comp_level, bool match_level) const {
-  // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock,
+                 Mutex::_no_safepoint_check_flag);
   nmethod* osr = osr_nmethods_head();
   nmethod* best = NULL;
   while (osr != NULL) {
@@ -3710,6 +3722,7 @@ void InstanceKlass::set_init_state(ClassState state) {
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
 #endif
+  assert(_init_thread == NULL, "should be cleared before state change");
   _init_state = (u1)state;
 }
 

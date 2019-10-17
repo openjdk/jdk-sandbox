@@ -31,6 +31,7 @@
 #include "jvmci/vmStructs_jvmci.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
+#include "oops/klass.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/resourceHash.hpp"
 
@@ -308,7 +309,8 @@ jobjectArray readConfiguration0(JNIEnv *env, JVMCI_TRAPS) {
         BOXED_BOOLEAN(box, *(jbyte*) vmField.address);
         assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "int") == 0 ||
-                 strcmp(vmField.typeString, "jint") == 0) {
+                 strcmp(vmField.typeString, "jint") == 0 ||
+                 strcmp(vmField.typeString, "uint32_t") == 0) {
         BOXED_LONG(box, *(jint*) vmField.address);
         assert(box.is_non_null(), "must have a box");
       } else if (strcmp(vmField.typeString, "uint64_t") == 0) {
@@ -368,7 +370,7 @@ jobjectArray readConfiguration0(JNIEnv *env, JVMCI_TRAPS) {
 #define COUNT_FLAG(ignore) +1
 #ifdef ASSERT
 #define CHECK_FLAG(type, name) { \
-  JVMFlag* flag = JVMFlag::find_flag(#name, strlen(#name), /*allow_locked*/ true, /* return_flag */ true); \
+  const JVMFlag* flag = JVMFlag::find_declared_flag(#name); \
   assert(flag != NULL, "No such flag named " #name); \
   assert(flag->is_##type(), "JVMFlag " #name " is not of type " #type); \
 }

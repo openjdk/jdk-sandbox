@@ -212,6 +212,9 @@ class nmethod : public CompiledMethod {
   void* operator new(size_t size, int nmethod_size, int comp_level) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
+
+  bool try_transition(int new_state);
+
   // Returns true if this thread changed the state of the nmethod or
   // false if another thread performed the transition.
   bool make_not_entrant_or_zombie(int state);
@@ -339,7 +342,7 @@ class nmethod : public CompiledMethod {
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }
   bool  is_in_use() const                         { return _state <= in_use; }
-  bool  is_alive() const                          { return _state < zombie; }
+  bool  is_alive() const                          { return _state < unloaded; }
   bool  is_not_entrant() const                    { return _state == not_entrant; }
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
@@ -354,7 +357,9 @@ class nmethod : public CompiledMethod {
   void set_rtm_state(RTMState state)              { _rtm_state = state; }
 #endif
 
-  void make_in_use()                              { _state = in_use; }
+  bool make_in_use() {
+    return try_transition(in_use);
+  }
   // Make the nmethod non entrant. The nmethod will continue to be
   // alive.  It is used when an uncommon trap happens.  Returns true
   // if this thread changed the state of the nmethod or false if
@@ -392,6 +397,7 @@ class nmethod : public CompiledMethod {
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
   oop   oop_at(int index) const;
+  oop   oop_at_phantom(int index) const; // phantom reference
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -423,9 +429,6 @@ public:
   // Sweeper support
   long  stack_traversal_mark()                    { return _stack_traversal_mark; }
   void  set_stack_traversal_mark(long l)          { _stack_traversal_mark = l; }
-
-  // implicit exceptions support
-  address continuation_for_implicit_exception(address pc);
 
   // On-stack replacement support
   int   osr_entry_bci() const                     { assert(is_osr_method(), "wrong kind of nmethod"); return _entry_bci; }
@@ -475,7 +478,7 @@ public:
 
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
-  void oops_do(OopClosure* f, bool allow_zombie);
+  void oops_do(OopClosure* f, bool allow_dead);
 
   bool test_set_oops_do_mark();
   static void oops_do_marking_prologue();

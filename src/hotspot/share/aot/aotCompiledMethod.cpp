@@ -32,6 +32,7 @@
 #include "compiler/compilerOracle.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -206,7 +207,6 @@ bool AOTCompiledMethod::make_not_entrant_helper(int new_state) {
 #ifdef TIERED
 bool AOTCompiledMethod::make_entrant() {
   assert(!method()->is_old(), "reviving evolved method!");
-  assert(*_state_adr != not_entrant, "%s", method()->has_aot_code() ? "has_aot_code() not cleared" : "caller didn't check has_aot_code()");
 
   // Make sure the method is not flushed in case of a safepoint in code below.
   methodHandle the_method(method());
@@ -216,7 +216,7 @@ bool AOTCompiledMethod::make_entrant() {
     // Enter critical section.  Does not block for safepoint.
     MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
 
-    if (*_state_adr == in_use) {
+    if (*_state_adr == in_use || *_state_adr == not_entrant) {
       // another thread already performed this transition so nothing
       // to do, but return false to indicate this.
       return false;

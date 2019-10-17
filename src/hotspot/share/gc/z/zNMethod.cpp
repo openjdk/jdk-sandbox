@@ -261,6 +261,25 @@ private:
     Atomic::store(true, &_failed);
   }
 
+  void unlink(nmethod* nm) {
+    // Unlinking of the dependencies must happen before the
+    // handshake separating unlink and purge.
+    nm->flush_dependencies(false /* delete_immediately */);
+
+    // unlink_from_method will take the CompiledMethod_lock.
+    // In this case we don't strictly need it when unlinking nmethods from
+    // the Method, because it is only concurrently unlinked by
+    // the entry barrier, which acquires the per nmethod lock.
+    nm->unlink_from_method();
+
+    if (nm->is_osr_method()) {
+      // Invalidate the osr nmethod before the handshake. The nmethod
+      // will be made unloaded after the handshake. Then invalidate_osr_method()
+      // will be called again, which will be a no-op.
+      nm->invalidate_osr_method();
+    }
+  }
+
 public:
   ZNMethodUnlinkClosure(bool unloading_occurred) :
       _unloading_occurred(unloading_occurred),
@@ -275,19 +294,13 @@ public:
       return;
     }
 
-    ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
-
     if (nm->is_unloading()) {
-      // Unlinking of the dependencies must happen before the
-      // handshake separating unlink and purge.
-      nm->flush_dependencies(false /* delete_immediately */);
-
-      // We don't need to take the lock when unlinking nmethods from
-      // the Method, because it is only concurrently unlinked by
-      // the entry barrier, which acquires the per nmethod lock.
-      nm->unlink_from_method();
+      ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
+      unlink(nm);
       return;
     }
+
+    ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
 
     // Heal oops and disarm
     ZNMethodOopClosure cl;

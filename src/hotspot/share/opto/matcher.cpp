@@ -1751,6 +1751,13 @@ MachNode *Matcher::ReduceInst( State *s, int rule, Node *&mem ) {
     _shared_nodes.map(leaf->_idx, ex);
   }
 
+  // Have mach nodes inherit GC barrier data
+  if (leaf->is_LoadStore()) {
+    mach->set_barrier_data(leaf->as_LoadStore()->barrier_data());
+  } else if (leaf->is_Mem()) {
+    mach->set_barrier_data(leaf->as_Mem()->barrier_data());
+  }
+
   return ex;
 }
 
@@ -2066,6 +2073,12 @@ void Matcher::find_shared( Node *n ) {
         // Node is shared and has no reason to clone.  Flag it as shared.
         // This causes it to match into a register for the sharing.
         set_shared(n);       // Flag as shared and
+        if (n->is_DecodeNarrowPtr()) {
+          // Oop field/array element loads must be shared but since
+          // they are shared through a DecodeN they may appear to have
+          // a single use so force sharing here.
+          set_shared(n->in(1));
+        }
         mstack.pop();        // remove node from stack
         continue;
       }
@@ -2096,13 +2109,6 @@ void Matcher::find_shared( Node *n ) {
         if( _must_clone[mop] ) {
           mstack.push(m, Visit);
           continue; // for(int i = ...)
-        }
-
-        if( mop == Op_AddP && m->in(AddPNode::Base)->is_DecodeNarrowPtr()) {
-          // Bases used in addresses must be shared but since
-          // they are shared through a DecodeN they may appear
-          // to have a single use so force sharing here.
-          set_shared(m->in(AddPNode::Base)->in(1));
         }
 
         // if 'n' and 'm' are part of a graph for BMI instruction, clone this node.

@@ -38,6 +38,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutex.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "utilities/growableArray.hpp"
@@ -48,12 +49,26 @@ volatile size_t ClassLoaderDataGraph::_num_array_classes = 0;
 volatile size_t ClassLoaderDataGraph::_num_instance_classes = 0;
 
 void ClassLoaderDataGraph::clear_claimed_marks() {
-  assert_locked_or_safepoint_weak(ClassLoaderDataGraph_lock);
-  for (ClassLoaderData* cld = _head; cld != NULL; cld = cld->next()) {
+  // The claimed marks of the CLDs in the ClassLoaderDataGraph are cleared
+  // outside a safepoint and without locking the ClassLoaderDataGraph_lock.
+  // This is required to avoid a deadlock between concurrent GC threads and safepointing.
+  //
+  // We need to make sure that the CLD contents are fully visible to the
+  // reader thread. This is accomplished by acquire/release of the _head,
+  // and is sufficient.
+  //
+  // Any ClassLoaderData added after or during walking the list are prepended to
+  // _head. Their claim mark need not be handled here.
+  for (ClassLoaderData* cld = OrderAccess::load_acquire(&_head); cld != NULL; cld = cld->next()) {
     cld->clear_claim();
   }
 }
 
+void ClassLoaderDataGraph::clear_claimed_marks(int claim) {
+ for (ClassLoaderData* cld = OrderAccess::load_acquire(&_head); cld != NULL; cld = cld->next()) {
+    cld->clear_claim(claim);
+  }
+}
 // Class iterator used by the compiler.  It gets some number of classes at
 // a safepoint to decay invocation counters on the methods.
 class ClassLoaderDataGraphKlassIteratorStatic {
@@ -169,7 +184,7 @@ void ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces() {
 }
 
 // GC root of class loader data created.
-ClassLoaderData* ClassLoaderDataGraph::_head = NULL;
+ClassLoaderData* volatile ClassLoaderDataGraph::_head = NULL;
 ClassLoaderData* ClassLoaderDataGraph::_unloading = NULL;
 ClassLoaderData* ClassLoaderDataGraph::_saved_unloading = NULL;
 ClassLoaderData* ClassLoaderDataGraph::_saved_head = NULL;
@@ -205,7 +220,7 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsaf
 
   // First install the new CLD to the Graph.
   cld->set_next(_head);
-  _head = cld;
+  OrderAccess::release_store(&_head, cld);
 
   // Next associate with the class_loader.
   if (!is_unsafe_anonymous) {
@@ -270,17 +285,27 @@ void ClassLoaderDataGraph::always_strong_cld_do(CLDClosure* cl) {
   }
 }
 
-// Closure for locking and iterating through classes.
-LockedClassesDo::LockedClassesDo(classes_do_func_t f) : _function(f) {
-  ClassLoaderDataGraph_lock->lock();
+// Closure for locking and iterating through classes. Only lock outside of safepoint.
+LockedClassesDo::LockedClassesDo(classes_do_func_t f) : _function(f),
+  _do_lock(!SafepointSynchronize::is_at_safepoint()) {
+  if (_do_lock) {
+    ClassLoaderDataGraph_lock->lock();
+  }
 }
 
-LockedClassesDo::LockedClassesDo() : _function(NULL) {
+LockedClassesDo::LockedClassesDo() : _function(NULL),
+  _do_lock(!SafepointSynchronize::is_at_safepoint()) {
   // callers provide their own do_klass
-  ClassLoaderDataGraph_lock->lock();
+  if (_do_lock) {
+    ClassLoaderDataGraph_lock->lock();
+  }
 }
 
-LockedClassesDo::~LockedClassesDo() { ClassLoaderDataGraph_lock->unlock(); }
+LockedClassesDo::~LockedClassesDo() {
+  if (_do_lock) {
+    ClassLoaderDataGraph_lock->unlock();
+  }
+}
 
 
 // Iterating over the CLDG needs to be locked because
@@ -294,8 +319,7 @@ class ClassLoaderDataGraphIterator : public StackObj {
                             // unless verifying at a safepoint.
 
 public:
-  ClassLoaderDataGraphIterator() : _next(ClassLoaderDataGraph::_head),
-     _nsv(true, !SafepointSynchronize::is_at_safepoint()) {
+  ClassLoaderDataGraphIterator() : _next(ClassLoaderDataGraph::_head) {
     _thread = Thread::current();
     assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   }
@@ -461,7 +485,7 @@ GrowableArray<ClassLoaderData*>* ClassLoaderDataGraph::new_clds() {
   // The CLDs in [_head, _saved_head] were all added during last call to remember_new_clds(true);
   ClassLoaderData* curr = _head;
   while (curr != _saved_head) {
-    if (!curr->claimed()) {
+    if (!curr->claimed(ClassLoaderData::_claim_strong)) {
       array->push(curr);
       LogTarget(Debug, class, loader, data) lt;
       if (lt.is_enabled()) {

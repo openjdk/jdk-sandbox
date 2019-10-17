@@ -477,7 +477,6 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
     debug_only(nm->verify();) // might block
 
     nm->log_new_nmethod();
-    nm->make_in_use();
   }
   return nm;
 }
@@ -923,6 +922,7 @@ void nmethod::print_nmethod(bool printmethod) {
   ttyLocker ttyl;  // keep the following output all in one block
   if (xtty != NULL) {
     xtty->begin_head("print_nmethod");
+    log_identity(xtty);
     xtty->stamp();
     xtty->end_head();
   }
@@ -1136,6 +1136,25 @@ void nmethod::inc_decompile_count() {
   mdo->inc_decompile_count();
 }
 
+bool nmethod::try_transition(int new_state_int) {
+  signed char new_state = new_state_int;
+#ifdef DEBUG
+  if (new_state != unloaded) {
+    assert_lock_strong(CompiledMethod_lock);
+  }
+#endif
+  for (;;) {
+    signed char old_state = Atomic::load(&_state);
+    if (old_state >= new_state) {
+      // Ensure monotonicity of transitions.
+      return false;
+    }
+    if (Atomic::cmpxchg(new_state, &_state, old_state) == old_state) {
+      return true;
+    }
+  }
+}
+
 void nmethod::make_unloaded() {
   post_compiled_method_unload();
 
@@ -1159,7 +1178,9 @@ void nmethod::make_unloaded() {
   }
   // Unlink the osr method, so we do not look this up again
   if (is_osr_method()) {
-    // Invalidate the osr nmethod only once
+    // Invalidate the osr nmethod only once. Note that with concurrent
+    // code cache unloading, OSR nmethods are invalidated before they
+    // are made unloaded. Therefore, this becomes a no-op then.
     if (is_in_use()) {
       invalidate_osr_method();
     }
@@ -1209,12 +1230,14 @@ void nmethod::make_unloaded() {
   set_osr_link(NULL);
   NMethodSweeper::report_state_change(this);
 
-  // The release is only needed for compile-time ordering, as accesses
-  // into the nmethod after the store are not safe due to the sweeper
-  // being allowed to free it when the store is observed, during
-  // concurrent nmethod unloading. Therefore, there is no need for
-  // acquire on the loader side.
-  OrderAccess::release_store(&_state, (signed char)unloaded);
+  bool transition_success = try_transition(unloaded);
+
+  // It is an important invariant that there exists no race between
+  // the sweeper and GC thread competing for making the same nmethod
+  // zombie and unloaded respectively. This is ensured by
+  // can_convert_to_zombie() returning false for any is_unloading()
+  // nmethod, informing the sweeper not to step on any GC toes.
+  assert(transition_success, "Invalid nmethod transition to unloaded");
 
 #if INCLUDE_JVMCI
   // Clear the link between this nmethod and a HotSpotNmethod mirror
@@ -1270,9 +1293,8 @@ void nmethod::unlink_from_method() {
  */
 bool nmethod::make_not_entrant_or_zombie(int state) {
   assert(state == zombie || state == not_entrant, "must be zombie or not_entrant");
-  assert(!is_zombie(), "should not already be a zombie");
 
-  if (_state == state) {
+  if (Atomic::load(&_state) >= state) {
     // Avoid taking the lock if already in required state.
     // This is safe from races because the state is an end-state,
     // which the nmethod cannot back out of once entered.
@@ -1284,7 +1306,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
   nmethodLocker nml(this);
   methodHandle the_method(method());
   // This can be called while the system is already at a safepoint which is ok
-  NoSafepointVerifier nsv(true, !SafepointSynchronize::is_at_safepoint());
+  NoSafepointVerifier nsv;
 
   // during patching, depending on the nmethod state we must notify the GC that
   // code has been unloaded, unregistering it. We cannot do this right while
@@ -1293,21 +1315,19 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
   // This flag is used to remember whether we need to later lock and unregister.
   bool nmethod_needs_unregister = false;
 
-  // invalidate osr nmethod before acquiring the patching lock since
-  // they both acquire leaf locks and we don't want a deadlock.
-  // This logic is equivalent to the logic below for patching the
-  // verified entry point of regular methods. We check that the
-  // nmethod is in use to ensure that it is invalidated only once.
-  if (is_osr_method() && is_in_use()) {
-    // this effectively makes the osr nmethod not entrant
-    invalidate_osr_method();
-  }
-
   {
     // Enter critical section.  Does not block for safepoint.
-    MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
 
-    if (_state == state) {
+    // This logic is equivalent to the logic below for patching the
+    // verified entry point of regular methods. We check that the
+    // nmethod is in use to ensure that it is invalidated only once.
+    if (is_osr_method() && is_in_use()) {
+      // this effectively makes the osr nmethod not entrant
+      invalidate_osr_method();
+    }
+
+    if (Atomic::load(&_state) >= state) {
       // another thread already performed this transition so nothing
       // to do, but return false to indicate this.
       return false;
@@ -1343,7 +1363,18 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     }
 
     // Change state
-    _state = state;
+    if (!try_transition(state)) {
+      // If the transition fails, it is due to another thread making the nmethod more
+      // dead. In particular, one thread might be making the nmethod unloaded concurrently.
+      // If so, having patched in the jump in the verified entry unnecessarily is fine.
+      // The nmethod is no longer possible to call by Java threads.
+      // Incrementing the decompile count is also fine as the caller of make_not_entrant()
+      // had a valid reason to deoptimize the nmethod.
+      // Marking the nmethod as seen on stack also has no effect, as the nmethod is now
+      // !is_alive(), and the seen on stack value is only used to convert not_entrant
+      // nmethods to zombie in can_convert_to_zombie().
+      return false;
+    }
 
     // Log the transition once
     log_state_change();
@@ -1470,6 +1501,13 @@ oop nmethod::oop_at(int index) const {
     return NULL;
   }
   return NativeAccess<AS_NO_KEEPALIVE>::oop_load(oop_addr_at(index));
+}
+
+oop nmethod::oop_at_phantom(int index) const {
+  if (index == 0) {
+    return NULL;
+  }
+  return NativeAccess<ON_PHANTOM_OOP_REF>::oop_load(oop_addr_at(index));
 }
 
 //
@@ -1757,10 +1795,9 @@ void nmethod::do_unloading(bool unloading_occurred) {
   }
 }
 
-void nmethod::oops_do(OopClosure* f, bool allow_zombie) {
+void nmethod::oops_do(OopClosure* f, bool allow_dead) {
   // make sure the oops ready to receive visitors
-  assert(allow_zombie || !is_zombie(), "should not call follow on zombie nmethod");
-  assert(!is_unloaded(), "should not call follow on unloaded nmethod");
+  assert(allow_dead || is_alive(), "should not call follow on dead nmethod");
 
   // Prevent extra code cache walk for platforms that don't have immediate oops.
   if (relocInfo::mustIterateImmediateOopsInCode()) {
@@ -2093,34 +2130,6 @@ bool nmethod::is_patchable_at(address instr_addr) {
 }
 
 
-address nmethod::continuation_for_implicit_exception(address pc) {
-  // Exception happened outside inline-cache check code => we are inside
-  // an active nmethod => use cpc to determine a return address
-  int exception_offset = pc - code_begin();
-  int cont_offset = ImplicitExceptionTable(this).at( exception_offset );
-#ifdef ASSERT
-  if (cont_offset == 0) {
-    Thread* thread = Thread::current();
-    ResetNoHandleMark rnm; // Might be called from LEAF/QUICK ENTRY
-    HandleMark hm(thread);
-    ResourceMark rm(thread);
-    CodeBlob* cb = CodeCache::find_blob(pc);
-    assert(cb != NULL && cb == this, "");
-    ttyLocker ttyl;
-    tty->print_cr("implicit exception happened at " INTPTR_FORMAT, p2i(pc));
-    // Print all available nmethod info.
-    print_nmethod(true);
-    method()->print_codes();
-  }
-#endif
-  if (cont_offset == 0) {
-    // Let the normal error handling report the exception
-    return NULL;
-  }
-  return code_begin() + cont_offset;
-}
-
-
 void nmethod_init() {
   // make sure you didn't forget to adjust the filler fields
   assert(sizeof(nmethod) % oopSize == 0, "nmethod size must be multiple of a word");
@@ -2180,6 +2189,17 @@ public:
   virtual void do_oop(narrowOop* p) { ShouldNotReachHere(); }
 };
 
+class VerifyMetadataClosure: public MetadataClosure {
+ public:
+  void do_metadata(Metadata* md) {
+    if (md->is_method()) {
+      Method* method = (Method*)md;
+      assert(!method->is_old(), "Should not be installing old methods");
+    }
+  }
+};
+
+
 void nmethod::verify() {
 
   // Hmm. OSR methods can be deopted but not marked as zombie or not_entrant
@@ -2213,12 +2233,40 @@ void nmethod::verify() {
     }
   }
 
+#ifdef ASSERT
+#if INCLUDE_JVMCI
+  {
+    // Verify that implicit exceptions that deoptimize have a PcDesc and OopMap
+    ImmutableOopMapSet* oms = oop_maps();
+    ImplicitExceptionTable implicit_table(this);
+    for (uint i = 0; i < implicit_table.len(); i++) {
+      int exec_offset = (int) implicit_table.get_exec_offset(i);
+      if (implicit_table.get_exec_offset(i) == implicit_table.get_cont_offset(i)) {
+        assert(pc_desc_at(code_begin() + exec_offset) != NULL, "missing PcDesc");
+        bool found = false;
+        for (int i = 0, imax = oms->count(); i < imax; i++) {
+          if (oms->pair_at(i)->pc_offset() == exec_offset) {
+            found = true;
+            break;
+          }
+        }
+        assert(found, "missing oopmap");
+      }
+    }
+  }
+#endif
+#endif
+
   VerifyOopsClosure voc(this);
   oops_do(&voc);
   assert(voc.ok(), "embedded oops must be OK");
   Universe::heap()->verify_nmethod(this);
 
   verify_scopes();
+
+  CompiledICLocker nm_verify(this);
+  VerifyMetadataClosure vmc;
+  metadata_do(&vmc);
 }
 
 
@@ -2227,7 +2275,6 @@ void nmethod::verify_interrupt_point(address call_site) {
   if (!is_not_installed()) {
     if (CompiledICLocker::is_safe(this)) {
       CompiledIC_at(this, call_site);
-      CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
     } else {
       CompiledICLocker ml_verify(this);
       CompiledIC_at(this, call_site);
@@ -3012,16 +3059,32 @@ bool nmethod::has_code_comment(address begin, address end) {
   if (str != NULL) return true;
 
   // implicit exceptions?
-  int cont_offset = ImplicitExceptionTable(this).at(begin - code_begin());
+  int cont_offset = ImplicitExceptionTable(this).continuation_offset(begin - code_begin());
   if (cont_offset != 0) return true;
 
   return false;
 }
 
 void nmethod::print_code_comment_on(outputStream* st, int column, address begin, address end) {
-  // First, find an oopmap in (begin, end].
-  // We use the odd half-closed interval so that oop maps and scope descs
-  // which are tied to the byte after a call are printed with the call itself.
+  ImplicitExceptionTable implicit_table(this);
+  int pc_offset = begin - code_begin();
+  int cont_offset = implicit_table.continuation_offset(pc_offset);
+  bool oop_map_required = false;
+  if (cont_offset != 0) {
+    st->move_to(column, 6, 0);
+    if (pc_offset == cont_offset) {
+      st->print("; implicit exception: deoptimizes");
+      oop_map_required = true;
+    } else {
+      st->print("; implicit exception: dispatches to " INTPTR_FORMAT, p2i(code_begin() + cont_offset));
+    }
+  }
+
+  // Find an oopmap in (begin, end].  We use the odd half-closed
+  // interval so that oop maps and scope descs which are tied to the
+  // byte after a call are printed with the call itself.  OopMaps
+  // associated with implicit exceptions are printed with the implicit
+  // instruction.
   address base = code_begin();
   ImmutableOopMapSet* oms = oop_maps();
   if (oms != NULL) {
@@ -3029,16 +3092,25 @@ void nmethod::print_code_comment_on(outputStream* st, int column, address begin,
       const ImmutableOopMapPair* pair = oms->pair_at(i);
       const ImmutableOopMap* om = pair->get_from(oms);
       address pc = base + pair->pc_offset();
-      if (pc > begin) {
-        if (pc <= end) {
+      if (pc >= begin) {
+#if INCLUDE_JVMCI
+        bool is_implicit_deopt = implicit_table.continuation_offset(pair->pc_offset()) == (uint) pair->pc_offset();
+#else
+        bool is_implicit_deopt = false;
+#endif
+        if (is_implicit_deopt ? pc == begin : pc > begin && pc <= end) {
           st->move_to(column, 6, 0);
           st->print("; ");
           om->print_on(st);
+          oop_map_required = false;
         }
+      }
+      if (pc > end) {
         break;
       }
     }
   }
+  assert(!oop_map_required, "missed oopmap");
 
   // Print any debug info present at this pc.
   ScopeDesc* sd  = scope_desc_in(begin, end);
@@ -3128,12 +3200,6 @@ void nmethod::print_code_comment_on(outputStream* st, int column, address begin,
     st->move_to(column, 6, 0);
     st->print(";   {%s}", str);
   }
-  int cont_offset = ImplicitExceptionTable(this).at(begin - code_begin());
-  if (cont_offset != 0) {
-    st->move_to(column, 6, 0);
-    st->print("; implicit exception: dispatches to " INTPTR_FORMAT, p2i(code_begin() + cont_offset));
-  }
-
 }
 
 #endif

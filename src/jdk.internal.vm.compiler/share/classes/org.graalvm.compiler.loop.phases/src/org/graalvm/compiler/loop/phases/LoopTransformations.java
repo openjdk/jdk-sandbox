@@ -62,11 +62,11 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.calc.AddNode;
 import org.graalvm.compiler.nodes.calc.CompareNode;
 import org.graalvm.compiler.nodes.calc.ConditionalNode;
-import org.graalvm.compiler.nodes.calc.IntegerLessThanNode;
 import org.graalvm.compiler.nodes.extended.OpaqueNode;
 import org.graalvm.compiler.nodes.extended.SwitchNode;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
+import org.graalvm.compiler.nodes.util.IntegerHelper;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
 
 public abstract class LoopTransformations {
 
@@ -79,7 +79,7 @@ public abstract class LoopTransformations {
         loop.loopBegin().setLoopFrequency(Math.max(0.0, loop.loopBegin().loopFrequency() - 1));
     }
 
-    public static void fullUnroll(LoopEx loop, PhaseContext context, CanonicalizerPhase canonicalizer) {
+    public static void fullUnroll(LoopEx loop, CoreProviders context, CanonicalizerPhase canonicalizer) {
         // assert loop.isCounted(); //TODO (gd) strengthen : counted with known trip count
         LoopBeginNode loopBegin = loop.loopBegin();
         StructuredGraph graph = loopBegin.graph();
@@ -359,11 +359,12 @@ public abstract class LoopTransformations {
         ValueNode newLimit = AddNode.add(preCounted.getStart(), preCounted.getCounter().strideNode(), NodeView.DEFAULT);
         // Fetch the variable we are not replacing and configure the one we are
         ValueNode ub = preCounted.getLimit();
+        IntegerHelper helper = preCounted.getCounterIntegerHelper();
         LogicNode entryCheck;
         if (preCounted.getDirection() == Direction.Up) {
-            entryCheck = IntegerLessThanNode.create(newLimit, ub, NodeView.DEFAULT);
+            entryCheck = helper.createCompareNode(newLimit, ub, NodeView.DEFAULT);
         } else {
-            entryCheck = IntegerLessThanNode.create(ub, newLimit, NodeView.DEFAULT);
+            entryCheck = helper.createCompareNode(ub, newLimit, NodeView.DEFAULT);
         }
         newLimit = ConditionalNode.create(entryCheck, newLimit, ub, NodeView.DEFAULT);
         // Re-wire the condition with the new limit

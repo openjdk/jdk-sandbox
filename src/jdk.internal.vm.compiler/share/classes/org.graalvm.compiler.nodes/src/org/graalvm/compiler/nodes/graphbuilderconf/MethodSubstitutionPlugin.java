@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -192,7 +192,12 @@ public final class MethodSubstitutionPlugin implements InvocationPlugin {
             if (!IS_IN_NATIVE_IMAGE && UseEncodedGraphs.getValue(b.getOptions())) {
                 b.getReplacements().registerMethodSubstitution(this, targetMethod, INLINE_AFTER_PARSING, b.getOptions());
             }
-            StructuredGraph subst = b.getReplacements().getMethodSubstitution(this, targetMethod, INLINE_AFTER_PARSING, StructuredGraph.AllowAssumptions.ifNonNull(b.getAssumptions()), b.getOptions());
+            StructuredGraph subst = b.getReplacements().getMethodSubstitution(this,
+                            targetMethod,
+                            INLINE_AFTER_PARSING,
+                            StructuredGraph.AllowAssumptions.ifNonNull(b.getAssumptions()),
+                            null /* cancellable */,
+                            b.getOptions());
             if (subst == null) {
                 throw new GraalError("No graphs found for substitution %s", this);
             }

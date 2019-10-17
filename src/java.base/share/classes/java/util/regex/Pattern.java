@@ -357,11 +357,11 @@ import jdk.internal.util.ArraysSupport;
  * <a href="#UNIX_LINES">d</a> <a href="#MULTILINE">m</a> <a href="#DOTALL">s</a>
  * <a href="#UNICODE_CASE">u</a> <a href="#COMMENTS">x</a> <a href="#UNICODE_CHARACTER_CLASS">U</a>
  * on - off</td></tr>
- * <tr><th style="vertical-align:top; font-weight:normal" id="non_capture_group_flags"><code>(?idmsux-idmsux:</code><i>X</i>{@code )}&nbsp;&nbsp;</th>
+ * <tr><th style="vertical-align:top; font-weight:normal" id="non_capture_group_flags">{@code (?idmsuxU-idmsuxU:}<i>X</i>{@code )}&nbsp;&nbsp;</th>
  *     <td headers="matches special non_capture_group_flags"><i>X</i>, as a <a href="#cg">non-capturing group</a> with the
  *         given flags <a href="#CASE_INSENSITIVE">i</a> <a href="#UNIX_LINES">d</a>
  * <a href="#MULTILINE">m</a> <a href="#DOTALL">s</a> <a href="#UNICODE_CASE">u</a >
- * <a href="#COMMENTS">x</a> on - off</td></tr>
+ * <a href="#COMMENTS">x</a> <a href="#UNICODE_CHARACTER_CLASS">U</a> on - off</td></tr>
  * <tr><th style="vertical-align:top; font-weight:normal" id="pos_lookahead">{@code (?=}<i>X</i>{@code )}</th>
  *     <td headers="matches special pos_lookahead"><i>X</i>, via zero-width positive lookahead</td></tr>
  * <tr><th style="vertical-align:top; font-weight:normal" id="neg_lookahead">{@code (?!}<i>X</i>{@code )}</th>
@@ -935,6 +935,7 @@ public final class Pattern
      */
 
     /** use serialVersionUID from Merlin b59 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = 5073258162644648461L;
 
     /**
@@ -1376,6 +1377,7 @@ public final class Pattern
      * Recompile the Pattern instance from a stream.  The original pattern
      * string is read in and the object tree is recompiled from it.
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException {
 
@@ -1425,7 +1427,11 @@ public final class Pattern
         localTCNCount = 0;
 
         if (!pattern.isEmpty()) {
-            compile();
+            try {
+                compile();
+            } catch (StackOverflowError soe) {
+                throw error("Stack overflow during pattern compilation");
+            }
         } else {
             root = new Start(lastAccept);
             matchRoot = lastAccept;
@@ -1506,7 +1512,7 @@ public final class Pattern
             String seq = src.substring(off, j);
             String nfd = Normalizer.normalize(seq, Normalizer.Form.NFD);
             off = j;
-            if (nfd.length() > 1) {
+            if (nfd.codePointCount(0, nfd.length()) > 1) {
                 ch0 = nfd.codePointAt(0);
                 ch1 = nfd.codePointAt(Character.charCount(ch0));
                 if (Character.getType(ch1) == Character.NON_SPACING_MARK) {
@@ -1963,6 +1969,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         int ch = temp[cursor++];
         while (ch != 0 && !isLineSeparator(ch))
             ch = temp[cursor++];
+        if (ch == 0 && cursor > patternLength) {
+            cursor = patternLength;
+            ch = temp[cursor++];
+        }
         return ch;
     }
 
@@ -1973,6 +1983,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         int ch = temp[++cursor];
         while (ch != 0 && !isLineSeparator(ch))
             ch = temp[++cursor];
+        if (ch == 0 && cursor > patternLength) {
+            cursor = patternLength;
+            ch = temp[cursor];
+        }
         return ch;
     }
 
@@ -2100,7 +2114,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
     private Node sequence(Node end) {
         Node head = null;
         Node tail = null;
-        Node node = null;
+        Node node;
     LOOP:
         for (;;) {
             int ch = peek();
@@ -2617,7 +2631,6 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         CharPredicate prev = null;
         CharPredicate curr = null;
         BitClass bits = new BitClass();
-        BmpCharPredicate bitsP = ch -> ch < 256 && bits.bits[ch];
 
         boolean isNeg = false;
         boolean hasBits = false;
@@ -2658,9 +2671,9 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                         if (hasBits) {
                             // bits used, union has high precedence
                             if (prev == null) {
-                                prev = curr = bitsP;
+                                prev = curr = bits;
                             } else {
-                                prev = prev.union(bitsP);
+                                prev = prev.union(bits);
                             }
                             hasBits = false;
                         }
@@ -2689,9 +2702,9 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                         if (consume)
                             next();
                         if (prev == null)
-                            prev = bitsP;
+                            prev = bits;
                         else if (hasBits)
-                            prev = prev.union(bitsP);
+                            prev = prev.union(bits);
                         if (isNeg)
                             return prev.negate();
                         return prev;
@@ -2889,12 +2902,12 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 p = CharPredicates.forUnicodeBlock(name.substring(2));
             } else if (name.startsWith("Is")) {
                 // \p{IsGeneralCategory} and \p{IsScriptName}
-                name = name.substring(2);
-                p = CharPredicates.forUnicodeProperty(name);
+                String shortName = name.substring(2);
+                p = CharPredicates.forUnicodeProperty(shortName);
                 if (p == null)
-                    p = CharPredicates.forProperty(name);
+                    p = CharPredicates.forProperty(shortName);
                 if (p == null)
-                    p = CharPredicates.forUnicodeScript(name);
+                    p = CharPredicates.forUnicodeScript(shortName);
             } else {
                 if (has(UNICODE_CHARACTER_CLASS)) {
                     p = CharPredicates.forPOSIXName(name);
@@ -2903,7 +2916,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                     p = CharPredicates.forProperty(name);
             }
             if (p == null)
-                throw error("Unknown character property name {In/Is" + name + "}");
+                throw error("Unknown character property name {" + name + "}");
         }
         if (isComplement) {
             // it might be too expensive to detect if a complement of
@@ -2947,8 +2960,8 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      */
     private Node group0() {
         boolean capturingGroup = false;
-        Node head = null;
-        Node tail = null;
+        Node head;
+        Node tail;
         int save = flags0;
         int saveTCNCount = topClosureNodes.size();
         root = null;
@@ -2997,7 +3010,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 head = createGroup(true);
                 tail = root;
                 head.next = expr(tail);
-                tail.next = lookbehindEnd;
+                tail.next = LookBehindEndNode.INSTANCE;
                 TreeInfo info = new TreeInfo();
                 head.study(info);
                 if (info.maxValid == false) {
@@ -3253,7 +3266,6 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      * Prev could be a single or a group, so it could be a chain of nodes.
      */
     private Node closure(Node prev) {
-        Node atom;
         int ch = peek();
         switch (ch) {
         case '?':
@@ -3271,41 +3283,47 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         case '+':
             return curly(prev, 1);
         case '{':
-            ch = temp[cursor+1];
+            ch = skip();
             if (ASCII.isDigit(ch)) {
-                skip();
-                int cmin = 0;
-                do {
-                    cmin = cmin * 10 + (ch - '0');
-                } while (ASCII.isDigit(ch = read()));
-                int cmax = cmin;
-                if (ch == ',') {
-                    ch = read();
-                    cmax = MAX_REPS;
-                    if (ch != '}') {
-                        cmax = 0;
-                        while (ASCII.isDigit(ch)) {
-                            cmax = cmax * 10 + (ch - '0');
-                            ch = read();
+                int cmin = 0, cmax;
+                try {
+                    do {
+                        cmin = Math.addExact(Math.multiplyExact(cmin, 10),
+                                             ch - '0');
+                    } while (ASCII.isDigit(ch = read()));
+                    if (ch == ',') {
+                        ch = read();
+                        if (ch == '}') {
+                            unread();
+                            return curly(prev, cmin);
+                        } else {
+                            cmax = 0;
+                            while (ASCII.isDigit(ch)) {
+                                cmax = Math.addExact(Math.multiplyExact(cmax, 10),
+                                                     ch - '0');
+                                ch = read();
+                            }
                         }
+                    } else {
+                        cmax = cmin;
                     }
+                } catch (ArithmeticException ae) {
+                    throw error("Illegal repetition range");
                 }
                 if (ch != '}')
                     throw error("Unclosed counted closure");
-                if (((cmin) | (cmax) | (cmax - cmin)) < 0)
+                if (cmax < cmin)
                     throw error("Illegal repetition range");
-                Curly curly;
                 ch = peek();
                 if (ch == '?') {
                     next();
-                    curly = new Curly(prev, cmin, cmax, Qtype.LAZY);
+                    return new Curly(prev, cmin, cmax, Qtype.LAZY);
                 } else if (ch == '+') {
                     next();
-                    curly = new Curly(prev, cmin, cmax, Qtype.POSSESSIVE);
+                    return new Curly(prev, cmin, cmax, Qtype.POSSESSIVE);
                 } else {
-                    curly = new Curly(prev, cmin, cmax, Qtype.GREEDY);
+                    return new Curly(prev, cmin, cmax, Qtype.GREEDY);
                 }
-                return curly;
             } else {
                 throw error("Illegal repetition");
             }
@@ -3409,9 +3427,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
     private int N() {
         if (read() == '{') {
             int i = cursor;
-            while (cursor < patternLength && read() != '}') {}
-            if (cursor > patternLength)
-                throw error("Unclosed character name escape sequence");
+            while (read() != '}') {
+                if (cursor >= patternLength)
+                    throw error("Unclosed character name escape sequence");
+            }
             String name = new String(temp, i, cursor - i - 1);
             try {
                 return Character.codePointOf(name);
@@ -3480,14 +3499,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      *  never matches values above Latin-1, and a complemented BitClass always
      *  matches values above Latin-1.
      */
-    static final class BitClass extends BmpCharProperty {
+    static final class BitClass implements BmpCharPredicate {
         final boolean[] bits;
         BitClass() {
-            this(new boolean[256]);
-        }
-        private BitClass(boolean[] bits) {
-            super( ch -> ch < 256 && bits[ch]);
-            this.bits = bits;
+            bits = new boolean[256];
         }
         BitClass add(int c, int flags) {
             assert c >= 0 && c <= 255;
@@ -3503,7 +3518,11 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             bits[c] = true;
             return this;
         }
+        public boolean is(int ch) {
+            return ch < 256 && bits[ch];
+        }
     }
+
 
     /**
      *  Utility method for creating a string slice matcher.
@@ -3917,7 +3936,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      * boolean property.
      */
     static class CharProperty extends Node {
-        CharPredicate predicate;
+        final CharPredicate predicate;
 
         CharProperty (CharPredicate predicate) {
             this.predicate = predicate;
@@ -3925,12 +3944,14 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         boolean match(Matcher matcher, int i, CharSequence seq) {
             if (i < matcher.to) {
                 int ch = Character.codePointAt(seq, i);
-                return predicate.is(ch) &&
-                       next.match(matcher, i + Character.charCount(ch), seq);
-            } else {
-                matcher.hitEnd = true;
-                return false;
+                i += Character.charCount(ch);
+                if (i <= matcher.to) {
+                    return predicate.is(ch) &&
+                           next.match(matcher, i, seq);
+                }
             }
+            matcher.hitEnd = true;
+            return false;
         }
         boolean study(TreeInfo info) {
             info.minLength++;
@@ -3968,7 +3989,16 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (i < matcher.to) {
                 int ch0 = Character.codePointAt(seq, i);
                 int n = Character.charCount(ch0);
-                int j = Grapheme.nextBoundary(seq, i, matcher.to);
+                int j = i + n;
+                // Fast check if it's necessary to call Normalizer;
+                // testing Grapheme.isBoundary is enough for this case
+                while (j < matcher.to) {
+                    int ch1 = Character.codePointAt(seq, j);
+                    if (Grapheme.isBoundary(ch0, ch1))
+                        break;
+                    ch0 = ch1;
+                    j += Character.charCount(ch1);
+                }
                 if (i + n == j) {    // single, assume nfc cp
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);
@@ -4252,8 +4282,8 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
     }
 
     /**
-     * Handles the greedy style repetition with the minimum either be
-     * 0 or 1 and the maximum be MAX_REPS, for * and + quantifier.
+     * Handles the greedy style repetition with the specified minimum
+     * and the maximum equal to MAX_REPS, for *, + and {N,} quantifiers.
      */
     static class CharPropertyGreedy extends Node {
         final CharPredicate predicate;
@@ -4263,7 +4293,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             this.predicate = cp.predicate;
             this.cmin = cmin;
         }
-        boolean match(Matcher matcher, int i,  CharSequence seq) {
+        boolean match(Matcher matcher, int i, CharSequence seq) {
             int n = 0;
             int to = matcher.to;
             // greedy, all the way down
@@ -4306,7 +4336,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             super(bcp, cmin);
         }
 
-        boolean match(Matcher matcher, int i,  CharSequence seq) {
+        boolean match(Matcher matcher, int i, CharSequence seq) {
             int n = 0;
             int to = matcher.to;
             while (i < to && predicate.is(seq.charAt(i))) {
@@ -4683,7 +4713,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      * "next".
      */
     static final class BranchConn extends Node {
-        BranchConn() {};
+        BranchConn() {}
         boolean match(Matcher matcher, int i, CharSequence seq) {
             return next.match(matcher, i, seq);
         }
@@ -4779,34 +4809,6 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             boolean ret = next.match(matcher, i, seq);
             matcher.locals[localIndex] = save;
             return ret;
-        }
-        boolean matchRef(Matcher matcher, int i, CharSequence seq) {
-            int save = matcher.locals[localIndex];
-            matcher.locals[localIndex] = ~i; // HACK
-            boolean ret = next.match(matcher, i, seq);
-            matcher.locals[localIndex] = save;
-            return ret;
-        }
-    }
-
-    /**
-     * Recursive reference to a group in the regular expression. It calls
-     * matchRef because if the reference fails to match we would not unset
-     * the group.
-     */
-    static final class GroupRef extends Node {
-        GroupHead head;
-        GroupRef(GroupHead head) {
-            this.head = head;
-        }
-        boolean match(Matcher matcher, int i, CharSequence seq) {
-            return head.matchRef(matcher, i, seq)
-                && next.match(matcher, matcher.last, seq);
-        }
-        boolean study(TreeInfo info) {
-            info.maxValid = false;
-            info.deterministic = false;
-            return next.study(info);
         }
     }
 
@@ -4929,7 +4931,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         }
         boolean matchInit(Matcher matcher, int i, CharSequence seq) {
             int save = matcher.locals[countIndex];
-            boolean ret = false;
+            boolean ret;
             if (posIndex != -1 && matcher.localsPos[posIndex] == null) {
                 matcher.localsPos[posIndex] = new IntHashSet();
             }
@@ -5143,41 +5145,6 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         }
     }
 
-    static final class Conditional extends Node {
-        Node cond, yes, not;
-        Conditional(Node cond, Node yes, Node not) {
-            this.cond = cond;
-            this.yes = yes;
-            this.not = not;
-        }
-        boolean match(Matcher matcher, int i, CharSequence seq) {
-            if (cond.match(matcher, i, seq)) {
-                return yes.match(matcher, i, seq);
-            } else {
-                return not.match(matcher, i, seq);
-            }
-        }
-        boolean study(TreeInfo info) {
-            int minL = info.minLength;
-            int maxL = info.maxLength;
-            boolean maxV = info.maxValid;
-            info.reset();
-            yes.study(info);
-
-            int minL2 = info.minLength;
-            int maxL2 = info.maxLength;
-            boolean maxV2 = info.maxValid;
-            info.reset();
-            not.study(info);
-
-            info.minLength = minL + Math.min(minL2, info.minLength);
-            info.maxLength = maxL + Math.max(maxL2, info.maxLength);
-            info.maxValid = (maxV & maxV2 & info.maxValid);
-            info.deterministic = false;
-            return next.study(info);
-        }
-    }
-
     /**
      * Zero width positive lookahead.
      */
@@ -5188,7 +5155,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         }
         boolean match(Matcher matcher, int i, CharSequence seq) {
             int savedTo = matcher.to;
-            boolean conditionMatched = false;
+            boolean conditionMatched;
 
             // Relax transparent region boundaries for lookahead
             if (matcher.transparentBounds)
@@ -5213,7 +5180,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         }
         boolean match(Matcher matcher, int i, CharSequence seq) {
             int savedTo = matcher.to;
-            boolean conditionMatched = false;
+            boolean conditionMatched;
 
             // Relax transparent region boundaries for lookahead
             if (matcher.transparentBounds)
@@ -5239,11 +5206,15 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
      * For use with lookbehinds; matches the position where the lookbehind
      * was encountered.
      */
-    static Node lookbehindEnd = new Node() {
+    static class LookBehindEndNode extends Node {
+        private LookBehindEndNode() {} // Singleton
+
+        static LookBehindEndNode INSTANCE = new LookBehindEndNode();
+
         boolean match(Matcher matcher, int i, CharSequence seq) {
             return i == matcher.lookbehindTo;
         }
-    };
+    }
 
     /**
      * Zero width positive lookbehind.
@@ -5511,7 +5482,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (patternLength < 4) {
                 return node;
             }
-            int i, j, k;
+            int i, j;
             int[] lastOcc = new int[128];
             int[] optoSft = new int[patternLength];
             // Precalculate part of the bad character shift
@@ -5666,7 +5637,7 @@ NEXT:       while (i <= last) {
     static interface BmpCharPredicate extends CharPredicate {
 
         default CharPredicate and(CharPredicate p) {
-            if(p instanceof BmpCharPredicate)
+            if (p instanceof BmpCharPredicate)
                 return (BmpCharPredicate)(ch -> is(ch) && p.is(ch));
             return ch -> is(ch) && p.is(ch);
         }

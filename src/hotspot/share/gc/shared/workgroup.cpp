@@ -40,10 +40,6 @@
 void  AbstractWorkGang::initialize_workers() {
   log_develop_trace(gc, workgang)("Constructing work gang %s with %u threads", name(), total_workers());
   _workers = NEW_C_HEAP_ARRAY(AbstractGangWorker*, total_workers(), mtInternal);
-  if (_workers == NULL) {
-    vm_exit_out_of_memory(0, OOM_MALLOC_ERROR, "Cannot create GangWorker array.");
-  }
-
   add_workers(true);
 }
 
@@ -409,7 +405,6 @@ void WorkGangBarrierSync::abort() {
 SubTasksDone::SubTasksDone(uint n) :
   _tasks(NULL), _n_tasks(n), _threads_completed(0) {
   _tasks = NEW_C_HEAP_ARRAY(uint, n, mtInternal);
-  guarantee(_tasks != NULL, "alloc failure");
   clear();
 }
 
@@ -433,7 +428,6 @@ bool SubTasksDone::try_claim_task(uint t) {
   if (old == 0) {
     old = Atomic::cmpxchg(1u, &_tasks[t], 0u);
   }
-  assert(_tasks[t] == 1, "What else?");
   bool res = old == 0;
 #ifdef ASSERT
   if (res) {
@@ -460,7 +454,7 @@ void SubTasksDone::all_tasks_completed(uint n_threads) {
 
 
 SubTasksDone::~SubTasksDone() {
-  if (_tasks != NULL) FREE_C_HEAP_ARRAY(uint, _tasks);
+  FREE_C_HEAP_ARRAY(uint, _tasks);
 }
 
 // *** SequentialSubTasksDone

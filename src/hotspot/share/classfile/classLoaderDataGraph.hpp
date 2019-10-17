@@ -41,7 +41,7 @@ class ClassLoaderDataGraph : public AllStatic {
   friend class VMStructs;
  private:
   // All CLDs (except the null CLD) can be reached by walking _head->_next->...
-  static ClassLoaderData* _head;
+  static ClassLoaderData* volatile _head;
   static ClassLoaderData* _unloading;
   // CMS support.
   static ClassLoaderData* _saved_head;
@@ -68,6 +68,7 @@ class ClassLoaderDataGraph : public AllStatic {
   static void clean_module_and_package_info();
   static void purge();
   static void clear_claimed_marks();
+  static void clear_claimed_marks(int claim);
   // Iteration through CLDG inside a safepoint; GC support
   static void cld_do(CLDClosure* cl);
   static void cld_unloading_do(CLDClosure* cl);
@@ -155,6 +156,7 @@ class ClassLoaderDataGraph : public AllStatic {
 class LockedClassesDo : public KlassClosure {
   typedef void (*classes_do_func_t)(Klass*);
   classes_do_func_t _function;
+  bool _do_lock;
 public:
   LockedClassesDo();  // For callers who provide their own do_klass
   LockedClassesDo(classes_do_func_t function);

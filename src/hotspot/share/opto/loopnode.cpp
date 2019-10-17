@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -978,7 +978,7 @@ void LoopNode::verify_strip_mined(int expect_skeleton) const {
         wq.push(u);
         bool found_sfpt = false;
         for (uint next = 0; next < wq.size() && !found_sfpt; next++) {
-          Node *n = wq.at(next);
+          Node* n = wq.at(next);
           for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax && !found_sfpt; i++) {
             Node* u = n->fast_out(i);
             if (u == sfpt) {
@@ -992,6 +992,7 @@ void LoopNode::verify_strip_mined(int expect_skeleton) const {
         assert(found_sfpt, "no node in loop that's not input to safepoint");
       }
     }
+
     CountedLoopEndNode* cle = inner_out->in(0)->as_CountedLoopEnd();
     assert(cle == inner->loopexit_or_null(), "mismatch");
     bool has_skeleton = outer_le->in(1)->bottom_type()->singleton() && outer_le->in(1)->bottom_type()->is_int()->get_con() == 0;
@@ -2439,13 +2440,96 @@ void IdealLoopTree::counted_loop( PhaseIdealLoop *phase ) {
   if (loop->_next)  loop->_next ->counted_loop(phase);
 }
 
+
+// The Estimated Loop Clone Size:
+//   CloneFactor * (~112% * BodySize + BC) + CC + FanOutTerm,
+// where  BC and  CC are  totally ad-hoc/magic  "body" and "clone" constants,
+// respectively, used to ensure that the node usage estimates made are on the
+// safe side, for the most part. The FanOutTerm is an attempt to estimate the
+// possible additional/excessive nodes generated due to data and control flow
+// merging, for edges reaching outside the loop.
+uint IdealLoopTree::est_loop_clone_sz(uint factor) const {
+
+  precond(0 < factor && factor < 16);
+
+  uint const bc = 13;
+  uint const cc = 17;
+  uint const sz = _body.size() + (_body.size() + 7) / 8;
+  uint estimate = factor * (sz + bc) + cc;
+
+  assert((estimate - cc) / factor == sz + bc, "overflow");
+
+  return estimate + est_loop_flow_merge_sz();
+}
+
+// The Estimated Loop (full-) Unroll Size:
+//   UnrollFactor * (~106% * BodySize) + CC + FanOutTerm,
+// where CC is a (totally) ad-hoc/magic "clone" constant, used to ensure that
+// node usage estimates made are on the safe side, for the most part. This is
+// a "light" version of the loop clone size calculation (above), based on the
+// assumption that most of the loop-construct overhead will be unraveled when
+// (fully) unrolled. Defined for unroll factors larger or equal to one (>=1),
+// including an overflow check and returning UINT_MAX in case of an overflow.
+uint IdealLoopTree::est_loop_unroll_sz(uint factor) const {
+
+  precond(factor > 0);
+
+  // Take into account that after unroll conjoined heads and tails will fold.
+  uint const b0 = _body.size() - EMPTY_LOOP_SIZE;
+  uint const cc = 7;
+  uint const sz = b0 + (b0 + 15) / 16;
+  uint estimate = factor * sz + cc;
+
+  if ((estimate - cc) / factor != sz) {
+    return UINT_MAX;
+  }
+
+  return estimate + est_loop_flow_merge_sz();
+}
+
+// Estimate the growth effect (in nodes) of merging control and data flow when
+// cloning a loop body, based on the amount of  control and data flow reaching
+// outside of the (current) loop body.
+uint IdealLoopTree::est_loop_flow_merge_sz() const {
+
+  uint ctrl_edge_out_cnt = 0;
+  uint data_edge_out_cnt = 0;
+
+  for (uint i = 0; i < _body.size(); i++) {
+    Node* node = _body.at(i);
+    uint outcnt = node->outcnt();
+
+    for (uint k = 0; k < outcnt; k++) {
+      Node* out = node->raw_out(k);
+
+      if (out->is_CFG()) {
+        if (!is_member(_phase->get_loop(out))) {
+          ctrl_edge_out_cnt++;
+        }
+      } else {
+        Node* ctrl = _phase->get_ctrl(out);
+        assert(ctrl->is_CFG(), "must be");
+        if (!is_member(_phase->get_loop(ctrl))) {
+          data_edge_out_cnt++;
+        }
+      }
+    }
+  }
+  // Use data and control count (x2.0) in estimate iff both are > 0. This is
+  // a rather pessimistic estimate for the most part, in particular for some
+  // complex loops, but still not enough to capture all loops.
+  if (ctrl_edge_out_cnt > 0 && data_edge_out_cnt > 0) {
+    return 2 * (ctrl_edge_out_cnt + data_edge_out_cnt);
+  }
+  return 0;
+}
+
 #ifndef PRODUCT
 //------------------------------dump_head--------------------------------------
 // Dump 1 liner for loop header info
-void IdealLoopTree::dump_head( ) const {
-  for (uint i=0; i<_nest; i++)
-    tty->print("  ");
-  tty->print("Loop: N%d/N%d ",_head->_idx,_tail->_idx);
+void IdealLoopTree::dump_head() const {
+  tty->sp(2 * _nest);
+  tty->print("Loop: N%d/N%d ", _head->_idx, _tail->_idx);
   if (_irreducible) tty->print(" IRREDUCIBLE");
   Node* entry = _head->is_Loop() ? _head->as_Loop()->skip_strip_mined(-1)->in(LoopNode::EntryControl) : _head->in(LoopNode::EntryControl);
   Node* predicate = PhaseIdealLoop::find_predicate_insertion_point(entry, Deoptimization::Reason_loop_limit_check);
@@ -2513,7 +2597,7 @@ void IdealLoopTree::dump_head( ) const {
 
 //------------------------------dump-------------------------------------------
 // Dump loops by loop tree
-void IdealLoopTree::dump( ) const {
+void IdealLoopTree::dump() const {
   dump_head();
   if (_child) _child->dump();
   if (_next)  _next ->dump();
@@ -2710,7 +2794,7 @@ bool PhaseIdealLoop::process_expensive_nodes() {
 // Create a PhaseLoop.  Build the ideal Loop tree.  Map each Ideal Node to
 // its corresponding LoopNode.  If 'optimize' is true, do some loop cleanups.
 void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
-  bool do_split_ifs = (mode == LoopOptsDefault || mode == LoopOptsLastRound);
+  bool do_split_ifs = (mode == LoopOptsDefault);
   bool skip_loop_opts = (mode == LoopOptsNone);
 
   int old_progress = C->major_progress();
@@ -2870,9 +2954,7 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
   build_loop_late( visited, worklist, nstack );
 
   if (_verify_only) {
-    // restore major progress flag
-    for (int i = 0; i < old_progress; i++)
-      C->set_major_progress();
+    C->restore_major_progress(old_progress);
     assert(C->unique() == unique, "verification mode made Nodes? ? ?");
     assert(_igvn._worklist.size() == orig_worklist_size, "shouldn't push anything");
     return;
@@ -2908,17 +2990,15 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
     assert(C->unique() == unique, "non-optimize mode made Nodes? ? ?");
     return;
   }
-  if(VerifyLoopOptimizations) verify();
-  if(TraceLoopOpts && C->has_loops()) {
+  if (VerifyLoopOptimizations) verify();
+  if (TraceLoopOpts && C->has_loops()) {
     _ltree_root->dump();
   }
 #endif
 
   if (skip_loop_opts) {
     // restore major progress flag
-    for (int i = 0; i < old_progress; i++) {
-      C->set_major_progress();
-    }
+    C->restore_major_progress(old_progress);
 
     // Cleanup any modified bits
     _igvn.optimize();
@@ -2938,7 +3018,6 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
   }
 
   if (ReassociateInvariants) {
-    AutoNodeBudget node_budget(this, AutoNodeBudget::NO_BUDGET_CHECK);
     // Reassociate invariants and prep for split_thru_phi
     for (LoopTreeIterator iter(_ltree_root); !iter.done(); iter.next()) {
       IdealLoopTree* lpt = iter.current();
@@ -2946,14 +3025,17 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
       if (!is_counted || !lpt->is_innermost()) continue;
 
       // check for vectorized loops, any reassociation of invariants was already done
-      if (is_counted && lpt->_head->as_CountedLoop()->is_unroll_only()) continue;
-
-      lpt->reassociate_invariants(this);
-
+      if (is_counted && lpt->_head->as_CountedLoop()->is_unroll_only()) {
+        continue;
+      } else {
+        AutoNodeBudget node_budget(this);
+        lpt->reassociate_invariants(this);
+      }
       // Because RCE opportunities can be masked by split_thru_phi,
       // look for RCE candidates and inhibit split_thru_phi
       // on just their loop-phi's for this pass of loop opts
       if (SplitIfBlocks && do_split_ifs) {
+        AutoNodeBudget node_budget(this, AutoNodeBudget::NO_BUDGET_CHECK);
         if (lpt->policy_range_check(this)) {
           lpt->_rce_candidate = 1; // = true
         }
@@ -2965,11 +3047,8 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
   // that require basic-block info (like cloning through Phi's)
   if( SplitIfBlocks && do_split_ifs ) {
     visited.Clear();
-    split_if_with_blocks( visited, nstack, mode == LoopOptsLastRound );
+    split_if_with_blocks( visited, nstack);
     NOT_PRODUCT( if( VerifyLoopOptimizations ) verify(); );
-    if (mode == LoopOptsLastRound) {
-      C->set_major_progress();
-    }
   }
 
   if (!C->major_progress() && do_expensive_nodes && process_expensive_nodes()) {
@@ -3104,8 +3183,7 @@ void PhaseIdealLoop::verify() const {
   _ltree_root->verify_tree(loop_verify._ltree_root, NULL);
   // Reset major-progress.  It was cleared by creating a verify version of
   // PhaseIdealLoop.
-  for( int i=0; i<old_progress; i++ )
-    C->set_major_progress();
+  C->restore_major_progress(old_progress);
 }
 
 //------------------------------verify_compare---------------------------------
@@ -3591,7 +3669,7 @@ int PhaseIdealLoop::build_loop_tree_impl( Node *n, int pre_order ) {
           Node *frame = new ParmNode( C->start(), TypeFunc::FramePtr );
           _igvn.register_new_node_with_optimizer(frame);
           // Halt & Catch Fire
-          Node *halt = new HaltNode( if_f, frame );
+          Node* halt = new HaltNode(if_f, frame, "never-taken loop exit reached");
           _igvn.register_new_node_with_optimizer(halt);
           set_loop(halt, l);
           C->root()->add_req(halt);
@@ -3959,28 +4037,32 @@ Node *PhaseIdealLoop::get_late_ctrl( Node *n, Node *early ) {
   // dominated by early is considered a potentially interfering store.
   // This can produce false positives.
   if (n->is_Load() && LCA != early) {
-    Node_List worklist;
+    int load_alias_idx = C->get_alias_index(n->adr_type());
+    if (C->alias_type(load_alias_idx)->is_rewritable()) {
 
-    Node *mem = n->in(MemNode::Memory);
-    for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
-      Node* s = mem->fast_out(i);
-      worklist.push(s);
-    }
-    while(worklist.size() != 0 && LCA != early) {
-      Node* s = worklist.pop();
-      if (s->is_Load() || s->Opcode() == Op_SafePoint ||
-          (s->is_CallStaticJava() && s->as_CallStaticJava()->uncommon_trap_request() != 0)) {
-        continue;
-      } else if (s->is_MergeMem()) {
-        for (DUIterator_Fast imax, i = s->fast_outs(imax); i < imax; i++) {
-          Node* s1 = s->fast_out(i);
-          worklist.push(s1);
-        }
-      } else {
-        Node *sctrl = has_ctrl(s) ? get_ctrl(s) : s->in(0);
-        assert(sctrl != NULL || s->outcnt() == 0, "must have control");
-        if (sctrl != NULL && !sctrl->is_top() && is_dominator(early, sctrl)) {
-          LCA = dom_lca_for_get_late_ctrl(LCA, sctrl, n);
+      Node_List worklist;
+
+      Node *mem = n->in(MemNode::Memory);
+      for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
+        Node* s = mem->fast_out(i);
+        worklist.push(s);
+      }
+      while(worklist.size() != 0 && LCA != early) {
+        Node* s = worklist.pop();
+        if (s->is_Load() || s->Opcode() == Op_SafePoint ||
+            (s->is_CallStaticJava() && s->as_CallStaticJava()->uncommon_trap_request() != 0)) {
+          continue;
+        } else if (s->is_MergeMem()) {
+          for (DUIterator_Fast imax, i = s->fast_outs(imax); i < imax; i++) {
+            Node* s1 = s->fast_out(i);
+            worklist.push(s1);
+          }
+        } else {
+          Node *sctrl = has_ctrl(s) ? get_ctrl(s) : s->in(0);
+          assert(sctrl != NULL || s->outcnt() == 0, "must have control");
+          if (sctrl != NULL && !sctrl->is_top() && C->can_alias(s->adr_type(), load_alias_idx) && is_dominator(early, sctrl)) {
+            LCA = dom_lca_for_get_late_ctrl(LCA, sctrl, n);
+          }
         }
       }
     }
@@ -4234,8 +4316,6 @@ void PhaseIdealLoop::build_loop_late_post_work(Node *n, bool pinned) {
     case Op_LoadL:
     case Op_LoadS:
     case Op_LoadP:
-    case Op_LoadBarrierSlowReg:
-    case Op_LoadBarrierWeakSlowReg:
     case Op_LoadN:
     case Op_LoadRange:
     case Op_LoadD_unaligned:
@@ -4443,69 +4523,67 @@ void PhaseIdealLoop::dump_bad_graph(const char* msg, Node* n, Node* early, Node*
 
 #ifndef PRODUCT
 //------------------------------dump-------------------------------------------
-void PhaseIdealLoop::dump( ) const {
+void PhaseIdealLoop::dump() const {
   ResourceMark rm;
   Arena* arena = Thread::current()->resource_area();
   Node_Stack stack(arena, C->live_nodes() >> 2);
   Node_List rpo_list;
   VectorSet visited(arena);
   visited.set(C->top()->_idx);
-  rpo( C->root(), stack, visited, rpo_list );
+  rpo(C->root(), stack, visited, rpo_list);
   // Dump root loop indexed by last element in PO order
-  dump( _ltree_root, rpo_list.size(), rpo_list );
+  dump(_ltree_root, rpo_list.size(), rpo_list);
 }
 
-void PhaseIdealLoop::dump( IdealLoopTree *loop, uint idx, Node_List &rpo_list ) const {
+void PhaseIdealLoop::dump(IdealLoopTree* loop, uint idx, Node_List &rpo_list) const {
   loop->dump_head();
 
   // Now scan for CFG nodes in the same loop
-  for( uint j=idx; j > 0;  j-- ) {
-    Node *n = rpo_list[j-1];
-    if( !_nodes[n->_idx] )      // Skip dead nodes
+  for (uint j = idx; j > 0; j--) {
+    Node* n = rpo_list[j-1];
+    if (!_nodes[n->_idx])      // Skip dead nodes
       continue;
-    if( get_loop(n) != loop ) { // Wrong loop nest
-      if( get_loop(n)->_head == n &&    // Found nested loop?
-          get_loop(n)->_parent == loop )
-        dump(get_loop(n),rpo_list.size(),rpo_list);     // Print it nested-ly
+
+    if (get_loop(n) != loop) { // Wrong loop nest
+      if (get_loop(n)->_head == n &&    // Found nested loop?
+          get_loop(n)->_parent == loop)
+        dump(get_loop(n), rpo_list.size(), rpo_list);     // Print it nested-ly
       continue;
     }
 
     // Dump controlling node
-    for( uint x = 0; x < loop->_nest; x++ )
-      tty->print("  ");
+    tty->sp(2 * loop->_nest);
     tty->print("C");
-    if( n == C->root() ) {
+    if (n == C->root()) {
       n->dump();
     } else {
       Node* cached_idom   = idom_no_update(n);
-      Node *computed_idom = n->in(0);
-      if( n->is_Region() ) {
+      Node* computed_idom = n->in(0);
+      if (n->is_Region()) {
         computed_idom = compute_idom(n);
         // computed_idom() will return n->in(0) when idom(n) is an IfNode (or
         // any MultiBranch ctrl node), so apply a similar transform to
         // the cached idom returned from idom_no_update.
         cached_idom = find_non_split_ctrl(cached_idom);
       }
-      tty->print(" ID:%d",computed_idom->_idx);
+      tty->print(" ID:%d", computed_idom->_idx);
       n->dump();
-      if( cached_idom != computed_idom ) {
+      if (cached_idom != computed_idom) {
         tty->print_cr("*** BROKEN IDOM!  Computed as: %d, cached as: %d",
                       computed_idom->_idx, cached_idom->_idx);
       }
     }
     // Dump nodes it controls
-    for( uint k = 0; k < _nodes.Size(); k++ ) {
+    for (uint k = 0; k < _nodes.Size(); k++) {
       // (k < C->unique() && get_ctrl(find(k)) == n)
       if (k < C->unique() && _nodes[k] == (Node*)((intptr_t)n + 1)) {
-        Node *m = C->root()->find(k);
-        if( m && m->outcnt() > 0 ) {
+        Node* m = C->root()->find(k);
+        if (m && m->outcnt() > 0) {
           if (!(has_ctrl(m) && get_ctrl_no_update(m) == n)) {
             tty->print_cr("*** BROKEN CTRL ACCESSOR!  _nodes[k] is %p, ctrl is %p",
                           _nodes[k], has_ctrl(m) ? get_ctrl_no_update(m) : NULL);
           }
-          for( uint j = 0; j < loop->_nest; j++ )
-            tty->print("  ");
-          tty->print(" ");
+          tty->sp(2 * loop->_nest + 1);
           m->dump();
         }
       }
@@ -4516,7 +4594,7 @@ void PhaseIdealLoop::dump( IdealLoopTree *loop, uint idx, Node_List &rpo_list ) 
 
 // Collect a R-P-O for the whole CFG.
 // Result list is in post-order (scan backwards for RPO)
-void PhaseIdealLoop::rpo( Node *start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list ) const {
+void PhaseIdealLoop::rpo(Node* start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list) const {
   stk.push(start, 0);
   visited.set(start->_idx);
 
@@ -4538,7 +4616,7 @@ void PhaseIdealLoop::rpo( Node *start, Node_Stack &stk, VectorSet &visited, Node
 
 
 //=============================================================================
-//------------------------------LoopTreeIterator-----------------------------------
+//------------------------------LoopTreeIterator-------------------------------
 
 // Advance to next loop tree using a preorder, left-to-right traversal.
 void LoopTreeIterator::next() {

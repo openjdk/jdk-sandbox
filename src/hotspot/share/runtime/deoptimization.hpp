@@ -33,6 +33,7 @@ class vframeArray;
 class MonitorInfo;
 class MonitorValue;
 class ObjectValue;
+class AutoBoxObjectValue;
 class ScopeValue;
 class compiledVFrame;
 
@@ -72,6 +73,7 @@ class Deoptimization : AllStatic {
     // recorded per method
     Reason_unloaded,              // unloaded class or constant pool entry
     Reason_uninitialized,         // bad class state (uninitialized)
+    Reason_initialized,           // class has been fully initialized
     Reason_unreached,             // code is not reached, compiler
     Reason_unhandled,             // arbitrary compiler limitation
     Reason_constraint,            // arbitrary runtime constraint violated
@@ -141,34 +143,28 @@ class Deoptimization : AllStatic {
   // Checks all compiled methods. Invalid methods are deleted and
   // corresponding activations are deoptimized.
   static int deoptimize_dependents();
-  static void revoke_using_handshake(JavaThread* thread, frame fr, RegisterMap* map);
-  static void revoke_using_safepoint(JavaThread* thread, frame fr, RegisterMap* map);
-  static void deopt_thread(bool in_handshake, JavaThread* thread, frame fr, RegisterMap *map, DeoptReason reason);
+
+  // Revoke biased locks at deopt.
+  static void revoke_from_deopt_handler(JavaThread* thread, frame fr, RegisterMap* map);
 
  public:
   // Deoptimizes a frame lazily. nmethod gets patched deopt happens on return to the frame
-  static void deoptimize(JavaThread* thread, frame fr, RegisterMap *map, bool in_handshake = false);
-  static void deoptimize(JavaThread* thread, frame fr, RegisterMap *reg_map, DeoptReason reason);
+  static void deoptimize(JavaThread* thread, frame fr, RegisterMap *reg_map, DeoptReason reason = Reason_constraint);
 
 #if INCLUDE_JVMCI
   static address deoptimize_for_missing_exception_handler(CompiledMethod* cm);
+  static oop get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMap* reg_map, TRAPS);
 #endif
 
   private:
   // Does the actual work for deoptimizing a single frame
   static void deoptimize_single_frame(JavaThread* thread, frame fr, DeoptReason reason);
 
-  // Helper function to revoke biases of all monitors in frame if UseBiasedLocking
-  // is enabled
-  static void revoke_biases_of_monitors(JavaThread* thread, frame fr, RegisterMap* map) {
-    revoke_using_safepoint(thread, fr, map);
-  }
-
 #if COMPILER2_OR_JVMCI
-JVMCI_ONLY(public:)
+ public:
 
   // Support for restoring non-escaping objects
-  static bool realloc_objects(JavaThread* thread, frame* fr, GrowableArray<ScopeValue*>* objects, TRAPS);
+  static bool realloc_objects(JavaThread* thread, frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, TRAPS);
   static void reassign_type_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, typeArrayOop obj, BasicType type);
   static void reassign_object_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, objArrayOop obj);
   static void reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal);

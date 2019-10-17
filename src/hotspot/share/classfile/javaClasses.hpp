@@ -202,7 +202,6 @@ class java_lang_String : AllStatic {
 
   // Conversion between '.' and '/' formats
   static Handle externalize_classname(Handle java_string, TRAPS) { return char_converter(java_string, '/', '.', THREAD); }
-  static Handle internalize_classname(Handle java_string, TRAPS) { return char_converter(java_string, '.', '/', THREAD); }
 
   // Conversion
   static Symbol* as_symbol(oop java_string);
@@ -519,7 +518,8 @@ class java_lang_Throwable: AllStatic {
     trace_mirrors_offset = 2,
     trace_names_offset   = 3,
     trace_next_offset    = 4,
-    trace_size           = 5,
+    trace_hidden_offset  = 5,
+    trace_size           = 6,
     trace_chunk_size     = 32
   };
 
@@ -569,6 +569,8 @@ class java_lang_Throwable: AllStatic {
   static void java_printStackTrace(Handle throwable, TRAPS);
   // Debugging
   friend class JavaClasses;
+  // Gets the method and bci of the top frame (TOS). Returns false if this failed.
+  static bool get_top_method_and_bci(oop throwable, Method** method, int* bci);
 };
 
 
@@ -1495,6 +1497,94 @@ class jdk_internal_misc_UnsafeConstants : AllStatic {
   static void set_unsafe_constants();
   static void compute_offsets() { }
   static void serialize_offsets(SerializeClosure* f) { }
+};
+
+class java_lang_Integer : AllStatic {
+public:
+  static jint value(oop obj);
+};
+
+class java_lang_Long : AllStatic {
+public:
+  static jlong value(oop obj);
+};
+
+class java_lang_Character : AllStatic {
+public:
+  static jchar value(oop obj);
+};
+
+class java_lang_Short : AllStatic {
+public:
+  static jshort value(oop obj);
+};
+
+class java_lang_Byte : AllStatic {
+public:
+  static jbyte value(oop obj);
+};
+
+class java_lang_Boolean : AllStatic {
+ private:
+  static int _static_TRUE_offset;
+  static int _static_FALSE_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static oop  get_TRUE(InstanceKlass *k);
+  static oop  get_FALSE(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+  static jboolean value(oop obj);
+};
+
+class java_lang_Integer_IntegerCache : AllStatic {
+ private:
+  static int _static_cache_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static objArrayOop  cache(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
+class java_lang_Long_LongCache : AllStatic {
+ private:
+  static int _static_cache_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static objArrayOop  cache(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
+class java_lang_Character_CharacterCache : AllStatic {
+ private:
+  static int _static_cache_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static objArrayOop  cache(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
+class java_lang_Short_ShortCache : AllStatic {
+ private:
+  static int _static_cache_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static objArrayOop  cache(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
+class java_lang_Byte_ByteCache : AllStatic {
+ private:
+  static int _static_cache_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets(InstanceKlass* k);
+  static objArrayOop  cache(InstanceKlass *k);
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
 // Use to declare fields that need to be injected into Java classes

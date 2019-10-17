@@ -33,6 +33,7 @@ import java.util.Set;
 
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
+import sun.net.util.IPAddressUtil;
 import sun.security.action.GetPropertyAction;
 
 /**
@@ -66,13 +67,7 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
      * Load net library into runtime.
      */
     static {
-        java.security.AccessController.doPrivileged(
-            new java.security.PrivilegedAction<>() {
-                public Void run() {
-                    System.loadLibrary("net");
-                    return null;
-                }
-            });
+        jdk.internal.loader.BootLoader.loadLibrary("net");
     }
 
     private static volatile boolean checkedReusePort;
@@ -110,6 +105,9 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
      */
     protected synchronized void bind(int lport, InetAddress laddr)
         throws SocketException {
+        if (laddr.isLinkLocalAddress()) {
+            laddr = IPAddressUtil.toScopedAddress(laddr);
+        }
         bind0(lport, laddr);
     }
 
@@ -121,7 +119,19 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
      * destination address to send the packet to.
      * @param p the packet to be sent.
      */
-    protected abstract void send(DatagramPacket p) throws IOException;
+    protected void send(DatagramPacket p) throws IOException {
+        InetAddress orig = p.getAddress();
+        if (orig.isLinkLocalAddress()) {
+            InetAddress scoped = IPAddressUtil.toScopedAddress(orig);
+            if (orig != scoped) {
+                p = new DatagramPacket(p.getData(), p.getOffset(),
+                                       p.getLength(), scoped, p.getPort());
+            }
+        }
+        send0(p);
+    }
+
+    protected abstract void send0(DatagramPacket p) throws IOException;
 
     /**
      * Connects a datagram socket to a remote destination. This associates the remote
@@ -131,6 +141,9 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
      * @param port the remote port number
      */
     protected void connect(InetAddress address, int port) throws SocketException {
+        if (address.isLinkLocalAddress()) {
+            address = IPAddressUtil.toScopedAddress(address);
+        }
         connect0(address, port);
         connectedAddress = address;
         connectedPort = port;

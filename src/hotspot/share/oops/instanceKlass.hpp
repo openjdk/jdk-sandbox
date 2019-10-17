@@ -247,7 +247,7 @@ class InstanceKlass: public Klass {
   u2              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
-  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recusive initialization)
+  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
   JNIid*          _jni_ids;              // First JNI identifier for static fields in this class
   jmethodID*      volatile _methods_jmethod_ids;  // jmethodIDs corresponding to method_idnum, or NULL if none
@@ -992,7 +992,6 @@ public:
   void process_interfaces(Thread *thread);
 
   // virtual operations from Klass
-  bool is_leaf_class() const               { return _subklass == NULL; }
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
                                                   Array<InstanceKlass*>* transitive_interfaces);
   bool can_be_primary_super_slow() const;

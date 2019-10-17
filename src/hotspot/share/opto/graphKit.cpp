@@ -1362,35 +1362,37 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 
   // Cast obj to not-null on this path, if there is no null_control.
   // (If there is a null_control, a non-null value may come back to haunt us.)
-  if (type == T_OBJECT) {
-    Node* cast = cast_not_null(value, false);
-    if (null_control == NULL || (*null_control) == top())
-      replace_in_map(value, cast);
-    value = cast;
-  }
-
-  return value;
+  return cast_not_null(value, (null_control == NULL || (*null_control) == top()));
 }
 
 
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
-
-  Node *cast = new CastPPNode(obj,t_not_null);
-  cast->init_req(0, control());
-  cast = _gvn.transform( cast );
+  Node* cast = NULL;
+  const Type* t = _gvn.type(obj);
+  if (t->make_ptr() != NULL) {
+    const Type* t_not_null = t->join_speculative(TypePtr::NOTNULL);
+    // Object is already not-null?
+    if (t == t_not_null) {
+      return obj;
+    }
+    cast = ConstraintCastNode::make_cast(Op_CastPP, control(), obj, t_not_null, false);
+  } else if (t->isa_int() != NULL) {
+    cast = ConstraintCastNode::make_cast(Op_CastII, control(), obj, TypeInt::INT, true);
+  } else if (t->isa_long() != NULL) {
+    cast = ConstraintCastNode::make_cast(Op_CastLL, control(), obj, TypeLong::LONG, true);
+  } else {
+    fatal("unexpected type: %s", type2name(t->basic_type()));
+  }
+  cast = _gvn.transform(cast);
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
-  if (do_replace_in_map)
+  if (do_replace_in_map) {
     replace_in_map(obj, cast);
-
-  return cast;                  // Return casted value
+  }
+  return cast;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -1410,7 +1412,7 @@ Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
   _gvn.set_type(iff, iff->Value(&_gvn));
   Node *if_f = _gvn.transform(new IfFalseNode(iff));
   Node *frame = _gvn.transform(new ParmNode(C->start(), TypeFunc::FramePtr));
-  Node *halt = _gvn.transform(new HaltNode(if_f, frame));
+  Node* halt = _gvn.transform(new HaltNode(if_f, frame, "unexpected null in intrinsic"));
   C->root()->add_req(halt);
   Node *if_t = _gvn.transform(new IfTrueNode(iff));
   set_control(if_t);
@@ -2114,7 +2116,7 @@ void GraphKit::uncommon_trap(int trap_request,
   // The debug info is the only real input to this call.
 
   // Halt-and-catch fire here.  The above call should never return!
-  HaltNode* halt = new HaltNode(control(), frameptr());
+  HaltNode* halt = new HaltNode(control(), frameptr(), "uncommon trap returned which should never happen");
   _gvn.set_type_bottom(halt);
   root()->add_req(halt);
 
@@ -2274,7 +2276,7 @@ void GraphKit::record_profiled_arguments_for_speculation(ciMethod* dest_method, 
   int skip = Bytecodes::has_receiver(bc) ? 1 : 0;
   for (int j = skip, i = 0; j < nargs && i < TypeProfileArgsLimit; j++) {
     const Type *targ = tf->domain()->field_at(j + TypeFunc::Parms);
-    if (targ->basic_type() == T_OBJECT || targ->basic_type() == T_ARRAY) {
+    if (is_reference_type(targ->basic_type())) {
       ProfilePtrKind ptr_kind = ProfileMaybeNull;
       ciKlass* better_type = NULL;
       if (method()->argument_profiled_type(bci(), i, better_type, ptr_kind)) {
@@ -2852,6 +2854,60 @@ bool GraphKit::seems_never_null(Node* obj, ciProfileData* data, bool& speculatin
   }
   speculating = false;
   return false;
+}
+
+void GraphKit::guard_klass_being_initialized(Node* klass) {
+  int init_state_off = in_bytes(InstanceKlass::init_state_offset());
+  Node* adr = basic_plus_adr(top(), klass, init_state_off);
+  Node* init_state = LoadNode::make(_gvn, NULL, immutable_memory(), adr,
+                                    adr->bottom_type()->is_ptr(), TypeInt::BYTE,
+                                    T_BYTE, MemNode::unordered);
+  init_state = _gvn.transform(init_state);
+
+  Node* being_initialized_state = makecon(TypeInt::make(InstanceKlass::being_initialized));
+
+  Node* chk = _gvn.transform(new CmpINode(being_initialized_state, init_state));
+  Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
+
+  { BuildCutout unless(this, tst, PROB_MAX);
+    uncommon_trap(Deoptimization::Reason_initialized, Deoptimization::Action_reinterpret);
+  }
+}
+
+void GraphKit::guard_init_thread(Node* klass) {
+  int init_thread_off = in_bytes(InstanceKlass::init_thread_offset());
+  Node* adr = basic_plus_adr(top(), klass, init_thread_off);
+
+  Node* init_thread = LoadNode::make(_gvn, NULL, immutable_memory(), adr,
+                                     adr->bottom_type()->is_ptr(), TypePtr::NOTNULL,
+                                     T_ADDRESS, MemNode::unordered);
+  init_thread = _gvn.transform(init_thread);
+
+  Node* cur_thread = _gvn.transform(new ThreadLocalNode());
+
+  Node* chk = _gvn.transform(new CmpPNode(cur_thread, init_thread));
+  Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
+
+  { BuildCutout unless(this, tst, PROB_MAX);
+    uncommon_trap(Deoptimization::Reason_uninitialized, Deoptimization::Action_none);
+  }
+}
+
+void GraphKit::clinit_barrier(ciInstanceKlass* ik, ciMethod* context) {
+  if (ik->is_being_initialized()) {
+    if (C->needs_clinit_barrier(ik, context)) {
+      Node* klass = makecon(TypeKlassPtr::make(ik));
+      guard_klass_being_initialized(klass);
+      guard_init_thread(klass);
+      insert_mem_bar(Op_MemBarCPUOrder);
+    }
+  } else if (ik->is_initialized()) {
+    return; // no barrier needed
+  } else {
+    uncommon_trap(Deoptimization::Reason_uninitialized,
+                  Deoptimization::Action_reinterpret,
+                  NULL);
+  }
 }
 
 //------------------------maybe_cast_profiled_receiver-------------------------

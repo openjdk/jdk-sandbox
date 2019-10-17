@@ -56,7 +56,6 @@
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/biasedLocking.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/handles.inline.hpp"
@@ -203,9 +202,6 @@ void print_bytecode_count() {
   }
 }
 
-AllocStats alloc_stats;
-
-
 
 // General statistics printing (profiling ...)
 void print_statistics() {
@@ -310,7 +306,7 @@ void print_statistics() {
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
   if (PrintCodeHeapAnalytics) {
-    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+    CompileBroker::print_heapinfo(NULL, "all", 4096); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);
   }
@@ -329,11 +325,6 @@ void print_statistics() {
   }
 
   print_bytecode_count();
-  if (PrintMallocStatistics) {
-    tty->print("allocation stats: ");
-    alloc_stats.print();
-    tty->cr();
-  }
 
   if (PrintSystemDictionaryAtExit) {
     ResourceMark rm;
@@ -378,7 +369,7 @@ void print_statistics() {
   // CodeHeap State Analytics.
   // Does also call NMethodSweeper::print(tty)
   if (PrintCodeHeapAnalytics) {
-    CompileBroker::print_heapinfo(NULL, "all", "4096"); // details
+    CompileBroker::print_heapinfo(NULL, "all", 4096); // details
   } else if (PrintMethodFlushingStatistics) {
     NMethodSweeper::print(tty);
   }

@@ -30,6 +30,7 @@
 #include "code/codeCache.hpp"
 #include "code/codeHeapState.hpp"
 #include "code/dependencyContext.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"
 #include "compiler/compilerOracle.hpp"
@@ -48,7 +49,6 @@
 #include "prims/whitebox.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -187,7 +187,7 @@ CompileQueue* CompileBroker::_c1_compile_queue     = NULL;
 
 class CompilationLog : public StringEventLog {
  public:
-  CompilationLog() : StringEventLog("Compilation events") {
+  CompilationLog() : StringEventLog("Compilation events", "jit") {
   }
 
   void log_compile(JavaThread* thread, CompileTask* task) {
@@ -316,7 +316,7 @@ static bool can_remove(CompilerThread *ct, bool do_it) {
   // We only allow the last compiler thread of each type to get removed.
   jobject last_compiler = c1 ? CompileBroker::compiler1_object(compiler_count - 1)
                              : CompileBroker::compiler2_object(compiler_count - 1);
-  if (oopDesc::equals(ct->threadObj(), JNIHandles::resolve_non_null(last_compiler))) {
+  if (ct->threadObj() == JNIHandles::resolve_non_null(last_compiler)) {
     if (do_it) {
       assert_locked_or_safepoint(CompileThread_lock); // Update must be consistent.
       compiler->set_num_compiler_threads(compiler_count - 1);
@@ -557,8 +557,14 @@ void CompileQueue::print(outputStream* st) {
 }
 
 void CompileQueue::print_tty() {
-  ttyLocker ttyl;
-  print(tty);
+  ResourceMark rm;
+  stringStream ss;
+  // Dump the compile queue into a buffer before locking the tty
+  print(&ss);
+  {
+    ttyLocker ttyl;
+    tty->print("%s", ss.as_string());
+  }
 }
 
 CompilerCounters::CompilerCounters() {
@@ -1242,7 +1248,7 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
     if (HAS_PENDING_EXCEPTION) {
       // In case of an exception looking up the method, we just forget
       // about it. The interpreter will kick-in and throw the exception.
-      method->set_not_compilable(); // implies is_not_osr_compilable()
+      method->set_not_compilable("NativeLookup::lookup failed"); // implies is_not_osr_compilable()
       CLEAR_PENDING_EXCEPTION;
       return NULL;
     }
@@ -1370,7 +1376,7 @@ bool CompileBroker::compilation_is_prohibited(const methodHandle& method, int os
   AbstractCompiler *comp = compiler(comp_level);
   if (is_native &&
       (!CICompileNatives || comp == NULL || !comp->supports_native())) {
-    method->set_not_compilable_quietly(comp_level);
+    method->set_not_compilable_quietly("native methods not supported", comp_level);
     return true;
   }
 
@@ -1378,7 +1384,7 @@ bool CompileBroker::compilation_is_prohibited(const methodHandle& method, int os
   // Some compilers may not support on stack replacement.
   if (is_osr &&
       (!CICompileOSR || comp == NULL || !comp->supports_osr())) {
-    method->set_not_osr_compilable(comp_level);
+    method->set_not_osr_compilable("OSR not supported", comp_level);
     return true;
   }
 
@@ -1395,7 +1401,7 @@ bool CompileBroker::compilation_is_prohibited(const methodHandle& method, int os
       method->print_short_name(tty);
       tty->cr();
     }
-    method->set_not_compilable(comp_level, !quietly, "excluded by CompileCommand");
+    method->set_not_compilable("excluded by CompileCommand", comp_level, !quietly);
   }
 
   return false;
@@ -1428,7 +1434,7 @@ int CompileBroker::assign_compile_id(const methodHandle& method, int osr_bci) {
   }
 
   // Method was not in the appropriate compilation range.
-  method->set_not_compilable_quietly();
+  method->set_not_compilable_quietly("Not in requested compile id range");
   return 0;
 #else
   // CICountOSR is a develop flag and set to 'false' by default. In a product built,
@@ -1546,7 +1552,6 @@ void CompileBroker::wait_for_completion(CompileTask* task) {
   assert(task->is_blocking(), "can only wait on blocking task");
 
   JavaThread* thread = JavaThread::current();
-  thread->set_blocked_on_compilation(true);
 
   methodHandle method(thread, task->method());
   bool free_task;
@@ -1564,7 +1569,6 @@ void CompileBroker::wait_for_completion(CompileTask* task) {
     }
   }
 
-  thread->set_blocked_on_compilation(false);
   if (free_task) {
     if (is_compilation_disabled_forever()) {
       CompileTask::free(task);
@@ -1595,16 +1599,10 @@ bool CompileBroker::init_compiler_runtime() {
   // Final sanity check - the compiler object must exist
   guarantee(comp != NULL, "Compiler object must exist");
 
-  int system_dictionary_modification_counter;
-  {
-    MutexLocker locker(Compile_lock, thread);
-    system_dictionary_modification_counter = SystemDictionary::number_of_modifications();
-  }
-
   {
     // Must switch to native to allocate ci_env
     ThreadToNativeFromVM ttn(thread);
-    ciEnv ci_env(NULL, system_dictionary_modification_counter);
+    ciEnv ci_env((CompileTask*)NULL);
     // Cache Jvmti state
     ci_env.cache_jvmti_state();
     // Cache DTrace flags
@@ -1695,7 +1693,7 @@ CompileLog* CompileBroker::get_log(CompilerThread* ct) {
   int compiler_number = 0;
   bool found = false;
   for (; compiler_number < count; compiler_number++) {
-    if (oopDesc::equals(JNIHandles::resolve_non_null(compiler_objects[compiler_number]), compiler_obj)) {
+    if (JNIHandles::resolve_non_null(compiler_objects[compiler_number]) == compiler_obj) {
       found = true;
       break;
     }
@@ -2045,12 +2043,6 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   bool failure_reason_on_C_heap = false;
   const char* retry_message = NULL;
 
-  int system_dictionary_modification_counter;
-  {
-    MutexLocker locker(Compile_lock, thread);
-    system_dictionary_modification_counter = SystemDictionary::number_of_modifications();
-  }
-
 #if INCLUDE_JVMCI
   if (UseJVMCICompiler && comp != NULL && comp->is_jvmci()) {
     JVMCICompiler* jvmci = (JVMCICompiler*) comp;
@@ -2064,7 +2056,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
       retry_message = "not retryable";
       compilable = ciEnv::MethodCompilable_never;
     } else {
-      JVMCICompileState compile_state(task, system_dictionary_modification_counter);
+      JVMCICompileState compile_state(task);
       JVMCIEnv env(thread, &compile_state, __FILE__, __LINE__);
       methodHandle method(thread, target_handle);
       env.runtime()->compile_method(&env, jvmci, method, osr_bci);
@@ -2090,7 +2082,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     NoHandleMark  nhm;
     ThreadToNativeFromVM ttn(thread);
 
-    ciEnv ci_env(task, system_dictionary_modification_counter);
+    ciEnv ci_env(task);
     if (should_break) {
       ci_env.set_break_at_compile(true);
     }
@@ -2195,15 +2187,15 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   switch (compilable) {
   case ciEnv::MethodCompilable_never:
     if (is_osr)
-      method->set_not_osr_compilable_quietly();
+      method->set_not_osr_compilable_quietly("MethodCompilable_never");
     else
-      method->set_not_compilable_quietly();
+      method->set_not_compilable_quietly("MethodCompilable_never");
     break;
   case ciEnv::MethodCompilable_not_at_tier:
     if (is_osr)
-      method->set_not_osr_compilable_quietly(task_level);
+      method->set_not_osr_compilable_quietly("MethodCompilable_not_at_tier", task_level);
     else
-      method->set_not_compilable_quietly(task_level);
+      method->set_not_compilable_quietly("MethodCompilable_not_at_tier", task_level);
     break;
   }
 
@@ -2640,7 +2632,7 @@ void CompileBroker::print_info(outputStream *out) {
 //       That's a tradeoff which keeps together important blocks of output.
 //       At the same time, continuous tty_lock hold time is kept in check,
 //       preventing concurrently printing threads from stalling a long time.
-void CompileBroker::print_heapinfo(outputStream* out, const char* function, const char* granularity) {
+void CompileBroker::print_heapinfo(outputStream* out, const char* function, size_t granularity) {
   TimeStamp ts_total;
   TimeStamp ts_global;
   TimeStamp ts;
@@ -2688,8 +2680,8 @@ void CompileBroker::print_heapinfo(outputStream* out, const char* function, cons
   // for the entire duration of aggregation and printing. That makes sure
   // we see a consistent picture and do not run into issues caused by
   // the CodeHeap being altered concurrently.
-  Monitor* global_lock   = allFun ? CodeCache_lock : NULL;
-  Monitor* function_lock = allFun ? NULL : CodeCache_lock;
+  Mutex* global_lock   = allFun ? CodeCache_lock : NULL;
+  Mutex* function_lock = allFun ? NULL : CodeCache_lock;
   ts_global.update(); // record starting point
   MutexLocker mu2(global_lock, Mutex::_no_safepoint_check_flag);
   if (global_lock != NULL) {

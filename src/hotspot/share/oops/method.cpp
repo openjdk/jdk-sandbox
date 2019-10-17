@@ -28,6 +28,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "code/debugInfoRec.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/bytecodeTracer.hpp"
@@ -54,7 +55,6 @@
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -118,17 +118,22 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
 void Method::deallocate_contents(ClassLoaderData* loader_data) {
   MetadataFactory::free_metadata(loader_data, constMethod());
   set_constMethod(NULL);
-#if INCLUDE_JVMCI
-  if (method_data()) {
-    FailedSpeculation::free_failed_speculations(method_data()->get_failed_speculations_address());
-  }
-#endif
   MetadataFactory::free_metadata(loader_data, method_data());
   set_method_data(NULL);
   MetadataFactory::free_metadata(loader_data, method_counters());
   clear_method_counters();
   // The nmethod will be gone when we get here.
   if (code() != NULL) _code = NULL;
+}
+
+void Method::release_C_heap_structures() {
+  if (method_data()) {
+#if INCLUDE_JVMCI
+    FailedSpeculation::free_failed_speculations(method_data()->get_failed_speculations_address());
+#endif
+    // Destroy MethodData
+    method_data()->~MethodData();
+  }
 }
 
 address Method::get_i2c_entry() {
@@ -144,6 +149,12 @@ address Method::get_c2i_entry() {
 address Method::get_c2i_unverified_entry() {
   assert(adapter() != NULL, "must have");
   return adapter()->get_c2i_unverified_entry();
+}
+
+address Method::get_c2i_no_clinit_check_entry() {
+  assert(VM_Version::supports_fast_class_init_checks(), "");
+  assert(adapter() != NULL, "must have");
+  return adapter()->get_c2i_no_clinit_check_entry();
 }
 
 char* Method::name_and_sig_as_C_string() const {
@@ -704,6 +715,10 @@ bool Method::is_object_initializer() const {
    return name() == vmSymbols::object_initializer_name();
 }
 
+bool Method::needs_clinit_barrier() const {
+  return is_static() && !method_holder()->is_initialized();
+}
+
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
   int length = method->checked_exceptions_length();
   if (length == 0) {  // common case
@@ -818,11 +833,6 @@ void Method::clear_native_function() {
   this->unlink_code();
 }
 
-address Method::critical_native_function() {
-  methodHandle mh(this);
-  return NativeLookup::lookup_critical_entry(mh);
-}
-
 
 void Method::set_signature_handler(address handler) {
   address* signature_handler =  signature_handler_addr();
@@ -831,16 +841,14 @@ void Method::set_signature_handler(address handler) {
 
 
 void Method::print_made_not_compilable(int comp_level, bool is_osr, bool report, const char* reason) {
+  assert(reason != NULL, "must provide a reason");
   if (PrintCompilation && report) {
     ttyLocker ttyl;
     tty->print("made not %scompilable on ", is_osr ? "OSR " : "");
     if (comp_level == CompLevel_all) {
       tty->print("all levels ");
     } else {
-      tty->print("levels ");
-      for (int i = (int)CompLevel_none; i <= comp_level; i++) {
-        tty->print("%d ", i);
-      }
+      tty->print("level %d ", comp_level);
     }
     this->print_short_name(tty);
     int size = this->code_size();
@@ -891,7 +899,7 @@ bool Method::is_not_compilable(int comp_level) const {
 }
 
 // call this when compiler finds that this method is not compilable
-void Method::set_not_compilable(int comp_level, bool report, const char* reason) {
+void Method::set_not_compilable(const char* reason, int comp_level, bool report) {
   if (is_always_compilable()) {
     // Don't mark a method which should be always compilable
     return;
@@ -922,7 +930,7 @@ bool Method::is_not_osr_compilable(int comp_level) const {
   return false;
 }
 
-void Method::set_not_osr_compilable(int comp_level, bool report, const char* reason) {
+void Method::set_not_osr_compilable(const char* reason, int comp_level, bool report) {
   print_made_not_compilable(comp_level, /*is_osr*/ true, report, reason);
   if (comp_level == CompLevel_all) {
     set_not_c1_osr_compilable();
@@ -976,7 +984,7 @@ void Method::unlink_code() {
 void Method::unlink_method() {
   _code = NULL;
 
-  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "dump time only");
+  Arguments::assert_is_dumping_archive();
   // Set the values to what they should be at run time. Note that
   // this Method can no longer be executed during dump time.
   _i2i_entry = Interpreter::entry_for_cds_method(this);
@@ -1061,7 +1069,7 @@ void Method::unlink_method() {
                                                               _c2i_entry ---------------------------------+->[c2i entry..]
  _i2i_entry  -------------+                                   _i2c_entry ---------------+-> [i2c entry..] |
  _from_interpreted_entry  |                                   _c2i_unverified_entry     |                 |
-         |                |                                                             |                 |
+         |                |                                   _c2i_no_clinit_check_entry|                 |
          |                |  (_cds_entry_table: CODE)                                   |                 |
          |                +->[0]: jmp _entry_table[0] --> (i2i_entry_for "zero_locals") |                 |
          |                |                               (allocated at run time)       |                 |
@@ -1197,7 +1205,7 @@ bool Method::check_code() const {
 
 // Install compiled code.  Instantly it can execute.
 void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
-  MutexLocker pl(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+  assert_lock_strong(CompiledMethod_lock);
   assert( code, "use clear_code to remove code" );
   assert( mh->check_code(), "" );
 
@@ -1933,7 +1941,6 @@ void BreakpointInfo::set(Method* method) {
   Thread *thread = Thread::current();
   *method->bcp_from(_bci) = Bytecodes::_breakpoint;
   method->incr_number_of_breakpoints(thread);
-  SystemDictionary::notice_modification();
   {
     // Deoptimize all dependents on this method
     HandleMark hm(thread);
@@ -2083,7 +2090,7 @@ class JNIMethodBlock : public CHeapObj<mtClass> {
 #endif // PRODUCT
 };
 
-// Something that can't be mistaken for an address or a markOop
+// Something that can't be mistaken for an address or a markWord
 Method* const JNIMethodBlock::_free_method = (Method*)55;
 
 JNIMethodBlockNode::JNIMethodBlockNode(int num_methods) : _top(0), _next(NULL) {

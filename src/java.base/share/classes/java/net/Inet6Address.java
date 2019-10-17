@@ -176,11 +176,6 @@ public final
 class Inet6Address extends InetAddress {
     static final int INADDRSZ = 16;
 
-    /*
-     * cached scope_id - for link-local address use only.
-     */
-    private transient int cached_scope_id;  // 0
-
     private class Inet6AddressHolder {
 
         private Inet6AddressHolder() {
@@ -368,6 +363,7 @@ class Inet6Address extends InetAddress {
 
     private final transient Inet6AddressHolder holder6;
 
+    @java.io.Serial
     private static final long serialVersionUID = 6880410070516793377L;
 
     // Perform native initialization
@@ -567,7 +563,7 @@ class Inet6Address extends InetAddress {
      * @serialField scope_ifname_set boolean
      * @serialField ifname String
      */
-
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields = {
          new ObjectStreamField("ipaddress", byte[].class),
          new ObjectStreamField("scope_id", int.class),
@@ -586,6 +582,7 @@ class Inet6Address extends InetAddress {
      * including the scope information, only if the
      * scoped interface name is valid on this system
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream s)
         throws IOException, ClassNotFoundException {
         NetworkInterface scope_ifname = null;
@@ -649,6 +646,7 @@ class Inet6Address extends InetAddress {
      * scope_ifname field as a String, rather than a NetworkInterface
      * which is not serializable
      */
+    @java.io.Serial
     private synchronized void writeObject(ObjectOutputStream s)
         throws IOException
     {

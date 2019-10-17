@@ -341,12 +341,14 @@
    <!ELEMENT table  (tr)+>
 
    <!ELEMENT tr  (td|th)*>
+   <!ATTLIST tr class CDATA #IMPLIED>
 
    <!ELEMENT td  ANY>
    <!ATTLIST td class CDATA #IMPLIED>
 
    <!ELEMENT th  ANY>
-   <!ATTLIST th class CDATA #IMPLIED>
+   <!ATTLIST th class CDATA #IMPLIED
+                scope (col|row) #IMPLIED>
 
    <!ELEMENT ul  (li)+>
    <!ATTLIST ul type (disc|circle|square) "disc">
@@ -2824,7 +2826,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
 	<p/>
 	Changes to global state are not addressed and thus remain changed.
 	<p/>
-	The specified thread must be suspended (which implies it cannot be the current thread).
+	The specified thread must be suspended or must be the current thread.
 	<p/>
 	Both the called method and calling method must be non-native Java programming
         language methods.
@@ -2849,7 +2851,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
           The implementation is unable to pop this frame.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are less than two stack frames on the call stack.
@@ -2910,8 +2912,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
         Only frames corresponding to non-native Java programming language
         methods can receive notification.
         <p/>
-        The specified thread must either be the current thread
-        or the thread must be suspended.
+        The specified thread must be suspended or must be the current thread.
       </description>
       <origin>jvmdi</origin>
       <capabilities>
@@ -3023,7 +3024,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
           result type of the called method.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no more frames on the call stack.
@@ -3071,7 +3072,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
   	  <code>boolean</code>.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no frames on the call stack.
@@ -3114,7 +3115,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
 	  The result type of the called method is not <code>long</code>.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no frames on the call stack.
@@ -3157,7 +3158,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
 	  The result type of the called method is not <code>float</code>.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no frames on the call stack.
@@ -3198,7 +3199,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
 	  The result type of the called method is not <code>double</code>.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no frames on the call stack.
@@ -3235,7 +3236,7 @@ err = (*jvmti)-&gt;Deallocate(jvmti, stack_info);
 	  The called method has a result type.
 	</error>
 	<error id="JVMTI_ERROR_THREAD_NOT_SUSPENDED">
-	  Thread was not the current thread and was not suspended.
+	  Thread was not suspended and was not the current thread.
 	</error>
 	<error id="JVMTI_ERROR_NO_MORE_FRAMES">
 	  There are no frames on the call stack.
@@ -3524,10 +3525,15 @@ class C2 extends C1 implements I2 {
             An instance of class <code>C1</code> will have the
             following field indices:
             <blockquote><table>
+              <tr class="bgLight">
+                <th class="centered" scope="col">Field</th>
+                <th class="centered" scope="col">Index</th>
+                <th scope="col">Description</th>
+              </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   a
-                </td>
+                </th>
                 <td class="centered">
                   2
                 </td>
@@ -3539,9 +3545,9 @@ class C2 extends C1 implements I2 {
                 </td>
               </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   b
-                </td>
+                </th>
                 <td class="centered">
                   3
                 </td>
@@ -3555,10 +3561,15 @@ class C2 extends C1 implements I2 {
             An instance of class <code>C2</code> will have the
             following field indices:
             <blockquote><table>
+              <tr class="bgLight">
+                <th class="centered" scope="col">Field</th>
+                <th class="centered" scope="col">Index</th>
+                <th scope="col">Description</th>
+              </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   a
-                </td>
+                </th>
                 <td class="centered">
                   3
                 </td>
@@ -3572,9 +3583,9 @@ class C2 extends C1 implements I2 {
                 </td>
               </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   b
-                </td>
+                </th>
                 <td class="centered">
                   4
                 </td>
@@ -3583,9 +3594,9 @@ class C2 extends C1 implements I2 {
                 </td>
               </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   q
-                </td>
+                </th>
                 <td class="centered">
                   5
                 </td>
@@ -3594,9 +3605,9 @@ class C2 extends C1 implements I2 {
                 </td>
               </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   r
-                </td>
+                </th>
                 <td class="centered">
                   6
                 </td>
@@ -3614,10 +3625,15 @@ class C2 extends C1 implements I2 {
             The interface <code>I1</code> will have the
             following field indices:
             <blockquote><table>
+              <tr class="bgLight">
+                <th class="centered" scope="col">Field</th>
+                <th class="centered" scope="col">Index</th>
+                <th scope="col">Description</th>
+              </tr>
               <tr>
-                <td class="centered">
+                <th class="centered" scope="row">
                   x
-                </td>
+                </th>
                 <td class="centered">
                   1
                 </td>
@@ -4469,20 +4485,14 @@ class C2 extends C1 implements I2 {
         The table below summarizes this:
         <p/>
         <table>
-          <tr>
+          <tr class="bgLight">
             <th/>
-            <th>
-              Controls objects visited
-            </th>
-            <th>
-              Controls objects reported
-            </th>
-            <th>
-              Controls primitives reported
-            </th>
+            <th class="centered" scope="col">Controls objects visited</th>
+            <th class="centered" scope="col">Controls objects reported</th>
+            <th class="centered" scope="col">Controls primitives reported</th>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               the
               <datalink id="jvmtiHeapVisitControl">Heap Visit Control Flags</datalink>
               returned by <functionlink id="jvmtiHeapReferenceCallback"/>
@@ -4498,7 +4508,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <fieldlink id="array_primitive_value_callback" struct="jvmtiHeapCallbacks"/>
               in <paramlink id="callbacks"/> set
             </th>
@@ -4513,7 +4523,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <paramlink id="heap_filter"/>
             </th>
             <td class="centered">
@@ -4527,7 +4537,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <paramlink id="klass"/>
             </th>
             <td class="centered">
@@ -4661,20 +4671,14 @@ class C2 extends C1 implements I2 {
         <functionlink id="FollowReferences"/>):
         <p/>
         <table>
-          <tr>
+          <tr class="bgLight">
             <th/>
-            <th>
-              Controls objects visited
-            </th>
-            <th>
-              Controls objects reported
-            </th>
-            <th>
-              Controls primitives reported
-            </th>
+            <th class="centered" scope="col">Controls objects visited</th>
+            <th class="centered" scope="col">Controls objects reported</th>
+            <th class="centered" scope="col">Controls primitives reported</th>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               the
               <datalink id="jvmtiHeapVisitControl">Heap Visit Control Flags</datalink>
               returned by <functionlink id="jvmtiHeapIterationCallback"/>
@@ -4690,7 +4694,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <fieldlink id="array_primitive_value_callback" struct="jvmtiHeapCallbacks"/>
               in <paramlink id="callbacks"/> set
             </th>
@@ -4705,7 +4709,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <paramlink id="heap_filter"/>
             </th>
             <td class="centered">
@@ -4719,7 +4723,7 @@ class C2 extends C1 implements I2 {
             </td>
           </tr>
           <tr>
-            <th class="leftAligned">
+            <th scope="row">
               <paramlink id="klass"/>
             </th>
             <td class="centered">
@@ -14964,6 +14968,11 @@ typedef void (JNICALL *jvmtiEventVMInit)
       It now says:
        "RedefineClasses can be called on any modifiable class. See IsModifiableClass.
        (can_redefine_classes must also be set)"
+  </change>
+  <change date="5 June 2019" version="13.0.0">
+      Minor PopFrame spec update:
+        - The specified thread must be suspended or must be the current thread.
+          (It was not allowed to be the current thread before.)
   </change>
 </changehistory>
 

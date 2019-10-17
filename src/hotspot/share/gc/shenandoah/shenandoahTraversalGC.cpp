@@ -28,7 +28,6 @@
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/workgroup.hpp"
-#include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
@@ -367,8 +366,10 @@ void ShenandoahTraversalGC::prepare() {
   // Rebuild free set
   free_set->rebuild();
 
-  log_info(gc, ergo)("Collectable Garbage: " SIZE_FORMAT "M, " SIZE_FORMAT "M CSet, " SIZE_FORMAT " CSet regions",
-                     collection_set->garbage() / M, collection_set->live_data() / M, collection_set->count());
+  log_info(gc, ergo)("Collectable Garbage: " SIZE_FORMAT "%s, " SIZE_FORMAT "%s CSet, " SIZE_FORMAT " CSet regions",
+                     byte_size_in_proper_unit(collection_set->garbage()),   proper_unit_for_byte_size(collection_set->garbage()),
+                     byte_size_in_proper_unit(collection_set->live_data()), proper_unit_for_byte_size(collection_set->live_data()),
+                     collection_set->count());
 }
 
 void ShenandoahTraversalGC::init_traversal_collection() {
@@ -389,6 +390,7 @@ void ShenandoahTraversalGC::init_traversal_collection() {
   }
 
   _heap->set_concurrent_traversal_in_progress(true);
+  _heap->set_has_forwarded_objects(true);
 
   bool process_refs = _heap->process_references();
   if (process_refs) {
@@ -402,7 +404,7 @@ void ShenandoahTraversalGC::init_traversal_collection() {
     assert(_task_queues->is_empty(), "queues must be empty before traversal GC");
     TASKQUEUE_STATS_ONLY(_task_queues->reset_taskqueue_stats());
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTable::clear();
 #endif
 
@@ -414,7 +416,7 @@ void ShenandoahTraversalGC::init_traversal_collection() {
       _heap->workers()->run_task(&traversal_task);
     }
 
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTable::update_pointers();
 #endif
   }
@@ -571,7 +573,7 @@ void ShenandoahTraversalGC::final_traversal_collection() {
   _heap->make_parsable(true);
 
   if (!_heap->cancelled_gc()) {
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTable::clear();
 #endif
     ShenandoahGCPhase phase_work(ShenandoahPhaseTimings::final_traversal_gc_work);
@@ -585,7 +587,7 @@ void ShenandoahTraversalGC::final_traversal_collection() {
     ShenandoahTaskTerminator terminator(nworkers, task_queues());
     ShenandoahFinalTraversalCollectionTask task(&rp, &terminator);
     _heap->workers()->run_task(&task);
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
     DerivedPointerTable::update_pointers();
 #endif
   }
@@ -595,19 +597,18 @@ void ShenandoahTraversalGC::final_traversal_collection() {
   }
 
   if (!_heap->cancelled_gc()) {
-    fixup_roots();
-    if (_heap->unload_classes()) {
-      _heap->unload_classes_and_cleanup_tables(false);
-    }
-  }
-
-  if (!_heap->cancelled_gc()) {
     assert(_task_queues->is_empty(), "queues must be empty after traversal GC");
     TASKQUEUE_STATS_ONLY(_task_queues->print_taskqueue_stats());
     TASKQUEUE_STATS_ONLY(_task_queues->reset_taskqueue_stats());
 
     // No more marking expected
+    _heap->set_concurrent_traversal_in_progress(false);
     _heap->mark_complete_marking_context();
+
+    fixup_roots();
+    _heap->parallel_cleaning(false);
+
+    _heap->set_has_forwarded_objects(false);
 
     // Resize metaspace
     MetaspaceGC::compute_new_size();
@@ -654,7 +655,6 @@ void ShenandoahTraversalGC::final_traversal_collection() {
     }
 
     assert(_task_queues->is_empty(), "queues must be empty after traversal GC");
-    _heap->set_concurrent_traversal_in_progress(false);
     assert(!_heap->cancelled_gc(), "must not be cancelled when getting out here");
 
     if (ShenandoahVerify) {
@@ -675,7 +675,7 @@ private:
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_not_null(o);
       oop forw = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
-      if (!oopDesc::equals_raw(obj, forw)) {
+      if (obj != forw) {
         RawAccess<IS_NOT_NULL>::oop_store(p, forw);
       }
     }
@@ -706,13 +706,13 @@ public:
 };
 
 void ShenandoahTraversalGC::fixup_roots() {
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
   DerivedPointerTable::clear();
 #endif
-  ShenandoahRootUpdater rp(_heap->workers()->active_workers(), ShenandoahPhaseTimings::final_traversal_update_roots, true /* update code cache */);
+  ShenandoahRootUpdater rp(_heap->workers()->active_workers(), ShenandoahPhaseTimings::final_traversal_update_roots);
   ShenandoahTraversalFixRootsTask update_roots_task(&rp);
   _heap->workers()->run_task(&update_roots_task);
-#if defined(COMPILER2) || INCLUDE_JVMCI
+#if COMPILER2_OR_JVMCI
   DerivedPointerTable::update_pointers();
 #endif
 }

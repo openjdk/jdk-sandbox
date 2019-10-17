@@ -37,14 +37,14 @@
 #include "jvmci/jniAccessMark.inline.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 
-JVMCICompileState::JVMCICompileState(CompileTask* task, int system_dictionary_modification_counter):
+JVMCICompileState::JVMCICompileState(CompileTask* task):
   _task(task),
-  _system_dictionary_modification_counter(system_dictionary_modification_counter),
   _retryable(true),
   _failure_reason(NULL),
   _failure_reason_on_C_heap(false) {
   // Get Jvmti capabilities under lock to get consistent values.
   MutexLocker mu(JvmtiThreadState_lock);
+  _jvmti_redefinition_count             = JvmtiExport::redefinition_count();
   _jvmti_can_hotswap_or_post_breakpoint = JvmtiExport::can_hotswap_or_post_breakpoint() ? 1 : 0;
   _jvmti_can_access_local_variables     = JvmtiExport::can_access_local_variables() ? 1 : 0;
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions() ? 1 : 0;
@@ -52,6 +52,10 @@ JVMCICompileState::JVMCICompileState(CompileTask* task, int system_dictionary_mo
 }
 
 bool JVMCICompileState::jvmti_state_changed() const {
+  // Some classes were redefined
+  if (jvmti_redefinition_count() != JvmtiExport::redefinition_count()) {
+    return true;
+  }
   if (!jvmti_can_access_local_variables() &&
       JvmtiExport::can_access_local_variables()) {
     return true;
@@ -1111,13 +1115,6 @@ JVMCIObject JVMCIEnv::get_jvmci_type(const JVMCIKlassHandle& klass, JVMCI_TRAPS)
   if (klass.is_null()) {
     return type;
   }
-#ifdef INCLUDE_ALL_GCS
-    if (UseG1GC) {
-      // The klass might have come from a weak location so enqueue
-      // the Class to make sure it's noticed by G1
-      G1SATBCardTableModRefBS::enqueue(klass()->java_mirror());
-    }
-#endif  // Klass* don't require tracking as Metadata*
 
   jlong pointer = (jlong) klass();
   JavaThread* THREAD = JavaThread::current();
@@ -1368,6 +1365,9 @@ Handle JVMCIEnv::asConstant(JVMCIObject constant, JVMCI_TRAPS) {
     return Handle(THREAD, obj);
   } else if (isa_IndirectHotSpotObjectConstantImpl(constant)) {
     jlong object_handle = get_IndirectHotSpotObjectConstantImpl_objectHandle(constant);
+    if (object_handle == 0L) {
+      JVMCI_THROW_MSG_(NullPointerException, "Foreign object reference has been cleared", Handle());
+    }
     oop result = resolve_handle(object_handle);
     if (result == NULL) {
       JVMCI_THROW_MSG_(InternalError, "Constant was unexpectedly NULL", Handle());

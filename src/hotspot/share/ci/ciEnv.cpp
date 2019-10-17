@@ -44,6 +44,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -97,7 +98,7 @@ static bool firstEnv = true;
 
 // ------------------------------------------------------------------
 // ciEnv::ciEnv
-ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter)
+ciEnv::ciEnv(CompileTask* task)
   : _ciEnv_arena(mtCompiler) {
   VM_ENTRY_MARK;
 
@@ -117,7 +118,6 @@ ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter)
   assert(!firstEnv, "not initialized properly");
 #endif /* !PRODUCT */
 
-  _system_dictionary_modification_counter = system_dictionary_modification_counter;
   _num_inlined_bytecodes = 0;
   assert(task == NULL || thread->task() == task, "sanity");
   if (task != NULL) {
@@ -154,6 +154,7 @@ ciEnv::ciEnv(CompileTask* task, int system_dictionary_modification_counter)
   _the_null_string = NULL;
   _the_min_jint_string = NULL;
 
+  _jvmti_redefinition_count = 0;
   _jvmti_can_hotswap_or_post_breakpoint = false;
   _jvmti_can_access_local_variables = false;
   _jvmti_can_post_on_exceptions = false;
@@ -182,7 +183,6 @@ ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
   firstEnv = false;
 #endif /* !PRODUCT */
 
-  _system_dictionary_modification_counter = 0;
   _num_inlined_bytecodes = 0;
   _task = NULL;
   _log = NULL;
@@ -210,6 +210,7 @@ ciEnv::ciEnv(Arena* arena) : _ciEnv_arena(mtCompiler) {
   _the_null_string = NULL;
   _the_min_jint_string = NULL;
 
+  _jvmti_redefinition_count = 0;
   _jvmti_can_hotswap_or_post_breakpoint = false;
   _jvmti_can_access_local_variables = false;
   _jvmti_can_post_on_exceptions = false;
@@ -232,13 +233,20 @@ void ciEnv::cache_jvmti_state() {
   VM_ENTRY_MARK;
   // Get Jvmti capabilities under lock to get consistant values.
   MutexLocker mu(JvmtiThreadState_lock);
+  _jvmti_redefinition_count             = JvmtiExport::redefinition_count();
   _jvmti_can_hotswap_or_post_breakpoint = JvmtiExport::can_hotswap_or_post_breakpoint();
   _jvmti_can_access_local_variables     = JvmtiExport::can_access_local_variables();
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions();
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame();
+  _jvmti_can_get_owned_monitor_info     = JvmtiExport::can_get_owned_monitor_info();
 }
 
 bool ciEnv::jvmti_state_changed() const {
+  // Some classes were redefined
+  if (_jvmti_redefinition_count != JvmtiExport::redefinition_count()) {
+    return true;
+  }
+
   if (!_jvmti_can_access_local_variables &&
       JvmtiExport::can_access_local_variables()) {
     return true;
@@ -255,6 +263,11 @@ bool ciEnv::jvmti_state_changed() const {
       JvmtiExport::can_pop_frame()) {
     return true;
   }
+  if (!_jvmti_can_get_owned_monitor_info &&
+      JvmtiExport::can_get_owned_monitor_info()) {
+    return true;
+  }
+
   return false;
 }
 
@@ -540,7 +553,7 @@ ciKlass* ciEnv::get_klass_by_index_impl(const constantPoolHandle& cpool,
     // Calculate accessibility the hard way.
     if (!k->is_loaded()) {
       is_accessible = false;
-    } else if (!oopDesc::equals(k->loader(), accessor->loader()) &&
+    } else if (k->loader() != accessor->loader() &&
                get_klass_by_name_impl(accessor, cpool, k->name(), true) == NULL) {
       // Loaded only remotely.  Not linked yet.
       is_accessible = false;
@@ -591,7 +604,7 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     index = cpool->object_to_cp_index(cache_index);
     oop obj = cpool->resolved_references()->obj_at(cache_index);
     if (obj != NULL) {
-      if (oopDesc::equals(obj, Universe::the_null_sentinel())) {
+      if (obj == Universe::the_null_sentinel()) {
         return ciConstant(T_OBJECT, get_object(NULL));
       }
       BasicType bt = T_OBJECT;
@@ -918,17 +931,6 @@ bool ciEnv::is_in_vm() {
   return JavaThread::current()->thread_state() == _thread_in_vm;
 }
 
-bool ciEnv::system_dictionary_modification_counter_changed_locked() {
-  assert_locked_or_safepoint(Compile_lock);
-  return _system_dictionary_modification_counter != SystemDictionary::number_of_modifications();
-}
-
-bool ciEnv::system_dictionary_modification_counter_changed() {
-  VM_ENTRY_MARK;
-  MutexLocker ml(Compile_lock, THREAD); // lock with safepoint check
-  return system_dictionary_modification_counter_changed_locked();
-}
-
 // ------------------------------------------------------------------
 // ciEnv::validate_compile_task_dependencies
 //
@@ -937,8 +939,7 @@ bool ciEnv::system_dictionary_modification_counter_changed() {
 void ciEnv::validate_compile_task_dependencies(ciMethod* target) {
   if (failing())  return;  // no need for further checks
 
-  bool counter_changed = system_dictionary_modification_counter_changed_locked();
-  Dependencies::DepType result = dependencies()->validate_dependencies(_task, counter_changed);
+  Dependencies::DepType result = dependencies()->validate_dependencies(_task);
   if (result != Dependencies::end_marker) {
     if (result == Dependencies::call_site_target_value) {
       _inc_decompile_count_on_failure = false;
@@ -989,6 +990,11 @@ void ciEnv::register_method(ciMethod* target,
           (!dtrace_method_probes() && DTraceMethodProbes) ||
           (!dtrace_alloc_probes() && DTraceAllocProbes) )) {
       record_failure("DTrace flags change invalidated dependencies");
+    }
+
+    if (!failing() && target->needs_clinit_barrier() &&
+        target->holder()->is_in_error_state()) {
+      record_failure("method holder is in error state");
     }
 
     if (!failing()) {
@@ -1071,29 +1077,32 @@ void ciEnv::register_method(ciMethod* target,
             old->make_not_used();
           }
         }
-        if (TraceNMethodInstalls) {
+
+        LogTarget(Info, nmethod, install) lt;
+        if (lt.is_enabled()) {
           ResourceMark rm;
           char *method_name = method->name_and_sig_as_C_string();
-          ttyLocker ttyl;
-          tty->print_cr("Installing method (%d) %s ",
-                        task()->comp_level(),
-                        method_name);
+          lt.print("Installing method (%d) %s ",
+                    task()->comp_level(), method_name);
         }
         // Allow the code to be executed
-        method->set_code(method, nm);
+        MutexLocker ml(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+        if (nm->make_in_use()) {
+          method->set_code(method, nm);
+        }
       } else {
-        if (TraceNMethodInstalls) {
+        LogTarget(Info, nmethod, install) lt;
+        if (lt.is_enabled()) {
           ResourceMark rm;
           char *method_name = method->name_and_sig_as_C_string();
-          ttyLocker ttyl;
-          tty->print_cr("Installing osr method (%d) %s @ %d",
-                        task()->comp_level(),
-                        method_name,
-                        entry_bci);
+          lt.print("Installing osr method (%d) %s @ %d",
+                    task()->comp_level(), method_name, entry_bci);
         }
-        method->method_holder()->add_osr_nmethod(nm);
+        MutexLocker ml(CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+        if (nm->make_in_use()) {
+          method->method_holder()->add_osr_nmethod(nm);
+        }
       }
-      nm->make_in_use();
     }
   }  // safepoints are allowed again
 

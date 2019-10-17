@@ -78,7 +78,7 @@ private:
   void insert_pre_barrier(GraphKit* kit, Node* base_oop, Node* offset,
                           Node* pre_val, bool need_mem_bar) const;
 
-  static bool clone_needs_postbarrier(ArrayCopyNode *ac, PhaseIterGVN& igvn);
+  static bool clone_needs_barrier(Node* src, PhaseGVN& gvn);
 
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
@@ -103,14 +103,13 @@ public:
   static const TypeFunc* write_ref_field_pre_entry_Type();
   static const TypeFunc* shenandoah_clone_barrier_Type();
   static const TypeFunc* shenandoah_load_reference_barrier_Type();
-  virtual bool has_load_barriers() const { return true; }
+  virtual bool has_load_barrier_nodes() const { return true; }
 
   // This is the entry-point for the backend to perform accesses through the Access API.
-  virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;
+  virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
   // These are general helper methods used by C2
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, ArrayCopyPhase phase) const;
-  virtual void clone_barrier_at_expansion(ArrayCopyNode* ac, Node* call, PhaseIterGVN& igvn) const;
 
   // Support for GC barriers emitted during parsing
   virtual bool is_gc_barrier_node(Node* node) const;
@@ -126,7 +125,6 @@ public:
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
   virtual void enqueue_useful_gc_barrier(PhaseIterGVN* igvn, Node* node) const;
   virtual void eliminate_useless_gc_barriers(Unique_Node_List &useful, Compile* C) const;
-  virtual void add_users_to_worklist(Unique_Node_List* worklist) const;
 
   // Allow barrier sets to have shared state that is preserved across a compilation unit.
   // This could for example comprise macro nodes to be expanded during macro expansion.
@@ -145,7 +143,6 @@ public:
   virtual bool escape_add_to_con_graph(ConnectionGraph* conn_graph, PhaseGVN* gvn, Unique_Node_List* delayed_worklist, Node* n, uint opcode) const;
   virtual bool escape_add_final_edges(ConnectionGraph* conn_graph, PhaseGVN* gvn, Node* n, uint opcode) const;
   virtual bool escape_has_out_with_unsafe_object(Node* n) const;
-  virtual bool escape_is_barrier_node(Node* n) const;
 
   virtual bool matcher_find_shared_post_visit(Matcher* matcher, Node* n, uint opcode) const;
   virtual bool matcher_is_store_load_barrier(Node* x, uint xop) const;

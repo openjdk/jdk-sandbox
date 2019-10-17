@@ -67,6 +67,7 @@ class Abstract_VM_Version: AllStatic {
   static int          _vm_security_version;
   static int          _vm_patch_version;
   static int          _vm_build_number;
+  static unsigned int _data_cache_line_flush_size;
 
   static VirtualizationType _detected_virtualization;
 
@@ -155,6 +156,18 @@ class Abstract_VM_Version: AllStatic {
     return _L1_data_cache_line_size;
   }
 
+  // the size in bytes of a data cache line flushed by a flush
+  // operation which should be a power of two or zero if cache line
+  // writeback is not supported by the current os_cpu combination
+  static unsigned int data_cache_line_flush_size() {
+    return _data_cache_line_flush_size;
+  }
+
+  // returns true if and only if cache line writeback is supported
+  static bool supports_data_cache_line_flush() {
+    return _data_cache_line_flush_size != 0;
+  }
+
   // ARCH specific policy for the BiasedLocking
   static bool use_biased_locking()  { return true; }
 
@@ -170,6 +183,9 @@ class Abstract_VM_Version: AllStatic {
 
   // Does this CPU support spin wait instruction?
   static bool supports_on_spin_wait() { return false; }
+
+  // Does platform support fast class initialization checks for static methods?
+  static bool supports_fast_class_init_checks() { return false; }
 
   static bool print_matching_lines_from_file(const char* filename, outputStream* st, const char* keywords_to_match[]);
 };

@@ -491,6 +491,7 @@ public:
   address get_i2c_entry();
   address get_c2i_entry();
   address get_c2i_unverified_entry();
+  address get_c2i_no_clinit_check_entry();
   AdapterHandlerEntry* adapter() const {
     return constMethod()->adapter();
   }
@@ -542,7 +543,6 @@ public:
     native_bind_event_is_interesting = true
   };
   address native_function() const                { return *(native_function_addr()); }
-  address critical_native_function();
 
   // Must specify a real function (not NULL).
   // Use clear_native_function() to unregister.
@@ -603,7 +603,7 @@ public:
   void compute_size_of_parameters(Thread *thread); // word size of parameters (receiver if any + arguments)
   Symbol* klass_name() const;                    // returns the name of the method holder
   BasicType result_type() const;                 // type of the method result
-  bool is_returning_oop() const                  { BasicType r = result_type(); return (r == T_OBJECT || r == T_ARRAY); }
+  bool is_returning_oop() const                  { BasicType r = result_type(); return is_reference_type(r); }
   bool is_returning_fp() const                   { BasicType r = result_type(); return (r == T_FLOAT || r == T_DOUBLE); }
 
   // Checked exceptions thrown by this method (resolved to mirrors)
@@ -698,6 +698,8 @@ public:
 #ifdef TIERED
   bool has_aot_code() const                      { return aot_code() != NULL; }
 #endif
+
+  bool needs_clinit_barrier() const;
 
   // sizing
   static int header_size()                       {
@@ -943,14 +945,14 @@ public:
   // whether it is not compilable for another reason like having a
   // breakpoint set in it.
   bool  is_not_compilable(int comp_level = CompLevel_any) const;
-  void set_not_compilable(int comp_level = CompLevel_all, bool report = true, const char* reason = NULL);
-  void set_not_compilable_quietly(int comp_level = CompLevel_all) {
-    set_not_compilable(comp_level, false);
+  void set_not_compilable(const char* reason, int comp_level = CompLevel_all, bool report = true);
+  void set_not_compilable_quietly(const char* reason, int comp_level = CompLevel_all) {
+    set_not_compilable(reason, comp_level, false);
   }
   bool  is_not_osr_compilable(int comp_level = CompLevel_any) const;
-  void set_not_osr_compilable(int comp_level = CompLevel_all, bool report = true, const char* reason = NULL);
-  void set_not_osr_compilable_quietly(int comp_level = CompLevel_all) {
-    set_not_osr_compilable(comp_level, false);
+  void set_not_osr_compilable(const char* reason, int comp_level = CompLevel_all, bool report = true);
+  void set_not_osr_compilable_quietly(const char* reason, int comp_level = CompLevel_all) {
+    set_not_osr_compilable(reason, comp_level, false);
   }
   bool is_always_compilable() const;
 
@@ -1003,6 +1005,8 @@ public:
 
   // Deallocation function for redefine classes or if an error occurs
   void deallocate_contents(ClassLoaderData* loader_data);
+
+  void release_C_heap_structures();
 
   Method* get_new_method() const {
     InstanceKlass* holder = method_holder();

@@ -52,9 +52,9 @@ class C2Compiler;
 class CallGenerator;
 class CloneMap;
 class ConnectionGraph;
+class IdealGraphPrinter;
 class InlineTree;
 class Int_Array;
-class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -96,8 +96,7 @@ enum LoopOptsMode {
   LoopOptsShenandoahExpand,
   LoopOptsShenandoahPostExpand,
   LoopOptsSkipSplitIf,
-  LoopOptsVerify,
-  LoopOptsLastRound
+  LoopOptsVerify
 };
 
 typedef unsigned int node_idx_t;
@@ -416,6 +415,7 @@ class Compile : public Phase {
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
+  bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
@@ -476,7 +476,6 @@ class Compile : public Phase {
   Arena*                _type_arena;            // Alias for _Compile_types except in Initialize_shared()
   Dict*                 _type_dict;             // Intern table
   CloneMap              _clone_map;             // used for recording history of cloned nodes
-  void*                 _type_hwm;              // Last allocation (see Type::operator new/delete)
   size_t                _type_last_size;        // Last allocation size (see Type::operator new/delete)
   ciMethod*             _last_tf_m;             // Cache for
   const TypeFunc*       _last_tf;               //  TypeFunc::make
@@ -657,6 +656,7 @@ class Compile : public Phase {
   void          set_do_cleanup(bool z)          { _do_cleanup = z; }
   int               do_cleanup() const          { return _do_cleanup; }
   void          set_major_progress()            { _major_progress++; }
+  void          restore_major_progress(int progress) { _major_progress += progress; }
   void        clear_major_progress()            { _major_progress = 0; }
   int               max_inline_size() const     { return _max_inline_size; }
   void          set_freq_inline_size(int n)     { _freq_inline_size = n; }
@@ -714,6 +714,8 @@ class Compile : public Phase {
   bool          profile_rtm() const              { return _rtm_state == ProfileRTM; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
+  bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
+  void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(const char * option) {
@@ -744,7 +746,15 @@ class Compile : public Phase {
     C->_latest_stage_start_counter.stamp();
   }
 
-  void print_method(CompilerPhaseType cpt, int level = 1) {
+  bool should_print(int level = 1) {
+#ifndef PRODUCT
+    return (_printer && _printer->should_print(level));
+#else
+    return false;
+#endif
+  }
+
+  void print_method(CompilerPhaseType cpt, int level = 1, int idx = 0) {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
@@ -754,10 +764,15 @@ class Compile : public Phase {
       event.commit();
     }
 
-
 #ifndef PRODUCT
-    if (_printer && _printer->should_print(level)) {
-      _printer->print_method(CompilerPhaseTypeHelper::to_string(cpt), level);
+    if (should_print(level)) {
+      char output[1024];
+      if (idx != 0) {
+        sprintf(output, "%s:%d", CompilerPhaseTypeHelper::to_string(cpt), idx);
+      } else {
+        sprintf(output, "%s", CompilerPhaseTypeHelper::to_string(cpt));
+      }
+      _printer->print_method(output, level);
     }
 #endif
     C->_latest_stage_start_counter.stamp();
@@ -959,14 +974,12 @@ class Compile : public Phase {
   // Type management
   Arena*            type_arena()                { return _type_arena; }
   Dict*             type_dict()                 { return _type_dict; }
-  void*             type_hwm()                  { return _type_hwm; }
   size_t            type_last_size()            { return _type_last_size; }
   int               num_alias_types()           { return _num_alias_types; }
 
   void          init_type_arena()                       { _type_arena = &_Compile_types; }
   void          set_type_arena(Arena* a)                { _type_arena = a; }
   void          set_type_dict(Dict* d)                  { _type_dict = d; }
-  void          set_type_hwm(void* p)                   { _type_hwm = p; }
   void          set_type_last_size(size_t sz)           { _type_last_size = sz; }
 
   const TypeFunc* last_tf(ciMethod* m) {
@@ -1171,11 +1184,7 @@ class Compile : public Phase {
   bool           in_scratch_emit_size() const   { return _in_scratch_emit_size;     }
 
   enum ScratchBufferBlob {
-#if defined(PPC64)
     MAX_inst_size       = 2048,
-#else
-    MAX_inst_size       = 1024,
-#endif
     MAX_locs_size       = 128, // number of relocInfo elements
     MAX_const_size      = 128,
     MAX_stubs_size      = 128
@@ -1250,14 +1259,30 @@ class Compile : public Phase {
   // Process an OopMap Element while emitting nodes
   void Process_OopMap_Node(MachNode *mach, int code_offset);
 
+  class BufferSizingData {
+  public:
+    int _stub;
+    int _code;
+    int _const;
+    int _reloc;
+
+      BufferSizingData() :
+      _stub(0),
+      _code(0),
+      _const(0),
+      _reloc(0)
+      { };
+  };
+
   // Initialize code buffer
-  CodeBuffer* init_buffer(uint* blk_starts);
+  void        estimate_buffer_size(int& const_req);
+  CodeBuffer* init_buffer(BufferSizingData& buf_sizes);
 
   // Write out basic block data to code buffer
   void fill_buffer(CodeBuffer* cb, uint* blk_starts);
 
   // Determine which variable sized branches can be shortened
-  void shorten_branches(uint* blk_starts, int& code_size, int& reloc_size, int& stub_size);
+  void shorten_branches(uint* blk_starts, BufferSizingData& buf_sizes);
 
   // Compute the size of first NumberOfLoopInstrToAlign instructions
   // at the head of a loop.
@@ -1381,7 +1406,9 @@ class Compile : public Phase {
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
 
-  bool is_compiling_clinit_for(ciKlass* k);
+  bool needs_clinit_barrier(ciField* ik,         ciMethod* accessing_method);
+  bool needs_clinit_barrier(ciMethod* ik,        ciMethod* accessing_method);
+  bool needs_clinit_barrier(ciInstanceKlass* ik, ciMethod* accessing_method);
 };
 
 #endif // SHARE_OPTO_COMPILE_HPP

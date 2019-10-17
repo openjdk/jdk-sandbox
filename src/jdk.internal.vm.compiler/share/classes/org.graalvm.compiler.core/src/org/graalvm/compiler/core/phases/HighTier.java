@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 package org.graalvm.compiler.core.phases;
 
 import static org.graalvm.compiler.core.common.GraalOptions.ConditionalElimination;
-import static org.graalvm.compiler.core.common.GraalOptions.FullUnroll;
 import static org.graalvm.compiler.core.common.GraalOptions.ImmutableCode;
 import static org.graalvm.compiler.core.common.GraalOptions.LoopPeeling;
 import static org.graalvm.compiler.core.common.GraalOptions.LoopUnswitch;
@@ -100,20 +99,16 @@ public class HighTier extends PhaseSuite<HighTierContext> {
         }
 
         LoopPolicies loopPolicies = createLoopPolicies();
-        if (FullUnroll.getValue(options)) {
-            appendPhase(new LoopFullUnrollPhase(canonicalizer, loopPolicies));
-        }
+        appendPhase(new LoopFullUnrollPhase(canonicalizer, loopPolicies));
 
         if (OptLoopTransform.getValue(options)) {
             if (LoopPeeling.getValue(options)) {
-                appendPhase(new LoopPeelingPhase(loopPolicies));
+                appendPhase(new IncrementalCanonicalizerPhase<>(canonicalizer, new LoopPeelingPhase(loopPolicies)));
             }
             if (LoopUnswitch.getValue(options)) {
-                appendPhase(new LoopUnswitchingPhase(loopPolicies));
+                appendPhase(new IncrementalCanonicalizerPhase<>(canonicalizer, new LoopUnswitchingPhase(loopPolicies)));
             }
         }
-
-        appendPhase(canonicalizer);
 
         if (PartialEscapeAnalysis.getValue(options)) {
             appendPhase(new PartialEscapePhase(true, canonicalizer, options));

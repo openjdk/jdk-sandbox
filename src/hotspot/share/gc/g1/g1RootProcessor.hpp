@@ -64,26 +64,26 @@ class G1RootProcessor : public StackObj {
     G1RP_PS_jvmti_oops_do,
     G1RP_PS_CodeCache_oops_do,
     AOT_ONLY(G1RP_PS_aot_oops_do COMMA)
-    JVMCI_ONLY(G1RP_PS_JVMCI_oops_do COMMA)
     G1RP_PS_refProcessor_oops_do,
     // Leave this one last.
     G1RP_PS_NumElements
   };
 
-  void worker_has_discovered_all_strong_classes();
-  void wait_until_all_strong_classes_discovered();
+  void worker_has_discovered_all_strong_nmethods();
+  void wait_until_all_strong_nmethods_discovered();
 
   void process_java_roots(G1RootClosures* closures,
                           G1GCPhaseTimes* phase_times,
-                          uint worker_i);
+                          uint worker_id,
+                          bool notify_claimed_nmethods_done = false);
 
   void process_vm_roots(G1RootClosures* closures,
                         G1GCPhaseTimes* phase_times,
-                        uint worker_i);
+                        uint worker_id);
 
   void process_code_cache_roots(CodeBlobClosure* code_closure,
                                 G1GCPhaseTimes* phase_times,
-                                uint worker_i);
+                                uint worker_id);
 
 public:
   G1RootProcessor(G1CollectedHeap* g1h, uint n_workers);

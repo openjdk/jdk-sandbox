@@ -589,17 +589,18 @@ public:
   // Convert one iteration loop into normal code.
   bool do_one_iteration_loop( PhaseIdealLoop *phase );
 
-  // Return TRUE or FALSE if the loop should be peeled or not.  Peel if we can
-  // make some loop-invariant test (usually a null-check) happen before the
-  // loop.
-  bool policy_peeling( PhaseIdealLoop *phase ) const;
+  // Return TRUE or FALSE if the loop should be peeled or not. Peel if we can
+  // move some loop-invariant test (usually a null-check) before the loop.
+  bool policy_peeling(PhaseIdealLoop *phase);
+
+  uint estimate_peeling(PhaseIdealLoop *phase);
 
   // Return TRUE or FALSE if the loop should be maximally unrolled. Stash any
   // known trip count in the counted loop node.
-  bool policy_maximally_unroll( PhaseIdealLoop *phase ) const;
+  bool policy_maximally_unroll(PhaseIdealLoop *phase) const;
 
-  // Return TRUE or FALSE if the loop should be unrolled or not.  Unroll if
-  // the loop is a CountedLoop and the body is small enough.
+  // Return TRUE or FALSE if the loop should be unrolled or not. Apply unroll
+  // if the loop is a counted loop and the loop body is small enough.
   bool policy_unroll(PhaseIdealLoop *phase);
 
   // Loop analyses to map to a maximal superword unrolling for vectorization.
@@ -619,6 +620,11 @@ public:
 
   // Return TRUE if "iff" is a range check.
   bool is_range_check_if(IfNode *iff, PhaseIdealLoop *phase, Invariance& invar) const;
+
+  // Estimate the number of nodes required when cloning a loop (body).
+  uint est_loop_clone_sz(uint factor) const;
+  // Estimate the number of nodes required when unrolling a loop (body).
+  uint est_loop_unroll_sz(uint factor) const;
 
   // Compute loop trip count if possible
   void compute_trip_count(PhaseIdealLoop* phase);
@@ -650,11 +656,16 @@ public:
   void remove_main_post_loops(CountedLoopNode *cl, PhaseIdealLoop *phase);
 
 #ifndef PRODUCT
-  void dump_head( ) const;      // Dump loop head only
+  void dump_head() const;       // Dump loop head only
   void dump() const;            // Dump this loop recursively
   void verify_tree(IdealLoopTree *loop, const IdealLoopTree *parent) const;
 #endif
 
+ private:
+  enum { EMPTY_LOOP_SIZE = 7 }; // Number of nodes in an empty loop.
+
+  // Estimate the number of nodes resulting from control and data flow merge.
+  uint est_loop_flow_merge_sz() const;
 };
 
 // -----------------------------PhaseIdealLoop---------------------------------
@@ -671,7 +682,7 @@ class PhaseIdealLoop : public PhaseTransform {
   PhaseIterGVN &_igvn;
 
   // Head of loop tree
-  IdealLoopTree *_ltree_root;
+  IdealLoopTree* _ltree_root;
 
   // Array of pre-order numbers, plus post-visited bit.
   // ZERO for not pre-visited.  EVEN for pre-visited but not post-visited.
@@ -820,6 +831,7 @@ public:
   // pull such a subsumed block out of the array, we write back the final
   // correct block.
   Node *get_ctrl( Node *i ) {
+
     assert(has_node(i), "");
     Node *n = get_ctrl_no_update(i);
     _nodes.map( i->_idx, (Node*)((intptr_t)n + 1) );
@@ -1012,9 +1024,9 @@ public:
   bool _has_irreducible_loops;
 
   // Per-Node transform
-  virtual Node *transform( Node *a_node ) { return 0; }
+  virtual Node* transform(Node* n) { return 0; }
 
-  bool is_counted_loop(Node* x, IdealLoopTree*& loop);
+  bool is_counted_loop(Node* n, IdealLoopTree* &loop);
   IdealLoopTree* create_outer_strip_mined_loop(BoolNode *test, Node *cmp, Node *init_control,
                                                IdealLoopTree* loop, float cl_prob, float le_fcnt,
                                                Node*& entry_control, Node*& iffalse);
@@ -1029,7 +1041,7 @@ public:
     return (IdealLoopTree*)_nodes[n->_idx];
   }
 
-  IdealLoopTree *ltree_root() const { return _ltree_root; }
+  IdealLoopTree* ltree_root() const { return _ltree_root; }
 
   // Is 'n' a (nested) member of 'loop'?
   int is_member( const IdealLoopTree *loop, Node *n ) const {
@@ -1125,10 +1137,6 @@ public:
                                    Deoptimization::DeoptReason reason,
                                    PhaseIdealLoop* loop_phase,
                                    PhaseIterGVN* igvn);
-
-  static void clone_loop_predicates_fix_mem(ProjNode* dom_proj , ProjNode* proj,
-                                            PhaseIdealLoop* loop_phase,
-                                            PhaseIterGVN* igvn);
 
   static Node* clone_loop_predicates(Node* old_entry, Node* new_entry,
                                          bool clone_limit_check,
@@ -1302,9 +1310,9 @@ public:
 
   // Check for aggressive application of 'split-if' optimization,
   // using basic block level info.
-  void  split_if_with_blocks     ( VectorSet &visited, Node_Stack &nstack, bool last_round );
+  void  split_if_with_blocks     ( VectorSet &visited, Node_Stack &nstack);
   Node *split_if_with_blocks_pre ( Node *n );
-  void  split_if_with_blocks_post( Node *n, bool last_round );
+  void  split_if_with_blocks_post( Node *n );
   Node *has_local_phi_input( Node *n );
   // Mark an IfNode as being dominated by a prior test,
   // without actually altering the CFG (and hence IDOM info).
@@ -1318,7 +1326,7 @@ public:
   // same block.  Split thru the Region.
   void do_split_if( Node *iff );
 
-  // Conversion of fill/copy patterns into intrisic versions
+  // Conversion of fill/copy patterns into intrinsic versions
   bool do_intrinsify_fill();
   bool intrinsify_fill(IdealLoopTree* lpt);
   bool match_fill_loop(IdealLoopTree* lpt, Node*& store, Node*& store_value,
@@ -1356,64 +1364,80 @@ private:
   //   < UINT_MAX   Nodes currently requested (estimate).
   uint _nodes_required;
 
+  enum { REQUIRE_MIN = 70 };
+
+  uint nodes_required() const { return _nodes_required; }
+
+  // Given the _currently_  available number of nodes, check  whether there is
+  // "room" for an additional request or not, considering the already required
+  // number of  nodes.  Return TRUE if  the new request is  exceeding the node
+  // budget limit, otherwise return FALSE.  Note that this interpretation will
+  // act pessimistic on  additional requests when new nodes  have already been
+  // generated since the 'begin'.  This behaviour fits with the intention that
+  // node estimates/requests should be made upfront.
   bool exceeding_node_budget(uint required = 0) {
     assert(C->live_nodes() < C->max_node_limit(), "sanity");
     uint available = C->max_node_limit() - C->live_nodes();
     return available < required + _nodes_required;
   }
 
-  uint require_nodes(uint require) {
+  uint require_nodes(uint require, uint minreq = REQUIRE_MIN) {
     precond(require > 0);
-    _nodes_required += MAX2(100u, require); // Keep requests at minimum 100.
+    _nodes_required += MAX2(require, minreq);
     return _nodes_required;
   }
 
-  bool may_require_nodes(uint require) {
-    return !exceeding_node_budget(require) && require_nodes(require) > 0;
+  bool may_require_nodes(uint require, uint minreq = REQUIRE_MIN) {
+    return !exceeding_node_budget(require) && require_nodes(require, minreq) > 0;
   }
 
-  void require_nodes_begin() {
+  uint require_nodes_begin() {
     assert(_nodes_required == UINT_MAX, "Bad state (begin).");
     _nodes_required = 0;
+    return C->live_nodes();
   }
 
-  // Final check  that the requested nodes  did not exceed the  limit and that
-  // the request  was reasonably  correct with  respect to  the number  of new
-  // nodes introduced by any transform since the last 'begin'.
-  void require_nodes_final_check(uint live_at_begin) {
-    uint required = _nodes_required;
-    require_nodes_final();
-    uint delta = C->live_nodes() - live_at_begin;
-    // Assert is disabled, see JDK-8223911 and related issues.
-    assert(true || delta <= 2 * required, "Bad node estimate (actual: %d, request: %d)",
-           delta, required);
-  }
-
-  void require_nodes_final() {
+  // When a node request is final,  optionally check that the requested number
+  // of nodes was  reasonably correct with respect to the  number of new nodes
+  // introduced since the last 'begin'. Always check that we have not exceeded
+  // the maximum node limit.
+  void require_nodes_final(uint live_at_begin, bool check_estimate) {
     assert(_nodes_required < UINT_MAX, "Bad state (final).");
-    assert(!exceeding_node_budget(), "Too many NODES required!");
+
+    if (check_estimate) {
+      // Assert that the node budget request was not off by too much (x2).
+      // Should this be the case we _surely_ need to improve the estimates
+      // used in our budget calculations.
+      assert(C->live_nodes() - live_at_begin <= 2 * _nodes_required,
+             "Bad node estimate: actual = %d >> request = %d",
+             C->live_nodes() - live_at_begin, _nodes_required);
+    }
+    // Assert that we have stayed within the node budget limit.
+    assert(C->live_nodes() < C->max_node_limit(),
+           "Exceeding node budget limit: %d + %d > %d (request = %d)",
+           C->live_nodes() - live_at_begin, live_at_begin,
+           C->max_node_limit(), _nodes_required);
+
     _nodes_required = UINT_MAX;
   }
 
   bool _created_loop_node;
 
 public:
-  uint nodes_required() const { return _nodes_required; }
-
   void set_created_loop_node() { _created_loop_node = true; }
   bool created_loop_node()     { return _created_loop_node; }
-  void register_new_node( Node *n, Node *blk );
+  void register_new_node(Node* n, Node* blk);
 
 #ifdef ASSERT
   void dump_bad_graph(const char* msg, Node* n, Node* early, Node* LCA);
 #endif
 
 #ifndef PRODUCT
-  void dump( ) const;
-  void dump( IdealLoopTree *loop, uint rpo_idx, Node_List &rpo_list ) const;
+  void dump() const;
+  void dump(IdealLoopTree* loop, uint rpo_idx, Node_List &rpo_list) const;
   void verify() const;          // Major slow  :-)
-  void verify_compare( Node *n, const PhaseIdealLoop *loop_verify, VectorSet &visited ) const;
-  IdealLoopTree *get_loop_idx(Node* n) const {
+  void verify_compare(Node* n, const PhaseIdealLoop* loop_verify, VectorSet &visited) const;
+  IdealLoopTree* get_loop_idx(Node* n) const {
     // Dead nodes have no loop, so return the top level loop instead
     return _nodes[n->_idx] ? (IdealLoopTree*)_nodes[n->_idx] : _ltree_root;
   }
@@ -1422,7 +1446,8 @@ public:
   static int _loop_invokes;     // Count of PhaseIdealLoop invokes
   static int _loop_work;        // Sum of PhaseIdealLoop x _unique
 #endif
-  void rpo( Node *start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list ) const;
+
+  void rpo(Node* start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list) const;
 };
 
 
@@ -1438,29 +1463,30 @@ public:
   {
     precond(_phase != NULL);
 
-    _nodes_at_begin = _phase->C->live_nodes();
-    _phase->require_nodes_begin();
+    _nodes_at_begin = _phase->require_nodes_begin();
   }
 
   ~AutoNodeBudget() {
-    if (_check_at_final) {
 #ifndef PRODUCT
-      if (TraceLoopOpts) {
-        uint request = _phase->nodes_required();
+    if (TraceLoopOpts) {
+      uint request = _phase->nodes_required();
+      uint delta   = _phase->C->live_nodes() - _nodes_at_begin;
 
-        if (request > 0) {
-          uint delta = _phase->C->live_nodes() - _nodes_at_begin;
-
-          if (request < delta) {
-            tty->print_cr("Exceeding node budget: %d < %d", request, delta);
+      if (request < delta) {
+        tty->print_cr("Exceeding node budget: %d < %d", request, delta);
+      } else {
+        uint const REQUIRE_MIN = PhaseIdealLoop::REQUIRE_MIN;
+        // Identify the worst estimates as "poor" ones.
+        if (request > REQUIRE_MIN && delta > 0) {
+          if ((delta >  REQUIRE_MIN && request >  3 * delta) ||
+              (delta <= REQUIRE_MIN && request > 10 * delta)) {
+            tty->print_cr("Poor node estimate: %d >> %d", request, delta);
           }
         }
       }
-#endif
-      _phase->require_nodes_final_check(_nodes_at_begin);
-    } else {
-      _phase->require_nodes_final();
     }
+#endif // PRODUCT
+    _phase->require_nodes_final(_nodes_at_begin, _check_at_final);
   }
 
 private:
@@ -1468,17 +1494,6 @@ private:
   bool _check_at_final;
   uint _nodes_at_begin;
 };
-
-// The Estimated Loop Clone Size: CloneFactor * (BodySize + BC) + CC, where BC
-// and CC are totally ad-hoc/magic "body" and "clone" constants, respectively,
-// used to ensure that node usage estimates made are on the safe side, for the
-// most part.
-static inline uint est_loop_clone_sz(uint fact, uint size) {
-  uint const bc = 31;
-  uint const cc = 41;
-  uint estimate = fact * (size + bc) + cc;
-  return (estimate - cc) / fact == size + bc ? estimate : UINT_MAX;
-}
 
 
 // This kit may be used for making of a reserved copy of a loop before this loop

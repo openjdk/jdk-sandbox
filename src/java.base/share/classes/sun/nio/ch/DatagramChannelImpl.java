@@ -57,6 +57,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
+import sun.net.util.IPAddressUtil;
 
 /**
  * An implementation of DatagramChannels.
@@ -527,14 +528,16 @@ class DatagramChannelImpl
                 } else {
                     // not connected
                     SecurityManager sm = System.getSecurityManager();
+                    InetAddress ia = isa.getAddress();
                     if (sm != null) {
-                        InetAddress ia = isa.getAddress();
                         if (ia.isMulticastAddress()) {
                             sm.checkMulticast(ia);
                         } else {
                             sm.checkConnect(ia.getHostAddress(), isa.getPort());
                         }
                     }
+                    if (ia.isLinkLocalAddress())
+                        isa = IPAddressUtil.toScopedAddress(isa);
                     n = send(fd, src, isa);
                     if (blocking) {
                         while (IOStatus.okayToRetry(n) && isOpen()) {
@@ -872,6 +875,11 @@ class DatagramChannelImpl
                     if (state == ST_CONNECTED)
                         throw new AlreadyConnectedException();
 
+                    // ensure that the socket is bound
+                    if (localAddress == null) {
+                        bindInternal(null);
+                    }
+
                     int n = Net.connect(family,
                                         fd,
                                         isa.getAddress(),
@@ -929,8 +937,21 @@ class DatagramChannelImpl
                     remoteAddress = null;
                     state = ST_UNCONNECTED;
 
-                    // refresh local address
-                    localAddress = Net.localAddress(fd);
+                    // check whether rebind is needed
+                    InetSocketAddress isa = Net.localAddress(fd);
+                    if (isa.getPort() == 0) {
+                        // On Linux, if bound to ephemeral port,
+                        // disconnect does not preserve that port.
+                        // In this case, try to rebind to the previous port.
+                        int port = localAddress.getPort();
+                        localAddress = isa; // in case Net.bind fails
+                        Net.bind(family, fd, isa.getAddress(), port);
+                        isa = Net.localAddress(fd); // refresh address
+                        assert isa.getPort() == port;
+                    }
+
+                    // refresh localAddress
+                    localAddress = isa;
                 }
             } finally {
                 writeLock.unlock();

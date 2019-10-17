@@ -128,11 +128,6 @@ void klassVtable::compute_vtable_size_and_num_mirandas(
   *vtable_length_ret = vtable_length;
 }
 
-int klassVtable::index_of(Method* m, int len) const {
-  assert(m->has_vtable_index(), "do not ask this of non-vtable methods");
-  return m->vtable_index();
-}
-
 // Copy super class's vtable to the first part (prefix) of this class's vtable,
 // and return the number of entries copied.  Expects that 'super' is the Java
 // super class (arrays can have "array" super classes that must be skipped).
@@ -169,7 +164,6 @@ void klassVtable::initialize_vtable(bool checkconstraints, TRAPS) {
 
   // Note:  Arrays can have intermediate array supers.  Use java_super to skip them.
   InstanceKlass* super = _klass->java_super();
-  int nofNewEntries = 0;
 
   bool is_shared = _klass->is_shared();
 
@@ -491,7 +485,7 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
           // to link to the first super, and we get all the others.
           Handle super_loader(THREAD, super_klass->class_loader());
 
-          if (!oopDesc::equals(target_loader(), super_loader())) {
+          if (target_loader() != super_loader()) {
             ResourceMark rm(THREAD);
             Symbol* failed_type_symbol =
               SystemDictionary::check_signature_loaders(signature, target_loader,
@@ -638,6 +632,7 @@ bool klassVtable::needs_new_vtable_entry(const methodHandle& target_method,
   Method* super_method = NULL;
   InstanceKlass *holder = NULL;
   Method* recheck_method =  NULL;
+  bool found_pkg_prvt_method = false;
   while (k != NULL) {
     // lookup through the hierarchy for a method with matching name and sign.
     super_method = InstanceKlass::cast(k)->lookup_method(name, signature);
@@ -659,6 +654,16 @@ bool klassVtable::needs_new_vtable_entry(const methodHandle& target_method,
         return false;
       // else keep looking for transitive overrides
       }
+      // If we get here then one of the super classes has a package private method
+      // that will not get overridden because it is in a different package.  But,
+      // that package private method does "override" any matching methods in super
+      // interfaces, so there will be no miranda vtable entry created.  So, set flag
+      // to TRUE for use below, in case there are no methods in super classes that
+      // this target method overrides.
+      assert(super_method->is_package_private(), "super_method must be package private");
+      assert(!superk->is_same_class_package(classloader(), classname),
+             "Must be different packages");
+      found_pkg_prvt_method = true;
     }
 
     // Start with lookup result and continue to search up, for versions supporting transitive override
@@ -669,6 +674,15 @@ bool klassVtable::needs_new_vtable_entry(const methodHandle& target_method,
     }
   }
 
+  // If found_pkg_prvt_method is set, then the ONLY matching method in the
+  // superclasses is package private in another package. That matching method will
+  // prevent a miranda vtable entry from being created. Because the target method can not
+  // override the package private method in another package, then it needs to be the root
+  // for its own vtable entry.
+  if (found_pkg_prvt_method) {
+     return true;
+  }
+
   // if the target method is public or protected it may have a matching
   // miranda method in the super, whose entry it should re-use.
   // Actually, to handle cases that javac would not generate, we need
@@ -676,7 +690,7 @@ bool klassVtable::needs_new_vtable_entry(const methodHandle& target_method,
   const InstanceKlass *sk = InstanceKlass::cast(super);
   if (sk->has_miranda_methods()) {
     if (sk->lookup_method_in_all_interfaces(name, signature, Klass::find_defaults) != NULL) {
-      return false;  // found a matching miranda; we do not need a new entry
+      return false; // found a matching miranda; we do not need a new entry
     }
   }
   return true; // found no match; we need a new entry
@@ -1009,15 +1023,6 @@ void klassVtable::dump_vtable() {
 }
 #endif // INCLUDE_JVMTI
 
-// CDS/RedefineClasses support - clear vtables so they can be reinitialized
-void klassVtable::clear_vtable() {
-  for (int i = 0; i < _length; i++) table()[i].clear();
-}
-
-bool klassVtable::is_initialized() {
-  return _length == 0 || table()[0].method() != NULL;
-}
-
 //-----------------------------------------------------------------------------------------
 // Itable code
 
@@ -1217,7 +1222,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
       // if checkconstraints requested
       if (checkconstraints) {
         Handle method_holder_loader (THREAD, target->method_holder()->class_loader());
-        if (!oopDesc::equals(method_holder_loader(), interface_loader())) {
+        if (method_holder_loader() != interface_loader()) {
           ResourceMark rm(THREAD);
           Symbol* failed_type_symbol =
             SystemDictionary::check_signature_loaders(m->signature(),
@@ -1448,31 +1453,6 @@ void klassItable::setup_itable_offset_table(InstanceKlass* klass) {
 #endif
 }
 
-
-// inverse to itable_index
-Method* klassItable::method_for_itable_index(InstanceKlass* intf, int itable_index) {
-  assert(intf->is_interface(), "sanity check");
-  assert(intf->verify_itable_index(itable_index), "");
-  Array<Method*>* methods = InstanceKlass::cast(intf)->methods();
-
-  if (itable_index < 0 || itable_index >= method_count_for_interface(intf))
-    return NULL;                // help caller defend against bad indices
-
-  int index = itable_index;
-  Method* m = methods->at(index);
-  int index2 = -1;
-  while (!m->has_itable_index() ||
-         (index2 = m->itable_index()) != itable_index) {
-    assert(index2 < itable_index, "monotonic");
-    if (++index == methods->length())
-      return NULL;
-    m = methods->at(index);
-  }
-  assert(m->itable_index() == itable_index, "correct inverse");
-
-  return m;
-}
-
 void klassVtable::verify(outputStream* st, bool forced) {
   // make sure table is initialized
   if (!Universe::is_fully_initialized()) return;
@@ -1521,7 +1501,6 @@ void klassVtable::print() {
 #endif
 
 void vtableEntry::verify(klassVtable* vt, outputStream* st) {
-  NOT_PRODUCT(FlagSetting fs(IgnoreLockingAssertions, true));
   Klass* vtklass = vt->klass();
   if (vtklass->is_instance_klass() &&
      (InstanceKlass::cast(vtklass)->major_version() >= klassVtable::VTABLE_TRANSITIVE_OVERRIDE_VERSION)) {

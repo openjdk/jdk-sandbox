@@ -529,6 +529,10 @@ public class Utils {
         return true;
     }
 
+    public boolean isUndocumentedEnclosure(TypeElement enclosingTypeElement) {
+        return isPackagePrivate(enclosingTypeElement) && !isLinkable(enclosingTypeElement);
+    }
+
     public boolean isError(TypeElement te) {
         if (isEnum(te) || isInterface(te) || isAnnotationType(te)) {
             return false;
@@ -1064,8 +1068,7 @@ public class Utils {
 
         // Allow for the behavior that members of undocumented supertypes
         // may be included in documented types
-        TypeElement enclElem = getEnclosingTypeElement(elem);
-        if (typeElem != enclElem && isSubclassOf(typeElem, enclElem)) {
+        if (isUndocumentedEnclosure(getEnclosingTypeElement(elem))) {
             return true;
         }
 
@@ -3032,11 +3035,11 @@ public class Utils {
      */
     public TreePath getTreePath(Element e) {
         DocCommentDuo duo = dcTreeCache.get(e);
-        if (isValidDuo(duo) && duo.treePath != null) {
+        if (duo != null && duo.treePath != null) {
             return duo.treePath;
         }
         duo = configuration.cmtUtils.getSyntheticCommentDuo(e);
-        if (isValidDuo(duo) && duo.treePath != null) {
+        if (duo != null && duo.treePath != null) {
             return duo.treePath;
         }
         Map<Element, TreePath> elementToTreePath = configuration.workArounds.getElementToTreePath();
@@ -3062,20 +3065,20 @@ public class Utils {
         ElementKind kind = element.getKind();
         if (kind == ElementKind.PACKAGE || kind == ElementKind.OTHER) {
             duo = dcTreeCache.get(element); // local cache
-            if (!isValidDuo(duo) && kind == ElementKind.PACKAGE) {
+            if (duo == null && kind == ElementKind.PACKAGE) {
                 // package-info.java
                 duo = getDocCommentTuple(element);
             }
-            if (!isValidDuo(duo)) {
+            if (duo == null) {
                 // package.html or overview.html
                 duo = configuration.cmtUtils.getHtmlCommentDuo(element); // html source
             }
         } else {
             duo = configuration.cmtUtils.getSyntheticCommentDuo(element);
-            if (!isValidDuo(duo)) {
+            if (duo == null) {
                 duo = dcTreeCache.get(element); // local cache
             }
-            if (!isValidDuo(duo)) {
+            if (duo == null) {
                 duo = getDocCommentTuple(element); // get the real mccoy
             }
         }

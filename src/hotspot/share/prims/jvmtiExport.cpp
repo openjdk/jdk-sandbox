@@ -304,7 +304,7 @@ bool              JvmtiExport::_can_hotswap_or_post_breakpoint            = fals
 bool              JvmtiExport::_can_modify_any_class                      = false;
 bool              JvmtiExport::_can_walk_any_space                        = false;
 
-bool              JvmtiExport::_has_redefined_a_class                     = false;
+uint64_t          JvmtiExport::_redefinition_count                        = 0;
 bool              JvmtiExport::_all_dependencies_are_recorded             = false;
 
 //
@@ -1202,6 +1202,7 @@ bool              JvmtiExport::_can_post_method_entry                     = fals
 bool              JvmtiExport::_can_post_method_exit                      = false;
 bool              JvmtiExport::_can_pop_frame                             = false;
 bool              JvmtiExport::_can_force_early_return                    = false;
+bool              JvmtiExport::_can_get_owned_monitor_info                = false;
 
 bool              JvmtiExport::_early_vmstart_recorded                    = false;
 
@@ -1589,7 +1590,7 @@ void JvmtiExport::post_method_exit(JavaThread *thread, Method* method, frame cur
     if (!exception_exit) {
       oop oop_result;
       BasicType type = current_frame.interpreter_frame_result(&oop_result, &value);
-      if (type == T_OBJECT || type == T_ARRAY) {
+      if (is_reference_type(type)) {
         result = Handle(thread, oop_result);
       }
     }
@@ -2279,7 +2280,9 @@ void JvmtiExport::post_dynamic_code_generated_while_holding_locks(const char* na
                                                                   address code_begin, address code_end)
 {
   // register the stub with the current dynamic code event collector
-  JvmtiThreadState* state = JvmtiThreadState::state_for(JavaThread::current());
+  // Cannot take safepoint here so do not use state_for to get
+  // jvmti thread state.
+  JvmtiThreadState* state = JavaThread::current()->jvmti_thread_state();
   // state can only be NULL if the current thread is exiting which
   // should not happen since we're trying to post an event
   guarantee(state != NULL, "attempt to register stub via an exiting thread");
@@ -2294,7 +2297,7 @@ void JvmtiExport::record_vm_internal_object_allocation(oop obj) {
   if (thread != NULL && thread->is_Java_thread())  {
     // Can not take safepoint here.
     NoSafepointVerifier no_sfpt;
-    // Can not take safepoint here so can not use state_for to get
+    // Cannot take safepoint here so do not use state_for to get
     // jvmti thread state.
     JvmtiThreadState *state = ((JavaThread*)thread)->jvmti_thread_state();
     if (state != NULL) {
@@ -2318,7 +2321,7 @@ void JvmtiExport::record_sampled_internal_object_allocation(oop obj) {
   if (thread != NULL && thread->is_Java_thread())  {
     // Can not take safepoint here.
     NoSafepointVerifier no_sfpt;
-    // Can not take safepoint here so can not use state_for to get
+    // Cannot take safepoint here so do not use state_for to get
     // jvmti thread state.
     JvmtiThreadState *state = ((JavaThread*)thread)->jvmti_thread_state();
     if (state != NULL) {
@@ -2613,10 +2616,6 @@ void JvmtiExport::oops_do(OopClosure* f) {
 
 void JvmtiExport::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
   JvmtiTagMap::weak_oops_do(is_alive, f);
-}
-
-void JvmtiExport::gc_epilogue() {
-  JvmtiCurrentBreakpoints::gc_epilogue();
 }
 
 // Onload raw monitor transition.

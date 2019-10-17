@@ -90,7 +90,7 @@ void GenArguments::initialize_heap_flags_and_sizes() {
   }
   // If needed, synchronize MinHeapSize size and InitialHeapSize
   if (MinHeapSize < smallest_heap_size) {
-    MinHeapSize = smallest_heap_size;
+    FLAG_SET_ERGO(MinHeapSize, smallest_heap_size);
     if (InitialHeapSize < MinHeapSize) {
       FLAG_SET_ERGO(InitialHeapSize, smallest_heap_size);
     }
@@ -195,8 +195,6 @@ void GenArguments::initialize_heap_flags_and_sizes() {
       }
     }
   }
-
-  always_do_update_barrier = UseConcMarkSweepGC;
 
   DEBUG_ONLY(assert_flags();)
 }

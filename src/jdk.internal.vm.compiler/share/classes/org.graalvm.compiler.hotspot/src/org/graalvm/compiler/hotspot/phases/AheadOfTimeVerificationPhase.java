@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,9 @@ import static org.graalvm.compiler.nodes.ConstantNode.getConstantNodes;
 
 import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.StructuredGraph;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.phases.VerifyPhase;
-import org.graalvm.compiler.phases.tiers.PhaseContext;
 
 import jdk.vm.ci.hotspot.HotSpotObjectConstant;
 import jdk.vm.ci.meta.JavaKind;
@@ -41,10 +41,10 @@ import jdk.vm.ci.meta.JavaKind;
  *
  * @see LoadJavaMirrorWithKlassPhase
  */
-public class AheadOfTimeVerificationPhase extends VerifyPhase<PhaseContext> {
+public class AheadOfTimeVerificationPhase extends VerifyPhase<CoreProviders> {
 
     @Override
-    protected void verify(StructuredGraph graph, PhaseContext context) {
+    protected void verify(StructuredGraph graph, CoreProviders context) {
         for (ConstantNode node : getConstantNodes(graph)) {
             if (isIllegalObjectConstant(node)) {
                 throw new VerificationError("illegal object constant: " + node);

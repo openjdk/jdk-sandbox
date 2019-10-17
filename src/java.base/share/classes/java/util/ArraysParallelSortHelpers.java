@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,6 +87,7 @@ import java.util.concurrent.CountedCompleter;
      * quartile task, that does not need to maintain array state.
      */
     static final class EmptyCompleter extends CountedCompleter<Void> {
+        @java.io.Serial
         static final long serialVersionUID = 2446542900576103244L;
         EmptyCompleter(CountedCompleter<?> p) { super(p); }
         public final void compute() { }
@@ -96,6 +97,7 @@ import java.util.concurrent.CountedCompleter;
      * A trigger for secondary merge of two merges
      */
     static final class Relay extends CountedCompleter<Void> {
+        @java.io.Serial
         static final long serialVersionUID = 2446542900576103244L;
         final CountedCompleter<?> task;
         Relay(CountedCompleter<?> task) {
@@ -111,9 +113,14 @@ import java.util.concurrent.CountedCompleter;
     /** Object + Comparator support class */
     static final class FJObject {
         static final class Sorter<T> extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
-            final T[] a, w;
+            @SuppressWarnings("serial") // Not statically typed as Serializable
+            final T[] a;
+            @SuppressWarnings("serial") // Not statically typed as Serializable
+            final T[] w;
             final int base, size, wbase, gran;
+            @SuppressWarnings("serial") // Not statically typed as Serializable
             Comparator<? super T> comparator;
             Sorter(CountedCompleter<?> par, T[] a, T[] w, int base, int size,
                    int wbase, int gran,
@@ -148,9 +155,15 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger<T> extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
-            final T[] a, w; // main and workspace arrays
+             // main and workspace arrays
+            @SuppressWarnings("serial") // Not statically typed as Serializable
+            final T[] a;
+            @SuppressWarnings("serial") // Not statically typed as Serializable
+            final T[] w;
             final int lbase, lsize, rbase, rsize, wbase, gran;
+            @SuppressWarnings("serial") // Not statically typed as Serializable
             Comparator<? super T> comparator;
             Merger(CountedCompleter<?> par, T[] a, T[] w,
                    int lbase, int lsize, int rbase,
@@ -233,6 +246,7 @@ import java.util.concurrent.CountedCompleter;
     /** byte support class */
     static final class FJByte {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final byte[] a, w;
             final int base, size, wbase, gran;
@@ -266,6 +280,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final byte[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -344,6 +359,7 @@ import java.util.concurrent.CountedCompleter;
     /** char support class */
     static final class FJChar {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final char[] a, w;
             final int base, size, wbase, gran;
@@ -377,6 +393,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final char[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -455,6 +472,7 @@ import java.util.concurrent.CountedCompleter;
     /** short support class */
     static final class FJShort {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final short[] a, w;
             final int base, size, wbase, gran;
@@ -488,6 +506,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final short[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -566,6 +585,7 @@ import java.util.concurrent.CountedCompleter;
     /** int support class */
     static final class FJInt {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final int[] a, w;
             final int base, size, wbase, gran;
@@ -599,6 +619,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final int[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -677,6 +698,7 @@ import java.util.concurrent.CountedCompleter;
     /** long support class */
     static final class FJLong {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final long[] a, w;
             final int base, size, wbase, gran;
@@ -710,6 +732,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final long[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -788,6 +811,7 @@ import java.util.concurrent.CountedCompleter;
     /** float support class */
     static final class FJFloat {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final float[] a, w;
             final int base, size, wbase, gran;
@@ -821,6 +845,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final float[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;
@@ -899,6 +924,7 @@ import java.util.concurrent.CountedCompleter;
     /** double support class */
     static final class FJDouble {
         static final class Sorter extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final double[] a, w;
             final int base, size, wbase, gran;
@@ -932,6 +958,7 @@ import java.util.concurrent.CountedCompleter;
         }
 
         static final class Merger extends CountedCompleter<Void> {
+            @java.io.Serial
             static final long serialVersionUID = 2446542900576103244L;
             final double[] a, w; // main and workspace arrays
             final int lbase, lsize, rbase, rsize, wbase, gran;

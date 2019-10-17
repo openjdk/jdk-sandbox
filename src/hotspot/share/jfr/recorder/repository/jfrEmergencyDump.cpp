@@ -356,9 +356,9 @@ static void prepare_for_emergency_dump(Thread* thread) {
   }
 
 #ifdef ASSERT
-  Monitor* owned_lock = thread->owned_locks();
+  Mutex* owned_lock = thread->owned_locks();
   while (owned_lock != NULL) {
-    Monitor* next = owned_lock->next();
+    Mutex* next = owned_lock->next();
     owned_lock->unlock();
     owned_lock = next;
   }
@@ -391,6 +391,10 @@ static void prepare_for_emergency_dump(Thread* thread) {
 
   if (Service_lock->owned_by_self()) {
     Service_lock->unlock();
+  }
+
+  if (UseNotificationThread && Notification_lock->owned_by_self()) {
+    Notification_lock->unlock();
   }
 
   if (CodeCache_lock->owned_by_self()) {

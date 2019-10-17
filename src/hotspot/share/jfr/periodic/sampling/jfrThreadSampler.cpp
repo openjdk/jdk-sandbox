@@ -462,8 +462,8 @@ void JfrThreadSampler::run() {
       last_native_ms = last_java_ms;
     }
     _sample.signal();
-    jlong java_interval = _interval_java == 0 ? max_jlong : MAX2<jlong>(_interval_java, 10);
-    jlong native_interval = _interval_native == 0 ? max_jlong : MAX2<jlong>(_interval_native, 10);
+    jlong java_interval = _interval_java == 0 ? max_jlong : MAX2<jlong>(_interval_java, 1);
+    jlong native_interval = _interval_native == 0 ? max_jlong : MAX2<jlong>(_interval_native, 1);
 
     jlong now_ms = get_monotonic_ms();
 
@@ -516,7 +516,7 @@ void JfrThreadSampler::task_stacktrace(JfrSampleType type, JavaThread** last_thr
     elapsedTimer sample_time;
     sample_time.start();
     {
-      MutexLocker tlock(Threads_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker tlock(Threads_lock);
       ThreadsListHandle tlh;
       // Resolve a sample session relative start position index into the thread list array.
       // In cases where the last sampled thread is NULL or not-NULL but stale, find_index() returns -1.

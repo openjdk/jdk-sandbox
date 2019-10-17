@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -26,6 +26,7 @@
 
 #include "code/codeCache.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
+#include "gc/shenandoah/shenandoahLock.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 
@@ -121,7 +122,7 @@ public:
   void possibly_parallel_blobs_do(CodeBlobClosure* f);
 };
 
-class ShenandoahCodeRoots : public CHeapObj<mtGC> {
+class ShenandoahCodeRoots : public AllStatic {
   friend class ShenandoahHeap;
   friend class ShenandoahCodeRootsIterator;
 
@@ -132,6 +133,7 @@ public:
 
 private:
   static GrowableArray<ShenandoahNMethod*>* _recorded_nms;
+  static ShenandoahLock                     _recorded_nms_lock;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHCODEROOTS_HPP

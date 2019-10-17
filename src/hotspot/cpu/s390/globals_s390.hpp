@@ -33,9 +33,6 @@
 // (see globals.hpp)
 // Sorted according to sparc.
 
-// z/Architecture remembers branch targets, so don't share vtables.
-define_pd_global(bool,  ShareVtableStubs,            true);
-
 define_pd_global(bool,  ImplicitNullChecks,          true);  // Generate code for implicit null checks.
 define_pd_global(bool,  TrapBasedNullChecks,         true);
 define_pd_global(bool,  UncommonNullCast,            true);  // Uncommon-trap NULLs passed to check cast.
@@ -54,7 +51,7 @@ define_pd_global(intx,  InlineSmallCode,             2000);
 #define DEFAULT_STACK_RED_PAGES      (1)
 // Java_java_net_SocketOutputStream_socketWrite0() uses a 64k buffer on the
 // stack. To pass stack overflow tests we need 20 shadow pages.
-#define DEFAULT_STACK_SHADOW_PAGES   (20 DEBUG_ONLY(+2))
+#define DEFAULT_STACK_SHADOW_PAGES   (20 DEBUG_ONLY(+4))
 #define DEFAULT_STACK_RESERVED_PAGES (1)
 
 #define MIN_STACK_YELLOW_PAGES     DEFAULT_STACK_YELLOW_PAGES

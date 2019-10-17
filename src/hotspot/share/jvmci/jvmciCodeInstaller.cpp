@@ -510,9 +510,7 @@ void CodeInstaller::initialize_dependencies(JVMCIObject compiled_code, OopRecord
 
 #if INCLUDE_AOT
 RelocBuffer::~RelocBuffer() {
-  if (_buffer != NULL) {
-    FREE_C_HEAP_ARRAY(char, _buffer);
-  }
+  FREE_C_HEAP_ARRAY(char, _buffer);
 }
 
 address RelocBuffer::begin() const {
@@ -562,6 +560,7 @@ JVMCI::CodeInstallResult CodeInstaller::gather_metadata(JVMCIObject target, JVMC
   metadata.set_pc_desc(_debug_recorder->pcs(), _debug_recorder->pcs_length());
   metadata.set_scopes(_debug_recorder->stream()->buffer(), _debug_recorder->data_size());
   metadata.set_exception_table(&_exception_handler_table);
+  metadata.set_implicit_exception_table(&_implicit_exception_table);
 
   RelocBuffer* reloc_buffer = metadata.get_reloc_buffer();
 
@@ -637,17 +636,15 @@ JVMCI::CodeInstallResult CodeInstaller::install(JVMCICompiler* compiler,
     JVMCIObject mirror = installed_code;
     nmethod* nm = NULL;
     result = runtime()->register_method(jvmci_env(), method, nm, entry_bci, &_offsets, _orig_pc_offset, &buffer,
-                                        stack_slots, _debug_recorder->_oopmaps, &_exception_handler_table,
+                                        stack_slots, _debug_recorder->_oopmaps, &_exception_handler_table, &_implicit_exception_table,
                                         compiler, _debug_recorder, _dependencies, id,
                                         has_unsafe_access, _has_wide_vector, compiled_code, mirror,
                                         failed_speculations, speculations, speculations_len);
     cb = nm->as_codeblob_or_null();
     if (nm != NULL && compile_state == NULL) {
+      // This compile didn't come through the CompileBroker so perform the printing here
       DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, compiler);
-      bool printnmethods = directive->PrintAssemblyOption || directive->PrintNMethodsOption;
-      if (!printnmethods && (PrintDebugInfo || PrintRelocations || PrintDependencies || PrintExceptionHandlers)) {
-        nm->print_nmethod(printnmethods);
-      }
+      nm->maybe_print_nmethod(directive);
       DirectivesStack::release(directive);
     }
   }
@@ -870,6 +867,10 @@ JVMCI::CodeInstallResult CodeInstaller::initialize_buffer(CodeBuffer& buffer, bo
         if (_orig_pc_offset < 0) {
           JVMCI_ERROR_OK("method contains safepoint, but has no deopt rescue slot");
         }
+        if (JVMCIENV->equals(reason, jvmci_env()->get_site_InfopointReason_IMPLICIT_EXCEPTION())) {
+          TRACE_jvmci_4("implicit exception at %i", pc_offset);
+          _implicit_exception_table.add_deoptimize(pc_offset);
+        }
       } else {
         TRACE_jvmci_4("infopoint at %i", pc_offset);
         site_Infopoint(buffer, pc_offset, site, JVMCI_CHECK_OK);
@@ -988,9 +989,11 @@ GrowableArray<ScopeValue*>* CodeInstaller::record_virtual_objects(JVMCIObject de
     JVMCIObject value = JVMCIENV->get_object_at(virtualObjects, i);
     int id = jvmci_env()->get_VirtualObject_id(value);
     JVMCIObject type = jvmci_env()->get_VirtualObject_type(value);
+    bool is_auto_box = jvmci_env()->get_VirtualObject_isAutoBox(value);
     Klass* klass = jvmci_env()->asKlass(type);
     oop javaMirror = klass->java_mirror();
-    ObjectValue* sv = new ObjectValue(id, new ConstantOopWriteValue(JNIHandles::make_local(Thread::current(), javaMirror)));
+    ScopeValue *klass_sv = new ConstantOopWriteValue(JNIHandles::make_local(Thread::current(), javaMirror));
+    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv);
     if (id < 0 || id >= objects->length()) {
       JVMCI_ERROR_NULL("virtual object id %d out of bounds", id);
     }

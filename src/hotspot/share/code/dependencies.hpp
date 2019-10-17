@@ -373,8 +373,7 @@ class Dependencies: public ResourceObj {
     assert(ctxk->is_abstract(), "must be abstract");
   }
   static void check_unique_method(Klass* ctxk, Method* m) {
-    // Graal can register redundant dependencies
-    assert(UseJVMCICompiler || !m->can_be_statically_bound(InstanceKlass::cast(ctxk)), "redundant");
+    assert(!m->can_be_statically_bound(InstanceKlass::cast(ctxk)), "redundant");
   }
 
   void assert_common_1(DepType dept, DepValue x);
@@ -477,7 +476,7 @@ class Dependencies: public ResourceObj {
 
   void copy_to(nmethod* nm);
 
-  DepType validate_dependencies(CompileTask* task, bool counter_changed, char** failure_detail = NULL);
+  DepType validate_dependencies(CompileTask* task, char** failure_detail = NULL);
 
   void log_all_dependencies();
 

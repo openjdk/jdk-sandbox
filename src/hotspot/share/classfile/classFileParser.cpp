@@ -125,6 +125,8 @@
 
 #define JAVA_13_VERSION                   57
 
+#define JAVA_14_VERSION                   58
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -3002,7 +3004,7 @@ static const intArray* sort_methods(Array<Method*>* methods) {
   // We temporarily use the vtable_index field in the Method* to store the
   // class file index, so we can read in after calling qsort.
   // Put the method ordering in the shared archive.
-  if (JvmtiExport::can_maintain_original_method_order() || DumpSharedSpaces) {
+  if (JvmtiExport::can_maintain_original_method_order() || Arguments::is_dumping_archive()) {
     for (int index = 0; index < length; index++) {
       Method* const m = methods->at(index);
       assert(!m->valid_vtable_index(), "vtable index should not be set");
@@ -3016,7 +3018,7 @@ static const intArray* sort_methods(Array<Method*>* methods) {
   intArray* method_ordering = NULL;
   // If JVMTI original method ordering or sharing is enabled construct int
   // array remembering the original ordering
-  if (JvmtiExport::can_maintain_original_method_order() || DumpSharedSpaces) {
+  if (JvmtiExport::can_maintain_original_method_order() || Arguments::is_dumping_archive()) {
     method_ordering = new intArray(length, length, -1);
     for (int index = 0; index < length; index++) {
       Method* const m = methods->at(index);
@@ -3550,16 +3552,16 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
       cfs->skip_u1(attribute_length, CHECK);
     }
   }
-  _annotations = assemble_annotations(runtime_visible_annotations,
-                                      runtime_visible_annotations_length,
-                                      runtime_invisible_annotations,
-                                      runtime_invisible_annotations_length,
-                                      CHECK);
-  _type_annotations = assemble_annotations(runtime_visible_type_annotations,
-                                           runtime_visible_type_annotations_length,
-                                           runtime_invisible_type_annotations,
-                                           runtime_invisible_type_annotations_length,
-                                           CHECK);
+  _class_annotations = assemble_annotations(runtime_visible_annotations,
+                                            runtime_visible_annotations_length,
+                                            runtime_invisible_annotations,
+                                            runtime_invisible_annotations_length,
+                                            CHECK);
+  _class_type_annotations = assemble_annotations(runtime_visible_type_annotations,
+                                                 runtime_visible_type_annotations_length,
+                                                 runtime_invisible_type_annotations,
+                                                 runtime_invisible_type_annotations_length,
+                                                 CHECK);
 
   if (parsed_innerclasses_attribute || parsed_enclosingmethod_attribute) {
     const u2 num_of_classes = parse_classfile_inner_classes_attribute(
@@ -3613,8 +3615,8 @@ void ClassFileParser::apply_parsed_class_attributes(InstanceKlass* k) {
 // Create the Annotations object that will
 // hold the annotations array for the Klass.
 void ClassFileParser::create_combined_annotations(TRAPS) {
-    if (_annotations == NULL &&
-        _type_annotations == NULL &&
+    if (_class_annotations == NULL &&
+        _class_type_annotations == NULL &&
         _fields_annotations == NULL &&
         _fields_type_annotations == NULL) {
       // Don't create the Annotations object unnecessarily.
@@ -3622,8 +3624,8 @@ void ClassFileParser::create_combined_annotations(TRAPS) {
     }
 
     Annotations* const annotations = Annotations::allocate(_loader_data, CHECK);
-    annotations->set_class_annotations(_annotations);
-    annotations->set_class_type_annotations(_type_annotations);
+    annotations->set_class_annotations(_class_annotations);
+    annotations->set_class_type_annotations(_class_type_annotations);
     annotations->set_fields_annotations(_fields_annotations);
     annotations->set_fields_type_annotations(_fields_type_annotations);
 
@@ -3633,8 +3635,8 @@ void ClassFileParser::create_combined_annotations(TRAPS) {
 
     // The annotations arrays below has been transfered the
     // _combined_annotations so these fields can now be cleared.
-    _annotations             = NULL;
-    _type_annotations        = NULL;
+    _class_annotations       = NULL;
+    _class_type_annotations  = NULL;
     _fields_annotations      = NULL;
     _fields_type_annotations = NULL;
 }
@@ -4754,60 +4756,62 @@ static bool has_illegal_visibility(jint flags) {
 
 // A legal major_version.minor_version must be one of the following:
 //
-//   Major_version = 45, any minor_version.
-//   Major_version >= 46 and major_version <= current_major_version and minor_version = 0.
-//   Major_version = current_major_version and minor_version = 65535 and --enable-preview is present.
+//  Major_version >= 45 and major_version < 56, any minor_version.
+//  Major_version >= 56 and major_version <= JVM_CLASSFILE_MAJOR_VERSION and minor_version = 0.
+//  Major_version = JVM_CLASSFILE_MAJOR_VERSION and minor_version = 65535 and --enable-preview is present.
 //
 static void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS){
+  ResourceMark rm(THREAD);
   const u2 max_version = JVM_CLASSFILE_MAJOR_VERSION;
-  if (major != JAVA_MIN_SUPPORTED_VERSION) { // All 45.* are ok including 45.65535
-    if (minor == JAVA_PREVIEW_MINOR_VERSION) {
-      if (major != max_version) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with preview features that are unsupported. "
-          "This version of the Java Runtime only recognizes preview features for class file version %u.%u",
-          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION, JAVA_PREVIEW_MINOR_VERSION);
-        return;
-      }
+  if (major < JAVA_MIN_SUPPORTED_VERSION) {
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_UnsupportedClassVersionError(),
+      "%s (class file version %u.%u) was compiled with an invalid major version",
+      class_name->as_C_string(), major, minor);
+    return;
+  }
 
-      if (!Arguments::enable_preview()) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
-          class_name->as_C_string(), major, minor);
-        return;
-      }
+  if (major > max_version) {
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_UnsupportedClassVersionError(),
+      "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
+      "this version of the Java Runtime only recognizes class file versions up to %u.0",
+      class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION);
+    return;
+  }
 
-    } else { // minor != JAVA_PREVIEW_MINOR_VERSION
-      if (major > max_version) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
-          "this version of the Java Runtime only recognizes class file versions up to %u.0",
-          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION);
-      } else if (major < JAVA_MIN_SUPPORTED_VERSION) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with an invalid major version",
-          class_name->as_C_string(), major, minor);
-      } else if (minor != 0) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with an invalid non-zero minor version",
-          class_name->as_C_string(), major, minor);
-      }
+  if (major < JAVA_12_VERSION || minor == 0) {
+    return;
+  }
+
+  if (minor == JAVA_PREVIEW_MINOR_VERSION) {
+    if (major != max_version) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "%s (class file version %u.%u) was compiled with preview features that are unsupported. "
+        "This version of the Java Runtime only recognizes preview features for class file version %u.%u",
+        class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION, JAVA_PREVIEW_MINOR_VERSION);
+      return;
     }
+
+    if (!Arguments::enable_preview()) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
+        class_name->as_C_string(), major, minor);
+      return;
+    }
+
+  } else { // minor != JAVA_PREVIEW_MINOR_VERSION
+    Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "%s (class file version %u.%u) was compiled with an invalid non-zero minor version",
+        class_name->as_C_string(), major, minor);
   }
 }
 
@@ -4954,6 +4958,7 @@ void ClassFileParser::verify_legal_utf8(const unsigned char* buffer,
 bool ClassFileParser::verify_unqualified_name(const char* name,
                                               unsigned int length,
                                               int type) {
+  if (length == 0) return false;  // Must have at least one char.
   for (const char* p = name; p != name + length; p++) {
     switch(*p) {
       case '.':
@@ -5103,7 +5108,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
           int newlen = c - (char*) signature;
           bool legal = verify_unqualified_name(signature, newlen, LegalClass);
           if (!legal) {
-            classfile_parse_error("Class name contains illegal character "
+            classfile_parse_error("Class name is empty or contains illegal character "
                                   "in descriptor in class file %s",
                                   CHECK_0);
             return NULL;
@@ -5641,11 +5646,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     }
 
     if (ik->minor_version() == JAVA_PREVIEW_MINOR_VERSION &&
-        ik->major_version() != JAVA_MIN_SUPPORTED_VERSION &&
+        ik->major_version() == JVM_CLASSFILE_MAJOR_VERSION &&
         log_is_enabled(Info, class, preview)) {
       ResourceMark rm;
       log_info(class, preview)("Loading class %s that depends on preview features (class file version %d.65535)",
-                               ik->external_name(), ik->major_version());
+                               ik->external_name(), JVM_CLASSFILE_MAJOR_VERSION);
     }
 
     if (log_is_enabled(Debug, class, resolve))  {
@@ -5785,8 +5790,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _local_interfaces(NULL),
   _transitive_interfaces(NULL),
   _combined_annotations(NULL),
-  _annotations(NULL),
-  _type_annotations(NULL),
+  _class_annotations(NULL),
+  _class_type_annotations(NULL),
   _fields_annotations(NULL),
   _fields_type_annotations(NULL),
   _klass(NULL),
@@ -5890,7 +5895,7 @@ void ClassFileParser::clear_class_metadata() {
   _nest_members = NULL;
   _local_interfaces = NULL;
   _combined_annotations = NULL;
-  _annotations = _type_annotations = NULL;
+  _class_annotations = _class_type_annotations = NULL;
   _fields_annotations = _fields_type_annotations = NULL;
 }
 
@@ -5932,15 +5937,15 @@ ClassFileParser::~ClassFileParser() {
 
     // If the _combined_annotations pointer is non-NULL,
     // then the other annotations fields should have been cleared.
-    assert(_annotations             == NULL, "Should have been cleared");
-    assert(_type_annotations        == NULL, "Should have been cleared");
+    assert(_class_annotations       == NULL, "Should have been cleared");
+    assert(_class_type_annotations  == NULL, "Should have been cleared");
     assert(_fields_annotations      == NULL, "Should have been cleared");
     assert(_fields_type_annotations == NULL, "Should have been cleared");
   } else {
     // If the annotations arrays were not installed into the Annotations object,
     // then they have to be deallocated explicitly.
-    MetadataFactory::free_array<u1>(_loader_data, _annotations);
-    MetadataFactory::free_array<u1>(_loader_data, _type_annotations);
+    MetadataFactory::free_array<u1>(_loader_data, _class_annotations);
+    MetadataFactory::free_array<u1>(_loader_data, _class_type_annotations);
     Annotations::free_contents(_loader_data, _fields_annotations);
     Annotations::free_contents(_loader_data, _fields_type_annotations);
   }
