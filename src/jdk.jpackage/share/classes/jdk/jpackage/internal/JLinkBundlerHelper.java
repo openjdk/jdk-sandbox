@@ -90,13 +90,13 @@ final class JLinkBundlerHelper {
         return result;
     }
 
-    static String getMainClass(Map<String, ? super Object> params) {
-        String result = "";
+    static String getMainClassFromModule(Map<String, ? super Object> params) {
         String mainModule = StandardBundlerParam.MODULE.fetchFrom(params);
         if (mainModule != null)  {
+
             int index = mainModule.indexOf("/");
             if (index > 0) {
-                result = mainModule.substring(index + 1);
+                return mainModule.substring(index + 1);
             } else {
                 ModuleDescriptor descriptor =
                         JLinkBundlerHelper.getMainModuleDescription(params);
@@ -107,21 +107,12 @@ final class JLinkBundlerHelper {
                                     "message.module-class"),
                                     mainClass.get(),
                                     JLinkBundlerHelper.getMainModule(params)));
-                        result = mainClass.get();
+                        return mainClass.get();
                     }
                 }
             }
-        } else {
-            RelativeFileSet fileset =
-                    StandardBundlerParam.MAIN_JAR.fetchFrom(params);
-            if (fileset != null) {
-                result = StandardBundlerParam.MAIN_CLASS.fetchFrom(params);
-            } else {
-                // possibly app-image
-            }
         }
-
-        return result;
+        return null;
     }
 
     static String getMainModule(Map<String, ? super Object> params) {
@@ -151,11 +142,6 @@ final class JLinkBundlerHelper {
     static void execute(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
-
-        // we might be able to build it (with no main class) but it won't run
-        if (StandardBundlerParam.MAIN_CLASS.fetchFrom(params) == null) {
-            throw new PackagerException("ERR_NoMainClass");
-        }
 
         List<Path> modulePath =
                 StandardBundlerParam.MODULE_PATH.fetchFrom(params);

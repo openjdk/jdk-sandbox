@@ -156,10 +156,8 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                         String s = (String) params.get(
                                 BundleParams.PARAM_APPLICATION_CLASS);
                         if (s == null) {
-                            s = JLinkBundlerHelper.getMainClass(params);
-                            if (s.length() == 0) {
-                                s = null;
-                            }
+                            s = JLinkBundlerHelper.getMainClassFromModule(
+                                    params);
                         }
                         return s;
                     },
@@ -638,25 +636,31 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
         boolean hasAppImage = params.containsKey(PREDEFINED_APP_IMAGE.getID());
 
         if (hasMainClass && hasMainJar && hasMainJarClassPath ||
-               hasModule || hasAppImage || isRuntimeInstaller(params)) {
+               hasAppImage || isRuntimeInstaller(params)) {
             return;
         }
-
-        extractMainClassInfoFromAppResources(params);
-
-        if (!params.containsKey(MAIN_CLASS.getID())) {
-            if (hasMainJar) {
+        if (hasModule) {
+            if (JLinkBundlerHelper.getMainClassFromModule(params) == null) {
                 throw new ConfigException(
-                        MessageFormat.format(I18N.getString(
-                        "error.no-main-class-with-main-jar"),
-                        MAIN_JAR.fetchFrom(params)),
-                        MessageFormat.format(I18N.getString(
-                        "error.no-main-class-with-main-jar.advice"),
-                        MAIN_JAR.fetchFrom(params)));
-            } else {
-                throw new ConfigException(
-                        I18N.getString("error.no-main-class"),
-                        I18N.getString("error.no-main-class.advice"));
+                        I18N.getString("ERR_NoMainClass"), null);
+            }
+        } else {
+            extractMainClassInfoFromAppResources(params);
+
+            if (!params.containsKey(MAIN_CLASS.getID())) {
+                if (hasMainJar) {
+                    throw new ConfigException(
+                            MessageFormat.format(I18N.getString(
+                            "error.no-main-class-with-main-jar"),
+                            MAIN_JAR.fetchFrom(params)),
+                            MessageFormat.format(I18N.getString(
+                            "error.no-main-class-with-main-jar.advice"),
+                            MAIN_JAR.fetchFrom(params)));
+                } else {
+                    throw new ConfigException(
+                            I18N.getString("error.no-main-class"),
+                            I18N.getString("error.no-main-class.advice"));
+                }
             }
         }
     }

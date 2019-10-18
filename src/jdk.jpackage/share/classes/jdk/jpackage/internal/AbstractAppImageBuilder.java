@@ -116,7 +116,8 @@ public abstract class AbstractAppImageBuilder {
                     mainJarType == ModFile.ModType.ModularJar)) {
                 out.println("app.mainmodule=" + mainModule);
             } else {
-                String mainClass = JLinkBundlerHelper.getMainClass(params);
+                String mainClass =
+                        StandardBundlerParam.MAIN_CLASS.fetchFrom(params);
                 // If the app is contained in an unnamed jar then launch it the
                 // legacy way and the main class string must be
                 // of the format com/foo/Main

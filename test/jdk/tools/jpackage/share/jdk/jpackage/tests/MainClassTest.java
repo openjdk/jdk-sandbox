@@ -54,7 +54,6 @@ import static jdk.jpackage.tests.MainClassTest.Script.MainClassType.*;
  *  --jpt-run=jdk.jpackage.tests.MainClassTest
  *  --jpt-space-subst=_
  *  --jpt-exclude=modular=y;_main-class=n;_jar-main-class=b;_jlink=y
- *  --jpt-exclude=modular=y;_main-class=n;_jar-main-class=n;_jlink=n
  */
 
 public final class MainClassTest {

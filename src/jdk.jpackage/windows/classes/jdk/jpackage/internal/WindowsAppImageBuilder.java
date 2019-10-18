@@ -308,7 +308,7 @@ public class WindowsAppImageBuilder extends AbstractAppImageBuilder {
                 }
                 if (WindowsDefender.isThereAPotentialWindowsDefenderIssue(
                         tempDirectory)) {
-                    Log.error(MessageFormat.format(I18N.getString(
+                    Log.verbose(MessageFormat.format(I18N.getString(
                             "message.potential.windows.defender.issue"),
                             tempDirectory));
                 }
