@@ -25,8 +25,8 @@
 
 package sun.net;
 
-import java.net.DatagramSocketImpl;
+public interface PlatformDatagramSocketImpl {
 
-public abstract class  PlatformDatagramSocketImpl extends DatagramSocketImpl {
-    public abstract boolean nativeConnectDisabled();
+    /** Tells whether, or not, the native connect should be used. */
+    boolean nativeConnectDisabled();
 }

@@ -46,7 +46,9 @@ import sun.security.action.GetPropertyAction;
  * @author Pavani Diwanji
  */
 
-abstract class AbstractPlainDatagramSocketImpl extends PlatformDatagramSocketImpl
+abstract class AbstractPlainDatagramSocketImpl
+    extends DatagramSocketImpl
+    implements PlatformDatagramSocketImpl
 {
     /* timeout value for receive() */
     int timeout;

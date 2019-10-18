@@ -31,6 +31,7 @@ import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.net.DatagramPacket;
+import java.net.DatagramSocketImpl;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -63,7 +64,10 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 /**
  * A DatagramSocketImpl based on low-level NIO primitives.
  */
-public class NioDatagramSocketImpl extends PlatformDatagramSocketImpl {
+public class NioDatagramSocketImpl
+    extends DatagramSocketImpl
+    implements PlatformDatagramSocketImpl
+{
 
     private static final NativeDispatcher nd = new SocketDispatcher();
 
