@@ -25,19 +25,25 @@
 
 package jdk.jfr.api.consumer.recordingstream;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.StackTrace;
+import jdk.jfr.Timestamp;
 import jdk.jfr.consumer.EventStream;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import jdk.jfr.consumer.RecordingStream;
+import jdk.test.lib.jfr.Events;
 
 /**
  * @test
@@ -56,17 +62,48 @@ public final class TestSetEndTime {
     }
 
     public static void main(String... args) throws Exception {
+        testEventStream();
+        testRecordingStream();
+    }
+
+    @StackTrace(false)
+    public final static class Now extends Event {
+        @Timestamp(Timestamp.MILLISECONDS_SINCE_EPOCH)
+        public long timestamp;
+    }
+
+    private static void testRecordingStream() throws Exception {
+        try (RecordingStream rs = new RecordingStream()) {
+            AtomicBoolean fail = new AtomicBoolean();
+            Instant endTime = Instant.now().plus(Duration.ofSeconds(1));
+            rs.setReuse(false);
+            rs.onEvent(e -> {
+                if (e.getEndTime().isAfter(endTime)) {
+                    fail.set(true);
+                }
+            });
+            rs.setEndTime(endTime);
+            rs.startAsync();
+            for (int i = 0; i < 100; i++) {
+                Now m = new Now();
+                m.commit();
+                Thread.sleep(10);
+            }
+        }
+    }
+
+    private static void testEventStream() throws InterruptedException, IOException, Exception {
         try (Recording r = new Recording()) {
             r.setFlushInterval(Duration.ofSeconds(1));
             r.start();
             Mark event1 = new Mark();
-            event1.begin();  // start time
+            event1.begin(); // start time
             event1.before = true;
             advanceClock();
             event1.commit();
 
             Mark event2 = new Mark();
-            event2.begin();  // end time
+            event2.begin(); // end time
             advanceClock();
             Thread.sleep(100);
             event2.before = false;
