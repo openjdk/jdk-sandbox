@@ -25,23 +25,32 @@
 package jdk.jpackage.internal;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 
 public final class ToolValidator {
 
-    ToolValidator(String name) {
-        this.name = name;
+    ToolValidator(String tool) {
+        this(Path.of(tool));
+    }
+
+    ToolValidator(Path toolPath) {
+        this.toolPath = toolPath;
         args = new ArrayList<>();
 
         if (Platform.getPlatform() == Platform.LINUX) {
             setCommandLine("--version");
         }
+
+        setToolNotFoundErrorHandler(null);
+        setToolOldVersionErrorHandler(null);
     }
 
     ToolValidator setCommandLine(String... args) {
@@ -59,10 +68,23 @@ public final class ToolValidator {
         return this;
     }
 
+    ToolValidator setToolNotFoundErrorHandler(
+            BiFunction<String, IOException, ConfigException> v) {
+        toolNotFoundErrorHandler = v;
+        return this;
+    }
+
+    ToolValidator setToolOldVersionErrorHandler(BiFunction<String, String, ConfigException> v) {
+        toolOldVersionErrorHandler = v;
+        return this;
+    }
+
     ConfigException validate() {
         List<String> cmdline = new ArrayList<>();
-        cmdline.add(name);
+        cmdline.add(toolPath.toString());
         cmdline.addAll(args);
+
+        String name = toolPath.getFileName().toString();
         try {
             ProcessBuilder pb = new ProcessBuilder(cmdline);
             AtomicBoolean canUseTool = new AtomicBoolean();
@@ -71,16 +93,20 @@ public final class ToolValidator {
                 canUseTool.setPlain(true);
             }
 
+            String[] version = new String[1];
             Executor.of(pb).setOutputConsumer(lines -> {
                 if (versionParser != null && minimalVersion != null) {
-                    String version = versionParser.apply(lines);
-                    if (minimalVersion.compareTo(version) < 0) {
+                    version[0] = versionParser.apply(lines);
+                    if (minimalVersion.compareTo(version[0]) < 0) {
                         canUseTool.setPlain(true);
                     }
                 }
             }).execute();
 
             if (!canUseTool.getPlain()) {
+                if (toolOldVersionErrorHandler != null) {
+                    return toolOldVersionErrorHandler.apply(name, version[0]);
+                }
                 return new ConfigException(MessageFormat.format(I18N.getString(
                         "error.tool-old-version"), name, minimalVersion),
                         MessageFormat.format(I18N.getString(
@@ -88,6 +114,9 @@ public final class ToolValidator {
                                 minimalVersion));
             }
         } catch (IOException e) {
+            if (toolNotFoundErrorHandler != null) {
+                return toolNotFoundErrorHandler.apply(name, e);
+            }
             return new ConfigException(MessageFormat.format(I18N.getString(
                     "error.tool-not-found"), name, e.getMessage()),
                     MessageFormat.format(I18N.getString(
@@ -98,8 +127,10 @@ public final class ToolValidator {
         return null;
     }
 
-    private final String name;
+    private final Path toolPath;
     private List<String> args;
     private String minimalVersion;
     private Function<Stream<String>, String> versionParser;
+    private BiFunction<String, IOException, ConfigException> toolNotFoundErrorHandler;
+    private BiFunction<String, String, ConfigException> toolOldVersionErrorHandler;
 }

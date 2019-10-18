@@ -45,11 +45,22 @@ import java.util.stream.Stream;
  */
 final class PathGroup {
     PathGroup(Map<Object, Path> paths) {
-        entries = Collections.unmodifiableMap(paths);
+        entries = new HashMap<>(paths);
     }
 
     Path getPath(Object id) {
+        if (id == null) {
+            throw new NullPointerException();
+        }
         return entries.get(id);
+    }
+
+    void setPath(Object id, Path path) {
+        if (path != null) {
+            entries.put(id, path);
+        } else {
+            entries.remove(id);
+        }
     }
 
     /**
@@ -98,11 +109,15 @@ final class PathGroup {
     }
 
     void copy(PathGroup dst) throws IOException {
-        copy(this, dst, false);
+        copy(this, dst, null, false);
     }
 
     void move(PathGroup dst) throws IOException {
-        copy(this, dst, true);
+        copy(this, dst, null, true);
+    }
+
+    void transform(PathGroup dst, TransformHandler handler) throws IOException {
+        copy(this, dst, handler, false);
     }
 
     static interface Facade<T> {
@@ -129,18 +144,57 @@ final class PathGroup {
         default void move(Facade<T> dst) throws IOException {
             pathGroup().move(dst.pathGroup());
         }
+
+        default void transform(Facade<T> dst, TransformHandler handler) throws
+                IOException {
+            pathGroup().transform(dst.pathGroup(), handler);
+        }
     }
 
-    private static void copy(PathGroup src, PathGroup dst, boolean move) throws
+    static interface TransformHandler {
+        public void copyFile(Path src, Path dst) throws IOException;
+        public void createDirectory(Path dir) throws IOException;
+    }
+
+    private static void copy(PathGroup src, PathGroup dst,
+            TransformHandler handler, boolean move) throws IOException {
+        List<Map.Entry<Path, Path>> copyItems = new ArrayList<>();
+        List<Path> excludeItems = new ArrayList<>();
+
+        for (var id: src.entries.keySet()) {
+            Path srcPath = src.entries.get(id);
+            if (dst.entries.containsKey(id)) {
+                copyItems.add(Map.entry(srcPath, dst.entries.get(id)));
+            } else {
+                excludeItems.add(srcPath);
+            }
+        }
+
+        copy(move, copyItems, excludeItems, handler);
+    }
+
+    private static void copy(boolean move, List<Map.Entry<Path, Path>> entries,
+            List<Path> excludePaths, TransformHandler handler) throws
             IOException {
-        copy(move, src.entries.keySet().stream().filter(
-                id -> dst.entries.containsKey(id)).map(id -> Map.entry(
-                src.entries.get(id), dst.entries.get(id))).collect(
-                Collectors.toCollection(ArrayList::new)));
-    }
 
-    private static void copy(boolean move, List<Map.Entry<Path, Path>> entries)
-            throws IOException {
+        if (handler == null) {
+            handler = new TransformHandler() {
+                @Override
+                public void copyFile(Path src, Path dst) throws IOException {
+                    Files.createDirectories(dst.getParent());
+                    if (move) {
+                        Files.move(src, dst);
+                    } else {
+                        Files.copy(src, dst);
+                    }
+                }
+
+                @Override
+                public void createDirectory(Path dir) throws IOException {
+                    Files.createDirectories(dir);
+                }
+            };
+        }
 
         // destination -> source file mapping
         Map<Path, Path> actions = new HashMap<>();
@@ -149,12 +203,11 @@ final class PathGroup {
             Path dst = action.getValue();
             if (src.toFile().isDirectory()) {
                try (Stream<Path> stream = Files.walk(src)) {
-                   stream.forEach(path -> actions.put(dst.resolve(
-                           src.relativize(path)).toAbsolutePath().normalize(),
-                           path));
+                   stream.sequential().forEach(path -> actions.put(dst.resolve(
+                            src.relativize(path)).normalize(), path));
                }
             } else {
-                actions.put(dst.toAbsolutePath().normalize(), src);
+                actions.put(dst.normalize(), src);
             }
         }
 
@@ -162,19 +215,18 @@ final class PathGroup {
             Path dst = action.getKey();
             Path src = action.getValue();
 
+            if (excludePaths.stream().anyMatch(src::startsWith)) {
+                continue;
+            }
+
             if (src.equals(dst) || !src.toFile().exists()) {
                 continue;
             }
 
             if (src.toFile().isDirectory()) {
-                Files.createDirectories(dst);
+                handler.createDirectory(dst);
             } else {
-                Files.createDirectories(dst.getParent());
-                if (move) {
-                    Files.move(src, dst);
-                } else {
-                    Files.copy(src, dst);
-                }
+                handler.copyFile(src, dst);
             }
         }
 

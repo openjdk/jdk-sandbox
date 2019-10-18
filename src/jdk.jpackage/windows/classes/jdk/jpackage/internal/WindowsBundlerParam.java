@@ -60,18 +60,6 @@ class WindowsBundlerParam<T> extends StandardBundlerParam<T> {
             },
             (s, p) -> s);
 
-    static final BundlerParamInfo<String> APP_REGISTRY_NAME =
-            new StandardBundlerParam<> (
-            "win.registryName",
-            String.class,
-            params -> {
-                String nm = APP_NAME.fetchFrom(params);
-                if (nm == null) return null;
-
-                return nm.replaceAll("[^-a-zA-Z\\.0-9]", "");
-            },
-            (s, p) -> s);
-
     static final StandardBundlerParam<String> MENU_GROUP =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.WIN_MENU_GROUP.getId(),

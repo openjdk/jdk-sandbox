@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import jdk.jpackage.internal.IOUtils;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.Functional;
 import jdk.jpackage.test.Annotations.*;
@@ -70,8 +71,8 @@ public class IconTest {
     }
 
     private static String appIconFileName(JPackageCommand cmd) {
-        return cmd.appLauncherPath().getFileName().toString().replaceAll(
-                "\\.[^.]*$", "") + ICON_SUFFIX;
+        return IOUtils.replaceSuffix(cmd.appLauncherPath().getFileName(),
+                TKit.ICON_SUFFIX).toString();
     }
 
     private static void testIt(JPackageCommand cmd) throws IOException {
@@ -87,22 +88,6 @@ public class IconTest {
                         iconPath, GOLDEN_ICON));
     }
 
-    private final static String ICON_SUFFIX = Functional.identity(() -> {
-        if (TKit.isOSX()) {
-            return ".icns";
-        }
-
-        if (TKit.isLinux()) {
-            return ".png";
-        }
-
-        if (TKit.isWindows()) {
-            return ".ico";
-        }
-
-        throw TKit.throwUnknownPlatformError();
-    }).get();
-
     private final static Path GOLDEN_ICON = TKit.TEST_SRC_ROOT.resolve(Path.of(
-            "resources", "icon" + ICON_SUFFIX));
+            "resources", "icon" + TKit.ICON_SUFFIX));
 }

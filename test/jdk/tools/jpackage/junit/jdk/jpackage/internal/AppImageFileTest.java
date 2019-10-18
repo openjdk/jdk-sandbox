@@ -154,7 +154,7 @@ public class AppImageFileTest {
 
     private AppImageFile createFromXml(String... xmlData) throws IOException {
         Path directory = tempFolder.getRoot().toPath();
-        Path path = directory.resolve(AppImageFile.XML_FILENAME);
+        Path path = directory.resolve(AppImageFile.FILENAME);
         path.toFile().mkdirs();
         Files.delete(path);
 

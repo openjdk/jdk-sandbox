@@ -31,7 +31,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.imageio.ImageIO;
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import static jdk.jpackage.internal.LinuxAppBundler.ICON_PNG;
@@ -353,15 +352,9 @@ final class DesktopIntegration {
     }
 
     private void createFileAssociationsMimeInfoFile() throws IOException {
-        XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
-
-        try (Writer w = new BufferedWriter(new FileWriter(
-                mimeInfoFile.srcPath().toFile()))) {
-            XMLStreamWriter xml = xmlFactory.createXMLStreamWriter(w);
-
-            xml.writeStartDocument();
+        IOUtils.createXml(mimeInfoFile.srcPath(), xml -> {
             xml.writeStartElement("mime-info");
-            xml.writeNamespace("xmlns",
+            xml.writeDefaultNamespace(
                     "http://www.freedesktop.org/standards/shared-mime-info");
 
             for (var assoc : associations) {
@@ -369,14 +362,7 @@ final class DesktopIntegration {
             }
 
             xml.writeEndElement();
-            xml.writeEndDocument();
-            xml.flush();
-            xml.close();
-
-        } catch (XMLStreamException ex) {
-            Log.verbose(ex);
-            throw new IOException(ex);
-        }
+        });
     }
 
     private Map<String, Path> createFileAssociationIconFiles() throws

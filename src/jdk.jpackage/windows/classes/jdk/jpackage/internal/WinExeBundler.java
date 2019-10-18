@@ -85,7 +85,7 @@ public class WinExeBundler extends AbstractBundler {
 
     @Override
     public boolean supported(boolean platformInstaller) {
-        return WinMsiBundler.isSupported();
+        return msiBundler.supported(platformInstaller);
     }
 
     @Override
@@ -96,7 +96,7 @@ public class WinExeBundler extends AbstractBundler {
     @Override
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
-        return new WinMsiBundler().validate(params);
+        return msiBundler.validate(params);
     }
 
     public File bundle(Map<String, ? super Object> params, File outdir)
@@ -107,7 +107,7 @@ public class WinExeBundler extends AbstractBundler {
         File exeImageDir = EXE_IMAGE_DIR.fetchFrom(params);
 
         // Write msi to temporary directory.
-        File msi = new WinMsiBundler().bundle(params, exeImageDir);
+        File msi = msiBundler.bundle(params, exeImageDir);
 
         try {
             return buildEXE(msi, outdir);
@@ -150,6 +150,8 @@ public class WinExeBundler extends AbstractBundler {
             throws MissingResourceException {
         return I18N.getString(key);
     }
+
+    private final WinMsiBundler msiBundler = new WinMsiBundler();
 
     private static native int embedMSI(String exePath, String msiPath);
 }

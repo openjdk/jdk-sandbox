@@ -53,7 +53,6 @@ import static jdk.jpackage.tests.MainClassTest.Script.MainClassType.*;
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.MainClassTest
  *  --jpt-space-subst=_
- *  --jpt-exclude=modular=y;_main-class=n;_jar-main-class=b;_jlink=y
  */
 
 public final class MainClassTest {
@@ -64,7 +63,7 @@ public final class MainClassTest {
         }
 
         Script modular(boolean v) {
-            appDesc.setModuleName(v ? null : "com.other");
+            appDesc.setModuleName(v ? "com.other" : null);
             return this;
         }
 
@@ -138,9 +137,12 @@ public final class MainClassTest {
                 script.appDesc.packageName(), "ThereIsNoSuchClass").filter(
                 Objects::nonNull).collect(Collectors.joining("."));
 
-        cmd = JPackageCommand.helloAppImage(script.appDesc);
+        cmd = JPackageCommand
+                .helloAppImage(script.appDesc)
+                .ignoreDefaultRuntime(true);
         if (!script.withJLink) {
-            cmd.setFakeRuntime();
+            cmd.addArguments("--runtime-image", Path.of(System.getProperty(
+                    "java.home")));
         }
 
         final String moduleName = script.appDesc.moduleName();
@@ -173,13 +175,6 @@ public final class MainClassTest {
             for (var modular : List.of(true, false)) {
                 for (var mainClass : Script.MainClassType.values()) {
                     for (var jarMainClass : Script.MainClassType.values()) {
-                        if (!withJLink && (jarMainClass == SetWrong || mainClass
-                                == SetWrong)) {
-                            // Without runtime can't run app to verify it will fail, so
-                            // there is no point in such testing.
-                            continue;
-                        }
-
                         Script script = new Script()
                             .modular(modular)
                             .withJLink(withJLink)
@@ -190,10 +185,10 @@ public final class MainClassTest {
                                 || withMainClass.contains(mainClass)) {
                         } else if (modular) {
                             script.expectedErrorMessage(
-                                    "A main class was not specified nor was one found in the jar");
+                                    "Error: Main application class is missing");
                         } else {
                             script.expectedErrorMessage(
-                                    "Error: Main application class is missing");
+                                    "A main class was not specified nor was one found in the jar");
                         }
 
                         scripts.add(new Script[]{script});
@@ -250,13 +245,13 @@ public final class MainClassTest {
         }
     }
 
-    private void initJarWithWrongMainClass() {
+    private void initJarWithWrongMainClass() throws IOException {
         // Call JPackageCommand.executePrerequisiteActions() to build app's jar.
         // executePrerequisiteActions() is called by JPackageCommand instance
         // only once.
         cmd.executePrerequisiteActions();
 
-        Path jarFile;
+        final Path jarFile;
         if (script.appDesc.moduleName() != null) {
             jarFile = Path.of(cmd.getArgumentValue("--module-path"),
                     script.appDesc.jarFileName());
@@ -264,35 +259,56 @@ public final class MainClassTest {
             jarFile = cmd.inputDir().resolve(cmd.getArgumentValue("--main-jar"));
         }
 
-        // Create jar file with the main class attribute in manifest set to
-        // non-existing class.
+        // Create new jar file filtering out main class from the old jar file.
         TKit.withTempDirectory("repack-jar", workDir -> {
-            Path manifestFile = workDir.resolve("META-INF/MANIFEST.MF");
-            try (var jar = new JarFile(jarFile.toFile())) {
-                jar.stream()
-                .filter(Predicate.not(JarEntry::isDirectory))
-                .sequential().forEachOrdered(ThrowingConsumer.toConsumer(
-                    jarEntry -> {
-                        try (var in = jar.getInputStream(jarEntry)) {
-                            Path fileName = workDir.resolve(jarEntry.getName());
-                            Files.createDirectories(fileName.getParent());
-                            Files.copy(in, fileName);
-                        }
-                    }));
-            }
+            // Extract app's class from the old jar.
+            explodeJar(jarFile, workDir,
+                    jarEntry -> Path.of(jarEntry.getName()).equals(
+                            script.appDesc.classFilePath()));
+
+            // Create app's jar file with different main class.
+            var badAppDesc = JavaAppDesc.parse(script.appDesc.toString()).setClassName(
+                    nonExistingMainClass);
+            JPackageCommand.helloAppImage(badAppDesc).executePrerequisiteActions();
+
+            // Extract new jar but skip app's class.
+            explodeJar(jarFile, workDir,
+                    jarEntry -> !Path.of(jarEntry.getName()).equals(
+                            badAppDesc.classFilePath()));
+
+            // At this point we should have:
+            // 1. Manifest from the new jar referencing non-existing class
+            //  as the main class.
+            // 2. Module descriptor referencing non-existing class as the main
+            //  class in case of modular app.
+            // 3. App's class from the old jar. We need it to let jlink find some
+            //  classes in the package declared in module descriptor
+            //  in case of modular app.
 
             Files.delete(jarFile);
-
-            // Adjust manifest.
-            TKit.createTextFile(manifestFile, Files.readAllLines(
-                    manifestFile).stream().map(line -> line.replace(
-                    script.appDesc.className(), nonExistingMainClass)));
-
             new Executor().setToolProvider(JavaTool.JAR)
-            .addArguments("-c", "-M", "-f", jarFile.toString())
+            .addArguments("-v", "-c", "-M", "-f", jarFile.toString())
             .addArguments("-C", workDir.toString(), ".")
+            .dumpOutput()
             .execute().assertExitCodeIsZero();
         });
+    }
+
+    private static void explodeJar(Path jarFile, Path workDir,
+            Predicate<JarEntry> filter) throws IOException {
+        try (var jar = new JarFile(jarFile.toFile())) {
+            jar.stream()
+            .filter(Predicate.not(JarEntry::isDirectory))
+            .filter(filter)
+            .sequential().forEachOrdered(ThrowingConsumer.toConsumer(
+                jarEntry -> {
+                    try (var in = jar.getInputStream(jarEntry)) {
+                        Path fileName = workDir.resolve(jarEntry.getName());
+                        Files.createDirectories(fileName.getParent());
+                        Files.copy(in, fileName);
+                    }
+                }));
+        }
     }
 
     private final JPackageCommand cmd;

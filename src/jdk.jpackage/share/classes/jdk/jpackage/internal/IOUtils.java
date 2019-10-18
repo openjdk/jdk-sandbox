@@ -26,14 +26,19 @@
 package jdk.jpackage.internal;
 
 import java.io.*;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 /**
  * IOUtils
@@ -220,5 +225,106 @@ public class IOUtils {
             throw new PackagerException("error.cannot-write-to-output-dir",
                     file.getAbsolutePath());
         }
+    }
+
+    public static Path replaceSuffix(Path path, String suffix) {
+        Path parent = path.getParent();
+        String filename = path.getFileName().toString().replaceAll("\\.[^.]*$", "")
+                + Optional.ofNullable(suffix).orElse("");
+        return parent != null ? parent.resolve(filename) : Path.of(filename);
+    }
+
+    public static Path addSuffix(Path path, String suffix) {
+        Path parent = path.getParent();
+        String filename = path.getFileName().toString() + suffix;
+        return parent != null ? parent.resolve(filename) : Path.of(filename);
+    }
+
+    @FunctionalInterface
+    public static interface XmlConsumer {
+        void accept(XMLStreamWriter xml) throws IOException, XMLStreamException;
+    }
+
+    public static void createXml(Path dstFile, XmlConsumer xmlConsumer) throws
+            IOException {
+        XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
+        try (Writer w = new BufferedWriter(new FileWriter(dstFile.toFile()))) {
+            // Wrap with pretty print proxy
+            XMLStreamWriter xml = (XMLStreamWriter) Proxy.newProxyInstance(
+                    XMLStreamWriter.class.getClassLoader(), new Class<?>[]{
+                XMLStreamWriter.class}, new PrettyPrintHandler(
+                    xmlFactory.createXMLStreamWriter(w)));
+
+            xml.writeStartDocument();
+            xmlConsumer.accept(xml);
+            xml.writeEndDocument();
+            xml.flush();
+            xml.close();
+        } catch (XMLStreamException ex) {
+            throw new IOException(ex);
+        } catch (IOException ex) {
+            throw ex;
+        }
+    }
+
+    private static class PrettyPrintHandler implements InvocationHandler {
+
+        PrettyPrintHandler(XMLStreamWriter target) {
+            this.target = target;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws
+                Throwable {
+            switch (method.getName()) {
+                case "writeStartElement":
+                    // update state of parent node
+                    if (depth > 0) {
+                        hasChildElement.put(depth - 1, true);
+                    }
+                    // reset state of current node
+                    hasChildElement.put(depth, false);
+                    // indent for current depth
+                    target.writeCharacters(EOL);
+                    target.writeCharacters(repeat(depth, INDENT));
+                    depth++;
+                    break;
+                case "writeEndElement":
+                    depth--;
+                    if (hasChildElement.get(depth) == true) {
+                        target.writeCharacters(EOL);
+                        target.writeCharacters(repeat(depth, INDENT));
+                    }
+                    break;
+                case "writeProcessingInstruction":
+                case "writeEmptyElement":
+                    // update state of parent node
+                    if (depth > 0) {
+                        hasChildElement.put(depth - 1, true);
+                    }
+                    // indent for current depth
+                    target.writeCharacters(EOL);
+                    target.writeCharacters(repeat(depth, INDENT));
+                    break;
+                default:
+                    break;
+            }
+            method.invoke(target, args);
+            return null;
+        }
+
+        private static String repeat(int d, String s) {
+            StringBuilder sb = new StringBuilder();
+            while (d-- > 0) {
+                sb.append(s);
+            }
+            return sb.toString();
+        }
+
+        private final XMLStreamWriter target;
+        private int depth = 0;
+        private final Map<Integer, Boolean> hasChildElement = new HashMap<>();
+        private static final String INDENT = "  ";
+        private static final String EOL = "\n";
     }
 }

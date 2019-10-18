@@ -21,6 +21,7 @@
  * questions.
  */
 
+import java.nio.file.Path;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.FileAssociations;
@@ -42,6 +43,11 @@ import jdk.jpackage.test.Annotations.Test;
  * On Linux use "echo > foo.jptest1" and not "touch foo.jptest1" to create test
  * file as empty files are always interpreted as plain text and will not be
  * opened with the test app. This is a known bug.
+ *
+ * Icon associated with the main launcher should be associated with files with
+ * ".jptest1" suffix. Different icon should be associated with files with with
+ * ".jptest2" suffix. Icon for files with ".jptest1" suffix is platform specific
+ * and is one of 'icon.*' files in test/jdk/tools/jpackage/resources directory.
  */
 
 /*
@@ -60,8 +66,12 @@ public class FileAssociationsTest {
         PackageTest packageTest = new PackageTest();
 
         applyFileAssociations(packageTest, new FileAssociations("jptest1"));
+
+        Path icon = TKit.TEST_SRC_ROOT.resolve(Path.of("resources", "icon"
+                + TKit.ICON_SUFFIX));
+
         applyFileAssociations(packageTest,
-                new FileAssociations("jptest2").setFilename("fa2"));
+                new FileAssociations("jptest2").setFilename("fa2").setIcon(icon));
         packageTest.run();
     }
 

@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
+import jdk.jpackage.internal.AppImageFile;
 import static jdk.jpackage.test.PackageType.*;
 
 /**
@@ -83,7 +84,8 @@ public final class PackageTest {
         return this;
     }
 
-    private PackageTest addInitializer(ThrowingConsumer<JPackageCommand> v, String id) {
+    private PackageTest addInitializer(ThrowingConsumer<JPackageCommand> v,
+            String id) {
         if (id != null) {
             if (namedInitializers.contains(id)) {
                 return this;
@@ -149,8 +151,10 @@ public final class PackageTest {
         return this;
     }
 
-    static void withTestFileAssociationsFile(FileAssociations fa, ThrowingConsumer<Path> consumer) {
-        final String testFileDefaultName = String.join(".", "test", fa.getSuffix());
+    static void withTestFileAssociationsFile(FileAssociations fa,
+            ThrowingConsumer<Path> consumer) {
+        final String testFileDefaultName = String.join(".", "test",
+                fa.getSuffix());
         TKit.withTempFile(testFileDefaultName, fa.getSuffix(), testFile -> {
             if (TKit.isLinux()) {
                 LinuxHelper.initFileAssociationsTestFile(testFile);
@@ -347,6 +351,9 @@ public final class PackageTest {
                 }
             }
 
+            TKit.assertPathExists(cmd.appInstallationDirectory().resolve(
+                    AppImageFile.FILENAME), false);
+
             installVerifiers.stream().forEach(v -> v.accept(cmd));
         }
 
@@ -413,7 +420,8 @@ public final class PackageTest {
             bundleOutputDir = new File(val).getAbsoluteFile();
 
             if (!bundleOutputDir.isDirectory()) {
-                throw new IllegalArgumentException(String.format("Invalid value of %s sytem property: [%s]. Should be existing directory",
+                throw new IllegalArgumentException(String.format(
+                        "Invalid value of %s sytem property: [%s]. Should be existing directory",
                         TKit.getConfigPropertyName(propertyName),
                         bundleOutputDir));
             }
@@ -425,7 +433,9 @@ public final class PackageTest {
         String action = Optional.ofNullable(TKit.getConfigProperty(propertyName)).orElse(
                 Action.CREATE.toString()).toLowerCase();
         DEFAULT_ACTION = Stream.of(Action.values()).filter(
-                a -> a.toString().equals(action)).findFirst().orElseThrow(() -> new IllegalArgumentException(String.format("Unrecognized value of %s property: [%s]",
+                a -> a.toString().equals(action)).findFirst().orElseThrow(
+                        () -> new IllegalArgumentException(String.format(
+                                "Unrecognized value of %s property: [%s]",
                                 TKit.getConfigPropertyName(propertyName), action)));
     }
 }

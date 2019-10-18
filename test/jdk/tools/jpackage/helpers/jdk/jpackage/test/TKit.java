@@ -45,6 +45,8 @@ import jdk.jpackage.test.Functional.ThrowingSupplier;
 
 final public class TKit {
 
+    private static final String OS = System.getProperty("os.name").toLowerCase();
+
     public static final Path TEST_SRC_ROOT = Functional.identity(() -> {
         Path root = Path.of(System.getProperty("test.src"));
 
@@ -56,6 +58,22 @@ final public class TKit {
         }
 
         throw new RuntimeException("Failed to locate apps directory");
+    }).get();
+
+    public final static String ICON_SUFFIX = Functional.identity(() -> {
+        if (isOSX()) {
+            return ".icns";
+        }
+
+        if (isLinux()) {
+            return ".png";
+        }
+
+        if (isWindows()) {
+            return ".ico";
+        }
+
+        throw throwUnknownPlatformError();
     }).get();
 
     public static void run(String args[], ThrowingRunnable testBody) {
@@ -816,6 +834,4 @@ final public class TKit {
             VERBOSE_TEST_SETUP = isNonOf.test(Set.of("init", "i"));
         }
     }
-
-    private static final String OS = System.getProperty("os.name").toLowerCase();
 }

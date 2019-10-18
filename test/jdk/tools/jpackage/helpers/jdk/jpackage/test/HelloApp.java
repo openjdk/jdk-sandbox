@@ -126,7 +126,7 @@ public class HelloApp {
         if (moduleName == null && CLASS_NAME.equals(qualifiedClassName)) {
             // Use Hello.java as is.
             cmd.addAction((self) -> {
-                File jarFile = self.inputDir().resolve(jarFileName).toFile();
+                Path jarFile = self.inputDir().resolve(jarFileName);
                 createJarBuilder().setOutputJar(jarFile).addSourceFile(
                         HELLO_JAVA).create();
             });
@@ -144,8 +144,7 @@ public class HelloApp {
                 }
 
                 TKit.withTempDirectory("src",
-                        workDir -> prepareSources(workDir).setOutputJar(
-                                jarFile.toFile()).create());
+                        workDir -> prepareSources(workDir).setOutputJar(jarFile).create());
             });
         }
 

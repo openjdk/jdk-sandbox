@@ -22,7 +22,8 @@
  */
 package jdk.jpackage.test;
 
-import java.util.Objects;
+import java.io.File;
+import java.nio.file.Path;
 
 
 public final class JavaAppDesc {
@@ -56,6 +57,11 @@ public final class JavaAppDesc {
 
     public String className() {
         return qualifiedClassName;
+    }
+
+    public Path classFilePath() {
+        return Path.of(qualifiedClassName.replace(".", File.separator)
+                + ".class");
     }
 
     public String moduleName() {

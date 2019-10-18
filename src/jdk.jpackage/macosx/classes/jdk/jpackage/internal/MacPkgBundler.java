@@ -25,12 +25,7 @@
 
 package jdk.jpackage.internal;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.io.Writer;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -42,9 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
@@ -155,7 +147,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
                 return createPKG(params, outdir, appImageDir);
             }
             return null;
-        } catch (IOException|URISyntaxException ex) {
+        } catch (IOException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
@@ -219,25 +211,19 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
         getScripts_PostinstallFile(params).setExecutable(true, false);
     }
 
-    private String URLEncoding(String pkgName) throws URISyntaxException {
+    private static String URLEncoding(String pkgName) throws URISyntaxException {
         URI uri = new URI(null, null, pkgName, null);
         return uri.toASCIIString();
     }
 
     private void prepareDistributionXMLFile(Map<String, ? super Object> params)
-            throws IOException, URISyntaxException {
+            throws IOException {
         File f = getConfig_DistributionXMLFile(params);
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.preparing-distribution-dist"), f.getAbsolutePath()));
 
-        XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
-
-        try (Writer w = new OutputStreamWriter(new FileOutputStream(f), "UTF-8")) {
-            XMLStreamWriter xml = xmlFactory.createXMLStreamWriter(w);
-
-            xml.writeStartDocument("UTF-8", "1.0");
-
+        IOUtils.createXml(f.toPath(), xml -> {
             xml.writeStartElement("installer-gui-script");
             xml.writeAttribute("minSpecVersion", "1");
 
@@ -303,24 +289,20 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
             xml.writeAttribute("id", appId);
             xml.writeAttribute("version", VERSION.fetchFrom(params));
             xml.writeAttribute("onConclusion", "none");
-            xml.writeCharacters(URLEncoding(
-                    getPackages_AppPackage(params).getName()));
+            try {
+                xml.writeCharacters(URLEncoding(
+                        getPackages_AppPackage(params).getName()));
+            } catch (URISyntaxException ex) {
+                throw new IOException(ex);
+            }
             xml.writeEndElement(); // </pkg-ref>
 
             xml.writeEndElement(); // </installer-gui-script>
-
-            xml.writeEndDocument();
-            xml.flush();
-            xml.close();
-
-        } catch (XMLStreamException ex) {
-            Log.verbose(ex);
-            throw new IOException(ex);
-        }
+        });
     }
 
     private boolean prepareConfigFiles(Map<String, ? super Object> params)
-            throws IOException, URISyntaxException {
+            throws IOException {
 
         createResource(DEFAULT_BACKGROUND_IMAGE, params)
                 .setCategory(I18N.getString("resource.pkg-background-image"))

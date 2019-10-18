@@ -40,7 +40,7 @@ public final class JarBuilder {
         sourceFiles = new ArrayList<>();
     }
 
-    public JarBuilder setOutputJar(File v) {
+    public JarBuilder setOutputJar(Path v) {
         outputJar = v;
         return this;
     }
@@ -69,9 +69,16 @@ public final class JarBuilder {
                         .addPathArguments(sourceFiles)
                         .execute().assertExitCodeIsZero();
             }
-            Path tmpJar = workDir.resolve("foo.jar");
-            Executor jarExe = new Executor();
-            jarExe.setToolProvider(JavaTool.JAR).addArguments("-c", "-f", tmpJar.toString());
+
+            Files.createDirectories(outputJar.getParent());
+            if (Files.exists(outputJar)) {
+                TKit.trace(String.format("Delete [%s] existing jar file", outputJar));
+                Files.deleteIfExists(outputJar);
+            }
+
+            Executor jarExe = new Executor()
+                    .setToolProvider(JavaTool.JAR)
+                    .addArguments("-c", "-f", outputJar.toString());
             if (moduleVersion != null) {
                 jarExe.addArguments(String.format("--module-version=%s",
                         moduleVersion));
@@ -81,12 +88,10 @@ public final class JarBuilder {
             }
             jarExe.addArguments("-C", workDir.toString(), ".");
             jarExe.execute().assertExitCodeIsZero();
-            outputJar.getParentFile().mkdirs();
-            Files.copy(tmpJar, outputJar.toPath(), REPLACE_EXISTING);
         });
     }
     private List<Path> sourceFiles;
-    private File outputJar;
+    private Path outputJar;
     private String mainClass;
     private String moduleVersion;
 }

@@ -23,10 +23,11 @@
 package jdk.jpackage.test;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 
-public class FileAssociations {
+final public class FileAssociations {
     public FileAssociations(String faSuffixName) {
         suffixName = faSuffixName;
         setFilename("fa");
@@ -34,19 +35,33 @@ public class FileAssociations {
     }
 
     public void createFile() {
-        TKit.createPropertiesFile(file,
-                Map.entry("extension", suffixName),
-                Map.entry("mime-type", getMime()),
-                Map.entry("description", description));
+        Map<String, String> entries = new HashMap<>(Map.of(
+            "extension", suffixName,
+            "mime-type", getMime(),
+            "description", description
+        ));
+        if (icon != null) {
+            if (TKit.isWindows()) {
+                entries.put("icon", icon.toString().replace("\\", "/"));
+            } else {
+                entries.put("icon", icon.toString());
+            }
+        }
+        TKit.createPropertiesFile(file, entries);
     }
 
-    final public FileAssociations setFilename(String v) {
+    public FileAssociations setFilename(String v) {
         file = TKit.workDir().resolve(v + ".properties");
         return this;
     }
 
-    final public FileAssociations setDescription(String v) {
+    public FileAssociations setDescription(String v) {
         description = v;
+        return this;
+    }
+
+    public FileAssociations setIcon(Path v) {
+        icon = v;
         return this;
     }
 
@@ -65,4 +80,5 @@ public class FileAssociations {
     private Path file;
     final private String suffixName;
     private String description;
+    private Path icon;
 }

@@ -24,19 +24,27 @@
  */
 package jdk.jpackage.internal;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.*;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 
 public class PathGroupTest {
-    public PathGroupTest() {
-    }
+
+    @Rule
+    public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test(expected = NullPointerException.class)
     public void testNullId() {
@@ -125,7 +133,139 @@ public class PathGroupTest {
         assertEquals(aPath, pg2.roots().get(0));
     }
 
+    @Test
+    public void testTransform() throws IOException {
+        for (var transform : TransformType.values()) {
+            testTransform(false, transform);
+        }
+    }
+
+    @Test
+    public void testTransformWithExcludes() throws IOException {
+        for (var transform : TransformType.values()) {
+            testTransform(true, transform);
+        }
+    }
+
+    enum TransformType { Copy, Move, Handler };
+
+    private void testTransform(boolean withExcludes, TransformType transform)
+            throws IOException {
+        final PathGroup pg = new PathGroup(Map.of(0, PATH_FOO, 1, PATH_BAR, 2,
+                PATH_EMPTY, 3, PATH_BAZ));
+
+        final Path srcDir = tempFolder.newFolder().toPath();
+        final Path dstDir = tempFolder.newFolder().toPath();
+
+        Files.createDirectories(srcDir.resolve(PATH_FOO).resolve("a/b/c/d"));
+        Files.createFile(srcDir.resolve(PATH_FOO).resolve("a/b/c/file1"));
+        Files.createFile(srcDir.resolve(PATH_FOO).resolve("a/b/file2"));
+        Files.createFile(srcDir.resolve(PATH_FOO).resolve("a/b/file3"));
+        Files.createFile(srcDir.resolve(PATH_BAR));
+        Files.createFile(srcDir.resolve(PATH_EMPTY).resolve("file4"));
+        Files.createDirectories(srcDir.resolve(PATH_BAZ).resolve("1/2/3"));
+
+        var dst = pg.resolveAt(dstDir);
+        var src = pg.resolveAt(srcDir);
+        if (withExcludes) {
+            // Exclude from transformation.
+            src.setPath(new Object(), srcDir.resolve(PATH_FOO).resolve("a/b/c"));
+            src.setPath(new Object(), srcDir.resolve(PATH_EMPTY).resolve("file4"));
+        }
+
+        var srcFilesBeforeTransform = walkFiles(srcDir);
+
+        if (transform == TransformType.Handler) {
+            List<Map.Entry<Path, Path>> copyFile = new ArrayList<>();
+            List<Path> createDirectory = new ArrayList<>();
+            src.transform(dst, new PathGroup.TransformHandler() {
+                @Override
+                public void copyFile(Path src, Path dst) throws IOException {
+                    copyFile.add(Map.entry(src, dst));
+                }
+
+                @Override
+                public void createDirectory(Path dir) throws IOException {
+                    createDirectory.add(dir);
+                }
+            });
+
+            Consumer<Path> assertFile = path -> {
+                var entry = Map.entry(srcDir.resolve(path), dstDir.resolve(path));
+                assertTrue(copyFile.contains(entry));
+            };
+
+            Consumer<Path> assertDir = path -> {
+                assertTrue(createDirectory.contains(dstDir.resolve(path)));
+            };
+
+            assertEquals(withExcludes ? 3 : 5, copyFile.size());
+            assertEquals(withExcludes ? 8 : 10, createDirectory.size());
+
+            assertFile.accept(PATH_FOO.resolve("a/b/file2"));
+            assertFile.accept(PATH_FOO.resolve("a/b/file3"));
+            assertFile.accept(PATH_BAR);
+            assertDir.accept(PATH_FOO.resolve("a/b"));
+            assertDir.accept(PATH_FOO.resolve("a"));
+            assertDir.accept(PATH_FOO);
+            assertDir.accept(PATH_BAZ);
+            assertDir.accept(PATH_BAZ.resolve("1"));
+            assertDir.accept(PATH_BAZ.resolve("1/2"));
+            assertDir.accept(PATH_BAZ.resolve("1/2/3"));
+            assertDir.accept(PATH_EMPTY);
+
+            if (!withExcludes) {
+                assertFile.accept(PATH_FOO.resolve("a/b/c/file1"));
+                assertFile.accept(PATH_EMPTY.resolve("file4"));
+                assertDir.accept(PATH_FOO.resolve("a/b/c/d"));
+                assertDir.accept(PATH_FOO.resolve("a/b/c"));
+            }
+
+            assertArrayEquals(new Path[] { Path.of("") }, walkFiles(dstDir));
+            return;
+        }
+
+        if (transform == TransformType.Copy) {
+            src.copy(dst);
+        } else if (transform == TransformType.Move) {
+            src.move(dst);
+        }
+
+        final List<Path> excludedPaths;
+        if (withExcludes) {
+            excludedPaths = List.of(
+                PATH_EMPTY.resolve("file4"),
+                PATH_FOO.resolve("a/b/c")
+            );
+        } else {
+            excludedPaths = Collections.emptyList();
+        }
+        UnaryOperator<Path[]> removeExcludes = paths -> {
+            return Stream.of(paths)
+                    .filter(path -> !excludedPaths.stream().anyMatch(
+                            path::startsWith))
+                    .collect(Collectors.toList()).toArray(Path[]::new);
+        };
+
+        var dstFiles = walkFiles(dstDir);
+        assertArrayEquals(removeExcludes.apply(srcFilesBeforeTransform), dstFiles);
+
+        if (transform == TransformType.Copy) {
+            assertArrayEquals(dstFiles, removeExcludes.apply(walkFiles(srcDir)));
+        } else if (transform == TransformType.Move) {
+            assertFalse(Files.exists(srcDir));
+        }
+    }
+
+    private static Path[] walkFiles(Path root) throws IOException {
+        try (var files = Files.walk(root)) {
+            return files.map(root::relativize).sorted().collect(
+                    Collectors.toList()).toArray(Path[]::new);
+        }
+    }
+
     private final static Path PATH_FOO = Path.of("foo");
     private final static Path PATH_BAR = Path.of("bar");
+    private final static Path PATH_BAZ = Path.of("baz");
     private final static Path PATH_EMPTY = Path.of("");
 }

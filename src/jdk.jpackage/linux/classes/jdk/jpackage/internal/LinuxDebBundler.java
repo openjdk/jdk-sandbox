@@ -26,7 +26,6 @@
 package jdk.jpackage.internal;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -140,9 +139,7 @@ public class LinuxDebBundler extends LinuxPackageBundler {
                 try {
                     String licenseFile = LICENSE_FILE.fetchFrom(params);
                     if (licenseFile != null) {
-                        return Files.lines(Path.of(licenseFile),
-                                StandardCharsets.UTF_8).collect(
-                                        Collectors.joining("\n"));
+                        return Files.readString(Path.of(licenseFile));
                     }
                 } catch (IOException e) {
                     Log.verbose(e);

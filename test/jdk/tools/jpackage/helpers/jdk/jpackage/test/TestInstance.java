@@ -153,6 +153,7 @@ final class TestInstance implements ThrowingRunnable {
         this.afterActions = Collections.emptyList();
         this.testDesc = TestDesc.createBuilder().get();
         this.dryRun = false;
+        this.workDir = createWorkDirName(testDesc);
     }
 
     TestInstance(MethodCall testBody, List<ThrowingConsumer> beforeActions,
@@ -164,6 +165,7 @@ final class TestInstance implements ThrowingRunnable {
         this.afterActions = afterActions;
         this.testDesc = testBody.createDescription();
         this.dryRun = dryRun;
+        this.workDir = createWorkDirName(testDesc);
     }
 
     void notifyAssert() {
@@ -205,28 +207,7 @@ final class TestInstance implements ThrowingRunnable {
     }
 
     Path workDir() {
-        Path result = Path.of(".");
-        List<String> components = new ArrayList<>();
-
-        String testFunctionName = functionName();
-        if (testFunctionName != null) {
-            components.add(testFunctionName);
-        }
-
-        if (isPrametrized()) {
-            components.add(String.format("%08x", fullName().hashCode()));
-        }
-
-        if (!components.isEmpty()) {
-            result = result.resolve(String.join(".", components));
-        }
-
-        return result;
-    }
-
-    boolean isPrametrized() {
-        return Stream.of(testDesc.functionArgs, testDesc.instanceArgs).anyMatch(
-                Objects::nonNull);
+        return workDir;
     }
 
     @Override
@@ -239,7 +220,7 @@ final class TestInstance implements ThrowingRunnable {
                     testInstance));
             try {
                 if (!dryRun) {
-                    Files.createDirectories(workDir());
+                    Files.createDirectories(workDir);
                     testBody.accept(testInstance);
                 }
             } finally {
@@ -255,7 +236,7 @@ final class TestInstance implements ThrowingRunnable {
             }
 
             if (!KEEP_WORK_DIR.contains(status)) {
-                TKit.deleteDirectoryRecursive(workDir());
+                TKit.deleteDirectoryRecursive(workDir);
             }
 
             TKit.log(String.format("%s %s; checks=%d", status, fullName,
@@ -272,6 +253,42 @@ final class TestInstance implements ThrowingRunnable {
             }
         }
         return null;
+    }
+
+    private static boolean isCalledByJavatest() {
+        StackTraceElement st[] = Thread.currentThread().getStackTrace();
+        for (StackTraceElement ste : st) {
+            if (ste.getClassName().startsWith("com.sun.javatest.")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static Path createWorkDirName(TestDesc testDesc) {
+        Path result = Path.of(".");
+        if (!isCalledByJavatest()) {
+            result = result.resolve(testDesc.clazz.getSimpleName());
+        }
+
+        List<String> components = new ArrayList<>();
+
+        final String testFunctionName = testDesc.functionName;
+        if (testFunctionName != null) {
+            components.add(testFunctionName);
+        }
+
+        final boolean isPrametrized = Stream.of(testDesc.functionArgs,
+                testDesc.instanceArgs).anyMatch(Objects::nonNull);
+        if (isPrametrized) {
+            components.add(String.format("%08x", testDesc.testFullName().hashCode()));
+        }
+
+        if (!components.isEmpty()) {
+            result = result.resolve(String.join(".", components));
+        }
+
+        return result;
     }
 
     private enum Status {
@@ -300,6 +317,7 @@ final class TestInstance implements ThrowingRunnable {
     private final List<ThrowingConsumer> beforeActions;
     private final List<ThrowingConsumer> afterActions;
     private final boolean dryRun;
+    private final Path workDir;
 
     private final static Set<Status> KEEP_WORK_DIR = Functional.identity(
             () -> {

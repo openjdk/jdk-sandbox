@@ -48,7 +48,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @comment Temporary disable for Linux and OSX until functionality implemented
  * @requires (os.family != "mac")
  * @modules jdk.jpackage/jdk.jpackage.internal
- * @run main/othervm/timeout=360 -Xmx512m RuntimePackageTest
+ * @run main/othervm/timeout=720 -Xmx512m RuntimePackageTest
  */
 public class RuntimePackageTest {
 
