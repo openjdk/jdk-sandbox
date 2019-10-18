@@ -48,6 +48,8 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
+import jdk.internal.access.JavaNetDatagramPacketAccess;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.CleanerFactory;
 import sun.net.PlatformDatagramSocketImpl;
 import sun.net.ResourceManager;
@@ -64,6 +66,9 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 public class NioDatagramSocketImpl extends PlatformDatagramSocketImpl {
 
     private static final NativeDispatcher nd = new SocketDispatcher();
+
+    private static final JavaNetDatagramPacketAccess DATAGRAM_PACKET_ACCESS =
+            SharedSecrets.getJavaNetDatagramPacketAccess();
 
     private static final int MAX_PACKET_LEN = 65536;
 
@@ -410,7 +415,7 @@ public class NioDatagramSocketImpl extends PlatformDatagramSocketImpl {
         Objects.requireNonNull(p);
         byte[] b = p.getData();
         int off = p.getOffset();
-        int len = b.length - off;
+        int len = DATAGRAM_PACKET_ACCESS.getBufLengthField(p);
         assert len >= 0;
         if (len > MAX_PACKET_LEN)
             len = MAX_PACKET_LEN;
@@ -441,7 +446,7 @@ public class NioDatagramSocketImpl extends PlatformDatagramSocketImpl {
                     p.setAddress(sender.getAddress());
                 if (p.getPort() != sender.getPort())
                     p.setPort(sender.getPort());
-                p.setLength(n);
+                DATAGRAM_PACKET_ACCESS.setLengthField(p, n);
             } catch (IOException e) {
                 // #### reset packet offset and length! ??
                 throw e;

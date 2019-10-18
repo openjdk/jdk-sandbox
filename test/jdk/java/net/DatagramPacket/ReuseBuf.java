@@ -21,14 +21,16 @@
  * questions.
  */
 
-/**
+/*
  * @test
- *
  * @bug 4424096
- *
  * @summary DatagramPacket spec needs clarification (reuse buf)
+ * @run main ReuseBuf
+ * @run main/othervm -Djava.net.preferIPv4Stack=true ReuseBuf
+ * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl=true ReuseBuf
  */
 import java.net.*;
+import static java.lang.System.out;
 
 public class ReuseBuf {
     static String msgs[] = {"Hello World", "Java", "Good Bye"};
@@ -54,8 +56,12 @@ public class ReuseBuf {
                 try {
                     ds.receive(dp);
                     String reply = new String(dp.getData(), dp.getOffset(), dp.getLength());
-                    ds.send(new DatagramPacket(reply.getBytes(),reply.length(),
-                                               dp.getAddress(),dp.getPort()));
+                    out.println("server: received [" + reply + "]");
+                    for (int i=0; i<2; i++) {
+                        out.println("server: sending [" + reply + "]");
+                        ds.send(new DatagramPacket(reply.getBytes(), reply.length(),
+                                dp.getAddress(), dp.getPort()));
+                    }
                     if (reply.equals(msgs[msgs.length-1])) {
                         break;
                     }
@@ -76,16 +82,32 @@ public class ReuseBuf {
         byte b[] = new byte[100];
         DatagramPacket dp = new DatagramPacket(b,b.length);
         for (int i = 0; i < msgs.length; i++) {
+            out.println("client: sending [" + msgs[i] + "]");
             ds.send(new DatagramPacket(msgs[i].getBytes(),msgs[i].length(),
                                        InetAddress.getLocalHost(),
                                        port));
             ds.receive(dp);
-            if (!msgs[i].equals(new String(dp.getData(), dp.getOffset(), dp.getLength()))) {
-                throw new RuntimeException("Msg expected: "+msgs[i] +msgs[i].length()+
-                                           "msg received: "+new String(dp.getData(), dp.getOffset(), dp.getLength())+dp.getLength());
+            String recvmsg = new String(dp.getData(), dp.getOffset(), dp.getLength());
+            out.println("client: received [" + recvmsg + "]");
+            if (!msgs[i].equals(recvmsg)) {
+                throw new RuntimeException("Msg expected: " + msgs[i] +
+                                           ", msg received: " + recvmsg);
+            }
+
+            byte ba[] = new byte[1];
+            DatagramPacket dp2 = new DatagramPacket(ba, ba.length);
+            dp2.setData(new byte[99], 5, 3);  // only 3 bytes
+            ds.receive(dp2);
+            String expectedMsg = msgs[i].substring(0, 3);
+            recvmsg = new String(dp2.getData(), dp2.getOffset(), dp2.getLength());
+            out.println("client: received [" + recvmsg + "]");
+            if (!expectedMsg.equals(recvmsg)) {
+                throw new RuntimeException("Msg truncated expected: " + expectedMsg +
+                                            ", msg received: "+ recvmsg);
             }
         }
         ds.close();
-        System.out.println("Test Passed!!!");
+        out.println("Test Passed!!!");
+        st.join();
     }
 }

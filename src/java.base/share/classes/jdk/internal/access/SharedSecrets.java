@@ -64,6 +64,7 @@ public class SharedSecrets {
     private static JavaIORandomAccessFileAccess javaIORandomAccessFileAccess;
     private static JavaObjectInputStreamAccess javaObjectInputStreamAccess;
     private static JavaObjectInputFilterAccess javaObjectInputFilterAccess;
+    private static JavaNetDatagramPacketAccess javaNetDatagramPacketAccess;
     private static JavaNetInetAddressAccess javaNetInetAddressAccess;
     private static JavaNetHttpCookieAccess javaNetHttpCookieAccess;
     private static JavaNetUriAccess javaNetUriAccess;
@@ -136,6 +137,16 @@ public class SharedSecrets {
 
     public static JavaLangReflectAccess getJavaLangReflectAccess() {
         return javaLangReflectAccess;
+    }
+
+    public static void setJavaNetDatagrtamPacketAccess(JavaNetDatagramPacketAccess jndpa) {
+        javaNetDatagramPacketAccess = jndpa;
+    }
+
+    public static JavaNetDatagramPacketAccess getJavaNetDatagramPacketAccess() {
+        if (javaNetDatagramPacketAccess == null)
+            unsafe.ensureClassInitialized(java.net.DatagramPacket.class);
+        return javaNetDatagramPacketAccess;
     }
 
     public static void setJavaNetUriAccess(JavaNetUriAccess jnua) {

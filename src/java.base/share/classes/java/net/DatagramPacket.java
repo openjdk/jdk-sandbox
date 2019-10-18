@@ -25,6 +25,9 @@
 
 package java.net;
 
+import jdk.internal.access.JavaNetDatagramPacketAccess;
+import jdk.internal.access.SharedSecrets;
+
 /**
  * This class represents a datagram packet.
  * <p>
@@ -367,12 +370,36 @@ class DatagramPacket {
      * @since 1.1
      */
     public synchronized void setLength(int length) {
+        setLengthField(length);
+        this.bufLength = this.length;
+    }
+
+    private synchronized void setLengthField(int length) {
         if ((length + offset) > buf.length || length < 0 ||
-            (length + offset) < 0) {
+                (length + offset) < 0) {
             throw new IllegalArgumentException("illegal length");
         }
         this.length = length;
-        this.bufLength = this.length;
+    }
+
+    private synchronized int getBufLength() {
+        return bufLength;
+    }
+
+    static {
+        SharedSecrets.setJavaNetDatagrtamPacketAccess(
+            new JavaNetDatagramPacketAccess() {
+                @Override
+                public int getBufLengthField(DatagramPacket packet) {
+                    return packet.getBufLength();
+                }
+
+                @Override
+                public void setLengthField(DatagramPacket packet, int length) {
+                    packet.setLengthField(length);
+                }
+            }
+        );
     }
 
     /**
