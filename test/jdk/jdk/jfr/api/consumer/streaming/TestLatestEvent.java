@@ -65,9 +65,11 @@ public class TestLatestEvent {
             r.onEvent("MakeChunks", event-> {
                 beginChunks.countDown();
             });
+            System.out.println("Waitning for first chunk");
             beginChunks.await();
             // Create 5 chunks with events in the repository
             for (int i = 0; i < 5; i++) {
+                System.out.println("Creating empty chunk");
                 try (Recording r1 = new Recording()) {
                     r1.start();
                     NotLatestEvent notLatest = new NotLatestEvent();
@@ -75,24 +77,27 @@ public class TestLatestEvent {
                     r1.stop();
                 }
             }
-
+            System.out.println("All empty chunks created");
             // Create an event in a segment, typically the first.
             NotLatestEvent notLatest = new NotLatestEvent();
             notLatest.commit();
-
             try (EventStream s = EventStream.openRepository()) {
+                System.out.println("EventStream opened");
                 awaitFlush(r); // ensure that NotLatest is included
                 s.startAsync();
                 AtomicBoolean foundLatest = new AtomicBoolean();
-                // Emit the latest event
-                LatestEvent latest = new LatestEvent();
-                latest.commit();
+                System.out.println("Added onEvent handler");
                 s.onEvent(event -> {
                     String name = event.getEventType().getName();
                     System.out.println("Found event " + name);
                     foundLatest.set(name.equals("Latest"));
                     s.close();
                 });
+                // Emit the latest event
+                LatestEvent latest = new LatestEvent();
+                latest.commit();
+                System.out.println("Latest event emitted");
+                System.out.println("Waiting for termination");
                 s.awaitTermination();
                 if (!foundLatest.get()) {
                     throw new Exception("Didn't find latest event!");
@@ -103,9 +108,12 @@ public class TestLatestEvent {
 
     private static void awaitFlush(RecordingStream r) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
+        System.out.println("Waiting for flush...");
         r.onFlush(() -> {
+            System.out.println("Flush arrived!");
             latch.countDown();
         });
         latch.await();
+
     }
 }
