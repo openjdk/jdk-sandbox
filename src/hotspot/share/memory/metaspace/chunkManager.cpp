@@ -163,15 +163,29 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
                        _name, max_level, chklvl::word_size_for_level(max_level),
                        pref_level, chklvl::word_size_for_level(pref_level));
 
+  // When handing a new chunk to the caller, we must balance the need to not let free space go to waste
+  // with the need to keep fragmentation low.
+  // Every request comes with a preferred chunk size and the minimum chunk size, which is the bare minimum
+  // needed to house the metadata allocation which triggered this chunk allocation.
+  //
+  // Ideally, we have a free chunk of the preferred size just laying around and hand that one out.
+  // Realistically, we are often faced with the choice of either taking a larger chunk and split it
+  // or taking a smaller chunk than the preferred size. Both has pros and cons: splitting a larger chunk
+  // reduces the number of large chunks available for large allocations, and, increases fragmentation.
+  // Using a smaller chunk may also increase fragmentation (beside being inefficient at some point) if
+  // e.g. a normal class loader - which lives normally off 64K chunks - eats from the bowl of small chunk
+  // loaders, which prefer 4K or 1K chunks.
+
   // 1) Attempt to find a free chunk of exactly the pref_level level
   c = remove_first_chunk_at_level(pref_level);
 
-  // 2) Failing that, we are also willing to accept a chunk half that size, but nothing less for now...
+  // 2) Failing that, we are also willing to accept a smaller chunk, but only up to a limit
+  //    (for now, half the preferred size)...
   if (c == NULL && pref_level < max_level) {
     c = remove_first_chunk_at_level(pref_level + 1);
   }
 
-  // 3) Failing that, attempt to find a free chunk of larger size and split it to get the ideal size...
+  // 3) Failing that, attempt to find a free chunk of larger size and split it to the preferred size...
   if (c == NULL) {
     for (chklvl_t lvl = pref_level - 1; lvl >= chklvl::ROOT_CHUNK_LEVEL; lvl --) {
       c = remove_first_chunk_at_level(lvl);
@@ -183,10 +197,10 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
     }
   }
 
-  // 4) Failing that, before we start allocating a new root chunk, lets really scrape the barrel. Any
-  //    smaller chunk is acceptable provided it fits the minimal size....
+  // 4) Failing that, before we give up and get a new root chunk, lets really scrape the barrel. Any
+  //    smaller chunk is acceptable now...
   if (c == NULL) {
-    for (chklvl_t lvl = pref_level + 1; lvl <= max_level; lvl ++) {
+    for (chklvl_t lvl = pref_level + 2; lvl <= max_level; lvl ++) {
       c = remove_first_chunk_at_level(lvl);
       if (c != NULL) {
         break;
@@ -194,7 +208,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
     }
   }
 
-  // 4) Failing that, attempt to allocate a new root chunk from the connected virtual space.
+  // 5) Failing all that, allocate a new root chunk from the connected virtual space.
   if (c == NULL) {
 
     // Tracing
@@ -210,7 +224,7 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
 
     assert(c->level() == chklvl::LOWEST_CHUNK_LEVEL, "Not a root chunk?");
 
-    // Split this root chunk to the desired chunk size.
+    // Split this root chunk to the desired chunk size. Splinters are added to freelist.
     if (pref_level > c->level()) {
       c = split_chunk_and_add_splinters(c, pref_level);
     }
