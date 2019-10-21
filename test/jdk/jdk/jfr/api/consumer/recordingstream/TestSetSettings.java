@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
+import jdk.jfr.Enabled;
 import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.consumer.RecordingStream;
@@ -44,6 +45,7 @@ import jdk.jfr.consumer.RecordingStream;
 public final class TestSetSettings {
 
     @Name("LateBloomer")
+    @Enabled(false)
     private final static class LateBloomer extends Event {
     }
 
