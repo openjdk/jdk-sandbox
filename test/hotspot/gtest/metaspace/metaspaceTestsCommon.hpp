@@ -26,16 +26,20 @@
 
 #include "memory/allocation.hpp"
 
+#include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
+#include "memory/metaspace/commitMask.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/metaspace/spaceManager.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 

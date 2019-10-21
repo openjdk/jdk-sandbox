@@ -108,6 +108,10 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
     pref_level = min_level;
   }
 
+  log_trace(metaspace)("SpaceManager %s: requested word size_ " SIZE_FORMAT ", num chunks so far: %d, preferred level: "
+                       CHKLVL_FORMAT ", min level: " CHKLVL_FORMAT ".",
+                       _name, requested_word_size, _chunks.size(), pref_level, min_level);
+
   Metachunk* c = _chunk_manager->get_chunk(min_level, pref_level);
   if (c == NULL) {
     log_debug(metaspace)("SpaceManager %s: failed to allocate new chunk for requested word size " SIZE_FORMAT ".",

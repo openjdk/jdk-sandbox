@@ -52,7 +52,7 @@ public:
       // Caller shall repeat last allocation
       return _entries[_num_entries - 1];
     }
-    return _entries[_num_entries];
+    return _entries[num_allocated];
   }
 
 };
@@ -61,13 +61,13 @@ public:
 
 ///////////////////////////
 // chunk allocation sequences for normal loaders:
-static const chklvl_t g_sequ_standard_nonclass[] = {
+static const chklvl_t g_sequ_standard_non_class[] = {
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_64K
-    -1 // .. repeat last
+    // .. repeat last
 };
 
 static const chklvl_t g_sequ_standard_class[] = {
@@ -75,20 +75,20 @@ static const chklvl_t g_sequ_standard_class[] = {
     chklvl::CHUNK_LEVEL_2K,
     chklvl::CHUNK_LEVEL_2K,
     chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_32K,
-    -1 // .. repeat last
+    chklvl::CHUNK_LEVEL_32K
+    // .. repeat last
 };
 
 ///////////////////////////
 // chunk allocation sequences for reflection/anonymous loaders:
 // We allocate four smallish chunks before progressing to bigger chunks.
-static const chklvl_t g_sequ_anon_nonclass[] = {
+static const chklvl_t g_sequ_anon_non_class[] = {
     chklvl::CHUNK_LEVEL_1K,
     chklvl::CHUNK_LEVEL_1K,
     chklvl::CHUNK_LEVEL_1K,
     chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_4K,
-    -1 // .. repeat last
+    chklvl::CHUNK_LEVEL_2K
+    // .. repeat last
 };
 
 static const chklvl_t g_sequ_anon_class[] = {
@@ -96,16 +96,16 @@ static const chklvl_t g_sequ_anon_class[] = {
     chklvl::CHUNK_LEVEL_1K,
     chklvl::CHUNK_LEVEL_1K,
     chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_4K,
-    -1 // .. repeat last
+    chklvl::CHUNK_LEVEL_2K
+    // .. repeat last
 };
 
 #define DEFINE_CLASS_FOR_ARRAY(what) \
-  static ConstantChunkAllocSequence g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(int));
+  static ConstantChunkAllocSequence g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chklvl_t));
 
-DEFINE_CLASS_FOR_ARRAY(standard_nonclass)
+DEFINE_CLASS_FOR_ARRAY(standard_non_class)
 DEFINE_CLASS_FOR_ARRAY(standard_class)
-DEFINE_CLASS_FOR_ARRAY(anon_nonclass)
+DEFINE_CLASS_FOR_ARRAY(anon_non_class)
 DEFINE_CLASS_FOR_ARRAY(anon_class)
 
 
@@ -171,10 +171,10 @@ const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(Metas
     }
   } else {
     switch(space_type) {
-    case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_class;
+    case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_non_class;
     case ReflectionMetaspaceType:
-    case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_class;
-    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_class;
+    case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_non_class;
+    case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
     }
   }

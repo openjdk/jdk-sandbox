@@ -166,30 +166,12 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
   // 1) Attempt to find a free chunk of exactly the pref_level level
   c = remove_first_chunk_at_level(pref_level);
 
-  // Todo:
-  //
-  // We need to meditate about steps (2) and (3) a bit more.
-  // By simply preferring to reuse small chunks vs splitting larger chunks we may emphasize
-  // fragmentation, strangely enough, if callers wanting medium sized chunks take small chunks
-  // instead, and taking them away from the many users which prefer small chunks.
-  // Alternatives:
-  // - alternating between (2) (3) and (3) (2)
-  // - mixing (2) and (3) into one loop with a growing delta, and maybe a "hesitance" barrier function
-  // - keeping track of chunk demand and adding this into the equation: if e.g. 4K chunks were heavily
-  //   preferred in the past, maybe for callers wanting larger chunks leave those alone.
-  // - Take into account which chunks are committed? This would require some extra bookkeeping...
-
-  // 2) Failing that, attempt to find a chunk smaller or equal the minimal level.
-  if (c == NULL) {
-    for (chklvl_t lvl = pref_level + 1; lvl <= max_level; lvl ++) {
-      c = remove_first_chunk_at_level(lvl);
-      if (c != NULL) {
-        break;
-      }
-    }
+  // 2) Failing that, we are also willing to accept a chunk half that size, but nothing less for now...
+  if (c == NULL && pref_level < max_level) {
+    c = remove_first_chunk_at_level(pref_level + 1);
   }
 
-  // 3) Failing that, attempt to find a free chunk of larger size and split it.
+  // 3) Failing that, attempt to find a free chunk of larger size and split it to get the ideal size...
   if (c == NULL) {
     for (chklvl_t lvl = pref_level - 1; lvl >= chklvl::ROOT_CHUNK_LEVEL; lvl --) {
       c = remove_first_chunk_at_level(lvl);
@@ -201,7 +183,18 @@ Metachunk* ChunkManager::get_chunk(chklvl_t max_level, chklvl_t pref_level) {
     }
   }
 
-  // 4) Failing that, attempt to allocate a new chunk from the connected virtual space.
+  // 4) Failing that, before we start allocating a new root chunk, lets really scrape the barrel. Any
+  //    smaller chunk is acceptable provided it fits the minimal size....
+  if (c == NULL) {
+    for (chklvl_t lvl = pref_level + 1; lvl <= max_level; lvl ++) {
+      c = remove_first_chunk_at_level(lvl);
+      if (c != NULL) {
+        break;
+      }
+    }
+  }
+
+  // 4) Failing that, attempt to allocate a new root chunk from the connected virtual space.
   if (c == NULL) {
 
     // Tracing
