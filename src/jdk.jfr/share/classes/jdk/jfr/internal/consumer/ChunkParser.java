@@ -252,8 +252,12 @@ public final class ChunkParser {
                         return event;
                     }
                 }
-                if (typeId == 1 && flushOperation != null) { // checkpoint event
-                    parseCheckpoint();
+                if (typeId == 1) { // checkpoint event
+                    if (flushOperation != null) {
+                        parseCheckpoint();
+                    }
+                } else {
+                    Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Unknwon event type " + typeId);
                 }
             }
             input.position(pos + size);
