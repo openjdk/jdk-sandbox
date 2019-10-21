@@ -27,6 +27,7 @@ package jdk.jfr.api.consumer.streaming;
 
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jdk.jfr.Event;
 import jdk.jfr.Recording;
@@ -52,32 +53,34 @@ public class TestChunkGap {
     static class EndEvent extends Event {
     }
 
-    static long count;
+    private final static AtomicInteger count = new AtomicInteger(0);
 
     public static void main(String... args) throws Exception {
 
         CountDownLatch gap = new CountDownLatch(1);
+        CountDownLatch receivedEvent = new CountDownLatch(1);
+
         try (EventStream s = EventStream.openRepository()) {
             try (Recording r1 = new Recording()) {
                 s.setStartTime(Instant.EPOCH);
                 s.onEvent(e -> {
                     System.out.println(e);
+                    receivedEvent.countDown();
                     try {
                         gap.await();
                     } catch (InterruptedException e1) {
                         e1.printStackTrace();
                     }
-                    count++;
+                    count.incrementAndGet();
                     if (e.getEventType().getName().equals(EndEvent.class.getName())) {
                         s.close();
                     }
                 });
                 s.startAsync();
-
-                r1.enable(StartEvent.class);
                 r1.start();
                 StartEvent event1 = new StartEvent();
                 event1.commit();
+                receivedEvent.await();
                 r1.stop();
 
                 // create chunk that is removed
@@ -97,7 +100,7 @@ public class TestChunkGap {
                     r3.stop();
 
                     s.awaitTermination();
-                    if (count != 2) {
+                    if (count.get() != 2) {
                         throw new AssertionError("Expected 2 event, but got " + count);
                     }
                 }
