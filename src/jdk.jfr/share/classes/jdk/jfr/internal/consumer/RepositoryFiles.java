@@ -197,6 +197,7 @@ public final class RepositoryFiles {
 
     private long readStartTime(Path p) throws IOException {
         try (RecordingInput in = new RecordingInput(p.toFile(), fileAccess, 100)) {
+            Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Parsing header for chunk start time");
             ChunkHeader c = new ChunkHeader(in);
             return c.getStartNanos();
         }
