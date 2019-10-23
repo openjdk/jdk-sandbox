@@ -421,10 +421,11 @@ public class WinMsiBundler  extends AbstractBundler {
             }
         }
 
-        try (InputStream is = OverridableResource.readDefault("main.wxs")) {
-            Files.copy(is, Paths.get(
-                    getConfig_ProjectFile(params).getAbsolutePath()));
-        }
+        createResource("main.wxs", params)
+                .setCategory(I18N.getString("resource.wxs-file"))
+                .saveToFile(Paths.get(getConfig_ProjectFile(params)
+                .getAbsolutePath()));
+
 
         return data;
     }
