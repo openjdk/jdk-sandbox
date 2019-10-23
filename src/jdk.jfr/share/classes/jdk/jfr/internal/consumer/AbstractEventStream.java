@@ -37,7 +37,6 @@ import java.util.function.Consumer;
 
 import jdk.jfr.consumer.EventStream;
 import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.internal.JVM;
 import jdk.jfr.internal.LogLevel;
 import jdk.jfr.internal.LogTag;
 import jdk.jfr.internal.Logger;
@@ -241,6 +240,7 @@ abstract class AbstractEventStream implements EventStream {
         try {
             process();
         } catch (IOException ioe) {
+            ioe.printStackTrace();
             // This can happen if a chunk file is removed, or
             // a file is access that has been closed
             // This is "normal" behavior for streaming and the
