@@ -240,7 +240,6 @@ abstract class AbstractEventStream implements EventStream {
         try {
             process();
         } catch (IOException ioe) {
-            ioe.printStackTrace();
             // This can happen if a chunk file is removed, or
             // a file is access that has been closed
             // This is "normal" behavior for streaming and the
