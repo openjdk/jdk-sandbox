@@ -26,8 +26,6 @@
 package jdk.jfr.api.consumer.streaming;
 
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import jdk.jfr.Event;
 import jdk.jfr.consumer.RecordingStream;
@@ -55,23 +53,22 @@ public class TestFilledChunks {
     private static final int EVENT_COUNT = 5_000_000;
 
     public static void main(String... args) throws Exception {
-        CountDownLatch end = new CountDownLatch(1);
-        AtomicInteger idCounter = new AtomicInteger();
-        try (RecordingStream es = new RecordingStream()) {
-            es.onEvent(EndEvent.class.getName(), e -> end.countDown());
-            es.onEvent(FillEvent.class.getName(), e -> {
-                idCounter.incrementAndGet();
-//                if (id != expected) {
-//                    throw new Error("Expected id " + expected + ", but got " + id);
-//                }
+        try (RecordingStream rs = new RecordingStream()) {
+            rs.onEvent(FillEvent.class.getName(), e -> {
+                int id = e.getInt("id");
+                // Some events may get lost due to
+                // buffer being full.
+                if (id > EVENT_COUNT / 2) {
+                    rs.close();
+                }
             });
-            es.startAsync();
+            rs.startAsync();
             long seed = System.currentTimeMillis();
             System.out.println("Random seed: " + seed);
             Random r = new Random(seed);
             for (int i = 1; i < EVENT_COUNT; i++) {
                 FillEvent f = new FillEvent();
-                f.message = i %2 == 0 ? "ko" : "kak";
+                f.message = i % 2 == 0 ? "hello, hello, hello, hello, hello!" : "hi!";
                 f.value = r.nextInt(10000);
                 f.id = i;
                 f.commit();
@@ -79,14 +76,7 @@ public class TestFilledChunks {
                     System.out.println("Emitted " + i + " events");
                 }
             }
-            System.out.println("Awaiting end event");
-            Thread.sleep(1_000);
-            for (int i = 1; i < EVENT_COUNT; i++) {
-                EndEvent e = new EndEvent();
-                e.commit();
-            }
-            end.await();
-
+            rs.awaitTermination();
         }
     }
 }
