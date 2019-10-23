@@ -114,7 +114,6 @@ public final class TestSetStartTime {
                 event2.before = false;
                 event2.commit();
                 System.out.println("Second event emitted: " + Instant.now());
-                AtomicBoolean error = new AtomicBoolean();
                 try (EventStream es = EventStream.openRepository()) {
                     Instant startTime = t.plus(Duration.ofMillis(SLEEP_TIME_MS / 2));
                     es.setStartTime(startTime);

@@ -30,13 +30,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.StackTrace;
-import jdk.jfr.Timestamp;
 import jdk.jfr.consumer.EventStream;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
@@ -59,37 +60,44 @@ public final class TestSetEndTime {
     }
 
     public static void main(String... args) throws Exception {
-        testEventStream();
+     //   testEventStream();
         testRecordingStream();
     }
 
-    @StackTrace(false)
-    public final static class Now extends Event {
-        @Timestamp(Timestamp.MILLISECONDS_SINCE_EPOCH)
-        public long timestamp;
-    }
-
     private static void testRecordingStream() throws Exception {
-        try (RecordingStream rs = new RecordingStream()) {
-            AtomicBoolean fail = new AtomicBoolean();
-            Instant endTime = Instant.now().plus(Duration.ofSeconds(1));
-            rs.setReuse(false);
-            rs.onEvent(e -> {
-                if (e.getEndTime().isAfter(endTime)) {
-                    fail.set(true);
+        while (true) {
+            CountDownLatch closed = new CountDownLatch(1);
+            AtomicInteger count = new AtomicInteger();
+            try (RecordingStream rs = new RecordingStream()) {
+                rs.setFlushInterval(Duration.ofSeconds(1));
+                rs.onEvent(e -> {
+                    count.incrementAndGet();
+                });
+                // when end is reached stream is closed
+                rs.onClose(() -> {
+                    closed.countDown();
+                });
+                Instant endTime = Instant.now().plus(Duration.ofMillis(10_000));
+                System.out.println("Setting end time: " + endTime);
+                rs.setEndTime(endTime);
+                rs.startAsync();
+                for (int i = 0; i < 50; i++) {
+                    Mark m = new Mark();
+                    m.commit();
+                    Thread.sleep(10);
                 }
-            });
-            rs.setEndTime(endTime);
-            rs.startAsync();
-            for (int i = 0; i < 100; i++) {
-                Now m = new Now();
-                m.commit();
-                Thread.sleep(10);
+                closed.await();
+                System.out.println("Found events: " + count.get());
+                if (count.get() < 50) {
+                    return;
+                }
+                System.out.println("Found 50 events. Retrying");
+                System.out.println();
             }
         }
     }
 
-    private static void testEventStream() throws InterruptedException, IOException, Exception {
+    static void testEventStream() throws InterruptedException, IOException, Exception {
         try (Recording r = new Recording()) {
             r.setFlushInterval(Duration.ofSeconds(1));
             r.start();

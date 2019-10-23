@@ -297,7 +297,7 @@ public final class RecordingStream implements AutoCloseable, EventStream {
 
     @Override
     public void setEndTime(Instant endTime) {
-        directoryStream.setStartTime(endTime);
+        directoryStream.setEndTime(endTime);
     }
 
     @Override
