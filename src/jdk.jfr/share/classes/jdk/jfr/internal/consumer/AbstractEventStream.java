@@ -230,7 +230,7 @@ abstract class AbstractEventStream implements EventStream {
             if (configuration.started) {
                 throw new IllegalStateException("Event stream can only be started once");
             }
-            if (active) {
+            if (active && configuration.startTime == null) {
                 configuration.setStartNanos(startNanos);
             }
             configuration.setStarted(true);
