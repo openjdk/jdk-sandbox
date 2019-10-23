@@ -81,10 +81,6 @@ final class OverridableResource {
         return this;
     }
 
-    String getCategory() {
-        return category;
-    }
-
     OverridableResource setResourceDir(Path v) {
         resourceDir = v;
         return this;

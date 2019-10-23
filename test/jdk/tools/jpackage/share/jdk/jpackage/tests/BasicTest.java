@@ -44,7 +44,7 @@ import jdk.jpackage.test.Annotations.*;
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile BasicTest.java
- * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
+ * @run main/othervm/timeout=720 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.BasicTest
  */
 
@@ -116,6 +116,7 @@ public final class BasicTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testVerbose() {
         JPackageCommand cmd = JPackageCommand.helloAppImage()
                 .setFakeRuntime().executePrerequisiteActions();
@@ -139,12 +140,19 @@ public final class BasicTest {
 
         TKit.deleteDirectoryContentsRecursive(cmd.outputDir());
         List<String> nonVerboseOutput = cmd.createExecutor().executeAndGetOutput();
+        List<String>[] verboseOutput = (List<String>[])new List<?>[1];
 
-        TKit.deleteDirectoryContentsRecursive(cmd.outputDir());
-        List<String> verboseOutput = cmd.createExecutor().addArgument(
-                "--verbose").executeAndGetOutput();
+        // Directory clean up is not 100% reliable on Windows because of
+        // antivirus software that can lock .exe files. Setup
+        // diffreent output directory instead of cleaning the default one for
+        // verbose jpackage run.
+        TKit.withTempDirectory("verbose-output", tempDir -> {
+            cmd.setArgumentValue("--dest", tempDir);
+            verboseOutput[0] = cmd.createExecutor().addArgument(
+                    "--verbose").executeAndGetOutput();
+        });
 
-        TKit.assertTrue(nonVerboseOutput.size() < verboseOutput.size(),
+        TKit.assertTrue(nonVerboseOutput.size() < verboseOutput[0].size(),
                 "Check verbose output is longer than regular");
 
         expectedVerboseOutputStrings.forEach(str -> {
@@ -155,7 +163,7 @@ public final class BasicTest {
 
         expectedVerboseOutputStrings.forEach(str -> {
             TKit.assertTextStream(str).label("verbose output")
-                    .apply(verboseOutput.stream());
+                    .apply(verboseOutput[0].stream());
         });
     }
 

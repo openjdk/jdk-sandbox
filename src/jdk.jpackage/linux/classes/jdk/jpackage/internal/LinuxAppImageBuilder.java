@@ -169,7 +169,8 @@ public class LinuxAppImageBuilder extends AbstractAppImageBuilder {
             throws IOException {
 
         Path iconTarget = appLayout.destktopIntegrationDirectory().resolve(
-                APP_NAME.fetchFrom(params) + ".png");
+                APP_NAME.fetchFrom(params) + IOUtils.getSuffix(Path.of(
+                DEFAULT_ICON)));
 
         createResource(DEFAULT_ICON, params)
                 .setCategory("icon")

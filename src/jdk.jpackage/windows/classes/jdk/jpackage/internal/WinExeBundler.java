@@ -110,6 +110,13 @@ public class WinExeBundler extends AbstractBundler {
         File msi = msiBundler.bundle(params, exeImageDir);
 
         try {
+            new ScriptRunner()
+            .setDirectory(msi.toPath().getParent())
+            .setResourceCategoryId("resource.post-msi-script")
+            .setScriptNameSuffix("post-msi")
+            .setEnvironmentVariable("JpMsiFile", msi.getAbsolutePath().toString())
+            .run(params);
+
             return buildEXE(msi, outdir);
         } catch (IOException ex) {
             Log.verbose(ex);

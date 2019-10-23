@@ -335,11 +335,6 @@ public class WinMsiBundler  extends AbstractBundler {
         try {
             Files.createDirectories(imageDir);
 
-            Path postImageScript = imageDir.resolve(APP_NAME.fetchFrom(params) + "-post-image.wsf");
-            createResource(null, params)
-                    .setCategory(I18N.getString("resource.post-install-script"))
-                    .saveToFile(postImageScript);
-
             prepareProto(params);
 
             wixSourcesBuilder
@@ -349,12 +344,13 @@ public class WinMsiBundler  extends AbstractBundler {
 
             Map<String, String> wixVars = prepareMainProjectFile(params);
 
-            if (Files.exists(postImageScript)) {
-                Log.verbose(MessageFormat.format(I18N.getString(
-                        "message.running-wsh-script"),
-                        postImageScript.toAbsolutePath()));
-                Executor.of("wscript", postImageScript.toString()).executeExpectSuccess();
-            }
+            new ScriptRunner()
+            .setDirectory(imageDir)
+            .setResourceCategoryId("resource.post-app-image-script")
+            .setScriptNameSuffix("post-image")
+            .setEnvironmentVariable("JpAppImageDir", imageDir.toAbsolutePath().toString())
+            .run(params);
+
             return buildMSI(params, wixVars, outdir);
         } catch (IOException ex) {
             Log.verbose(ex);

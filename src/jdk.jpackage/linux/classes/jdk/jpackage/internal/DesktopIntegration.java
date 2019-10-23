@@ -69,7 +69,8 @@ final class DesktopIntegration {
                 .setCategory(I18N.getString("resource.menu-icon"))
                 .setExternal(customIconFile);
         desktopFileResource = createResource("template.desktop", params)
-                .setCategory(I18N.getString("resource.menu-shortcut-descriptor"));
+                .setCategory(I18N.getString("resource.menu-shortcut-descriptor"))
+                .setPublicName(APP_NAME.fetchFrom(params) + ".desktop");
 
         // XDG recommends to use vendor prefix in desktop file names as xdg
         // commands copy files to system directories.
@@ -89,8 +90,8 @@ final class DesktopIntegration {
             // - custom icon specified
             //
             desktopFile = new DesktopFile(desktopFileName);
-            iconFile = new DesktopFile(String.format("%s.png",
-                    APP_NAME.fetchFrom(params)));
+            iconFile = new DesktopFile(APP_NAME.fetchFrom(params)
+                    + IOUtils.getSuffix(Path.of(DEFAULT_ICON)));
         } else {
             desktopFile = null;
             iconFile = null;

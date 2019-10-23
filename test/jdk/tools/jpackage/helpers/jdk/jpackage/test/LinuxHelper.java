@@ -255,7 +255,8 @@ public class LinuxHelper {
         Function<List<String>, String> verifier = (lines) -> {
             // Lookup for xdg commands
             return lines.stream().filter(line -> {
-                Set<String> words = Set.of(line.split("\\s+"));
+                Set<String> words = Stream.of(line.split("\\s+")).collect(
+                        Collectors.toSet());
                 return words.contains("xdg-desktop-menu") || words.contains(
                         "xdg-mime") || words.contains("xdg-icon-resource");
             }).findFirst().orElse(null);

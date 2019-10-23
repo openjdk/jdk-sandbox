@@ -240,6 +240,11 @@ public class IOUtils {
         return parent != null ? parent.resolve(filename) : Path.of(filename);
     }
 
+    public static String getSuffix(Path path) {
+        String filename = replaceSuffix(path.getFileName(), null).toString();
+        return path.getFileName().toString().substring(filename.length());
+    }
+
     @FunctionalInterface
     public static interface XmlConsumer {
         void accept(XMLStreamWriter xml) throws IOException, XMLStreamException;
@@ -248,7 +253,7 @@ public class IOUtils {
     public static void createXml(Path dstFile, XmlConsumer xmlConsumer) throws
             IOException {
         XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
-        try (Writer w = new BufferedWriter(new FileWriter(dstFile.toFile()))) {
+        try (Writer w = Files.newBufferedWriter(dstFile)) {
             // Wrap with pretty print proxy
             XMLStreamWriter xml = (XMLStreamWriter) Proxy.newProxyInstance(
                     XMLStreamWriter.class.getClassLoader(), new Class<?>[]{

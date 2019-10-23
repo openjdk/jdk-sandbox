@@ -28,10 +28,7 @@ package jdk.jpackage.internal;
 import java.io.File;
 import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
 
 import static jdk.jpackage.internal.WindowsBundlerParam.*;
 import static jdk.jpackage.internal.WinMsiBundler.WIN_APP_IMAGE;
@@ -60,10 +57,7 @@ public class WinAppBundler extends AbstractImageBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
-
+            Objects.requireNonNull(params);
             return doValidate(params);
         } catch (RuntimeException re) {
             if (re.getCause() instanceof ConfigException) {
@@ -80,21 +74,6 @@ public class WinAppBundler extends AbstractImageBundler {
             throws ConfigException {
 
         imageBundleValidation(p);
-
-        if (StandardBundlerParam.getPredefinedAppImage(p) != null) {
-            return true;
-        }
-
-        // Make sure that jpackage.exe exists.
-        File tool = new File(
-                System.getProperty("java.home") + "\\bin\\jpackage.exe");
-
-        if (!tool.exists()) {
-            throw new ConfigException(
-                    I18N.getString("error.no-windows-resources"),
-                    I18N.getString("error.no-windows-resources.advice"));
-        }
-
         return true;
     }
 

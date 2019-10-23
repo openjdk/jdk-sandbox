@@ -31,12 +31,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.*;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacBaseInstallerBundler.SIGNING_KEYCHAIN;
@@ -502,9 +497,7 @@ public class MacPkgBundler extends MacBaseInstallerBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
+            Objects.requireNonNull(params);
 
             // run basic validation to ensure requirements are met
             // we are not interested in return code, only possible exception

@@ -21,13 +21,18 @@
  * questions.
  */
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Map;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Collectors;
 import jdk.jpackage.test.FileAssociations;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.Annotations.Test;
+import jdk.jpackage.test.*;
 
 /**
  * Test --linux-shortcut parameter. Output of the test should be
@@ -138,5 +143,43 @@ public class ShortcutHintTest {
             TKit.createPropertiesFile(propsFile, Map.entry("icon",
                     TKit.TEST_SRC_ROOT.resolve("apps/dukeplug.png").toString()));
         }).run();
+    }
+
+    /**
+     * .desktop file from resource dir.
+     */
+    @Test
+    public static void testDesktopFileFromResourceDir() {
+        final String expectedVersionString = "Version=12345678";
+        TKit.withTempDirectory("resources", tempDir -> {
+            createTest().addInitializer(cmd -> {
+                cmd.setFakeRuntime();
+
+                cmd.addArgument("--linux-shortcut");
+                cmd.addArguments("--resource-dir", tempDir);
+
+                // Create custom .desktop file in resource directory
+                TKit.createTextFile(tempDir.resolve(cmd.name() + ".desktop"),
+                        List.of(
+                                "[Desktop Entry]",
+                                "Name=APPLICATION_NAME",
+                                "Exec=APPLICATION_LAUNCHER",
+                                "Terminal=false",
+                                "Type=Application",
+                                "Categories=DEPLOY_BUNDLE_CATEGORY",
+                                expectedVersionString
+                        ));
+            })
+            .addInstallVerifier(cmd -> {
+                Path desktopFile = cmd.appLayout().destktopIntegrationDirectory().resolve(
+                        String.format("%s-%s.desktop",
+                                LinuxHelper.getPackageName(cmd), cmd.name()));
+                TKit.assertFileExists(desktopFile);
+                TKit.assertTextStream(expectedVersionString)
+                        .label(String.format("[%s] file", desktopFile))
+                        .predicate(String::equals)
+                        .apply(Files.readAllLines(desktopFile).stream());
+            }).run();
+        });
     }
 }

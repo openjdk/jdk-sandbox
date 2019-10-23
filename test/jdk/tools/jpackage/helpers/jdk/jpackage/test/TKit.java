@@ -593,18 +593,32 @@ final public class TKit {
     }
 
     public static void assertTrue(boolean actual, String msg) {
+        assertTrue(actual, msg, null);
+    }
+
+    public static void assertFalse(boolean actual, String msg) {
+        assertFalse(actual, msg, null);
+    }
+
+    public static void assertTrue(boolean actual, String msg, Runnable onFail) {
         currentTest.notifyAssert();
         if (!actual) {
-            error(concatMessages("Unexpected FALSE", msg));
+            if (onFail != null) {
+                onFail.run();
+            }
+            error(concatMessages("Failed", msg));
         }
 
         traceAssert(String.format("assertTrue(): %s", msg));
     }
 
-    public static void assertFalse(boolean actual, String msg) {
+    public static void assertFalse(boolean actual, String msg, Runnable onFail) {
         currentTest.notifyAssert();
         if (actual) {
-            error(concatMessages("Unexpected TRUE", msg));
+            if (onFail != null) {
+                onFail.run();
+            }
+            error(concatMessages("Failed", msg));
         }
 
         traceAssert(String.format("assertFalse(): %s", msg));

@@ -29,6 +29,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -99,18 +100,25 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
         PlatformPackage thePackage = createMetaPackage(params);
 
+        Function<File, ApplicationLayout> initAppImageLayout = imageRoot -> {
+            ApplicationLayout layout = appImageLayout(params);
+            layout.pathGroup().setPath(new Object(),
+                    AppImageFile.getPathInAppImage(Path.of("")));
+            return layout.resolveAt(imageRoot.toPath());
+        };
+
         try {
             File appImage = StandardBundlerParam.getPredefinedAppImage(params);
 
             // we either have an application image or need to build one
             if (appImage != null) {
-                appImageLayout(params).resolveAt(appImage.toPath()).copy(
+                initAppImageLayout.apply(appImage).copy(
                         thePackage.sourceApplicationLayout());
             } else {
                 appImage = APP_BUNDLER.fetchFrom(params).doBundle(params,
                         thePackage.sourceRoot().toFile(), true);
-                ApplicationLayout srcAppLayout = appImageLayout(params).resolveAt(
-                        appImage.toPath());
+                ApplicationLayout srcAppLayout = initAppImageLayout.apply(
+                        appImage);
                 if (appImage.equals(PREDEFINED_RUNTIME_IMAGE.fetchFrom(params))) {
                     // Application image points to run-time image.
                     // Copy it.

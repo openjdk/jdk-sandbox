@@ -28,6 +28,7 @@ package jdk.jpackage.internal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
@@ -75,7 +76,8 @@ class WixSourcesBuilder {
             // Don't want AppImageFile.FILENAME in installed application.
             // Register it with app image at a role without a match in installed
             // app layout to exclude it from layout transformation.
-            layout.pathGroup().setPath(new Object(), Path.of(AppImageFile.FILENAME));
+            layout.pathGroup().setPath(new Object(),
+                    AppImageFile.getPathInAppImage(Path.of("")));
 
             // Want absolute paths to source files in generated WiX sources.
             // This is to handle scenario if sources would be processed from
@@ -136,7 +138,8 @@ class WixSourcesBuilder {
 
     void logWixFeatures() {
         if (wixVersion.compareTo("3.6") >= 0) {
-            Log.verbose(I18N.getString("message.use-wix36-features"));
+            Log.verbose(MessageFormat.format(I18N.getString(
+                    "message.use-wix36-features"), wixVersion));
         }
     }
 
@@ -146,6 +149,10 @@ class WixSourcesBuilder {
 
         if (fa.iconPath != null && !fa.iconPath.toFile().exists()) {
             fa.iconPath = null;
+        }
+
+        if (fa.iconPath != null) {
+            fa.iconPath = fa.iconPath.toAbsolutePath();
         }
 
         // Filter out empty extensions.
@@ -277,6 +284,14 @@ class WixSourcesBuilder {
             return cfg.isFile;
         }
 
+        static void startElement(XMLStreamWriter xml, String componentId,
+                String componentGuid) throws XMLStreamException, IOException {
+            xml.writeStartElement("Component");
+            xml.writeAttribute("Win64", "yes");
+            xml.writeAttribute("Id", componentId);
+            xml.writeAttribute("Guid", componentGuid);
+        }
+
         private static final class Config {
             Config withRegistryKeyPath() {
                 withRegistryKeyPath = true;
@@ -329,9 +344,8 @@ class WixSourcesBuilder {
         xml.writeAttribute("Id", Id.Folder.of(directoryRefPath));
 
         final String componentId = "c" + role.idOf(path);
-        xml.writeStartElement("Component");
-        xml.writeAttribute("Id", componentId);
-        xml.writeAttribute("Guid", String.format("{%s}", role.guidOf(path)));
+        Component.startElement(xml, componentId, String.format("{%s}",
+                role.guidOf(path)));
 
         boolean isRegistryKeyPath = !systemWide || role.isRegistryKeyPath();
         if (isRegistryKeyPath) {
@@ -716,9 +730,7 @@ class WixSourcesBuilder {
 
         xml.writeStartElement("DirectoryRef");
         xml.writeAttribute("Id", INSTALLDIR.toString());
-        xml.writeStartElement("Component");
-        xml.writeAttribute("Id", componentId);
-        xml.writeAttribute("Guid", "*");
+        Component.startElement(xml, componentId, "*");
 
         addRegistryKeyPath(xml, INSTALLDIR, () -> propertyId, () -> {
             // The following code converts a path to value to be saved in registry.

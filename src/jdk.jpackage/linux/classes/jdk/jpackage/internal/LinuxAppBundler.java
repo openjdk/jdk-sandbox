@@ -26,14 +26,8 @@
 package jdk.jpackage.internal;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map;
-import java.util.ResourceBundle;
+import java.util.*;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 
@@ -85,10 +79,7 @@ public class LinuxAppBundler extends AbstractImageBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
-
+            Objects.requireNonNull(params);
             return doValidate(params);
         } catch (RuntimeException re) {
             if (re.getCause() instanceof ConfigException) {

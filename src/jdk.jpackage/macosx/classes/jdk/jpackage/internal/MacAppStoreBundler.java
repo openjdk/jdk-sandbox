@@ -28,11 +28,7 @@ package jdk.jpackage.internal;
 import java.io.File;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.*;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.MacAppBundler.*;
@@ -235,11 +231,7 @@ public class MacAppStoreBundler extends MacBaseInstallerBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
-            if (params == null) {
-                throw new ConfigException(
-                        I18N.getString("error.parameters-null"),
-                        I18N.getString("error.parameters-null.advice"));
-            }
+            Objects.requireNonNull(params);
 
             // hdiutil is always available so there's no need to test for
             // availability.

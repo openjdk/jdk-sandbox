@@ -26,10 +26,7 @@
 package jdk.jpackage.internal;
 
 import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
+import java.nio.file.*;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.function.Supplier;
@@ -119,16 +116,39 @@ public enum WixTool {
 
     private final static String MINIMAL_VERSION = "3.0";
 
-    private final static Path PROGRAM_FILES = Path.of("C:\\Program Files");
-    private final static Path PROGRAM_FILES_X86 = Path.of("C:\\Program Files (x86)");
+    static Path getSystemDir(String envVar, String knownDir) {
+        return Optional
+                .ofNullable(getEnvVariableAsPath(envVar))
+                .orElseGet(() -> Optional
+                        .ofNullable(getEnvVariableAsPath("SystemDrive"))
+                        .orElseGet(() -> Path.of("C:")).resolve(knownDir));
+    }
+
+    private static Path getEnvVariableAsPath(String envVar) {
+        String path = System.getenv(envVar);
+        if (path != null) {
+            try {
+                return Path.of(path);
+            } catch (InvalidPathException ex) {
+                Log.error(MessageFormat.format(I18N.getString(
+                        "error.invalid-envvar"), envVar));
+                return null;
+            }
+        }
+        return null;
+    }
 
     private static List<Path> findWixInstallDirs() {
         PathMatcher wixInstallDirMatcher = FileSystems.getDefault().getPathMatcher(
                 "glob:WiX Toolset v*");
 
+        Path programFiles = getSystemDir("ProgramFiles", "Program Files");
+        Path programFilesX86 = getSystemDir("ProgramFiles(X86)",
+                "Program Files (x86)");
+
         // Returns list of WiX install directories ordered by WiX version number.
         // Newer versions go first.
-        return Stream.of(PROGRAM_FILES, PROGRAM_FILES_X86).map(path -> {
+        return Stream.of(programFiles, programFilesX86).map(path -> {
             List<Path> result;
             try (var paths = Files.walk(path, 1)) {
                 result = paths.collect(Collectors.toList());

@@ -351,8 +351,8 @@ public final class PackageTest {
                 }
             }
 
-            TKit.assertPathExists(cmd.appInstallationDirectory().resolve(
-                    AppImageFile.FILENAME), false);
+            TKit.assertPathExists(AppImageFile.getPathInAppImage(
+                    cmd.appInstallationDirectory()), false);
 
             installVerifiers.stream().forEach(v -> v.accept(cmd));
         }

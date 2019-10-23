@@ -52,7 +52,6 @@ import static jdk.jpackage.tests.MainClassTest.Script.MainClassType.*;
  * @compile MainClassTest.java
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.MainClassTest
- *  --jpt-space-subst=_
  */
 
 public final class MainClassTest {

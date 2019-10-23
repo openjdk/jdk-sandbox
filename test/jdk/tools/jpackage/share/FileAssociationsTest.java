@@ -71,6 +71,8 @@ public class FileAssociationsTest {
         Path icon = TKit.TEST_SRC_ROOT.resolve(Path.of("resources", "icon"
                 + TKit.ICON_SUFFIX));
 
+        icon = TKit.createRelativePathCopy(icon);
+
         applyFileAssociations(packageTest,
                 new FileAssociations("jptest2").setFilename("fa2").setIcon(icon));
         packageTest.run();

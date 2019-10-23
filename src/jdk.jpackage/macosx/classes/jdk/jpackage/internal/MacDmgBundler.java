@@ -429,9 +429,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
-            if (params == null) throw new ConfigException(
-                    I18N.getString("error.parameters-null"),
-                    I18N.getString("error.parameters-null.advice"));
+            Objects.requireNonNull(params);
 
             //run basic validation to ensure requirements are met
             //we are not interested in return code, only possible exception

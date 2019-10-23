@@ -365,9 +365,12 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         debianFiles.add(new DebianFile(
                 configDir.resolve("postrm"),
                 "resource.deb-postrm-script").setExecutable());
-        debianFiles.add(new DebianFile(
-                getConfig_CopyrightFile(params).toPath(),
-                "resource.copyright-file"));
+
+        if (!StandardBundlerParam.isRuntimeInstaller(params)) {
+            debianFiles.add(new DebianFile(
+                    getConfig_CopyrightFile(params).toPath(),
+                    "resource.copyright-file"));
+        }
 
         for (DebianFile debianFile : debianFiles) {
             debianFile.create(data, params);

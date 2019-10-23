@@ -619,7 +619,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     public void verifyIsOfType(PackageType ... types) {
-        final Set<PackageType> typesSet = Set.of(types);
+        final var typesSet = Stream.of(types).collect(Collectors.toSet());
         if (!hasArgument("--package-type")) {
             if (!isImagePackageType()) {
                 if (TKit.isLinux() && typesSet.equals(PackageType.LINUX)) {

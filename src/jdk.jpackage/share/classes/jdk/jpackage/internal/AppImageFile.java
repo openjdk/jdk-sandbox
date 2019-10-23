@@ -51,7 +51,7 @@ public class AppImageFile {
     private final String launcherName;
     private final List<String> addLauncherNames;
 
-    public final static String FILENAME = ".jpackage.xml";
+    private final static String FILENAME = ".jpackage.xml";
 
     private final static Map<Platform, String> PLATFORM_LABELS = Map.of(
             Platform.LINUX, "linux", Platform.WINDOWS, "windows", Platform.MAC,
@@ -91,13 +91,21 @@ public class AppImageFile {
     }
 
     /**
+     * Returns path to application image info file.
+     * @param appImageDir - path to application image
+     */
+    public static Path getPathInAppImage(Path appImageDir) {
+        return appImageDir.resolve(FILENAME);
+    }
+
+    /**
      * Saves file with application image info in application image.
      * @param appImageDir - path to application image
      * @throws IOException
      */
-    static void save(Path appImage, Map<String, Object> params)
+    static void save(Path appImageDir, Map<String, Object> params)
             throws IOException {
-        IOUtils.createXml(appImage.resolve(FILENAME), xml -> {
+        IOUtils.createXml(getPathInAppImage(appImageDir), xml -> {
             xml.writeStartElement("jpackage-state");
             xml.writeAttribute("version", getVersion());
             xml.writeAttribute("platform", getPlatform());
@@ -126,7 +134,7 @@ public class AppImageFile {
      */
     static AppImageFile load(Path appImageDir) throws IOException {
         try {
-            Path path = appImageDir.resolve(FILENAME);
+            Path path = getPathInAppImage(appImageDir);
             DocumentBuilderFactory dbf =
                     DocumentBuilderFactory.newDefaultInstance();
             dbf.setFeature(
@@ -177,7 +185,7 @@ public class AppImageFile {
 
     /**
      * Returns list of launcher names configured for the application.
-     * The first item in the returned list is man launcher name.
+     * The first item in the returned list is main launcher name.
      * Following items in the list are names of additional launchers.
      */
     static List<String> getLauncherNames(Path appImageDir,
