@@ -36,7 +36,9 @@ import jdk.jpackage.test.JPackageCommand;
 /*
  * @test
  * @summary jpackage with --app-image
+ * @key jpackagePlatformPackage
  * @library ../helpers
+ * @requires (jpackage.test.SQETest == null)
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @run main/othervm/timeout=540 -Xmx512m AppImagePackageTest

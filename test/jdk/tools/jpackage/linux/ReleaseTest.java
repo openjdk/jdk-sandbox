@@ -43,6 +43,7 @@ import jdk.jpackage.test.TKit;
  * @test
  * @summary jpackage with --linux-app-release
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal

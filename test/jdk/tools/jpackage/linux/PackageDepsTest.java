@@ -46,6 +46,7 @@ import jdk.jpackage.test.LinuxHelper;
  * @test
  * @summary jpackage with --linux-package-deps
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
  * @modules jdk.jpackage/jdk.jpackage.internal

@@ -37,6 +37,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --win-dir-chooser
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal

@@ -13,33 +13,31 @@ set -e; set -o pipefail;
 jtreg_bundle=https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz
 workdir=/tmp/jpackage_jtreg_testing
 jtreg_jar=$workdir/jtreg/lib/jtreg.jar
+jpackage_test_selector=test/jdk/tools/jpackage
 
-# Names of shared packaging tests to run
-share_package_test_names="
-  FileAssociationsTest
-  InstallDirTest
-  LicenseTest
-  SimplePackageTest
-  RuntimePackageTest
-  AdditionalLaunchersTest
-  AppImagePackageTest
-"
-mapfile -t packaging_tests_share < <(for t in $share_package_test_names; do echo test/jdk/tools/jpackage/share/$t.java; done)
-packaging_tests_windows=test/jdk/tools/jpackage/windows
-packaging_tests_linux=test/jdk/tools/jpackage/linux
-packaging_tests_mac=test/jdk/tools/jpackage/macosx
 
-case "$(uname -s)" in
-  Darwin)
-    tests=( "$packaging_tests_mac" );;
-  Linux)
-    tests=( "$packaging_tests_linux" );;
-  CYGWIN*|MINGW32*|MSYS*)
-    tests=( "$packaging_tests_windows" );;
-  *)
-    fatal Failed to detect OS type;;
-esac
-tests+=(${packaging_tests_share[@]})
+find_packaging_tests ()
+{
+  (cd "$open_jdk_with_jpackage_jtreg_tests" && \
+    find "$jpackage_test_selector/$1" -type f -name '*.java' \
+    | xargs grep -E -l '@key[[:space:]]+jpackagePlatformPackage')
+}
+
+
+find_all_packaging_tests ()
+{
+  find_packaging_tests share
+  case "$(uname -s)" in
+    Darwin)
+      find_packaging_tests macosx;;
+    Linux)
+      find_packaging_tests linux;;
+    CYGWIN*|MINGW32*|MSYS*)
+      find_packaging_tests windows;;
+    *)
+      fatal Failed to detect OS type;;
+  esac
+}
 
 
 help_usage ()
@@ -49,6 +47,7 @@ help_usage ()
   echo "  -h              - print this message"
   echo "  -v              - verbose output"
   echo "  -c              - keep jtreg cache"
+  echo "  -a              - run all, not only SQE tests"
   echo "  -d              - dry run. Print jtreg command line, but don't execute it"
   echo "  -t <jdk>        - path to JDK to be tested [ mandatory ]"
   echo "  -j <openjdk>    - path to local copy of openjdk repo with jpackage jtreg tests"
@@ -71,7 +70,7 @@ help_usage ()
   echo '                    - `verify-uninstall`'
   echo '                      Verify packages created with the previous run of the script were uninstalled cleanly.'
   echo '                    - `print-default-tests`'
-  echo '                      Print default tests list and exit.'
+  echo '                      Print default list of packaging tests and exit.'
 }
 
 error ()
@@ -113,17 +112,6 @@ exec_command ()
   fi
 }
 
-expand_test_selector ()
-{
-  if [ -d "$open_jdk_with_jpackage_jtreg_tests/$1" ]; then
-    for java in $(find "$open_jdk_with_jpackage_jtreg_tests/$1" -maxdepth 1 -name '*.java'); do
-      ! grep -q '@test' "$java" || echo "$1/$(basename "$java")"
-    done
-  else
-    echo "$1"
-  fi
-}
-
 
 # Path to JDK to be tested.
 test_jdk=
@@ -145,12 +133,18 @@ keep_jtreg_cache=
 # Mode in which to run jtreg tests
 mode=update
 
-# JVM extra arguments
-declare -a vm_args
+# jtreg extra arguments
+declare -a jtreg_args
 
-while getopts "vhdct:j:o:r:m:l:" argname; do
+# Run all tests
+run_all_tests=
+
+mapfile -t tests < <(find_all_packaging_tests)
+
+while getopts "vahdct:j:o:r:m:l:" argname; do
   case "$argname" in
     v) verbose=yes;;
+    a) run_all_tests=yes;;
     d) dry_run=yes;;
     c) keep_jtreg_cache=yes;;
     t) test_jdk="$OPTARG";;
@@ -172,7 +166,7 @@ if [ -z "$open_jdk_with_jpackage_jtreg_tests" ]; then
 fi
 
 if [ "$mode" = "print-default-tests" ]; then
-  exec_command for t in ${tests[@]}";" do expand_test_selector '$t;' done
+  exec_command for t in ${tests[@]}";" do echo '$t;' done
   exit
 fi
 
@@ -192,7 +186,7 @@ if [ -n "$runtime_dir" ]; then
   if [ ! -d "$runtime_dir" ]; then
     fatal 'Value of `-r` option is set to non-existing directory'.
   fi
-  vm_args+=("-Djpackage.test.runtime-image=$(to_native_path "$(cd "$runtime_dir" && pwd)")")
+  jtreg_args+=("-Djpackage.test.runtime-image=$(to_native_path "$(cd "$runtime_dir" && pwd)")")
 fi
 
 if [ -n "$logfile" ]; then
@@ -200,7 +194,7 @@ if [ -n "$logfile" ]; then
     fatal 'Value of `-l` option specified a file in non-existing directory'.
   fi
   logfile="$(cd "$(dirname "$logfile")" && pwd)/$(basename "$logfile")"
-  vm_args+=("-Djpackage.test.logfile=$(to_native_path "$logfile")")
+  jtreg_args+=("-Djpackage.test.logfile=$(to_native_path "$logfile")")
 fi
 
 if [ "$mode" = create ]; then
@@ -208,13 +202,16 @@ if [ "$mode" = create ]; then
 elif [ "$mode" = update ]; then
   true
 elif [ "$mode" = verify-install ]; then
-  vm_args+=("-Djpackage.test.action=$mode")
+  jtreg_args+=("-Djpackage.test.action=$mode")
 elif [ "$mode" = verify-uninstall ]; then
-  vm_args+=("-Djpackage.test.action=$mode")
+  jtreg_args+=("-Djpackage.test.action=$mode")
 else
   fatal_with_help_usage 'Invalid value of -m option:' [$mode]
 fi
 
+if [ -z "$run_all_tests" ]; then
+  jtreg_args+=(-Djpackage.test.SQETest=yes)
+fi
 
 # All remaining command line arguments are tests to run that should override the defaults
 [ $# -eq 0 ] || tests=($@)
@@ -252,7 +249,7 @@ run ()
   local jtreg_cmdline=(\
     $JAVA_HOME/bin/java -jar $(to_native_path "$jtreg_jar") \
     "-Djpackage.test.output=$(to_native_path "$output_dir")" \
-    "${vm_args[@]}" \
+    "${jtreg_args[@]}" \
     -nr \
     "$jtreg_verbose" \
     -retain:all \

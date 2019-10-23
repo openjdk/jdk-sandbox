@@ -54,6 +54,7 @@ import jdk.jpackage.test.Annotations.Test;
  * @test
  * @summary jpackage with --file-associations
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal
  * @compile FileAssociationsTest.java

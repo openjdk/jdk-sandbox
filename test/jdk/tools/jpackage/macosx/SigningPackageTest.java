@@ -39,6 +39,7 @@ import jdk.jpackage.test.*;
  * @library ../helpers
  * @library /test/lib
  * @library base
+ * @key jpackagePlatformPackage
  * @build SigningBase
  * @build SigningCheck
  * @build jtreg.SkippedException

@@ -45,6 +45,7 @@ import jdk.jpackage.test.TKit;
 /*
  * @test
  * @summary jpackage with --add-launcher
+ * @key jpackagePlatformPackage
  * @library ../helpers
  * @build jdk.jpackage.test.*
  * @modules jdk.jpackage/jdk.jpackage.internal

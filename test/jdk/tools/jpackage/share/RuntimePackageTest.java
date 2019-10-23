@@ -44,6 +44,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @test
  * @summary jpackage with --runtime-image
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @comment Temporary disable for Linux and OSX until functionality implemented
  * @requires (os.family != "mac")

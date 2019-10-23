@@ -40,6 +40,7 @@ import jdk.jpackage.test.PackageType;
  * @test
  * @summary jpackage with --win-upgrade-uuid and --app-version
  * @library ../helpers
+ * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @requires (os.family == "windows")
  * @modules jdk.jpackage/jdk.jpackage.internal
