@@ -60,7 +60,7 @@ public final class TestSetEndTime {
     }
 
     public static void main(String... args) throws Exception {
-     //   testEventStream();
+        testEventStream();
         testRecordingStream();
     }
 
@@ -77,7 +77,7 @@ public final class TestSetEndTime {
                 rs.onClose(() -> {
                     closed.countDown();
                 });
-                Instant endTime = Instant.now().plus(Duration.ofMillis(10_000));
+                Instant endTime = Instant.now().plus(Duration.ofMillis(100));
                 System.out.println("Setting end time: " + endTime);
                 rs.setEndTime(endTime);
                 rs.startAsync();
