@@ -241,23 +241,25 @@ public final class ChunkParser {
                 throw new IOException("Event can't have zero size");
             }
             long typeId = input.readLong();
-
-            if (typeId != 0) { // Not metadata event
-                Parser p = parsers.get(typeId);
-                if (p instanceof EventParser) {
-                    EventParser ep = (EventParser) p;
-                    RecordedEvent event = ep.parse(input);
-                    if (event != null) {
-                        input.position(pos + size);
-                        return event;
-                    }
+            Parser p = parsers.get(typeId);
+            if (p instanceof EventParser) {
+                // Fast path
+                EventParser ep = (EventParser) p;
+                RecordedEvent event = ep.parse(input);
+                if (event != null) {
+                    input.position(pos + size);
+                    return event;
                 }
+                // Not accepted by filter
+            } else {
                 if (typeId == 1) { // checkpoint event
                     if (flushOperation != null) {
                         parseCheckpoint();
                     }
                 } else {
-                    Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Unknwon event type " + typeId);
+                    if (typeId != 0) { // Not metadata event
+                        Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Unknwon event type " + typeId);
+                    }
                 }
             }
             input.position(pos + size);
