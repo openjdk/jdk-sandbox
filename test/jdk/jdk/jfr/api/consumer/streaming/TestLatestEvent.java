@@ -82,17 +82,21 @@ public class TestLatestEvent {
             NotLatestEvent notLatest = new NotLatestEvent();
             notLatest.commit();
             try (EventStream s = EventStream.openRepository()) {
+                // Wait for next segment
+                // to prevent flush to prevent NotLatest to be included
+                awaitFlush(r);
                 System.out.println("EventStream opened");
-                awaitFlush(r); // ensure that NotLatest is included
-                s.startAsync();
                 AtomicBoolean foundLatest = new AtomicBoolean();
-                System.out.println("Added onEvent handler");
                 s.onEvent(event -> {
                     String name = event.getEventType().getName();
                     System.out.println("Found event " + name);
                     foundLatest.set(name.equals("Latest"));
                     s.close();
                 });
+                System.out.println("Added onEvent handler");
+                s.startAsync();
+                // wait for next segment
+                awaitFlush(s);
                 // Emit the latest event
                 LatestEvent latest = new LatestEvent();
                 latest.commit();
@@ -106,14 +110,15 @@ public class TestLatestEvent {
         }
     }
 
-    private static void awaitFlush(RecordingStream r) throws InterruptedException {
+    private static void awaitFlush(EventStream stream) throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         System.out.println("Waiting for flush...");
-        r.onFlush(() -> {
+        final Runnable l =  () -> {
             System.out.println("Flush arrived!");
             latch.countDown();
-        });
+        };
+        stream.onFlush(l);
         latch.await();
-
+        stream.remove(l);
     }
 }

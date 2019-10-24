@@ -45,11 +45,19 @@ public class TestEmptyChunks {
 
     public static void main(String... args) throws Exception {
         CountDownLatch end = new CountDownLatch(1);
+        CountDownLatch firstFlush = new CountDownLatch(1);
         try (RecordingStream es = new RecordingStream()) {
             es.onEvent(EndEvent.class.getName(), e -> {
                 end.countDown();
             });
+            es.onFlush(() -> {
+                firstFlush.countDown();
+            });
             es.startAsync();
+            System.out.println("Invoked startAsync()");
+            // Wait for stream thread to start
+            firstFlush.await();
+            System.out.println("Stream thread active");
             Recording r1 = new Recording();
             r1.start();
             System.out.println("Chunk 1 started");
