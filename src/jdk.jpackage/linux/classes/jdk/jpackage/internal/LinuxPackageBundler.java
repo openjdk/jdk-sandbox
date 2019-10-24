@@ -151,8 +151,17 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
             data.putAll(createReplacementData(params));
 
-            return buildPackageBundle(Collections.unmodifiableMap(data), params,
-                    outputParentDir);
+            File packageBundle = buildPackageBundle(Collections.unmodifiableMap(
+                    data), params, outputParentDir);
+
+            verifyOutputBundle(params, packageBundle.toPath()).stream()
+                    .filter(Objects::nonNull)
+                    .forEachOrdered(ex -> {
+                Log.verbose(ex.getLocalizedMessage());
+                Log.verbose(ex.getAdvice());
+            });
+
+            return packageBundle;
         } catch (IOException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
@@ -212,6 +221,9 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
         return data;
     }
+
+    abstract protected List<ConfigException> verifyOutputBundle(
+            Map<String, ? super Object> params, Path packageBundle);
 
     abstract protected void initLibProvidersLookup(
             Map<String, ? super Object> params,

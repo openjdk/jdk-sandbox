@@ -257,6 +257,45 @@ public class LinuxDebBundler extends LinuxPackageBundler {
         });
     }
 
+    @Override
+    protected List<ConfigException> verifyOutputBundle(
+            Map<String, ? super Object> params, Path packageBundle) {
+        List<ConfigException> errors = new ArrayList<>();
+
+        String controlFileName = "control";
+
+        List<PackageProperty> properties = List.of(
+                new PackageProperty("Package", PACKAGE_NAME.fetchFrom(params),
+                        "APPLICATION_PACKAGE", controlFileName),
+                new PackageProperty("Version", String.format("%s-%s",
+                        VERSION.fetchFrom(params), RELEASE.fetchFrom(params)),
+                        "APPLICATION_VERSION-APPLICATION_RELEASE",
+                        controlFileName),
+                new PackageProperty("Architecture", DEB_ARCH, "APPLICATION_ARCH",
+                        controlFileName));
+
+        List<String> cmdline = new ArrayList<>(List.of(TOOL_DPKG_DEB, "-f",
+                packageBundle.toString()));
+        properties.forEach(property -> cmdline.add(property.name));
+        try {
+            Map<String, String> actualValues = Executor.of(cmdline.toArray(String[]::new))
+                    .saveOutput(true)
+                    .executeExpectSuccess()
+                    .getOutput().stream()
+                            .map(line -> line.split(":\\s+", 2))
+                            .collect(Collectors.toMap(
+                                    components -> components[0],
+                                    components -> components[1]));
+            properties.forEach(property -> errors.add(property.verifyValue(
+                    actualValues.get(property.name))));
+        } catch (IOException ex) {
+            // Ignore error as it is not critical. Just report it.
+            Log.verbose(ex);
+        }
+
+        return errors;
+    }
+
     /*
      * set permissions with a string like "rwxr-xr-x"
      *

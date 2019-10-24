@@ -32,6 +32,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static jdk.jpackage.internal.StandardBundlerParam.*;
 import static jdk.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
@@ -151,7 +152,7 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
                 .setSubstitutionData(replacementData)
                 .saveToFile(specFile);
 
-        return buildRPM(params, outputParentDir);
+        return buildRPM(params, outputParentDir.toPath()).toFile();
     }
 
     @Override
@@ -186,16 +187,62 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         });
     }
 
+    @Override
+    protected List<ConfigException> verifyOutputBundle(
+            Map<String, ? super Object> params, Path packageBundle) {
+        List<ConfigException> errors = new ArrayList<>();
+
+        String specFileName = specFile(params).getFileName().toString();
+
+        try {
+            List<PackageProperty> properties = List.of(
+                    new PackageProperty("Name", PACKAGE_NAME.fetchFrom(params),
+                            "APPLICATION_PACKAGE", specFileName),
+                    new PackageProperty("Version", VERSION.fetchFrom(params),
+                            "APPLICATION_VERSION", specFileName),
+                    new PackageProperty("Release", RELEASE.fetchFrom(params),
+                            "APPLICATION_RELEASE", specFileName),
+                    new PackageProperty("Arch", rpmArch(), null, specFileName));
+
+            List<String> actualValues = Executor.of(TOOL_RPM, "-qp", "--queryformat",
+                    properties.stream().map(entry -> String.format("%%{%s}",
+                    entry.name)).collect(Collectors.joining("\\n")),
+                    packageBundle.toString()).saveOutput(true).executeExpectSuccess().getOutput();
+
+            Iterator<String> actualValuesIt = actualValues.iterator();
+            properties.forEach(property -> errors.add(property.verifyValue(
+                    actualValuesIt.next())));
+        } catch (IOException ex) {
+            // Ignore error as it is not critical. Just report it.
+            Log.verbose(ex);
+        }
+
+        return errors;
+    }
+
+    private String rpmArch() throws IOException {
+        if (rpmArch == null) {
+            rpmArch = Executor.of(TOOL_RPMBUILD, "--eval=%{_target_cpu}").saveOutput(
+                    true).executeExpectSuccess().getOutput().get(0);
+        }
+        return rpmArch;
+    }
+
     private Path specFile(Map<String, ? super Object> params) {
         return TEMP_ROOT.fetchFrom(params).toPath().resolve(Path.of("SPECS",
                 PACKAGE_NAME.fetchFrom(params) + ".spec"));
     }
 
-    private File buildRPM(Map<String, ? super Object> params,
-            File outdir) throws IOException {
+    private Path buildRPM(Map<String, ? super Object> params,
+            Path outdir) throws IOException {
+
+        Path rpmFile = outdir.toAbsolutePath().resolve(String.format(
+                "%s-%s-%s.%s.rpm", PACKAGE_NAME.fetchFrom(params),
+                VERSION.fetchFrom(params), RELEASE.fetchFrom(params), rpmArch()));
+
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.outputting-bundle-location"),
-                outdir.getAbsolutePath()));
+                rpmFile.getParent()));
 
         PlatformPackage thePackage = createMetaPackage(params);
 
@@ -206,33 +253,18 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
                 "--define", String.format("%%_sourcedir %s",
                         thePackage.sourceRoot()),
                 // save result to output dir
-                "--define", String.format("%%_rpmdir %s",
-                        outdir.getAbsolutePath()),
+                "--define", String.format("%%_rpmdir %s", rpmFile.getParent()),
                 // do not use other system directories to build as current user
                 "--define", String.format("%%_topdir %s",
-                        TEMP_ROOT.fetchFrom(params).toPath().toAbsolutePath())
+                        TEMP_ROOT.fetchFrom(params).toPath().toAbsolutePath()),
+                "--define", String.format("%%_rpmfilename %s", rpmFile.getFileName())
         ).executeExpectSuccess();
 
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.output-bundle-location"),
-                outdir.getAbsolutePath()));
+                rpmFile.getParent()));
 
-        // presume the result is the ".rpm" file with the newest modified time
-        // not the best solution, but it is the most reliable
-        File result = null;
-        long lastModified = 0;
-        File[] list = outdir.listFiles();
-        if (list != null) {
-            for (File f : list) {
-                if (f.getName().endsWith(".rpm") &&
-                        f.lastModified() > lastModified) {
-                    result = f;
-                    lastModified = f.lastModified();
-                }
-            }
-        }
-
-        return result;
+        return rpmFile;
     }
 
     @Override
@@ -255,4 +287,5 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         return !LinuxDebBundler.isDebian();
     }
 
+    private String rpmArch;
 }

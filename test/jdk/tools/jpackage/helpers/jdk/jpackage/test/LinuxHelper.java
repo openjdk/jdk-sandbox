@@ -63,9 +63,8 @@ public class LinuxHelper {
         final String release = getRelease(cmd);
         final String version = cmd.version();
 
-        return String.format(format,
-                getPackageName(cmd), version, release, getPackageArch(packageType))
-                + packageType.getSuffix();
+        return String.format(format, getPackageName(cmd), version, release,
+                getDefaultPackageArch(packageType)) + packageType.getSuffix();
     }
 
     public static Stream<Path> getPackageFiles(JPackageCommand cmd) {
@@ -377,7 +376,7 @@ public class LinuxHelper {
                 .executeAndGetFirstLineOfOutput();
     }
 
-    private static String getPackageArch(PackageType type) {
+    public static String getDefaultPackageArch(PackageType type) {
         if (archs == null) {
             archs = new HashMap<>();
         }

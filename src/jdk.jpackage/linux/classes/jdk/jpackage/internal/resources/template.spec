@@ -16,9 +16,6 @@ Autoreq: 0
 Requires: PACKAGE_DEFAULT_DEPENDENCIES PACKAGE_CUSTOM_DEPENDENCIES
 %endif
 
-#avoid ARCH subfolder
-%define _rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
-
 #comment line below to enable effective jar compression
 #it could easily get your package size from 40 to 15Mb but
 #build time will substantially increase and it may require unpack200/system java to install
