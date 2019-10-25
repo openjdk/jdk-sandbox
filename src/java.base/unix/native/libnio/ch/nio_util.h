@@ -54,8 +54,11 @@
 
 /* Defined in IOUtil.c */
 
-jint fdval(JNIEnv *env, jobject fdo);
-void setfdval(JNIEnv *env, jobject fdo, jint value);
+JNIEXPORT jint JNICALL
+fdval(JNIEnv *env, jobject fdo);
+
+JNIEXPORT void JNICALL
+setfdval(JNIEnv *env, jobject fdo, jint value);
 
 jint convertReturnVal(JNIEnv *env, jint n, jboolean reading);
 jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading);
@@ -63,4 +66,5 @@ jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading);
 
 /* Defined in Net.c */
 
-jint handleSocketError(JNIEnv *env, jint errorValue);
+JNIEXPORT jint JNICALL
+handleSocketError(JNIEnv *env, jint errorValue);

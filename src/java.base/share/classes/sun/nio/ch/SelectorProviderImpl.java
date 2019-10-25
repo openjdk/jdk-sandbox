@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.nio.channels.*;
 import java.nio.channels.spi.*;
 
@@ -53,10 +54,32 @@ public abstract class SelectorProviderImpl
     public abstract AbstractSelector openSelector() throws IOException;
 
     public ServerSocketChannel openServerSocketChannel() throws IOException {
-        return new ServerSocketChannelImpl(this);
+        return new InetServerSocketChannelImpl(this);
     }
 
     public SocketChannel openSocketChannel() throws IOException {
-        return new SocketChannelImpl(this);
+        return new InetSocketChannelImpl(this);
+    }
+
+    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        // TODO: This doesn't exclusively implement the given family
+        if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
+            throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
+            //return new InetSocketChannelImpl(this);
+        } else if (family == StandardProtocolFamily.UNIX) {
+            return new UnixDomainSocketChannelImpl(this, Net.unixDomainSocket(), false);
+        } else
+            throw new UnsupportedAddressTypeException();
+    }
+
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        // TODO: This doesn't exclusively implement the given family
+        if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
+            throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
+            //return new InetServerSocketChannelImpl(this);
+        } else if (family == StandardProtocolFamily.UNIX) {
+            return new UnixDomainServerSocketChannelImpl(this);
+        } else
+            throw new UnsupportedAddressTypeException();
     }
 }

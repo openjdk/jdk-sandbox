@@ -40,6 +40,9 @@
 #define NET_WAIT_WRITE   0x02
 #define NET_WAIT_CONNECT 0x04
 
+/* 2 bytes to allow for null at end of string and null at start of string for abstract name */
+#define MAX_UNIX_DOMAIN_PATH_LEN (int)(sizeof(((struct sockaddr_un *)0)->sun_path)-2)
+
 /************************************************************************
  * Cached field IDs
  *
@@ -111,6 +114,12 @@ extern jfieldID ia6_scopeidsetID;
 extern jfieldID ia6_scopeifnameID;
 extern jmethodID ia6_ctrID;
 
+/* UnixDomainSocketAddress methods */
+extern jclass udsa_class;
+extern jmethodID udsa_ctorID;
+extern jfieldID udsa_pathID;
+extern jfieldID udsa_isAbstractID;
+
 /************************************************************************
  *  Utilities
  */
@@ -156,6 +165,12 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToInetAddress(JNIEnv *env, SOCKETADDRESS *sa, int *port);
+
+JNIEXPORT jobject JNICALL
+NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa);
+
+JNIEXPORT jint JNICALL
+NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, int *len);
 
 void platformInit();
 

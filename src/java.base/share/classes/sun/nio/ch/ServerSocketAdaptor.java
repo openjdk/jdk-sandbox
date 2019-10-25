@@ -56,12 +56,12 @@ class ServerSocketAdaptor                        // package-private
     extends ServerSocket
 {
     // The channel being adapted
-    private final ServerSocketChannelImpl ssc;
+    private final InetServerSocketChannelImpl ssc;
 
     // Timeout "option" value for accepts
     private volatile int timeout;
 
-    static ServerSocket create(ServerSocketChannelImpl ssc) {
+    static ServerSocket create(InetServerSocketChannelImpl ssc) {
         PrivilegedExceptionAction<ServerSocket> pa = () -> new ServerSocketAdaptor(ssc);
         try {
             return AccessController.doPrivileged(pa);
@@ -70,7 +70,7 @@ class ServerSocketAdaptor                        // package-private
         }
     }
 
-    private ServerSocketAdaptor(ServerSocketChannelImpl ssc) {
+    private ServerSocketAdaptor(InetServerSocketChannelImpl ssc) {
         super(DummySocketImpl.create());
         this.ssc = ssc;
     }
@@ -93,7 +93,7 @@ class ServerSocketAdaptor                        // package-private
 
     @Override
     public InetAddress getInetAddress() {
-        InetSocketAddress local = ssc.localAddress();
+        InetSocketAddress local = (InetSocketAddress)ssc.localAddress();
         if (local == null) {
             return null;
         } else {
@@ -103,7 +103,7 @@ class ServerSocketAdaptor                        // package-private
 
     @Override
     public int getLocalPort() {
-        InetSocketAddress local = ssc.localAddress();
+        InetSocketAddress local = (InetSocketAddress)ssc.localAddress();
         if (local == null) {
             return -1;
         } else {

@@ -232,6 +232,7 @@ module java.base {
         jdk.jfr;
     exports sun.net to
         java.net.http,
+        jdk.net,
         jdk.naming.dns;
     exports sun.net.ext to
         jdk.net;
@@ -241,6 +242,7 @@ module java.base {
     exports sun.net.util to
         java.desktop,
         jdk.jconsole,
+        jdk.net,
         java.net.http;
     exports sun.net.www to
         java.net.http,
@@ -267,7 +269,8 @@ module java.base {
         java.sql.rowset;
     exports sun.security.action to
         java.desktop,
-        java.security.jgss;
+        java.security.jgss,
+        jdk.net;
     exports sun.security.internal.interfaces to
         jdk.crypto.cryptoki;
     exports sun.security.internal.spec to

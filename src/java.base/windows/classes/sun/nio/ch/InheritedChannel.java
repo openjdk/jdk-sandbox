@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,39 +25,16 @@
 
 package sun.nio.ch;
 
-import java.nio.channels.SocketChannel;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.spi.SelectorProvider;
+import java.util.function.BiFunction;
 import java.io.FileDescriptor;
-import java.io.IOException;
+import java.nio.channels.spi.SelectorProvider;
+import sun.nio.ch.AbstractSocketChannelImpl;
 
-/**
- * Provides access to implementation private constructors and methods.
- */
+public class InheritedChannel {
 
-public final class Secrets {
-    private Secrets() { }
-
-    private static SelectorProvider provider() {
-        SelectorProvider p = SelectorProvider.provider();
-        if (!(p instanceof SelectorProviderImpl))
-            throw new UnsupportedOperationException();
-        return p;
-    }
-
-    public static SocketChannel newSocketChannel(FileDescriptor fd) {
-        try {
-            return new InetSocketChannelImpl(provider(), fd, false);
-        } catch (IOException ioe) {
-            throw new AssertionError(ioe);
-        }
-    }
-
-    public static ServerSocketChannel newServerSocketChannel(FileDescriptor fd) {
-        try {
-            return new InetServerSocketChannelImpl(provider(), fd, false);
-        } catch (IOException ioe) {
-            throw new AssertionError(ioe);
-        }
+    public static final void register(
+        BiFunction<SelectorProvider,FileDescriptor,AbstractSocketChannelImpl> supplier)
+    {
+        // operation not supported on windows
     }
 }

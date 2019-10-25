@@ -47,11 +47,11 @@ class SinkChannelImpl
     final SocketChannel sc;
 
     public FileDescriptor getFD() {
-        return ((SocketChannelImpl)sc).getFD();
+        return ((InetSocketChannelImpl)sc).getFD();
     }
 
     public int getFDVal() {
-        return ((SocketChannelImpl)sc).getFDVal();
+        return ((InetSocketChannelImpl)sc).getFDVal();
     }
 
     SinkChannelImpl(SelectorProvider sp, SocketChannel sc) {

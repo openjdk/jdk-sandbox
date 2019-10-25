@@ -317,8 +317,39 @@ public abstract class SelectorProvider {
      *
      * @since 1.5
      */
-   public Channel inheritedChannel() throws IOException {
+    public Channel inheritedChannel() throws IOException {
         return null;
-   }
+    }
 
+    /**
+     * Returns a {@link SocketChannel} from the given protocol family.
+     *
+     * @param family the protocol family
+     *
+     * @return a SocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedAddressTypeException if the protocol family not supported
+     *
+     * @since 14
+     */
+    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        return null;
+    }
+
+    /**
+     * Returns a {@link ServerSocketChannel} from the given protocol family.
+     *
+     * @param family the protocol family
+     *
+     * @return a ServerSocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedAddressTypeException if the protocol family not supported
+     *
+     * @since 14
+     */
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        return null;
+    }
 }

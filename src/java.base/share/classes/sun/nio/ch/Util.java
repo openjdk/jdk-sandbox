@@ -282,7 +282,7 @@ public class Util {
      * returning to the cache then insert it at the start so that it is
      * likely to be returned by a subsequent call to getTemporaryDirectBuffer.
      */
-    static void offerFirstTemporaryDirectBuffer(ByteBuffer buf) {
+    public static void offerFirstTemporaryDirectBuffer(ByteBuffer buf) {
         // If the buffer is too large for the cache we don't have to
         // check the cache. We'll just free it.
         if (isBufferTooLarge(buf)) {

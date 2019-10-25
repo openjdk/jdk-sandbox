@@ -39,7 +39,7 @@ class DatagramDispatcher extends NativeDispatcher
         IOUtil.load();
     }
 
-    int read(FileDescriptor fd, long address, int len) throws IOException {
+    public int read(FileDescriptor fd, long address, int len) throws IOException {
         return read0(fd, address, len);
     }
 
@@ -47,7 +47,7 @@ class DatagramDispatcher extends NativeDispatcher
         return readv0(fd, address, len);
     }
 
-    int write(FileDescriptor fd, long address, int len) throws IOException {
+    public int write(FileDescriptor fd, long address, int len) throws IOException {
         return write0(fd, address, len);
     }
 
@@ -55,11 +55,11 @@ class DatagramDispatcher extends NativeDispatcher
         return writev0(fd, address, len);
     }
 
-    void close(FileDescriptor fd) throws IOException {
+    public void close(FileDescriptor fd) throws IOException {
         FileDispatcherImpl.close0(fd);
     }
 
-    void preClose(FileDescriptor fd) throws IOException {
+    public void preClose(FileDescriptor fd) throws IOException {
         FileDispatcherImpl.preClose0(fd);
     }
 

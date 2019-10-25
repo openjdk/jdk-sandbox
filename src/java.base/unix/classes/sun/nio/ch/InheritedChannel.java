@@ -28,15 +28,22 @@ package sun.nio.ch;
 import java.lang.reflect.Constructor;
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketOption;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.spi.SelectorProvider;
+import java.util.Set;
+import java.util.function.BiFunction;
 
-class InheritedChannel {
+public class InheritedChannel {
 
     // the "types" of socket returned by soType0
     private static final int UNKNOWN            = -1;
@@ -79,9 +86,9 @@ class InheritedChannel {
      * allows us to "detach" the standard streams after closing and ensures
      * that the underlying socket really closes.
      */
-    public static class InheritedSocketChannelImpl extends SocketChannelImpl {
+    public static class InheritedInetSocketChannelImpl extends InetSocketChannelImpl {
 
-        InheritedSocketChannelImpl(SelectorProvider sp,
+        InheritedInetSocketChannelImpl(SelectorProvider sp,
                                    FileDescriptor fd,
                                    InetSocketAddress remote)
             throws IOException
@@ -95,24 +102,25 @@ class InheritedChannel {
         }
     }
 
-    public static class InheritedUnixChannelImpl extends UnixDomainSocketChannelImpl {
+    public static class InheritedUnixSocketChannelImpl extends UnixDomainSocketChannelImpl {
 
-        InheritedUnixChannelImpl(FileDescriptor fd)
+        InheritedUnixSocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
             throws IOException
         {
-            super(fd);
+            super(sp, fd, true);
         }
 
+        @Override
         protected void implCloseSelectableChannel() throws IOException {
-            super.implCloseChannel();
+            super.localImplCloseSelectableChannel();
             detachIOStreams();
         }
     }
 
-    public static class InheritedServerSocketChannelImpl extends
-        ServerSocketChannelImpl {
+    public static class InheritedInetServerSocketChannelImpl extends
+        InetServerSocketChannelImpl {
 
-        InheritedServerSocketChannelImpl(SelectorProvider sp,
+        InheritedInetServerSocketChannelImpl(SelectorProvider sp,
                                          FileDescriptor fd)
             throws IOException
         {
@@ -206,7 +214,7 @@ class InheritedChannel {
                 return null;
             if (family == AF_UNIX) {
                 if (isConnected(fdVal)) {
-                    return new InheritedUnixChannelImpl(fd);
+                    return new InheritedUnixSocketChannelImpl(provider, fd);
                 } else {
                     // listener. unsupported.
                     return null;
@@ -214,12 +222,12 @@ class InheritedChannel {
             }
             InetAddress ia = peerAddress0(fdVal);
             if (ia == null) {
-               c = new InheritedServerSocketChannelImpl(provider, fd);
+               c = new InheritedInetServerSocketChannelImpl(provider, fd);
             } else {
                int port = peerPort0(fdVal);
                assert port > 0;
                InetSocketAddress isa = new InetSocketAddress(ia, port);
-               c = new InheritedSocketChannelImpl(provider, fd, isa);
+               c = new InheritedInetSocketChannelImpl(provider, fd, isa);
             }
         } else {
             c = new InheritedDatagramChannelImpl(provider, fd);

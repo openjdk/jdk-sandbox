@@ -401,7 +401,7 @@ class WindowsSelectorImpl extends SelectorImpl {
                 // OOB data queued to the socket. If there is OOB data then it
                 // is discarded and the key is not added to the selected set.
                 if (isExceptFds &&
-                    (sk.channel() instanceof SocketChannelImpl) &&
+                    (sk.channel() instanceof InetSocketChannelImpl) &&
                     discardUrgentData(desc))
                 {
                     continue;

@@ -28,6 +28,7 @@ package sun.net.util;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -51,7 +52,10 @@ public final class SocketExceptions {
      *
      * Only specific IOException subtypes are supported.
      */
-    public static IOException of(IOException e, InetSocketAddress address) {
+    public static IOException of(IOException e, SocketAddress addr) {
+        if (!(addr instanceof InetSocketAddress))
+            return e;
+        InetSocketAddress address = (InetSocketAddress)addr;
         if (!enhancedExceptionText || address == null)
             return e;
         int port = address.getPort();

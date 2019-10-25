@@ -36,13 +36,13 @@ import jdk.internal.access.SharedSecrets;
  * for read and write operations.
  */
 
-class SocketDispatcher extends NativeDispatcher {
+public class SocketDispatcher extends NativeDispatcher {
     private static final JavaIOFileDescriptorAccess fdAccess =
             SharedSecrets.getJavaIOFileDescriptorAccess();
 
-    SocketDispatcher() { }
+    public SocketDispatcher() { }
 
-    int read(FileDescriptor fd, long address, int len) throws IOException {
+    public int read(FileDescriptor fd, long address, int len) throws IOException {
         return read0(fd, address, len);
     }
 
@@ -50,7 +50,7 @@ class SocketDispatcher extends NativeDispatcher {
         return readv0(fd, address, len);
     }
 
-    int write(FileDescriptor fd, long address, int len) throws IOException {
+    public int write(FileDescriptor fd, long address, int len) throws IOException {
         return write0(fd, address, len);
     }
 
@@ -58,11 +58,11 @@ class SocketDispatcher extends NativeDispatcher {
         return writev0(fd, address, len);
     }
 
-    void preClose(FileDescriptor fd) throws IOException {
+    public void preClose(FileDescriptor fd) throws IOException {
         throw new UnsupportedOperationException();
     }
 
-    void close(FileDescriptor fd) throws IOException {
+    public void close(FileDescriptor fd) throws IOException {
         invalidateAndClose(fd);
     }
 

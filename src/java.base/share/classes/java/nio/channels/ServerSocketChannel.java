@@ -26,6 +26,8 @@
 package java.nio.channels;
 
 import java.io.IOException;
+import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketOption;
 import java.net.SocketAddress;
@@ -35,16 +37,26 @@ import java.nio.channels.spi.SelectorProvider;
 /**
  * A selectable channel for stream-oriented listening sockets.
  *
- * <p> A server-socket channel is created by invoking the {@link #open() open}
- * method of this class.  It is not possible to create a channel for an arbitrary,
+ * <p> A server-socket channel is created by invoking the open methods of this class.
+ * It is not possible to create a channel for an arbitrary,
  * pre-existing {@link ServerSocket}. A newly-created server-socket channel is
  * open but not yet bound.  An attempt to invoke the {@link #accept() accept}
  * method of an unbound server-socket channel will cause a {@link NotYetBoundException}
  * to be thrown. A server-socket channel can be bound by invoking one of the
  * {@link #bind(java.net.SocketAddress,int) bind} methods defined by this class.
  *
+ * <p>Two kinds of server-socket channel are supported: <i>IP</i> (Internet Protocol)
+ * and <i>unix domain</i> depending on which open method is used to create them and which subtype of
+ * {@link SocketAddress} that they support for local and remote addresses.
+ * <i>IP</i> channels are created using {@link #open()}. They use {@link
+ * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
+ * <i>unix domain</i> channels are created using {@link #open(ProtocolFamily)}
+ * with the family parameter set to {@link StandardProtocolFamily#UNIX}.
+ * They use {@link UnixDomainSocketAddress}es and also
+ * do not support the {@link #socket()} method.
+ *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
- * setOption} method. Server-socket channels support the following options:
+ * setOption} method. <i>IP</i> server-socket channels support the following options:
  * <blockquote>
  * <table class="striped">
  * <caption style="display:none">Socket options</caption>
@@ -66,10 +78,13 @@ import java.nio.channels.spi.SelectorProvider;
  * </tbody>
  * </table>
  * </blockquote>
+ *
  * Additional (implementation specific) options may also be supported.
  *
  * <p> Server-socket channels are safe for use by multiple concurrent threads.
  * </p>
+ *
+ * <p><i>Unix domain</i> server-socket channels support a subset of the options listed above.
  *
  * @author Mark Reinhold
  * @author JSR-51 Expert Group
@@ -92,7 +107,7 @@ public abstract class ServerSocketChannel
     }
 
     /**
-     * Opens a server-socket channel.
+     * Opens an <i>IP</i> server-socket channel.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openServerSocketChannel
@@ -111,6 +126,25 @@ public abstract class ServerSocketChannel
      */
     public static ServerSocketChannel open() throws IOException {
         return SelectorProvider.provider().openServerSocketChannel();
+    }
+
+    /**
+     * Returns a {@link ServerSocketChannel} of the given protocol family.
+     * Where family is equal to {@link StandardProtocolFamily#INET} or {@link
+     * StandardProtocolFamily#INET6} the returned channel must be bound to an
+     * {@link InetSocketAddress}. If family is {@link StandardProtocolFamily#UNIX}
+     * the returned channel must be bound to a {@link jdk.net.UnixDomainSocketAddress}
+     *
+     * @param family the protocol family
+     *
+     * @return a ServerSocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedAddressTypeException if the protocol family is not supported
+     * @since 14
+     */
+    public static ServerSocketChannel open(ProtocolFamily family) throws IOException {
+        return SelectorProvider.provider().openServerSocketChannel(family);
     }
 
     /**
@@ -150,9 +184,11 @@ public abstract class ServerSocketChannel
      * @throws  ClosedChannelException              {@inheritDoc}
      * @throws  IOException                         {@inheritDoc}
      * @throws  SecurityException
-     *          If a security manager has been installed and its {@link
-     *          SecurityManager#checkListen checkListen} method denies the
-     *          operation
+     *          If a security manager has been installed and its
+     *          {@link SecurityManager#checkListen checkListen} method denies
+     *          the operation for <i>IP</i> channels or for <i>unix domain</i>
+     *          channels, if the security manager denies "read" or "write"
+     *          {@link FilePermission} for the local path.
      *
      * @since 1.7
      */
@@ -177,6 +213,11 @@ public abstract class ServerSocketChannel
      * the value {@code 0}, or a negative value, then an implementation specific
      * default is used.
      *
+     * <p> Note, for <i>Unix domain</i> channels, a file is created in the file-system
+     * with the same name as this channel's bound address. This file persists after
+     * the channel is closed, and must be removed before another channel can bind
+     * to the same name.
+     *
      * @param   local
      *          The address to bind the socket, or {@code null} to bind to an
      *          automatically assigned socket address
@@ -194,9 +235,11 @@ public abstract class ServerSocketChannel
      * @throws  IOException
      *          If some other I/O error occurs
      * @throws  SecurityException
-     *          If a security manager has been installed and its {@link
-     *          SecurityManager#checkListen checkListen} method denies the
-     *          operation
+     *          If a security manager has been installed and its
+     *          {@link SecurityManager#checkListen checkListen} method denies
+     *          the operation for <i>IP</i> channels or for <i>unix domain</i>
+     *          channels, if the security manager denies "read" or "write"
+     *          {@link FilePermission} for the local path.
      *
      * @since 1.7
      */
@@ -215,12 +258,14 @@ public abstract class ServerSocketChannel
         throws IOException;
 
     /**
-     * Retrieves a server socket associated with this channel.
+     * Retrieves a server socket associated with this channel if it is an <i>IP</i>
+     * channel. The operation is not supported for <i>unix domain</i> channels.
      *
      * <p> The returned object will not declare any public methods that are not
      * declared in the {@link java.net.ServerSocket} class.  </p>
      *
      * @return  A server socket associated with this channel
+     * @throws UnsupportedOperationException is this is a Unix domain channel
      */
     public abstract ServerSocket socket();
 
@@ -235,13 +280,18 @@ public abstract class ServerSocketChannel
      * <p> The socket channel returned by this method, if any, will be in
      * blocking mode regardless of the blocking mode of this channel.
      *
-     * <p> This method performs exactly the same security checks as the {@link
+     * <p> For <i>IP</i> channels, this method performs exactly the same security checks as the {@link
      * java.net.ServerSocket#accept accept} method of the {@link
      * java.net.ServerSocket} class.  That is, if a security manager has been
      * installed then for each new connection this method verifies that the
      * address and port number of the connection's remote endpoint are
      * permitted by the security manager's {@link
      * java.lang.SecurityManager#checkAccept checkAccept} method.  </p>
+     *
+     * <p> For <i>unix domain</i> channels, this method performs a security
+     * manager {@link SecurityManager#checkPermission(Permission)} using
+     * a {@link java.io.FilePermission} constructed with the path from the
+     * remote address and "read,write" as the actions.
      *
      * @return  The socket channel for the new connection,
      *          or {@code null} if this channel is in non-blocking mode
@@ -276,12 +326,17 @@ public abstract class ServerSocketChannel
     /**
      * {@inheritDoc}
      * <p>
-     * If there is a security manager set, its {@code checkConnect} method is
+     * If there is a security manager set and this is an <i>IP</i> channel,
+     * {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
      * a {@code SocketAddress} representing the
      * {@link java.net.InetAddress#getLoopbackAddress loopback} address and the
      * local port of the channel's socket is returned.
+     * <p>
+     * If there is a security manager set and this is an <i>unix domain</i> channel,
+     * then this returns a {@link UnixDomainSocketAddress} corresponding to the
+     * bound address.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
      *          {@code SocketAddress} representing the loopback address if
