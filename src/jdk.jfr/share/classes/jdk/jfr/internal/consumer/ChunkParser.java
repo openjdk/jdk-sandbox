@@ -258,7 +258,7 @@ public final class ChunkParser {
                     }
                 } else {
                     if (typeId != 0) { // Not metadata event
-                        Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Unknwon event type " + typeId);
+                        Logger.log(LogTag.JFR_SYSTEM_PARSER, LogLevel.INFO, "Unknown event type " + typeId);
                     }
                 }
             }

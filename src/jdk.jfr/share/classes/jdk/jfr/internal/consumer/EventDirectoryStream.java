@@ -144,6 +144,11 @@ public final class EventDirectoryStream extends AbstractEventStream {
                     return;
                 }
                 long durationNanos = currentParser.getChunkDuration();
+                if (durationNanos == 0) {
+                    // Avoid reading the same chunk again and again if
+                    // duration is 0 ns
+                    durationNanos++;
+                }
                 path = repositoryFiles.nextPath(currentChunkStartNanos + durationNanos);
                 if (path == null) {
                     return; // stream closed

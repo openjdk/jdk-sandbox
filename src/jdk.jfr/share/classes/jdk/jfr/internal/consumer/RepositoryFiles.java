@@ -109,6 +109,24 @@ public final class RepositoryFiles {
     }
 
     Path nextPath(long startTimeNanos) {
+        if (closed) {
+            return null;
+        }
+        // Try to get the 'exact' path first
+        // to avoid skipping files if repository
+        // is updated while DirectoryStream
+        // is traversing it
+        Path path = pathSet.get(startTimeNanos);
+        if (path != null) {
+            return path;
+        }
+        // Update paths
+        try {
+            updatePaths();
+        } catch (IOException e) {
+            // ignore
+        }
+        // try to get the next file
         return path(startTimeNanos);
     }
 
