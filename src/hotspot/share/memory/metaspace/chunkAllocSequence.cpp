@@ -59,14 +59,12 @@ public:
 
 // hard-coded chunk allocation sequences for various space types
 
-///////////////////////////
-// chunk allocation sequences for normal loaders:
 static const chklvl_t g_sequ_standard_non_class[] = {
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
     chklvl::CHUNK_LEVEL_4K,
-    chklvl::CHUNK_LEVEL_64K
+    chklvl::CHUNK_LEVEL_16K
     // .. repeat last
 };
 
@@ -75,28 +73,28 @@ static const chklvl_t g_sequ_standard_class[] = {
     chklvl::CHUNK_LEVEL_2K,
     chklvl::CHUNK_LEVEL_2K,
     chklvl::CHUNK_LEVEL_2K,
-    chklvl::CHUNK_LEVEL_32K
+    chklvl::CHUNK_LEVEL_16K
     // .. repeat last
 };
 
-///////////////////////////
-// chunk allocation sequences for reflection/anonymous loaders:
-// We allocate four smallish chunks before progressing to bigger chunks.
 static const chklvl_t g_sequ_anon_non_class[] = {
     chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_2K
     // .. repeat last
 };
 
 static const chklvl_t g_sequ_anon_class[] = {
     chklvl::CHUNK_LEVEL_1K,
+    // .. repeat last
+};
+
+static const chklvl_t g_sequ_refl_non_class[] = {
+    chklvl::CHUNK_LEVEL_2K,
+    chklvl::CHUNK_LEVEL_1K
+    // .. repeat last
+};
+
+static const chklvl_t g_sequ_refl_class[] = {
     chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_1K,
-    chklvl::CHUNK_LEVEL_2K
     // .. repeat last
 };
 
@@ -107,6 +105,8 @@ DEFINE_CLASS_FOR_ARRAY(standard_non_class)
 DEFINE_CLASS_FOR_ARRAY(standard_class)
 DEFINE_CLASS_FOR_ARRAY(anon_non_class)
 DEFINE_CLASS_FOR_ARRAY(anon_class)
+DEFINE_CLASS_FOR_ARRAY(refl_non_class)
+DEFINE_CLASS_FOR_ARRAY(refl_class)
 
 
 class BootLoaderChunkAllocSequence : public ChunkAllocSequence {
@@ -164,7 +164,7 @@ const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(Metas
   if (is_class) {
     switch(space_type) {
     case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_class;
-    case ReflectionMetaspaceType:
+    case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_class;
     case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_class;
     case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
@@ -172,7 +172,7 @@ const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(Metas
   } else {
     switch(space_type) {
     case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_non_class;
-    case ReflectionMetaspaceType:
+    case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_non_class;
     case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_non_class;
     case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
