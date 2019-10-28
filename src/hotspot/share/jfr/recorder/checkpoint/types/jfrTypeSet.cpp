@@ -754,9 +754,15 @@ class Wrapper {
   }
 };
 
+template <typename T>
+class EmptyStub {
+ public:
+  bool operator()(T const& value) { return true; }
+};
+
 typedef SerializePredicate<MethodPtr> MethodPredicate;
 typedef JfrPredicatedTypeWriterImplHost<MethodPtr, MethodPredicate, write__method> MethodWriterImplTarget;
-typedef Wrapper<KlassPtr, Stub> KlassCallbackStub;
+typedef Wrapper<KlassPtr, EmptyStub> KlassCallbackStub;
 typedef JfrTypeWriterHost<MethodWriterImplTarget, TYPE_METHOD> MethodWriterImpl;
 typedef MethodIteratorHost<MethodWriterImpl, KlassCallbackStub, BitMapFilter, false> MethodWriter;
 
