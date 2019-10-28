@@ -56,85 +56,8 @@
 #include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 
-// set data iff *dest == NULL
-static bool try_set(void* const data, void** dest, bool clear) {
-  assert(data != NULL, "invariant");
-  const void* const current = *dest;
-  if (current != NULL) {
-    if (current != data) {
-      // already set
-      return false;
-    }
-    assert(current == data, "invariant");
-    if (!clear) {
-      // recursion disallowed
-      return false;
-    }
-  }
-  return Atomic::cmpxchg(clear ? NULL : data, dest, current) == current;
-}
-
-static void* rotation_thread = NULL;
-static const int rotation_try_limit = 1000;
-static const int rotation_retry_sleep_millis = 10;
-
 // incremented on each flushpoint
 static u8 flushpoint_id = 0;
-
-class RotationLock : public StackObj {
- private:
-  Thread* const _thread;
-  bool _acquired;
-
-  void log(bool recursion) {
-    assert(!_acquired, "invariant");
-    const char* error_msg = NULL;
-    if (recursion) {
-      error_msg = "Unable to issue rotation due to recursive calls.";
-    }
-    else {
-      error_msg = "Unable to issue rotation due to wait timeout.";
-    }
-    log_info(jfr)( // For user, should not be "jfr, system"
-      "%s", error_msg);
-  }
- public:
-  RotationLock(Thread* thread) : _thread(thread), _acquired(false) {
-    assert(_thread != NULL, "invariant");
-    if (_thread == rotation_thread) {
-      // recursion not supported
-      log(true);
-      return;
-    }
-
-    // limited to not spin indefinitely
-    for (int i = 0; i < rotation_try_limit; ++i) {
-      if (try_set(_thread, &rotation_thread, false)) {
-        _acquired = true;
-        assert(_thread == rotation_thread, "invariant");
-        return;
-      }
-      if (_thread->is_Java_thread()) {
-        // in order to allow the system to move to a safepoint
-        MutexLocker msg_lock(JfrMsg_lock);
-        JfrMsg_lock->wait(rotation_retry_sleep_millis);
-      }
-      else {
-        os::naked_short_sleep(rotation_retry_sleep_millis);
-      }
-    }
-    log(false);
-  }
-
-  ~RotationLock() {
-    assert(_thread != NULL, "invariant");
-    if (_acquired) {
-      assert(_thread == rotation_thread, "invariant");
-      while (!try_set(_thread, &rotation_thread, true));
-    }
-  }
-  bool not_acquired() const { return !_acquired; }
-};
 
 template <typename E, typename Instance, size_t(Instance::*func)()>
 class Content {
@@ -438,10 +361,7 @@ bool JfrRecorderService::is_recording() {
 }
 
 void JfrRecorderService::start() {
-  RotationLock rl(Thread::current());
-  if (rl.not_acquired()) {
-    return;
-  }
+  MutexLocker lock(JfrStream_lock);
   log_debug(jfr, system)("Request to START recording");
   assert(!is_recording(), "invariant");
   clear();
@@ -460,9 +380,9 @@ void JfrRecorderService::clear() {
 }
 
 void JfrRecorderService::pre_safepoint_clear() {
-  _stack_trace_repository.clear();
   _string_pool.clear();
   _storage.clear();
+  _stack_trace_repository.clear();
 }
 
 void JfrRecorderService::invoke_safepoint_clear() {
@@ -472,11 +392,11 @@ void JfrRecorderService::invoke_safepoint_clear() {
 
 void JfrRecorderService::safepoint_clear() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  _stack_trace_repository.clear();
   _string_pool.clear();
   _storage.clear();
   _checkpoint_manager.shift_epoch();
   _chunkwriter.set_time_stamp();
+  _stack_trace_repository.clear();
 }
 
 void JfrRecorderService::post_safepoint_clear() {
@@ -500,6 +420,7 @@ static void stop() {
 }
 
 void JfrRecorderService::prepare_for_vm_error_rotation() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   if (!_chunkwriter.is_valid()) {
     open_new_chunk(true);
   }
@@ -507,10 +428,11 @@ void JfrRecorderService::prepare_for_vm_error_rotation() {
 }
 
 void JfrRecorderService::vm_error_rotation() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   if (_chunkwriter.is_valid()) {
     Thread* const t = Thread::current();
     _storage.flush_regular_buffer(t->jfr_thread_local()->native_buffer(), t);
-    invoke_flush(t);
+    invoke_flush();
     _chunkwriter.set_time_stamp();
     _repository.close_chunk();
     assert(!_chunkwriter.is_valid(), "invariant");
@@ -519,10 +441,8 @@ void JfrRecorderService::vm_error_rotation() {
 }
 
 void JfrRecorderService::rotate(int msgs) {
-  RotationLock rl(Thread::current());
-  if (rl.not_acquired()) {
-    return;
-  }
+  assert(!JfrStream_lock->owned_by_self(), "invariant");
+  MutexLocker lock(JfrStream_lock);
   static bool vm_error = false;
   if (msgs & MSGBIT(MSG_VM_ERROR)) {
     vm_error = true;
@@ -541,6 +461,7 @@ void JfrRecorderService::rotate(int msgs) {
 }
 
 void JfrRecorderService::in_memory_rotation() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   // currently running an in-memory recording
   assert(!_storage.control().to_disk(), "invariant");
   open_new_chunk();
@@ -551,6 +472,7 @@ void JfrRecorderService::in_memory_rotation() {
 }
 
 void JfrRecorderService::chunk_rotation() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   finalize_current_chunk();
   open_new_chunk();
 }
@@ -570,18 +492,18 @@ void JfrRecorderService::write() {
 
 void JfrRecorderService::pre_safepoint_write() {
   assert(_chunkwriter.is_valid(), "invariant");
-  if (_stack_trace_repository.is_modified()) {
-    write_stacktrace(_stack_trace_repository, _chunkwriter, false);
-  }
-  if (_string_pool.is_modified()) {
-    write_stringpool(_string_pool, _chunkwriter);
-  }
   if (LeakProfiler::is_running()) {
     // Exclusive access to the object sampler instance.
     // The sampler is released (unlocked) later in post_safepoint_write.
     ObjectSampleCheckpoint::on_rotation(ObjectSampler::acquire(), _stack_trace_repository);
   }
+  if (_string_pool.is_modified()) {
+    write_stringpool(_string_pool, _chunkwriter);
+  }
   write_storage(_storage, _chunkwriter);
+  if (_stack_trace_repository.is_modified()) {
+    write_stacktrace(_stack_trace_repository, _chunkwriter, false);
+  }
 }
 
 void JfrRecorderService::invoke_safepoint_write() {
@@ -591,13 +513,14 @@ void JfrRecorderService::invoke_safepoint_write() {
 
 void JfrRecorderService::safepoint_write() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
-  write_stacktrace(_stack_trace_repository, _chunkwriter, true);
   if (_string_pool.is_modified()) {
     write_stringpool_safepoint(_string_pool, _chunkwriter);
   }
-  _storage.write_at_safepoint();
   _checkpoint_manager.on_rotation();
+  _storage.write_at_safepoint();
+  _checkpoint_manager.shift_epoch();
   _chunkwriter.set_time_stamp();
+  write_stacktrace(_stack_trace_repository, _chunkwriter, true);
 }
 
 void JfrRecorderService::post_safepoint_write() {
@@ -643,17 +566,18 @@ static void write_thread_local_buffer(JfrChunkWriter& chunkwriter, Thread* t) {
 }
 
 size_t JfrRecorderService::flush() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   size_t total_elements = flush_metadata(_chunkwriter);
   const size_t storage_elements = flush_storage(_storage, _chunkwriter);
   if (0 == storage_elements) {
     return total_elements;
   }
   total_elements += storage_elements;
-  if (_stack_trace_repository.is_modified()) {
-    total_elements += flush_stacktrace(_stack_trace_repository, _chunkwriter);
-  }
   if (_string_pool.is_modified()) {
     total_elements += flush_stringpool(_string_pool, _chunkwriter);
+  }
+  if (_stack_trace_repository.is_modified()) {
+    total_elements += flush_stacktrace(_stack_trace_repository, _chunkwriter);
   }
   if (_checkpoint_manager.is_type_set_required()) {
     total_elements += flush_typeset(_checkpoint_manager, _chunkwriter);
@@ -667,9 +591,10 @@ size_t JfrRecorderService::flush() {
 typedef Content<EventFlush, JfrRecorderService, &JfrRecorderService::flush> FlushFunctor;
 typedef WriteContent<FlushFunctor> Flush;
 
-void JfrRecorderService::invoke_flush(Thread* t) {
-  assert(t != NULL, "invariant");
+void JfrRecorderService::invoke_flush() {
+  assert(JfrStream_lock->owned_by_self(), "invariant");
   assert(_chunkwriter.is_valid(), "invariant");
+  Thread* const t = Thread::current();
   ResourceMark rm(t);
   HandleMark hm(t);
   ++flushpoint_id;
@@ -682,12 +607,8 @@ void JfrRecorderService::invoke_flush(Thread* t) {
 }
 
 void JfrRecorderService::flushpoint() {
-  Thread* const t = Thread::current();
-  RotationLock rl(t);
-  if (rl.not_acquired() || !_chunkwriter.is_valid()) {
-    return;
-  }
-  invoke_flush(t);
+  MutexLocker lock(JfrStream_lock);
+  invoke_flush();
 }
 
 void JfrRecorderService::process_full_buffers() {

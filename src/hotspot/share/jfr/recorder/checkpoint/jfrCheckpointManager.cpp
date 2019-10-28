@@ -24,15 +24,18 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
-#include "jfr/recorder/jfrRecorder.hpp"
+#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
+#include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrTypeManager.hpp"
+#include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
+#include "jfr/recorder/jfrRecorder.hpp"
+#include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
 #include "jfr/recorder/storage/jfrMemorySpace.inline.hpp"
 #include "jfr/recorder/storage/jfrStorageUtils.inline.hpp"
-#include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/utilities/jfrBigEndian.hpp"
 #include "jfr/utilities/jfrIterator.hpp"
 #include "jfr/utilities/jfrThreadIterator.hpp"
@@ -357,7 +360,7 @@ size_t JfrCheckpointManager::flush() {
 
 typedef DiscardOp<DefaultDiscarder<JfrBuffer> > DiscardOperation;
 size_t JfrCheckpointManager::clear() {
-  JfrTypeManager::clear();
+  JfrTypeSet::clear();
   DiscardOperation discarder(mutexed); // mutexed discard mode
   process_free_list(discarder, _free_list_mspace);
   process_free_list(discarder, _epoch_transition_mspace);
@@ -408,7 +411,7 @@ size_t JfrCheckpointManager::write_static_type_set_and_threads() {
 
 void JfrCheckpointManager::shift_epoch() {
   debug_only(const u1 current_epoch = JfrTraceIdEpoch::current();)
-    JfrTraceIdEpoch::shift_epoch();
+  JfrTraceIdEpoch::shift_epoch();
   assert(current_epoch != JfrTraceIdEpoch::current(), "invariant");
 }
 
@@ -416,16 +419,41 @@ void JfrCheckpointManager::on_rotation() {
   assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   JfrTypeManager::on_rotation();
   notify_threads();
-  shift_epoch();
 }
 
 void JfrCheckpointManager::write_type_set() {
-  JfrTypeManager::write_type_set();
+  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  if (LeakProfiler::is_running()) {
+    Thread* const t = Thread::current();
+    // can safepoint here
+    MutexLocker cld_lock(ClassLoaderDataGraph_lock);
+    MutexLocker module_lock(Module_lock);
+    JfrCheckpointWriter leakp_writer(t);
+    JfrCheckpointWriter writer(t);
+    JfrTypeSet::serialize(&writer, &leakp_writer, false, false);
+    ObjectSampleCheckpoint::on_type_set(leakp_writer);
+  } else {
+    // can safepoint here
+    MutexLocker cld_lock(ClassLoaderDataGraph_lock);
+    MutexLocker module_lock(Module_lock);
+    JfrCheckpointWriter writer(Thread::current());
+    JfrTypeSet::serialize(&writer, NULL, false, false);
+  }
   write();
 }
 
 void JfrCheckpointManager::write_type_set_for_unloaded_classes() {
-  JfrTypeManager::write_type_set_for_unloaded_classes();
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
+  JfrCheckpointWriter writer(Thread::current());
+  const JfrCheckpointContext ctx = writer.context();
+  JfrTypeSet::serialize(&writer, NULL, true, false);
+  if (LeakProfiler::is_running()) {
+    ObjectSampleCheckpoint::on_type_set_unload(writer);
+  }
+  if (!JfrRecorder::is_recording()) {
+    // discard by rewind
+    writer.set_context(ctx);
+  }
 }
 
 bool JfrCheckpointManager::is_type_set_required() {
@@ -433,7 +461,15 @@ bool JfrCheckpointManager::is_type_set_required() {
 }
 
 size_t JfrCheckpointManager::flush_type_set() {
-  const size_t elements = JfrTypeManager::flush_type_set();
+  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
+  size_t elements = 0;
+  {
+    JfrCheckpointWriter writer(Thread::current());
+    // can safepoint here
+    MutexLocker cld_lock(ClassLoaderDataGraph_lock);
+    MutexLocker module_lock(Module_lock);
+    elements = JfrTypeSet::serialize(&writer, NULL, false, true);
+  }
   flush();
   return elements;
 }

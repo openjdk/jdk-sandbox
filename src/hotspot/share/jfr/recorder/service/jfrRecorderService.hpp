@@ -33,7 +33,6 @@ class JfrRepository;
 class JfrStackTraceRepository;
 class JfrStorage;
 class JfrStringPool;
-class Thread;
 
 class JfrRecorderService : public StackObj {
  private:
@@ -50,7 +49,7 @@ class JfrRecorderService : public StackObj {
   void finalize_current_chunk();
   void prepare_for_vm_error_rotation();
   void vm_error_rotation();
-  void invoke_flush(Thread* t);
+  void invoke_flush();
 
   void clear();
   void pre_safepoint_clear();
@@ -67,13 +66,13 @@ class JfrRecorderService : public StackObj {
  public:
   JfrRecorderService();
   void start();
+  size_t flush();
   void rotate(int msgs);
   void flushpoint();
   void process_full_buffers();
   void scavenge();
   void evaluate_chunk_size_for_rotation();
   static bool is_recording();
-  size_t flush();
 };
 
 #endif // SHARE_JFR_RECORDER_SERVICE_JFRRECORDERSERVICE_HPP

@@ -31,12 +31,13 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcWhen.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
-#include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
+#include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadGroup.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
-#include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
+#include "jfr/support/jfrThreadLocal.hpp"
+#include "jfr/writers/jfrJavaEventWriter.hpp"
 #include "jfr/utilities/jfrThreadIterator.hpp"
 #include "memory/metaspaceGCThresholdUpdater.hpp"
 #include "memory/referenceType.hpp"
@@ -265,55 +266,6 @@ void VMOperationTypeConstant::serialize(JfrCheckpointWriter& writer) {
     writer.write(VM_Operation::name(VM_Operation::VMOp_Type(i)));
   }
 }
-
-class TypeSetSerialization {
- private:
-  JfrCheckpointWriter* _leakp_writer;
-  size_t _elements;
- public:
-  TypeSetSerialization(JfrCheckpointWriter* leakp_writer = NULL) :
-    _leakp_writer(leakp_writer), _elements(0) {}
-  void write(JfrCheckpointWriter& writer, bool class_unload, bool flushpoint) {
-    assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
-    assert_locked_or_safepoint(Module_lock);
-   _elements = JfrTypeSet::serialize(&writer, _leakp_writer, class_unload, flushpoint);
-  }
-  size_t elements() const {
-    return _elements;
-  }
-};
-
-void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set;
-  type_set.write(writer, true, false);
-};
-
-void FlushTypeSet::serialize(JfrCheckpointWriter& writer) {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  MutexLocker cld_lock(ClassLoaderDataGraph_lock);
-  MutexLocker module_lock(Module_lock);
-  TypeSetSerialization type_set;
-  type_set.write(writer, false, true);
-  _elements = type_set.elements();
-}
-
-size_t FlushTypeSet::elements() const {
-  return _elements;
-}
-
-TypeSet::TypeSet(JfrCheckpointWriter* leakp_writer) : _leakp_writer(leakp_writer) {}
-
-void TypeSet::clear() {
-  JfrTypeSet::clear();
-}
-
-void TypeSet::serialize(JfrCheckpointWriter& writer) {
-  assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
-  MutexLocker cld_lock(ClassLoaderDataGraph_lock);
-  MutexLocker module_lock(Module_lock);
-  TypeSetSerialization type_set(_leakp_writer);
-  type_set.write(writer, false, false);
-};
 
 void ThreadStateConstant::serialize(JfrCheckpointWriter& writer) {
   JfrThreadState::serialize(writer);

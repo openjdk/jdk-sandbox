@@ -23,20 +23,19 @@
  */
 
 #include "precompiled.hpp"
-#include "jfr/jfr.hpp"
-#include "jfr/leakprofiler/leakProfiler.hpp"
-#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointWriter.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
 #include "jfr/recorder/checkpoint/types/jfrTypeManager.hpp"
+#include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/utilities/jfrDoublyLinkedList.hpp"
 #include "jfr/utilities/jfrIterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/safepoint.hpp"
+#include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/exceptions.hpp"
-#include "runtime/semaphore.hpp"
 
 class JfrSerializerRegistration : public JfrCHeapObj {
  private:
@@ -142,41 +141,6 @@ void JfrTypeManager::write_thread_checkpoint(Thread* t) {
   type_thread.serialize(writer);
 }
 
-size_t JfrTypeManager::flush_type_set() {
-  JfrCheckpointWriter writer;
-  FlushTypeSet flush;
-  flush.serialize(writer);
-  return flush.elements();
-}
-
-void JfrTypeManager::write_type_set() {
-  if (!LeakProfiler::is_running()) {
-    JfrCheckpointWriter writer;
-    TypeSet set;
-    set.serialize(writer);
-    return;
-  }
-  JfrCheckpointWriter leakp_writer;
-  JfrCheckpointWriter writer;
-  TypeSet set(&leakp_writer);
-  set.serialize(writer);
-  ObjectSampleCheckpoint::on_type_set(leakp_writer);
-}
-
-void JfrTypeManager::write_type_set_for_unloaded_classes() {
-  JfrCheckpointWriter writer;
-  const JfrCheckpointContext ctx = writer.context();
-  ClassUnloadTypeSet class_unload_set;
-  class_unload_set.serialize(writer);
-  if (LeakProfiler::is_running()) {
-    ObjectSampleCheckpoint::on_type_set_unload(writer);
-  }
-  if (!Jfr::is_recording()) {
-    // discard anything written
-    writer.set_context(ctx);
-  }
-}
-
 class SerializerRegistrationGuard : public StackObj {
  private:
   static Semaphore _mutex_semaphore;
@@ -206,11 +170,6 @@ void JfrTypeManager::destroy() {
   }
 }
 
-void JfrTypeManager::clear() {
-  TypeSet type_set;
-  type_set.clear();
-}
-
 void JfrTypeManager::on_rotation() {
   const Iterator iter(types);
   while (iter.has_next()) {
@@ -238,7 +197,7 @@ static bool register_static_type(JfrTypeId id, bool permit_cache, JfrSerializer*
   }
   assert(!types.in_list(registration), "invariant");
   DEBUG_ONLY(assert_not_registered_twice(id, types);)
-  if (Jfr::is_recording()) {
+  if (JfrRecorder::is_recording()) {
     JfrCheckpointWriter writer(STATICS);
     registration->invoke(writer);
     new_registration = true;

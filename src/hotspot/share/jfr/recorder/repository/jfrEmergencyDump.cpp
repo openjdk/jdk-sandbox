@@ -336,17 +336,25 @@ void JfrEmergencyDump::on_vm_error(const char* repository_path) {
 *
 * 1. if the thread state is not "_thread_in_vm", we will quick transition
 *    it to "_thread_in_vm".
-* 2. the nesting state for both resource and handle areas are unknown,
-*    so we allocate new fresh arenas, discarding the old ones.
-* 3. if the thread is the owner of some critical lock(s), unlock them.
+* 2. if the thread is the owner of some critical lock(s), unlock them.
 *
 * If we end up deadlocking in the attempt of dumping out jfr data,
 * we rely on the WatcherThread task "is_error_reported()",
-* to exit the VM after a hard-coded timeout.
+* to exit the VM after a hard-coded timeout (disallow WatcherThread to emergency dump).
 * This "safety net" somewhat explains the aggressiveness in this attempt.
 *
 */
-static void prepare_for_emergency_dump(Thread* thread) {
+static bool prepare_for_emergency_dump() {
+  if (JfrStream_lock->owned_by_self()) {
+    // crashed during jfr rotation, disallow recursion
+    return false;
+  }
+  Thread* const thread = Thread::current();
+  if (thread->is_Watcher_thread()) {
+    // need WatcherThread as a safeguard against potential deadlocks
+    return false;
+  }
+
   if (thread->is_Java_thread()) {
     ((JavaThread*)thread)->set_thread_state(_thread_in_vm);
   }
@@ -384,7 +392,6 @@ static void prepare_for_emergency_dump(Thread* thread) {
     VMOperationRequest_lock->unlock();
   }
 
-
   if (Service_lock->owned_by_self()) {
     Service_lock->unlock();
   }
@@ -412,6 +419,7 @@ static void prepare_for_emergency_dump(Thread* thread) {
   if (JfrStacktrace_lock->owned_by_self()) {
     JfrStacktrace_lock->unlock();
   }
+  return true;
 }
 
 static volatile int jfr_shutdown_lock = 0;
@@ -421,23 +429,8 @@ static bool guard_reentrancy() {
 }
 
 void JfrEmergencyDump::on_vm_shutdown(bool exception_handler) {
-  if (!guard_reentrancy()) {
+  if (!(guard_reentrancy() && prepare_for_emergency_dump())) {
     return;
-  }
-  // function made non-reentrant
-  Thread* thread = Thread::current();
-  if (exception_handler) {
-    // we are crashing
-    if (thread->is_Watcher_thread()) {
-      // The Watcher thread runs the periodic thread sampling task.
-      // If it has crashed, it is likely that another thread is
-      // left in a suspended state. This would mean the system
-      // will not be able to ever move to a safepoint. We try
-      // to avoid issuing safepoint operations when attempting
-      // an emergency dump, but a safepoint might be already pending.
-      return;
-    }
-    prepare_for_emergency_dump(thread);
   }
   EventDumpReason event;
   if (event.should_commit()) {
@@ -450,8 +443,6 @@ void JfrEmergencyDump::on_vm_shutdown(bool exception_handler) {
     LeakProfiler::emit_events(max_jlong, false);
   }
   const int messages = MSGBIT(MSG_VM_ERROR);
-  ResourceMark rm(thread);
-  HandleMark hm(thread);
   JfrRecorderService service;
   service.rotate(messages);
 }

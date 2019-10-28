@@ -27,27 +27,6 @@
 
 #include "jfr/metadata/jfrSerializer.hpp"
 
-class TypeSet : public JfrSerializer {
- private:
-  JfrCheckpointWriter* _leakp_writer;
- public:
-  explicit TypeSet(JfrCheckpointWriter* leakp_writer = NULL);
-  void serialize(JfrCheckpointWriter& writer);
-  void clear();
-};
-
-class ClassUnloadTypeSet : public JfrSerializer {
- public:
-  void serialize(JfrCheckpointWriter& writer);
-};
-
-class FlushTypeSet : public JfrSerializer {
- size_t _elements;
- public:
-  void serialize(JfrCheckpointWriter& writer);
-  size_t elements() const;
-};
-
 class FlagValueOriginConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);

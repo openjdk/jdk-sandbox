@@ -25,17 +25,13 @@
 #include "precompiled.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdEpoch.hpp"
 #include "runtime/safepoint.hpp"
-#include "runtime/orderAccess.hpp"
 
 // Alternating epochs on each rotation allow for concurrent tagging.
-// The regular epoch shift happens only during a safepoint.
-// The fence is there only for the emergency dump case which happens outside of safepoint.
+// The epoch shift happens only during a safepoint.
 bool JfrTraceIdEpoch::_epoch_state = false;
 bool volatile JfrTraceIdEpoch::_tag_state = false;
 
 void JfrTraceIdEpoch::shift_epoch() {
+  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
   _epoch_state = !_epoch_state;
-  if (!SafepointSynchronize::is_at_safepoint()) {
-    OrderAccess::fence();
-  }
 }
