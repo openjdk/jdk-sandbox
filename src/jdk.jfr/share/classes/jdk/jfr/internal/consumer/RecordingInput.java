@@ -88,7 +88,7 @@ public final class RecordingInput implements DataInput, AutoCloseable {
         this.currentBlock.reset();
         previousBlock.reset();
         if (fileAccess.length(f) < 8) {
-            throw new IOException("Not a valid Flight Recorder file. File length is only " + f.length() + " bytes.");
+            throw new IOException("Not a valid Flight Recorder file. File length is only " + fileAccess.length(f) + " bytes.");
         }
     }
 

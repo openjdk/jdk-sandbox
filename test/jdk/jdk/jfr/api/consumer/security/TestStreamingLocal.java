@@ -51,6 +51,10 @@ public class TestStreamingLocal {
             // Enable JVM event, no write permission needed
             r.enable(EventNames.JVMInformation);
             r.start();
+            try (Recording r2 = new Recording()){
+                r2.start();
+                r2.stop();
+            }
             r.stop();
             try (EventStream es = EventStream.openRepository()) {
                 es.setStartTime(Instant.EPOCH);

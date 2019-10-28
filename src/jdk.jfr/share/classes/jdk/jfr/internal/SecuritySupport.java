@@ -474,16 +474,16 @@ public final class SecuritySupport {
 
         @Override
         public  String getAbsolutePath(File f) throws IOException {
-            return doPrivilegedIOWithReturn( () ->f.getAbsolutePath());
+            return doPrivilegedIOWithReturn( () -> f.getAbsolutePath());
         }
         @Override
         public long length(File f) throws IOException {
-            return doPrivilegedIOWithReturn( () ->f.length());
+            return doPrivilegedIOWithReturn( () -> f.length());
         }
 
         @Override
         public  long fileSize(Path p) throws IOException {
-            return doPrivilegedIOWithReturn( () ->Files.size(p));
+            return doPrivilegedIOWithReturn( () -> Files.size(p));
         }
     }
 
