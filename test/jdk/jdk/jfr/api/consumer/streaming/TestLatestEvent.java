@@ -105,10 +105,10 @@ public class TestLatestEvent {
             notLatestEvent.await(80, TimeUnit.SECONDS);
             if (notLatestEvent.getCount() != 0) {
                Recording rec =  FlightRecorder.getFlightRecorder().takeSnapshot();
-               Path p = Paths.get("c:\\testlatest\\not-latest.jfr");
+               Path p = Paths.get("error-not-latest.jfr").toAbsolutePath();
                rec.dump(p);
-               System.out.println("dumped " + p);
-               rec.close();
+               System.out.println("Dumping repository as a file for inspection at " + p);
+               throw new Exception("Timeout 80 s. Expected 6 event, but got "  + notLatestEvent.getCount());
             }
 
             try (EventStream s = EventStream.openRepository()) {
