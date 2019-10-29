@@ -238,5 +238,4 @@ public class TestOnErrorSync {
         timer.schedule(task, 0, 100);
         return timer;
     }
-
 }
