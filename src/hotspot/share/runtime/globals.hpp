@@ -1610,6 +1610,9 @@ const size_t minimumSymbolTableSize = 1024;
           "class pointers are used")                                        \
           range(1*M, 3*G)                                                   \
                                                                             \
+  experimental(uintx, ForceCompressedClassSpaceStartAddress, 0,             \
+          "Force class space start address to a given value.")              \
+                                                                            \
   product(ccstr, MetaspaceReclaimStrategy, "balanced",                      \
           "options: balanced, aggressive, none")                            \
                                                                             \
