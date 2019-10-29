@@ -127,6 +127,14 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
   log_debug(metaspace)("SpaceManager %s: allocated new chunk " METACHUNK_FORMAT " for requested word size " SIZE_FORMAT ".",
                        _name, METACHUNK_FORMAT_ARGS(c), requested_word_size);
 
+  // Workaround for JDK-8233019: never return space allocated at a 32bit aligned address
+  if (Settings::do_not_return_32bit_aligned_addresses() &&
+      (((intptr_t)c->base()) & 0xFFFFFFFF) == 0)
+  {
+    bool ignored;
+    c->allocate(1, &ignored);
+  }
+
   return c;
 
 }
