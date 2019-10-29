@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/stringTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "code/codeCache.hpp"
 #include "code/dependencyContext.hpp"
 #include "compiler/compileBroker.hpp"
@@ -34,11 +35,13 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/methodHandles.hpp"
-#include "runtime/compilationPolicy.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -316,7 +319,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
   }
 
   Handle resolved_method = info.resolved_method_name();
-  assert(java_lang_invoke_ResolvedMethodName::vmtarget(resolved_method()) == m(),
+  assert(java_lang_invoke_ResolvedMethodName::vmtarget(resolved_method()) == m() || m->is_old(),
          "Should not change after link resolution");
 
   oop mname_oop = mname();
@@ -516,12 +519,12 @@ bool MethodHandles::is_signature_polymorphic_public_name(Klass* klass, Symbol* n
 // convert the external string or reflective type to an internal signature
 Symbol* MethodHandles::lookup_signature(oop type_str, bool intern_if_not_found, TRAPS) {
   if (java_lang_invoke_MethodType::is_instance(type_str)) {
-    return java_lang_invoke_MethodType::as_signature(type_str, intern_if_not_found, THREAD);
+    return java_lang_invoke_MethodType::as_signature(type_str, intern_if_not_found);
   } else if (java_lang_Class::is_instance(type_str)) {
-    return java_lang_Class::as_signature(type_str, false, THREAD);
+    return java_lang_Class::as_signature(type_str, false);
   } else if (java_lang_String::is_instance_inlined(type_str)) {
     if (intern_if_not_found) {
-      return java_lang_String::as_symbol(type_str, THREAD);
+      return java_lang_String::as_symbol(type_str);
     } else {
       return java_lang_String::as_symbol_or_null(type_str);
     }
@@ -539,18 +542,22 @@ bool MethodHandles::is_basic_type_signature(Symbol* sig) {
   const int len = sig->utf8_length();
   for (int i = 0; i < len; i++) {
     switch (sig->char_at(i)) {
-    case 'L':
+    case JVM_SIGNATURE_CLASS:
       // only java/lang/Object is valid here
       if (sig->index_of_at(i, OBJ_SIG, OBJ_SIG_LEN) != i)
         return false;
       i += OBJ_SIG_LEN-1;  //-1 because of i++ in loop
       continue;
-    case '(': case ')': case 'V':
-    case 'I': case 'J': case 'F': case 'D':
+    case JVM_SIGNATURE_FUNC:
+    case JVM_SIGNATURE_ENDFUNC:
+    case JVM_SIGNATURE_VOID:
+    case JVM_SIGNATURE_INT:
+    case JVM_SIGNATURE_LONG:
+    case JVM_SIGNATURE_FLOAT:
+    case JVM_SIGNATURE_DOUBLE:
       continue;
-    //case '[':
-    //case 'Z': case 'B': case 'C': case 'S':
     default:
+      // subword types (T_BYTE etc.), arrays
       return false;
     }
   }
@@ -564,18 +571,18 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
   } else if (is_basic_type_signature(sig)) {
     sig->increment_refcount();
     return sig;  // that was easy
-  } else if (sig->char_at(0) != '(') {
+  } else if (sig->char_at(0) != JVM_SIGNATURE_FUNC) {
     BasicType bt = char2type(sig->char_at(0));
     if (is_subword_type(bt)) {
       bsig = vmSymbols::int_signature();
     } else {
-      assert(bt == T_OBJECT || bt == T_ARRAY, "is_basic_type_signature was false");
+      assert(is_reference_type(bt), "is_basic_type_signature was false");
       bsig = vmSymbols::object_signature();
     }
   } else {
     ResourceMark rm;
     stringStream buffer(128);
-    buffer.put('(');
+    buffer.put(JVM_SIGNATURE_FUNC);
     int arg_pos = 0, keep_arg_pos = -1;
     if (keep_last_arg)
       keep_arg_pos = ArgumentCount(sig).size() - 1;
@@ -583,12 +590,12 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
       BasicType bt = ss.type();
       size_t this_arg_pos = buffer.size();
       if (ss.at_return_type()) {
-        buffer.put(')');
+        buffer.put(JVM_SIGNATURE_ENDFUNC);
       }
       if (arg_pos == keep_arg_pos) {
         buffer.write((char*) ss.raw_bytes(),
                      (int)   ss.raw_length());
-      } else if (bt == T_OBJECT || bt == T_ARRAY) {
+      } else if (is_reference_type(bt)) {
         buffer.write(OBJ_SIG, OBJ_SIG_LEN);
       } else {
         if (is_subword_type(bt))
@@ -599,7 +606,7 @@ Symbol* MethodHandles::lookup_basic_type_signature(Symbol* sig, bool keep_last_a
     }
     const char* sigstr =       buffer.base();
     int         siglen = (int) buffer.size();
-    bsig = SymbolTable::new_symbol(sigstr, siglen, THREAD);
+    bsig = SymbolTable::new_symbol(sigstr, siglen);
   }
   assert(is_basic_type_signature(bsig) ||
          // detune assert in case the injected argument is not a basic type:
@@ -618,25 +625,26 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
   for (int i = 0; i < len; i++) {
     char ch = sig->char_at(i);
     switch (ch) {
-    case '(': case ')':
+    case JVM_SIGNATURE_FUNC:
+    case JVM_SIGNATURE_ENDFUNC:
       prev_type = false;
       st->put(ch);
       continue;
-    case '[':
+    case JVM_SIGNATURE_ARRAY:
       if (!keep_basic_names && keep_arrays)
         st->put(ch);
       array++;
       continue;
-    case 'L':
+    case JVM_SIGNATURE_CLASS:
       {
         if (prev_type)  st->put(',');
         int start = i+1, slash = start;
-        while (++i < len && (ch = sig->char_at(i)) != ';') {
-          if (ch == '/' || ch == '.' || ch == '$')  slash = i+1;
+        while (++i < len && (ch = sig->char_at(i)) != JVM_SIGNATURE_ENDCLASS) {
+          if (ch == JVM_SIGNATURE_SLASH || ch == JVM_SIGNATURE_DOT || ch == '$')  slash = i+1;
         }
         if (slash < i)  start = slash;
         if (!keep_basic_names) {
-          st->put('L');
+          st->put(JVM_SIGNATURE_CLASS);
         } else {
           for (int j = start; j < i; j++)
             st->put(sig->char_at(j));
@@ -647,7 +655,7 @@ void MethodHandles::print_as_basic_type_signature_on(outputStream* st,
     default:
       {
         if (array && char2type(ch) != T_ILLEGAL && !keep_arrays) {
-          ch = '[';
+          ch = JVM_SIGNATURE_ARRAY;
           array = 0;
         }
         if (prev_type)  st->put(',');
@@ -975,7 +983,7 @@ int MethodHandles::find_MemberNames(Klass* k,
   }
   if (sig != NULL) {
     if (sig->utf8_length() == 0)  return 0; // a match is not possible
-    if (sig->char_at(0) == '(')
+    if (sig->char_at(0) == JVM_SIGNATURE_FUNC)
       match_flags &= ~(IS_FIELD | IS_TYPE);
     else
       match_flags &= ~(IS_CONSTRUCTOR | IS_METHOD);
@@ -1000,7 +1008,7 @@ int MethodHandles::find_MemberNames(Klass* k,
         if (!java_lang_invoke_MemberName::is_instance(result()))
           return -99;  // caller bug!
         oop saved = MethodHandles::init_field_MemberName(result, st.field_descriptor());
-        if (!oopDesc::equals(saved, result()))
+        if (saved != result())
           results->obj_at_put(rfill-1, saved);  // show saved instance to user
       } else if (++overflow >= overflow_limit) {
         match_flags = 0; break; // got tired of looking at overflow
@@ -1052,7 +1060,7 @@ int MethodHandles::find_MemberNames(Klass* k,
           return -99;  // caller bug!
         CallInfo info(m, NULL, CHECK_0);
         oop saved = MethodHandles::init_method_MemberName(result, info);
-        if (!oopDesc::equals(saved, result()))
+        if (saved != result())
           results->obj_at_put(rfill-1, saved);  // show saved instance to user
       } else if (++overflow >= overflow_limit) {
         match_flags = 0; break; // got tired of looking at overflow
@@ -1098,7 +1106,7 @@ void MethodHandles::flush_dependent_nmethods(Handle call_site, Handle target) {
   CallSiteDepChange changes(call_site, target);
   {
     NoSafepointVerifier nsv;
-    MutexLockerEx mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
 
     oop context = java_lang_invoke_CallSite::context_no_keepalive(call_site());
     DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context);
@@ -1106,8 +1114,7 @@ void MethodHandles::flush_dependent_nmethods(Handle call_site, Handle target) {
   }
   if (marked > 0) {
     // At least one nmethod has been marked for deoptimization.
-    VM_Deoptimize op;
-    VMThread::execute(&op);
+    Deoptimization::deoptimize_all_marked();
   }
 }
 
@@ -1454,7 +1461,7 @@ JVM_ENTRY(void, MHN_copyOutBootstrapArguments(JNIEnv* env, jobject igcls,
           {
             Symbol* type = caller->constants()->signature_ref_at(bss_index_in_pool);
             Handle th;
-            if (type->char_at(0) == '(') {
+            if (type->char_at(0) == JVM_SIGNATURE_FUNC) {
               th = SystemDictionary::find_method_handle_type(type, caller, CHECK);
             } else {
               th = SystemDictionary::find_java_mirror_for_type(type, caller, SignatureStream::NCDFError, CHECK);
@@ -1497,14 +1504,13 @@ JVM_ENTRY(void, MHN_clearCallSiteContext(JNIEnv* env, jobject igcls, jobject con
     int marked = 0;
     {
       NoSafepointVerifier nsv;
-      MutexLockerEx mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker mu2(CodeCache_lock, Mutex::_no_safepoint_check_flag);
       DependencyContext deps = java_lang_invoke_MethodHandleNatives_CallSiteContext::vmdependencies(context());
       marked = deps.remove_all_dependents();
     }
     if (marked > 0) {
       // At least one nmethod has been marked for deoptimization
-      VM_Deoptimize op;
-      VMThread::execute(&op);
+      Deoptimization::deoptimize_all_marked();
     }
   }
 }

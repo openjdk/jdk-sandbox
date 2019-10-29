@@ -30,6 +30,7 @@
 #include "opto/idealKit.hpp"
 #include "opto/macro.hpp"
 #include "opto/narrowptrnode.hpp"
+#include "opto/runtime.hpp"
 #include "utilities/macros.hpp"
 
 // By default this is a no-op.
@@ -132,13 +133,13 @@ Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) con
   bool requires_atomic_access = (decorators & MO_UNORDERED) == 0;
   bool unaligned = (decorators & C2_UNALIGNED) != 0;
   bool control_dependent = (decorators & C2_CONTROL_DEPENDENT_LOAD) != 0;
-  bool pinned = (decorators & C2_PINNED_LOAD) != 0;
+  bool unknown_control = (decorators & C2_UNKNOWN_CONTROL_LOAD) != 0;
   bool unsafe = (decorators & C2_UNSAFE_ACCESS) != 0;
 
   bool in_native = (decorators & IN_NATIVE) != 0;
 
   MemNode::MemOrd mo = access.mem_node_mo();
-  LoadNode::ControlDependency dep = pinned ? LoadNode::Pinned : LoadNode::DependsOnlyOnTest;
+  LoadNode::ControlDependency dep = unknown_control ? LoadNode::UnknownControl : LoadNode::DependsOnlyOnTest;
 
   Node* load;
   if (access.is_parse_access()) {
@@ -349,7 +350,7 @@ void C2Access::fixup_decorators() {
     // To be valid, unsafe loads may depend on other conditions than
     // the one that guards them: pin the Load node
     _decorators |= C2_CONTROL_DEPENDENT_LOAD;
-    _decorators |= C2_PINNED_LOAD;
+    _decorators |= C2_UNKNOWN_CONTROL_LOAD;
     const TypePtr* adr_type = _addr.type();
     Node* adr = _addr.node();
     if (!needs_cpu_membar() && adr_type->isa_instptr()) {
@@ -361,7 +362,7 @@ void C2Access::fixup_decorators() {
         if (offset < s) {
           // Guaranteed to be a valid access, no need to pin it
           _decorators ^= C2_CONTROL_DEPENDENT_LOAD;
-          _decorators ^= C2_PINNED_LOAD;
+          _decorators ^= C2_UNKNOWN_CONTROL_LOAD;
         }
       }
     }
@@ -794,7 +795,29 @@ Node* BarrierSetC2::obj_allocate(PhaseMacroExpand* macro, Node* ctrl, Node* mem,
   return fast_oop;
 }
 
-void BarrierSetC2::clone_barrier_at_expansion(ArrayCopyNode* ac, Node* call, PhaseIterGVN& igvn) const {
-  // no barrier
-  igvn.replace_node(ac, call);
+#define XTOP LP64_ONLY(COMMA phase->top())
+
+void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const {
+  Node* ctrl = ac->in(TypeFunc::Control);
+  Node* mem = ac->in(TypeFunc::Memory);
+  Node* src = ac->in(ArrayCopyNode::Src);
+  Node* src_offset = ac->in(ArrayCopyNode::SrcPos);
+  Node* dest = ac->in(ArrayCopyNode::Dest);
+  Node* dest_offset = ac->in(ArrayCopyNode::DestPos);
+  Node* length = ac->in(ArrayCopyNode::Length);
+
+  assert (src_offset == NULL && dest_offset == NULL, "for clone offsets should be null");
+
+  const char* copyfunc_name = "arraycopy";
+  address     copyfunc_addr =
+          phase->basictype2arraycopy(T_LONG, NULL, NULL,
+                              true, copyfunc_name, true);
+
+  const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
+  const TypeFunc* call_type = OptoRuntime::fast_arraycopy_Type();
+
+  Node* call = phase->make_leaf_call(ctrl, mem, call_type, copyfunc_addr, copyfunc_name, raw_adr_type, src, dest, length XTOP);
+  phase->transform_later(call);
+
+  phase->igvn().replace_node(ac, call);
 }

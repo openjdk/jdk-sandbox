@@ -444,6 +444,9 @@ class Assembler : public AbstractAssembler {
     FDIV_OPCODE   = (63u << OPCODE_SHIFT |  18u << 1),
     FDIVS_OPCODE  = (59u << OPCODE_SHIFT |  18u << 1),
     FMR_OPCODE    = (63u << OPCODE_SHIFT |  72u << 1),
+    FRIN_OPCODE   = (63u << OPCODE_SHIFT | 392u << 1),
+    FRIP_OPCODE   = (63u << OPCODE_SHIFT | 456u << 1),
+    FRIM_OPCODE   = (63u << OPCODE_SHIFT | 488u << 1),
     // These are special Power6 opcodes, reused for "lfdepx" and "stfdepx"
     // on Power7.  Do not use.
     // MFFGPR_OPCODE  = (31u << OPCODE_SHIFT | 607u << 1),
@@ -545,6 +548,9 @@ class Assembler : public AbstractAssembler {
     XVMSUBADP_OPCODE=(60u << OPCODE_SHIFT |  113u << 3),
     XVNMSUBASP_OPCODE=(60u<< OPCODE_SHIFT |  209u << 3),
     XVNMSUBADP_OPCODE=(60u<< OPCODE_SHIFT |  241u << 3),
+    XVRDPI_OPCODE  = (60u << OPCODE_SHIFT |  201u << 2),
+    XVRDPIM_OPCODE = (60u << OPCODE_SHIFT |  249u << 2),
+    XVRDPIP_OPCODE = (60u << OPCODE_SHIFT |  233u << 2),
 
     // Deliver A Random Number (introduced with POWER9)
     DARN_OPCODE    = (31u << OPCODE_SHIFT |  755u << 1),
@@ -929,11 +935,13 @@ class Assembler : public AbstractAssembler {
 
   enum Predict { pt = 1, pn = 0 }; // pt = predict taken
 
-  // Instruction must start at passed address.
-  static int instr_len(unsigned char *instr) { return BytesPerInstWord; }
+  //---<  calculate length of instruction  >---
+  // With PPC64 being a RISC architecture, this always is BytesPerInstWord
+  // instruction must start at passed address
+  static unsigned int instr_len(unsigned char *instr) { return BytesPerInstWord; }
 
-  // longest instructions
-  static int instr_maxlen() { return BytesPerInstWord; }
+  //---<  longest instructions  >---
+  static unsigned int instr_maxlen() { return BytesPerInstWord; }
 
   // Test if x is within signed immediate range for nbits.
   static bool is_simm(int x, unsigned int nbits) {
@@ -1979,6 +1987,10 @@ class Assembler : public AbstractAssembler {
   inline void fmr(  FloatRegister d, FloatRegister b);
   inline void fmr_( FloatRegister d, FloatRegister b);
 
+  inline void frin( FloatRegister d, FloatRegister b);
+  inline void frip( FloatRegister d, FloatRegister b);
+  inline void frim( FloatRegister d, FloatRegister b);
+
   //  inline void mffgpr( FloatRegister d, Register b);
   //  inline void mftgpr( Register d, FloatRegister b);
   inline void cmpb(   Register a, Register s, Register b);
@@ -2239,6 +2251,9 @@ class Assembler : public AbstractAssembler {
   inline void xvmsubadp(VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xvnmsubasp(VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xvnmsubadp(VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xvrdpi(   VectorSRegister d, VectorSRegister b);
+  inline void xvrdpim(  VectorSRegister d, VectorSRegister b);
+  inline void xvrdpip(  VectorSRegister d, VectorSRegister b);
 
   // VSX Extended Mnemonics
   inline void xxspltd(  VectorSRegister d, VectorSRegister a, int x);

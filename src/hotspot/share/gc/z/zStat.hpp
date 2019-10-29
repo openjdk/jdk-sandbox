@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "gc/z/zMetronome.hpp"
 #include "logging/logHandle.hpp"
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/numberSeq.hpp"
 #include "utilities/ticks.hpp"
 
@@ -269,29 +270,53 @@ public:
 //
 // Stat timer
 //
+class ZStatTimerDisable : public StackObj {
+private:
+  static THREAD_LOCAL uint32_t _active;
+
+public:
+  ZStatTimerDisable() {
+    _active++;
+  }
+
+  ~ZStatTimerDisable() {
+    _active--;
+  }
+
+  static bool is_active() {
+    return _active > 0;
+  }
+};
+
 class ZStatTimer : public StackObj {
 private:
+  const bool        _enabled;
   const ZStatPhase& _phase;
   const Ticks       _start;
 
 public:
   ZStatTimer(const ZStatPhase& phase) :
+      _enabled(!ZStatTimerDisable::is_active()),
       _phase(phase),
       _start(Ticks::now()) {
-    _phase.register_start(_start);
+    if (_enabled) {
+      _phase.register_start(_start);
+    }
   }
 
   ~ZStatTimer() {
-    const Ticks end = Ticks::now();
-    _phase.register_end(_start, end);
+    if (_enabled) {
+      const Ticks end = Ticks::now();
+      _phase.register_end(_start, end);
+    }
   }
 };
 
 //
 // Stat sample/increment
 //
-void ZStatSample(const ZStatSampler& sampler, uint64_t value, bool trace = ZStatisticsForceTrace);
-void ZStatInc(const ZStatCounter& counter, uint64_t increment = 1, bool trace = ZStatisticsForceTrace);
+void ZStatSample(const ZStatSampler& sampler, uint64_t value);
+void ZStatInc(const ZStatCounter& counter, uint64_t increment = 1);
 void ZStatInc(const ZStatUnsampledCounter& counter, uint64_t increment = 1);
 
 //
@@ -349,6 +374,8 @@ public:
   static void at_start();
   static void at_end(double boost_factor);
 
+  static bool is_first();
+  static bool is_warm();
   static uint64_t ncycles();
   static const AbsSeq& normalized_duration();
   static double time_since_last();
@@ -443,11 +470,13 @@ public:
 class ZStatHeap : public AllStatic {
 private:
   static struct ZAtInitialize {
+    size_t min_capacity;
     size_t max_capacity;
     size_t max_reserve;
   } _at_initialize;
 
   static struct ZAtMarkStart {
+    size_t soft_max_capacity;
     size_t capacity;
     size_t reserve;
     size_t used;
@@ -492,14 +521,18 @@ private:
     size_t free_low;
   } _at_relocate_end;
 
+  static size_t capacity_high();
+  static size_t capacity_low();
   static size_t available(size_t used);
   static size_t reserve(size_t used);
   static size_t free(size_t used);
 
 public:
-  static void set_at_initialize(size_t max_capacity,
+  static void set_at_initialize(size_t min_capacity,
+                                size_t max_capacity,
                                 size_t max_reserve);
-  static void set_at_mark_start(size_t capacity,
+  static void set_at_mark_start(size_t soft_max_capacity,
+                                size_t capacity,
                                 size_t used);
   static void set_at_mark_end(size_t capacity,
                               size_t allocated,

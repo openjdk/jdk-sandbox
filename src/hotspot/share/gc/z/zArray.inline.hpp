@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,9 +36,7 @@ inline ZArray<T>::ZArray() :
 
 template <typename T>
 inline ZArray<T>::~ZArray() {
-  if (_array != NULL) {
-    FREE_C_HEAP_ARRAY(T, _array);
-  }
+  FREE_C_HEAP_ARRAY(T, _array);
 }
 
 template <typename T>
@@ -80,6 +78,17 @@ inline void ZArray<T>::add(T value) {
 }
 
 template <typename T>
+inline void ZArray<T>::transfer(ZArray<T>* from) {
+  assert(_array == NULL, "Should be empty");
+  _array = from->_array;
+  _size = from->_size;
+  _capacity = from->_capacity;
+  from->_array = NULL;
+  from->_size = 0;
+  from->_capacity = 0;
+}
+
+template <typename T>
 inline void ZArray<T>::clear() {
   _size = 0;
 }
@@ -107,5 +116,13 @@ inline bool ZArrayIteratorImpl<T, parallel>::next(T* elem) {
   // No more elements
   return false;
 }
+
+template <typename T>
+inline ZArrayIterator<T>::ZArrayIterator(ZArray<T>* array) :
+    ZArrayIteratorImpl<T, ZARRAY_SERIAL>(array) {}
+
+template <typename T>
+inline ZArrayParallelIterator<T>::ZArrayParallelIterator(ZArray<T>* array) :
+    ZArrayIteratorImpl<T, ZARRAY_PARALLEL>(array) {}
 
 #endif // SHARE_GC_Z_ZARRAY_INLINE_HPP

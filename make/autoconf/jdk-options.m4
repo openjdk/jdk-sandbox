@@ -404,9 +404,12 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       [jcov library location])])
   AC_ARG_WITH(jcov-input-jdk, [AS_HELP_STRING([--with-jcov-input-jdk],
       [jdk image to instrument])])
+  AC_ARG_WITH(jcov-filters, [AS_HELP_STRING([--with-jcov-filters],
+      [filters to limit code for jcov instrumentation and report generation])])
   JCOV_HOME=
   JCOV_INPUT_JDK=
   JCOV_ENABLED=
+  JCOV_FILTERS=
   if test "x$with_jcov" = "x" ; then
     JCOV_ENABLED="false"
   else
@@ -425,10 +428,14 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       fi
       BASIC_FIXUP_PATH(JCOV_INPUT_JDK)
     fi
+    if test "x$with_jcov_filters" != "x" ; then
+      JCOV_FILTERS="$with_jcov_filters"
+    fi
   fi
   AC_SUBST(JCOV_ENABLED)
   AC_SUBST(JCOV_HOME)
   AC_SUBST(JCOV_INPUT_JDK)
+  AC_SUBST(JCOV_FILTERS)
 ])
 
 ###############################################################################
@@ -592,7 +599,14 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
     AC_MSG_RESULT([yes, forced])
     ENABLE_GENERATE_CLASSLIST="true"
     if test "x$ENABLE_GENERATE_CLASSLIST_POSSIBLE" = "xfalse"; then
-      AC_MSG_WARN([Generation of classlist might not be possible with JVM Variants $JVM_VARIANTS and enable-cds=$ENABLE_CDS])
+      if test "x$ENABLE_CDS" = "xfalse"; then
+        # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
+        # classlist file. It never will work in this case since the VM will report
+        # an error for DumpLoadedClassList when CDS is disabled.
+        AC_MSG_ERROR([Generation of classlist is not possible with enable-cds=false])
+      else
+        AC_MSG_WARN([Generation of classlist might not be possible with JVM Variants $JVM_VARIANTS and enable-cds=$ENABLE_CDS])
+      fi
     fi
   elif test "x$enable_generate_classlist" = "xno"; then
     AC_MSG_RESULT([no, forced])

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -678,7 +678,7 @@ public final class StructuredGraph extends Graph implements JavaMethodContext {
         if (node instanceof AbstractBeginNode) {
             ((AbstractBeginNode) node).prepareDelete();
         }
-        assert node.hasNoUsages() : node + " " + node.usages().count() + ", " + node.usages().first();
+        assert node.hasNoUsages() : node + " " + node.getUsageCount() + ", " + node.usages().first();
         GraphUtil.unlinkFixedNode(node);
         node.safeDelete();
     }
@@ -966,7 +966,7 @@ public final class StructuredGraph extends Graph implements JavaMethodContext {
      */
     public List<ResolvedJavaMethod> getMethods() {
         if (methods != null) {
-            assert checkFrameStatesAgainstInlinedMethods();
+            assert isSubstitution || checkFrameStatesAgainstInlinedMethods();
             return Collections.unmodifiableList(methods);
         }
         return Collections.emptyList();

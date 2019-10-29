@@ -70,9 +70,12 @@ void ShenandoahPacer::setup_for_mark() {
 
   restart_with(non_taxable, tax);
 
-  log_info(gc, ergo)("Pacer for Mark. Expected Live: " SIZE_FORMAT "M, Free: " SIZE_FORMAT
-                     "M, Non-Taxable: " SIZE_FORMAT "M, Alloc Tax Rate: %.1fx",
-                     live / M, free / M, non_taxable / M, tax);
+  log_info(gc, ergo)("Pacer for Mark. Expected Live: " SIZE_FORMAT "%s, Free: " SIZE_FORMAT "%s, "
+                     "Non-Taxable: " SIZE_FORMAT "%s, Alloc Tax Rate: %.1fx",
+                     byte_size_in_proper_unit(live),        proper_unit_for_byte_size(live),
+                     byte_size_in_proper_unit(free),        proper_unit_for_byte_size(free),
+                     byte_size_in_proper_unit(non_taxable), proper_unit_for_byte_size(non_taxable),
+                     tax);
 }
 
 void ShenandoahPacer::setup_for_evac() {
@@ -91,9 +94,12 @@ void ShenandoahPacer::setup_for_evac() {
 
   restart_with(non_taxable, tax);
 
-  log_info(gc, ergo)("Pacer for Evacuation. Used CSet: " SIZE_FORMAT "M, Free: " SIZE_FORMAT
-                     "M, Non-Taxable: " SIZE_FORMAT "M, Alloc Tax Rate: %.1fx",
-                     used / M, free / M, non_taxable / M, tax);
+  log_info(gc, ergo)("Pacer for Evacuation. Used CSet: " SIZE_FORMAT "%s, Free: " SIZE_FORMAT "%s, "
+                     "Non-Taxable: " SIZE_FORMAT "%s, Alloc Tax Rate: %.1fx",
+                     byte_size_in_proper_unit(used),        proper_unit_for_byte_size(used),
+                     byte_size_in_proper_unit(free),        proper_unit_for_byte_size(free),
+                     byte_size_in_proper_unit(non_taxable), proper_unit_for_byte_size(non_taxable),
+                     tax);
 }
 
 void ShenandoahPacer::setup_for_updaterefs() {
@@ -112,9 +118,12 @@ void ShenandoahPacer::setup_for_updaterefs() {
 
   restart_with(non_taxable, tax);
 
-  log_info(gc, ergo)("Pacer for Update Refs. Used: " SIZE_FORMAT "M, Free: " SIZE_FORMAT
-                     "M, Non-Taxable: " SIZE_FORMAT "M, Alloc Tax Rate: %.1fx",
-                     used / M, free / M, non_taxable / M, tax);
+  log_info(gc, ergo)("Pacer for Update Refs. Used: " SIZE_FORMAT "%s, Free: " SIZE_FORMAT "%s, "
+                     "Non-Taxable: " SIZE_FORMAT "%s, Alloc Tax Rate: %.1fx",
+                     byte_size_in_proper_unit(used),        proper_unit_for_byte_size(used),
+                     byte_size_in_proper_unit(free),        proper_unit_for_byte_size(free),
+                     byte_size_in_proper_unit(non_taxable), proper_unit_for_byte_size(non_taxable),
+                     tax);
 }
 
 /*
@@ -136,9 +145,12 @@ void ShenandoahPacer::setup_for_traversal() {
 
   restart_with(non_taxable, tax);
 
-  log_info(gc, ergo)("Pacer for Traversal. Expected Live: " SIZE_FORMAT "M, Free: " SIZE_FORMAT
-                     "M, Non-Taxable: " SIZE_FORMAT "M, Alloc Tax Rate: %.1fx",
-                     live / M, free / M, non_taxable / M, tax);
+  log_info(gc, ergo)("Pacer for Traversal. Expected Live: " SIZE_FORMAT "%s, Free: " SIZE_FORMAT "%s, "
+                     "Non-Taxable: " SIZE_FORMAT "%s, Alloc Tax Rate: %.1fx",
+                     byte_size_in_proper_unit(live),        proper_unit_for_byte_size(live),
+                     byte_size_in_proper_unit(free),        proper_unit_for_byte_size(free),
+                     byte_size_in_proper_unit(non_taxable), proper_unit_for_byte_size(non_taxable),
+                     tax);
 }
 
 /*
@@ -153,20 +165,21 @@ void ShenandoahPacer::setup_for_traversal() {
 void ShenandoahPacer::setup_for_idle() {
   assert(ShenandoahPacing, "Only be here when pacing is enabled");
 
-  size_t initial = _heap->capacity() * ShenandoahPacingIdleSlack / 100;
+  size_t initial = _heap->max_capacity() / 100 * ShenandoahPacingIdleSlack;
   double tax = 1;
 
   restart_with(initial, tax);
 
-  log_info(gc, ergo)("Pacer for Idle. Initial: " SIZE_FORMAT "M, Alloc Tax Rate: %.1fx",
-                     initial / M, tax);
+  log_info(gc, ergo)("Pacer for Idle. Initial: " SIZE_FORMAT "%s, Alloc Tax Rate: %.1fx",
+                     byte_size_in_proper_unit(initial), proper_unit_for_byte_size(initial),
+                     tax);
 }
 
 size_t ShenandoahPacer::update_and_get_progress_history() {
   if (_progress == -1) {
     // First initialization, report some prior
     Atomic::store((intptr_t)PACING_PROGRESS_ZERO, &_progress);
-    return (size_t) (_heap->capacity() * 0.1);
+    return (size_t) (_heap->max_capacity() * 0.1);
   } else {
     // Record history, and reply historical data
     _progress_history->add(_progress);
@@ -242,7 +255,7 @@ void ShenandoahPacer::pace_for_alloc(size_t words) {
     }
     cur = MAX2<size_t>(1, cur);
 
-    os::sleep(Thread::current(), cur, true);
+    JavaThread::current()->sleep(cur);
 
     double end = os::elapsedTime();
     total = (size_t)((end - start) * 1000);
@@ -298,5 +311,10 @@ void ShenandoahPacer::print_on(outputStream* out) const {
     out->print_cr("%7d ms - %7d ms: " SIZE_FORMAT_W(12) SIZE_FORMAT_W(12) " ms", l, r, count, sum);
   }
   out->print_cr("%23s: " SIZE_FORMAT_W(12) SIZE_FORMAT_W(12) " ms", "Total", total_count, total_sum);
+  out->cr();
+  out->print_cr("Pacing delays are measured from entering the pacing code till exiting it. Therefore,");
+  out->print_cr("observed pacing delays may be higher than the threshold when paced thread spent more");
+  out->print_cr("time in the pacing code. It usually happens when thread is de-scheduled while paced,");
+  out->print_cr("OS takes longer to unblock the thread, or JVM experiences an STW pause.");
   out->cr();
 }

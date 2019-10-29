@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -859,7 +859,7 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
           if (s.cur_bc() != Bytecodes::_getstatic) {
             set_method_escape(state.apop());
           }
-          if (field_type == T_OBJECT || field_type == T_ARRAY) {
+          if (is_reference_type(field_type)) {
             state.apush(unknown_obj);
           } else if (type2size[field_type] == 1) {
             state.spush();
@@ -873,7 +873,7 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         { bool will_link;
           ciField* field = s.get_field(will_link);
           BasicType field_type = field->type()->basic_type();
-          if (field_type == T_OBJECT || field_type == T_ARRAY) {
+          if (is_reference_type(field_type)) {
             set_global_escape(state.apop());
           } else if (type2size[field_type] == 1) {
             state.spop();
@@ -1197,38 +1197,36 @@ void BCEscapeAnalyzer::iterate_blocks(Arena *arena) {
   }
 }
 
-bool BCEscapeAnalyzer::do_analysis() {
+void BCEscapeAnalyzer::do_analysis() {
   Arena* arena = CURRENT_ENV->arena();
   // identify basic blocks
   _methodBlocks = _method->get_method_blocks();
 
   iterate_blocks(arena);
-  // TEMPORARY
-  return true;
 }
 
 vmIntrinsics::ID BCEscapeAnalyzer::known_intrinsic() {
   vmIntrinsics::ID iid = method()->intrinsic_id();
-
   if (iid == vmIntrinsics::_getClass ||
-      iid == vmIntrinsics::_hashCode)
+      iid == vmIntrinsics::_hashCode) {
     return iid;
-  else
+  } else {
     return vmIntrinsics::_none;
+  }
 }
 
-bool BCEscapeAnalyzer::compute_escape_for_intrinsic(vmIntrinsics::ID iid) {
+void BCEscapeAnalyzer::compute_escape_for_intrinsic(vmIntrinsics::ID iid) {
   switch (iid) {
-  case vmIntrinsics::_getClass:
-    _return_local = false;
-    break;
-  case vmIntrinsics::_hashCode:
-    // initialized state is correct
-    break;
+    case vmIntrinsics::_getClass:
+      _return_local = false;
+      _return_allocated = false;
+      break;
+    case vmIntrinsics::_hashCode:
+      // initialized state is correct
+      break;
   default:
     assert(false, "unexpected intrinsic");
   }
-  return true;
 }
 
 void BCEscapeAnalyzer::initialize() {
@@ -1299,7 +1297,7 @@ void BCEscapeAnalyzer::compute_escape_info() {
   vmIntrinsics::ID iid = known_intrinsic();
 
   // check if method can be analyzed
-  if (iid ==  vmIntrinsics::_none && (method()->is_abstract() || method()->is_native() || !method()->holder()->is_initialized()
+  if (iid == vmIntrinsics::_none && (method()->is_abstract() || method()->is_native() || !method()->holder()->is_initialized()
       || _level > MaxBCEAEstimateLevel
       || method()->code_size() > MaxBCEAEstimateSize)) {
     if (BCEATraceLevel >= 1) {
@@ -1332,8 +1330,6 @@ void BCEscapeAnalyzer::compute_escape_info() {
     tty->print_cr(" (%d bytes)", method()->code_size());
   }
 
-  bool success;
-
   initialize();
 
   // Do not scan method if it has no object parameters and
@@ -1349,9 +1345,9 @@ void BCEscapeAnalyzer::compute_escape_info() {
   }
 
   if (iid != vmIntrinsics::_none)
-    success = compute_escape_for_intrinsic(iid);
+    compute_escape_for_intrinsic(iid);
   else {
-    success = do_analysis();
+    do_analysis();
   }
 
   // don't store interprocedural escape information if it introduces

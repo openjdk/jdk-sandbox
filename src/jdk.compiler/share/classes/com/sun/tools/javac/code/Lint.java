@@ -122,6 +122,9 @@ public class Lint
             values.add(LintCategory.OPENS);
             values.add(LintCategory.MODULE);
             values.add(LintCategory.REMOVAL);
+            if (!options.isSet(Option.PREVIEW)) {
+                values.add(LintCategory.PREVIEW);
+            }
         }
 
         // Look for specific overrides
@@ -273,6 +276,11 @@ public class Lint
          * Warn about issues relating to use of statics
          */
         STATIC("static"),
+
+        /**
+         * Warn about issues relating to use of text blocks
+         */
+        TEXT_BLOCKS("text-blocks"),
 
         /**
          * Warn about issues relating to use of try blocks (i.e. try-with-resources)

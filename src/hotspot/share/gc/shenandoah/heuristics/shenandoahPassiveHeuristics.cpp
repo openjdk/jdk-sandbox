@@ -30,34 +30,11 @@
 #include "logging/logTag.hpp"
 
 ShenandoahPassiveHeuristics::ShenandoahPassiveHeuristics() : ShenandoahHeuristics() {
-  // Do not allow concurrent cycles.
-  FLAG_SET_DEFAULT(ExplicitGCInvokesConcurrent, false);
-  FLAG_SET_DEFAULT(ShenandoahImplicitGCInvokesConcurrent, false);
-
-  // Passive runs with max speed, reacts on allocation failure.
-  FLAG_SET_DEFAULT(ShenandoahPacing, false);
-
-  // No need for evacuation reserve with Full GC, only for Degenerated GC.
-  if (!ShenandoahDegeneratedGC) {
-    SHENANDOAH_ERGO_OVERRIDE_DEFAULT(ShenandoahEvacReserve, 0);
-  }
-
-  // Disable known barriers by default.
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahSATBBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahKeepAliveBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahWriteBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahReadBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahStoreValEnqueueBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahStoreValReadBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahCASBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahAcmpBarrier);
-  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahCloneBarrier);
-
-  // Final configuration checks
-  // No barriers are required to run.
+  // Passive runs with max speed for allocation, because GC is always STW
+  SHENANDOAH_ERGO_DISABLE_FLAG(ShenandoahPacing);
 }
 
-bool ShenandoahPassiveHeuristics::should_start_normal_gc() const {
+bool ShenandoahPassiveHeuristics::should_start_gc() const {
   // Never do concurrent GCs.
   return false;
 }
@@ -84,12 +61,13 @@ void ShenandoahPassiveHeuristics::choose_collection_set_from_regiondata(Shenando
 
   // Do not select too large CSet that would overflow the available free space.
   // Take at least the entire evacuation reserve, and be free to overflow to free space.
-  size_t capacity  = ShenandoahHeap::heap()->capacity();
-  size_t available = MAX2(ShenandoahEvacReserve * capacity / 100, actual_free);
+  size_t capacity  = ShenandoahHeap::heap()->max_capacity();
+  size_t available = MAX2(capacity / 100 * ShenandoahEvacReserve, actual_free);
   size_t max_cset  = (size_t)(available / ShenandoahEvacWaste);
 
-  log_info(gc, ergo)("CSet Selection. Actual Free: " SIZE_FORMAT "M, Max CSet: " SIZE_FORMAT "M",
-                     actual_free / M, max_cset / M);
+  log_info(gc, ergo)("CSet Selection. Actual Free: " SIZE_FORMAT "%s, Max CSet: " SIZE_FORMAT "%s",
+                     byte_size_in_proper_unit(actual_free), proper_unit_for_byte_size(actual_free),
+                     byte_size_in_proper_unit(max_cset),    proper_unit_for_byte_size(max_cset));
 
   size_t threshold = ShenandoahHeapRegion::region_size_bytes() * ShenandoahGarbageThreshold / 100;
 

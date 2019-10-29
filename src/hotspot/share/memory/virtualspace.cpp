@@ -26,7 +26,8 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/virtualspace.hpp"
-#include "oops/markOop.hpp"
+#include "oops/compressedOops.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/os.inline.hpp"
 #include "services/memTracker.hpp"
@@ -309,9 +310,9 @@ void ReservedHeapSpace::establish_noaccess_prefix() {
                                  PTR_FORMAT " / " INTX_FORMAT " bytes",
                                  p2i(_base),
                                  _noaccess_prefix);
-      assert(Universe::narrow_oop_use_implicit_null_checks() == true, "not initialized?");
+      assert(CompressedOops::use_implicit_null_checks() == true, "not initialized?");
     } else {
-      Universe::set_narrow_oop_use_implicit_null_checks(false);
+      CompressedOops::set_use_implicit_null_checks(false);
     }
   }
 
@@ -578,7 +579,7 @@ void ReservedHeapSpace::initialize_compressed_heap(const size_t size, size_t ali
     while (addresses[i] &&                                 // End of array not yet reached.
            ((_base == NULL) ||                             // No previous try succeeded.
             (_base + size >  (char *)OopEncodingHeapMax && // Not zerobased or unscaled address.
-             !Universe::is_disjoint_heap_base_address((address)_base)))) {  // Not disjoint address.
+             !CompressedOops::is_disjoint_heap_base_address((address)_base)))) {  // Not disjoint address.
       char* const attach_point = addresses[i];
       assert(attach_point >= aligned_heap_base_min_address, "Flag support broken");
       try_reserve_heap(size + noaccess_prefix, alignment, large, attach_point);
@@ -622,9 +623,9 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, bool large, 
     initialize(size, alignment, large, NULL, false);
   }
 
-  assert(markOopDesc::encode_pointer_as_mark(_base)->decode_pointer() == _base,
+  assert(markWord::encode_pointer_as_mark(_base).decode_pointer() == _base,
          "area must be distinguishable from marks for mark-sweep");
-  assert(markOopDesc::encode_pointer_as_mark(&_base[size])->decode_pointer() == &_base[size],
+  assert(markWord::encode_pointer_as_mark(&_base[size]).decode_pointer() == &_base[size],
          "area must be distinguishable from marks for mark-sweep");
 
   if (base() != NULL) {
@@ -634,6 +635,10 @@ ReservedHeapSpace::ReservedHeapSpace(size_t size, size_t alignment, bool large, 
   if (_fd_for_heap != -1) {
     os::close(_fd_for_heap);
   }
+}
+
+MemRegion ReservedHeapSpace::region() const {
+  return MemRegion((HeapWord*)base(), (HeapWord*)end());
 }
 
 // Reserve space for code segment.  Same as Java heap only we mark this as

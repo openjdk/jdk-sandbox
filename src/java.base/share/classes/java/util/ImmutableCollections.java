@@ -95,11 +95,6 @@ class ImmutableCollections {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    static <E> List<E> emptyList() {
-        return (List<E>) ListN.EMPTY_LIST;
-    }
-
     static abstract class AbstractImmutableList<E> extends AbstractImmutableCollection<E>
             implements List<E>, RandomAccess {
 
@@ -409,6 +404,11 @@ class ImmutableCollections {
         }
 
         @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @Override
         public E get(int index) {
             if (index == 0) {
                 return e0;
@@ -418,10 +418,12 @@ class ImmutableCollections {
             throw outOfBounds(index);
         }
 
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             if (e1 == null) {
                 return new CollSer(CollSer.IMM_LIST, e0);
@@ -485,7 +487,7 @@ class ImmutableCollections {
 
         @Override
         public boolean isEmpty() {
-            return size() == 0;
+            return elements.length == 0;
         }
 
         @Override
@@ -498,10 +500,12 @@ class ImmutableCollections {
             return elements[index];
         }
 
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             return new CollSer(CollSer.IMM_LIST, elements);
         }
@@ -556,11 +560,6 @@ class ImmutableCollections {
         public abstract int hashCode();
     }
 
-    @SuppressWarnings("unchecked")
-    static <E> Set<E> emptySet() {
-        return (Set<E>) SetN.EMPTY_SET;
-    }
-
     static final class Set12<E> extends AbstractImmutableSet<E>
             implements Serializable {
 
@@ -586,6 +585,11 @@ class ImmutableCollections {
         @Override
         public int size() {
             return (e1 == null) ? 1 : 2;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
         }
 
         @Override
@@ -623,10 +627,12 @@ class ImmutableCollections {
             };
         }
 
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             if (e1 == null) {
                 return new CollSer(CollSer.IMM_SET, e0);
@@ -716,6 +722,11 @@ class ImmutableCollections {
         }
 
         @Override
+        public boolean isEmpty() {
+            return size == 0;
+        }
+
+        @Override
         public boolean contains(Object o) {
             Objects.requireNonNull(o);
             return size > 0 && probe(o) >= 0;
@@ -801,10 +812,12 @@ class ImmutableCollections {
             }
         }
 
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             Object[] array = new Object[size];
             int dest = 0;
@@ -844,11 +857,6 @@ class ImmutableCollections {
 
     // ---------- Map Implementations ----------
 
-    @SuppressWarnings("unchecked")
-    static <K,V> Map<K,V> emptyMap() {
-        return (Map<K,V>) MapN.EMPTY_MAP;
-    }
-
     abstract static class AbstractImmutableMap<K,V> extends AbstractMap<K,V> implements Serializable {
         @Override public void clear() { throw uoe(); }
         @Override public V compute(K key, BiFunction<? super K,? super V,? extends V> rf) { throw uoe(); }
@@ -882,6 +890,11 @@ class ImmutableCollections {
         }
 
         @Override
+        public V get(Object o) {
+            return o.equals(k0) ? v0 : null; // implicit nullcheck of o
+        }
+
+        @Override
         public boolean containsKey(Object o) {
             return o.equals(k0); // implicit nullcheck of o
         }
@@ -891,10 +904,22 @@ class ImmutableCollections {
             return o.equals(v0); // implicit nullcheck of o
         }
 
+        @Override
+        public int size() {
+            return 1;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return false;
+        }
+
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             return new CollSer(CollSer.IMM_MAP, k0, v0);
         }
@@ -1008,6 +1033,11 @@ class ImmutableCollections {
             return size;
         }
 
+        @Override
+        public boolean isEmpty() {
+            return size == 0;
+        }
+
         class MapNIterator implements Iterator<Map.Entry<K,V>> {
 
             private int remaining;
@@ -1090,10 +1120,12 @@ class ImmutableCollections {
             }
         }
 
+        @java.io.Serial
         private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
             throw new InvalidObjectException("not serial proxy");
         }
 
+        @java.io.Serial
         private Object writeReplace() {
             Object[] array = new Object[2 * size];
             int len = table.length;
@@ -1118,6 +1150,7 @@ class ImmutableCollections {
  * @since 9
  */
 final class CollSer implements Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = 6309168927139932177L;
 
     static final int IMM_LIST = 1;
@@ -1178,6 +1211,7 @@ final class CollSer implements Serializable {
      * @throws InvalidObjectException if the count is negative
      * @since 9
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         ois.defaultReadObject();
         int len = ois.readInt();
@@ -1207,6 +1241,7 @@ final class CollSer implements Serializable {
      * @throws IOException if an I/O error occurs
      * @since 9
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream oos) throws IOException {
         oos.defaultWriteObject();
         oos.writeInt(array.length);
@@ -1233,6 +1268,7 @@ final class CollSer implements Serializable {
      * @throws ObjectStreamException if another serialization error has occurred
      * @since 9
      */
+   @java.io.Serial
     private Object readResolve() throws ObjectStreamException {
         try {
             if (array == null) {
@@ -1248,7 +1284,7 @@ final class CollSer implements Serializable {
                     return Set.of(array);
                 case IMM_MAP:
                     if (array.length == 0) {
-                        return ImmutableCollections.emptyMap();
+                        return ImmutableCollections.MapN.EMPTY_MAP;
                     } else if (array.length == 2) {
                         return new ImmutableCollections.Map1<>(array[0], array[1]);
                     } else {

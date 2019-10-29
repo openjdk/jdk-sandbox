@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,14 +24,14 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHUTILS_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHUTILS_HPP
 
-#include "jfr/jfrEvents.hpp"
-
 #include "gc/shared/gcCause.hpp"
+#include "gc/shared/gcVMOperations.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/shared/gcVMOperations.hpp"
+#include "gc/shared/weakProcessorPhaseTimes.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"

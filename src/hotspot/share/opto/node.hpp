@@ -52,6 +52,7 @@ class CallNode;
 class CallRuntimeNode;
 class CallStaticJavaNode;
 class CastIINode;
+class CastLLNode;
 class CatchNode;
 class CatchProjNode;
 class CheckCastPPNode;
@@ -72,6 +73,7 @@ class EncodePNode;
 class EncodePKlassNode;
 class FastLockNode;
 class FastUnlockNode;
+class HaltNode;
 class IfNode;
 class IfProjNode;
 class IfFalseNode;
@@ -81,10 +83,8 @@ class JVMState;
 class JumpNode;
 class JumpProjNode;
 class LoadNode;
-class LoadBarrierNode;
-class LoadBarrierSlowRegNode;
-class LoadBarrierWeakSlowRegNode;
 class LoadStoreNode;
+class LoadStoreConditionalNode;
 class LockNode;
 class LoopNode;
 class MachBranchNode;
@@ -142,7 +142,6 @@ class RegionNode;
 class RootNode;
 class SafePointNode;
 class SafePointScalarObjectNode;
-class ShenandoahBarrierNode;
 class StartNode;
 class State;
 class StoreNode;
@@ -393,6 +392,7 @@ protected:
 #ifdef ASSERT
   bool is_dead() const;
 #define is_not_dead(n) ((n) == NULL || !VerifyIterativeGVN || !((n)->is_dead()))
+  bool is_reachable_from_root() const;
 #endif
   // Check whether node has become unreachable
   bool is_unreachable(PhaseIterGVN &igvn) const;
@@ -457,10 +457,10 @@ protected:
   void setup_is_top();
 
   // Strip away casting.  (It is depth-limited.)
-  Node* uncast() const;
+  Node* uncast(bool keep_deps = false) const;
   // Return whether two Nodes are equivalent, after stripping casting.
-  bool eqv_uncast(const Node* n) const {
-    return (this->uncast() == n->uncast());
+  bool eqv_uncast(const Node* n, bool keep_deps = false) const {
+    return (this->uncast(keep_deps) == n->uncast(keep_deps));
   }
 
   // Find out of current node that matches opcode.
@@ -471,7 +471,7 @@ protected:
   bool has_out_with(int opcode1, int opcode2, int opcode3, int opcode4);
 
 private:
-  static Node* uncast_helper(const Node* n);
+  static Node* uncast_helper(const Node* n, bool keep_deps);
 
   // Add an output edge to the end of the list
   void add_out( Node *n ) {
@@ -640,7 +640,6 @@ public:
       DEFINE_CLASS_ID(MemBar,      Multi, 3)
         DEFINE_CLASS_ID(Initialize,       MemBar, 0)
         DEFINE_CLASS_ID(MemBarStoreStore, MemBar, 1)
-      DEFINE_CLASS_ID(LoadBarrier, Multi, 4)
 
     DEFINE_CLASS_ID(Mach,  Node, 1)
       DEFINE_CLASS_ID(MachReturn, Mach, 0)
@@ -667,7 +666,8 @@ public:
       DEFINE_CLASS_ID(Phi,   Type, 0)
       DEFINE_CLASS_ID(ConstraintCast, Type, 1)
         DEFINE_CLASS_ID(CastII, ConstraintCast, 0)
-        DEFINE_CLASS_ID(CheckCastPP, ConstraintCast, 1)
+        DEFINE_CLASS_ID(CastLL, ConstraintCast, 1)
+        DEFINE_CLASS_ID(CheckCastPP, ConstraintCast, 2)
       DEFINE_CLASS_ID(CMove, Type, 3)
       DEFINE_CLASS_ID(SafePointScalarObject, Type, 4)
       DEFINE_CLASS_ID(DecodeNarrowPtr, Type, 5)
@@ -676,7 +676,6 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
-      DEFINE_CLASS_ID(ShenandoahBarrier, Type, 7)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -690,8 +689,6 @@ public:
     DEFINE_CLASS_ID(Mem,   Node, 4)
       DEFINE_CLASS_ID(Load,  Mem, 0)
         DEFINE_CLASS_ID(LoadVector,  Load, 0)
-          DEFINE_CLASS_ID(LoadBarrierSlowReg, Load, 1)
-          DEFINE_CLASS_ID(LoadBarrierWeakSlowReg, Load, 2)
       DEFINE_CLASS_ID(Store, Mem, 1)
         DEFINE_CLASS_ID(StoreVector, Store, 0)
       DEFINE_CLASS_ID(LoadStore, Mem, 2)
@@ -718,8 +715,9 @@ public:
     DEFINE_CLASS_ID(Mul,      Node, 12)
     DEFINE_CLASS_ID(Vector,   Node, 13)
     DEFINE_CLASS_ID(ClearArray, Node, 14)
+    DEFINE_CLASS_ID(Halt, Node, 15)
 
-    _max_classes  = ClassMask_ClearArray
+    _max_classes  = ClassMask_Halt
   };
   #undef DEFINE_CLASS_ID
 
@@ -750,7 +748,6 @@ private:
 protected:
   // These methods should be called from constructors only.
   void init_class_id(jushort c) {
-    assert(c <= _max_classes, "invalid node class");
     _class_id = c; // cast out const
   }
   void init_flags(jushort fl) {
@@ -808,6 +805,7 @@ public:
   DEFINE_CLASS_QUERY(CatchProj)
   DEFINE_CLASS_QUERY(CheckCastPP)
   DEFINE_CLASS_QUERY(CastII)
+  DEFINE_CLASS_QUERY(CastLL)
   DEFINE_CLASS_QUERY(ConstraintCast)
   DEFINE_CLASS_QUERY(ClearArray)
   DEFINE_CLASS_QUERY(CMove)
@@ -822,6 +820,7 @@ public:
   DEFINE_CLASS_QUERY(EncodePKlass)
   DEFINE_CLASS_QUERY(FastLock)
   DEFINE_CLASS_QUERY(FastUnlock)
+  DEFINE_CLASS_QUERY(Halt)
   DEFINE_CLASS_QUERY(If)
   DEFINE_CLASS_QUERY(RangeCheck)
   DEFINE_CLASS_QUERY(IfProj)
@@ -832,9 +831,7 @@ public:
   DEFINE_CLASS_QUERY(JumpProj)
   DEFINE_CLASS_QUERY(Load)
   DEFINE_CLASS_QUERY(LoadStore)
-  DEFINE_CLASS_QUERY(LoadBarrier)
-  DEFINE_CLASS_QUERY(LoadBarrierSlowReg)
-  DEFINE_CLASS_QUERY(LoadBarrierWeakSlowReg)
+  DEFINE_CLASS_QUERY(LoadStoreConditional)
   DEFINE_CLASS_QUERY(Lock)
   DEFINE_CLASS_QUERY(Loop)
   DEFINE_CLASS_QUERY(Mach)
@@ -875,7 +872,6 @@ public:
   DEFINE_CLASS_QUERY(Root)
   DEFINE_CLASS_QUERY(SafePoint)
   DEFINE_CLASS_QUERY(SafePointScalarObject)
-  DEFINE_CLASS_QUERY(ShenandoahBarrier)
   DEFINE_CLASS_QUERY(Start)
   DEFINE_CLASS_QUERY(Store)
   DEFINE_CLASS_QUERY(Sub)
@@ -1001,18 +997,18 @@ public:
   // the node is guaranteed never to compare equal to any other node.
   // If we accidentally generate a hash with value NO_HASH the node
   // won't go into the table and we'll lose a little optimization.
-  enum { NO_HASH = 0 };
+  static const uint NO_HASH = 0;
   virtual uint hash() const;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
 
   // Operation appears to be iteratively computed (such as an induction variable)
   // It is possible for this operation to return false for a loop-varying
   // value, if it appears (by local graph inspection) to be computed by a simple conditional.
   bool is_iteratively_computed();
 
-  // Determine if a node is Counted loop induction variable.
-  // The method is defined in loopnode.cpp.
-  const Node* is_loop_iv() const;
+  // Determine if a node is a counted loop induction variable.
+  // NOTE: The method is defined in "loopnode.cpp".
+  bool is_cloop_ind_var() const;
 
   // Return a node with opcode "opc" and same inputs as "this" if one can
   // be found; Otherwise return NULL;
@@ -1718,7 +1714,7 @@ Compile::set_node_notes_at(int idx, Node_Notes* value) {
 class TypeNode : public Node {
 protected:
   virtual uint hash() const;    // Check the type
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
   const Type* const _type;
 public:

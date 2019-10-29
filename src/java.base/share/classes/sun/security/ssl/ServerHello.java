@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.net.ssl.SSLException;
@@ -47,6 +46,8 @@ import sun.security.ssl.SSLCipher.SSLReadCipher;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedVersionsExtension.SHSupportedVersionsSpec;
+
+import static sun.security.ssl.SSLExtension.SH_SESSION_TICKET;
 
 /**
  * Pack of the ServerHello/HelloRetryRequest handshake message.
@@ -338,6 +339,15 @@ final class ServerHello {
                 shc.handshakeProducers.put(SSLHandshake.SERVER_HELLO_DONE.id,
                         SSLHandshake.SERVER_HELLO_DONE);
             } else {
+                // stateless and use the client session id (RFC 5077 3.4)
+                if (shc.statelessResumption) {
+                    shc.resumingSession = new SSLSessionImpl(shc.resumingSession,
+                            (clientHello.sessionId.length() == 0) ?
+                                    new SessionId(true,
+                                            shc.sslContext.getSecureRandom()) :
+                                    new SessionId(clientHello.sessionId.getId())
+                    );
+                }
                 shc.handshakeSession = shc.resumingSession;
                 shc.negotiatedProtocol =
                         shc.resumingSession.getProtocolVersion();
@@ -492,6 +502,9 @@ final class ServerHello {
             ServerHandshakeContext shc = (ServerHandshakeContext)context;
             ClientHelloMessage clientHello = (ClientHelloMessage)message;
 
+            SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
+                    shc.sslContext.engineGetServerSessionContext();
+
             // If client hasn't specified a session we can resume, start a
             // new one and choose its cipher suite and compression options,
             // unless new session creation is disabled for this connection!
@@ -544,11 +557,9 @@ final class ServerHello {
                         shc.negotiatedProtocol, shc.negotiatedCipherSuite);
 
                 setUpPskKD(shc,
-                        shc.resumingSession.consumePreSharedKey().get());
+                        shc.resumingSession.consumePreSharedKey());
 
                 // The session can't be resumed again---remove it from cache
-                SSLSessionContextImpl sessionCache = (SSLSessionContextImpl)
-                    shc.sslContext.engineGetServerSessionContext();
                 sessionCache.remove(shc.resumingSession.getSessionId());
             }
 
@@ -679,6 +690,11 @@ final class ServerHello {
 
             // Update the context for master key derivation.
             shc.handshakeKeyDerivation = kd;
+
+            // Check if the server supports stateless resumption
+            if (sessionCache.statelessEnabled()) {
+                shc.statelessResumption = true;
+            }
 
             // The handshake message has been delivered.
             return null;
@@ -1099,9 +1115,23 @@ final class ServerHello {
                     throw chc.conContext.fatal(Alert.PROTOCOL_VERSION,
                         "New session creation is disabled");
                 }
-                chc.handshakeSession = new SSLSessionImpl(chc,
-                        chc.negotiatedCipherSuite,
-                        serverHello.sessionId);
+
+                if (serverHello.sessionId.length() == 0 &&
+                        chc.statelessResumption) {
+                    SessionId newId = new SessionId(true,
+                            chc.sslContext.getSecureRandom());
+                    chc.handshakeSession = new SSLSessionImpl(chc,
+                            chc.negotiatedCipherSuite, newId);
+
+                    if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                        SSLLogger.fine("Locally assigned Session Id: " +
+                                newId.toString());
+                    }
+                } else {
+                    chc.handshakeSession = new SSLSessionImpl(chc,
+                            chc.negotiatedCipherSuite,
+                            serverHello.sessionId);
+                }
                 chc.handshakeSession.setMaximumPacketSize(
                         chc.sslConfig.maximumPacketSize);
             }
@@ -1125,6 +1155,11 @@ final class ServerHello {
                             chc, chc.resumingSession.getMasterSecret());
                 }
 
+                if (chc.statelessResumption) {
+                    chc.handshakeConsumers.putIfAbsent(
+                            SSLHandshake.NEW_SESSION_TICKET.id,
+                            SSLHandshake.NEW_SESSION_TICKET);
+                }
                 chc.conContext.consumers.putIfAbsent(
                         ContentType.CHANGE_CIPHER_SPEC.id,
                         ChangeCipherSpec.t10Consumer);
@@ -1223,16 +1258,16 @@ final class ServerHello {
                         chc.sslConfig.maximumPacketSize);
             } else {
                 // The PSK is consumed to allow it to be deleted
-                Optional<SecretKey> psk =
+                SecretKey psk =
                         chc.resumingSession.consumePreSharedKey();
-                if(!psk.isPresent()) {
+                if(psk == null) {
                     throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                     "No PSK available. Unable to resume.");
                 }
 
                 chc.handshakeSession = chc.resumingSession;
 
-                setUpPskKD(chc, psk.get());
+                setUpPskKD(chc, psk);
             }
 
             //

@@ -33,6 +33,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/accessDecorators.hpp"
+#include "oops/compressedOops.hpp"
 #include "oops/klass.inline.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/biasedLocking.hpp"
@@ -989,7 +990,7 @@ AddressLiteral MacroAssembler::constant_oop_address(jobject obj) {
   {
     ThreadInVMfromUnknown tiv;
     assert(oop_recorder() != NULL, "this assembler needs an OopRecorder");
-    assert(Universe::heap()->is_in_reserved(JNIHandles::resolve(obj)), "not an oop");
+    assert(Universe::heap()->is_in(JNIHandles::resolve(obj)), "not an oop");
   }
 #endif
   int oop_index = oop_recorder()->find_index(obj);
@@ -1015,7 +1016,7 @@ void  MacroAssembler::set_narrow_klass(Klass* k, Register d) {
   assert(oop_recorder() != NULL, "this assembler needs an OopRecorder");
   int klass_index = oop_recorder()->find_index(k);
   RelocationHolder rspec = metadata_Relocation::spec(klass_index);
-  narrowOop encoded_k = Klass::encode_klass(k);
+  narrowOop encoded_k = CompressedKlassPointers::encode(k);
 
   assert_not_delayed();
   // Relocation with special format (see relocInfo_sparc.hpp).
@@ -2451,15 +2452,15 @@ void MacroAssembler::biased_locking_enter(Register obj_reg, Register mark_reg,
   // whether the epoch is still valid
   // Note that the runtime guarantees sufficient alignment of JavaThread
   // pointers to allow age to be placed into low bits
-  assert(markOopDesc::age_shift == markOopDesc::lock_bits + markOopDesc::biased_lock_bits, "biased locking makes assumptions about bit layout");
-  and3(mark_reg, markOopDesc::biased_lock_mask_in_place, temp_reg);
-  cmp_and_brx_short(temp_reg, markOopDesc::biased_lock_pattern, Assembler::notEqual, Assembler::pn, cas_label);
+  assert(markWord::age_shift == markWord::lock_bits + markWord::biased_lock_bits, "biased locking makes assumptions about bit layout");
+  and3(mark_reg, markWord::biased_lock_mask_in_place, temp_reg);
+  cmp_and_brx_short(temp_reg, markWord::biased_lock_pattern, Assembler::notEqual, Assembler::pn, cas_label);
 
   load_klass(obj_reg, temp_reg);
   ld_ptr(Address(temp_reg, Klass::prototype_header_offset()), temp_reg);
   or3(G2_thread, temp_reg, temp_reg);
   xor3(mark_reg, temp_reg, temp_reg);
-  andcc(temp_reg, ~((int) markOopDesc::age_mask_in_place), temp_reg);
+  andcc(temp_reg, ~((int) markWord::age_mask_in_place), temp_reg);
   if (counters != NULL) {
     cond_inc(Assembler::equal, (address) counters->biased_lock_entry_count_addr(), mark_reg, temp_reg);
     // Reload mark_reg as we may need it later
@@ -2482,7 +2483,7 @@ void MacroAssembler::biased_locking_enter(Register obj_reg, Register mark_reg,
   // If the low three bits in the xor result aren't clear, that means
   // the prototype header is no longer biased and we have to revoke
   // the bias on this object.
-  btst(markOopDesc::biased_lock_mask_in_place, temp_reg);
+  btst(markWord::biased_lock_mask_in_place, temp_reg);
   brx(Assembler::notZero, false, Assembler::pn, try_revoke_bias);
 
   // Biasing is still enabled for this data type. See whether the
@@ -2494,7 +2495,7 @@ void MacroAssembler::biased_locking_enter(Register obj_reg, Register mark_reg,
   // that the current epoch is invalid in order to do this because
   // otherwise the manipulations it performs on the mark word are
   // illegal.
-  delayed()->btst(markOopDesc::epoch_mask_in_place, temp_reg);
+  delayed()->btst(markWord::epoch_mask_in_place, temp_reg);
   brx(Assembler::notZero, false, Assembler::pn, try_rebias);
 
   // The epoch of the current bias is still valid but we know nothing
@@ -2504,7 +2505,7 @@ void MacroAssembler::biased_locking_enter(Register obj_reg, Register mark_reg,
   // Note that we first construct the presumed unbiased header so we
   // don't accidentally blow away another thread's valid bias.
   delayed()->and3(mark_reg,
-                  markOopDesc::biased_lock_mask_in_place | markOopDesc::age_mask_in_place | markOopDesc::epoch_mask_in_place,
+                  markWord::biased_lock_mask_in_place | markWord::age_mask_in_place | markWord::epoch_mask_in_place,
                   mark_reg);
   or3(G2_thread, mark_reg, temp_reg);
   cas_ptr(mark_addr.base(), mark_reg, temp_reg);
@@ -2585,8 +2586,8 @@ void MacroAssembler::biased_locking_exit (Address mark_addr, Register temp_reg, 
   // lock, the object could not be rebiased toward another thread, so
   // the bias bit would be clear.
   ld_ptr(mark_addr, temp_reg);
-  and3(temp_reg, markOopDesc::biased_lock_mask_in_place, temp_reg);
-  cmp(temp_reg, markOopDesc::biased_lock_pattern);
+  and3(temp_reg, markWord::biased_lock_mask_in_place, temp_reg);
+  cmp(temp_reg, markWord::biased_lock_pattern);
   brx(Assembler::equal, allow_delay_slot_filling, Assembler::pt, done);
   delayed();
   if (!allow_delay_slot_filling) {
@@ -2602,12 +2603,12 @@ void MacroAssembler::biased_locking_exit (Address mark_addr, Register temp_reg, 
 // box->dhw disposition - post-conditions at DONE_LABEL.
 // -   Successful inflated lock:  box->dhw != 0.
 //     Any non-zero value suffices.
-//     Consider G2_thread, rsp, boxReg, or markOopDesc::unused_mark()
+//     Consider G2_thread, rsp, boxReg, or markWord::unused_mark()
 // -   Successful Stack-lock: box->dhw == mark.
 //     box->dhw must contain the displaced mark word value
 // -   Failure -- icc.ZFlag == 0 and box->dhw is undefined.
-//     The slow-path fast_enter() and slow_enter() operators
-//     are responsible for setting box->dhw = NonZero (typically markOopDesc::unused_mark()).
+//     The slow-path enter() is responsible for setting
+//     box->dhw = NonZero (typically markWord::unused_mark()).
 // -   Biased: box->dhw is undefined
 //
 // SPARC refworkload performance - specifically jetstream and scimark - are
@@ -2657,7 +2658,7 @@ void MacroAssembler::compiler_lock_object(Register Roop, Register Rmark,
    // This presumes TSO, of course.
 
    mov(0, Rscratch);
-   or3(Rmark, markOopDesc::unlocked_value, Rmark);
+   or3(Rmark, markWord::unlocked_value, Rmark);
    assert(mark_addr.disp() == 0, "cas must take a zero displacement");
    cas_ptr(mark_addr.base(), Rmark, Rscratch);
 // prefetch (mark_addr, Assembler::severalWritesAndPossiblyReads);
@@ -2711,7 +2712,7 @@ void MacroAssembler::compiler_lock_object(Register Roop, Register Rmark,
    // set icc.zf : 1=success 0=failure
    // ST box->displaced_header = NonZero.
    // Any non-zero value suffices:
-   //    markOopDesc::unused_mark(), G2_thread, RBox, RScratch, rsp, etc.
+   //    markWord::unused_mark(), G2_thread, RBox, RScratch, rsp, etc.
    st_ptr(Rbox, Rbox, BasicLock::displaced_header_offset_in_bytes());
    // Intentional fall-through into done
 
@@ -3295,9 +3296,9 @@ void MacroAssembler::store_heap_oop(Register d, const Address& a, int offset, Re
 void MacroAssembler::encode_heap_oop(Register src, Register dst) {
   assert (UseCompressedOops, "must be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   verify_oop(src);
-  if (Universe::narrow_oop_base() == NULL) {
+  if (CompressedOops::base() == NULL) {
     srlx(src, LogMinObjAlignmentInBytes, dst);
     return;
   }
@@ -3323,9 +3324,9 @@ void MacroAssembler::encode_heap_oop(Register src, Register dst) {
 void MacroAssembler::encode_heap_oop_not_null(Register r) {
   assert (UseCompressedOops, "must be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   verify_oop(r);
-  if (Universe::narrow_oop_base() != NULL)
+  if (CompressedOops::base() != NULL)
     sub(r, G6_heapbase, r);
   srlx(r, LogMinObjAlignmentInBytes, r);
 }
@@ -3333,9 +3334,9 @@ void MacroAssembler::encode_heap_oop_not_null(Register r) {
 void MacroAssembler::encode_heap_oop_not_null(Register src, Register dst) {
   assert (UseCompressedOops, "must be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   verify_oop(src);
-  if (Universe::narrow_oop_base() == NULL) {
+  if (CompressedOops::base() == NULL) {
     srlx(src, LogMinObjAlignmentInBytes, dst);
   } else {
     sub(src, G6_heapbase, dst);
@@ -3347,9 +3348,9 @@ void MacroAssembler::encode_heap_oop_not_null(Register src, Register dst) {
 void  MacroAssembler::decode_heap_oop(Register src, Register dst) {
   assert (UseCompressedOops, "must be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   sllx(src, LogMinObjAlignmentInBytes, dst);
-  if (Universe::narrow_oop_base() != NULL) {
+  if (CompressedOops::base() != NULL) {
     Label done;
     bpr(rc_nz, true, Assembler::pt, dst, done);
     delayed() -> add(dst, G6_heapbase, dst); // annuled if not taken
@@ -3364,9 +3365,9 @@ void  MacroAssembler::decode_heap_oop_not_null(Register r) {
   // Also do not verify_oop as this is called by verify_oop.
   assert (UseCompressedOops, "must be compressed");
   assert (Universe::heap() != NULL, "java heap should be initialized");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   sllx(r, LogMinObjAlignmentInBytes, r);
-  if (Universe::narrow_oop_base() != NULL)
+  if (CompressedOops::base() != NULL)
     add(r, G6_heapbase, r);
 }
 
@@ -3375,26 +3376,26 @@ void  MacroAssembler::decode_heap_oop_not_null(Register src, Register dst) {
   // pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
   assert (UseCompressedOops, "must be compressed");
-  assert (LogMinObjAlignmentInBytes == Universe::narrow_oop_shift(), "decode alg wrong");
+  assert (LogMinObjAlignmentInBytes == CompressedOops::shift(), "decode alg wrong");
   sllx(src, LogMinObjAlignmentInBytes, dst);
-  if (Universe::narrow_oop_base() != NULL)
+  if (CompressedOops::base() != NULL)
     add(dst, G6_heapbase, dst);
 }
 
 void MacroAssembler::encode_klass_not_null(Register r) {
   assert (UseCompressedClassPointers, "must be compressed");
-  if (Universe::narrow_klass_base() != NULL) {
+  if (CompressedKlassPointers::base() != NULL) {
     assert(r != G6_heapbase, "bad register choice");
-    set((intptr_t)Universe::narrow_klass_base(), G6_heapbase);
+    set((intptr_t)CompressedKlassPointers::base(), G6_heapbase);
     sub(r, G6_heapbase, r);
-    if (Universe::narrow_klass_shift() != 0) {
-      assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift(), "decode alg wrong");
+    if (CompressedKlassPointers::shift() != 0) {
+      assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
       srlx(r, LogKlassAlignmentInBytes, r);
     }
     reinit_heapbase();
   } else {
-    assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift() || Universe::narrow_klass_shift() == 0, "decode alg wrong");
-    srlx(r, Universe::narrow_klass_shift(), r);
+    assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift() || CompressedKlassPointers::shift() == 0, "decode alg wrong");
+    srlx(r, CompressedKlassPointers::shift(), r);
   }
 }
 
@@ -3403,16 +3404,16 @@ void MacroAssembler::encode_klass_not_null(Register src, Register dst) {
     encode_klass_not_null(src);
   } else {
     assert (UseCompressedClassPointers, "must be compressed");
-    if (Universe::narrow_klass_base() != NULL) {
-      set((intptr_t)Universe::narrow_klass_base(), dst);
+    if (CompressedKlassPointers::base() != NULL) {
+      set((intptr_t)CompressedKlassPointers::base(), dst);
       sub(src, dst, dst);
-      if (Universe::narrow_klass_shift() != 0) {
+      if (CompressedKlassPointers::shift() != 0) {
         srlx(dst, LogKlassAlignmentInBytes, dst);
       }
     } else {
       // shift src into dst
-      assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift() || Universe::narrow_klass_shift() == 0, "decode alg wrong");
-      srlx(src, Universe::narrow_klass_shift(), dst);
+      assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift() || CompressedKlassPointers::shift() == 0, "decode alg wrong");
+      srlx(src, CompressedKlassPointers::shift(), dst);
     }
   }
 }
@@ -3423,11 +3424,11 @@ void MacroAssembler::encode_klass_not_null(Register src, Register dst) {
 int MacroAssembler::instr_size_for_decode_klass_not_null() {
   assert (UseCompressedClassPointers, "only for compressed klass ptrs");
   int num_instrs = 1;  // shift src,dst or add
-  if (Universe::narrow_klass_base() != NULL) {
+  if (CompressedKlassPointers::base() != NULL) {
     // set + add + set
-    num_instrs += insts_for_internal_set((intptr_t)Universe::narrow_klass_base()) +
-                  insts_for_internal_set((intptr_t)Universe::narrow_ptrs_base());
-    if (Universe::narrow_klass_shift() != 0) {
+    num_instrs += insts_for_internal_set((intptr_t)CompressedKlassPointers::base()) +
+                  insts_for_internal_set((intptr_t)CompressedOops::ptrs_base());
+    if (CompressedKlassPointers::shift() != 0) {
       num_instrs += 1;  // sllx
     }
   }
@@ -3440,16 +3441,16 @@ void  MacroAssembler::decode_klass_not_null(Register r) {
   // Do not add assert code to this unless you change vtableStubs_sparc.cpp
   // pd_code_size_limit.
   assert (UseCompressedClassPointers, "must be compressed");
-  if (Universe::narrow_klass_base() != NULL) {
+  if (CompressedKlassPointers::base() != NULL) {
     assert(r != G6_heapbase, "bad register choice");
-    set((intptr_t)Universe::narrow_klass_base(), G6_heapbase);
-    if (Universe::narrow_klass_shift() != 0)
+    set((intptr_t)CompressedKlassPointers::base(), G6_heapbase);
+    if (CompressedKlassPointers::shift() != 0)
       sllx(r, LogKlassAlignmentInBytes, r);
     add(r, G6_heapbase, r);
     reinit_heapbase();
   } else {
-    assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift() || Universe::narrow_klass_shift() == 0, "decode alg wrong");
-    sllx(r, Universe::narrow_klass_shift(), r);
+    assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift() || CompressedKlassPointers::shift() == 0, "decode alg wrong");
+    sllx(r, CompressedKlassPointers::shift(), r);
   }
 }
 
@@ -3460,21 +3461,21 @@ void  MacroAssembler::decode_klass_not_null(Register src, Register dst) {
     // Do not add assert code to this unless you change vtableStubs_sparc.cpp
     // pd_code_size_limit.
     assert (UseCompressedClassPointers, "must be compressed");
-    if (Universe::narrow_klass_base() != NULL) {
-      if (Universe::narrow_klass_shift() != 0) {
+    if (CompressedKlassPointers::base() != NULL) {
+      if (CompressedKlassPointers::shift() != 0) {
         assert((src != G6_heapbase) && (dst != G6_heapbase), "bad register choice");
-        set((intptr_t)Universe::narrow_klass_base(), G6_heapbase);
+        set((intptr_t)CompressedKlassPointers::base(), G6_heapbase);
         sllx(src, LogKlassAlignmentInBytes, dst);
         add(dst, G6_heapbase, dst);
         reinit_heapbase();
       } else {
-        set((intptr_t)Universe::narrow_klass_base(), dst);
+        set((intptr_t)CompressedKlassPointers::base(), dst);
         add(src, dst, dst);
       }
     } else {
       // shift/mov src into dst.
-      assert (LogKlassAlignmentInBytes == Universe::narrow_klass_shift() || Universe::narrow_klass_shift() == 0, "decode alg wrong");
-      sllx(src, Universe::narrow_klass_shift(), dst);
+      assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift() || CompressedKlassPointers::shift() == 0, "decode alg wrong");
+      sllx(src, CompressedKlassPointers::shift(), dst);
     }
   }
 }
@@ -3482,9 +3483,9 @@ void  MacroAssembler::decode_klass_not_null(Register src, Register dst) {
 void MacroAssembler::reinit_heapbase() {
   if (UseCompressedOops || UseCompressedClassPointers) {
     if (Universe::heap() != NULL) {
-      set((intptr_t)Universe::narrow_ptrs_base(), G6_heapbase);
+      set((intptr_t)CompressedOops::ptrs_base(), G6_heapbase);
     } else {
-      AddressLiteral base(Universe::narrow_ptrs_base_addr());
+      AddressLiteral base(CompressedOops::ptrs_base_addr());
       load_ptr_contents(base, G6_heapbase);
     }
   }

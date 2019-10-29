@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,14 +94,13 @@ public class FoldTest extends ReplacementsTest {
     }
 
     @Override
-    protected boolean checkHighTierGraph(StructuredGraph graph) {
+    protected void checkHighTierGraph(StructuredGraph graph) {
         // check that folding happened correctly
         StartNode start = graph.start();
         assert start.next() instanceof ReturnNode : "expected ReturnNode, got " + start.next();
 
         ReturnNode ret = (ReturnNode) start.next();
         assert ret.result().isConstant() : "expected ConstantNode, got " + ret.result();
-        return true;
     }
 
     @Test

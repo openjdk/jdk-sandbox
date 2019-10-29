@@ -194,11 +194,6 @@ class Thread implements Runnable {
     private final long stackSize;
 
     /*
-     * JVM-private state that persists after native thread termination.
-     */
-    private long nativeParkEventPointer;
-
-    /*
      * Thread ID
      */
     private final long tid;
@@ -1080,7 +1075,7 @@ class Thread implements Runnable {
      *   <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *   are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      */
-    @Deprecated(since="1.2")
+    @Deprecated(since="1.2", forRemoval=true)
     public final void suspend() {
         checkAccess();
         suspend0();
@@ -1106,7 +1101,7 @@ class Thread implements Runnable {
      *     <a href="{@docRoot}/java.base/java/lang/doc-files/threadPrimitiveDeprecation.html">Why
      *     are Thread.stop, Thread.suspend and Thread.resume Deprecated?</a>.
      */
-    @Deprecated(since="1.2")
+    @Deprecated(since="1.2", forRemoval=true)
     public final void resume() {
         checkAccess();
         resume0();

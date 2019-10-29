@@ -31,6 +31,7 @@
 #include "gc/z/zMessagePort.inline.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zStat.hpp"
+#include "gc/z/zVerify.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
 #include "runtime/vmOperations.hpp"
@@ -43,9 +44,7 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinue("Concurrent Mark 
 static const ZStatPhasePause      ZPhasePauseMarkEnd("Pause Mark End");
 static const ZStatPhaseConcurrent ZPhaseConcurrentProcessNonStrongReferences("Concurrent Process Non-Strong References");
 static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSet("Concurrent Reset Relocation Set");
-static const ZStatPhaseConcurrent ZPhaseConcurrentDestroyDetachedPages("Concurrent Destroy Detached Pages");
 static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSet("Concurrent Select Relocation Set");
-static const ZStatPhaseConcurrent ZPhaseConcurrentPrepareRelocationSet("Concurrent Prepare Relocation Set");
 static const ZStatPhasePause      ZPhasePauseRelocateStart("Pause Relocate Start");
 static const ZStatPhaseConcurrent ZPhaseConcurrentRelocated("Concurrent Relocate");
 static const ZStatCriticalPhase   ZCriticalPhaseGCLockerStall("GC Locker Stall", false /* verbose */);
@@ -87,6 +86,9 @@ public:
     // Setup GC id and active marker
     GCIdMark gc_id_mark(_gc_id);
     IsGCActiveMark gc_active_mark;
+
+    // Verify before operation
+    ZVerify::before_zoperation();
 
     // Execute operation
     _success = do_operation();
@@ -209,6 +211,17 @@ public:
   }
 };
 
+class VM_ZVerify : public VM_Operation {
+public:
+  virtual VMOp_Type type() const {
+    return VMOp_ZVerify;
+  }
+
+  virtual void doit() {
+    ZVerify::after_weak_processing();
+  }
+};
+
 ZDriver::ZDriver() :
     _gc_cycle_port(),
     _gc_locker_port() {
@@ -236,9 +249,16 @@ void ZDriver::collect(GCCause::Cause cause) {
   case GCCause::_z_allocation_rate:
   case GCCause::_z_allocation_stall:
   case GCCause::_z_proactive:
-  case GCCause::_metadata_GC_threshold:
+  case GCCause::_z_high_usage:
     // Start asynchronous GC
     _gc_cycle_port.send_async(cause);
+    break;
+
+  case GCCause::_metadata_GC_threshold:
+    // Start asynchronous GC, but only if the GC is warm
+    if (ZStatCycle::is_warm()) {
+      _gc_cycle_port.send_async(cause);
+    }
     break;
 
   case GCCause::_gc_locker:
@@ -300,14 +320,14 @@ void ZDriver::concurrent_reset_relocation_set() {
   ZHeap::heap()->reset_relocation_set();
 }
 
-void ZDriver::concurrent_destroy_detached_pages() {
-  ZStatTimer timer(ZPhaseConcurrentDestroyDetachedPages);
-  ZHeap::heap()->destroy_detached_pages();
-}
-
 void ZDriver::pause_verify() {
   if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
+    // Full verification
     VM_Verify op;
+    VMThread::execute(&op);
+  } else if (ZVerifyRoots || ZVerifyObjects) {
+    // Limited verification
+    VM_ZVerify op;
     VMThread::execute(&op);
   }
 }
@@ -315,11 +335,6 @@ void ZDriver::pause_verify() {
 void ZDriver::concurrent_select_relocation_set() {
   ZStatTimer timer(ZPhaseConcurrentSelectRelocationSet);
   ZHeap::heap()->select_relocation_set();
-}
-
-void ZDriver::concurrent_prepare_relocation_set() {
-  ZStatTimer timer(ZPhaseConcurrentPrepareRelocationSet);
-  ZHeap::heap()->prepare_relocation_set();
 }
 
 void ZDriver::pause_relocate_start() {
@@ -384,22 +399,16 @@ void ZDriver::gc(GCCause::Cause cause) {
   // Phase 5: Concurrent Reset Relocation Set
   concurrent_reset_relocation_set();
 
-  // Phase 6: Concurrent Destroy Detached Pages
-  concurrent_destroy_detached_pages();
-
-  // Phase 7: Pause Verify
+  // Phase 6: Pause Verify
   pause_verify();
 
-  // Phase 8: Concurrent Select Relocation Set
+  // Phase 7: Concurrent Select Relocation Set
   concurrent_select_relocation_set();
 
-  // Phase 9: Concurrent Prepare Relocation Set
-  concurrent_prepare_relocation_set();
-
-  // Phase 10: Pause Relocate Start
+  // Phase 8: Pause Relocate Start
   pause_relocate_start();
 
-  // Phase 11: Concurrent Relocate
+  // Phase 9: Concurrent Relocate
   concurrent_relocate();
 }
 

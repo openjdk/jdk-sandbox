@@ -25,11 +25,11 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -45,7 +45,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_string_by_symbol(JavaThread *thre
       // First 2 bytes of name contains length (number of bytes).
       int len = Bytes::get_Java_u2((address)name);
       name += 2;
-      TempNewSymbol sym = SymbolTable::new_symbol(name, len, CHECK);
+      TempNewSymbol sym = SymbolTable::new_symbol(name, len);
       str = StringTable::intern(sym, CHECK);
       assert(java_lang_String::is_instance(str), "must be string");
       *(oop*)string_result = str; // Store result
@@ -73,12 +73,12 @@ Klass* CompilerRuntime::resolve_klass_helper(JavaThread *thread, const char* nam
   Handle protection_domain(THREAD, caller->method_holder()->protection_domain());
 
   // Ignore wrapping L and ;
-  if (name[0] == 'L') {
+  if (name[0] == JVM_SIGNATURE_CLASS) {
     assert(len > 2, "small name %s", name);
     name++;
     len -= 2;
   }
-  TempNewSymbol sym = SymbolTable::new_symbol(name, len, CHECK_NULL);
+  TempNewSymbol sym = SymbolTable::new_symbol(name, len);
   if (sym == NULL) {
     return NULL;
   }

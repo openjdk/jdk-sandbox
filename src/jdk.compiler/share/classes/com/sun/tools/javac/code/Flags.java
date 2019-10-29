@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -286,7 +286,17 @@ public class Flags {
     /**
      * Flag to indicate the given ModuleSymbol is an automatic module.
      */
-    public static final long AUTOMATIC_MODULE = 1L<<52;
+    public static final long AUTOMATIC_MODULE = 1L<<52; //ModuleSymbols only
+
+    /**
+     * Flag to indicate the given PackageSymbol contains any non-.java and non-.class resources.
+     */
+    public static final long HAS_RESOURCE = 1L<<52; //PackageSymbols only
+
+    /**
+     * Flag to indicate the given ParamSymbol has a user-friendly name filled.
+     */
+    public static final long NAME_FILLED = 1L<<52; //ParamSymbols only
 
     /**
      * Flag to indicate the given ModuleSymbol is a system module.
@@ -304,9 +314,9 @@ public class Flags {
     public static final long DEPRECATED_REMOVAL = 1L<<55;
 
     /**
-     * Flag to indicate the given PackageSymbol contains any non-.java and non-.class resources.
+     * Flag to indicate the API element in question is for a preview API.
      */
-    public static final long HAS_RESOURCE = 1L<<56;
+    public static final long PREVIEW_API = 1L<<56; //any Symbol kind
 
     /**
      * Flag for synthesized default constructors of anonymous classes that have an enclosing expression.
@@ -318,6 +328,11 @@ public class Flags {
      * Used to implement try-with-resources.
      */
     public static final long BODY_ONLY_FINALIZE = 1L<<17; //blocks only
+
+    /**
+     * Flag to indicate the API element in question is for a preview API.
+     */
+    public static final long PREVIEW_ESSENTIAL_API = 1L<<58; //any Symbol kind
 
     /** Modifier masks.
      */
@@ -435,7 +450,10 @@ public class Flags {
         DEPRECATED_REMOVAL(Flags.DEPRECATED_REMOVAL),
         HAS_RESOURCE(Flags.HAS_RESOURCE),
         POTENTIALLY_AMBIGUOUS(Flags.POTENTIALLY_AMBIGUOUS),
-        ANONCONSTR_BASED(Flags.ANONCONSTR_BASED);
+        ANONCONSTR_BASED(Flags.ANONCONSTR_BASED),
+        NAME_FILLED(Flags.NAME_FILLED),
+        PREVIEW_API(Flags.PREVIEW_API),
+        PREVIEW_ESSENTIAL_API(Flags.PREVIEW_ESSENTIAL_API);
 
         Flag(long flag) {
             this.value = flag;

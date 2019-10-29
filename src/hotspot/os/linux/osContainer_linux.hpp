@@ -36,12 +36,14 @@ class OSContainer: AllStatic {
  private:
   static bool   _is_initialized;
   static bool   _is_containerized;
+  static jlong read_memory_limit_in_bytes();
 
  public:
   static void init();
   static inline bool is_containerized();
   static const char * container_type();
 
+  static jlong uses_mem_hierarchy();
   static jlong memory_limit_in_bytes();
   static jlong memory_and_swap_limit_in_bytes();
   static jlong memory_soft_limit_in_bytes();
@@ -61,7 +63,6 @@ class OSContainer: AllStatic {
 };
 
 inline bool OSContainer::is_containerized() {
-  assert(_is_initialized, "OSContainer not initialized");
   return _is_containerized;
 }
 

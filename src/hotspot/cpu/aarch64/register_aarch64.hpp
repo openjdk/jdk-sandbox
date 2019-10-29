@@ -136,7 +136,7 @@ class FloatRegisterImpl: public AbstractRegisterImpl {
   VMReg as_VMReg();
 
   // derived registers, offsets, and addresses
-  FloatRegister successor() const                          { return as_FloatRegister(encoding() + 1); }
+  FloatRegister successor() const                          { return as_FloatRegister((encoding() + 1) % 32); }
 
   // accessors
   int   encoding() const                          { assert(is_valid(), "invalid register"); return (intptr_t)this; }
@@ -227,6 +227,11 @@ public:
 
   RegSet &operator+=(const RegSet aSet) {
     *this = *this + aSet;
+    return *this;
+  }
+
+  RegSet &operator-=(const RegSet aSet) {
+    *this = *this - aSet;
     return *this;
   }
 

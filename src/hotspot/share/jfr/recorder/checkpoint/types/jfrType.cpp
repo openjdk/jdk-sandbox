@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,19 +30,18 @@
 #include "gc/shared/gcName.hpp"
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcWhen.hpp"
-#include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/leakprofiler/leakProfiler.hpp"
 #include "jfr/recorder/checkpoint/jfrCheckpointManager.hpp"
 #include "jfr/recorder/checkpoint/types/jfrType.hpp"
 #include "jfr/recorder/jfrRecorder.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadGroup.hpp"
 #include "jfr/recorder/checkpoint/types/jfrThreadState.hpp"
-#include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
 #include "jfr/support/jfrThreadLocal.hpp"
 #include "jfr/writers/jfrJavaEventWriter.hpp"
 #include "memory/metaspaceGCThresholdUpdater.hpp"
 #include "memory/referenceType.hpp"
 #include "memory/universe.hpp"
+#include "oops/compressedOops.hpp"
 #include "runtime/flags/jvmFlag.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
@@ -54,10 +53,6 @@
 #ifdef COMPILER2
 #include "opto/compile.hpp"
 #include "opto/node.hpp"
-#endif
-#if INCLUDE_G1GC
-#include "gc/g1/g1HeapRegionTraceType.hpp"
-#include "gc/g1/g1YCTypes.hpp"
 #endif
 
 // Requires a ResourceMark for get_thread_name/as_utf8
@@ -187,15 +182,6 @@ void GCWhenConstant::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-void G1HeapRegionTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = G1HeapRegionTraceType::G1HeapRegionTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1HeapRegionTraceType::to_string((G1HeapRegionTraceType::Type)i));
-  }
-}
-
 void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
   static const u4 nof_entries = MetaspaceGCThresholdUpdater::Last;
   writer.write_count(nof_entries);
@@ -223,17 +209,6 @@ void MetaspaceObjectTypeConstant::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-void G1YCTypeConstant::serialize(JfrCheckpointWriter& writer) {
-#if INCLUDE_G1GC
-  static const u4 nof_entries = G1YCTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1YCTypeHelper::to_string((G1YCType)i));
-  }
-#endif
-}
-
 static const char* reference_type_to_string(ReferenceType rt) {
   switch (rt) {
     case REF_NONE: return "None reference";
@@ -258,11 +233,11 @@ void ReferenceTypeConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void NarrowOopModeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = Universe::HeapBasedNarrowOop + 1;
+  static const u4 nof_entries = CompressedOops::HeapBasedNarrowOop + 1;
   writer.write_count(nof_entries);
   for (u4 i = 0; i < nof_entries; ++i) {
     writer.write_key(i);
-    writer.write(Universe::narrow_oop_mode_to_string((Universe::NARROW_OOP_MODE)i));
+    writer.write(CompressedOops::mode_to_string((CompressedOops::Mode)i));
   }
 }
 
@@ -295,38 +270,6 @@ void VMOperationTypeConstant::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-class TypeSetSerialization {
- private:
-  bool _class_unload;
- public:
-  explicit TypeSetSerialization(bool class_unload) : _class_unload(class_unload) {}
-  void write(JfrCheckpointWriter& writer, JfrCheckpointWriter* leakp_writer) {
-    JfrTypeSet::serialize(&writer, leakp_writer, _class_unload);
-  }
-};
-
-void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set(true);
-  if (LeakProfiler::is_running()) {
-    JfrCheckpointWriter leakp_writer(false, true, Thread::current());
-    type_set.write(writer, &leakp_writer);
-    ObjectSampleCheckpoint::install(leakp_writer, true, true);
-    return;
-  }
-  type_set.write(writer, NULL);
-};
-
-void TypeSet::serialize(JfrCheckpointWriter& writer) {
-  TypeSetSerialization type_set(false);
-  if (LeakProfiler::is_suspended()) {
-    JfrCheckpointWriter leakp_writer(false, true, Thread::current());
-    type_set.write(writer, &leakp_writer);
-    ObjectSampleCheckpoint::install(leakp_writer, false, true);
-    return;
-  }
-  type_set.write(writer, NULL);
-};
-
 void ThreadStateConstant::serialize(JfrCheckpointWriter& writer) {
   JfrThreadState::serialize(writer);
 }
@@ -335,7 +278,6 @@ void JfrThreadConstant::serialize(JfrCheckpointWriter& writer) {
   assert(_thread != NULL, "invariant");
   assert(_thread == Thread::current(), "invariant");
   assert(_thread->is_Java_thread(), "invariant");
-  assert(!_thread->jfr_thread_local()->has_thread_checkpoint(), "invariant");
   ResourceMark rm(_thread);
   const oop threadObj = _thread->threadObj();
   assert(threadObj != NULL, "invariant");

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,17 @@
 
 package org.graalvm.compiler.nodes;
 
+import static org.graalvm.compiler.nodeinfo.InputType.Extension;
+import static org.graalvm.compiler.nodeinfo.InputType.Memory;
+import static org.graalvm.compiler.nodeinfo.InputType.State;
+import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_UNKNOWN;
+import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_UNKNOWN;
+
+import java.util.Map;
+
 import org.graalvm.compiler.core.common.type.Stamp;
+import org.graalvm.compiler.debug.DebugCloseable;
+import org.graalvm.compiler.graph.IterableNodeType;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
@@ -38,16 +48,10 @@ import org.graalvm.compiler.nodes.spi.UncheckedInterfaceProvider;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
-import java.util.Map;
-
-import static org.graalvm.compiler.nodeinfo.InputType.Extension;
-import static org.graalvm.compiler.nodeinfo.InputType.Memory;
-import static org.graalvm.compiler.nodeinfo.InputType.State;
-import static org.graalvm.compiler.nodeinfo.NodeCycles.CYCLES_UNKNOWN;
-import static org.graalvm.compiler.nodeinfo.NodeSize.SIZE_UNKNOWN;
+import jdk.vm.ci.code.BytecodeFrame;
 
 @NodeInfo(nameTemplate = "Invoke!#{p#targetMethod/s}", allowedUsageTypes = {Memory}, cycles = CYCLES_UNKNOWN, size = SIZE_UNKNOWN)
-public final class InvokeWithExceptionNode extends ControlSplitNode implements Invoke, MemoryCheckpoint.Single, LIRLowerable, UncheckedInterfaceProvider {
+public final class InvokeWithExceptionNode extends ControlSplitNode implements Invoke, IterableNodeType, MemoryCheckpoint.Single, LIRLowerable, UncheckedInterfaceProvider {
     public static final NodeClass<InvokeWithExceptionNode> TYPE = NodeClass.create(InvokeWithExceptionNode.class);
 
     private static final double EXCEPTION_PROBA = 1e-5;
@@ -58,7 +62,7 @@ public final class InvokeWithExceptionNode extends ControlSplitNode implements I
     @Input(Extension) CallTargetNode callTarget;
     @OptionalInput(State) FrameState stateDuring;
     @OptionalInput(State) FrameState stateAfter;
-    protected final int bci;
+    protected int bci;
     protected boolean polymorphic;
     protected boolean useForInlining;
     protected double exceptionProbability;
@@ -207,20 +211,25 @@ public final class InvokeWithExceptionNode extends ControlSplitNode implements I
         GraphUtil.killCFG(edge);
     }
 
-    public void replaceWithNewBci(int newBci) {
-        AbstractBeginNode nextNode = next();
-        AbstractBeginNode exceptionObject = exceptionEdge;
-        setExceptionEdge(null);
-        setNext(null);
-        InvokeWithExceptionNode repl = graph().add(new InvokeWithExceptionNode(callTarget(), exceptionObject, newBci));
-        repl.setStateAfter(stateAfter);
-        this.setStateAfter(null);
-        this.replaceAtPredecessor(repl);
-        repl.setNext(nextNode);
-        boolean removed = this.callTarget().removeUsage(this);
-        assert removed;
-        this.replaceAtUsages(repl);
-        this.markDeleted();
+    @SuppressWarnings("try")
+    public AbstractBeginNode killKillingBegin() {
+        AbstractBeginNode begin = next();
+        if (begin instanceof KillingBeginNode) {
+            try (DebugCloseable position = begin.withNodeSourcePosition()) {
+                AbstractBeginNode newBegin = new BeginNode();
+                graph().addAfterFixed(begin, graph().add(newBegin));
+                begin.replaceAtUsages(newBegin);
+                graph().removeFixed(begin);
+                return newBegin;
+            }
+        }
+        return begin;
+    }
+
+    @Override
+    public void replaceBci(int newBci) {
+        assert BytecodeFrame.isPlaceholderBci(bci) && !BytecodeFrame.isPlaceholderBci(newBci) : "can only replace placeholder with better bci";
+        bci = newBci;
     }
 
     @Override

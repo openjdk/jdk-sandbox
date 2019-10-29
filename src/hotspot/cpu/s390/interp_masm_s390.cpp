@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -412,6 +412,19 @@ void InterpreterMacroAssembler::get_cache_entry_pointer_at_bcp(Register cache,
     get_cache_and_index_at_bcp(cache, tmp, bcp_offset, index_size);
     add2reg_with_index(cache, in_bytes(ConstantPoolCache::base_offset()), tmp, cache);
   BLOCK_COMMENT("}");
+}
+
+void InterpreterMacroAssembler::load_resolved_method_at_index(int byte_no,
+                                                              Register cache,
+                                                              Register cpe_offset,
+                                                              Register method) {
+  const int method_offset = in_bytes(
+    ConstantPoolCache::base_offset() +
+      ((byte_no == TemplateTable::f2_byte)
+       ? ConstantPoolCacheEntry::f2_offset()
+       : ConstantPoolCacheEntry::f1_offset()));
+
+  z_lg(method, Address(cache, cpe_offset, method_offset)); // get f1 Method*
 }
 
 // Generate a subtype check: branch to ok_is_subtype if sub_klass is
@@ -961,7 +974,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
   // template code:
   //
-  // markOop displaced_header = obj->mark().set_unlocked();
+  // markWord displaced_header = obj->mark().set_unlocked();
   // monitor->lock()->set_displaced_header(displaced_header);
   // if (Atomic::cmpxchg(/*ex=*/monitor, /*addr*/obj->mark_addr(), /*cmp*/displaced_header) == displaced_header) {
   //   // We stored the monitor address into the object's mark word.
@@ -980,17 +993,17 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
   NearLabel done;
   NearLabel slow_case;
 
-  // markOop displaced_header = obj->mark().set_unlocked();
+  // markWord displaced_header = obj->mark().set_unlocked();
 
-  // Load markOop from object into displaced_header.
+  // Load markWord from object into displaced_header.
   z_lg(displaced_header, oopDesc::mark_offset_in_bytes(), object);
 
   if (UseBiasedLocking) {
     biased_locking_enter(object, displaced_header, Z_R1, Z_R0, done, &slow_case);
   }
 
-  // Set displaced_header to be (markOop of object | UNLOCK_VALUE).
-  z_oill(displaced_header, markOopDesc::unlocked_value);
+  // Set displaced_header to be (markWord of object | UNLOCK_VALUE).
+  z_oill(displaced_header, markWord::unlocked_value);
 
   // monitor->lock()->set_displaced_header(displaced_header);
 
@@ -1014,7 +1027,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
   // We did not see an unlocked object so try the fast recursive case.
 
-  // Check if owner is self by comparing the value in the markOop of object
+  // Check if owner is self by comparing the value in the markWord of object
   // (current_header) with the stack pointer.
   z_sgr(current_header, Z_SP);
 
@@ -1022,7 +1035,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
   // The prior sequence "LGR, NGR, LTGR" can be done better
   // (Z_R1 is temp and not used after here).
-  load_const_optimized(Z_R0, (~(os::vm_page_size()-1) | markOopDesc::lock_mask_in_place));
+  load_const_optimized(Z_R0, (~(os::vm_page_size()-1) | markWord::lock_mask_in_place));
   z_ngr(Z_R0, current_header); // AND sets CC (result eq/ne 0)
 
   // If condition is true we are done and hence we can store 0 in the displaced
@@ -1059,8 +1072,7 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 void InterpreterMacroAssembler::unlock_object(Register monitor, Register object) {
 
   if (UseHeavyMonitors) {
-    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
-            monitor, /*check_for_exceptions=*/ true);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
     return;
   }
 
@@ -1134,8 +1146,7 @@ void InterpreterMacroAssembler::unlock_object(Register monitor, Register object)
   // The lock has been converted into a heavy lock and hence
   // we need to get into the slow case.
   z_stg(object, obj_entry);   // Restore object entry, has been cleared above.
-  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit),
-          monitor,  /*check_for_exceptions=*/false);
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), monitor);
 
   // }
 
@@ -1901,7 +1912,7 @@ void InterpreterMacroAssembler::get_method_counters(Register Rmethod,
   load_and_test_long(Rcounters, Address(Rmethod, Method::method_counters_offset()));
   z_brnz(has_counters);
 
-  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::build_method_counters), Rmethod, false);
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::build_method_counters), Rmethod);
   z_ltgr(Rcounters, Z_RET); // Runtime call returns MethodCounters object.
   z_brz(skip); // No MethodCounters, out of memory.
 
@@ -2082,7 +2093,7 @@ void InterpreterMacroAssembler::notify_method_entry() {
     Label jvmti_post_done;
     MacroAssembler::load_and_test_int(Z_R0, Address(Z_thread, JavaThread::interp_only_mode_offset()));
     z_bre(jvmti_post_done);
-    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_entry), /*check_exceptions=*/false);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_entry));
     bind(jvmti_post_done);
   }
 }
@@ -2116,7 +2127,7 @@ void InterpreterMacroAssembler::notify_method_exit(bool native_method,
     MacroAssembler::load_and_test_int(Z_R0, Address(Z_thread, JavaThread::interp_only_mode_offset()));
     z_bre(jvmti_post_done);
     if (!native_method) push(state); // see frame::interpreter_frame_result()
-    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit), /*check_exceptions=*/false);
+    call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::post_method_exit));
     if (!native_method) pop(state);
     bind(jvmti_post_done);
   }
@@ -2175,7 +2186,7 @@ void InterpreterMacroAssembler::pop_interpreter_frame(Register return_pc, Regist
   Register R_f1_sender_sp = tmp1;
   Register R_f2_sp = tmp2;
 
-  // Tirst check the for the interpreter frame's magic.
+  // First check for the interpreter frame's magic.
   asm_assert_ijava_state_magic(R_f2_sp/*tmp*/);
   z_lg(R_f2_sp, _z_parent_ijava_frame_abi(callers_sp), Z_fp);
   z_lg(R_f1_sender_sp, _z_ijava_state_neg(sender_sp), Z_fp);

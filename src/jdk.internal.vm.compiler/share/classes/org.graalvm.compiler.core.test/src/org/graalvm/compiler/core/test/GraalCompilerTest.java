@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -62,7 +63,6 @@ import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.target.Backend;
 import org.graalvm.compiler.debug.DebugContext;
 import org.graalvm.compiler.debug.DebugDumpHandler;
-import org.graalvm.compiler.debug.DebugDumpScope;
 import org.graalvm.compiler.debug.DebugHandlersFactory;
 import org.graalvm.compiler.debug.GraalError;
 import org.graalvm.compiler.debug.TTY;
@@ -74,6 +74,7 @@ import org.graalvm.compiler.java.ComputeLoopFrequenciesClosure;
 import org.graalvm.compiler.java.GraphBuilderPhase;
 import org.graalvm.compiler.lir.asm.CompilationResultBuilderFactory;
 import org.graalvm.compiler.lir.phases.LIRSuites;
+import org.graalvm.compiler.loop.phases.ConvertDeoptimizeToGuardPhase;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
 import org.graalvm.compiler.nodeinfo.NodeSize;
 import org.graalvm.compiler.nodeinfo.Verbosity;
@@ -111,7 +112,6 @@ import org.graalvm.compiler.phases.OptimisticOptimizations;
 import org.graalvm.compiler.phases.Phase;
 import org.graalvm.compiler.phases.PhaseSuite;
 import org.graalvm.compiler.phases.common.CanonicalizerPhase;
-import org.graalvm.compiler.phases.common.ConvertDeoptimizeToGuardPhase;
 import org.graalvm.compiler.phases.common.inlining.InliningPhase;
 import org.graalvm.compiler.phases.common.inlining.info.InlineInfo;
 import org.graalvm.compiler.phases.common.inlining.policy.GreedyInliningPolicy;
@@ -126,9 +126,10 @@ import org.graalvm.compiler.printer.GraalDebugHandlersFactory;
 import org.graalvm.compiler.runtime.RuntimeProvider;
 import org.graalvm.compiler.test.AddExports;
 import org.graalvm.compiler.test.GraalTest;
-import org.graalvm.compiler.test.JLModule;
+import org.graalvm.compiler.test.ModuleSupport;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.internal.AssumptionViolatedException;
 
@@ -150,9 +151,9 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 import jdk.vm.ci.meta.SpeculationLog;
 
 /**
- * Base class for Graal compiler unit tests.
+ * Base class for compiler unit tests.
  * <p>
- * White box tests for Graal compiler transformations use this pattern:
+ * White box tests for compiler transformations use this pattern:
  * <ol>
  * <li>Create a graph by {@linkplain #parseEager parsing} a method.</li>
  * <li>Manually modify the graph (e.g. replace a parameter node with a constant).</li>
@@ -194,9 +195,7 @@ public abstract class GraalCompilerTest extends GraalTest {
      * as of JDK 9.
      */
     protected final void exportPackage(Class<?> moduleMember, String packageName) {
-        if (!Java8OrEarlier) {
-            JLModule.exportPackageTo(moduleMember, packageName, getClass());
-        }
+        ModuleSupport.exportPackageTo(moduleMember, packageName, getClass());
     }
 
     /**
@@ -224,27 +223,27 @@ public abstract class GraalCompilerTest extends GraalTest {
      * Can be overridden by unit tests to verify properties of the graph.
      *
      * @param graph the graph at the end of HighTier
+     * @throws AssertionError if the verification fails
      */
-    protected boolean checkHighTierGraph(StructuredGraph graph) {
-        return true;
+    protected void checkHighTierGraph(StructuredGraph graph) {
     }
 
     /**
      * Can be overridden by unit tests to verify properties of the graph.
      *
      * @param graph the graph at the end of MidTier
+     * @throws AssertionError if the verification fails
      */
-    protected boolean checkMidTierGraph(StructuredGraph graph) {
-        return true;
+    protected void checkMidTierGraph(StructuredGraph graph) {
     }
 
     /**
      * Can be overridden by unit tests to verify properties of the graph.
      *
      * @param graph the graph at the end of LowTier
+     * @throws AssertionError if the verification fails
      */
-    protected boolean checkLowTierGraph(StructuredGraph graph) {
-        return true;
+    protected void checkLowTierGraph(StructuredGraph graph) {
     }
 
     protected static void breakpoint() {
@@ -288,7 +287,7 @@ public abstract class GraalCompilerTest extends GraalTest {
 
             @Override
             protected void run(StructuredGraph graph) {
-                assert checkHighTierGraph(graph) : "failed HighTier graph check";
+                checkHighTierGraph(graph);
             }
 
             @Override
@@ -305,7 +304,7 @@ public abstract class GraalCompilerTest extends GraalTest {
 
             @Override
             protected void run(StructuredGraph graph) {
-                assert checkMidTierGraph(graph) : "failed MidTier graph check";
+                checkMidTierGraph(graph);
             }
 
             @Override
@@ -322,7 +321,7 @@ public abstract class GraalCompilerTest extends GraalTest {
 
             @Override
             protected void run(StructuredGraph graph) {
-                assert checkLowTierGraph(graph) : "failed LowTier graph check";
+                checkLowTierGraph(graph);
             }
 
             @Override
@@ -341,6 +340,13 @@ public abstract class GraalCompilerTest extends GraalTest {
     protected LIRSuites createLIRSuites(OptionValues opts) {
         LIRSuites ret = backend.getSuites().getDefaultLIRSuites(opts).copy();
         return ret;
+    }
+
+    private static final ThreadLocal<HashMap<ResolvedJavaMethod, InstalledCode>> cache = ThreadLocal.withInitial(HashMap::new);
+
+    @BeforeClass
+    public static void resetCache() {
+        cache.get().clear();
     }
 
     public GraalCompilerTest() {
@@ -899,11 +905,21 @@ public abstract class GraalCompilerTest extends GraalTest {
         return actual;
     }
 
+    private static final List<Class<?>> C2_OMIT_STACK_TRACE_IN_FAST_THROW_EXCEPTIONS = Arrays.asList(
+                    ArithmeticException.class,
+                    ArrayIndexOutOfBoundsException.class,
+                    ArrayStoreException.class,
+                    ClassCastException.class,
+                    NullPointerException.class);
+
     protected void assertEquals(Result expect, Result actual) {
         if (expect.exception != null) {
             Assert.assertTrue("expected " + expect.exception, actual.exception != null);
             Assert.assertEquals("Exception class", expect.exception.getClass(), actual.exception.getClass());
-            Assert.assertEquals("Exception message", expect.exception.getMessage(), actual.exception.getMessage());
+            // C2 can optimize out the stack trace and message in some cases
+            if (expect.exception.getMessage() != null || !C2_OMIT_STACK_TRACE_IN_FAST_THROW_EXCEPTIONS.contains(expect.exception.getClass())) {
+                Assert.assertEquals("Exception message", expect.exception.getMessage(), actual.exception.getMessage());
+            }
         } else {
             if (actual.exception != null) {
                 throw new AssertionError("expected " + expect.returnValue + " but got an exception", actual.exception);
@@ -911,8 +927,6 @@ public abstract class GraalCompilerTest extends GraalTest {
             assertDeepEquals(expect.returnValue, actual.returnValue);
         }
     }
-
-    private Map<ResolvedJavaMethod, InstalledCode> cache = new ConcurrentHashMap<>();
 
     /**
      * Gets installed code for a given method, compiling it first if necessary. The graph is parsed
@@ -965,7 +979,7 @@ public abstract class GraalCompilerTest extends GraalTest {
     protected InstalledCode getCode(final ResolvedJavaMethod installedCodeOwner, StructuredGraph graph, boolean forceCompile, boolean installAsDefault, OptionValues options) {
         boolean useCache = !forceCompile && getArgumentToBind() == null;
         if (useCache && graph == null) {
-            InstalledCode cached = cache.get(installedCodeOwner);
+            InstalledCode cached = cache.get().get(installedCodeOwner);
             if (cached != null) {
                 if (cached.isValid()) {
                     return cached;
@@ -980,7 +994,7 @@ public abstract class GraalCompilerTest extends GraalTest {
             StructuredGraph graphToCompile = graph == null ? parseForCompile(installedCodeOwner, id, options) : graph;
             DebugContext debug = graphToCompile.getDebug();
 
-            try (AllocSpy spy = AllocSpy.open(installedCodeOwner); DebugContext.Scope ds = debug.scope("Compiling", new DebugDumpScope(id.toString(CompilationIdentifier.Verbosity.ID), true))) {
+            try (AllocSpy spy = AllocSpy.open(installedCodeOwner); DebugContext.Scope ds = debug.scope("Compiling", graph)) {
                 CompilationPrinter printer = CompilationPrinter.begin(options, id, installedCodeOwner, INVOCATION_ENTRY_BCI);
                 CompilationResult compResult = compile(installedCodeOwner, graphToCompile, new CompilationResult(graphToCompile.compilationId()), id, options);
                 printer.finish(compResult);
@@ -1012,7 +1026,7 @@ public abstract class GraalCompilerTest extends GraalTest {
             }
 
             if (useCache) {
-                cache.put(installedCodeOwner, installedCode);
+                cache.get().put(installedCodeOwner, installedCode);
             }
             return installedCode;
         }
@@ -1105,8 +1119,14 @@ public abstract class GraalCompilerTest extends GraalTest {
         return graph;
     }
 
+    @SuppressWarnings("try")
     protected void applyFrontEnd(StructuredGraph graph) {
-        GraalCompiler.emitFrontEnd(getProviders(), getBackend(), graph, getDefaultGraphBuilderSuite(), getOptimisticOptimizations(), graph.getProfilingInfo(), createSuites(graph.getOptions()));
+        DebugContext debug = graph.getDebug();
+        try (DebugContext.Scope s = debug.scope("FrontEnd", graph)) {
+            GraalCompiler.emitFrontEnd(getProviders(), getBackend(), graph, getDefaultGraphBuilderSuite(), getOptimisticOptimizations(), graph.getProfilingInfo(), createSuites(graph.getOptions()));
+        } catch (Throwable e) {
+            throw debug.handle(e);
+        }
     }
 
     protected StructuredGraph lastCompiledGraph;
@@ -1305,6 +1325,8 @@ public abstract class GraalCompilerTest extends GraalTest {
         }
     }
 
+    protected static final Object NO_BIND = new Object();
+
     protected void bindArguments(StructuredGraph graph, Object[] argsToBind) {
         ResolvedJavaMethod m = graph.method();
         Object receiver = isStatic(m.getModifiers()) ? null : this;
@@ -1312,9 +1334,12 @@ public abstract class GraalCompilerTest extends GraalTest {
         JavaType[] parameterTypes = m.toParameterTypes();
         assert parameterTypes.length == args.length;
         for (ParameterNode param : graph.getNodes(ParameterNode.TYPE)) {
-            JavaConstant c = getSnippetReflection().forBoxed(parameterTypes[param.index()].getJavaKind(), args[param.index()]);
-            ConstantNode replacement = ConstantNode.forConstant(c, getMetaAccess(), graph);
-            param.replaceAtUsages(replacement);
+            Object arg = args[param.index()];
+            if (arg != NO_BIND) {
+                JavaConstant c = getSnippetReflection().forBoxed(parameterTypes[param.index()].getJavaKind(), arg);
+                ConstantNode replacement = ConstantNode.forConstant(c, getMetaAccess(), graph);
+                param.replaceAtUsages(replacement);
+            }
         }
     }
 

@@ -32,10 +32,6 @@
 // Sets the default values for platform dependent flags used by the runtime system.
 // (see globals.hpp)
 
-define_pd_global(bool, ShareVtableStubs,      true);
-define_pd_global(bool, NeedsDeoptSuspend,     false); // Only register window machines need this.
-
-
 define_pd_global(bool, ImplicitNullChecks,    true);  // Generate code for implicit null checks.
 define_pd_global(bool, TrapBasedNullChecks,   true);
 define_pd_global(bool, UncommonNullCast,      true);  // Uncommon-trap NULLs passed to check cast.

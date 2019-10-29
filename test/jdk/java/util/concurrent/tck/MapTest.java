@@ -122,6 +122,7 @@ public class MapTest extends JSR166TestCase {
      */
     public void testBug8186171() {
         if (!impl.supportsSetValue()) return;
+        if (!atLeastJava10()) return; // jdk9 is no longer maintained
         final ThreadLocalRandom rnd = ThreadLocalRandom.current();
         final boolean permitsNullValues = impl.permitsNullValues();
         final Object v1 = (permitsNullValues && rnd.nextBoolean())
@@ -198,6 +199,32 @@ public class MapTest extends JSR166TestCase {
         for (Object elt : m1Copy.keySet())
             assertSame(m1Copy.get(elt), m1.get(elt));
         assertEquals(size1 + size2, m1.size());
+    }
+
+    /**
+     * 8222930: ConcurrentSkipListMap.clone() shares size variable between original and clone
+     */
+    public void testClone() {
+        final ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        final int size = rnd.nextInt(4);
+        final Map map = impl.emptyMap();
+        for (int i = 0; i < size; i++)
+            map.put(impl.makeKey(i), impl.makeValue(i));
+        final Map clone = cloneableClone(map);
+        if (clone == null) return;      // not cloneable?
+
+        assertEquals(size, map.size());
+        assertEquals(size, clone.size());
+        assertEquals(map.isEmpty(), clone.isEmpty());
+
+        clone.put(impl.makeKey(-1), impl.makeValue(-1));
+        assertEquals(size, map.size());
+        assertEquals(size + 1, clone.size());
+
+        clone.clear();
+        assertEquals(size, map.size());
+        assertEquals(0, clone.size());
+        assertTrue(clone.isEmpty());
     }
 
 //     public void testFailsIntentionallyForDebugging() {

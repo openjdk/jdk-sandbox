@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 package com.sun.source.util;
 
 import com.sun.source.tree.*;
-import com.sun.source.tree.CaseTree.CaseKind;
 
 /**
  * A TreeVisitor that visits all the child tree nodes.
@@ -335,20 +334,23 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     }
 
     /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
      * {@inheritDoc} This implementation scans the children in left to right order.
      *
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}
      * @return the result of scanning
-     *
-     * @deprecated
-     * This method is modeling switch expressions,
-     * which are part of a preview feature and may be removed
-     * if the preview feature is removed.
      */
     @Override
-    @Deprecated(forRemoval=true, since="12")
-    @SuppressWarnings("removal")
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
     public R visitSwitchExpression(SwitchExpressionTree node, P p) {
         R r = scan(node.getExpression(), p);
         r = scanAndReduce(node.getCases(), p, r);
@@ -363,10 +365,10 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      * @return the result of scanning
      */
     @Override
-    @SuppressWarnings("removal")
+    @SuppressWarnings("preview")
     public R visitCase(CaseTree node, P p) {
         R r = scan(node.getExpressions(), p);
-        if (node.getCaseKind() == CaseKind.RULE)
+        if (node.getCaseKind() == CaseTree.CaseKind.RULE)
             r = scanAndReduce(node.getBody(), p, r);
         else
             r = scanAndReduce(node.getStatements(), p, r);
@@ -467,9 +469,8 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      * @return the result of scanning
      */
     @Override
-    @SuppressWarnings("removal")
     public R visitBreak(BreakTree node, P p) {
-        return scan(node.getValue(), p);
+        return null;
     }
 
     /**
@@ -934,5 +935,27 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     @Override
     public R visitErroneous(ErroneousTree node, P p) {
         return null;
+    }
+
+    /**
+     * {@preview Associated with switch expressions, a preview feature of
+     *           the Java language.
+     *
+     *           This method is associated with <i>switch expressions</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
+     * {@inheritDoc} This implementation returns {@code null}.
+     *
+     * @param node  {@inheritDoc}
+     * @param p  {@inheritDoc}
+     * @return the result of scanning
+     */
+    @Override
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SWITCH_EXPRESSIONS)
+    @SuppressWarnings("preview")
+    public R visitYield(YieldTree node, P p) {
+        return scan(node.getValue(), p);
     }
 }

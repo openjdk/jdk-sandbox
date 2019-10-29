@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/oop.inline.hpp"
@@ -68,6 +69,8 @@ static ArchivableStaticFieldInfo closed_archive_subgraph_entry_fields[] = {
   {"java/lang/Byte$ByteCache",                 "archivedCache"},
   {"java/lang/Short$ShortCache",               "archivedCache"},
   {"java/lang/Character$CharacterCache",       "archivedCache"},
+  {"java/util/jar/Attributes$Name",            "KNOWN_NAMES"},
+  {"sun/util/locale/BaseLocale",               "constantBaseLocales"},
 };
 // Entry fields for subgraphs archived in the open archive heap region.
 static ArchivableStaticFieldInfo open_archive_subgraph_entry_fields[] = {
@@ -76,6 +79,7 @@ static ArchivableStaticFieldInfo open_archive_subgraph_entry_fields[] = {
   {"java/util/ImmutableCollections$MapN",      "EMPTY_MAP"},
   {"java/util/ImmutableCollections$SetN",      "EMPTY_SET"},
   {"java/lang/module/Configuration",           "EMPTY_CONFIGURATION"},
+  {"jdk/internal/math/FDBigInteger",           "archivedCaches"},
 };
 
 const static int num_closed_archive_subgraph_entry_fields =
@@ -95,7 +99,7 @@ void HeapShared::fixup_mapped_heap_regions() {
 }
 
 unsigned HeapShared::oop_hash(oop const& p) {
-  assert(!p->mark()->has_bias_pattern(),
+  assert(!p->mark().has_bias_pattern(),
          "this object should never have been locked");  // so identity_hash won't safepoin
   unsigned hash = (unsigned)p->identity_hash();
   return hash;
@@ -415,8 +419,7 @@ void HeapShared::write_subgraph_info_table() {
 
   _run_time_subgraph_info_table.reset();
 
-  int num_buckets = CompactHashtableWriter::default_num_buckets(d_table->_count);
-  CompactHashtableWriter writer(num_buckets, &stats);
+  CompactHashtableWriter writer(d_table->_count, &stats);
   CopyKlassSubGraphInfoToArchive copy(&writer);
   d_table->iterate(&copy);
 
@@ -580,7 +583,7 @@ void HeapShared::check_closed_archive_heap_region_object(InstanceKlass* k,
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
       BasicType ft = fs.field_descriptor().field_type();
-      if (!fs.access_flags().is_final() && (ft == T_ARRAY || ft == T_OBJECT)) {
+      if (!fs.access_flags().is_final() && is_reference_type(ft)) {
         ResourceMark rm(THREAD);
         log_warning(cds, heap)(
           "Please check reference field in %s instance in closed archive heap region: %s %s",
@@ -868,7 +871,7 @@ public:
   virtual void do_field(fieldDescriptor* fd) {
     if (fd->name() == _field_name) {
       assert(!_found, "fields cannot be overloaded");
-      assert(fd->field_type() == T_OBJECT || fd->field_type() == T_ARRAY, "can archive only obj or array fields");
+      assert(is_reference_type(fd->field_type()), "can archive only fields that are references");
       _found = true;
       _offset = fd->offset();
     }
@@ -881,8 +884,8 @@ void HeapShared::init_subgraph_entry_fields(ArchivableStaticFieldInfo fields[],
                                             int num, Thread* THREAD) {
   for (int i = 0; i < num; i++) {
     ArchivableStaticFieldInfo* info = &fields[i];
-    TempNewSymbol klass_name =  SymbolTable::new_symbol(info->klass_name, THREAD);
-    TempNewSymbol field_name =  SymbolTable::new_symbol(info->field_name, THREAD);
+    TempNewSymbol klass_name =  SymbolTable::new_symbol(info->klass_name);
+    TempNewSymbol field_name =  SymbolTable::new_symbol(info->field_name);
 
     Klass* k = SystemDictionary::resolve_or_null(klass_name, THREAD);
     assert(k != NULL && !HAS_PENDING_EXCEPTION, "class must exist");

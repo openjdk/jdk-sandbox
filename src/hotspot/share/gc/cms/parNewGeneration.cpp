@@ -582,8 +582,7 @@ ParNewGenTask::ParNewGenTask(ParNewGeneration* young_gen,
     _young_gen(young_gen), _old_gen(old_gen),
     _young_old_boundary(young_old_boundary),
     _state_set(state_set),
-    _strong_roots_scope(strong_roots_scope),
-    _par_state_string(StringTable::weak_storage())
+    _strong_roots_scope(strong_roots_scope)
 {}
 
 void ParNewGenTask::work(uint worker_id) {
@@ -623,8 +622,11 @@ void ParNewGenTask::work(uint worker_id) {
   _old_gen->par_oop_since_save_marks_iterate_done((int) worker_id);
 }
 
-ParNewGeneration::ParNewGeneration(ReservedSpace rs, size_t initial_byte_size)
-  : DefNewGeneration(rs, initial_byte_size, "CMS young collection pauses"),
+ParNewGeneration::ParNewGeneration(ReservedSpace rs,
+                                   size_t initial_byte_size,
+                                   size_t min_byte_size,
+                                   size_t max_byte_size)
+  : DefNewGeneration(rs, initial_byte_size, min_byte_size, max_byte_size, "CMS young collection pauses"),
   _plab_stats("Young", YoungPLABSize, PLABWeight),
   _overflow_list(NULL),
   _is_alive_closure(this)
@@ -1076,7 +1078,7 @@ oop ParNewGeneration::real_forwardee_slow(oop obj) {
 oop ParNewGeneration::copy_to_survivor_space(ParScanThreadState* par_scan_state,
                                              oop old,
                                              size_t sz,
-                                             markOop m) {
+                                             markWord m) {
   // In the sequential version, this assert also says that the object is
   // not forwarded.  That might not be the case here.  It is the case that
   // the caller observed it to be not forwarded at some time in the past.
@@ -1243,7 +1245,7 @@ void ParNewGeneration::push_on_overflow_list(oop from_space_obj, ParScanThreadSt
     assert(_num_par_pushes > 0, "Tautology");
 #endif
     if (from_space_obj->forwardee() == from_space_obj) {
-      oopDesc* listhead = NEW_C_HEAP_ARRAY(oopDesc, 1, mtGC);
+      oopDesc* listhead = NEW_C_HEAP_OBJ(oopDesc, mtGC);
       listhead->forward_to(from_space_obj);
       from_space_obj = listhead;
     }
@@ -1302,13 +1304,12 @@ bool ParNewGeneration::take_from_overflow_list_work(ParScanThreadState* par_scan
   // Otherwise, there was something there; try claiming the list.
   oop prefix = cast_to_oop(Atomic::xchg((oopDesc*)BUSY, &_overflow_list));
   // Trim off a prefix of at most objsFromOverflow items
-  Thread* tid = Thread::current();
   size_t spin_count = ParallelGCThreads;
   size_t sleep_time_millis = MAX2((size_t)1, objsFromOverflow/100);
   for (size_t spin = 0; prefix == BUSY && spin < spin_count; spin++) {
     // someone grabbed it before we did ...
-    // ... we spin for a short while...
-    os::sleep(tid, sleep_time_millis, false);
+    // ... we spin/block for a short while...
+    os::naked_sleep(sleep_time_millis);
     if (_overflow_list == NULL) {
       // nothing left to take
       return false;
@@ -1400,7 +1401,7 @@ bool ParNewGeneration::take_from_overflow_list_work(ParScanThreadState* par_scan
       // This can become a scaling bottleneck when there is work queue overflow coincident
       // with promotion failure.
       oopDesc* f = cur;
-      FREE_C_HEAP_ARRAY(oopDesc, f);
+      FREE_C_HEAP_OBJ(f);
     } else if (par_scan_state->should_be_partially_scanned(obj_to_push, cur)) {
       assert(arrayOop(cur)->length() == 0, "entire array remaining to be scanned");
       obj_to_push = cur;

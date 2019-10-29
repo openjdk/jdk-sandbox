@@ -26,6 +26,7 @@
 #define SHARE_OOPS_CONSTMETHOD_HPP
 
 #include "oops/oop.hpp"
+#include "runtime/arguments.hpp"
 #include "utilities/align.hpp"
 
 // An ConstMethod represents portions of a Java method which are not written to after
@@ -288,12 +289,16 @@ public:
 
   // adapter
   void set_adapter_entry(AdapterHandlerEntry* adapter) {
-    assert(!is_shared(), "shared methods have fixed adapter_trampoline");
+    assert(!is_shared(),
+           "shared methods in archive have fixed adapter_trampoline");
     _adapter = adapter;
   }
   void set_adapter_trampoline(AdapterHandlerEntry** trampoline) {
-    assert(DumpSharedSpaces, "must be");
-    assert(*trampoline == NULL, "must be NULL during dump time, to be initialized at run time");
+    Arguments::assert_is_dumping_archive();
+    if (DumpSharedSpaces) {
+      assert(*trampoline == NULL,
+             "must be NULL during dump time, to be initialized at run time");
+    }
     _adapter_trampoline = trampoline;
   }
   void update_adapter_trampoline(AdapterHandlerEntry* adapter) {

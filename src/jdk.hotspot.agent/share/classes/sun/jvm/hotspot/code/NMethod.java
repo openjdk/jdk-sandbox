@@ -38,8 +38,6 @@ public class NMethod extends CompiledMethod {
   private static CIntegerField entryBCIField;
   /** To support simple linked-list chaining of nmethods */
   private static AddressField  osrLinkField;
-  private static AddressField  scavengeRootLinkField;
-  private static JByteField    scavengeRootStateField;
 
   /** Offsets for different nmethod parts */
   private static CIntegerField exceptionOffsetField;
@@ -88,8 +86,6 @@ public class NMethod extends CompiledMethod {
 
     entryBCIField               = type.getCIntegerField("_entry_bci");
     osrLinkField                = type.getAddressField("_osr_link");
-    scavengeRootLinkField       = type.getAddressField("_scavenge_root_link");
-    scavengeRootStateField      = type.getJByteField("_scavenge_root_state");
 
     exceptionOffsetField        = type.getCIntegerField("_exception_offset");
     origPCOffsetField           = type.getCIntegerField("_orig_pc_offset");
@@ -251,14 +247,6 @@ public class NMethod extends CompiledMethod {
     return (NMethod) VMObjectFactory.newObject(NMethod.class, osrLinkField.getValue(addr));
   }
 
-  public NMethod getScavengeRootLink() {
-    return (NMethod) VMObjectFactory.newObject(NMethod.class, scavengeRootLinkField.getValue(addr));
-  }
-
-  public int getScavengeRootState() {
-    return (int) scavengeRootStateField.getValue(addr);
-  }
-
   // MethodHandle
   public boolean isMethodHandleReturn(Address returnPc) {
     // Hard to read a bit fields from Java and it's only there for performance
@@ -318,12 +306,17 @@ public class NMethod extends CompiledMethod {
   /** This is only for use by the debugging system, and is only
       intended for use in the topmost frame, where we are not
       guaranteed to be at a PC for which we have a PCDesc. It finds
-      the PCDesc with realPC closest to the current PC. */
+      the PCDesc with realPC closest to the current PC that has
+      a valid scope decode offset. */
   public PCDesc getPCDescNearDbg(Address pc) {
     PCDesc bestGuessPCDesc = null;
     long bestDistance = 0;
     for (Address p = scopesPCsBegin(); p.lessThan(scopesPCsEnd()); p = p.addOffsetTo(pcDescSize)) {
       PCDesc pcDesc = new PCDesc(p);
+      if (pcDesc.getScopeDecodeOffset() == DebugInformationRecorder.SERIALIZED_NULL) {
+        // We've observed a serialized null decode offset. Ignore this PcDesc.
+        continue;
+      }
       // In case pc is null
       long distance = -pcDesc.getRealPC(this).minus(pc);
       if ((bestGuessPCDesc == null) ||

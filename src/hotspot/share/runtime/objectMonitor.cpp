@@ -28,7 +28,7 @@
 #include "jfr/support/jfrThreadId.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
@@ -245,9 +245,7 @@ void ObjectMonitor::enter(TRAPS) {
 
   void * cur = Atomic::cmpxchg(Self, &_owner, (void*)NULL);
   if (cur == NULL) {
-    // Either ASSERT _recursions == 0 or explicitly set _recursions = 0.
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
     return;
   }
 
@@ -276,9 +274,13 @@ void ObjectMonitor::enter(TRAPS) {
   // Note that if we acquire the monitor from an initial spin
   // we forgo posting JVMTI events and firing DTRACE probes.
   if (TrySpin(Self) > 0) {
-    assert(_owner == Self, "invariant");
-    assert(_recursions == 0, "invariant");
-    assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+    assert(_owner == Self, "must be Self: owner=" INTPTR_FORMAT, p2i(_owner));
+    assert(_recursions == 0, "must be 0: recursions=" INTPTR_FORMAT,
+           _recursions);
+    assert(((oop)object())->mark() == markWord::encode(this),
+           "object mark must match encoded this: mark=" INTPTR_FORMAT
+           ", encoded this=" INTPTR_FORMAT, ((oop)object())->mark().value(),
+           markWord::encode(this).value());
     Self->_Stalled = 0;
     return;
   }
@@ -290,11 +292,11 @@ void ObjectMonitor::enter(TRAPS) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   assert(jt->thread_state() != _thread_blocked, "invariant");
   assert(this->object() != NULL, "invariant");
-  assert(_count >= 0, "invariant");
+  assert(_contentions >= 0, "invariant");
 
   // Prevent deflation at STW-time.  See deflate_idle_monitors() and is_busy().
   // Ensure the object-monitor relationship remains stable while there's contention.
-  Atomic::inc(&_count);
+  Atomic::inc(&_contentions);
 
   JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
   EventJavaMonitorEnter event;
@@ -355,15 +357,15 @@ void ObjectMonitor::enter(TRAPS) {
     // acquire it.
   }
 
-  Atomic::dec(&_count);
-  assert(_count >= 0, "invariant");
+  Atomic::dec(&_contentions);
+  assert(_contentions >= 0, "invariant");
   Self->_Stalled = 0;
 
   // Must either set _recursions = 0 or ASSERT _recursions == 0.
   assert(_recursions == 0, "invariant");
   assert(_owner == Self, "invariant");
   assert(_succ != Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+  assert(((oop)(object()))->mark() == markWord::encode(this), "invariant");
 
   // The thread -- now the owner -- is back in vm mode.
   // Report the glorious news via TI,DTrace and jvmstat.
@@ -401,9 +403,7 @@ int ObjectMonitor::TryLock(Thread * Self) {
   void * own = _owner;
   if (own != NULL) return 0;
   if (Atomic::replace_if_null(Self, &_owner)) {
-    // Either guarantee _recursions == 0 or set _recursions = 0.
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
     return 1;
   }
   // The lock had been free momentarily, but we lost the race to the lock.
@@ -411,6 +411,15 @@ int ObjectMonitor::TryLock(Thread * Self) {
   // We can either return -1 or retry.
   // Retry doesn't make as much sense because the lock was just acquired.
   return -1;
+}
+
+// Convert the fields used by is_busy() to a string that can be
+// used for diagnostic output.
+const char* ObjectMonitor::is_busy_to_string(stringStream* ss) {
+  ss->print("is_busy: contentions=%d, waiters=%d, owner=" INTPTR_FORMAT
+            ", cxq=" INTPTR_FORMAT ", EntryList=" INTPTR_FORMAT, _contentions,
+            _waiters, p2i(_owner), p2i(_cxq), p2i(_EntryList));
+  return ss->base();
 }
 
 #define MAX_RECHECK_INTERVAL 1000
@@ -584,7 +593,7 @@ void ObjectMonitor::EnterI(TRAPS) {
   assert(_owner == Self, "invariant");
   assert(object() != NULL, "invariant");
   // I'd like to write:
-  //   guarantee (((oop)(object()))->mark() == markOopDesc::encode(this), "invariant") ;
+  //   guarantee (((oop)(object()))->mark() == markWord::encode(this), "invariant") ;
   // but as we're at a safepoint that's not safe.
 
   UnlinkAfterAcquire(Self, &node);
@@ -652,7 +661,7 @@ void ObjectMonitor::ReenterI(Thread * Self, ObjectWaiter * SelfNode) {
   assert(SelfNode != NULL, "invariant");
   assert(SelfNode->_thread == Self, "invariant");
   assert(_waiters > 0, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+  assert(((oop)(object()))->mark() == markWord::encode(this), "invariant");
   assert(((JavaThread *)Self)->thread_state() != _thread_blocked, "invariant");
   JavaThread * jt = (JavaThread *) Self;
 
@@ -720,7 +729,7 @@ void ObjectMonitor::ReenterI(Thread * Self, ObjectWaiter * SelfNode) {
   // In addition, Self.TState is stable.
 
   assert(_owner == Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+  assert(((oop)(object()))->mark() == markWord::encode(this), "invariant");
   UnlinkAfterAcquire(Self, SelfNode);
   if (_succ == Self) _succ = NULL;
   assert(_succ != Self, "invariant");
@@ -809,7 +818,7 @@ void ObjectMonitor::UnlinkAfterAcquire(Thread *Self, ObjectWaiter *SelfNode) {
 // There's one exception to the claim above, however.  EnterI() can call
 // exit() to drop a lock if the acquirer has been externally suspended.
 // In that case exit() is called with _thread_state as _thread_blocked,
-// but the monitor's _count field is > 0, which inhibits reclamation.
+// but the monitor's _contentions field is > 0, which inhibits reclamation.
 //
 // 1-0 exit
 // ~~~~~~~~
@@ -1134,31 +1143,34 @@ void ObjectMonitor::reenter(intptr_t recursions, TRAPS) {
   return;
 }
 
-
-// -----------------------------------------------------------------------------
-// A macro is used below because there may already be a pending
-// exception which should not abort the execution of the routines
-// which use this (which is why we don't put this into check_slow and
-// call it with a CHECK argument).
-
-#define CHECK_OWNER()                                                       \
-  do {                                                                      \
-    if (THREAD != _owner) {                                                 \
-      if (THREAD->is_lock_owned((address) _owner)) {                        \
-        _owner = THREAD;  /* Convert from basiclock addr to Thread addr */  \
-        _recursions = 0;                                                    \
-      } else {                                                              \
-        THROW(vmSymbols::java_lang_IllegalMonitorStateException());         \
-      }                                                                     \
-    }                                                                       \
+// Checks that the current THREAD owns this monitor and causes an
+// immediate return if it doesn't. We don't use the CHECK macro
+// because we want the IMSE to be the only exception that is thrown
+// from the call site when false is returned. Any other pending
+// exception is ignored.
+#define CHECK_OWNER()                                                  \
+  do {                                                                 \
+    if (!check_owner(THREAD)) {                                        \
+       assert(HAS_PENDING_EXCEPTION, "expected a pending IMSE here."); \
+       return;                                                         \
+     }                                                                 \
   } while (false)
 
-// check_slow() is a misnomer.  It's called to simply to throw an IMSX exception.
-// TODO-FIXME: remove check_slow() -- it's likely dead.
-
-void ObjectMonitor::check_slow(TRAPS) {
-  assert(THREAD != _owner && !THREAD->is_lock_owned((address) _owner), "must not be owner");
-  THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), "current thread not owner");
+// Returns true if the specified thread owns the ObjectMonitor.
+// Otherwise returns false and throws IllegalMonitorStateException
+// (IMSE). If there is a pending exception and the specified thread
+// is not the owner, that exception will be replaced by the IMSE.
+bool ObjectMonitor::check_owner(Thread* THREAD) {
+  if (_owner == THREAD) {
+    return true;
+  }
+  if (THREAD->is_lock_owned((address)_owner)) {
+    _owner = THREAD;  // convert from BasicLock addr to Thread addr
+    _recursions = 0;
+    return true;
+  }
+  THROW_MSG_(vmSymbols::java_lang_IllegalMonitorStateException(),
+             "current thread is not owner", false);
 }
 
 static void post_monitor_wait_event(EventJavaMonitorWait* event,
@@ -1188,13 +1200,12 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
 
   assert(InitDone, "Unexpectedly not initialized");
 
-  // Throw IMSX or IEX.
-  CHECK_OWNER();
+  CHECK_OWNER();  // Throws IMSE if not owner.
 
   EventJavaMonitorWait event;
 
   // check for a pending interrupt
-  if (interruptible && Thread::is_interrupted(Self, true) && !HAS_PENDING_EXCEPTION) {
+  if (interruptible && jt->is_interrupted(true) && !HAS_PENDING_EXCEPTION) {
     // post monitor waited event.  Note that this is past-tense, we are done waiting.
     if (JvmtiExport::should_post_monitor_waited()) {
       // Note: 'false' parameter is passed here because the
@@ -1264,7 +1275,7 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
       // Thread is in thread_blocked state and oop access is unsafe.
       jt->set_suspend_equivalent();
 
-      if (interruptible && (Thread::is_interrupted(THREAD, false) || HAS_PENDING_EXCEPTION)) {
+      if (interruptible && (jt->is_interrupted(false) || HAS_PENDING_EXCEPTION)) {
         // Intentionally empty
       } else if (node._notified == 0) {
         if (millis <= 0) {
@@ -1384,13 +1395,13 @@ void ObjectMonitor::wait(jlong millis, bool interruptible, TRAPS) {
   // Verify a few postconditions
   assert(_owner == Self, "invariant");
   assert(_succ != Self, "invariant");
-  assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+  assert(((oop)(object()))->mark() == markWord::encode(this), "invariant");
 
   // check if the notification happened
   if (!WasNotified) {
     // no, it could be timeout or Thread.interrupt() or both
     // check for interrupt event, otherwise it is timeout
-    if (interruptible && Thread::is_interrupted(Self, true) && !HAS_PENDING_EXCEPTION) {
+    if (interruptible && jt->is_interrupted(true) && !HAS_PENDING_EXCEPTION) {
       THROW(vmSymbols::java_lang_InterruptedException());
     }
   }
@@ -1468,7 +1479,7 @@ void ObjectMonitor::INotify(Thread * Self) {
 // that suggests a lost wakeup bug.
 
 void ObjectMonitor::notify(TRAPS) {
-  CHECK_OWNER();
+  CHECK_OWNER();  // Throws IMSE if not owner.
   if (_WaitSet == NULL) {
     return;
   }
@@ -1486,7 +1497,7 @@ void ObjectMonitor::notify(TRAPS) {
 // mode the waitset will be empty and the EntryList will be "DCBAXYZ".
 
 void ObjectMonitor::notifyAll(TRAPS) {
-  CHECK_OWNER();
+  CHECK_OWNER();  // Throws IMSE if not owner.
   if (_WaitSet == NULL) {
     return;
   }
@@ -1922,3 +1933,12 @@ void ObjectMonitor::Initialize() {
 
   DEBUG_ONLY(InitDone = true;)
 }
+
+void ObjectMonitor::print_on(outputStream* st) const {
+  // The minimal things to print for markWord printing, more can be added for debugging and logging.
+  st->print("{contentions=0x%08x,waiters=0x%08x"
+            ",recursions=" INTPTR_FORMAT ",owner=" INTPTR_FORMAT "}",
+            contentions(), waiters(), recursions(),
+            p2i(owner()));
+}
+void ObjectMonitor::print() const { print_on(tty); }

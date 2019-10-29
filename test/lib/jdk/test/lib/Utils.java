@@ -25,6 +25,7 @@ package jdk.test.lib;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -749,13 +750,14 @@ public final class Utils {
     // until the method main() is found; the class containing that method is the
     // main test class and will be returned as the name of the test.
     // Special handling is used for testng tests.
+    @SuppressWarnings("unchecked")
     public static String getTestName() {
         String result = null;
         // If we are using testng, then we should be able to load the "Test" annotation.
-        Class testClassAnnotation;
+        Class<? extends Annotation> testClassAnnotation;
 
         try {
-            testClassAnnotation = Class.forName("org.testng.annotations.Test");
+            testClassAnnotation = (Class<? extends Annotation>)Class.forName("org.testng.annotations.Test");
         } catch (ClassNotFoundException e) {
             testClassAnnotation = null;
         }
@@ -776,7 +778,7 @@ public final class Utils {
             // annotation. If present, then use the name of this class.
             if (testClassAnnotation != null) {
                 try {
-                    Class c = Class.forName(className);
+                    Class<?> c = Class.forName(className);
                     if (c.isAnnotationPresent(testClassAnnotation)) {
                         result = className;
                         break;
@@ -814,5 +816,25 @@ public final class Utils {
     public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
         Path dir = Paths.get(System.getProperty("user.dir", "."));
         return Files.createTempFile(dir, prefix, suffix);
+    }
+
+    /**
+     * Creates an empty directory in "user.dir" or "."
+     * <p>
+     * This method is meant as a replacement for {@code Files#createTempDirectory(String, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix
+     * @param attrs
+     * @return the path to the newly created directory
+     * @throws IOException
+     *
+     * @see {@link Files#createTempDirectory(String, String, FileAttribute...)}
+     */
+    public static Path createTempDirectory(String prefix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempDirectory(dir, prefix);
     }
 }

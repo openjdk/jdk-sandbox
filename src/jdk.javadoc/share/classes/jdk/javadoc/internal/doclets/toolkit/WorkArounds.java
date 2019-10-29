@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -112,7 +112,7 @@ public class WorkArounds {
     }
 
     // TODO: fix this up correctly
-    public void initDocLint(Collection<String> opts, Collection<String> customTagNames, String htmlVersion) {
+    public void initDocLint(Collection<String> opts, Collection<String> customTagNames) {
         ArrayList<String> doclintOpts = new ArrayList<>();
         boolean msgOptionSeen = false;
 
@@ -137,12 +137,10 @@ public class WorkArounds {
             sep = DocLint.SEPARATOR;
         }
         doclintOpts.add(DocLint.XCUSTOM_TAGS_PREFIX + customTags.toString());
-        doclintOpts.add(DocLint.XHTML_VERSION_PREFIX + htmlVersion);
+        doclintOpts.add(DocLint.XHTML_VERSION_PREFIX + "html5");
 
         JavacTask t = BasicJavacTask.instance(toolEnv.context);
         doclint = new DocLint();
-        // standard doclet normally generates H1, H2
-        doclintOpts.add(DocLint.XIMPLICIT_HEADERS + "2");
         doclint.init(t, doclintOpts.toArray(new String[doclintOpts.size()]), false);
     }
 
@@ -334,36 +332,26 @@ public class WorkArounds {
     }
 
     //------------------Start of Serializable Implementation---------------------//
-    private final static Map<TypeElement, NewSerializedForm> serializedForms = new HashMap<>();
+    private final Map<TypeElement, NewSerializedForm> serializedForms = new HashMap<>();
 
-    public SortedSet<VariableElement> getSerializableFields(Utils utils, TypeElement klass) {
-        NewSerializedForm sf = serializedForms.get(klass);
-        if (sf == null) {
-            sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-            serializedForms.put(klass, sf);
-        }
-        return sf.fields;
+    private NewSerializedForm getSerializedForm(TypeElement typeElem) {
+        return serializedForms.computeIfAbsent(typeElem,
+                te -> new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), te));
     }
 
-    public SortedSet<ExecutableElement>  getSerializationMethods(Utils utils, TypeElement klass) {
-        NewSerializedForm sf = serializedForms.get(klass);
-        if (sf == null) {
-            sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-            serializedForms.put(klass, sf);
-        }
-        return sf.methods;
+    public SortedSet<VariableElement> getSerializableFields(TypeElement typeElem) {
+        return getSerializedForm(typeElem).fields;
     }
 
-    public boolean definesSerializableFields(Utils utils, TypeElement klass) {
-        if (!utils.isSerializable(klass) || utils.isExternalizable(klass)) {
+    public SortedSet<ExecutableElement>  getSerializationMethods(TypeElement typeElem) {
+        return getSerializedForm(typeElem).methods;
+    }
+
+    public boolean definesSerializableFields(TypeElement typeElem) {
+        if (!utils.isSerializable(typeElem) || utils.isExternalizable(typeElem)) {
             return false;
         } else {
-            NewSerializedForm sf = serializedForms.get(klass);
-            if (sf == null) {
-                sf = new NewSerializedForm(utils, configuration.docEnv.getElementUtils(), klass);
-                serializedForms.put(klass, sf);
-            }
-            return sf.definesSerializableFields;
+            return getSerializedForm(typeElem).definesSerializableFields;
         }
     }
 

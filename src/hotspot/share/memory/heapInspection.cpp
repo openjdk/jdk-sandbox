@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "memory/heapInspection.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/reflectionAccessorImplKlassHelper.hpp"
 #include "runtime/os.hpp"
@@ -71,8 +72,8 @@ int KlassInfoEntry::compare(KlassInfoEntry* e1, KlassInfoEntry* e2) {
   ResourceMark rm;
   const char* name1 = e1->klass()->external_name();
   const char* name2 = e2->klass()->external_name();
-  bool d1 = (name1[0] == '[');
-  bool d2 = (name2[0] == '[');
+  bool d1 = (name1[0] == JVM_SIGNATURE_ARRAY);
+  bool d2 = (name2[0] == JVM_SIGNATURE_ARRAY);
   if (d1 && !d2) {
     return -1;
   } else if (d2 && !d1) {
@@ -121,6 +122,11 @@ void KlassInfoEntry::print_on(outputStream* st) const {
 }
 
 KlassInfoEntry* KlassInfoBucket::lookup(Klass* const k) {
+  // Can happen if k is an archived class that we haven't loaded yet.
+  if (k->java_mirror_no_keepalive() == NULL) {
+    return NULL;
+  }
+
   KlassInfoEntry* elt = _list;
   while (elt != NULL) {
     if (elt->is_equal(k)) {
@@ -202,7 +208,8 @@ KlassInfoEntry* KlassInfoTable::lookup(Klass* k) {
   assert(_buckets != NULL, "Allocation failure should have been caught");
   KlassInfoEntry*  e   = _buckets[idx].lookup(k);
   // Lookup may fail if this is a new klass for which we
-  // could not allocate space for an new entry.
+  // could not allocate space for an new entry, or if it's
+  // an archived class that we haven't loaded yet.
   assert(e == NULL || k == e->klass(), "must be equal");
   return e;
 }
@@ -712,7 +719,7 @@ size_t HeapInspection::populate_table(KlassInfoTable* cit, BoolObjectClosure *fi
   ResourceMark rm;
 
   RecordInstanceClosure ric(cit, filter);
-  Universe::heap()->object_iterate(&ric);
+  Universe::heap()->safe_object_iterate(&ric);
   return ric.missed_count();
 }
 
@@ -785,8 +792,5 @@ void HeapInspection::find_instances_at_safepoint(Klass* k, GrowableArray<oop>* r
 
   // Iterate over objects in the heap
   FindInstanceClosure fic(k, result);
-  // If this operation encounters a bad object when using CMS,
-  // consider using safe_object_iterate() which avoids metadata
-  // objects that may contain bad references.
-  Universe::heap()->object_iterate(&fic);
+  Universe::heap()->safe_object_iterate(&fic);
 }

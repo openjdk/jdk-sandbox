@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/nmethod.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -33,7 +34,6 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jniCheck.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -44,10 +44,6 @@
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
-#if INCLUDE_JVMCI
-#include "jvmci/jvmciJavaClasses.hpp"
-#include "jvmci/jvmciRuntime.hpp"
-#endif
 
 // -----------------------------------------------------
 // Implementation of JavaCallWrapper
@@ -350,9 +346,6 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   assert(!SafepointSynchronize::is_at_safepoint(), "call to Java code during VM operation");
   assert(!thread->handle_area()->no_handle_mark_active(), "cannot call out to Java here");
 
-
-  CHECK_UNHANDLED_OOPS_ONLY(thread->clear_unhandled_oops();)
-
 #if INCLUDE_JVMCI
   // Gets the nmethod (if any) that should be called instead of normal target
   nmethod* alternative_target = args->alternative_target();
@@ -397,11 +390,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   // Figure out if the result value is an oop or not (Note: This is a different value
   // than result_type. result_type will be T_INT of oops. (it is about size)
   BasicType result_type = runtime_type_from(result);
-  bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY);
-
-  // NOTE: if we move the computation of the result_val_address inside
-  // the call to call_stub, the optimizer produces wrong code.
-  intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
+  bool oop_result_flag = is_reference_type(result->get_type());
 
   // Find receiver
   Handle receiver = (!method->is_static()) ? args->receiver() : Handle();
@@ -440,6 +429,11 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   { JavaCallWrapper link(method, receiver, result, CHECK);
     { HandleMark hm(thread);  // HandleMark used by HandleMarkCleaner
 
+      // NOTE: if we move the computation of the result_val_address inside
+      // the call to call_stub, the optimizer produces wrong code.
+      intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
+      intptr_t* parameter_address = args->parameters();
+
       StubRoutines::call_stub()(
         (address)&link,
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
@@ -447,7 +441,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
         result_type,
         method(),
         entry_point,
-        args->parameters(),
+        parameter_address,
         args->size_of_parameters(),
         CHECK
       );
@@ -625,7 +619,7 @@ void JavaCallArguments::verify(const methodHandle& method, BasicType return_type
   guarantee(method->size_of_parameters() == size_of_parameters(), "wrong no. of arguments pushed");
 
   // Treat T_OBJECT and T_ARRAY as the same
-  if (return_type == T_ARRAY) return_type = T_OBJECT;
+  if (is_reference_type(return_type)) return_type = T_OBJECT;
 
   // Check that oop information is correct
   Symbol* signature = method->signature();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,8 @@
 package sun.rmi.registry;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.rmi.AccessException;
-import java.rmi.server.RemoteCall;
 
-import sun.rmi.transport.Connection;
 import sun.rmi.transport.StreamRemoteCall;
-import sun.rmi.transport.tcp.TCPConnection;
 
 /**
  * Skeleton to dispatch RegistryImpl methods.
@@ -56,12 +51,29 @@ public final class RegistryImpl_Skel
         return operations.clone();
     }
 
-    public void dispatch(java.rmi.Remote obj, java.rmi.server.RemoteCall call, int opnum, long hash)
+    public void dispatch(java.rmi.Remote obj, java.rmi.server.RemoteCall remoteCall, int opnum, long hash)
             throws java.lang.Exception {
-        if (hash != interfaceHash)
-            throw new java.rmi.server.SkeletonMismatchException("interface hash mismatch");
+        if (opnum < 0) {
+            if (hash == 7583982177005850366L) {
+                opnum = 0;
+            } else if (hash == 2571371476350237748L) {
+                opnum = 1;
+            } else if (hash == -7538657168040752697L) {
+                opnum = 2;
+            } else if (hash == -8381844669958460146L) {
+                opnum = 3;
+            } else if (hash == 7305022919901907578L) {
+                opnum = 4;
+            } else {
+                throw new java.rmi.UnmarshalException("invalid method hash");
+            }
+        } else {
+            if (hash != interfaceHash)
+                throw new java.rmi.server.SkeletonMismatchException("interface hash mismatch");
+        }
 
         sun.rmi.registry.RegistryImpl server = (sun.rmi.registry.RegistryImpl) obj;
+        StreamRemoteCall call = (StreamRemoteCall) remoteCall;
         switch (opnum) {
             case 0: // bind(String, Remote)
             {
@@ -74,7 +86,8 @@ public final class RegistryImpl_Skel
                     java.io.ObjectInput in = call.getInputStream();
                     $param_String_1 = (java.lang.String) in.readObject();
                     $param_Remote_2 = (java.rmi.Remote) in.readObject();
-                } catch (java.io.IOException | java.lang.ClassNotFoundException e) {
+                } catch (ClassCastException | IOException | ClassNotFoundException e) {
+                    call.discardPendingRefs();
                     throw new java.rmi.UnmarshalException("error unmarshalling arguments", e);
                 } finally {
                     call.releaseInputStream();
@@ -107,7 +120,8 @@ public final class RegistryImpl_Skel
                 try {
                     java.io.ObjectInput in = call.getInputStream();
                     $param_String_1 = (java.lang.String) in.readObject();
-                } catch (java.io.IOException | java.lang.ClassNotFoundException e) {
+                } catch (ClassCastException | IOException | ClassNotFoundException e) {
+                    call.discardPendingRefs();
                     throw new java.rmi.UnmarshalException("error unmarshalling arguments", e);
                 } finally {
                     call.releaseInputStream();
@@ -133,7 +147,8 @@ public final class RegistryImpl_Skel
                     java.io.ObjectInput in = call.getInputStream();
                     $param_String_1 = (java.lang.String) in.readObject();
                     $param_Remote_2 = (java.rmi.Remote) in.readObject();
-                } catch (java.io.IOException | java.lang.ClassNotFoundException e) {
+                } catch (ClassCastException | IOException | java.lang.ClassNotFoundException e) {
+                    call.discardPendingRefs();
                     throw new java.rmi.UnmarshalException("error unmarshalling arguments", e);
                 } finally {
                     call.releaseInputStream();
@@ -156,7 +171,8 @@ public final class RegistryImpl_Skel
                 try {
                     java.io.ObjectInput in = call.getInputStream();
                     $param_String_1 = (java.lang.String) in.readObject();
-                } catch (java.io.IOException | java.lang.ClassNotFoundException e) {
+                } catch (ClassCastException | IOException | ClassNotFoundException e) {
+                    call.discardPendingRefs();
                     throw new java.rmi.UnmarshalException("error unmarshalling arguments", e);
                 } finally {
                     call.releaseInputStream();

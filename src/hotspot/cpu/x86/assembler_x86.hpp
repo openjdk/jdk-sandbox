@@ -630,6 +630,17 @@ class Assembler : public AbstractAssembler  {
     _true = 7
   };
 
+  //---<  calculate length of instruction  >---
+  // As instruction size can't be found out easily on x86/x64,
+  // we just use '4' for len and maxlen.
+  // instruction must start at passed address
+  static unsigned int instr_len(unsigned char *instr) { return 4; }
+
+  //---<  longest instructions  >---
+  // Max instruction length is not specified in architecture documentation.
+  // We could use a "safe enough" estimate (15), but just default to
+  // instruction length guess from above.
+  static unsigned int instr_maxlen() { return 4; }
 
   // NOTE: The general philopsophy of the declarations here is that 64bit versions
   // of instructions are freely declared without the need for wrapping them an ifdef.
@@ -957,6 +968,9 @@ private:
   void aesenc(XMMRegister dst, XMMRegister src);
   void aesenclast(XMMRegister dst, Address src);
   void aesenclast(XMMRegister dst, XMMRegister src);
+  // Vector AES instructions
+  void vaesenc(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
+  void vaesenclast(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vaesdec(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vaesdeclast(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
 
@@ -1014,6 +1028,8 @@ private:
   void cld();
 
   void clflush(Address adr);
+  void clflushopt(Address adr);
+  void clwb(Address adr);
 
   void cmovl(Condition cc, Register dst, Register src);
   void cmovl(Condition cc, Register dst, Address src);
@@ -1101,6 +1117,15 @@ private:
   void cvttss2siq(Register dst, XMMRegister src);
 
   void cvttpd2dq(XMMRegister dst, XMMRegister src);
+
+  //Abs of packed Integer values
+  void pabsb(XMMRegister dst, XMMRegister src);
+  void pabsw(XMMRegister dst, XMMRegister src);
+  void pabsd(XMMRegister dst, XMMRegister src);
+  void vpabsb(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpabsw(XMMRegister dst, XMMRegister src, int vector_len);
+  void vpabsd(XMMRegister dst, XMMRegister src, int vector_len);
+  void evpabsq(XMMRegister dst, XMMRegister src, int vector_len);
 
   // Divide Scalar Double-Precision Floating-Point Values
   void divsd(XMMRegister dst, Address src);
@@ -1381,6 +1406,7 @@ private:
   }
 
   void mfence();
+  void sfence();
 
   // Moves
 
@@ -1589,6 +1615,7 @@ private:
   // Pemutation of 64bit words
   void vpermq(XMMRegister dst, XMMRegister src, int imm8, int vector_len);
   void vpermq(XMMRegister dst, XMMRegister src, int imm8);
+  void vpermq(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vperm2i128(XMMRegister dst,  XMMRegister nds, XMMRegister src, int imm8);
   void vperm2f128(XMMRegister dst, XMMRegister nds, XMMRegister src, int imm8);
   void evpermi2q(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
@@ -1667,6 +1694,10 @@ private:
   void vpmovzxwd(XMMRegister dst, XMMRegister src, int vector_len);
 
   void evpmovdb(Address dst, XMMRegister src, int vector_len);
+
+  // Sign extend moves
+  void pmovsxbw(XMMRegister dst, XMMRegister src);
+  void vpmovsxbw(XMMRegister dst, XMMRegister src, int vector_len);
 
   // Multiply add
   void pmaddwd(XMMRegister dst, XMMRegister src);
@@ -1825,6 +1856,9 @@ private:
   void sqrtsd(XMMRegister dst, Address src);
   void sqrtsd(XMMRegister dst, XMMRegister src);
 
+  void roundsd(XMMRegister dst, Address src, int32_t rmode);
+  void roundsd(XMMRegister dst, XMMRegister src, int32_t rmode);
+
   // Compute Square Root of Scalar Single-Precision Floating-Point Value
   void sqrtss(XMMRegister dst, Address src);
   void sqrtss(XMMRegister dst, XMMRegister src);
@@ -1934,6 +1968,11 @@ private:
   void vsubss(XMMRegister dst, XMMRegister nds, Address src);
   void vsubss(XMMRegister dst, XMMRegister nds, XMMRegister src);
 
+  void vmaxss(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vmaxsd(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vminss(XMMRegister dst, XMMRegister nds, XMMRegister src);
+  void vminsd(XMMRegister dst, XMMRegister nds, XMMRegister src);
+
   void shlxl(Register dst, Register src1, Register src2);
   void shlxq(Register dst, Register src1, Register src2);
 
@@ -1983,6 +2022,12 @@ private:
   void vsqrtpd(XMMRegister dst, Address src, int vector_len);
   void vsqrtps(XMMRegister dst, XMMRegister src, int vector_len);
   void vsqrtps(XMMRegister dst, Address src, int vector_len);
+
+  // Round Packed Double precision value.
+  void vroundpd(XMMRegister dst, XMMRegister src, int32_t rmode, int vector_len);
+  void vroundpd(XMMRegister dst, Address src, int32_t rmode, int vector_len);
+  void vrndscalepd(XMMRegister dst,  XMMRegister src,  int32_t rmode, int vector_len);
+  void vrndscalepd(XMMRegister dst, Address src, int32_t rmode, int vector_len);
 
   // Bitwise Logical AND of Packed Floating-Point Values
   void andpd(XMMRegister dst, XMMRegister src);
@@ -2089,6 +2134,8 @@ private:
   void vpsrad(XMMRegister dst, XMMRegister src, int shift, int vector_len);
   void vpsraw(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
   void vpsrad(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
+  void evpsraq(XMMRegister dst, XMMRegister src, int shift, int vector_len);
+  void evpsraq(XMMRegister dst, XMMRegister src, XMMRegister shift, int vector_len);
 
   // And packed integers
   void pand(XMMRegister dst, XMMRegister src);

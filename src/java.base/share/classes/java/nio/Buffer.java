@@ -249,8 +249,8 @@ public abstract class Buffer {
      * @param  capacity
      *         The new buffer's capacity, in $type$s
      *
-     * @throws  IllegalArgumentException
-     *          If the {@code capacity} is a negative integer
+     * @throws IllegalArgumentException
+     *         If the {@code capacity} is a negative integer
      */
     static IllegalArgumentException createCapacityException(int capacity) {
         assert capacity < 0 : "capacity expected to be negative";
@@ -729,11 +729,6 @@ public abstract class Buffer {
 
     final void discardMark() {                          // package-private
         mark = -1;
-    }
-
-    static void checkBounds(int off, int len, int size) { // package-private
-        if ((off | len | (off + len) | (size - (off + len))) < 0)
-            throw new IndexOutOfBoundsException();
     }
 
     static {

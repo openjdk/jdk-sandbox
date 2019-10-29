@@ -365,7 +365,8 @@ var getJibProfilesCommon = function (input, data) {
         };
     };
 
-    common.boot_jdk_version = "11";
+    common.boot_jdk_version = "13";
+    common.boot_jdk_build_number = "33";
     common.boot_jdk_home = input.get("boot_jdk", "install_path") + "/jdk-"
         + common.boot_jdk_version
         + (input.build_os == "macosx" ? ".jdk/Contents/Home" : "");
@@ -754,7 +755,11 @@ var getJibProfilesProfiles = function (input, common, data) {
             profiles[cmpBaselineName] = clone(profiles[name + suffix]);
             // Only compare the images target. This should pressumably be expanded
             // to include more build targets when possible.
-            profiles[cmpBaselineName].default_make_targets = [ "images" ];
+            profiles[cmpBaselineName].default_make_targets = [ "images", "test-image" ];
+            if (name == "linux-x64") {
+                profiles[cmpBaselineName].default_make_targets
+                    = concat(profiles[cmpBaselineName].default_make_targets, "docs");
+            }
             profiles[cmpBaselineName].make_args = [ "COMPARE_BUILD=CONF=" ];
             // Do not inherit artifact definitions from base profile
             delete profiles[cmpBaselineName].artifacts;
@@ -834,13 +839,17 @@ var getJibProfilesProfiles = function (input, common, data) {
     if (testedProfile == null) {
         testedProfile = input.build_os + "-" + input.build_cpu;
     }
-    var testedProfileJDK = testedProfile + ".jdk";
-    var testedProfileTest = ""
-    if (testedProfile.endsWith("-jcov")) {
-        testedProfileTest = testedProfile.substring(0, testedProfile.length - "-jcov".length) + ".test";
+    var testedProfileJdk = testedProfile + ".jdk";
+    // Make it possible to use the test image from a different profile
+    var testImageProfile;
+    if (input.testImageProfile != null) {
+        testImageProfile = input.testImageProfile;
+    } else if (testedProfile.endsWith("-jcov")) {
+        testImageProfile = testedProfile.substring(0, testedProfile.length - "-jcov".length);
     } else {
-        testedProfileTest = testedProfile + ".test";
+        testImageProfile = testedProfile;
     }
+    var testedProfileTest = testImageProfile + ".test"
     var testOnlyMake = [ "run-test-prebuilt", "LOG_CMDLINES=true", "JTREG_VERBOSE=fail,error,time" ];
     if (testedProfile.endsWith("-gcov")) {
         testOnlyMake = concat(testOnlyMake, "GCOV_ENABLED=true")
@@ -850,14 +859,14 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_os: input.build_os,
             target_cpu: input.build_cpu,
             dependencies: [
-                "jtreg", "gnumake", "boot_jdk", "devkit", "jib", "jcov", testedProfileJDK,
+                "jtreg", "gnumake", "boot_jdk", "devkit", "jib", "jcov", testedProfileJdk,
                 testedProfileTest
             ],
             src: "src.conf",
             make_args: testOnlyMake,
             environment: {
                 "BOOT_JDK": common.boot_jdk_home,
-                "JDK_IMAGE_DIR": input.get(testedProfileJDK, "home_path"),
+                "JDK_IMAGE_DIR": input.get(testedProfileJdk, "home_path"),
                 "TEST_IMAGE_DIR": input.get(testedProfileTest, "home_path")
             },
             labels: "test"
@@ -866,10 +875,10 @@ var getJibProfilesProfiles = function (input, common, data) {
 
     // If actually running the run-test-prebuilt profile, verify that the input
     // variable is valid and if so, add the appropriate target_* values from
-    // the tested profile.
+    // the tested profile. Use testImageProfile value as backup.
     if (input.profile == "run-test-prebuilt") {
-        if (profiles[testedProfile] == null) {
-            error("testedProfile is not defined: " + testedProfile);
+        if (profiles[testedProfile] == null && profiles[testImageProfile] == null) {
+            error("testedProfile is not defined: " + testedProfile + " " + testImageProfile);
         }
     }
     if (profiles[testedProfile] != null) {
@@ -877,6 +886,11 @@ var getJibProfilesProfiles = function (input, common, data) {
             = profiles[testedProfile]["target_os"];
         testOnlyProfilesPrebuilt["run-test-prebuilt"]["target_cpu"]
             = profiles[testedProfile]["target_cpu"];
+    } else if (profiles[testImageProfile] != null) {
+        testOnlyProfilesPrebuilt["run-test-prebuilt"]["target_os"]
+            = profiles[testImageProfile]["target_os"];
+        testOnlyProfilesPrebuilt["run-test-prebuilt"]["target_cpu"]
+            = profiles[testImageProfile]["target_cpu"];
     }
     profiles = concatObjects(profiles, testOnlyProfilesPrebuilt);
 
@@ -939,20 +953,26 @@ var getJibProfilesProfiles = function (input, common, data) {
 var getJibProfilesDependencies = function (input, common) {
 
     var devkit_platform_revisions = {
-        linux_x64: "gcc7.3.0-OEL6.4+1.2",
-        macosx_x64: "Xcode9.4-MacOSX10.13+1.0",
+        linux_x64: "gcc8.3.0-OL6.4+1.0",
+        macosx_x64: "Xcode10.1-MacOSX10.14+1.0",
         solaris_x64: "SS12u4-Solaris11u1+1.0",
         solaris_sparcv9: "SS12u6-Solaris11u3+1.0",
-        windows_x64: "VS2017-15.5.5+1.0",
-        linux_aarch64: "gcc7.3.0-Fedora27+1.2",
-        linux_arm: "gcc7.3.0-Fedora27+1.2",
-        linux_ppc64le: "gcc7.3.0-Fedora27+1.0",
-        linux_s390x: "gcc7.3.0-Fedora27+1.0"
+        windows_x64: "VS2017-15.9.16+1.0",
+        linux_aarch64: "gcc8.2.0-Fedora27+1.0",
+        linux_arm: "gcc8.2.0-Fedora27+1.0",
+        linux_ppc64le: "gcc8.2.0-Fedora27+1.0",
+        linux_s390x: "gcc8.2.0-Fedora27+1.0"
     };
 
     var devkit_platform = (input.target_cpu == "x86"
         ? input.target_os + "_x64"
         : input.target_platform);
+
+    var devkit_cross_prefix = "";
+    if (input.build_platform != input.target_platform
+       && input.build_platform != devkit_platform) {
+        devkit_cross_prefix = input.build_platform + "-to-";
+    }
 
     var boot_jdk_platform = (input.build_os == "macosx" ? "osx" : input.build_os)
         + "-" + input.build_cpu;
@@ -974,7 +994,7 @@ var getJibProfilesDependencies = function (input, common) {
             server: "jpg",
             product: "jdk",
             version: common.boot_jdk_version,
-            build_number: "28",
+            build_number: common.boot_jdk_build_number,
             file: "bundles/" + boot_jdk_platform + "/jdk-" + common.boot_jdk_version + "_"
                 + boot_jdk_platform + "_bin" + boot_jdk_ext,
             configure_args: "--with-boot-jdk=" + common.boot_jdk_home,
@@ -984,7 +1004,7 @@ var getJibProfilesDependencies = function (input, common) {
         devkit: {
             organization: common.organization,
             ext: "tar.gz",
-            module: "devkit-" + devkit_platform,
+            module: "devkit-" + devkit_cross_prefix + devkit_platform,
             revision: devkit_platform_revisions[devkit_platform],
             environment: {
                 "DEVKIT_HOME": input.get("devkit", "home_path"),
@@ -1030,7 +1050,7 @@ var getJibProfilesDependencies = function (input, common) {
             // build_number: "b07",
             // file: "bundles/jcov-3_0.zip",
             organization: common.organization,
-            revision: "3.0-57-support+1.0",
+            revision: "3.0-58-support+1.0",
             ext: "zip",
             environment_name: "JCOV_HOME",
         },
@@ -1272,7 +1292,10 @@ var getVersion = function (feature, interim, update, patch) {
     var version = (feature != null ? feature : version_numbers.get("DEFAULT_VERSION_FEATURE"))
         + "." + (interim != null ? interim : version_numbers.get("DEFAULT_VERSION_INTERIM"))
         + "." + (update != null ? update :  version_numbers.get("DEFAULT_VERSION_UPDATE"))
-        + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"));
+        + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"))
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA1")
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA2")
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA3");
     while (version.match(".*\\.0$")) {
         version = version.substring(0, version.length - 2);
     }
@@ -1287,10 +1310,16 @@ var versionArgs = function(input, common) {
     var args = ["--with-version-build=" + common.build_number];
     if (input.build_type == "promoted") {
         args = concat(args,
-                      // This needs to be changed when we start building release candidates
-                      // with-version-pre must be set to ea for 'ea' and empty for fcs build
-                      "--with-version-pre=ea",
+                      "--with-version-pre=" + version_numbers.get("DEFAULT_PROMOTED_VERSION_PRE"),
                       "--without-version-opt");
+    } else if (input.build_type == "ci") {
+        var optString = input.build_id_data.ciBuildNumber;
+        var preString = input.build_id_data.projectName;
+        if (preString == "jdk") {
+            preString = version_numbers.get("DEFAULT_PROMOTED_VERSION_PRE");
+        }
+        args = concat(args, "--with-version-pre=" + preString,
+                     "--with-version-opt=" + optString);
     } else {
         args = concat(args, "--with-version-opt=" + common.build_id);
     }
@@ -1326,3 +1355,8 @@ var isWsl = function (input) {
              || (input.build_os == "linux"
                  && java.lang.System.getProperty("os.version").contains("Microsoft")));
 }
+
+var error = function (s) {
+    java.lang.System.err.println("[ERROR] " + s);
+    exit(1);
+};

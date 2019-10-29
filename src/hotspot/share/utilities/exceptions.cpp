@@ -29,6 +29,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -434,9 +435,9 @@ volatile int Exceptions::_out_of_memory_error_metaspace_errors = 0;
 volatile int Exceptions::_out_of_memory_error_class_metaspace_errors = 0;
 
 void Exceptions::count_out_of_memory_exceptions(Handle exception) {
-  if (oopDesc::equals(exception(), Universe::out_of_memory_error_metaspace())) {
+  if (exception() == Universe::out_of_memory_error_metaspace()) {
      Atomic::inc(&_out_of_memory_error_metaspace_errors);
-  } else if (oopDesc::equals(exception(), Universe::out_of_memory_error_class_metaspace())) {
+  } else if (exception() == Universe::out_of_memory_error_class_metaspace()) {
      Atomic::inc(&_out_of_memory_error_class_metaspace_errors);
   } else {
      // everything else reported as java heap OOM
@@ -525,17 +526,17 @@ void Exceptions::debug_check_abort_helper(Handle exception, const char* message)
 }
 
 // for logging exceptions
-void Exceptions::log_exception(Handle exception, stringStream tempst) {
+void Exceptions::log_exception(Handle exception, const char* message) {
   ResourceMark rm;
-  Symbol* message = java_lang_Throwable::detail_message(exception());
-  if (message != NULL) {
+  Symbol* detail_message = java_lang_Throwable::detail_message(exception());
+  if (detail_message != NULL) {
     log_info(exceptions)("Exception <%s: %s>\n thrown in %s",
                          exception->print_value_string(),
-                         message->as_C_string(),
-                         tempst.as_string());
+                         detail_message->as_C_string(),
+                         message);
   } else {
     log_info(exceptions)("Exception <%s>\n thrown in %s",
                          exception->print_value_string(),
-                         tempst.as_string());
+                         message);
   }
 }

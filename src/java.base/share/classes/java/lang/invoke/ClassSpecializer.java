@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.FieldVisitor;
@@ -37,6 +38,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -457,6 +459,11 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
      */
     public class Factory {
         /**
+         * Constructs a factory.
+         */
+        Factory() {}
+
+        /**
          * Get a concrete subclass of the top class for a given combination of bound types.
          *
          * @param speciesData the species requiring the class, not yet linked
@@ -575,19 +582,19 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
 
             // load class
             InvokerBytecodeGenerator.maybeDump(classBCName(className), classFile);
-            Class<?> speciesCode;
-
-            MethodHandles.Lookup lookup = IMPL_LOOKUP.in(topClass());
-            speciesCode = AccessController.doPrivileged(new PrivilegedAction<>() {
-                @Override
-                public Class<?> run() {
-                    try {
-                        return lookup.defineClass(classFile);
-                    } catch (Exception ex) {
-                        throw newInternalError(ex);
-                    }
-                }
-            });
+            ClassLoader cl = topClass.getClassLoader();
+            ProtectionDomain pd = null;
+            if (cl != null) {
+                pd = AccessController.doPrivileged(
+                        new PrivilegedAction<>() {
+                            @Override
+                            public ProtectionDomain run() {
+                                return topClass().getProtectionDomain();
+                            }
+                        });
+            }
+            Class<?> speciesCode = SharedSecrets.getJavaLangAccess()
+                    .defineClass(cl, className, classFile, pd, "_ClassSpecializer_generateConcreteSpeciesCode");
             return speciesCode.asSubclass(topClass());
         }
 

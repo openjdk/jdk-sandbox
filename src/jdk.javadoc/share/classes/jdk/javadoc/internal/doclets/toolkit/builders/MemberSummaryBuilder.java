@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -320,7 +320,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
                     //necessary.
                     DocFinder.Output inheritedDoc =
                             DocFinder.search(configuration,
-                                    new DocFinder.Input(utils, (ExecutableElement) member));
+                                    new DocFinder.Input(utils, member));
                     if (inheritedDoc.holder != null
                             && !utils.getFirstSentenceTrees(inheritedDoc.holder).isEmpty()) {
                         // let the comment helper know of the overridden element
@@ -464,8 +464,8 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
                 Content inheritedTree = writer.getInheritedSummaryHeader(inheritedClass);
                 Content linksTree = writer.getInheritedSummaryLinksTree();
                 addSummaryFootNote(inheritedClass, inheritedMembers, linksTree, writer);
-                inheritedTree.addContent(linksTree);
-                summaryTreeList.add(writer.getMemberTree(inheritedTree));
+                inheritedTree.add(linksTree);
+                summaryTreeList.add(inheritedTree);
             }
         }
     }
@@ -473,7 +473,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
     private void addSummaryFootNote(TypeElement inheritedClass, SortedSet<Element> inheritedMembers,
                                     Content linksTree, MemberSummaryWriter writer) {
         for (Element member : inheritedMembers) {
-            TypeElement t = (utils.isPackagePrivate(inheritedClass) && !utils.isLinkable(inheritedClass))
+            TypeElement t = utils.isUndocumentedEnclosure(inheritedClass)
                     ? typeElement : inheritedClass;
             writer.addInheritedMemberSummary(t, member, inheritedMembers.first() == member,
                     inheritedMembers.last() == member, linksTree);
@@ -497,7 +497,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
             buildInheritedSummary(writer, kind, summaryTreeList);
         if (!summaryTreeList.isEmpty()) {
             Content memberTree = writer.getMemberSummaryHeader(typeElement, memberSummaryTree);
-            summaryTreeList.stream().forEach(memberTree::addContent);
+            summaryTreeList.stream().forEach(memberTree::add);
             writer.addMemberTree(memberSummaryTree, memberTree);
         }
     }

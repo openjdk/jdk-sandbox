@@ -57,13 +57,9 @@ public class TestHref extends JavadocTester {
                 //Member summary table link.
                 "href=\"#method(int,int,java.util.ArrayList)\"",
                 //Anchor test.
-                "<a id=\"method(int,int,java.util.ArrayList)\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                "<a id=\"method(int,int,java.util.ArrayList)\">",
                 //Backward compatibility anchor test."pkg/C1.html",
-                "<a id=\"method(int,int,java.util.ArrayList)\">\n"
-                + "<!--   -->\n"
-                + "</a>");
+                "<a id=\"method(int,int,java.util.ArrayList)\">");
 
         checkOutput("pkg/C2.html", true,
                 //{@link} test.
@@ -75,7 +71,7 @@ public class TestHref extends JavadocTester {
 
         checkOutput("pkg/C4.html", true,
                 //Header does not link to the page itself.
-                "Class C4&lt;E extends C4&lt;E&gt;&gt;</h2>",
+                "Class C4&lt;E extends C4&lt;E&gt;&gt;</h1>",
                 //Signature does not link to the page itself.
                 "public abstract class <span class=\"typeNameLabel\">C4&lt;E extends C4&lt;E&gt;&gt;</span>"
         );

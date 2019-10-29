@@ -32,6 +32,7 @@
 #include "gc/z/zTask.hpp"
 #include "gc/z/zTracer.inline.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "gc/z/zValue.inline.hpp"
 #include "memory/universe.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
@@ -450,7 +451,7 @@ void ZReferenceProcessor::enqueue_references() {
 
   {
     // Heap_lock protects external pending list
-    MonitorLockerEx ml(Heap_lock);
+    MonitorLocker ml(Heap_lock);
 
     // Prepend internal pending list to external pending list
     *_pending_list_tail = Universe::swap_reference_pending_list(_pending_list.get());

@@ -322,9 +322,6 @@ class Arguments : AllStatic {
   // java launcher
   static const char* _sun_java_launcher;
 
-  // sun.java.launcher.pid, private property
-  static int    _sun_java_launcher_pid;
-
   // was this VM created via the -XXaltjvm=<path> option
   static bool   _sun_java_launcher_is_altjvm;
 
@@ -332,8 +329,6 @@ class Arguments : AllStatic {
   static const char*  _gc_log_filename;
   // Value of the conservative maximum heap alignment needed
   static size_t  _conservative_max_heap_alignment;
-
-  static size_t  _min_heap_size;
 
   // -Xrun arguments
   static AgentLibraryList _libraryList;
@@ -486,6 +481,11 @@ class Arguments : AllStatic {
   static AliasedLoggingFlag catch_logging_aliases(const char* name, bool on);
 
   static char*  SharedArchivePath;
+  static char*  SharedDynamicArchivePath;
+  static int num_archives(const char* archive_path) NOT_CDS_RETURN_(0);
+  static void extract_shared_archive_paths(const char* archive_path,
+                                         char** base_archive_path,
+                                         char** top_archive_path) NOT_CDS_RETURN;
 
  public:
   // Parses the arguments, first phase
@@ -545,12 +545,6 @@ class Arguments : AllStatic {
   static bool created_by_java_launcher();
   // -Dsun.java.launcher.is_altjvm
   static bool sun_java_launcher_is_altjvm();
-  // -Dsun.java.launcher.pid
-  static int sun_java_launcher_pid()        { return _sun_java_launcher_pid; }
-
-  // -Xms
-  static size_t min_heap_size()             { return _min_heap_size; }
-  static void  set_min_heap_size(size_t v)  { _min_heap_size = v;  }
 
   // -Xrun
   static AgentLibrary* libraries()          { return _libraryList.first(); }
@@ -569,6 +563,7 @@ class Arguments : AllStatic {
   static vfprintf_hook_t vfprintf_hook()    { return _vfprintf_hook; }
 
   static const char* GetSharedArchivePath() { return SharedArchivePath; }
+  static const char* GetSharedDynamicArchivePath() { return SharedDynamicArchivePath; }
 
   // Java launcher properties
   static void process_sun_java_launcher_properties(JavaVMInitArgs* args);
@@ -631,7 +626,8 @@ class Arguments : AllStatic {
   static char* get_appclasspath() { return _java_class_path->value(); }
   static void  fix_appclasspath();
 
-  static char* get_default_shared_archive_path();
+  static char* get_default_shared_archive_path() NOT_CDS_RETURN_(NULL);
+  static bool  init_shared_archive_paths() NOT_CDS_RETURN_(false);
 
   // Operation modi
   static Mode mode()                        { return _mode; }
@@ -649,6 +645,14 @@ class Arguments : AllStatic {
   static bool check_unsupported_cds_runtime_properties() NOT_CDS_RETURN0;
 
   static bool atojulong(const char *s, julong* result);
+
+  static bool has_jfr_option() NOT_JFR_RETURN_(false);
+
+  static bool is_dumping_archive() { return DumpSharedSpaces || DynamicDumpSharedSpaces; }
+
+  static void assert_is_dumping_archive() {
+    assert(Arguments::is_dumping_archive(), "dump time only");
+  }
 };
 
 // Disable options not supported in this release, with a warning if they

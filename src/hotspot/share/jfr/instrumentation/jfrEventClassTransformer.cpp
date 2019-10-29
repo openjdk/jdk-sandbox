@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "classfile/moduleEntry.hpp"
 #include "classfile/modules.hpp"
 #include "classfile/stackMapTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/verificationType.hpp"
 #include "interpreter/bytecodes.hpp"
 #include "jfr/instrumentation/jfrEventClassTransformer.hpp"
@@ -43,7 +44,6 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
-#include "oops/constantPool.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
@@ -356,7 +356,6 @@ class AnnotationIterator : public StackObj {
   }
 };
 
-static unsigned int unused_hash = 0;
 static const char value_name[] = "value";
 static bool has_annotation(const InstanceKlass* ik, const Symbol* annotation_type, bool& value) {
   assert(annotation_type != NULL, "invariant");
@@ -371,7 +370,7 @@ static bool has_annotation(const InstanceKlass* ik, const Symbol* annotation_typ
     if (annotation_iterator.type() == annotation_type) {
       // target annotation found
       static const Symbol* value_symbol =
-        SymbolTable::lookup_only(value_name, sizeof value_name - 1, unused_hash);
+        SymbolTable::probe(value_name, sizeof value_name - 1);
       assert(value_symbol != NULL, "invariant");
       const AnnotationElementIterator element_iterator = annotation_iterator.elements();
       while (element_iterator.has_next()) {
@@ -411,7 +410,7 @@ static bool java_base_can_read_jdk_jfr() {
   }
   static Symbol* jdk_jfr_module_symbol = NULL;
   if (jdk_jfr_module_symbol == NULL) {
-    jdk_jfr_module_symbol = SymbolTable::lookup_only(jdk_jfr_module_name, sizeof jdk_jfr_module_name - 1, unused_hash);
+    jdk_jfr_module_symbol = SymbolTable::probe(jdk_jfr_module_name, sizeof jdk_jfr_module_name - 1);
     if (jdk_jfr_module_symbol == NULL) {
       return false;
     }
@@ -446,7 +445,7 @@ static bool should_register_klass(const InstanceKlass* ik, bool& untypedEventHan
   assert(!untypedEventHandler, "invariant");
   static const Symbol* registered_symbol = NULL;
   if (registered_symbol == NULL) {
-    registered_symbol = SymbolTable::lookup_only(registered_constant, sizeof registered_constant - 1, unused_hash);
+    registered_symbol = SymbolTable::probe(registered_constant, sizeof registered_constant - 1);
     if (registered_symbol == NULL) {
       untypedEventHandler = true;
       return false;
@@ -1166,7 +1165,7 @@ static u2 find_or_add_utf8_info(JfrBigEndianWriter& writer,
                                 u2& added_cp_entries,
                                 TRAPS) {
   assert(utf8_constant != NULL, "invariant");
-  TempNewSymbol utf8_sym = SymbolTable::new_symbol(utf8_constant, THREAD);
+  TempNewSymbol utf8_sym = SymbolTable::new_symbol(utf8_constant);
   // lookup existing
   const int utf8_orig_idx = utf8_info_index(ik, utf8_sym, THREAD);
   if (utf8_orig_idx != invalid_cp_index) {
@@ -1522,7 +1521,7 @@ static void copy_method_trace_flags(const InstanceKlass* the_original_klass, con
     assert(new_method != NULL, "invariant");
     assert(new_method->name() == old_method->name(), "invariant");
     assert(new_method->signature() == old_method->signature(), "invariant");
-    *new_method->trace_flags_addr() = old_method->trace_flags();
+    new_method->set_trace_flags(old_method->trace_flags());
     assert(new_method->trace_flags() == old_method->trace_flags(), "invariant");
   }
 }

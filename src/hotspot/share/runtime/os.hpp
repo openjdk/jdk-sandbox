@@ -47,8 +47,6 @@ class frame;
 // OS services (time, I/O) as well as other functionality with system-
 // dependent code.
 
-typedef void (*dll_func)(...);
-
 class Thread;
 class JavaThread;
 class NativeCallStack;
@@ -167,13 +165,6 @@ class os: AllStatic {
                                                // before VM ergonomics processing.
   static jint init_2(void);                    // Called after command line parsing
                                                // and VM ergonomics processing
-  static void init_globals(void) {             // Called from init_globals() in init.cpp
-    init_globals_ext();
-  }
-
-  // File names are case-insensitive on windows only
-  // Override me as needed
-  static int    file_name_strncmp(const char* s1, const char* s2, size_t num);
 
   // unset environment variable
   static bool unsetenv(const char* name);
@@ -202,14 +193,9 @@ class os: AllStatic {
 
   // The "virtual time" of a thread is the amount of time a thread has
   // actually run.  The first function indicates whether the OS supports
-  // this functionality for the current thread, and if so:
-  //   * the second enables vtime tracking (if that is required).
-  //   * the third tells whether vtime is enabled.
-  //   * the fourth returns the elapsed virtual time for the current
-  //     thread.
+  // this functionality for the current thread, and if so the second
+  // returns the elapsed virtual time for the current thread.
   static bool supports_vtime();
-  static bool enable_vtime();
-  static bool vtime_enabled();
   static double elapsedVTime();
 
   // Return current local time in a string (YYYY-MM-DD HH:MM:SS).
@@ -261,14 +247,6 @@ class os: AllStatic {
     return _initial_active_processor_count;
   }
 
-  // Bind processes to processors.
-  //     This is a two step procedure:
-  //     first you generate a distribution of processes to processors,
-  //     then you bind processes according to that distribution.
-  // Compute a distribution for number of processes to processors.
-  //    Stores the processor id's into the distribution array argument.
-  //    Returns true if it worked, false if it didn't.
-  static bool distribute_processes(uint length, uint* distribution);
   // Binds the current process to a processor.
   //    Returns true if it worked, false if it didn't.
   static bool bind_to_processor(uint processor_id);
@@ -463,24 +441,29 @@ class os: AllStatic {
   static void pd_start_thread(Thread* thread);
   static void start_thread(Thread* thread);
 
+  // Returns true if successful.
+  static bool signal_thread(Thread* thread, int sig, const char* reason);
+
   static void free_thread(OSThread* osthread);
 
   // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
   static intx current_thread_id();
   static int current_process_id();
-  static int sleep(Thread* thread, jlong ms, bool interruptable);
-  // Short standalone OS sleep suitable for slow path spin loop.
-  // Ignores Thread.interrupt() (so keep it short).
-  // ms = 0, will sleep for the least amount of time allowed by the OS.
+
+  // Short standalone OS sleep routines suitable for slow path spin loop.
+  // Ignores safepoints/suspension/Thread.interrupt() (so keep it short).
+  // ms/ns = 0, will sleep for the least amount of time allowed by the OS.
+  // Maximum sleep time is just under 1 second.
   static void naked_short_sleep(jlong ms);
   static void naked_short_nanosleep(jlong ns);
-  static void infinite_sleep(); // never returns, use with CAUTION
+  // Longer standalone OS sleep routine - a convenience wrapper around
+  // multiple calls to naked_short_sleep. Only for use by non-JavaThreads.
+  static void naked_sleep(jlong millis);
+  // Never returns, use with CAUTION
+  static void infinite_sleep();
   static void naked_yield () ;
   static OSReturn set_priority(Thread* thread, ThreadPriority priority);
   static OSReturn get_priority(const Thread* const thread, ThreadPriority& priority);
-
-  static void interrupt(Thread* thread);
-  static bool is_interrupted(Thread* thread, bool clear_interrupted);
 
   static int pd_self_suspend_thread(Thread* thread);
 
@@ -498,7 +481,6 @@ class os: AllStatic {
   static void verify_stack_alignment() PRODUCT_RETURN;
 
   static bool message_box(const char* title, const char* message);
-  static char* do_you_want_to_debug(const char* message);
 
   // run cmd in a separate process and return its exit code; or -1 on failures
   static int fork_and_exec(char *cmd, bool use_vfork_if_available = false);
@@ -515,10 +497,13 @@ class os: AllStatic {
   static void abort(bool dump_core = true);
 
   // Die immediately, no exit hook, no abort hook, no cleanup.
+  // Dump a core file, if possible, for debugging. os::abort() is the
+  // preferred means to abort the VM on error. os::die() should only
+  // be called if something has gone badly wrong. CreateCoredumpOnCrash
+  // is intentionally not honored by this function.
   static void die();
 
   // File i/o operations
-  static const int default_file_open_flags();
   static int open(const char *path, int oflag, int mode);
   static FILE* open(int fd, const char* mode);
   static FILE* fopen(const char* path, const char* mode);
@@ -536,6 +521,8 @@ class os: AllStatic {
   static void funlockfile(FILE* fp);
 
   static int compare_file_modified_times(const char* file1, const char* file2);
+
+  static bool same_files(const char* file1, const char* file2);
 
   //File i/o operations
 
@@ -588,6 +575,7 @@ class os: AllStatic {
   // Loads .dll/.so and
   // in case of error it checks if .dll/.so was built for the
   // same architecture as HotSpot is running on
+  // in case of an error NULL is returned and an error message is stored in ebuf
   static void* dll_load(const char *name, char *ebuf, int ebuflen);
 
   // lookup symbol in a shared library
@@ -637,6 +625,7 @@ class os: AllStatic {
   static void print_environment_variables(outputStream* st, const char** env_list);
   static void print_context(outputStream* st, const void* context);
   static void print_register_info(outputStream* st, const void* context);
+  static bool signal_sent_by_kill(const void* siginfo);
   static void print_siginfo(outputStream* st, const void* siginfo);
   static void print_signal_handlers(outputStream* st, char* buf, size_t buflen);
   static void print_date_and_time(outputStream* st, char* buf, size_t buflen);
@@ -661,9 +650,6 @@ class os: AllStatic {
   // Will always return a valid string which is a static constant.
   // Will not change the value of errno.
   static const char* errno_name(int e);
-
-  // Determines whether the calling process is being debugged by a user-mode debugger.
-  static bool is_debugger_attached();
 
   // wait for a key press if PauseAtExit is set
   static void wait_for_keypress_at_exit(void);
@@ -730,6 +716,7 @@ class os: AllStatic {
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag, const NativeCallStack& stack);
   static void* realloc (void *memblock, size_t size, MEMFLAGS flag);
 
+  // handles NULL pointers
   static void  free    (void *memblock);
   static char* strdup(const char *, MEMFLAGS flags = mtInternal);  // Like strdup
   // Like strdup, but exit VM when strdup() returns NULL
@@ -814,10 +801,10 @@ class os: AllStatic {
   // Amount beyond the callee frame size that we bang the stack.
   static int extra_bang_size_in_bytes();
 
-  static char** split_path(const char* path, int* n);
+  static char** split_path(const char* path, size_t* elements, size_t file_name_length);
 
-  // Extensions
-#include "runtime/os_ext.hpp"
+  // support for mapping non-volatile memory using MAP_SYNC
+  static bool supports_map_sync();
 
  public:
   class CrashProtectionCallback : public StackObj {
@@ -957,10 +944,6 @@ class os: AllStatic {
 
     bool is_running() const {
       return _state == SR_RUNNING;
-    }
-
-    bool is_suspend_request() const {
-      return _state == SR_SUSPEND_REQUEST;
     }
 
     bool is_suspended() const {

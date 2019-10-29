@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -62,41 +63,41 @@ int SignatureIterator::parse_type() {
   //       compiler bug (was problem - gri 4/27/2000).
   int size = -1;
   switch(_signature->char_at(_index)) {
-    case 'B': do_byte  (); if (_parameter_index < 0 ) _return_type = T_BYTE;
-              _index++; size = T_BYTE_size   ; break;
-    case 'C': do_char  (); if (_parameter_index < 0 ) _return_type = T_CHAR;
-              _index++; size = T_CHAR_size   ; break;
-    case 'D': do_double(); if (_parameter_index < 0 ) _return_type = T_DOUBLE;
-              _index++; size = T_DOUBLE_size ; break;
-    case 'F': do_float (); if (_parameter_index < 0 ) _return_type = T_FLOAT;
-              _index++; size = T_FLOAT_size  ; break;
-    case 'I': do_int   (); if (_parameter_index < 0 ) _return_type = T_INT;
-              _index++; size = T_INT_size    ; break;
-    case 'J': do_long  (); if (_parameter_index < 0 ) _return_type = T_LONG;
-              _index++; size = T_LONG_size   ; break;
-    case 'S': do_short (); if (_parameter_index < 0 ) _return_type = T_SHORT;
-              _index++; size = T_SHORT_size  ; break;
-    case 'Z': do_bool  (); if (_parameter_index < 0 ) _return_type = T_BOOLEAN;
-              _index++; size = T_BOOLEAN_size; break;
-    case 'V': do_void  (); if (_parameter_index < 0 ) _return_type = T_VOID;
-              _index++; size = T_VOID_size;  ; break;
-    case 'L':
+    case JVM_SIGNATURE_BYTE:    do_byte(); if (_parameter_index < 0 ) _return_type = T_BYTE;
+                                  _index++; size = T_BYTE_size; break;
+    case JVM_SIGNATURE_CHAR:    do_char(); if (_parameter_index < 0 ) _return_type = T_CHAR;
+                                  _index++; size = T_CHAR_size; break;
+    case JVM_SIGNATURE_DOUBLE:  do_double(); if (_parameter_index < 0 ) _return_type = T_DOUBLE;
+                                  _index++; size = T_DOUBLE_size; break;
+    case JVM_SIGNATURE_FLOAT:   do_float(); if (_parameter_index < 0 ) _return_type = T_FLOAT;
+                                  _index++; size = T_FLOAT_size; break;
+    case JVM_SIGNATURE_INT:     do_int(); if (_parameter_index < 0 ) _return_type = T_INT;
+                                  _index++; size = T_INT_size; break;
+    case JVM_SIGNATURE_LONG:    do_long(); if (_parameter_index < 0 ) _return_type = T_LONG;
+                                  _index++; size = T_LONG_size; break;
+    case JVM_SIGNATURE_SHORT:   do_short(); if (_parameter_index < 0 ) _return_type = T_SHORT;
+                                  _index++; size = T_SHORT_size; break;
+    case JVM_SIGNATURE_BOOLEAN: do_bool(); if (_parameter_index < 0 ) _return_type = T_BOOLEAN;
+                                  _index++; size = T_BOOLEAN_size; break;
+    case JVM_SIGNATURE_VOID:    do_void(); if (_parameter_index < 0 ) _return_type = T_VOID;
+                                  _index++; size = T_VOID_size; break;
+    case JVM_SIGNATURE_CLASS:
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->char_at(_index++) != ';') ;
+        while (sig->char_at(_index++) != JVM_SIGNATURE_ENDCLASS) ;
         do_object(begin, _index);
       }
       if (_parameter_index < 0 ) _return_type = T_OBJECT;
       size = T_OBJECT_size;
       break;
-    case '[':
+    case JVM_SIGNATURE_ARRAY:
       { int begin = ++_index;
         Symbol* sig = _signature;
-        while (sig->char_at(_index) == '[') {
+        while (sig->char_at(_index) == JVM_SIGNATURE_ARRAY) {
           _index++;
         }
-        if (sig->char_at(_index) == 'L') {
-          while (sig->char_at(_index++) != ';') ;
+        if (sig->char_at(_index) == JVM_SIGNATURE_CLASS) {
+          while (sig->char_at(_index++) != JVM_SIGNATURE_ENDCLASS) ;
         } else {
           _index++;
         }
@@ -123,22 +124,13 @@ void SignatureIterator::check_signature_end() {
 }
 
 
-void SignatureIterator::dispatch_field() {
-  // no '(', just one (field) type
-  _index = 0;
-  _parameter_index = 0;
-  parse_type();
-  check_signature_end();
-}
-
-
 void SignatureIterator::iterate_parameters() {
   // Parse parameters
   _index = 0;
   _parameter_index = 0;
-  expect('(');
-  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
-  expect(')');
+  expect(JVM_SIGNATURE_FUNC);
+  while (_signature->char_at(_index) != JVM_SIGNATURE_ENDFUNC) _parameter_index += parse_type();
+  expect(JVM_SIGNATURE_ENDFUNC);
   _parameter_index = 0;
 }
 
@@ -196,7 +188,6 @@ void SignatureIterator::iterate_parameters( uint64_t fingerprint ) {
         break;
       case done_parm:
         return;
-        break;
       default:
         tty->print_cr("*** parameter is " UINT64_FORMAT, fingerprint & parameter_feature_mask);
         tty->print_cr("*** fingerprint is " PTR64_FORMAT, saved_fingerprint);
@@ -205,46 +196,42 @@ void SignatureIterator::iterate_parameters( uint64_t fingerprint ) {
     }
     fingerprint >>= parameter_feature_size;
   }
-  _parameter_index = 0;
 }
 
 
 void SignatureIterator::iterate_returntype() {
   // Ignore parameters
   _index = 0;
-  expect('(');
+  expect(JVM_SIGNATURE_FUNC);
   Symbol* sig = _signature;
   // Need to skip over each type in the signature's argument list until a
   // closing ')' is found., then get the return type.  We cannot just scan
   // for the first ')' because ')' is a legal character in a type name.
-  while (sig->char_at(_index) != ')') {
+  while (sig->char_at(_index) != JVM_SIGNATURE_ENDFUNC) {
     switch(sig->char_at(_index)) {
-      case 'B':
-      case 'C':
-      case 'D':
-      case 'F':
-      case 'I':
-      case 'J':
-      case 'S':
-      case 'Z':
-      case 'V':
+      case JVM_SIGNATURE_BYTE:
+      case JVM_SIGNATURE_CHAR:
+      case JVM_SIGNATURE_DOUBLE:
+      case JVM_SIGNATURE_FLOAT:
+      case JVM_SIGNATURE_INT:
+      case JVM_SIGNATURE_LONG:
+      case JVM_SIGNATURE_SHORT:
+      case JVM_SIGNATURE_BOOLEAN:
+      case JVM_SIGNATURE_VOID:
         {
           _index++;
         }
         break;
-      case 'L':
+      case JVM_SIGNATURE_CLASS:
         {
-          while (sig->char_at(_index++) != ';') ;
+          while (sig->char_at(_index++) != JVM_SIGNATURE_ENDCLASS) ;
         }
         break;
-      case '[':
+      case JVM_SIGNATURE_ARRAY:
         {
-          int begin = ++_index;
-          while (sig->char_at(_index) == '[') {
-            _index++;
-          }
-          if (sig->char_at(_index) == 'L') {
-            while (sig->char_at(_index++) != ';') ;
+          while (sig->char_at(++_index) == JVM_SIGNATURE_ARRAY) ;
+          if (sig->char_at(_index) == JVM_SIGNATURE_CLASS) {
+            while (sig->char_at(_index++) != JVM_SIGNATURE_ENDCLASS) ;
           } else {
             _index++;
           }
@@ -255,7 +242,7 @@ void SignatureIterator::iterate_returntype() {
         break;
     }
   }
-  expect(')');
+  expect(JVM_SIGNATURE_ENDFUNC);
   // Parse return type
   _parameter_index = -1;
   parse_type();
@@ -268,9 +255,9 @@ void SignatureIterator::iterate() {
   // Parse parameters
   _parameter_index = 0;
   _index = 0;
-  expect('(');
-  while (_signature->char_at(_index) != ')') _parameter_index += parse_type();
-  expect(')');
+  expect(JVM_SIGNATURE_FUNC);
+  while (_signature->char_at(_index) != JVM_SIGNATURE_ENDFUNC) _parameter_index += parse_type();
+  expect(JVM_SIGNATURE_ENDFUNC);
   // Parse return type
   _parameter_index = -1;
   parse_type();
@@ -281,16 +268,17 @@ void SignatureIterator::iterate() {
 
 // Implementation of SignatureStream
 SignatureStream::SignatureStream(Symbol* signature, bool is_method) :
-                   _signature(signature), _at_return_type(false) {
+                   _signature(signature), _at_return_type(false), _previous_name(NULL), _names(NULL) {
   _begin = _end = (is_method ? 1 : 0);  // skip first '(' in method signatures
-  _names = new GrowableArray<Symbol*>(10);
   next();
 }
 
 SignatureStream::~SignatureStream() {
   // decrement refcount for names created during signature parsing
-  for (int i = 0; i < _names->length(); i++) {
-    _names->at(i)->decrement_refcount();
+  if (_names != NULL) {
+    for (int i = 0; i < _names->length(); i++) {
+      _names->at(i)->decrement_refcount();
+    }
   }
 }
 
@@ -301,39 +289,39 @@ bool SignatureStream::is_done() const {
 
 void SignatureStream::next_non_primitive(int t) {
   switch (t) {
-    case 'L': {
+    case JVM_SIGNATURE_CLASS: {
       _type = T_OBJECT;
       Symbol* sig = _signature;
-      while (sig->char_at(_end++) != ';');
+      while (sig->char_at(_end++) != JVM_SIGNATURE_ENDCLASS);
       break;
     }
-    case '[': {
+    case JVM_SIGNATURE_ARRAY: {
       _type = T_ARRAY;
       Symbol* sig = _signature;
       char c = sig->char_at(_end);
       while ('0' <= c && c <= '9') c = sig->char_at(_end++);
-      while (sig->char_at(_end) == '[') {
+      while (sig->char_at(_end) == JVM_SIGNATURE_ARRAY) {
         _end++;
         c = sig->char_at(_end);
         while ('0' <= c && c <= '9') c = sig->char_at(_end++);
       }
       switch(sig->char_at(_end)) {
-        case 'B':
-        case 'C':
-        case 'D':
-        case 'F':
-        case 'I':
-        case 'J':
-        case 'S':
-        case 'Z':_end++; break;
+        case JVM_SIGNATURE_BYTE:
+        case JVM_SIGNATURE_CHAR:
+        case JVM_SIGNATURE_DOUBLE:
+        case JVM_SIGNATURE_FLOAT:
+        case JVM_SIGNATURE_INT:
+        case JVM_SIGNATURE_LONG:
+        case JVM_SIGNATURE_SHORT:
+        case JVM_SIGNATURE_BOOLEAN:_end++; break;
         default: {
-          while (sig->char_at(_end++) != ';');
+          while (sig->char_at(_end++) != JVM_SIGNATURE_ENDCLASS);
           break;
         }
       }
       break;
     }
-    case ')': _end++; next(); _at_return_type = true; break;
+    case JVM_SIGNATURE_ENDFUNC: _end++; next(); _at_return_type = true; break;
     default : ShouldNotReachHere();
   }
 }
@@ -348,28 +336,53 @@ bool SignatureStream::is_array() const {
   return _type == T_ARRAY;
 }
 
-Symbol* SignatureStream::as_symbol(TRAPS) {
+Symbol* SignatureStream::as_symbol() {
   // Create a symbol from for string _begin _end
   int begin = _begin;
   int end   = _end;
 
-  if (   _signature->char_at(_begin) == 'L'
-      && _signature->char_at(_end-1) == ';') {
+  if (   _signature->char_at(_begin) == JVM_SIGNATURE_CLASS
+      && _signature->char_at(_end-1) == JVM_SIGNATURE_ENDCLASS) {
     begin++;
     end--;
   }
 
+  const char* symbol_chars = (const char*)_signature->base() + begin;
+  int len = end - begin;
+
+  // Quick check for common symbols in signatures
+  assert((vmSymbols::java_lang_String()->utf8_length() == 16 && vmSymbols::java_lang_Object()->utf8_length() == 16), "sanity");
+  if (len == 16 &&
+      strncmp(symbol_chars, "java/lang/", 10) == 0) {
+    if (strncmp("String", symbol_chars + 10, 6) == 0) {
+      return vmSymbols::java_lang_String();
+    } else if (strncmp("Object", symbol_chars + 10, 6) == 0) {
+      return vmSymbols::java_lang_Object();
+    }
+  }
+
+  Symbol* name = _previous_name;
+  if (name != NULL && name->equals(symbol_chars, len)) {
+    return name;
+  }
+
   // Save names for cleaning up reference count at the end of
   // SignatureStream scope.
-  Symbol* name = SymbolTable::new_symbol(_signature, begin, end, CHECK_NULL);
-  _names->push(name);  // save new symbol for decrementing later
+  name = SymbolTable::new_symbol(symbol_chars, len);
+  if (!name->is_permanent()) {
+    if (_names == NULL) {
+      _names = new GrowableArray<Symbol*>(10);
+    }
+    _names->push(name);  // save new symbol for decrementing later
+  }
+  _previous_name = name;
   return name;
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
-                                   FailureMode failure_mode, TRAPS) {
+                                 FailureMode failure_mode, TRAPS) {
   if (!is_object())  return NULL;
-  Symbol* name = as_symbol(CHECK_NULL);
+  Symbol* name = as_symbol();
   if (failure_mode == ReturnNull) {
     return SystemDictionary::resolve_or_null(name, class_loader, protection_domain, THREAD);
   } else {
@@ -394,8 +407,8 @@ Symbol* SignatureStream::as_symbol_or_null() {
   int begin = _begin;
   int end   = _end;
 
-  if (   _signature->char_at(_begin) == 'L'
-      && _signature->char_at(_end-1) == ';') {
+  if (   _signature->char_at(_begin) == JVM_SIGNATURE_CLASS
+      && _signature->char_at(_end-1) == JVM_SIGNATURE_ENDCLASS) {
     begin++;
     end--;
   }
@@ -418,25 +431,14 @@ int SignatureStream::reference_parameter_count() {
   return args_count;
 }
 
-bool SignatureVerifier::is_valid_signature(Symbol* sig) {
-  const char* signature = (const char*)sig->bytes();
-  ssize_t len = sig->utf8_length();
-  if (signature == NULL || signature[0] == '\0' || len < 1) {
-    return false;
-  } else if (signature[0] == '(') {
-    return is_valid_method_signature(sig);
-  } else {
-    return is_valid_type_signature(sig);
-  }
-}
-
+#ifdef ASSERT
 bool SignatureVerifier::is_valid_method_signature(Symbol* sig) {
   const char* method_sig = (const char*)sig->bytes();
   ssize_t len = sig->utf8_length();
   ssize_t index = 0;
-  if (method_sig != NULL && len > 1 && method_sig[index] == '(') {
+  if (method_sig != NULL && len > 1 && method_sig[index] == JVM_SIGNATURE_FUNC) {
     ++index;
-    while (index < len && method_sig[index] != ')') {
+    while (index < len && method_sig[index] != JVM_SIGNATURE_ENDFUNC) {
       ssize_t res = is_valid_type(&method_sig[index], len - index);
       if (res == -1) {
         return false;
@@ -444,7 +446,7 @@ bool SignatureVerifier::is_valid_method_signature(Symbol* sig) {
         index += res;
       }
     }
-    if (index < len && method_sig[index] == ')') {
+    if (index < len && method_sig[index] == JVM_SIGNATURE_ENDFUNC) {
       // check the return type
       ++index;
       return (is_valid_type(&method_sig[index], len - index) == (len - index));
@@ -467,22 +469,30 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
   ssize_t index = 0;
 
   // Iterate over any number of array dimensions
-  while (index < limit && type[index] == '[') ++index;
+  while (index < limit && type[index] == JVM_SIGNATURE_ARRAY) ++index;
   if (index >= limit) {
     return -1;
   }
   switch (type[index]) {
-    case 'B': case 'C': case 'D': case 'F': case 'I':
-    case 'J': case 'S': case 'Z': case 'V':
+    case JVM_SIGNATURE_BYTE:
+    case JVM_SIGNATURE_CHAR:
+    case JVM_SIGNATURE_DOUBLE:
+    case JVM_SIGNATURE_FLOAT:
+    case JVM_SIGNATURE_INT:
+    case JVM_SIGNATURE_LONG:
+    case JVM_SIGNATURE_SHORT:
+    case JVM_SIGNATURE_BOOLEAN:
+    case JVM_SIGNATURE_VOID:
       return index + 1;
-    case 'L':
+    case JVM_SIGNATURE_CLASS:
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];
-        if (c == ';') {
-          return index + 1;
-        }
-        if (invalid_name_char(c)) {
-          return -1;
+        switch (c) {
+          case JVM_SIGNATURE_ENDCLASS:
+            return index + 1;
+          case '\0': case JVM_SIGNATURE_DOT: case JVM_SIGNATURE_ARRAY:
+            return -1;
+          default: ; // fall through
         }
       }
       // fall through
@@ -490,12 +500,4 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
   }
   return -1;
 }
-
-bool SignatureVerifier::invalid_name_char(char c) {
-  switch (c) {
-    case '\0': case '.': case ';': case '[':
-      return true;
-    default:
-      return false;
-  }
-}
+#endif // ASSERT

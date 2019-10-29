@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -34,6 +34,7 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
+#include "utilities/debug.hpp"
 
 ShenandoahPhaseTimings::Phase ShenandoahGCPhase::_current_phase = ShenandoahGCPhase::_invalid_phase;
 
@@ -44,13 +45,14 @@ ShenandoahGCSession::ShenandoahGCSession(GCCause::Cause cause) :
   assert(!ShenandoahGCPhase::is_valid_phase(ShenandoahGCPhase::current_phase()),
     "No current GC phase");
 
+  _heap->set_gc_cause(cause);
   _timer->register_gc_start();
   _tracer->report_gc_start(cause, _timer->gc_start());
   _heap->trace_heap(GCWhen::BeforeGC, _tracer);
 
   _heap->shenandoah_policy()->record_cycle_start();
   _heap->heuristics()->record_cycle_start();
-  _trace_cycle.initialize(_heap->cycle_memory_manager(), _heap->gc_cause(),
+  _trace_cycle.initialize(_heap->cycle_memory_manager(), cause,
           /* allMemoryPoolsAffected */    true,
           /* recordGCBeginTime = */       true,
           /* recordPreGCUsage = */        true,
@@ -69,6 +71,7 @@ ShenandoahGCSession::~ShenandoahGCSession() {
   _tracer->report_gc_end(_timer->gc_end(), _timer->time_partitions());
   assert(!ShenandoahGCPhase::is_valid_phase(ShenandoahGCPhase::current_phase()),
     "No current GC phase");
+  _heap->set_gc_cause(GCCause::_no_gc);
 }
 
 ShenandoahGCPauseMark::ShenandoahGCPauseMark(uint gc_id, SvcGCMarker::reason_type type) :
@@ -98,9 +101,10 @@ ShenandoahGCPauseMark::~ShenandoahGCPauseMark() {
 
 ShenandoahGCPhase::ShenandoahGCPhase(const ShenandoahPhaseTimings::Phase phase) :
   _heap(ShenandoahHeap::heap()), _phase(phase) {
-  assert(Thread::current()->is_VM_thread() ||
-         Thread::current()->is_ConcurrentGC_thread(),
-        "Must be set by these threads");
+   assert(!Thread::current()->is_Worker_thread() &&
+              (Thread::current()->is_VM_thread() ||
+               Thread::current()->is_ConcurrentGC_thread()),
+          "Must be set by these threads");
   _parent_phase = _current_phase;
   _current_phase = phase;
 

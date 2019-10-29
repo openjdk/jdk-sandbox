@@ -37,6 +37,8 @@ G1ConcurrentRefineThread::G1ConcurrentRefineThread(G1ConcurrentRefine* cr, uint 
   ConcurrentGCThread(),
   _vtime_start(0.0),
   _vtime_accum(0.0),
+  _total_refinement_time(),
+  _total_refined_cards(0),
   _worker_id(worker_id),
   _active(false),
   _monitor(NULL),
@@ -59,9 +61,9 @@ G1ConcurrentRefineThread::G1ConcurrentRefineThread(G1ConcurrentRefine* cr, uint 
 }
 
 void G1ConcurrentRefineThread::wait_for_completed_buffers() {
-  MutexLockerEx x(_monitor, Mutex::_no_safepoint_check_flag);
+  MonitorLocker ml(_monitor, Mutex::_no_safepoint_check_flag);
   while (!should_terminate() && !is_active()) {
-    _monitor->wait(Mutex::_no_safepoint_check_flag);
+    ml.wait();
   }
 }
 
@@ -71,7 +73,7 @@ bool G1ConcurrentRefineThread::is_active() {
 }
 
 void G1ConcurrentRefineThread::activate() {
-  MutexLockerEx x(_monitor, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(_monitor, Mutex::_no_safepoint_check_flag);
   if (!is_primary()) {
     set_active(true);
   } else {
@@ -82,7 +84,7 @@ void G1ConcurrentRefineThread::activate() {
 }
 
 void G1ConcurrentRefineThread::deactivate() {
-  MutexLockerEx x(_monitor, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(_monitor, Mutex::_no_safepoint_check_flag);
   if (!is_primary()) {
     set_active(false);
   } else {
@@ -101,10 +103,11 @@ void G1ConcurrentRefineThread::run_service() {
       break;
     }
 
-    size_t buffers_processed = 0;
     log_debug(gc, refine)("Activated worker %d, on threshold: " SIZE_FORMAT ", current: " SIZE_FORMAT,
                           _worker_id, _cr->activation_threshold(_worker_id),
-                           G1BarrierSet::dirty_card_queue_set().completed_buffers_num());
+                          G1BarrierSet::dirty_card_queue_set().num_cards());
+
+    size_t start_total_refined_cards = _total_refined_cards; // For logging.
 
     {
       SuspendibleThreadSetJoiner sts_join;
@@ -115,19 +118,22 @@ void G1ConcurrentRefineThread::run_service() {
           continue;             // Re-check for termination after yield delay.
         }
 
-        if (!_cr->do_refinement_step(_worker_id)) {
-          break;
+        Ticks start_time = Ticks::now();
+        if (!_cr->do_refinement_step(_worker_id, &_total_refined_cards)) {
+          break;                // No cards to process.
         }
-        ++buffers_processed;
+        _total_refinement_time += (Ticks::now() - start_time);
       }
     }
 
     deactivate();
     log_debug(gc, refine)("Deactivated worker %d, off threshold: " SIZE_FORMAT
-                          ", current: " SIZE_FORMAT ", processed: " SIZE_FORMAT,
+                          ", current: " SIZE_FORMAT ", refined cards: "
+                          SIZE_FORMAT ", total refined cards: " SIZE_FORMAT,
                           _worker_id, _cr->deactivation_threshold(_worker_id),
-                          G1BarrierSet::dirty_card_queue_set().completed_buffers_num(),
-                          buffers_processed);
+                          G1BarrierSet::dirty_card_queue_set().num_cards(),
+                          _total_refined_cards - start_total_refined_cards,
+                          _total_refined_cards);
 
     if (os::supports_vtime()) {
       _vtime_accum = (os::elapsedVTime() - _vtime_start);
@@ -140,6 +146,6 @@ void G1ConcurrentRefineThread::run_service() {
 }
 
 void G1ConcurrentRefineThread::stop_service() {
-  MutexLockerEx x(_monitor, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(_monitor, Mutex::_no_safepoint_check_flag);
   _monitor->notify();
 }

@@ -235,7 +235,6 @@ class ParNewGenTask: public AbstractGangTask {
   HeapWord*                    _young_old_boundary;
   class ParScanThreadStateSet* _state_set;
   StrongRootsScope*            _strong_roots_scope;
-  OopStorage::ParState<false, false> _par_state_string;
 
 public:
   ParNewGenTask(ParNewGeneration*      young_gen,
@@ -349,7 +348,10 @@ class ParNewGeneration: public DefNewGeneration {
   void restore_preserved_marks();
 
  public:
-  ParNewGeneration(ReservedSpace rs, size_t initial_byte_size);
+  ParNewGeneration(ReservedSpace rs,
+                   size_t initial_byte_size,
+                   size_t min_byte_size,
+                   size_t max_byte_size);
 
   ~ParNewGeneration() {
     for (uint i = 0; i < ParallelGCThreads; i++)
@@ -379,7 +381,7 @@ class ParNewGeneration: public DefNewGeneration {
   // that must not contain a forwarding pointer (though one might be
   // inserted in "obj"s mark word by a parallel thread).
   oop copy_to_survivor_space(ParScanThreadState* par_scan_state,
-                             oop obj, size_t obj_sz, markOop m);
+                             oop obj, size_t obj_sz, markWord m);
 
   // in support of testing overflow code
   NOT_PRODUCT(int _overflow_counter;)

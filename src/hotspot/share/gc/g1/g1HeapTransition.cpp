@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ G1HeapTransition::Data::Data(G1CollectedHeap* g1_heap) {
   _old_length = g1_heap->old_regions_count();
   _archive_length = g1_heap->archive_regions_count();
   _humongous_length = g1_heap->humongous_regions_count();
-  _metaspace_used_bytes = MetaspaceUtils::used_bytes();
 }
 
 G1HeapTransition::G1HeapTransition(G1CollectedHeap* g1_heap) : _g1_heap(g1_heap), _before(g1_heap) { }
@@ -88,8 +87,8 @@ public:
 void G1HeapTransition::print() {
   Data after(_g1_heap);
 
-  size_t eden_capacity_length_after_gc = _g1_heap->g1_policy()->young_list_target_length() - after._survivor_length;
-  size_t survivor_capacity_length_before_gc = _g1_heap->g1_policy()->max_survivor_regions();
+  size_t eden_capacity_length_after_gc = _g1_heap->policy()->young_list_target_length() - after._survivor_length;
+  size_t survivor_capacity_length_before_gc = _g1_heap->policy()->max_survivor_regions();
 
   DetailedUsage usage;
   if (log_is_enabled(Trace, gc, heap)) {
@@ -131,5 +130,5 @@ void G1HeapTransition::print() {
   log_trace(gc, heap)(" Used: " SIZE_FORMAT "K, Waste: " SIZE_FORMAT "K",
       usage._humongous_used / K, ((after._humongous_length * HeapRegion::GrainBytes) - usage._humongous_used) / K);
 
-  MetaspaceUtils::print_metaspace_change(_before._metaspace_used_bytes);
+  MetaspaceUtils::print_metaspace_change(_before._meta_sizes);
 }

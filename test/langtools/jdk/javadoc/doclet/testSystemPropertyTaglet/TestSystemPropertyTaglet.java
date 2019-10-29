@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,7 +47,7 @@ public class TestSystemPropertyTaglet extends JavadocTester {
 
     public static void main(String... args) throws Exception {
         TestSystemPropertyTaglet tester = new TestSystemPropertyTaglet();
-        tester.runTests(m -> new Object[]{Paths.get(m.getName())});
+        tester.runTests(m -> new Object[] { Paths.get(m.getName()) });
     }
 
     TestSystemPropertyTaglet() {
@@ -76,9 +76,9 @@ public class TestSystemPropertyTaglet extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOrder("pkg/A.html",
-                "<h2 title=\"Class A\" class=\"title\">Class A</h2>",
+                "<h1 title=\"Class A\" class=\"title\">Class A</h1>",
                 "test with <code><a id=\"user.name\" class=\"searchTagResult\">user.name</a></code>",
-                "<h3>Method Detail</h3>",
+                "<h2>Method Details</h2>",
                 "test with <code><a id=\"java.version\" class=\"searchTagResult\">java.version</a></code>");
 
         checkOrder("index-all.html",
@@ -117,5 +117,28 @@ public class TestSystemPropertyTaglet extends JavadocTester {
 
         checkOutput(Output.OUT, true,
                 "warning: {@systemProperty} tag, which expands to <a>, within <a>");
+    }
+
+    @Test
+    public void testDuplicateReferences(Path base) throws Exception {
+        Path srcDir = base.resolve("src");
+        Path outDir = base.resolve("out");
+
+        new ClassBuilder(tb, "pkg.A")
+                .setModifiers("public", "class")
+                .setComments("This is a class. Here is {@systemProperty foo}.")
+                .addMembers(MethodBuilder.parse("public void m() {}")
+                        .setComments("This is a method. Here is {@systemProperty foo}."))
+                .write(srcDir);
+
+        javadoc("-d", outDir.toString(),
+                "-sourcepath", srcDir.toString(),
+                "pkg");
+
+        checkExit(Exit.OK);
+
+        checkOutput("pkg/A.html", true,
+                "This is a class. Here is <code><a id=\"foo\" class=\"searchTagResult\">foo</a></code>.",
+                "This is a method. Here is <code><a id=\"foo-1\" class=\"searchTagResult\">foo</a></code>.");
     }
 }

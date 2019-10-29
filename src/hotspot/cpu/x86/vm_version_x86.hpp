@@ -25,6 +25,7 @@
 #ifndef CPU_X86_VM_VERSION_X86_HPP
 #define CPU_X86_VM_VERSION_X86_HPP
 
+#include "memory/universe.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/vm_version.hpp"
 
@@ -218,7 +219,10 @@ class VM_Version : public Abstract_VM_Version {
                avx512dq : 1,
                         : 1,
                     adx : 1,
-                        : 6,
+                        : 3,
+             clflushopt : 1,
+                   clwb : 1,
+                        : 1,
                avx512pf : 1,
                avx512er : 1,
                avx512cd : 1,
@@ -338,7 +342,11 @@ protected:
 #define CPU_VAES ((uint64_t)UCONST64(0x8000000000))    // Vector AES instructions
 #define CPU_VNNI ((uint64_t)UCONST64(0x10000000000))   // Vector Neural Network Instructions
 
-  enum Extended_Family {
+#define CPU_FLUSH ((uint64_t)UCONST64(0x20000000000))  // flush instruction
+#define CPU_FLUSHOPT ((uint64_t)UCONST64(0x40000000000)) // flushopt instruction
+#define CPU_CLWB ((uint64_t)UCONST64(0x80000000000))   // clwb instruction
+
+enum Extended_Family {
     // AMD
     CPU_FAMILY_AMD_11H       = 0x11,
     // ZX
@@ -358,7 +366,7 @@ protected:
     CPU_MODEL_HASWELL_E3     = 0x3c,
     CPU_MODEL_HASWELL_E7     = 0x3f,
     CPU_MODEL_BROADWELL      = 0x3d,
-    CPU_MODEL_SKYLAKE        = CPU_MODEL_HASWELL_E3
+    CPU_MODEL_SKYLAKE        = 0x55
   };
 
   // cpuid information block.  All info derived from executing cpuid with
@@ -495,13 +503,21 @@ protected:
       result |= CPU_CX8;
     if (_cpuid_info.std_cpuid1_edx.bits.cmov != 0)
       result |= CPU_CMOV;
-    if (_cpuid_info.std_cpuid1_edx.bits.fxsr != 0 || (is_amd() &&
+    if (_cpuid_info.std_cpuid1_edx.bits.clflush != 0)
+      result |= CPU_FLUSH;
+#ifdef _LP64
+    // clflush should always be available on x86_64
+    // if not we are in real trouble because we rely on it
+    // to flush the code cache.
+    assert ((result & CPU_FLUSH) != 0, "clflush should be available");
+#endif
+    if (_cpuid_info.std_cpuid1_edx.bits.fxsr != 0 || (is_amd_family() &&
         _cpuid_info.ext_cpuid1_edx.bits.fxsr != 0))
       result |= CPU_FXSR;
     // HT flag is set for multi-core processors also.
     if (threads_per_core() > 1)
       result |= CPU_HT;
-    if (_cpuid_info.std_cpuid1_edx.bits.mmx != 0 || (is_amd() &&
+    if (_cpuid_info.std_cpuid1_edx.bits.mmx != 0 || (is_amd_family() &&
         _cpuid_info.ext_cpuid1_edx.bits.mmx != 0))
       result |= CPU_MMX;
     if (_cpuid_info.std_cpuid1_edx.bits.sse != 0)
@@ -553,7 +569,7 @@ protected:
           result |= CPU_VNNI;
       }
     }
-    if(_cpuid_info.sef_cpuid7_ebx.bits.bmi1 != 0)
+    if (_cpuid_info.sef_cpuid7_ebx.bits.bmi1 != 0)
       result |= CPU_BMI1;
     if (_cpuid_info.std_cpuid1_edx.bits.tsc != 0)
       result |= CPU_TSC;
@@ -567,17 +583,19 @@ protected:
       result |= CPU_CLMUL;
     if (_cpuid_info.sef_cpuid7_ebx.bits.rtm != 0)
       result |= CPU_RTM;
-    if(_cpuid_info.sef_cpuid7_ebx.bits.adx != 0)
+    if (_cpuid_info.sef_cpuid7_ebx.bits.adx != 0)
        result |= CPU_ADX;
-    if(_cpuid_info.sef_cpuid7_ebx.bits.bmi2 != 0)
+    if (_cpuid_info.sef_cpuid7_ebx.bits.bmi2 != 0)
       result |= CPU_BMI2;
     if (_cpuid_info.sef_cpuid7_ebx.bits.sha != 0)
       result |= CPU_SHA;
     if (_cpuid_info.std_cpuid1_ecx.bits.fma != 0)
       result |= CPU_FMA;
+    if (_cpuid_info.sef_cpuid7_ebx.bits.clflushopt != 0)
+      result |= CPU_FLUSHOPT;
 
-    // AMD features.
-    if (is_amd()) {
+    // AMD|Hygon features.
+    if (is_amd_family()) {
       if ((_cpuid_info.ext_cpuid1_edx.bits.tdnow != 0) ||
           (_cpuid_info.ext_cpuid1_ecx.bits.prefetchw != 0))
         result |= CPU_3DNOW_PREFETCH;
@@ -587,12 +605,15 @@ protected:
         result |= CPU_SSE4A;
     }
     // Intel features.
-    if(is_intel()) {
-      if(_cpuid_info.ext_cpuid1_ecx.bits.lzcnt_intel != 0)
+    if (is_intel()) {
+      if (_cpuid_info.ext_cpuid1_ecx.bits.lzcnt_intel != 0)
         result |= CPU_LZCNT;
       // for Intel, ecx.bits.misalignsse bit (bit 8) indicates support for prefetchw
       if (_cpuid_info.ext_cpuid1_ecx.bits.misalignsse != 0) {
         result |= CPU_3DNOW_PREFETCH;
+      }
+      if (_cpuid_info.sef_cpuid7_ebx.bits.clwb != 0) {
+        result |= CPU_CLWB;
       }
     }
 
@@ -686,6 +707,9 @@ public:
   static void initialize();
 
   // Override Abstract_VM_Version implementation
+  static void print_platform_virtualization_info(outputStream*);
+
+  // Override Abstract_VM_Version implementation
   static bool use_biased_locking();
 
   // Asserts
@@ -711,6 +735,8 @@ public:
   static int  cpu_family()        { return _cpu;}
   static bool is_P6()             { return cpu_family() >= 6; }
   static bool is_amd()            { assert_is_initialized(); return _cpuid_info.std_vendor_name_0 == 0x68747541; } // 'htuA'
+  static bool is_hygon()          { assert_is_initialized(); return _cpuid_info.std_vendor_name_0 == 0x6F677948; } // 'ogyH'
+  static bool is_amd_family()     { return is_amd() || is_hygon(); }
   static bool is_intel()          { assert_is_initialized(); return _cpuid_info.std_vendor_name_0 == 0x756e6547; } // 'uneG'
   static bool is_zx()             { assert_is_initialized(); return (_cpuid_info.std_vendor_name_0 == 0x746e6543) || (_cpuid_info.std_vendor_name_0 == 0x68532020); } // 'tneC'||'hS  '
   static bool is_atom_family()    { return ((cpu_family() == 0x06) && ((extended_cpu_model() == 0x36) || (extended_cpu_model() == 0x37) || (extended_cpu_model() == 0x4D))); } //Silvermont and Centerton
@@ -734,7 +760,7 @@ public:
       if (!supports_topology || result == 0) {
         result = (_cpuid_info.dcp_cpuid4_eax.bits.cores_per_cpu + 1);
       }
-    } else if (is_amd()) {
+    } else if (is_amd_family()) {
       result = (_cpuid_info.ext_cpuid8_ecx.bits.cores_per_cpu + 1);
     } else if (is_zx()) {
       bool supports_topology = supports_processor_topology();
@@ -770,7 +796,7 @@ public:
     intx result = 0;
     if (is_intel()) {
       result = (_cpuid_info.dcp_cpuid4_ebx.bits.L1_line_size + 1);
-    } else if (is_amd()) {
+    } else if (is_amd_family()) {
       result = _cpuid_info.ext_cpuid5_ecx.bits.L1_line_size;
     } else if (is_zx()) {
       result = (_cpuid_info.dcp_cpuid4_ebx.bits.L1_line_size + 1);
@@ -857,7 +883,7 @@ public:
 
   // AMD features
   static bool supports_3dnow_prefetch()    { return (_features & CPU_3DNOW_PREFETCH) != 0; }
-  static bool supports_mmx_ext()  { return is_amd() && _cpuid_info.ext_cpuid1_edx.bits.mmx_amd != 0; }
+  static bool supports_mmx_ext()  { return is_amd_family() && _cpuid_info.ext_cpuid1_edx.bits.mmx_amd != 0; }
   static bool supports_lzcnt()    { return (_features & CPU_LZCNT) != 0; }
   static bool supports_sse4a()    { return (_features & CPU_SSE4A) != 0; }
 
@@ -870,8 +896,8 @@ public:
   }
   static bool supports_tscinv() {
     return supports_tscinv_bit() &&
-           ( (is_amd() && !is_amd_Barcelona()) ||
-             is_intel_tsc_synched_at_init() );
+      ((is_amd_family() && !is_amd_Barcelona()) ||
+        is_intel_tsc_synched_at_init());
   }
 
   // Intel Core and newer cpus have fast IDIV instruction (excluding Atom).
@@ -896,7 +922,7 @@ public:
     // Core      - 256 / prefetchnta
     // It will be used only when AllocatePrefetchStyle > 0
 
-    if (is_amd()) { // AMD
+    if (is_amd_family()) { // AMD | Hygon
       if (supports_sse2()) {
         return 256; // Opteron
       } else {
@@ -930,6 +956,54 @@ public:
   // that can be used for efficient implementation of
   // the intrinsic for java.lang.Thread.onSpinWait()
   static bool supports_on_spin_wait() { return supports_sse2(); }
+
+  // x86_64 supports fast class initialization checks for static methods.
+  static bool supports_fast_class_init_checks() {
+    return LP64_ONLY(true) NOT_LP64(false); // not implemented on x86_32
+  }
+
+  // there are several insns to force cache line sync to memory which
+  // we can use to ensure mapped non-volatile memory is up to date with
+  // pending in-cache changes.
+  //
+  // 64 bit cpus always support clflush which writes back and evicts
+  // on 32 bit cpus support is recorded via a feature flag
+  //
+  // clflushopt is optional and acts like clflush except it does
+  // not synchronize with other memory ops. it needs a preceding
+  // and trailing StoreStore fence
+  //
+  // clwb is an optional, intel-specific instruction optional which
+  // writes back without evicting the line. it also does not
+  // synchronize with other memory ops. so, it also needs a preceding
+  // and trailing StoreStore fence.
+
+#ifdef _LP64
+  static bool supports_clflush() {
+    // clflush should always be available on x86_64
+    // if not we are in real trouble because we rely on it
+    // to flush the code cache.
+    // Unfortunately, Assembler::clflush is currently called as part
+    // of generation of the code cache flush routine. This happens
+    // under Universe::init before the processor features are set
+    // up. Assembler::flush calls this routine to check that clflush
+    // is allowed. So, we give the caller a free pass if Universe init
+    // is still in progress.
+    assert ((!Universe::is_fully_initialized() || (_features & CPU_FLUSH) != 0), "clflush should be available");
+    return true;
+  }
+  static bool supports_clflushopt() { return ((_features & CPU_FLUSHOPT) != 0); }
+  static bool supports_clwb() { return ((_features & CPU_CLWB) != 0); }
+#else
+  static bool supports_clflush() { return  ((_features & CPU_FLUSH) != 0); }
+  static bool supports_clflushopt() { return false; }
+  static bool supports_clwb() { return false; }
+#endif // _LP64
+
+  // support functions for virtualization detection
+ private:
+  static void check_virt_cpuid(uint32_t idx, uint32_t *regs);
+  static void check_virtualizations();
 };
 
 #endif // CPU_X86_VM_VERSION_X86_HPP

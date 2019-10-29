@@ -30,8 +30,6 @@
 // (see globals.hpp)
 //
 
-define_pd_global(bool,  ShareVtableStubs,         true);
-
 define_pd_global(bool,  ImplicitNullChecks,       true);  // Generate code for implicit null checks
 define_pd_global(bool,  UncommonNullCast,         true);  // Uncommon-trap NULLs past to check cast
 define_pd_global(bool,  TrapBasedNullChecks,      false); // Not needed
@@ -39,8 +37,6 @@ define_pd_global(bool,  TrapBasedNullChecks,      false); // Not needed
 define_pd_global(uintx, CodeCacheSegmentSize, 64 TIERED_ONLY(+64)); // Tiered compilation has large code-entry alignment.
 define_pd_global(intx,  CodeEntryAlignment,       16);
 define_pd_global(intx,  OptoLoopAlignment,        16);
-
-define_pd_global(bool,  NeedsDeoptSuspend,        false); // only register window machines need this
 
 #define DEFAULT_STACK_YELLOW_PAGES (2)
 #define DEFAULT_STACK_RED_PAGES (1)

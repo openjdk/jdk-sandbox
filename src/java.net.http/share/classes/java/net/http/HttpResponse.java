@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -828,7 +828,7 @@ public interface HttpResponse<T> {
     /**
      * A {@code BodySubscriber} consumes response body bytes and converts them
      * into a higher-level Java type.  The class {@link BodySubscribers
-     * BodySubscriber} provides implementations of many common body subscribers.
+     * BodySubscribers} provides implementations of many common body subscribers.
      *
      * <p> The object acts as a {@link Flow.Subscriber}&lt;{@link List}&lt;{@link
      * ByteBuffer}&gt;&gt; to the HTTP Client implementation, which publishes
@@ -1253,7 +1253,7 @@ public interface HttpResponse<T> {
         /**
          * Returns a {@code BodySubscriber} which buffers data before delivering
          * it to the given downstream subscriber. The subscriber guarantees to
-         * deliver {@code buffersize} bytes of data to each invocation of the
+         * deliver {@code bufferSize} bytes of data to each invocation of the
          * downstream's {@link BodySubscriber#onNext(Object) onNext} method,
          * except for the final invocation, just before
          * {@link BodySubscriber#onComplete() onComplete} is invoked. The final

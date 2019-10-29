@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -138,11 +138,10 @@ public class OpaqueDirectiveTest extends GraalCompilerTest {
     }
 
     @Override
-    protected boolean checkLowTierGraph(StructuredGraph graph) {
+    protected void checkLowTierGraph(StructuredGraph graph) {
         OpaqueSnippet snippet = graph.method().getAnnotation(OpaqueSnippet.class);
         for (ReturnNode returnNode : graph.getNodes(ReturnNode.TYPE)) {
             Assert.assertEquals(snippet.expectedReturnNode(), returnNode.result().getClass());
         }
-        return true;
     }
 }
