@@ -26,6 +26,7 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -57,27 +58,17 @@ import sun.security.action.GetPropertyAction;
 
 public class Net {
 
-    public Net() { }
+    private Net() { }
 
-    private static final boolean unixDomainSupported;
-    //private static final boolean abstractNamesSupported;
+    private static final boolean unixDomainSupported =
+        unixDomainSocketSupported();
 
     // unspecified protocol family
-    public static final ProtocolFamily UNSPEC = new ProtocolFamily() {
+    static final ProtocolFamily UNSPEC = new ProtocolFamily() {
         public String name() {
             return "UNSPEC";
         }
     };
-
-    static {
-        unixDomainSupported = unixDomainSocketSupported();
-        String name = GetPropertyAction.privilegedGetProperty("os.name")
-            .toLowerCase();
-
-        // Windows claims to support it but doesn't. Disable for now
-        //abstractNamesSupported = name.startsWith("linux");
-            //  || name.startsWith("windows");
-    }
 
     // set to true if exclusive binding is on for Windows
     private static final boolean exclusiveBind;
@@ -117,7 +108,7 @@ public class Net {
     /**
      * Returns true if exclusive binding is on
      */
-    public static boolean useExclusiveBind() {
+    static boolean useExclusiveBind() {
         return exclusiveBind;
     }
 
@@ -326,13 +317,13 @@ public class Net {
     static final ExtendedSocketOptions extendedOptions =
             ExtendedSocketOptions.getInstance();
 
-    public static void setSocketOption(FileDescriptor fd, SocketOption<?> name, Object value)
+    static void setSocketOption(FileDescriptor fd, SocketOption<?> name, Object value)
         throws IOException
     {
         setSocketOption(fd, Net.UNSPEC, name, value);
     }
 
-    public static void setSocketOption(FileDescriptor fd, ProtocolFamily family,
+    static void setSocketOption(FileDescriptor fd, ProtocolFamily family,
                                 SocketOption<?> name, Object value)
         throws IOException
     {
@@ -394,13 +385,13 @@ public class Net {
         setIntOption0(fd, mayNeedConversion, key.level(), key.name(), arg, isIPv6);
     }
 
-    public static Object getSocketOption(FileDescriptor fd, SocketOption<?> name)
+    static Object getSocketOption(FileDescriptor fd, SocketOption<?> name)
         throws IOException
     {
         return getSocketOption(fd, Net.UNSPEC, name);
     }
 
-    public static Object getSocketOption(FileDescriptor fd, ProtocolFamily family, SocketOption<?> name)
+    static Object getSocketOption(FileDescriptor fd, ProtocolFamily family, SocketOption<?> name)
         throws IOException
     {
         Class<?> type = name.type();
@@ -459,7 +450,7 @@ public class Net {
         return IOUtil.newFD(socket0(preferIPv6, stream, false, fastLoopback));
     }
 
-    public static FileDescriptor serverSocket(boolean stream) {
+    static FileDescriptor serverSocket(boolean stream) {
         return IOUtil.newFD(socket0(isIPv6Available(), stream, true, fastLoopback));
     }
 
@@ -489,7 +480,7 @@ public class Net {
                                      int port)
         throws IOException;
 
-    public static native void listen(FileDescriptor fd, int backlog) throws IOException;
+    static native void listen(FileDescriptor fd, int backlog) throws IOException;
 
     static int connect(FileDescriptor fd, InetAddress remote, int remotePort)
         throws IOException
@@ -523,7 +514,7 @@ public class Net {
     public static final int SHUT_WR = 1;
     public static final int SHUT_RDWR = 2;
 
-    public static native void shutdown(FileDescriptor fd, int how) throws IOException;
+    static native void shutdown(FileDescriptor fd, int how) throws IOException;
 
     private static native int localPort(FileDescriptor fd)
         throws IOException;
@@ -590,14 +581,14 @@ public class Net {
      *
      * @return true if connected
      */
-    public static boolean pollConnectNow(FileDescriptor fd) throws IOException {
+    static boolean pollConnectNow(FileDescriptor fd) throws IOException {
         return pollConnect(fd, 0);
     }
 
     /**
      * Return the number of bytes in the socket input buffer.
      */
-    public static native int available(FileDescriptor fd) throws IOException;
+    static native int available(FileDescriptor fd) throws IOException;
 
     /**
      * Send one byte of urgent data (MSG_OOB) on the socket.
@@ -709,30 +700,40 @@ public class Net {
     public static final short POLLIN;
     public static final short POLLOUT;
 
-    public static boolean isUnixDomainSupported() {
-        return unixDomainSupported;
-    }
-
     public static UnixDomainSocketAddress checkUnixAddress(SocketAddress sa) {
         if (sa == null)
             throw new NullPointerException();
         if (!(sa instanceof UnixDomainSocketAddress))
             throw new UnsupportedAddressTypeException();
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        //if (usa.isAbstract() && !abstractNamesSupported())
-            //throw new UnsupportedAddressTypeException();
         return usa;
     }
 
-    /**
-     * 2 methods to be implemented if fine-grained security to be used
-     */
+    public static boolean isUnixDomainSupported() {
+        return unixDomainSupported;
+    }
+
+    private static UnixDomainSocketAddress UNNAMED = new UnixDomainSocketAddress("");
+
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
+        SecurityManager sm = System.getSecurityManager();
+        if (addr == null || sm == null)
+            return addr;
+
+        try{
+            FilePermission p = new FilePermission(addr.getPath(), "read");
+            sm.checkPermission(p);
+            // Security check passed
+        } catch (SecurityException e) {
+            // Return unnamed address only if security check fails
+            addr = UNNAMED;
+        }
         return addr;
     }
 
     static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
-        return addr.toString();
+        return System.getSecurityManager() == null ? addr.toString() :
+                UNNAMED.toString();
     }
 
     // -- Socket operations --
@@ -741,9 +742,9 @@ public class Net {
         return IOUtil.newFD(unixDomainSocket0());
     }
 
-    public static native boolean unixDomainSocketSupported();
-
     private static native int unixDomainSocket0();
+
+    private static native boolean unixDomainSocketSupported();
 
     static native void unixDomainBind(FileDescriptor fd, UnixDomainSocketAddress addr)
         throws IOException;
@@ -801,6 +802,4 @@ public class Net {
 
         fastLoopback = isFastTcpLoopbackRequested();
     }
-
-
 }

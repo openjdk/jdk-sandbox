@@ -50,7 +50,6 @@
 extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
-extern jfieldID udsa_isAbstractID;
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa) {
@@ -59,14 +58,6 @@ NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa) {
     if (sa->sa.sa_family == AF_UNIX) {
         char *name = sa->saun.sun_path;
 
-#ifdef NOTDEF
-        /* check for abstract name */
-        if (name[0] == 0) {
-            isAbstract = 1;
-            name++; // skip the zero byte
-        } else
-            isAbstract = 0;
-#endif
         jstring nstr = JNU_NewStringPlatform(env, name);
         return (*env)->NewObject(env, udsa_class, udsa_ctorID, nstr);
     }
@@ -77,7 +68,6 @@ JNIEXPORT jint JNICALL
 NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, int *len)
 {
     jstring path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
-    //jboolean isAbstract = (*env)->GetBooleanField(env, uaddr, udsa_isAbstractID);
     jboolean isCopy;
     int ret;
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
@@ -89,22 +79,19 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, i
         ret = 1;
         goto finish;
     }
-#ifdef NOTDEF
-    if (isAbstract) {
-        strncpy(&sa->saun.sun_path[1], pname, name_len);
-        sa->saun.sun_path[0] = 0;
-        name_len++;
-    } else
-#endif
-    {
-        strncpy(&sa->saun.sun_path[0], pname, name_len);
-    }
+    strncpy(&sa->saun.sun_path[0], pname, name_len);
     *len = offsetof(struct sockaddr_un, sun_path) + name_len;
     ret = 0;
   finish:
     if (isCopy)
         JNU_ReleaseStringPlatformChars(env, path, pname);
     return ret;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
+{
+    return JNI_TRUE;
 }
 
 JNIEXPORT jint JNICALL
@@ -115,17 +102,6 @@ Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
         return handleSocketError(env, errno);
     }
     return fd;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
-{
-    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
-        return JNI_FALSE;
-    }
-    close(fd);
-    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL
@@ -222,6 +198,7 @@ Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
     }
     return NET_SockaddrToUnixAddress(env, &sa);
 }
+
 /**
  * IP_MULTICAST_ALL supported since 2.6.31 but may not be available at
  * build time.
@@ -1043,8 +1020,7 @@ Java_sun_nio_ch_Net_sendOOB(JNIEnv* env, jclass this, jobject fdo, jbyte b)
 
 /* Declared in nio_util.h */
 
-JNIEXPORT jint JNICALL
-handleSocketError(JNIEnv *env, jint errorValue)
+jint handleSocketError(JNIEnv *env, jint errorValue)
 {
     char *xn;
     switch (errorValue) {

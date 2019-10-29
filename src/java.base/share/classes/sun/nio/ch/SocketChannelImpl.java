@@ -64,7 +64,7 @@ import sun.net.util.SocketExceptions;
  * An implementation of SocketChannels
  */
 
-public abstract class SocketChannelImpl
+abstract class SocketChannelImpl
     extends SocketChannel
     implements SelChImpl
 {
@@ -118,13 +118,13 @@ public abstract class SocketChannelImpl
 
     // Constructor for normal connecting sockets
     //
-    public SocketChannelImpl(SelectorProvider sp) throws IOException {
+    SocketChannelImpl(SelectorProvider sp) throws IOException {
         super(sp);
         this.fd = Net.socket(true);
         this.fdVal = IOUtil.fdVal(fd);
     }
 
-    public SocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
+    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
         throws IOException
     {
         super(sp);
@@ -763,13 +763,6 @@ public abstract class SocketChannelImpl
                 tryFinishClose();
             }
         }
-    }
-
-    /**
-     * Package private version called from InheritedChannel
-     */
-    void localImplCloseSelectableChannel() throws IOException {
-        implCloseSelectableChannel();
     }
 
     @Override

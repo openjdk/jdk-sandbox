@@ -66,7 +66,7 @@ public abstract class SelectorProviderImpl
         if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
             throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
             //return new InetSocketChannelImpl(this);
-        } else if (family == StandardProtocolFamily.UNIX) {
+        } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
             return new UnixDomainSocketChannelImpl(this, Net.unixDomainSocket(), false);
         } else
             throw new UnsupportedAddressTypeException();
@@ -77,7 +77,7 @@ public abstract class SelectorProviderImpl
         if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
             throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
             //return new InetServerSocketChannelImpl(this);
-        } else if (family == StandardProtocolFamily.UNIX) {
+        } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
             return new UnixDomainServerSocketChannelImpl(this);
         } else
             throw new UnsupportedAddressTypeException();

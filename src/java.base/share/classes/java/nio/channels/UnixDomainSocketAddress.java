@@ -36,8 +36,8 @@ import java.util.Objects;
  * addresses contain a String path name, which when bound to a channel,
  * have an associated file in the file-system with the same name.
  * <p>
- * If a channel is automatically bound to Unix domain address then its address
- * is unnamed, has an empty path field, and therefore has no associated
+ * If a channel is automatically bound to a Unix domain address then its address
+ * is unnamed; it has an empty path field, and therefore has no associated
  * file in the file-system.
  * <p>
  * Note, not all channel types support Unix domain addresses.

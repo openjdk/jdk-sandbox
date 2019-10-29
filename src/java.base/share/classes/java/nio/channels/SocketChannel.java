@@ -116,7 +116,6 @@ import java.nio.channels.spi.SelectorProvider;
  * </tbody>
  * </table>
  * </blockquote>
- *
  * Additional (implementation specific) options may also be supported.
  *
  * <p> Socket channels are safe for use by multiple concurrent threads.  They
@@ -290,7 +289,7 @@ public abstract class SocketChannel
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>IP</i> channels or for <i>unix domain</i>
      *          channels, if the security manager denies "read" or "write"
-     *          {@link FilePermission} for the local path.
+     *          {@link java.io.FilePermission} for the local path.
      *
      * @since 1.7
      */

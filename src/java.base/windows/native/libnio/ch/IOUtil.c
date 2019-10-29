@@ -192,14 +192,12 @@ Java_sun_nio_ch_IOUtil_drain(JNIEnv *env, jclass cl, jint fd)
 /* Note: This function returns the int fd value from file descriptor.
    It is mostly used for sockets which should use the int fd value.
 */
-JNIEXPORT jint JNICALL
-fdval(JNIEnv *env, jobject fdo)
+jint fdval(JNIEnv *env, jobject fdo)
 {
     return (*env)->GetIntField(env, fdo, fd_fdID);
 }
 
-JNIEXPORT void JNICALL
-setfdval(JNIEnv *env, jobject fdo, jint val)
+void setfdval(JNIEnv *env, jobject fdo, jint val)
 {
     (*env)->SetIntField(env, fdo, fd_fdID, val);
 }

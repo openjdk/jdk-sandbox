@@ -118,7 +118,6 @@ extern jmethodID ia6_ctrID;
 extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
-extern jfieldID udsa_isAbstractID;
 
 /************************************************************************
  *  Utilities

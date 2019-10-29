@@ -78,16 +78,6 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         }
     }
 
-/*
-    public static AbstractSocketChannelImpl create(SelectorProvider sp, FileDescriptor fd) {
-        try {
-            return new UnixDomainSocketChannelImpl(sp, fd, false);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-*/
-
     // Constructor for sockets obtained from server sockets
     //
     UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, SocketAddress isa)

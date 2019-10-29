@@ -40,10 +40,8 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.spi.SelectorProvider;
-import java.util.Set;
-import java.util.function.BiFunction;
 
-public class InheritedChannel {
+class InheritedChannel {
 
     // the "types" of socket returned by soType0
     private static final int UNKNOWN            = -1;
@@ -112,7 +110,7 @@ public class InheritedChannel {
 
         @Override
         protected void implCloseSelectableChannel() throws IOException {
-            super.localImplCloseSelectableChannel();
+            super.implCloseSelectableChannel();
             detachIOStreams();
         }
     }

@@ -55,7 +55,7 @@ import sun.net.ext.ExtendedSocketOptions;
  * An implementation of ServerSocketChannels
  */
 
-public abstract class ServerSocketChannelImpl
+abstract class ServerSocketChannelImpl
     extends ServerSocketChannel
     implements SelChImpl
 {

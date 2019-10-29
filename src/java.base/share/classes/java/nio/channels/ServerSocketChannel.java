@@ -186,9 +186,9 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels or for <i>unix domain</i>
+     *          the operation for <i>IP</i> channels. Or with <i>unix domain</i>
      *          channels, if the security manager denies "read" or "write"
-     *          {@link FilePermission} for the local path.
+     *          {@link java.io.FilePermission} for the local path.
      *
      * @since 1.7
      */
@@ -214,9 +214,9 @@ public abstract class ServerSocketChannel
      * default is used.
      *
      * <p> Note, for <i>Unix domain</i> channels, a file is created in the file-system
-     * with the same name as this channel's bound address. This file persists after
-     * the channel is closed, and must be removed before another channel can bind
-     * to the same name.
+     * with the same path name as this channel's bound {@link UnixDomainSocketAddress}.
+     * This file persists after the channel is closed, and must be removed before
+     * another channel can bind to the same name.
      *
      * @param   local
      *          The address to bind the socket, or {@code null} to bind to an
@@ -237,9 +237,9 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels or for <i>unix domain</i>
+     *          the operation for <i>IP</i> channels. Or with <i>unix domain</i>
      *          channels, if the security manager denies "read" or "write"
-     *          {@link FilePermission} for the local path.
+     *          {@link java.io.FilePermission} for the local path.
      *
      * @since 1.7
      */
@@ -265,7 +265,7 @@ public abstract class ServerSocketChannel
      * declared in the {@link java.net.ServerSocket} class.  </p>
      *
      * @return  A server socket associated with this channel
-     * @throws UnsupportedOperationException is this is a Unix domain channel
+     * @throws UnsupportedOperationException if this is a Unix domain channel
      */
     public abstract ServerSocket socket();
 
@@ -280,8 +280,8 @@ public abstract class ServerSocketChannel
      * <p> The socket channel returned by this method, if any, will be in
      * blocking mode regardless of the blocking mode of this channel.
      *
-     * <p> For <i>IP</i> channels, this method performs exactly the same security checks as the {@link
-     * java.net.ServerSocket#accept accept} method of the {@link
+     * <p> For <i>IP</i> channels, this method performs exactly the same security checks
+     * as the {@link java.net.ServerSocket#accept accept} method of the {@link
      * java.net.ServerSocket} class.  That is, if a security manager has been
      * installed then for each new connection this method verifies that the
      * address and port number of the connection's remote endpoint are
@@ -325,6 +325,8 @@ public abstract class ServerSocketChannel
 
     /**
      * {@inheritDoc}
+     * Where the channel is bound to a <i>Unix domain</i> address, the return
+     * value from this this method is of type  {@link UnixDomainSocketAddress}.
      * <p>
      * If there is a security manager set and this is an <i>IP</i> channel,
      * {@code checkConnect} method is
@@ -334,9 +336,12 @@ public abstract class ServerSocketChannel
      * {@link java.net.InetAddress#getLoopbackAddress loopback} address and the
      * local port of the channel's socket is returned.
      * <p>
-     * If there is a security manager set and this is an <i>unix domain</i> channel,
-     * then this returns a {@link UnixDomainSocketAddress} corresponding to the
-     * bound address.
+     * If there is a security manager set and this is a <i>unix domain</i> channel,
+     * then {@link SecurityManager#checkPermission(Permission)} is called using
+     * a {@link java.io.FilePermission} constructed with the path from the
+     * local address and "read" as the action. If this check fails
+     * then an unnamed {@link UnixDomainSocketAddress} (with empty pathname)
+     * is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
      *          {@code SocketAddress} representing the loopback address if

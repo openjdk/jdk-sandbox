@@ -77,8 +77,7 @@ static void setConnectionReset(SOCKET s, BOOL enable) {
              NULL, 0, &bytesReturned, NULL, NULL);
 }
 
-JNIEXPORT jint JNICALL
-handleSocketError(JNIEnv *env, int errorValue)
+jint handleSocketError(JNIEnv *env, int errorValue)
 {
     NET_ThrowNew(env, errorValue, NULL);
     return IOS_THROWN;
@@ -90,23 +89,13 @@ static jmethodID isa_ctorID;    /* InetSocketAddress(InetAddress, int) */
 extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
-extern jfieldID udsa_isAbstractID;
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa) {
-    jboolean isAbstract;
 
     if (sa->sa.sa_family == AF_UNIX) {
         char *name = sa->saun.sun_path;
 
-#ifdef NOTDEF
-        /* check for abstract name */
-        if (name[0] == 0) {
-            isAbstract = 1;
-            name++; // skip the zero byte
-        } else
-#endif
-            isAbstract = 0;
         jstring nstr = JNU_NewStringPlatform(env, name);
         return (*env)->NewObject(env, udsa_class, udsa_ctorID, nstr);
     }
@@ -118,7 +107,6 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, i
 {
     jstring path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
     jboolean isCopy;
-    //jboolean isAbstract = (*env)->GetBooleanField(env, uaddr, udsa_isAbstractID);
     int ret;
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
     memset(sa, 0, sizeof(SOCKETADDRESS));
@@ -129,16 +117,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, i
         ret = 1;
         goto finish;
     }
-#ifdef NOTDEF
-    if (isAbstract) {
-        strncpy(&sa->saun.sun_path[1], pname, name_len);
-        sa->saun.sun_path[0] = 0;
-        name_len++;
-    } else
-#endif
-    {
-        strncpy(sa->saun.sun_path, pname, name_len);
-    }
+    strncpy(sa->saun.sun_path, pname, name_len);
     *len = (int)(offsetof(struct sockaddr_un, sun_path) + name_len);
     ret = 0;
   finish:

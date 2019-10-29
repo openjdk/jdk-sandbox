@@ -35,7 +35,6 @@
 jclass udsa_class;
 jmethodID udsa_ctorID;
 jfieldID udsa_pathID;
-//jfieldID udsa_isAbstractID;
 
 static int udsa_initialized = 0;
 
@@ -54,9 +53,6 @@ Java_java_nio_channels_UnixDomainSocketAddress_init(JNIEnv *env, jclass cls) {
 
         udsa_pathID = (*env)->GetFieldID(env, udsa_class, "path", "Ljava/lang/String;");
         CHECK_NULL(udsa_pathID);
-
-        //udsa_isAbstractID = (*env)->GetFieldID(env, udsa_class, "isAbstract", "Z");
-        //CHECK_NULL(udsa_isAbstractID);
 
         udsa_ctorID = (*env)->GetMethodID(env, udsa_class, "<init>", "(Ljava/lang/String;)V");
         CHECK_NULL(udsa_ctorID);
