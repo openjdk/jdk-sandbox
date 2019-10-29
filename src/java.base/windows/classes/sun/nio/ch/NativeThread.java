@@ -29,14 +29,13 @@ package sun.nio.ch;
 // Signalling operations on native threads
 
 
-public class NativeThread {
+class NativeThread {
 
-    public static long current() {
+    static long current() {
         // return 0 to ensure that async close of blocking sockets will close
         // the underlying socket.
         return 0;
     }
 
-    public static void signal(long nt) { }
-
+    static void signal(long nt) { }
 }

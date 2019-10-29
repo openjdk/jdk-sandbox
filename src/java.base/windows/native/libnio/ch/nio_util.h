@@ -35,16 +35,13 @@
  */
 #define MAX_BUFFER_SIZE             ((128*1024)-1)
 
-JNIEXPORT jint JNICALL
-fdval(JNIEnv *env, jobject fdo);
-JNIEXPORT void JNICALL
-setfdval(JNIEnv *env, jobject fdo, jint val);
+jint fdval(JNIEnv *env, jobject fdo);
+void setfdval(JNIEnv *env, jobject fdo, jint val);
 jlong handleval(JNIEnv *env, jobject fdo);
 jint convertReturnVal(JNIEnv *env, jint n, jboolean r);
 jlong convertLongReturnVal(JNIEnv *env, jlong n, jboolean r);
 jboolean purgeOutstandingICMP(JNIEnv *env, jclass clazz, jint fd);
-JNIEXPORT jint JNICALL
-handleSocketError(JNIEnv *env, int errorValue);
+jint handleSocketError(JNIEnv *env, int errorValue);
 
 #ifdef _WIN64
 

@@ -43,14 +43,14 @@ public class IOUtil {
 
     private IOUtil() { }                // No instantiation
 
-    public static int write(FileDescriptor fd, ByteBuffer src, long position,
+    static int write(FileDescriptor fd, ByteBuffer src, long position,
                      NativeDispatcher nd)
         throws IOException
     {
         return write(fd, src, position, false, -1, nd);
     }
 
-    public static int write(FileDescriptor fd, ByteBuffer src, long position,
+    static int write(FileDescriptor fd, ByteBuffer src, long position,
                      boolean directIO, int alignment, NativeDispatcher nd)
         throws IOException
     {
@@ -117,20 +117,20 @@ public class IOUtil {
         return written;
     }
 
-    public static long write(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd)
+    static long write(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd)
         throws IOException
     {
         return write(fd, bufs, 0, bufs.length, false, -1, nd);
     }
 
-    public static long write(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+    static long write(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
                       NativeDispatcher nd)
         throws IOException
     {
         return write(fd, bufs, offset, length, false, -1, nd);
     }
 
-    public static long write(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+    static long write(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
                       boolean directIO, int alignment, NativeDispatcher nd)
         throws IOException
     {
@@ -216,14 +216,14 @@ public class IOUtil {
         }
     }
 
-    public static int read(FileDescriptor fd, ByteBuffer dst, long position,
+    static int read(FileDescriptor fd, ByteBuffer dst, long position,
                     NativeDispatcher nd)
         throws IOException
     {
         return read(fd, dst, position, false, -1, nd);
     }
 
-    public static int read(FileDescriptor fd, ByteBuffer dst, long position,
+    static int read(FileDescriptor fd, ByteBuffer dst, long position,
                     boolean directIO, int alignment, NativeDispatcher nd)
         throws IOException
     {
@@ -280,20 +280,20 @@ public class IOUtil {
         return n;
     }
 
-    public static long read(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd)
+    static long read(FileDescriptor fd, ByteBuffer[] bufs, NativeDispatcher nd)
         throws IOException
     {
         return read(fd, bufs, 0, bufs.length, false, -1, nd);
     }
 
-    public static long read(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+    static long read(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
                      NativeDispatcher nd)
         throws IOException
     {
         return read(fd, bufs, offset, length, false, -1, nd);
     }
 
-    public static long read(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
+    static long read(FileDescriptor fd, ByteBuffer[] bufs, int offset, int length,
                      boolean directIO, int alignment, NativeDispatcher nd)
         throws IOException
     {

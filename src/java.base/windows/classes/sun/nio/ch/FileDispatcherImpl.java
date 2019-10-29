@@ -48,7 +48,7 @@ class FileDispatcherImpl extends FileDispatcher {
         return true;
     }
 
-    public int read(FileDescriptor fd, long address, int len)
+    int read(FileDescriptor fd, long address, int len)
         throws IOException
     {
         return read0(fd, address, len);
@@ -64,7 +64,7 @@ class FileDispatcherImpl extends FileDispatcher {
         return readv0(fd, address, len);
     }
 
-    public int write(FileDescriptor fd, long address, int len) throws IOException {
+    int write(FileDescriptor fd, long address, int len) throws IOException {
         return write0(fd, address, len, fdAccess.getAppend(fd));
     }
 
@@ -104,7 +104,7 @@ class FileDispatcherImpl extends FileDispatcher {
         release0(fd, pos, size);
     }
 
-    public void close(FileDescriptor fd) throws IOException {
+    void close(FileDescriptor fd) throws IOException {
         fdAccess.close(fd);
     }
 

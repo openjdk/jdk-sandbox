@@ -55,7 +55,6 @@
 /* Defined in IOUtil.c */
 
 jint fdval(JNIEnv *env, jobject fdo);
-
 void setfdval(JNIEnv *env, jobject fdo, jint value);
 
 jint convertReturnVal(JNIEnv *env, jint n, jboolean reading);

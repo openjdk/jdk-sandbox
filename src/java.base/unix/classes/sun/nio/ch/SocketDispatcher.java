@@ -33,8 +33,8 @@ import java.io.IOException;
  * for read and write operations.
  */
 
-public class SocketDispatcher extends NativeDispatcher {
-    public SocketDispatcher() { }
+class SocketDispatcher extends NativeDispatcher {
+    SocketDispatcher() { }
 
     /**
      * Reads up to len bytes from a socket with special handling for "connection
@@ -43,7 +43,7 @@ public class SocketDispatcher extends NativeDispatcher {
      * @throws sun.net.ConnectionResetException if connection reset is detected
      * @throws IOException if another I/O error occurs
      */
-    public int read(FileDescriptor fd, long address, int len) throws IOException {
+    int read(FileDescriptor fd, long address, int len) throws IOException {
         return read0(fd, address, len);
     }
 
@@ -58,7 +58,7 @@ public class SocketDispatcher extends NativeDispatcher {
         return readv0(fd, address, len);
     }
 
-    public int write(FileDescriptor fd, long address, int len) throws IOException {
+    int write(FileDescriptor fd, long address, int len) throws IOException {
         return FileDispatcherImpl.write0(fd, address, len);
     }
 
@@ -66,11 +66,11 @@ public class SocketDispatcher extends NativeDispatcher {
         return FileDispatcherImpl.writev0(fd, address, len);
     }
 
-    public void close(FileDescriptor fd) throws IOException {
+    void close(FileDescriptor fd) throws IOException {
         FileDispatcherImpl.close0(fd);
     }
 
-    public void preClose(FileDescriptor fd) throws IOException {
+    void preClose(FileDescriptor fd) throws IOException {
         FileDispatcherImpl.preClose0(fd);
     }
 

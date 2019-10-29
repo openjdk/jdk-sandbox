@@ -32,10 +32,10 @@ import java.io.*;
  * for read and write operations.
  */
 
-public abstract class NativeDispatcher
+abstract class NativeDispatcher
 {
 
-    public abstract int read(FileDescriptor fd, long address, int len)
+    abstract int read(FileDescriptor fd, long address, int len)
         throws IOException;
 
     /**
@@ -55,7 +55,7 @@ public abstract class NativeDispatcher
     abstract long readv(FileDescriptor fd, long address, int len)
         throws IOException;
 
-    public abstract int write(FileDescriptor fd, long address, int len)
+    abstract int write(FileDescriptor fd, long address, int len)
         throws IOException;
 
     int pwrite(FileDescriptor fd, long address, int len, long position)
@@ -67,13 +67,13 @@ public abstract class NativeDispatcher
     abstract long writev(FileDescriptor fd, long address, int len)
         throws IOException;
 
-    public abstract void close(FileDescriptor fd) throws IOException;
+    abstract void close(FileDescriptor fd) throws IOException;
 
     // Prepare the given fd for closing by duping it to a known internal fd
     // that's already closed.  This is necessary on some operating systems
     // (Solaris and Linux) to prevent fd recycling.
     //
-    public void preClose(FileDescriptor fd) throws IOException {
+    void preClose(FileDescriptor fd) throws IOException {
         // Do nothing by default; this is only needed on Unix
     }
 

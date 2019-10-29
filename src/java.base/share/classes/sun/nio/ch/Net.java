@@ -55,7 +55,6 @@ import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.IPAddressUtil;
 import sun.security.action.GetPropertyAction;
 
-
 public class Net {
 
     private Net() { }
