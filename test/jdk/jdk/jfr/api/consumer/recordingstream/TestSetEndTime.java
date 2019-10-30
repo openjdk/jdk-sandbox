@@ -56,7 +56,8 @@ public final class TestSetEndTime {
     @Name("Mark")
     @StackTrace(false)
     public final static class Mark extends Event {
-        public boolean before;
+        public boolean include;
+        public int id;
     }
 
     public static void main(String... args) throws Exception {
@@ -98,68 +99,77 @@ public final class TestSetEndTime {
     }
 
     static void testEventStream() throws InterruptedException, IOException, Exception {
-        try (Recording r = new Recording()) {
-            r.setFlushInterval(Duration.ofSeconds(1));
-            r.start();
-            Mark event1 = new Mark();
-            event1.begin(); // start time
-            event1.before = true;
-            advanceClock();
-            event1.commit();
+        while (true) {
+            try (Recording r = new Recording()) {
+                r.start();
 
-            Mark event2 = new Mark();
-            event2.begin(); // end time
-            advanceClock();
-            Thread.sleep(100);
-            event2.before = false;
-            event2.commit();
+                Mark event1 = new Mark();
+                event1.id = 1;
+                event1.include = false;
+                event1.commit(); // start time
 
-            Path p = Paths.get("recording.jfr");
-            r.dump(p);
-            Instant start = null;
-            Instant end = null;
-            for (RecordedEvent e : RecordingFile.readAllEvents(p)) {
-                if (e.getBoolean("before")) {
-                    start = e.getStartTime();
-                    System.out.println("Start: " + start);
-                }
-                if (!e.getBoolean("before")) {
-                    end = e.getStartTime();
-                    System.out.println("End  : " + end);
-                }
-            }
-            System.out.println("===================");
-            AtomicBoolean error = new AtomicBoolean(true);
-            try (EventStream d = EventStream.openRepository()) {
-                d.setStartTime(start);
-                d.setEndTime(end);
-                d.onEvent(e -> {
-                    System.out.println(e);
-                    System.out.println("Event:");
-                    System.out.println(e.getStartTime());
-                    System.out.println(e.getEndTime());
-                    System.out.println(e.getBoolean("before"));
-                    System.out.println();
-                    boolean before = e.getBoolean("before");
-                    if (before) {
-                        error.set(false);
-                    } else {
-                        error.set(true);
+                nap();
+
+                Mark event2 = new Mark();
+                event2.id = 2;
+                event2.include = true;
+                event2.commit();
+
+                nap();
+
+                Mark event3 = new Mark();
+                event3.id = 3;
+                event3.include = false;
+                event3.commit(); // end time
+
+                Path p = Paths.get("recording.jfr");
+                r.dump(p);
+                Instant start = null;
+                Instant end = null;
+                System.out.println("Find start and end time as instants:");
+                for (RecordedEvent e : RecordingFile.readAllEvents(p)) {
+                    if (e.getInt("id") == 1) {
+                        start = e.getEndTime();
+                        System.out.println("Start  : " + start);
                     }
-                });
-                d.start();
-                if (error.get()) {
-                    throw new Exception("Found unexpected event!");
+                    if (e.getInt("id") == 2) {
+                        Instant middle = e.getEndTime();
+                        System.out.println("Middle : " + middle);
+                    }
+                    if (e.getInt("id") == 3) {
+                        end = e.getEndTime();
+                        System.out.println("End    : " + end);
+                    }
+                }
+                System.out.println();
+                System.out.println("Opening stream between " + start + " and " + end);
+                AtomicBoolean success = new AtomicBoolean(false);
+                AtomicInteger eventsCount = new AtomicInteger();
+                try (EventStream d = EventStream.openRepository()) {
+                    d.setStartTime(start.plusNanos(1));
+                    // Stream should close when end is reached
+                    d.setEndTime(end.minusNanos(1));
+                    d.onEvent(e -> {
+                        eventsCount.incrementAndGet();
+                        boolean include = e.getBoolean("include");
+                        System.out.println("Event " + e.getEndTime() + " include=" + include);
+                        if (include) {
+                            success.set(true);
+                        }
+                    });
+                    d.start();
+                    if (eventsCount.get() == 1 && success.get()) {
+                        return;
+                    }
                 }
             }
         }
+
     }
 
-    private static void advanceClock() {
-        // Wait for some clock movement with
-        // java.time clock resolution.
-        Instant now = Instant.now();
-        while (Instant.now().equals(now)) {
-        }
+    private static void nap() throws InterruptedException {
+        // Ensure we advance at least 1 ns with fast time
+        Thread.sleep(1);
     }
+
 }
