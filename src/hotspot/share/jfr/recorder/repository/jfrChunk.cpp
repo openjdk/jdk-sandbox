@@ -32,10 +32,18 @@
 
 static const char* const MAGIC = "FLR";
 static const u2 JFR_VERSION_MAJOR = 2;
-static const u2 JFR_VERSION_MINOR = 0;
+static const u2 JFR_VERSION_MINOR = 1;
 
+// strictly monotone
 static jlong nanos_now() {
-  return os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;
+  static jlong last = 0;
+  const jlong now = os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;
+  if (now > last) {
+    last = now;
+  } else {
+    ++last;
+  }
+  return last;
 }
 
 static jlong ticks_now() {
@@ -122,11 +130,16 @@ void JfrChunk::update_start_ticks() {
 }
 
 void JfrChunk::update_start_nanos() {
-  _start_nanos = _last_update_nanos = nanos_now();
+  const jlong now = nanos_now();
+  assert(now > _start_nanos, "invariant");
+  assert(now > _last_update_nanos, "invariant");
+  _start_nanos = _last_update_nanos = now;
 }
 
 void JfrChunk::update_current_nanos() {
-  _last_update_nanos = nanos_now();
+  const jlong now = nanos_now();
+  assert(now > _last_update_nanos, "invariant");
+  _last_update_nanos = now;
 }
 
 void JfrChunk::save_current_and_update_start_ticks() {
