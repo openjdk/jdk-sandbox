@@ -38,4 +38,5 @@ class NativeThread {
     }
 
     static void signal(long nt) { }
+
 }

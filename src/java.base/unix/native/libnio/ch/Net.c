@@ -53,7 +53,6 @@ extern jfieldID udsa_pathID;
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa) {
-    jboolean isAbstract = 0;
 
     if (sa->sa.sa_family == AF_UNIX) {
         char *name = sa->saun.sun_path;

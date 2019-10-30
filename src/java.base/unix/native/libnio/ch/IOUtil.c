@@ -223,12 +223,14 @@ convertLongReturnVal(JNIEnv *env, jlong n, jboolean reading)
     }
 }
 
-jint fdval(JNIEnv *env, jobject fdo)
+jint
+fdval(JNIEnv *env, jobject fdo)
 {
     return (*env)->GetIntField(env, fdo, fd_fdID);
 }
 
-void setfdval(JNIEnv *env, jobject fdo, jint val) {
+void
+setfdval(JNIEnv *env, jobject fdo, jint val) {
     (*env)->SetIntField(env, fdo, fd_fdID, val);
 }
 
