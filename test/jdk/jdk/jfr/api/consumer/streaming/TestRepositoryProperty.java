@@ -90,7 +90,7 @@ public class TestRepositoryProperty {
             r.start();
             String location = System.getProperty(JFR_REPOSITORY_LOCATION_PROPERTY);
             if (location == null) {
-                throw new AssertionError("Repository path should exist before JFR is initialized");
+                throw new AssertionError("Repository path should exist after JFR is initialized");
             }
             System.out.println("repository=" + location);
             Path p = Path.of(location);
