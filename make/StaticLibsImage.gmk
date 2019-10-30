@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -23,33 +23,32 @@
 # questions.
 #
 
-# Default version, product, and vendor information to use,
-# unless overridden by configure
+# This makefile creates an image of the optional static versions of certain JDK
+# libraries.
 
-DEFAULT_VERSION_FEATURE=14
-DEFAULT_VERSION_INTERIM=0
-DEFAULT_VERSION_UPDATE=0
-DEFAULT_VERSION_PATCH=0
-DEFAULT_VERSION_EXTRA1=0
-DEFAULT_VERSION_EXTRA2=0
-DEFAULT_VERSION_EXTRA3=0
-DEFAULT_VERSION_DATE=2020-03-17
-DEFAULT_VERSION_CLASSFILE_MAJOR=58  # "`$EXPR $DEFAULT_VERSION_FEATURE + 44`"
-DEFAULT_VERSION_CLASSFILE_MINOR=0
-DEFAULT_ACCEPTABLE_BOOT_VERSIONS="13 14"
-DEFAULT_JDK_SOURCE_TARGET_VERSION=14
-DEFAULT_PROMOTED_VERSION_PRE=ea
+default: all
 
-LAUNCHER_NAME=openjdk
-PRODUCT_NAME=OpenJDK
-PRODUCT_SUFFIX="Runtime Environment"
-JDK_RC_PLATFORM_NAME=Platform
-COMPANY_NAME=N/A
-HOTSPOT_VM_DISTRO="OpenJDK"
-VENDOR_URL=https://openjdk.java.net/
-VENDOR_URL_BUG=https://bugreport.java.com/bugreport/
-VENDOR_URL_VM_BUG=https://bugreport.java.com/bugreport/crash.jsp
+include $(SPEC)
+include MakeBase.gmk
+include Modules.gmk
 
-# Might need better names for these
-MACOSX_BUNDLE_NAME_BASE="OpenJDK"
-MACOSX_BUNDLE_ID_BASE="net.java.openjdk"
+################################################################################
+
+TARGETS :=
+
+$(foreach m, $(STATIC_LIBS_MODULES), \
+  $(eval $(call SetupCopyFiles, COPY_STATIC_LIBS_$m, \
+      FLATTEN := true, \
+      SRC := $(SUPPORT_OUTPUTDIR)/native/$m, \
+      DEST := $(STATIC_LIBS_IMAGE_DIR)/lib, \
+      FILES := $(filter %$(STATIC_LIBRARY_SUFFIX), \
+          $(call FindFiles, $(SUPPORT_OUTPUTDIR)/native/$m/*/static)), \
+  )) \
+  $(eval TARGETS += $$(COPY_STATIC_LIBS_$m)) \
+)
+
+################################################################################
+
+all: $(TARGETS)
+
+.PHONY: all

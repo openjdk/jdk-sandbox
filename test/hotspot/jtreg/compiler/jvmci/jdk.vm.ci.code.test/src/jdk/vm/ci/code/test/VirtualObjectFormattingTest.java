@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,31 +19,30 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
+package jdk.vm.ci.code.test;
 
-package sun.jvm.hotspot.runtime;
+import org.junit.Assert;
+import org.junit.Test;
 
-//These definitions should be kept in sync with the definitions in the HotSpot code.
+import jdk.vm.ci.code.VirtualObject;
+import jdk.vm.ci.meta.JavaKind;
+import jdk.vm.ci.meta.JavaValue;
+import jdk.vm.ci.meta.ResolvedJavaType;
 
-public enum Flags {
-  // value origin
-  DEFAULT ("Default"),
-  COMMAND_LINE ("Command line"),
-  ENVIRON_VAR ("Environment variable"),
-  CONFIG_FILE ("Config file"),
-  MANAGEMENT ("Management"),
-  ERGONOMIC ("Ergonomic"),
-  ATTACH_ON_DEMAND ("Attach on demand"),
-  INTERNAL ("Internal"),
-  JIMAGE_RESOURCE ("JImage");
+public class VirtualObjectFormattingTest extends VirtualObjectTestBase {
 
-  private final String value;
+    @Test
+    public void testFormat() {
+        testBase();
+    }
 
-  Flags(String val) {
-    this.value = val;
-  }
-  public String value() {
-    return value;
-  }
+    @Override
+    protected void test(ResolvedJavaType klass, JavaValue[] kinds, JavaKind[] values, boolean malformed) {
+        // Verify that VirtualObject.toString will produce output without throwing exceptions or
+        // asserting.
+        VirtualObject virtual = VirtualObject.get(klass, 0);
+        virtual.setValues(kinds, values);
+        Assert.assertTrue(!virtual.toString().equals(""));
+    }
 }
