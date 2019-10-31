@@ -469,7 +469,8 @@ final public class TKit {
     static void waitForFileCreated(Path fileToWaitFor,
             long timeoutSeconds) throws IOException {
 
-        trace(String.format("Wait for file [%s] to be available", fileToWaitFor));
+        trace(String.format("Wait for file [%s] to be available",
+                                                fileToWaitFor.toAbsolutePath()));
 
         WatchService ws = FileSystems.getDefault().newWatchService();
 

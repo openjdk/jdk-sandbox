@@ -34,7 +34,7 @@ final public class FileAssociations {
         setDescription("jpackage test extention");
     }
 
-    public void createFile() {
+    private void createFile() {
         Map<String, String> entries = new HashMap<>(Map.of(
             "extension", suffixName,
             "mime-type", getMime(),
@@ -65,16 +65,26 @@ final public class FileAssociations {
         return this;
     }
 
-    public Path getPropertiesFile() {
+    Path getPropertiesFile() {
         return file;
     }
 
-    public String getSuffix() {
+    String getSuffix() {
         return "." + suffixName;
     }
 
-    public String getMime() {
+    String getMime() {
         return "application/x-jpackage-" + suffixName;
+    }
+
+    public void applyTo(PackageTest test) {
+        test.notForTypes(PackageType.MAC_DMG, () -> {
+            test.addInitializer(cmd -> {
+                createFile();
+                cmd.addArguments("--file-associations", getPropertiesFile());
+            });
+            test.addHelloAppFileAssociationsVerifier(this);
+        });
     }
 
     private Path file;

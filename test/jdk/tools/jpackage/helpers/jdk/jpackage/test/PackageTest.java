@@ -23,12 +23,14 @@
 package jdk.jpackage.test;
 
 import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -56,6 +58,7 @@ public final class PackageTest {
      */
     public PackageTest() {
         action = DEFAULT_ACTION;
+        excludeTypes = new HashSet<>();
         forTypes();
         setExpectedExitCode(0);
         handlers = new HashMap<>();
@@ -63,20 +66,41 @@ public final class PackageTest {
         currentTypes.forEach(v -> handlers.put(v, new Handler(v)));
     }
 
+    public PackageTest excludeTypes(PackageType... types) {
+        excludeTypes.addAll(Stream.of(types).collect(Collectors.toSet()));
+        return forTypes(currentTypes);
+    }
+
+    public PackageTest excludeTypes(Collection<PackageType> types) {
+        return excludeTypes(types.toArray(PackageType[]::new));
+    }
+
     public PackageTest forTypes(PackageType... types) {
         Collection<PackageType> newTypes;
         if (types == null || types.length == 0) {
             newTypes = PackageType.NATIVE;
         } else {
-            newTypes = Set.of(types);
+            newTypes = Stream.of(types).collect(Collectors.toSet());
         }
-        currentTypes = newTypes.stream().filter(type -> type.isSupported()).collect(
-                Collectors.toUnmodifiableSet());
+        currentTypes = newTypes.stream()
+                .filter(PackageType::isSupported)
+                .filter(Predicate.not(excludeTypes::contains))
+                .collect(Collectors.toUnmodifiableSet());
         return this;
     }
 
     public PackageTest forTypes(Collection<PackageType> types) {
         return forTypes(types.toArray(PackageType[]::new));
+    }
+
+    public PackageTest notForTypes(PackageType... types) {
+        return notForTypes(List.of(types));
+    }
+
+    public PackageTest notForTypes(Collection<PackageType> types) {
+        Set<PackageType> workset = new HashSet<>(currentTypes);
+        workset.removeAll(types);
+        return forTypes(workset);
     }
 
     public PackageTest setExpectedExitCode(int v) {
@@ -163,19 +187,30 @@ public final class PackageTest {
         });
     }
 
-    public PackageTest addHelloAppFileAssociationsVerifier(FileAssociations fa,
+    PackageTest addHelloAppFileAssociationsVerifier(FileAssociations fa,
             String... faLauncherDefaultArgs) {
 
+        // Setup test app to have valid jpackage command line before
+        // running check of type of environment.
         addInitializer(cmd -> new HelloApp(null).addTo(cmd), "HelloApp");
+
+        String noActionMsg = "Not running file associations test";
+        if (GraphicsEnvironment.isHeadless()) {
+            TKit.trace(String.format(
+                    "%s because running in headless environment", noActionMsg));
+            return this;
+        }
+
         addInstallVerifier(cmd -> {
-            if (cmd.isFakeRuntime("Not running file associations test")) {
+            if (cmd.isFakeRuntime(noActionMsg)) {
                 return;
             }
 
             withTestFileAssociationsFile(fa, testFile -> {
                 testFile = testFile.toAbsolutePath().normalize();
 
-                final Path appOutput = Path.of(HelloApp.OUTPUT_FILENAME);
+                final Path appOutput = testFile.getParent()
+                        .resolve(HelloApp.OUTPUT_FILENAME);
                 Files.deleteIfExists(appOutput);
 
                 TKit.trace(String.format("Use desktop to open [%s] file",
@@ -215,6 +250,16 @@ public final class PackageTest {
 
     PackageTest forTypes(PackageType type, Runnable action) {
         return forTypes(List.of(type), action);
+    }
+
+    PackageTest notForTypes(Collection<PackageType> types, Runnable action) {
+        Set<PackageType> workset = new HashSet<>(currentTypes);
+        workset.removeAll(types);
+        return forTypes(workset, action);
+    }
+
+    PackageTest notForTypes(PackageType type, Runnable action) {
+        return notForTypes(List.of(type), action);
     }
 
     public PackageTest configureHelloApp() {
@@ -381,6 +426,7 @@ public final class PackageTest {
     }
 
     private Collection<PackageType> currentTypes;
+    private Set<PackageType> excludeTypes;
     private int expectedJPackageExitCode;
     private Map<PackageType, Handler> handlers;
     private Set<String> namedInitializers;

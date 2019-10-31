@@ -24,6 +24,7 @@
 import java.nio.file.Path;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
+import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.FileAssociations;
 import jdk.jpackage.test.Annotations.Test;
 
@@ -66,23 +67,21 @@ public class FileAssociationsTest {
     public static void test() {
         PackageTest packageTest = new PackageTest();
 
-        applyFileAssociations(packageTest, new FileAssociations("jptest1"));
+        // Not supported
+        packageTest.excludeTypes(PackageType.MAC_DMG);
+
+        new FileAssociations("jptest1").applyTo(packageTest);
 
         Path icon = TKit.TEST_SRC_ROOT.resolve(Path.of("resources", "icon"
                 + TKit.ICON_SUFFIX));
 
         icon = TKit.createRelativePathCopy(icon);
 
-        applyFileAssociations(packageTest,
-                new FileAssociations("jptest2").setFilename("fa2").setIcon(icon));
-        packageTest.run();
-    }
+        new FileAssociations("jptest2")
+                .setFilename("fa2")
+                .setIcon(icon)
+                .applyTo(packageTest);
 
-    private static void applyFileAssociations(PackageTest test,
-            FileAssociations fa) {
-        test.addInitializer(cmd -> {
-            fa.createFile();
-            cmd.addArguments("--file-associations", fa.getPropertiesFile());
-        }).addHelloAppFileAssociationsVerifier(fa);
+        packageTest.run();
     }
 }

@@ -34,7 +34,8 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Arrays;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import java.util.spi.ToolProvider;
 
@@ -569,21 +570,11 @@ public class JPackageHelper {
             return null;
         }
 
-        String[] result = output.split("\n");
-        if (result == null || result.length == 0) {
-            return result;
-        }
-
-        List<String> origList = new ArrayList(Arrays.asList(result));
-        List<String> newlist = new ArrayList();
-        origList.stream().filter((str) ->
-                (!str.startsWith("Picked up") &&
-                 !str.startsWith("WARNING: Using experimental")))
-                .forEachOrdered((str) -> {
-            newlist.add(str);
-        });
-
-        return newlist.toArray(new String[newlist.size()]);
+        return Stream.of(output.split("\\R"))
+                .filter(str -> !str.startsWith("Picked up"))
+                .filter(str -> !str.startsWith("WARNING: Using experimental"))
+                .filter(str -> !str.startsWith("hello: "))
+                .collect(Collectors.toList()).toArray(String[]::new);
     }
 
     private static String quote(String in, boolean toolProvider) {

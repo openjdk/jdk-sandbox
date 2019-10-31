@@ -307,13 +307,19 @@ public final class BasicTest {
             cmd.executePrerequisiteActions();
         }
 
-        TKit.withTempDirectory("runtime", runtimeDir -> {
-            TKit.deleteDirectoryRecursive(runtimeDir, String.format(
-                    "Delete [%s] output directory for jlink command", runtimeDir));
+        TKit.withTempDirectory("runtime", tempDir -> {
+            final Path runtimeDir = tempDir.resolve("data");
+
+            // List of modules required for test app.
+            final var modules = new String[] {
+                "java.base",
+                "java.desktop"
+            };
+
             Executor jlink = getToolProvider(JavaTool.JLINK)
             .saveOutput(false)
             .addArguments(
-                    "--add-modules", "java.base",
+                    "--add-modules", String.join(",", modules),
                     "--output", runtimeDir.toString(),
                     "--strip-debug",
                     "--no-header-files",
@@ -329,38 +335,6 @@ public final class BasicTest {
 
             cmd.addArguments("--runtime-image", runtimeDir);
             cmd.executeAndAssertHelloAppImageCreated();
-
-            final Path appImageRuntimePath = cmd.appRuntimeDirectory();
-
-            //
-            // This is an overkill to list modules in jlink output as we have
-            // already verified that Java app is functional and thus app's runtime
-            // is likely to be OK, but let's double check.
-            //
-            // Filter out all first strings with whitespace. They are java
-            // launcher output like `Picked up ...` unrelated to module names.
-            //
-            Pattern whitespaceChar = Pattern.compile("\\s");
-            List<String> moduleList = new Executor().dumpOutput().setExecutable(
-                    appImageRuntimePath.resolve(
-                            JPackageCommand.relativePathInRuntime(JavaTool.JAVA))).addArguments(
-                    "--list-modules").executeAndGetOutput().stream().dropWhile(
-                            s -> whitespaceChar.matcher(s).find()).sorted().collect(
-                            Collectors.toList());
-
-            List<String> expectedModules = new ArrayList<>();
-            expectedModules.add(String.format("java.base@%s",
-                    System.getProperty("java.version")));
-            if (moduleName != null) {
-                expectedModules.add(moduleName);
-            }
-            expectedModules = expectedModules.stream().sorted().collect(
-                    Collectors.toList());
-
-            TKit.assertStringListEquals(expectedModules, moduleList,
-                    String.format(
-                            "Check modules in application image runtime directory at [%s]",
-                            appImageRuntimePath));
         });
     }
 

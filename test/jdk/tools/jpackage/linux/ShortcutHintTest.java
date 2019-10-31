@@ -114,14 +114,11 @@ public class ShortcutHintTest {
      */
     @Test
     public static void testFileAssociations() {
-        createTest().addInitializer(cmd -> {
-            cmd.setFakeRuntime();
-
-            FileAssociations fa = new FileAssociations(
-                    "ShortcutHintTest_testFileAssociations");
-            fa.createFile();
-            cmd.addArguments("--file-associations", fa.getPropertiesFile());
-        }).run();
+        PackageTest test = createTest().addInitializer(
+                JPackageCommand::setFakeRuntime);
+        new FileAssociations("ShortcutHintTest_testFileAssociations").applyTo(
+                test);
+        test.run();
     }
 
     /**

@@ -89,13 +89,12 @@ public class InstallDirTest {
             reply.put(PackageType.LINUX_DEB, Path.of("/opt/jpackage"));
             reply.put(PackageType.LINUX_RPM, reply.get(PackageType.LINUX_DEB));
 
-            reply.put(PackageType.MAC_PKG, Path.of("/Application/jpackage"));
-            reply.put(PackageType.MAC_DMG, reply.get(PackageType.MAC_PKG));
+            reply.put(PackageType.MAC_PKG, Path.of("/Applications/jpackage"));
 
             return reply;
         }).get();
 
-        new PackageTest().configureHelloApp()
+        new PackageTest().excludeTypes(PackageType.MAC_DMG).configureHelloApp()
         .addInitializer(cmd -> {
             cmd.addArguments("--install-dir", INSTALL_DIRS.get(
                     cmd.packageType()));

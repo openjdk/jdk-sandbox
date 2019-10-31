@@ -58,22 +58,19 @@ public class AdditionalLaunchersTest {
 
     @Test
     public void test() {
-        FileAssociations fa = new FileAssociations(
-                MethodHandles.lookup().lookupClass().getSimpleName());
-
         // Configure a bunch of additional launchers and also setup
         // file association to make sure it will be linked only to the main
         // launcher.
 
-        PackageTest packageTest = new PackageTest().configureHelloApp()
-        .addInitializer(cmd -> {
-            fa.createFile();
-            cmd.addArguments("--file-associations", fa.getPropertiesFile());
+        PackageTest packageTest = new PackageTest().configureHelloApp();
+        packageTest.addInitializer(cmd -> {
             cmd.addArguments("--arguments", "Duke", "--arguments", "is",
                     "--arguments", "the", "--arguments", "King");
         });
 
-        packageTest.addHelloAppFileAssociationsVerifier(fa);
+        new FileAssociations(
+                MethodHandles.lookup().lookupClass().getSimpleName()).applyTo(
+                packageTest);
 
         new AdditionalLauncher("Baz2").setArguments().applyTo(packageTest);
         new AdditionalLauncher("foo").setArguments("yep!").applyTo(packageTest);
@@ -93,6 +90,8 @@ public class AdditionalLaunchersTest {
         int lastDotIndex = fname.lastIndexOf(".");
         if (lastDotIndex != -1) {
             fname = newFileName + fname.substring(lastDotIndex);
+        } else {
+            fname = newFileName;
         }
         return path.getParent().resolve(fname);
     }

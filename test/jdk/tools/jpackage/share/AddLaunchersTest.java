@@ -42,7 +42,7 @@ public class AddLaunchersTest {
         "--main-jar", "hello.jar",
         "--main-class", "Hello",
         "--module-path", "module",
-        "--add-modules", "com.hello",
+        "--add-modules", "com.hello,java.desktop",
         "--add-launcher", "test3=j1.properties",
         "--add-launcher", "test4=m1.properties"};
 

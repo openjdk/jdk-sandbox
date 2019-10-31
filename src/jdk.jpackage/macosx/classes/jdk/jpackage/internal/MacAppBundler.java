@@ -44,64 +44,6 @@ public class MacAppBundler extends AbstractImageBundler {
 
     private static final String TEMPLATE_BUNDLE_ICON = "java.icns";
 
-    public static Map<String, String> getMacCategories() {
-        Map<String, String> map = new HashMap<>();
-        map.put("Business", "public.app-category.business");
-        map.put("Developer Tools", "public.app-category.developer-tools");
-        map.put("Education", "public.app-category.education");
-        map.put("Entertainment", "public.app-category.entertainment");
-        map.put("Finance", "public.app-category.finance");
-        map.put("Games", "public.app-category.games");
-        map.put("Graphics & Design", "public.app-category.graphics-design");
-        map.put("Healthcare & Fitness",
-                "public.app-category.healthcare-fitness");
-        map.put("Lifestyle", "public.app-category.lifestyle");
-        map.put("Medical", "public.app-category.medical");
-        map.put("Music", "public.app-category.music");
-        map.put("News", "public.app-category.news");
-        map.put("Photography", "public.app-category.photography");
-        map.put("Productivity", "public.app-category.productivity");
-        map.put("Reference", "public.app-category.reference");
-        map.put("Social Networking", "public.app-category.social-networking");
-        map.put("Sports", "public.app-category.sports");
-        map.put("Travel", "public.app-category.travel");
-        map.put("Utilities", "public.app-category.utilities");
-        map.put("Video", "public.app-category.video");
-        map.put("Weather", "public.app-category.weather");
-
-        map.put("Action Games", "public.app-category.action-games");
-        map.put("Adventure Games", "public.app-category.adventure-games");
-        map.put("Arcade Games", "public.app-category.arcade-games");
-        map.put("Board Games", "public.app-category.board-games");
-        map.put("Card Games", "public.app-category.card-games");
-        map.put("Casino Games", "public.app-category.casino-games");
-        map.put("Dice Games", "public.app-category.dice-games");
-        map.put("Educational Games", "public.app-category.educational-games");
-        map.put("Family Games", "public.app-category.family-games");
-        map.put("Kids Games", "public.app-category.kids-games");
-        map.put("Music Games", "public.app-category.music-games");
-        map.put("Puzzle Games", "public.app-category.puzzle-games");
-        map.put("Racing Games", "public.app-category.racing-games");
-        map.put("Role Playing Games", "public.app-category.role-playing-games");
-        map.put("Simulation Games", "public.app-category.simulation-games");
-        map.put("Sports Games", "public.app-category.sports-games");
-        map.put("Strategy Games", "public.app-category.strategy-games");
-        map.put("Trivia Games", "public.app-category.trivia-games");
-        map.put("Word Games", "public.app-category.word-games");
-
-        return map;
-    }
-
-    public static final EnumeratedBundlerParam<String> MAC_CATEGORY =
-            new EnumeratedBundlerParam<>(
-                    Arguments.CLIOptions.MAC_APP_STORE_CATEGORY.getId(),
-                    String.class,
-                    params -> "Unknown",
-                    (s, p) -> s,
-                    getMacCategories(),
-                    false //strict - for MacStoreBundler this should be strict
-            );
-
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_NAME =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.MAC_BUNDLE_NAME.getId(),

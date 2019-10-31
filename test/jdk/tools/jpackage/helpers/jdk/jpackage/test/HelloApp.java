@@ -63,6 +63,7 @@ public class HelloApp {
             TKit.createTextFile(moduleInfoFile, List.of(
                     String.format("module %s {", moduleName),
                     String.format("    exports %s;", packageName),
+                    "    requires java.desktop;",
                     "}"
             ));
             jarBuilder.addSourceFile(moduleInfoFile);
@@ -72,7 +73,9 @@ public class HelloApp {
         // Add package directive and replace class name in java source file.
         // Works with simple test Hello.java.
         // Don't expect too much from these regexps!
-        Pattern classDeclaration = Pattern.compile("(^.*\\bclass\\s+)Hello(.*$)");
+        Pattern classNameRegex = Pattern.compile("\\bHello\\b");
+        Pattern classDeclaration = Pattern.compile(
+                "(^.*\\bclass\\s+)\\bHello\\b(.*$)");
         Pattern importDirective = Pattern.compile(
                 "(?<=import (?:static )?+)[^;]+");
         AtomicBoolean classDeclared = new AtomicBoolean();
@@ -85,11 +88,14 @@ public class HelloApp {
         });
 
         Files.write(srcFile, Files.readAllLines(HELLO_JAVA).stream().map(line -> {
+            Matcher m;
             if (classDeclared.getPlain()) {
+                if ((m = classNameRegex.matcher(line)).find()) {
+                    line = m.replaceAll(className);
+                }
                 return line;
             }
 
-            Matcher m;
             if (!packageInserted.getPlain() && importDirective.matcher(line).find()) {
                 line = packageInserter.apply(line);
             } else if ((m = classDeclaration.matcher(line)).find()) {
@@ -214,6 +220,7 @@ public class HelloApp {
         new Executor()
                 .setDirectory(outputFile.getParent())
                 .setExecutable(helloAppLauncher)
+                .dumpOutput()
                 .execute()
                 .assertExitCodeIsZero();
 

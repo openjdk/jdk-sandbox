@@ -64,6 +64,12 @@ fatal_with_help_usage ()
   exit 1
 }
 
+# For macOS
+if !(type "tac" &> /dev/null;) then
+    tac_cmd='tail -r'
+else
+    tac_cmd=tac
+fi
 
 # Directory where to look for package files.
 package_dir=$PWD
@@ -101,10 +107,10 @@ function find_packages_of_type ()
 
 function find_packages ()
 {
-    local package_suffixes=(deb rpm msi exe)
+    local package_suffixes=(deb rpm msi exe pkg dmg)
     for suffix in "${package_suffixes[@]}"; do
         if [ "$mode" == "uninstall" ]; then
-            packages=$(find_packages_of_type $suffix | tac)
+            packages=$(find_packages_of_type $suffix | $tac_cmd)
         else
             packages=$(find_packages_of_type $suffix)
         fi
@@ -158,6 +164,45 @@ uninstall_cmd_exe ()
     error No implemented
 }
 
+# PKG
+install_cmd_pkg ()
+{
+    echo sudo /usr/sbin/installer -allowUntrusted -pkg "\"$@\"" -target /
+}
+uninstall_cmd_pkg ()
+{
+    local pname=`basename $@`
+    local appname="$(cut -d'-' -f1 <<<"$pname")"
+    if [ "$appname" = "CommonInstallDirTest" ]; then
+        echo sudo rm -rf "/Applications/jpackage/\"$appname.app\""
+    else
+        echo sudo rm -rf "/Applications/\"$appname.app\""
+    fi
+}
+
+# DMG
+install_cmd_dmg ()
+{
+    local pname=`basename $@`
+    local appname="$(cut -d'-' -f1 <<<"$pname")"
+    local command=()
+    if [ "$appname" = "CommonLicenseTest" ]; then
+        command+=("{" yes "|" hdiutil attach "\"$@\"" ">" /dev/null)
+    else
+        command+=("{" hdiutil attach "\"$@\"" ">" /dev/null)
+    fi
+
+    command+=(";" sudo cp -R "\"/Volumes/$appname/$appname.app\"" /Applications ">" /dev/null)
+    command+=(";" hdiutil detach "\"/Volumes/$appname\"" ">" /dev/null ";}")
+
+    echo "${command[@]}"
+}
+uninstall_cmd_dmg ()
+{
+    local pname=`basename $@`
+    local appname="$(cut -d'-' -f1 <<<"$pname")"
+    echo sudo rm -rf "/Applications/\"$appname.app\""
+}
 
 # Find packages
 packages=
@@ -169,6 +214,7 @@ fi
 
 # Build list of commands to execute
 declare -a commands
+IFS=$'\n'
 for p in $packages; do
     commands[${#commands[@]}]=$(${mode}_cmd_${package_type} "$p")
 done
@@ -177,7 +223,7 @@ if [ -z "$dryrun" ]; then
     # Run commands
     for cmd in "${commands[@]}"; do
         echo Running: $cmd
-        $cmd || true;
+        eval $cmd || true;
     done
 else
     # Print commands

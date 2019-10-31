@@ -92,16 +92,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                     params -> Boolean.FALSE,
                     (s, p) -> Boolean.valueOf(s));
 
-    public static final EnumeratedBundlerParam<String> MAC_CATEGORY =
-            new EnumeratedBundlerParam<>(
-                    Arguments.CLIOptions.MAC_APP_STORE_CATEGORY.getId(),
-                    String.class,
-                    params -> "Unknown",
-                    (s, p) -> s,
-                    MacAppBundler.getMacCategories(),
-                    false //strict - for MacStoreBundler this should be strict
-            );
-
     public static final BundlerParamInfo<String> MAC_CF_BUNDLE_NAME =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.MAC_BUNDLE_NAME.getId(),
@@ -470,7 +460,6 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
         data.put("DEPLOY_BUNDLE_CFBUNDLE_VERSION",
                 MAC_CF_BUNDLE_VERSION.fetchFrom(params) != null ?
                 MAC_CF_BUNDLE_VERSION.fetchFrom(params) : "100");
-        data.put("DEPLOY_BUNDLE_CATEGORY", MAC_CATEGORY.fetchFrom(params));
 
         boolean hasMainJar = MAIN_JAR.fetchFrom(params) != null;
         boolean hasMainModule =

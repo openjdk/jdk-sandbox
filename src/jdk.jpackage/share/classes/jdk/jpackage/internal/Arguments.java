@@ -272,9 +272,6 @@ public class Arguments {
         MAC_BUNDLE_IDENTIFIER("mac-package-identifier",
                     OptionCategories.PLATFORM_MAC),
 
-        MAC_APP_STORE_CATEGORY ("mac-app-store-category",
-                    OptionCategories.PLATFORM_MAC),
-
         MAC_BUNDLE_SIGNING_PREFIX ("mac-package-signing-prefix",
                     OptionCategories.PLATFORM_MAC),
 

@@ -62,12 +62,11 @@ public class SigningPackageTest {
     }
 
     private static void verifyAppImageInDMG(JPackageCommand cmd) {
-        MacHelper.withExplodedDmg(cmd, disk -> {
-            Path appImageInDMG = disk.resolve(cmd.name() + ".app");
-            Path launcherPath = appImageInDMG.resolve(Path.of("Contents", "MacOS", cmd.name()));
+        MacHelper.withExplodedDmg(cmd, dmgImage -> {
+            Path launcherPath = dmgImage.resolve(Path.of("Contents", "MacOS", cmd.name()));
             SigningBase.verifyCodesign(launcherPath, true);
-            SigningBase.verifyCodesign(appImageInDMG, true);
-            SigningBase.verifySpctl(appImageInDMG, "exec");
+            SigningBase.verifyCodesign(dmgImage, true);
+            SigningBase.verifySpctl(dmgImage, "exec");
         });
     }
 

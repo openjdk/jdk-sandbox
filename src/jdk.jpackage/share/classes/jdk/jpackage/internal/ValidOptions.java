@@ -112,7 +112,6 @@ class ValidOptions {
                     USE.ALL);
             options.put(CLIOptions.MAC_SIGNING_KEY_NAME.getId(), USE.ALL);
             options.put(CLIOptions.MAC_SIGNING_KEYCHAIN.getId(), USE.ALL);
-            options.put(CLIOptions.MAC_APP_STORE_CATEGORY.getId(), USE.ALL);
             options.put(CLIOptions.MAC_APP_STORE_ENTITLEMENTS.getId(),
                     USE.ALL);
         }

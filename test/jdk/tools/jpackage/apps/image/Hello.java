@@ -21,39 +21,157 @@
  * questions.
  */
 
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
+import java.awt.AWTError;
+import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
+import java.awt.desktop.OpenFilesEvent;
+import java.awt.desktop.OpenFilesHandler;
+import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.stream.Collectors;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.stream.Stream;
+import java.util.Collections;
 
-public class Hello {
+public class Hello implements OpenFilesHandler {
 
-    private static final String MSG = "jpackage test application";
-    private static final int EXPECTED_NUM_OF_PARAMS = 3; // Starts at 1
-
-    public static void main(String[] args) throws IOException {
-        printArgs(args, System.out);
-
-        try (PrintStream out = new PrintStream(new BufferedOutputStream(
-                new FileOutputStream("appOutput.txt")))) {
-            printArgs(args, out);
+    public static void main(String[] args) throws IOException, InterruptedException {
+        var faFiles = getFaFiles();
+        if (faFiles != null) {
+            // Some files got opened through fa mechanizm.
+            // They are the arguments then.
+            args = faFiles.toArray(String[]::new);
         }
+
+        var lines = printArgs(args);
+
+        lines.forEach(System.out::println);
+
+        var outputFile = getOutputFile(args);
+        trace(String.format("Output file: [%s]", outputFile));
+        Files.write(outputFile, lines);
     }
 
-    private static void printArgs(String[] args, PrintStream out) {
-        out.println(MSG);
+    private static List<String> printArgs(String[] args) {
+        List<String> lines = new ArrayList<>();
+        lines.add(MSG);
 
-        out.println("args.length: " + args.length);
+        lines.add("args.length: " + args.length);
 
-        for (String arg : args) {
-            out.println(arg);
-        }
+        lines.addAll(List.of(args));
 
         for (int index = 1; index <= EXPECTED_NUM_OF_PARAMS; index++) {
             String value = System.getProperty("param" + index);
             if (value != null) {
-                out.println("-Dparam" + index + "=" + value);
+                lines.add("-Dparam" + index + "=" + value);
             }
         }
+
+        return lines;
+    }
+
+    private static Path getOutputFile(String[] args) {
+        Path outputFilePath = Path.of("appOutput.txt");
+
+        // If first arg is a file (most likely from fa), then put output in the same folder as
+        // the file from fa.
+        if (args.length >= 1) {
+            Path faPath = Path.of(args[0]);
+            if (Files.exists(faPath)) {
+                return faPath.toAbsolutePath().getParent().resolve(outputFilePath);
+            }
+        }
+
+        try {
+            // Try writing in the default output file.
+            Files.write(outputFilePath, Collections.emptyList());
+            return outputFilePath;
+        } catch (IOException ex) {
+            // Log reason of a failure.
+            StringWriter errors = new StringWriter();
+            ex.printStackTrace(new PrintWriter(errors));
+            Stream.of(errors.toString().split("\\R")).forEachOrdered(Hello::trace);
+        }
+
+        return Path.of(System.getProperty("user.home")).resolve(outputFilePath);
+    }
+
+    @Override
+    public void openFiles(OpenFilesEvent e) {
+        synchronized(lock) {
+            trace("openFiles");
+            files = e.getFiles().stream()
+                .map(File::toString)
+                .collect(Collectors.toList());
+
+            lock.notifyAll();
+        }
+    }
+
+    private static List<String> getFaFiles() throws InterruptedException {
+        if (openFilesHandler == null) {
+            return null;
+        }
+
+        synchronized(openFilesHandler.lock) {
+            trace("getFaFiles: wait");
+            openFilesHandler.lock.wait(1000);
+            if (openFilesHandler.files == null) {
+                trace(String.format("getFaFiles: no files"));
+                return null;
+            }
+            // Return copy of `files` to keep access to `files` field synchronized.
+            trace(String.format("getFaFiles: file count %d",
+                    openFilesHandler.files.size()));
+            return new ArrayList<>(openFilesHandler.files);
+        }
+    }
+
+    private List<String> files;
+    private final Object lock = new Object();
+    private final static Hello openFilesHandler = createInstance();
+
+    private static Hello createInstance() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return null;
+        }
+
+        trace("Environment supports a display");
+
+        try {
+            // Disable JAB.
+            // Needed to suppress error:
+            // Exception in thread "main" java.awt.AWTError: Assistive Technology not found: com.sun.java.accessibility.AccessBridge
+            System.setProperty("javax.accessibility.assistive_technologies", "");
+        } catch (SecurityException ex) {
+            ex.printStackTrace();
+        }
+
+        try {
+            var desktop = Desktop.getDesktop();
+            if (desktop.isSupported(Desktop.Action.APP_OPEN_FILE)) {
+                trace("Set file handler");
+                Hello instance = new Hello();
+                desktop.setOpenFileHandler(instance);
+                return instance;
+            }
+        } catch (AWTError ex) {
+            trace("Set file handler failed");
+            ex.printStackTrace();
+        }
+
+        return null;
+    }
+
+    private static final String MSG = "jpackage test application";
+    private static final int EXPECTED_NUM_OF_PARAMS = 3; // Starts at 1
+
+    private static void trace(String msg) {
+        System.out.println("hello: " + msg);
     }
 }

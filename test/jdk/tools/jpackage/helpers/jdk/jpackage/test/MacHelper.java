@@ -94,9 +94,8 @@ public class MacHelper {
 
     static Path getInstallationDirectory(JPackageCommand cmd) {
         cmd.verifyIsOfType(PackageType.MAC);
-        String installDir = Path.of(cmd.getArgumentValue("--install-dir",
-                () -> ""), cmd.name()).toString() + ".app";
-        return Path.of("/Applications", installDir);
+        return Path.of(cmd.getArgumentValue("--install-dir", () -> "/Applications"))
+                .resolve(cmd.name() + ".app");
     }
 
     private static String getPackageName(JPackageCommand cmd) {
