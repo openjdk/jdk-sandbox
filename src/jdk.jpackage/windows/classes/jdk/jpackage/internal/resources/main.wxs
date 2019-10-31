@@ -53,7 +53,7 @@
       <!--
         Run WixUI_InstallDir dialog in the default install directory.
       -->
-      <Property Id="WIXUI_INSTALLDIR" Value="APPLICATIONFOLDER"/>
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
       <UIRef Id="WixUI_InstallDir" />
 
       <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="JpCheckInstallDir" Order="3">1</Publish>

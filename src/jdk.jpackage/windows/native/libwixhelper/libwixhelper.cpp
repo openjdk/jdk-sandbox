@@ -58,13 +58,13 @@ extern "C" {
         TCHAR *szValue = NULL;
         DWORD cchSize = 0;
 
-        UINT result = MsiGetProperty(hInstall, TEXT("APPLICATIONFOLDER"),
+        UINT result = MsiGetProperty(hInstall, TEXT("INSTALLDIR"),
                 TEXT(""), &cchSize);
         if (result == ERROR_MORE_DATA) {
             cchSize = cchSize + 1; // NULL termination
             szValue = new TCHAR[cchSize];
             if (szValue) {
-                result = MsiGetProperty(hInstall, TEXT("APPLICATIONFOLDER"),
+                result = MsiGetProperty(hInstall, TEXT("INSTALLDIR"),
                         szValue, &cchSize);
             } else {
                 return ERROR_INSTALL_FAILURE;

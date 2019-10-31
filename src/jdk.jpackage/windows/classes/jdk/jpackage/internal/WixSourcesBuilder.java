@@ -409,10 +409,6 @@ class WixSourcesBuilder {
         for (var folder : defineShortcutFolders) {
             Path path = folder.getPath(this);
             componentIds.addAll(addRootBranch(xml, path));
-
-            if (!KNOWN_DIRS.contains(path)) {
-                componentIds.add(addDirectoryCleaner(xml, path));
-            }
         }
 
         addComponentGroup(xml, "Shortcuts", componentIds);
