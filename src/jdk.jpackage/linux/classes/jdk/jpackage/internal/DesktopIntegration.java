@@ -26,6 +26,7 @@ package jdk.jpackage.internal;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -50,14 +51,10 @@ final class DesktopIntegration {
     DesktopIntegration(PlatformPackage thePackage,
             Map<String, ? super Object> params) {
 
-        associations = FILE_ASSOCIATIONS.fetchFrom(params).stream().filter(
-                a -> {
-                    if (a == null) {
-                        return false;
-                    }
-                    List<String> mimes = FA_CONTENT_TYPE.fetchFrom(a);
-                    return (mimes != null && !mimes.isEmpty());
-                }).collect(Collectors.toUnmodifiableList());
+        associations = FileAssociation.fetchFrom(params).stream()
+                .filter(fa -> !fa.mimeTypes.isEmpty())
+                .map(LinuxFileAssociation::new)
+                .collect(Collectors.toUnmodifiableList());
 
         launchers = ADD_LAUNCHERS.fetchFrom(params);
 
@@ -112,6 +109,8 @@ final class DesktopIntegration {
     }
 
     Map<String, String> create() throws IOException {
+        associations.forEach(assoc -> assoc.data.verify());
+
         if (iconFile != null) {
             // Create application icon file.
             iconResource.saveToFile(iconFile.srcPath());
@@ -138,10 +137,7 @@ final class DesktopIntegration {
             shellCommands.setFileAssociations();
 
             // Create icon files corresponding to file associations
-            Map<String, Path> mimeTypeWithIconFile = createFileAssociationIconFiles();
-            mimeTypeWithIconFile.forEach((k, v) -> {
-                shellCommands.addIcon(k, v);
-            });
+            addFileAssociationIconFiles(shellCommands);
         }
 
         // Create shell commands to install/uninstall integration with desktop of the app.
@@ -259,13 +255,17 @@ final class DesktopIntegration {
         }
 
         void addIcon(String mimeType, Path iconFile) {
-            final int imgSize = getSquareSizeOfImage(iconFile.toFile());
+            addIcon(mimeType, iconFile, getSquareSizeOfImage(iconFile.toFile()));
+        }
+
+        void addIcon(String mimeType, Path iconFile, int imgSize) {
+            imgSize = normalizeIconSize(imgSize);
             final String dashMime = mimeType.replace('/', '-');
             registerIconCmds.add(String.join(" ", "xdg-icon-resource",
-                    "install", "--context", "mimetypes", "--size ",
+                    "install", "--context", "mimetypes", "--size",
                     Integer.toString(imgSize), iconFile.toString(), dashMime));
             unregisterIconCmds.add(String.join(" ", "xdg-icon-resource",
-                    "uninstall", dashMime));
+                    "uninstall", dashMime, "--size", Integer.toString(imgSize)));
         }
 
         void applyTo(Map<String, String> data) {
@@ -324,32 +324,27 @@ final class DesktopIntegration {
     }
 
     private void appendFileAssociation(XMLStreamWriter xml,
-            Map<String, ? super Object> assoc) throws XMLStreamException {
+            FileAssociation assoc) throws XMLStreamException {
 
-        xml.writeStartElement("mime-type");
-        final String thisMime = FA_CONTENT_TYPE.fetchFrom(assoc).get(0);
-        xml.writeAttribute("type", thisMime);
+        for (var mimeType : assoc.mimeTypes) {
+            xml.writeStartElement("mime-type");
+            xml.writeAttribute("type", mimeType);
 
-        final String description = FA_DESCRIPTION.fetchFrom(assoc);
-        if (description != null && !description.isEmpty()) {
-            xml.writeStartElement("comment");
-            xml.writeCharacters(description);
-            xml.writeEndElement();
-        }
+            final String description = assoc.description;
+            if (description != null && !description.isEmpty()) {
+                xml.writeStartElement("comment");
+                xml.writeCharacters(description);
+                xml.writeEndElement();
+            }
 
-        final List<String> extensions = FA_EXTENSIONS.fetchFrom(assoc);
-        if (extensions == null) {
-            Log.error(I18N.getString(
-                    "message.creating-association-with-null-extension"));
-        } else {
-            for (String ext : extensions) {
+            for (String ext : assoc.extensions) {
                 xml.writeStartElement("glob");
                 xml.writeAttribute("pattern", "*." + ext);
                 xml.writeEndElement();
             }
-        }
 
-        xml.writeEndElement();
+            xml.writeEndElement();
+        }
     }
 
     private void createFileAssociationsMimeInfoFile() throws IOException {
@@ -359,37 +354,41 @@ final class DesktopIntegration {
                     "http://www.freedesktop.org/standards/shared-mime-info");
 
             for (var assoc : associations) {
-                appendFileAssociation(xml, assoc);
+                appendFileAssociation(xml, assoc.data);
             }
 
             xml.writeEndElement();
         });
     }
 
-    private Map<String, Path> createFileAssociationIconFiles() throws
-            IOException {
-        Map<String, Path> mimeTypeWithIconFile = new HashMap<>();
+    private void addFileAssociationIconFiles(ShellCommands shellCommands)
+            throws IOException {
+        Set<String> processedMimeTypes = new HashSet<>();
         for (var assoc : associations) {
-            File customFaIcon = FA_ICON.fetchFrom(assoc);
-            if (customFaIcon == null || !customFaIcon.exists() || getSquareSizeOfImage(
-                    customFaIcon) == 0) {
+            if (assoc.iconSize <= 0) {
+                // No icon.
                 continue;
             }
 
-            String fname = iconFile.srcPath().getFileName().toString();
-            if (fname.indexOf(".") > 0) {
-                fname = fname.substring(0, fname.lastIndexOf("."));
+            for (var mimeType : assoc.data.mimeTypes) {
+                if (processedMimeTypes.contains(mimeType)) {
+                    continue;
+                }
+
+                processedMimeTypes.add(mimeType);
+
+                // Create icon name for mime type from mime type.
+                DesktopFile faIconFile = new DesktopFile(mimeType.replace(
+                        File.separatorChar, '-') + IOUtils.getSuffix(
+                                assoc.data.iconPath));
+
+                IOUtils.copyFile(assoc.data.iconPath.toFile(),
+                        faIconFile.srcPath().toFile());
+
+                shellCommands.addIcon(mimeType, faIconFile.installPath(),
+                        assoc.iconSize);
             }
-
-            DesktopFile faIconFile = new DesktopFile(
-                    fname + "_fa_" + customFaIcon.getName());
-
-            IOUtils.copyFile(customFaIcon, faIconFile.srcPath().toFile());
-
-            mimeTypeWithIconFile.put(FA_CONTENT_TYPE.fetchFrom(assoc).get(0),
-                    faIconFile.installPath());
         }
-        return mimeTypeWithIconFile;
     }
 
     private void createDesktopFile(Map<String, String> data) throws IOException {
@@ -403,21 +402,46 @@ final class DesktopIntegration {
     }
 
     private List<String> getMimeTypeNamesFromFileAssociations() {
-        return associations.stream().map(
-                a -> FA_CONTENT_TYPE.fetchFrom(a).get(0)).collect(
-                        Collectors.toUnmodifiableList());
+        return associations.stream()
+                .map(fa -> fa.data.mimeTypes)
+                .flatMap(List::stream)
+                .collect(Collectors.toUnmodifiableList());
     }
 
     private static int getSquareSizeOfImage(File f) {
         try {
             BufferedImage bi = ImageIO.read(f);
-            if (bi.getWidth() == bi.getHeight()) {
-                return bi.getWidth();
-            }
+            return Math.max(bi.getWidth(), bi.getHeight());
         } catch (IOException e) {
             Log.verbose(e);
         }
         return 0;
+    }
+
+    private static int normalizeIconSize(int iconSize) {
+        // If register icon with "uncommon" size, it will be ignored.
+        // So find the best matching "common" size.
+        List<Integer> commonIconSizes = List.of(16, 22, 32, 48, 64, 128);
+
+        int idx = Collections.binarySearch(commonIconSizes, iconSize);
+        if (idx < 0) {
+            // Given icon size is greater than the largest common icon size.
+            return commonIconSizes.get(commonIconSizes.size() - 1);
+        }
+
+        if (idx == 0) {
+            // Given icon size is less or equal than the smallest common icon size.
+            return commonIconSizes.get(idx);
+        }
+
+        int commonIconSize = commonIconSizes.get(idx);
+        if (iconSize < commonIconSize) {
+            // It is better to scale down original icon than to scale it up for
+            // better visual quality.
+            commonIconSize = commonIconSizes.get(idx - 1);
+        }
+
+        return commonIconSize;
     }
 
     private static String stringifyShellCommands(String... commands) {
@@ -429,9 +453,23 @@ final class DesktopIntegration {
                 s -> s != null && !s.isEmpty()).collect(Collectors.toList()));
     }
 
+    private static class LinuxFileAssociation {
+        LinuxFileAssociation(FileAssociation fa) {
+            this.data = fa;
+            if (fa.iconPath != null && Files.isReadable(fa.iconPath)) {
+                iconSize = getSquareSizeOfImage(fa.iconPath.toFile());
+            } else {
+                iconSize = -1;
+            }
+        }
+
+        final FileAssociation data;
+        final int iconSize;
+    }
+
     private final PlatformPackage thePackage;
 
-    private final List<Map<String, ? super Object>> associations;
+    private final List<LinuxFileAssociation> associations;
 
     private final List<Map<String, ? super Object>> launchers;
 
