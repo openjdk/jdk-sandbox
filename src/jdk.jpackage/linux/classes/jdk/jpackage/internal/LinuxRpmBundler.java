@@ -220,10 +220,41 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
         return errors;
     }
 
+    /**
+     * Various ways to get rpm arch. Needed to address JDK-8233143. rpmbuild is
+     * mandatory for rpm packaging, try it first. rpm is optional and may not be
+     * available, use as the last resort.
+     */
+    private enum RpmArchReader {
+        Rpmbuild(TOOL_RPMBUILD, "--eval=%{_target_cpu}"),
+        Rpm(TOOL_RPM, "--eval=%{_target_cpu}");
+
+        RpmArchReader(String... cmdline) {
+            this.cmdline = cmdline;
+        }
+
+        String getRpmArch() throws IOException {
+            Executor exec = Executor.of(cmdline).saveOutput(true);
+            if (this == values()[values().length - 1]) {
+                exec.executeExpectSuccess();
+            } else if (exec.execute() != 0) {
+                return null;
+            }
+
+            return exec.getOutput().get(0);
+        }
+
+        private final String[] cmdline;
+    }
+
     private String rpmArch() throws IOException {
         if (rpmArch == null) {
-            rpmArch = Executor.of(TOOL_RPMBUILD, "--eval=%{_target_cpu}").saveOutput(
-                    true).executeExpectSuccess().getOutput().get(0);
+            for (var rpmArchReader : RpmArchReader.values()) {
+                rpmArch = rpmArchReader.getRpmArch();
+                if (rpmArch != null) {
+                    break;
+                }
+            }
         }
         return rpmArch;
     }
