@@ -41,11 +41,13 @@ import java.io.ObjectInputStream.GetField;
 import java.io.ObjectOutputStream;
 import java.io.ObjectOutputStream.PutField;
 import java.lang.annotation.Native;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.Arrays;
+import jdk.internal.misc.VM;
 
 import jdk.internal.access.JavaNetInetAddressAccess;
 import jdk.internal.access.SharedSecrets;
@@ -292,6 +294,8 @@ class InetAddress implements java.io.Serializable {
     /* Used to store the name service provider */
     private static transient NameService nameService;
 
+    private static transient NameService defaultNameService;
+
     /**
      * Used to store the best available hostname.
      * Lazily initialized via a data race; safe because Strings are immutable.
@@ -335,6 +339,27 @@ class InetAddress implements java.io.Serializable {
         );
         init();
     }
+
+    private static NameService nameService() {
+        if (nameService != null) {
+            return nameService;
+        }
+        if (VM.isBooted()) {
+            synchronized (NameService.class) {
+                if (nameService != null) {
+                    return nameService;
+                }
+                var nameService = ServiceLoader.load(NameService.class)
+                        .findFirst()
+                        .orElse(defaultNameService);
+                InetAddress.nameService = nameService;
+                return nameService;
+            }
+        } else {
+            return defaultNameService;
+        }
+    }
+
 
     /**
      * Constructor for the Socket.accept() method.
@@ -652,7 +677,7 @@ class InetAddress implements java.io.Serializable {
         String host = null;
             try {
                 // first lookup the hostname
-                host = nameService.getHostByAddr(addr.getAddress());
+                host = nameService().getHostByAddr(addr.getAddress());
 
                 /* check to see if calling code is allowed to know
                  * the hostname for this IP address, ie, connect to the host
@@ -885,7 +910,7 @@ class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private interface NameService {
+    public interface NameService {
 
         /**
          * Lookup a host mapping by name. Retrieve the IP addresses
@@ -1111,8 +1136,8 @@ class InetAddress implements java.io.Serializable {
         impl = InetAddressImplFactory.create();
 
         // create name service
-        nameService = createNameService();
-        }
+        defaultNameService = createNameService();
+    }
 
     /**
      * Create an instance of the NameService interface based on
@@ -1491,7 +1516,7 @@ class InetAddress implements java.io.Serializable {
         UnknownHostException ex = null;
 
             try {
-                addresses = nameService.lookupAllHostAddr(host);
+                addresses = nameService().lookupAllHostAddr(host);
             } catch (UnknownHostException uhe) {
                 if (host.equalsIgnoreCase("localhost")) {
                     addresses = new InetAddress[] { impl.loopbackAddress() };

@@ -153,7 +153,8 @@ module java.base {
         jdk.jlink;
     exports jdk.internal.loader to
         java.instrument,
-        java.logging;
+        java.logging,
+        jdk.dns.client;
     exports jdk.internal.jmod to
         jdk.compiler,
         jdk.jlink;
@@ -241,7 +242,8 @@ module java.base {
     exports sun.net.util to
         java.desktop,
         jdk.jconsole,
-        java.net.http;
+        java.net.http,
+        jdk.dns.client;
     exports sun.net.www to
         java.net.http,
         jdk.jartool;
@@ -276,7 +278,8 @@ module java.base {
         java.smartcardio,
         jdk.crypto.ec,
         jdk.crypto.cryptoki,
-        jdk.naming.dns;
+        jdk.naming.dns,
+        jdk.dns.client;
     exports sun.security.pkcs to
         jdk.crypto.ec,
         jdk.jartool;
@@ -359,6 +362,7 @@ module java.base {
     uses java.util.spi.TimeZoneNameProvider;
     uses java.util.spi.ToolProvider;
     uses javax.security.auth.spi.LoginModule;
+    uses java.net.InetAddress.NameService;
 
     // JDK-internal service types
 
