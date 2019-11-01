@@ -98,6 +98,21 @@ static const chklvl_t g_sequ_refl_class[] = {
     // .. repeat last
 };
 
+// Boot class loader: give it large chunks: beyond commit granule size
+// (typically 64K) the costs for large chunks largely diminishes since
+// they are committed on the fly.
+static const chklvl_t g_sequ_boot_non_class[] = {
+    chklvl::CHUNK_LEVEL_4M,
+    chklvl::CHUNK_LEVEL_1M
+    // .. repeat last
+};
+
+static const chklvl_t g_sequ_boot_class[] = {
+    chklvl::CHUNK_LEVEL_1M,
+    chklvl::CHUNK_LEVEL_256K
+    // .. repeat last
+};
+
 #define DEFINE_CLASS_FOR_ARRAY(what) \
   static ConstantChunkAllocSequence g_chunk_alloc_sequence_##what (g_sequ_##what, sizeof(g_sequ_##what)/sizeof(chklvl_t));
 
@@ -107,8 +122,10 @@ DEFINE_CLASS_FOR_ARRAY(anon_non_class)
 DEFINE_CLASS_FOR_ARRAY(anon_class)
 DEFINE_CLASS_FOR_ARRAY(refl_non_class)
 DEFINE_CLASS_FOR_ARRAY(refl_class)
+DEFINE_CLASS_FOR_ARRAY(boot_non_class)
+DEFINE_CLASS_FOR_ARRAY(boot_class)
 
-
+/*
 class BootLoaderChunkAllocSequence : public ChunkAllocSequence {
 
   // For now, this mirrors what the old code did
@@ -157,7 +174,7 @@ public:
 
 static BootLoaderChunkAllocSequence g_chunk_alloc_sequence_boot_non_class(false);
 static BootLoaderChunkAllocSequence g_chunk_alloc_sequence_boot_class(true);
-
+*/
 
 const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(MetaspaceType space_type, bool is_class) {
 
