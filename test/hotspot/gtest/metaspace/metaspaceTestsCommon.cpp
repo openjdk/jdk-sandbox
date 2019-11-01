@@ -159,3 +159,15 @@ bool check_marked_range(const MetaWord* p, uintx pattern, size_t word_size) {
   return check_marked_address(p, pattern) && check_marked_address(p + word_size - 1, pattern);
 }
 
+void mark_range(MetaWord* p, size_t word_size) {
+  assert(word_size > 0 && p != NULL, "sanity");
+  uintx pattern = (uintx)p2i(p);
+  mark_range(p, pattern, word_size);
+}
+
+bool check_marked_range(const MetaWord* p, size_t word_size) {
+  uintx pattern = (uintx)p2i(p);
+  return check_marked_range(p, pattern, word_size);
+}
+
+

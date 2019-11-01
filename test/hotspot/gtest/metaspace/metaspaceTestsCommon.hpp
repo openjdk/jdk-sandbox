@@ -33,6 +33,7 @@
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
+#include "memory/metaspace/leftOverBins.inline.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -63,6 +64,7 @@ using metaspace::CommitMask;
 using metaspace::SizeCounter;
 using metaspace::SizeAtomicCounter;
 using metaspace::IntCounter;
+using metaspace::LeftOverManager;
 using metaspace::Metachunk;
 using metaspace::MetachunkList;
 using metaspace::MetachunkListCluster;
@@ -196,6 +198,9 @@ bool check_marked_address(const MetaWord* p, uintx pattern);
 // range can be checked.
 void mark_range(MetaWord* p, uintx pattern, size_t word_size);
 bool check_marked_range(const MetaWord* p, uintx pattern, size_t word_size);
+
+void mark_range(MetaWord* p, size_t word_size);
+bool check_marked_range(const MetaWord* p, size_t word_size);
 
 //////////////////////////////////////////////////////////
 // Some helpers to avoid typing out those annoying casts for NULL

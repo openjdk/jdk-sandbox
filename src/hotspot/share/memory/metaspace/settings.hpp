@@ -88,6 +88,9 @@ class Settings : public AllStatic {
   // whose lower 32bits are zero.
   static const bool _do_not_return_32bit_aligned_addresses = true;
 
+  // Use Lom
+  static bool _use_lom;
+
 public:
 
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
@@ -104,6 +107,8 @@ public:
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
   static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
   static bool do_not_return_32bit_aligned_addresses()         { return _do_not_return_32bit_aligned_addresses; }
+
+  static bool use_lom()                                       { return _use_lom; }
 
   static void ergo_initialize();
 

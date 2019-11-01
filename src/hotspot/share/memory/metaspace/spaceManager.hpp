@@ -40,6 +40,9 @@ class Mutex;
 
 namespace metaspace {
 
+class BlockFreeList;
+class LeftOverManager;
+
 struct sm_stats_t;
 
 // The SpaceManager:
@@ -71,6 +74,7 @@ class SpaceManager : public CHeapObj<mtClass> {
 
   // Prematurely released metablocks.
   BlockFreelist* _block_freelist;
+  LeftOverManager* _lom;
 
   // Points to outside size counter which we are to increase/decrease when we allocate memory
   // on behalf of a user or when we are destroyed.
@@ -88,6 +92,10 @@ class SpaceManager : public CHeapObj<mtClass> {
   BlockFreelist* block_freelist() const         { return _block_freelist; }
   void create_block_freelist();
   void add_allocation_to_block_freelist(MetaWord* p, size_t word_size);
+
+  LeftOverManager* lom() const                  { return _lom; }
+  void create_lom();
+  void add_allocation_to_lom(MetaWord* p, size_t word_size);
 
   // The remaining committed free space in the current chunk is chopped up and stored in the block
   // free list for later use. As a result, the current chunk will remain current but completely

@@ -46,7 +46,7 @@ class InternalStats : public AllStatic {
   /* Number of allocations. */                      \
   x_atomic(num_allocs)                              \
                                                     \
-  /* Number of deallocations */                     \
+  /* Number of deallocations (external) */          \
   x_atomic(num_deallocs)                            \
   /* Number of times an allocation was satisfied */ \
   /*  from deallocated blocks. */                   \

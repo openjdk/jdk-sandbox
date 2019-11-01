@@ -53,6 +53,8 @@ bool Settings::_delete_nodes_on_purge = false;
 bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
+bool Settings::_use_lom = false;
+
 
 
 void Settings::ergo_initialize() {
@@ -130,6 +132,8 @@ void Settings::ergo_initialize() {
   _enlarge_chunks_in_place = MetaspaceEnlargeChunksInPlace;
   _enlarge_chunks_in_place_max_word_size = 256 * K;
 
+  _use_lom = MetaspaceUseLOM;
+
   // Sanity checks.
   guarantee(commit_granule_words() <= chklvl::MAX_CHUNK_WORD_SIZE, "Too large granule size");
   guarantee(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
@@ -161,6 +165,7 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - uncommit_on_purge: %d.", (int)uncommit_on_purge());
   st->print_cr(" - uncommit_on_purge_min_word_size: " SIZE_FORMAT ".", uncommit_on_purge_min_word_size());
 
+  st->print_cr(" - use_lom: %d.", use_lom());
 
 }
 

@@ -26,7 +26,7 @@
 
 #include "precompiled.hpp"
 
-#define LOG_PLEASE
+//#define LOG_PLEASE
 
 #include "metaspace/metaspaceTestsCommon.hpp"
 
