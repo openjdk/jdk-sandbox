@@ -53,11 +53,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.spi.ToolProvider;
+import java.util.jar.JarFile;
 import java.lang.module.Configuration;
 import java.lang.module.ResolvedModule;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
+import jdk.internal.module.ModulePath;
 
 final class JLinkBundlerHelper {
 
@@ -132,13 +134,6 @@ final class JLinkBundlerHelper {
         return result;
     }
 
-    private static Set<String> getValidModules(List<Path> modulePath,
-            Set<String> addModules, Set<String> limitModules) {
-        ModuleHelper moduleHelper = new ModuleHelper(
-                modulePath, addModules, limitModules);
-        return removeInvalidModules(modulePath, moduleHelper.modules());
-    }
-
     static void execute(Map<String, ? super Object> params,
             AbstractAppImageBuilder imageBuilder)
             throws IOException, Exception {
@@ -176,14 +171,14 @@ final class JLinkBundlerHelper {
             }
         }
 
-        Set<String> validModules =
-                  getValidModules(modulePath, addModules, limitModules);
+        Set<String> modules = new ModuleHelper(
+                modulePath, addModules, limitModules).modules();
 
         if (mainModule != null) {
-            validModules.add(mainModule);
+            modules.add(mainModule);
         }
 
-        runJLink(outputDir, modulePath, validModules, limitModules,
+        runJLink(outputDir, modulePath, modules, limitModules,
                 new HashMap<String,String>(), bindServices);
 
         imageBuilder.prepareApplicationFiles(params);
@@ -226,27 +221,19 @@ final class JLinkBundlerHelper {
      * a non-modular-aware application consisting of the given elements.
      */
     private static Set<String> getDefaultModules(
-            Path[] paths, String[] addModules) {
+            Collection<Path> paths, Collection<String> addModules) {
 
         // the modules in the run-time image that export an API
         Stream<String> systemRoots = ModuleFinder.ofSystem().findAll().stream()
                 .map(ModuleReference::descriptor)
-                .filter(descriptor -> exportsAPI(descriptor))
+                .filter(JLinkBundlerHelper::exportsAPI)
                 .map(ModuleDescriptor::name);
 
-        Set<String> roots;
-        if (addModules == null || addModules.length == 0) {
-            roots = systemRoots.collect(Collectors.toSet());
-        } else {
-            var extraRoots =  Stream.of(addModules);
-            roots = Stream.concat(systemRoots,
-                    extraRoots).collect(Collectors.toSet());
-        }
+        Set<String> roots = Stream.concat(systemRoots,
+                 addModules.stream()).collect(Collectors.toSet());
 
-        ModuleFinder finder = ModuleFinder.ofSystem();
-        if (paths != null && paths.length > 0) {
-            finder = ModuleFinder.compose(finder, ModuleFinder.of(paths));
-        }
+        ModuleFinder finder = createModuleFinder(paths);
+
         return Configuration.empty()
                 .resolveAndBind(finder, ModuleFinder.of(), roots)
                 .modules()
@@ -261,24 +248,14 @@ final class JLinkBundlerHelper {
     private static boolean exportsAPI(ModuleDescriptor descriptor) {
         return descriptor.exports()
                 .stream()
-                .filter(e -> !e.isQualified())
-                .findAny()
-                .isPresent();
+                .anyMatch(e -> !e.isQualified());
     }
 
-    private static Set<String> removeInvalidModules(
-            List<Path> modulePath, Set<String> modules) {
-        ModuleFinder moduleFinder = ModuleFinder.compose(
-                ModuleFinder.of(modulePath.toArray(Path[]::new)),
+    private static ModuleFinder createModuleFinder(Collection<Path> modulePath) {
+        return ModuleFinder.compose(
+                ModulePath.of(JarFile.runtimeVersion(), true,
+                        modulePath.toArray(Path[]::new)),
                 ModuleFinder.ofSystem());
-        return modules.stream().filter(moduleName -> {
-            if (moduleFinder.find(moduleName).isEmpty()) {
-                Log.error(MessageFormat.format(I18N.getString(
-                        "warning.module.does.not.exist"), moduleName));
-                return false;
-            }
-            return true;
-        }).collect(Collectors.toSet());
     }
 
     private static class ModuleHelper {
@@ -316,8 +293,7 @@ final class JLinkBundlerHelper {
                 this.modules.addAll(getModuleNamesFromPath(paths));
             } else if (addDefaultMods) {
                 this.modules.addAll(getDefaultModules(
-                        paths.toArray(new Path[0]),
-                        addModules.toArray(new String[0])));
+                        paths, addModules));
             }
         }
 
@@ -327,9 +303,7 @@ final class JLinkBundlerHelper {
 
         private static Set<String> getModuleNamesFromPath(List<Path> paths) {
 
-            return ModuleFinder.compose(
-                    ModuleFinder.of(paths.toArray(Path[]::new)),
-                    ModuleFinder.ofSystem())
+            return createModuleFinder(paths)
                     .findAll()
                     .stream()
                     .map(ModuleReference::descriptor)
@@ -341,11 +315,15 @@ final class JLinkBundlerHelper {
     private static void runJLink(Path output, List<Path> modulePath,
             Set<String> modules, Set<String> limitModules,
             HashMap<String, String> user, boolean bindServices)
-            throws IOException {
+            throws PackagerException {
 
         // This is just to ensure jlink is given a non-existant directory
         // The passed in output path should be non-existant or empty directory
-        IOUtils.deleteRecursive(output.toFile());
+        try {
+            IOUtils.deleteRecursive(output.toFile());
+        } catch (IOException ioe) {
+            throw new PackagerException(ioe);
+        }
 
         ArrayList<String> args = new ArrayList<String>();
         args.add("--output");
@@ -385,7 +363,7 @@ final class JLinkBundlerHelper {
         String jlinkOut = writer.toString();
 
         if (retVal != 0) {
-            throw new IOException("jlink failed with: " + jlinkOut);
+            throw new PackagerException("error.jlink.failed" , jlinkOut);
         } else if (jlinkOut.length() > 0) {
             Log.verbose("jlink output: " + jlinkOut);
         }

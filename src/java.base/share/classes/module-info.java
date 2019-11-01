@@ -203,7 +203,8 @@ module java.base {
         java.management.rmi,
         jdk.jartool,
         jdk.jfr,
-        jdk.jlink;
+        jdk.jlink,
+        jdk.jpackage;
     exports jdk.internal.perf to
         java.management,
         jdk.management.agent,
