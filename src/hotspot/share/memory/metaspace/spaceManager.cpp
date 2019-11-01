@@ -44,6 +44,10 @@
 
 namespace metaspace {
 
+#define LOGFMT_SPCMGR         "SpcMgr @" PTR_FORMAT " (%s)"
+#define LOGFMT_SPCMGR_ARGS    p2i(this), this->_name
+
+
 // Given a net allocation word size, return the raw word size
 // we need to actually allocate in order to:
 // 1) be able to deallocate the allocation - deallocated blocks are stored either in SmallBlocks
@@ -108,14 +112,14 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
     pref_level = min_level;
   }
 
-  log_trace(metaspace)("SpaceManager %s: requested word size_ " SIZE_FORMAT ", num chunks so far: %d, preferred level: "
+  log_trace(metaspace)(LOGFMT_SPCMGR ": requested word size_ " SIZE_FORMAT ", num chunks so far: %d, preferred level: "
                        CHKLVL_FORMAT ", min level: " CHKLVL_FORMAT ".",
-                       _name, requested_word_size, _chunks.size(), pref_level, min_level);
+                       LOGFMT_SPCMGR_ARGS, requested_word_size, _chunks.size(), pref_level, min_level);
 
   Metachunk* c = _chunk_manager->get_chunk(min_level, pref_level);
   if (c == NULL) {
-    log_debug(metaspace)("SpaceManager %s: failed to allocate new chunk for requested word size " SIZE_FORMAT ".",
-                         _name, requested_word_size);
+    log_debug(metaspace)(LOGFMT_SPCMGR ": failed to allocate new chunk for requested word size " SIZE_FORMAT ".",
+                         LOGFMT_SPCMGR_ARGS, requested_word_size);
     return false;
   }
 
@@ -124,8 +128,8 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   _chunks.add(c);
 
-  log_debug(metaspace)("SpaceManager %s: allocated new chunk " METACHUNK_FORMAT " for requested word size " SIZE_FORMAT ".",
-                       _name, METACHUNK_FORMAT_ARGS(c), requested_word_size);
+  log_debug(metaspace)(LOGFMT_SPCMGR ": allocated new chunk " METACHUNK_FORMAT " for requested word size " SIZE_FORMAT ".",
+                       LOGFMT_SPCMGR_ARGS, METACHUNK_FORMAT_ARGS(c), requested_word_size);
 
   // Workaround for JDK-8233019: never return space allocated at a 32bit aligned address
   if (Settings::do_not_return_32bit_aligned_addresses() &&
@@ -195,9 +199,6 @@ void SpaceManager::retire_current_chunk() {
   Metachunk* c = current_chunk();
   assert(c != NULL, "Sanity");
 
-  log_debug(metaspace)("SpaceManager %s: retiring chunk " METACHUNK_FULL_FORMAT ".",
-                       _name, METACHUNK_FULL_FORMAT_ARGS(c));
-
   // Side note:
   // In theory it could happen that we are asked to retire a completely empty chunk. This may be the
   // result of rolled back allocations (see deallocate in place) and a lot of luck.
@@ -207,19 +208,24 @@ void SpaceManager::retire_current_chunk() {
   size_t raw_remaining_words = c->free_below_committed_words();
   size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
   if (net_remaining_words > 0) {
+
+    log_debug(metaspace)(LOGFMT_SPCMGR " @" PTR_FORMAT " : retiring chunk " METACHUNK_FULL_FORMAT ".",
+                         LOGFMT_SPCMGR_ARGS, p2i(this), METACHUNK_FULL_FORMAT_ARGS(c));
+
     bool did_hit_limit = false;
     MetaWord* ptr = c->allocate(net_remaining_words, &did_hit_limit);
     assert(ptr != NULL && did_hit_limit == false, "Should have worked");
     add_allocation_to_block_freelist(ptr, net_remaining_words);
     _total_used_words_counter->increment_by(net_remaining_words);
+
+    // After this operation: the current chunk should have (almost) no free committed space left.
+    assert(current_chunk()->free_below_committed_words() <= highest_possible_delta_between_raw_and_net_size,
+           "Chunk retiring did not work (current chunk " METACHUNK_FULL_FORMAT ").",
+           METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
+
+    DEBUG_ONLY(verify_locked();)
+
   }
-
-  // After this operation: the current chunk should have (almost) no free committed space left.
-  assert(current_chunk()->free_below_committed_words() <= highest_possible_delta_between_raw_and_net_size,
-         "Chunk retiring did not work (current chunk " METACHUNK_FULL_FORMAT ").",
-         METACHUNK_FULL_FORMAT_ARGS(current_chunk()));
-
-  DEBUG_ONLY(verify_locked();)
 
 }
 
@@ -235,9 +241,9 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   const size_t raw_word_size = get_raw_allocation_word_size(requested_word_size);
 
-  log_trace(metaspace)("SpaceManager %s: requested " SIZE_FORMAT " words, "
+  log_debug(metaspace)(LOGFMT_SPCMGR ": requested " SIZE_FORMAT " words, "
                        "raw word size: " SIZE_FORMAT ".",
-                       _name, requested_word_size, raw_word_size);
+                       LOGFMT_SPCMGR_ARGS, requested_word_size, raw_word_size);
 
   MetaWord* p = NULL;
 
@@ -264,7 +270,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
-      log_trace(metaspace)("SpaceManager %s: .. taken from freelist.", _name);
+      log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from freelist.", LOGFMT_SPCMGR_ARGS);
       // Note: space in the freeblock dictionary counts as used (see retire_current_chunk()) -
       // that means that we must not increase the used counter again when allocating from the dictionary.
       // Therefore we return here.
@@ -276,7 +282,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
   // 2) Failing that, attempt to allocate from the current chunk. If we hit commit limit, return NULL.
   if (p == NULL && !did_hit_limit) {
     p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
-    log_trace(metaspace)("SpaceManager %s: .. taken from current chunk.", _name);
+    log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from current chunk.", LOGFMT_SPCMGR_ARGS);
   }
 
   // 3) Failing that because the remaining chunk space is too small for the requested size
@@ -311,7 +317,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
         if (p != NULL) {
           DEBUG_ONLY(InternalStats::inc_num_chunk_enlarged();)
-          log_trace(metaspace)("SpaceManager %s: .. taken from current chunk (enlarged chunk).", _name);
+          log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from current chunk (enlarged chunk).", LOGFMT_SPCMGR_ARGS);
         }
       }
     }
@@ -336,8 +342,8 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     } else {
       assert(current_chunk() != NULL && current_chunk()->free_words() >= raw_word_size, "Sanity");
       p = current_chunk()->allocate(raw_word_size, &did_hit_limit);
-      log_trace(metaspace)("SpaceManager %s: .. allocated new chunk " CHKLVL_FORMAT " and taken from that.",
-                           _name, current_chunk()->level());
+      log_trace(metaspace)(LOGFMT_SPCMGR ": .. allocated new chunk " CHKLVL_FORMAT " and taken from that.",
+                           LOGFMT_SPCMGR_ARGS, current_chunk()->level());
     }
 
   }
@@ -353,8 +359,8 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     _total_used_words_counter->increment_by(raw_word_size);
   }
 
-  log_trace(metaspace)("SpaceManager %s: returned " PTR_FORMAT ".",
-                       _name, p2i(p));
+  log_trace(metaspace)(LOGFMT_SPCMGR ": returned " PTR_FORMAT ".",
+                       LOGFMT_SPCMGR_ARGS, p2i(p));
 
   return p;
 
@@ -368,9 +374,9 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
   // Allocations and deallocations are in raw_word_size
   size_t raw_word_size = get_raw_allocation_word_size(word_size);
 
-  log_debug(metaspace)("SpaceManager %s: deallocating " PTR_FORMAT
+  log_debug(metaspace)(LOGFMT_SPCMGR ": deallocating " PTR_FORMAT
                        ", word size: " SIZE_FORMAT ", raw size: " SIZE_FORMAT ".",
-                       _name, p2i(p), word_size, raw_word_size);
+                       LOGFMT_SPCMGR_ARGS, p2i(p), word_size, raw_word_size);
 
   assert(current_chunk() != NULL, "SpaceManager is empty.");
 
@@ -381,7 +387,7 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
   // If this allocation has just been allocated from the current chunk, it may still be on the top of the
   // current chunk. In that case, just roll back the allocation.
   if (current_chunk()->attempt_rollback_allocation(p, raw_word_size)) {
-    log_trace(metaspace)("SpaceManager %s: ... rollback succeeded.", _name);
+    log_trace(metaspace)(LOGFMT_SPCMGR ": ... rollback succeeded.", LOGFMT_SPCMGR_ARGS);
     return;
   }
 
