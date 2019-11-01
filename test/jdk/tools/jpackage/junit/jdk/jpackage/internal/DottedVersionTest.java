@@ -22,29 +22,73 @@
  */
 package jdk.jpackage.internal;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import static org.junit.Assert.*;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class DottedVersionTest {
+
+    public DottedVersionTest(boolean greedy) {
+        this.greedy = greedy;
+        if (greedy) {
+            createTestee = DottedVersion::greedy;
+        } else {
+            createTestee = DottedVersion::lazy;
+        }
+    }
+
+    @Parameterized.Parameters
+    public static List<Object[]> data() {
+        return List.of(new Object[] { true }, new Object[] { false });
+    }
 
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
 
     @Test
     public void testValid() {
-        Stream.of(
+        final List<String> validStrings = List.of(
             "1.0",
             "1",
             "2.234.045",
             "2.234.0",
             "0",
             "0.1"
-        ).forEach(value -> {
-            DottedVersion version = new DottedVersion(value);
+        );
+
+        final List<String> validLazyStrings;
+        if (greedy) {
+            validLazyStrings = Collections.emptyList();
+        } else {
+            validLazyStrings = List.of(
+                "1.-1",
+                "5.",
+                "4.2.",
+                "3..2",
+                "2.a",
+                "0a",
+                ".",
+                " ",
+                " 1",
+                "1. 2",
+                "+1",
+                "-1",
+                "-0",
+                "1234567890123456789012345678901234567890"
+            );
+        }
+
+        Stream.concat(validStrings.stream(), validLazyStrings.stream())
+        .forEach(value -> {
+            DottedVersion version = createTestee.apply(value);
             assertEquals(version.toString(), value);
         });
     }
@@ -52,13 +96,21 @@ public class DottedVersionTest {
     @Test
     public void testNull() {
         exceptionRule.expect(NullPointerException.class);
-        new DottedVersion(null);
+        createTestee.apply(null);
     }
 
     @Test
     public void testEmpty() {
-        exceptionRule.expect(IllegalArgumentException.class);
-        exceptionRule.expectMessage("Version may not be empty string");
-        new DottedVersion("");
+        if (greedy) {
+            exceptionRule.expect(IllegalArgumentException.class);
+            exceptionRule.expectMessage("Version may not be empty string");
+            createTestee.apply("");
+        } else {
+            assertTrue(0 == createTestee.apply("").compareTo(""));
+            assertTrue(0 == createTestee.apply("").compareTo("0"));
+        }
     }
+
+    private final boolean greedy;
+    private final Function<String, DottedVersion> createTestee;
 }

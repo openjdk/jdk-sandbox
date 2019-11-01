@@ -28,6 +28,7 @@ package jdk.jpackage.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Dotted numeric version string.
@@ -36,14 +37,29 @@ import java.util.Objects;
 class DottedVersion implements Comparable<String> {
 
     public DottedVersion(String version) {
-        components = parseVersionString(version);
+        greedy = true;
+        components = parseVersionString(version, greedy);
         value = version;
+    }
+
+    private DottedVersion(String version, boolean greedy) {
+        this.greedy = greedy;
+        components = parseVersionString(version, greedy);
+        value = version;
+    }
+
+    public static DottedVersion greedy(String version) {
+        return new DottedVersion(version);
+    }
+
+    public static DottedVersion lazy(String version) {
+        return new DottedVersion(version, false);
     }
 
     @Override
     public int compareTo(String o) {
         int result = 0;
-        int[] otherComponents = parseVersionString(o);
+        int[] otherComponents = parseVersionString(o, greedy);
         for (int i = 0; i < Math.min(components.length, otherComponents.length)
                 && result == 0; ++i) {
             result = components[i] - otherComponents[i];
@@ -56,9 +72,12 @@ class DottedVersion implements Comparable<String> {
         return result;
     }
 
-    private static int[] parseVersionString(String version) {
+    private static int[] parseVersionString(String version, boolean greedy) {
         Objects.requireNonNull(version);
         if (version.isEmpty()) {
+            if (!greedy) {
+                return new int[] {0};
+            }
             throw new IllegalArgumentException("Version may not be empty string");
         }
 
@@ -66,15 +85,34 @@ class DottedVersion implements Comparable<String> {
         List<Integer> components = new ArrayList<>();
         for (var component : version.split("\\.", -1)) {
             if (component.isEmpty()) {
+                if (!greedy) {
+                    break;
+                }
+
                 throw new IllegalArgumentException(String.format(
                         "Version [%s] contains a zero lenght component", version));
             }
 
-            int num = Integer.parseInt(component);
-            if (num < 0) {
+            if (!DIGITS.matcher(component).matches()) {
+                // Catch "+N" and "-N"  cases.
+                if (!greedy) {
+                    break;
+                }
+
                 throw new IllegalArgumentException(String.format(
                         "Version [%s] contains invalid component [%s]", version,
                         component));
+            }
+
+            final int num;
+            try {
+                num = Integer.parseInt(component);
+            } catch (NumberFormatException ex) {
+                if (!greedy) {
+                    break;
+                }
+
+                throw ex;
             }
 
             if (num != 0) {
@@ -88,6 +126,9 @@ class DottedVersion implements Comparable<String> {
             components = components.subList(0, lastNotZeroIdx + 1);
         }
 
+        if (components.isEmpty()) {
+            components.add(0);
+        }
         return components.stream().mapToInt(Integer::intValue).toArray();
     }
 
@@ -98,4 +139,7 @@ class DottedVersion implements Comparable<String> {
 
     final private int[] components;
     final private String value;
+    final private boolean greedy;
+
+    private static final Pattern DIGITS = Pattern.compile("\\d+");
 }

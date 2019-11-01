@@ -51,7 +51,11 @@ public class InvalidDottedVersionTest {
             ".",
             " ",
             " 1",
-            "1. 2"
+            "1. 2",
+            "+1",
+            "-1",
+            "-0",
+            "1234567890123456789012345678901234567890"
         ).map(version -> new Object[] { version }).collect(Collectors.toList());
     }
 

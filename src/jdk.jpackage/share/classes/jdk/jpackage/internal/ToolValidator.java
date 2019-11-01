@@ -58,7 +58,7 @@ public final class ToolValidator {
         return this;
     }
 
-    ToolValidator setMinimalVersion(String v) {
+    ToolValidator setMinimalVersion(Comparable<String> v) {
         minimalVersion = v;
         return this;
     }
@@ -129,7 +129,7 @@ public final class ToolValidator {
 
     private final Path toolPath;
     private List<String> args;
-    private String minimalVersion;
+    private Comparable<String> minimalVersion;
     private Function<Stream<String>, String> versionParser;
     private BiFunction<String, IOException, ConfigException> toolNotFoundErrorHandler;
     private BiFunction<String, String, ConfigException> toolOldVersionErrorHandler;

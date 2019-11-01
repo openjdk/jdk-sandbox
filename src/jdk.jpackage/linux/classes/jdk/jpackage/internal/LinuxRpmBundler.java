@@ -107,7 +107,8 @@ public class LinuxRpmBundler extends LinuxPackageBundler {
 
     public final static String TOOL_RPM = "rpm";
     public final static String TOOL_RPMBUILD = "rpmbuild";
-    public final static String TOOL_RPMBUILD_MIN_VERSION = "4.0";
+    public final static DottedVersion TOOL_RPMBUILD_MIN_VERSION = DottedVersion.lazy(
+            "4.0");
 
     public LinuxRpmBundler() {
         super(PACKAGE_NAME);

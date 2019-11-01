@@ -22,10 +22,9 @@
  */
 package jdk.jpackage.internal;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import junit.framework.*;
+import java.util.function.Function;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -35,24 +34,46 @@ import static org.junit.Assert.*;
 @RunWith(Parameterized.class)
 public class CompareDottedVersionTest {
 
-    public CompareDottedVersionTest(String version1, String version2, int result) {
+    public CompareDottedVersionTest(boolean greedy, String version1,
+            String version2, int result) {
         this.version1 = version1;
         this.version2 = version2;
         this.expectedResult = result;
+
+        if (greedy) {
+            createTestee = DottedVersion::greedy;
+        } else {
+            createTestee = DottedVersion::lazy;
+        }
     }
 
     @Parameters
     public static List<Object[]> data() {
-        return List.of(new Object[][] {
-            { "00.0.0", "0", 0 },
-            { "0.035", "0.0035", 0 },
-            { "1", "1", 0 },
-            { "2", "2.0", 0 },
-            { "2.00", "2.0", 0 },
-            { "1.2.3.4", "1.2.3.4.5", -1 },
-            { "34", "33", 1 },
-            { "34.0.78", "34.1.78", -1 }
-        });
+        List<Object[]> data = new ArrayList<>();
+        for (var greedy : List.of(true, false)) {
+            data.addAll(List.of(new Object[][] {
+                { greedy, "00.0.0", "0", 0 },
+                { greedy, "0.035", "0.0035", 0 },
+                { greedy, "1", "1", 0 },
+                { greedy, "2", "2.0", 0 },
+                { greedy, "2.00", "2.0", 0 },
+                { greedy, "1.2.3.4", "1.2.3.4.5", -1 },
+                { greedy, "34", "33", 1 },
+                { greedy, "34.0.78", "34.1.78", -1 }
+            }));
+        }
+
+        data.addAll(List.of(new Object[][] {
+            { false, "", "1", -1 },
+            { false, "1.2.4-R4", "1.2.4-R5", 0 },
+            { false, "1.2.4.-R4", "1.2.4.R5", 0 },
+            { false, "7+1", "7+4", 0 },
+            { false, "2+14", "2-14", 0 },
+            { false, "23.4.RC4", "23.3.RC10", 1 },
+            { false, "77.0", "77.99999999999999999999999999999999999999999999999", 0 },
+        }));
+
+        return data;
     }
 
     @Test
@@ -64,8 +85,8 @@ public class CompareDottedVersionTest {
         assertEquals(actualResult, -1 * actualNegateResult);
     }
 
-    private static int compare(String x, String y) {
-        int result = new DottedVersion(x).compareTo(y);
+    private int compare(String x, String y) {
+        int result = createTestee.apply(x).compareTo(y);
 
         if (result < 0) {
             return -1;
@@ -81,4 +102,5 @@ public class CompareDottedVersionTest {
     private final String version1;
     private final String version2;
     private final int expectedResult;
+    private final Function<String, DottedVersion> createTestee;
 }

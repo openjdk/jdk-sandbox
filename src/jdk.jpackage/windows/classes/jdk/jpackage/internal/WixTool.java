@@ -114,7 +114,7 @@ public enum WixTool {
                 })::validate;
     }
 
-    private final static String MINIMAL_VERSION = "3.0";
+    private final static DottedVersion MINIMAL_VERSION = DottedVersion.lazy("3.0");
 
     static Path getSystemDir(String envVar, String knownDir) {
         return Optional
@@ -132,7 +132,6 @@ public enum WixTool {
             } catch (InvalidPathException ex) {
                 Log.error(MessageFormat.format(I18N.getString(
                         "error.invalid-envvar"), envVar));
-                return null;
             }
         }
         return null;
@@ -142,9 +141,9 @@ public enum WixTool {
         PathMatcher wixInstallDirMatcher = FileSystems.getDefault().getPathMatcher(
                 "glob:WiX Toolset v*");
 
-        Path programFiles = getSystemDir("ProgramFiles", "Program Files");
-        Path programFilesX86 = getSystemDir("ProgramFiles(X86)",
-                "Program Files (x86)");
+        Path programFiles = getSystemDir("ProgramFiles", "\\Program Files");
+        Path programFilesX86 = getSystemDir("ProgramFiles(x86)",
+                "\\Program Files (x86)");
 
         // Returns list of WiX install directories ordered by WiX version number.
         // Newer versions go first.
