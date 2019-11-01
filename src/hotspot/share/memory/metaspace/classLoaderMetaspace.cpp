@@ -67,7 +67,8 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
       ChunkAllocSequence::alloc_sequence_by_space_type(space_type, false),
       lock,
       RunningCounters::used_nonclass_counter(),
-      "non-class sm");
+      "non-class sm",
+      is_micro());
 
   // If needed, initialize class spacemanager
   if (Metaspace::using_class_space()) {
@@ -78,7 +79,8 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
         ChunkAllocSequence::alloc_sequence_by_space_type(space_type, true),
         lock,
         RunningCounters::used_class_counter(),
-        "class sm");
+        "class sm",
+        is_micro());
   }
 
 #ifdef ASSERT

@@ -78,6 +78,9 @@ class SpaceManager : public CHeapObj<mtClass> {
 
   const char* const _name;
 
+  // Whether or not this is a "micro loader" which is not expected to load more than one class.
+  const bool _is_micro_loader;
+
   Mutex* lock() const                           { return _lock; }
   ChunkManager* chunk_manager() const           { return _chunk_manager; }
   const ChunkAllocSequence* chunk_alloc_sequence() const    { return _chunk_alloc_sequence; }
@@ -115,7 +118,8 @@ public:
                const ChunkAllocSequence* alloc_sequence,
                Mutex* lock,
                SizeAtomicCounter* total_used_words_counter,
-               const char* name);
+               const char* name,
+               bool is_micro_loader);
 
   ~SpaceManager();
 

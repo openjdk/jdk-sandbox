@@ -103,7 +103,8 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   // If we have a current chunk, it should have been retired (almost empty) beforehand.
   // See: retire_current_chunk().
-  assert(current_chunk() == NULL || current_chunk()->free_below_committed_words() <= 10, "Must retire chunk beforehand");
+  assert(current_chunk() == NULL ||
+         (_is_micro_loader || current_chunk()->free_below_committed_words() <= 10), "Must retire chunk beforehand");
 
   const chklvl_t min_level = chklvl::level_fitting_word_size(requested_word_size);
   chklvl_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.size());
@@ -159,14 +160,16 @@ SpaceManager::SpaceManager(ChunkManager* chunk_manager,
              const ChunkAllocSequence* alloc_sequence,
              Mutex* lock,
              SizeAtomicCounter* total_used_words_counter,
-             const char* name)
+             const char* name,
+             bool is_micro_loader)
 : _lock(lock),
   _chunk_manager(chunk_manager),
   _chunk_alloc_sequence(alloc_sequence),
   _chunks(),
   _block_freelist(NULL),
   _total_used_words_counter(total_used_words_counter),
-  _name(name)
+  _name(name),
+  _is_micro_loader(is_micro_loader)
 {
 }
 
@@ -207,7 +210,18 @@ void SpaceManager::retire_current_chunk() {
 
   size_t raw_remaining_words = c->free_below_committed_words();
   size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
-  if (net_remaining_words > 0) {
+
+  // Note: Micro class loaders (lambdas, reflection) are typically the vast majority of loaders. They
+  //  will typically only once - if at all - ever retire a chunk, and the remaining size is typically
+  //  very small.
+  // That means that the structure needed to manage this left over space will not see much action. However,
+  //  that structure is expensive as well (pointer lists) and therefore we only should generate it if the
+  //  benefit of managing free space out-weights the costs for that structure.
+  // Non-micro loaders may continue loading, deallocating and retiring more chunks, so the cost of that
+  //  structure may amortize over time. But micro loaders probably never will.
+  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : 0;
+
+  if (net_remaining_words > dont_bother_below_word_size) {
 
     log_debug(metaspace)(LOGFMT_SPCMGR " @" PTR_FORMAT " : retiring chunk " METACHUNK_FULL_FORMAT ".",
                          LOGFMT_SPCMGR_ARGS, p2i(this), METACHUNK_FULL_FORMAT_ARGS(c));
@@ -225,6 +239,7 @@ void SpaceManager::retire_current_chunk() {
 
     DEBUG_ONLY(verify_locked();)
 
+    DEBUG_ONLY(InternalStats::inc_num_chunks_retired();)
   }
 
 }
@@ -333,8 +348,6 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
     // Before we allocate a new chunk we need to retire the old chunk, which is too small to serve our request
     // but may still have free committed words.
     retire_current_chunk();
-
-    DEBUG_ONLY(InternalStats::inc_num_chunks_retired();)
 
     // Allocate a new chunk.
     if (allocate_new_current_chunk(raw_word_size) == false) {

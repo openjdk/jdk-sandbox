@@ -95,7 +95,7 @@ class SpaceManagerTest {
         // Pull lock during space creation, since this is what happens in the VM too
         // (see ClassLoaderData::metaspace_non_null(), which we mimick here).
         MutexLocker ml(_lock,  Mutex::_no_safepoint_check_flag);
-        _sm = new SpaceManager(cm, alloc_sequence, _lock, &_used_counter, "gtest-SpaceManagerTestBed-sm");
+        _sm = new SpaceManager(cm, alloc_sequence, _lock, &_used_counter, "gtest-SpaceManagerTestBed-sm", false);
       }
     }
 
