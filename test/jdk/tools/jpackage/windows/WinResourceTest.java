@@ -27,6 +27,7 @@ import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.PackageTest;
 import jdk.jpackage.test.PackageType;
 import jdk.jpackage.test.Annotations.Test;
+import jdk.jpackage.test.Annotations.Parameters;
 import java.util.List;
 
 /**
@@ -48,8 +49,22 @@ import java.util.List;
  */
 
 public class WinResourceTest {
+
+    public WinResourceTest(String wixSource, String expectedLogMessage) {
+         this.wixSource = wixSource;
+         this.expectedLogMessage = expectedLogMessage;
+    }
+
+    @Parameters
+    public static List<Object[]> data() {
+        return List.of(new Object[][]{
+            {"main.wxs", "Using custom package resource [Main WiX project file]"},
+            {"overrides.wxi", "Using custom package resource [Overrides WiX project file]"},
+        });
+    }
+
     @Test
-    public static void test() throws IOException {
+    public void test() throws IOException {
         new PackageTest()
         .forTypes(PackageType.WINDOWS)
         .configureHelloApp()
@@ -61,14 +76,14 @@ public class WinResourceTest {
             cmd.setFakeRuntime().saveConsoleOutput(true);
 
             cmd.addArguments("--resource-dir", resourceDir);
-            // Create invalid main wxs file in a resource dir.
-            TKit.createTextFile(resourceDir.resolve("main.wxs"), List.of(
-                    "any string that is an invalid wxs file"));
+            // Create invalid WiX source file in a resource dir.
+            TKit.createTextFile(resourceDir.resolve(wixSource), List.of(
+                    "any string that is an invalid WiX source file"));
         })
         .addBundleVerifier((cmd, result) -> {
             // Assert jpackage picked custom main.wxs and failed as expected by
             // examining its output
-            TKit.assertTextStream("Using custom package resource [Main wxs project file]")
+            TKit.assertTextStream(expectedLogMessage)
                     .predicate(String::startsWith)
                     .apply(result.getOutput().stream());
             TKit.assertTextStream("error CNDL0104 : Not a valid source file")
@@ -77,4 +92,7 @@ public class WinResourceTest {
         .setExpectedExitCode(1)
         .run();
     }
+
+    final String wixSource;
+    final String expectedLogMessage;
 }

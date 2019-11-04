@@ -27,6 +27,7 @@ package jdk.jpackage.internal;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,6 +35,7 @@ import java.text.MessageFormat;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -135,12 +137,12 @@ public class WinMsiBundler  extends AbstractBundler {
                     (s, p) -> s
             );
 
-    public static final BundlerParamInfo<UUID> UPGRADE_UUID =
+    private static final BundlerParamInfo<String> UPGRADE_UUID =
             new WindowsBundlerParam<>(
             Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
-            UUID.class,
-            params -> UUID.randomUUID(),
-            (s, p) -> UUID.fromString(s));
+            String.class,
+            null,
+            (s, p) -> s);
 
     @Override
     public String getName() {
@@ -186,12 +188,39 @@ public class WinMsiBundler  extends AbstractBundler {
         return false;
     }
 
+    private static UUID getUpgradeCode(Map<String, ? super Object> params) {
+        String upgradeCode = UPGRADE_UUID.fetchFrom(params);
+        if (upgradeCode != null) {
+            return UUID.fromString(upgradeCode);
+        }
+        return createNameUUID("UpgradeCode", params, List.of(VENDOR, APP_NAME));
+    }
+
+    private static UUID getProductCode(Map<String, ? super Object> params) {
+        return createNameUUID("ProductCode", params, List.of(VENDOR, APP_NAME,
+                VERSION));
+    }
+
+    private static UUID createNameUUID(String prefix,
+            Map<String, ? super Object> params,
+            List<StandardBundlerParam<String>> components) {
+        String key = Stream.concat(Stream.of(prefix), components.stream().map(
+                c -> c.fetchFrom(params))).collect(Collectors.joining("/"));
+        return UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8));
+    }
+
     @Override
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
             if (wixToolset == null) {
                 wixToolset = WixTool.toolset();
+            }
+
+            try {
+                getUpgradeCode(params);
+            } catch (IllegalArgumentException ex) {
+                throw new ConfigException(ex);
             }
 
             for (var toolInfo: wixToolset.values()) {
@@ -225,10 +254,8 @@ public class WinMsiBundler  extends AbstractBundler {
                     List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
                     if (mimes.size() > 1) {
                         throw new ConfigException(MessageFormat.format(
-                                I18N.getString("error.too-many-content-"
-                                + "types-for-file-association"), i),
-                                I18N.getString("error.too-many-content-"
-                                + "types-for-file-association.advice"));
+                                I18N.getString("error.too-many-content-types-for-file-association"), i),
+                                I18N.getString("error.too-many-content-types-for-file-association.advice"));
                     }
                 }
             }
@@ -362,32 +389,27 @@ public class WinMsiBundler  extends AbstractBundler {
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
 
-        UUID productGUID = UUID.randomUUID();
+        final UUID productCode = getProductCode(params);
+        final UUID upgradeCode = getUpgradeCode(params);
 
-        Log.verbose(MessageFormat.format(
-                I18N.getString("message.generated-product-guid"),
-                productGUID.toString()));
+        data.put("JpProductCode", productCode.toString());
+        data.put("JpProductUpgradeCode", upgradeCode.toString());
 
-        // we use random GUID for product itself but
-        // user provided for upgrade guid
-        // Upgrade guid is important to decide whether it is an upgrade of
-        // installed app.  I.e. we need it to be the same for
-        // 2 different versions of app if possible
-        data.put("JpProductCode", productGUID.toString());
-        data.put("JpProductUpgradeCode",
-                UPGRADE_UUID.fetchFrom(params).toString());
+        Log.verbose(MessageFormat.format(I18N.getString("message.product-code"),
+                productCode));
+        Log.verbose(MessageFormat.format(I18N.getString("message.upgrade-code"),
+                upgradeCode));
 
-        if (!UPGRADE_UUID.getIsDefaultValue()) {
-            data.put("JpAllowDowngrades", "yes");
-        }
+        data.put("JpAllowUpgrades", "yes");
 
         data.put("JpAppName", APP_NAME.fetchFrom(params));
         data.put("JpAppDescription", DESCRIPTION.fetchFrom(params));
         data.put("JpAppVendor", VENDOR.fetchFrom(params));
         data.put("JpAppVersion", PRODUCT_VERSION.fetchFrom(params));
 
-        data.put("JpConfigDir",
-                CONFIG_ROOT.fetchFrom(params).getAbsolutePath());
+        final Path configDir = CONFIG_ROOT.fetchFrom(params).toPath();
+
+        data.put("JpConfigDir", configDir.toAbsolutePath().toString());
 
         if (MSI_SYSTEM_WIDE.fetchFrom(params)) {
             data.put("JpIsSystemWide", "yes");
@@ -422,16 +444,14 @@ public class WinMsiBundler  extends AbstractBundler {
         }
 
         createResource("main.wxs", params)
-                .setCategory(I18N.getString("resource.wxs-file"))
-                .saveToFile(Paths.get(getConfig_ProjectFile(params)
-                .getAbsolutePath()));
+                .setCategory(I18N.getString("resource.main-wix-file"))
+                .saveToFile(configDir.resolve("main.wxs"));
 
+        createResource("overrides.wxi", params)
+                .setCategory(I18N.getString("resource.overrides-wix-file"))
+                .saveToFile(configDir.resolve("overrides.wxi"));
 
         return data;
-    }
-
-    private File getConfig_ProjectFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params), "main.wxs");
     }
 
     private File buildMSI(Map<String, ? super Object> params,

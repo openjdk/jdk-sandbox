@@ -381,7 +381,7 @@ endif
 ################################################################################
 
 jdk.jpackage_COPY += .gif .png .txt .spec .script .prerm .preinst .postrm .postinst .list .sh \
-    .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .wxl .ico .bmp
+    .desktop .copyright .control .plist .template .icns .scpt .entitlements .wxs .wxl .wxi .ico .bmp
 
 jdk.jpackage_CLEAN += .properties
 

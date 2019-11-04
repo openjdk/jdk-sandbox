@@ -31,7 +31,6 @@ import java.text.MessageFormat;
 import java.util.*;
 
 import static jdk.jpackage.internal.WindowsBundlerParam.*;
-import static jdk.jpackage.internal.WinMsiBundler.WIN_APP_IMAGE;
 
 public class WinAppBundler extends AbstractImageBundler {
 

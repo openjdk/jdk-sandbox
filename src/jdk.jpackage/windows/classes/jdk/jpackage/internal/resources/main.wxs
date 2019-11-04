@@ -8,24 +8,74 @@
     <?define JpInstallScope="perUser"?>
   <?endif?>
 
-  <Product  Id="$(var.JpProductCode)" Name="$(var.JpAppName)"
-            Language="1033" Version="$(var.JpAppVersion)"
-            Manufacturer="$(var.JpAppVendor)"
-            UpgradeCode="$(var.JpProductUpgradeCode)">
-    <Package  Description="$(var.JpAppDescription)"
-              Manufacturer="$(var.JpAppVendor)"
-              InstallerVersion="200" Compressed="yes"
-              InstallScope="$(var.JpInstallScope)" Platform="x64"/>
-    <Media Id="1" Cabinet="simple.cab" EmbedCab="yes" />
+  <?define JpProductLanguage=1033 ?>
+  <?define JpInstallerVersion=200 ?>
+  <?define JpCompressedMsi=yes ?>
+
+  <?include $(var.JpConfigDir)/overrides.wxi ?>
+
+  <Product
+    Id="$(var.JpProductCode)"
+    Name="$(var.JpAppName)"
+    Language="$(var.JpProductLanguage)"
+    Version="$(var.JpAppVersion)"
+    Manufacturer="$(var.JpAppVendor)"
+    UpgradeCode="$(var.JpProductUpgradeCode)">
+
+    <Package
+      Description="$(var.JpAppDescription)"
+      Manufacturer="$(var.JpAppVendor)"
+      InstallerVersion="$(var.JpInstallerVersion)"
+      Compressed="$(var.JpCompressedMsi)"
+      InstallScope="$(var.JpInstallScope)" Platform="x64"
+    />
+
+    <Media Id="1" Cabinet="Data.cab" EmbedCab="yes" />
 
     <?ifdef JpAllowDowngrades ?>
-    <MajorUpgrade AllowDowngrades="yes"/>
+    <?ifdef JpAllowUpgrades ?>
+    <MajorUpgrade
+      AllowDowngrades="yes"
+      Disallow="no"
+    />
+    <?endif?>
+    <?endif?>
+
+    <?ifdef JpAllowDowngrades ?>
+    <?ifndef JpAllowUpgrades ?>
+    <MajorUpgrade
+      AllowDowngrades="yes"
+      Disallow="yes"
+      DisallowUpgradeErrorMessage="!(loc.DisallowUpgradeErrorMessage)"
+    />
+    <?endif?>
+    <?endif?>
+
+    <?ifndef JpAllowDowngrades ?>
+    <?ifdef JpAllowUpgrades ?>
+    <MajorUpgrade
+      AllowDowngrades="no"
+      Disallow="no"
+      DowngradeErrorMessage="!(loc.DowngradeErrorMessage)"
+    />
+    <?endif?>
+    <?endif?>
+
+    <?ifndef JpAllowDowngrades ?>
+    <?ifndef JpAllowUpgrades ?>
+    <MajorUpgrade
+      AllowDowngrades="no"
+      Disallow="yes"
+      DowngradeErrorMessage="!(loc.DowngradeErrorMessage)"
+      DisallowUpgradeErrorMessage="!(loc.DisallowUpgradeErrorMessage)"
+    />
+    <?endif?>
     <?endif?>
 
     <!-- Standard required root -->
     <Directory Id="TARGETDIR" Name="SourceDir"/>
 
-    <Feature Id="DefaultFeature" Title="Main Feature" Level="1">
+    <Feature Id="DefaultFeature" Title="!(loc.MainFeatureTitle)" Level="1">
       <ComponentGroupRef Id="Shortcuts"/>
       <ComponentGroupRef Id="Files"/>
       <ComponentGroupRef Id="FileAssociations"/>
