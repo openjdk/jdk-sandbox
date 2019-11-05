@@ -130,7 +130,7 @@ JNIEXPORT jboolean JNICALL
 Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
 {
     SOCKET fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
+    if (fd == INVALID_SOCKET) {
         return JNI_FALSE;
     }
     closesocket(fd);
