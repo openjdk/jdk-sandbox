@@ -80,7 +80,7 @@ public class SocketChannelCompare {
 
 
     private ServerSocketChannel getInetServerSocketChannel() throws IOException {
-        InetAddress iaddr = InetAddress.getLocalHost();
+        InetAddress iaddr = InetAddress.getLoopbackAddress();
         return ServerSocketChannel.open().bind(null);
     }
 
