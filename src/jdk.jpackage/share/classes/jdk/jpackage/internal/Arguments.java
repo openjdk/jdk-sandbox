@@ -263,6 +263,10 @@ public class Arguments {
 
         MODULE_PATH ("module-path", "p", OptionCategories.MODULAR),
 
+        BIND_SERVICES ("bind-services", OptionCategories.PROPERTY, () -> {
+            setOptionValue("bind-services", true);
+        }),
+
         MAC_SIGN ("mac-sign", "s", OptionCategories.PLATFORM_MAC, () -> {
             setOptionValue("mac-sign", true);
         }),

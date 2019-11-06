@@ -155,7 +155,8 @@ final class JLinkBundlerHelper {
             mainJarType = ModFile.ModType.UnnamedJar;
         }
 
-        boolean bindServices = addModules.isEmpty();
+        boolean bindServices =
+                StandardBundlerParam.BIND_SERVICES.fetchFrom(params);
 
         // Modules
         String mainModule = getMainModule(params);

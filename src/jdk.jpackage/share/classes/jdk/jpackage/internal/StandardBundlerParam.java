@@ -320,6 +320,16 @@ class StandardBundlerParam<T> extends BundlerParamInfo<T> {
                     (s, p) -> s
             );
 
+    static final StandardBundlerParam<Boolean> BIND_SERVICES =
+            new StandardBundlerParam<>(
+                    Arguments.CLIOptions.BIND_SERVICES.getId(),
+                    Boolean.class,
+                    params -> false,
+                    (s, p) -> (s == null || "null".equalsIgnoreCase(s)) ?
+                            true : Boolean.valueOf(s)
+            );
+
+
     static final StandardBundlerParam<Boolean> VERBOSE  =
             new StandardBundlerParam<>(
                     Arguments.CLIOptions.VERBOSE.getId(),
