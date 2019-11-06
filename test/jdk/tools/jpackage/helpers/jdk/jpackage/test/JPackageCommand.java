@@ -166,15 +166,15 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     public boolean isImagePackageType() {
-        return PackageType.IMAGE == getArgumentValue("--package-type",
+        return PackageType.IMAGE == getArgumentValue("--type",
                 () -> null, PACKAGE_TYPES::get);
     }
 
     public PackageType packageType() {
         // Don't try to be in sync with jpackage defaults. Keep it simple:
-        // if no `--package-type` explicitely set on the command line, consider
+        // if no `--type` explicitely set on the command line, consider
         // this is operator's fault.
-        return getArgumentValue("--package-type",
+        return getArgumentValue("--type",
                 () -> {
                     throw new IllegalStateException("Package type not set");
                 }, PACKAGE_TYPES::get);
@@ -395,9 +395,9 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
      * runtime directory.
      *
      * E.g.:
-     * [jpackage --name Foo --package-type rpm] -> `/opt/foo/lib/runtime`
-     * [jpackage --name Foo --package-type app-image --dest bar] -> `bar/Foo/lib/runtime`
-     * [jpackage --name Foo --package-type rpm --runtime-image java] -> `/opt/foo`
+     * [jpackage --name Foo --type rpm] -> `/opt/foo/lib/runtime`
+     * [jpackage --name Foo --type app-image --dest bar] -> `bar/Foo/lib/runtime`
+     * [jpackage --name Foo --type rpm --runtime-image java] -> `/opt/foo`
      */
     public Path appRuntimeDirectory() {
         return appLayout().runtimeDirectory();
@@ -406,8 +406,8 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     /**
      * Returns path for application launcher with the given name.
      *
-     * E.g.: [jpackage --name Foo --package-type rpm] -> `/opt/foo/bin/Foo`
-     * [jpackage --name Foo --package-type app-image --dest bar] ->
+     * E.g.: [jpackage --name Foo --type rpm] -> `/opt/foo/bin/Foo`
+     * [jpackage --name Foo --type app-image --dest bar] ->
      * `bar/Foo/bin/Foo`
      *
      * @param launcherName name of launcher or {@code null} for the main
@@ -454,8 +454,8 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
      * Returns path to .cfg file of the given application launcher.
      *
      * E.g.:
-     * [jpackage --name Foo --package-type rpm] -> `/opt/foo/lib/app/Foo.cfg`
-     * [jpackage --name Foo --package-type app-image --dest bar] -> `bar/Foo/lib/app/Foo.cfg`
+     * [jpackage --name Foo --type rpm] -> `/opt/foo/lib/app/Foo.cfg`
+     * [jpackage --name Foo --type app-image --dest bar] -> `bar/Foo/lib/app/Foo.cfg`
      *
      * @param launcher name of launcher or {@code null} for the main launcher
      *
@@ -620,7 +620,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
 
     public void verifyIsOfType(PackageType ... types) {
         final var typesSet = Stream.of(types).collect(Collectors.toSet());
-        if (!hasArgument("--package-type")) {
+        if (!hasArgument("--type")) {
             if (!isImagePackageType()) {
                 if (TKit.isLinux() && typesSet.equals(PackageType.LINUX)) {
                     return;
@@ -639,7 +639,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
         }
 
         if (!typesSet.contains(packageType())) {
-            throw new IllegalArgumentException("Unexpected package type");
+            throw new IllegalArgumentException("Unexpected type");
         }
     }
 

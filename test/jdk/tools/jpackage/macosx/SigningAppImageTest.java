@@ -35,7 +35,7 @@ import jdk.jpackage.test.TKit;
 
 /*
  * @test
- * @summary jpackage with --package-type app-image --mac-sign
+ * @summary jpackage with --type app-image --mac-sign
  * @library ../helpers
  * @library /test/lib
  * @library base

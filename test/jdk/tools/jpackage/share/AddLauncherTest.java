@@ -36,7 +36,7 @@ import java.util.ArrayList;
 public class AddLauncherTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--input", "input",
         "--dest", OUTPUT,
         "--name", "test",
@@ -50,7 +50,7 @@ public class AddLauncherTest {
     private final static String ARG1 = "original-argument";
 
     private static final String [] CMD1 = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--input", "input",
         "--dest", OUTPUT,
         "--name", "test",

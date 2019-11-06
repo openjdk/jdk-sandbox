@@ -63,21 +63,21 @@ public class InvalidArgTest {
 
     private static void testInvalidArg() throws Exception {
         String output = JPackageHelper.executeCLI(false,
-                "--package-type", "app-image", ARG1);
+                "--type", "app-image", ARG1);
         validate(ARG1, output);
 
         output = JPackageHelper.executeCLI(false,
-                "--package-type", "app-image", ARG2);
+                "--type", "app-image", ARG2);
         validate(ARG2, output);
     }
 
     private static void testInvalidArgToolProvider() throws Exception {
         String output = JPackageHelper.executeToolProvider(false,
-                "--package-type", "app-image", ARG1);
+                "--type", "app-image", ARG1);
         validate(ARG1, output);
 
         output = JPackageHelper.executeToolProvider(false,
-                "--package-type", "app-image", ARG2);
+                "--type", "app-image", ARG2);
         validate(ARG2, output);
     }
 

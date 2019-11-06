@@ -129,7 +129,7 @@ public class Arguments {
 
     // CLIOptions is public for DeployParamsTest
     public enum CLIOptions {
-        PACKAGE_TYPE("package-type", OptionCategories.PROPERTY, () -> {
+        PACKAGE_TYPE("type", "t", OptionCategories.PROPERTY, () -> {
             context().deployParams.setTargetFormat(popArg());
         }),
 

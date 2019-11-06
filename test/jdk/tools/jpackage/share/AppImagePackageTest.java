@@ -51,7 +51,7 @@ public class AppImagePackageTest {
 
             JPackageCommand appImageCmd = JPackageCommand.helloAppImage()
                     .setArgumentValue("--dest", appimageOutput)
-                    .addArguments("--package-type", "app-image");
+                    .addArguments("--type", "app-image");
 
             PackageTest packageTest = new PackageTest();
             if (packageTest.getAction() == PackageTest.Action.CREATE) {

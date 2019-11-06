@@ -48,7 +48,7 @@ public class ErrorTest {
     private static final String EXPECTED2 = "--main-jar or --module";
 
     private static final String [] CMD1 = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--input", "input",
         "--dest", OUTPUT,
         "--name", "test",
@@ -57,7 +57,7 @@ public class ErrorTest {
     private static final String EXP1 = "main jar does not exist";
 
     private static final String [] CMD2 = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--input", "input",
         "--dest", OUTPUT,
         "--name", "test",
@@ -85,9 +85,9 @@ public class ErrorTest {
         JPackageHelper.createHelloImageJar();
 
         validate(JPackageHelper.executeToolProvider(false,
-            "--package-type", "app-image", ARG1), EXPECTED1, true);
+            "--type", "app-image", ARG1), EXPECTED1, true);
         validate(JPackageHelper.executeToolProvider(false,
-            "--package-type", "app-image", ARG2), EXPECTED2, true);
+            "--type", "app-image", ARG2), EXPECTED2, true);
 
         JPackageHelper.deleteOutputFolder(OUTPUT);
         validate(JPackageHelper.executeToolProvider(false, CMD1), EXP1, false);

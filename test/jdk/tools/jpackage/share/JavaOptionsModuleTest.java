@@ -35,7 +35,7 @@ public class JavaOptionsModuleTest {
     private static final String OUTPUT = "output";
 
     private static final String[] CMD = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",
@@ -43,7 +43,7 @@ public class JavaOptionsModuleTest {
         "--java-options", "TBD"};
 
     private static final String[] CMD2 = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

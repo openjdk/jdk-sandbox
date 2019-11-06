@@ -34,7 +34,7 @@
 public class AddLauncherModuleTest {
     private static final String OUTPUT = "output";
     private static final String [] CMD = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--dest", OUTPUT,
         "--name", "test",
         "--module", "com.hello/com.hello.Hello",

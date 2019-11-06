@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * jpackage package type traits.
+ * jpackage type traits.
  */
 public enum PackageType {
     WIN_MSI(".msi",
@@ -65,7 +65,7 @@ public enum PackageType {
     }
 
     void applyTo(JPackageCommand cmd) {
-        cmd.addArguments("--package-type", getName());
+        cmd.addArguments("--type", getName());
     }
 
     String getSuffix() {

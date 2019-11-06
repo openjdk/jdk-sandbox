@@ -35,7 +35,7 @@ import jdk.jpackage.test.*;
 
 /*
  * @test
- * @summary jpackage with --package-type pkg,dmg --mac-sign
+ * @summary jpackage with --type pkg,dmg --mac-sign
  * @library ../helpers
  * @library /test/lib
  * @library base

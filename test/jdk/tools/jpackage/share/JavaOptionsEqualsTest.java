@@ -47,7 +47,7 @@ public class JavaOptionsEqualsTest {
                                    = "WARNING: Unknown module: other.mod.bar";
 
     private static final String[] CMD = {
-        "--package-type", "app-image",
+        "--type", "app-image",
         "--input", "input",
         "--description", "the two options below should cause two app execution "
             + "Warnings with two lines output saying: "
