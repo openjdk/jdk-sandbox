@@ -25,7 +25,7 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsInvalidNameException;
+import jdk.dns.client.ex.DnsResolverException;
 
 import java.util.ArrayList;
 
@@ -125,10 +125,10 @@ public final class DnsName {
      * Constructs a {@code DnsName} representing a given domain name.
      *
      * @param name the domain name to parse
-     * @throws DnsInvalidNameException if {@code name} does not conform
-     *                                 to DNS syntax.
+     * @throws DnsResolverException if {@code name} does not conform
+     *                              to DNS syntax.
      */
-    public DnsName(String name) throws DnsInvalidNameException {
+    public DnsName(String name) throws DnsResolverException {
         parse(name);
     }
 
@@ -237,7 +237,7 @@ public final class DnsName {
         return new DnsName(this, 0, size());
     }
 
-    public DnsName add(int pos, String comp) throws DnsInvalidNameException {
+    public DnsName add(int pos, String comp) throws DnsResolverException {
         if (pos < 0 || pos > size()) {
             throw new ArrayIndexOutOfBoundsException();
         }
@@ -245,13 +245,13 @@ public final class DnsName {
         int len = comp.length();
         if ((pos > 0 && len == 0) ||
                 (pos == 0 && hasRootLabel())) {
-            throw new DnsInvalidNameException(
+            throw new DnsResolverException(
                     "Empty label must be the last label in a domain name");
         }
         // Check total name length.
         if (len > 0) {
             if (octets + len + 1 >= 256) {
-                throw new DnsInvalidNameException("Name too long");
+                throw new DnsResolverException("Name too long");
             }
             octets += (short) (len + 1);
         }
@@ -264,7 +264,7 @@ public final class DnsName {
         return this;
     }
 
-    public DnsName addAll(int pos, DnsName n) throws DnsInvalidNameException {
+    public DnsName addAll(int pos, DnsName n) throws DnsResolverException {
         // "n" is a DnsName so we can insert it as a whole, rather than
         // verifying and inserting it component-by-component.
         // More code, but less work.
@@ -275,13 +275,13 @@ public final class DnsName {
         // Check for empty labels:  may have only one, and only at end.
         if ((pos > 0 && n.hasRootLabel()) ||
                 (pos == 0 && hasRootLabel())) {
-            throw new DnsInvalidNameException(
+            throw new DnsResolverException(
                     "Empty label must be the last label in a domain name");
         }
 
         short newOctets = (short) (octets + n.octets - 1);
         if (newOctets > 255) {
-            throw new DnsInvalidNameException("Name too long");
+            throw new DnsResolverException("Name too long");
         }
         octets = newOctets;
         int i = size() - pos;       // index for insertion into "labels"
@@ -349,7 +349,7 @@ public final class DnsName {
     /*
      * Parses a domain name, setting the values of instance vars accordingly.
      */
-    private void parse(String name) throws DnsInvalidNameException {
+    private void parse(String name) throws DnsResolverException {
 
         StringBuilder label = new StringBuilder();      // label being parsed
 
@@ -391,7 +391,7 @@ public final class DnsName {
      * @throws InvalidNameException if a valid escape sequence is not found.
      */
     private static char getEscapedOctet(String name, int pos)
-            throws DnsInvalidNameException {
+            throws DnsResolverException {
         try {
             // assert (name.charAt(pos) == '\\');
             char c1 = name.charAt(++pos);
@@ -402,14 +402,14 @@ public final class DnsName {
                     return (char)
                             ((c1 - '0') * 100 + (c2 - '0') * 10 + (c3 - '0'));
                 } else {
-                    throw new DnsInvalidNameException(
+                    throw new DnsResolverException(
                             "Invalid escape sequence in " + name);
                 }
             } else {                    // sequence is `\C'
                 return c1;
             }
         } catch (IndexOutOfBoundsException e) {
-            throw new DnsInvalidNameException(
+            throw new DnsResolverException(
                     "Invalid escape sequence in " + name);
         }
     }
@@ -418,16 +418,16 @@ public final class DnsName {
      * Checks that this label is valid.
      * @throws InvalidNameException if label is not valid.
      */
-    private static void verifyLabel(String label) throws DnsInvalidNameException {
+    private static void verifyLabel(String label) throws DnsResolverException {
         if (label.length() > 63) {
-            throw new DnsInvalidNameException(
+            throw new DnsResolverException(
                     "Label exceeds 63 octets: " + label);
         }
         // Check for two-byte characters.
         for (int i = 0; i < label.length(); i++) {
             char c = label.charAt(i);
             if ((c & 0xFF00) != 0) {
-                throw new DnsInvalidNameException(
+                throw new DnsResolverException(
                         "Label has two-byte char: " + label);
             }
         }

@@ -26,7 +26,7 @@
 package jdk.dns.client.internal;
 
 import jdk.dns.client.ex.DnsCommunicationException;
-import jdk.dns.client.ex.DnsInvalidNameException;
+import jdk.dns.client.ex.DnsResolverException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +48,7 @@ public class ResourceRecord {
     public static final int TYPE_CNAME = 5;
     public static final int TYPE_AAAA = 28;
     public static final int TYPE_PTR = 12;
-    static final int QTYPE_STAR = 255;          // query type "*"
+    public static final int TYPE_ANY = 255;          // query type "*"
 
     private static final int TYPE_NS = 2;
     private static final int TYPE_SOA = 6;
@@ -57,7 +57,6 @@ public class ResourceRecord {
     private static final int TYPE_TXT = 16;
     private static final int TYPE_SRV = 33;
     private static final int TYPE_NAPTR = 35;
-    //static final int QTYPE_AXFR = 252;          // zone transfer //Do not want to support that
 
     /*
      * Mapping from resource record type codes to type name strings.
@@ -183,7 +182,7 @@ public class ResourceRecord {
         String name = null;
         if ((val > 0) && (val < names.length)) {
             name = names[val];
-        } else if (val == QTYPE_STAR) {         // QTYPE_STAR == QCLASS_STAR
+        } else if (val == TYPE_ANY) {         // QTYPE_STAR == QCLASS_STAR
             name = "*";
         }
         if (name == null) {
@@ -196,7 +195,7 @@ public class ResourceRecord {
         if (name.isEmpty()) {
             return -1;                          // invalid name
         } else if (name.equals("*")) {
-            return QTYPE_STAR;                  // QTYPE_STAR == QCLASS_STAR
+            return TYPE_ANY;                  // QTYPE_STAR == QCLASS_STAR
         }
         if (Character.isDigit(name.charAt(0))) {
             try {
@@ -343,7 +342,7 @@ public class ResourceRecord {
                 } else
                     throw new IOException("Invalid label type: " + typeAndLen);
             }
-        } catch (IOException | DnsInvalidNameException e) {
+        } catch (IOException | DnsResolverException e) {
             DnsCommunicationException ce = new DnsCommunicationException(
                     "DNS error: malformed packet");
             ce.initCause(e);

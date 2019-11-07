@@ -36,6 +36,8 @@ class Header {
     static final short OPCODE_MASK = (short) 0x7800;
     static final int OPCODE_SHIFT = 11;
     static final short AA_BIT = (short) 0x0400;
+    static final short AD_BIT = (short) 0x0020;
+    static final short CD_BIT = (short) 0x0010;
     static final short TC_BIT = (short) 0x0200;
     static final short RD_BIT = (short) 0x0100;
     static final short RA_BIT = (short) 0x0080;
@@ -48,6 +50,8 @@ class Header {
     boolean truncated;          // TC
     boolean recursionDesired;   // RD
     boolean recursionAvail;     // RA
+    boolean authenticData;      // AD
+    boolean checkingDisabled;   // CD
     int rcode;                  // RCODE:  4-bit response code
     int numQuestions;
     int numAnswers;
@@ -88,6 +92,8 @@ class Header {
             truncated = (flags & TC_BIT) != 0;
             recursionDesired = (flags & RD_BIT) != 0;
             recursionAvail = (flags & RA_BIT) != 0;
+            authenticData = (flags & AD_BIT) != 0;
+            checkingDisabled = (flags & CD_BIT) != 0;
             rcode = (flags & RCODE_MASK);
 
             // RR counts

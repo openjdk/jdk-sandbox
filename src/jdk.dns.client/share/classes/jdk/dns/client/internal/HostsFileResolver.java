@@ -25,11 +25,11 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.AddressFamily;
 import jdk.dns.client.internal.util.ReloadTracker;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
+import java.net.ProtocolFamily;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -66,7 +66,7 @@ public class HostsFileResolver {
         LOCK.readLock().lock();
         var rsf = HOSTS_FILE_TRACKER.getReloadStatus();
         try {
-            if (!HOSTS_FILE_TRACKER.getReloadStatus().isReloadNeeded()) {
+            if (!rsf.isReloadNeeded()) {
                 return;
             }
         } finally {
@@ -118,7 +118,7 @@ public class HostsFileResolver {
 
         @Override
         public String toString() {
-            return names+"/"+address;
+            return names + "/" + address;
         }
 
         private HostFileEntry(String name, InetAddress address, boolean isHostname) {
@@ -131,7 +131,10 @@ public class HostsFileResolver {
         boolean isValid() {
             return isValid;
         }
-        boolean isHostname() {return isHostname;}
+
+        boolean isHostname() {
+            return isHostname;
+        }
 
         String getHostName() {
             return names.get(0);
@@ -210,11 +213,11 @@ public class HostsFileResolver {
     }
 
     public InetAddress getHostAddress(String hostName) throws UnknownHostException {
-        return getHostAddress(hostName, AddressFamily.ANY);
+        return getHostAddress(hostName, null);
     }
 
-    public InetAddress getHostAddress(String hostName, AddressFamily family) throws UnknownHostException {
-
+    public InetAddress getHostAddress(String hostName, ProtocolFamily family) throws UnknownHostException {
+        var af = AddressFamily.fromProtocolFamily(family);
         loadHostsAddresses();
         var map = HOST_ADDRESSES;
         var he = map.get(hostName);
@@ -222,7 +225,7 @@ public class HostsFileResolver {
             throw new UnknownHostException(hostName);
         }
         var addr = he.address;
-        if (!family.sameFamily(addr)) {
+        if (!af.sameFamily(addr)) {
             throw new UnknownHostException(hostName);
         }
         return addr;
@@ -241,14 +244,14 @@ public class HostsFileResolver {
         return entry.get().getHostName();
     }
 
-    private static boolean isAddressBytesTheSame(byte [] addr1, byte [] addr2) {
+    private static boolean isAddressBytesTheSame(byte[] addr1, byte[] addr2) {
         if (addr1 == null || addr2 == null) {
             return false;
         }
         if (addr1.length != addr2.length) {
             return false;
         }
-        for (int i=0; i<addr1.length; i++) {
+        for (int i = 0; i < addr1.length; i++) {
             if (addr1[i] != addr2[i])
                 return false;
         }

@@ -53,8 +53,9 @@ public class DnsNameService implements InetAddress.NameService {
             if ("false".equals(value)) {
                 return IPv4First;
             }
+            // TODO: Decide if it is compatible way with default InetAddress resolver
             if ("system".equals(value)) {
-                return DontCare; // TODO: Decide if it is compatible way with default InetAddress resolver
+                return DontCare;
             }
             return IPv4First;
         }
@@ -80,13 +81,12 @@ public class DnsNameService implements InetAddress.NameService {
             return NetworkNamesResolver.open()
                     .lookupAllHostAddr(host)
                     .stream()
-                    .sorted(
-                            Comparator.comparing(
-                                    ia -> (ia instanceof Inet4Address && order == AddressOrder.IPv4First)
-                                       || (ia instanceof Inet6Address && order == AddressOrder.IPv6First),
-                                    Boolean::compareTo)
-                                    .reversed()
-                    ).toArray(InetAddress[]::new);
+                    .sorted(Comparator.comparing(
+                            ia -> (ia instanceof Inet4Address && order == AddressOrder.IPv4First)
+                                    || (ia instanceof Inet6Address && order == AddressOrder.IPv6First),
+                            Boolean::compareTo)
+                            .reversed())
+                    .toArray(InetAddress[]::new);
         }
     }
 

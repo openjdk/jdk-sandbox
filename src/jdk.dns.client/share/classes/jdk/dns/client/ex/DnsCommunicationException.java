@@ -32,7 +32,4 @@ public class DnsCommunicationException extends DnsResolverException {
         super(message);
     }
 
-    public DnsCommunicationException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

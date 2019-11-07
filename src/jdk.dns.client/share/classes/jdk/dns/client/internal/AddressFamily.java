@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.dns.client;
+package jdk.dns.client.internal;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -37,7 +37,9 @@ public enum AddressFamily {
     ANY;
 
     public static AddressFamily fromProtocolFamily(ProtocolFamily protocolFamily) {
-        if (protocolFamily == StandardProtocolFamily.INET) {
+        if (protocolFamily == null) {
+            return ANY;
+        } else if (protocolFamily == StandardProtocolFamily.INET) {
             return IPv4;
         } else if (protocolFamily == StandardProtocolFamily.INET6) {
             return IPv6;
@@ -60,7 +62,26 @@ public enum AddressFamily {
         }
     }
 
-    public static AddressFamily fromInetAddress(InetAddress addr) {
+    boolean matchesResourceRecord(ResourceRecord rr) {
+        int type = rr.getType();
+        switch (this) {
+            case IPv4:
+                return type == ResourceRecord.TYPE_A;
+            case IPv6:
+                return type == ResourceRecord.TYPE_AAAA;
+            case ANY:
+                return type == ResourceRecord.TYPE_A ||
+                        type == ResourceRecord.TYPE_AAAA;
+            default:
+                return false;
+        }
+    }
+
+    static AddressFamily fromResourceRecord(ResourceRecord rr) {
+        return rr.getType() == ResourceRecord.TYPE_AAAA ? IPv6 : IPv4;
+    }
+
+    static AddressFamily fromInetAddress(InetAddress addr) {
         return addr instanceof Inet4Address ? IPv4 : addr instanceof Inet6Address ? IPv6 : ANY;
     }
 }

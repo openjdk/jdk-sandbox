@@ -27,11 +27,13 @@ package jdk.dns.client.internal;
 
 import jdk.dns.client.ex.DnsCommunicationException;
 import jdk.dns.client.ex.DnsNameNotFoundException;
-import jdk.dns.client.ex.DnsOperationNotSupportedException;
 import jdk.dns.client.ex.DnsResolverException;
-import jdk.dns.client.ex.DnsServiceUnavailableException;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -44,7 +46,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +100,6 @@ public class DnsClient {
     private int retries;                // number of UDP retries
 
 
-
     private static final SecureRandom random;
 
     static {
@@ -125,14 +125,13 @@ public class DnsClient {
      * "timeout" is the initial timeout interval (in ms) for queries,
      * and "retries" gives the number of retries per server.
      */
-    public DnsClient(List<String> servers, int timeout, int retries)
-            throws UnknownHostException {
+    public DnsClient(List<String> servers, int timeout, int retries) {
         this.timeout = timeout;
         this.retries = retries;
         var serversList = new ArrayList<InetAddress>();
         var serverPortsList = new ArrayList<Integer>();
 
-        for (String serverString:servers) {
+        for (String serverString : servers) {
 
             // Is optional port given?
             int colon = serverString.indexOf(':',
@@ -155,8 +154,12 @@ public class DnsClient {
             byte[] addr = System.getSecurityManager() == null ?
                     pa.run() : AccessController.doPrivileged(pa);
             if (addr != null) {
-                serversList.add(InetAddress.getByAddress(server, addr));
-                serverPortsList.add(serverPort);
+                try {
+                    serversList.add(InetAddress.getByAddress(server, addr));
+                    serverPortsList.add(serverPort);
+                } catch (UnknownHostException e) {
+                    // Malformed IP address is specified - will ignore it
+                }
             }
         }
         this.servers = Collections.unmodifiableList(serversList);
@@ -257,8 +260,7 @@ public class DnsClient {
                         Header hdr = new Header(msg, msg.length);
 
                         if (auth && !hdr.authoritative) {
-                            caughtException = new DnsNameNotFoundException(
-                                    "DNS response not authoritative");
+                            caughtException = new DnsResolverException("DNS response not authoritative");
                             doNotRetry[i] = true;
                             continue;
                         }
@@ -283,7 +285,7 @@ public class DnsClient {
                                     }
                                     Header hdr2 = new Header(msg2, msg2.length);
                                     if (hdr2.query) {
-                                        throw new DnsCommunicationException(
+                                        throw new DnsResolverException(
                                                 "DNS error: expecting response");
                                     }
                                     checkResponseCode(hdr2);
@@ -362,7 +364,10 @@ public class DnsClient {
             DatagramPacket ipkt = new DatagramPacket(new byte[8000], 8000);
             // Packets may only be sent to or received from this server address
             // TODO: Revisit
-            var pa = (PrivilegedAction<Void>) () -> {dc.socket().connect(server, port); return null;};
+            var pa = (PrivilegedAction<Void>) () -> {
+                dc.socket().connect(server, port);
+                return null;
+            };
             if (System.getSecurityManager() == null) {
                 pa.run();
             } else {
@@ -461,6 +466,7 @@ public class DnsClient {
         Packet pkt = new Packet(pktLen);
 
         short flags = recursion ? Header.RD_BIT : 0;
+        // flags = (short) (flags | Header.CD_BIT | Header.AD_BIT);
 
         pkt.putShort(xid, IDENT_OFFSET);
         pkt.putShort(flags, FLAGS_OFFSET);
@@ -536,7 +542,7 @@ public class DnsClient {
 
         Header hdr = new Header(pkt, pkt.length);
         if (hdr.query) {
-            throw new DnsCommunicationException("DNS error: expecting response");
+            throw new DnsResolverException("DNS error: expecting response");
         }
 
         if (!reqs.containsKey(xid)) { // already received, ignore the response
@@ -562,7 +568,7 @@ public class DnsClient {
 
                 // Check that the type/class/name in the query section of the
                 // response match those in the original query
-                if ((qtype == ResourceRecord.QTYPE_STAR ||
+                if ((qtype == ResourceRecord.TYPE_ANY ||
                         qtype == rr.getType()) &&
                         (qclass == ResourceRecord.QCLASS_STAR ||
                                 qclass == rr.getRrclass()) &&
@@ -632,19 +638,7 @@ public class DnsClient {
                 : "DNS error";
 
         msg += " [response code " + rcode + "]";
-
-        switch (rcode) {
-            case SERVER_FAILURE:
-                throw new DnsServiceUnavailableException(msg);
-            case NAME_ERROR:
-                throw new DnsNameNotFoundException(msg);
-            case NOT_IMPL:
-            case REFUSED:
-                throw new DnsOperationNotSupportedException(msg);
-            case FORMAT_ERROR:
-            default:
-                throw new DnsResolverException(msg);
-        }
+        throw new DnsResolverException(msg);
     }
 
     //-------------------------------------------------------------------------
@@ -663,8 +657,8 @@ public class DnsClient {
 class Tcp {
 
     private final Socket sock;
-    private final java.io.InputStream in;
-    final java.io.OutputStream out;
+    private final InputStream in;
+    final OutputStream out;
     private int timeoutLeft;
 
     Tcp(InetAddress server, int port, int timeout) throws IOException {
@@ -677,8 +671,8 @@ class Tcp {
                 throw new SocketTimeoutException();
 
             sock.setTcpNoDelay(true);
-            out = new java.io.BufferedOutputStream(sock.getOutputStream());
-            in = new java.io.BufferedInputStream(sock.getInputStream());
+            out = new BufferedOutputStream(sock.getOutputStream());
+            in = new BufferedInputStream(sock.getInputStream());
         } catch (Exception e) {
             try {
                 sock.close();

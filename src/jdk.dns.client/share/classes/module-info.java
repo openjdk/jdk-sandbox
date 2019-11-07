@@ -30,6 +30,5 @@ import java.net.InetAddress;
 module jdk.dns.client {
     exports jdk.dns.client;
     exports jdk.dns.client.ex;
-    exports jdk.dns.client.internal; // For debugging
     provides InetAddress.NameService with DnsNameService;
 }

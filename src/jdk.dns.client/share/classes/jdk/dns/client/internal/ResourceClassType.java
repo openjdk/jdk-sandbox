@@ -25,8 +25,7 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.AddressFamily;
-import jdk.dns.client.ex.DnsInvalidAttributeIdentifierException;
+import jdk.dns.client.ex.DnsResolverException;
 
 public class ResourceClassType {
     int rrclass;
@@ -49,8 +48,8 @@ public class ResourceClassType {
         ResourceClassType[] cts;
         try {
             cts = ResourceClassType.attrIdsToClassesAndTypes(typeFromAddressFamily(addressFamily));
-        } catch (DnsInvalidAttributeIdentifierException e) {
-            return new ResourceClassType(ResourceRecord.QTYPE_STAR);
+        } catch (DnsResolverException e) {
+            return new ResourceClassType(ResourceRecord.TYPE_ANY);
         }
         return ResourceClassType.getClassAndTypeToQuery(cts);
     }
@@ -68,7 +67,7 @@ public class ResourceClassType {
 
 
     public static ResourceClassType[] attrIdsToClassesAndTypes(String[] attrIds)
-            throws DnsInvalidAttributeIdentifierException {
+            throws DnsResolverException {
         if (attrIds == null) {
             return null;
         }
@@ -81,10 +80,10 @@ public class ResourceClassType {
     }
 
     private static ResourceClassType fromAttrId(String attrId)
-            throws DnsInvalidAttributeIdentifierException {
+            throws DnsResolverException {
 
         if (attrId.isEmpty()) {
-            throw new DnsInvalidAttributeIdentifierException(
+            throw new DnsResolverException(
                     "Attribute ID cannot be empty");
         }
         int rrclass;
@@ -98,7 +97,7 @@ public class ResourceClassType {
             String className = attrId.substring(0, space);
             rrclass = ResourceRecord.getRrclass(className);
             if (rrclass < 0) {
-                throw new DnsInvalidAttributeIdentifierException(
+                throw new DnsResolverException(
                         "Unknown resource record class '" + className + '\'');
             }
         }
@@ -107,7 +106,7 @@ public class ResourceClassType {
         String typeName = attrId.substring(space + 1);
         rrtype = ResourceRecord.getType(typeName);
         if (rrtype < 0) {
-            throw new DnsInvalidAttributeIdentifierException(
+            throw new DnsResolverException(
                     "Unknown resource record type '" + typeName + '\'');
         }
 
@@ -128,7 +127,7 @@ public class ResourceClassType {
             throw new RuntimeException("Internal DNS resolver error");
         } else if (cts.length == 0) {
             // No records are requested, but we need to ask for something.
-            rrtype = ResourceRecord.QTYPE_STAR;
+            rrtype = ResourceRecord.TYPE_ANY;
         } else {
             rrclass = ResourceRecord.CLASS_INTERNET;
             rrtype = cts[0].rrtype;
@@ -137,7 +136,7 @@ public class ResourceClassType {
                     throw new RuntimeException("Internal error: Only CLASS_INTERNET is supported");
                 }
                 if (rrtype != cts[i].rrtype) {
-                    rrtype = ResourceRecord.QTYPE_STAR;
+                    rrtype = ResourceRecord.TYPE_ANY;
                 }
             }
         }

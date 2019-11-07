@@ -51,12 +51,20 @@ public class ResourceRecords {
     // TODO: Try to reuse additional section to avoid additional CNAME lookups
     public Vector<ResourceRecord> additional = new Vector<>();
 
+    private boolean hasIpv4InAnswer;
+    private boolean hasIpv6InAnswer;
+    private boolean hasAliasInAnswer;
 
-    public boolean hasAddressOrAlias() {
-        return answer.stream().anyMatch(
-                rr -> rr.rrtype == ResourceRecord.TYPE_A
-                        || rr.rrtype == ResourceRecord.TYPE_AAAA
-                        || rr.rrtype == ResourceRecord.TYPE_CNAME);
+
+    public boolean hasAddressesOrAlias() {
+        return hasIpv4InAnswer || hasIpv6InAnswer || hasAliasInAnswer;
+    }
+
+    public boolean hasAddressOfFamily(AddressFamily af) {
+        if (af == AddressFamily.ANY) {
+            return hasIpv6InAnswer || hasIpv4InAnswer;
+        }
+        return af == AddressFamily.IPv4 ? hasIpv4InAnswer : hasIpv6InAnswer;
     }
 
     /*
@@ -82,28 +90,6 @@ public class ResourceRecords {
     }
 
     /*
-     * Returns the type field of the first answer record, or -1 if
-     * there are no answer records.
-     */
-    int getFirstAnsType() {
-        if (answer.size() == 0) {
-            return -1;
-        }
-        return answer.firstElement().getType();
-    }
-
-    /*
-     * Returns the type field of the last answer record, or -1 if
-     * there are no answer records.
-     */
-    int getLastAnsType() {
-        if (answer.size() == 0) {
-            return -1;
-        }
-        return answer.lastElement().getType();
-    }
-
-    /*
      * Decodes the resource records in a DNS message and adds
      * them to this object.
      * Does not modify or store a reference to the msg array.
@@ -125,6 +111,9 @@ public class ResourceRecords {
             for (int i = 0; i < hdr.numAnswers; i++) {
                 rr = new ResourceRecord(
                         msg, msgLen, pos, false, !zoneXfer);
+                hasIpv4InAnswer |= rr.rrtype == ResourceRecord.TYPE_A;
+                hasIpv6InAnswer |= rr.rrtype == ResourceRecord.TYPE_AAAA;
+                hasAliasInAnswer |= rr.rrtype == ResourceRecord.TYPE_CNAME;
                 answer.addElement(rr);
                 pos += rr.size();
             }
