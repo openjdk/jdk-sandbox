@@ -53,7 +53,7 @@ public final class BasicTest {
     public void testNoArgs() {
         List<String> output =
                 getJPackageToolProvider().executeAndGetOutput();
-        TKit.assertStringListEquals(List.of("Usage: jpackage <mode> <options>",
+        TKit.assertStringListEquals(List.of("Usage: jpackage <options>",
                 "Use jpackage --help (or -h) for a list of possible options"),
                 output, "Check jpackage output");
     }
