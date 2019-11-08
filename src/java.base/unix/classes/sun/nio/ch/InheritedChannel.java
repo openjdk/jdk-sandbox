@@ -39,6 +39,7 @@ import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
 
 class InheritedChannel {
@@ -102,10 +103,12 @@ class InheritedChannel {
 
     public static class InheritedUnixSocketChannelImpl extends UnixDomainSocketChannelImpl {
 
-        InheritedUnixSocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
+        InheritedUnixSocketChannelImpl(SelectorProvider sp, 
+				FileDescriptor fd,
+				UnixDomainSocketAddress remote )
             throws IOException
         {
-            super(sp, fd, true);
+            super(sp, fd, remote);
         }
 
         @Override
@@ -227,16 +230,18 @@ class InheritedChannel {
                 return null;
             if (family == AF_UNIX) {
                 if (isConnected(fdVal)) {
-                    return new InheritedUnixSocketChannelImpl(provider, fd);
+	            UnixDomainSocketAddress sa = peerAddressUnix(fdVal);
+                    return new InheritedUnixSocketChannelImpl(provider, fd, sa);
                 } else {
                     return new InheritedUnixServerSocketChannelImpl(provider, fd);
                 }
             }
-            InetAddress ia = peerAddress0(fdVal);
+            InetAddress ia = peerAddressInet(fdVal);
             if (ia == null) {
                c = new InheritedInetServerSocketChannelImpl(provider, fd);
             } else {
                int port = peerPort0(fdVal);
+
                assert port > 0;
                InetSocketAddress isa = new InetSocketAddress(ia, port);
                c = new InheritedInetSocketChannelImpl(provider, fd, isa);
@@ -283,7 +288,8 @@ class InheritedChannel {
     private static native void close0(int fd) throws IOException;
     private static native int soType0(int fd);
     private static native int addressFamily(int fd);
-    private static native InetAddress peerAddress0(int fd);
+    private static native InetAddress peerAddressInet(int fd);
+    private static native UnixDomainSocketAddress peerAddressUnix(int fd);
     private static native int peerPort0(int fd);
 
     // return true if socket is connected to a peer

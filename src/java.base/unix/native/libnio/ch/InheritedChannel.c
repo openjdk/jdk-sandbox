@@ -37,7 +37,7 @@
 
 #include "sun_nio_ch_InheritedChannel.h"
 
-static int matchFamily(SOCKETADDRESS *sa) {
+static int matchFamilyInet(SOCKETADDRESS *sa) {
     return (sa->sa.sa_family == (ipv6_available() ? AF_INET6 : AF_INET));
 }
 
@@ -49,7 +49,7 @@ Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_InheritedChannel_peerAddress0(JNIEnv *env, jclass cla, jint fd)
+Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint fd)
 {
     SOCKETADDRESS sa;
     socklen_t len = sizeof(SOCKETADDRESS);
@@ -57,12 +57,25 @@ Java_sun_nio_ch_InheritedChannel_peerAddress0(JNIEnv *env, jclass cla, jint fd)
     jint remote_port;
 
     if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (matchFamily(&sa)) {
+        if (matchFamilyInet(&sa)) {
             remote_ia = NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
         }
     }
 
     return remote_ia;
+}
+
+JNIEXPORT jobject JNICALL
+Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint fd)
+{
+    SOCKETADDRESS sa;
+    socklen_t len = sizeof(SOCKETADDRESS);
+    jobject remote_sa = NULL;
+
+    if (sa.sa.sa_family == AF_UNIX) {
+    	remote_sa = NET_SockaddrToUnixAddress(env, &sa);
+    }
+    return remote_sa;
 }
 
 JNIEXPORT jint JNICALL
@@ -73,9 +86,9 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     jint remote_port = -1;
 
     if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (matchFamily(&sa)) {
+        if (matchFamilyInet(&sa)) {
             NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
-        }
+	}
     }
 
     return remote_port;

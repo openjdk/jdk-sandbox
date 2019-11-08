@@ -27,7 +27,7 @@ import java.io.IOException;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /*
- * Make sure that System.inheritedChannel returns null when given a UNIX domain socket
+ * Make sure that System.inheritedChannel returns the correct type
  */
 
 public class UnixDomainChannelTest {
@@ -45,11 +45,18 @@ public class UnixDomainChannelTest {
                 bc.write(buf);
             } else { // test3
                 // in this case the socket is a listener
-                // we can't write to it. So, use UnixDatagramSocket
-                // to accept a writeable socket
-                UnixDomainSocket listener = new UnixDomainSocket(0); // fd 0
-                UnixDomainSocket sock = listener.accept();
-                sock.write((int)result.charAt(0));
+		if (!(channel instanceof ServerSocketChannel)) {
+                    // we can't write to it. So, use UnixDatagramSocket
+                    // to accept a writeable socket
+                    UnixDomainSocket listener = new UnixDomainSocket(0); // fd 0
+                    UnixDomainSocket sock = listener.accept();
+                    sock.write((int)'X');
+		} else {
+		    ServerSocketChannel server = (ServerSocketChannel)channel;
+		    ByteChannel bc = server.accept();
+                    ByteBuffer buf = ByteBuffer.wrap(result.getBytes(ISO_8859_1));
+                    bc.write(buf);
+		}
             }
         }
     }
@@ -107,7 +114,7 @@ public class UnixDomainChannelTest {
         System.out.println("test3: launching child");
         Launcher.launchWithUnixDomainSocket("UnixDomainChannelTest$Child", listener, "test3");
         sock1.connect("foo.socket");
-        if (sock1.read() != 'N') {
+        if (sock1.read() != 'Y') {
             System.err.println("test3: failed");
             passed = false;
         }
