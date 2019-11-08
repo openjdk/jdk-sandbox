@@ -89,7 +89,7 @@ public class AddressResolutionQueue {
             }
             InetAddress address = InetAddress.getByAddress(hostName, addrBytes);
             results.add(address);
-            if (needAllAddresses) {
+            if (!needAllAddresses) {
                 break;
             }
         }
@@ -116,7 +116,7 @@ public class AddressResolutionQueue {
         // Used in non-ANY mode and stores the host name that yielded some result (A or AAAA)
         String gotResultsFor = "";
         // Init queue with ANY requests first
-        isAnyMode = true;
+        isAnyMode = USE_ANY_SP_VALUE;
         fillQueue();
         List<ResolvedAddress> addresses = new ArrayList<>();
         while (true) {
@@ -144,7 +144,7 @@ public class AddressResolutionQueue {
             // name and only for the left addresses and no need to process CNAME requests
             if (gotResultsFor.isEmpty() || (resRequest.hostName.equals(gotResultsFor)
                     && resRequest.resourceId != ResourceRecord.TYPE_CNAME)) {
-                var result = executeRequest(resRequest);
+                var result = executeRequest(resRequest, !gotResultsFor.isEmpty());
                 addresses.addAll(result);
             }
 
@@ -175,16 +175,14 @@ public class AddressResolutionQueue {
         }
     }
 
-    private List<ResolvedAddress> executeRequest(ResolutionRequest request) {
+    private List<ResolvedAddress> executeRequest(ResolutionRequest request, boolean alreadyHaveResults) {
 
         try {
-            if (DEBUG) {
-                System.err.printf("Executing processing request:%s%n", request);
-            }
             var rrs = dnsResolver.query(request.hostName, request.resourceId);
             if (DEBUG) {
                 System.err.println("================DNS Resolution queue==================");
-                System.err.println("Got answers:" + rrs.answer);
+                System.err.printf("Got answers for '%s':%n", request);
+                System.err.println(rrs.answer);
                 System.err.println("======================================================");
             }
             // If no addresses or aliases - return
@@ -209,24 +207,26 @@ public class AddressResolutionQueue {
                         .map(ResolvedAddress::of)
                         .collect(Collectors.toList());
             }
-            // If has alias - clear the queue and add new requests withSystem.out.println("================DNS Resolution queue==================");
-            // the requested addresses
-            Optional<String> aliasO = rrs.answer.stream()
-                    .filter(rr -> rr.rrtype == ResourceRecord.TYPE_CNAME)
-                    .map(ResourceRecord::getRdata)
-                    .map(Object::toString)
-                    .findFirst();
-            if (aliasO.isPresent()) {
-                queue.clear();
-                String cname = aliasO.get();
-                if (DEBUG) {
-                    System.err.println("Found alias: " + cname);
+            // If has alias - clear the queue and add new requests with
+            // the alias name. Do it only for cases when no addresses is found
+            if (!alreadyHaveResults) {
+                Optional<String> aliasO = rrs.answer.stream()
+                        .filter(rr -> rr.rrtype == ResourceRecord.TYPE_CNAME)
+                        .map(ResourceRecord::getRdata)
+                        .map(Object::toString)
+                        .findFirst();
+                if (aliasO.isPresent()) {
+                    queue.clear();
+                    String cname = aliasO.get();
+                    if (DEBUG) {
+                        System.err.println("Found alias: " + cname);
+                    }
+                    cnameCount++;
+                    if (cnameCount > MAX_CNAME_RESOLUTION_DEPTH) {
+                        throw new RuntimeException("CNAME loop detected");
+                    }
+                    addQueriesForHostname(cname);
                 }
-                cnameCount++;
-                if (cnameCount > MAX_CNAME_RESOLUTION_DEPTH) {
-                    throw new RuntimeException("CNAME loop detected");
-                }
-                addQueriesForHostname(cname);
             }
             // Filter the results depending on typeOfAddress
             return Collections.emptyList();
@@ -305,6 +305,9 @@ public class AddressResolutionQueue {
     // Private resolution queue has two modes - ANY and single requests.
     // The mode in use is tracked with this boolean flag
     private boolean isAnyMode;
+    // Use any mode property value
+    private static final boolean USE_ANY_SP_VALUE = java.security.AccessController.doPrivileged(
+            (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.use.any"));
     // Maximum number of sequential CNAME requests
     private static final int MAX_CNAME_RESOLUTION_DEPTH = 4;
     // Enable debug output

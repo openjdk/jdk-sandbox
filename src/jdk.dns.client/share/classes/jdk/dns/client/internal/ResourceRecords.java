@@ -48,7 +48,6 @@ public class ResourceRecords {
     Vector<ResourceRecord> question = new Vector<>();
     public Vector<ResourceRecord> answer = new Vector<>();
     Vector<ResourceRecord> authority = new Vector<>();
-    // TODO: Try to reuse additional section to avoid additional CNAME lookups
     public Vector<ResourceRecord> additional = new Vector<>();
 
     private boolean hasIpv4InAnswer;

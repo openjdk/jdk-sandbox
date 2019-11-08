@@ -76,7 +76,7 @@ public class NetworkNamesResolver {
 
         // If no luck - try to ask name servers
         try (DnsResolver dnsResolver = new DnsResolver()) {
-            var results = lookup(dnsResolver, hostname, protocolFamily, true);
+            var results = lookup(dnsResolver, hostname, protocolFamily, false);
             return results.get(0);
         }
     }
@@ -101,7 +101,7 @@ public class NetworkNamesResolver {
         }
 
         try (var dnsResolver = new DnsResolver()) {
-            var results = lookup(dnsResolver, hostname, null, false);
+            var results = lookup(dnsResolver, hostname, null, true);
             if (results.isEmpty()) {
                 throw new UnknownHostException(hostname + " unknown host name");
             }
@@ -178,11 +178,11 @@ public class NetworkNamesResolver {
         return addressBuff.toString();
     }
 
-    private List<InetAddress> lookup(DnsResolver dnsResolver, String host, ProtocolFamily protocolFamily, boolean oneIsEnough) throws UnknownHostException {
+    private List<InetAddress> lookup(DnsResolver dnsResolver, String host, ProtocolFamily protocolFamily, boolean needAllAddresses) throws UnknownHostException {
         if (DEBUG) {
             System.out.printf("Resolver API: internal lookup call - %s%n", host);
         }
-        return AddressResolutionQueue.resolve(dnsResolver, host, protocolFamily, oneIsEnough);
+        return AddressResolutionQueue.resolve(dnsResolver, host, protocolFamily, needAllAddresses);
     }
 
     private static HostsFileResolver hostsFileResolver = new HostsFileResolver();
