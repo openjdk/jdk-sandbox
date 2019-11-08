@@ -67,14 +67,16 @@ import java.nio.channels.spi.SelectorProvider;
  * AsynchronousCloseException}.
  *
  * <p>Two kinds of socket channel are supported: <i>IP</i> (Internet Protocol) and
- * <i>unix domain</i> depending on which open method is used to create them and which
+ * <i>Unix Domain</i> depending on which open method is used to create them and which
  * subtype of {@link SocketAddress} that they support for local and remote addresses.
  * <i>IP</i> channels are created using {@link #open()}. They use {@link
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
- * <i>unix domain</i> channels are created using {@link #open(ProtocolFamily)}
+ * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX}.
  * They use {@link UnixDomainSocketAddress}es and also
- * do not support the {@link #socket()} method.
+ * do not support the {@link #socket()} method. Note, it is also possible to
+ * create channels that support either IPv4 or IPv6 only through the
+ * {@link #open(ProtocolFamily)} method.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
  * setOption} method. <i>IP</i> socket channels support the following options:
@@ -126,7 +128,7 @@ import java.nio.channels.spi.SelectorProvider;
  * or write operation while an invocation of one of these methods is in
  * progress will block until that invocation is complete.  </p>
  *
- * <p><i>Unix domain</i> channels support a subset of the options listed above.
+ * <p><i>Unix Domain</i> channels support a subset of the options listed above.
  *
  * @author Mark Reinhold
  * @author JSR-51 Expert Group
@@ -183,18 +185,18 @@ public abstract class SocketChannel
     /**
      * Opens a socket channel and connects it to a remote address.
      * Depending on the type of {@link SocketAddress} supplied, the returned object
-     * is an <i>IP</i> or <i>unix domain</i> channel.
+     * is an <i>IP</i> or <i>Unix Domain</i> channel.
      *
      * <p> For {@link InetSocketAddress}es this convenience method works as if by invoking the {@link #open()}
      * method, invoking the {@link #connect(SocketAddress) connect} method upon
-     * the resulting socket channel, passing it {@code remote}, and then
-     * returning that channel.  </p>
+     * the resulting socket channel, passing it {@code remote}, which must be an
+     * {@link InetSocketAddress} and then returning that channel.  </p>
      *
      * <p> For {@link UnixDomainSocketAddress}es it works as if by invoking the {@link
      * #open(ProtocolFamily)} method with {@link StandardProtocolFamily#UNIX} as parameter,
      * invoking the {@link #connect(SocketAddress) connect} method upon
-     * the resulting socket channel, passing it {@code remote}, and then
-     * returning that channel.  </p>
+     * the resulting socket channel, passing it {@code remote}, which must be a
+     * {@link UnixDomainSocketAddress} and then returning that channel.  </p>
      *
      * @param  remote
      *         The remote address to which the new channel is to be connected
@@ -272,7 +274,7 @@ public abstract class SocketChannel
     /**
      * {@inheritDoc}
      *
-     * <p> Note, for <i>Unix domain</i> channels, a file is created in the file-system
+     * <p> Note, for <i>Unix Domain</i> channels, a file is created in the file-system
      * with the same name as this channel's bound address. This file persists after
      * the channel is closed, and must be removed before another channel can bind
      * to the same name.
@@ -287,7 +289,7 @@ public abstract class SocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels or for <i>unix domain</i>
+     *          the operation for <i>IP</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies "read" or "write"
      *          {@link java.io.FilePermission} for the local path.
      *
@@ -352,13 +354,14 @@ public abstract class SocketChannel
 
     /**
      * Retrieves a socket associated with this channel if it is an <i>IP</i>
-     * channel. The operation is not supported for <i>unix domain</i> channels.
+     * channel. The operation is not supported for <i>Unix Domain</i> channels.
      *
      * <p> The returned object will not declare any public methods that are not
      * declared in the {@link java.net.Socket} class.  </p>
      *
      * @return  A socket associated with this channel
-     * @throws UnsupportedOperationException is this is a Unix domain channel
+     *
+     * @throws UnsupportedOperationException is this is a <i>Unix Domain</i> channel
      */
     public abstract Socket socket();
 
@@ -400,7 +403,7 @@ public abstract class SocketChannel
      * java.lang.SecurityManager#checkConnect checkConnect} method permits
      * connecting to the address and port number of the given remote endpoint.
      *
-     * <p> For <i>unix domain</i> channels, this method performs a security
+     * <p> For <i>Unix Domain</i> channels, this method performs a security
      * manager {@link SecurityManager#checkPermission(Permission)} using
      * a {@link java.io.FilePermission} constructed with the path from the
      * destination address and "read,write" as the actions.
@@ -512,7 +515,7 @@ public abstract class SocketChannel
      * socket address then the return value from this method is of type {@link
      * java.net.InetSocketAddress}.
      *
-     * <p> Where the channel is bound and connected to a <i>Unix domain</i>
+     * <p> Where the channel is bound and connected to a <i>Unix Domain</i>
      * address, the returned address is a {@link UnixDomainSocketAddress}
      *
      * @return  The remote address; {@code null} if the channel's socket is not
@@ -582,13 +585,16 @@ public abstract class SocketChannel
      * {@link java.net.InetAddress#getLoopbackAddress loopback} address and the
      * local port of the channel's socket is returned.
      * <p>
-     * If there is a security manager set and this is an <i>unix domain</i> channel,
-     * then this returns a {@link UnixDomainSocketAddress} corresponding to the
-     * bound address.
+     * If there is a security manager set and this is a <i>Unix Domain</i> channel,
+     * {@code checkPermission} is called with a {@link FilePermission} whose {@code
+     * path} is the path of the bound address and actions is {@code "read"}
+     * and if the operation is allowed a {@link UnixDomainSocketAddress} 
+     * corresponding to the bound address is returned. If not, then an address with
+     * an empty path is returned.
      *
      * @return  The {@code SocketAddress} that the socket is bound to, or the
-     *          {@code SocketAddress} representing the loopback address if
-     *          denied by the security manager, or {@code null} if the
+     *          {@code SocketAddress} representing the loopback address or an
+     *          empty pathname, if denied by the security manager, or {@code null} if the
      *          channel's socket is not bound
      *
      * @throws  ClosedChannelException     {@inheritDoc}
