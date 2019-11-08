@@ -43,7 +43,7 @@ import jdk.jpackage.test.TKit;
  * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @requires (os.family == "linux")
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @run main/othervm/timeout=360 -Xmx512m MaintainerTest
  */
 public class MaintainerTest {

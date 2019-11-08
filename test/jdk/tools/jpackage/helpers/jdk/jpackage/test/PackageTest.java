@@ -35,7 +35,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
-import jdk.jpackage.internal.AppImageFile;
+import jdk.incubator.jpackage.internal.AppImageFile;
 import static jdk.jpackage.test.PackageType.*;
 
 /**

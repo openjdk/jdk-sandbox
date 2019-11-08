@@ -42,7 +42,7 @@ import jdk.jpackage.test.Annotations.*;
  * @summary jpackage basic testing
  * @library ../../../../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @compile BasicTest.java
  * @run main/othervm/timeout=720 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.BasicTest
@@ -51,8 +51,8 @@ import jdk.jpackage.test.Annotations.*;
 public final class BasicTest {
     @Test
     public void testNoArgs() {
-        List<String> output = JPackageCommand.filterOutput(
-                getJPackageToolProvider().executeAndGetOutput());
+        List<String> output =
+                getJPackageToolProvider().executeAndGetOutput();
         TKit.assertStringListEquals(List.of("Usage: jpackage <mode> <options>",
                 "Use jpackage --help (or -h) for a list of possible options"),
                 output, "Check jpackage output");
@@ -60,10 +60,10 @@ public final class BasicTest {
 
     @Test
     public void testVersion() {
-        List<String> output = JPackageCommand.filterOutput(
+        List<String> output =
                 getJPackageToolProvider()
                         .addArgument("--version")
-                        .executeAndGetOutput());
+                        .executeAndGetOutput();
         TKit.assertStringListEquals(List.of(System.getProperty("java.version")),
                 output, "Check jpackage output");
     }

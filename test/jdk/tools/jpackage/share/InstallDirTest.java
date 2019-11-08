@@ -60,7 +60,7 @@ import jdk.jpackage.test.Annotations.Parameter;
  * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @compile InstallDirTest.java
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @run main/othervm/timeout=540 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=InstallDirTest.testCommon
  */
@@ -72,7 +72,7 @@ import jdk.jpackage.test.Annotations.Parameter;
  * @key jpackagePlatformPackage
  * @build jdk.jpackage.test.*
  * @compile InstallDirTest.java
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @requires (os.family == "linux")
  * @requires (jpackage.test.SQETest == null)
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main

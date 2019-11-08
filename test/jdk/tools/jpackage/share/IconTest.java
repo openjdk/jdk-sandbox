@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import jdk.jpackage.internal.IOUtils;
+import jdk.incubator.jpackage.internal.IOUtils;
 import jdk.jpackage.test.TKit;
 import jdk.jpackage.test.Functional;
 import jdk.jpackage.test.Annotations.*;
@@ -36,7 +36,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @summary jpackage create image with custom icon
  * @library ../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @compile IconTest.java
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=IconTest

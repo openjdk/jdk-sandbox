@@ -28,7 +28,7 @@
  * @build JPackageHelper
  * @build JPackagePath
  * @build Base
- * @modules jdk.jpackage
+ * @modules jdk.incubator.jpackage
  * @run main/othervm -Xmx512m ErrorTest
  */
 import java.util.*;

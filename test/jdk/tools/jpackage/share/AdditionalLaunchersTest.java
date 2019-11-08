@@ -48,7 +48,7 @@ import jdk.jpackage.test.TKit;
  * @key jpackagePlatformPackage
  * @library ../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @compile AdditionalLaunchersTest.java
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=AdditionalLaunchersTest

@@ -44,7 +44,7 @@ import jdk.jpackage.test.*;
  * @build SigningCheck
  * @build jtreg.SkippedException
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @requires (os.family == "mac")
  * @run main/othervm -Xmx512m SigningPackageTest
  */

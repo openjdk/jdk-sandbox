@@ -40,7 +40,7 @@ import jdk.jpackage.test.JPackageCommand;
  * @library ../helpers
  * @requires (jpackage.test.SQETest == null)
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @run main/othervm/timeout=540 -Xmx512m AppImagePackageTest
  */
 public class AppImagePackageTest {

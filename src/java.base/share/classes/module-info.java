@@ -204,7 +204,7 @@ module java.base {
         jdk.jartool,
         jdk.jfr,
         jdk.jlink,
-        jdk.jpackage;
+        jdk.incubator.jpackage;
     exports jdk.internal.perf to
         java.management,
         jdk.management.agent,

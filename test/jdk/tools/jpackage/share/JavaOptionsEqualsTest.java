@@ -31,7 +31,7 @@ import java.nio.file.Files;
  * @build JPackageHelper
  * @build JPackagePath
  * @build JavaOptionsBase
- * @modules jdk.jpackage
+ * @modules jdk.incubator.jpackage
  * @run main/othervm -Xmx512m JavaOptionsEqualsTest
  */
 public class JavaOptionsEqualsTest {

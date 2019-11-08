@@ -28,7 +28,7 @@
  * @build JPackageHelper
  * @build JPackagePath
  * @build JavaOptionsBase
- * @modules jdk.jpackage
+ * @modules jdk.incubator.jpackage
  * @run main/othervm -Xmx512m JavaOptionsModuleTest
  */
 public class JavaOptionsModuleTest {

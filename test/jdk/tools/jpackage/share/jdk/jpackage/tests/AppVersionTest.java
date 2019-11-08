@@ -35,7 +35,7 @@ import jdk.jpackage.test.TKit;
  * @summary jpackage application version testing
  * @library ../../../../helpers
  * @build jdk.jpackage.test.*
- * @modules jdk.jpackage/jdk.jpackage.internal
+ * @modules jdk.incubator.jpackage/jdk.incubator.jpackage.internal
  * @compile AppVersionTest.java
  * @run main/othervm/timeout=360 -Xmx512m jdk.jpackage.test.Main
  *  --jpt-run=jdk.jpackage.tests.AppVersionTest

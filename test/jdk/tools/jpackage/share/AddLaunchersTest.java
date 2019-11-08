@@ -28,7 +28,7 @@
  * @build JPackageHelper
  * @build JPackagePath
  * @build AddLauncherBase
- * @modules jdk.jpackage
+ * @modules jdk.incubator.jpackage
  * @run main/othervm -Xmx512m AddLaunchersTest
  */
 public class AddLaunchersTest {

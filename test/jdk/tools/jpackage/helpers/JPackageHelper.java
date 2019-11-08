@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import java.util.spi.ToolProvider;
+import jdk.incubator.jpackage.ToolProviderFactory;
 
 public class JPackageHelper {
 
@@ -113,7 +114,7 @@ public class JPackageHelper {
     }
 
     static final ToolProvider JPACKAGE_TOOL =
-            ToolProvider.findFirst("jpackage").orElseThrow(
+            ToolProviderFactory.findFirst("jpackage").orElseThrow(
             () -> new RuntimeException("jpackage tool not found"));
 
     public static int execute(File out, String... command) throws Exception {
@@ -572,7 +573,7 @@ public class JPackageHelper {
 
         return Stream.of(output.split("\\R"))
                 .filter(str -> !str.startsWith("Picked up"))
-                .filter(str -> !str.startsWith("WARNING: Using experimental"))
+                .filter(str -> !str.startsWith("WARNING: Using incubator"))
                 .filter(str -> !str.startsWith("hello: "))
                 .collect(Collectors.toList()).toArray(String[]::new);
     }

@@ -27,7 +27,7 @@
  * @library ../helpers
  * @build JPackageHelper
  * @build JPackagePath
- * @modules jdk.jpackage
+ * @modules jdk.incubator.jpackage
  * @run main/othervm -Xmx512m MissingArgumentsTest
  */
 

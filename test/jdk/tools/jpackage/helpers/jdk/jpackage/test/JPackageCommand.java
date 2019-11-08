@@ -35,7 +35,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import jdk.jpackage.internal.ApplicationLayout;
+import jdk.incubator.jpackage.internal.ApplicationLayout;
 import jdk.jpackage.test.Functional.ThrowingConsumer;
 import jdk.jpackage.test.Functional.ThrowingFunction;
 
@@ -686,7 +686,7 @@ public final class JPackageCommand extends CommandArguments<JPackageCommand> {
     }
 
     public static Stream<String> filterOutput(Stream<String> jpackageOutput) {
-        // Skip "WARNING: Using experimental tool jpackage" first line of output
+        // Skip "WARNING: Using incubator ..." first line of output
         return jpackageOutput.skip(1);
     }
 
