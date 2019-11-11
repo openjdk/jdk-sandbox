@@ -36,6 +36,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 /**
  * Tests sending a 128 byte message on a second, to a thread which
@@ -159,8 +163,25 @@ public class SocketChannelCompare {
             } catch (ClosedChannelException ex) {
                 // shutdown time
             } catch (IOException ioex) {
-		ioex.printStackTrace();
+                ioex.printStackTrace();
             }
         }
+    }
+
+    public static void main(String[] args) throws RunnerException {
+        Options opt = new OptionsBuilder()
+                .include(org.openjdk.bench.java.net.SocketChannelCompare.class.getSimpleName())
+                .forks(3)
+                .build();
+
+        new Runner(opt).run();
+
+        opt = new OptionsBuilder()
+                .include(org.openjdk.bench.java.net.SocketChannelCompare.class.getSimpleName())
+                .jvmArgsPrepend("-Djdk.net.useFastTcpLoopback=true")
+                .forks(3)
+                .build();
+
+        new Runner(opt).run();
     }
 }
