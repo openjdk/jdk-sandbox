@@ -71,12 +71,12 @@ Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint f
 JNIEXPORT jobject JNICALL
 Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint fd)
 {
-    SOCKETADDRESS sa;
-    socklen_t len = sizeof(SOCKETADDRESS);
+    struct sockaddr_un sa;
+    socklen_t len = sizeof(struct sockaddr_un);
     jobject remote_sa = NULL;
 
-    if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (sa.sa.sa_family == AF_UNIX) {
+    if (getpeername(fd, (struct sockaddr *)&sa, &len) == 0) {
+        if (sa.sun_family == AF_UNIX) {
             remote_sa = NET_SockaddrToUnixAddress(env, &sa);
         }
     }
@@ -90,7 +90,7 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     socklen_t len = sizeof(SOCKETADDRESS);
     jint remote_port = -1;
 
-    if (getpeername(fd, &sa.sa, &len) == 0) {
+    if (getpeername(fd, (struct sockaddr *)&sa.sa, &len) == 0) {
         if (matchFamilyInet(&sa)) {
             NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
         }

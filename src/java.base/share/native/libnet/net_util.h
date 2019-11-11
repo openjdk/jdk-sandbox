@@ -166,10 +166,10 @@ JNIEXPORT jobject JNICALL
 NET_SockaddrToInetAddress(JNIEnv *env, SOCKETADDRESS *sa, int *port);
 
 JNIEXPORT jobject JNICALL
-NET_SockaddrToUnixAddress(JNIEnv *env, SOCKETADDRESS *sa);
+NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa);
 
 JNIEXPORT jint JNICALL
-NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, SOCKETADDRESS *sa, int *len);
+NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len);
 
 void platformInit();
 
