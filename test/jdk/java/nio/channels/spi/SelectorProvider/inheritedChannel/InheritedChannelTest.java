@@ -76,7 +76,6 @@ public class InheritedChannelTest {
     public Object[][] testCases() {
         return new Object[][] {
             { "UnixDomainChannelTest", List.of(UnixDomainChannelTest.class.getName())},
-/*
             { "UnixSocketTest", List.of(UnixSocketTest.class.getName())},
             { "StateTest", List.of(StateTest.class.getName()) },
             { "EchoTest",  List.of(EchoTest.class.getName())  },
@@ -98,7 +97,6 @@ public class InheritedChannelTest {
                                                            "-Djava.security.policy="
                                                            + POLICY_FAIL)
             }
-*/
         };
     }
 
