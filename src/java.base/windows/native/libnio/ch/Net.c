@@ -201,7 +201,7 @@ Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, job
 
     /* accept connection but ignore ECONNABORTED */
     for (;;) {
-        newfd = (jint)accept(fd, (struct sockaddr_un *)&sa, &sa_len);
+        newfd = (jint)accept(fd, (struct sockaddr *)&sa, &sa_len);
         if (newfd >= 0) {
             break;
         }
@@ -235,7 +235,7 @@ Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
 {
     struct sockaddr_un sa;
     socklen_t sa_len = sizeof(sa);
-    if (getsockname(fdval(env, fdo), (struct sockaddr_un *)&sa, &sa_len) < 0) {
+    if (getsockname(fdval(env, fdo), (struct sockaddr *)&sa, &sa_len) < 0) {
         handleSocketError(env, errno);
         return NULL;
     }

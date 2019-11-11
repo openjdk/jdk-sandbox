@@ -57,7 +57,6 @@ typedef union {
     struct sockaddr     sa;
     struct sockaddr_in  sa4;
     struct sockaddr_in6 sa6;
-    struct sockaddr_un  saun;
 } SOCKETADDRESS;
 
 /*
