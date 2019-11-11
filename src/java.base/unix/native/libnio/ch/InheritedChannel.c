@@ -36,6 +36,7 @@
 #include "net_util.h"
 
 #include "sun_nio_ch_InheritedChannel.h"
+#include "java_nio_channels_UnixDomainSocketAddress.h"
 
 static int matchFamilyInet(SOCKETADDRESS *sa) {
     return (sa->sa.sa_family == (ipv6_available() ? AF_INET6 : AF_INET));
@@ -46,6 +47,8 @@ Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
 {
     /* Initialize InetAddress IDs before later use of NET_XXX functions */
     initInetAddressIDs(env);
+    /* Same for UnixDomainSocketAddress */
+    Java_java_nio_channels_UnixDomainSocketAddress_init(env, NULL);
 }
 
 JNIEXPORT jobject JNICALL

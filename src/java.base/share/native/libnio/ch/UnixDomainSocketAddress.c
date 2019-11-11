@@ -44,7 +44,7 @@ static int udsa_initialized = 0;
  * Signature: ()V
  */
 JNIEXPORT void JNICALL
-Java_java_nio_channels_UnixDomainSocketAddress_init(JNIEnv *env, jclass cls) {
+Java_java_nio_channels_UnixDomainSocketAddress_init(JNIEnv *env, jclass dontuse) {
     if (!udsa_initialized) {
         jclass c = (*env)->FindClass(env,"java/nio/channels/UnixDomainSocketAddress");
         CHECK_NULL(c);
