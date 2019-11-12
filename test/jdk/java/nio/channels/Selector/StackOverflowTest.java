@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,6 +21,29 @@
  * questions.
  */
 
-// key: compiler.warn.restricted.type.not.allowed.preview
+/**
+ * @test
+ * @bug 8216472
+ * @summary native call in WindowsSelectorImpl.SubSelector.poll can use
+ *     more stack space than available in a shadow zone, this can cause
+ *     a crash if selector is called from a deep recursive java call
+ * @requires (os.family == "windows")
+ */
 
-class yield { }
+import java.nio.channels.Selector;
+
+public class StackOverflowTest {
+
+    public static void main(String[] args) throws Exception {
+        try (var sel = Selector.open()) {
+            recursiveSelect(sel);
+        } catch (StackOverflowError e) {
+            // ignore SOE from java calls
+        }
+    }
+
+    static void recursiveSelect(Selector sel) throws Exception {
+        sel.selectNow();
+        recursiveSelect(sel);
+    }
+}
