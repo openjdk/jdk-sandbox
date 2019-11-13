@@ -45,6 +45,10 @@ public class Basic {
     public static void main(String args[]) throws Exception {
         if (args.length != 3)
             usage();
+	if (!supported()) {
+	    System.out.println("Unix domain channels not supported");
+	    return;
+	}
         sockRxBufsize = getInt(args[0]);
         sockTxBufsize = getInt(args[1]);
         if (args[2].equals("nagle-on"))
@@ -57,11 +61,17 @@ public class Basic {
         test(8 * 1024, 10000);
         test(16 * 1024, 10000);
         test(32 * 1024, 10000);
-        // repeat
-        System.out.println("---- Repeating all tests again -----");
-        test(128, 1000);
-        test(16 * 1024, 10000);
-        test(32 * 1024, 10000);
+    }
+
+    static boolean supported() {
+	try {
+	    SocketChannel.open(StandardProtocolFamily.UNIX);
+	} catch (UnsupportedAddressTypeException e) {
+	    return false;
+	} catch (Exception e) {
+	    return true; // continue test to see what problem is
+	}
+	return true;
     }
 
     static int getInt(String s) {
