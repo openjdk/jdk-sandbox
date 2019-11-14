@@ -53,7 +53,9 @@ import java.nio.channels.spi.SelectorProvider;
  * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX}.
  * They use {@link UnixDomainSocketAddress}es and also
- * do not support the {@link #socket()} method.
+ * do not support the {@link #socket()} method. Note, it is also possible to
+ * create channels that support either IPv4 or IPv6 only through the
+ * {@link #open(ProtocolFamily)} method.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
  * setOption} method. <i>IP</i> server-socket channels support the following options:
@@ -133,7 +135,7 @@ public abstract class ServerSocketChannel
      * Where family is equal to {@link StandardProtocolFamily#INET} or {@link
      * StandardProtocolFamily#INET6} the returned channel must be bound to an
      * {@link InetSocketAddress}. If family is {@link StandardProtocolFamily#UNIX}
-     * the returned channel must be bound to a {@link jdk.net.UnixDomainSocketAddress}
+     * the returned channel must be bound to a {@link UnixDomainSocketAddress}.
      *
      * @param family the protocol family
      *
