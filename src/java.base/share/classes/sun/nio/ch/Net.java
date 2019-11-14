@@ -711,7 +711,7 @@ public class Net {
 
     public static UnixDomainSocketAddress checkUnixAddress(SocketAddress sa) {
         if (sa == null)
-            throw new NullPointerException();
+            return null;
         if (!(sa instanceof UnixDomainSocketAddress))
             throw new UnsupportedAddressTypeException();
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;

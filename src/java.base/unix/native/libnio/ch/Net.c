@@ -110,6 +110,9 @@ Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jobje
     int sa_len = 0;
     int rv = 0;
 
+    if (uaddr == NULL) 
+	return; /* Rely on implicit bind */
+
     if (NET_UnixSocketAddressToSockaddr(env, uaddr, &sa, &sa_len) != 0)
         return;
 

@@ -172,8 +172,6 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
                         throw new ConnectionPendingException();
                     if (localAddress != null)
                         throw new AlreadyBoundException();
-                    if (local == null)
-                        throw new NullPointerException(); // TODO: ??
                     UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
                     Net.unixDomainBind(fd, usa);
                     localAddress = Net.localUnixAddress(fd);

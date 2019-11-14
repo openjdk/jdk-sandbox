@@ -27,6 +27,7 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -135,6 +136,9 @@ public class UnixDomainServerSocketChannelImpl
 
     @Override
     public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
+	if (local == null)
+	    throw new BindException("automatic bind not possible for Unix domain servers");
+
         synchronized (stateLock) {
             ensureOpen();
             if (localAddress != null)
