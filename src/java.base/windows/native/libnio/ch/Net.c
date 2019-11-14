@@ -90,12 +90,19 @@ extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
 
+#define PATHLEN(len) (len - offsetof(struct sockaddr_un, sun_path))
+
 JNIEXPORT jobject JNICALL
-NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa) {
+NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 
     if (sa->sun_family == AF_UNIX) {
-        char *name = sa->sun_path;
+        char *name;
 
+        if (PATHLEN(len) == 0) {
+            name = "";
+        } else {
+            name = sa->sun_path;
+        }
         jstring nstr = JNU_NewStringPlatform(env, name);
         return (*env)->NewObject(env, udsa_class, udsa_ctorID, nstr);
     }
@@ -222,7 +229,7 @@ Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, job
 
     setfdval(env, newfdo, newfd);
 
-    usa = NET_SockaddrToUnixAddress(env, &sa);
+    usa = NET_SockaddrToUnixAddress(env, &sa, sa_len);
     CHECK_NULL_RETURN(usa, IOS_THROWN);
 
     (*env)->SetObjectArrayElement(env, usaa, 0, usa);
@@ -239,7 +246,7 @@ Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
         handleSocketError(env, errno);
         return NULL;
     }
-    return NET_SockaddrToUnixAddress(env, &sa);
+    return NET_SockaddrToUnixAddress(env, &sa, sa_len);
 }
 
 JNIEXPORT void JNICALL

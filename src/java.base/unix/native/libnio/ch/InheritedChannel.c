@@ -77,7 +77,7 @@ Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint f
 
     if (getpeername(fd, (struct sockaddr *)&sa, &len) == 0) {
         if (sa.sun_family == AF_UNIX) {
-            remote_sa = NET_SockaddrToUnixAddress(env, &sa);
+            remote_sa = NET_SockaddrToUnixAddress(env, &sa, len);
         }
     }
     return remote_sa;
