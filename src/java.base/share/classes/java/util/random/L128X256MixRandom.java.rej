@@ -1,0 +1,353 @@
+***************
+*** 28,34 ****
+  import java.math.BigInteger;
+  import java.util.concurrent.atomic.AtomicLong;
+  import java.util.random.RandomGenerator.SplittableGenerator;
+- import java.util.random.RandomSupport.AbstractSplittableGenerator;
+  
+  
+  /**
+--- 28,34 ----
+  import java.math.BigInteger;
+  import java.util.concurrent.atomic.AtomicLong;
+  import java.util.random.RandomGenerator.SplittableGenerator;
++ import java.util.random.RandomSupport.AbstractSplittableWithBrineGenerator;
+  
+  
+  /**
+***************
+*** 55,63 ****
+   * {@link L128X256MixRandom} is a specific member of the LXM family of algorithms
+   * for pseudorandom number generators.  Every LXM generator consists of two
+   * subgenerators; one is an LCG (Linear Congruential Generator) and the other is
+-  * an Xorshift generator.  Each output of an LXM generator is the sum of one
+-  * output from each subgenerator, possibly processed by a final mixing function
+-  * (and {@link L128X256MixRandom} does use a mixing function).
+   * <p>
+   * The LCG subgenerator for {@link L128X256MixRandom} has an update step of the
+   * form {@code s = m * s + a}, where {@code s}, {@code m}, and {@code a} are all
+--- 55,64 ----
+   * {@link L128X256MixRandom} is a specific member of the LXM family of algorithms
+   * for pseudorandom number generators.  Every LXM generator consists of two
+   * subgenerators; one is an LCG (Linear Congruential Generator) and the other is
++  * an Xorshift generator.  Each output of an LXM generator is the result of
++  * combining state from the LCG with state from the Xorshift generator by
++  * using a Mixing function (and then the state of the LCG and the state of the
++  * Xorshift generator are advanced).
+   * <p>
+   * The LCG subgenerator for {@link L128X256MixRandom} has an update step of the
+   * form {@code s = m * s + a}, where {@code s}, {@code m}, and {@code a} are all
+***************
+*** 74,80 ****
+   * and {@code x3}, which can take on any values provided that they are not all zero.
+   * The period of this subgenerator is 2<sup>256</sup>-1.
+   * <p>
+-  * The mixing function for {@link L128X256MixRandom} is the 64-bit MurmurHash3 finalizer.
+   * <p>
+   * Because the periods 2<sup>128</sup> and 2<sup>256</sup>-1 of the two subgenerators
+   * are relatively prime, the <em>period</em> of any single {@link L128X256MixRandom} object
+--- 75,82 ----
+   * and {@code x3}, which can take on any values provided that they are not all zero.
+   * The period of this subgenerator is 2<sup>256</sup>-1.
+   * <p>
++  * The mixing function for {@link L128X256MixRandom} is {@link RandomSupport.mixLea64}
++  * applied to the argument {@code (sh + x0)}, where {@code sh} is the high half of {@code s}.
+   * <p>
+   * Because the periods 2<sup>128</sup> and 2<sup>256</sup>-1 of the two subgenerators
+   * are relatively prime, the <em>period</em> of any single {@link L128X256MixRandom} object
+***************
+*** 86,119 ****
+   * <p>
+   * The 64-bit values produced by the {@code nextLong()} method are exactly equidistributed.
+   * For any specific instance of {@link L128X256MixRandom}, over the course of its cycle each
+-  * of the 2<sup>64</sup> possible {@code long} values will be produced 2<sup>256</sup>-1 times.
+-  * The values produced by the {@code nextInt()}, {@code nextFloat()}, and {@code nextDouble()}
+-  * methods are likewise exactly equidistributed.
+-  * <p>
+-  * In fact, the 64-bit values produced by the {@code nextLong()} method are exactly
+-  * 2-equidistributed.  For any specific instance of {@link L128X256MixRandom}, consider
+-  * the (overlapping) length-2 subsequences of the cycle of 64-bit values produced by
+-  * {@code nextLong()} (assuming no other methods are called that would affect the state).
+-  * There are 2<sup>128</sup>(2<sup>256</sup>-1) such subsequences, and each subsequence,
+-  * which consists of 2 64-bit values, can have one of 2<sup>128</sup> values, and each
+-  * such value occurs  2<sup>256</sup>-1 times.  The values produced by the {@code nextInt()},
+-  * {@code nextFloat()}, and {@code nextDouble()} methods are likewise exactly 2-equidistributed.
+   * <p>
+-  * Moreover, the 64-bit values produced by the {@code nextLong()} method are 4-equidistributed.
+-  * To be precise: for any specific instance of {@link L128X256MixRandom}, consider
+-  * the (overlapping) length-4 subsequences of the cycle of 64-bit values produced by
+-  * {@code nextLong()} (assuming no other methods are called that would affect the state).
+-  * There are <sup>128</sup>(2<sup>256</sup>-1) such subsequences, and each subsequence,
+-  * which consists of 4 64-bit values, can have one of 2<sup>256</sup> values. Of those
+-  * 2<sup>256</sup> subsequence values, nearly all of them (2<sup>256</sup>-2<sup>128</sup>)
+-  * occur 2<sup>128</sup> times over the course of the entire cycle, and the other
+-  * 2<sup>128</sup> subsequence values occur only 2<sup>128</sup>-1 times.  So the ratio
+-  * of the probability of getting one of the less common subsequence values and the
+-  * probability of getting one of the more common subsequence values is 1-2<sup>-128</sup>.
+-  * (Note that the set of 2<sup>128</sup> less-common subsequence values will differ from
+-  * one instance of {@link L128X256MixRandom} to another, as a function of the additive
+-  * parameter of the LCG.)  The values produced by the {@code nextInt()}, {@code nextFloat()},
+-  * and {@code nextDouble()} methods are likewise 4-equidistributed.
+   * <p>
+   * Method {@link #split} constructs and returns a new {@link L128X256MixRandom}
+   * instance that shares no mutable state with the current instance. However, with
+--- 88,103 ----
+   * <p>
+   * The 64-bit values produced by the {@code nextLong()} method are exactly equidistributed.
+   * For any specific instance of {@link L128X256MixRandom}, over the course of its cycle each
++  * of the 2<sup>64</sup> possible {@code long} values will be produced
++  * 2<sup>64</sup>(2<sup>256</sup>-1) times.  The values produced by the {@code nextInt()},
++  * {@code nextFloat()}, and {@code nextDouble()} methods are likewise exactly equidistributed.
+   * <p>
++  * Moreover, 64-bit values produced by the {@code nextLong()} method are conjectured to be
++  * "very nearly" 4-equidistributed: all possible quadruples of 64-bit values are generated,
++  * and some pairs occur more often than others, but only very slightly more often.
++  * However, this conjecture has not yet been proven mathematically.
++  * If this conjecture is true, then the values produced by the {@code nextInt()}, {@code nextFloat()},
++  * and {@code nextDouble()} methods are likewise approximately 4-equidistributed.
+   * <p>
+   * Method {@link #split} constructs and returns a new {@link L128X256MixRandom}
+   * instance that shares no mutable state with the current instance. However, with
+***************
+*** 146,152 ****
+   *
+   * @since 14
+   */
+- public final class L128X256MixRandom extends AbstractSplittableGenerator {
+  
+      /*
+       * Implementation Overview.
+--- 130,136 ----
+   *
+   * @since 14
+   */
++ public final class L128X256MixRandom extends AbstractSplittableWithBrineGenerator {
+  
+      /*
+       * Implementation Overview.
+***************
+*** 193,220 ****
+          BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE).shiftLeft(128);
+  
+      /*
+-      * The multiplier used in the LCG portion of the algorithm is 2**64 + m;
+-      * where m is taken from
+-      * Pierre L'Ecuyer, Tables of linear congruential generators of
+-      * different sizes and good lattice structure, <em>Mathematics of
+-      * Computation</em> 68, 225 (January 1999), pages 249-260,
+-      * Table 4 (first multiplier for size 2<sup>64</sup>).
+-      *
+-      * This is almost certainly not the best possible 128-bit multiplier
+-      * for an LCG, but it is sufficient for our purposes here; because
+-      * is is larger than 2**64, the 64-bit values produced by nextLong()
+-      * are exactly 2-equidistributed, and the fact that it is of the
+-      * form (2**64 + m) simplifies the code, given that we have only
+-      * 64-bit arithmetic to work with.
+       */
+  
+-     private static final long M = 2862933555777941757L;
+  
+      /* ---------------- instance fields ---------------- */
+  
+      /**
+       * The parameter that is used as an additive constant for the LCG.
+-      * Must be odd.
+       */
+      private final long ah, al;
+  
+--- 177,196 ----
+          BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE).shiftLeft(128);
+  
+      /*
++      * Low half of multiplier used in the LCG portion of the algorithm;
++      * the overall multiplier is (2**64 + ML).
++      * Chosen based on research by Sebastiano Vigna and Guy Steele (2019).
++      * The spectral scores for dimensions 2 through 8 for the multiplier 0x1d605bbb58c8abbfdLL
++      * are [0.991889, 0.907938, 0.830964, 0.837980, 0.780378, 0.797464, 0.761493].
+       */
+  
++     private static final long ML = 0xd605bbb58c8abbfdL;
+  
+      /* ---------------- instance fields ---------------- */
+  
+      /**
+       * The parameter that is used as an additive constant for the LCG.
++      * Must be odd (therefore al must be odd).
+       */
+      private final long ah, al;
+  
+***************
+*** 252,262 ****
+          this.x3 = x3;
+          // If x0, x1, x2, and x3 are all zero, we must choose nonzero values.
+          if ((x0 | x1 | x2 | x3) == 0) {
+              // At least three of the four values generated here will be nonzero.
+-             this.x0 = RandomSupport.mixStafford13(sh += RandomSupport.GOLDEN_RATIO_64);
+-             this.x1 = RandomSupport.mixStafford13(sh += RandomSupport.GOLDEN_RATIO_64);
+-             this.x2 = RandomSupport.mixStafford13(sh += RandomSupport.GOLDEN_RATIO_64);
+-             this.x3 = RandomSupport.mixStafford13(sh + RandomSupport.GOLDEN_RATIO_64);
+          }
+      }
+  
+--- 228,239 ----
+          this.x3 = x3;
+          // If x0, x1, x2, and x3 are all zero, we must choose nonzero values.
+          if ((x0 | x1 | x2 | x3) == 0) {
++ 	    long v = sh;
+              // At least three of the four values generated here will be nonzero.
++             this.x0 = RandomSupport.mixStafford13(v += RandomSupport.GOLDEN_RATIO_64);
++             this.x1 = RandomSupport.mixStafford13(v += RandomSupport.GOLDEN_RATIO_64);
++             this.x2 = RandomSupport.mixStafford13(v += RandomSupport.GOLDEN_RATIO_64);
++             this.x3 = RandomSupport.mixStafford13(v + RandomSupport.GOLDEN_RATIO_64);
+          }
+      }
+  
+***************
+*** 277,283 ****
+          // The seed is hashed by mixStafford13 to produce the initial `x0`,
+          // which will then be used to produce the first generated value.
+          // The other x values are filled in as if by a SplitMix PRNG with
+-         // GOLDEN_RATIO_64 as the gamma value and Stafford13 as the mixer.
+          this(RandomSupport.mixMurmur64(seed ^= RandomSupport.SILVER_RATIO_64),
+               RandomSupport.mixMurmur64(seed += RandomSupport.GOLDEN_RATIO_64),
+               0,
+--- 254,260 ----
+          // The seed is hashed by mixStafford13 to produce the initial `x0`,
+          // which will then be used to produce the first generated value.
+          // The other x values are filled in as if by a SplitMix PRNG with
++         // GOLDEN_RATIO_64 as the gamma value and mixStafford13 as the mixer.
+          this(RandomSupport.mixMurmur64(seed ^= RandomSupport.SILVER_RATIO_64),
+               RandomSupport.mixMurmur64(seed += RandomSupport.GOLDEN_RATIO_64),
+               0,
+***************
+*** 323,351 ****
+      }
+  
+      /* ---------------- public methods ---------------- */
+- 
+      /**
+-      * Constructs and returns a new instance of {@link L128X256MixRandom}
+-      * that shares no mutable state with this instance.
+       * However, with very high probability, the set of values collectively
+       * generated by the two objects has the same statistical properties as if
+       * same the quantity of values were generated by a single thread using
+-      * a single {@link L128X256MixRandom} object.  Either or both of the two
+       * objects may be further split using the {@code split} method,
+       * and the same expected statistical properties apply to the
+       * entire set of generators constructed by such recursive splitting.
+       *
+-      * @param source a {@link SplittableGenerator} instance to be used instead
+       *               of this one as a source of pseudorandom bits used to
+       *               initialize the state of the new ones.
+-      * @return a new instance of {@link L128X256MixRandom}
+       */
+-     public L128X256MixRandom split(SplittableGenerator source) {
+-         // Literally pick a new instance "at random".
+-         return new L128X256MixRandom(source.nextLong(), source.nextLong(),
+-                                      source.nextLong(), source.nextLong(),
+-                                      source.nextLong(), source.nextLong(),
+-                                      source.nextLong(), source.nextLong());
+      }
+  
+      /**
+--- 300,330 ----
+      }
+  
+      /* ---------------- public methods ---------------- */
++     
+      /**
++      * Given 63 bits of "brine", constructs and returns a new instance of
++      * {@code L128X256MixRandom} that shares no mutable state with this instance.
+       * However, with very high probability, the set of values collectively
+       * generated by the two objects has the same statistical properties as if
+       * same the quantity of values were generated by a single thread using
++      * a single {@code L128X256MixRandom} object.  Either or both of the two
+       * objects may be further split using the {@code split} method,
+       * and the same expected statistical properties apply to the
+       * entire set of generators constructed by such recursive splitting.
+       *
++      * @param source a {@code SplittableGenerator} instance to be used instead
+       *               of this one as a source of pseudorandom bits used to
+       *               initialize the state of the new ones.
++      * @param brine a long value, of which the low 63 bits are used to choose
++      *              the {@code a} parameter for the new instance.
++      * @return a new instance of {@code L128X256MixRandom}
+       */
++     public SplittableGenerator split(SplittableGenerator source, long brine) {
++ 	// Pick a new instance "at random", but use the brine for (the low half of) `a`.
++         return new L128X256MixRandom(source.nextLong(), brine << 1,
++ 				     source.nextLong(), source.nextLong(),
++ 				     source.nextLong(), source.nextLong(),
++ 				     source.nextLong(), source.nextLong());
+      }
+  
+      /**
+***************
+*** 354,365 ****
+       * @return a pseudorandom {@code long} value
+       */
+      public long nextLong() {
+-         final long z = sh + x0;
+-         // The LCG: in effect, s = ((1LL << 64) + M) * s + a, if only we had 128-bit arithmetic.
+-         final long u = M * sl;
+-         sh = (M * sh) + Math.multiplyHigh(M, sl) + sl + ah;
+          sl = u + al;
+          if (Long.compareUnsigned(sl, u) < 0) ++sh;  // Handle the carry propagation from low half to high half.
+          long q0 = x0, q1 = x1, q2 = x2, q3 = x3;
+          {   // xoshiro256 1.0
+              long t = q1 << 17;
+--- 333,359 ----
+       * @return a pseudorandom {@code long} value
+       */
+      public long nextLong() {
++ 	// Compute the result based on current state information
++ 	// (this allows the computation to be overlapped with state update).
++         final long result = RandomSupport.mixLea64(sh + x0);
++ 
++ 	// Update the LCG subgenerator
++         // The LCG is, in effect, s = ((1LL << 64) + ML) * s + a, if only we had 128-bit arithmetic.
++         final long u = ML * sl;
++ 	// Note that Math.multiplyHigh computes the high half of the product of signed values,
++ 	// but what we need is the high half of the product of unsigned values; for this we use the
++ 	// formula "unsignedMultiplyHigh(a, b) = multiplyHigh(a, b) + ((a >> 63) & b) + ((b >> 63) & a)";
++ 	// in effect, each operand is added to the result iff the sign bit of the other operand is 1.
++ 	// (See Henry S. Warren, Jr., _Hacker's Delight_ (Second Edition), Addison-Wesley (2013),
++ 	// Section 8-3, p. 175; or see the First Edition, Addison-Wesley (2003), Section 8-3, p. 133.)
++ 	// If Math.unsignedMultiplyHigh(long, long) is ever implemented, the following line can become:
++ 	//         sh = (ML * sh) + Math.unsignedMultiplyHigh(ML, sl) + sl + ah;
++ 	// and this entire comment can be deleted.
++         sh = (ML * sh) + (Math.multiplyHigh(ML, sl) + ((ML >> 63) & sl) + ((sl >> 63) & ML)) + sl + ah;
+          sl = u + al;
+          if (Long.compareUnsigned(sl, u) < 0) ++sh;  // Handle the carry propagation from low half to high half.
++ 
++ 	// Update the Xorshift subgenerator
+          long q0 = x0, q1 = x1, q2 = x2, q3 = x3;
+          {   // xoshiro256 1.0
+              long t = q1 << 17;
+***************
+*** 371,379 ****
+              q3 = Long.rotateLeft(q3, 45);
+          }
+          x0 = q0; x1 = q1; x2 = q2; x3 = q3;
+-         return RandomSupport.mixLea64(z);  // mixing function
+      }
+  
+      public BigInteger period() {
+          return PERIOD;
+      }
+--- 365,379 ----
+              q3 = Long.rotateLeft(q3, 45);
+          }
+          x0 = q0; x1 = q1; x2 = q2; x3 = q3;
++         return result;
+      }
+  
++     /**
++      * Returns the period of this random generator.
++      *
++      * @return a {@link BigInteger} whose value is the number of distinct possible states of this
++      *         {@link RandomGenerator} object (2<sup>128</sup>(2<sup>256</sup>-1)).
++      */
+      public BigInteger period() {
+          return PERIOD;
+      }
