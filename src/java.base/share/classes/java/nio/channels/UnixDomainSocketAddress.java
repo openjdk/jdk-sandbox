@@ -32,15 +32,15 @@ import java.security.PrivilegedAction;
 import java.util.Objects;
 
 /**
- * An address for a Unix domain socket or server socket channel. These
- * addresses contain a String path name, which when bound to a channel,
+ * An address for a Unix domain {@link SocketChannel} or {@link ServerSocketChannel}.
+ * These addresses contain a String path name, which when bound to a channel,
  * have an associated file in the file-system with the same name.
  * <p>
  * If a channel is automatically bound to a Unix domain address then its address
  * is unnamed; it has an empty path field, and therefore has no associated
- * file in the file-system.
- * <p>
- * Note, not all channel types support Unix domain addresses.
+ * file in the file-system. {@link SocketChannel}s can be automatically bound
+ * in this way, but {@link ServerSocketChannel}s cannot and must be bound to
+ * an explicit address.
  *
  * @since 14
  */
@@ -118,6 +118,12 @@ public class UnixDomainSocketAddress extends SocketAddress {
         return this.path.equals(that.path);
     }
 
+    /**
+     * Returns a string representation of this {@code UnixDomainSocketAddress}.
+     * The format of the string is {@code "af_unix:<path>"} where {@code <path>}
+     * is this address's path field, which will be empty in the case of an
+     * unnamed socket address.
+     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
