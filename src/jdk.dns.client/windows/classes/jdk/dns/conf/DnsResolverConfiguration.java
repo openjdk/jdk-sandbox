@@ -25,9 +25,11 @@
 
 package jdk.dns.conf;
 
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DnsResolverConfiguration {
     // Lock held whilst loading configuration or checking
@@ -39,9 +41,9 @@ public class DnsResolverConfiguration {
     // Time of last refresh.
     private static long lastRefresh = -1;
 
-    // Cache timeout (120 seconds) - should be converted into property
+    // Cache timeout (120 seconds in nanoseconds) - should be converted into property
     // or configured as preference in the future.
-    private static final int TIMEOUT = 120000;
+    private static final long TIMEOUT = 120_000_000_000L;
 
     // DNS suffix list and name servers populated by native method
     private static String os_searchlist;
@@ -50,6 +52,7 @@ public class DnsResolverConfiguration {
     // Cached lists
     private static LinkedList<String> searchlist;
     private static LinkedList<String> nameservers;
+    private volatile String domain = "";
 
     // Parse string that consists of token delimited by space or commas
     // and return LinkedHashMap
@@ -67,6 +70,15 @@ public class DnsResolverConfiguration {
         return ll;
     }
 
+    public static String getDefaultHostsFileLocation() {
+        return Paths.get(System.getenv("SystemRoot"))
+                .resolve("System32")
+                .resolve("drivers")
+                .resolve("etc")
+                .resolve("hosts")
+                .toString();
+    }
+
     // Load DNS configuration from OS
 
     private void loadConfig() {
@@ -79,7 +91,7 @@ public class DnsResolverConfiguration {
             changed = false;
         } else {
             if (lastRefresh >= 0) {
-                long currTime = System.currentTimeMillis();
+                long currTime = System.nanoTime();
                 if ((currTime - lastRefresh) < TIMEOUT) {
                     return;
                 }
@@ -91,14 +103,19 @@ public class DnsResolverConfiguration {
         //
         loadDNSconfig0();
 
-        lastRefresh = System.currentTimeMillis();
+        lastRefresh = System.nanoTime();
         searchlist = stringToList(os_searchlist);
+        if (searchlist.size() > 0) {
+            domain = searchlist.get(0);
+        } else {
+            domain = "";
+        }
         nameservers = stringToList(os_nameservers);
         os_searchlist = null;                       // can be GC'ed
         os_nameservers = null;
     }
 
-    DnsResolverConfiguration() {
+    public DnsResolverConfiguration() {
     }
 
     @SuppressWarnings("unchecked") // clone()
@@ -116,12 +133,22 @@ public class DnsResolverConfiguration {
 
     @SuppressWarnings("unchecked") // clone()
     public List<String> nameservers() {
-        lock.lock()
+        lock.lock();
         try {
             loadConfig();
 
             // List is mutable so return a shallow copy
             return (List<String>) nameservers.clone();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public String domain() {
+        lock.lock();
+        try {
+            loadConfig();
+            return domain;
         } finally {
             lock.unlock();
         }

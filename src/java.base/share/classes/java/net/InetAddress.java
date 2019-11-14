@@ -29,7 +29,6 @@ import java.util.NavigableSet;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Scanner;
-import java.security.AccessController;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.ObjectStreamException;
@@ -349,10 +348,11 @@ class InetAddress implements java.io.Serializable {
                 if (nameService != null) {
                     return nameService;
                 }
-                var nameService = ServiceLoader.load(NameService.class)
-                        .findFirst()
-                        .orElse(defaultNameService);
-                InetAddress.nameService = nameService;
+                String hostsFileProperty = GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
+                var cns = hostsFileProperty == null ?
+                        ServiceLoader.load(NameService.class).findFirst().orElse(defaultNameService)
+                        : defaultNameService;
+                InetAddress.nameService = cns;
                 return nameService;
             }
         } else {

@@ -279,7 +279,7 @@ Java_jdk_dns_conf_DnsResolverConfiguration_loadDNSconfig0(JNIEnv *env, jclass cl
 
 
 /*
- * Class:     jdk_dns_conf_DnsResolverConfguration
+ * Class:     jdk_dns_conf_DnsResolverConfiguration
  * Method:    notifyAddrChange0
  * Signature: ()I
  */
