@@ -25,20 +25,18 @@
 
 package jdk.dns.client.internal.util;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class ReloadTracker {
 
-    public static ReloadTracker newInstance(Path fileToTrack, long refreshTimeoutMillis) {
+    public static ReloadTracker newInstance(Path fileToTrack, long refreshTimeoutNanos) {
         Path absolutePath = fileToTrack.toAbsolutePath();
-        return new ReloadTracker(absolutePath, refreshTimeoutMillis);
+        return new ReloadTracker(absolutePath, refreshTimeoutNanos);
     }
 
     public static class ReloadStatus {
@@ -66,9 +64,9 @@ public class ReloadTracker {
     }
 
 
-    private ReloadTracker(Path filePath, long refreshTimeoutMillis) {
+    private ReloadTracker(Path filePath, long refreshTimeoutNanos) {
         this.filePath = filePath;
-        this.refreshTimeoutMillis = refreshTimeoutMillis;
+        this.refreshTimeoutNanos = refreshTimeoutNanos;
     }
 
 
@@ -92,13 +90,13 @@ public class ReloadTracker {
         }
         return new ReloadStatus(fileExists,
                 (lastModificationTime != lastSeenChanged.get()) ||
-                        (System.currentTimeMillis() - lastReload > refreshTimeoutMillis),
+                        (System.nanoTime() - lastReload > refreshTimeoutNanos),
                 lastModificationTime);
     }
 
     public void updateTimestamps(ReloadStatus rs) {
         lastSeenChanged.set(rs.lastModificationTimestamp);
-        lastRefreshed.set(System.currentTimeMillis());
+        lastRefreshed.set(System.nanoTime());
     }
 
     // Last timestamp when tracked file has been reloaded by consumer of this utility class
@@ -106,7 +104,7 @@ public class ReloadTracker {
     // Last processed FS last modified timestamp
     private final AtomicLong lastSeenChanged = new AtomicLong(-1);
     // Refresh timeout
-    private final long refreshTimeoutMillis;
+    private final long refreshTimeoutNanos;
     // Path of the tracked file
     private final Path filePath;
 }

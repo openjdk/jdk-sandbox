@@ -37,15 +37,16 @@ import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.PortUnreachableException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +100,6 @@ public class DnsClient {
     private int timeout;                // initial timeout on UDP and TCP queries in ms
     private int retries;                // number of UDP retries
 
-
     private static final SecureRandom random;
 
     static {
@@ -130,6 +130,10 @@ public class DnsClient {
         this.retries = retries;
         var serversList = new ArrayList<InetAddress>();
         var serverPortsList = new ArrayList<Integer>();
+
+        if (DEBUG) {
+            System.err.println("DNS Client: servers list:" + servers);
+        }
 
         for (String serverString : servers) {
 
@@ -305,6 +309,11 @@ public class DnsClient {
                         }
                         return new ResourceRecords(msg, msg.length, hdr, false);
 
+                    } catch (PortUnreachableException e) {
+                        if (caughtException == null) {
+                            caughtException = e;
+                        }
+                        doNotRetry[i] = true;
                     } catch (IOException e) {
                         if (DEBUG) {
                             dprint("Caught IOException:" + e);
@@ -312,13 +321,6 @@ public class DnsClient {
                         if (caughtException == null) {
                             caughtException = e;
                         }
-                        // Use reflection to allow pre-1.4 compilation.
-                        // This won't be needed much longer.
-                        if (e.getClass().getName().equals(
-                                "java.net.PortUnreachableException")) {
-                            doNotRetry[i] = true;
-                        }
-                        // doNotRetry set - needs to be added
                     } catch (DnsNameNotFoundException e) {
                         // This is authoritative, so return immediately
                         throw e;
@@ -394,12 +396,12 @@ public class DnsClient {
                     long start = System.currentTimeMillis();
 
 
+                    dc.socket().receive(ipkt);
                     byte[] data = ipkt.getData();
-                    ByteBuffer bb = ByteBuffer.wrap(data);
-                    dc.read(bb);
+                    int length = ipkt.getLength();
                     long end = System.currentTimeMillis();
 
-                    if (isMatchResponse(data, xid)) {
+                    if (isMatchResponse(data, length, xid)) {
                         return data;
                     }
                     timeoutLeft = pktTimeout - ((int) (end - start));
@@ -537,10 +539,10 @@ public class DnsClient {
      * Also checks that the domain name, type and class in the response
      * match those in the original query.
      */
-    private boolean isMatchResponse(byte[] pkt, int xid)
+    private boolean isMatchResponse(byte[] pkt, int length, int xid)
             throws DnsResolverException {
 
-        Header hdr = new Header(pkt, pkt.length);
+        Header hdr = new Header(pkt, length);
         if (hdr.query) {
             throw new DnsResolverException("DNS error: expecting response");
         }
@@ -557,7 +559,7 @@ public class DnsClient {
             checkResponseCode(hdr);
             if (!hdr.query && hdr.numQuestions == 1) {
 
-                ResourceRecord rr = new ResourceRecord(pkt, pkt.length,
+                ResourceRecord rr = new ResourceRecord(pkt, length,
                         Header.HEADER_SIZE, true, false);
 
                 // Retrieve the original query
@@ -608,7 +610,7 @@ public class DnsClient {
         queuesLock.lock();
         try {
             if (reqs.containsKey(hdr.xid)) { // enqueue only the first response
-                resps.put(hdr.xid, pkt);
+                resps.put(hdr.xid, Arrays.copyOf(pkt, length));
             }
         } finally {
             queuesLock.unlock();

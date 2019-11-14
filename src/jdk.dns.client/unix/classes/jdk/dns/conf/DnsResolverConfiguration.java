@@ -47,6 +47,11 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 
 public class DnsResolverConfiguration {
+
+    public static String getDefaultHostsFileLocation() {
+        return "/etc/hosts";
+    }
+
     // Lock held whilst loading configuration or checking
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
 
@@ -56,16 +61,16 @@ public class DnsResolverConfiguration {
     private static final ReloadTracker RESOLVE_CONF_TRACKER;
 
 
-    // Cache timeout (300 seconds) - should be converted into property
+    // Cache timeout (300 seconds) in nano seconds - should be converted into property
     // or configured as preference in the future.
-    private static final int TIMEOUT = 300_000;
+    private static final long TIMEOUT = 300_000_000_000L;
 
     // Parse /etc/resolv.conf to get the values for a particular
     // keyword.
     //
     private List<String> resolvconf(String keyword,
-                                          int maxperkeyword,
-                                          int maxkeywords) {
+                                    int maxperkeyword,
+                                    int maxkeywords) {
         LinkedList<String> ll = new LinkedList<>();
 
         try {
@@ -266,7 +271,10 @@ public class DnsResolverConfiguration {
     static native String fallbackDomain0();
 
     static {
-        var pa = (PrivilegedAction<Void>) () -> {System.loadLibrary("resolver"); return null;};
+        var pa = (PrivilegedAction<Void>) () -> {
+            System.loadLibrary("resolver");
+            return null;
+        };
         if (System.getSecurityManager() == null) {
             pa.run();
         } else {

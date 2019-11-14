@@ -26,6 +26,7 @@
 package jdk.dns.client.internal;
 
 import jdk.dns.client.internal.util.ReloadTracker;
+import jdk.dns.conf.DnsResolverConfiguration;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
@@ -53,12 +54,13 @@ import java.util.stream.Stream;
 public class HostsFileResolver {
     private static final String HOSTS_FILE_LOCATION_PROPERTY_VALUE =
             AccessController.doPrivileged((PrivilegedAction<String>)
-                    () -> System.getProperty("jdk.net.hosts.file", "/etc/hosts")
+                    () -> System.getProperty("jdk.dns.client.hosts.file",
+                            DnsResolverConfiguration.getDefaultHostsFileLocation())
             );
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
 
     // 300 seconds, similar to DnsResolverConfiguration in millis since Epoch
-    private static final long REFRESH_TIMEOUT_MILLIS = 300_000;
+    private static final long REFRESH_TIMEOUT_NANOS = 300_000_000_000L;
     private static final ReloadTracker HOSTS_FILE_TRACKER;
     private static volatile Map<String, HostFileEntry> HOST_ADDRESSES = Collections.emptyMap();
 
@@ -262,7 +264,7 @@ public class HostsFileResolver {
         // TODO: Revisit
         try {
             var pea = (PrivilegedExceptionAction<ReloadTracker>) () ->
-                    ReloadTracker.newInstance(Paths.get(HOSTS_FILE_LOCATION_PROPERTY_VALUE), REFRESH_TIMEOUT_MILLIS);
+                    ReloadTracker.newInstance(Paths.get(HOSTS_FILE_LOCATION_PROPERTY_VALUE), REFRESH_TIMEOUT_NANOS);
             HOSTS_FILE_TRACKER = System.getSecurityManager() == null ? pea.run() :
                     AccessController.doPrivileged(pea);
         } catch (PrivilegedActionException pae) {

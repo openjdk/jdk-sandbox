@@ -131,6 +131,9 @@ public class NetworkNamesResolver {
     public List<String> getAllHostsByAddr(InetAddress address) throws UnknownHostException {
         // First try hosts file
         // TODO: Add nsswitch.conf to select proper order
+        if (DEBUG) {
+            System.err.println("Resolver API: Reverse lookup call for address:"+address);
+        }
         try {
             return List.of(hostsFileResolver.getByAddress(address));
         } catch (UnknownHostException uhe) {
