@@ -35,21 +35,33 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Basic {
     static int sockRxBufsize, sockTxBufsize;
     static boolean nagle;
+    static String tempDir;
+
+    static {
+        try {
+            Path parent = Paths.get(".");
+            Path child = Files.createTempDirectory(parent, null);
+            tempDir = child.toString();
+        } catch (IOException e) {
+            tempDir = null;
+        }
+    }
 
     public static void main(String args[]) throws Exception {
         if (args.length != 3)
             usage();
 
-	if (!supported()) {
-	    System.out.println("Unix domain channels not supported");
-	    return;
-	}
+        if (!supported()) {
+            System.out.println("Unix domain channels not supported");
+            return;
+        }
         sockRxBufsize = getInt(args[0]);
         sockTxBufsize = getInt(args[1]);
         if (args[2].equals("nagle-on"))
@@ -65,14 +77,14 @@ public class Basic {
     }
 
     static boolean supported() {
-	try {
-	    SocketChannel.open(StandardProtocolFamily.UNIX);
-	} catch (UnsupportedAddressTypeException e) {
-	    return false;
-	} catch (Exception e) {
-	    return true; // continue test to see what problem is
-	}
-	return true;
+        try {
+            SocketChannel.open(StandardProtocolFamily.UNIX);
+        } catch (UnsupportedAddressTypeException e) {
+            return false;
+        } catch (Exception e) {
+            return true; // continue test to see what problem is
+        }
+        return true;
     }
 
     static int getInt(String s) {
@@ -163,16 +175,18 @@ public class Basic {
         SelectionKey ckey;
         List<ByteBuffer> toSend = new LinkedList<>();
         final int bufsize;
+        Path sockfile;
 
         Server(ProtocolFamily family, int bufsize) throws IOException {
-            setDaemon(true);
+            //setDaemon(true);
             SocketAddress addr;
             this.bufsize = bufsize;
             if (family == StandardProtocolFamily.UNIX) {
                 server = ServerSocketChannel.open(family);
-                Path sockfile = Path.of("server.sock");
+                sockfile = Path.of(tempDir, "server.sock");
                 Files.deleteIfExists(sockfile);
                 addr = new UnixDomainSocketAddress(sockfile);
+                System.out.println("ADDR = " + addr);
             } else {
                 server = ServerSocketChannel.open();
                 addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -212,7 +226,6 @@ public class Basic {
                             int m = channel.read(buf);
                             if (m == -1) {
                                 channel.close();
-                                server.close();
                                 return;
                             } else {
                                 buf.flip();
@@ -236,6 +249,12 @@ public class Basic {
                 }
             } catch (IOException e) {
                 throw new RuntimeException(e);
+            } finally {
+                try {
+                    if (server.isOpen()) server.close();
+                    if (sockfile != null)
+                        Files.deleteIfExists(sockfile);
+                } catch (IOException ee) {}
             }
         }
     }

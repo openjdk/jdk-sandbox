@@ -149,7 +149,6 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
             HashSet<SocketOption<?>> set = new HashSet<>();
             set.add(StandardSocketOptions.SO_SNDBUF);
             set.add(StandardSocketOptions.SO_RCVBUF);
-            set.add(StandardSocketOptions.SO_KEEPALIVE);
             set.add(StandardSocketOptions.SO_LINGER);
             return Collections.unmodifiableSet(set);
         }

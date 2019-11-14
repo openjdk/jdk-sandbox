@@ -73,20 +73,25 @@ NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 JNIEXPORT jint JNICALL
 NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len)
 {
-    jstring path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
+    jstring path;
+    memset(sa, 0, sizeof(struct sockaddr_un));
+    sa->sun_family = AF_UNIX;
+    if (uaddr == NULL) {
+        *len = (int)(offsetof(struct sockaddr_un, sun_path));
+        return 0;
+    }
+    path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
     jboolean isCopy;
     int ret;
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
-    memset(sa, 0, sizeof(struct sockaddr_un));
-    sa->sun_family = AF_UNIX;
-    int name_len = strlen(pname) + 1; /* includes null termination */
+    size_t name_len = strlen(pname)+1;
     if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "unix domain path too long");
         ret = 1;
         goto finish;
     }
-    strncpy(&sa->sun_path[0], pname, name_len);
-    *len = offsetof(struct sockaddr_un, sun_path) + name_len;
+    strncpy(sa->sun_path, pname, name_len);
+    *len = (int)(offsetof(struct sockaddr_un, sun_path) + name_len);
     ret = 0;
   finish:
     if (isCopy)

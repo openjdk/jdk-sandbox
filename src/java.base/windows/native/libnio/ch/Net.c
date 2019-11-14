@@ -90,7 +90,7 @@ extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
 
-#define PATHLEN(len) (len - offsetof(struct sockaddr_un, sun_path))
+#define PATHLEN_UN(len) (len - offsetof(struct sockaddr_un, sun_path))
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
@@ -98,7 +98,7 @@ NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
     if (sa->sun_family == AF_UNIX) {
         char *name;
 
-        if (PATHLEN(len) == 0) {
+        if (PATHLEN_UN(len) == 0) {
             name = "";
         } else {
             name = sa->sun_path;
@@ -112,12 +112,17 @@ NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 JNIEXPORT jint JNICALL
 NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len)
 {
-    jstring path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
+    jstring path;
+    memset(sa, 0, sizeof(struct sockaddr_un));
+    sa->sun_family = AF_UNIX;
+    if (uaddr == NULL) {
+        *len = (int)(offsetof(struct sockaddr_un, sun_path));
+        return 0;
+    }
+    path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
     jboolean isCopy;
     int ret;
     const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
-    memset(sa, 0, sizeof(struct sockaddr_un));
-    sa->sun_family = AF_UNIX;
     size_t name_len = strlen(pname)+1;
     if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
         JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "unix domain path too long");
@@ -149,7 +154,7 @@ Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
 {
     SOCKET fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd == INVALID_SOCKET) {
-        return handleSocketError(env, errno);
+        return handleSocketError(env, WSAGetLastError());
     }
     return (int)fd;
 }
@@ -160,6 +165,11 @@ Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jobje
     struct sockaddr_un sa;
     int sa_len = 0;
     int rv = 0;
+
+/*
+    if (uaddr == NULL)
+        return;
+*/
 
     if (NET_UnixSocketAddressToSockaddr(env, uaddr, &sa, &sa_len) != 0)
         return;
@@ -243,7 +253,7 @@ Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
     struct sockaddr_un sa;
     socklen_t sa_len = sizeof(sa);
     if (getsockname(fdval(env, fdo), (struct sockaddr *)&sa, &sa_len) < 0) {
-        handleSocketError(env, errno);
+        handleSocketError(env, WSAGetLastError());
         return NULL;
     }
     return NET_SockaddrToUnixAddress(env, &sa, sa_len);
