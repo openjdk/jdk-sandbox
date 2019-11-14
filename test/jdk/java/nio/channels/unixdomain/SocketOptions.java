@@ -42,8 +42,23 @@ import java.util.Set;
 public class SocketOptions {
 
     public static void main(String args[]) throws Exception {
+        if (!supported()) {
+            System.out.println("Unix domain channels not supported");
+            return;
+        }
         test(ServerSocketChannel.open(StandardProtocolFamily.UNIX));
         test(SocketChannel.open(StandardProtocolFamily.UNIX));
+    }
+
+    static boolean supported() {
+	try {
+	    SocketChannel.open(StandardProtocolFamily.UNIX);
+	} catch (UnsupportedAddressTypeException e) {
+	    return false;
+	} catch (Exception e) {
+	    return true; // continue test to see what problem is
+	}
+	return true;
     }
 
     @SuppressWarnings("unchecked")

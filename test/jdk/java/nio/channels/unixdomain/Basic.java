@@ -45,6 +45,7 @@ public class Basic {
     public static void main(String args[]) throws Exception {
         if (args.length != 3)
             usage();
+
 	if (!supported()) {
 	    System.out.println("Unix domain channels not supported");
 	    return;
