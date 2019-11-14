@@ -25,11 +25,11 @@
 
 package java.security;
 
+import java.math.BigInteger;
 import java.util.*;
+import java.util.random.RandomGenerator;
 import java.util.regex.*;
-
 import java.security.Provider.Service;
-
 import sun.security.jca.*;
 import sun.security.jca.GetInstance.Instance;
 import sun.security.provider.SunEntries;
@@ -1029,6 +1029,16 @@ public class SecureRandom extends java.util.Random {
                 secureRandomSpi.engineReseed(params);
             }
         }
+    }
+
+    /**
+     * Returns the period of this random number generator.
+     *
+     * @return the period of this random number generator.
+     */
+    @Override
+    public BigInteger period() {
+        return RandomGenerator.HUGE_PERIOD;
     }
 
     // Declare serialVersionUID to be compatible with JDK1.1

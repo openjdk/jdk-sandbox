@@ -24,11 +24,18 @@
  */
 
 package java.util;
+
 import java.io.*;
+import java.math.BigInteger;
+import java.util.Spliterator;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
+import java.util.random.RandomGenerator;
+import java.util.random.RandomSupport;
+import java.util.random.RandomSupport.AbstractSpliteratorGenerator;
+import java.util.random.RandomSupport.RandomSpliterator;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -74,7 +81,7 @@ import jdk.internal.misc.Unsafe;
  * @since   1.0
  */
 public
-class Random implements java.io.Serializable {
+class Random extends AbstractSpliteratorGenerator implements java.io.Serializable {
     /** use serialVersionUID from JDK 1.1 for interoperability */
     @java.io.Serial
     static final long serialVersionUID = 3905348978240129619L;
@@ -206,6 +213,20 @@ class Random implements java.io.Serializable {
         return (int)(nextseed >>> (48 - bits));
     }
 
+    /*
+     * Period of Random is 2**48
+     */
+    private static final BigInteger PERIOD = BigInteger.valueOf(1L<<48);
+
+    /**
+     * Returns the period of this random number generator.
+     *
+     * @return the period of this random number generator.
+     */
+    public BigInteger period() {
+        return PERIOD;
+    }
+
     /**
      * Generates random bytes and places them into a user-supplied
      * byte array.  The number of random bytes produced is equal to
@@ -234,82 +255,6 @@ class Random implements java.io.Serializable {
     }
 
     /**
-     * The form of nextLong used by LongStream Spliterators.  If
-     * origin is greater than bound, acts as unbounded form of
-     * nextLong, else as bounded form.
-     *
-     * @param origin the least value, unless greater than bound
-     * @param bound the upper bound (exclusive), must not equal origin
-     * @return a pseudorandom value
-     */
-    final long internalNextLong(long origin, long bound) {
-        long r = nextLong();
-        if (origin < bound) {
-            long n = bound - origin, m = n - 1;
-            if ((n & m) == 0L)  // power of two
-                r = (r & m) + origin;
-            else if (n > 0L) {  // reject over-represented candidates
-                for (long u = r >>> 1;            // ensure nonnegative
-                     u + m - (r = u % n) < 0L;    // rejection check
-                     u = nextLong() >>> 1) // retry
-                    ;
-                r += origin;
-            }
-            else {              // range not representable as long
-                while (r < origin || r >= bound)
-                    r = nextLong();
-            }
-        }
-        return r;
-    }
-
-    /**
-     * The form of nextInt used by IntStream Spliterators.
-     * For the unbounded case: uses nextInt().
-     * For the bounded case with representable range: uses nextInt(int bound)
-     * For the bounded case with unrepresentable range: uses nextInt()
-     *
-     * @param origin the least value, unless greater than bound
-     * @param bound the upper bound (exclusive), must not equal origin
-     * @return a pseudorandom value
-     */
-    final int internalNextInt(int origin, int bound) {
-        if (origin < bound) {
-            int n = bound - origin;
-            if (n > 0) {
-                return nextInt(n) + origin;
-            }
-            else {  // range not representable as int
-                int r;
-                do {
-                    r = nextInt();
-                } while (r < origin || r >= bound);
-                return r;
-            }
-        }
-        else {
-            return nextInt();
-        }
-    }
-
-    /**
-     * The form of nextDouble used by DoubleStream Spliterators.
-     *
-     * @param origin the least value, unless greater than bound
-     * @param bound the upper bound (exclusive), must not equal origin
-     * @return a pseudorandom value
-     */
-    final double internalNextDouble(double origin, double bound) {
-        double r = nextDouble();
-        if (origin < bound) {
-            r = r * (bound - origin) + origin;
-            if (r >= bound) // correct for rounding
-                r = Double.longBitsToDouble(Double.doubleToLongBits(bound) - 1);
-        }
-        return r;
-    }
-
-    /**
      * Returns the next pseudorandom, uniformly distributed {@code int}
      * value from this random number generator's sequence. The general
      * contract of {@code nextInt} is that one {@code int} value is
@@ -331,71 +276,26 @@ class Random implements java.io.Serializable {
     }
 
     /**
-     * Returns a pseudorandom, uniformly distributed {@code int} value
-     * between 0 (inclusive) and the specified value (exclusive), drawn from
-     * this random number generator's sequence.  The general contract of
-     * {@code nextInt} is that one {@code int} value in the specified range
-     * is pseudorandomly generated and returned.  All {@code bound} possible
-     * {@code int} values are produced with (approximately) equal
-     * probability.  The method {@code nextInt(int bound)} is implemented by
-     * class {@code Random} as if by:
-     *  <pre> {@code
-     * public int nextInt(int bound) {
-     *   if (bound <= 0)
-     *     throw new IllegalArgumentException("bound must be positive");
-     *
-     *   if ((bound & -bound) == bound)  // i.e., bound is a power of 2
-     *     return (int)((bound * (long)next(31)) >> 31);
-     *
-     *   int bits, val;
-     *   do {
-     *       bits = next(31);
-     *       val = bits % bound;
-     *   } while (bits - val + (bound-1) < 0);
-     *   return val;
-     * }}</pre>
-     *
-     * <p>The hedge "approximately" is used in the foregoing description only
-     * because the next method is only approximately an unbiased source of
-     * independently chosen bits.  If it were a perfect source of randomly
-     * chosen bits, then the algorithm shown would choose {@code int}
-     * values from the stated range with perfect uniformity.
-     * <p>
-     * The algorithm is slightly tricky.  It rejects values that would result
-     * in an uneven distribution (due to the fact that 2^31 is not divisible
-     * by n). The probability of a value being rejected depends on n.  The
-     * worst case is n=2^30+1, for which the probability of a reject is 1/2,
-     * and the expected number of iterations before the loop terminates is 2.
-     * <p>
-     * The algorithm treats the case where n is a power of two specially: it
-     * returns the correct number of high-order bits from the underlying
-     * pseudo-random number generator.  In the absence of special treatment,
-     * the correct number of <i>low-order</i> bits would be returned.  Linear
-     * congruential pseudo-random number generators such as the one
-     * implemented by this class are known to have short periods in the
-     * sequence of values of their low-order bits.  Thus, this special case
-     * greatly increases the length of the sequence of values returned by
-     * successive calls to this method if n is a small power of two.
+     * Returns a pseudorandom {@code int} value between zero (inclusive)
+     * and the specified bound (exclusive).
      *
      * @param bound the upper bound (exclusive).  Must be positive.
-     * @return the next pseudorandom, uniformly distributed {@code int}
-     *         value between zero (inclusive) and {@code bound} (exclusive)
-     *         from this random number generator's sequence
-     * @throws IllegalArgumentException if bound is not positive
-     * @since 1.2
+     * @return a pseudorandom {@code int} value between zero
+     *         (inclusive) and the bound (exclusive)
+     * @throws IllegalArgumentException if {@code bound} is not positive
      */
     public int nextInt(int bound) {
         if (bound <= 0)
             throw new IllegalArgumentException(BadBound);
-
-        int r = next(31);
+        // Specialize internalNextInt for origin 0
+        int r = nextInt();
         int m = bound - 1;
-        if ((bound & m) == 0)  // i.e., bound is a power of 2
-            r = (int)((bound * (long)r) >> 31);
-        else {
-            for (int u = r;
-                 u - (r = u % bound) + m < 0;
-                 u = next(31))
+        if ((bound & m) == 0) // power of two
+            r &= m;
+        else { // reject over-represented candidates
+            for (int u = r >>> 1;
+                 u + m - (r = u % bound) < 0;
+                 u = nextInt() >>> 1)
                 ;
         }
         return r;
@@ -600,565 +500,6 @@ class Random implements java.io.Serializable {
         }
     }
 
-    // stream methods, coded in a way intended to better isolate for
-    // maintenance purposes the small differences across forms.
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandom {@code int} values.
-     *
-     * <p>A pseudorandom {@code int} value is generated as if it's the result of
-     * calling the method {@link #nextInt()}.
-     *
-     * @param streamSize the number of values to generate
-     * @return a stream of pseudorandom {@code int} values
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero
-     * @since 1.8
-     */
-    public IntStream ints(long streamSize) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        return StreamSupport.intStream
-                (new RandomIntsSpliterator
-                         (this, 0L, streamSize, Integer.MAX_VALUE, 0),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code int}
-     * values.
-     *
-     * <p>A pseudorandom {@code int} value is generated as if it's the result of
-     * calling the method {@link #nextInt()}.
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * ints(Long.MAX_VALUE)}.
-     *
-     * @return a stream of pseudorandom {@code int} values
-     * @since 1.8
-     */
-    public IntStream ints() {
-        return StreamSupport.intStream
-                (new RandomIntsSpliterator
-                         (this, 0L, Long.MAX_VALUE, Integer.MAX_VALUE, 0),
-                 false);
-    }
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number
-     * of pseudorandom {@code int} values, each conforming to the given
-     * origin (inclusive) and bound (exclusive).
-     *
-     * <p>A pseudorandom {@code int} value is generated as if it's the result of
-     * calling the following method with the origin and bound:
-     * <pre> {@code
-     * int nextInt(int origin, int bound) {
-     *   int n = bound - origin;
-     *   if (n > 0) {
-     *     return nextInt(n) + origin;
-     *   }
-     *   else {  // range not representable as int
-     *     int r;
-     *     do {
-     *       r = nextInt();
-     *     } while (r < origin || r >= bound);
-     *     return r;
-     *   }
-     * }}</pre>
-     *
-     * @param streamSize the number of values to generate
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code int} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero, or {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public IntStream ints(long streamSize, int randomNumberOrigin,
-                          int randomNumberBound) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        if (randomNumberOrigin >= randomNumberBound)
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.intStream
-                (new RandomIntsSpliterator
-                         (this, 0L, streamSize, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code
-     * int} values, each conforming to the given origin (inclusive) and bound
-     * (exclusive).
-     *
-     * <p>A pseudorandom {@code int} value is generated as if it's the result of
-     * calling the following method with the origin and bound:
-     * <pre> {@code
-     * int nextInt(int origin, int bound) {
-     *   int n = bound - origin;
-     *   if (n > 0) {
-     *     return nextInt(n) + origin;
-     *   }
-     *   else {  // range not representable as int
-     *     int r;
-     *     do {
-     *       r = nextInt();
-     *     } while (r < origin || r >= bound);
-     *     return r;
-     *   }
-     * }}</pre>
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * ints(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.
-     *
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code int} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public IntStream ints(int randomNumberOrigin, int randomNumberBound) {
-        if (randomNumberOrigin >= randomNumberBound)
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.intStream
-                (new RandomIntsSpliterator
-                         (this, 0L, Long.MAX_VALUE, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandom {@code long} values.
-     *
-     * <p>A pseudorandom {@code long} value is generated as if it's the result
-     * of calling the method {@link #nextLong()}.
-     *
-     * @param streamSize the number of values to generate
-     * @return a stream of pseudorandom {@code long} values
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero
-     * @since 1.8
-     */
-    public LongStream longs(long streamSize) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        return StreamSupport.longStream
-                (new RandomLongsSpliterator
-                         (this, 0L, streamSize, Long.MAX_VALUE, 0L),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code long}
-     * values.
-     *
-     * <p>A pseudorandom {@code long} value is generated as if it's the result
-     * of calling the method {@link #nextLong()}.
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * longs(Long.MAX_VALUE)}.
-     *
-     * @return a stream of pseudorandom {@code long} values
-     * @since 1.8
-     */
-    public LongStream longs() {
-        return StreamSupport.longStream
-                (new RandomLongsSpliterator
-                         (this, 0L, Long.MAX_VALUE, Long.MAX_VALUE, 0L),
-                 false);
-    }
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandom {@code long}, each conforming to the given origin
-     * (inclusive) and bound (exclusive).
-     *
-     * <p>A pseudorandom {@code long} value is generated as if it's the result
-     * of calling the following method with the origin and bound:
-     * <pre> {@code
-     * long nextLong(long origin, long bound) {
-     *   long r = nextLong();
-     *   long n = bound - origin, m = n - 1;
-     *   if ((n & m) == 0L)  // power of two
-     *     r = (r & m) + origin;
-     *   else if (n > 0L) {  // reject over-represented candidates
-     *     for (long u = r >>> 1;            // ensure nonnegative
-     *          u + m - (r = u % n) < 0L;    // rejection check
-     *          u = nextLong() >>> 1) // retry
-     *         ;
-     *     r += origin;
-     *   }
-     *   else {              // range not representable as long
-     *     while (r < origin || r >= bound)
-     *       r = nextLong();
-     *   }
-     *   return r;
-     * }}</pre>
-     *
-     * @param streamSize the number of values to generate
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code long} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero, or {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public LongStream longs(long streamSize, long randomNumberOrigin,
-                            long randomNumberBound) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        if (randomNumberOrigin >= randomNumberBound)
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.longStream
-                (new RandomLongsSpliterator
-                         (this, 0L, streamSize, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code
-     * long} values, each conforming to the given origin (inclusive) and bound
-     * (exclusive).
-     *
-     * <p>A pseudorandom {@code long} value is generated as if it's the result
-     * of calling the following method with the origin and bound:
-     * <pre> {@code
-     * long nextLong(long origin, long bound) {
-     *   long r = nextLong();
-     *   long n = bound - origin, m = n - 1;
-     *   if ((n & m) == 0L)  // power of two
-     *     r = (r & m) + origin;
-     *   else if (n > 0L) {  // reject over-represented candidates
-     *     for (long u = r >>> 1;            // ensure nonnegative
-     *          u + m - (r = u % n) < 0L;    // rejection check
-     *          u = nextLong() >>> 1) // retry
-     *         ;
-     *     r += origin;
-     *   }
-     *   else {              // range not representable as long
-     *     while (r < origin || r >= bound)
-     *       r = nextLong();
-     *   }
-     *   return r;
-     * }}</pre>
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * longs(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.
-     *
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code long} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public LongStream longs(long randomNumberOrigin, long randomNumberBound) {
-        if (randomNumberOrigin >= randomNumberBound)
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.longStream
-                (new RandomLongsSpliterator
-                         (this, 0L, Long.MAX_VALUE, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandom {@code double} values, each between zero
-     * (inclusive) and one (exclusive).
-     *
-     * <p>A pseudorandom {@code double} value is generated as if it's the result
-     * of calling the method {@link #nextDouble()}.
-     *
-     * @param streamSize the number of values to generate
-     * @return a stream of {@code double} values
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero
-     * @since 1.8
-     */
-    public DoubleStream doubles(long streamSize) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        return StreamSupport.doubleStream
-                (new RandomDoublesSpliterator
-                         (this, 0L, streamSize, Double.MAX_VALUE, 0.0),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code
-     * double} values, each between zero (inclusive) and one
-     * (exclusive).
-     *
-     * <p>A pseudorandom {@code double} value is generated as if it's the result
-     * of calling the method {@link #nextDouble()}.
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * doubles(Long.MAX_VALUE)}.
-     *
-     * @return a stream of pseudorandom {@code double} values
-     * @since 1.8
-     */
-    public DoubleStream doubles() {
-        return StreamSupport.doubleStream
-                (new RandomDoublesSpliterator
-                         (this, 0L, Long.MAX_VALUE, Double.MAX_VALUE, 0.0),
-                 false);
-    }
-
-    /**
-     * Returns a stream producing the given {@code streamSize} number of
-     * pseudorandom {@code double} values, each conforming to the given origin
-     * (inclusive) and bound (exclusive).
-     *
-     * <p>A pseudorandom {@code double} value is generated as if it's the result
-     * of calling the following method with the origin and bound:
-     * <pre> {@code
-     * double nextDouble(double origin, double bound) {
-     *   double r = nextDouble();
-     *   r = r * (bound - origin) + origin;
-     *   if (r >= bound) // correct for rounding
-     *     r = Math.nextDown(bound);
-     *   return r;
-     * }}</pre>
-     *
-     * @param streamSize the number of values to generate
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code double} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code streamSize} is
-     *         less than zero
-     * @throws IllegalArgumentException if {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public DoubleStream doubles(long streamSize, double randomNumberOrigin,
-                                double randomNumberBound) {
-        if (streamSize < 0L)
-            throw new IllegalArgumentException(BadSize);
-        if (!(randomNumberOrigin < randomNumberBound))
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.doubleStream
-                (new RandomDoublesSpliterator
-                         (this, 0L, streamSize, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Returns an effectively unlimited stream of pseudorandom {@code
-     * double} values, each conforming to the given origin (inclusive) and bound
-     * (exclusive).
-     *
-     * <p>A pseudorandom {@code double} value is generated as if it's the result
-     * of calling the following method with the origin and bound:
-     * <pre> {@code
-     * double nextDouble(double origin, double bound) {
-     *   double r = nextDouble();
-     *   r = r * (bound - origin) + origin;
-     *   if (r >= bound) // correct for rounding
-     *     r = Math.nextDown(bound);
-     *   return r;
-     * }}</pre>
-     *
-     * @implNote This method is implemented to be equivalent to {@code
-     * doubles(Long.MAX_VALUE, randomNumberOrigin, randomNumberBound)}.
-     *
-     * @param randomNumberOrigin the origin (inclusive) of each random value
-     * @param randomNumberBound the bound (exclusive) of each random value
-     * @return a stream of pseudorandom {@code double} values,
-     *         each with the given origin (inclusive) and bound (exclusive)
-     * @throws IllegalArgumentException if {@code randomNumberOrigin}
-     *         is greater than or equal to {@code randomNumberBound}
-     * @since 1.8
-     */
-    public DoubleStream doubles(double randomNumberOrigin, double randomNumberBound) {
-        if (!(randomNumberOrigin < randomNumberBound))
-            throw new IllegalArgumentException(BadRange);
-        return StreamSupport.doubleStream
-                (new RandomDoublesSpliterator
-                         (this, 0L, Long.MAX_VALUE, randomNumberOrigin, randomNumberBound),
-                 false);
-    }
-
-    /**
-     * Spliterator for int streams.  We multiplex the four int
-     * versions into one class by treating a bound less than origin as
-     * unbounded, and also by treating "infinite" as equivalent to
-     * Long.MAX_VALUE. For splits, it uses the standard divide-by-two
-     * approach. The long and double versions of this class are
-     * identical except for types.
-     */
-    static final class RandomIntsSpliterator implements Spliterator.OfInt {
-        final Random rng;
-        long index;
-        final long fence;
-        final int origin;
-        final int bound;
-        RandomIntsSpliterator(Random rng, long index, long fence,
-                              int origin, int bound) {
-            this.rng = rng; this.index = index; this.fence = fence;
-            this.origin = origin; this.bound = bound;
-        }
-
-        public RandomIntsSpliterator trySplit() {
-            long i = index, m = (i + fence) >>> 1;
-            return (m <= i) ? null :
-                   new RandomIntsSpliterator(rng, i, index = m, origin, bound);
-        }
-
-        public long estimateSize() {
-            return fence - index;
-        }
-
-        public int characteristics() {
-            return (Spliterator.SIZED | Spliterator.SUBSIZED |
-                    Spliterator.NONNULL | Spliterator.IMMUTABLE);
-        }
-
-        public boolean tryAdvance(IntConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                consumer.accept(rng.internalNextInt(origin, bound));
-                index = i + 1;
-                return true;
-            }
-            return false;
-        }
-
-        public void forEachRemaining(IntConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                index = f;
-                Random r = rng;
-                int o = origin, b = bound;
-                do {
-                    consumer.accept(r.internalNextInt(o, b));
-                } while (++i < f);
-            }
-        }
-    }
-
-    /**
-     * Spliterator for long streams.
-     */
-    static final class RandomLongsSpliterator implements Spliterator.OfLong {
-        final Random rng;
-        long index;
-        final long fence;
-        final long origin;
-        final long bound;
-        RandomLongsSpliterator(Random rng, long index, long fence,
-                               long origin, long bound) {
-            this.rng = rng; this.index = index; this.fence = fence;
-            this.origin = origin; this.bound = bound;
-        }
-
-        public RandomLongsSpliterator trySplit() {
-            long i = index, m = (i + fence) >>> 1;
-            return (m <= i) ? null :
-                   new RandomLongsSpliterator(rng, i, index = m, origin, bound);
-        }
-
-        public long estimateSize() {
-            return fence - index;
-        }
-
-        public int characteristics() {
-            return (Spliterator.SIZED | Spliterator.SUBSIZED |
-                    Spliterator.NONNULL | Spliterator.IMMUTABLE);
-        }
-
-        public boolean tryAdvance(LongConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                consumer.accept(rng.internalNextLong(origin, bound));
-                index = i + 1;
-                return true;
-            }
-            return false;
-        }
-
-        public void forEachRemaining(LongConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                index = f;
-                Random r = rng;
-                long o = origin, b = bound;
-                do {
-                    consumer.accept(r.internalNextLong(o, b));
-                } while (++i < f);
-            }
-        }
-
-    }
-
-    /**
-     * Spliterator for double streams.
-     */
-    static final class RandomDoublesSpliterator implements Spliterator.OfDouble {
-        final Random rng;
-        long index;
-        final long fence;
-        final double origin;
-        final double bound;
-        RandomDoublesSpliterator(Random rng, long index, long fence,
-                                 double origin, double bound) {
-            this.rng = rng; this.index = index; this.fence = fence;
-            this.origin = origin; this.bound = bound;
-        }
-
-        public RandomDoublesSpliterator trySplit() {
-            long i = index, m = (i + fence) >>> 1;
-            return (m <= i) ? null :
-                   new RandomDoublesSpliterator(rng, i, index = m, origin, bound);
-        }
-
-        public long estimateSize() {
-            return fence - index;
-        }
-
-        public int characteristics() {
-            return (Spliterator.SIZED | Spliterator.SUBSIZED |
-                    Spliterator.NONNULL | Spliterator.IMMUTABLE);
-        }
-
-        public boolean tryAdvance(DoubleConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                consumer.accept(rng.internalNextDouble(origin, bound));
-                index = i + 1;
-                return true;
-            }
-            return false;
-        }
-
-        public void forEachRemaining(DoubleConsumer consumer) {
-            if (consumer == null) throw new NullPointerException();
-            long i = index, f = fence;
-            if (i < f) {
-                index = f;
-                Random r = rng;
-                double o = origin, b = bound;
-                do {
-                    consumer.accept(r.internalNextDouble(o, b));
-                } while (++i < f);
-            }
-        }
-    }
-
     /**
      * Serializable fields for Random.
      *
@@ -1227,5 +568,165 @@ class Random implements java.io.Serializable {
     }
     private void resetSeed(long seedVal) {
         unsafe.putReferenceVolatile(this, seedOffset, new AtomicLong(seedVal));
+    }
+
+    // Methods required by class AbstractSpliteratorGenerator
+    public Spliterator.OfInt makeIntsSpliterator(long index, long fence, int origin, int bound) {
+        return new RandomIntsSpliterator(this, index, fence, origin, bound);
+    }
+    public Spliterator.OfLong makeLongsSpliterator(long index, long fence, long origin, long bound) {
+        return new RandomLongsSpliterator(this, index, fence, origin, bound);
+    }
+    public Spliterator.OfDouble makeDoublesSpliterator(long index, long fence, double origin, double bound) {
+        return new RandomDoublesSpliterator(this, index, fence, origin, bound);
+    }
+
+    /**
+     * Spliterators for producing streams. These are based on abstract spliterator classes provided
+     * by class AbstractSpliteratorGenerator. Each one needs to define only a constructor and two
+     * methods.
+     */
+    static class RandomIntsSpliterator extends RandomSupport.RandomSpliterator
+                                       implements Spliterator.OfInt {
+        final AbstractSpliteratorGenerator generatingGenerator;
+        final int origin;
+        final int bound;
+
+        RandomIntsSpliterator(AbstractSpliteratorGenerator generatingGenerator,
+                              long index, long fence, int origin, int bound) {
+            super(index, fence);
+            this.generatingGenerator = generatingGenerator;
+            this.origin = origin; this.bound = bound;
+        }
+
+        public Spliterator.OfInt trySplit() {
+            long i = index, m = (i + fence) >>> 1;
+            if (m <= i) return null;
+            index = m;
+            // The same generatingGenerator is used, with no splitting or copying.
+            return new RandomIntsSpliterator(generatingGenerator, i, m, origin, bound);
+        }
+
+        public boolean tryAdvance(IntConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                consumer.accept(RandomSupport.boundedNextInt(generatingGenerator, origin, bound));
+                index = i + 1;
+                return true;
+            }
+            else return false;
+        }
+
+        public void forEachRemaining(IntConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                index = f;
+                RandomGenerator r = generatingGenerator;
+                int o = origin, b = bound;
+                do {
+                    consumer.accept(RandomSupport.boundedNextInt(r, o, b));
+                } while (++i < f);
+            }
+        }
+    }
+
+    /**
+     * Spliterator for long streams.
+     */
+    static class RandomLongsSpliterator extends RandomSupport.RandomSpliterator
+                                        implements Spliterator.OfLong {
+        final AbstractSpliteratorGenerator generatingGenerator;
+        final long origin;
+        final long bound;
+
+        RandomLongsSpliterator(AbstractSpliteratorGenerator generatingGenerator,
+                               long index, long fence, long origin, long bound) {
+            super(index, fence);
+            this.generatingGenerator = generatingGenerator;
+            this.origin = origin; this.bound = bound;
+        }
+
+        public Spliterator.OfLong trySplit() {
+            long i = index, m = (i + fence) >>> 1;
+            if (m <= i) return null;
+            index = m;
+            // The same generatingGenerator is used, with no splitting or copying.
+            return new RandomLongsSpliterator(generatingGenerator, i, m, origin, bound);
+        }
+
+        public boolean tryAdvance(LongConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                consumer.accept(RandomSupport.boundedNextLong(generatingGenerator, origin, bound));
+                index = i + 1;
+                return true;
+            }
+            else return false;
+        }
+
+        public void forEachRemaining(LongConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                index = f;
+                RandomGenerator r = generatingGenerator;
+                long o = origin, b = bound;
+                do {
+                    consumer.accept(RandomSupport.boundedNextLong(r, o, b));
+                } while (++i < f);
+            }
+        }
+    }
+
+    /**
+     * Spliterator for double streams.
+     */
+    static class RandomDoublesSpliterator extends RandomSupport.RandomSpliterator
+                                          implements Spliterator.OfDouble {
+        final AbstractSpliteratorGenerator generatingGenerator;
+        final double origin;
+        final double bound;
+
+        RandomDoublesSpliterator(AbstractSpliteratorGenerator generatingGenerator,
+                                 long index, long fence, double origin, double bound) {
+            super(index, fence);
+            this.generatingGenerator = generatingGenerator;
+            this.origin = origin; this.bound = bound;
+        }
+
+        public Spliterator.OfDouble trySplit() {
+            long i = index, m = (i + fence) >>> 1;
+            if (m <= i) return null;
+            index = m;
+            // The same generatingGenerator is used, with no splitting or copying.
+            return new RandomDoublesSpliterator(generatingGenerator, i, m, origin, bound);
+        }
+
+        public boolean tryAdvance(DoubleConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                consumer.accept(RandomSupport.boundedNextDouble(generatingGenerator, origin, bound));
+                index = i + 1;
+                return true;
+            }
+            else return false;
+        }
+
+        public void forEachRemaining(DoubleConsumer consumer) {
+            if (consumer == null) throw new NullPointerException();
+            long i = index, f = fence;
+            if (i < f) {
+                index = f;
+                RandomGenerator r = generatingGenerator;
+                double o = origin, b = bound;
+                do {
+                    consumer.accept(RandomSupport.boundedNextDouble(r, o, b));
+                } while (++i < f);
+            }
+        }
     }
 }
