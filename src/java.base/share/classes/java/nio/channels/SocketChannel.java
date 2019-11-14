@@ -277,7 +277,8 @@ public abstract class SocketChannel
      * <p> Note, for <i>Unix Domain</i> channels, a file is created in the file-system
      * with the same name as this channel's bound address. This file persists after
      * the channel is closed, and must be removed before another channel can bind
-     * to the same name.
+     * to the same name. However, automatically assigned addresses have an empty
+     * pathname, and no corresponding file in the file-system.
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on
