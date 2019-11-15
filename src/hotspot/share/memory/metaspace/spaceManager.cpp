@@ -138,6 +138,7 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
   {
     bool ignored;
     c->allocate(1, &ignored);
+    _total_used_words_counter->increment();
   }
 
   return c;
