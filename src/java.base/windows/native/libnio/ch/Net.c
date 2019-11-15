@@ -90,20 +90,12 @@ extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
 
-#define PATHLEN_UN(len) (len - offsetof(struct sockaddr_un, sun_path))
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
 
     if (sa->sun_family == AF_UNIX) {
-        char *name;
-
-        if (PATHLEN_UN(len) == 0) {
-            name = "";
-        } else {
-            name = sa->sun_path;
-        }
-        jstring nstr = JNU_NewStringPlatform(env, name);
+        jstring nstr = JNU_NewStringPlatform(env, sa->sun_path);
         return (*env)->NewObject(env, udsa_class, udsa_ctorID, nstr);
     }
     return NULL;
@@ -116,6 +108,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
     memset(sa, 0, sizeof(struct sockaddr_un));
     sa->sun_family = AF_UNIX;
     if (uaddr == NULL) {
+ 	/* Do explicit bind on Windows */
         *len = (int)(offsetof(struct sockaddr_un, sun_path));
         return 0;
     }
@@ -159,17 +152,16 @@ Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
     return (int)fd;
 }
 
+/**
+ * Windows does not support auto bind. So, the windows version of NET_UnixSocketAddressToSockaddr
+ * looks out for a null 'uaddr' and handles it specially
+ */
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jobject uaddr)
 {
     struct sockaddr_un sa;
     int sa_len = 0;
     int rv = 0;
-
-/*
-    if (uaddr == NULL)
-        return;
-*/
 
     if (NET_UnixSocketAddressToSockaddr(env, uaddr, &sa, &sa_len) != 0)
         return;

@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <stddef.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <limits.h>
@@ -51,7 +52,16 @@ extern jclass udsa_class;
 extern jmethodID udsa_ctorID;
 extern jfieldID udsa_pathID;
 
-#define PATHLEN(len) (len - offsetof(struct sockaddr_un, sun_path))
+/* Subtle platform differences in how unnamed sockets (empty path)
+ * are returned from getsockname()
+ */
+#if defined(__solaris__)
+  #define ZERO_PATHLEN(len) (len == 0)
+#elif defined(MACOSX)
+  #define ZERO_PATHLEN(len) (JNI_FALSE)
+#else
+  #define ZERO_PATHLEN(len) (len == offsetof(struct sockaddr_un, sun_path))
+#endif
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
@@ -59,7 +69,7 @@ NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
     if (sa->sun_family == AF_UNIX) {
         char *name;
 
-        if (PATHLEN(len) == 0) {
+        if (ZERO_PATHLEN(len)) {
             name = "";
         } else {
             name = sa->sun_path;
@@ -76,10 +86,6 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
     jstring path;
     memset(sa, 0, sizeof(struct sockaddr_un));
     sa->sun_family = AF_UNIX;
-    if (uaddr == NULL) {
-        *len = (int)(offsetof(struct sockaddr_un, sun_path));
-        return 0;
-    }
     path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
     jboolean isCopy;
     int ret;
@@ -123,7 +129,7 @@ Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jobje
     int rv = 0;
 
     if (uaddr == NULL)
-        return; /* Rely on implicit bind */
+        return; /* Rely on implicit bind: Unix */
 
     if (NET_UnixSocketAddressToSockaddr(env, uaddr, &sa, &sa_len) != 0)
         return;
