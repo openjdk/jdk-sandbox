@@ -722,7 +722,7 @@ public class Net {
         return unixDomainSupported;
     }
 
-    private static UnixDomainSocketAddress UNNAMED = new UnixDomainSocketAddress("");
+    public static final UnixDomainSocketAddress UNNAMED = new UnixDomainSocketAddress("");
 
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         SecurityManager sm = System.getSecurityManager();
