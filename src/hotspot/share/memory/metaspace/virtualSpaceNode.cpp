@@ -40,6 +40,7 @@
 #include "memory/metaspace/runningCounters.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 
+#include "runtime/globals.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
 
@@ -61,6 +62,7 @@ void check_word_size_is_aligned_to_commit_granule(size_t word_size) {
          "Not aligned to commit granule size: " SIZE_FORMAT ".", word_size);
 }
 #endif
+
 
 // Given an address range, ensure it is committed.
 //
@@ -106,6 +108,10 @@ bool VirtualSpaceNode::commit_range(MetaWord* p, size_t word_size) {
   // Commit...
   if (os::commit_memory((char*)p, word_size * BytesPerWord, false) == false) {
     vm_exit_out_of_memory(word_size * BytesPerWord, OOM_MMAP_ERROR, "Failed to commit metaspace.");
+  }
+
+  if (AlwaysPreTouch) {
+    os::pretouch_memory(p, p + word_size);
   }
 
   log_debug(gc, metaspace)("Increased metaspace by " SIZE_FORMAT " bytes.",
