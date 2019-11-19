@@ -394,6 +394,8 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   out->cr();
   out->cr();
 
+  DEBUG_ONLY(MetaspaceUtils::verify(true);)
+
 } // MetaspaceUtils::print_report()
 
 } // namespace metaspace
