@@ -468,6 +468,54 @@ public:
 
 };
 
+
+
+TEST_VM(metaspace, virtual_space_node_test_basics) {
+
+  MutexLocker fcl(MetaspaceExpand_lock, Mutex::_no_safepoint_check_flag);
+
+  const size_t word_size = metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 10;
+
+  SizeCounter scomm;
+  SizeCounter sres;
+  CommitLimiter cl (word_size * 2); // basically, no commit limiter.
+
+  VirtualSpaceNode* node = VirtualSpaceNode::create_node(42, word_size, &cl, &sres, &scomm);
+  ASSERT_NOT_NULL(node);
+  ASSERT_EQ(node->committed_words(), (size_t)0);
+  ASSERT_EQ(node->committed_words(), scomm.get());
+  DEBUG_ONLY(node->verify(true);)
+
+  bool b = node->ensure_range_is_committed(node->base(), node->word_size());
+  ASSERT_TRUE(b);
+  ASSERT_EQ(node->committed_words(), word_size);
+  ASSERT_EQ(node->committed_words(), scomm.get());
+  DEBUG_ONLY(node->verify(true);)
+  zap_range(node->base(), node->word_size());
+
+  node->uncommit_range(node->base(), node->word_size());
+  ASSERT_EQ(node->committed_words(), (size_t)0);
+  ASSERT_EQ(node->committed_words(), scomm.get());
+  DEBUG_ONLY(node->verify(true);)
+
+  const int num_granules = (int)(word_size / Settings::commit_granule_words());
+  for (int i = 1; i < num_granules; i += 4) {
+    b = node->ensure_range_is_committed(node->base(), i * Settings::commit_granule_words());
+    ASSERT_TRUE(b);
+    ASSERT_EQ(node->committed_words(), i * Settings::commit_granule_words());
+    ASSERT_EQ(node->committed_words(), scomm.get());
+    DEBUG_ONLY(node->verify(true);)
+    zap_range(node->base(), i * Settings::commit_granule_words());
+  }
+
+  node->uncommit_range(node->base(), node->word_size());
+  ASSERT_EQ(node->committed_words(), (size_t)0);
+  ASSERT_EQ(node->committed_words(), scomm.get());
+  DEBUG_ONLY(node->verify(true);)
+
+}
+
+
 // Note: we unfortunately need TEST_VM even though the system tested
 // should be pretty independent since we need things like os::vm_page_size()
 // which in turn need OS layer initialization.
@@ -508,7 +556,7 @@ TEST_VM(metaspace, virtual_space_node_test_5) {
   }
 }
 
-TEST_VM(metaspace, virtual_space_node_test_6) {
+TEST_VM(metaspace, virtual_space_node_test_7) {
   // Test large allocation and freeing.
   {
     VirtualSpaceNodeTest test(metaspace::chklvl::MAX_CHUNK_WORD_SIZE * 100,

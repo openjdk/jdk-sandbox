@@ -125,8 +125,6 @@ class VirtualSpaceNode : public CHeapObj<mtClass> {
                    SizeCounter* reserve_counter,
                    SizeCounter* commit_counter);
 
-  MetaWord* base() const        { return _base; }
-
 public:
 
   // Create a node of a given size
@@ -145,6 +143,8 @@ public:
 
   ~VirtualSpaceNode();
 
+  // Note: public for gtests only, could be private.
+  MetaWord* base() const        { return _base; }
 
   // Reserved size of the whole node.
   size_t word_size() const      { return _word_size; }

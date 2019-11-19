@@ -100,8 +100,8 @@ size_t get_workingset_size() {
 
 
 void zap_range(MetaWord* p, size_t word_size) {
-  for (MetaWord* pzap = p; pzap < p + word_size; pzap += os::vm_page_size()) {
-    *pzap = 0;
+  for (MetaWord* pzap = p; pzap < p + word_size; pzap += os::vm_page_size() / BytesPerWord) {
+    *pzap = (MetaWord)0xFEFEFEFE;
   }
 }
 
