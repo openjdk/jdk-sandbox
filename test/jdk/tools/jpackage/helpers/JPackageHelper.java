@@ -38,7 +38,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import java.util.spi.ToolProvider;
-import jdk.incubator.jpackage.ToolProviderFactory;
 
 public class JPackageHelper {
 
@@ -114,7 +113,7 @@ public class JPackageHelper {
     }
 
     static final ToolProvider JPACKAGE_TOOL =
-            ToolProviderFactory.findFirst("jpackage").orElseThrow(
+            ToolProvider.findFirst("jpackage").orElseThrow(
             () -> new RuntimeException("jpackage tool not found"));
 
     public static int execute(File out, String... command) throws Exception {

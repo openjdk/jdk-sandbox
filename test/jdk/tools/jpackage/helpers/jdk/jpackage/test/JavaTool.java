@@ -27,7 +27,6 @@ package jdk.jpackage.test;
 
 import java.nio.file.Path;
 import java.util.spi.ToolProvider;
-import jdk.incubator.jpackage.ToolProviderFactory;
 
 public enum JavaTool {
     JAVA("java"), JAVAC("javac"), JPACKAGE("jpackage"), JAR("jar"), JLINK("jlink");
@@ -47,12 +46,7 @@ public enum JavaTool {
     }
 
     public ToolProvider asToolProvider() {
-        if (this == JPACKAGE) {
-            return ToolProviderFactory.findFirst("jpackage").orElseThrow(
-                    () -> new RuntimeException("jpackage tool not found"));
-        } else {
-            return ToolProvider.findFirst(name).orElse(null);
-        }
+        return ToolProvider.findFirst(name).orElse(null);
     }
 
     Path relativePathInJavaHome() {
