@@ -27,6 +27,7 @@
 #define SHARE_MEMORY_METASPACE_LEFTOVERBINS_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/metaspace/blockListArray.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/debug.hpp"
@@ -47,121 +48,9 @@ namespace metaspace {
 //    due to interrupted class loading. These blocks are small or
 //    very small.
 
-class BinMap {
-
-  typedef uint32_t mask_type;
-  mask_type _mask;
-
-  static mask_type mask_for_pos(int pos) { return 1 << pos; }
-
-public:
-
-  BinMap() : _mask(0) {}
-
-  bool all_zero() const          { return _mask == 0; }
-
-  bool get_bit(int pos) const    { return (_mask & mask_for_pos(pos)) != 0 ? true : false; }
-  void set_bit(int pos)          { _mask |= mask_for_pos(pos); }
-  void clr_bit(int pos)          { _mask &= ~mask_for_pos(pos); }
-
-  // Starting at (including) pos, find the position of the next 1 bit.
-  // Return -1 if not found.
-  inline int find_next_set_bit(int pos) const;
-
-  static int size() { return sizeof(mask_type) * 8; }
-
-};
-
-struct block_t {
-  block_t* next;
-  size_t size;
-};
-
-struct block_stats_t {
-  size_t word_size;
-  int num_blocks;
-};
-
-template <
-  size_t min_word_size,
-  size_t spread,
-  int num_bins
->
-class Bins {
-
-  STATIC_ASSERT(sizeof(block_t) <= (min_word_size * BytesPerWord));
-
-  block_t* _bins[num_bins];
-
-  BinMap _mask;
-
-  // e.g. spread = 4
-  //
-  // sz    bno (put)  bno (get)
-  //         (guarant)
-  // 0     00         00
-  // 1     00         01
-  // 2     00         01
-  // 3     00         01
-  // 4     01         01
-  // 5     01         02
-  // 6     01         02
-  // 7     01         02
-  // 8     02         02
-  // 9     02         03
-  // 10    02         03
-  // 11    02         03
-  //
-  // put -> no = wordsize / spread
-  //
-  // get -> no = (req_wordsize + spread - 1) / spread
-
-  // The bin number for a given word size.
-  static int bin_for_size(size_t word_size) {
-    assert(word_size >= min_word_size && word_size < maximal_word_size(),
-           "Word size oob (" SIZE_FORMAT ")", word_size);
-    return (word_size - min_word_size) / spread;
-  }
-
-  // [minimal, maximal) size of blocks which are held in a bin.
-  // Note that when taking a block out of the bin, only the minimum block size
-  // is guaranteed.
-  static size_t minimal_word_size_in_bin(int bno) {
-    return min_word_size + (bno * spread);
-  }
-  static size_t maximal_word_size_in_bin(int bno) {
-    return minimal_word_size_in_bin(bno) + spread;
-  }
-
-public:
-
-  Bins() : _mask() {
-    assert(BinMap::size() >= num_bins, "mask too small");
-    ::memset(_bins, 0, sizeof(_bins));
-  }
-
-  // [min, max) word size
-  static size_t minimal_word_size() { return min_word_size; }
-  static size_t maximal_word_size() { return min_word_size + (spread * num_bins); }
-
-  inline void put(MetaWord* p, size_t word_size);
-
-  inline block_t* get(size_t word_size);
-
-#ifdef ASSERT
-  void verify() const;
-#endif
-
-  void statistics(block_stats_t* stats) const;
-
-  void print(outputStream* st) const;
-
-};
-
-
 class LeftOverManager : public CHeapObj<mtInternal> {
 
-  typedef Bins<2, 2, 16> VerySmallBinsType;
+  typedef BlockListArray<2, 2, 16> VerySmallBinsType;
   VerySmallBinsType _very_small_bins;
 
   block_t* _large_block_reserve;

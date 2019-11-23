@@ -216,35 +216,6 @@ public:
 
 };
 
-TEST_VM(metaspace, leftoverbins_mask_basic) {
-  // Basic tests
-  metaspace::BinMap map;
-  EXPECT_TRUE(map.all_zero());
-  for (int i = 0; i < map.size(); i ++) {
-    map.set_bit(i);
-    EXPECT_TRUE(map.get_bit(i));
-    map.clr_bit(i);
-    EXPECT_FALSE(map.get_bit(i));
-    EXPECT_TRUE(map.all_zero());
-  }
-}
-
-TEST_VM(metaspace, leftoverbins_mask_find_next_set_bit) {
-  metaspace::BinMap map;
-  EXPECT_TRUE(map.all_zero());
-  for (int i = 0; i < map.size(); i ++) {
-    map.set_bit(i);
-    for (int j = 0; j < i; j ++) {
-      int n = map.find_next_set_bit(j);
-      if (j <= i) {
-        EXPECT_EQ(n, i);
-      } else {
-        EXPECT_EQ(n, -1);
-      }
-    }
-    map.clr_bit(i);
-  }
-}
 
 TEST_VM(metaspace, leftoverbins_basics) {
 

@@ -26,6 +26,7 @@
 
 #include "memory/allocation.hpp"
 
+#include "memory/metaspace/blockListArray.inline.hpp"
 #include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
