@@ -37,7 +37,7 @@ namespace metaspace {
 
 // Starting at (including) pos, find the position of the next 1 bit.
 // Return -1 if not found.
-int BlockListFreeMap::find_next_set_bit(int pos) const {
+int BlockListArrayMask::find_next_set_bit(int pos) const {
 
   if (get_bit(pos)) {
     return pos;

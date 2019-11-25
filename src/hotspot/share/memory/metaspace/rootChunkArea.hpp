@@ -41,7 +41,7 @@ class MetachunkListCluster;
 class VirtualSpaceNode;
 
 
-// RootChunkArea describes the chunk composition of a root-chunk-sized areal.
+// RootChunkArea describes the chunk composition of a root-chunk-sized area.
 //
 
 class RootChunkArea {

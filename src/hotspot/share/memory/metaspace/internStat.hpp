@@ -36,6 +36,8 @@ class outputStream;
 
 namespace metaspace {
 
+
+// A number of counters for internal metaspace statistics; Only active in debug.
 class InternalStats : public AllStatic {
 
   // Note: all counters which are modified on the classloader local allocation path

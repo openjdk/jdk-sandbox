@@ -34,8 +34,9 @@ class outputStream;
 
 namespace metaspace {
 
-// A bitmap covering a range of metaspace; each bit in this mask corresponds to
-//
+// The CommitMask describes the committed-ness of a metaspace range.
+//  One bit corresponds to a commit granule.
+//  1 means the area is committed; 0 means it is uncommitted.
 class CommitMask : public CHeapBitMap {
 
   const MetaWord* const _base;
@@ -117,6 +118,7 @@ class CommitMask : public CHeapBitMap {
 
 public:
 
+  // Create a commit mask covering a range [start, start + word_size).
   CommitMask(const MetaWord* start, size_t word_size);
 
   const MetaWord* base() const  { return _base; }

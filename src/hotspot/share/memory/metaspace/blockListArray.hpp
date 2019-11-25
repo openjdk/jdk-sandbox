@@ -47,7 +47,7 @@ struct block_stats_t {
 
 // A bitmap keeping track of which list is occupied. Smallest list corresponds to lowest order bit.
 // 1 means list is not empty, 0 means list is empty.
-class BlockListFreeMap {
+class BlockListArrayMask {
 
   typedef uint32_t mask_type;
   mask_type _mask;
@@ -56,7 +56,7 @@ class BlockListFreeMap {
 
 public:
 
-  BlockListFreeMap() : _mask(0) {}
+  BlockListArrayMask() : _mask(0) {}
 
   bool all_zero() const          { return _mask == 0; }
 
@@ -83,7 +83,7 @@ class BlockListArray {
 
   block_t* _bins[num_bins];
 
-  BlockListFreeMap _map;
+  BlockListArrayMask _map;
 
   // e.g. spread = 4
   //
@@ -126,7 +126,7 @@ class BlockListArray {
 public:
 
   BlockListArray() : _map() {
-    assert(BlockListFreeMap::size() >= num_bins, "Map too small.");
+    assert(BlockListArrayMask::size() >= num_bins, "Map too small.");
     ::memset(_bins, 0, sizeof(_bins));
   }
 

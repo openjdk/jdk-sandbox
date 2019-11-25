@@ -72,7 +72,11 @@ class SpaceManager : public CHeapObj<mtClass> {
   Metachunk* current_chunk()              { return _chunks.first(); }
   const Metachunk* current_chunk() const  { return _chunks.first(); }
 
-  // Prematurely released metablocks.
+  // These structures take care of 1) prematurely deallocated Metaspace blocks
+  //  and 2) leftover space from retired chunks.
+  // Only one of these is active; one will eventually go. We are still testing
+  //  which implementation is better suited to the task. _lom is default. Change
+  //  with -XX:+-MetaspaceUseLOM.
   BlockFreelist* _block_freelist;
   LeftOverManager* _lom;
 

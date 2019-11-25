@@ -35,10 +35,10 @@
 namespace metaspace {
 
 // A very simple helper class which counts something, offers decrement/increment
-// methods and checks for overflow/underflow on increment/decrement.
+// methods and, on debug, checks for overflow/underflow on increment/decrement.
 //
-// (since we seem to do that alot....)
-
+// Two variants exists, a thread-safe one using atomic counting, a normal one
+//  which does not.
 template <class T>
 class AbstractCounter {
 
