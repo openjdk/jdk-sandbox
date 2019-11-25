@@ -217,10 +217,8 @@ void HeapRegionManager::make_regions_available(uint start, uint num_regions, Wor
     if (G1CollectedHeap::heap()->hr_printer()->is_active()) {
       G1CollectedHeap::heap()->hr_printer()->commit(hr);
     }
-    HeapWord* bottom = G1CollectedHeap::heap()->bottom_addr_for_region(i);
-    MemRegion mr(bottom, bottom + HeapRegion::GrainWords);
 
-    hr->initialize(mr);
+    hr->initialize();
     hr->set_node_index(G1NUMA::numa()->index_for_region(hr));
     insert_into_free_list(at(i));
   }
@@ -611,6 +609,6 @@ bool HeapRegionClaimer::is_region_claimed(uint region_index) const {
 
 bool HeapRegionClaimer::claim_region(uint region_index) {
   assert(region_index < _n_regions, "Invalid index.");
-  uint old_val = Atomic::cmpxchg(Claimed, &_claims[region_index], Unclaimed);
+  uint old_val = Atomic::cmpxchg(&_claims[region_index], Unclaimed, Claimed);
   return old_val == Unclaimed;
 }

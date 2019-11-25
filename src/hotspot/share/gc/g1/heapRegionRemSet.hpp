@@ -190,7 +190,7 @@ public:
   // We need access in order to union things into the base table.
   BitMap* bm() { return &_bm; }
 
-  HeapRegion* hr() const { return OrderAccess::load_acquire(&_hr); }
+  HeapRegion* hr() const { return Atomic::load_acquire(&_hr); }
 
   jint occupied() const {
     // Overkill, but if we ever need it...
@@ -229,7 +229,7 @@ public:
     while (true) {
       PerRegionTable* fl = _free_list;
       last->set_next(fl);
-      PerRegionTable* res = Atomic::cmpxchg(prt, &_free_list, fl);
+      PerRegionTable* res = Atomic::cmpxchg(&_free_list, fl, prt);
       if (res == fl) {
         return;
       }

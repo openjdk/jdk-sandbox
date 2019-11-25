@@ -33,11 +33,11 @@ inline ZMarkTerminate::ZMarkTerminate() :
     _nworking_stage1(0) {}
 
 inline bool ZMarkTerminate::enter_stage(volatile uint* nworking_stage) {
-  return Atomic::sub(1u, nworking_stage) == 0;
+  return Atomic::sub(nworking_stage, 1u) == 0;
 }
 
 inline void ZMarkTerminate::exit_stage(volatile uint* nworking_stage) {
-  Atomic::add(1u, nworking_stage);
+  Atomic::add(nworking_stage, 1u);
 }
 
 inline bool ZMarkTerminate::try_exit_stage(volatile uint* nworking_stage) {
@@ -49,7 +49,7 @@ inline bool ZMarkTerminate::try_exit_stage(volatile uint* nworking_stage) {
     }
 
     const uint new_nworking = nworking + 1;
-    const uint prev_nworking = Atomic::cmpxchg(new_nworking, nworking_stage, nworking);
+    const uint prev_nworking = Atomic::cmpxchg(nworking_stage, nworking, new_nworking);
     if (prev_nworking == nworking) {
       // Success
       return true;

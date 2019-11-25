@@ -81,7 +81,7 @@ void ShenandoahParallelCodeHeapIterator::parallel_blobs_do(CodeBlobClosure* f) {
     int current = count++;
     if ((current & stride_mask) == 0) {
       process_block = (current >= _claimed_idx) &&
-                      (Atomic::cmpxchg(current + stride, &_claimed_idx, current) == current);
+                      (Atomic::cmpxchg(&_claimed_idx, current, current + stride) == current);
     }
     if (process_block) {
       if (cb->is_alive()) {
@@ -264,7 +264,7 @@ void ShenandoahCodeRootsIterator::fast_parallel_blobs_do(CodeBlobClosure *f) {
 
   size_t max = (size_t)list->length();
   while (_claimed < max) {
-    size_t cur = Atomic::add(stride, &_claimed) - stride;
+    size_t cur = Atomic::add(&_claimed, stride) - stride;
     size_t start = cur;
     size_t end = MIN2(cur + stride, max);
     if (start >= max) break;

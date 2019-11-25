@@ -896,7 +896,7 @@ bool FailedSpeculation::add_failed_speculation(nmethod* nm, FailedSpeculation** 
   FailedSpeculation** cursor = failed_speculations_address;
   do {
     if (*cursor == NULL) {
-      FailedSpeculation* old_fs = Atomic::cmpxchg(fs, cursor, (FailedSpeculation*) NULL);
+      FailedSpeculation* old_fs = Atomic::cmpxchg(cursor, (FailedSpeculation*) NULL, fs);
       if (old_fs == NULL) {
         // Successfully appended fs to end of the list
         return true;
@@ -1415,7 +1415,7 @@ ProfileData* MethodData::bci_to_extra_data_helper(int bci, Method* m, DataLayout
 
   for (;; dp = next_extra(dp)) {
     assert(dp < end, "moved past end of extra data");
-    // No need for "OrderAccess::load_acquire" ops,
+    // No need for "Atomic::load_acquire" ops,
     // since the data structure is monotonic.
     switch(dp->tag()) {
     case DataLayout::no_tag:
@@ -1550,7 +1550,7 @@ void MethodData::print_data_on(outputStream* st) const {
   DataLayout* end   = args_data_limit();
   for (;; dp = next_extra(dp)) {
     assert(dp < end, "moved past end of extra data");
-    // No need for "OrderAccess::load_acquire" ops,
+    // No need for "Atomic::load_acquire" ops,
     // since the data structure is monotonic.
     switch(dp->tag()) {
     case DataLayout::no_tag:

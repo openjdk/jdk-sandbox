@@ -177,9 +177,9 @@ private:
         return;
       }
 
-      bool marked_as_dirty = Atomic::cmpxchg(true, &_contains[region], false) == false;
+      bool marked_as_dirty = Atomic::cmpxchg(&_contains[region], false, true) == false;
       if (marked_as_dirty) {
-        uint allocated = Atomic::add(1u, &_cur_idx) - 1;
+        uint allocated = Atomic::add(&_cur_idx, 1u) - 1;
         _buffer[allocated] = region;
       }
     }
@@ -255,7 +255,7 @@ private:
 
     void work(uint worker_id) {
       while (_cur_dirty_regions < _regions->size()) {
-        uint next = Atomic::add(_chunk_length, &_cur_dirty_regions) - _chunk_length;
+        uint next = Atomic::add(&_cur_dirty_regions, _chunk_length) - _chunk_length;
         uint max = MIN2(next + _chunk_length, _regions->size());
 
         for (uint i = next; i < max; i++) {
@@ -437,7 +437,7 @@ public:
     if (_collection_set_iter_state[region]) {
       return false;
     }
-    return !Atomic::cmpxchg(true, &_collection_set_iter_state[region], false);
+    return !Atomic::cmpxchg(&_collection_set_iter_state[region], false, true);
   }
 
   bool has_cards_to_scan(uint region) {
@@ -447,7 +447,7 @@ public:
 
   uint claim_cards_to_scan(uint region, uint increment) {
     assert(region < _max_regions, "Tried to access invalid region %u", region);
-    return Atomic::add(increment, &_card_table_scan_state[region]) - increment;
+    return Atomic::add(&_card_table_scan_state[region], increment) - increment;
   }
 
   void add_dirty_region(uint const region) {
@@ -1137,7 +1137,7 @@ public:
     if (_initial_evacuation &&
         p->fast_reclaim_humongous_candidates() > 0 &&
         !_fast_reclaim_handled &&
-        !Atomic::cmpxchg(true, &_fast_reclaim_handled, false)) {
+        !Atomic::cmpxchg(&_fast_reclaim_handled, false, true)) {
 
       G1GCParPhaseTimesTracker x(p, G1GCPhaseTimes::MergeER, worker_id);
 
@@ -1261,25 +1261,27 @@ inline void check_card_ptr(CardTable::CardValue* card_ptr, G1CardTable* ct) {
 #endif
 }
 
-void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
-                                        uint worker_id) {
+bool G1RemSet::clean_card_before_refine(CardValue** const card_ptr_addr) {
   assert(!_g1h->is_gc_active(), "Only call concurrently");
 
-  // Construct the region representing the card.
+  CardValue* card_ptr = *card_ptr_addr;
+  // Find the start address represented by the card.
   HeapWord* start = _ct->addr_for(card_ptr);
   // And find the region containing it.
   HeapRegion* r = _g1h->heap_region_containing_or_null(start);
 
   // If this is a (stale) card into an uncommitted region, exit.
   if (r == NULL) {
-    return;
+    return false;
   }
 
   check_card_ptr(card_ptr, _ct);
 
   // If the card is no longer dirty, nothing to do.
+  // We cannot load the card value before the "r == NULL" check, because G1
+  // could uncommit parts of the card table covering uncommitted regions.
   if (*card_ptr != G1CardTable::dirty_card_val()) {
-    return;
+    return false;
   }
 
   // This check is needed for some uncommon cases where we should
@@ -1302,7 +1304,7 @@ void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
   // enqueueing of the card and processing it here will have ensured
   // we see the up-to-date region type here.
   if (!r->is_old_or_humongous_or_archive()) {
-    return;
+    return false;
   }
 
   // The result from the hot card cache insert call is either:
@@ -1321,7 +1323,7 @@ void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
     card_ptr = _hot_card_cache->insert(card_ptr);
     if (card_ptr == NULL) {
       // There was no eviction. Nothing to do.
-      return;
+      return false;
     } else if (card_ptr != orig_card_ptr) {
       // Original card was inserted and an old card was evicted.
       start = _ct->addr_for(card_ptr);
@@ -1331,8 +1333,9 @@ void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
       // ignored, as discussed earlier for the original card.  The
       // region could have been freed while in the cache.
       if (!r->is_old_or_humongous_or_archive()) {
-        return;
+        return false;
       }
+      *card_ptr_addr = card_ptr;
     } // Else we still have the original card.
   }
 
@@ -1341,18 +1344,19 @@ void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
   // (part of) an object at the end of the allocated space and extend
   // beyond the end of allocation.
 
-  // Non-humongous objects are only allocated in the old-gen during
-  // GC, so if region is old then top is stable.  Humongous object
-  // allocation sets top last; if top has not yet been set, this is
-  // a stale card and we'll end up with an empty intersection.  If
-  // this is not a stale card, the synchronization between the
+  // Non-humongous objects are either allocated in the old regions during GC,
+  // or mapped in archive regions during startup. So if region is old or
+  // archive then top is stable.
+  // Humongous object allocation sets top last; if top has not yet been set,
+  // this is a stale card and we'll end up with an empty intersection.
+  // If this is not a stale card, the synchronization between the
   // enqueuing of the card and processing it here will have ensured
   // we see the up-to-date top here.
   HeapWord* scan_limit = r->top();
 
   if (scan_limit <= start) {
     // If the trimmed region is empty, the card must be stale.
-    return;
+    return false;
   }
 
   // Okay to clean and process the card now.  There are still some
@@ -1360,13 +1364,26 @@ void G1RemSet::refine_card_concurrently(CardValue* card_ptr,
   // as iteration failure.
   *const_cast<volatile CardValue*>(card_ptr) = G1CardTable::clean_card_val();
 
-  // This fence serves two purposes.  First, the card must be cleaned
-  // before processing the contents.  Second, we can't proceed with
-  // processing until after the read of top, for synchronization with
-  // possibly concurrent humongous object allocation.  It's okay that
-  // reading top and reading type were racy wrto each other.  We need
-  // both set, in any order, to proceed.
-  OrderAccess::fence();
+  return true;
+}
+
+void G1RemSet::refine_card_concurrently(CardValue* const card_ptr,
+                                        const uint worker_id) {
+  assert(!_g1h->is_gc_active(), "Only call concurrently");
+  check_card_ptr(card_ptr, _ct);
+
+  // Construct the MemRegion representing the card.
+  HeapWord* start = _ct->addr_for(card_ptr);
+  // And find the region containing it.
+  HeapRegion* r = _g1h->heap_region_containing(start);
+  // This reload of the top is safe even though it happens after the full
+  // fence, because top is stable for old, archive and unfiltered humongous
+  // regions, so it must return the same value as the previous load when
+  // cleaning the card. Also cleaning the card and refinement of the card
+  // cannot span across safepoint, so we don't need to worry about top being
+  // changed during safepoint.
+  HeapWord* scan_limit = r->top();
+  assert(scan_limit > start, "sanity");
 
   // Don't use addr_for(card_ptr + 1) which can ask for
   // a card beyond the heap.

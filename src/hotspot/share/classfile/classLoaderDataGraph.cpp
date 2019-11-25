@@ -59,13 +59,13 @@ void ClassLoaderDataGraph::clear_claimed_marks() {
   //
   // Any ClassLoaderData added after or during walking the list are prepended to
   // _head. Their claim mark need not be handled here.
-  for (ClassLoaderData* cld = OrderAccess::load_acquire(&_head); cld != NULL; cld = cld->next()) {
+  for (ClassLoaderData* cld = Atomic::load_acquire(&_head); cld != NULL; cld = cld->next()) {
     cld->clear_claim();
   }
 }
 
 void ClassLoaderDataGraph::clear_claimed_marks(int claim) {
- for (ClassLoaderData* cld = OrderAccess::load_acquire(&_head); cld != NULL; cld = cld->next()) {
+ for (ClassLoaderData* cld = Atomic::load_acquire(&_head); cld != NULL; cld = cld->next()) {
     cld->clear_claim(claim);
   }
 }
@@ -220,7 +220,7 @@ ClassLoaderData* ClassLoaderDataGraph::add_to_graph(Handle loader, bool is_unsaf
 
   // First install the new CLD to the Graph.
   cld->set_next(_head);
-  OrderAccess::release_store(&_head, cld);
+  Atomic::release_store(&_head, cld);
 
   // Next associate with the class_loader.
   if (!is_unsafe_anonymous) {
@@ -676,7 +676,7 @@ Klass* ClassLoaderDataGraphKlassIteratorAtomic::next_klass() {
   while (head != NULL) {
     Klass* next = next_klass_in_cldg(head);
 
-    Klass* old_head = Atomic::cmpxchg(next, &_next_klass, head);
+    Klass* old_head = Atomic::cmpxchg(&_next_klass, head, next);
 
     if (old_head == head) {
       return head; // Won the CAS.

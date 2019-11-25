@@ -134,7 +134,7 @@ uint                  ThreadsSMRSupport::_to_delete_list_max = 0;
 // 'inline' functions first so the definitions are before first use:
 
 inline void ThreadsSMRSupport::add_deleted_thread_times(uint add_value) {
-  Atomic::add(add_value, &_deleted_thread_times);
+  Atomic::add(&_deleted_thread_times, add_value);
 }
 
 inline void ThreadsSMRSupport::inc_deleted_thread_cnt() {
@@ -156,7 +156,7 @@ inline void ThreadsSMRSupport::update_deleted_thread_time_max(uint new_value) {
       // No need to update max value so we're done.
       break;
     }
-    if (Atomic::cmpxchg(new_value, &_deleted_thread_time_max, cur_value) == cur_value) {
+    if (Atomic::cmpxchg(&_deleted_thread_time_max, cur_value, new_value) == cur_value) {
       // Updated max value so we're done. Otherwise try it all again.
       break;
     }
@@ -170,7 +170,7 @@ inline void ThreadsSMRSupport::update_java_thread_list_max(uint new_value) {
 }
 
 inline ThreadsList* ThreadsSMRSupport::xchg_java_thread_list(ThreadsList* new_list) {
-  return (ThreadsList*)Atomic::xchg(new_list, &_java_thread_list);
+  return (ThreadsList*)Atomic::xchg(&_java_thread_list, new_list);
 }
 
 // Hash table of pointers found by a scan. Used for collecting hazard
@@ -779,7 +779,7 @@ void ThreadsSMRSupport::clear_delete_notify() {
 bool ThreadsSMRSupport::delete_notify() {
   // Use load_acquire() in order to see any updates to _delete_notify
   // earlier than when delete_lock is grabbed.
-  return (OrderAccess::load_acquire(&_delete_notify) != 0);
+  return (Atomic::load_acquire(&_delete_notify) != 0);
 }
 
 // Safely free a ThreadsList after a Threads::add() or Threads::remove().

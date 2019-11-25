@@ -49,7 +49,7 @@
 
 
 inline ShenandoahHeapRegion* ShenandoahRegionIterator::next() {
-  size_t new_index = Atomic::add((size_t) 1, &_index);
+  size_t new_index = Atomic::add(&_index, (size_t) 1);
   // get_region() provides the bounds-check and returns NULL on OOB.
   return _heap->get_region(new_index - 1);
 }
@@ -131,20 +131,20 @@ inline oop ShenandoahHeap::evac_update_with_forwarded(T* p) {
 
 inline oop ShenandoahHeap::cas_oop(oop n, oop* addr, oop c) {
   assert(is_aligned(addr, HeapWordSize), "Address should be aligned: " PTR_FORMAT, p2i(addr));
-  return (oop) Atomic::cmpxchg(n, addr, c);
+  return (oop) Atomic::cmpxchg(addr, c, n);
 }
 
 inline oop ShenandoahHeap::cas_oop(oop n, narrowOop* addr, narrowOop c) {
   assert(is_aligned(addr, sizeof(narrowOop)), "Address should be aligned: " PTR_FORMAT, p2i(addr));
   narrowOop val = CompressedOops::encode(n);
-  return CompressedOops::decode((narrowOop) Atomic::cmpxchg(val, addr, c));
+  return CompressedOops::decode((narrowOop) Atomic::cmpxchg(addr, c, val));
 }
 
 inline oop ShenandoahHeap::cas_oop(oop n, narrowOop* addr, oop c) {
   assert(is_aligned(addr, sizeof(narrowOop)), "Address should be aligned: " PTR_FORMAT, p2i(addr));
   narrowOop cmp = CompressedOops::encode(c);
   narrowOop val = CompressedOops::encode(n);
-  return CompressedOops::decode((narrowOop) Atomic::cmpxchg(val, addr, cmp));
+  return CompressedOops::decode((narrowOop) Atomic::cmpxchg(addr, cmp, val));
 }
 
 template <class T>
