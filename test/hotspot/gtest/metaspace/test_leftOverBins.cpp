@@ -29,36 +29,24 @@
 
 #include "metaspaceTestsCommon.hpp"
 
+#define CHECK_LOM_CONTENT(lom, num_blocks_expected, word_size_expected) \
+{ \
+  if (word_size_expected > 0) { \
+    EXPECT_FALSE(lom.is_empty()); \
+  } else { \
+    EXPECT_TRUE(lom.is_empty()); \
+  } \
+  EXPECT_EQ(lom.total_word_size(), (size_t)word_size_expected); \
+  metaspace::block_stats_t s; \
+  memset(&s, 0xDD, sizeof(s)); \
+  lom.statistics(&s); \
+  EXPECT_EQ((size_t)word_size_expected, s.word_size); \
+  if (num_blocks_expected >= 0) { \
+	  EXPECT_EQ(num_blocks_expected, s.num_blocks); \
+  } \
+}
+
 class LeftOverBinsTest {
-
-  // A simple preallocated buffer used to "feed" the allocator.
-  // Mimicks chunk retirement leftover blocks.
-  class FeederBuffer {
-
-    static const size_t buf_word_size = 512 * K;
-    MetaWord* _buf;
-    size_t _used;
-
-  public:
-
-    FeederBuffer() : _used(0) {
-      _buf = NEW_C_HEAP_ARRAY(MetaWord, buf_word_size, mtInternal);
-    }
-
-    ~FeederBuffer() {
-      FREE_C_HEAP_ARRAY(MetaWord, _buf);
-    }
-
-    MetaWord* get(size_t word_size) {
-      if (_used > (buf_word_size - word_size)) {
-        return NULL;
-      }
-      MetaWord* p = _buf + _used;
-      _used += word_size;
-      return p;
-    }
-
-  };
 
   FeederBuffer _fb;
   LeftOverManager _lom;
@@ -79,7 +67,6 @@ class LeftOverBinsTest {
 
   // Array of the same size as the pool max capacity; holds the allocated elements.
   allocation_t* _allocations;
-
 
   int _num_allocs;
   int _num_deallocs;
@@ -187,14 +174,16 @@ class LeftOverBinsTest {
 public:
 
   LeftOverBinsTest(size_t avg_alloc_size) :
-    _fb(), _lom(),
+    _fb(512 * K), _lom(),
     _rgen_feeding(128, 4096),
     _rgen_allocations(avg_alloc_size / 4, avg_alloc_size * 2, 0.01f, avg_alloc_size / 3, avg_alloc_size * 30),
     _allocations(NULL),
     _num_allocs(0), _num_deallocs(0), _num_feeds(0)
   {
+    CHECK_LOM_CONTENT(_lom, 0, 0);
     // some initial feeding
     _lom.add_block(_fb.get(1024), 1024);
+    CHECK_LOM_CONTENT(_lom, 1, 1024);
   }
 
 
@@ -222,21 +211,18 @@ TEST_VM(metaspace, leftoverbins_basics) {
   LeftOverManager lom;
   MetaWord tmp[1024];
   metaspace::block_stats_t stats;
+  CHECK_LOM_CONTENT(lom, 0, 0);
 
   lom.add_block(tmp, 1024);
   DEBUG_ONLY(lom.verify();)
-
-  lom.statistics(&stats);
-  EXPECT_EQ(stats.num_blocks, 1);
-  EXPECT_EQ(stats.word_size, (size_t)1024);
+  ASSERT_FALSE(lom.is_empty());
+  CHECK_LOM_CONTENT(lom, 1, 1024);
 
   MetaWord* p = lom.get_block(1024);
   EXPECT_EQ(p, tmp);
   DEBUG_ONLY(lom.verify();)
+  CHECK_LOM_CONTENT(lom, 0, 0);
 
-  lom.statistics(&stats);
-  EXPECT_EQ(stats.num_blocks, 0);
-  EXPECT_EQ(stats.word_size, (size_t)0);
 }
 
 TEST_VM(metaspace, leftoverbins_small) {

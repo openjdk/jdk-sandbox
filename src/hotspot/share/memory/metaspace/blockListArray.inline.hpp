@@ -38,22 +38,17 @@ namespace metaspace {
 // Starting at (including) pos, find the position of the next 1 bit.
 // Return -1 if not found.
 int BlockListArrayMask::find_next_set_bit(int pos) const {
-
-  if (get_bit(pos)) {
-    return pos;
-  }
   mask_type m2 = _mask;
   int pos2 = pos + 1;
   m2 >>= pos2;
-  if (m2 > 0) {
-    while ((m2 & (mask_type)1) == 0) {
-      m2 >>= 1;
-      pos2 ++;
-    }
-    return pos2;
+  if (m2 == 0) {
+    return -1;
   }
-  return -1;
-
+  while ((m2 & (mask_type)1) == 0) {
+    m2 >>= 1;
+    pos2 ++;
+  }
+  return pos2;
 }
 
 ///////////////////////////////////////
@@ -73,13 +68,17 @@ void BlockListArray<min_word_size, spread, num_bins>::put(MetaWord* p, size_t wo
 
 template <size_t min_word_size, size_t spread, int num_bins>
 block_t* BlockListArray<min_word_size, spread, num_bins>::get(size_t word_size) {
-  // Adjust size for spread (we need the bin number which guarantees word_size).
-  word_size += (spread - 1);
-  if (word_size >= maximal_word_size()) {
-    return NULL;
-  }
   int bno = bin_for_size(word_size);
-  bno = _map.find_next_set_bit(bno);
+  // First look at the bin holding the band word_size is in. But if the spread is > 1,
+  // the topmost block in the bin may actually be too small to hold word_size (note that
+  // blocks in the bin list are unsorted). Still worth a look.
+  if (_bins[bno] != NULL && _bins[bno]->size >= word_size) {
+    // found a fit.
+  } else {
+    // Did not find a fit. Look in the larger bins.
+    bno = _map.find_next_set_bit(bno);
+  }
+
   if (bno != -1) {
     assert(bno >= 0 && bno < num_bins, "Sanity");
     assert(_bins[bno] != NULL, "Sanity");
@@ -110,6 +109,8 @@ void BlockListArray<min_word_size, spread, num_bins>::verify() const {
 
 template <size_t min_word_size, size_t spread, int num_bins>
 void BlockListArray<min_word_size, spread, num_bins>::statistics(block_stats_t* stats) const {
+  stats->num_blocks = 0;
+  stats->word_size = 0;
   for (int i = 0; i < num_bins; i ++) {
     for(block_t* b = _bins[i]; b != NULL; b = b->next) {
       stats->num_blocks ++;

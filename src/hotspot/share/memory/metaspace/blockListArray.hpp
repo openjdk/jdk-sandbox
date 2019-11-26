@@ -64,8 +64,8 @@ public:
   void set_bit(int pos)          { _mask |= mask_for_pos(pos); }
   void clr_bit(int pos)          { _mask &= ~mask_for_pos(pos); }
 
-  // Starting at (including) pos, find the position of the next 1 bit.
-  // Return -1 if not found.
+  // Starting at the position following pos, find the 1 bit.
+  // Return its position, or -1 if not found.
   inline int find_next_set_bit(int pos) const;
 
   static int size() { return sizeof(mask_type) * 8; }
@@ -145,6 +145,9 @@ public:
   void statistics(block_stats_t* stats) const;
 
   void print(outputStream* st) const;
+
+  // Returns true if the array contains no blocks.
+  bool is_empty() const { return _map.all_zero(); }
 
 };
 

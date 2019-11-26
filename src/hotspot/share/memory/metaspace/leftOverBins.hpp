@@ -96,6 +96,10 @@ public:
 
   void print(outputStream* st, bool detailed = false) const;
 
+  bool is_empty() const {
+    return _very_small_bins.is_empty() && _current == NULL;
+  }
+
   size_t total_word_size() const { return _total_word_size.get(); }
 
 };

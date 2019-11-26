@@ -227,5 +227,33 @@ bool check_marked_range(const MetaWord* p, size_t word_size);
 
 size_t get_workingset_size();
 
+// A simple preallocated buffer used to "feed" someone.
+// Mimicks chunk retirement leftover blocks.
+class FeederBuffer {
+
+  MetaWord* _buf;
+  const size_t _size;
+  size_t _used;
+
+public:
+
+  FeederBuffer(size_t size) : _buf(NULL), _size(size), _used(0) {
+    _buf = NEW_C_HEAP_ARRAY(MetaWord, _size, mtInternal);
+  }
+
+  ~FeederBuffer() {
+    FREE_C_HEAP_ARRAY(MetaWord, _buf);
+  }
+
+  MetaWord* get(size_t word_size) {
+    if (_used > (_size - word_size)) {
+      return NULL;
+    }
+    MetaWord* p = _buf + _used;
+    _used += word_size;
+    return p;
+  }
+
+};
 
 #endif // GTEST_METASPACE_METASPACETESTCOMMON_HPP
