@@ -124,14 +124,14 @@ void MetaspaceReporter::print_basic_report(outputStream* out, size_t scale) {
   // for Usage stats (statistics over in-use chunks) all we can print is the
   // used words. We cannot print committed areas, or free/waste areas, of in-use chunks require
   // walking.
-  const size_t used_nc = MetaspaceUtils::used_words(metaspace::NonClassType);
+  const size_t used_nc = MetaspaceUtils::used_words(Metaspace::NonClassType);
 
   print_scaled_words(out, used_nc, scale, 5);
   out->print(" used.");
   out->cr();
 
   if (Metaspace::using_class_space()) {
-    const size_t used_c = MetaspaceUtils::used_words(metaspace::ClassType);
+    const size_t used_c = MetaspaceUtils::used_words(Metaspace::ClassType);
     out->print("      Class:  ");
     print_scaled_words(out, used_c, scale, 5);
     out->print(" used.");

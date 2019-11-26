@@ -25,6 +25,7 @@
 #ifndef SHARE_MEMORY_METASPACEENUMS_HPP
 #define SHARE_MEMORY_METASPACEENUMS_HPP
 
+#include "memory/metaspace.hpp"
 #include "utilities/debug.hpp"
 
 // MetadataType and MetaspaceType, as well as some convenience functions surrounding them.
@@ -32,23 +33,28 @@ namespace metaspace {
 
 ///////////////////////
 
-enum MetadataType {
-  ClassType,
-  NonClassType,
-  MetadataTypeCount
-};
+/* Moved to metaspace.hpp to keep diff in non-metaspace coding
+ * small. Would like to have this here and in metaspace:: namespace,
+ * eventually.
+ *
+ * enum MetadataType {
+ *  ClassType,
+ *  NonClassType,
+ *  MetadataTypeCount
+ * };
+ */
 
-inline bool is_class(MetadataType md) { return md == ClassType; }
+inline bool is_class(Metaspace::MetadataType md) { return md == Metaspace::ClassType; }
 
-inline MetadataType mdtype_from_bool(bool is_class) { return is_class ? ClassType : NonClassType; }
+inline Metaspace::MetadataType mdtype_from_bool(bool is_class) { return is_class ? Metaspace::ClassType : Metaspace::NonClassType; }
 
-const char* describe_mdtype(MetadataType md);
+const char* describe_mdtype(Metaspace::MetadataType md);
 
 #ifdef ASSERT
-inline bool is_valid_mdtype(MetadataType md) {
-  return (int)md >= 0 && (int)md < MetadataTypeCount;
+inline bool is_valid_mdtype(Metaspace::MetadataType md) {
+  return (int)md >= 0 && (int)md < Metaspace::MetadataTypeCount;
 }
-inline void check_valid_mdtype(MetadataType md) {
+inline void check_valid_mdtype(Metaspace::MetadataType md) {
   assert(is_valid_mdtype(md), "Wrong value for MetadataType: %d", (int) md);
 }
 #endif // ASSERT

@@ -50,7 +50,7 @@ public:
     delete _lock;
   }
 
-  void do_test(MetadataType mdType) {
+  void do_test(Metaspace::MetadataType mdType) {
     _lock = new Mutex(Monitor::native, "gtest-IsMetaspaceObjTest-lock", false, Monitor::_safepoint_check_never);
     {
       MutexLocker ml(_lock, Mutex::_no_safepoint_check_flag);
@@ -68,7 +68,7 @@ public:
 
     // Test VirtualSpaceList::contains
     const VirtualSpaceList* const vslist =
-        (mdType == ClassType && Metaspace::using_class_space()) ?
+        (mdType == Metaspace::ClassType && Metaspace::using_class_space()) ?
          VirtualSpaceList::vslist_class() : VirtualSpaceList::vslist_nonclass();
 
     ASSERT_TRUE(vslist->contains((MetaWord*)p));
@@ -104,11 +104,11 @@ public:
 
 TEST_VM(metaspace, is_metaspace_obj_non_class) {
   MetaspaceIsMetaspaceObjTest test;
-  test.do_test(NonClassType);
+  test.do_test(Metaspace::NonClassType);
 }
 
 TEST_VM(metaspace, is_metaspace_obj_class) {
   MetaspaceIsMetaspaceObjTest test;
-  test.do_test(ClassType);
+  test.do_test(Metaspace::ClassType);
 }
 

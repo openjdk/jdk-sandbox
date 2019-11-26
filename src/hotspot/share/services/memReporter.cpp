@@ -23,7 +23,10 @@
  */
 #include "precompiled.hpp"
 
+
 #include "memory/allocation.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspace/metaspaceEnums.hpp"
 #include "services/mallocTracker.hpp"
 #include "services/memReporter.hpp"
 #include "services/threadStackTracker.hpp"
@@ -200,16 +203,16 @@ void MemSummaryReporter::report_summary_of_type(MEMFLAGS flag,
         amount_in_current_scale(_malloc_snapshot->malloc_overhead()->size()), scale);
     } else if (flag == mtClass) {
       // Metadata information
-      report_metadata(metaspace::NonClassType);
+      report_metadata(Metaspace::NonClassType);
       if (Metaspace::using_class_space()) {
-        report_metadata(metaspace::ClassType);
+        report_metadata(Metaspace::ClassType);
       }
     }
     out->print_cr(" ");
   }
 }
 
-void MemSummaryReporter::report_metadata(metaspace::MetadataType mdType) const {
+void MemSummaryReporter::report_metadata(Metaspace::MetadataType mdType) const {
   DEBUG_ONLY(metaspace::check_valid_mdtype(mdType));
   const char* const name = metaspace::describe_mdtype(mdType);
 
@@ -593,13 +596,13 @@ void MemSummaryDiffReporter::diff_summary_of_type(MEMFLAGS flag,
 
 void MemSummaryDiffReporter::print_metaspace_diff(const MetaspaceSnapshot* current_ms,
                                                   const MetaspaceSnapshot* early_ms) const {
-  print_metaspace_diff(metaspace::NonClassType, current_ms, early_ms);
+  print_metaspace_diff(Metaspace::NonClassType, current_ms, early_ms);
   if (Metaspace::using_class_space()) {
-    print_metaspace_diff(metaspace::ClassType, current_ms, early_ms);
+    print_metaspace_diff(Metaspace::ClassType, current_ms, early_ms);
   }
 }
 
-void MemSummaryDiffReporter::print_metaspace_diff(metaspace::MetadataType mdType,
+void MemSummaryDiffReporter::print_metaspace_diff(Metaspace::MetadataType mdType,
                                                   const MetaspaceSnapshot* current_ms,
                                                   const MetaspaceSnapshot* early_ms) const {
   DEBUG_ONLY(metaspace::check_valid_mdtype(mdType));

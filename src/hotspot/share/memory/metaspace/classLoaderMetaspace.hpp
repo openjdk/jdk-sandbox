@@ -69,11 +69,11 @@ public:
   MetaspaceType space_type() const { return _space_type; }
 
   // Allocate word_size words from Metaspace.
-  MetaWord* allocate(size_t word_size, MetadataType mdType);
+  MetaWord* allocate(size_t word_size, Metaspace::MetadataType mdType);
 
   // Attempt to expand the GC threshold to be good for at least another word_size words
   // and allocate. Returns NULL if failure. Used during Metaspace GC.
-  MetaWord* expand_and_allocate(size_t word_size, MetadataType mdType);
+  MetaWord* expand_and_allocate(size_t word_size, Metaspace::MetadataType mdType);
 
   // Prematurely returns a metaspace allocation to the _block_freelists
   // because it is not needed anymore.

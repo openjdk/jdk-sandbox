@@ -29,7 +29,7 @@
 #include "gc/shared/gcWhen.hpp"
 #include "gc/shared/verifyOption.hpp"
 #include "memory/allocation.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
+#include "memory/metaspace.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/safepoint.hpp"
@@ -358,7 +358,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   virtual MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                        size_t size,
-                                                       metaspace::MetadataType mdtype);
+                                                       Metaspace::MetadataType mdtype);
 
   // Returns "true" iff there is a stop-world GC in progress.  (I assume
   // that it should answer "false" for the concurrent part of a concurrent

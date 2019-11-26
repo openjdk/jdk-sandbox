@@ -602,8 +602,8 @@ bool VirtualMemoryTracker::transition(NMT_TrackingLevel from, NMT_TrackingLevel 
 
 // Metaspace Support
 MetaspaceSnapshot::MetaspaceSnapshot() {
-  for (int index = (int)metaspace::ClassType; index < (int)metaspace::MetadataTypeCount; index ++) {
-    metaspace::MetadataType type = (metaspace::MetadataType)index;
+  for (int index = (int)Metaspace::ClassType; index < (int)Metaspace::MetadataTypeCount; index ++) {
+    Metaspace::MetadataType type = (Metaspace::MetadataType)index;
     assert_valid_metadata_type(type);
     _reserved_in_bytes[type]  = 0;
     _committed_in_bytes[type] = 0;
@@ -612,7 +612,7 @@ MetaspaceSnapshot::MetaspaceSnapshot() {
   }
 }
 
-void MetaspaceSnapshot::snapshot(metaspace::MetadataType type, MetaspaceSnapshot& mss) {
+void MetaspaceSnapshot::snapshot(Metaspace::MetadataType type, MetaspaceSnapshot& mss) {
   assert_valid_metadata_type(type);
 
   mss._reserved_in_bytes[type]   = MetaspaceUtils::reserved_bytes(type);
@@ -626,8 +626,8 @@ void MetaspaceSnapshot::snapshot(metaspace::MetadataType type, MetaspaceSnapshot
 }
 
 void MetaspaceSnapshot::snapshot(MetaspaceSnapshot& mss) {
-  snapshot(metaspace::ClassType, mss);
+  snapshot(Metaspace::ClassType, mss);
   if (Metaspace::using_class_space()) {
-    snapshot(metaspace::NonClassType, mss);
+    snapshot(Metaspace::NonClassType, mss);
   }
 }

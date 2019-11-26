@@ -191,11 +191,11 @@ void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
 }
 
 void MetadataTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = metaspace::MetadataTypeCount;
+  static const u4 nof_entries = Metaspace::MetadataTypeCount;
   writer.write_count(nof_entries);
   for (u4 i = 0; i < nof_entries; ++i) {
     writer.write_key(i);
-    writer.write(metaspace::describe_mdtype((metaspace::MetadataType)i));
+    writer.write(metaspace::describe_mdtype((Metaspace::MetadataType)i));
   }
 }
 

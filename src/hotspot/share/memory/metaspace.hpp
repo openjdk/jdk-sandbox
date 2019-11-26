@@ -26,7 +26,6 @@
 
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/metaspaceChunkFreeListSummary.hpp"
 #include "memory/virtualspace.hpp"
 #include "runtime/globals.hpp"
@@ -86,7 +85,16 @@ class MetaspaceSizesSnapshot;
 // Namespace for important central static functions
 // (auxiliary stuff goes into MetaspaceUtils)
 class Metaspace : public AllStatic {
+public:
+  // Will eventually be moved to metaspaceEnums.hpp and into the metaspace::.. namespace;
+  // for now keep here to keep diff in non-metaspace coding small.
+  enum MetadataType {
+    ClassType,
+    NonClassType,
+    MetadataTypeCount
+  };
 
+private:
   friend class MetaspaceShared;
 
   // Base and size of the compressed class space.
@@ -153,7 +161,7 @@ public:
   static void purge();
 
   static void report_metadata_oome(ClassLoaderData* loader_data, size_t word_size,
-                                   MetaspaceObj::Type type, metaspace::MetadataType mdtype, TRAPS);
+                                   MetaspaceObj::Type type, Metaspace::MetadataType mdtype, TRAPS);
 
   static void print_compressed_class_space(outputStream* st, const char* requested_addr = 0) NOT_LP64({});
 
@@ -249,34 +257,34 @@ public:
 
   // Committed space actually in use by Metadata
   static size_t used_words();
-  static size_t used_words(metaspace::MetadataType mdtype);
+  static size_t used_words(Metaspace::MetadataType mdtype);
 
   // Space committed for Metaspace
   static size_t committed_words();
-  static size_t committed_words(metaspace::MetadataType mdtype);
+  static size_t committed_words(Metaspace::MetadataType mdtype);
 
   // Space reserved for Metaspace
   static size_t reserved_words();
-  static size_t reserved_words(metaspace::MetadataType mdtype);
+  static size_t reserved_words(Metaspace::MetadataType mdtype);
 
   // _bytes() variants for convenience...
   static size_t used_bytes()                                    { return used_words() * BytesPerWord; }
-  static size_t used_bytes(metaspace::MetadataType mdtype)      { return used_words(mdtype) * BytesPerWord; }
+  static size_t used_bytes(Metaspace::MetadataType mdtype)      { return used_words(mdtype) * BytesPerWord; }
   static size_t committed_bytes()                               { return committed_words() * BytesPerWord; }
-  static size_t committed_bytes(metaspace::MetadataType mdtype) { return committed_words(mdtype) * BytesPerWord; }
+  static size_t committed_bytes(Metaspace::MetadataType mdtype) { return committed_words(mdtype) * BytesPerWord; }
   static size_t reserved_bytes()                                { return reserved_words() * BytesPerWord; }
-  static size_t reserved_bytes(metaspace::MetadataType mdtype)  { return reserved_words(mdtype) * BytesPerWord; }
+  static size_t reserved_bytes(Metaspace::MetadataType mdtype)  { return reserved_words(mdtype) * BytesPerWord; }
 
   // TODO. Do we need this really? This number is kind of uninformative.
   static size_t capacity_bytes()                                { return 0; }
-  static size_t capacity_bytes(metaspace::MetadataType mdtype)  { return 0; }
+  static size_t capacity_bytes(Metaspace::MetadataType mdtype)  { return 0; }
 
   // Todo. Consolidate.
   // Committed space in freelists
-  static size_t free_chunks_total_words(metaspace::MetadataType mdtype);
+  static size_t free_chunks_total_words(Metaspace::MetadataType mdtype);
 
   // Todo. Implement or Consolidate.
-  static MetaspaceChunkFreeListSummary chunk_free_list_summary(metaspace::MetadataType mdtype) {
+  static MetaspaceChunkFreeListSummary chunk_free_list_summary(Metaspace::MetadataType mdtype) {
     return MetaspaceChunkFreeListSummary(0,0,0,0,0,0,0,0);
   }
 
@@ -284,7 +292,7 @@ public:
   static void print_metaspace_change(const metaspace::MetaspaceSizesSnapshot& pre_meta_values);
 
   // Prints an ASCII representation of the given space.
-  static void print_metaspace_map(outputStream* out, metaspace::MetadataType mdtype);
+  static void print_metaspace_map(outputStream* out, Metaspace::MetadataType mdtype);
 
   // This will print out a basic metaspace usage report but
   // unlike print_report() is guaranteed not to lock or to walk the CLDG.

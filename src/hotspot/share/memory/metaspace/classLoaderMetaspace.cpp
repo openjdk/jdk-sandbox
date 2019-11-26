@@ -48,7 +48,7 @@ static bool use_class_space(bool is_class) {
   return false;
 }
 
-static bool use_class_space(MetadataType mdType) {
+static bool use_class_space(Metaspace::MetadataType mdType) {
   return use_class_space(is_class(mdType));
 }
 
@@ -107,7 +107,7 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
 }
 
 // Allocate word_size words from Metaspace.
-MetaWord* ClassLoaderMetaspace::allocate(size_t word_size, MetadataType mdType) {
+MetaWord* ClassLoaderMetaspace::allocate(size_t word_size, Metaspace::MetadataType mdType) {
   Metaspace::assert_not_frozen();
   if (use_class_space(mdType)) {
     return class_space_manager()->allocate(word_size);
@@ -118,7 +118,7 @@ MetaWord* ClassLoaderMetaspace::allocate(size_t word_size, MetadataType mdType) 
 
 // Attempt to expand the GC threshold to be good for at least another word_size words
 // and allocate. Returns NULL if failure. Used during Metaspace GC.
-MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, MetadataType mdType) {
+MetaWord* ClassLoaderMetaspace::expand_and_allocate(size_t word_size, Metaspace::MetadataType mdType) {
   Metaspace::assert_not_frozen();
   size_t delta_bytes = MetaspaceGC::delta_capacity_until_GC(word_size * BytesPerWord);
   assert(delta_bytes > 0, "Must be");

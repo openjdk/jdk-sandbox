@@ -40,11 +40,11 @@ const char* describe_spacetype(MetaspaceType st) {
   return s;
 }
 
-const char* describe_mdtype(MetadataType md) {
+const char* describe_mdtype(Metaspace::MetadataType md) {
   const char* s = NULL;
   switch (md) {
-    case NonClassType: s = "nonclass"; break;
-    case ClassType: s = "class"; break;
+    case Metaspace::NonClassType: s = "nonclass"; break;
+    case Metaspace::ClassType: s = "class"; break;
     default: ShouldNotReachHere();
   }
   return s;

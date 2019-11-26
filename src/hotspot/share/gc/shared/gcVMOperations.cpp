@@ -33,7 +33,6 @@
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
 #include "memory/metaspace/classLoaderMetaspace.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/universe.hpp"
 #include "runtime/handles.inline.hpp"
@@ -182,7 +181,7 @@ void VM_GenCollectFull::doit() {
 
 VM_CollectForMetadataAllocation::VM_CollectForMetadataAllocation(ClassLoaderData* loader_data,
                                                                  size_t size,
-                                                                 metaspace::MetadataType mdtype,
+                                                                 Metaspace::MetadataType mdtype,
                                                                  uint gc_count_before,
                                                                  uint full_gc_count_before,
                                                                  GCCause::Cause gc_cause)

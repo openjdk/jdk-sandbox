@@ -31,7 +31,7 @@ TEST_VM(MetaspaceUtils, reserved) {
   size_t reserved = MetaspaceUtils::reserved_bytes();
   EXPECT_GT(reserved, 0UL);
 
-  size_t reserved_metadata = MetaspaceUtils::reserved_bytes(metaspace::NonClassType);
+  size_t reserved_metadata = MetaspaceUtils::reserved_bytes(Metaspace::NonClassType);
   EXPECT_GT(reserved_metadata, 0UL);
   EXPECT_LE(reserved_metadata, reserved);
 }
@@ -43,7 +43,7 @@ TEST_VM(MetaspaceUtils, reserved_compressed_class_pointers) {
   size_t reserved = MetaspaceUtils::reserved_bytes();
   EXPECT_GT(reserved, 0UL);
 
-  size_t reserved_class = MetaspaceUtils::reserved_bytes(metaspace::ClassType);
+  size_t reserved_class = MetaspaceUtils::reserved_bytes(Metaspace::ClassType);
   EXPECT_GT(reserved_class, 0UL);
   EXPECT_LE(reserved_class, reserved);
 }
@@ -55,7 +55,7 @@ TEST_VM(MetaspaceUtils, committed) {
   size_t reserved  = MetaspaceUtils::reserved_bytes();
   EXPECT_LE(committed, reserved);
 
-  size_t committed_metadata = MetaspaceUtils::committed_bytes(metaspace::NonClassType);
+  size_t committed_metadata = MetaspaceUtils::committed_bytes(Metaspace::NonClassType);
   EXPECT_GT(committed_metadata, 0UL);
   EXPECT_LE(committed_metadata, committed);
 }
@@ -67,7 +67,7 @@ TEST_VM(MetaspaceUtils, committed_compressed_class_pointers) {
   size_t committed = MetaspaceUtils::committed_bytes();
   EXPECT_GT(committed, 0UL);
 
-  size_t committed_class = MetaspaceUtils::committed_bytes(metaspace::ClassType);
+  size_t committed_class = MetaspaceUtils::committed_bytes(Metaspace::ClassType);
   EXPECT_GT(committed_class, 0UL);
   EXPECT_LE(committed_class, committed);
 }

@@ -22,7 +22,6 @@
  *
  */
 
-#include <memory/metaspace/settings.hpp>
 #include "precompiled.hpp"
 
 #include "aot/aotLoader.hpp"
@@ -41,6 +40,7 @@
 #include "memory/metaspace/metaspaceReport.hpp"
 #include "memory/metaspace/metaspaceSizesSnapshot.hpp"
 #include "memory/metaspace/runningCounters.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
@@ -58,39 +58,38 @@ using metaspace::ChunkManager;
 using metaspace::ClassLoaderMetaspace;
 using metaspace::CommitLimiter;
 using metaspace::MetaspaceType;
-using metaspace::MetadataType;
 using metaspace::MetaspaceReporter;
 using metaspace::RunningCounters;
 using metaspace::VirtualSpaceList;
 
 
 // Used by MetaspaceCounters
-size_t MetaspaceUtils::free_chunks_total_words(MetadataType mdtype) {
-  return is_class(mdtype) ? RunningCounters::free_chunks_words_class() : RunningCounters::free_chunks_words_nonclass();
+size_t MetaspaceUtils::free_chunks_total_words(Metaspace::MetadataType mdtype) {
+  return metaspace::is_class(mdtype) ? RunningCounters::free_chunks_words_class() : RunningCounters::free_chunks_words_nonclass();
 }
 
 size_t MetaspaceUtils::used_words() {
   return RunningCounters::used_words();
 }
 
-size_t MetaspaceUtils::used_words(MetadataType mdtype) {
-  return is_class(mdtype) ? RunningCounters::used_words_class() : RunningCounters::used_words_nonclass();
+size_t MetaspaceUtils::used_words(Metaspace::MetadataType mdtype) {
+  return metaspace::is_class(mdtype) ? RunningCounters::used_words_class() : RunningCounters::used_words_nonclass();
 }
 
 size_t MetaspaceUtils::reserved_words() {
   return RunningCounters::reserved_words();
 }
 
-size_t MetaspaceUtils::reserved_words(MetadataType mdtype) {
-  return is_class(mdtype) ? RunningCounters::reserved_words_class() : RunningCounters::reserved_words_nonclass();
+size_t MetaspaceUtils::reserved_words(Metaspace::MetadataType mdtype) {
+  return metaspace::is_class(mdtype) ? RunningCounters::reserved_words_class() : RunningCounters::reserved_words_nonclass();
 }
 
 size_t MetaspaceUtils::committed_words() {
   return RunningCounters::committed_words();
 }
 
-size_t MetaspaceUtils::committed_words(MetadataType mdtype) {
-  return is_class(mdtype) ? RunningCounters::committed_words_class() : RunningCounters::committed_words_nonclass();
+size_t MetaspaceUtils::committed_words(Metaspace::MetadataType mdtype) {
+  return metaspace::is_class(mdtype) ? RunningCounters::committed_words_class() : RunningCounters::committed_words_nonclass();
 }
 
 
@@ -139,7 +138,7 @@ void MetaspaceUtils::print_metaspace_change(const metaspace::MetaspaceSizesSnaps
 
 
 // Prints an ASCII representation of the given space.
-void MetaspaceUtils::print_metaspace_map(outputStream* out, MetadataType mdtype) {
+void MetaspaceUtils::print_metaspace_map(outputStream* out, Metaspace::MetadataType mdtype) {
   out->print_cr("-- not yet implemented ---");
 }
 
@@ -174,7 +173,7 @@ void MetaspaceUtils::print_on(outputStream* out) {
                 reserved_bytes()/K);
 
   if (Metaspace::using_class_space()) {
-    const MetadataType ct = metaspace::ClassType;
+    const Metaspace::MetadataType ct = Metaspace::ClassType;
     out->print_cr("  class space    "
                   "used "      SIZE_FORMAT "K, "
                   "committed " SIZE_FORMAT "K, "
@@ -337,7 +336,7 @@ void MetaspaceGC::post_initialize() {
 bool MetaspaceGC::can_expand(size_t word_size, bool is_class) {
   // Check if the compressed class space is full.
   if (is_class && Metaspace::using_class_space()) {
-    size_t class_committed = MetaspaceUtils::committed_bytes(metaspace::ClassType);
+    size_t class_committed = MetaspaceUtils::committed_bytes(Metaspace::ClassType);
     if (class_committed + word_size * BytesPerWord > CompressedClassSpaceSize) {
       log_trace(gc, metaspace, freelist)("Cannot expand %s metaspace by " SIZE_FORMAT " words (CompressedClassSpaceSize = " SIZE_FORMAT " words)",
                 (is_class ? "class" : "non-class"), word_size, CompressedClassSpaceSize / sizeof(MetaWord));
@@ -862,7 +861,7 @@ MetaWord* Metaspace::allocate(ClassLoaderData* loader_data, size_t word_size,
   assert(loader_data != NULL, "Should never pass around a NULL loader_data. "
         "ClassLoaderData::the_null_class_loader_data() should have been used.");
 
-  MetadataType mdtype = (type == MetaspaceObj::ClassType) ? metaspace::ClassType : metaspace::NonClassType;
+  Metaspace::MetadataType mdtype = (type == MetaspaceObj::ClassType) ? Metaspace::ClassType : Metaspace::NonClassType;
 
   // Try to allocate metadata.
   MetaWord* result = loader_data->metaspace_non_null()->allocate(word_size, mdtype);
@@ -907,7 +906,7 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
   Log(gc, metaspace, freelist, oom) log;
   if (log.is_info()) {
     log.info("Metaspace (%s) allocation failed for size " SIZE_FORMAT,
-             is_class(mdtype) ? "class" : "data", word_size);
+             metaspace::is_class(mdtype) ? "class" : "data", word_size);
     ResourceMark rm;
     if (log.is_debug()) {
       if (loader_data->metaspace_or_null() != NULL) {
@@ -922,10 +921,10 @@ void Metaspace::report_metadata_oome(ClassLoaderData* loader_data, size_t word_s
 
   // Which limit did we hit? CompressedClassSpaceSize or MaxMetaspaceSize?
   bool out_of_compressed_class_space = false;
-  if (is_class(mdtype)) {
+  if (metaspace::is_class(mdtype)) {
     ClassLoaderMetaspace* metaspace = loader_data->metaspace_non_null();
     out_of_compressed_class_space =
-      MetaspaceUtils::committed_bytes(metaspace::ClassType) +
+      MetaspaceUtils::committed_bytes(Metaspace::ClassType) +
       // TODO: Okay this is just cheesy.
       // Of course this may fail and return incorrect results.
       // Think this over - we need some clean way to remember which limit

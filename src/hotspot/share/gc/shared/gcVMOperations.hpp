@@ -28,7 +28,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "memory/heapInspection.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
+#include "memory/metaspace.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/jniHandles.hpp"
@@ -207,13 +207,13 @@ class VM_CollectForMetadataAllocation: public VM_GC_Operation {
  private:
   MetaWord*                _result;
   size_t                   _size;     // size of object to be allocated
-  metaspace::MetadataType  _mdtype;
+  Metaspace::MetadataType  _mdtype;
   ClassLoaderData*         _loader_data;
 
  public:
   VM_CollectForMetadataAllocation(ClassLoaderData* loader_data,
                                   size_t size,
-                                  metaspace::MetadataType mdtype,
+                                  Metaspace::MetadataType mdtype,
                                   uint gc_count_before,
                                   uint full_gc_count_before,
                                   GCCause::Cause gc_cause);

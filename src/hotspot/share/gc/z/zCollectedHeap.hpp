@@ -34,7 +34,7 @@
 #include "gc/z/zRuntimeWorkers.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUncommitter.hpp"
-#include "memory/metaspace/metaspaceEnums.hpp"
+#include "memory/metaspace.hpp"
 
 class ZCollectedHeap : public CollectedHeap {
   friend class VMStructs;
@@ -80,7 +80,7 @@ public:
   virtual HeapWord* mem_allocate(size_t size, bool* gc_overhead_limit_was_exceeded);
   virtual MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                        size_t size,
-                                                       metaspace::MetadataType mdtype);
+                                                       Metaspace::MetadataType mdtype);
   virtual void collect(GCCause::Cause cause);
   virtual void collect_as_vm_thread(GCCause::Cause cause);
   virtual void do_full_collection(bool clear_all_soft_refs);
