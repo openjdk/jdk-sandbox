@@ -35,6 +35,8 @@
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/compressedOops.inline.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/orderAccess.hpp"
 #include "utilities/align.hpp"
 
 // Avoid name collision on verify_oop (defined in macroAssembler_arm.hpp)
@@ -1003,6 +1005,13 @@ public:
 
 void ShenandoahVerifier::verify_roots_in_to_space() {
   ShenandoahRootVerifier verifier;
+  ShenandoahVerifyInToSpaceClosure cl;
+  verifier.oops_do(&cl);
+}
+
+void ShenandoahVerifier::verify_roots_in_to_space_except(ShenandoahRootVerifier::RootTypes types) {
+  ShenandoahRootVerifier verifier;
+  verifier.excludes(types);
   ShenandoahVerifyInToSpaceClosure cl;
   verifier.oops_do(&cl);
 }
