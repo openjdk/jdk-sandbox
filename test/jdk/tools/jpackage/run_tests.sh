@@ -9,8 +9,6 @@
 set -e; set -o pipefail;
 
 
-# Link obtained from https://openjdk.java.net/jtreg/ page
-jtreg_bundle=https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz
 workdir=/tmp/jpackage_jtreg_testing
 jtreg_jar=$workdir/jtreg/lib/jtreg.jar
 jpackage_test_selector=test/jdk/tools/jpackage
@@ -222,7 +220,9 @@ installJtreg ()
   # Install jtreg if missing
   if [ ! -f "$jtreg_jar" ]; then
     exec_command mkdir -p "$workdir"
-    exec_command "(" cd "$workdir" "&&" wget "$jtreg_bundle" "&&" tar -xzf "$(basename $jtreg_bundle)" ";" rm -f "$(basename $jtreg_bundle)" ")"
+    # TODO - restore code to download or copy jtreg.jar
+    # to $workdir/jtreg/lib/jtreg.jar
+    fatal "ERROR: All Tests Disabled until locating jtreg.jar implemented."
   fi
 }
 
