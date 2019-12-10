@@ -51,7 +51,7 @@ final class PackageProperty {
         if (expectedValue.equals(actualValue)) {
             return null;
         }
- 
+
         final String advice;
         if (substString != null) {
             advice = MessageFormat.format(I18N.getString(
@@ -62,7 +62,7 @@ final class PackageProperty {
                     "error.unexpected-default-package-property.advice"), name,
                     customResource);
         }
-        
+
         return new ConfigException(MessageFormat.format(I18N.getString(
                 "error.unexpected-package-property"), name,
                 expectedValue, actualValue, customResource, substString), advice);
