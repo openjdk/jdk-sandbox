@@ -55,6 +55,7 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "memory/filemap.hpp"
+#include "memory/iterator.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -1032,11 +1033,6 @@ void GenCollectedHeap::oop_iterate(OopIterateClosure* cl) {
 void GenCollectedHeap::object_iterate(ObjectClosure* cl) {
   _young_gen->object_iterate(cl);
   _old_gen->object_iterate(cl);
-}
-
-void GenCollectedHeap::safe_object_iterate(ObjectClosure* cl) {
-  _young_gen->safe_object_iterate(cl);
-  _old_gen->safe_object_iterate(cl);
 }
 
 Space* GenCollectedHeap::space_containing(const void* addr) const {

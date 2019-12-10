@@ -46,12 +46,12 @@ final class PackageProperty {
         this.substString = substString;
         this.customResource = customResource;
     }
-    
+
     ConfigException verifyValue(String actualValue) {
         if (expectedValue.equals(actualValue)) {
             return null;
         }
-        
+ 
         final String advice;
         if (substString != null) {
             advice = MessageFormat.format(I18N.getString(

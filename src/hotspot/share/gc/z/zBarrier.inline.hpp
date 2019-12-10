@@ -48,7 +48,7 @@ inline void ZBarrier::self_heal(volatile oop* p, uintptr_t addr, uintptr_t heal_
     }
 
     // Heal
-    const uintptr_t prev_addr = Atomic::cmpxchg(heal_addr, (volatile uintptr_t*)p, addr);
+    const uintptr_t prev_addr = Atomic::cmpxchg((volatile uintptr_t*)p, addr, heal_addr);
     if (prev_addr == addr) {
       // Success
       return;
@@ -142,6 +142,14 @@ inline bool ZBarrier::is_good_or_null_fast_path(uintptr_t addr) {
 
 inline bool ZBarrier::is_weak_good_or_null_fast_path(uintptr_t addr) {
   return ZAddress::is_weak_good_or_null(addr);
+}
+
+inline bool ZBarrier::during_mark() {
+  return ZGlobalPhase == ZPhaseMark;
+}
+
+inline bool ZBarrier::during_relocate() {
+  return ZGlobalPhase == ZPhaseRelocate;
 }
 
 //
@@ -289,6 +297,12 @@ inline void ZBarrier::keep_alive_barrier_on_phantom_root_oop_field(oop* p) {
   assert(ZResurrection::is_blocked(), "Invalid phase");
   const oop o = *p;
   root_barrier<is_good_or_null_fast_path, keep_alive_barrier_on_phantom_oop_slow_path>(p, o);
+}
+
+inline void ZBarrier::keep_alive_barrier_on_oop(oop o) {
+  if (during_mark()) {
+    barrier<is_null_fast_path, mark_barrier_on_oop_slow_path>(NULL, o);
+  }
 }
 
 //

@@ -134,7 +134,7 @@ public class AddLauncherBase {
     }
 
     public static void testCreateAppImage(String [] cmd,
-            ArrayList<String> argList, ArrayList <String> optionList) 
+            ArrayList<String> argList, ArrayList <String> optionList)
             throws Exception {
         JPackageHelper.executeCLI(true, cmd);
         int retVal = JPackageHelper.execute(null, app);
