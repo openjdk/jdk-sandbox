@@ -2348,6 +2348,10 @@ void G1CollectedHeap::object_iterate(ObjectClosure* cl) {
   heap_region_iterate(&blk);
 }
 
+void G1CollectedHeap::keep_alive(oop obj) {
+  G1BarrierSet::enqueue(obj);
+}
+
 void G1CollectedHeap::heap_region_iterate(HeapRegionClosure* cl) const {
   _hrm->iterate(cl);
 }
@@ -4076,11 +4080,7 @@ void G1CollectedHeap::record_obj_copy_mem_stats() {
                                                create_g1_evac_summary(&_old_evac_stats));
 }
 
-void G1CollectedHeap::free_region(HeapRegion* hr,
-                                  FreeRegionList* free_list,
-                                  bool skip_remset,
-                                  bool skip_hot_card_cache,
-                                  bool locked) {
+void G1CollectedHeap::free_region(HeapRegion* hr, FreeRegionList* free_list) {
   assert(!hr->is_free(), "the region should not be free");
   assert(!hr->is_empty(), "the region should not be empty");
   assert(_hrm->is_available(hr->hrm_index()), "region should be committed");
@@ -4093,11 +4093,14 @@ void G1CollectedHeap::free_region(HeapRegion* hr,
   // Clear the card counts for this region.
   // Note: we only need to do this if the region is not young
   // (since we don't refine cards in young regions).
-  if (!skip_hot_card_cache && !hr->is_young()) {
+  if (!hr->is_young()) {
     _hot_card_cache->reset_card_counts(hr);
   }
-  hr->hr_clear(skip_remset, true /* clear_space */, locked /* locked */);
+
+  // Reset region metadata to allow reuse.
+  hr->hr_clear(true /* clear_space */);
   _policy->remset_tracker()->update_at_free(hr);
+
   if (free_list != NULL) {
     free_list->add_ordered(hr);
   }
@@ -4108,7 +4111,7 @@ void G1CollectedHeap::free_humongous_region(HeapRegion* hr,
   assert(hr->is_humongous(), "this is only for humongous regions");
   assert(free_list != NULL, "pre-condition");
   hr->clear_humongous();
-  free_region(hr, free_list, false /* skip_remset */, false /* skip_hcc */, true /* locked */);
+  free_region(hr, free_list);
 }
 
 void G1CollectedHeap::remove_from_old_sets(const uint old_regions_removed,
@@ -4255,7 +4258,7 @@ class G1FreeCollectionSetTask : public AbstractGangTask {
       stats()->account_evacuated_region(r);
 
       // Free the region and and its remembered set.
-      _g1h->free_region(r, NULL, false /* skip_remset */, true /* skip_hot_card_cache */, true  /* locked */);
+      _g1h->free_region(r, NULL);
     }
 
     void handle_failed_region(HeapRegion* r) {
@@ -4302,8 +4305,6 @@ class G1FreeCollectionSetTask : public AbstractGangTask {
       if (r->is_young()) {
         assert_in_cset(r);
         r->record_surv_words_in_group(_surviving_young_words[r->young_index_in_cset()]);
-      } else {
-        _g1h->hot_card_cache()->reset_card_counts(r);
       }
 
       if (r->evacuation_failed()) {

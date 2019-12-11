@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Set;
-
 /**
  * The multicast datagram socket class is useful for sending
  * and receiving IP multicast packets. A MulticastSocket is
@@ -80,6 +79,46 @@ import java.util.Set;
  * method.
  * <B>Multiple MulticastSockets</B> may subscribe to a multicast group
  * and port concurrently, and they will all receive group datagrams.
+ *
+ * <p> The {@code DatagramSocket} and {@code MulticastSocket}
+ * classes define convenience methods to set and get several
+ * socket options. Like {@code DatagramSocket} this class also
+ * supports the {@link #setOption(SocketOption, Object) setOption}
+ * and {@link #getOption(SocketOption) getOption} methods to set
+ * and query socket options.
+ * In addition to the socket options supported by
+ * <a href="DatagramSocket.html#SocketOptions">{@code DatagramSocket}</a>, a
+ * {@code MulticastSocket} supports the following socket options:
+ * <blockquote>
+ * <a id="MulticastOptions"></a>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_IF IP_MULTICAST_IF} </th>
+ *     <td> The network interface for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_TTL
+ *       IP_MULTICAST_TTL} </th>
+ *     <td> The <em>time-to-live</em> for Internet Protocol (IP) multicast
+ *       datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_LOOP
+ *       IP_MULTICAST_LOOP} </th>
+ *     <td> Loopback for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ * Additional (implementation specific) options may also be supported.
  *
  * @author Pavani Diwanji
  * @since 1.1
@@ -378,15 +417,18 @@ public class MulticastSocket extends DatagramSocket {
      *
      * @param  mcastaddr is the multicast address to join
      * @param  netIf specifies the local interface to receive multicast
-     *         datagram packets, or <i>null</i> to defer to the interface set by
+     *         datagram packets, or {@code null} to defer to the interface set by
      *         {@link MulticastSocket#setInterface(InetAddress)} or
-     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}
+     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}.
+     *         If {@code null}, and no interface has been set, the behaviour is
+     *         unspecified: any interface may be selected or the operation may fail
+     *         with a {@code SocketException}.
      * @throws IOException if there is an error joining, or when the address
      *         is not a multicast address, or the platform does not support
      *         multicasting
      * @throws SecurityException if a security manager exists and its
      *         {@code checkMulticast} method doesn't allow the join.
-     * @throws IllegalArgumentException if mcastaddr is null or is a
+     * @throws IllegalArgumentException if mcastaddr is {@code null} or is a
      *         SocketAddress subclass not supported by this socket
      * @see    SecurityManager#checkMulticast(InetAddress)
      * @since  1.4
@@ -423,15 +465,18 @@ public class MulticastSocket extends DatagramSocket {
      * {@code mcastaddr} argument as its argument.
      *
      * @param  mcastaddr is the multicast address to leave
-     * @param  netIf specifies the local interface or <i>null</i> to defer
+     * @param  netIf specifies the local interface or {@code null} to defer
      *         to the interface set by
      *         {@link MulticastSocket#setInterface(InetAddress)} or
-     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}
+     *         {@link MulticastSocket#setNetworkInterface(NetworkInterface)}.
+     *         If {@code null}, and no interface has been set, the behaviour
+     *         is unspecified: any interface may be selected or the operation
+     *         may fail with a {@code SocketException}.
      * @throws IOException if there is an error leaving or when the address
      *         is not a multicast address.
      * @throws SecurityException if a security manager exists and its
      *         {@code checkMulticast} method doesn't allow the operation.
-     * @throws IllegalArgumentException if mcastaddr is null or is a
+     * @throws IllegalArgumentException if mcastaddr is {@code null} or is a
      *         SocketAddress subclass not supported by this socket.
      * @see    SecurityManager#checkMulticast(InetAddress)
      * @since  1.4
@@ -491,7 +536,9 @@ public class MulticastSocket extends DatagramSocket {
      * multicast packets.
      *
      * @return     An {@code InetAddress} representing the address
-     *             of the network interface used for multicast packets.
+     *             of the network interface used for multicast packets,
+     *             or if no interface has been set, an {@code InetAddress}
+     *             representing any local address.
      * @throws     SocketException if there is an error in the
      *             underlying protocol, such as a TCP error.
      * @deprecated The network interface may not be uniquely identified by
@@ -573,11 +620,13 @@ public class MulticastSocket extends DatagramSocket {
     /**
      * Get the multicast network interface set.
      *
-     * @throws    SocketException if there is an error in
-     * the underlying protocol, such as a TCP error.
-     * @return the multicast {@code NetworkInterface} currently set
-     * @see #setNetworkInterface(NetworkInterface)
-     * @since 1.4
+     * @throws SocketException if there is an error in
+     *         the underlying protocol, such as a TCP error.
+     * @return The multicast {@code NetworkInterface} currently set. A placeholder
+     *         NetworkInterface is returned when there is no interface set; it has
+     *         a single InetAddress to represent any local address.
+     * @see    #setNetworkInterface(NetworkInterface)
+     * @since  1.4
      */
     public NetworkInterface getNetworkInterface() throws SocketException {
         NetworkInterface ni
