@@ -171,13 +171,19 @@ public class SocketChannelCompare {
     public static void main(String[] args) throws RunnerException {
         Options opt = new OptionsBuilder()
                 .include(org.openjdk.bench.java.net.SocketChannelCompare.class.getSimpleName())
-                .forks(3)
+                .warmupForks(1)
+                .warmupIterations(2)
+                .measurementIterations(2)
+                .forks(2)
                 .build();
 
         new Runner(opt).run();
 
         opt = new OptionsBuilder()
                 .include(org.openjdk.bench.java.net.SocketChannelCompare.class.getSimpleName())
+                .warmupForks(1)
+                .warmupIterations(2)
+                .measurementIterations(2)
                 .jvmArgsPrepend("-Djdk.net.useFastTcpLoopback=true")
                 .forks(3)
                 .build();

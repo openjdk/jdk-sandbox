@@ -114,7 +114,10 @@ public class SocketChannelConnectionSetup {
     public static void main(String[] args) throws RunnerException {
         Options opt = new OptionsBuilder()
                 .include(org.openjdk.bench.java.net.SocketChannelConnectionSetup.class.getSimpleName())
-                .forks(3)
+                .warmupForks(1)
+                .warmupIterations(2)
+                .measurementIterations(3)
+                .forks(2)
                 .build();
 
         new Runner(opt).run();
@@ -122,7 +125,10 @@ public class SocketChannelConnectionSetup {
         opt = new OptionsBuilder()
                 .include(org.openjdk.bench.java.net.SocketChannelConnectionSetup.class.getSimpleName())
                 .jvmArgsPrepend("-Djdk.net.useFastTcpLoopback=true")
-                .forks(3)
+                .warmupForks(1)
+                .warmupIterations(2)
+                .measurementIterations(3)
+                .forks(2)
                 .build();
 
         new Runner(opt).run();

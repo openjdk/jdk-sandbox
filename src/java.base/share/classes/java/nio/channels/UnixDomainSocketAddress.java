@@ -36,13 +36,17 @@ import java.util.Objects;
  * These addresses contain a String path name, which when bound to a channel,
  * have an associated file in the file-system with the same name.
  * <p>
- * If a channel is automatically bound to a Unix domain address then its address
- * is unnamed; it has an empty path field, and therefore has no associated
- * file in the file-system. {@link SocketChannel}s can be automatically bound
- * in this way, but {@link ServerSocketChannel}s cannot and must be bound to
- * an explicit address.
+ * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
+ * without calling {@link SocketChannel#bind(SocketAddress)} first, then its address
+ * is unnamed; it has an empty path field, and therefore has no associated file
+ * in the file-system. {@link ServerSocketChannel}s cannot be automatically bound
+ * and must be bound to an explicit address.
+ * <p>
+ * @apiNote A channel can be bound to a name if and only if, no file exists
+ * in the file-system with the same name, and the calling process has the required
+ * operating system permissions to create a file of that name.
  *
- * @since 14
+ * @since 15
  */
 public class UnixDomainSocketAddress extends SocketAddress {
 
