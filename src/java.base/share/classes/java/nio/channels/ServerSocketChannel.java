@@ -189,8 +189,8 @@ public abstract class ServerSocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>IP</i> channels. Or with <i>Unix Domain</i>
-     *          channels, if the security manager denies "read" or "write"
-     *          {@link java.io.FilePermission} for the local path.
+     *          channels, if the security manager denies the "write" action for
+     *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
      * @since 1.7
      */
@@ -243,8 +243,8 @@ public abstract class ServerSocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>IP</i> channels; or in the case of <i>Unix Domain</i>
-     *          channels, if the security manager denies "read" or "write"
-     *          {@link java.io.FilePermission} for the local path.
+     *          channels, if the security manager denies the "write" action for
+     *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
      * @since 1.7
      */

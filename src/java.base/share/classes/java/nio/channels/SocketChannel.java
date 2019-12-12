@@ -291,8 +291,8 @@ public abstract class SocketChannel
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
      *          the operation for <i>IP</i> channels; or for <i>Unix Domain</i>
-     *          channels, if the security manager denies "read" or "write"
-     *          {@link java.io.FilePermission} for the local path.
+     *          channels, if the security manager denies the "write" action for
+     *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
      * @since 1.7
      */
@@ -589,7 +589,7 @@ public abstract class SocketChannel
      * If there is a security manager set and this is a <i>Unix Domain</i> channel,
      * {@code checkPermission} is called with a {@link FilePermission} whose {@code
      * path} is the path of the bound address and actions is {@code "read"}
-     * and if the operation is allowed a {@link UnixDomainSocketAddress} 
+     * and if the operation is allowed a {@link UnixDomainSocketAddress}
      * corresponding to the bound address is returned. If not, then an address with
      * an empty path is returned.
      *

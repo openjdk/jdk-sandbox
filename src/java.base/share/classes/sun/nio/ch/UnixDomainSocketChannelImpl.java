@@ -65,6 +65,8 @@ import sun.net.util.SocketExceptions;
  * An implementation of SocketChannels
  */
 
+// TODO: Security checks
+
 public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 {
     public UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)

@@ -59,6 +59,10 @@ public class Net {
 
     private Net() { }
 
+    static {
+        IOUtil.load();
+    }
+
     private static final boolean unixDomainSupported =
         unixDomainSocketSupported();
 
@@ -781,7 +785,6 @@ public class Net {
     static native short pollconnValue();
 
     static {
-        IOUtil.load();
         initIDs();
 
         POLLIN     = pollinValue();
