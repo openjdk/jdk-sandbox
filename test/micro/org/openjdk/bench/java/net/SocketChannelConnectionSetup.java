@@ -103,7 +103,7 @@ public class SocketChannelConnectionSetup {
     }
 
     @Benchmark
-    @Measurement(iterations = 5, batchSize=50)
+    @Measurement(iterations = 5, batchSize=200)
     public void test() throws IOException {
         s1 = SocketChannel.open(ssc.getLocalAddress());
         s2 = ssc.accept();
@@ -115,8 +115,6 @@ public class SocketChannelConnectionSetup {
         Options opt = new OptionsBuilder()
                 .include(org.openjdk.bench.java.net.SocketChannelConnectionSetup.class.getSimpleName())
                 .warmupForks(1)
-                .warmupIterations(2)
-                .measurementIterations(3)
                 .forks(2)
                 .build();
 
@@ -126,8 +124,6 @@ public class SocketChannelConnectionSetup {
                 .include(org.openjdk.bench.java.net.SocketChannelConnectionSetup.class.getSimpleName())
                 .jvmArgsPrepend("-Djdk.net.useFastTcpLoopback=true")
                 .warmupForks(1)
-                .warmupIterations(2)
-                .measurementIterations(3)
                 .forks(2)
                 .build();
 
