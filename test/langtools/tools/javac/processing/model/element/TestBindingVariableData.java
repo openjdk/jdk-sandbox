@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,10 @@
  * questions.
  */
 
-package gc.startup_warnings;
+public class TestBindingVariableData {
 
-/*
-* @test TestParallelScavengeSerialOld
-* @key gc
-* @bug 8006398
-* @requires vm.gc.Parallel
-* @summary Test that the ParallelScavenge+SerialOld combination prints a deprecation message
-* @library /test/lib
-* @modules java.base/jdk.internal.misc
-*          java.management
-* @run main gc.startup_warnings.TestParallelScavengeSerialOld
-*/
-
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
-
-
-public class TestParallelScavengeSerialOld {
-
-  public static void main(String args[]) throws Exception {
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UseParallelGC", "-XX:-UseParallelOldGC", "-version");
-    OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldContain("deprecated");
-    output.shouldNotContain("error");
-    output.shouldHaveExitValue(0);
-  }
+    private boolean test(Object o) {
+        return o instanceof String bindingVar && !bindingVar.isEmpty();
+    }
 
 }

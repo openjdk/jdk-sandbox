@@ -460,7 +460,8 @@ public class TestSearch extends JavadocTester {
                 + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#SingleWord\">"
                 + "SingleWord</a></span> - Search tag in package pkg</dt>",
-                "<br><a href=\"../allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                "<br><a href=\"../allclasses-index.html\">All&nbsp;Classes</a>"
+                + "<span class=\"verticalSeparator\">|</span>"
                 + "<a href=\"../allpackages-index.html\">All&nbsp;Packages</a>");
         checkOutput("index-files/index-10.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#phrasewithspaces\">"
@@ -558,9 +559,9 @@ public class TestSearch extends JavadocTester {
     void checkInvalidUsageIndexTag() {
         checkOutput(Output.OUT, true,
                 "AnotherClass.java:29: warning - invalid usage of tag {@index",
-                "AnotherClass.java:41: warning - invalid usage of tag {@index",
-                "AnotherClass.java:36: warning - invalid usage of tag {@index",
-                "AnotherClass.java:70: warning - invalid usage of tag {@index");
+                "AnotherClass.java:39: warning - invalid usage of tag {@index",
+                "AnotherClass.java:34: warning - invalid usage of tag {@index",
+                "AnotherClass.java:68: warning - invalid usage of tag {@index");
     }
 
     void checkJqueryAndImageFiles(boolean expectedOutput) {
@@ -698,7 +699,8 @@ public class TestSearch extends JavadocTester {
         checkOutput("package-search-index.js", true,
                 "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
-                + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
-}
+                    "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>"
+                    + "<span class=\"verticalSeparator\">|</span>"
+                    + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
+    }
 }

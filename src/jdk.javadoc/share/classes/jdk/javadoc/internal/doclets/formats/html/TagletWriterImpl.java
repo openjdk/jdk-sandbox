@@ -117,7 +117,7 @@ public class TagletWriterImpl extends TagletWriter {
         }
         String desc = ch.getText(itt.getDescription());
 
-        return createAnchorAndSearchIndex(element, tagText, desc);
+        return createAnchorAndSearchIndex(element, tagText, desc, false);
     }
 
     /**
@@ -326,7 +326,7 @@ public class TagletWriterImpl extends TagletWriter {
         SystemPropertyTree itt = (SystemPropertyTree)tag;
         String tagText = itt.getPropertyName().toString();
         return HtmlTree.CODE(createAnchorAndSearchIndex(element, tagText,
-                resources.getText("doclet.System_Property")));
+                resources.getText("doclet.System_Property"), true));
     }
 
     /**
@@ -416,7 +416,7 @@ public class TagletWriterImpl extends TagletWriter {
     }
 
     @SuppressWarnings("preview")
-    private Content createAnchorAndSearchIndex(Element element, String tagText, String desc) {
+    private Content createAnchorAndSearchIndex(Element element, String tagText, String desc, boolean isSystemProperty) {
         Content result = null;
         if (isFirstSentence && inSummary) {
             result = new StringContent(tagText);
@@ -430,6 +430,7 @@ public class TagletWriterImpl extends TagletWriter {
             result = HtmlTree.A_ID(HtmlStyle.searchTagResult, anchorName, new StringContent(tagText));
             if (configuration.createindex && !tagText.isEmpty()) {
                 SearchIndexItem si = new SearchIndexItem();
+                si.setSystemProperty(isSystemProperty);
                 si.setLabel(tagText);
                 si.setDescription(desc);
                 si.setUrl(htmlWriter.path.getPath() + "#" + anchorName);
@@ -479,7 +480,7 @@ public class TagletWriterImpl extends TagletWriter {
                                     si.setHolder(resources.getText("doclet.Overview"));
                                     break;
                                 case DOCFILE:
-                                    si.setHolder(de.getPackageElement().toString());
+                                    si.setHolder(getHolderName(de));
                                     break;
                                 default:
                                     throw new IllegalStateException();
@@ -501,5 +502,18 @@ public class TagletWriterImpl extends TagletWriter {
             }
         }
         return result;
+    }
+
+    private String getHolderName(DocletElement de) {
+        PackageElement pe = de.getPackageElement();
+        if (pe.isUnnamed()) {
+            // if package is unnamed use enclosing module only if it is named
+            Element ee = pe.getEnclosingElement();
+            if (ee instanceof ModuleElement && !((ModuleElement)ee).isUnnamed()) {
+                return resources.getText("doclet.module") + " " + utils.getFullyQualifiedName(ee);
+            }
+            return pe.toString(); // "Unnamed package" or similar
+        }
+        return resources.getText("doclet.package") + " " + utils.getFullyQualifiedName(pe);
     }
 }
