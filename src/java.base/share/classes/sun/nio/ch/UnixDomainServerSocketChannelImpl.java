@@ -44,10 +44,13 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import sun.net.NetHooks;
@@ -138,21 +141,54 @@ public class UnixDomainServerSocketChannelImpl
 
     @Override
     public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
-        if (local == null)
-            throw new BindException("automatic bind not possible for Unix domain servers");
 
         synchronized (stateLock) {
-            ensureOpen();
-            if (localAddress != null)
-                throw new AlreadyBoundException();
-            UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
-            Net.unixDomainBind(fd, usa);
+            for (int i=0; i<100; i++) { // bail out after 100
+                if (localAddress != null)
+                    throw new AlreadyBoundException();
+                UnixDomainSocketAddress usa = null;
+                if (local == null) {
+                    usa = getTempName();
+                } else {
+                    usa = Net.checkUnixAddress(local);
+                }
+                try {
+                    Net.unixDomainBind(fd, usa);
+                    break;
+                } catch (BindException e) {
+                    if (local != null) {
+                        throw e;
+                    }
+                    if (i == 99)
+                        throw new IOException("could not bind to temporary name", e);
+                }
+            }
             Net.listen(fd, backlog < 1 ? 50 : backlog);
             localAddress = Net.localUnixAddress(fd);
         }
         return this;
     }
 
+    private static final AtomicInteger nameCounter = new AtomicInteger(1);
+
+    private static String getTempDir() {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<String>)() -> System.getProperty("java.io.tmpdir")
+        );
+    }
+
+    private static final String tempDir = getTempDir();
+
+    /**
+     * Return a possible temporary name to bind to, which is different for each call
+     */
+    private static UnixDomainSocketAddress getTempName() throws IOException {
+        long pid = ProcessHandle.current().pid();
+        int counter = nameCounter.getAndIncrement();
+        StringBuilder sb = new StringBuilder();
+        sb.append(tempDir).append("socket_").append(pid).append('_').append(counter);
+        return new UnixDomainSocketAddress(sb.toString());
+    }
 
     @Override
     int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)

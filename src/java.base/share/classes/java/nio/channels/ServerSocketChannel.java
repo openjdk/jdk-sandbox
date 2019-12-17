@@ -219,18 +219,19 @@ public abstract class ServerSocketChannel
      * with the same path name as this channel's bound {@link UnixDomainSocketAddress}.
      * This file persists after the channel is closed, and must be removed before
      * another channel can bind to the same name. <i>Unix Domain</i>
-     * {@code ServerSocketChannels} do not support automatically assigned addresses.
+     * {@code ServerSocketChannels} bound to automatically assigned addresses will be
+     * assigned a pathname in some system temporary directory. The associated socket
+     * file also persists after the channel is closed. Its name can be obtained by
+     * calling {@link #getLocalAddress()}.
      *
      * @param   local
-     *          The address to bind the socket, or {@code null} to bind an <i>IP</i> channel to
+     *          The address to bind the socket, or {@code null} to bind to
      *          an automatically assigned socket address
      * @param   backlog
      *          The maximum number of pending connections
      *
      * @return  This channel
      *
-     * @throws  BindException
-     *          If this is a <i>Unix domain</i> channel and {@code local} is {@code null}
      * @throws  AlreadyBoundException
      *          If the socket is already bound
      * @throws  UnsupportedAddressTypeException

@@ -51,7 +51,7 @@ Java_java_nio_channels_UnixDomainSocketAddress_init(JNIEnv *env, jclass dontuse)
         udsa_class = (*env)->NewGlobalRef(env, c);
         CHECK_NULL(udsa_class);
 
-        udsa_pathID = (*env)->GetFieldID(env, udsa_class, "path", "Ljava/lang/String;");
+        udsa_pathID = (*env)->GetFieldID(env, udsa_class, "pathname", "Ljava/lang/String;");
         CHECK_NULL(udsa_pathID);
 
         udsa_ctorID = (*env)->GetMethodID(env, udsa_class, "<init>", "(Ljava/lang/String;)V");

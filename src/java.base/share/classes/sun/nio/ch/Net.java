@@ -734,7 +734,7 @@ public class Net {
             return addr;
 
         try{
-            FilePermission p = new FilePermission(addr.getPath(), "read");
+            FilePermission p = new FilePermission(addr.getPathName(), "read");
             sm.checkPermission(p);
             // Security check passed
         } catch (SecurityException e) {

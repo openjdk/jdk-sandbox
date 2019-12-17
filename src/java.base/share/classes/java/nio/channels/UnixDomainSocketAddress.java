@@ -27,6 +27,7 @@ package java.nio.channels;
 
 import java.net.SocketAddress;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Objects;
@@ -34,17 +35,26 @@ import java.util.Objects;
 /**
  * An address for a Unix domain {@link SocketChannel} or {@link ServerSocketChannel}.
  * These addresses contain a String path name, which when bound to a channel,
- * have an associated file in the file-system with the same name.
+ * have an associated socket file in the file-system with the same name.
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
  * without calling {@link SocketChannel#bind(SocketAddress)} first, then its address
  * is unnamed; it has an empty path field, and therefore has no associated file
- * in the file-system. {@link ServerSocketChannel}s cannot be automatically bound
- * and must be bound to an explicit address.
+ * in the file-system. If a {@link ServerSocketChannel} is automatically bound by
+ * passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
+ * bind} methods, the channel is bound to a name in some temporary directory. The name can be
+ * obtained by calling {@link ServerSocketChannel#getLocalAddress()} after bind returns.
  * <p>
  * @apiNote A channel can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
  * operating system permissions to create a file of that name.
+ * @apiNote The socket file created when a channel binds to a name is not removed when
+ * the channel is closed. User code must arrange for the deletion of this file if
+ * another channel needs to bind to the same name. Note also, that it may be possible
+ * to delete the socket file, even before the channel is closed, thus allowing another
+ * channel to bind to the same name. The original channel is not notified of any error
+ * in this situation. Operating system permissions can be used to control who is allowed
+ * to create and delete these socket files.
  *
  * @since 15
  */
@@ -64,18 +74,23 @@ public class UnixDomainSocketAddress extends SocketAddress {
         init();
     }
 
-    private final String path;
+    private final Path path;
+
+    private final String pathname;
 
     /**
-     * Create a named UnixDomainSocketAddress for the given path string.
+     * Create a named UnixDomainSocketAddress for the given pathname string.
      *
-     * @param path the pathname to the socket.
+     * @param pathname the pathname to the socket.
      *
      * @throws NullPointerException if path is null
+     *
+     * @throws InvalidPathException if pathname cannot be converted to a Path
      */
-    public UnixDomainSocketAddress(String path) {
-        Objects.requireNonNull(path);
-        this.path = path;
+    public UnixDomainSocketAddress(String pathname) {
+        Objects.requireNonNull(pathname);
+        this.pathname = pathname;
+        this.path = Paths.get(pathname);
     }
 
     /**
@@ -87,7 +102,8 @@ public class UnixDomainSocketAddress extends SocketAddress {
      */
     public UnixDomainSocketAddress(Path path) {
         Objects.requireNonNull(path);
-        this.path = path.toString();
+        this.path = path;
+        this.pathname = path.toString();
     }
 
     /**
@@ -95,8 +111,17 @@ public class UnixDomainSocketAddress extends SocketAddress {
      *
      * @return this address's path
      */
-    public String getPath() {
+    public Path getPath() {
         return path;
+    }
+
+    /**
+     * Return this address's path as a String.
+     *
+     * @return this address's path
+     */
+    public String getPathName() {
+        return pathname;
     }
 
     static native void init();
