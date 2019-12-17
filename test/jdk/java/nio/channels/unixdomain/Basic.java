@@ -169,8 +169,8 @@ public class Basic {
 
     static class Server extends Thread {
 
-        ServerSocketChannel server;
-        SocketAddress address;
+        final ServerSocketChannel server;
+        final SocketAddress address;
         SocketChannel connection;
         SelectionKey ckey;
         List<ByteBuffer> toSend = new LinkedList<>();

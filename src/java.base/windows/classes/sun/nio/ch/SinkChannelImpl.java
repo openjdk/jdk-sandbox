@@ -47,11 +47,18 @@ class SinkChannelImpl
     final SocketChannel sc;
 
     public FileDescriptor getFD() {
-        return ((InetSocketChannelImpl)sc).getFD();
+        return ((SocketChannelImpl)sc).getFD();
     }
 
     public int getFDVal() {
-        return ((InetSocketChannelImpl)sc).getFDVal();
+        return ((SocketChannelImpl)sc).getFDVal();
+    }
+
+    void setNoDelay() {
+	if (sc instanceof InetSocketChannelImpl) {
+	    InetSocketChannelImpl isc = (InetSocketChannelImpl)sc;
+	    isc.setOption(StandardSocketOptions.TCP_NODELAY, true);
+	}
     }
 
     SinkChannelImpl(SelectorProvider sp, SocketChannel sc) {

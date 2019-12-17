@@ -144,7 +144,7 @@ class WindowsSelectorImpl extends SelectorImpl {
 
         // Disable the Nagle algorithm so that the wakeup is more immediate
         SinkChannelImpl sink = (SinkChannelImpl)wakeupPipe.sink();
-        (sink.sc).socket().setTcpNoDelay(true);
+	sink.setNoDelay();
         wakeupSinkFd = ((SelChImpl)sink).getFDVal();
 
         pollWrapper.addWakeupSocket(wakeupSourceFd, 0);

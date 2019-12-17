@@ -46,11 +46,11 @@ class SourceChannelImpl
     private final SocketChannel sc;
 
     public FileDescriptor getFD() {
-        return ((InetSocketChannelImpl) sc).getFD();
+        return ((SocketChannelImpl) sc).getFD();
     }
 
     public int getFDVal() {
-        return ((InetSocketChannelImpl) sc).getFDVal();
+        return ((SocketChannelImpl) sc).getFDVal();
     }
 
     SourceChannelImpl(SelectorProvider sp, SocketChannel sc) {
