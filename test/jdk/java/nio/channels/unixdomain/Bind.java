@@ -169,7 +169,7 @@ public class Bind {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(null);
             UnixDomainSocketAddress usa = (UnixDomainSocketAddress)server.getLocalAddress();
-            if (usa.getPathName().length < 1)
+            if (usa.getPathName().length() < 1)
                 throw new RuntimeException("expected non zero address length");
         });
         // server no bind : not allowed
