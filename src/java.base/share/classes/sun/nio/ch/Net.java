@@ -726,8 +726,6 @@ public class Net {
         return unixDomainSupported;
     }
 
-    public static final UnixDomainSocketAddress UNNAMED = new UnixDomainSocketAddress("");
-
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         SecurityManager sm = System.getSecurityManager();
         if (addr == null || sm == null)
@@ -739,14 +737,14 @@ public class Net {
             // Security check passed
         } catch (SecurityException e) {
             // Return unnamed address only if security check fails
-            addr = UNNAMED;
+            addr = UnixDomainSocketAddress.UNNAMED;
         }
         return addr;
     }
 
     static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
         return System.getSecurityManager() == null ? addr.toString() :
-                UNNAMED.toString();
+                UnixDomainSocketAddress.UNNAMED.toString();
     }
 
     // -- Socket operations --

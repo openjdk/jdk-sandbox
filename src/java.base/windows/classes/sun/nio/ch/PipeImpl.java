@@ -162,7 +162,7 @@ class PipeImpl
                         if (ssc != null)
                             ssc.close();
                         if (sa instanceof UnixDomainSocketAddress)
-                            Files.delete(Paths.get(((UnixDomainSocketAddress)sa).getPathName()));
+                            Files.delete(((UnixDomainSocketAddress)sa).getPath());
                     } catch (IOException e2) {}
                 }
             }

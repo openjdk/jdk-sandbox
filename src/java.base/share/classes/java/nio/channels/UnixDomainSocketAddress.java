@@ -34,8 +34,9 @@ import java.util.Objects;
 
 /**
  * An address for a Unix domain {@link SocketChannel} or {@link ServerSocketChannel}.
- * These addresses contain a String path name, which when bound to a channel,
- * have an associated socket file in the file-system with the same name.
+ * These addresses contain a path, which when bound to a channel,
+ * have an associated socket file in the file-system with the same name. Instances
+ * are created with either a {@link String} path name or a {@link Path}.
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
  * without calling {@link SocketChannel#bind(SocketAddress)} first, then its address
@@ -77,6 +78,13 @@ public class UnixDomainSocketAddress extends SocketAddress {
     private final Path path;
 
     private final String pathname;
+
+    /**
+     * An unnamed UnixDomainSocketAddress. If a {@link SocketChannel} is automatically
+     * then its local address will be this instance.
+     */
+    public static final UnixDomainSocketAddress UNNAMED = 
+	new UnixDomainSocketAddress("");
 
     /**
      * Create a named UnixDomainSocketAddress for the given pathname string.

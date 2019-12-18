@@ -175,8 +175,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
                         throw new AlreadyBoundException();
                     UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
                     Net.unixDomainBind(fd, usa);
-                    if (usa == null) {
-                        localAddress = Net.UNNAMED;
+                    if (usa == null || usa.getPathName().equals("")) {
+                        localAddress = UnixDomainSocketAddress.UNNAMED;
                     } else {
                         localAddress = Net.localUnixAddress(fd);
                     }
