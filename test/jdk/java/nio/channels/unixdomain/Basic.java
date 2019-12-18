@@ -183,16 +183,14 @@ public class Basic {
             this.bufsize = bufsize;
             if (family == StandardProtocolFamily.UNIX) {
                 server = ServerSocketChannel.open(family);
-                sockfile = Path.of(tempDir, "server.sock");
-                Files.deleteIfExists(sockfile);
-                addr = new UnixDomainSocketAddress(sockfile);
-                System.out.println("ADDR = " + addr);
+                addr = null;
             } else {
                 server = ServerSocketChannel.open();
                 addr = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
             }
             server.bind(addr);
             address = server.getLocalAddress();
+	    System.out.println("Server address: " + address);
         }
 
         SocketAddress getAddress() {
@@ -226,6 +224,11 @@ public class Basic {
                             int m = channel.read(buf);
                             if (m == -1) {
                                 channel.close();
+                                server.close();
+				if (address instanceof UnixDomainSocketAddress) {
+				    var usa = (UnixDomainSocketAddress)address;
+				    Files.delete(usa.getPath());
+				}
                                 return;
                             } else {
                                 buf.flip();
