@@ -173,7 +173,13 @@ public class UnixDomainServerSocketChannelImpl
 
     private static String getTempDir() {
         return AccessController.doPrivileged(
-            (PrivilegedAction<String>)() -> System.getProperty("java.io.tmpdir")
+            (PrivilegedAction<String>) () -> {
+		String s = System.getProperty("java.io.tmpdir");
+		String sep = System.getProperty("file.separator");
+		if (!s.endsWith(sep))
+		    s = s + sep;
+		return s;
+	    }
         );
     }
 
