@@ -81,7 +81,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
 
     /**
      * An unnamed UnixDomainSocketAddress. If a {@link SocketChannel} is automatically
-     * then its local address will be this instance.
+     * bound then its local address will be this instance.
      */
     public static final UnixDomainSocketAddress UNNAMED = 
 	new UnixDomainSocketAddress("");
