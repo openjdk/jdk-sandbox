@@ -25,10 +25,7 @@
 
 package sun.nio.ch;
 
-import java.io.FileDescriptor;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.ProtocolFamily;
 import java.nio.channels.*;
 import java.nio.channels.spi.*;
@@ -44,6 +41,10 @@ public abstract class SelectorProviderImpl
 
     public DatagramChannel openDatagramChannel(ProtocolFamily family) throws IOException {
         return new DatagramChannelImpl(this, family);
+    }
+
+    public DatagramChannel openUninterruptibleDatagramChannel() throws IOException {
+        return new DatagramChannelImpl(this, /*interruptible*/ false);
     }
 
     public Pipe openPipe() throws IOException {

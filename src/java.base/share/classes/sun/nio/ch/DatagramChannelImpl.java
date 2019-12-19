@@ -155,8 +155,10 @@ class DatagramChannelImpl
     // set true/false when socket is already bound and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
-    // -- End of fields protected by stateLock
+    // If set to false, blocking operations will not be interruptible
+    private final boolean interruptible;
 
+    // -- End of fields protected by stateLock
 
     public DatagramChannelImpl(SelectorProvider sp) throws IOException {
         this(sp, (Net.isIPv6Available()
@@ -164,7 +166,20 @@ class DatagramChannelImpl
                 : StandardProtocolFamily.INET));
     }
 
+    public DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
+        this(sp, (Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET),
+		        interruptible);
+    }
+
     public DatagramChannelImpl(SelectorProvider sp, ProtocolFamily family)
+        throws IOException
+    { 
+        this(sp, family, true);
+    }
+
+    private DatagramChannelImpl(SelectorProvider sp, ProtocolFamily family, boolean interruptible)
         throws IOException
     {
         super(sp);
@@ -187,6 +202,7 @@ class DatagramChannelImpl
             this.family = family;
             this.fd = fd = Net.socket(family, false);
             this.fdVal = IOUtil.fdVal(fd);
+            this.interruptible = interruptible;
 
             sockAddrs = NativeSocketAddress.allocate(3);
             readLock.lock();
@@ -249,6 +265,7 @@ class DatagramChannelImpl
         Runnable releaser = releaserFor(fd, sockAddrs);
         this.cleaner = CleanerFactory.cleaner().register(this, releaser);
 
+        this.interruptible = true;
         synchronized (stateLock) {
             this.localAddress = Net.localAddress(fd);
         }
@@ -477,8 +494,8 @@ class DatagramChannelImpl
         throws IOException
     {
         if (blocking) {
-            // set hook for Thread.interrupt
-            begin();
+            // set hook for Thread.interrupt if interruptible
+            checkBegin();
         }
         SocketAddress remote;
         synchronized (stateLock) {
@@ -494,14 +511,18 @@ class DatagramChannelImpl
         return remote;
     }
 
+    private void checkBegin() {
+        if(interruptible)
+            begin();
+    }
+
     /**
      * Marks the end of a read operation that may have blocked.
      *
      * @throws AsynchronousCloseException if the channel was closed asynchronously
      */
     private void endRead(boolean blocking, boolean completed)
-        throws AsynchronousCloseException
-    {
+            throws AsynchronousCloseException {
         if (blocking) {
             synchronized (stateLock) {
                 readerThread = 0;
@@ -509,8 +530,16 @@ class DatagramChannelImpl
                     tryFinishClose();
                 }
             }
-            // remove hook for Thread.interrupt
+            // remove hook for Thread.interrupt if interruptible
+            checkEnd(completed);
+        }
+    }
+
+    private void checkEnd(boolean completed) throws AsynchronousCloseException {
+        if (interruptible) {
             end(completed);
+        } else if (!completed && !isOpen()) {
+            throw new AsynchronousCloseException();
         }
     }
 
@@ -929,7 +958,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endRead(blocking, n > 0);
-                assert IOStatus.check(n);
+                assert IOStatus.check(n) : "Unexpected IO status: " + n;
             }
             return IOStatus.normalize(n);
         } finally {
@@ -958,7 +987,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endRead(blocking, n > 0);
-                assert IOStatus.check(n);
+                assert IOStatus.check(n) : "Unexpected IO status: " + n;
             }
             return IOStatus.normalize(n);
         } finally {
@@ -979,8 +1008,8 @@ class DatagramChannelImpl
         throws IOException
     {
         if (blocking) {
-            // set hook for Thread.interrupt
-            begin();
+            // set hook for Thread.interrupt if interruptible
+            checkBegin();
         }
         SocketAddress remote;
         synchronized (stateLock) {
@@ -1011,8 +1040,8 @@ class DatagramChannelImpl
                     tryFinishClose();
                 }
             }
-            // remove hook for Thread.interrupt
-            end(completed);
+            // remove hook for Thread.interrupt if interruptible
+            checkEnd(completed);
         }
     }
 
@@ -1035,7 +1064,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endWrite(blocking, n > 0);
-                assert IOStatus.check(n);
+                assert IOStatus.check(n) : "Unexpected IO status: " + n;
             }
             return IOStatus.normalize(n);
         } finally {
@@ -1064,7 +1093,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endWrite(blocking, n > 0);
-                assert IOStatus.check(n);
+                assert IOStatus.check(n) : "Unexpected IO status: " + n;
             }
             return IOStatus.normalize(n);
         } finally {
