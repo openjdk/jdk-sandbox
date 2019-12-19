@@ -62,6 +62,7 @@ public class Basic {
             System.out.println("Unix domain channels not supported");
             return;
         }
+	System.out.println("MAXNAMELENGTH = " + UnixDomainSocketAddress.MAXNAMELENGTH);
         sockRxBufsize = getInt(args[0]);
         sockTxBufsize = getInt(args[1]);
         if (args[2].equals("nagle-on"))
@@ -178,7 +179,7 @@ public class Basic {
         Path sockfile;
 
         Server(ProtocolFamily family, int bufsize) throws IOException {
-            //setDaemon(true);
+            setDaemon(true);
             SocketAddress addr;
             this.bufsize = bufsize;
             if (family == StandardProtocolFamily.UNIX) {

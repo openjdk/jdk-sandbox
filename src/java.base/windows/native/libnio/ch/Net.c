@@ -143,6 +143,12 @@ Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
 }
 
 JNIEXPORT jint JNICALL
+Java_sun_nio_ch_Net_unixDomainMaxNameLen0(JNIEnv *env, jclass cl)
+{
+    return MAX_UNIX_DOMAIN_PATH_LEN;
+}
+
+JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
 {
     SOCKET fd = socket(PF_UNIX, SOCK_STREAM, 0);

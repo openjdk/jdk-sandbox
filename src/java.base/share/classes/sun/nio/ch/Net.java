@@ -726,6 +726,10 @@ public class Net {
         return unixDomainSupported;
     }
 
+    public static int unixDomainMaxNameLen() {
+        return unixDomainSupported ? unixDomainMaxNameLen0() : -1;
+    }
+
     static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
         SecurityManager sm = System.getSecurityManager();
         if (addr == null || sm == null)
@@ -767,6 +771,8 @@ public class Net {
                                      FileDescriptor newfd,
                                      SocketAddress[] isaa)
         throws IOException;
+
+    static native int unixDomainMaxNameLen0();
 
     public static native UnixDomainSocketAddress localUnixAddress(FileDescriptor fd)
         throws IOException;
