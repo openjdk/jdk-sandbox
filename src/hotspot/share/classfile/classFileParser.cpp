@@ -128,6 +128,8 @@
 
 #define JAVA_14_VERSION                   58
 
+#define JAVA_15_VERSION                   59
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
           bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
@@ -3477,7 +3479,7 @@ void ClassFileParser::parse_classfile_bootstrap_methods_attribute(const ClassFil
 }
 
 bool ClassFileParser::supports_records() {
-  return _major_version == JAVA_14_VERSION &&
+  return _major_version == JVM_CLASSFILE_MAJOR_VERSION &&
     _minor_version == JAVA_PREVIEW_MINOR_VERSION &&
     Arguments::enable_preview();
 }
@@ -3722,14 +3724,19 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
               record_attribute_length = attribute_length;
             } else if (log_is_enabled(Info, class, record)) {
               // Log why the Record attribute was ignored.  Note that if the
-              // class file version is 58.65535 and --enable-preview wasn't
-              // specified then a java.lang.UnsupportedClassVersionError
+              // class file version is JVM_CLASSFILE_MAJOR_VERSION.65535 and
+              // --enable-preview wasn't specified then a java.lang.UnsupportedClassVersionError
               // exception would have been thrown.
               ResourceMark rm(THREAD);
-              log_info(class, record)("Ignoring Record attribute in class %s because %s",
-                _class_name->as_C_string(),
-                supports_records() ? "super type is not java.lang.Record" :
-                                     "class file version is not 58.65535");
+              if (supports_records()) {
+                log_info(class, record)(
+                  "Ignoring Record attribute in class %s because super type is not java.lang.Record",
+                  _class_name->as_C_string());
+              } else {
+                log_info(class, record)(
+                  "Ignoring Record attribute in class %s because class file version is not %d.65535",
+                   _class_name->as_C_string(), JVM_CLASSFILE_MAJOR_VERSION);
+              }
             }
             cfs->skip_u1(attribute_length, CHECK);
           } else {
