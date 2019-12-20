@@ -205,13 +205,17 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
-        UnixDomainSocketAddress isa = (UnixDomainSocketAddress)sa;
-        return Net.unixDomainConnect(fd, isa);
+        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
+        return Net.unixDomainConnect(fd, usa);
     }
 
     @Override
     SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
-        return Net.localUnixAddress(fd);
+        // if not bound already then set it to UNNAMED
+        if (localAddress == null)
+            return UnixDomainSocketAddress.UNNAMED;
+        else
+            return localAddress;
     }
 
     String getRevealedLocalAddressAsString(SocketAddress sa) {

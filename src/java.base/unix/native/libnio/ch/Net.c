@@ -108,7 +108,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_unixDomainMaxNameLen0(JNIEnv *env, jclass cl)
 {
-    return MAX_UNIX_DOMAIN_PATH_LEN;
+    return MAX_UNIX_DOMAIN_PATH_LEN - 1;
 }
 
 JNIEXPORT jboolean JNICALL

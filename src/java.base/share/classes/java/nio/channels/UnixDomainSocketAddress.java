@@ -71,14 +71,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
     static final long serialVersionUID = 9829020419651288L;
 
     static {
-        if (System.getSecurityManager() == null) {
-            System.loadLibrary("nio");
-        } else {
-            AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-                System.loadLibrary("nio");
-                return null;
-            });
-        }
+        Net.init();
         init();
     }
 

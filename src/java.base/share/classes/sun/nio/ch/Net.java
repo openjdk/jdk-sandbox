@@ -60,7 +60,12 @@ public class Net {
     private Net() { }
 
     static {
+        // Load all required native libs
         IOUtil.load();
+    }
+
+    public static void init () {
+        // trigger initialization
     }
 
     private static final boolean unixDomainSupported =

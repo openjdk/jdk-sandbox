@@ -28,14 +28,14 @@
  * @summary Bind test
  */
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.*;
-import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
+import java.util.Arrays;
+
+import static java.nio.channels.UnixDomainSocketAddress.UNNAMED;
 
 /**
  * Check that all bind variations work
@@ -131,12 +131,16 @@ public class Bind {
 
     static void assertAddress(SocketAddress a, UnixDomainSocketAddress a1, String s) {
         if (!(a instanceof UnixDomainSocketAddress)) {
-            System.err.println("adddr = " + a);
             throw new RuntimeException("wrong address type");
         }
         UnixDomainSocketAddress ua = (UnixDomainSocketAddress)a;
         if (!a.equals(a1))
             throw new RuntimeException("this is not the " + s + " address");
+    }
+
+    static void assertIdentity(Object a, Object b) {
+        if (a != b)
+            throw new RuntimeException("identity check failed");
     }
 
     public static void runTests() throws IOException {
@@ -162,7 +166,8 @@ public class Bind {
             client = SocketChannel.open(StandardProtocolFamily.UNIX);
             client.bind(null);
             SocketAddress a = client.getLocalAddress();
-            assertAddress(client.getLocalAddress(), nullAddr, "null address");
+            assertAddress(a, nullAddr, "null address");
+            assertIdentity(a, UNNAMED);
         });
         // server bind to null: should bind to a local address
         checkNormal(() -> {
@@ -179,13 +184,16 @@ public class Bind {
                 server.accept();
             }
         );
+
         // client implicit bind and connect
         checkNormal(() -> {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             client = SocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(sAddr);
             client.connect(sAddr);
-            assertAddress(client.getLocalAddress(), nullAddr, "null address");
+            SocketAddress cAddr = client.getLocalAddress();
+            assertAddress(cAddr, nullAddr, "null address");
+            assertIdentity(cAddr, UNNAMED);
             assertServerAddress(server.getLocalAddress());
         });
         // client null bind and connect (check all addresses)
@@ -228,5 +236,31 @@ public class Bind {
                 client.bind(cAddr);
             }
         );
+
+        // bind and connect to name of max size
+        checkNormal(() -> {
+            int len = UnixDomainSocketAddress.MAXNAMELENGTH;
+            char[] chars = new char[len];
+            Arrays.fill(chars, 'x');
+            String name = new String(chars);
+            UnixDomainSocketAddress address = new UnixDomainSocketAddress(name);
+            ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+            server.bind(address);
+            SocketChannel client = SocketChannel.open(address);
+            assertAddress(server.getLocalAddress(), address, "server");
+            assertAddress(client.getRemoteAddress(), address, "client");
+            Files.delete(address.getPath());
+        });
+
+        // implicit server bind
+        checkNormal(() -> {
+            server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+            server.bind(null);
+            UnixDomainSocketAddress usa = (UnixDomainSocketAddress)server.getLocalAddress();
+            client = SocketChannel.open(usa);
+            accept1 = server.accept();
+            assertAddress(client.getRemoteAddress(), usa, "server");
+            Files.delete(usa.getPath());
+        });
     }
 }
