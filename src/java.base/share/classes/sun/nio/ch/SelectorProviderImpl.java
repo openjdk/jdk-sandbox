@@ -55,10 +55,6 @@ public abstract class SelectorProviderImpl
         return new DatagramChannelImpl(this, family, /*interruptible*/true);
     }
 
-    public DatagramChannel openUninterruptibleDatagramChannel() throws IOException {
-        return new DatagramChannelImpl(this, /*interruptible*/ false);
-    }
-
     @Override
     public Pipe openPipe() throws IOException {
         return new PipeImpl(this);

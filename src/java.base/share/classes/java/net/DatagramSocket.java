@@ -25,15 +25,13 @@
 
 package java.net;
 
-import sun.net.NetProperties;
-import sun.nio.ch.SelectorProviderImpl;
-
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
-import java.nio.channels.spi.SelectorProvider;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Set;
+import sun.net.NetProperties;
+import sun.nio.ch.DefaultSelectorProvider;
 
 /**
  * This class represents a socket for sending and receiving datagram packets.
@@ -127,12 +125,7 @@ public class DatagramSocket implements java.io.Closeable {
         DatagramChannel channel = null;
         DatagramSocket socket;
         try {
-            SelectorProvider provider = SelectorProvider.provider();
-            if (provider instanceof SelectorProviderImpl) {
-                channel = ((SelectorProviderImpl) provider).openUninterruptibleDatagramChannel();
-            } else {
-                channel = provider.openDatagramChannel();
-            }
+            channel = DefaultSelectorProvider.get().openUninterruptibleDatagramChannel();
             socket = channel.socket();
             // Enable SO_REUSEADDR before binding
             if (reuseAddress) {
