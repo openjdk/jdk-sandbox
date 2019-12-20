@@ -84,6 +84,9 @@ class DatagramChannelImpl
     // Used to make native read and write calls
     private static final NativeDispatcher nd = new DatagramDispatcher();
 
+    // true if interruptible (can be false to emulate legacy DatagramSocket)
+    private final boolean interruptible;
+
     // The protocol family of the socket
     private final ProtocolFamily family;
 
@@ -155,31 +158,17 @@ class DatagramChannelImpl
     // set true/false when socket is already bound and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
-    // If set to false, blocking operations will not be interruptible
-    private final boolean interruptible;
-
     // -- End of fields protected by stateLock
 
-    public DatagramChannelImpl(SelectorProvider sp) throws IOException {
-        this(sp, (Net.isIPv6Available()
-                ? StandardProtocolFamily.INET6
-                : StandardProtocolFamily.INET));
-    }
 
-    public DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
+    DatagramChannelImpl(SelectorProvider sp, boolean interruptible) throws IOException {
         this(sp, (Net.isIPv6Available()
                 ? StandardProtocolFamily.INET6
                 : StandardProtocolFamily.INET),
-		        interruptible);
+                interruptible);
     }
 
-    public DatagramChannelImpl(SelectorProvider sp, ProtocolFamily family)
-        throws IOException
-    { 
-        this(sp, family, true);
-    }
-
-    private DatagramChannelImpl(SelectorProvider sp, ProtocolFamily family, boolean interruptible)
+    DatagramChannelImpl(SelectorProvider sp, ProtocolFamily family, boolean interruptible)
         throws IOException
     {
         super(sp);
@@ -199,10 +188,10 @@ class DatagramChannelImpl
         ResourceManager.beforeUdpCreate();
         boolean initialized = false;
         try {
+            this.interruptible = interruptible;
             this.family = family;
             this.fd = fd = Net.socket(family, false);
             this.fdVal = IOUtil.fdVal(fd);
-            this.interruptible = interruptible;
 
             sockAddrs = NativeSocketAddress.allocate(3);
             readLock.lock();
@@ -227,7 +216,7 @@ class DatagramChannelImpl
         this.cleaner = CleanerFactory.cleaner().register(this, releaser);
     }
 
-    public DatagramChannelImpl(SelectorProvider sp, FileDescriptor fd)
+    DatagramChannelImpl(SelectorProvider sp, FileDescriptor fd)
         throws IOException
     {
         super(sp);
@@ -237,6 +226,7 @@ class DatagramChannelImpl
         ResourceManager.beforeUdpCreate();
         boolean initialized = false;
         try {
+            this.interruptible = true;
             this.family = Net.isIPv6Available()
                     ? StandardProtocolFamily.INET6
                     : StandardProtocolFamily.INET;
@@ -265,7 +255,6 @@ class DatagramChannelImpl
         Runnable releaser = releaserFor(fd, sockAddrs);
         this.cleaner = CleanerFactory.cleaner().register(this, releaser);
 
-        this.interruptible = true;
         synchronized (stateLock) {
             this.localAddress = Net.localAddress(fd);
         }
@@ -493,9 +482,9 @@ class DatagramChannelImpl
     private SocketAddress beginRead(boolean blocking, boolean mustBeConnected)
         throws IOException
     {
-        if (blocking) {
-            // set hook for Thread.interrupt if interruptible
-            checkBegin();
+        if (blocking && interruptible) {
+            // set hook for Thread.interrupt
+            begin();
         }
         SocketAddress remote;
         synchronized (stateLock) {
@@ -511,18 +500,14 @@ class DatagramChannelImpl
         return remote;
     }
 
-    private void checkBegin() {
-        if(interruptible)
-            begin();
-    }
-
     /**
      * Marks the end of a read operation that may have blocked.
      *
      * @throws AsynchronousCloseException if the channel was closed asynchronously
      */
     private void endRead(boolean blocking, boolean completed)
-            throws AsynchronousCloseException {
+        throws AsynchronousCloseException
+    {
         if (blocking) {
             synchronized (stateLock) {
                 readerThread = 0;
@@ -530,16 +515,12 @@ class DatagramChannelImpl
                     tryFinishClose();
                 }
             }
-            // remove hook for Thread.interrupt if interruptible
-            checkEnd(completed);
-        }
-    }
-
-    private void checkEnd(boolean completed) throws AsynchronousCloseException {
-        if (interruptible) {
-            end(completed);
-        } else if (!completed && !isOpen()) {
-            throw new AsynchronousCloseException();
+            if (interruptible) {
+                // remove hook for Thread.interrupt (may throw AsynchronousCloseException)
+                end(completed);
+            } else if (!completed && !isOpen()) {
+                throw new AsynchronousCloseException();
+            }
         }
     }
 
@@ -958,7 +939,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endRead(blocking, n > 0);
-                assert IOStatus.check(n) : "Unexpected IO status: " + n;
+                assert IOStatus.check(n);
             }
             return IOStatus.normalize(n);
         } finally {
@@ -980,14 +961,14 @@ class DatagramChannelImpl
                 beginRead(blocking, true);
                 n = IOUtil.read(fd, dsts, offset, length, nd);
                 if (blocking) {
-                    while (IOStatus.okayToRetry(n) && isOpen()) {
+                    while (IOStatus.okayToRetry(n)  && isOpen()) {
                         park(Net.POLLIN);
                         n = IOUtil.read(fd, dsts, offset, length, nd);
                     }
                 }
             } finally {
                 endRead(blocking, n > 0);
-                assert IOStatus.check(n) : "Unexpected IO status: " + n;
+                assert IOStatus.check(n);
             }
             return IOStatus.normalize(n);
         } finally {
@@ -1007,9 +988,9 @@ class DatagramChannelImpl
     private SocketAddress beginWrite(boolean blocking, boolean mustBeConnected)
         throws IOException
     {
-        if (blocking) {
-            // set hook for Thread.interrupt if interruptible
-            checkBegin();
+        if (blocking && interruptible) {
+            // set hook for Thread.interrupt
+            begin();
         }
         SocketAddress remote;
         synchronized (stateLock) {
@@ -1040,8 +1021,13 @@ class DatagramChannelImpl
                     tryFinishClose();
                 }
             }
-            // remove hook for Thread.interrupt if interruptible
-            checkEnd(completed);
+
+            if (interruptible) {
+                // remove hook for Thread.interrupt (may throw AsynchronousCloseException)
+                end(completed);
+            } else if (!completed && !isOpen()) {
+                throw new AsynchronousCloseException();
+            }
         }
     }
 
@@ -1064,7 +1050,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endWrite(blocking, n > 0);
-                assert IOStatus.check(n) : "Unexpected IO status: " + n;
+                assert IOStatus.check(n);
             }
             return IOStatus.normalize(n);
         } finally {
@@ -1093,7 +1079,7 @@ class DatagramChannelImpl
                 }
             } finally {
                 endWrite(blocking, n > 0);
-                assert IOStatus.check(n) : "Unexpected IO status: " + n;
+                assert IOStatus.check(n);
             }
             return IOStatus.normalize(n);
         } finally {
