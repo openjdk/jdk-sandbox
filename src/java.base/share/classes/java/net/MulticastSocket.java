@@ -127,7 +127,7 @@ public class MulticastSocket extends DatagramSocket {
     private static DatagramSocket createMulticastSocket(SocketAddress bindaddr) throws SocketException {
         try {
             if (USE_PLAIN_DATAGRAM_SOCKET || DatagramSocket.factory != null) {
-                return NetMulticastSocket.create(bindaddr);
+                return NetDatagramSocket.create(bindaddr, true);
             } else {
                 return NioMulticastSocket.create(bindaddr);
             }
@@ -216,7 +216,7 @@ public class MulticastSocket extends DatagramSocket {
         assert multicastDelegate != null;
     }
 
-    // This constructor is used by NetMulticastSocket and NioMulticastSocket.
+    // This constructor is used by NioMulticastSocket.
     // In this case the delegate is a plain DatagramSocket, and the
     // multicastDelegate is null, since the subclass doesn't delegate any
     // MulticastSocket calls.
@@ -226,7 +226,7 @@ public class MulticastSocket extends DatagramSocket {
     }
 
     static DatagramSocket checkDatagramSocket(DatagramSocket socket) {
-        assert socket != null
+        assert socket == null || socket != null
                 && socket.getClass() != DatagramSocket.class
                 && socket.getClass() != MulticastSocket.class;
         if (socket != null && socket.getClass().getModule() != Object.class.getModule()) {
