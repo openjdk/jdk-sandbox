@@ -41,12 +41,12 @@ import sun.nio.ch.Net;
  * can be either absolute, or relative with respect to the current working directory.
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
- * without calling {@link SocketChannel#bind(SocketAddress)} first, then its address
+ * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its address
  * is unnamed; it has an empty path field, and therefore has no associated file
  * in the file-system. If a {@link ServerSocketChannel} is automatically bound by
  * passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
- * bind} methods, the channel is bound to a name in some temporary directory. The name can be
- * obtained by calling {@link ServerSocketChannel#getLocalAddress()} after bind returns.
+ * bind} methods, the channel is bound to a unique name in some temporary directory. The name can be
+ * obtained by calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * <p>
  * @apiNote A channel can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
@@ -60,10 +60,10 @@ import sun.nio.ch.Net;
  * to create and delete these socket files.
  * <p>
  * @implNote
- * The constant value {@link #MAXNAMELENGTH} specifies the maximum length of a 
+ * The constant value {@link #MAXNAMELENGTH} specifies the maximum length of a
  * UnixDomainSocketAddress's path. For most platforms, this is typically close to but
  * not less than {@code 100}.
- * 
+ *
  * @since 15
  */
 public class UnixDomainSocketAddress extends SocketAddress {
@@ -83,8 +83,8 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * An unnamed UnixDomainSocketAddress. If a {@link SocketChannel} is automatically
      * bound then its local address will be this instance.
      */
-    public static final UnixDomainSocketAddress UNNAMED = 
-	new UnixDomainSocketAddress("");
+    public static final UnixDomainSocketAddress UNNAMED =
+        new UnixDomainSocketAddress("");
 
     /**
      * The maximum number of characters allowed in a UnixDomainSocketAddress name
@@ -104,8 +104,8 @@ public class UnixDomainSocketAddress extends SocketAddress {
      */
     public UnixDomainSocketAddress(String pathname) {
         Objects.requireNonNull(pathname);
-	if (pathname.length() > MAXNAMELENGTH)
-	    throw new IllegalArgumentException("pathname too long");
+        if (pathname.length() > MAXNAMELENGTH)
+            throw new IllegalArgumentException("pathname too long");
         this.pathname = pathname;
         this.path = Paths.get(pathname);
     }
@@ -122,8 +122,8 @@ public class UnixDomainSocketAddress extends SocketAddress {
         Objects.requireNonNull(path);
         this.path = path;
         this.pathname = path.toString();
-	if (pathname.length() > MAXNAMELENGTH)
-	    throw new IllegalArgumentException("pathname too long");
+        if (pathname.length() > MAXNAMELENGTH)
+            throw new IllegalArgumentException("pathname too long");
     }
 
     /**

@@ -45,10 +45,13 @@ import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
 import java.security.AccessController;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -65,11 +68,6 @@ import sun.net.ext.ExtendedSocketOptions;
 public class UnixDomainServerSocketChannelImpl
     extends ServerSocketChannelImpl
 {
-    static {
-        // register with InheritedChannel mechanism so it can create instances
-        // not yet sun.nio.ch.InheritedChannel.register(UnixDomainServerSocketChannelImpl::create);
-    }
-
     public UnixDomainServerSocketChannelImpl(SelectorProvider sp) throws IOException {
         super(sp, Net.unixDomainSocket());
     }
@@ -143,9 +141,13 @@ public class UnixDomainServerSocketChannelImpl
     public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
 
         synchronized (stateLock) {
-            for (int i=0; i<100; i++) { // bail out after 100
-                if (localAddress != null)
-                    throw new AlreadyBoundException();
+            if (localAddress != null)
+                throw new AlreadyBoundException();
+
+            boolean found = false;
+            // Attempt up to 10 times to find an unused name in temp directory
+            // Unlikely to fail
+            for (int i=0; i<10; i++) {
                 UnixDomainSocketAddress usa = null;
                 if (local == null) {
                     usa = getTempName();
@@ -154,45 +156,58 @@ public class UnixDomainServerSocketChannelImpl
                 }
                 try {
                     Net.unixDomainBind(fd, usa);
+                    found = true;
                     break;
                 } catch (BindException e) {
                     if (local != null) {
                         throw e;
                     }
-                    if (i == 99)
-                        throw new IOException("could not bind to temporary name", e);
                 }
             }
+            if (!found)
+                throw new IOException("could not bind to temporary name");
             Net.listen(fd, backlog < 1 ? 50 : backlog);
             localAddress = Net.localUnixAddress(fd);
         }
         return this;
     }
 
-    private static final AtomicInteger nameCounter = new AtomicInteger(1);
-
     private static String getTempDir() {
         return AccessController.doPrivileged(
             (PrivilegedAction<String>) () -> {
-		String s = System.getProperty("java.io.tmpdir");
-		String sep = System.getProperty("file.separator");
-		if (!s.endsWith(sep))
-		    s = s + sep;
-		return s;
-	    }
+                String s = System.getProperty("java.io.tmpdir");
+                String sep = System.getProperty("file.separator");
+                if (!s.endsWith(sep))
+                    s = s + sep;
+                return s;
+            }
+        );
+    }
+
+    private static Random getRandom() {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<Random>) () -> {
+                try {
+                    return SecureRandom.getInstance("NativePRNGNonBlocking");
+                } catch (NoSuchAlgorithmException e) {
+                    throw new InternalError(e);
+                }
+            }
         );
     }
 
     private static final String tempDir = getTempDir();
+    private static final Random random = getRandom();;
+    private static final long pid = ProcessHandle.current().pid();
 
     /**
      * Return a possible temporary name to bind to, which is different for each call
+     * Name is of the form <temp dir>/niosocket_<pid>_<random>
      */
     private static UnixDomainSocketAddress getTempName() throws IOException {
-        long pid = ProcessHandle.current().pid();
-        int counter = nameCounter.getAndIncrement();
+        int rnd = random.nextInt();
         StringBuilder sb = new StringBuilder();
-        sb.append(tempDir).append("socket_").append(pid).append('_').append(counter);
+        sb.append(tempDir).append("niosocket_").append(pid).append('_').append(rnd);
         return new UnixDomainSocketAddress(sb.toString());
     }
 

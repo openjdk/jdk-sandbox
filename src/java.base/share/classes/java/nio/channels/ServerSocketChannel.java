@@ -26,6 +26,7 @@
 package java.nio.channels;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.StandardProtocolFamily;
 import java.net.ServerSocket;
@@ -45,17 +46,19 @@ import java.nio.channels.spi.SelectorProvider;
  * to be thrown. A server-socket channel can be bound by invoking one of the
  * {@link #bind(java.net.SocketAddress,int) bind} methods defined by this class.
  *
- * <p>Two kinds of server-socket channel are supported: <i>IP</i> (Internet Protocol)
+ * <p>Two types of server-socket channel are supported: <i>IP</i> (Internet Protocol)
  * and <i>Unix Domain</i> depending on which open method is used to create them and which subtype of
  * {@link SocketAddress} that they support for local and remote addresses.
- * <i>IP</i> channels are created using {@link #open()}. They use {@link
+ * <i>IP</i> channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
+ * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
+ * {@link StandardProtocolFamily#INET6 INET6}. <i>IP</i> channels use {@link
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
  * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#UNIX}.
- * They use {@link UnixDomainSocketAddress}es and also
- * do not support the {@link #socket()} method. Note, it is also possible to
- * create channels that support either IPv4 or IPv6 only through the
- * {@link #open(ProtocolFamily)} method.
+ * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
+ * They use {@link UnixDomainSocketAddress} for local and remote addresses.
+ * The behavior of both channel types is the same except for the following.
+ * <i>Unix domain</i> channels do not support the {@link #socket()} method. They also
+ * only support a subset of the socket options supported by <i>IP</i> channels.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
  * setOption} method. <i>IP</i> server-socket channels support the following options:
@@ -85,8 +88,6 @@ import java.nio.channels.spi.SelectorProvider;
  *
  * <p> Server-socket channels are safe for use by multiple concurrent threads.
  * </p>
- *
- * <p><i>Unix Domain</i> server-socket channels support a subset of the options listed above.
  *
  * @author Mark Reinhold
  * @author JSR-51 Expert Group
@@ -132,9 +133,9 @@ public abstract class ServerSocketChannel
 
     /**
      * Returns a {@link ServerSocketChannel} of the given protocol family.
-     * Where family is equal to {@link StandardProtocolFamily#INET} or {@link
-     * StandardProtocolFamily#INET6} the returned channel must be bound to an
-     * {@link InetSocketAddress}. If family is {@link StandardProtocolFamily#UNIX}
+     * Where family is equal to {@link StandardProtocolFamily#INET INET} or {@link
+     * StandardProtocolFamily#INET6 INET6} the returned channel must be bound to an
+     * {@link InetSocketAddress}. If family is {@link StandardProtocolFamily#UNIX UNIX}
      * the returned channel must be bound to a {@link UnixDomainSocketAddress}.
      *
      * @param family the protocol family
@@ -143,7 +144,7 @@ public abstract class ServerSocketChannel
      *
      * @throws IOException if an I/O error occurs
      * @throws UnsupportedAddressTypeException if the protocol family is not supported
-     * @since 14
+     * @since 15
      */
     public static ServerSocketChannel open(ProtocolFamily family) throws IOException {
         return SelectorProvider.provider().openServerSocketChannel(family);
@@ -188,7 +189,7 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels. Or with <i>Unix Domain</i>
+     *          the operation for <i>IP</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
      *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
@@ -220,7 +221,7 @@ public abstract class ServerSocketChannel
      * This file persists after the channel is closed, and must be removed before
      * another channel can bind to the same name. <i>Unix Domain</i>
      * {@code ServerSocketChannels} bound to automatically assigned addresses will be
-     * assigned a pathname in some system temporary directory. The associated socket
+     * assigned a unique pathname in some system temporary directory. The associated socket
      * file also persists after the channel is closed. Its name can be obtained by
      * calling {@link #getLocalAddress()}.
      *

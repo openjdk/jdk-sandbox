@@ -66,17 +66,19 @@ import java.nio.channels.spi.SelectorProvider;
  * channel, then the blocked thread will receive an {@link
  * AsynchronousCloseException}.
  *
- * <p>Two kinds of socket channel are supported: <i>IP</i> (Internet Protocol) and
- * <i>Unix Domain</i> depending on which open method is used to create them and which
- * subtype of {@link SocketAddress} that they support for local and remote addresses.
- * <i>IP</i> channels are created using {@link #open()}. They use {@link
+ * <p>Two types of socket channel are supported: <i>IP</i> (Internet Protocol)
+ * and <i>Unix Domain</i> depending on which open method is used to create them and which subtype of
+ * {@link SocketAddress} that they support for local and remote addresses.
+ * <i>IP</i> channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
+ * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
+ * {@link StandardProtocolFamily#INET6 INET6}. <i>IP</i> channels use {@link
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
  * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
- * with the family parameter set to {@link StandardProtocolFamily#UNIX}.
- * They use {@link UnixDomainSocketAddress}es and also
- * do not support the {@link #socket()} method. Note, it is also possible to
- * create channels that support either IPv4 or IPv6 only through the
- * {@link #open(ProtocolFamily)} method.
+ * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
+ * They use {@link UnixDomainSocketAddress} for local and remote addresses.
+ * The behavior of both channel types is the same except for the following.
+ * <i>Unix domain</i> channels do not support the {@link #socket()} method. They also
+ * only support a subset of the socket options supported by <i>IP</i> channels.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
  * setOption} method. <i>IP</i> socket channels support the following options:
