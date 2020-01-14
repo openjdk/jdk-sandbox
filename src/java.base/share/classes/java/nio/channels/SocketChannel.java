@@ -75,10 +75,12 @@ import java.nio.channels.spi.SelectorProvider;
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
  * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
- * They use {@link UnixDomainSocketAddress} for local and remote addresses.
- * The behavior of both channel types is the same except for the following.
- * <i>Unix domain</i> channels do not support the {@link #socket()} method. They also
- * only support a subset of the socket options supported by <i>IP</i> channels.
+ * They use {@link UnixDomainSocketAddress} for local and remote addresses
+ * and are used for inter-process communication within the same system.
+ * The behavior of both channel types is the same except where specified differently
+ * below. The two biggest differences are: <i>Unix domain</i> channels do not support the 
+ * {@link #socket()} method and they also only support a subset of the socket options
+ * supported by <i>IP</i> channels.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
  * setOption} method. <i>IP</i> socket channels support the following options:
