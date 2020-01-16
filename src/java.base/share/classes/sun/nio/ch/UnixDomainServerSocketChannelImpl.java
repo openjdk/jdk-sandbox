@@ -69,57 +69,22 @@ public class UnixDomainServerSocketChannelImpl
     extends ServerSocketChannelImpl
 {
     public UnixDomainServerSocketChannelImpl(SelectorProvider sp) throws IOException {
-        super(sp, Net.unixDomainSocket());
+        super(sp, Net.unixDomainSocket(), false);
     }
 
     public UnixDomainServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
-        super(sp, fd);
-        if (bound) {
-            synchronized (stateLock) {
-                localAddress = Net.localUnixAddress(fd);
-            }
-        }
+        super(sp, fd, bound);
+    }
+
+    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+        return Net.localUnixAddress(fd);
     }
 
     @Override
     public ServerSocket socket() {
         throw new UnsupportedOperationException("socket not supported");
-    }
-
-    @Override
-    public <T> ServerSocketChannel setOption(SocketOption<T> name, T value)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-        if (!name.type().isInstance(value))
-            throw new IllegalArgumentException("Invalid value '" + value + "'");
-
-        synchronized (stateLock) {
-            ensureOpen();
-            // no options that require special handling
-            Net.setSocketOption(fd, Net.UNSPEC, name, value);
-            return this;
-        }
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> T getOption(SocketOption<T> name)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-
-        synchronized (stateLock) {
-            ensureOpen();
-            // no options that require special handling
-            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
-        }
     }
 
     private static class DefaultOptionsHolder {
@@ -138,38 +103,31 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     @Override
-    public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
-
-        synchronized (stateLock) {
-            if (localAddress != null)
-                throw new AlreadyBoundException();
-
-            boolean found = false;
-            // Attempt up to 10 times to find an unused name in temp directory
-            // Unlikely to fail
-            for (int i=0; i<10; i++) {
-                UnixDomainSocketAddress usa = null;
-                if (local == null) {
-                    usa = getTempName();
-                } else {
-                    usa = Net.checkUnixAddress(local);
-                }
-                try {
-                    Net.unixDomainBind(fd, usa);
-                    found = true;
-                    break;
-                } catch (BindException e) {
-                    if (local != null) {
-                        throw e;
-                    }
+    public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
+        boolean found = false;
+        // Attempt up to 10 times to find an unused name in temp directory
+        // Unlikely to fail
+        for (int i = 0; i < 10; i++) {
+            UnixDomainSocketAddress usa = null;
+            if (local == null) {
+                usa = getTempName();
+            } else {
+                usa = Net.checkUnixAddress(local);
+            }
+            try {
+                Net.unixDomainBind(getFD(), usa);
+                found = true;
+                break;
+            } catch (BindException e) {
+                if (local != null) {
+                    throw e;
                 }
             }
-            if (!found)
-                throw new IOException("could not bind to temporary name");
-            Net.listen(fd, backlog < 1 ? 50 : backlog);
-            localAddress = Net.localUnixAddress(fd);
         }
-        return this;
+        if (!found)
+            throw new IOException("could not bind to temporary name");
+        Net.listen(getFD(), backlog < 1 ? 50 : backlog);
+        return Net.localUnixAddress(getFD());
     }
 
     private static String getTempDir() {
@@ -215,8 +173,7 @@ public class UnixDomainServerSocketChannelImpl
     int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
-
-        return Net.unixDomainAccept(this.fd, newfd, addrs);
+        return Net.unixDomainAccept(fd, newfd, addrs);
     }
 
     @Override
@@ -243,15 +200,6 @@ public class UnixDomainServerSocketChannelImpl
         }
     }
 
-    /**
-     * Returns the local address, or null if not bound
-     */
-    SocketAddress localAddress() {
-        synchronized (stateLock) {
-            return localAddress;
-        }
-    }
-
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClass().getName());
@@ -259,13 +207,11 @@ public class UnixDomainServerSocketChannelImpl
         if (!isOpen()) {
             sb.append("closed");
         } else {
-            synchronized (stateLock) {
-                UnixDomainSocketAddress addr = (UnixDomainSocketAddress)localAddress;
-                if (addr == null) {
-                    sb.append("unbound");
-                } else {
-                    sb.append(getRevealedLocalAddressAsString(addr));
-                }
+            UnixDomainSocketAddress addr = (UnixDomainSocketAddress) localAddress();
+            if (addr == null) { // TODO: ???
+                sb.append("unbound");
+            } else {
+                sb.append(getRevealedLocalAddressAsString(addr));
             }
         }
         sb.append(']');

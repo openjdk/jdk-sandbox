@@ -63,40 +63,71 @@ abstract class ServerSocketChannelImpl
     static final NativeDispatcher nd = new SocketDispatcher();
 
     // Our file descriptor
-    final FileDescriptor fd;
-    final int fdVal;
+    private final FileDescriptor fd;
+    private final int fdVal;
 
     // Lock held by thread currently blocked on this channel
-    final ReentrantLock acceptLock = new ReentrantLock();
+    private final ReentrantLock acceptLock = new ReentrantLock();
 
     // Lock held by any thread that modifies the state fields declared below
     // DO NOT invoke a blocking I/O operation while holding this lock!
-    final Object stateLock = new Object();
+    private final Object stateLock = new Object();
 
     // -- The following fields are protected by stateLock
 
     // Channel state, increases monotonically
-    static final int ST_INUSE = 0;
-    static final int ST_CLOSING = 1;
-    static final int ST_CLOSED = 2;
-    int state;
+    private static final int ST_INUSE = 0;
+    private static final int ST_CLOSING = 1;
+    private static final int ST_CLOSED = 2;
+    private int state;
 
     // ID of native thread currently blocked in this channel, for signalling
-    long thread;
+    private long thread;
+
+    // Our socket adaptor, if any
+    private ServerSocket socket;
 
     // Binding
-    SocketAddress localAddress; // null => unbound
+    private SocketAddress localAddress; // null => unbound
 
     // -- End of fields protected by stateLock
 
-    ServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
+    ServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp);
         this.fd =  fd;
         this.fdVal = IOUtil.fdVal(fd);
+        if (bound) {
+            synchronized (stateLock) {
+                localAddress = localAddressImpl(fd);
+            }
+        }
     }
 
+    @Override
+    public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
+        synchronized (stateLock) {
+            ensureOpen();
+            if (localAddress != null)
+                throw new AlreadyBoundException();
+            localAddress = bindImpl(local, backlog);
+        }
+        return this;
+    }
+
+    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
+
+    abstract SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException;
+
+    @Override
+    public ServerSocket socket() {
+        synchronized (stateLock) {
+            if (socket == null)
+                socket = ServerSocketAdaptor.create(this);
+            return socket;
+        }
+    }
     // @throws ClosedChannelException if channel is closed
     void ensureOpen() throws ClosedChannelException {
         if (!isOpen())
@@ -117,6 +148,73 @@ abstract class ServerSocketChannelImpl
         }
     }
 
+    /**
+     * If special handling of a socket option is required, override this in subclass
+     * and return true.
+     *
+     * @param name
+     * @param value
+     * @param <T>
+     * @return
+     * @throws IOException
+     */
+    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
+        return false;
+    }
+
+    /**
+     * If special handling of a socket option is required, override this in subclass
+     * and return the option value.
+     *
+     * @param name
+     * @param <T>
+     * @return
+     * @throws IOException
+     */
+    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
+        return null;
+    }
+
+    @Override
+    public <T> ServerSocketChannel setOption(SocketOption<T> name, T value)
+        throws IOException
+    {
+        Objects.requireNonNull(name);
+        if (!supportedOptions().contains(name))
+            throw new UnsupportedOperationException("'" + name + "' not supported");
+        if (!name.type().isInstance(value))
+            throw new IllegalArgumentException("Invalid value '" + value + "'");
+
+        synchronized (stateLock) {
+            ensureOpen();
+
+            if (!setOptionSpecial(name, value)) {
+                // no options that require special handling
+                Net.setSocketOption(fd, Net.UNSPEC, name, value);
+            }
+            return this;
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T getOption(SocketOption<T> name)
+        throws IOException
+    {
+        Objects.requireNonNull(name);
+        if (!supportedOptions().contains(name))
+            throw new UnsupportedOperationException("'" + name + "' not supported");
+
+        synchronized (stateLock) {
+            ensureOpen();
+            T ret;
+            if ((ret = getOptionSpecial(name)) != null) {
+                return ret;
+            }
+            // no options that require special handling
+            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
+        }
+    }
 
     /**
      * Marks the beginning of an I/O operation that might block.

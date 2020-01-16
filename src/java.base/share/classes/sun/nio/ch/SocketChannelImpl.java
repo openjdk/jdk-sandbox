@@ -72,22 +72,22 @@ abstract class SocketChannelImpl
     private static final NativeDispatcher nd = new SocketDispatcher();
 
     // Our file descriptor object
-    final FileDescriptor fd;
+    private final FileDescriptor fd;
     private final int fdVal;
 
     // Lock held by current reading or connecting thread
-    final ReentrantLock readLock = new ReentrantLock();
+    private final ReentrantLock readLock = new ReentrantLock();
 
     // Lock held by current writing or connecting thread
-    final ReentrantLock writeLock = new ReentrantLock();
+    private final ReentrantLock writeLock = new ReentrantLock();
 
     // Lock held by any thread that modifies the state fields declared below
     // DO NOT invoke a blocking I/O operation while holding this lock!
-    final Object stateLock = new Object();
+    private final Object stateLock = new Object();
 
     // Input/Output closed
-    volatile boolean isInputClosed;
-    volatile boolean isOutputClosed;
+    private volatile boolean isInputClosed;
+    private volatile boolean isOutputClosed;
 
     // Connection reset protected by readLock
     private boolean connectionReset;
@@ -95,23 +95,24 @@ abstract class SocketChannelImpl
     // -- The following fields are protected by stateLock
 
     // State, increases monotonically
-    static final int ST_UNCONNECTED = 0;
-    static final int ST_CONNECTIONPENDING = 1;
-    static final int ST_CONNECTED = 2;
-    static final int ST_CLOSING = 3;
-    static final int ST_CLOSED = 4;
-    volatile int state;  // need stateLock to change
+    private static final int ST_UNCONNECTED = 0;
+    private static final int ST_CONNECTIONPENDING = 1;
+    private static final int ST_CONNECTED = 2;
+    private static final int ST_CLOSING = 3;
+    private static final int ST_CLOSED = 4;
+    private volatile int state;  // need stateLock to change
 
     // IDs of native threads doing reads and writes, for signalling
     private long readerThread;
     private long writerThread;
 
     // Binding
-    SocketAddress localAddress;
-    SocketAddress remoteAddress;
+    private SocketAddress localAddress;
+    private SocketAddress remoteAddress;
+    private boolean isBound;
 
     // Socket adaptor, created on demand
-    Socket socket;
+    private Socket socket;
 
     // -- End of fields protected by stateLock
 
@@ -124,14 +125,127 @@ abstract class SocketChannelImpl
         this.fdVal = IOUtil.fdVal(fd);
     }
 
-    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd)
+    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp);
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
+        if (bound) {
+            synchronized (stateLock) {
+                this.localAddress = localAddressImpl(fd);
+            }
+        }
     }
 
+    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, SocketAddress isa)
+        throws IOException
+    {
+        super(sp);
+        this.fd = fd;
+        this.fdVal = IOUtil.fdVal(fd);
+        synchronized (stateLock) {
+            this.localAddress = localAddressImpl(fd);
+            this.remoteAddress = isa;
+            this.state = ST_CONNECTED;
+        }
+    }
+
+    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
+
+    abstract SocketAddress getRevealedLocalAddress(SocketAddress address);
+
+    @Override
+    public SocketAddress getLocalAddress() throws IOException {
+        synchronized (stateLock) {
+            ensureOpen();
+            return getRevealedLocalAddress(localAddress);
+        }
+    }
+
+    @Override
+    public SocketAddress getRemoteAddress() throws IOException {
+        synchronized (stateLock) {
+            ensureOpen();
+            return remoteAddress;
+        }
+    }
+
+    /**
+     * If special handling of a socket option is required, override this in subclass
+     * and return true.
+     *
+     * @param name
+     * @param value
+     * @param <T>
+     * @return
+     * @throws IOException
+     */
+    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
+        return false;
+    }
+
+    @Override
+    public Socket socket() {
+        synchronized (stateLock) {
+            if (socket == null)
+                socket = SocketAdaptor.create(this);
+            return socket;
+        }
+    }
+
+    /**
+     * If special handling of a socket option is required, override this in subclass
+     * and return the option value.
+     *
+     * @param name
+     * @param <T>
+     * @return
+     * @throws IOException
+     */
+    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
+        return null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T getOption(SocketOption<T> name)
+        throws IOException
+    {
+        Objects.requireNonNull(name);
+        if (!supportedOptions().contains(name))
+            throw new UnsupportedOperationException("'" + name + "' not supported");
+
+        synchronized (stateLock) {
+            ensureOpen();
+            T ret;
+            if ((ret = getOptionSpecial(name)) != null)
+                return ret;
+
+            // no options that require special handling
+            return (T) Net.getSocketOption(getFD(), name); // AF_UNIX
+        }
+    }
+
+    @Override
+    public <T> SocketChannel setOption(SocketOption<T> name, T value)
+        throws IOException
+    {
+        Objects.requireNonNull(name);
+        if (!supportedOptions().contains(name))
+            throw new UnsupportedOperationException("'" + name + "' not supported");
+        if (!name.type().isInstance(value))
+            throw new IllegalArgumentException("Invalid value '" + value + "'");
+
+        synchronized (stateLock) {
+            ensureOpen();
+            if (setOptionSpecial(name, value))
+                return this;
+            // no options that require special handling
+            Net.setSocketOption(getFD(), name, value);
+            return this;
+        }
+    }
     /**
      * Checks that the channel is open.
      *
@@ -393,6 +507,34 @@ abstract class SocketChannelImpl
         }
     }
 
+    /**
+     * Writes a byte of out of band data.
+     */
+    int sendOutOfBandData(byte b) throws IOException {
+        writeLock.lock();
+        try {
+            boolean blocking = isBlocking();
+            int n = 0;
+            try {
+                beginWrite(blocking);
+                if (blocking) {
+                    do {
+                        n = Net.sendOOB(getFD(), b);
+                    } while (n == IOStatus.INTERRUPTED && isOpen());
+                } else {
+                    n = Net.sendOOB(getFD(), b);
+                }
+            } finally {
+                endWrite(blocking, n > 0);
+                if (n <= 0 && isOutputClosed)
+                    throw new AsynchronousCloseException();
+            }
+            return IOStatus.normalize(n);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
     @Override
     protected void implConfigureBlocking(boolean block) throws IOException {
         readLock.lock();
@@ -453,6 +595,38 @@ abstract class SocketChannelImpl
     SocketAddress remoteAddress() {
         synchronized (stateLock) {
             return remoteAddress;
+        }
+    }
+
+    abstract SocketAddress bindImpl(SocketAddress local) throws IOException;
+
+    @Override
+    public SocketChannel bind(SocketAddress local) throws IOException {
+        readLock.lock();
+        try {
+            writeLock.lock();
+            try {
+                synchronized (stateLock) {
+                    ensureOpen();
+                    if (state == ST_CONNECTIONPENDING)
+                        throw new ConnectionPendingException();
+                    if (localAddress != null)
+                        throw new AlreadyBoundException();
+                    localAddress = bindImpl(local);
+                    isBound = true;
+                }
+            } finally {
+                writeLock.unlock();
+            }
+        } finally {
+            readLock.unlock();
+        }
+        return this;
+    }
+
+    boolean isBound() {
+        synchronized (stateLock) {
+            return isBound;
         }
     }
 
@@ -520,12 +694,14 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = localAddressImpl(fd);
+                    localAddress = getConnectedAddress(fd);
                     state = ST_CONNECTED;
                 }
             }
         }
     }
+
+    abstract SocketAddress getConnectedAddress(FileDescriptor fd) throws IOException;
 
     /**
      * Checks the remote address to which this channel is to be connected.
@@ -597,9 +773,6 @@ abstract class SocketChannelImpl
         }
     }
 
-    abstract SocketAddress localAddressImpl(FileDescriptor fd)
-        throws IOException;
-
     /**
      * Marks the end of a finishConnect operation that may have blocked.
      *
@@ -615,7 +788,7 @@ abstract class SocketChannelImpl
         if (completed) {
             synchronized (stateLock) {
                 if (state == ST_CONNECTIONPENDING) {
-                    localAddress = localAddressImpl(fd);
+                    localAddress = getConnectedAddress(fd);
                     state = ST_CONNECTED;
                 }
             }

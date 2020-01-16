@@ -61,78 +61,42 @@ class InetServerSocketChannelImpl
     // set true when exclusive binding is on and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
-    // Our socket adaptor, if any
-    private ServerSocket socket;
-
     // -- End of fields protected by stateLock
 
-
     InetServerSocketChannelImpl(SelectorProvider sp) throws IOException {
-        super(sp, Net.serverSocket(true));
+        super(sp, Net.serverSocket(true), false); // TODO: 3rd param?
     }
 
     InetServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
-        super(sp, fd);
-        if (bound) {
-            synchronized (stateLock) {
-                localAddress = Net.localAddress(fd);
-            }
-        }
+        super(sp, fd, bound);
+    }
+
+
+    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+        return Net.localAddress(fd);
     }
 
     @Override
-    public ServerSocket socket() {
-        synchronized (stateLock) {
-            if (socket == null)
-                socket = ServerSocketAdaptor.create(this);
-            return socket;
-        }
-    }
-
-    @Override
-    public <T> ServerSocketChannel setOption(SocketOption<T> name, T value)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-        if (!name.type().isInstance(value))
-            throw new IllegalArgumentException("Invalid value '" + value + "'");
-
-        synchronized (stateLock) {
-            ensureOpen();
-
-            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
-                // SO_REUSEADDR emulated when using exclusive bind
-                isReuseAddress = (Boolean)value;
-            } else {
-                // no options that require special handling
-                Net.setSocketOption(fd, Net.UNSPEC, name, value);
-            }
-            return this;
+    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
+        if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+            // SO_REUSEADDR emulated when using exclusive bind
+            isReuseAddress = (Boolean) value;
+            return true;
+        } else {
+            return false;
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T getOption(SocketOption<T> name)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-
-        synchronized (stateLock) {
-            ensureOpen();
-            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
-                // SO_REUSEADDR emulated when using exclusive bind
-                return (T)Boolean.valueOf(isReuseAddress);
-            }
-            // no options that require special handling
-            return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
+    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
+        if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+            // SO_REUSEADDR emulated when using exclusive bind
+            return (T) Boolean.valueOf(isReuseAddress);
         }
+        return null;
     }
 
     private static class DefaultOptionsHolder {
@@ -156,23 +120,17 @@ class InetServerSocketChannelImpl
     }
 
     @Override
-    public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            if (localAddress != null)
-                throw new AlreadyBoundException();
-            InetSocketAddress isa = (local == null)
-                                    ? new InetSocketAddress(0)
-                                    : Net.checkAddress(local);
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null)
-                sm.checkListen(isa.getPort());
-            NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
-            Net.bind(fd, isa.getAddress(), isa.getPort());
-            Net.listen(fd, backlog < 1 ? 50 : backlog);
-            localAddress = Net.localAddress(fd);
-        }
-        return this;
+    SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
+        InetSocketAddress isa = (local == null)
+            ? new InetSocketAddress(0)
+            : Net.checkAddress(local);
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null)
+            sm.checkListen(isa.getPort());
+        NetHooks.beforeTcpBind(getFD(), isa.getAddress(), isa.getPort());
+        Net.bind(getFD(), isa.getAddress(), isa.getPort());
+        Net.listen(getFD(), backlog < 1 ? 50 : backlog);
+        return Net.localAddress(getFD());
     }
 
     protected int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)

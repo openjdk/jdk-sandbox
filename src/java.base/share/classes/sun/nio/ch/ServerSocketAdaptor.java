@@ -56,13 +56,14 @@ class ServerSocketAdaptor                        // package-private
     extends ServerSocket
 {
     // The channel being adapted
-    private final InetServerSocketChannelImpl ssc;
+    private final ServerSocketChannelImpl ssc;
 
     // Timeout "option" value for accepts
     private volatile int timeout;
 
-    static ServerSocket create(InetServerSocketChannelImpl ssc) {
-        PrivilegedExceptionAction<ServerSocket> pa = () -> new ServerSocketAdaptor(ssc);
+    static ServerSocket create(ServerSocketChannelImpl ssc) {
+        InetServerSocketChannelImpl issc = (InetServerSocketChannelImpl)ssc;
+        PrivilegedExceptionAction<ServerSocket> pa = () -> new ServerSocketAdaptor(issc);
         try {
             return AccessController.doPrivileged(pa);
         } catch (PrivilegedActionException pae) {
@@ -70,7 +71,7 @@ class ServerSocketAdaptor                        // package-private
         }
     }
 
-    private ServerSocketAdaptor(InetServerSocketChannelImpl ssc) {
+    private ServerSocketAdaptor(ServerSocketChannelImpl ssc) {
         super(DummySocketImpl.create());
         this.ssc = ssc;
     }

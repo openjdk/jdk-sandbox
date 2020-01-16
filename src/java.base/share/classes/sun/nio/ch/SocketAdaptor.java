@@ -53,17 +53,17 @@ class SocketAdaptor
     extends Socket
 {
     // The channel being adapted
-    private final InetSocketChannelImpl sc;
+    private final SocketChannelImpl sc;
 
     // Timeout "option" value for reads
     private volatile int timeout;
 
-    private SocketAdaptor(InetSocketChannelImpl sc) throws SocketException {
+    private SocketAdaptor(SocketChannelImpl sc) throws SocketException {
         super(DummySocketImpl.create());
         this.sc = sc;
     }
 
-    static Socket create(InetSocketChannelImpl sc) {
+    static Socket create(SocketChannelImpl sc) {
         PrivilegedExceptionAction<Socket> pa = () -> new SocketAdaptor(sc);
         try {
             return AccessController.doPrivileged(pa);

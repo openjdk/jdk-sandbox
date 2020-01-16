@@ -72,12 +72,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     public UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
-        super(sp, fd);
-        if (bound) {
-            synchronized (stateLock) {
-                this.localAddress = Net.localUnixAddress(fd);
-            }
-        }
+        super(sp, fd, bound);
     }
 
     // Constructor for sockets obtained from server sockets
@@ -85,63 +80,17 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     UnixDomainSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, SocketAddress isa)
         throws IOException
     {
-        super(sp, fd);
-        synchronized (stateLock) {
-            this.localAddress = Net.localUnixAddress(fd);
-            this.remoteAddress = isa;
-            this.state = ST_CONNECTED;
-        }
+        super(sp, fd, isa);
     }
 
     @Override
-    public SocketAddress getLocalAddress() throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            return localAddress; // TODO: revealed local address?
-        }
+    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+        return Net.localUnixAddress(fd);
     }
 
     @Override
-    public SocketAddress getRemoteAddress() throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            return remoteAddress;
-        }
-    }
-
-    @Override
-    public <T> SocketChannel setOption(SocketOption<T> name, T value)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-        if (!name.type().isInstance(value))
-            throw new IllegalArgumentException("Invalid value '" + value + "'");
-
-        synchronized (stateLock) {
-            ensureOpen();
-
-            // no options that require special handling
-            Net.setSocketOption(fd, name, value);
-            return this;
-        }
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> T getOption(SocketOption<T> name)
-        throws IOException
-    {
-        Objects.requireNonNull(name);
-        if (!supportedOptions().contains(name))
-            throw new UnsupportedOperationException("'" + name + "' not supported");
-
-        synchronized (stateLock) {
-            ensureOpen();
-            // no options that require special handling
-            return (T) Net.getSocketOption(fd, name); // AF_UNIX
-        }
+    SocketAddress getRevealedLocalAddress(SocketAddress address) {
+        return address;
     }
 
     private static class DefaultOptionsHolder {
@@ -162,34 +111,17 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    public SocketChannel bind(SocketAddress local) throws IOException {
-        readLock.lock();
-        try {
-            writeLock.lock();
-            try {
-                synchronized (stateLock) {
-                    ensureOpen();
-                    if (state == ST_CONNECTIONPENDING)
-                        throw new ConnectionPendingException();
-                    if (localAddress != null)
-                        throw new AlreadyBoundException();
-                    UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
-                    Net.unixDomainBind(fd, usa);
-                    if (usa == null || usa.getPathName().equals("")) {
-                        localAddress = UnixDomainSocketAddress.UNNAMED;
-                    } else {
-                        localAddress = Net.localUnixAddress(fd);
-                    }
-                }
-            } finally {
-                writeLock.unlock();
-            }
-        } finally {
-            readLock.unlock();
+    SocketAddress bindImpl(SocketAddress local) throws IOException {
+        UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
+        Net.unixDomainBind(getFD(), usa);
+        if (usa == null || usa.getPathName().equals("")) {
+            return UnixDomainSocketAddress.UNNAMED;
+        } else {
+            return Net.localUnixAddress(getFD());
         }
-        return this;
     }
 
+    @Override
     public Socket socket() {
         throw new UnsupportedOperationException("socket not supported");
     }
@@ -210,12 +142,12 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     @Override
-    SocketAddress localAddressImpl(FileDescriptor fd) throws IOException {
+    SocketAddress getConnectedAddress(FileDescriptor fd) throws IOException {
         // if not bound already then set it to UNNAMED
-        if (localAddress == null)
+        if (!isBound())
             return UnixDomainSocketAddress.UNNAMED;
         else
-            return localAddress;
+            return Net.localUnixAddress(fd);
     }
 
     String getRevealedLocalAddressAsString(SocketAddress sa) {

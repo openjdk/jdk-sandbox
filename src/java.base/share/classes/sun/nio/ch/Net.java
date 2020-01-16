@@ -793,6 +793,7 @@ public class Net {
 
     public static native UnixDomainSocketAddress localUnixAddress(FileDescriptor fd)
         throws IOException;
+
     public static final short POLLERR;
     public static final short POLLHUP;
     public static final short POLLNVAL;
