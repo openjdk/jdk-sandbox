@@ -187,17 +187,10 @@ public class UnixDomainServerSocketChannelImpl
         return addr; // TODO
     }
 
-    SocketChannel finishAccept(FileDescriptor newfd, SocketAddress isa)
+    SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
         throws IOException
     {
-        try {
-            // newly accepted socket is initially in blocking mode
-            IOUtil.configureBlocking(newfd, true);
-            return new UnixDomainSocketChannelImpl(provider(), newfd, isa);
-        } catch (Exception e) {
-            nd.close(newfd);
-            throw e;
-        }
+        return new UnixDomainSocketChannelImpl(provider(), newfd, isa);
     }
 
     public String toString() {

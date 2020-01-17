@@ -60,7 +60,7 @@ abstract class ServerSocketChannelImpl
     implements SelChImpl
 {
     // Used to make native close and configure calls
-    static final NativeDispatcher nd = new SocketDispatcher();
+    private static final NativeDispatcher nd = new SocketDispatcher();
 
     // Our file descriptor
     private final FileDescriptor fd;
@@ -105,20 +105,11 @@ abstract class ServerSocketChannelImpl
         }
     }
 
-    @Override
-    public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
-        synchronized (stateLock) {
-            ensureOpen();
-            if (localAddress != null)
-                throw new AlreadyBoundException();
-            localAddress = bindImpl(local, backlog);
-        }
-        return this;
+    // @throws ClosedChannelException if channel is closed
+    void ensureOpen() throws ClosedChannelException {
+        if (!isOpen())
+            throw new ClosedChannelException();
     }
-
-    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
-
-    abstract SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException;
 
     @Override
     public ServerSocket socket() {
@@ -128,25 +119,22 @@ abstract class ServerSocketChannelImpl
             return socket;
         }
     }
-    // @throws ClosedChannelException if channel is closed
-    void ensureOpen() throws ClosedChannelException {
-        if (!isOpen())
-            throw new ClosedChannelException();
-    }
-
-    abstract SocketAddress getRevealedLocalAddress(SocketAddress addr);
-
-    abstract String getRevealedLocalAddressAsString(SocketAddress addr);
 
     @Override
     public SocketAddress getLocalAddress() throws IOException {
         synchronized (stateLock) {
             ensureOpen();
             return (localAddress == null)
-                    ? null
-                    : getRevealedLocalAddress(localAddress);
+                ? null
+                : getRevealedLocalAddress(localAddress);
         }
     }
+
+    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
+
+    abstract SocketAddress getRevealedLocalAddress(SocketAddress addr);
+
+    abstract String getRevealedLocalAddressAsString(SocketAddress addr);
 
     /**
      * If special handling of a socket option is required, override this in subclass
@@ -215,6 +203,19 @@ abstract class ServerSocketChannelImpl
             return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
         }
     }
+
+    @Override
+    public ServerSocketChannel bind(SocketAddress local, int backlog) throws IOException {
+        synchronized (stateLock) {
+            ensureOpen();
+            if (localAddress != null)
+                throw new AlreadyBoundException();
+            localAddress = bindImpl(local, backlog);
+        }
+        return this;
+    }
+
+    abstract SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException;
 
     /**
      * Marks the beginning of an I/O operation that might block.
@@ -341,9 +342,6 @@ abstract class ServerSocketChannelImpl
         return finishAccept(newfd, isaa[0]);
     }
 
-    abstract SocketChannel finishAccept(FileDescriptor newfd, SocketAddress isa)
-        throws IOException;
-
     @Override
     protected void implConfigureBlocking(boolean block) throws IOException {
         acceptLock.lock();
@@ -351,6 +349,29 @@ abstract class ServerSocketChannelImpl
             lockedConfigureBlocking(block);
         } finally {
             acceptLock.unlock();
+        }
+    }
+
+    abstract SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
+        throws IOException;
+
+    protected SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+        throws IOException
+    {
+        InetSocketAddress isa = (InetSocketAddress)sa;
+        try {
+            // newly accepted socket is initially in blocking mode
+            IOUtil.configureBlocking(newfd, true);
+
+            // check permitted to accept connections from the remote address
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
+            }
+            return finishAcceptImpl(newfd, isa);
+        } catch (Exception e) {
+            nd.close(newfd);
+            throw e;
         }
     }
 

@@ -138,6 +138,8 @@ abstract class SocketChannelImpl
         }
     }
 
+    // Constructor for sockets obtained from server sockets
+    //
     SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, SocketAddress isa)
         throws IOException
     {
@@ -148,6 +150,46 @@ abstract class SocketChannelImpl
             this.localAddress = localAddressImpl(fd);
             this.remoteAddress = isa;
             this.state = ST_CONNECTED;
+        }
+    }
+
+    /**
+     * Checks that the channel is open.
+     *
+     * @throws ClosedChannelException if channel is closed (or closing)
+     */
+    void ensureOpen() throws ClosedChannelException {
+        if (!isOpen())
+            throw new ClosedChannelException();
+    }
+
+    /**
+     * Checks that the channel is open and connected.
+     *
+     * @apiNote This method uses the "state" field to check if the channel is
+     * open. It should never be used in conjuncion with isOpen or ensureOpen
+     * as these methods check AbstractInterruptibleChannel's closed field - that
+     * field is set before implCloseSelectableChannel is called and so before
+     * the state is changed.
+     *
+     * @throws ClosedChannelException if channel is closed (or closing)
+     * @throws NotYetConnectedException if open and not connected
+     */
+    private void ensureOpenAndConnected() throws ClosedChannelException {
+        int state = this.state;
+        if (state < ST_CONNECTED) {
+            throw new NotYetConnectedException();
+        } else if (state > ST_CONNECTED) {
+            throw new ClosedChannelException();
+        }
+    }
+
+    @Override
+    public Socket socket() {
+        synchronized (stateLock) {
+            if (socket == null)
+                socket = SocketAdaptor.create(this);
+            return socket;
         }
     }
 
@@ -183,15 +225,6 @@ abstract class SocketChannelImpl
      */
     <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
         return false;
-    }
-
-    @Override
-    public Socket socket() {
-        synchronized (stateLock) {
-            if (socket == null)
-                socket = SocketAdaptor.create(this);
-            return socket;
-        }
     }
 
     /**
@@ -244,36 +277,6 @@ abstract class SocketChannelImpl
             // no options that require special handling
             Net.setSocketOption(getFD(), name, value);
             return this;
-        }
-    }
-    /**
-     * Checks that the channel is open.
-     *
-     * @throws ClosedChannelException if channel is closed (or closing)
-     */
-    void ensureOpen() throws ClosedChannelException {
-        if (!isOpen())
-            throw new ClosedChannelException();
-    }
-
-    /**
-     * Checks that the channel is open and connected.
-     *
-     * @apiNote This method uses the "state" field to check if the channel is
-     * open. It should never be used in conjuncion with isOpen or ensureOpen
-     * as these methods check AbstractInterruptibleChannel's closed field - that
-     * field is set before implCloseSelectableChannel is called and so before
-     * the state is changed.
-     *
-     * @throws ClosedChannelException if channel is closed (or closing)
-     * @throws NotYetConnectedException if open and not connected
-     */
-    private void ensureOpenAndConnected() throws ClosedChannelException {
-        int state = this.state;
-        if (state < ST_CONNECTED) {
-            throw new NotYetConnectedException();
-        } else if (state > ST_CONNECTED) {
-            throw new ClosedChannelException();
         }
     }
 
@@ -519,10 +522,10 @@ abstract class SocketChannelImpl
                 beginWrite(blocking);
                 if (blocking) {
                     do {
-                        n = Net.sendOOB(getFD(), b);
+                        n = Net.sendOOB(fd, b);
                     } while (n == IOStatus.INTERRUPTED && isOpen());
                 } else {
-                    n = Net.sendOOB(getFD(), b);
+                    n = Net.sendOOB(fd, b);
                 }
             } finally {
                 endWrite(blocking, n > 0);

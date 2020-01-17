@@ -151,23 +151,10 @@ class InetServerSocketChannelImpl
     }
 
 
-    protected SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+    protected SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
         InetSocketAddress isa = (InetSocketAddress)sa;
-        try {
-            // newly accepted socket is initially in blocking mode
-            IOUtil.configureBlocking(newfd, true);
-
-            // check permitted to accept connections from the remote address
-            SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
-            }
-            return new InetSocketChannelImpl(provider(), newfd, isa);
-        } catch (Exception e) {
-            nd.close(newfd);
-            throw e;
-        }
+        return new InetSocketChannelImpl(provider(), newfd, isa);
     }
 }
