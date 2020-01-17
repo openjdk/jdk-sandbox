@@ -170,7 +170,7 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     @Override
-    int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
+    protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
         return Net.unixDomainAccept(fd, newfd, addrs);

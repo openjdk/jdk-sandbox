@@ -158,7 +158,7 @@ abstract class SocketChannelImpl
      *
      * @throws ClosedChannelException if channel is closed (or closing)
      */
-    void ensureOpen() throws ClosedChannelException {
+    private void ensureOpen() throws ClosedChannelException {
         if (!isOpen())
             throw new ClosedChannelException();
     }
@@ -414,7 +414,7 @@ abstract class SocketChannelImpl
      * @throws ClosedChannelException if the channel is closed or output shutdown
      * @throws NotYetConnectedException if the channel is not yet connected
      */
-    void beginWrite(boolean blocking) throws ClosedChannelException {
+    private void beginWrite(boolean blocking) throws ClosedChannelException {
         if (blocking) {
             // set hook for Thread.interrupt
             begin();
@@ -437,7 +437,7 @@ abstract class SocketChannelImpl
      * @throws AsynchronousCloseException if the channel was closed due to this
      * thread being interrupted on a blocking write operation.
      */
-    void endWrite(boolean blocking, boolean completed)
+    private void endWrite(boolean blocking, boolean completed)
         throws AsynchronousCloseException
     {
         if (blocking) {
@@ -689,7 +689,7 @@ abstract class SocketChannelImpl
      * thread being interrupted on a blocking connect operation.
      * @throws IOException if completed and unable to obtain the local address
      */
-    void endConnect(boolean blocking, boolean completed)
+    private void endConnect(boolean blocking, boolean completed)
         throws IOException
     {
         endRead(blocking, completed);

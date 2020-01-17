@@ -133,7 +133,7 @@ class InetServerSocketChannelImpl
         return Net.localAddress(getFD());
     }
 
-    protected int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
+    protected int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] addrs)
         throws IOException
     {
         InetSocketAddress[] a = new InetSocketAddress[1];

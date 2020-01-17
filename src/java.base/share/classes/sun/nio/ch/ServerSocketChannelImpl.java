@@ -84,11 +84,11 @@ abstract class ServerSocketChannelImpl
     // ID of native thread currently blocked in this channel, for signalling
     private long thread;
 
-    // Our socket adaptor, if any
-    private ServerSocket socket;
-
     // Binding
     private SocketAddress localAddress; // null => unbound
+
+    // Our socket adaptor, if any
+    private ServerSocket socket;
 
     // -- End of fields protected by stateLock
 
@@ -106,7 +106,7 @@ abstract class ServerSocketChannelImpl
     }
 
     // @throws ClosedChannelException if channel is closed
-    void ensureOpen() throws ClosedChannelException {
+    private void ensureOpen() throws ClosedChannelException {
         if (!isOpen())
             throw new ClosedChannelException();
     }
@@ -255,7 +255,7 @@ abstract class ServerSocketChannelImpl
         }
     }
 
-    abstract int implAccept(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] sa)
+    protected abstract int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] sa)
         throws IOException;
 
     @Override
@@ -269,11 +269,11 @@ abstract class ServerSocketChannelImpl
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                n = implAccept(this.fd, newfd, isaa);
+                n = acceptImpl(this.fd, newfd, isaa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLIN);
-                        n = implAccept(this.fd, newfd, isaa);
+                        n = acceptImpl(this.fd, newfd, isaa);
                     }
                 }
             } finally {
@@ -318,14 +318,14 @@ abstract class ServerSocketChannelImpl
                 lockedConfigureBlocking(false);
                 try {
                     long startNanos = System.nanoTime();
-                    n = implAccept(fd, newfd, isaa);
+                    n = acceptImpl(fd, newfd, isaa);
                     while (n == IOStatus.UNAVAILABLE && isOpen()) {
                         long remainingNanos = nanos - (System.nanoTime() - startNanos);
                         if (remainingNanos <= 0) {
                             throw new SocketTimeoutException("Accept timed out");
                         }
                         park(Net.POLLIN, remainingNanos);
-                        n = implAccept(fd, newfd, isaa);
+                        n = acceptImpl(fd, newfd, isaa);
                     }
                 } finally {
                     // restore socket to blocking mode (if channel is open)
@@ -340,16 +340,6 @@ abstract class ServerSocketChannelImpl
 
         assert n > 0;
         return finishAccept(newfd, isaa[0]);
-    }
-
-    @Override
-    protected void implConfigureBlocking(boolean block) throws IOException {
-        acceptLock.lock();
-        try {
-            lockedConfigureBlocking(block);
-        } finally {
-            acceptLock.unlock();
-        }
     }
 
     abstract SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
@@ -372,6 +362,16 @@ abstract class ServerSocketChannelImpl
         } catch (Exception e) {
             nd.close(newfd);
             throw e;
+        }
+    }
+
+    @Override
+    protected void implConfigureBlocking(boolean block) throws IOException {
+        acceptLock.lock();
+        try {
+            lockedConfigureBlocking(block);
+        } finally {
+            acceptLock.unlock();
         }
     }
 
