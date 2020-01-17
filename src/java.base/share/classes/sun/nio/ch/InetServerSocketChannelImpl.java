@@ -155,6 +155,11 @@ class InetServerSocketChannelImpl
         throws IOException
     {
         InetSocketAddress isa = (InetSocketAddress)sa;
+        // check permitted to accept connections from the remote address
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
+        }
         return new InetSocketChannelImpl(provider(), newfd, isa);
     }
 }
