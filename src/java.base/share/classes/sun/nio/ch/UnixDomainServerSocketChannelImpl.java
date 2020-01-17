@@ -148,11 +148,7 @@ public class UnixDomainServerSocketChannelImpl
                 try {
                     return SecureRandom.getInstance("NativePRNGNonBlocking");
                 } catch (NoSuchAlgorithmException e) {
-                    try {
-                        return SecureRandom.getInstance("NativePRNG");
-                    } catch (NoSuchAlgorithmException e1) {
-                        throw new InternalError(e1);
-                    }
+                    return new SecureRandom(); // This should not fail
                 }
             }
         );
