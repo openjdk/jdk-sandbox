@@ -35,18 +35,21 @@ import sun.nio.ch.Net;
 
 /**
  * An address for a Unix domain {@link SocketChannel} or {@link ServerSocketChannel}.
- * These addresses contain a path, which when bound to a channel,
- * have an associated socket file in the file-system with the same name. Instances
- * are created with either a {@link String} path name or a {@link Path}. Path names
- * can be either absolute, or relative with respect to the current working directory.
+ * This contains a path which, when the address is bound to a channel,
+ * has an associated socket file in the file-system with the same name as the path. Instances
+ * are created with either a {@link String} path name or a {@link Path}. Paths
+ * can be either absolute or relative with respect to the current working directory.
  * <p>
  * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
  * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its address
  * is unnamed; it has an empty path field, and therefore has no associated file
- * in the file-system. If a {@link ServerSocketChannel} is automatically bound by
- * passing a {@code null} address to one of the {@link ServerSocketChannel#bind(SocketAddress)
- * bind} methods, the channel is bound to a unique name in some temporary directory. The name can be
- * obtained by calling {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
+ * in the file-system. {@link SocketChannel#getLocalAddress() getLocalAddress} will return
+ * the constant value {@link #UNNAMED} in this case.
+ * <p>
+ * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a {@code null}
+ * address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind} methods, the channel
+ * is bound to a unique name in some temporary directory. The name can be obtained by calling
+ * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * <p>
  * @apiNote A channel can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
@@ -60,8 +63,8 @@ import sun.nio.ch.Net;
  * to create and delete these socket files.
  * <p>
  * @implNote
- * The constant value {@link #MAXNAMELENGTH} specifies the maximum length of a
- * UnixDomainSocketAddress's path. For most platforms, this is typically close to but
+ * The constant value {@link #MAXNAMELENGTH} specifies the (platform specific) maximum length
+ * of a UnixDomainSocketAddress's path. For most platforms, this is typically close to but
  * not less than {@code 100}.
  *
  * @since 15
@@ -104,6 +107,9 @@ public class UnixDomainSocketAddress extends SocketAddress {
      */
     public UnixDomainSocketAddress(String pathname) {
         Objects.requireNonNull(pathname);
+        // TBD: The implication of check below is that instances cannot
+        // be created on platforms where Unix domain sockets are not supported.
+        // Is this ok?
         if (pathname.length() > MAXNAMELENGTH)
             throw new IllegalArgumentException("pathname too long");
         this.pathname = pathname;
@@ -169,16 +175,11 @@ public class UnixDomainSocketAddress extends SocketAddress {
 
     /**
      * Returns a string representation of this {@code UnixDomainSocketAddress}.
-     * The format of the string is {@code "af_unix:<path>"} where {@code <path>}
-     * is this address's path field, which will be empty in the case of an
-     * unnamed socket address.
+     *
+     * @return this address's path which may be empty for an unnamed address
      */
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("af_unix:");
-        if (path != null)
-            sb.append(path);
-        return sb.toString();
+        return pathname;
     }
 }

@@ -26,6 +26,7 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ProtocolFamily;
@@ -131,8 +132,13 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
      */
     @Override
     SocketAddress checkRemote(SocketAddress sa) throws IOException {
-        SocketAddress isa = Net.checkUnixAddress(sa);
-        return isa; // TODO
+        UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            FilePermission p = new FilePermission(usa.getPathName(), "read,write");
+            sm.checkPermission(p);
+        }
+        return usa;
     }
 
     @Override
@@ -151,7 +157,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     }
 
     String getRevealedLocalAddressAsString(SocketAddress sa) {
-        return sa.toString(); // TODO
+        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
+        return Net.getRevealedLocalAddressAsString(usa);
     }
 
 }

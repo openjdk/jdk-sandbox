@@ -25,7 +25,9 @@
 
 package sun.nio.ch;
 
+import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.ServerSocket;
@@ -44,6 +46,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
@@ -105,6 +108,13 @@ public class UnixDomainServerSocketChannelImpl
     @Override
     public SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
         boolean found = false;
+        SecurityManager sm = System.getSecurityManager();
+
+        if (local == null && sm != null) {
+            // only needs to be done once
+            checkTempDirPermission(sm);
+        }
+
         // Attempt up to 10 times to find an unused name in temp directory
         // Unlikely to fail
         for (int i = 0; i < 10; i++) {
@@ -113,6 +123,11 @@ public class UnixDomainServerSocketChannelImpl
                 usa = getTempName();
             } else {
                 usa = Net.checkUnixAddress(local);
+                if (sm != null) {
+                    Path path = usa.getPath().getParent();
+                    FilePermission p = new FilePermission(path.toString(), "write");
+                    sm.checkPermission(p);
+                }
             }
             try {
                 Net.unixDomainBind(getFD(), usa);
@@ -155,15 +170,22 @@ public class UnixDomainServerSocketChannelImpl
     }
 
     private static final String tempDir = getTempDir();
+    private static final FilePermission tempDirPermission = new FilePermission(tempDir, "write");
     private static final Random random = getRandom();;
     private static final long pid = ProcessHandle.current().pid();
+
+    private static void checkTempDirPermission(SecurityManager sm) {
+        if (sm != null) {
+            sm.checkPermission(tempDirPermission);
+        }
+    }
 
     /**
      * Return a possible temporary name to bind to, which is different for each call
      * Name is of the form <temp dir>/niosocket_<pid>_<random>
      */
     private static UnixDomainSocketAddress getTempName() throws IOException {
-        int rnd = random.nextInt();
+        int rnd = random.nextInt(Integer.MAX_VALUE);
         StringBuilder sb = new StringBuilder();
         sb.append(tempDir).append("niosocket_").append(pid).append('_').append(rnd);
         return new UnixDomainSocketAddress(sb.toString());
@@ -178,19 +200,25 @@ public class UnixDomainServerSocketChannelImpl
 
     @Override
     String getRevealedLocalAddressAsString(SocketAddress addr) {
-        // TODO
-        return addr.toString();
+        return Net.getRevealedLocalAddressAsString((UnixDomainSocketAddress)addr);
     }
 
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress addr) {
-        return addr; // TODO
+        return Net.getRevealedLocalAddress((UnixDomainSocketAddress)addr);
     }
 
-    SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
+    SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress sa)
         throws IOException
     {
-        return new UnixDomainSocketChannelImpl(provider(), newfd, isa);
+        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            String path = usa.getPathName();
+            FilePermission p = new FilePermission(path, "read,write");
+            sm.checkPermission(p);
+        }
+        return new UnixDomainSocketChannelImpl(provider(), newfd, usa);
     }
 
     public String toString() {

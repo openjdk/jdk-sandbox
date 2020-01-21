@@ -161,6 +161,16 @@ public class Bind {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(sAddr);
         });
+        // address with space should work
+        checkNormal(() -> {
+            server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+            UnixDomainSocketAddress usa =  new UnixDomainSocketAddress("with space"); // relative to CWD
+            Files.deleteIfExists(usa.getPath());
+            server.bind(usa);
+            client = SocketChannel.open(usa);
+            Files.delete(usa.getPath());
+            assertAddress(client.getRemoteAddress(), usa, "address");
+        });
         // client bind to null: allowed
         checkNormal(() -> {
             client = SocketChannel.open(StandardProtocolFamily.UNIX);
