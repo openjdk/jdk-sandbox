@@ -11,7 +11,7 @@ Running JNLPConverter
 
 To run the JNLPConverter:
 
-  java -jar JNLPConverter.jar <mode> <options>
+  java -jar JNLPConverter.jar <options>
 
 To get help on JNLPConverter options:
 

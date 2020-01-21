@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -384,27 +384,20 @@ public class JNLPConverter {
         return file;
     }
 
-    private void buildLaunchArgs() {
-        if (options.createAppImage()) {
-            addLaunchArg("create-app-image", launchArgs);
-        } else if (options.createInstaller()) {
-            if (options.getInstallerType() == null) {
-                addLaunchArg("create-installer", launchArgs);
-            } else {
-                addLaunchArg("create-installer", launchArgs);
-                if (options.getInstallerType() != null) {
-                    addLaunchArg("--installer-type", options.getInstallerType(), launchArgs);
-                }
-            }
-        }
+    private boolean isInstallerType(String type) {
+        // If type is not specified, then jpackage will generate installer
+        return (type == null || !type.equals("app-image"));
+    }
 
+    private void buildLaunchArgs() {
         // Set verbose for jpackage if it is set for us.
         if (options.verbose()) {
             addLaunchArg("--verbose", launchArgs);
         }
 
+        addLaunchArg("--type", options.getType(), launchArgs);
         addLaunchArg("--input", getJarDownloadFolder(), launchArgs);
-        addLaunchArg("--output", options.getOutput(), launchArgs);
+        addLaunchArg("--dest", options.getOutput(), launchArgs);
         addLaunchArg("--name", jnlpd.getName(), launchArgs);
         addLaunchArg("--app-version", jnlpd.getVersion(), launchArgs);
         addLaunchArg("--vendor", jnlpd.getVendor(), launchArgs);
@@ -416,10 +409,12 @@ public class JNLPConverter {
         addArguments(launchArgs);
         addJVMArgs(launchArgs);
 
-        if (options.createInstaller()) {
+        if (isInstallerType(options.getType())) {
             if (jnlpd.isDesktopHint()) {
                 if (Platform.isWindows()) {
                     addLaunchArg("--win-shortcut", launchArgs);
+                } else if (Platform.isLinux()) {
+                    addLaunchArg("--linux-shortcut", launchArgs);
                 } else {
                     Log.warning("Ignoring shortcut hint, since it is not supported on current platform.");
                 }
@@ -429,6 +424,8 @@ public class JNLPConverter {
                 if (Platform.isWindows()) {
                     addLaunchArg("--win-menu", launchArgs);
                     addLaunchArg("--win-menu-group", jnlpd.getSubMenu(), launchArgs);
+                } else if (Platform.isLinux()) {
+                    addLaunchArg("--linux-menu-group", jnlpd.getSubMenu(), launchArgs);
                 } else {
                     Log.warning("Ignoring menu hint, since it is not supported on current platform.");
                 }

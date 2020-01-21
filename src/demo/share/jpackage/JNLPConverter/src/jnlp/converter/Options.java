@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,7 @@ import java.util.List;
 
 public class Options {
 
-    private boolean createAppImage = false;
-    private boolean createInstaller = false;
-    private String installerType = null;
+    private String type = null;
     private String jnlp = null;
     private String output = null;
     private String keep = null;
@@ -41,41 +39,42 @@ public class Options {
     private final List<String> jpackageOptions = new ArrayList<>();
     private boolean isRuntimeImageSet = false;
 
-    private static final String JNLP_OPTION_PREFIX = "--jnlp=";
-    private static final String OUTPUT_OPTION_PREFIX = "--output=";
-    private static final String KEEP_OPTION_PREFIX = "--keep=";
-    private static final String JNLP_OPTION_SHORT_PREFIX = "-j";
-    private static final String OUTPUT_OPTION_SHORT_PREFIX = "-o";
-    private static final String KEEP_OPTION_SHORT_PREFIX = "-k";
+    private static final String TYPE_OPTION = "--type";
+    private static final String JNLP_OPTION = "--jnlp";
+    private static final String OUTPUT_OPTION = "--dest";
+    private static final String KEEP_OPTION = "--keep";
+    private static final String JPACKAGE_OPTIONS_OPTION = "--jpackage-options";
+    private static final String HELP_OPTION = "--help";
+    private static final String VERBOSE_OPTION = "--verbose";
+    private static final String VERSION_OPTION = "--version";
 
-    private static final String [] INSTALLER_TYPES = {"msi", "exe", "dmg", "pkg",
-                                                      "rpm", "deb"};
+    private static final String TYPE_OPTION_SHORT = "-t";
+    private static final String JNLP_OPTION_SHORT = "-j";
+    private static final String OUTPUT_OPTION_SHORT = "-d";
+    private static final String KEEP_OPTION_SHORT = "-k";
+    private static final String HELP_OPTION_SHORT = "-h";
+    private static final String VERBOSE_OPTION_SHORT = "-v";
 
-    // --output, -o, --input, -i, --main-jar, --main-class
-    private static final String [] BLOCKED_JPACKAGE_OPTIONS = {"--output", "-o", "--input", "-i",
+    private static final String [] TYPES = {"app-image", "msi", "exe", "dmg", "pkg",
+                                            "rpm", "deb"};
+
+    // --dest, -d, --input, -i, --main-jar, --main-class
+    private static final String [] BLOCKED_JPACKAGE_OPTIONS = {"--dest", "-d", "--input", "-i",
                                                                "--main-jar", "--main-class"};
 
     private static final String RUNTIME_IMAGE_OPTION = "--runtime-image";
 
     private static final String ERR_UNKNOWN_OPTION = "Unknown option: ";
+    private static final String ERR_UNKNOWN_TYPE = "Unknown type: ";
     private static final String ERR_MISSING_VALUE = "Value is required for option ";
-    private static final String ERR_MISSING_MODE = "Error: create-app-image or create-installer mode is required";
     private static final String ERR_MISSING_JNLP = "Error: --jnlp is required";
-    private static final String ERR_MISSING_OUTPUT = "Error: --output is required";
-    private static final String ERR_OUTPUT_EXISTS = "Error: output folder already exists";
+    private static final String ERR_MISSING_OUTPUT = "Error: --dest is required";
+    private static final String ERR_OUTPUT_EXISTS = "Error: destination folder already exists";
     private static final String ERR_KEEP_EXISTS = "Error: folder for --keep argument already exists";
     private static final String ERR_INVALID_PROTOCOL_JNLP = "Error: Invalid protocol for JNLP file. Only HTTP, HTTPS and FILE protocols are supported.";
 
-    public boolean createAppImage() {
-        return createAppImage;
-    }
-
-    public boolean createInstaller() {
-        return createInstaller;
-    }
-
-    public String getInstallerType() {
-        return installerType;
+    public String getType() {
+        return type;
     }
 
     public String getJNLP() {
@@ -113,9 +112,7 @@ public class Options {
     // Helper method to dump all options
     private void display() {
         System.out.println("Options:");
-        System.out.println("createAppImage: " + createAppImage);
-        System.out.println("createInstaller: " + createInstaller);
-        System.out.println("installerType: " + installerType);
+        System.out.println("type: " + type);
         System.out.println("jnlp: " + jnlp);
         System.out.println("output: " + output);
         System.out.println("keep: " + keep);
@@ -130,10 +127,6 @@ public class Options {
     private void validate() {
         if (help || version) {
             return;
-        }
-
-        if (!createAppImage && !createInstaller) {
-            optionError(ERR_MISSING_MODE);
         }
 
         if (jnlp == null) {
@@ -196,36 +189,51 @@ public class Options {
         return false;
     }
 
+    private static String getPlatformTypes() {
+        String types = "\"app-image\"";
+        if (Platform.isWindows()) {
+            types += " ,";
+            types += "\"msi\"";
+            types += " ,";
+            types += "\"exe\"";
+        } else if (Platform.isMac()) {
+            types += " ,";
+            types += "\"pkg\"";
+            types += " ,";
+            types += "\"dmg\"";
+        } else if (Platform.isLinux()) {
+            types += " ,";
+            types += "\"rpm\"";
+            types += " ,";
+            types += "\"deb\"";
+        }
+
+        return types;
+    }
+
     public static void showHelp() {
 //      System.out.println("********* Help should not be longer then 80 characters as per JEP-293 *********");
-        System.out.println("Usage: java -jar JNLPConverter.jar <mode> <options>");
-        System.out.println("");
-        System.out.println("where mode is one of:");
-        System.out.println("  create-app-image");
-        System.out.println("          Generates a platform-specific application image.");
-        System.out.println("  create-installer");
-        System.out.println("          Generates a platform-specific installer for the application.");
-        System.out.println("");
+        System.out.println("Usage: java -jar JNLPConverter.jar <options>");
         System.out.println("Possible options include:");
+        System.out.println("  -t, --type <type>");
+        System.out.println("          The type of package to create.");
+        System.out.println("          Valid values are: {" + getPlatformTypes() + "}");
+        System.out.println("          If this option is not specified a platform dependent");
+        System.out.println("          default type will be created.");
         System.out.println("  -j, --jnlp <path>");
-        System.out.println("          Full path to JNLP file. Supported protocols are HTTP/HTTPS/FILE.");
-        System.out.println("  -o, --output <path>");
+        System.out.println("          Full path to JNLP file.");
+        System.out.println("          Supported protocols are HTTP/HTTPS/FILE.");
+        System.out.println("  -d, --dest <path>");
         System.out.println("          Name of the directory where generated output files are placed.");
         System.out.println("  -k, --keep <path>");
         System.out.println("          Keep JNLP, JARs and command line arguments for jpackage");
         System.out.println("          in directory provided.");
         System.out.println("      --jpackage-options <options>");
         System.out.println("          Specify additional jpackage options or overwrite provided by JNLPConverter.");
-        System.out.println("          All jpackage options can be specified except: --output -o, --input -i,");
+        System.out.println("          All jpackage options can be specified except: --dest -d, --input -i,");
         System.out.println("          --main-jar -j and --class -c.");
-        System.out.println("      --installer-type <type>");
-        System.out.println("          The type of the installer to create");
-        System.out.println("          Valid values are: {\"exe\", \"msi\", \"rpm\", \"deb\", \"pkg\", \"dmg\"}");
-        System.out.println("          If this option is not specified (in create-installer mode) all");
-        System.out.println("          supported types of installable packages for the current");
-        System.out.println("          platform will be created.");
-        System.out.println("  -h, --help, -?");
-        System.out.println("          Print this help message");
+        System.out.println("  -h, --help");
+        System.out.println("          Print this help message.");
         System.out.println("  -v, --verbose");
         System.out.println("          Enable verbose output.");
         System.out.println("      --version");
@@ -235,9 +243,9 @@ public class Options {
         System.out.println("To specify proxy server use standard Java properties http.proxyHost and http.proxyPort.");
     }
 
-    private static boolean isInstallerType(String type) {
-        for (String installerType : INSTALLER_TYPES) {
-            if (installerType.equals(type)) {
+    private static boolean isValidType(String t) {
+        for (String type : TYPES) {
+            if (type.equals(t)) {
                 return true;
             }
         }
@@ -248,84 +256,61 @@ public class Options {
     public static Options parseArgs(String[] args) {
         Options options = new Options();
 
-        int index = 0;
-        if (args.length >= 1) {
-            switch (args[0]) {
-                case "create-app-image":
-                    options.createAppImage = true;
-                    index = 1;
-                    break;
-                case "create-installer":
-                    options.createInstaller = true;
-                    index = 1;
-                    break;
-                case "-h":
-                case "--help":
-                case "-?":
-                case "--version":
-                    break;
-                default:
-                    optionError(Options.ERR_MISSING_MODE);
-                    break;
-            }
-        }
-
-        for (int i = index; i < args.length; i++) {
+        for (int i = 0; i < args.length; i++) {
             String arg = args[i];
 
-            if (arg.equals("--jnlp")) {
+            if (arg.equals(TYPE_OPTION) || arg.equals(TYPE_OPTION_SHORT)) {
                 if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "--jnlp");
+                    optionError(Options.ERR_MISSING_VALUE, arg);
+                }
+                options.type = args[i];
+                if (!isValidType(options.type)) {
+                    optionError(Options.ERR_UNKNOWN_TYPE, options.type);
+                }
+            } else if (arg.startsWith(TYPE_OPTION + "=")) {
+                options.type = arg.substring(TYPE_OPTION.length() + 1);
+                if (!isValidType(options.type)) {
+                    optionError(Options.ERR_UNKNOWN_TYPE, options.type);
+                }
+            } else if (arg.startsWith(TYPE_OPTION_SHORT)) {
+                options.type = arg.substring(TYPE_OPTION_SHORT.length());
+                if (!isValidType(options.type)) {
+                    optionError(Options.ERR_UNKNOWN_TYPE, options.type);
+                }
+            } else if (arg.equals(JNLP_OPTION) || arg.equals(JNLP_OPTION_SHORT)) {
+                if (++i >= args.length) {
+                    optionError(Options.ERR_MISSING_VALUE, arg);
                 }
                 options.jnlp = args[i];
-            }  else if (arg.startsWith(JNLP_OPTION_PREFIX)) {
-                options.jnlp = arg.substring(JNLP_OPTION_PREFIX.length());
-            } else if (arg.equals("--output")) {
+            } else if (arg.startsWith(JNLP_OPTION + "=")) {
+                options.jnlp = arg.substring(JNLP_OPTION.length() + 1);
+            } else if (arg.startsWith(JNLP_OPTION_SHORT)) {
+                options.jnlp = arg.substring(JNLP_OPTION_SHORT.length());
+            } else if (arg.equals(OUTPUT_OPTION) || arg.equals(OUTPUT_OPTION_SHORT)) {
                 if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "--output");
+                    optionError(Options.ERR_MISSING_VALUE, arg);
                 }
                 options.output = args[i];
-            } else if (arg.startsWith(OUTPUT_OPTION_PREFIX)) {
-                options.output = arg.substring(OUTPUT_OPTION_PREFIX.length());
-            } else if (arg.equals("--keep")) {
+            } else if (arg.startsWith(OUTPUT_OPTION + "=")) {
+                options.output = arg.substring(OUTPUT_OPTION.length() + 1);
+            } else if (arg.startsWith(OUTPUT_OPTION_SHORT)) {
+                options.output = arg.substring(OUTPUT_OPTION_SHORT.length());
+            } else if (arg.equals(KEEP_OPTION) || arg.equals(KEEP_OPTION_SHORT)) {
                 if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "--keep");
+                    optionError(Options.ERR_MISSING_VALUE, arg);
                 }
                 options.keep = args[i];
-            } else if (arg.startsWith(KEEP_OPTION_PREFIX)) {
-                options.keep = arg.substring(KEEP_OPTION_PREFIX.length());
-            } else if (arg.equals("--help")) {
+            } else if (arg.startsWith(KEEP_OPTION + "=")) {
+                options.keep = arg.substring(KEEP_OPTION.length() + 1);
+            } else if (arg.startsWith(KEEP_OPTION_SHORT)) {
+                options.keep = arg.substring(KEEP_OPTION_SHORT.length());
+            } else if (arg.equals(HELP_OPTION) || arg.equals(HELP_OPTION_SHORT)) {
                 options.help = true;
-            } else if (arg.equals("--verbose")) {
+            } else if (arg.equals(VERBOSE_OPTION) || arg.equals(VERBOSE_OPTION_SHORT)) {
                 options.verbose = true;
-            } else if (arg.equals("--version")) {
+            } else if (arg.equals(VERSION_OPTION)) {
                 options.version = true;
-            } else if (arg.equals("-j")) { // short options
-                if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "-j");
-                }
-                options.jnlp = args[i];
-            } else if (arg.startsWith(JNLP_OPTION_SHORT_PREFIX)) {
-                options.jnlp = arg.substring(JNLP_OPTION_SHORT_PREFIX.length());
-            } else if (arg.equals("-o")) {
-                if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "-o");
-                }
-                options.output = args[i];
-            } else if (arg.startsWith(OUTPUT_OPTION_SHORT_PREFIX)) {
-                options.output = arg.substring(OUTPUT_OPTION_SHORT_PREFIX.length());
-            } else if (arg.equals("-k")) {
-                if (++i >= args.length) {
-                    optionError(Options.ERR_MISSING_VALUE, "-k");
-                }
-                options.keep = args[i];
-            } else if (arg.startsWith(KEEP_OPTION_SHORT_PREFIX)) {
-                options.keep = arg.substring(KEEP_OPTION_SHORT_PREFIX.length());
-            } else if (arg.equals("-h") || arg.equals("-?")) {
-                options.help = true;
-            } else if (arg.equals("-v")) {
-                options.verbose = true;
-            } else if (arg.equals("--jpackage-options")) {
+            } else if (arg.equals(JPACKAGE_OPTIONS_OPTION)) {
                 for (i = (i + 1); i < args.length; i++) {
                     if (!options.isRuntimeImageSet) {
                         if (args[i].equals(RUNTIME_IMAGE_OPTION)) {
@@ -333,13 +318,6 @@ public class Options {
                         }
                     }
                     options.jpackageOptions.add(args[i]);
-                }
-            } else if (arg.equals("--installer-type")) {
-                if ((i + 1) < args.length) {
-                    if (isInstallerType(args[i + 1])) {
-                        options.installerType = args[i + 1];
-                        i++;
-                    }
                 }
             } else {
                 optionError(ERR_UNKNOWN_OPTION, arg);
