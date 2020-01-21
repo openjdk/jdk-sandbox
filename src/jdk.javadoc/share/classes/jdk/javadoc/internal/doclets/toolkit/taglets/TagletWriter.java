@@ -27,6 +27,8 @@ package jdk.javadoc.internal.doclets.toolkit.taglets;
 
 import java.util.List;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -189,9 +191,10 @@ public abstract class TagletWriter {
      *
      * @param element
      * @param throwsTag the throws tag.
+     * @param substituteType instantiated type of a generic type-variable, or null.
      * @return the output of the throws tag.
      */
-    protected abstract Content throwsTagOutput(Element element, DocTree throwsTag);
+    protected abstract Content throwsTagOutput(Element element, DocTree throwsTag, TypeMirror substituteType);
 
     /**
      * Return the output for the throws tag.
@@ -214,11 +217,18 @@ public abstract class TagletWriter {
         String constantVal, boolean includeLink);
 
     /**
+     * Return the main type element of the current page or null for pages that don't have one.
+     *
+     * @return the type element of the current page or null.
+     */
+    protected abstract TypeElement getCurrentPageElement();
+
+    /**
      * Given an output object, append to it the tag documentation for
      * the given member.
      *
      * @param tagletManager the manager that manages the taglets.
-     * @param element the Doc that we are print tags for.
+     * @param element the element that we are print tags for.
      * @param taglets the taglets to print.
      * @param writer the writer that will generate the output strings.
      * @param output the output buffer to store the output in.
@@ -233,6 +243,16 @@ public abstract class TagletWriter {
                 // The type parameters and state components are documented in a special
                 // section away from the tag info, so skip here.
                 continue;
+            }
+            if (element.getKind() == ElementKind.MODULE && taglet instanceof BaseTaglet) {
+                BaseTaglet t = (BaseTaglet) taglet;
+                switch (t.getTagKind()) {
+                    // @uses and @provides are handled separately, so skip here.
+                    // See ModuleWriterImpl.computeModulesData
+                    case USES:
+                    case PROVIDES:
+                        continue;
+                }
             }
             if (taglet instanceof DeprecatedTaglet) {
                 //Deprecated information is documented "inline", not in tag info
@@ -249,7 +269,7 @@ public abstract class TagletWriter {
             } catch (UnsupportedTagletOperationException utoe) {
                 //The taglet does not take a member as an argument.  Let's try
                 //a single tag.
-                List<? extends DocTree> tags = utils.getBlockTags(element, taglet.getName());
+                List<? extends DocTree> tags = utils.getBlockTags(element, taglet);
                 if (!tags.isEmpty()) {
                     currentOutput = taglet.getTagletOutput(element, tags.get(0), writer);
                 }

@@ -25,24 +25,37 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.xml.stream.XMLOutputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-import static jdk.incubator.jpackage.internal.OverridableResource.createResource;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
 
-import static jdk.incubator.jpackage.internal.WindowsBundlerParam.*;
+import static jdk.incubator.jpackage.internal.OverridableResource.createResource;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.CONFIG_ROOT;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.DESCRIPTION;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FA_CONTENT_TYPE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FILE_ASSOCIATIONS;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.LICENSE_FILE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.TEMP_ROOT;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
+import static jdk.incubator.jpackage.internal.WindowsBundlerParam.INSTALLDIR_CHOOSER;
+import static jdk.incubator.jpackage.internal.WindowsBundlerParam.INSTALLER_FILE_NAME;
 
 /**
  * WinMsiBundler
@@ -337,6 +350,21 @@ public class WinMsiBundler  extends AbstractBundler {
                     MSI_IMAGE_DIR.fetchFrom(params), true);
         }
 
+        // Configure installer icon
+        if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            // Use icon from java launcher.
+            // Assume java.exe exists in Java Runtime being packed.
+            // Ignore custom icon if any as we don't want to copy anything in
+            // Java Runtime image.
+            installerIcon = ApplicationLayout.javaRuntime()
+                    .runtimeDirectory()
+                    .resolve(Path.of("bin", "java.exe"));
+        } else {
+            installerIcon = ApplicationLayout.windowsAppImage()
+                    .launchersDirectory()
+                    .resolve(APP_NAME.fetchFrom(params) + ".exe");
+        }
+
         params.put(WIN_APP_IMAGE.getID(), appDir);
 
         String licenseFile = LICENSE_FILE.fetchFrom(params);
@@ -401,11 +429,13 @@ public class WinMsiBundler  extends AbstractBundler {
                 upgradeCode));
 
         data.put("JpAllowUpgrades", "yes");
+        data.put("JpAllowDowngrades", "yes");
 
         data.put("JpAppName", APP_NAME.fetchFrom(params));
         data.put("JpAppDescription", DESCRIPTION.fetchFrom(params));
         data.put("JpAppVendor", VENDOR.fetchFrom(params));
         data.put("JpAppVersion", PRODUCT_VERSION.fetchFrom(params));
+        data.put("JpIcon", installerIcon.toString());
 
         final Path configDir = CONFIG_ROOT.fetchFrom(params).toPath();
 
@@ -479,8 +509,6 @@ public class WinMsiBundler  extends AbstractBundler {
 
         boolean enableLicenseUI = (LICENSE_FILE.fetchFrom(params) != null);
         boolean enableInstalldirUI = INSTALLDIR_CHOOSER.fetchFrom(params);
-
-        List<String> lightArgs = new ArrayList<>();
 
         if (!MSI_SYSTEM_WIDE.fetchFrom(params)) {
             wixPipeline.addLightOptions("-sice:ICE91");
@@ -574,6 +602,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
     }
 
+    private Path installerIcon;
     private Map<WixTool, WixTool.ToolInfo> wixToolset;
     private WixSourcesBuilder wixSourcesBuilder = new WixSourcesBuilder();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Set;
+
 /**
  * The multicast datagram socket class is useful for sending
  * and receiving IP multicast packets. A MulticastSocket is
@@ -79,6 +80,46 @@ import java.util.Set;
  * method.
  * <B>Multiple MulticastSockets</B> may subscribe to a multicast group
  * and port concurrently, and they will all receive group datagrams.
+ *
+ * <p> The {@code DatagramSocket} and {@code MulticastSocket}
+ * classes define convenience methods to set and get several
+ * socket options. Like {@code DatagramSocket} this class also
+ * supports the {@link #setOption(SocketOption, Object) setOption}
+ * and {@link #getOption(SocketOption) getOption} methods to set
+ * and query socket options.
+ * In addition to the socket options supported by
+ * <a href="DatagramSocket.html#SocketOptions">{@code DatagramSocket}</a>, a
+ * {@code MulticastSocket} supports the following socket options:
+ * <blockquote>
+ * <a id="MulticastOptions"></a>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_IF IP_MULTICAST_IF} </th>
+ *     <td> The network interface for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_TTL
+ *       IP_MULTICAST_TTL} </th>
+ *     <td> The <em>time-to-live</em> for Internet Protocol (IP) multicast
+ *       datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_MULTICAST_LOOP
+ *       IP_MULTICAST_LOOP} </th>
+ *     <td> Loopback for Internet Protocol (IP) multicast datagrams </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ * Additional (implementation specific) options may also be supported.
  *
  * @author Pavani Diwanji
  * @since 1.1
@@ -168,6 +209,10 @@ public class MulticastSocket extends DatagramSocket {
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
         super((SocketAddress) null);
 
+        // No further initialization when this is a DatagramChannel socket adaptor
+        if (this instanceof sun.nio.ch.DatagramSocketAdaptor)
+            return;
+
         // Enable SO_REUSEADDR before binding
         setReuseAddress(true);
 
@@ -240,6 +285,7 @@ public class MulticastSocket extends DatagramSocket {
      *          default time-to-live value
      *
      * @see #getTimeToLive()
+     * @since 1.2
      */
     public void setTimeToLive(int ttl) throws IOException {
         if (ttl < 0 || ttl > 255) {
@@ -275,6 +321,7 @@ public class MulticastSocket extends DatagramSocket {
      * getting the default time-to-live value
      * @return the default time-to-live value
      * @see #setTimeToLive(int)
+     * @since 1.2
      */
     public int getTimeToLive() throws IOException {
         if (isClosed())
@@ -679,7 +726,7 @@ public class MulticastSocket extends DatagramSocket {
      * @throws     IllegalArgumentException if the socket is connected,
      *             and connected address and packet address differ, or
      *             if the socket is not connected and the packet address
-     *             is not set.
+     *             is not set or if its port is out of range.
      *
      *
      * @deprecated Use the following code or its equivalent instead:
@@ -703,11 +750,14 @@ public class MulticastSocket extends DatagramSocket {
             synchronized(ttlLock) {
                 synchronized(p) {
                     InetAddress packetAddress = p.getAddress();
+                    int packetPort = p.getPort();
                     checkAddress(packetAddress, "send");
                     if (connectState == ST_NOT_CONNECTED) {
                         if (packetAddress == null) {
                             throw new IllegalArgumentException("Address not set");
                         }
+                        if (packetPort < 0 || packetPort > 0xFFFF)
+                            throw new IllegalArgumentException("port out of range:" + packetPort);
                         // Security manager makes sure that the multicast address
                         // is allowed one and that the ttl used is less
                         // than the allowed maxttl.
@@ -717,7 +767,7 @@ public class MulticastSocket extends DatagramSocket {
                                 security.checkMulticast(packetAddress, ttl);
                             } else {
                                 security.checkConnect(packetAddress.getHostAddress(),
-                                                      p.getPort());
+                                        packetPort);
                             }
                         }
                     } else {
@@ -726,7 +776,7 @@ public class MulticastSocket extends DatagramSocket {
                             p.setAddress(connectedAddress);
                             p.setPort(connectedPort);
                         } else if ((!packetAddress.equals(connectedAddress)) ||
-                                   p.getPort() != connectedPort) {
+                                packetPort != connectedPort) {
                             throw new IllegalArgumentException("connected address and packet address" +
                                                         " differ");
                         }
