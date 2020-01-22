@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,6 @@ class NetDatagramSocket extends MulticastSocket {
     /**
      * Various states of this socket.
      */
-    private boolean created = false;
     private boolean bound = false;
     private boolean closed = false;
     private final Object closeLock = new Object();
@@ -50,12 +49,12 @@ class NetDatagramSocket extends MulticastSocket {
     /*
      * The implementation of this DatagramSocket.
      */
-    DatagramSocketImpl impl;
+    private final DatagramSocketImpl impl;
 
     /**
      * Are we using an older DatagramSocketImpl?
      */
-    boolean oldImpl = false;
+    final boolean oldImpl;
 
     /**
      * Set when a socket is ST_CONNECTED until we are certain
@@ -198,54 +197,55 @@ class NetDatagramSocket extends MulticastSocket {
     private void checkOldImpl() {
         if (impl == null)
             return;
+     */
+    private static boolean checkOldImpl(DatagramSocketImpl impl) {
         // DatagramSocketImpl.peekData() is a protected method, therefore we need to use
         // getDeclaredMethod, therefore we need permission to access the member
         try {
             AccessController.doPrivileged(
-                    new PrivilegedExceptionAction<>() {
-                        public Void run() throws NoSuchMethodException {
-                            Class<?>[] cl = new Class<?>[1];
-                            cl[0] = DatagramPacket.class;
-                            impl.getClass().getDeclaredMethod("peekData", cl);
-                            return null;
-                        }
-                    });
+                new PrivilegedExceptionAction<>() {
+                    public Void run() throws NoSuchMethodException {
+                        Class<?>[] cl = new Class<?>[1];
+                        cl[0] = DatagramPacket.class;
+                        impl.getClass().getDeclaredMethod("peekData", cl);
+                        return null;
+                    }
+                });
+            return false;
         } catch (java.security.PrivilegedActionException e) {
-            oldImpl = true;
+            return true;
         }
     }
 
     static Class<?> implClass = null;
 
-    void createImpl() throws SocketException {
+    /**
+     * Creates a DatagramSocketImpl.
+     * @param multicast true if the DatagramSocketImpl is for a MulticastSocket
+     */
+    private static DatagramSocketImpl createImpl(boolean multicast) throws SocketException {
+        DatagramSocketImpl impl;
         DatagramSocketImplFactory factory = DatagramSocket.factory;
-        if (impl == null) {
-            if (factory != null) {
-                impl = factory.createDatagramSocketImpl();
-                checkOldImpl();
-            } else {
-                impl = DefaultDatagramSocketImplFactory.createDatagramSocketImpl(isMulticast);
-
-                checkOldImpl();
-            }
+        if (factory != null) {
+            impl = factory.createDatagramSocketImpl();
+        } else {
+            impl = DefaultDatagramSocketImplFactory.createDatagramSocketImpl(multicast);
         }
         // creates a udp socket
         impl.create();
-        created = true;
+        return impl;
     }
 
     /**
-     * Get the {@code DatagramSocketImpl} attached to this socket,
-     * creating it if necessary.
+     * Return the {@code DatagramSocketImpl} attached to this socket.
      *
-     * @return the {@code DatagramSocketImpl} attached to that
-     * DatagramSocket
-     * @throws SocketException if creation fails.
+     * @return  the {@code DatagramSocketImpl} attached to that
+     *          DatagramSocket
+     * @throws SocketException never thrown
+     * @since 1.4
      */
     // also used by NetMulticastSocket
     DatagramSocketImpl getImpl() throws SocketException {
-        if (!created)
-            createImpl();
         return impl;
     }
 
@@ -371,6 +371,8 @@ class NetDatagramSocket extends MulticastSocket {
                 if (packetAddress == null) {
                     throw new IllegalArgumentException("Address not set");
                 }
+                if (packetPort < 0 || packetPort > 0xFFFF)
+                    throw new IllegalArgumentException("port out of range:" + packetPort);
                 // check the address is ok with the security manager on every send.
                 SecurityManager security = System.getSecurityManager();
 
@@ -383,7 +385,7 @@ class NetDatagramSocket extends MulticastSocket {
                         security.checkMulticast(packetAddress);
                     } else {
                         security.checkConnect(packetAddress.getHostAddress(),
-                                              p.getPort());
+                                packetPort);
                     }
                 }
             } else {
