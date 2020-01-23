@@ -113,6 +113,7 @@ import sun.nio.ch.DefaultSelectorProvider;
  */
 public class DatagramSocket implements java.io.Closeable {
 
+    static final SocketAddress NONE = new SocketAddress() {};
     static final boolean USE_PLAIN_DATAGRAM_SOCKET = usePlainDatagramSocketImpl();
 
     private static boolean usePlainDatagramSocketImpl() {
@@ -163,12 +164,15 @@ public class DatagramSocket implements java.io.Closeable {
         return channel;
     }
 
-    private static DatagramSocket createDatagramSocket(SocketAddress bindaddr) throws SocketException {
+    static DatagramSocket createDelegate(SocketAddress bindaddr, boolean multicast)
+            throws SocketException {
         try {
-            if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
-                return NetDatagramSocket.create(bindaddr, false);
+            if (bindaddr == NONE) {
+                return null;
+            } else if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
+                return NetDatagramSocket.create(bindaddr, multicast);
             } else {
-                var channel = createChannel(bindaddr, false);
+                var channel = createChannel(bindaddr, multicast);
                 return channel.socket();
             }
         } catch (IOException ioe) {
@@ -176,10 +180,16 @@ public class DatagramSocket implements java.io.Closeable {
         }
     }
 
+    static DatagramSocket createDatagramSocket(SocketAddress bindaddr)
+            throws SocketException {
+        return createDelegate(bindaddr, false);
+    }
+
+
     // `socket` is either an instance of DatagramSocketAdaptor
-    // NioMulticastSocket, NetDatagramSocket, or null. `socket`
-    // will be null when socket implementation is delegated to
-    // DatagramSocketAdaptor or NetDatagramSocket
+    // NetDatagramSocket, or null. `socket` is null when
+    // `this` is an instance of DatagramSocketAdaptor or
+    // NetDatagramSocket.
     private final DatagramSocket socket;
 
     // MulticastSocket needs to access the socket field.
@@ -323,10 +333,8 @@ public class DatagramSocket implements java.io.Closeable {
         // socket() will throw an InternalError("should not come here");
         // Otherwise - it must be one of the "approved" subclasses:
         assert socket == null // NetDatagramSocket and DatagramSocketAdaptor have no delegate
-                || socket instanceof NioMulticastSocket // New nio multicast impl
-                || socket instanceof NetDatagramSocket  // Classical net base impl
-                || this instanceof DatagramSocket
-                && socket.getClass().getName().equals("sun.nio.ch.DatagramSocketAdaptor");
+                || socket instanceof NetDatagramSocket  // Classical net-based impl
+                || socket instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
         this.socket = socket;
     }
 

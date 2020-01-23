@@ -38,7 +38,7 @@ import java.util.Collections;
  * This class is the legacy implementation of {@link DatagramSocket} based
  * on {@link DatagramSocketImpl}.
  */
-class NetDatagramSocket extends MulticastSocket {
+final class NetDatagramSocket extends MulticastSocket {
     /**
      * Various states of this socket.
      */
@@ -54,7 +54,7 @@ class NetDatagramSocket extends MulticastSocket {
     /**
      * Are we using an older DatagramSocketImpl?
      */
-    final boolean oldImpl;
+    private final boolean oldImpl;
 
     /**
      * Set when a socket is ST_CONNECTED until we are certain
@@ -93,7 +93,7 @@ class NetDatagramSocket extends MulticastSocket {
 
     // checks that the provided DatagramSocketImpl is non null, and
     // returns a null DatagramSocket for delegation
-    static DatagramSocket nullDatagramSocket(DatagramSocketImpl impl) {
+    static MulticastSocket nullDatagramSocket(DatagramSocketImpl impl) {
         Objects.requireNonNull(impl);
         return null;
     }
@@ -111,7 +111,7 @@ class NetDatagramSocket extends MulticastSocket {
         super(nullDatagramSocket(impl));
         this.isMulticast = false;
         this.impl = impl;
-        checkOldImpl();
+        this.oldImpl = checkOldImpl(impl);
     }
 
     /**
@@ -121,12 +121,12 @@ class NetDatagramSocket extends MulticastSocket {
      *                 the socket is not bound.
      * @throws SocketException
      */
-    // also used by NetMulticastAddress
     NetDatagramSocket(SocketAddress bindaddr, boolean isMulticast) throws SocketException {
-        super((DatagramSocket) null);
+        super((MulticastSocket) null);
         this.isMulticast = isMulticast;
         // create a datagram socket.
-        createImpl();
+        this.impl = createImpl(isMulticast);
+        oldImpl = checkOldImpl(impl);
         // Check SO_REUSEADDR before binding
         if (isMulticast) {
             setReuseAddress(true);
@@ -194,11 +194,9 @@ class NetDatagramSocket extends MulticastSocket {
         connectedPort = port;
     }
 
-    private void checkOldImpl() {
-        if (impl == null)
-            return;
-     */
     private static boolean checkOldImpl(DatagramSocketImpl impl) {
+        if (impl == null)
+            return false;
         // DatagramSocketImpl.peekData() is a protected method, therefore we need to use
         // getDeclaredMethod, therefore we need permission to access the member
         try {
@@ -244,7 +242,6 @@ class NetDatagramSocket extends MulticastSocket {
      * @throws SocketException never thrown
      * @since 1.4
      */
-    // also used by NetMulticastSocket
     DatagramSocketImpl getImpl() throws SocketException {
         return impl;
     }
@@ -278,7 +275,6 @@ class NetDatagramSocket extends MulticastSocket {
         bound = true;
     }
 
-    // also used by NetMulticastSocket
     static void checkAddress(InetAddress addr, String op) {
         if (addr == null) {
             return;
@@ -366,13 +362,14 @@ class NetDatagramSocket extends MulticastSocket {
             if (isClosed())
                 throw new SocketException("Socket is closed");
             InetAddress packetAddress = p.getAddress();
+            int packetPort = p.getPort();
             checkAddress(packetAddress, "send");
             if (connectState == ST_NOT_CONNECTED) {
                 if (packetAddress == null) {
                     throw new IllegalArgumentException("Address not set");
                 }
                 if (packetPort < 0 || packetPort > 0xFFFF)
-                    throw new IllegalArgumentException("port out of range:" + packetPort);
+                    throw new IllegalArgumentException("port out of range: " + packetPort);
                 // check the address is ok with the security manager on every send.
                 SecurityManager security = System.getSecurityManager();
 
@@ -394,7 +391,7 @@ class NetDatagramSocket extends MulticastSocket {
                     p.setAddress(connectedAddress);
                     p.setPort(connectedPort);
                 } else if ((!packetAddress.equals(connectedAddress)) ||
-                        p.getPort() != connectedPort) {
+                        packetPort != connectedPort) {
                     throw new IllegalArgumentException("connected address " +
                             "and packet address" +
                             " differ");
@@ -713,7 +710,7 @@ class NetDatagramSocket extends MulticastSocket {
     private static boolean optionsSet = false;
 
     @Override
-    public Set<SocketOption<?>> supportedOptions() {
+    public final Set<SocketOption<?>> supportedOptions() {
         synchronized (NetDatagramSocket.class) {
             if (optionsSet) {
                 return options;
@@ -729,7 +726,7 @@ class NetDatagramSocket extends MulticastSocket {
         }
     }
 
-    // NetMulticast
+    // Multicast socket support
 
     /**
      * Used on some platforms to record if an outgoing interface

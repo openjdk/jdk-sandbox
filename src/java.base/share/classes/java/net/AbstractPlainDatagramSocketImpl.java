@@ -62,7 +62,7 @@ abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
     /**
      * flag set if the native connect() call not to be used
      */
-    static final boolean connectDisabled = os.contains("OS X");
+    private static final boolean connectDisabled = os.contains("OS X");
 
     /**
      * Load net library into runtime.

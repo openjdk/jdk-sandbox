@@ -25,6 +25,8 @@
 
 package java.net;
 
+import sun.nio.ch.DatagramSocketAdaptor;
+
 import java.io.IOException;
 /**
  * The multicast datagram socket class is useful for sending
@@ -124,16 +126,9 @@ public class MulticastSocket extends DatagramSocket {
 
     private final MulticastSocket multicastDelegate;
 
-    private static DatagramSocket createMulticastSocket(SocketAddress bindaddr) throws SocketException {
-        try {
-            if (USE_PLAIN_DATAGRAM_SOCKET || DatagramSocket.factory != null) {
-                return NetDatagramSocket.create(bindaddr, true);
-            } else {
-                return NioMulticastSocket.create(bindaddr);
-            }
-        } catch (IOException ioe) {
-            throw DatagramSocket.toSocketException(ioe);
-        }
+    private static MulticastSocket createMulticastSocket(SocketAddress bindaddr)
+            throws SocketException {
+        return (MulticastSocket) DatagramSocket.createDelegate(bindaddr, true);
     }
 
     /**
@@ -211,24 +206,22 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.4
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
-        super(createMulticastSocket(bindaddr));
-        multicastDelegate = ((MulticastSocket) socket());
-        assert multicastDelegate != null;
+        this(createMulticastSocket(bindaddr));
+        assert multicastDelegate != null || bindaddr == NONE;
     }
 
-    // This constructor is used by NioMulticastSocket.
-    // In this case the delegate is a plain DatagramSocket, and the
-    // multicastDelegate is null, since the subclass doesn't delegate any
-    // MulticastSocket calls.
-    MulticastSocket(DatagramSocket socket)  {
+    // This constructor is used by NetDatagramSocket.
+    // In this case the delegate null, since the subclass doesn't
+    // delegate any MulticastSocket calls.
+    MulticastSocket(MulticastSocket socket)  {
         super(checkDatagramSocket(socket));
-        this.multicastDelegate = null;
+        multicastDelegate = socket;
     }
 
     static DatagramSocket checkDatagramSocket(DatagramSocket socket) {
-        assert socket == null || socket != null
-                && socket.getClass() != DatagramSocket.class
-                && socket.getClass() != MulticastSocket.class;
+        assert socket == null
+                || socket instanceof DatagramSocketAdaptor
+                || socket instanceof NetDatagramSocket;
         if (socket != null && socket.getClass().getModule() != Object.class.getModule()) {
             throw new InternalError("delegate not in java.base");
         }
@@ -236,7 +229,8 @@ public class MulticastSocket extends DatagramSocket {
     }
 
     private MulticastSocket multicastDelegate() {
-        if (multicastDelegate == null) throw new InternalError("should not come here");
+        if (multicastDelegate == null)
+            throw new InternalError("should not come here");
         return multicastDelegate;
     }
 
