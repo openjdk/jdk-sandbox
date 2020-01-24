@@ -50,6 +50,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.nio.file.Path;
 import java.security.AccessController;
 import java.util.Collections;
 import java.util.HashSet;
@@ -65,8 +66,6 @@ import sun.net.util.SocketExceptions;
 /**
  * An implementation of SocketChannels
  */
-
-// TODO: Security checks
 
 public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 {
@@ -114,6 +113,12 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            Path parent = usa.getPath().getParent();
+            FilePermission p1 = new FilePermission(parent.toString(), "write");
+            sm.checkPermission(p1);
+        }
         Net.unixDomainBind(getFD(), usa);
         if (usa == null || usa.getPathName().equals("")) {
             return UnixDomainSocketAddress.UNNAMED;

@@ -1,0 +1,16 @@
+grant {
+    // permission to bind in server directory
+    permission java.io.FilePermission "${user.dir}/server", "write";
+
+    // permission to bind in client1 directory
+    permission java.io.FilePermission "${user.dir}/client1", "write";
+
+    // permission to connect to server/sock
+    permission java.io.FilePermission "${user.dir}/server/sock", "read,write";
+
+    // permission to accept from client1/csock
+    permission java.io.FilePermission "${user.dir}/client1/csock", "read,write";
+
+    // needed for final test
+    permission java.util.PropertyPermission "java.io.tmpdir", "read";
+};

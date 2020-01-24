@@ -301,7 +301,9 @@ public abstract class ServerSocketChannel
      * <p> For <i>Unix Domain</i> channels, this method performs a security
      * manager {@link SecurityManager#checkPermission(Permission)} using
      * a {@link java.io.FilePermission} constructed with the path from the
-     * remote address and "read,write" as the actions.
+     * remote address and {@code "read, write"} as the actions. Note, in the
+     * case where the remote socket is bound to the unnamed address,
+     * then the path of the FilePermission will be the empty string.
      *
      * @return  The socket channel for the new connection,
      *          or {@code null} if this channel is in non-blocking mode

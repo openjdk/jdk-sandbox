@@ -411,7 +411,7 @@ public abstract class SocketChannel
      * <p> For <i>Unix Domain</i> channels, this method performs a security
      * manager {@link SecurityManager#checkPermission(Permission)} using
      * a {@link java.io.FilePermission} constructed with the path from the
-     * destination address and "read,write" as the actions.
+     * destination address and {@code "read, write"} as the actions.
      *
      * <p> This method may be invoked at any time.  If a read or write
      * operation upon this channel is invoked while an invocation of this

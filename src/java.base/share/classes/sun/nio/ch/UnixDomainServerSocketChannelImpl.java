@@ -124,8 +124,8 @@ public class UnixDomainServerSocketChannelImpl
             } else {
                 usa = Net.checkUnixAddress(local);
                 if (sm != null) {
-                    Path path = usa.getPath().getParent();
-                    FilePermission p = new FilePermission(path.toString(), "write");
+                    Path parent = usa.getPath().getParent();
+                    FilePermission p = new FilePermission(parent.toString(), "write");
                     sm.checkPermission(p);
                 }
             }
@@ -172,7 +172,12 @@ public class UnixDomainServerSocketChannelImpl
     private static final String tempDir = getTempDir();
     private static final FilePermission tempDirPermission = new FilePermission(tempDir, "write");
     private static final Random random = getRandom();;
-    private static final long pid = ProcessHandle.current().pid();
+    private static final long pid = AccessController.doPrivileged(
+        (PrivilegedAction<Long>)UnixDomainServerSocketChannelImpl::getPid);
+
+    private static long getPid() {
+        return ProcessHandle.current().pid();
+    }
 
     private static void checkTempDirPermission(SecurityManager sm) {
         if (sm != null) {
