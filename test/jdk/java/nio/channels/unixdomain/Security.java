@@ -59,8 +59,10 @@ public class Security {
             if (!(t instanceof SecurityException)) {
                 throw new RuntimeException("wrong exception type thrown " + t.toString());
             }
-            if (!mustThrow)
+            if (!mustThrow) {
+                t.printStackTrace();
                 throw new RuntimeException("an exception was thrown but was not expected");
+            }
         }
         if (mustThrow && !threw) {
             // should have thrown
@@ -131,6 +133,7 @@ public class Security {
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
+            System.out.println("XXX " + saddr);
             server.bind(saddr);
         }, false);
         call(() -> {

@@ -124,7 +124,7 @@ public class UnixDomainServerSocketChannelImpl
             } else {
                 usa = Net.checkUnixAddress(local);
                 if (sm != null) {
-                    Path parent = usa.getPath().getParent();
+                    Path parent = privilegedGetParent(usa.getPath());
                     FilePermission p = new FilePermission(parent.toString(), "write");
                     sm.checkPermission(p);
                 }
@@ -143,6 +143,17 @@ public class UnixDomainServerSocketChannelImpl
             throw new IOException("could not bind to temporary name");
         Net.listen(getFD(), backlog < 1 ? 50 : backlog);
         return Net.localUnixAddress(getFD());
+    }
+
+    private static Path privilegedGetParent(Path path) {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<Path>) () -> {
+                return path
+                    .normalize()
+                    .toAbsolutePath()
+                    .getParent();
+            }
+        );
     }
 
     private static String getTempDir() {

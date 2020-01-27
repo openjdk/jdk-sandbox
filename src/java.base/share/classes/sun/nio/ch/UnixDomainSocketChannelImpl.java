@@ -52,6 +52,7 @@ import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
 import java.nio.file.Path;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
@@ -114,8 +115,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         UnixDomainSocketAddress usa = Net.checkUnixAddress(local);
         SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            Path parent = usa.getPath().getParent();
+        if (usa != null && sm != null) {
+            Path parent = privilegedGetParent(usa.getPath());
             FilePermission p1 = new FilePermission(parent.toString(), "write");
             sm.checkPermission(p1);
         }
@@ -125,6 +126,17 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         } else {
             return Net.localUnixAddress(getFD());
         }
+    }
+
+    private static Path privilegedGetParent(Path path) {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<Path>) () -> {
+                return path
+                    .normalize()
+                    .toAbsolutePath()
+                    .getParent();
+            }
+        );
     }
 
     @Override
