@@ -3,5 +3,5 @@ grant {
     permission java.io.FilePermission "${java.io.tmpdir}", "write";
 
     // permission to connect to temp directory
-    permission java.io.FilePermission "${java.io.tmpdir}/*", "read,write";
+    permission java.io.FilePermission "${java.io.tmpdir}${file.separator}*", "read,write";
 };
