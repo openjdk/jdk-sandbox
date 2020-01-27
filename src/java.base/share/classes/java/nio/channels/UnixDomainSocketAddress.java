@@ -26,6 +26,7 @@
 package java.nio.channels;
 
 import java.net.SocketAddress;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.AccessController;
@@ -102,7 +103,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * @param pathname the pathname to the socket.
      *
      * @throws NullPointerException if pathname is null
-     * @throws InvalidArgumentException if pathname is too long
+     * @throws IllegalArgumentException if pathname is too long
      * @throws InvalidPathException if pathname cannot be converted to a Path
      * @throws UnsupportedOperationException if Unix domain channels not supported
      *         on this platform.
@@ -127,7 +128,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
      *
      * @param path the path to the socket.
      *
-     * @throws InvalidArgumentException if path name is too long
+     * @throws IllegalArgumentException if path name is too long
      * @throws UnsupportedOperationException if Unix domain channels not supported
      *         on this platform.
      * @throws NullPointerException if path is null
