@@ -24,7 +24,6 @@
 /**
  * @test
  * @bug 8231358
- * @run main/othervm Basic 32000 32000 nagle-off
  * @run main/othervm Basic default default nagle-off
  * @summary Basic test for Unix Domain and Inet socket and server socket channels
  */
