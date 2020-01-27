@@ -71,6 +71,10 @@ public class Security {
     }
 
     public static void main(String[] args) throws Exception {
+        if (UnixDomainSocketAddress.MAXNAMELENGTH == -1) {
+            System.out.println("Unix domain not supported");
+            return;
+        }
         String policy = args[0];
         switch (policy) {
             case "policy1":

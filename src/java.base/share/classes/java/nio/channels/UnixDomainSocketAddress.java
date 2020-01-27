@@ -104,14 +104,20 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * @throws NullPointerException if pathname is null
      * @throws InvalidArgumentException if pathname is too long
      * @throws InvalidPathException if pathname cannot be converted to a Path
+     * @throws UnsupportedOperationException if Unix domain channels not supported
+     *         on this platform.
      */
     public UnixDomainSocketAddress(String pathname) {
         Objects.requireNonNull(pathname);
         // TBD: The implication of check below is that instances cannot
         // be created on platforms where Unix domain sockets are not supported.
         // Is this ok?
-        if (pathname.length() > MAXNAMELENGTH)
+        if (pathname.length() > MAXNAMELENGTH) {
+            if (MAXNAMELENGTH == -1)
+                throw new UnsupportedOperationException("Unix domain channels not supported"
+                        + " on this platform");
             throw new IllegalArgumentException("pathname too long");
+        }
         this.pathname = pathname;
         this.path = Paths.get(pathname);
     }
@@ -122,14 +128,20 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * @param path the path to the socket.
      *
      * @throws InvalidArgumentException if path name is too long
+     * @throws UnsupportedOperationException if Unix domain channels not supported
+     *         on this platform.
      * @throws NullPointerException if path is null
      */
     public UnixDomainSocketAddress(Path path) {
         Objects.requireNonNull(path);
         this.path = path;
         this.pathname = path.toString();
-        if (pathname.length() > MAXNAMELENGTH)
+        if (pathname.length() > MAXNAMELENGTH) {
+            if (MAXNAMELENGTH == -1)
+                throw new UnsupportedOperationException("Unix domain channels not supported"
+                        + " on this platform");
             throw new IllegalArgumentException("pathname too long");
+        }
     }
 
     /**
