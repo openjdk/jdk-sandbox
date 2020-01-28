@@ -100,7 +100,8 @@ public class Security {
 
     static void setSecurityManager(String policy) {
         String testSrc = System.getProperty("test.src");
-        String policyURL = "file://" + testSrc + "/" + policy;
+	// Three /// required for Windows below
+        String policyURL = "file:///" + testSrc + File.separator + policy;
         System.out.println("POLICY: " + policyURL);
         System.setProperty("java.security.policy", policyURL);
         System.setSecurityManager(new SecurityManager());
