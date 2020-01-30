@@ -240,7 +240,7 @@ public class UnreferencedMulticastSockets {
     private static void extractRefs(DatagramSocket s, String name) {
 
         try {
-            Field datagramSocketField = DatagramSocket.class.getDeclaredField("socket");
+            Field datagramSocketField = DatagramSocket.class.getDeclaredField("delegate");
             datagramSocketField.setAccessible(true);
 
             if (!usePlainDatagramSocketImpl()) {

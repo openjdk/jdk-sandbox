@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -197,7 +197,7 @@ public class UnreferencedDatagramSockets {
     // Reflect to find references in the datagram implementation that will be gc'd
     private static void extractRefs(DatagramSocket s, String name) {
         try {
-            Field datagramSocketField = DatagramSocket.class.getDeclaredField("socket");
+            Field datagramSocketField = DatagramSocket.class.getDeclaredField("delegate");
             datagramSocketField.setAccessible(true);
 
             if (!usePlainDatagramSocketImpl()) {

@@ -25,8 +25,6 @@
 
 package java.net;
 
-import sun.nio.ch.DatagramSocketAdaptor;
-
 import java.io.IOException;
 /**
  * The multicast datagram socket class is useful for sending
@@ -124,11 +122,9 @@ import java.io.IOException;
  */
 public class MulticastSocket extends DatagramSocket {
 
-    private final MulticastSocket multicastDelegate;
-
     private static MulticastSocket createMulticastSocket(SocketAddress bindaddr)
             throws SocketException {
-        return (MulticastSocket) DatagramSocket.createDelegate(bindaddr, true);
+        return DatagramSocket.createDelegate(bindaddr, true);
     }
 
     /**
@@ -207,32 +203,15 @@ public class MulticastSocket extends DatagramSocket {
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
         this(createMulticastSocket(bindaddr));
-        assert multicastDelegate != null || bindaddr == NONE;
     }
 
     // This constructor is used by NetDatagramSocket.
     // In this case the delegate null, since the subclass doesn't
     // delegate any MulticastSocket calls.
     MulticastSocket(MulticastSocket socket)  {
-        super(checkDatagramSocket(socket));
-        multicastDelegate = socket;
+        super(socket);
     }
 
-    static DatagramSocket checkDatagramSocket(DatagramSocket socket) {
-        assert socket == null
-                || socket instanceof DatagramSocketAdaptor
-                || socket instanceof NetDatagramSocket;
-        if (socket != null && socket.getClass().getModule() != Object.class.getModule()) {
-            throw new InternalError("delegate not in java.base");
-        }
-        return socket;
-    }
-
-    private MulticastSocket multicastDelegate() {
-        if (multicastDelegate == null)
-            throw new InternalError("should not come here");
-        return multicastDelegate;
-    }
 
     /**
      * Set the default time-to-live for multicast packets sent out
@@ -251,7 +230,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated
     public void setTTL(byte ttl) throws IOException {
-        multicastDelegate().setTTL(ttl);
+        delegate().setTTL(ttl);
     }
 
     /**
@@ -275,7 +254,7 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.2
      */
     public void setTimeToLive(int ttl) throws IOException {
-        multicastDelegate().setTimeToLive(ttl);
+        delegate().setTimeToLive(ttl);
     }
 
     /**
@@ -291,7 +270,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated
     public byte getTTL() throws IOException {
-        return multicastDelegate().getTTL();
+        return delegate().getTTL();
     }
 
     /**
@@ -304,7 +283,7 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.2
      */
     public int getTimeToLive() throws IOException {
-        return multicastDelegate().getTimeToLive();
+        return delegate().getTimeToLive();
     }
 
     /**
@@ -328,7 +307,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void joinGroup(InetAddress mcastaddr) throws IOException {
-        multicastDelegate().joinGroup(mcastaddr);
+        delegate().joinGroup(mcastaddr);
     }
 
     /**
@@ -351,7 +330,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void leaveGroup(InetAddress mcastaddr) throws IOException {
-        multicastDelegate().leaveGroup(mcastaddr);
+        delegate().leaveGroup(mcastaddr);
     }
 
     /**
@@ -382,7 +361,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        multicastDelegate().joinGroup(mcastaddr, netIf);
+        delegate().joinGroup(mcastaddr, netIf);
     }
 
     /**
@@ -411,7 +390,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        multicastDelegate().leaveGroup(mcastaddr, netIf);
+        delegate().leaveGroup(mcastaddr, netIf);
      }
 
     /**
@@ -429,7 +408,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void setInterface(InetAddress inf) throws SocketException {
-        multicastDelegate().setInterface(inf);
+        delegate().setInterface(inf);
     }
 
     /**
@@ -449,7 +428,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public InetAddress getInterface() throws SocketException {
-        return multicastDelegate().getInterface();
+        return delegate().getInterface();
     }
 
     /**
@@ -464,7 +443,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void setNetworkInterface(NetworkInterface netIf)
         throws SocketException {
-        multicastDelegate().setNetworkInterface(netIf);
+        delegate().setNetworkInterface(netIf);
     }
 
     /**
@@ -479,7 +458,7 @@ public class MulticastSocket extends DatagramSocket {
      * @since  1.4
      */
     public NetworkInterface getNetworkInterface() throws SocketException {
-        return multicastDelegate().getNetworkInterface();
+        return delegate().getNetworkInterface();
     }
 
     /**
@@ -503,7 +482,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void setLoopbackMode(boolean disable) throws SocketException {
-        multicastDelegate().setLoopbackMode(disable);
+        delegate().setLoopbackMode(disable);
     }
 
     /**
@@ -519,7 +498,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public boolean getLoopbackMode() throws SocketException {
-        return multicastDelegate().getLoopbackMode();
+        return delegate().getLoopbackMode();
     }
 
     /**
@@ -580,6 +559,6 @@ public class MulticastSocket extends DatagramSocket {
     @Deprecated
     public void send(DatagramPacket p, byte ttl)
         throws IOException {
-        multicastDelegate().send(p, ttl);
+        delegate().send(p, ttl);
     }
 }

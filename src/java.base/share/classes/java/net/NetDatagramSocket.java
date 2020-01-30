@@ -85,11 +85,9 @@ final class NetDatagramSocket extends MulticastSocket {
      */
     InetAddress connectedAddress = null;
     int connectedPort = -1;
-    private final boolean isMulticast;
 
-
-    static NetDatagramSocket create(SocketAddress bindaddr, boolean isMulticast) throws SocketException {
-        return new NetDatagramSocket(bindaddr, isMulticast);
+    static NetDatagramSocket create(boolean isMulticast) throws SocketException {
+        return new NetDatagramSocket(createImpl(isMulticast));
     }
 
     // checks that the provided DatagramSocketImpl is non null, and
@@ -100,46 +98,13 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     /**
-     * This constructor is used by {@link DatagramSocket#DatagramSocket(DatagramSocketImpl)}.
+     * This constructor is also used by {@link DatagramSocket#DatagramSocket(DatagramSocketImpl)}.
      * @param impl The impl used in this instance.
      */
     NetDatagramSocket(DatagramSocketImpl impl) {
-        // Revisit:
-        // The NetDatagramSocket class overrides all the methods
-        // defined by DatagramSocket, and thus calls super(null).
-        // Whether to pass a non-functional instance of DatagramSocket
-        // instead should be considered.
         super(nullDatagramSocket(impl));
-        this.isMulticast = false;
         this.impl = impl;
         this.oldImpl = checkOldImpl(impl);
-    }
-
-    /**
-     * Construct a new instance of NetDatagramSocket bound to
-     * the specified address.
-     * @param bindaddr an address to bind to, or null. If null,
-     *                 the socket is not bound.
-     * @throws SocketException
-     */
-    NetDatagramSocket(SocketAddress bindaddr, boolean isMulticast) throws SocketException {
-        super((MulticastSocket) null);
-        this.isMulticast = isMulticast;
-        // create a datagram socket.
-        this.impl = createImpl(isMulticast);
-        oldImpl = checkOldImpl(impl);
-        // Check SO_REUSEADDR before binding
-        if (isMulticast) {
-            setReuseAddress(true);
-        }
-        if (bindaddr != null) {
-            try {
-                bind(bindaddr);
-            } finally {
-                if (!isBound())
-                    close();
-            }
-        }
     }
 
     private synchronized void connectInternal(InetAddress address, int port) throws SocketException {

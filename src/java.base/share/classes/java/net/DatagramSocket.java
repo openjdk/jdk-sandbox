@@ -116,6 +116,8 @@ public class DatagramSocket implements java.io.Closeable {
 
     static final SocketAddress NONE = new SocketAddress() {};
     static final boolean USE_PLAIN_DATAGRAM_SOCKET = usePlainDatagramSocketImpl();
+    static final boolean CONFIGURE_SO_SNDBUF = configureSendBuffer();
+    static final int MAX_PACKET_LEN = 65507;
 
     private static boolean usePlainDatagramSocketImpl() {
         PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainDatagramSocketImpl");
@@ -123,65 +125,85 @@ public class DatagramSocket implements java.io.Closeable {
         return (s != null) && (s.isEmpty() || s.equalsIgnoreCase("true"));
     }
 
-    static DatagramChannel createChannel(SocketAddress bindaddr, boolean reuseAddress) throws SocketException {
+    private static boolean configureSendBuffer() {
+        PrivilegedAction<String> pa = () -> NetProperties.get("os.name");
+        String s = AccessController.doPrivileged(pa);
+        return s.contains("OS X");
+    }
+
+    private static MulticastSocket createAdaptor() throws IOException {
+        boolean opened = false;
         DatagramChannel channel = null;
-        DatagramSocket socket;
+        MulticastSocket delegate;
         try {
             channel = DefaultSelectorProvider.get().openUninterruptibleDatagramChannel();
-            socket = channel.socket();
-            // Enable SO_REUSEADDR before binding
-            if (reuseAddress) {
-                socket.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-            }
-        } catch (IOException e) {
-            if (channel != null) {
+            if (CONFIGURE_SO_SNDBUF) {
                 try {
-                    channel.close();
-                } catch (IOException ioe) {
-                }
-            }
-            throw DatagramSocket.toSocketException(e);
-        }
-
-        if (bindaddr != null) {
-            boolean bound = false;
-            try {
-                channel.socket().bind(bindaddr);
-                bound = true;
-            } finally {
-                if (!bound) {
-                    try {
-                        channel.close();
-                    } catch (IOException e) {
+                    if (channel.getOption(StandardSocketOptions.SO_SNDBUF) < MAX_PACKET_LEN) {
+                        // NetDatagramSocket does this when it creates the socket on
+                        // Mac OS X
+                        channel.setOption(StandardSocketOptions.SO_SNDBUF, MAX_PACKET_LEN);
                     }
+                } catch (Exception x) {
+                    // best effort
                 }
             }
+            delegate = (MulticastSocket) channel.socket();
+            opened = true; // everything was fine!
+        } finally {
+            if (!opened) {
+                // An exception was thrown above: clean up
+                // and close channel if not null. This trick will
+                // ensure the channel gets closed regardless of
+                // whatever kind of exception was thrown
+                if (channel != null) channel.close();
+            }
         }
-        // enable SO_BROADCAST if possible
-        try {
-            socket.setOption(StandardSocketOptions.SO_BROADCAST, true);
-        } catch (IOException ioe) {
-        }
-        return channel;
+        return delegate;
     }
 
-    static DatagramSocket createDelegate(SocketAddress bindaddr, boolean multicast)
+    static MulticastSocket createDelegate(SocketAddress bindaddr, boolean multicast)
             throws SocketException {
+        if (bindaddr == NONE) return null;
+        MulticastSocket delegate = null;
+        boolean opened = false;
         try {
-            if (bindaddr == NONE) {
-                return null;
-            } else if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
-                return NetDatagramSocket.create(bindaddr, multicast);
+            if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
+                // create legacy DatagramSocket
+                delegate = NetDatagramSocket.create(multicast);
             } else {
-                var channel = createChannel(bindaddr, multicast);
-                return channel.socket();
+                // create NIO adaptor
+                delegate = createAdaptor();
             }
+            if (multicast) {
+                // set reuseaddress if multicasting
+                // (must be set before binding)
+                delegate.setReuseAddress(true);
+            }
+            if (bindaddr != null) {
+                // bind if needed
+                delegate.bind(bindaddr);
+            }
+            // enable broadcast if possible
+            try {
+                delegate.setBroadcast(true);
+            } catch (IOException ioe) {
+            }
+            opened = bindaddr == null || delegate.isBound();
         } catch (IOException ioe) {
             throw toSocketException(ioe);
+        } finally {
+            // make sure the delegate is closed if anything
+            // went wrong
+            if (!opened) {
+                if (delegate != null) delegate.close();
+            }
         }
+
+        return delegate;
     }
 
-    static DatagramSocket createDatagramSocket(SocketAddress bindaddr)
+    private static MulticastSocket createDatagramSocket(SocketAddress bindaddr)
             throws SocketException {
         return createDelegate(bindaddr, false);
     }
@@ -191,14 +213,14 @@ public class DatagramSocket implements java.io.Closeable {
     // NetDatagramSocket, or null. `socket` is null when
     // `this` is an instance of DatagramSocketAdaptor or
     // NetDatagramSocket.
-    private final DatagramSocket socket;
+    private final MulticastSocket delegate;
 
     // MulticastSocket needs to access the socket field.
-    final DatagramSocket socket() {
-        if (socket == null) {
+    final MulticastSocket delegate() {
+        if (delegate == null) {
             throw new InternalError("Should not come here");
         }
-        return socket;
+        return delegate;
     }
 
     /**
@@ -232,18 +254,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since   1.4
      */
     protected DatagramSocket(DatagramSocketImpl impl) {
-        this(wrapImpl(impl) );
-    }
-
-    static DatagramSocket wrapImpl(DatagramSocketImpl impl) {
-        // implicit null pointer cast: throws NPE if impl is null.
-        if (impl.getClass().getModule() != Object.class.getModule()) {
-            return new NetDatagramSocket(impl);
-        }
-        // This is called only by the DatagramSocketAdaptor
-        // Set the socket field to null so that any method
-        // not overridden in the subclass will throw InternalError.
-        return null;
+        this(new NetDatagramSocket(impl));
     }
 
     /**
@@ -327,16 +338,16 @@ public class DatagramSocket implements java.io.Closeable {
 
     /**
      * All constructors eventually call this one.
-     * @param socket The wrapped DatagramSocket implementation, or null.
+     * @param delegate The wrapped DatagramSocket implementation, or null.
      */
-    DatagramSocket(DatagramSocket socket) {
-        // socket can be null in which case any call to
-        // socket() will throw an InternalError("should not come here");
+    DatagramSocket(MulticastSocket delegate) {
+        // delegate can be null in which case any call to
+        // delegate() will throw an InternalError("should not come here");
         // Otherwise - it must be one of the "approved" subclasses:
-        assert socket == null // NetDatagramSocket and DatagramSocketAdaptor have no delegate
-                || socket instanceof NetDatagramSocket  // Classical net-based impl
-                || socket instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
-        this.socket = socket;
+        assert delegate == null // NetDatagramSocket and DatagramSocketAdaptor have no delegate
+                || delegate instanceof NetDatagramSocket  // Classical net-based impl
+                || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
+        this.delegate = delegate;
     }
 
     /**
@@ -355,7 +366,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public void bind(SocketAddress addr) throws SocketException {
-        socket().bind(addr);
+        delegate().bind(addr);
     }
 
     /**
@@ -417,7 +428,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public void connect(InetAddress address, int port) {
-        socket().connect(address, port);
+        delegate().connect(address, port);
     }
 
     /**
@@ -445,7 +456,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public void connect(SocketAddress addr) throws SocketException {
-        socket().connect(addr);
+        delegate().connect(addr);
     }
 
     /**
@@ -466,7 +477,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public void disconnect() {
-        socket.disconnect();
+        delegate().disconnect();
     }
 
     /**
@@ -480,7 +491,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public boolean isBound() {
-        return socket().isBound();
+        return delegate().isBound();
     }
 
     /**
@@ -494,7 +505,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public boolean isConnected() {
-        return socket().isConnected();
+        return delegate().isConnected();
     }
 
     /**
@@ -509,7 +520,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public InetAddress getInetAddress() {
-        return socket().getInetAddress();
+        return delegate().getInetAddress();
     }
 
     /**
@@ -524,7 +535,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public int getPort() {
-        return socket().getPort();
+        return delegate().getPort();
     }
 
     /**
@@ -544,7 +555,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public SocketAddress getRemoteSocketAddress() {
-        return socket().getRemoteSocketAddress();
+        return delegate().getRemoteSocketAddress();
     }
 
     /**
@@ -558,7 +569,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public SocketAddress getLocalSocketAddress() {
-        return socket().getLocalSocketAddress();
+        return delegate().getLocalSocketAddress();
     }
 
     /**
@@ -604,7 +615,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @spec JSR-51
      */
     public void send(DatagramPacket p) throws IOException  {
-        socket().send(p);
+        delegate().send(p);
     }
 
     /**
@@ -641,7 +652,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @spec JSR-51
      */
     public void receive(DatagramPacket p) throws IOException {
-        socket().receive(p);
+        delegate().receive(p);
     }
 
     /**
@@ -663,7 +674,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since   1.1
      */
     public InetAddress getLocalAddress() {
-        return socket().getLocalAddress();
+        return delegate().getLocalAddress();
     }
 
     /**
@@ -675,7 +686,7 @@ public class DatagramSocket implements java.io.Closeable {
      *          {@code 0} if it is not bound yet.
      */
     public int getLocalPort() {
-        return socket().getLocalPort();
+        return delegate().getLocalPort();
     }
 
     /**
@@ -696,7 +707,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #getSoTimeout()
      */
     public void setSoTimeout(int timeout) throws SocketException {
-        socket().setSoTimeout(timeout);
+        delegate().setSoTimeout(timeout);
     }
 
     /**
@@ -709,7 +720,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #setSoTimeout(int)
      */
     public int getSoTimeout() throws SocketException {
-        return socket().getSoTimeout();
+        return delegate().getSoTimeout();
     }
 
     /**
@@ -743,7 +754,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public void setSendBufferSize(int size) throws SocketException {
-        socket().setSendBufferSize(size);
+        delegate().setSendBufferSize(size);
     }
 
     /**
@@ -757,7 +768,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public int getSendBufferSize() throws SocketException {
-        return socket().getSendBufferSize();
+        return delegate().getSendBufferSize();
     }
 
     /**
@@ -790,7 +801,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public void setReceiveBufferSize(int size) throws SocketException {
-        socket().setReceiveBufferSize(size);
+        delegate().setReceiveBufferSize(size);
     }
 
     /**
@@ -803,7 +814,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.2
      */
     public int getReceiveBufferSize() throws SocketException {
-        return socket().getReceiveBufferSize();
+        return delegate().getReceiveBufferSize();
     }
 
     /**
@@ -841,7 +852,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #isClosed()
      */
     public void setReuseAddress(boolean on) throws SocketException {
-        socket().setReuseAddress(on);
+        delegate().setReuseAddress(on);
     }
 
     /**
@@ -854,7 +865,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #setReuseAddress(boolean)
      */
     public boolean getReuseAddress() throws SocketException {
-        return socket().getReuseAddress();
+        return delegate().getReuseAddress();
     }
 
     /**
@@ -875,7 +886,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #getBroadcast()
      */
     public void setBroadcast(boolean on) throws SocketException {
-        socket().setBroadcast(on);
+        delegate().setBroadcast(on);
     }
 
     /**
@@ -887,7 +898,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #setBroadcast(boolean)
      */
     public boolean getBroadcast() throws SocketException {
-        return socket().getBroadcast();
+        return delegate().getBroadcast();
     }
 
     /**
@@ -928,7 +939,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #getTrafficClass
      */
     public void setTrafficClass(int tc) throws SocketException {
-        socket().setTrafficClass(tc);
+        delegate().setTrafficClass(tc);
     }
 
     /**
@@ -948,7 +959,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @see #setTrafficClass(int)
      */
     public int getTrafficClass() throws SocketException {
-        return socket().getTrafficClass();
+        return delegate().getTrafficClass();
     }
 
     /**
@@ -964,7 +975,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @spec JSR-51
      */
     public void close() {
-        socket().close();
+        delegate().close();
     }
 
     /**
@@ -974,7 +985,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 1.4
      */
     public boolean isClosed() {
-        return socket().isClosed();
+        return delegate().isClosed();
     }
 
     /**
@@ -1071,7 +1082,7 @@ public class DatagramSocket implements java.io.Closeable {
     public <T> DatagramSocket setOption(SocketOption<T> name, T value)
         throws IOException
     {
-        socket().setOption(name, value);
+        delegate().setOption(name, value);
         return this;
     }
 
@@ -1099,7 +1110,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 9
      */
     public <T> T getOption(SocketOption<T> name) throws IOException {
-        return socket().getOption(name);
+        return delegate().getOption(name);
     }
 
     /**
@@ -1114,7 +1125,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since 9
      */
     public Set<SocketOption<?>> supportedOptions() {
-        return socket().supportedOptions();
+        return delegate().supportedOptions();
     }
 
     /**
