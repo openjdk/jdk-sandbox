@@ -69,8 +69,6 @@ public class Basic {
         else if (args[2].equals("nagle-off"))
             nagle = false;
 
-        testInetNew();
-        System.exit(0);
         warmup();
         test(128, 1000);
         test(8 * 1024, 10000);
@@ -149,22 +147,6 @@ public class Basic {
         int rbuf = client.receiveSocketBufsize();
         System.out.printf("completed in %d ns (sbuf=%d, rbuf=%d)\n", inet, sbuf, rbuf);
         return inet;
-    }
-
-    static void testInetNew() throws Exception {
-
-        //ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.INET6);
-        InetAddress ipv3Local = InetAddress.getByName("10.169.111.22");
-        InetAddress ipv4Local = InetAddress.getByName("fe80::14d5:7228:5944:f5f5%en4");
-        InetSocketAddress s1addr = new InetSocketAddress(ipv3Local, 0);
-        //ServerSocketChannel ss = ServerSocketChannel.open();
-        //ss.bind(s1addr);
-        InetSocketAddress s2addr = new InetSocketAddress(ipv4Local, 0);
-
-        SocketChannel client = SocketChannel.open();
-        client.bind(s2addr);
-
-        client.connect(s1addr);
     }
 
     static void setNagle(SocketChannel chan, boolean value) throws IOException {
