@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8231358
- * @run main/othervm Basic default default nagle-off
+ * @run main/othervm/timeout=3600 Basic default default nagle-off
  * @summary Basic test for Unix Domain and Inet socket and server socket channels
  */
 
@@ -61,7 +61,7 @@ public class Basic {
             System.out.println("Unix domain channels not supported");
             return;
         }
-	System.out.println("MAXNAMELENGTH = " + UnixDomainSocketAddress.MAXNAMELENGTH);
+            System.out.println("MAXNAMELENGTH = " + UnixDomainSocketAddress.MAXNAMELENGTH);
         sockRxBufsize = getInt(args[0]);
         sockTxBufsize = getInt(args[1]);
         if (args[2].equals("nagle-on"))
@@ -69,6 +69,8 @@ public class Basic {
         else if (args[2].equals("nagle-off"))
             nagle = false;
 
+        testInetNew();
+        System.exit(0);
         warmup();
         test(128, 1000);
         test(8 * 1024, 10000);
@@ -149,6 +151,22 @@ public class Basic {
         return inet;
     }
 
+    static void testInetNew() throws Exception {
+
+        //ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.INET6);
+        InetAddress ipv3Local = InetAddress.getByName("10.169.111.22");
+        InetAddress ipv4Local = InetAddress.getByName("fe80::14d5:7228:5944:f5f5%en4");
+        InetSocketAddress s1addr = new InetSocketAddress(ipv3Local, 0);
+        //ServerSocketChannel ss = ServerSocketChannel.open();
+        //ss.bind(s1addr);
+        InetSocketAddress s2addr = new InetSocketAddress(ipv4Local, 0);
+
+        SocketChannel client = SocketChannel.open();
+        client.bind(s2addr);
+
+        client.connect(s1addr);
+    }
+
     static void setNagle(SocketChannel chan, boolean value) throws IOException {
         if (chan.getRemoteAddress() instanceof InetSocketAddress) {
             chan.setOption(StandardSocketOptions.TCP_NODELAY, value);
@@ -190,7 +208,7 @@ public class Basic {
             }
             server.bind(addr);
             address = server.getLocalAddress();
-	    System.out.println("Server address: " + address);
+            System.out.println("Server address: " + address);
         }
 
         SocketAddress getAddress() {
@@ -225,10 +243,10 @@ public class Basic {
                             if (m == -1) {
                                 channel.close();
                                 server.close();
-				if (address instanceof UnixDomainSocketAddress) {
-				    var usa = (UnixDomainSocketAddress)address;
-				    Files.delete(usa.getPath());
-				}
+                                if (address instanceof UnixDomainSocketAddress) {
+                                    var usa = (UnixDomainSocketAddress)address;
+                                    Files.delete(usa.getPath());
+                                }
                                 return;
                             } else {
                                 buf.flip();

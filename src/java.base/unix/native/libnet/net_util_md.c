@@ -54,6 +54,7 @@
 
 #include "java_net_SocketOptions.h"
 #include "java_net_InetAddress.h"
+#include "sun_nio_ch_Net.h"
 
 #if defined(__linux__) && !defined(IPV6_FLOWINFO_SEND)
 #define IPV6_FLOWINFO_SEND      33
@@ -436,18 +437,47 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
                           SOCKETADDRESS *sa, int *len,
                           jboolean v4MappedAddress)
 {
-    jint family = getInetAddress_family(env, iaObj);
+    jint src_family = getInetAddress_family(env, iaObj);
     JNU_CHECK_EXCEPTION_RETURN(env, -1);
     memset((char *)sa, 0, sizeof(SOCKETADDRESS));
 
     if (ipv6_available() &&
-        !(family == java_net_InetAddress_IPv4 &&
+        !(src_family == java_net_InetAddress_IPv4 &&
           v4MappedAddress == JNI_FALSE))
+    {
+        return NET_InetAddressToSockaddr0(env, iaObj, src_family,
+                    sun_nio_ch_Net_IPv6, port, sa, len);
+    } else {
+        return NET_InetAddressToSockaddr0(env, iaObj, src_family,
+                    sun_nio_ch_Net_IPv4, port, sa, len);
+    }
+}
+
+/**
+ * convert an InetAddress to the target family regardless of ipv6_available setting.
+ * src_family is the family from the passed in InetAddress. target_family is what we want to return.
+ *
+ * This function is used externally to map an InetAddress to a sockaddr
+ * exclusively based on the target family. This ensures that
+ * an Inet4 address is not mapped to an IPv4 mapped, IPv6 address
+ * when a socket channel is created with SC.open(StandardProtocolFamily.INET)
+ *
+ * src_family values (java_net_InetAddress_IPv4, java_net_InetAddress_IPv6)
+ *
+ * target_family values (sun_nio_ch_Net_IPv4, sun_nio_ch_Net_IPv6, sun_nio_ch_Net_UNSPECIFIED)
+ *
+ * Mapping between two family types required because 'family' is package private in java.net.InetAddress
+ */
+JNIEXPORT int JNICALL
+NET_InetAddressToSockaddr0(JNIEnv *env, jobject iaObj, jint src_family, jint target_family,
+                          int port, SOCKETADDRESS *sa, int *len)
+{
+    if (target_family == sun_nio_ch_Net_IPv6)
     {
         jbyte caddr[16];
         jint address;
 
-        if (family == java_net_InetAddress_IPv4) {
+        if (src_family == java_net_InetAddress_IPv4) {
             // convert to IPv4-mapped address
             memset((char *)caddr, 0, 16);
             address = getInetAddress_addr(env, iaObj);
@@ -475,14 +505,14 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
         }
 
         /* handle scope_id */
-        if (family != java_net_InetAddress_IPv4) {
+        if (src_family == java_net_InetAddress_IPv6) {
             if (ia6_scopeidID) {
                 sa->sa6.sin6_scope_id = getInet6Address_scopeid(env, iaObj);
             }
         }
     } else {
         jint address;
-        if (family != java_net_InetAddress_IPv4) {
+        if (src_family != java_net_InetAddress_IPv4) {
             JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Protocol family unavailable");
             return -1;
         }

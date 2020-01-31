@@ -36,6 +36,7 @@
 #include "jni_util.h"
 #include "jvm.h"
 #include "jlong.h"
+#include "java_net_InetAddress.h"
 #include "sun_nio_ch_Net.h"
 #include "net_util.h"
 #include "net_util_md.h"
@@ -378,12 +379,17 @@ Java_sun_nio_ch_Net_canUseIPv6OptionsWithIPv4LocalAddress0(JNIEnv* env, jclass c
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
+Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6, jint family,
                             jboolean stream, jboolean reuse, jboolean ignored)
 {
     int fd;
     int type = (stream ? SOCK_STREAM : SOCK_DGRAM);
-    int domain = (ipv6_available() && preferIPv6) ? AF_INET6 : AF_INET;
+    int domain;
+    if (family == sun_nio_ch_Net_UNSPECIFIED) {
+        domain = (ipv6_available() && preferIPv6) ? AF_INET6 : AF_INET;
+    } else {
+        domain = family == sun_nio_ch_Net_IPv6 ? AF_INET6 : AF_INET;
+    }
 
     fd = socket(domain, type, 0);
     if (fd < 0) {
@@ -393,8 +399,19 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
     /*
      * If IPv4 is available, disable IPV6_V6ONLY to ensure dual-socket support.
      */
-    if (domain == AF_INET6 && ipv4_available()) {
+    if (family == sun_nio_ch_Net_UNSPECIFIED && domain == AF_INET6 && ipv4_available()) {
         int arg = 0;
+        if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
+                       sizeof(int)) < 0) {
+            JNU_ThrowByNameWithLastError(env,
+                                         JNU_JAVANETPKG "SocketException",
+                                         "Unable to set IPV6_V6ONLY");
+            close(fd);
+            return -1;
+        }
+    }
+    if (family == sun_nio_ch_Net_IPv6) {
+        int arg = 1;
         if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
                        sizeof(int)) < 0) {
             JNU_ThrowByNameWithLastError(env,
@@ -448,18 +465,26 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jboolean preferIPv6,
+Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, int target_family, jboolean preferIPv6,
                           jboolean useExclBind, jobject iao, int port)
 {
     SOCKETADDRESS sa;
     int sa_len = 0;
     int rv = 0;
 
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len,
-                                  preferIPv6) != 0) {
-        return;
-    }
 
+    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
+        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len,
+                                      preferIPv6) != 0) {
+            return;
+        }
+    } else {
+        jint src_family = getInetAddress_family(env, iao);
+        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
+                                        port, &sa, &sa_len) != 0) {
+            return;
+        }
+    }
     rv = NET_Bind(fdval(env, fdo), &sa, sa_len);
     if (rv != 0) {
         handleSocketError(env, errno);
@@ -475,16 +500,23 @@ Java_sun_nio_ch_Net_listen(JNIEnv *env, jclass cl, jobject fdo, jint backlog)
 
 JNIEXPORT jint JNICALL
 Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6,
-                             jobject fdo, jobject iao, jint port)
+                             jint target_family, jobject fdo, jobject iao, jint port)
 {
     SOCKETADDRESS sa;
     int sa_len = 0;
     int rv;
 
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
-        return IOS_THROWN;
+    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
+        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
+            return IOS_THROWN;
+        }
+    } else {
+        jint src_family = getInetAddress_family(env, iao);
+        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
+                                        port, &sa, &sa_len) != 0) {
+            return IOS_THROWN;
+        }
     }
-
     rv = connect(fdval(env, fdo), &sa.sa, sa_len);
     if (rv != 0) {
         if (errno == EINPROGRESS) {

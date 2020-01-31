@@ -76,10 +76,8 @@ public abstract class SelectorProviderImpl
     }
 
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
-        // TODO: This doesn't exclusively implement the given family
         if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
-            throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
-            //return new InetSocketChannelImpl(this);
+            return new InetSocketChannelImpl(this, family);
         } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
             return new UnixDomainSocketChannelImpl(this, Net.unixDomainSocket(), false);
         } else
@@ -87,10 +85,8 @@ public abstract class SelectorProviderImpl
     }
 
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
-        // TODO: This doesn't exclusively implement the given family
         if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6) {
-            throw new UnsupportedOperationException("This will be supported, but is not implemented yet");
-            //return new InetServerSocketChannelImpl(this);
+            return new InetServerSocketChannelImpl(this, family);
         } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
             return new UnixDomainServerSocketChannelImpl(this);
         } else

@@ -27,11 +27,15 @@ package sun.nio.ch;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ProtocolFamily;
+import java.net.ServerSocket;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
 import java.net.SocketTimeoutException;
+import java.net.StandardProtocolFamily;
 import java.net.StandardSocketOptions;
 import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.AsynchronousCloseException;
@@ -63,14 +67,24 @@ class InetServerSocketChannelImpl
 
     // -- End of fields protected by stateLock
 
+    // the protocol family requested by the user, or Net.UNSPEC if not specified
+    private final ProtocolFamily family;
+
     InetServerSocketChannelImpl(SelectorProvider sp) throws IOException {
         super(sp, Net.serverSocket(true), false); // TODO: 3rd param?
+        this.family = Net.UNSPEC;
+    }
+
+    InetServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) throws IOException {
+        super(sp, Net.serverSocket(true, Net.protFamilyToInt(family)), false); // TODO: 3rd param?
+        this.family = family;
     }
 
     InetServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp, fd, bound);
+        this.family = Net.UNSPEC;
     }
 
 
@@ -119,16 +133,29 @@ class InetServerSocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
+    private static InetAddress anyLocalInet4 = Net.anyLocalInet4Address();
+    private static InetAddress anyLocalInet6 = Net.anyLocalInet6Address();
+
+    private InetSocketAddress anyLocalSocketAddress() {
+        if (family == Net.UNSPEC) {
+            return new InetSocketAddress(0);
+        } else if (family == StandardProtocolFamily.INET) {
+            return new InetSocketAddress(anyLocalInet4, 0);
+        } else {
+            return new InetSocketAddress(anyLocalInet6, 0);
+        }
+    }
+
     @Override
     SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
         InetSocketAddress isa = (local == null)
-            ? new InetSocketAddress(0)
-            : Net.checkAddress(local);
+            ? anyLocalSocketAddress()
+            : Net.checkAddress(local, family);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkListen(isa.getPort());
         NetHooks.beforeTcpBind(getFD(), isa.getAddress(), isa.getPort());
-        Net.bind(getFD(), isa.getAddress(), isa.getPort());
+        Net.bind(family, getFD(), isa.getAddress(), isa.getPort());
         Net.listen(getFD(), backlog < 1 ? 50 : backlog);
         return Net.localAddress(getFD());
     }

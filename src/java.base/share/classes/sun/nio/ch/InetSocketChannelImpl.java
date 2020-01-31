@@ -69,16 +69,28 @@ class InetSocketChannelImpl extends SocketChannelImpl
     // set true when exclusive binding is on and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
+    // the protocol family requested by the user, or Net.UNSPEC if not specified
+    private final ProtocolFamily family;
+
     // Constructor for normal connecting sockets
     //
     InetSocketChannelImpl(SelectorProvider sp) throws IOException {
         super(sp);
+        this.family = Net.UNSPEC;
+    }
+
+    // Constructor for connecting sockets of the specific protocol family
+    InetSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) throws IOException {
+        super(sp, Net.socket(family, true), false);
+        assert family != Net.UNSPEC;
+        this.family = family;
     }
 
     InetSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp, fd, bound);
+        this.family = Net.UNSPEC;
     }
 
     @Override
@@ -92,6 +104,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
         throws IOException
     {
         super(sp, fd, isa);
+        this.family = Net.UNSPEC;
     }
 
     @Override
@@ -159,17 +172,30 @@ class InetSocketChannelImpl extends SocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
+    private static InetAddress anyLocalInet4 = Net.anyLocalInet4Address();
+    private static InetAddress anyLocalInet6 = Net.anyLocalInet6Address();
+
+    private InetSocketAddress anyLocalSocketAddress() {
+        if (family == Net.UNSPEC) {
+            return new InetSocketAddress(0);
+        } else if (family == StandardProtocolFamily.INET) {
+            return new InetSocketAddress(anyLocalInet4, 0);
+        } else {
+            return new InetSocketAddress(anyLocalInet6, 0);
+        }
+    }
+
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         InetSocketAddress isa = (local == null) ?
-            new InetSocketAddress(0) : Net.checkAddress(local);
+            anyLocalSocketAddress() : Net.checkAddress(local, family, true);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkListen(isa.getPort());
         }
         FileDescriptor fd = getFD();
         NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
-        Net.bind(fd, isa.getAddress(), isa.getPort());
+        Net.bind(family, fd, isa.getAddress(), isa.getPort());
         return Net.localAddress(fd);
     }
 
@@ -179,7 +205,11 @@ class InetSocketChannelImpl extends SocketChannelImpl
      */
     @Override
     protected SocketAddress checkRemote(SocketAddress sa) throws IOException {
-        InetSocketAddress isa = Net.checkAddress(sa);
+        return checkRemote(sa, family);
+    }
+
+    private SocketAddress checkRemote(SocketAddress sa, ProtocolFamily family) throws IOException {
+        InetSocketAddress isa = Net.checkAddress(sa, family, true);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
@@ -194,7 +224,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     @Override
     protected int connectImpl(FileDescriptor fd, SocketAddress sa) throws IOException {
         InetSocketAddress isa = (InetSocketAddress)sa;
-        return Net.connect(fd, isa.getAddress(), isa.getPort());
+        return Net.connect(family, fd, isa.getAddress(), isa.getPort());
     }
 
     @Override
