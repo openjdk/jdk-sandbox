@@ -47,8 +47,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class HtmlTree extends Content {
 
@@ -101,6 +99,17 @@ public class HtmlTree extends Content {
         if (attrs.isEmpty())
             attrs = new LinkedHashMap<>(3);
         attrs.put(nullCheck(attrName), Entity.escapeHtmlChars(attrValue));
+        return this;
+    }
+
+    /**
+     * Sets the "id" attribute for this tag.
+     *
+     * @param id the value for the id attribute
+     * @return this object
+     */
+    public HtmlTree setId(String id) {
+        put(HtmlAttr.ID, id);
         return this;
     }
 
@@ -266,35 +275,6 @@ public class HtmlTree extends Content {
     public static HtmlTree A(String ref, Content body) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.A, nullCheck(body));
         htmltree.put(HtmlAttr.HREF, encodeURL(ref));
-        return htmltree;
-    }
-
-    /**
-     * Generates an HTML anchor tag with id attribute and a body.
-     *
-     * @param id id for the anchor tag
-     * @param body body for the anchor tag
-     * @return an HtmlTree object
-     */
-    public static HtmlTree A_ID(String id, Content body) {
-        HtmlTree htmltree = new HtmlTree(HtmlTag.A);
-        htmltree.put(HtmlAttr.ID, nullCheck(id));
-        htmltree.add(nullCheck(body));
-        return htmltree;
-    }
-
-    /**
-     * Generates an HTML anchor tag with a style class, id attribute and a body.
-     *
-     * @param styleClass stylesheet class for the tag
-     * @param id id for the anchor tag
-     * @param body body for the anchor tag
-     * @return an HtmlTree object
-     */
-    public static HtmlTree A_ID(HtmlStyle styleClass, String id, Content body) {
-        HtmlTree htmltree = A_ID(id, body);
-        if (styleClass != null)
-            htmltree.setStyle(styleClass);
         return htmltree;
     }
 
@@ -584,21 +564,6 @@ public class HtmlTree extends Content {
     }
 
     /**
-     * Generates a MAIN tag with role attribute, style attribute and some content.
-     *
-     * @param styleClass style of the MAIN tag
-     * @param body content of the MAIN tag
-     * @return an HtmlTree object for the MAIN tag
-     */
-    public static HtmlTree MAIN(HtmlStyle styleClass, Content body) {
-        HtmlTree htmltree = HtmlTree.MAIN(body);
-        if (styleClass != null) {
-            htmltree.setStyle(styleClass);
-        }
-        return htmltree;
-    }
-
-    /**
      * Generates a META tag with the http-equiv, content and charset attributes.
      *
      * @param httpEquiv http equiv attribute for the META tag
@@ -746,6 +711,19 @@ public class HtmlTree extends Content {
         HtmlTree htmltree = new HtmlTree(HtmlTag.SPAN, nullCheck(body));
         if (styleClass != null)
             htmltree.setStyle(styleClass);
+        return htmltree;
+    }
+
+    /**
+     * Generates an SPAN tag with id attribute and a body.
+     *
+     * @param id id for the tag
+     * @param body body for the tag
+     * @return an HtmlTree object for the SPAN tag
+     */
+    public static HtmlTree SPAN_ID(String id, Content body) {
+        HtmlTree htmltree = new HtmlTree(HtmlTag.SPAN, nullCheck(body));
+        htmltree.put(HtmlAttr.ID, nullCheck(id));
         return htmltree;
     }
 
@@ -963,6 +941,8 @@ public class HtmlTree extends Content {
             case SCRIPT :
                 return ((hasAttr(HtmlAttr.TYPE) && hasAttr(HtmlAttr.SRC) && !hasContent()) ||
                         (hasAttr(HtmlAttr.TYPE) && hasContent()));
+            case SPAN :
+                return (hasAttr(HtmlAttr.ID) || hasContent());
             default :
                 return hasContent();
         }

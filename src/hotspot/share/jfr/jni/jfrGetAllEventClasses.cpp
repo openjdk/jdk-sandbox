@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,12 +33,11 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
-#include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/stack.inline.hpp"
 
- // incremented during class unloading (safepoint) for each unloaded event class
+ // incremented during class unloading for each unloaded event class
 static jlong unloaded_event_classes = 0;
 
 jlong JfrEventClasses::unloaded_event_classes_count() {
@@ -46,8 +45,7 @@ jlong JfrEventClasses::unloaded_event_classes_count() {
 }
 
 void JfrEventClasses::increment_unloaded_event_class() {
-  // incremented during class unloading (safepoint) for each unloaded event class
-  assert(SafepointSynchronize::is_at_safepoint(), "invariant");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   ++unloaded_event_classes;
 }
 
@@ -90,7 +88,7 @@ static void fill_klasses(GrowableArray<const void*>& event_subklasses, const Kla
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(thread));
 
   Stack<const Klass*, mtTracing> mark_stack;
-  MutexLocker ml(Compile_lock, thread);
+  MutexLocker ml(thread, Compile_lock);
   mark_stack.push(event_klass->subklass());
 
   while (!mark_stack.is_empty()) {

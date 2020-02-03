@@ -33,8 +33,8 @@
 #include "gc/g1/heapRegionManager.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/shared/markBitMap.inline.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
-#include "runtime/orderAccess.hpp"
 
 G1GCPhaseTimes* G1CollectedHeap::phase_times() const {
   return _policy->phase_times();
@@ -90,7 +90,7 @@ inline HeapRegion* G1CollectedHeap::heap_region_containing(const T addr) const {
   assert(is_in_g1_reserved((const void*) addr),
          "Address " PTR_FORMAT " is outside of the heap ranging from [" PTR_FORMAT " to " PTR_FORMAT ")",
          p2i((void*)addr), p2i(g1_reserved().start()), p2i(g1_reserved().end()));
-  return _hrm->addr_to_region((HeapWord*) addr);
+  return _hrm->addr_to_region((HeapWord*)(void*) addr);
 }
 
 template <class T>
@@ -144,11 +144,11 @@ inline RefToScanQueue* G1CollectedHeap::task_queue(uint i) const {
 }
 
 inline bool G1CollectedHeap::is_marked_next(oop obj) const {
-  return _cm->next_mark_bitmap()->is_marked((HeapWord*)obj);
+  return _cm->next_mark_bitmap()->is_marked(obj);
 }
 
 inline bool G1CollectedHeap::is_in_cset(oop obj) {
-  return is_in_cset((HeapWord*)obj);
+  return is_in_cset(cast_from_oop<HeapWord*>(obj));
 }
 
 inline bool G1CollectedHeap::is_in_cset(HeapWord* addr) {
@@ -160,7 +160,7 @@ bool G1CollectedHeap::is_in_cset(const HeapRegion* hr) {
 }
 
 bool G1CollectedHeap::is_in_cset_or_humongous(const oop obj) {
-  return _region_attr.is_in_cset_or_humongous((HeapWord*)obj);
+  return _region_attr.is_in_cset_or_humongous(cast_from_oop<HeapWord*>(obj));
 }
 
 G1HeapRegionAttr G1CollectedHeap::region_attr(const void* addr) const {
@@ -181,7 +181,7 @@ void G1CollectedHeap::register_region_with_region_attr(HeapRegion* r) {
 
 void G1CollectedHeap::register_old_region_with_region_attr(HeapRegion* r) {
   _region_attr.set_in_old(r->hrm_index(), r->rem_set()->is_tracked());
-  _rem_set->prepare_for_scan_heap_roots(r->hrm_index());
+  _rem_set->exclude_region_from_scan(r->hrm_index());
 }
 
 void G1CollectedHeap::register_optional_region_with_region_attr(HeapRegion* r) {
@@ -299,8 +299,12 @@ inline bool G1CollectedHeap::is_humongous_reclaim_candidate(uint region) {
   return _humongous_reclaim_candidates.is_candidate(region);
 }
 
+inline void G1CollectedHeap::set_has_humongous_reclaim_candidate(bool value) {
+  _has_humongous_reclaim_candidates = value;
+}
+
 inline void G1CollectedHeap::set_humongous_is_live(oop obj) {
-  uint region = addr_to_region((HeapWord*)obj);
+  uint region = addr_to_region(cast_from_oop<HeapWord*>(obj));
   // Clear the flag in the humongous_reclaim_candidates table.  Also
   // reset the entry in the region attribute table so that subsequent references
   // to the same humongous object do not go into the slow path again.

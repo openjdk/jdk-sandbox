@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2015, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -27,8 +28,10 @@
 #include "classfile/stringTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
+#include "gc/shenandoah/shenandoahClosures.inline.hpp"
+#include "gc/shenandoah/shenandoahConcurrentRoots.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
-#include "gc/shenandoah/shenandoahHeap.inline.hpp"
+#include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.hpp"
 #include "gc/shenandoah/shenandoahTimingTracker.hpp"
@@ -147,6 +150,33 @@ void ShenandoahStringDedupRoots::oops_do(BoolObjectClosure* is_alive, OopClosure
   }
 }
 
+ShenandoahConcurrentStringDedupRoots::ShenandoahConcurrentStringDedupRoots() {
+  if (ShenandoahStringDedup::is_enabled()) {
+    StringDedupTable_lock->lock_without_safepoint_check();
+    StringDedupQueue_lock->lock_without_safepoint_check();
+    StringDedup::gc_prologue(true);
+  }
+}
+
+ShenandoahConcurrentStringDedupRoots::~ShenandoahConcurrentStringDedupRoots() {
+  if (ShenandoahStringDedup::is_enabled()) {
+    StringDedup::gc_epilogue();
+    StringDedupQueue_lock->unlock();
+    StringDedupTable_lock->unlock();
+  }
+}
+
+void ShenandoahConcurrentStringDedupRoots::oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive, uint worker_id) {
+  if (ShenandoahStringDedup::is_enabled()) {
+    assert_locked_or_safepoint_weak(StringDedupQueue_lock);
+    assert_locked_or_safepoint_weak(StringDedupTable_lock);
+
+    StringDedupUnlinkOrOopsDoClosure sd_cl(is_alive, keep_alive);
+    StringDedupQueue::unlink_or_oops_do(&sd_cl);
+    StringDedupTable::unlink_or_oops_do(&sd_cl, worker_id);
+  }
+}
+
 ShenandoahRootProcessor::ShenandoahRootProcessor(ShenandoahPhaseTimings::Phase phase) :
   _heap(ShenandoahHeap::heap()),
   _phase(phase) {
@@ -159,14 +189,22 @@ ShenandoahRootProcessor::~ShenandoahRootProcessor() {
   _heap->phase_timings()->record_workers_end(_phase);
 }
 
-ShenandoahRootEvacuator::ShenandoahRootEvacuator(uint n_workers, ShenandoahPhaseTimings::Phase phase, bool include_concurrent_roots) :
+ShenandoahRootEvacuator::ShenandoahRootEvacuator(uint n_workers,
+                                                 ShenandoahPhaseTimings::Phase phase,
+                                                 bool include_concurrent_roots,
+                                                 bool include_concurrent_code_roots) :
   ShenandoahRootProcessor(phase),
   _thread_roots(n_workers > 1),
-  _include_concurrent_roots(include_concurrent_roots) {
+  _include_concurrent_roots(include_concurrent_roots),
+  _include_concurrent_code_roots(include_concurrent_code_roots) {
 }
 
 void ShenandoahRootEvacuator::roots_do(uint worker_id, OopClosure* oops) {
   MarkingCodeBlobClosure blobsCl(oops, CodeBlobToOopClosure::FixRelocations);
+  ShenandoahCodeBlobAndDisarmClosure blobs_and_disarm_Cl(oops);
+  CodeBlobToOopClosure* codes_cl = ShenandoahConcurrentRoots::can_do_concurrent_class_unloading() ?
+                                   static_cast<CodeBlobToOopClosure*>(&blobs_and_disarm_Cl) :
+                                   static_cast<CodeBlobToOopClosure*>(&blobsCl);
   AlwaysTrueClosure always_true;
 
   _serial_roots.oops_do(oops, worker_id);
@@ -176,29 +214,20 @@ void ShenandoahRootEvacuator::roots_do(uint worker_id, OopClosure* oops) {
     _vm_roots.oops_do<OopClosure>(oops, worker_id);
     _cld_roots.cld_do(&clds, worker_id);
     _weak_roots.oops_do<OopClosure>(oops, worker_id);
+    _dedup_roots.oops_do(&always_true, oops, worker_id);
   }
 
-  _thread_roots.oops_do(oops, NULL, worker_id);
-  _code_roots.code_blobs_do(&blobsCl, worker_id);
-
-  _dedup_roots.oops_do(&always_true, oops, worker_id);
+  if (_include_concurrent_code_roots) {
+    _code_roots.code_blobs_do(codes_cl, worker_id);
+    _thread_roots.oops_do(oops, NULL, worker_id);
+  } else {
+    _thread_roots.oops_do(oops, codes_cl, worker_id);
+  }
 }
 
 ShenandoahRootUpdater::ShenandoahRootUpdater(uint n_workers, ShenandoahPhaseTimings::Phase phase) :
   ShenandoahRootProcessor(phase),
   _thread_roots(n_workers > 1) {
-}
-
-void ShenandoahRootUpdater::strong_roots_do(uint worker_id, OopClosure* oops_cl) {
-  CodeBlobToOopClosure update_blobs(oops_cl, CodeBlobToOopClosure::FixRelocations);
-  CLDToOopClosure clds(oops_cl, ClassLoaderData::_claim_strong);
-
-  _serial_roots.oops_do(oops_cl, worker_id);
-  _vm_roots.oops_do(oops_cl, worker_id);
-
-  _thread_roots.oops_do(oops_cl, NULL, worker_id);
-  _cld_roots.cld_do(&clds, worker_id);
-  _code_roots.code_blobs_do(&update_blobs, worker_id);
 }
 
 ShenandoahRootAdjuster::ShenandoahRootAdjuster(uint n_workers, ShenandoahPhaseTimings::Phase phase) :
@@ -208,7 +237,11 @@ ShenandoahRootAdjuster::ShenandoahRootAdjuster(uint n_workers, ShenandoahPhaseTi
 }
 
 void ShenandoahRootAdjuster::roots_do(uint worker_id, OopClosure* oops) {
-  CodeBlobToOopClosure adjust_code_closure(oops, CodeBlobToOopClosure::FixRelocations);
+  CodeBlobToOopClosure code_blob_cl(oops, CodeBlobToOopClosure::FixRelocations);
+  ShenandoahCodeBlobAndDisarmClosure blobs_and_disarm_Cl(oops);
+  CodeBlobToOopClosure* adjust_code_closure = ShenandoahConcurrentRoots::can_do_concurrent_class_unloading() ?
+                                              static_cast<CodeBlobToOopClosure*>(&blobs_and_disarm_Cl) :
+                                              static_cast<CodeBlobToOopClosure*>(&code_blob_cl);
   CLDToOopClosure adjust_cld_closure(oops, ClassLoaderData::_claim_strong);
   AlwaysTrueClosure always_true;
 
@@ -217,7 +250,7 @@ void ShenandoahRootAdjuster::roots_do(uint worker_id, OopClosure* oops) {
 
   _thread_roots.oops_do(oops, NULL, worker_id);
   _cld_roots.cld_do(&adjust_cld_closure, worker_id);
-  _code_roots.code_blobs_do(&adjust_code_closure, worker_id);
+  _code_roots.code_blobs_do(adjust_code_closure, worker_id);
 
   _serial_weak_roots.weak_oops_do(oops, worker_id);
   _weak_roots.oops_do<OopClosure>(oops, worker_id);

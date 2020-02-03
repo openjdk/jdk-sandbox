@@ -153,7 +153,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         SaveRbp(NoOp placeholder) {
             this.placeholder = placeholder;
             AMD64FrameMapBuilder frameMapBuilder = (AMD64FrameMapBuilder) getResult().getFrameMapBuilder();
-            this.reservedSlot = frameMapBuilder.allocateRBPSpillSlot();
+            this.reservedSlot = config.preserveFramePointer ? null : frameMapBuilder.allocateRBPSpillSlot();
         }
 
         /**
@@ -162,6 +162,7 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
          * @param useStack specifies if rbp must be saved to the stack
          */
         public AllocatableValue finalize(boolean useStack) {
+            assert !config.preserveFramePointer : "rbp has been pushed onto the stack";
             AllocatableValue dst;
             if (useStack) {
                 dst = reservedSlot;
@@ -173,6 +174,10 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
             placeholder.replace(getResult().getLIR(), new MoveFromRegOp(AMD64Kind.QWORD, dst, rbp.asValue(LIRKind.value(AMD64Kind.QWORD))));
             return dst;
         }
+
+        public void remove() {
+            placeholder.remove(getResult().getLIR());
+        }
     }
 
     private SaveRbp saveRbp;
@@ -181,10 +186,6 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
         NoOp placeholder = new NoOp(getCurrentBlock(), getResult().getLIR().getLIRforBlock(getCurrentBlock()).size());
         append(placeholder);
         saveRbp = new SaveRbp(placeholder);
-    }
-
-    protected SaveRbp getSaveRbp() {
-        return saveRbp;
     }
 
     /**
@@ -544,19 +545,29 @@ public class AMD64HotSpotLIRGenerator extends AMD64LIRGenerator implements HotSp
     }
 
     @Override
+    public void emitDeoptimizeWithExceptionInCaller(Value exception) {
+        append(new AMD64HotSpotDeoptimizeWithExceptionCallerOp(config, exception));
+    }
+
+    @Override
     public void beforeRegisterAllocation() {
         super.beforeRegisterAllocation();
         boolean hasDebugInfo = getResult().getLIR().hasDebugInfo();
-        AllocatableValue savedRbp = saveRbp.finalize(hasDebugInfo);
+
+        if (config.preserveFramePointer) {
+            saveRbp.remove();
+        } else {
+            AllocatableValue savedRbp = saveRbp.finalize(hasDebugInfo);
+            for (AMD64HotSpotRestoreRbpOp op : epilogueOps) {
+                op.setSavedRbp(savedRbp);
+            }
+        }
+
         if (hasDebugInfo) {
             getResult().setDeoptimizationRescueSlot(((AMD64FrameMapBuilder) getResult().getFrameMapBuilder()).allocateDeoptimizationRescueSlot());
         }
-
         getResult().setMaxInterpreterFrameSize(debugInfoBuilder.maxInterpreterFrameSize());
 
-        for (AMD64HotSpotRestoreRbpOp op : epilogueOps) {
-            op.setSavedRbp(savedRbp);
-        }
         if (BenchmarkCounters.enabled) {
             // ensure that the rescue slot is available
             LIRInstruction op = getOrInitRescueSlotOp();

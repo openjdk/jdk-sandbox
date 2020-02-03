@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -214,6 +214,10 @@ private:
 
   void set_used(size_t bytes);
 
+  // Number of bytes used in all regions during GC. Typically changed when
+  // retiring a GC alloc region.
+  size_t _bytes_used_during_gc;
+
   // Class that handles archive allocation ranges.
   G1ArchiveAllocator* _archive_allocator;
 
@@ -262,12 +266,11 @@ private:
 
   // Return true if an explicit GC should start a concurrent cycle instead
   // of doing a STW full GC. A concurrent cycle should be started if:
-  // (a) cause == _gc_locker and +GCLockerInvokesConcurrent,
-  // (b) cause == _g1_humongous_allocation,
-  // (c) cause == _java_lang_system_gc and +ExplicitGCInvokesConcurrent,
-  // (d) cause == _dcmd_gc_run and +ExplicitGCInvokesConcurrent,
-  // (e) cause == _wb_conc_mark,
-  // (f) cause == _g1_periodic_collection and +G1PeriodicGCInvokesConcurrent.
+  // (a) cause == _g1_humongous_allocation,
+  // (b) cause == _java_lang_system_gc and +ExplicitGCInvokesConcurrent,
+  // (c) cause == _dcmd_gc_run and +ExplicitGCInvokesConcurrent,
+  // (d) cause == _wb_conc_mark,
+  // (e) cause == _g1_periodic_collection and +G1PeriodicGCInvokesConcurrent.
   bool should_do_concurrent_full_gc(GCCause::Cause cause);
 
   // Attempt to start a concurrent cycle with the indicated cause.
@@ -590,6 +593,7 @@ public:
   // These are only valid for starts_humongous regions.
   inline void set_humongous_reclaim_candidate(uint region, bool value);
   inline bool is_humongous_reclaim_candidate(uint region);
+  inline void set_has_humongous_reclaim_candidate(bool value);
 
   // Remove from the reclaim candidate set.  Also remove from the
   // collection set so that later encounters avoid the slow path.
@@ -597,8 +601,7 @@ public:
 
   // Register the given region to be part of the collection set.
   inline void register_humongous_region_with_region_attr(uint index);
-  // Update region attributes table with information about all regions.
-  void register_regions_with_region_attr();
+
   // We register a region with the fast "in collection set" test. We
   // simply set to true the array slot corresponding to this region.
   void register_young_region_with_region_attr(HeapRegion* r) {
@@ -655,20 +658,13 @@ public:
   // regions as necessary.
   HeapRegion* alloc_highest_free_region();
 
-  // Frees a non-humongous region by initializing its contents and
-  // adding it to the free list that's passed as a parameter (this is
-  // usually a local list which will be appended to the master free
-  // list later). The used bytes of freed regions are accumulated in
-  // pre_used. If skip_remset is true, the region's RSet will not be freed
-  // up. If skip_hot_card_cache is true, the region's hot card cache will not
-  // be freed up. The assumption is that this will be done later.
-  // The locked parameter indicates if the caller has already taken
-  // care of proper synchronization. This may allow some optimizations.
-  void free_region(HeapRegion* hr,
-                   FreeRegionList* free_list,
-                   bool skip_remset,
-                   bool skip_hot_card_cache = false,
-                   bool locked = false);
+  // Frees a region by resetting its metadata and adding it to the free list
+  // passed as a parameter (this is usually a local list which will be appended
+  // to the master free list later or NULL if free list management is handled
+  // in another way).
+  // Callers must ensure they are the only one calling free on the given region
+  // at the same time.
+  void free_region(HeapRegion* hr, FreeRegionList* free_list);
 
   // It dirties the cards that cover the block so that the post
   // write barrier never queues anything when updating objects on this
@@ -727,7 +723,7 @@ public:
   // which had been allocated by alloc_archive_regions. This should be called
   // rather than fill_archive_regions at JVM init time if the archive file
   // mapping failed, with the same non-overlapping and sorted MemRegion array.
-  void dealloc_archive_regions(MemRegion* range, size_t count, bool is_open);
+  void dealloc_archive_regions(MemRegion* range, size_t count);
 
   oop materialize_archived_object(oop obj);
 
@@ -761,10 +757,17 @@ private:
 
   void wait_for_root_region_scanning();
 
-  // The guts of the incremental collection pause, executed by the vm
-  // thread. It returns false if it is unable to do the collection due
-  // to the GC locker being active, true otherwise
+  // Perform an incremental collection at a safepoint, possibly
+  // followed by a by-policy upgrade to a full collection.  Returns
+  // false if unable to do the collection due to the GC locker being
+  // active, true otherwise.
+  // precondition: at safepoint on VM thread
+  // precondition: !is_gc_active()
   bool do_collection_pause_at_safepoint(double target_pause_time_ms);
+
+  // Helper for do_collection_pause_at_safepoint, containing the guts
+  // of the incremental collection pause, executed by the vm thread.
+  void do_collection_pause_at_safepoint_helper(double target_pause_time_ms);
 
   G1HeapVerifier::G1VerifyType young_collection_verify_type() const;
   void verify_before_young_collection(G1HeapVerifier::G1VerifyType type);
@@ -1167,9 +1170,8 @@ public:
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl);
 
-  virtual void safe_object_iterate(ObjectClosure* cl) {
-    object_iterate(cl);
-  }
+  // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
+  virtual void keep_alive(oop obj);
 
   // Iterate over heap regions, in address order, terminating the
   // iteration early if the "do_heap_region" method returns "true".
@@ -1201,6 +1203,11 @@ public:
 
   void heap_region_par_iterate_from_start(HeapRegionClosure* cl,
                                           HeapRegionClaimer* hrclaimer) const;
+
+  // Iterate over all regions in the collection set in parallel.
+  void collection_set_par_iterate_all(HeapRegionClosure* cl,
+                                      HeapRegionClaimer* hr_claimer,
+                                      uint worker_id);
 
   // Iterate over all regions currently in the current collection set.
   void collection_set_iterate_all(HeapRegionClosure* blk);
@@ -1475,18 +1482,18 @@ protected:
   G1CollectedHeap*              _g1h;
   G1ParScanThreadState*         _par_scan_state;
   RefToScanQueueSet*            _queues;
-  ParallelTaskTerminator*       _terminator;
+  TaskTerminator*               _terminator;
   G1GCPhaseTimes::GCParPhases   _phase;
 
   G1ParScanThreadState*   par_scan_state() { return _par_scan_state; }
   RefToScanQueueSet*      queues()         { return _queues; }
-  ParallelTaskTerminator* terminator()     { return _terminator; }
+  TaskTerminator*         terminator()     { return _terminator; }
 
 public:
   G1ParEvacuateFollowersClosure(G1CollectedHeap* g1h,
                                 G1ParScanThreadState* par_scan_state,
                                 RefToScanQueueSet* queues,
-                                ParallelTaskTerminator* terminator,
+                                TaskTerminator* terminator,
                                 G1GCPhaseTimes::GCParPhases phase)
     : _start_term(0.0), _term_time(0.0), _term_attempts(0),
       _g1h(g1h), _par_scan_state(par_scan_state),

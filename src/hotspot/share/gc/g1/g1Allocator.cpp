@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -194,7 +194,7 @@ size_t G1Allocator::unsafe_max_tlab_alloc() {
   if (hr == NULL) {
     return max_tlab;
   } else {
-    return MIN2(MAX2(hr->free(), (size_t) MinTLABSize), max_tlab);
+    return clamp(hr->free(), MinTLABSize, max_tlab);
   }
 }
 
@@ -412,8 +412,7 @@ size_t G1PLABAllocator::undo_waste() const {
 }
 
 bool G1ArchiveAllocator::_archive_check_enabled = false;
-G1ArchiveRegionMap G1ArchiveAllocator::_closed_archive_region_map;
-G1ArchiveRegionMap G1ArchiveAllocator::_open_archive_region_map;
+G1ArchiveRegionMap G1ArchiveAllocator::_archive_region_map;
 
 G1ArchiveAllocator* G1ArchiveAllocator::create_allocator(G1CollectedHeap* g1h, bool open) {
   // Create the archive allocator, and also enable archive object checking

@@ -74,7 +74,8 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   size_t* _surviving_young_words_base;
   // this points into the array, as we use the first few entries for padding
   size_t* _surviving_young_words;
-
+  // Number of elements in the array above.
+  size_t _surviving_words_length;
   // Indicates whether in the last generation (old) there is no more space
   // available for allocation.
   bool _old_gen_is_full;
@@ -128,7 +129,7 @@ public:
     assert(!_g1h->heap_region_containing(p)->is_young(), "Should have filtered out from-young references already.");
 
 #ifdef ASSERT
-    HeapRegion* const hr_obj = _g1h->heap_region_containing((HeapWord*)o);
+    HeapRegion* const hr_obj = _g1h->heap_region_containing(o);
     assert(region_attr.needs_remset_update() == hr_obj->rem_set()->is_tracked(),
            "State flag indicating remset tracking disagrees (%s) with actual remembered set (%s) for region %u",
            BOOL_TO_STR(region_attr.needs_remset_update()),
@@ -152,7 +153,9 @@ public:
   size_t lab_waste_words() const;
   size_t lab_undo_waste_words() const;
 
-  void flush(size_t* surviving_young_words);
+  // Pass locally gathered statistics to global state. Returns the total number of
+  // HeapWords copied.
+  size_t flush(size_t* surviving_young_words);
 
 private:
   #define G1_PARTIAL_ARRAY_MASK 0x2

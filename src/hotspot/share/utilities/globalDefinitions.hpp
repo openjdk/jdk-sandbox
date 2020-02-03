@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,6 +68,19 @@
 
 // This file holds all globally used constants & types, class (forward)
 // declarations and a few frequently used utility functions.
+
+// Declare the named class to be noncopyable.  This macro must be used in
+// a private part of the class's definition, followed by a semi-colon.
+// Doing so provides private declarations for the class's copy constructor
+// and assignment operator.  Because these operations are private, most
+// potential callers will fail to compile because they are inaccessible.
+// The operations intentionally lack a definition, to provoke link-time
+// failures for calls from contexts where they are accessible, e.g. from
+// within the class or from a friend of the class.
+// Note: The lack of definitions is still not completely bullet-proof, as
+// an apparent call might be optimized away by copy elision.
+// For C++11 the declarations should be changed to deleted definitions.
+#define NONCOPYABLE(C) C(C const&); C& operator=(C const&) /* next token must be ; */
 
 //----------------------------------------------------------------------------------------------------
 // Printf-style formatters for fixed- and variable-width types as pointers and
@@ -241,9 +254,21 @@ const size_t HWperKB            = K / sizeof(HeapWord);
 const int MILLIUNITS    = 1000;         // milli units per base unit
 const int MICROUNITS    = 1000000;      // micro units per base unit
 const int NANOUNITS     = 1000000000;   // nano units per base unit
+const int NANOUNITS_PER_MILLIUNIT = NANOUNITS / MILLIUNITS;
 
 const jlong NANOSECS_PER_SEC      = CONST64(1000000000);
 const jint  NANOSECS_PER_MILLISEC = 1000000;
+
+
+// Unit conversion functions
+// The caller is responsible for considering overlow.
+
+inline int64_t nanos_to_millis(int64_t nanos) {
+  return nanos / NANOUNITS_PER_MILLIUNIT;
+}
+inline int64_t millis_to_nanos(int64_t millis) {
+  return millis * NANOUNITS_PER_MILLIUNIT;
+}
 
 // Proper units routines try to maintain at least three significant digits.
 // In worst case, it would print five significant digits with lower prefix.
@@ -948,6 +973,13 @@ template<class T> inline T MAX4(T a, T b, T c, T d) { return MAX2(MAX3(a, b, c),
 template<class T> inline T MIN4(T a, T b, T c, T d) { return MIN2(MIN3(a, b, c), d); }
 
 template<class T> inline T ABS(T x)                 { return (x > 0) ? x : -x; }
+
+// Return the given value clamped to the range [min ... max]
+template<typename T>
+inline T clamp(T value, T min, T max) {
+  assert(min <= max, "must be");
+  return MIN2(MAX2(value, min), max);
+}
 
 // true if x is a power of 2, false otherwise
 inline bool is_power_of_2(intptr_t x) {

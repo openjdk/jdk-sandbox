@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,13 +28,18 @@ package jdk.javadoc.internal.doclets.formats.html;
 import java.util.List;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.ModuleElement;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.SimpleElementVisitor9;
+import javax.lang.model.util.SimpleElementVisitor14;
 
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.IndexTree;
+import com.sun.source.doctree.ParamTree;
 import com.sun.source.doctree.SystemPropertyTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
@@ -61,15 +66,13 @@ import jdk.javadoc.internal.doclets.toolkit.util.Utils;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 
 public class TagletWriterImpl extends TagletWriter {
 
     private final HtmlDocletWriter htmlWriter;
     private final HtmlConfiguration configuration;
+    private final HtmlOptions options;
     private final Utils utils;
     private final boolean inSummary;
     private final Resources resources;
@@ -81,9 +84,10 @@ public class TagletWriterImpl extends TagletWriter {
     public TagletWriterImpl(HtmlDocletWriter htmlWriter, boolean isFirstSentence, boolean inSummary) {
         super(isFirstSentence);
         this.htmlWriter = htmlWriter;
-        configuration = htmlWriter.configuration;
-        this.utils = configuration.utils;
         this.inSummary = inSummary;
+        configuration = htmlWriter.configuration;
+        options = configuration.getOptions();
+        utils = configuration.utils;
         resources = configuration.getResources();
     }
 
@@ -108,14 +112,14 @@ public class TagletWriterImpl extends TagletWriter {
         CommentHelper ch = utils.getCommentHelper(element);
         IndexTree itt = (IndexTree)tag;
 
-        String tagText =  ch.getText(itt.getSearchTerm());
+        String tagText = ch.getText(itt.getSearchTerm());
         if (tagText.charAt(0) == '"' && tagText.charAt(tagText.length() - 1) == '"') {
             tagText = tagText.substring(1, tagText.length() - 1)
                              .replaceAll("\\s+", " ");
         }
         String desc = ch.getText(itt.getDescription());
 
-        return createAnchorAndSearchIndex(element, tagText,desc);
+        return createAnchorAndSearchIndex(element, tagText, desc, false);
     }
 
     /**
@@ -190,15 +194,19 @@ public class TagletWriterImpl extends TagletWriter {
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("preview")
     public Content paramTagOutput(Element element, DocTree paramTag, String paramName) {
         ContentBuilder body = new ContentBuilder();
         CommentHelper ch = utils.getCommentHelper(element);
-        body.add(HtmlTree.CODE(new RawHtml(paramName)));
+        // define id attributes for state components so that generated descriptions may refer to them
+        boolean defineID = (element.getKind() == ElementKind.RECORD)
+                && (paramTag instanceof ParamTree) && !((ParamTree) paramTag).isTypeParameter();
+        Content nameTree = new StringContent(paramName);
+        body.add(HtmlTree.CODE(defineID ? HtmlTree.SPAN_ID("param-" + paramName, nameTree) : nameTree));
         body.add(" - ");
         List<? extends DocTree> description = ch.getDescription(configuration, paramTag);
         body.add(htmlWriter.commentTagsToContent(paramTag, element, description, false, inSummary));
-        HtmlTree result = HtmlTree.DD(body);
-        return result;
+        return HtmlTree.DD(body);
     }
 
     /**
@@ -320,7 +328,7 @@ public class TagletWriterImpl extends TagletWriter {
         SystemPropertyTree itt = (SystemPropertyTree)tag;
         String tagText = itt.getPropertyName().toString();
         return HtmlTree.CODE(createAnchorAndSearchIndex(element, tagText,
-                resources.getText("doclet.System_Property")));
+                resources.getText("doclet.System_Property"), true));
     }
 
     /**
@@ -335,12 +343,15 @@ public class TagletWriterImpl extends TagletWriter {
     /**
      * {@inheritDoc}
      */
-    public Content throwsTagOutput(Element element, DocTree throwsTag) {
+    public Content throwsTagOutput(Element element, DocTree throwsTag, TypeMirror substituteType) {
         ContentBuilder body = new ContentBuilder();
         CommentHelper ch = utils.getCommentHelper(element);
         Element exception = ch.getException(configuration, throwsTag);
         Content excName;
-        if (exception == null) {
+        if (substituteType != null) {
+           excName = htmlWriter.getLink(new LinkInfoImpl(configuration, LinkInfoImpl.Kind.MEMBER,
+                   substituteType));
+        } else if (exception == null) {
             excName = new RawHtml(ch.getExceptionName(throwsTag).toString());
         } else if (exception.asType() == null) {
             excName = new RawHtml(utils.getFullyQualifiedName(exception));
@@ -409,29 +420,66 @@ public class TagletWriterImpl extends TagletWriter {
         return configuration;
     }
 
-    private Content createAnchorAndSearchIndex(Element element, String tagText, String desc){
+    /**
+     * {@inheritDoc}
+     */
+    protected TypeElement getCurrentPageElement() {
+        return htmlWriter.getCurrentPageElement();
+    }
+
+    @SuppressWarnings("preview")
+    private Content createAnchorAndSearchIndex(Element element, String tagText, String desc, boolean isSystemProperty) {
         Content result = null;
         if (isFirstSentence && inSummary) {
             result = new StringContent(tagText);
         } else {
             String anchorName = htmlWriter.links.getName(tagText);
-            int count = htmlWriter.indexAnchorTable.computeIfAbsent(anchorName, s -> 0);
-            htmlWriter.indexAnchorTable.put(anchorName, count + 1);
+            int count = htmlWriter.indexAnchorTable
+                    .compute(anchorName, (k, v) -> v == null ? 0 : v + 1);
             if (count > 0) {
                 anchorName += "-" + count;
             }
-            result = HtmlTree.A_ID(HtmlStyle.searchTagResult, anchorName, new StringContent(tagText));
-            if (configuration.createindex && !tagText.isEmpty()) {
+            result = HtmlTree.SPAN(anchorName, HtmlStyle.searchTagResult, new StringContent(tagText));
+            if (options.createIndex() && !tagText.isEmpty()) {
                 SearchIndexItem si = new SearchIndexItem();
+                si.setSystemProperty(isSystemProperty);
                 si.setLabel(tagText);
                 si.setDescription(desc);
                 si.setUrl(htmlWriter.path.getPath() + "#" + anchorName);
-                DocPaths docPaths = configuration.docPaths;
-                new SimpleElementVisitor9<Void, Void>() {
+                new SimpleElementVisitor14<Void, Void>() {
+
+                    @Override
+                    public Void visitModule(ModuleElement e, Void p) {
+                        si.setHolder(resources.getText("doclet.module")
+                                             + " " + utils.getFullyQualifiedName(e));
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitPackage(PackageElement e, Void p) {
+                        si.setHolder(resources.getText("doclet.package")
+                                             + " " + utils.getFullyQualifiedName(e));
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitType(TypeElement e, Void p) {
+                        si.setHolder(utils.getTypeElementName(e, true)
+                                             + " " + utils.getFullyQualifiedName(e));
+                        return null;
+                    }
+
+                    @Override
+                    public Void visitExecutable(ExecutableElement e, Void p) {
+                        si.setHolder(utils.getFullyQualifiedName(utils.getEnclosingTypeElement(e))
+                                             + "." + utils.getSimpleName(e) + utils.flatSignature(e));
+                        return null;
+                    }
+
                     @Override
                     public Void visitVariable(VariableElement e, Void p) {
                         TypeElement te = utils.getEnclosingTypeElement(e);
-                        si.setHolder(utils.getFullyQualifiedName(e) + "." + utils.getSimpleName(e));
+                        si.setHolder(utils.getFullyQualifiedName(te) + "." + utils.getSimpleName(e));
                         return null;
                     }
 
@@ -444,7 +492,7 @@ public class TagletWriterImpl extends TagletWriter {
                                     si.setHolder(resources.getText("doclet.Overview"));
                                     break;
                                 case DOCFILE:
-                                    si.setHolder(de.getPackageElement().toString());
+                                    si.setHolder(getHolderName(de));
                                     break;
                                 default:
                                     throw new IllegalStateException();
@@ -466,5 +514,18 @@ public class TagletWriterImpl extends TagletWriter {
             }
         }
         return result;
+    }
+
+    private String getHolderName(DocletElement de) {
+        PackageElement pe = de.getPackageElement();
+        if (pe.isUnnamed()) {
+            // if package is unnamed use enclosing module only if it is named
+            Element ee = pe.getEnclosingElement();
+            if (ee instanceof ModuleElement && !((ModuleElement)ee).isUnnamed()) {
+                return resources.getText("doclet.module") + " " + utils.getFullyQualifiedName(ee);
+            }
+            return pe.toString(); // "Unnamed package" or similar
+        }
+        return resources.getText("doclet.package") + " " + utils.getFullyQualifiedName(pe);
     }
 }

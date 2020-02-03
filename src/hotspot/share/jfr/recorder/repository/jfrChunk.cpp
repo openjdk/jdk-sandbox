@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,8 @@ static const u2 JFR_VERSION_MINOR = 1;
 // strictly monotone
 static jlong nanos_now() {
   static jlong last = 0;
+  // We use javaTimeMillis so this can be correlated with
+  // external timestamps.
   const jlong now = os::javaTimeMillis() * JfrTimeConverter::NANOS_PER_MILLISEC;
   if (now > last) {
     last = now;
@@ -59,7 +61,8 @@ JfrChunk::JfrChunk() :
   _last_update_nanos(0),
   _last_checkpoint_offset(0),
   _last_metadata_offset(0),
-  _generation(1) {}
+  _generation(1),
+  _final(false) {}
 
 JfrChunk::~JfrChunk() {
   reset();
@@ -86,10 +89,20 @@ u2 JfrChunk::minor_version() const {
   return JFR_VERSION_MINOR;
 }
 
-u2 JfrChunk::capabilities() const {
+void JfrChunk::mark_final() {
+  _final = true;
+}
+
+u2 JfrChunk::flags() const {
   // chunk capabilities, CompressedIntegers etc
-  static bool compressed_integers = JfrOptionSet::compressed_integers();
-  return compressed_integers;
+  u2 flags = 0;
+  if (JfrOptionSet::compressed_integers()) {
+    flags |= 1 << 0;
+  }
+  if (_final) {
+    flags |= 1 << 1;
+  }
+  return flags;
 }
 
 int64_t JfrChunk::cpu_frequency() const {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,6 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "logging/log.hpp"
-#include "memory/heapInspection.hpp"
 #include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
@@ -47,7 +46,6 @@
 #include "oops/oopHandle.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
-#include "runtime/orderAccess.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -362,7 +360,7 @@ InstanceKlass* Klass::superklass() const {
 Klass* Klass::subklass(bool log) const {
   // Need load_acquire on the _subklass, because it races with inserts that
   // publishes freshly initialized data.
-  for (Klass* chain = OrderAccess::load_acquire(&_subklass);
+  for (Klass* chain = Atomic::load_acquire(&_subklass);
        chain != NULL;
        // Do not need load_acquire on _next_sibling, because inserts never
        // create _next_sibling edges to dead data.
@@ -402,7 +400,7 @@ Klass* Klass::next_sibling(bool log) const {
 
 void Klass::set_subklass(Klass* s) {
   assert(s != this, "sanity check");
-  OrderAccess::release_store(&_subklass, s);
+  Atomic::release_store(&_subklass, s);
 }
 
 void Klass::set_next_sibling(Klass* s) {
@@ -410,7 +408,7 @@ void Klass::set_next_sibling(Klass* s) {
   // Does not need release semantics. If used by cleanup, it will link to
   // already safely published data, and if used by inserts, will be published
   // safely using cmpxchg.
-  Atomic::store(s, &_next_sibling);
+  Atomic::store(&_next_sibling, s);
 }
 
 void Klass::append_to_sibling_list() {
@@ -427,7 +425,7 @@ void Klass::append_to_sibling_list() {
   super->clean_subklass();
 
   for (;;) {
-    Klass* prev_first_subklass = OrderAccess::load_acquire(&_super->_subklass);
+    Klass* prev_first_subklass = Atomic::load_acquire(&_super->_subklass);
     if (prev_first_subklass != NULL) {
       // set our sibling to be the superklass' previous first subklass
       assert(prev_first_subklass->is_loader_alive(), "May not attach not alive klasses");
@@ -436,7 +434,7 @@ void Klass::append_to_sibling_list() {
     // Note that the prev_first_subklass is always alive, meaning no sibling_next links
     // are ever created to not alive klasses. This is an important invariant of the lock-free
     // cleaning protocol, that allows us to safely unlink dead klasses from the sibling list.
-    if (Atomic::cmpxchg(this, &super->_subklass, prev_first_subklass) == prev_first_subklass) {
+    if (Atomic::cmpxchg(&super->_subklass, prev_first_subklass, this) == prev_first_subklass) {
       return;
     }
   }
@@ -446,12 +444,12 @@ void Klass::append_to_sibling_list() {
 void Klass::clean_subklass() {
   for (;;) {
     // Need load_acquire, due to contending with concurrent inserts
-    Klass* subklass = OrderAccess::load_acquire(&_subklass);
+    Klass* subklass = Atomic::load_acquire(&_subklass);
     if (subklass == NULL || subklass->is_loader_alive()) {
       return;
     }
     // Try to fix _subklass until it points at something not dead.
-    Atomic::cmpxchg(subklass->next_sibling(), &_subklass, subklass);
+    Atomic::cmpxchg(&_subklass, subklass, subklass->next_sibling());
   }
 }
 
@@ -553,7 +551,7 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   assert(is_shared(), "must be set");
   JFR_ONLY(RESTORE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
-    ResourceMark rm;
+    ResourceMark rm(THREAD);
     log_trace(cds, unshareable)("restore: %s", external_name());
   }
 
@@ -586,7 +584,7 @@ void Klass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protec
   Handle module_handle(THREAD, ((module_entry != NULL) ? module_entry->module() : (oop)NULL));
 
   if (this->has_raw_archived_mirror()) {
-    ResourceMark rm;
+    ResourceMark rm(THREAD);
     log_debug(cds, mirror)("%s has raw archived mirror", external_name());
     if (HeapShared::open_archive_heap_region_mapped()) {
       bool present = java_lang_Class::restore_archived_mirror(this, loader, module_handle,
@@ -710,7 +708,7 @@ jint Klass::compute_modifier_flags(TRAPS) const {
 }
 
 int Klass::atomic_incr_biased_lock_revocation_count() {
-  return (int) Atomic::add(1, &_biased_lock_revocation_count);
+  return (int) Atomic::add(&_biased_lock_revocation_count, 1);
 }
 
 // Unless overridden, jvmti_class_status has no flags set.
@@ -756,18 +754,6 @@ void Klass::oop_print_value_on(oop obj, outputStream* st) {
   st->print("%s", internal_name());
   obj->print_address_on(st);
 }
-
-#if INCLUDE_SERVICES
-// Size Statistics
-void Klass::collect_statistics(KlassSizeStats *sz) const {
-  sz->_klass_bytes = sz->count(this);
-  sz->_mirror_bytes = sz->count(java_mirror_no_keepalive());
-  sz->_secondary_supers_bytes = sz->count_array(secondary_supers());
-
-  sz->_ro_bytes += sz->_secondary_supers_bytes;
-  sz->_rw_bytes += sz->_klass_bytes + sz->_mirror_bytes;
-}
-#endif // INCLUDE_SERVICES
 
 // Verification
 

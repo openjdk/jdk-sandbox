@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "gc/parallel/asPSYoungGen.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
-#include "gc/parallel/psMarkSweepDecorator.hpp"
 #include "gc/parallel/psScavenge.inline.hpp"
 #include "gc/parallel/psYoungGen.hpp"
 #include "gc/shared/gcUtil.hpp"
@@ -167,8 +166,7 @@ bool ASPSYoungGen::resize_generation(size_t eden_size, size_t survivor_size) {
   // Adjust new generation size
   const size_t eden_plus_survivors =
     align_up(eden_size + 2 * survivor_size, alignment);
-  size_t desired_size = MAX2(MIN2(eden_plus_survivors, gen_size_limit()),
-                             min_gen_size());
+  size_t desired_size = clamp(eden_plus_survivors, min_gen_size(), gen_size_limit());
   assert(desired_size <= gen_size_limit(), "just checking");
 
   if (desired_size > orig_size) {

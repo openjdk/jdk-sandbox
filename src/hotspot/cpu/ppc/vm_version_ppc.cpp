@@ -32,10 +32,10 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "runtime/stubCodeGenerator.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include "vm_version_ppc.hpp"
 
 #include <sys/sysinfo.h>
 #if defined(_AIX)
@@ -194,6 +194,12 @@ void VM_Version::initialize() {
   UseSSE = 0; // Only on x86 and x64
 
   intx cache_line_size = L1_data_cache_line_size();
+
+  if (PowerArchitecturePPC64 >= 9) {
+    if (os::supports_map_sync() == true) {
+      _data_cache_line_flush_size = cache_line_size;
+    }
+  }
 
   if (FLAG_IS_DEFAULT(AllocatePrefetchStyle)) AllocatePrefetchStyle = 1;
 

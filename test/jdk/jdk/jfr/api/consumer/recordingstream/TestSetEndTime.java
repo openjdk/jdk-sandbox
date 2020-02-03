@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,14 @@ public final class TestSetEndTime {
     public static void main(String... args) throws Exception {
         testEventStream();
         testRecordingStream();
+        testEmptyStream();
+    }
+
+    private static void testEmptyStream() {
+        try (RecordingStream rs = new RecordingStream()) {
+            rs.setEndTime(Instant.now().plusMillis(1100));
+            rs.start();
+        }
     }
 
     private static void testRecordingStream() throws Exception {
@@ -70,7 +78,6 @@ public final class TestSetEndTime {
             CountDownLatch closed = new CountDownLatch(1);
             AtomicInteger count = new AtomicInteger();
             try (RecordingStream rs = new RecordingStream()) {
-                rs.setFlushInterval(Duration.ofSeconds(1));
                 rs.onEvent(e -> {
                     count.incrementAndGet();
                 });
@@ -89,10 +96,10 @@ public final class TestSetEndTime {
                 }
                 closed.await();
                 System.out.println("Found events: " + count.get());
-                if (count.get() < 50) {
+                if (count.get() > 0 && count.get() < 50) {
                     return;
                 }
-                System.out.println("Found 50 events. Retrying");
+                System.out.println("Retrying");
                 System.out.println();
             }
         }

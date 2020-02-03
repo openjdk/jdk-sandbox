@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -192,7 +192,9 @@ JVM_ENTRY_NO_ENV(jboolean, jfr_create_jfr(JNIEnv* env, jobject jvm, jboolean sim
     return JNI_TRUE;
   }
   if (!JfrRecorder::create(simulate_failure == JNI_TRUE)) {
-    JfrJavaSupport::throw_illegal_state_exception("Unable to start Jfr", thread);
+    if (!thread->has_pending_exception()) {
+      JfrJavaSupport::throw_illegal_state_exception("Unable to start Jfr", thread);
+    }
     return JNI_FALSE;
   }
   return JNI_TRUE;
@@ -210,6 +212,10 @@ JVM_ENTRY_NO_ENV(void, jfr_begin_recording(JNIEnv* env, jobject jvm))
   JfrRecorder::start_recording();
 JVM_END
 
+JVM_ENTRY_NO_ENV(jboolean, jfr_is_recording(JNIEnv * env, jobject jvm))
+  return JfrRecorder::is_recording() ? JNI_TRUE : JNI_FALSE;
+JVM_END
+
 JVM_ENTRY_NO_ENV(void, jfr_end_recording(JNIEnv* env, jobject jvm))
   if (!JfrRecorder::is_recording()) {
     return;
@@ -217,6 +223,9 @@ JVM_ENTRY_NO_ENV(void, jfr_end_recording(JNIEnv* env, jobject jvm))
   JfrRecorder::stop_recording();
 JVM_END
 
+JVM_ENTRY_NO_ENV(void, jfr_mark_chunk_final(JNIEnv * env, jobject jvm))
+  JfrRepository::mark_chunk_final();
+JVM_END
 
 JVM_ENTRY_NO_ENV(jboolean, jfr_emit_event(JNIEnv* env, jobject jvm, jlong eventTypeId, jlong timeStamp, jlong when))
   JfrPeriodicEventSet::requestEvent((JfrEventId)eventTypeId);
@@ -331,4 +340,13 @@ JVM_END
 JVM_ENTRY_NO_ENV(jlong, jfr_chunk_start_nanos(JNIEnv* env, jobject jvm))
   return JfrRepository::current_chunk_start_nanos();
 JVM_END
+
+JVM_ENTRY_NO_ENV(jobject, jfr_get_handler(JNIEnv * env, jobject jvm, jobject clazz))
+  return JfrJavaSupport::get_handler(clazz, thread);
+JVM_END
+
+JVM_ENTRY_NO_ENV(jboolean, jfr_set_handler(JNIEnv * env, jobject jvm, jobject clazz, jobject handler))
+  return JfrJavaSupport::set_handler(clazz, handler, thread);
+JVM_END
+
 

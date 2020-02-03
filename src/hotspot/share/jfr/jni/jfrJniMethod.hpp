@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,11 @@ jboolean JNICALL jfr_destroy_jfr(JNIEnv* env, jobject jvm);
 
 void JNICALL jfr_begin_recording(JNIEnv* env, jobject jvm);
 
+jboolean JNICALL jfr_is_recording(JNIEnv* env, jobject jvm);
+
 void JNICALL jfr_end_recording(JNIEnv* env, jobject jvm);
+
+void JNICALL jfr_mark_chunk_final(JNIEnv* env, jobject jvm);
 
 jboolean JNICALL jfr_emit_event(JNIEnv* env, jobject jvm, jlong eventTypeId, jlong timeStamp, jlong when);
 
@@ -139,6 +143,11 @@ void JNICALL jfr_include_thread(JNIEnv* env, jobject jvm, jobject t);
 jboolean JNICALL jfr_is_thread_excluded(JNIEnv* env, jobject jvm, jobject t);
 
 jlong JNICALL jfr_chunk_start_nanos(JNIEnv* env, jobject jvm);
+
+jobject JNICALL jfr_get_handler(JNIEnv* env, jobject jvm, jobject clazz);
+
+jboolean JNICALL jfr_set_handler(JNIEnv* env, jobject jvm, jobject clazz, jobject handler);
+
 
 #ifdef __cplusplus
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,14 +39,11 @@
 #include "utilities/debug.hpp"
 
 inline uint8_t ZPage::type_from_size(size_t size) const {
-  switch (size) {
-  case ZPageSizeSmall:
+  if (size == ZPageSizeSmall) {
     return ZPageTypeSmall;
-
-  case ZPageSizeMedium:
+  } else if (size == ZPageSizeMedium) {
     return ZPageTypeMedium;
-
-  default:
+  } else {
     return ZPageTypeLarge;
   }
 }
@@ -139,7 +136,7 @@ inline const ZVirtualMemory& ZPage::virtual_memory() const {
 
 inline uint8_t ZPage::numa_id() {
   if (_numa_id == (uint8_t)-1) {
-    _numa_id = (uint8_t)ZNUMA::memory_id(ZAddress::good(start()));
+    _numa_id = ZNUMA::memory_id(ZAddress::good(start()));
   }
 
   return _numa_id;
@@ -258,7 +255,7 @@ inline uintptr_t ZPage::alloc_object_atomic(size_t size) {
       return 0;
     }
 
-    const uintptr_t prev_top = Atomic::cmpxchg(new_top, &_top, addr);
+    const uintptr_t prev_top = Atomic::cmpxchg(&_top, addr, new_top);
     if (prev_top == addr) {
       // Success
       return ZAddress::good(addr);
@@ -302,7 +299,7 @@ inline bool ZPage::undo_alloc_object_atomic(uintptr_t addr, size_t size) {
       return false;
     }
 
-    const uintptr_t prev_top = Atomic::cmpxchg(new_top, &_top, old_top);
+    const uintptr_t prev_top = Atomic::cmpxchg(&_top, old_top, new_top);
     if (prev_top == old_top) {
       // Success
       return true;

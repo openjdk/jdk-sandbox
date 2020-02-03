@@ -35,6 +35,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.SimpleTypeVisitor9;
@@ -58,10 +59,6 @@ import static jdk.javadoc.internal.doclets.formats.html.LinkInfoImpl.Kind.RECEIV
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert Field
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public abstract class AbstractExecutableMemberWriter extends AbstractMemberWriter {
 
@@ -145,10 +142,10 @@ public abstract class AbstractExecutableMemberWriter extends AbstractMemberWrite
      * @param isVarArg true if this is a link to var arg.
      * @param tree the content tree to which the parameter information will be added.
      */
-    protected void addParam(ExecutableElement member, VariableElement param,
+    protected void addParam(ExecutableElement member, VariableElement param, TypeMirror paramType,
             boolean isVarArg, Content tree) {
         Content link = writer.getLink(new LinkInfoImpl(configuration, EXECUTABLE_MEMBER_PARAM,
-                param.asType()).varargs(isVarArg));
+                paramType).varargs(isVarArg));
         tree.add(link);
         if(name(param).length() > 0) {
             tree.add(Entity.NO_BREAK_SPACE);
@@ -212,9 +209,11 @@ public abstract class AbstractExecutableMemberWriter extends AbstractMemberWrite
             sep = "," + DocletConstants.NL;
         }
         int paramstart;
+        ExecutableType instMeth = utils.asInstantiatedMethodType(typeElement, member);
         for (paramstart = 0; paramstart < parameters.size(); paramstart++) {
             paramTree.add(sep);
             VariableElement param = parameters.get(paramstart);
+            TypeMirror paramType = instMeth.getParameterTypes().get(paramstart);
 
             if (param.getKind() != ElementKind.INSTANCE_INIT) {
                 if (includeAnnotations) {
@@ -224,7 +223,7 @@ public abstract class AbstractExecutableMemberWriter extends AbstractMemberWrite
                         paramTree.add(DocletConstants.NL);
                     }
                 }
-                addParam(member, param,
+                addParam(member, param, paramType,
                     (paramstart == parameters.size() - 1) && member.isVarArgs(), paramTree);
                 break;
             }
@@ -241,7 +240,8 @@ public abstract class AbstractExecutableMemberWriter extends AbstractMemberWrite
                     paramTree.add(DocletConstants.NL);
                 }
             }
-            addParam(member, parameters.get(i), (i == parameters.size() - 1) && member.isVarArgs(),
+            addParam(member, parameters.get(i), instMeth.getParameterTypes().get(i),
+                    (i == parameters.size() - 1) && member.isVarArgs(),
                     paramTree);
         }
 
@@ -255,7 +255,7 @@ public abstract class AbstractExecutableMemberWriter extends AbstractMemberWrite
      * @return the content tree containing the exceptions information.
      */
     protected Content getExceptions(ExecutableElement member) {
-        List<? extends TypeMirror> exceptions = member.getThrownTypes();
+        List<? extends TypeMirror> exceptions = utils.asInstantiatedMethodType(typeElement, member).getThrownTypes();
         Content htmltree = new ContentBuilder();
         if (!exceptions.isEmpty()) {
             Content link = writer.getLink(new LinkInfoImpl(configuration, MEMBER, exceptions.get(0)));

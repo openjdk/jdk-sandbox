@@ -169,7 +169,7 @@ oop Generation::promote(oop obj, size_t obj_size) {
 
   HeapWord* result = allocate(obj_size, false);
   if (result != NULL) {
-    Copy::aligned_disjoint_words((HeapWord*)obj, result, obj_size);
+    Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), result, obj_size);
     return oop(result);
   } else {
     GenCollectedHeap* gch = GenCollectedHeap::heap();
@@ -286,21 +286,6 @@ class GenerationObjIterateClosure : public SpaceClosure {
 
 void Generation::object_iterate(ObjectClosure* cl) {
   GenerationObjIterateClosure blk(cl);
-  space_iterate(&blk);
-}
-
-class GenerationSafeObjIterateClosure : public SpaceClosure {
- private:
-  ObjectClosure* _cl;
- public:
-  virtual void do_space(Space* s) {
-    s->safe_object_iterate(_cl);
-  }
-  GenerationSafeObjIterateClosure(ObjectClosure* cl) : _cl(cl) {}
-};
-
-void Generation::safe_object_iterate(ObjectClosure* cl) {
-  GenerationSafeObjIterateClosure blk(cl);
   space_iterate(&blk);
 }
 
