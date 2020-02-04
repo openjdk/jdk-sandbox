@@ -24,7 +24,8 @@
 
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHTASKQUEUE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHTASKQUEUE_HPP
-#include "gc/shared/owstTaskTerminator.hpp"
+
+#include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
@@ -340,16 +341,15 @@ public:
 
 class ShenandoahTaskTerminator : public StackObj {
 private:
-  OWSTTaskTerminator* const   _terminator;
+  TaskTerminator _terminator;
 public:
   ShenandoahTaskTerminator(uint n_threads, TaskQueueSetSuper* queue_set);
-  ~ShenandoahTaskTerminator();
 
   bool offer_termination(ShenandoahTerminatorTerminator* terminator) {
-    return _terminator->offer_termination(terminator);
+    return _terminator.offer_termination(terminator);
   }
 
-  void reset_for_reuse() { _terminator->reset_for_reuse(); }
+  void reset_for_reuse() { _terminator.reset_for_reuse(); }
   bool offer_termination() { return offer_termination((ShenandoahTerminatorTerminator*)NULL); }
 };
 
