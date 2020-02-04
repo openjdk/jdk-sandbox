@@ -45,6 +45,7 @@ final class NetDatagramSocket extends MulticastSocket {
      */
     private boolean bound = false;
     private boolean closed = false;
+    private volatile boolean created;
     private final Object closeLock = new Object();
 
     /*
@@ -87,7 +88,9 @@ final class NetDatagramSocket extends MulticastSocket {
     int connectedPort = -1;
 
     static NetDatagramSocket create(boolean isMulticast) throws SocketException {
-        return new NetDatagramSocket(createImpl(isMulticast));
+        NetDatagramSocket socket = new NetDatagramSocket(createImpl(isMulticast));
+        socket.getImpl(); // force early creation of underlying socket here
+        return socket;
     }
 
     // checks that the provided DatagramSocketImpl is non null, and
@@ -195,20 +198,27 @@ final class NetDatagramSocket extends MulticastSocket {
         } else {
             impl = DefaultDatagramSocketImplFactory.createDatagramSocketImpl(multicast);
         }
-        // creates a udp socket
-        impl.create();
         return impl;
     }
 
     /**
-     * Return the {@code DatagramSocketImpl} attached to this socket.
+     * Return the {@code DatagramSocketImpl} attached to this socket,
+     * creating the socket if not already created.
      *
      * @return  the {@code DatagramSocketImpl} attached to that
      *          DatagramSocket
-     * @throws SocketException never thrown
+     * @throws SocketException if creating the socket fails
      * @since 1.4
      */
-    DatagramSocketImpl getImpl() throws SocketException {
+    final DatagramSocketImpl getImpl() throws SocketException {
+        if (!created) {
+            synchronized (this) {
+                if (!created)  {
+                    impl.create();
+                    created = true;
+                }
+            }
+        }
         return impl;
     }
 
