@@ -34,6 +34,7 @@
 #include "nio_util.h"
 #include "net_util.h"
 
+#include "java_net_InetAddress.h"
 #include "sun_nio_ch_Net.h"
 #include "sun_nio_ch_PollArrayWrapper.h"
 
@@ -108,7 +109,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
     memset(sa, 0, sizeof(struct sockaddr_un));
     sa->sun_family = AF_UNIX;
     if (uaddr == NULL) {
- 	/* Do explicit bind on Windows */
+        /* Do explicit bind on Windows */
         *len = (int)(offsetof(struct sockaddr_un, sun_path));
         return 0;
     }
@@ -323,21 +324,38 @@ Java_sun_nio_ch_Net_canUseIPv6OptionsWithIPv4LocalAddress0(JNIEnv* env, jclass c
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
+Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6, jint family,
                             jboolean stream, jboolean reuse, jboolean fastLoopback)
 {
     SOCKET s;
-    int domain = (preferIPv6) ? AF_INET6 : AF_INET;
+    int domain;
+    if (family == sun_nio_ch_Net_UNSPECIFIED) {
+        domain = (preferIPv6) ? AF_INET6 : AF_INET;
+    } else {
+        domain = family == sun_nio_ch_Net_IPv6 ? AF_INET6 : AF_INET;
+    }
 
     s = socket(domain, (stream ? SOCK_STREAM : SOCK_DGRAM), 0);
     if (s != INVALID_SOCKET) {
         SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
         /* IPV6_V6ONLY is true by default */
-        if (domain == AF_INET6) {
+        if (family == sun_nio_ch_Net_UNSPECIFIED && domain == AF_INET6 && ipv4_available()) {
             int opt = 0;
             setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
                        (const char *)&opt, sizeof(opt));
+        }
+
+        if (family == sun_nio_ch_Net_IPv6) {
+            int opt = 1;
+             if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&opt,
+                            sizeof(int)) < 0) {
+                JNU_ThrowByNameWithLastError(env,
+                                             JNU_JAVANETPKG "SocketException",
+                                             "Unable to set IPV6_V6ONLY");
+                closesocket(s);
+                return -1;
+            }
         }
 
         /* Disable WSAECONNRESET errors for initially unconnected UDP sockets */
@@ -367,15 +385,23 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jboolean preferIPv6,
+Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jint target_family, jboolean preferIPv6,
                           jboolean isExclBind, jobject iao, jint port)
 {
     SOCKETADDRESS sa;
     int rv;
     int sa_len = 0;
 
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
-        return;
+    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
+        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
+            return;
+        }
+    } else {
+        jint src_family = getInetAddress_family(env, iao);
+        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
+                                            port, &sa, &sa_len) != 0) {
+                return;
+            }
     }
 
     rv = NET_WinBind(fdval(env, fdo), &sa, sa_len, isExclBind);
@@ -392,16 +418,24 @@ Java_sun_nio_ch_Net_listen(JNIEnv *env, jclass cl, jobject fdo, jint backlog)
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, jobject fdo,
-                             jobject iao, jint port)
+Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, jint target_family,
+                             jobject fdo, jobject iao, jint port)
 {
     SOCKETADDRESS sa;
     int rv;
     int sa_len = 0;
     SOCKET s = (SOCKET)fdval(env, fdo);
 
-    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
-        return IOS_THROWN;
+    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
+        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
+            return IOS_THROWN;
+        }
+    } else {
+        jint src_family = getInetAddress_family(env, iao);
+        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
+                                            port, &sa, &sa_len) != 0) {
+            return IOS_THROWN;
+        }
     }
 
     rv = connect(s, &sa.sa, sa_len);
