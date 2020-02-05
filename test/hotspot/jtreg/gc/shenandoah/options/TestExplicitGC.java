@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -25,7 +26,7 @@
  * @test TestExplicitGC
  * @summary Test that Shenandoah reacts to explicit GC flags appropriately
  * @key gc
- * @requires vm.gc.Shenandoah
+ * @requires vm.gc.Shenandoah & !vm.graal.enabled
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -129,7 +130,7 @@ public class TestExplicitGC {
                     "-XX:+UseShenandoahGC",
                     "-Xlog:gc",
                     "-XX:+ExplicitGCInvokesConcurrent",
-                    "-XX:ShenandoahGCHeuristics=traversal",
+                    "-XX:ShenandoahGCMode=traversal",
                     TestExplicitGC.class.getName(),
                     "test");
             OutputAnalyzer output = new OutputAnalyzer(pb.start());

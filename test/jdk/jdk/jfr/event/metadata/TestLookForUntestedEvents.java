@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -77,8 +77,11 @@ public class TestLookForUntestedEvents {
     // NOTE: if the event is not covered, a bug should be open, and bug number
     // noted in the comments for this set.
     private static final Set<String> knownNotCoveredEvents = new HashSet<>(
-        // DumpReason: JDK-8213918
-        Arrays.asList("DumpReason")
+    );
+
+    // Experimental events
+    private static final Set<String> experimentalEvents = new HashSet<>(
+      Arrays.asList("Flush")
     );
 
 
@@ -137,6 +140,10 @@ public class TestLookForUntestedEvents {
                 eventsFromEventNamesClass.add(eventName);
             }
         }
+
+        // remove experimental events from eventsFromEventNamesClass since jfrEventTypes
+        // excludes experimental events
+        eventsFromEventNamesClass.removeAll(experimentalEvents);
 
         if (!jfrEventTypes.equals(eventsFromEventNamesClass)) {
             String exceptionMsg = "Events declared in jdk.test.lib.jfr.EventNames differ " +

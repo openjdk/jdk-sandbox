@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,10 +30,11 @@ import java.util.Observable;
 import java.util.Observer;
 
 import sun.jvm.hotspot.debugger.Address;
+import sun.jvm.hotspot.gc.g1.HeapRegionClosure;
+import sun.jvm.hotspot.gc.g1.PrintRegionClosure;
 import sun.jvm.hotspot.gc.shared.CollectedHeap;
 import sun.jvm.hotspot.gc.shared.CollectedHeapName;
-import sun.jvm.hotspot.gc.shared.SpaceClosure;
-import sun.jvm.hotspot.gc.shared.PrintRegionClosure;
+import sun.jvm.hotspot.gc.shared.LiveRegionsClosure;
 import sun.jvm.hotspot.memory.MemRegion;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.runtime.VMObjectFactory;
@@ -125,16 +126,25 @@ public class G1CollectedHeap extends CollectedHeap {
         return hrm().heapRegionIterator();
     }
 
-    public void heapRegionIterate(SpaceClosure scl) {
+    public void heapRegionIterate(HeapRegionClosure hrcl) {
         Iterator<HeapRegion> iter = heapRegionIterator();
         while (iter.hasNext()) {
             HeapRegion hr = iter.next();
-            scl.doSpace(hr);
+            hrcl.doHeapRegion(hr);
         }
     }
 
     public CollectedHeapName kind() {
         return CollectedHeapName.G1;
+    }
+
+    @Override
+    public void liveRegionsIterate(LiveRegionsClosure closure) {
+        Iterator<HeapRegion> iter = heapRegionIterator();
+        while (iter.hasNext()) {
+            HeapRegion hr = iter.next();
+            closure.doLiveRegions(hr);
+        }
     }
 
     @Override

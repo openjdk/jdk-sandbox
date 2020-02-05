@@ -226,10 +226,6 @@ class CompiledIC: public ResourceObj {
   friend CompiledIC* CompiledIC_at(Relocation* call_site);
   friend CompiledIC* CompiledIC_at(RelocIterator* reloc_iter);
 
-  // This is used to release CompiledICHolder*s from nmethods that
-  // are about to be freed.  The callsite might contain other stale
-  // values of other kinds so it must be careful.
-  static void cleanup_call_site(virtual_call_Relocation* call_site, const CompiledMethod* cm);
   static bool is_icholder_call_site(virtual_call_Relocation* call_site, const CompiledMethod* cm);
 
   // Return the cached_metadata/destination associated with this inline cache. If the cache currently points
@@ -406,6 +402,9 @@ private:
 
   // Also used by CompiledIC
   void set_to_interpreted(const methodHandle& callee, address entry);
+  void verify_mt_safe(const methodHandle& callee, address entry,
+                      NativeMovConstReg* method_holder,
+                      NativeJump*        jump) PRODUCT_RETURN;
 #if INCLUDE_AOT
   void set_to_far(const methodHandle& callee, address entry);
 #endif

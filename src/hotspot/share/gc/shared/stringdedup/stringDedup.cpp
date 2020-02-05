@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "gc/shared/stringdedup/stringDedupQueue.hpp"
 #include "gc/shared/stringdedup/stringDedupTable.hpp"
 #include "gc/shared/stringdedup/stringDedupThread.hpp"
+#include "memory/iterator.hpp"
 
 bool StringDedup::_enabled = false;
 
@@ -52,7 +53,6 @@ void StringDedup::deduplicate(oop java_string) {
   StringDedupStat dummy; // Statistics from this path is never used
   StringDedupTable::deduplicate(java_string, &dummy);
 }
-
 
 void StringDedup::parallel_unlink(StringDedupUnlinkOrOopsDoClosure* unlink, uint worker_id) {
   assert(is_enabled(), "String deduplication not enabled");
@@ -80,5 +80,8 @@ void StringDedup::verify() {
 
 StringDedupUnlinkOrOopsDoClosure::StringDedupUnlinkOrOopsDoClosure(BoolObjectClosure* is_alive,
                                                                    OopClosure* keep_alive) :
-  _is_alive(is_alive), _keep_alive(keep_alive) {
+  _always_true(),
+  _do_nothing(),
+  _is_alive(is_alive != NULL ? is_alive : &_always_true),
+  _keep_alive(keep_alive != NULL ? keep_alive : &_do_nothing) {
 }

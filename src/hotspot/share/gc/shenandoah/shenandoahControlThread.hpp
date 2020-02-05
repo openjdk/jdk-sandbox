@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -59,7 +60,7 @@ private:
     concurrent_traversal,
     concurrent_normal,
     stw_degenerated,
-    stw_full,
+    stw_full
   } GCMode;
 
   // While we could have a single lock for these, it may risk unblocking

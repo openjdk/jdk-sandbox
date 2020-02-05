@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,9 @@ import com.sun.source.doctree.StartElementTree;
 import com.sun.source.doctree.TextTree;
 import com.sun.source.util.DocTreeFactory;
 import com.sun.tools.doclint.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.BodyContents;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
 import jdk.javadoc.internal.doclets.toolkit.Content;
@@ -62,6 +64,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
     public final Location location;
     public final DocPath  source;
     public final HtmlConfiguration configuration;
+    private final HtmlOptions options;
     private Navigation navBar;
 
     /**
@@ -73,6 +76,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
      */
     public DocFilesHandlerImpl(HtmlConfiguration configuration, Element element) {
         this.configuration = configuration;
+        this.options = configuration.getOptions();
         this.element = element;
 
         switch (element.getKind()) {
@@ -102,7 +106,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
      * @throws DocFileIOException if there is a problem while copying
      *         the documentation files
      */
-
+    @Override
     public void copyDocFiles()  throws DocFileIOException {
         boolean first = true;
         for (DocFile srcdir : DocFile.list(configuration, location, source)) {
@@ -125,6 +129,17 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
         }
     }
 
+    @Override
+    public List<DocPath> getStylesheets() throws DocFileIOException {
+        List<DocPath> stylesheets = new ArrayList<DocPath>();
+        for (DocFile srcdir : DocFile.list(configuration, location, source)) {
+            for (DocFile srcFile : srcdir.list()) {
+                if (srcFile.getName().endsWith(".css"))
+                    stylesheets.add(DocPaths.DOC_FILES.resolve(srcFile.getName()));
+            }
+        }
+        return stylesheets;
+    }
 
     private void copyDirectory(DocFile srcdir, final DocPath dstDocPath,
                                boolean first) throws DocFileIOException {
@@ -148,7 +163,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
                     }
                 }
             } else if (srcfile.isDirectory()) {
-                if (configuration.copydocfilesubdirs
+                if (options.copyDocfileSubdirs()
                         && !configuration.shouldExcludeDocFileDir(srcfile.getName())) {
                     DocPath dirDocPath = dstDocPath.resolve(srcfile.getName());
                     copyDirectory(srcfile, dirDocPath, first);
@@ -160,7 +175,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
     private void handleHtmlFile(DocFile srcfile, DocPath dstPath) throws DocFileIOException {
         Utils utils = configuration.utils;
         FileObject fileObject = srcfile.getFileObject();
-        DocFileElement dfElement = new DocFileElement(element, fileObject);
+        DocFileElement dfElement = new DocFileElement(utils, element, fileObject);
 
         DocPath dfilePath = dstPath.resolve(srcfile.getName());
         HtmlDocletWriter docletWriter = new DocFileWriter(configuration, dfilePath, element);
@@ -170,40 +185,33 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
         Content localTagsContent = docletWriter.commentTagsToContent(null, dfElement, localTags, false);
 
         String title = getWindowTitle(docletWriter, dfElement).trim();
-        HtmlTree htmlContent = docletWriter.getBody(true, title);
-        docletWriter.addTop(htmlContent);
-        PackageElement pkg = (PackageElement) element;
-        this.navBar = new Navigation(pkg, configuration, docletWriter.fixedNavDiv,
-                PageMode.DOCFILE, docletWriter.path);
+        HtmlTree htmlContent = docletWriter.getBody(title);
+        PackageElement pkg = dfElement.getPackageElement();
+        this.navBar = new Navigation(element, configuration, PageMode.DOCFILE, docletWriter.path);
+        Content headerContent = new ContentBuilder();
+        docletWriter.addTop(headerContent);
         Content mdleLinkContent = docletWriter.getModuleLink(utils.elementUtils.getModuleOf(pkg),
                 docletWriter.contents.moduleLabel);
         navBar.setNavLinkModule(mdleLinkContent);
         Content pkgLinkContent = docletWriter.getPackageLink(pkg, docletWriter.contents.packageLabel);
         navBar.setNavLinkPackage(pkgLinkContent);
         navBar.setUserHeader(docletWriter.getUserHeaderFooter(true));
-        Content header = docletWriter.createTagIfAllowed(
-                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.HEADER, HtmlTree::HEADER,
-                ContentBuilder::new);
-        header.addContent(navBar.getContent(true));
-        htmlContent.addContent(header);
+        headerContent.add(navBar.getContent(true));
 
         List<? extends DocTree> fullBody = utils.getFullBody(dfElement);
-        Content bodyContent = docletWriter.commentTagsToContent(null, dfElement, fullBody, false);
-        docletWriter.addTagsInfo(dfElement, bodyContent);
-        Content main = docletWriter.createTagIfAllowed(
-                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.MAIN, HtmlTree::MAIN,
-                ContentBuilder::new);
-        main.addContent(bodyContent);
-        htmlContent.addContent(main);
+        Content pageContent = docletWriter.commentTagsToContent(null, dfElement, fullBody, false);
+        docletWriter.addTagsInfo(dfElement, pageContent);
 
         navBar.setUserFooter(docletWriter.getUserHeaderFooter(false));
-        Content footer = docletWriter.createTagIfAllowed(
-                jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag.FOOTER, HtmlTree::FOOTER,
-                ContentBuilder::new);
-        footer.addContent(navBar.getContent(false));
+        Content footer = HtmlTree.FOOTER();
+        footer.add(navBar.getContent(false));
         docletWriter.addBottom(footer);
-        htmlContent.addContent(footer);
-        docletWriter.printHtmlDocument(Collections.emptyList(), false, localTagsContent, htmlContent);
+        htmlContent.add(new BodyContents()
+                .setHeader(headerContent)
+                .addMainContent(HtmlTree.DIV(HtmlStyle.contentContainer, pageContent))
+                .setFooter(footer)
+                .toContent());
+        docletWriter.printHtmlDocument(Collections.emptyList(), null, localTagsContent, Collections.emptyList(), htmlContent);
     }
 
 
@@ -296,12 +304,10 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
 
     private static class DocFileWriter extends HtmlDocletWriter {
 
-        final PackageElement pkg;
-
         /**
          * Constructor to construct the HtmlDocletWriter object.
          *
-         * @param configuration the configuruation of this doclet.
+         * @param configuration the configuration of this doclet.
          * @param path          the file to be generated.
          * @param e             the anchoring element.
          */
@@ -309,7 +315,7 @@ public class DocFilesHandlerImpl implements DocFilesHandler {
             super(configuration, path);
             switch (e.getKind()) {
                 case PACKAGE:
-                    pkg = (PackageElement)e;
+                case MODULE:
                     break;
                 default:
                     throw new AssertionError("unsupported element: " + e.getKind());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,7 @@
 #ifndef SHARE_OOPS_INSTANCEKLASS_HPP
 #define SHARE_OOPS_INSTANCEKLASS_HPP
 
-#include "classfile/classLoader.hpp"
 #include "classfile/classLoaderData.hpp"
-#include "classfile/moduleEntry.hpp"
-#include "classfile/packageEntry.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
@@ -44,6 +41,7 @@
 #include "jfr/support/jfrKlassExtension.hpp"
 #endif
 
+class RecordComponent;
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -63,6 +61,7 @@
 class BreakpointInfo;
 #endif
 class ClassFileParser;
+class ClassFileStream;
 class KlassDepChange;
 class DependencyContext;
 class fieldDescriptor;
@@ -70,9 +69,10 @@ class jniIdMapBase;
 class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
-class SuperTypeClosure;
 class OopMapCache;
 class InterpreterOopMap;
+class PackageEntry;
+class ModuleEntry;
 
 // This is used in iterators below.
 class FieldClosure: public StackObj {
@@ -183,6 +183,9 @@ class InstanceKlass: public Klass {
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
 
+  // The contents of the Record attribute.
+  Array<RecordComponent*>* _record_components;
+
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
   // it is stored in the instanceklass as a NULL-terminated UTF-8 string
@@ -248,7 +251,7 @@ class InstanceKlass: public Klass {
   u2              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
-  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recusive initialization)
+  Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
   JNIid*          _jni_ids;              // First JNI identifier for static fields in this class
   jmethodID*      volatile _methods_jmethod_ids;  // jmethodIDs corresponding to method_idnum, or NULL if none
@@ -330,6 +333,8 @@ class InstanceKlass: public Klass {
 
   friend class SystemDictionary;
 
+  static bool _disable_method_binary_search;
+
  public:
   u2 loader_type() {
     return _misc_flags & loader_type_bits();
@@ -349,22 +354,7 @@ class InstanceKlass: public Klass {
     _misc_flags &= ~loader_type_bits();
   }
 
-  void set_class_loader_type(s2 loader_type) {
-    switch (loader_type) {
-    case ClassLoader::BOOT_LOADER:
-      _misc_flags |= _misc_is_shared_boot_class;
-       break;
-    case ClassLoader::PLATFORM_LOADER:
-      _misc_flags |= _misc_is_shared_platform_class;
-      break;
-    case ClassLoader::APP_LOADER:
-      _misc_flags |= _misc_is_shared_app_class;
-      break;
-    default:
-      ShouldNotReachHere();
-      break;
-    }
-  }
+  void set_class_loader_type(s2 loader_type);
 
   bool has_nonstatic_fields() const        {
     return (_misc_flags & _misc_has_nonstatic_fields) != 0;
@@ -462,9 +452,17 @@ class InstanceKlass: public Klass {
   jushort nest_host_index() const { return _nest_host_index; }
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
 
+  // record components
+  Array<RecordComponent*>* record_components() const { return _record_components; }
+  void set_record_components(Array<RecordComponent*>* record_components) {
+    _record_components = record_components;
+  }
+  bool is_record() const { return _record_components != NULL; }
+
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
+
 public:
   // Returns nest-host class, resolving and validating it if needed
   // Returns NULL if an exception occurs during loading, or validation fails
@@ -579,6 +577,14 @@ public:
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
+
+ private:
+  inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
+
+ public:
+  static void disable_method_binary_search() {
+    _disable_method_binary_search = true;
+  }
 
   // find a local method (returns NULL if not found)
   Method* find_method(const Symbol* name, const Symbol* signature) const;
@@ -847,14 +853,6 @@ public:
   JvmtiCachedClassFieldMap* jvmti_cached_class_field_map() const {
     return _jvmti_cached_class_field_map;
   }
-
-#if INCLUDE_CDS
-  void set_archived_class_data(JvmtiCachedClassFileData* data) {
-    _cached_class_file = data;
-  }
-
-  JvmtiCachedClassFileData * get_archived_class_data();
-#endif // INCLUDE_CDS
 #else // INCLUDE_JVMTI
 
   static void purge_previous_versions(InstanceKlass* ik) { return; };
@@ -1016,7 +1014,6 @@ public:
   void process_interfaces(Thread *thread);
 
   // virtual operations from Klass
-  bool is_leaf_class() const               { return _subklass == NULL; }
   GrowableArray<Klass*>* compute_secondary_supers(int num_extra_slots,
                                                   Array<InstanceKlass*>* transitive_interfaces);
   bool can_be_primary_super_slow() const;
@@ -1033,7 +1030,6 @@ public:
   void methods_do(void f(Method* method));
   void array_klasses_do(void f(Klass* k));
   void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
-  bool super_types_do(SuperTypeClosure* blk);
 
   static InstanceKlass* cast(Klass* k) {
     return const_cast<InstanceKlass*>(cast(const_cast<const Klass*>(k)));
@@ -1070,9 +1066,6 @@ public:
                                                is_unsafe_anonymous(),
                                                has_stored_fingerprint());
   }
-#if INCLUDE_SERVICES
-  virtual void collect_statistics(KlassSizeStats *sz) const;
-#endif
 
   intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }
@@ -1149,7 +1142,7 @@ public:
   Method* method_at_itable(Klass* holder, int index, TRAPS);
 
 #if INCLUDE_JVMTI
-  void adjust_default_methods(InstanceKlass* holder, bool* trace_name_printed);
+  void adjust_default_methods(bool* trace_name_printed);
 #endif // INCLUDE_JVMTI
 
   void clean_weak_instanceklass_links();
@@ -1168,6 +1161,8 @@ public:
                                     const Klass* super_klass,
                                     Array<InstanceKlass*>* local_interfaces,
                                     Array<InstanceKlass*>* transitive_interfaces);
+  void static deallocate_record_components(ClassLoaderData* loader_data,
+                                           Array<RecordComponent*>* record_component);
 
   // The constant pool is on stack if any of the methods are executing or
   // referenced by handles.

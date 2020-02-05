@@ -38,6 +38,7 @@
 #include "logging/log.hpp"
 #include "memory/metaspace.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -65,7 +66,7 @@ void GCHeapLog::log_heap(CollectedHeap* heap, bool before) {
   }
 
   double timestamp = fetch_timestamp();
-  MutexLockerEx ml(&_mutex, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(&_mutex, Mutex::_no_safepoint_check_flag);
   int index = compute_log_index();
   _records[index].thread = NULL; // Its the GC thread so it's not that interesting.
   _records[index].timestamp = timestamp;
@@ -81,11 +82,16 @@ void GCHeapLog::log_heap(CollectedHeap* heap, bool before) {
   st.print_cr("}");
 }
 
+size_t CollectedHeap::unused() const {
+  MutexLocker ml(Heap_lock);
+  return capacity() - used();
+}
+
 VirtualSpaceSummary CollectedHeap::create_heap_space_summary() {
   size_t capacity_in_words = capacity() / HeapWordSize;
 
   return VirtualSpaceSummary(
-    reserved_region().start(), reserved_region().start() + capacity_in_words, reserved_region().end());
+    _reserved.start(), _reserved.start() + capacity_in_words, _reserved.end());
 }
 
 GCHeapSummary CollectedHeap::create_heap_summary() {
@@ -130,6 +136,8 @@ void CollectedHeap::print_heap_after_gc() {
   }
 }
 
+void CollectedHeap::print() const { print_on(tty); }
+
 void CollectedHeap::print_on_error(outputStream* st) const {
   st->print_cr("Heap:");
   print_extended_on(st);
@@ -161,25 +169,20 @@ bool CollectedHeap::supports_concurrent_phase_control() const {
   return false;
 }
 
-const char* const* CollectedHeap::concurrent_phases() const {
-  static const char* const result[] = { NULL };
-  return result;
-}
-
 bool CollectedHeap::request_concurrent_phase(const char* phase) {
   return false;
 }
 
 bool CollectedHeap::is_oop(oop object) const {
-  if (!check_obj_alignment(object)) {
+  if (!is_object_aligned(object)) {
     return false;
   }
 
-  if (!is_in_reserved(object)) {
+  if (!is_in(object)) {
     return false;
   }
 
-  if (is_in_reserved(object->klass_or_null())) {
+  if (is_in(object->klass_or_null())) {
     return false;
   }
 
@@ -332,9 +335,9 @@ MemoryUsage CollectedHeap::memory_usage() {
 #ifndef PRODUCT
 void CollectedHeap::check_for_non_bad_heap_word_value(HeapWord* addr, size_t size) {
   if (CheckMemoryInitialization && ZapUnusedHeapArea) {
-    for (size_t slot = 0; slot < size; slot += 1) {
-      assert((*(intptr_t*) (addr + slot)) == ((intptr_t) badHeapWordVal),
-             "Found non badHeapWordValue in pre-allocation check");
+    // please note mismatch between size (in 32/64 bit words), and ju_addr that always point to a 32 bit word
+    for (juint* ju_addr = reinterpret_cast<juint*>(addr); ju_addr < reinterpret_cast<juint*>(addr + size); ++ju_addr) {
+      assert(*ju_addr == badHeapWordVal, "Found non badHeapWordValue in pre-allocation check");
     }
   }
 }
@@ -368,8 +371,6 @@ void CollectedHeap::fill_args_check(HeapWord* start, size_t words)
 {
   assert(words >= min_fill_size(), "too small to fill");
   assert(is_object_aligned(words), "unaligned size");
-  assert(Universe::heap()->is_in_reserved(start), "not in heap");
-  assert(Universe::heap()->is_in_reserved(start + words - 1), "not in heap");
 }
 
 void CollectedHeap::zap_filler_array(HeapWord* start, size_t words, bool zap)
@@ -513,12 +514,12 @@ void CollectedHeap::post_full_gc_dump(GCTimer* timer) {
   full_gc_dump(timer, false);
 }
 
-void CollectedHeap::initialize_reserved_region(HeapWord *start, HeapWord *end) {
+void CollectedHeap::initialize_reserved_region(const ReservedHeapSpace& rs) {
   // It is important to do this in a way such that concurrent readers can't
   // temporarily think something is in the heap.  (Seen this happen in asserts.)
   _reserved.set_word_size(0);
-  _reserved.set_start(start);
-  _reserved.set_end(end);
+  _reserved.set_start((HeapWord*)rs.base());
+  _reserved.set_end((HeapWord*)rs.end());
 }
 
 void CollectedHeap::post_initialize() {
@@ -579,4 +580,9 @@ void CollectedHeap::deduplicate_string(oop str) {
 
 size_t CollectedHeap::obj_size(oop obj) const {
   return obj->size();
+}
+
+uint32_t CollectedHeap::hash_oop(oop obj) const {
+  const uintptr_t addr = cast_from_oop<uintptr_t>(obj);
+  return static_cast<uint32_t>(addr >> LogMinObjAlignment);
 }

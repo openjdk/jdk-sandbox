@@ -26,10 +26,8 @@
 #define SHARE_GC_G1_HEAPREGIONMANAGER_HPP
 
 #include "gc/g1/g1BiasedArray.hpp"
-#include "gc/g1/g1CollectorPolicy.hpp"
 #include "gc/g1/g1RegionToSpaceMapper.hpp"
 #include "gc/g1/heapRegionSet.hpp"
-#include "gc/shared/collectorPolicy.hpp"
 #include "services/memoryUsage.hpp"
 
 class HeapRegion;
@@ -110,6 +108,9 @@ class HeapRegionManager: public CHeapObj<mtGC> {
   // sequence could be found, otherwise res_idx contains the start index of this range.
   uint find_empty_from_idx_reverse(uint start_idx, uint* res_idx) const;
 
+  // Checks the G1MemoryNodeManager to see if this region is on the preferred node.
+  bool is_on_preferred_index(uint region_index, uint preferred_node_index);
+
 protected:
   G1HeapRegionTable _regions;
   G1RegionToSpaceMapper* _heap_mapper;
@@ -129,7 +130,7 @@ public:
   // Empty constructor, we'll initialize it with the initialize() method.
   HeapRegionManager();
 
-  static HeapRegionManager* create_manager(G1CollectedHeap* heap, G1CollectorPolicy* policy);
+  static HeapRegionManager* create_manager(G1CollectedHeap* heap);
 
   virtual void initialize(G1RegionToSpaceMapper* heap_storage,
                           G1RegionToSpaceMapper* prev_bitmap,
@@ -171,20 +172,16 @@ public:
   // Insert the given region into the free region list.
   inline void insert_into_free_list(HeapRegion* hr);
 
+  // Rebuild the free region list from scratch.
+  void rebuild_free_list(WorkGang* workers);
+
   // Insert the given region list into the global free region list.
   void insert_list_into_free_list(FreeRegionList* list) {
     _free_list.add_ordered(list);
   }
 
-  virtual HeapRegion* allocate_free_region(HeapRegionType type) {
-    HeapRegion* hr = _free_list.remove_region(!type.is_young());
-
-    if (hr != NULL) {
-      assert(hr->next() == NULL, "Single region should not have next");
-      assert(is_available(hr->hrm_index()), "Must be committed");
-    }
-    return hr;
-  }
+  // Allocate a free region with specific node index. If fails allocate with next node index.
+  virtual HeapRegion* allocate_free_region(HeapRegionType type, uint requested_node_index);
 
   inline void allocate_free_regions_starting_at(uint first, uint num_regions);
 
@@ -196,6 +193,10 @@ public:
   // Return the number of committed free regions in the heap.
   uint num_free_regions() const {
     return _free_list.length();
+  }
+
+  uint num_free_regions(uint node_index) const {
+    return _free_list.length(node_index);
   }
 
   size_t total_free_bytes() const {
@@ -228,6 +229,9 @@ public:
   // for allocation. Returns the number of regions that were committed to achieve
   // this.
   virtual uint expand_at(uint start, uint num_regions, WorkGang* pretouch_workers);
+
+  // Try to expand on the given node index.
+  virtual uint expand_on_preferred_node(uint node_index);
 
   // Find a contiguous set of empty regions of length num. Returns the start index of
   // that set, or G1_NO_HRM_INDEX.

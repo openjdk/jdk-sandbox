@@ -35,7 +35,7 @@ bool SafepointMechanism::local_poll_armed(JavaThread* thread) {
 }
 
 bool SafepointMechanism::global_poll() {
-  return SafepointSynchronize::do_call_back();
+  return (SafepointSynchronize::_state != SafepointSynchronize::_not_synchronized);
 }
 
 bool SafepointMechanism::local_poll(Thread* thread) {
@@ -55,28 +55,11 @@ bool SafepointMechanism::should_block(Thread* thread) {
   }
 }
 
-void SafepointMechanism::block_if_requested_local_poll(JavaThread *thread) {
-  bool armed = local_poll_armed(thread); // load acquire, polling page -> op / global state
-  if(armed) {
-    // We could be armed for either a handshake operation or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
-    if (thread->has_handshake()) {
-      thread->handshake_process_by_self();
-    }
-  }
-}
-
 void SafepointMechanism::block_if_requested(JavaThread *thread) {
-  if (uses_thread_local_poll()) {
-    block_if_requested_local_poll(thread);
-  } else {
-    // If we don't have per thread poll this could a handshake or a safepoint
-    if (global_poll()) {
-      SafepointSynchronize::block(thread);
-    }
+  if (uses_thread_local_poll() && !local_poll_armed(thread)) {
+    return;
   }
+  block_if_requested_slow(thread);
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {
@@ -85,6 +68,19 @@ void SafepointMechanism::arm_local_poll(JavaThread* thread) {
 
 void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
   thread->set_polling_page(poll_disarmed_value());
+}
+
+void SafepointMechanism::disarm_if_needed(JavaThread* thread, bool memory_order_release) {
+  JavaThreadState jts = thread->thread_state();
+  if (jts == _thread_in_native || jts == _thread_in_native_trans) {
+    // JavaThread will disarm itself and execute cross_modify_fence() before continuing
+    return;
+  }
+  if (memory_order_release) {
+    thread->set_polling_page_release(poll_disarmed_value());
+  } else {
+    thread->set_polling_page(poll_disarmed_value());
+  }
 }
 
 void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {

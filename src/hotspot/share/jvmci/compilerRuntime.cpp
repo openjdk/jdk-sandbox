@@ -22,19 +22,20 @@
  */
 
 #include "precompiled.hpp"
+#include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/compilationPolicy.hpp"
-#include "runtime/frame.inline.hpp"
 #include "runtime/deoptimization.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "utilities/sizes.hpp"
-#include "aot/aotLoader.hpp"
 
 // Resolve and allocate String
 JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_string_by_symbol(JavaThread *thread, void* string_result, const char* name))
@@ -44,7 +45,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_string_by_symbol(JavaThread *thre
       // First 2 bytes of name contains length (number of bytes).
       int len = Bytes::get_Java_u2((address)name);
       name += 2;
-      TempNewSymbol sym = SymbolTable::new_symbol(name, len, CHECK);
+      TempNewSymbol sym = SymbolTable::new_symbol(name, len);
       str = StringTable::intern(sym, CHECK);
       assert(java_lang_String::is_instance(str), "must be string");
       *(oop*)string_result = str; // Store result
@@ -72,12 +73,12 @@ Klass* CompilerRuntime::resolve_klass_helper(JavaThread *thread, const char* nam
   Handle protection_domain(THREAD, caller->method_holder()->protection_domain());
 
   // Ignore wrapping L and ;
-  if (name[0] == 'L') {
+  if (name[0] == JVM_SIGNATURE_CLASS) {
     assert(len > 2, "small name %s", name);
     name++;
     len -= 2;
   }
-  TempNewSymbol sym = SymbolTable::new_symbol(name, len, CHECK_NULL);
+  TempNewSymbol sym = SymbolTable::new_symbol(name, len);
   if (sym == NULL) {
     return NULL;
   }
@@ -140,7 +141,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_dynamic_invoke(JavaThread *thread
 
     // Make sure it's resolved first
     CallInfo callInfo;
-    constantPoolHandle cp(holder->constants());
+    constantPoolHandle cp(THREAD, holder->constants());
     ConstantPoolCacheEntry* cp_cache_entry = cp->cache()->entry_at(cp->decode_cpcache_index(index, true));
     Bytecodes::Code invoke_code = bytecode.invoke_code();
     if (!cp_cache_entry->is_resolved(invoke_code)) {
@@ -156,7 +157,7 @@ JRT_BLOCK_ENTRY(void, CompilerRuntime::resolve_dynamic_invoke(JavaThread *thread
     Handle appendix(THREAD, cp_cache_entry->appendix_if_resolved(cp));
     Klass *appendix_klass = appendix.is_null() ? NULL : appendix->klass();
 
-    methodHandle adapter_method(cp_cache_entry->f1_as_method());
+    methodHandle adapter_method(THREAD, cp_cache_entry->f1_as_method());
     InstanceKlass *adapter_klass = adapter_method->method_holder();
 
     if (appendix_klass != NULL && appendix_klass->is_instance_klass()) {

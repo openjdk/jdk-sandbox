@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,14 @@
 
 # The command line given to configure.
 CONFIGURE_COMMAND_LINE:=@CONFIGURE_COMMAND_LINE@
+# The current directory when configure was run
+CONFIGURE_START_DIR:=@CONFIGURE_START_DIR@
 
 # A self-referential reference to this file.
 SPEC:=@SPEC@
+
+# Path to autoconf if overriden by the user, to be used by "make reconfigure"
+AUTOCONF := @AUTOCONF@
 
 # SPACE and COMMA are defined in MakeBase.gmk, but they are also used in
 # some definitions here, and are needed if MakeBase.gmk is not included before
@@ -45,6 +50,9 @@ COMMA:=,
 
 # What make to use for main processing, after bootstrapping top-level Makefile.
 MAKE := @MAKE@
+
+# Make sure all shell commands are executed with the C locale
+export LC_ALL := C
 
 # The default make arguments
 MAKE_ARGS = $(MAKE_LOG_FLAGS) -r -R -I $(TOPDIR)/make/common SPEC=$(SPEC) \
@@ -135,8 +143,9 @@ SYSROOT_LDFLAGS := @SYSROOT_LDFLAGS@
 
 # The top-level directory of the source repository
 TOPDIR:=@TOPDIR@
-
-
+# Usually the top level directory, but could be something else if a custom
+# root is defined.
+WORKSPACE_ROOT:=@WORKSPACE_ROOT@
 IMPORT_MODULES_CLASSES:=@IMPORT_MODULES_CLASSES@
 IMPORT_MODULES_CMDS:=@IMPORT_MODULES_CMDS@
 IMPORT_MODULES_LIBS:=@IMPORT_MODULES_LIBS@
@@ -153,6 +162,7 @@ LAUNCHER_NAME:=@LAUNCHER_NAME@
 PRODUCT_NAME:=@PRODUCT_NAME@
 PRODUCT_SUFFIX:=@PRODUCT_SUFFIX@
 JDK_RC_PLATFORM_NAME:=@JDK_RC_PLATFORM_NAME@
+JDK_RC_NAME:=@JDK_RC_NAME@
 COMPANY_NAME:=@COMPANY_NAME@
 HOTSPOT_VM_DISTRO:=@HOTSPOT_VM_DISTRO@
 MACOSX_BUNDLE_NAME_BASE=@MACOSX_BUNDLE_NAME_BASE@
@@ -204,6 +214,8 @@ VENDOR_VERSION_STRING := @VENDOR_VERSION_STRING@
 # Class-file version
 VERSION_CLASSFILE_MAJOR := @VERSION_CLASSFILE_MAJOR@
 VERSION_CLASSFILE_MINOR := @VERSION_CLASSFILE_MINOR@
+
+JDK_SOURCE_TARGET_VERSION := @JDK_SOURCE_TARGET_VERSION@
 
 # Convenience CFLAGS settings for passing version information into native programs.
 VERSION_CFLAGS := \
@@ -277,7 +289,7 @@ JVM_FEATURES_custom := @JVM_FEATURES_custom@
 VALID_JVM_FEATURES := @VALID_JVM_FEATURES@
 VALID_JVM_VARIANTS := @VALID_JVM_VARIANTS@
 
-# Control wether Hotspot builds gtest tests
+# Control whether Hotspot builds gtest tests
 BUILD_GTEST := @BUILD_GTEST@
 
 # Allow overriding the default hotspot library path
@@ -288,6 +300,8 @@ USE_PRECOMPILED_HEADER := @USE_PRECOMPILED_HEADER@
 
 # Only build headless support or not
 ENABLE_HEADLESS_ONLY := @ENABLE_HEADLESS_ONLY@
+
+ENABLE_LINKTIME_GC := @ENABLE_LINKTIME_GC@
 
 ENABLE_FULL_DOCS := @ENABLE_FULL_DOCS@
 
@@ -364,6 +378,8 @@ ENABLE_LIBFFI_BUNDLING:=@ENABLE_LIBFFI_BUNDLING@
 LIBFFI_LIB_FILE:=@LIBFFI_LIB_FILE@
 GRAALUNIT_LIB := @GRAALUNIT_LIB@
 
+STATIC_LIBS_CFLAGS := @STATIC_LIBS_CFLAGS@
+
 JMH_CORE_JAR := @JMH_CORE_JAR@
 JMH_GENERATOR_JAR := @JMH_GENERATOR_JAR@
 JMH_JOPT_SIMPLE_JAR := @JMH_JOPT_SIMPLE_JAR@
@@ -380,12 +396,13 @@ GCOV_ENABLED=@GCOV_ENABLED@
 JCOV_ENABLED=@JCOV_ENABLED@
 JCOV_HOME=@JCOV_HOME@
 JCOV_INPUT_JDK=@JCOV_INPUT_JDK@
+JCOV_FILTERS=@JCOV_FILTERS@
 
 # AddressSanitizer
 export ASAN_ENABLED:=@ASAN_ENABLED@
 export DEVKIT_LIB_DIR:=@DEVKIT_LIB_DIR@
 ifeq ($(ASAN_ENABLED), yes)
-  export ASAN_OPTIONS="handle_segv=0 detect_leaks=0"
+  export ASAN_OPTIONS=handle_segv=0 detect_leaks=0
   ifneq ($(DEVKIT_LIB_DIR),)
     export LD_LIBRARY_PATH:=$(LD_LIBRARY_PATH):$(DEVKIT_LIB_DIR)
   endif
@@ -399,6 +416,9 @@ X_LIBS:=@X_LIBS@
 MACOSX_VERSION_MIN=@MACOSX_VERSION_MIN@
 # The highest allowed version of macosx
 MACOSX_VERSION_MAX=@MACOSX_VERSION_MAX@
+
+# The macosx code signing identity to use
+MACOSX_CODESIGN_IDENTITY=@MACOSX_CODESIGN_IDENTITY@
 
 # Toolchain type: gcc, clang, solstudio, lxc, microsoft...
 TOOLCHAIN_TYPE:=@TOOLCHAIN_TYPE@
@@ -479,6 +499,7 @@ JVM_RCFLAGS := @JVM_RCFLAGS@
 EXTRA_CFLAGS = @EXTRA_CFLAGS@
 EXTRA_CXXFLAGS = @EXTRA_CXXFLAGS@
 EXTRA_LDFLAGS = @EXTRA_LDFLAGS@
+EXTRA_ASFLAGS = @EXTRA_ASFLAGS@
 
 CXX:=@FIXPATH@ @CCACHE@ @ICECC@ @CXX@
 
@@ -751,6 +772,7 @@ JIB_HOME:=@JIB_HOME@
 XCODEBUILD=@XCODEBUILD@
 DTRACE := @DTRACE@
 FIXPATH:=@FIXPATH@
+ULIMIT:=@ULIMIT@
 
 TAR_TYPE:=@TAR_TYPE@
 TAR_CREATE_EXTRA_PARAM:=@TAR_CREATE_EXTRA_PARAM@
@@ -771,6 +793,7 @@ MSVCP_DLL:=@MSVCP_DLL@
 UCRT_DLL_DIR:=@UCRT_DLL_DIR@
 STLPORT_LIB:=@STLPORT_LIB@
 ENABLE_PANDOC:=@ENABLE_PANDOC@
+PANDOC_MARKDOWN_FLAG:=@PANDOC_MARKDOWN_FLAG@
 
 ####################################################
 #
@@ -877,6 +900,14 @@ DOCS_IMAGE_DIR = $(IMAGES_OUTPUTDIR)/$(DOCS_IMAGE_SUBDIR)
 # Output docs directly into image
 DOCS_OUTPUTDIR := $(DOCS_IMAGE_DIR)
 
+# Static libs image
+STATIC_LIBS_IMAGE_SUBDIR := static-libs
+STATIC_LIBS_IMAGE_DIR := $(IMAGES_OUTPUTDIR)/$(STATIC_LIBS_IMAGE_SUBDIR)
+
+# Graal builder image
+GRAAL_BUILDER_IMAGE_SUBDIR := graal-builder-jdk
+GRAAL_BUILDER_IMAGE_DIR := $(IMAGES_OUTPUTDIR)/$(GRAAL_BUILDER_IMAGE_SUBDIR)
+
 # Macosx bundles directory definitions
 JDK_MACOSX_BUNDLE_SUBDIR=jdk-bundle
 JRE_MACOSX_BUNDLE_SUBDIR=jre-bundle
@@ -900,13 +931,16 @@ else
   JDK_BUNDLE_EXTENSION := tar.gz
 endif
 JDK_BUNDLE_NAME := jdk-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
+JRE_BUNDLE_NAME := jre-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
 JDK_SYMBOLS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin$(DEBUG_PART)-symbols.tar.gz
 TEST_DEMOS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests-demos$(DEBUG_PART).tar.gz
 TEST_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-tests$(DEBUG_PART).tar.gz
 DOCS_BUNDLE_NAME := jdk-$(BASE_NAME)_doc-api-spec$(DEBUG_PART).tar.gz
+STATIC_LIBS_BUNDLE_NAME := jdk-$(BASE_NAME)_bin-static-libs$(DEBUG_PART).tar.gz
 JCOV_BUNDLE_NAME := jdk-jcov-$(BASE_NAME)_bin$(DEBUG_PART).$(JDK_BUNDLE_EXTENSION)
 
 JDK_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(JDK_BUNDLE_NAME)
+JRE_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(JRE_BUNDLE_NAME)
 JDK_SYMBOLS_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(JDK_SYMBOLS_BUNDLE_NAME)
 TEST_DEMOS_BUNDLE := $(BUNDLES_OUTPUTDIR)/$(TEST_DEMOS_BUNDLE_NAME)
 TEST_BUNDLE :=  $(BUNDLES_OUTPUTDIR)/$(TEST_BUNDLE_NAME)

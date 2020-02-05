@@ -33,6 +33,7 @@ import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.SA.SATestUtils;
+import jtreg.SkippedException;
 
 
 /**
@@ -70,7 +71,6 @@ public class ClhsdbLauncher {
             cmdStringList = SATestUtils.addPrivileges(cmdStringList);
         }
         ProcessBuilder processBuilder = new ProcessBuilder(cmdStringList);
-        processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
         toolProcess = processBuilder.start();
     }
 
@@ -90,8 +90,6 @@ public class ClhsdbLauncher {
                            " and exe " + JDKToolFinder.getTestJDKTool("java"));
 
         ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
-        processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
-
         toolProcess = processBuilder.start();
     }
 
@@ -115,6 +113,17 @@ public class ClhsdbLauncher {
             throw new RuntimeException("CLHSDB command must be provided\n");
         }
 
+        // Enable verbose exception tracing so we see the full exception backtrace
+        // when there is a failure. We need to insert this command into the start
+        // of the commands list. We can't just issue the "verbose true" command seperately
+        // because code below won't work correctly if all executed commands are
+        // not in the commands list. And since it's immutable, we need to allocate
+        // a mutable one.
+        List<String> savedCommands = commands;
+        commands = new java.util.LinkedList<String>();
+        commands.add("verbose true");
+        commands.addAll(savedCommands);
+
         try (OutputStream out = toolProcess.getOutputStream()) {
             for (String cmd : commands) {
                 out.write((cmd + "\n").getBytes());
@@ -133,18 +142,26 @@ public class ClhsdbLauncher {
 
         oa.shouldHaveExitValue(0);
         output = oa.getOutput();
+        System.out.println("Output: ");
         System.out.println(output);
+
+        // This will detect most SA failures, including during the attach.
+        oa.shouldNotMatch("^sun.jvm.hotspot.debugger.DebuggerException:.*$");
+        // This will detect unexpected exceptions, like NPEs and asserts, that are caught
+        // by sun.jvm.hotspot.CommandProcessor.
+        oa.shouldNotMatch("^Error: .*$");
 
         String[] parts = output.split("hsdb>");
         for (String cmd : commands) {
             int index = commands.indexOf(cmd) + 1;
             OutputAnalyzer out = new OutputAnalyzer(parts[index]);
+            out.shouldNotMatch("Unrecognized command.");
 
             if (expectedStrMap != null) {
                 List<String> expectedStr = expectedStrMap.get(cmd);
                 if (expectedStr != null) {
                     for (String exp : expectedStr) {
-                        out.shouldContain(exp);
+                        out.shouldMatch(exp);
                     }
                 }
             }
@@ -153,7 +170,7 @@ public class ClhsdbLauncher {
                 List<String> unExpectedStr = unExpectedStrMap.get(cmd);
                 if (unExpectedStr != null) {
                     for (String unExp : unExpectedStr) {
-                        out.shouldNotContain(unExp);
+                        out.shouldNotMatch(unExp);
                     }
                 }
             }
@@ -177,22 +194,18 @@ public class ClhsdbLauncher {
                       List<String> commands,
                       Map<String, List<String>> expectedStrMap,
                       Map<String, List<String>> unExpectedStrMap)
-        throws IOException, InterruptedException {
+        throws Exception {
 
         if (!Platform.shouldSAAttach()) {
-            if (Platform.isOSX()) {
-                if (!SATestUtils.canAddPrivileges()) {
-                   // Skip the test if we don't have enough permissions to attach
-                   // and cannot add privileges.
-                   System.out.println("SA attach not expected to work - test skipped.");
-                   return null;
-               } else {
-                   needPrivileges = true;
-               }
-            } else {
-                System.out.println("SA attach not expected to work. Insufficient privileges.");
-                throw new Error("Cannot attach.");
+            if (Platform.isOSX() && SATestUtils.canAddPrivileges()) {
+                needPrivileges = true;
             }
+            else {
+               // Skip the test if we don't have enough permissions to attach
+               // and cannot add privileges.
+               throw new SkippedException(
+                   "SA attach not expected to work. Insufficient privileges.");
+           }
         }
 
         attach(lingeredAppPid);

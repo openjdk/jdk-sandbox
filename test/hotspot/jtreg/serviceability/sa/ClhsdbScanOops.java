@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,9 +46,7 @@ public class ClhsdbScanOops {
 
         try {
             ClhsdbLauncher test = new ClhsdbLauncher();
-            List<String> vmArgs = new ArrayList<String>();
-            vmArgs.add(gc);
-            theApp = LingeredApp.startApp(vmArgs);
+            theApp = LingeredApp.startApp(gc);
 
             System.out.println ("Started LingeredApp with the GC option " + gc +
                                 " and pid " + theApp.getPid());
@@ -57,11 +55,6 @@ public class ClhsdbScanOops {
             List<String> cmds = List.of("universe");
 
             String universeOutput = test.run(theApp.getPid(), cmds, null, null);
-
-            if (universeOutput == null) {
-                LingeredApp.stopApp(theApp);
-                throw new SkippedException("attach permission issues");
-            }
 
             cmds = new ArrayList<String>();
             Map<String, List<String>> expStrMap = new HashMap<>();
@@ -85,7 +78,7 @@ public class ClhsdbScanOops {
 
             expStrMap.put(cmd, List.of
                 ("java/lang/Object", "java/lang/Class", "java/lang/Thread",
-                 "java/lang/String", "[B", "[I"));
+                 "java/lang/String", "\\[B", "\\[I"));
 
             // Test the 'type' option also
             // scanoops <start addr> <end addr> java/lang/String

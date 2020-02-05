@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
  * @summary Test that a package page is properly generated when a .java file
  * passed to Javadoc.  Also test that the proper package links are generated
  * when single or multiple packages are documented.
- * @author jamieh
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -87,23 +86,28 @@ public class TestPackagePage extends JavadocTester {
         checkOutput("allclasses-index.html", true,
                 "<div class=\"typeSummary\">\n<table>\n"
                 + "<caption><span>Class Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
-                + "</tr>\n");
+                + "</tr>\n"
+                + "</thead>\n");
         checkOutput("allpackages-index.html", true,
                 "<div class=\"packagesSummary\">\n<table>\n"
                 + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
-                + "</tr>\n");
+                + "</tr>\n"
+                + "</thead>\n");
         checkOutput("type-search-index.js", true,
                 "{\"l\":\"All Classes\",\"url\":\"allclasses-index.html\"}");
         checkOutput("package-search-index.js", true,
                 "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>"
+                + "<span class=\"verticalSeparator\">|</span>"
                 + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
     }
 }

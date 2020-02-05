@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeFieldWriter;
-import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
@@ -44,8 +44,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
 
@@ -107,9 +105,6 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
         return !members.isEmpty();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build(Content contentTree) throws DocletException {
         buildAnnotationTypeField(contentTree);
@@ -139,24 +134,21 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationFieldDetailsMarker(memberDetailsTree);
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader();
+            Content detailsTree = writer.getMemberTreeHeader();
 
-            Element lastElement = members.get(members.size() - 1);
             for (Element member : members) {
                 currentMember = member;
-                Content detailsTree = writer.getMemberTreeHeader();
-                writer.addAnnotationDetailsTreeHeader(typeElement, detailsTree);
-                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember,
-                        detailsTree);
+                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember);
 
                 buildSignature(annotationDocTree);
                 buildDeprecationInfo(annotationDocTree);
                 buildMemberComments(annotationDocTree);
                 buildTagInfo(annotationDocTree);
 
-                detailsTree.addContent(writer.getAnnotationDoc(
-                        annotationDocTree, currentMember == lastElement));
-                memberDetailsTree.addContent(writer.getAnnotationDetails(detailsTree));
+                detailsTree.add(writer.getAnnotationDoc(annotationDocTree));
             }
+            memberDetailsTree.add(writer.getAnnotationDetails(annotationDetailsTreeHeader, detailsTree));
         }
     }
 
@@ -166,7 +158,7 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
      * @param annotationDocTree the content tree to which the documentation will be added
      */
     protected void buildSignature(Content annotationDocTree) {
-        annotationDocTree.addContent(
+        annotationDocTree.add(
                 writer.getSignature(currentMember));
     }
 
@@ -181,12 +173,12 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
 
     /**
      * Build the comments for the member.  Do nothing if
-     * {@link BaseConfiguration#nocomment} is set to true.
+     * {@link BaseOptions#noComment} is set to true.
      *
      * @param annotationDocTree the content tree to which the documentation will be added
      */
     protected void buildMemberComments(Content annotationDocTree) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             writer.addComments(currentMember, annotationDocTree);
         }
     }

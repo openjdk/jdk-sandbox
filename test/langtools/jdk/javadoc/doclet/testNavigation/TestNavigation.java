@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,9 @@
 /*
  * @test
  * @bug      4131628 4664607 7025314 8023700 7198273 8025633 8026567 8081854 8150188 8151743 8196027 8182765
- *           8196200 8196202
+ *           8196200 8196202 8223378
  * @summary  Make sure the Next/Prev Class links iterate through all types.
  *           Make sure the navagation is 2 columns, not 3.
- * @author   jamieh
  * @library  /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    toolbox.ToolBox javadoc.tester.*
@@ -57,96 +56,48 @@ public class TestNavigation extends JavadocTester {
     public void test(Path ignore) {
         javadoc("-d", "out",
                 "-overview", testSrc("overview.html"),
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
         checkSubNav();
 
         checkOutput("pkg/A.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
-                "<li><a href=\"../overview-summary.html\">Overview</a></li>");
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
+                "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/C.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
-                "<li><a href=\"../overview-summary.html\">Overview</a></li>");
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
+                "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/E.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
-                "<li><a href=\"../overview-summary.html\">Overview</a></li>");
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
+                "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/I.html", true,
                 // Test for 4664607
                 "<div class=\"skipNav\"><a href=\"#skip.navbar.top\" title=\"Skip navigation links\">Skip navigation links</a></div>\n"
-                + "<a id=\"navbar.top.firstrow\">\n"
-                + "<!--   -->\n"
-                + "</a>",
-                "<li><a href=\"../overview-summary.html\">Overview</a></li>");
+                + "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n",
+                "<li><a href=\"../index.html\">Overview</a></li>");
 
         // Remaining tests check for additional padding to offset the fixed navigation bar.
         checkOutput("pkg/A.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "</nav>\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</span></nav>\n"
                 + "</header>\n"
-                + "<!-- ======== START OF CLASS DATA ======== -->");
-
-        checkOutput("pkg/package-summary.html", true,
-                "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "</nav>\n"
-                + "</header>\n"
+                + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
-                + "<div class=\"header\">");
-    }
-
-    @Test
-    public void test_html4(Path ignore) {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-overview", testSrc("overview.html"),
-                "--frames",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-        checkSubNav();
-
-        checkOutput("pkg/I.html", true,
-                // Test for 4664607
-                "<div class=\"skipNav\"><a href=\"#skip.navbar.top\" title=\"Skip navigation links\">Skip navigation links</a></div>\n"
-                + "<a name=\"navbar.top.firstrow\">\n"
-                + "<!--   -->\n"
-                + "</a>");
-
-        // Remaining tests check for additional padding to offset the fixed navigation bar.
-        checkOutput("pkg/A.html", true,
-                "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
                 + "<!-- ======== START OF CLASS DATA ======== -->");
 
         checkOutput("pkg/package-summary.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</span></nav>\n"
+                + "</header>\n"
+                + "<div class=\"flexContent\">\n"
+                + "<main role=\"main\">\n"
                 + "<div class=\"header\">");
     }
 
@@ -155,7 +106,6 @@ public class TestNavigation extends JavadocTester {
     public void test1(Path ignore) {
         javadoc("-d", "out-1",
                 "-html5",
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -163,33 +113,26 @@ public class TestNavigation extends JavadocTester {
 
         checkOutput("pkg/A.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "</nav>\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</span></nav>\n"
                 + "</header>\n"
+                + "<div class=\"flexContent\">\n"
+                + "<main role=\"main\">\n"
                 + "<!-- ======== START OF CLASS DATA ======== -->");
 
         checkOutput("pkg/package-summary.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "</nav>");
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</span></nav>\n");
     }
 
-    // Test to make sure that no extra padding for nav bar gets generated if -nonavbar is specified for HTML4.
+    // Test to make sure that no extra padding for nav bar gets generated if -nonavbar is specified.
     @Test
     public void test2(Path ignore) {
         javadoc("-d", "out-2",
                 "-nonavbar",
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.OK);
@@ -198,44 +141,9 @@ public class TestNavigation extends JavadocTester {
         checkOutput("pkg/A.html", false,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
                 + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "<!-- ======== START OF CLASS DATA ======== -->");
-
-        checkOutput("pkg/package-summary.html", false,
-                "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
-                + "<div class=\"header\">");
-    }
-
-    // Test to make sure that no extra padding for nav bar gets generated if -nonavbar is specified for HTML5.
-    @Test
-    public void test3(Path ignore) {
-        javadoc("-d", "out-3",
-                "-html5",
-                "-nonavbar",
-                "--frames",
-                "-sourcepath", testSrc,
-                "pkg");
-        checkExit(Exit.OK);
-        checkSubNav();
-
-        checkOutput("pkg/A.html", false,
-                "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
+                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</a></div>\n"
                 + "</nav>\n"
                 + "</header>\n"
                 + "<!-- ======== START OF CLASS DATA ======== -->");
@@ -243,16 +151,14 @@ public class TestNavigation extends JavadocTester {
         checkOutput("pkg/package-summary.html", false,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
                 + "</div>\n"
-                + "<div class=\"navPadding\">&nbsp;</div>\n"
-                + "<script type=\"text/javascript\"><!--\n"
-                + "$('.navPadding').css('padding-top', $('.fixedNav').css(\"height\"));\n"
-                + "//-->\n"
-                + "</script>\n"
+                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<!--   -->\n"
+                + "</a></div>\n"
                 + "</nav>");
     }
 
     @Test
-    public void test4(Path base) throws IOException {
+    public void test3(Path base) throws IOException {
         Path src = base.resolve("src");
         tb.writeJavaFiles(src,
                 "package pkg1; public class A {\n"
@@ -295,7 +201,7 @@ public class TestNavigation extends JavadocTester {
                 "package pkg1; public interface InterfaceWithNoMembers {\n"
                 + "}");
 
-        javadoc("-d", "out-4",
+        javadoc("-d", "out-3",
                 "-sourcepath", src.toString(),
                 "pkg1");
         checkExit(Exit.OK);
@@ -372,5 +278,5 @@ public class TestNavigation extends JavadocTester {
                 + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
                 "<script type=\"text/javascript\"><!--\n"
                 + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
-}
+    }
 }

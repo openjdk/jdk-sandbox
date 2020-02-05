@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -487,19 +487,20 @@ void TemplateTable::ldc2_w() {
 
   __ add(Rbase, Rcpool, AsmOperand(Rindex, lsl, LogBytesPerWord));
 
-  Label Condy, exit;
-#ifdef __ABI_HARD__
-  Label Long;
   // get type from tags
   __ add(Rtemp, Rtags, tags_offset);
   __ ldrb(Rtemp, Address(Rtemp, Rindex));
+
+  Label Condy, exit;
+#ifdef __ABI_HARD__
+  Label NotDouble;
   __ cmp(Rtemp, JVM_CONSTANT_Double);
-  __ b(Long, ne);
+  __ b(NotDouble, ne);
   __ ldr_double(D0_tos, Address(Rbase, base_offset));
 
   __ push(dtos);
   __ b(exit);
-  __ bind(Long);
+  __ bind(NotDouble);
 #endif
 
   __ cmp(Rtemp, JVM_CONSTANT_Long);
@@ -2167,7 +2168,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   }
 
   // continue with the bytecode @ target
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   if (UseLoopCounter) {
     if (ProfileInterpreter) {
@@ -2361,7 +2362,7 @@ void TemplateTable::tableswitch() {
 
   // load the next bytecode to R3_bytecode and advance Rbcp
   __ ldrb(R3_bytecode, Address(Rbcp, Roffset, lsl, 0, pre_indexed));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
 }
 
@@ -2438,7 +2439,7 @@ void TemplateTable::fast_linearswitch() {
 
   // load the next bytecode to R3_bytecode and advance Rbcp
   __ ldrb(R3_bytecode, Address(Rbcp, Roffset, lsl, 0, pre_indexed));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 
@@ -2532,7 +2533,7 @@ void TemplateTable::fast_binaryswitch() {
   __ profile_switch_case(R0, i, R1, i);
   __ byteswap_u32(offset, temp1, temp2);
   __ ldrb(R3_bytecode, Address(Rbcp, offset, lsl, 0, pre_indexed));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 
   // default case
   __ bind(default_case);
@@ -2540,7 +2541,7 @@ void TemplateTable::fast_binaryswitch() {
   __ ldr_s32(offset, Address(array, -2*BytesPerInt));
   __ byteswap_u32(offset, temp1, temp2);
   __ ldrb(R3_bytecode, Address(Rbcp, offset, lsl, 0, pre_indexed));
-  __ dispatch_only(vtos);
+  __ dispatch_only(vtos, true);
 }
 
 
@@ -3645,7 +3646,6 @@ void TemplateTable::prepare_invoke(int byte_no,
     Label L_no_push;
     __ tbz(flags, ConstantPoolCacheEntry::has_appendix_shift, L_no_push);
     __ mov(temp, index);
-    assert(ConstantPoolCacheEntry::_indy_resolved_references_appendix_offset == 0, "appendix expected at index+0");
     __ load_resolved_reference_at_index(index, temp);
     __ verify_oop(index);
     __ push_ptr(index);  // push appendix (MethodType, CallSite, etc.)
@@ -4046,7 +4046,7 @@ void TemplateTable::_new() {
     if (UseBiasedLocking) {
       __ ldr(Rtemp, Address(Rklass, Klass::prototype_header_offset()));
     } else {
-      __ mov_slow(Rtemp, (intptr_t)markOopDesc::prototype());
+      __ mov_slow(Rtemp, (intptr_t)markWord::prototype().value());
     }
     // mark
     __ str(Rtemp, Address(Robj, oopDesc::mark_offset_in_bytes()));

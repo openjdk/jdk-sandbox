@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -25,7 +26,7 @@
  * @test TestRegionSizeArgs
  * @summary Test that Shenandoah region size args are checked
  * @key gc
- * @requires vm.gc.Shenandoah
+ * @requires vm.gc.Shenandoah & !vm.graal.enabled
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -43,17 +44,6 @@ public class TestRegionSizeArgs {
     }
 
     private static void testInvalidRegionSizes() throws Exception {
-
-        {
-            ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions",
-                    "-XX:+UseShenandoahGC",
-                    "-Xms2m",
-                    "-Xmx1g",
-                    "-version");
-            OutputAnalyzer output = new OutputAnalyzer(pb.start());
-            output.shouldMatch("Initial heap size");
-            output.shouldHaveExitValue(1);
-        }
 
         {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions",
@@ -81,18 +71,6 @@ public class TestRegionSizeArgs {
                     "-Xms100m",
                     "-Xmx1g",
                     "-XX:ShenandoahHeapRegionSize=200m",
-                    "-version");
-            OutputAnalyzer output = new OutputAnalyzer(pb.start());
-            output.shouldMatch("Invalid -XX:ShenandoahHeapRegionSize option");
-            output.shouldHaveExitValue(1);
-        }
-
-        {
-            ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions",
-                    "-XX:+UseShenandoahGC",
-                    "-Xms100m",
-                    "-Xmx1g",
-                    "-XX:ShenandoahHeapRegionSize=11m",
                     "-version");
             OutputAnalyzer output = new OutputAnalyzer(pb.start());
             output.shouldMatch("Invalid -XX:ShenandoahHeapRegionSize option");
@@ -212,18 +190,6 @@ public class TestRegionSizeArgs {
                     "-Xms100m",
                     "-Xmx1g",
                     "-XX:ShenandoahMinRegionSize=200m",
-                    "-version");
-            OutputAnalyzer output = new OutputAnalyzer(pb.start());
-            output.shouldMatch("Invalid -XX:ShenandoahMinRegionSize option");
-            output.shouldHaveExitValue(1);
-        }
-
-        {
-            ProcessBuilder pb = ProcessTools.createJavaProcessBuilder("-XX:+UnlockExperimentalVMOptions",
-                    "-XX:+UseShenandoahGC",
-                    "-Xms100m",
-                    "-Xmx1g",
-                    "-XX:ShenandoahMinRegionSize=11m",
                     "-version");
             OutputAnalyzer output = new OutputAnalyzer(pb.start());
             output.shouldMatch("Invalid -XX:ShenandoahMinRegionSize option");

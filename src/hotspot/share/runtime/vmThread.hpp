@@ -30,6 +30,11 @@
 #include "runtime/task.hpp"
 #include "runtime/vmOperations.hpp"
 
+class VM_QueueHead : public VM_None {
+ public:
+  VM_QueueHead() : VM_None("QueueHead") {}
+};
+
 //
 // Prioritized queue of VM operations.
 //
@@ -48,9 +53,8 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
   int           _queue_length[nof_priorities];
   int           _queue_counter;
   VM_Operation* _queue       [nof_priorities];
-  // we also allow the vmThread to register the ops it has drained so we
-  // can scan them from oops_do
-  VM_Operation* _drain_list;
+
+  static VM_QueueHead _queue_head[nof_priorities];
 
   // Double-linked non-empty list insert.
   void insert(VM_Operation* q,VM_Operation* n);
@@ -58,11 +62,8 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
 
   // Basic queue manipulation
   bool queue_empty                (int prio);
-  void queue_add_front            (int prio, VM_Operation *op);
-  void queue_add_back             (int prio, VM_Operation *op);
+  void queue_add                  (int prio, VM_Operation *op);
   VM_Operation* queue_remove_front(int prio);
-  void queue_oops_do(int queue, OopClosure* f);
-  void drain_list_oops_do(OopClosure* f);
   VM_Operation* queue_drain(int prio);
   // lock-free query: may return the wrong answer but must not break
   bool queue_peek(int prio) { return _queue_length[prio] > 0; }
@@ -71,17 +72,10 @@ class VMOperationQueue : public CHeapObj<mtInternal> {
   VMOperationQueue();
 
   // Highlevel operations. Encapsulates policy
-  bool add(VM_Operation *op);
+  void add(VM_Operation *op);
   VM_Operation* remove_next();                        // Returns next or null
-  VM_Operation* remove_next_at_safepoint_priority()   { return queue_remove_front(SafepointPriority); }
   VM_Operation* drain_at_safepoint_priority() { return queue_drain(SafepointPriority); }
-  void set_drain_list(VM_Operation* list) { _drain_list = list; }
   bool peek_at_safepoint_priority() { return queue_peek(SafepointPriority); }
-
-  // GC support
-  void oops_do(OopClosure* f);
-
-  void verify_queue(int prio) PRODUCT_RETURN;
 };
 
 
@@ -119,12 +113,11 @@ class VMThread: public NamedThread {
   static bool _terminated;
   static Monitor * _terminate_lock;
   static PerfCounter* _perf_accumulated_vm_operation_time;
-
-  static const char* _no_op_reason;
+  static uint64_t _coalesced_count;
 
   static VMOperationTimeoutTask* _timeout_task;
 
-  static bool no_op_safepoint_needed(bool check_time);
+  static VM_Operation* no_op_safepoint();
 
   void evaluate_operation(VM_Operation* op);
 
@@ -140,10 +133,10 @@ class VMThread: public NamedThread {
 
   // Tester
   bool is_VM_thread() const                      { return true; }
-  bool is_GC_thread() const                      { return true; }
 
   // The ever running loop for the VMThread
   void loop();
+  static void check_for_forced_cleanup();
 
   // Called to stop the VM thread
   static void wait_for_vm_thread_exit();
@@ -155,15 +148,11 @@ class VMThread: public NamedThread {
 
   // Returns the current vm operation if any.
   static VM_Operation* vm_operation()             { return _cur_vm_operation; }
-
-  // Returns the current vm operation name or set reason
-  static const char* vm_safepoint_description()   { return _cur_vm_operation != NULL ? _cur_vm_operation->name() : _no_op_reason; };
+  static VM_Operation::VMOp_Type vm_op_type()     { return _cur_vm_operation->type(); }
+  static uint64_t get_coalesced_count()           { return _coalesced_count; }
 
   // Returns the single instance of VMThread.
   static VMThread* vm_thread()                    { return _vm_thread; }
-
-  // GC support
-  void oops_do(OopClosure* f, CodeBlobClosure* cf);
 
   void verify();
 

@@ -33,13 +33,13 @@
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
 #include "interpreter/bytecode.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/bitMap.inline.hpp"
 
@@ -1467,11 +1467,12 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
     call_register_finalizer();
   }
 
+  // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
   if (method()->name() == ciSymbol::object_initializer_name() &&
-      (scope()->wrote_final() || (AlwaysSafeConstructors && scope()->wrote_fields())
-                              || (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile())
-     )){
+       (scope()->wrote_final() ||
+         (AlwaysSafeConstructors && scope()->wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
     need_mem_bar = true;
   }
 
@@ -1706,7 +1707,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             // For CallSite objects add a dependency for invalidation of the optimization.
             if (field->is_call_site_target()) {
               ciCallSite* call_site = const_oop->as_call_site();
-              if (!call_site->is_constant_call_site()) {
+              if (!call_site->is_fully_initialized_constant_call_site()) {
                 ciMethodHandle* target = field_value.as_object()->as_method_handle();
                 dependency_recorder()->assert_call_site_target_value(call_site, target);
               }
@@ -1724,6 +1725,23 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value replacement = !needs_patching ? _memory->load(load) : load;
         if (replacement != load) {
           assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
+          // Writing an (integer) value to a boolean, byte, char or short field includes an implicit narrowing
+          // conversion. Emit an explicit conversion here to get the correct field value after the write.
+          BasicType bt = field->type()->basic_type();
+          switch (bt) {
+          case T_BOOLEAN:
+          case T_BYTE:
+            replacement = append(new Convert(Bytecodes::_i2b, replacement, as_ValueType(bt)));
+            break;
+          case T_CHAR:
+            replacement = append(new Convert(Bytecodes::_i2c, replacement, as_ValueType(bt)));
+            break;
+          case T_SHORT:
+            replacement = append(new Convert(Bytecodes::_i2s, replacement, as_ValueType(bt)));
+            break;
+          default:
+            break;
+          }
           push(type, replacement);
         } else {
           push(type, append(load));
@@ -1942,7 +1960,8 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // Use CHA on the receiver to select a more precise method.
       cha_monomorphic_target = target->find_monomorphic_target(calling_klass, callee_holder, actual_recv);
     } else if (code == Bytecodes::_invokeinterface && callee_holder->is_loaded() && receiver != NULL) {
-      // if there is only one implementor of this interface then we
+      assert(callee_holder->is_interface(), "invokeinterface to non interface?");
+      // If there is only one implementor of this interface then we
       // may be able bind this invoke directly to the implementing
       // klass but we need both a dependence on the single interface
       // and on the method we bind to.  Additionally since all we know
@@ -1950,54 +1969,45 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // interface we have to insert a check that it's the class we
       // expect.  Interface types are not checked by the verifier so
       // they are roughly equivalent to Object.
-      ciInstanceKlass* singleton = NULL;
-      if (target->holder()->nof_implementors() == 1) {
-        singleton = target->holder()->implementor();
-        assert(singleton != NULL && singleton != target->holder(),
-               "just checking");
-
-        assert(holder->is_interface(), "invokeinterface to non interface?");
-        ciInstanceKlass* decl_interface = (ciInstanceKlass*)holder;
-        // the number of implementors for decl_interface is less or
-        // equal to the number of implementors for target->holder() so
-        // if number of implementors of target->holder() == 1 then
-        // number of implementors for decl_interface is 0 or 1. If
-        // it's 0 then no class implements decl_interface and there's
-        // no point in inlining.
-        if (!holder->is_loaded() || decl_interface->nof_implementors() != 1 || decl_interface->has_nonstatic_concrete_methods()) {
-          singleton = NULL;
-        }
-      }
-      if (singleton) {
-        cha_monomorphic_target = target->find_monomorphic_target(calling_klass, target->holder(), singleton);
+      // The number of implementors for declared_interface is less or
+      // equal to the number of implementors for target->holder() so
+      // if number of implementors of target->holder() == 1 then
+      // number of implementors for decl_interface is 0 or 1. If
+      // it's 0 then no class implements decl_interface and there's
+      // no point in inlining.
+      ciInstanceKlass* declared_interface = callee_holder;
+      ciInstanceKlass* singleton = declared_interface->unique_implementor();
+      if (singleton != NULL &&
+          (!target->is_default_method() || target->is_overpass()) /* CHA doesn't support default methods yet. */ ) {
+        assert(singleton != declared_interface, "not a unique implementor");
+        cha_monomorphic_target = target->find_monomorphic_target(calling_klass, declared_interface, singleton);
         if (cha_monomorphic_target != NULL) {
-          // If CHA is able to bind this invoke then update the class
-          // to match that class, otherwise klass will refer to the
-          // interface.
-          klass = cha_monomorphic_target->holder();
-          actual_recv = target->holder();
+          if (cha_monomorphic_target->holder() != compilation()->env()->Object_klass()) {
+            // If CHA is able to bind this invoke then update the class
+            // to match that class, otherwise klass will refer to the
+            // interface.
+            klass = cha_monomorphic_target->holder();
+            actual_recv = declared_interface;
 
-          // insert a check it's really the expected class.
-          CheckCast* c = new CheckCast(klass, receiver, copy_state_for_exception());
-          c->set_incompatible_class_change_check();
-          c->set_direct_compare(klass->is_final());
-          // pass the result of the checkcast so that the compiler has
-          // more accurate type info in the inlinee
-          better_receiver = append_split(c);
+            // insert a check it's really the expected class.
+            CheckCast* c = new CheckCast(klass, receiver, copy_state_for_exception());
+            c->set_incompatible_class_change_check();
+            c->set_direct_compare(klass->is_final());
+            // pass the result of the checkcast so that the compiler has
+            // more accurate type info in the inlinee
+            better_receiver = append_split(c);
+          } else {
+            cha_monomorphic_target = NULL; // subtype check against Object is useless
+          }
         }
       }
     }
   }
 
   if (cha_monomorphic_target != NULL) {
-    if (cha_monomorphic_target->is_abstract()) {
-      // Do not optimize for abstract methods
-      cha_monomorphic_target = NULL;
-    }
-  }
-
-  if (cha_monomorphic_target != NULL) {
-    if (!(target->is_final_method())) {
+    assert(!target->can_be_statically_bound() || target == cha_monomorphic_target, "");
+    assert(!cha_monomorphic_target->is_abstract(), "");
+    if (!cha_monomorphic_target->can_be_statically_bound(actual_recv)) {
       // If we inlined because CHA revealed only a single target method,
       // then we are dependent on that target method not getting overridden
       // by dynamic class loading.  Be sure to test the "static" receiver
@@ -2597,7 +2607,7 @@ void PhiSimplifier::block_do(BlockBegin* b) {
 
 #ifdef ASSERT
   for_each_phi_fun(b, phi,
-                   assert(phi->operand_count() != 1 || phi->subst() != phi, "missed trivial simplification");
+                   assert(phi->operand_count() != 1 || phi->subst() != phi || phi->is_illegal(), "missed trivial simplification");
   );
 
   ValueStack* state = b->state()->caller_state();
@@ -3175,7 +3185,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     ciType* type = sig->type_at(i);
     BasicType basic_type = type->basic_type();
     // don't allow T_ARRAY to propagate into locals types
-    if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+    if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
     state->store_local(idx, new Local(type, vt, idx, false));
     idx += type->size();
@@ -3800,7 +3810,7 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
       INLINE_BAILOUT("total inlining greater than DesiredMethodLimit");
     }
     // printing
-    print_inlining(callee);
+    print_inlining(callee, "inline", /*success*/ true);
   }
 
   // NOTE: Bailouts from this point on, which occur at the
@@ -4322,16 +4332,11 @@ static void post_inlining_event(EventCompilerInlining* event,
 void GraphBuilder::print_inlining(ciMethod* callee, const char* msg, bool success) {
   CompileLog* log = compilation()->log();
   if (log != NULL) {
+    assert(msg != NULL, "inlining msg should not be null!");
     if (success) {
-      if (msg != NULL)
-        log->inline_success(msg);
-      else
-        log->inline_success("receiver is statically known");
+      log->inline_success(msg);
     } else {
-      if (msg != NULL)
-        log->inline_fail(msg);
-      else
-        log->inline_fail("reason unknown");
+      log->inline_fail(msg);
     }
   }
   EventCompilerInlining event;

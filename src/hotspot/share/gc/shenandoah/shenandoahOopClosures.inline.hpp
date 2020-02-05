@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2015, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -34,13 +35,13 @@ inline void ShenandoahMarkRefsSuperClosure::work(T *p) {
 }
 
 template <class T>
-inline void ShenandoahUpdateHeapRefsSuperClosure::work(T* p) {
+inline void ShenandoahUpdateHeapRefsClosure::do_oop_work(T* p) {
   _heap->maybe_update_with_forwarded(p);
 }
 
-template <class T, bool STRING_DEDUP, bool DEGEN>
+template <class T, bool STRING_DEDUP, bool DEGEN, bool ATOMIC_UPDATE>
 inline void ShenandoahTraversalSuperClosure::work(T* p) {
-  _traversal_gc->process_oop<T, STRING_DEDUP, DEGEN>(p, _thread, _queue, _mark_context);
+  _traversal_gc->process_oop<T, STRING_DEDUP, DEGEN, ATOMIC_UPDATE>(p, _thread, _queue, _mark_context);
 }
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHOOPCLOSURES_INLINE_HPP

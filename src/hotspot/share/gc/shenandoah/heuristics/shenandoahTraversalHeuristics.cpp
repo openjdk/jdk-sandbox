@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -34,47 +35,14 @@
 #include "utilities/quickSort.hpp"
 
 ShenandoahTraversalHeuristics::ShenandoahTraversalHeuristics() : ShenandoahHeuristics(),
-  _last_cset_select(0)
- {
-  FLAG_SET_DEFAULT(ShenandoahSATBBarrier,            false);
-  FLAG_SET_DEFAULT(ShenandoahStoreValReadBarrier,    false);
-  FLAG_SET_DEFAULT(ShenandoahStoreValEnqueueBarrier, true);
-  FLAG_SET_DEFAULT(ShenandoahKeepAliveBarrier,       false);
-  FLAG_SET_DEFAULT(ShenandoahAllowMixedAllocs,       false);
-
-  SHENANDOAH_ERGO_OVERRIDE_DEFAULT(ShenandoahRefProcFrequency, 1);
-
-  // Adjust class unloading settings only if globally enabled.
-  if (ClassUnloadingWithConcurrentMark) {
-    SHENANDOAH_ERGO_OVERRIDE_DEFAULT(ShenandoahUnloadClassesFrequency, 1);
-  }
-
-  SHENANDOAH_ERGO_ENABLE_FLAG(ExplicitGCInvokesConcurrent);
-  SHENANDOAH_ERGO_ENABLE_FLAG(ShenandoahImplicitGCInvokesConcurrent);
-
-  // Final configuration checks
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahReadBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahWriteBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahStoreValEnqueueBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahCASBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahAcmpBarrier);
-  SHENANDOAH_CHECK_FLAG_SET(ShenandoahCloneBarrier);
-}
-
-bool ShenandoahTraversalHeuristics::should_start_normal_gc() const {
-  return false;
-}
+  _last_cset_select(0) {}
 
 bool ShenandoahTraversalHeuristics::is_experimental() {
-  return true;
+  return false;
 }
 
 bool ShenandoahTraversalHeuristics::is_diagnostic() {
   return false;
-}
-
-bool ShenandoahTraversalHeuristics::can_do_traversal_gc() {
-  return true;
 }
 
 const char* ShenandoahTraversalHeuristics::name() {
@@ -91,6 +59,9 @@ void ShenandoahTraversalHeuristics::choose_collection_set(ShenandoahCollectionSe
 
   RegionData *data = get_region_data_cache(heap->num_regions());
   size_t cnt = 0;
+
+  // About to choose the collection set, make sure we have pinned regions in correct state
+  heap->assert_pinned_region_status();
 
   // Step 0. Prepare all regions
 
@@ -127,15 +98,18 @@ void ShenandoahTraversalHeuristics::choose_collection_set(ShenandoahCollectionSe
   // The significant complication is that liveness data was collected at the previous cycle, and only
   // for those regions that were allocated before previous cycle started.
 
-  size_t capacity    = heap->capacity();
+  size_t capacity    = heap->max_capacity();
   size_t actual_free = heap->free_set()->available();
-  size_t free_target = ShenandoahMinFreeThreshold * capacity / 100;
+  size_t free_target = capacity / 100 * ShenandoahMinFreeThreshold;
   size_t min_garbage = free_target > actual_free ? (free_target - actual_free) : 0;
-  size_t max_cset    = (size_t)(1.0 * ShenandoahEvacReserve * capacity / 100 / ShenandoahEvacWaste);
+  size_t max_cset    = (size_t)((1.0 * capacity / 100 * ShenandoahEvacReserve) / ShenandoahEvacWaste);
 
-  log_info(gc, ergo)("Adaptive CSet Selection. Target Free: " SIZE_FORMAT "M, Actual Free: "
-                     SIZE_FORMAT "M, Max CSet: " SIZE_FORMAT "M, Min Garbage: " SIZE_FORMAT "M",
-                     free_target / M, actual_free / M, max_cset / M, min_garbage / M);
+  log_info(gc, ergo)("Adaptive CSet Selection. Target Free: " SIZE_FORMAT "%s, Actual Free: "
+                     SIZE_FORMAT "%s, Max CSet: " SIZE_FORMAT "%s, Min Garbage: " SIZE_FORMAT "%s",
+                     byte_size_in_proper_unit(free_target), proper_unit_for_byte_size(free_target),
+                     byte_size_in_proper_unit(actual_free), proper_unit_for_byte_size(actual_free),
+                     byte_size_in_proper_unit(max_cset),    proper_unit_for_byte_size(max_cset),
+                     byte_size_in_proper_unit(min_garbage), proper_unit_for_byte_size(min_garbage));
 
   // Better select garbage-first regions, and then older ones
   QuickSort::sort<RegionData>(data, (int) cnt, compare_by_garbage_then_alloc_seq_ascending, false);
@@ -212,29 +186,32 @@ void ShenandoahTraversalHeuristics::choose_collection_set(ShenandoahCollectionSe
   _last_cset_select = ShenandoahHeapRegion::seqnum_current_alloc();
 }
 
-bool ShenandoahTraversalHeuristics::should_start_traversal_gc() {
+bool ShenandoahTraversalHeuristics::should_start_gc() const {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   assert(!heap->has_forwarded_objects(), "no forwarded objects here");
 
-  size_t capacity = heap->capacity();
+  size_t capacity = heap->max_capacity();
   size_t available = heap->free_set()->available();
 
   // Check if we are falling below the worst limit, time to trigger the GC, regardless of
   // anything else.
-  size_t min_threshold = ShenandoahMinFreeThreshold * heap->capacity() / 100;
+  size_t min_threshold = capacity / 100 * ShenandoahMinFreeThreshold;
   if (available < min_threshold) {
-    log_info(gc)("Trigger: Free (" SIZE_FORMAT "M) is below minimum threshold (" SIZE_FORMAT "M)",
-                 available / M, min_threshold / M);
+    log_info(gc)("Trigger: Free (" SIZE_FORMAT "%s) is below minimum threshold (" SIZE_FORMAT "%s)",
+                 byte_size_in_proper_unit(available),     proper_unit_for_byte_size(available),
+                 byte_size_in_proper_unit(min_threshold), proper_unit_for_byte_size(min_threshold));
     return true;
   }
 
   // Check if are need to learn a bit about the application
   const size_t max_learn = ShenandoahLearningSteps;
   if (_gc_times_learned < max_learn) {
-    size_t init_threshold = ShenandoahInitFreeThreshold * heap->capacity() / 100;
+    size_t init_threshold = capacity / 100 * ShenandoahInitFreeThreshold;
     if (available < init_threshold) {
-      log_info(gc)("Trigger: Learning " SIZE_FORMAT " of " SIZE_FORMAT ". Free (" SIZE_FORMAT "M) is below initial threshold (" SIZE_FORMAT "M)",
-                   _gc_times_learned + 1, max_learn, available / M, init_threshold / M);
+      log_info(gc)("Trigger: Learning " SIZE_FORMAT " of " SIZE_FORMAT ". Free (" SIZE_FORMAT "%s) is below initial threshold (" SIZE_FORMAT "%s)",
+                   _gc_times_learned + 1, max_learn,
+                   byte_size_in_proper_unit(available),      proper_unit_for_byte_size(available),
+                   byte_size_in_proper_unit(init_threshold), proper_unit_for_byte_size(init_threshold));
       return true;
     }
   }
@@ -245,8 +222,8 @@ bool ShenandoahTraversalHeuristics::should_start_traversal_gc() {
 
   size_t allocation_headroom = available;
 
-  size_t spike_headroom = ShenandoahAllocSpikeFactor * capacity / 100;
-  size_t penalties      = _gc_time_penalties         * capacity / 100;
+  size_t spike_headroom = capacity / 100 * ShenandoahAllocSpikeFactor;
+  size_t penalties      = capacity / 100 * _gc_time_penalties;
 
   allocation_headroom -= MIN2(allocation_headroom, spike_headroom);
   allocation_headroom -= MIN2(allocation_headroom, penalties);
@@ -256,12 +233,17 @@ bool ShenandoahTraversalHeuristics::should_start_traversal_gc() {
   double allocation_rate = heap->bytes_allocated_since_gc_start() / time_since_last;
 
   if (average_gc > allocation_headroom / allocation_rate) {
-    log_info(gc)("Trigger: Average GC time (%.2f ms) is above the time for allocation rate (%.2f MB/s) to deplete free headroom (" SIZE_FORMAT "M)",
-                 average_gc * 1000, allocation_rate / M, allocation_headroom / M);
-    log_info(gc, ergo)("Free headroom: " SIZE_FORMAT "M (free) - " SIZE_FORMAT "M (spike) - " SIZE_FORMAT "M (penalties) = " SIZE_FORMAT "M",
-                       available / M, spike_headroom / M, penalties / M, allocation_headroom / M);
+    log_info(gc)("Trigger: Average GC time (%.2f ms) is above the time for allocation rate (%.0f %sB/s) to deplete free headroom (" SIZE_FORMAT "%s)",
+                 average_gc * 1000,
+                 byte_size_in_proper_unit(allocation_rate),     proper_unit_for_byte_size(allocation_rate),
+                 byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
+    log_info(gc, ergo)("Free headroom: " SIZE_FORMAT "%s (free) - " SIZE_FORMAT "%s (spike) - " SIZE_FORMAT "%s (penalties) = " SIZE_FORMAT "%s",
+                 byte_size_in_proper_unit(available),           proper_unit_for_byte_size(available),
+                 byte_size_in_proper_unit(spike_headroom),      proper_unit_for_byte_size(spike_headroom),
+                 byte_size_in_proper_unit(penalties),           proper_unit_for_byte_size(penalties),
+                 byte_size_in_proper_unit(allocation_headroom), proper_unit_for_byte_size(allocation_headroom));
     return true;
-  } else if (ShenandoahHeuristics::should_start_normal_gc()) {
+  } else if (ShenandoahHeuristics::should_start_gc()) {
     return true;
   }
 

@@ -41,12 +41,8 @@ class ClassLoaderDataGraph : public AllStatic {
   friend class VMStructs;
  private:
   // All CLDs (except the null CLD) can be reached by walking _head->_next->...
-  static ClassLoaderData* _head;
+  static ClassLoaderData* volatile _head;
   static ClassLoaderData* _unloading;
-  // CMS support.
-  static ClassLoaderData* _saved_head;
-  static ClassLoaderData* _saved_unloading;
-  static bool _should_purge;
 
   // Set if there's anything to purge in the deallocate lists or previous versions
   // during a safepoint after class unloading in a full GC.
@@ -68,6 +64,7 @@ class ClassLoaderDataGraph : public AllStatic {
   static void clean_module_and_package_info();
   static void purge();
   static void clear_claimed_marks();
+  static void clear_claimed_marks(int claim);
   // Iteration through CLDG inside a safepoint; GC support
   static void cld_do(CLDClosure* cl);
   static void cld_unloading_do(CLDClosure* cl);
@@ -112,29 +109,15 @@ class ClassLoaderDataGraph : public AllStatic {
 
   static void verify_dictionary();
   static void print_dictionary(outputStream* st);
-  static void print_dictionary_statistics(outputStream* st);
+  static void print_table_statistics(outputStream* st);
 
-  // CMS support.
-  static void remember_new_clds(bool remember) { _saved_head = (remember ? _head : NULL); }
-  static GrowableArray<ClassLoaderData*>* new_clds();
-
-  static void set_should_purge(bool b) { _should_purge = b; }
-  static void purge_if_needed() {
-    // Only purge the CLDG for CMS if concurrent sweep is complete.
-    if (_should_purge) {
-      purge();
-      // reset for next time.
-      set_should_purge(false);
-    }
-  }
-
-  static int resize_if_needed();
+  static int resize_dictionaries();
 
   static bool has_metaspace_oom()           { return _metaspace_oom; }
   static void set_metaspace_oom(bool value) { _metaspace_oom = value; }
 
   static void print_on(outputStream * const out) PRODUCT_RETURN;
-  static void print() { print_on(tty); }
+  static void print();
   static void verify();
 
   // instance and array class counters
@@ -157,6 +140,7 @@ class ClassLoaderDataGraph : public AllStatic {
 class LockedClassesDo : public KlassClosure {
   typedef void (*classes_do_func_t)(Klass*);
   classes_do_func_t _function;
+  bool _do_lock;
 public:
   LockedClassesDo();  // For callers who provide their own do_klass
   LockedClassesDo(classes_do_func_t function);

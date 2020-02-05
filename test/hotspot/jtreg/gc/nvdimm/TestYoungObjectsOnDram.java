@@ -21,14 +21,17 @@
  * questions.
  */
 
+package gc.nvdimm;
+
 /*
  * @test TestYoungObjectsOnDram
  * @summary Check that objects in young generation reside in dram.
  * @requires vm.gc=="null" & os.family != "aix"
+ * @requires test.vm.gc.nvdimm
  * @library /test/lib
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main TestYoungObjectsOnDram -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ * @run main gc.nvdimm.TestYoungObjectsOnDram -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                                  -XX:+WhiteBoxAPI
  */
 
@@ -38,7 +41,6 @@ import jdk.test.lib.Asserts;
 import sun.hotspot.WhiteBox;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Collections;
 
 /**
@@ -51,7 +53,7 @@ public class TestYoungObjectsOnDram {
     private static ArrayList<String> testOpts;
 
     public static void main(String args[]) throws Exception {
-        testOpts = new ArrayList();
+        testOpts = new ArrayList<>();
 
         String[] common_options = new String[] {
             "-Xbootclasspath/a:.",
@@ -74,8 +76,8 @@ public class TestYoungObjectsOnDram {
         // Test with G1 GC
         runTest("-XX:+UseG1GC");
         // Test with ParallelOld GC
-        runTest("-XX:+UseParallelOldGC -XX:-UseAdaptiveGCBoundary");
-        runTest("-XX:+UseParallelOldGC -XX:+UseAdaptiveGCBoundary");
+        runTest("-XX:+UseParallelGC -XX:-UseAdaptiveGCBoundary");
+        runTest("-XX:+UseParallelGC -XX:+UseAdaptiveGCBoundary");
     }
 
     private static void runTest(String... extraFlags) throws Exception {

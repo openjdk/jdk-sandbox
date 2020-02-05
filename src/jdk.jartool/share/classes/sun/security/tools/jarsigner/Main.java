@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -685,6 +685,12 @@ public class Main {
             Vector<JarEntry> entriesVec = new Vector<>();
             byte[] buffer = new byte[8192];
 
+            String suffix1 = "-Digest-Manifest";
+            String suffix2 = "-Digest-" + ManifestDigester.MF_MAIN_ATTRS;
+
+            int suffixLength1 = suffix1.length();
+            int suffixLength2 = suffix2.length();
+
             Enumeration<JarEntry> entries = jf.entries();
             while (entries.hasMoreElements()) {
                 JarEntry je = entries.nextElement();
@@ -701,9 +707,14 @@ public class Main {
                                 boolean found = false;
                                 for (Object obj : sf.getMainAttributes().keySet()) {
                                     String key = obj.toString();
-                                    if (key.endsWith("-Digest-Manifest")) {
-                                        digestMap.put(alias,
-                                                key.substring(0, key.length() - 16));
+                                    if (key.endsWith(suffix1)) {
+                                        digestMap.put(alias, key.substring(
+                                                0, key.length() - suffixLength1));
+                                        found = true;
+                                        break;
+                                    } else if (key.endsWith(suffix2)) {
+                                        digestMap.put(alias, key.substring(
+                                                0, key.length() - suffixLength2));
                                         found = true;
                                         break;
                                     }
@@ -1300,7 +1311,7 @@ public class Main {
 
         String alias = storeHash.get(c);
         if (alias != null) {
-            certStr.append(space).append(alias);
+            certStr.append(space).append("(").append(alias).append(")");
         }
 
         if (x509Cert != null) {
@@ -1425,37 +1436,43 @@ public class Main {
         }
 
         int result = 0;
-        List<? extends Certificate> certs = signer.getSignerCertPath().getCertificates();
-        for (Certificate c : certs) {
-            String alias = storeHash.get(c);
-            if (alias != null) {
-                if (alias.startsWith("(")) {
-                    result |= IN_KEYSTORE;
-                }
-                if (ckaliases.contains(alias.substring(1, alias.length() - 1))) {
-                    result |= SIGNED_BY_ALIAS;
-                }
-            } else {
-                if (store != null) {
-                    try {
+        if (store != null) {
+            try {
+                List<? extends Certificate> certs =
+                        signer.getSignerCertPath().getCertificates();
+                for (Certificate c : certs) {
+                    String alias = storeHash.get(c);
+                    if (alias == null) {
                         alias = store.getCertificateAlias(c);
-                    } catch (KeyStoreException kse) {
-                        // never happens, because keystore has been loaded
+                        if (alias != null) {
+                            storeHash.put(c, alias);
+                        }
                     }
                     if (alias != null) {
-                        storeHash.put(c, "(" + alias + ")");
                         result |= IN_KEYSTORE;
                     }
+                    for (String ckalias : ckaliases) {
+                        if (c.equals(store.getCertificate(ckalias))) {
+                            result |= SIGNED_BY_ALIAS;
+                            // must continue with next certificate c and cannot
+                            // return or break outer loop because has to fill
+                            // storeHash for printCert
+                            break;
+                        }
+                    }
                 }
-                if (ckaliases.contains(alias)) {
-                    result |= SIGNED_BY_ALIAS;
-                }
+            } catch (KeyStoreException kse) {
+                // never happens, because keystore has been loaded
             }
         }
         cacheForInKS.put(signer, result);
         return result;
     }
 
+    /**
+     * Maps certificates (as keys) to alias names associated in the keystore
+     * {@link #store} (as values).
+     */
     Hashtable<Certificate, String> storeHash = new Hashtable<>();
 
     int inKeyStore(CodeSigner[] signers) {

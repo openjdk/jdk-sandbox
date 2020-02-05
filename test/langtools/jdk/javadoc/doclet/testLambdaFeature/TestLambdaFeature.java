@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
  * @bug      8004893 8022738 8029143 8175200 8186332 8184205
  * @summary  Make sure that the lambda feature changes work fine in
  *           javadoc.
- * @author   bpatel
  * @library  ../../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.* TestLambdaFeature
@@ -57,7 +56,8 @@ public class TestLambdaFeature extends JavadocTester {
 
         checkOutput("pkg/A.html", true,
                 "<td class=\"colFirst\"><code>default void</code></td>",
-                "<pre class=\"methodSignature\">default&nbsp;void&nbsp;defaultMethod()</pre>",
+                "<div class=\"memberSignature\"><span class=\"modifiers\">default</span>&nbsp;"
+                + "<span class=\"returnType\">void</span>&nbsp;<span class=\"memberName\">defaultMethod</span>()</div>\n",
                 "<div role=\"tablist\" aria-orientation=\"horizontal\"><button role=\"tab\""
                 + " aria-selected=\"true\" aria-controls=\"memberSummary_tabpanel\" tabindex=\"0\""
                 + " onkeydown=\"switchTab(event)\" id=\"t0\" class=\"activeTableTab\">All Methods"

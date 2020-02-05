@@ -55,6 +55,7 @@ class win32 {
   static bool   _has_exit_bug;
 
   static void print_windows_version(outputStream* st);
+  static void print_uptime_info(outputStream* st);
 
  public:
   // Windows-specific interface:
@@ -148,7 +149,7 @@ private:
   static volatile intptr_t _crash_mux;
 };
 
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
   private:
     double CachePad [4] ;   // increase odds that _Event is sole occupant of cache line
     volatile int _Event ;
@@ -174,7 +175,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
 
 
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
   protected:
     HANDLE _ParkEvent ;
 
@@ -186,5 +187,34 @@ class PlatformParker : public CHeapObj<mtInternal> {
     }
 
 } ;
+
+// Platform specific implementations that underpin VM Mutex/Monitor classes
+
+class PlatformMutex : public CHeapObj<mtSynchronizer> {
+  NONCOPYABLE(PlatformMutex);
+
+ protected:
+  CRITICAL_SECTION   _mutex; // Native mutex for locking
+
+ public:
+  PlatformMutex();
+  ~PlatformMutex();
+  void lock();
+  void unlock();
+  bool try_lock();
+};
+
+class PlatformMonitor : public PlatformMutex {
+ private:
+  CONDITION_VARIABLE _cond;  // Native condition variable for blocking
+  NONCOPYABLE(PlatformMonitor);
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
+};
 
 #endif // OS_WINDOWS_OS_WINDOWS_HPP

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -116,7 +116,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
                                  jobject loader, jobject protection_domain)
   : ciKlass(name, T_OBJECT)
 {
-  assert(name->char_at(0) != '[', "not an instance klass");
+  assert(name->char_at(0) != JVM_SIGNATURE_ARRAY, "not an instance klass");
   _init_state = (InstanceKlass::ClassState)0;
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;
@@ -315,7 +315,7 @@ bool ciInstanceKlass::is_in_package_impl(const char* packagename, int len) {
 // Implementation of the print method.
 void ciInstanceKlass::print_impl(outputStream* st) {
   ciKlass::print_impl(st);
-  GUARDED_VM_ENTRY(st->print(" loader=" INTPTR_FORMAT, p2i((address)loader()));)
+  GUARDED_VM_ENTRY(st->print(" loader=" INTPTR_FORMAT, p2i(loader()));)
   if (is_loaded()) {
     st->print(" loaded=true initialized=%s finalized=%s subklass=%s size=%d flags=",
               bool_to_str(is_initialized()),
@@ -669,11 +669,21 @@ class StaticFinalFieldPrinter : public FieldClosure {
           _out->print_cr(INT64_FORMAT, *(int64_t*)&d);
           break;
         }
-        case T_ARRAY: {
+        case T_ARRAY:  // fall-through
+        case T_OBJECT: {
           oop value =  mirror->obj_field_acquire(fd->offset());
           if (value == NULL) {
             _out->print_cr("null");
-          } else {
+          } else if (value->is_instance()) {
+            assert(fd->field_type() == T_OBJECT, "");
+            if (value->is_a(SystemDictionary::String_klass())) {
+              const char* ascii_value = java_lang_String::as_quoted_ascii(value);
+              _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
+            } else {
+              const char* klass_name  = value->klass()->name()->as_quoted_ascii();
+              _out->print_cr("%s", klass_name);
+            }
+          } else if (value->is_array()) {
             typeArrayOop ta = (typeArrayOop)value;
             _out->print("%d", ta->length());
             if (value->is_objArray()) {
@@ -682,21 +692,6 @@ class StaticFinalFieldPrinter : public FieldClosure {
               _out->print(" %s", klass_name);
             }
             _out->cr();
-          }
-          break;
-        }
-        case T_OBJECT: {
-          oop value =  mirror->obj_field_acquire(fd->offset());
-          if (value == NULL) {
-            _out->print_cr("null");
-          } else if (value->is_instance()) {
-            if (value->is_a(SystemDictionary::String_klass())) {
-              const char* ascii_value = java_lang_String::as_quoted_ascii(value);
-              _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
-            } else {
-              const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-              _out->print_cr("%s", klass_name);
-            }
           } else {
             ShouldNotReachHere();
           }

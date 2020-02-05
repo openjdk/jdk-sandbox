@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
  * @test
  * @bug      6786688 8008164 8162363 8169819 8183037 8182765 8184205
  * @summary  HTML tables should have table summary, caption and table headers.
- * @author   Bhavesh Patel
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -52,26 +51,12 @@ public class TestHtmlTableTags extends JavadocTester {
         javadoc("-d", "out",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg1", "pkg2");
         checkExit(Exit.OK);
 
         checkHtmlTableTag();
         checkHtmlTableCaptions();
         checkHtmlTableHeaders();
-    }
-
-    @Test
-    public void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-sourcepath", testSrc,
-                "-use",
-                "--frames",
-                "pkg1", "pkg2");
-        checkExit(Exit.OK);
-
-        checkHtmlTableSummaries();
     }
 
     /*
@@ -134,15 +119,15 @@ public class TestHtmlTableTags extends JavadocTester {
 
         // Deprecated
         checkOutput("deprecated-list.html", true,
-                "<div class=\"deprecatedSummary\">\n<table>",
-                "<div class=\"deprecatedSummary\">\n<table>");
+                "<div class=\"deprecatedSummary\" id=\"field\">\n<table>",
+                "<div class=\"deprecatedSummary\" id=\"method\">\n<table>");
 
         // Constant values
         checkOutput("constant-values.html", true,
                 "<div class=\"constantsSummary\">\n<table>");
 
         // Overview Summary
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
                 "<div class=\"overviewSummary\">\n<table>");
     }
 
@@ -239,10 +224,10 @@ public class TestHtmlTableTags extends JavadocTester {
 
         // Deprecated
         checkOutput("deprecated-list.html", true,
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"field\">\n"
                 + "<table summary=\"Fields table, listing fields, "
                 + "and an explanation\">",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"method\">\n"
                 + "<table summary=\"Methods table, listing methods, "
                 + "and an explanation\">");
 
@@ -253,7 +238,7 @@ public class TestHtmlTableTags extends JavadocTester {
                 + "constant fields, and values\">");
 
         // Overview Summary
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
                 "<div class=\"overviewSummary\">\n"
                 + "<table summary=\"Package Summary table, listing packages, and an explanation\">");
     }
@@ -366,7 +351,7 @@ public class TestHtmlTableTags extends JavadocTester {
                 + "C1</a></span><span class=\"tabEnd\">&nbsp;</span></caption>");
 
         // Overview Summary
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
                 "<caption><span>Packages</span><span class=\"tabEnd\">&nbsp;</span></caption>");
     }
 
@@ -482,7 +467,7 @@ public class TestHtmlTableTags extends JavadocTester {
                 + "<th class=\"colLast\" scope=\"col\">Value</th>");
 
         // Overview Summary
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
                 "<th class=\"colFirst\" scope=\"col\">"
                 + "Package</th>\n"
                 + "<th class=\"colLast\" scope=\"col\""

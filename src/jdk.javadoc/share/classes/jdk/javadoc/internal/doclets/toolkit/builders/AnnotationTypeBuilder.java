@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package jdk.javadoc.internal.doclets.toolkit.builders;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocFilesHandler;
@@ -41,9 +42,6 @@ import jdk.javadoc.internal.doclets.toolkit.DocletException;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class AnnotationTypeBuilder extends AbstractBuilder {
 
@@ -56,11 +54,6 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
      * The doclet specific writer.
      */
     private final AnnotationTypeWriter writer;
-
-    /**
-     * The content tree for the annotation documentation.
-     */
-    private Content contentTree;
 
     /**
      * Construct a new ClassBuilder.
@@ -91,22 +84,18 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
         return new AnnotationTypeBuilder(context, annotationTypeDoc, writer);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build() throws DocletException {
-        buildAnnotationTypeDoc(contentTree);
+        buildAnnotationTypeDoc();
     }
 
     /**
      * Build the annotation type documentation.
      *
-     * @param contentTree the content tree to which the documentation will be added
      * @throws DocletException if there is a problem building the documentation
      */
-    protected void buildAnnotationTypeDoc(Content contentTree) throws DocletException {
-        contentTree = writer.getHeader(resources.getText("doclet.AnnotationType") +
+    protected void buildAnnotationTypeDoc() throws DocletException {
+        Content contentTree = writer.getHeader(resources.getText("doclet.AnnotationType") +
                " " + utils.getSimpleName(annotationType));
         Content annotationContentTree = writer.getAnnotationContentHeader();
 
@@ -114,8 +103,8 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
         buildMemberSummary(annotationContentTree);
         buildAnnotationTypeMemberDetails(annotationContentTree);
 
-        writer.addAnnotationContentTree(contentTree, annotationContentTree);
-        writer.addFooter(contentTree);
+        writer.addAnnotationContentTree(annotationContentTree);
+        writer.addFooter();
         writer.printDocument(contentTree);
         copyDocFiles();
     }
@@ -149,14 +138,13 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
      */
     protected void buildAnnotationTypeInfo(Content annotationContentTree)
             throws DocletException {
-        Content annotationInfoTree = writer.getAnnotationInfoTreeHeader();
-
+        Content annotationInfoTree = new ContentBuilder();
         buildAnnotationTypeSignature(annotationInfoTree);
         buildDeprecationInfo(annotationInfoTree);
         buildAnnotationTypeDescription(annotationInfoTree);
         buildAnnotationTypeTagInfo(annotationInfoTree);
 
-        annotationContentTree.addContent(writer.getAnnotationInfo(annotationInfoTree));
+        annotationContentTree.add(writer.getAnnotationInfo(annotationInfoTree));
     }
 
     /**
@@ -205,7 +193,7 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
     protected void buildMemberSummary(Content annotationContentTree) throws DocletException {
         Content memberSummaryTree = writer.getMemberTreeHeader();
         builderFactory.getMemberSummaryBuilder(writer).build(memberSummaryTree);
-        annotationContentTree.addContent(writer.getMemberSummaryTree(memberSummaryTree));
+        annotationContentTree.add(writer.getMemberSummaryTree(memberSummaryTree));
     }
 
     /**
@@ -223,7 +211,7 @@ public class AnnotationTypeBuilder extends AbstractBuilder {
         buildAnnotationTypeOptionalMemberDetails(memberDetailsTree);
 
         if (memberDetailsTree.isValid()) {
-            annotationContentTree.addContent(writer.getMemberDetailsTree(memberDetailsTree));
+            annotationContentTree.add(writer.getMemberDetailsTree(memberDetailsTree));
         }
     }
 

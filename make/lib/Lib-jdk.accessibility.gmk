@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@ include LibCommon.gmk
 
 ################################################################################
 
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
 
   ROOT_SRCDIR := $(TOPDIR)/src/jdk.accessibility/windows/native
 
@@ -100,7 +100,7 @@ ifeq ($(OPENJDK_TARGET_OS), windows)
 
   endef
 
-  ifeq ($(OPENJDK_TARGET_CPU_BITS), 32)
+  ifeq ($(call isTargetCpuBits, 32), true)
     $(eval $(call SetupAccessBridgeSysInfo))
     $(eval $(call SetupJavaDLL,-32,32))
     $(eval $(call SetupJavaDLL,,LEGACY))

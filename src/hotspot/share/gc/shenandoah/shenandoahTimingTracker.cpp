@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -76,8 +77,11 @@ ShenandoahTerminationTracker::ShenandoahTerminationTracker(ShenandoahPhaseTiming
          phase == ShenandoahPhaseTimings::full_gc_weakrefs_termination,
          "Only these phases");
 
-  assert(Thread::current()->is_VM_thread() || Thread::current()->is_ConcurrentGC_thread(),
-    "Called from wrong thread");
+  assert(!Thread::current()->is_Worker_thread() &&
+             (Thread::current()->is_VM_thread() ||
+              Thread::current()->is_ConcurrentGC_thread()),
+        "Called from wrong thread");
+
   _current_termination_phase = phase;
   ShenandoahHeap::heap()->phase_timings()->termination_times()->reset();
 }

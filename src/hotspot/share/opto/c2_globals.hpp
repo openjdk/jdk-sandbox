@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 #ifndef SHARE_OPTO_C2_GLOBALS_HPP
 #define SHARE_OPTO_C2_GLOBALS_HPP
 
-#include "runtime/globals.hpp"
+#include "runtime/globals_shared.hpp"
 #include "utilities/macros.hpp"
 
 #include CPU_HEADER(c2_globals)
@@ -44,8 +44,7 @@
                  experimental, \
                  notproduct, \
                  range, \
-                 constraint, \
-                 writeable) \
+                 constraint) \
                                                                             \
   diagnostic(bool, StressLCM, false,                                        \
           "Randomize instruction scheduling in LCM")                        \
@@ -106,9 +105,6 @@
                                                                             \
   notproduct(bool, PrintOptoInlining, false,                                \
           "Print compiler2 inlining decisions")                             \
-                                                                            \
-  notproduct(bool, VerifyOpto, false,                                       \
-          "Apply more time consuming verification during compilation")      \
                                                                             \
   notproduct(bool, VerifyIdealNodeCount, false,                             \
           "Verify that tracked dead ideal node count is accurate")          \
@@ -509,14 +505,11 @@
   product(bool, EliminateAutoBox, true,                                     \
           "Control optimizations for autobox elimination")                  \
                                                                             \
-  diagnostic(bool, UseImplicitStableValues, true,                           \
-          "Mark well-known stable fields as such (e.g. String.value)")      \
-                                                                            \
   product(intx, AutoBoxCacheMax, 128,                                       \
           "Sets max value cached by the java.lang.Integer autobox cache")   \
           range(0, max_jint)                                                \
                                                                             \
-  experimental(bool, AggressiveUnboxing, false,                             \
+  diagnostic(bool, AggressiveUnboxing, true,                                \
           "Control optimizations for aggressive boxing elimination")        \
                                                                             \
   develop(bool, TracePostallocExpand, false, "Trace expanding nodes after"  \
@@ -760,17 +753,5 @@
                                                                             \
   product(bool, UseProfiledLoopPredicate, true,                             \
           "move predicates out of loops based on profiling data")           \
-
-C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
-         DECLARE_PD_DEVELOPER_FLAG, \
-         DECLARE_PRODUCT_FLAG, \
-         DECLARE_PD_PRODUCT_FLAG, \
-         DECLARE_DIAGNOSTIC_FLAG, \
-         DECLARE_PD_DIAGNOSTIC_FLAG, \
-         DECLARE_EXPERIMENTAL_FLAG, \
-         DECLARE_NOTPRODUCT_FLAG, \
-         IGNORE_RANGE, \
-         IGNORE_CONSTRAINT, \
-         IGNORE_WRITEABLE)
 
 #endif // SHARE_OPTO_C2_GLOBALS_HPP

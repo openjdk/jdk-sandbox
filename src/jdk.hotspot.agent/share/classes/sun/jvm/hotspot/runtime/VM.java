@@ -104,7 +104,18 @@ public class VM {
   private int          heapOopSize;
   private int          klassPtrSize;
   private int          oopSize;
-  private final int    IndexSetSize;
+  /** -XX flags (value origin) */
+  public static int    Flags_DEFAULT;
+  public static int    Flags_COMMAND_LINE;
+  public static int    Flags_ENVIRON_VAR;
+  public static int    Flags_CONFIG_FILE;
+  public static int    Flags_MANAGEMENT;
+  public static int    Flags_ERGONOMIC;
+  public static int    Flags_ATTACH_ON_DEMAND;
+  public static int    Flags_INTERNAL;
+  public static int    Flags_JIMAGE_RESOURCE;
+  private static int   Flags_VALUE_ORIGIN_MASK;
+  private static int   Flags_ORIG_COMMAND_LINE;
   /** This is only present in a non-core build */
   private CodeCache    codeCache;
   /** This is only present in a C1 build */
@@ -163,7 +174,38 @@ public class VM {
      }
 
      public int getOrigin() {
-        return flags & 0xF;  // XXX can we get the mask bits from somewhere?
+        return flags & Flags_VALUE_ORIGIN_MASK;
+     }
+
+     // See JVMFlag::print_origin() in HotSpot
+     public String getOriginString() {
+        var origin = flags & Flags_VALUE_ORIGIN_MASK;
+        if (origin == Flags_DEFAULT) {
+            return "default";
+        } else if (origin == Flags_COMMAND_LINE) {
+            return "command line";
+        } else if (origin == Flags_ENVIRON_VAR) {
+            return "environment";
+        } else if (origin == Flags_CONFIG_FILE) {
+            return "config file";
+        } else if (origin == Flags_MANAGEMENT) {
+            return "management";
+        } else if (origin == Flags_ERGONOMIC) {
+            String result = "";
+            if ((flags & Flags_ORIG_COMMAND_LINE) == Flags_ORIG_COMMAND_LINE) {
+                result = "command line, ";
+            }
+            return result + "ergonomic";
+        } else if (origin == Flags_ATTACH_ON_DEMAND) {
+            return "attach";
+        } else if (origin == Flags_INTERNAL) {
+            return "internal";
+        } else if (origin == Flags_JIMAGE_RESOURCE) {
+            return "jimage";
+        } else {
+            throw new IllegalStateException(
+                "Unknown flag origin " + origin + " is detected in " + name);
+        }
      }
 
      public boolean isBool() {
@@ -436,8 +478,18 @@ public class VM {
     bytesPerLong = db.lookupIntConstant("BytesPerLong").intValue();
     bytesPerWord = db.lookupIntConstant("BytesPerWord").intValue();
     heapWordSize = db.lookupIntConstant("HeapWordSize").intValue();
+    Flags_DEFAULT = db.lookupIntConstant("JVMFlag::DEFAULT").intValue();
+    Flags_COMMAND_LINE = db.lookupIntConstant("JVMFlag::COMMAND_LINE").intValue();
+    Flags_ENVIRON_VAR = db.lookupIntConstant("JVMFlag::ENVIRON_VAR").intValue();
+    Flags_CONFIG_FILE = db.lookupIntConstant("JVMFlag::CONFIG_FILE").intValue();
+    Flags_MANAGEMENT = db.lookupIntConstant("JVMFlag::MANAGEMENT").intValue();
+    Flags_ERGONOMIC = db.lookupIntConstant("JVMFlag::ERGONOMIC").intValue();
+    Flags_ATTACH_ON_DEMAND = db.lookupIntConstant("JVMFlag::ATTACH_ON_DEMAND").intValue();
+    Flags_INTERNAL = db.lookupIntConstant("JVMFlag::INTERNAL").intValue();
+    Flags_JIMAGE_RESOURCE = db.lookupIntConstant("JVMFlag::JIMAGE_RESOURCE").intValue();
+    Flags_VALUE_ORIGIN_MASK = db.lookupIntConstant("JVMFlag::VALUE_ORIGIN_MASK").intValue();
+    Flags_ORIG_COMMAND_LINE = db.lookupIntConstant("JVMFlag::ORIG_COMMAND_LINE").intValue();
     oopSize  = db.lookupIntConstant("oopSize").intValue();
-    IndexSetSize = db.lookupIntConstant("CompactibleFreeListSpace::IndexSetSize").intValue();
 
     intType = db.lookupType("int");
     uintType = db.lookupType("uint");
@@ -494,8 +546,8 @@ public class VM {
     }
 
     debugger.putHeapConst(soleInstance.getHeapOopSize(), soleInstance.getKlassPtrSize(),
-                          Universe.getNarrowOopBase(), Universe.getNarrowOopShift(),
-                          Universe.getNarrowKlassBase(), Universe.getNarrowKlassShift());
+                          CompressedOops.getBase(), CompressedOops.getShift(),
+                          CompressedKlassPointers.getBase(), CompressedKlassPointers.getShift());
   }
 
   /** This is used by the debugging system */
@@ -655,10 +707,6 @@ public class VM {
 
   public int getHeapOopSize() {
     return heapOopSize;
-  }
-
-  public int getIndexSetSize() {
-    return IndexSetSize;
   }
 
   public int getKlassPtrSize() {

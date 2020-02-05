@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,7 +73,7 @@ JNIEXPORT void JNICALL callbackClassPrepare(jvmtiEnv *jvmti,
                     nsk_printf(" ## Error occured %s \n",TranslateError(err));
                 } else  {
                     nsk_printf(" NO ERRORS ");
-                    if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_BREAKPOINT, NULL) == NSK_TRUE) {
+                    if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_BREAKPOINT, NULL)) {
                         nsk_printf(" Enabled.. notification event ..\n");
                     }
                 }
@@ -116,8 +116,7 @@ void JNICALL callbackBreakpoint(jvmtiEnv *jvmti_env,
         jlocation location) {
     jvmtiError err;
     err = JVMTI_ERROR_NONE;
-    if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_SINGLE_STEP, NULL)
-            == NSK_TRUE) {
+    if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_SINGLE_STEP, NULL)) {
         nsk_printf(" Enabled.. notification event ..");
     }
     err= jvmti->SetEventNotificationMode(JVMTI_DISABLE,
@@ -152,7 +151,7 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
         jvmtiCapabilities caps;
         jvmtiEventCallbacks eventCallbacks;
         memset(&caps, 0, sizeof(caps));
-        if (nsk_jvmti_parseOptions(options) == NSK_FALSE) {
+        if (!nsk_jvmti_parseOptions(options)) {
             nsk_printf("# error agent Failed to parse options \n");
             return JNI_ERR;
         }
@@ -173,7 +172,7 @@ jint  Agent_Initialize(JavaVM *vm, char *options, void *reserved) {
             nsk_printf(" ## Error occured %s \n",TranslateError(rc));
             return JNI_ERR;
         }
-        if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_CLASS_PREPARE, NULL) == NSK_TRUE) {
+        if (nsk_jvmti_enableNotification(jvmti,JVMTI_EVENT_CLASS_PREPARE, NULL)) {
             nsk_printf("Agent :: NOTIFICATIONS ARE ENABLED \n");
         } else {
             nsk_printf(" Error in Eanableing Notifications..");

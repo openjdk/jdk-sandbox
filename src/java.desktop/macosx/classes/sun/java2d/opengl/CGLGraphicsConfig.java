@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,6 @@ import sun.java2d.pipe.hw.AccelSurface;
 import sun.java2d.pipe.hw.AccelTypedVolatileImage;
 import sun.java2d.pipe.hw.ContextCapabilities;
 import sun.lwawt.LWComponentPeer;
-import sun.lwawt.macosx.CPlatformView;
 
 import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_DOUBLEBUFFERED;
 import static sun.java2d.opengl.OGLContext.OGLContextCaps.CAPS_EXT_FBOBJECT;
@@ -75,7 +74,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
     private BufferCapabilities bufferCaps;
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
-    private OGLContext context;
+    private final OGLContext context;
     private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
@@ -105,7 +104,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         this.pConfigInfo = configInfo;
         this.oglCaps = oglCaps;
         this.maxTextureSize = maxTextureSize;
-        context = new OGLContext(OGLRenderQueue.getInstance(), this);
+        context = new OGLContext(OGLRenderQueue.getInstance());
 
         // add a record to the Disposer so that we destroy the native
         // CGLGraphicsConfigInfo data when this object goes away
@@ -185,11 +184,6 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         return pConfigInfo;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.BufferedContextProvider#getContext
-     */
     @Override
     public OGLContext getContext() {
         return context;
@@ -261,11 +255,6 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
     public String toString() {
         String display = getDevice().getIDstring();
         return ("CGLGraphicsConfig[" + display + ", pixfmt=" + pixfmt + "]");
-    }
-
-    @Override
-    public SurfaceData createSurfaceData(CPlatformView pView) {
-        return CGLSurfaceData.createData(pView);
     }
 
     @Override
@@ -395,11 +384,6 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
         return vi;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see sun.java2d.pipe.hw.AccelGraphicsConfig#getContextCapabilities
-     */
     @Override
     public ContextCapabilities getContextCapabilities() {
         return oglCaps;

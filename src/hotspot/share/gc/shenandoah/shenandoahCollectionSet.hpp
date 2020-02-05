@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2016, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2016, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -33,9 +34,10 @@ class ShenandoahCollectionSet : public CHeapObj<mtGC> {
 private:
   size_t const          _map_size;
   size_t const          _region_size_bytes_shift;
-  jbyte* const          _cset_map;
+  ReservedSpace         _map_space;
+  char* const           _cset_map;
   // Bias cset map's base address for fast test if an oop is in cset
-  jbyte* const          _biased_cset_map;
+  char* const           _biased_cset_map;
 
   ShenandoahHeap* const _heap;
 
@@ -49,7 +51,7 @@ private:
   DEFINE_PAD_MINUS_SIZE(1, DEFAULT_CACHE_LINE_SIZE, 0);
 
 public:
-  ShenandoahCollectionSet(ShenandoahHeap* heap, HeapWord* heap_base);
+  ShenandoahCollectionSet(ShenandoahHeap* heap, char* heap_base, size_t size);
 
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
@@ -78,7 +80,8 @@ public:
 
   inline bool is_in(ShenandoahHeapRegion* r) const;
   inline bool is_in(size_t region_number)    const;
-  inline bool is_in(HeapWord* p)             const;
+  inline bool is_in(HeapWord* loc)           const;
+  inline bool is_in(oop obj)                 const;
 
   void print_on(outputStream* out) const;
 
@@ -88,7 +91,10 @@ public:
   void clear();
 
 private:
-  jbyte* biased_map_address() const {
+  char* map_address() const {
+    return _cset_map;
+  }
+  char* biased_map_address() const {
     return _biased_cset_map;
   }
 };

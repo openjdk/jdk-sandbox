@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -138,6 +138,30 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   fi
 
   AC_SUBST(ENABLE_HEADLESS_ONLY)
+
+  # should we linktime gc unused code sections in the JDK build ?
+  AC_MSG_CHECKING([linktime gc])
+  AC_ARG_ENABLE([linktime-gc], [AS_HELP_STRING([--enable-linktime-gc],
+      [linktime gc unused code sections in the JDK build @<:@disabled@:>@])])
+
+  if test "x$enable_linktime_gc" = "xyes"; then
+    ENABLE_LINKTIME_GC="true"
+    AC_MSG_RESULT([yes])
+  elif test "x$enable_linktime_gc" = "xno"; then
+    ENABLE_LINKTIME_GC="false"
+    AC_MSG_RESULT([no])
+  elif test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = xs390x; then
+    ENABLE_LINKTIME_GC="true"
+    AC_MSG_RESULT([yes])
+  elif test "x$enable_linktime_gc" = "x"; then
+    ENABLE_LINKTIME_GC="false"
+    AC_MSG_RESULT([no])
+  else
+    AC_MSG_ERROR([--enable-linktime-gc can only take yes or no])
+  fi
+
+  AC_SUBST(ENABLE_LINKTIME_GC)
+
 
   # Should we build the complete docs, or just a lightweight version?
   AC_ARG_ENABLE([full-docs], [AS_HELP_STRING([--enable-full-docs],
@@ -302,15 +326,21 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
           if test "x$withval" = xexternal || test "x$withval" = xzipped; then
             AC_MSG_ERROR([AIX only supports the parameters 'none' and 'internal' for --with-native-debug-symbols])
           fi
+        else
+          if test "x$OPENJDK_TARGET_OS" = xwindows; then
+            if test "x$withval" = xinternal; then
+              AC_MSG_ERROR([Windows does not support the parameter 'internal' for --with-native-debug-symbols])
+            fi
+          fi
         fi
       ],
       [
-        if test "x$OPENJDK_TARGET_OS" = xaix; then
-          # AIX doesn't support 'external' so use 'internal' as default
-          with_native_debug_symbols="internal"
+        if test "x$STATIC_BUILD" = xtrue; then
+          with_native_debug_symbols="none"
         else
-          if test "x$STATIC_BUILD" = xtrue; then
-            with_native_debug_symbols="none"
+          if test "x$OPENJDK_TARGET_OS" = xaix; then
+            # AIX doesn't support 'external' so use 'internal' as default
+            with_native_debug_symbols="internal"
           else
             with_native_debug_symbols="external"
           fi
@@ -319,20 +349,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
   NATIVE_DEBUG_SYMBOLS=$with_native_debug_symbols
   AC_MSG_RESULT([$NATIVE_DEBUG_SYMBOLS])
 
-  if test "x$NATIVE_DEBUG_SYMBOLS" = xzipped; then
-
-    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
-      if test "x$OBJCOPY" = x; then
-        # enabling of enable-debug-symbols and can't find objcopy
-        # this is an error
-        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
-      fi
-    fi
-
-    COMPILE_WITH_DEBUG_SYMBOLS=true
-    COPY_DEBUG_SYMBOLS=true
-    ZIP_EXTERNAL_DEBUG_SYMBOLS=true
-  elif test "x$NATIVE_DEBUG_SYMBOLS" = xnone; then
+  if test "x$NATIVE_DEBUG_SYMBOLS" = xnone; then
     COMPILE_WITH_DEBUG_SYMBOLS=false
     COPY_DEBUG_SYMBOLS=false
     ZIP_EXTERNAL_DEBUG_SYMBOLS=false
@@ -353,6 +370,19 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
     COMPILE_WITH_DEBUG_SYMBOLS=true
     COPY_DEBUG_SYMBOLS=true
     ZIP_EXTERNAL_DEBUG_SYMBOLS=false
+  elif test "x$NATIVE_DEBUG_SYMBOLS" = xzipped; then
+
+    if test "x$OPENJDK_TARGET_OS" = xsolaris || test "x$OPENJDK_TARGET_OS" = xlinux; then
+      if test "x$OBJCOPY" = x; then
+        # enabling of enable-debug-symbols and can't find objcopy
+        # this is an error
+        AC_MSG_ERROR([Unable to find objcopy, cannot enable native debug symbols])
+      fi
+    fi
+
+    COMPILE_WITH_DEBUG_SYMBOLS=true
+    COPY_DEBUG_SYMBOLS=true
+    ZIP_EXTERNAL_DEBUG_SYMBOLS=true
   else
     AC_MSG_ERROR([Allowed native debug symbols are: none, internal, external, zipped])
   fi
@@ -364,7 +394,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 
 ################################################################################
 #
-# Gcov coverage data for hotspot
+# Native and Java code coverage
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
 [
@@ -372,23 +402,26 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       [enable native compilation with code coverage data@<:@disabled@:>@])])
   GCOV_ENABLED="false"
   if test "x$enable_native_coverage" = "xyes"; then
-    if test "x$TOOLCHAIN_TYPE" = "xgcc"; then
-      AC_MSG_CHECKING([if native coverage is enabled])
-      AC_MSG_RESULT([yes])
-      GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
-      GCOV_LDFLAGS="-fprofile-arcs"
-      JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
-      JVM_LDFLAGS="$JVM_LDFLAGS $GCOV_LDFLAGS"
-      CFLAGS_JDKLIB="$CFLAGS_JDKLIB $GCOV_CFLAGS"
-      CFLAGS_JDKEXE="$CFLAGS_JDKEXE $GCOV_CFLAGS"
-      CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $GCOV_CFLAGS"
-      CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
-      LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
-      LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
-      GCOV_ENABLED="true"
-    else
-      AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc])
-    fi
+    case $TOOLCHAIN_TYPE in
+      gcc | clang)
+        AC_MSG_CHECKING([if native coverage is enabled])
+        AC_MSG_RESULT([yes])
+        GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
+        GCOV_LDFLAGS="-fprofile-arcs"
+        JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
+        JVM_LDFLAGS="$JVM_LDFLAGS $GCOV_LDFLAGS"
+        CFLAGS_JDKLIB="$CFLAGS_JDKLIB $GCOV_CFLAGS"
+        CFLAGS_JDKEXE="$CFLAGS_JDKEXE $GCOV_CFLAGS"
+        CXXFLAGS_JDKLIB="$CXXFLAGS_JDKLIB $GCOV_CFLAGS"
+        CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
+        LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
+        LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
+        GCOV_ENABLED="true"
+        ;;
+      *)
+        AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc or clang])
+        ;;
+    esac
   elif test "x$enable_native_coverage" = "xno"; then
     AC_MSG_CHECKING([if native coverage is enabled])
     AC_MSG_RESULT([no])
@@ -401,9 +434,12 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       [jcov library location])])
   AC_ARG_WITH(jcov-input-jdk, [AS_HELP_STRING([--with-jcov-input-jdk],
       [jdk image to instrument])])
+  AC_ARG_WITH(jcov-filters, [AS_HELP_STRING([--with-jcov-filters],
+      [filters to limit code for jcov instrumentation and report generation])])
   JCOV_HOME=
   JCOV_INPUT_JDK=
   JCOV_ENABLED=
+  JCOV_FILTERS=
   if test "x$with_jcov" = "x" ; then
     JCOV_ENABLED="false"
   else
@@ -422,10 +458,14 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
       fi
       BASIC_FIXUP_PATH(JCOV_INPUT_JDK)
     fi
+    if test "x$with_jcov_filters" != "x" ; then
+      JCOV_FILTERS="$with_jcov_filters"
+    fi
   fi
   AC_SUBST(JCOV_ENABLED)
   AC_SUBST(JCOV_HOME)
   AC_SUBST(JCOV_INPUT_JDK)
+  AC_SUBST(JCOV_FILTERS)
 ])
 
 ###############################################################################
@@ -589,7 +629,14 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
     AC_MSG_RESULT([yes, forced])
     ENABLE_GENERATE_CLASSLIST="true"
     if test "x$ENABLE_GENERATE_CLASSLIST_POSSIBLE" = "xfalse"; then
-      AC_MSG_WARN([Generation of classlist might not be possible with JVM Variants $JVM_VARIANTS and enable-cds=$ENABLE_CDS])
+      if test "x$ENABLE_CDS" = "xfalse"; then
+        # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
+        # classlist file. It never will work in this case since the VM will report
+        # an error for DumpLoadedClassList when CDS is disabled.
+        AC_MSG_ERROR([Generation of classlist is not possible with enable-cds=false])
+      else
+        AC_MSG_WARN([Generation of classlist might not be possible with JVM Variants $JVM_VARIANTS and enable-cds=$ENABLE_CDS])
+      fi
     fi
   elif test "x$enable_generate_classlist" = "xno"; then
     AC_MSG_RESULT([no, forced])

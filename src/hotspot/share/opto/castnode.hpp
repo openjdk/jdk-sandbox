@@ -35,7 +35,7 @@ class ConstraintCastNode: public TypeNode {
   protected:
   // Can this node be removed post CCP or does it carry a required dependency?
   const bool _carry_dependency;
-  virtual uint cmp( const Node &n ) const;
+  virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const;
 
   public:
@@ -65,7 +65,7 @@ class CastIINode: public ConstraintCastNode {
   protected:
   // Is this node dependent on a range check?
   const bool _range_check_dependency;
-  virtual uint cmp(const Node &n) const;
+  virtual bool cmp(const Node &n) const;
   virtual uint size_of() const;
 
   public:
@@ -89,6 +89,19 @@ class CastIINode: public ConstraintCastNode {
 #ifndef PRODUCT
   virtual void dump_spec(outputStream* st) const;
 #endif
+};
+
+//------------------------------CastLLNode-------------------------------------
+// cast long to long (different range)
+class CastLLNode: public ConstraintCastNode {
+  public:
+  CastLLNode(Node* n, const Type* t, bool carry_dependency = false)
+    : ConstraintCastNode(n, t, carry_dependency) {
+    init_class_id(Class_CastLL);
+  }
+  virtual int Opcode() const;
+  virtual uint ideal_reg() const { return Op_RegL; }
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
 //------------------------------CastPPNode-------------------------------------

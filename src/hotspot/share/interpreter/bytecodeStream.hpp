@@ -170,6 +170,10 @@ class BytecodeStream: public BaseBytecodeStream {
   // Construction
   BytecodeStream(const methodHandle& method) : BaseBytecodeStream(method) { }
 
+  BytecodeStream(const methodHandle& method, int bci) : BaseBytecodeStream(method) {
+    set_start(bci);
+  }
+
   // Iteration
   Bytecodes::Code next() {
     Bytecodes::Code raw_code, code;
@@ -211,7 +215,6 @@ class BytecodeStream: public BaseBytecodeStream {
     return _code;
   }
 
-  bool            is_active_breakpoint() const   { return Bytecodes::is_active_breakpoint_at(bcp()); }
   Bytecodes::Code code() const                   { return _code; }
 
   // Unsigned indices, widening

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,6 +65,9 @@ import java.util.jar.JarFile;
  * <p>
  * Once an agent acquires an <code>Instrumentation</code> instance,
  * the agent may call methods on the instance at any time.
+ *
+ * @apiNote This interface is not intended to be implemented outside of
+ * the java.instrument module.
  *
  * @since   1.5
  */
@@ -223,8 +226,8 @@ public interface Instrumentation {
      * attributes (unless explicitly prohibited).
      * The retransformation must not add, remove or rename fields or methods, change the
      * signatures of methods, or change inheritance.
-     * The retransformation must not change the <code>NestHost</code> or
-     * <code>NestMembers</code> attributes.
+     * The retransformation must not change the <code>NestHost</code>,
+     * <code>NestMembers</code>, or <code>Record</code> attributes.
      * These restrictions may be lifted in future versions.
      * The class file bytes are not checked, verified and installed
      * until after the transformations have been applied, if the resultant bytes are in
@@ -314,8 +317,8 @@ public interface Instrumentation {
      * (unless explicitly prohibited).
      * The redefinition must not add, remove or rename fields or methods, change the
      * signatures of methods, or change inheritance.
-     * The redefinition must not change the <code>NestHost</code> or
-     * <code>NestMembers</code> attributes.
+     * The redefinition must not change the <code>NestHost</code>,
+     * <code>NestMembers</code>, or <code>Record</code> attributes.
      * These restrictions may be lifted in future versions.
      * The class file bytes are not checked, verified and installed
      * until after the transformations have been applied, if the resultant bytes are in

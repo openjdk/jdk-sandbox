@@ -104,6 +104,7 @@ public:
 
   AllocClass *addAllocClass(char *allocName);
   void        addSpillRegClass();
+  void        addDynamicRegClass();
 
   // Provide iteration over all register definitions
   // in the order used by the register allocator
@@ -241,9 +242,6 @@ public:
   }
   char* code_snippet() {
     return _code_snippet;
-  }
-  void set_stack_version(bool flag) {
-    assert(false, "User defined register classes are not allowed to spill to the stack.");
   }
   void declare_register_masks(FILE* fp);
   void build_register_masks(FILE* fp) {

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2013, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -37,6 +38,7 @@
 #include "gc/shenandoah/shenandoahWorkerPolicy.hpp"
 #include "memory/iterator.hpp"
 #include "memory/universe.hpp"
+#include "runtime/atomic.hpp"
 
 ShenandoahControlThread::ShenandoahControlThread() :
   ConcurrentGCThread(),
@@ -68,6 +70,10 @@ void ShenandoahPeriodicSATBFlushTask::task() {
 void ShenandoahControlThread::run_service() {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
+  GCMode default_mode = heap->is_traversal_mode() ?
+                           concurrent_traversal : concurrent_normal;
+  GCCause::Cause default_cause = heap->is_traversal_mode() ?
+                           GCCause::_shenandoah_traversal_gc : GCCause::_shenandoah_concurrent_gc;
   int sleep = ShenandoahControlIntervalMin;
 
   double last_shrink_time = os::elapsedTime();
@@ -88,7 +94,7 @@ void ShenandoahControlThread::run_service() {
     bool implicit_gc_requested = _gc_requested.is_set() && !is_explicit_gc(_requested_gc_cause);
 
     // This control loop iteration have seen this much allocations.
-    size_t allocs_seen = Atomic::xchg<size_t>(0, &_allocs_seen);
+    size_t allocs_seen = Atomic::xchg(&_allocs_seen, (size_t)0);
 
     // Choose which GC mode to run in. The block below should select a single mode.
     GCMode mode = none;
@@ -123,11 +129,7 @@ void ShenandoahControlThread::run_service() {
 
       if (ExplicitGCInvokesConcurrent) {
         policy->record_explicit_to_concurrent();
-        if (heuristics->can_do_traversal_gc()) {
-          mode = concurrent_traversal;
-        } else {
-          mode = concurrent_normal;
-        }
+        mode = default_mode;
         // Unload and clean up everything
         heap->set_process_references(heuristics->can_process_references());
         heap->set_unload_classes(heuristics->can_unload_classes());
@@ -143,11 +145,7 @@ void ShenandoahControlThread::run_service() {
 
       if (ShenandoahImplicitGCInvokesConcurrent) {
         policy->record_implicit_to_concurrent();
-        if (heuristics->can_do_traversal_gc()) {
-          mode = concurrent_traversal;
-        } else {
-          mode = concurrent_normal;
-        }
+        mode = default_mode;
 
         // Unload and clean up everything
         heap->set_process_references(heuristics->can_process_references());
@@ -158,12 +156,9 @@ void ShenandoahControlThread::run_service() {
       }
     } else {
       // Potential normal cycle: ask heuristics if it wants to act
-      if (heuristics->should_start_traversal_gc()) {
-        mode = concurrent_traversal;
-        cause = GCCause::_shenandoah_traversal_gc;
-      } else if (heuristics->should_start_normal_gc()) {
-        mode = concurrent_normal;
-        cause = GCCause::_shenandoah_concurrent_gc;
+      if (heuristics->should_start_gc()) {
+        mode = default_mode;
+        cause = default_cause;
       }
 
       // Ask policy if this cycle wants to process references or unload classes
@@ -377,6 +372,9 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
   // Complete marking under STW, and start evacuation
   heap->vmop_entry_final_mark();
 
+  // Evacuate concurrent roots
+  heap->entry_roots();
+
   // Final mark might have reclaimed some immediate garbage, kick cleanup to reclaim
   // the space. This would be the last action if there is nothing to evacuate.
   heap->entry_cleanup();
@@ -462,9 +460,11 @@ void ShenandoahControlThread::service_stw_degenerated_cycle(GCCause::Cause cause
 void ShenandoahControlThread::service_uncommit(double shrink_before) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
-  // Scan through the heap and determine if there is work to do. This avoids taking
-  // heap lock if there is no work available, avoids spamming logs with superfluous
-  // logging messages, and minimises the amount of work while locks are taken.
+  // Determine if there is work to do. This avoids taking heap lock if there is
+  // no work available, avoids spamming logs with superfluous logging messages,
+  // and minimises the amount of work while locks are taken.
+
+  if (heap->committed() <= heap->min_capacity()) return;
 
   bool has_work = false;
   for (size_t i = 0; i < heap->num_regions(); i++) {
@@ -506,7 +506,7 @@ void ShenandoahControlThread::request_gc(GCCause::Cause cause) {
 void ShenandoahControlThread::handle_requested_gc(GCCause::Cause cause) {
   _requested_gc_cause = cause;
   _gc_requested.set();
-  MonitorLockerEx ml(&_gc_waiters_lock);
+  MonitorLocker ml(&_gc_waiters_lock);
   while (_gc_requested.is_set()) {
     ml.wait();
   }
@@ -526,7 +526,7 @@ void ShenandoahControlThread::handle_alloc_failure(size_t words) {
     heap->cancel_gc(GCCause::_allocation_failure);
   }
 
-  MonitorLockerEx ml(&_alloc_failure_waiters_lock);
+  MonitorLocker ml(&_alloc_failure_waiters_lock);
   while (is_alloc_failure_gc()) {
     ml.wait();
   }
@@ -547,7 +547,7 @@ void ShenandoahControlThread::handle_alloc_failure_evac(size_t words) {
 
 void ShenandoahControlThread::notify_alloc_failure_waiters() {
   _alloc_failure_gc.unset();
-  MonitorLockerEx ml(&_alloc_failure_waiters_lock);
+  MonitorLocker ml(&_alloc_failure_waiters_lock);
   ml.notify_all();
 }
 
@@ -561,7 +561,7 @@ bool ShenandoahControlThread::is_alloc_failure_gc() {
 
 void ShenandoahControlThread::notify_gc_waiters() {
   _gc_requested.unset();
-  MonitorLockerEx ml(&_gc_waiters_lock);
+  MonitorLocker ml(&_gc_waiters_lock);
   ml.notify_all();
 }
 
@@ -595,7 +595,7 @@ void ShenandoahControlThread::notify_heap_changed() {
 
 void ShenandoahControlThread::pacing_notify_alloc(size_t words) {
   assert(ShenandoahPacing, "should only call when pacing is enabled");
-  Atomic::add(words, &_allocs_seen);
+  Atomic::add(&_allocs_seen, words);
 }
 
 void ShenandoahControlThread::set_forced_counters_update(bool value) {

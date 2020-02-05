@@ -34,6 +34,11 @@ const bool CCallingConventionRequiresIntsAsLongs = false;
 
 #define SUPPORTS_NATIVE_CX8
 
+// Aarch64 was not originally defined to be multi-copy-atomic, but now
+// is.  See: "Simplifying ARM Concurrency: Multicopy-atomic Axiomatic
+// and Operational Models for ARMv8"
+#define CPU_MULTI_COPY_ATOMIC
+
 // According to the ARMv8 ARM, "Concurrent modification and execution
 // of instructions can lead to the resulting instruction performing
 // any behavior that can be achieved by executing any sequence of
@@ -52,5 +57,7 @@ const bool CCallingConventionRequiresIntsAsLongs = false;
 #define SUPPORT_RESERVED_STACK_AREA
 
 #define THREAD_LOCAL_POLL
+
+#define PREFERRED_METASPACE_ALIGNMENT
 
 #endif // CPU_AARCH64_GLOBALDEFINITIONS_AARCH64_HPP

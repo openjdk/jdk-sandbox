@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,10 +29,14 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class SubSystem {
@@ -48,7 +52,7 @@ public class SubSystem {
     public void setPath(String cgroupPath) {
         if (root != null && cgroupPath != null) {
             if (root.equals("/")) {
-                if (cgroupPath.equals("/")) {
+                if (!cgroupPath.equals("/")) {
                     path = mountPoint + cgroupPath;
                 }
                 else {
@@ -60,7 +64,7 @@ public class SubSystem {
                     path = mountPoint;
                 }
                 else {
-                    if (root.indexOf(cgroupPath) == 0) {
+                    if (cgroupPath.startsWith(root)) {
                         if (cgroupPath.length() > root.length()) {
                             String cgroupSubstr = cgroupPath.substring(root.length());
                             path = mountPoint + cgroupSubstr;
@@ -89,27 +93,70 @@ public class SubSystem {
     public static String getStringValue(SubSystem subsystem, String parm) {
         if (subsystem == null) return null;
 
-        try(BufferedReader bufferedReader = Files.newBufferedReader(Paths.get(subsystem.path(), parm))) {
-            String line = bufferedReader.readLine();
-            return line;
-        }
-        catch (IOException e) {
+        try {
+            return subsystem.readStringValue(parm);
+        } catch (IOException e) {
             return null;
         }
+    }
 
+    private String readStringValue(String param) throws IOException {
+        PrivilegedExceptionAction<BufferedReader> pea = () ->
+                Files.newBufferedReader(Paths.get(path(), param));
+        try (BufferedReader bufferedReader =
+                     AccessController.doPrivileged(pea)) {
+            String line = bufferedReader.readLine();
+            return line;
+        } catch (PrivilegedActionException e) {
+            Metrics.unwrapIOExceptionAndRethrow(e);
+            throw new InternalError(e.getCause());
+        }
+    }
+
+    public static long getLongValueMatchingLine(SubSystem subsystem,
+                                                     String param,
+                                                     String match,
+                                                     Function<String, Long> conversion) {
+        long retval = Metrics.unlimited_minimum + 1; // default unlimited
+        try {
+            List<String> lines = subsystem.readMatchingLines(param);
+            for (String line : lines) {
+                if (line.startsWith(match)) {
+                    retval = conversion.apply(line);
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            // Ignore. Default is unlimited.
+        }
+        return retval;
+    }
+
+    private List<String> readMatchingLines(String param) throws IOException {
+        try {
+            PrivilegedExceptionAction<List<String>> pea = () ->
+                    Files.readAllLines(Paths.get(path(), param));
+            return AccessController.doPrivileged(pea);
+        } catch (PrivilegedActionException e) {
+            Metrics.unwrapIOExceptionAndRethrow(e);
+            throw new InternalError(e.getCause());
+        }
     }
 
     public static long getLongValue(SubSystem subsystem, String parm) {
         String strval = getStringValue(subsystem, parm);
-        long retval = 0;
+        return convertStringToLong(strval);
+    }
 
+    public static long convertStringToLong(String strval) {
+        long retval = 0;
         if (strval == null) return 0L;
 
         try {
             retval = Long.parseLong(strval);
         } catch (NumberFormatException e) {
             // For some properties (e.g. memory.limit_in_bytes) we may overflow the range of signed long.
-            // In this case, return Long.max
+            // In this case, return Long.MAX_VALUE
             BigInteger b = new BigInteger(strval);
             if (b.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
                 return Long.MAX_VALUE;
@@ -146,7 +193,7 @@ public class SubSystem {
 
         if (subsystem == null) return 0L;
 
-        try (Stream<String> lines = Files.lines(Paths.get(subsystem.path(), parm))) {
+        try (Stream<String> lines = Metrics.readFilePrivileged(Paths.get(subsystem.path(), parm))) {
 
             Optional<String> result = lines.map(line -> line.split(" "))
                                            .filter(line -> (line.length == 2 &&
@@ -214,5 +261,23 @@ public class SubSystem {
         }
 
         return ints;
+    }
+
+    public static class MemorySubSystem extends SubSystem {
+
+        private boolean hierarchical;
+
+        public MemorySubSystem(String root, String mountPoint) {
+            super(root, mountPoint);
+        }
+
+        boolean isHierarchical() {
+            return hierarchical;
+        }
+
+        void setHierarchical(boolean hierarchical) {
+            this.hierarchical = hierarchical;
+        }
+
     }
 }

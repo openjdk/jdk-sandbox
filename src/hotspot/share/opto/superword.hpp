@@ -359,11 +359,11 @@ class SuperWord : public ResourceObj {
   void set_bb_idx(Node* n, int i) { _bb_idx.at_put_grow(n->_idx, i); }
 
   // visited set accessors
-  void visited_clear()           { _visited.Clear(); }
+  void visited_clear()           { _visited.clear(); }
   void visited_set(Node* n)      { return _visited.set(bb_idx(n)); }
   int visited_test(Node* n)      { return _visited.test(bb_idx(n)); }
   int visited_test_set(Node* n)  { return _visited.test_set(bb_idx(n)); }
-  void post_visited_clear()      { _post_visited.Clear(); }
+  void post_visited_clear()      { _post_visited.clear(); }
   void post_visited_set(Node* n) { return _post_visited.set(bb_idx(n)); }
   int post_visited_test(Node* n) { return _post_visited.test(bb_idx(n)); }
 
@@ -408,7 +408,7 @@ class SuperWord : public ResourceObj {
   void print_loop(bool whole);
   #endif
   // Find a memory reference to align the loop induction variable to.
-  MemNode* find_align_to_ref(Node_List &memops);
+  MemNode* find_align_to_ref(Node_List &memops, int &idx);
   // Calculate loop's iv adjustment for this memory ops.
   int get_iv_adjustment(MemNode* mem);
   // Can the preloop align the reference to position zero in the vector?

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -353,11 +353,15 @@ void xmlStream::va_done(const char* format, va_list ap) {
   guarantee(format_len + 10 < sizeof(buffer), "bigger format buffer");
   const char* kind = format;
   const char* kind_end = strchr(kind, ' ');
-  size_t kind_len = (kind_end != NULL) ? (kind_end - kind) : format_len;
-  strncpy(buffer, kind, kind_len);
-  strcpy(buffer + kind_len, "_done");
+  size_t kind_len;
   if (kind_end != NULL) {
-    strncat(buffer, format + kind_len, sizeof(buffer) - (kind_len + 5 /* _done */) - 1);
+    kind_len = kind_end - kind;
+    int n = os::snprintf(buffer, sizeof(buffer), "%.*s_done", (int)kind_len, kind);
+    assert((size_t)n < sizeof(buffer), "Unexpected number of characters in string");
+  } else {
+    kind_len = format_len;
+    int n = os::snprintf(buffer, sizeof(buffer), "%s_done%s", kind, kind + kind_len);
+    assert((size_t)n < sizeof(buffer), "Unexpected number of characters in string");
   }
   // Output the trailing event with the timestamp.
   va_begin_elem(buffer, ap);
@@ -381,9 +385,9 @@ void xmlStream::stamp() {
 // ------------------------------------------------------------------
 // Output a method attribute, in the form " method='pkg/cls name sig'".
 // This is used only when there is no ciMethod available.
-void xmlStream::method(const methodHandle& method) {
+void xmlStream::method(Method* method) {
   assert_if_no_error(inside_attrs(), "printing attributes");
-  if (method.is_null())  return;
+  if (method == NULL)  return;
   print_raw(" method='");
   method_text(method);
   print("' bytes='%d'", method->code_size());
@@ -409,10 +413,10 @@ void xmlStream::method(const methodHandle& method) {
   }
 }
 
-void xmlStream::method_text(const methodHandle& method) {
+void xmlStream::method_text(Method* method) {
   ResourceMark rm;
   assert_if_no_error(inside_attrs(), "printing attributes");
-  if (method.is_null())  return;
+  if (method == NULL)  return;
   text()->print("%s", method->method_holder()->external_name());
   print_raw(" ");  // " " is easier for tools to parse than "::"
   method->name()->print_symbol_on(text());

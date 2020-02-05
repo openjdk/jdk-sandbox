@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,8 +47,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class HtmlTree extends Content {
 
@@ -75,7 +73,7 @@ public class HtmlTree extends Content {
     public HtmlTree(HtmlTag tag, Content... contents) {
         this(tag);
         for (Content c: contents)
-            addContent(c);
+            add(c);
     }
 
     /**
@@ -87,7 +85,7 @@ public class HtmlTree extends Content {
     public HtmlTree(HtmlTag tag, List<Content> contents) {
         this(tag);
         for (Content c: contents)
-            addContent(c);
+            add(c);
     }
 
     /**
@@ -97,10 +95,21 @@ public class HtmlTree extends Content {
      * @param attrValue value of the attribute
      * @return this object
      */
-    public HtmlTree addAttr(HtmlAttr attrName, String attrValue) {
+    public HtmlTree put(HtmlAttr attrName, String attrValue) {
         if (attrs.isEmpty())
             attrs = new LinkedHashMap<>(3);
-        attrs.put(nullCheck(attrName), escapeHtmlChars(attrValue));
+        attrs.put(nullCheck(attrName), Entity.escapeHtmlChars(attrValue));
+        return this;
+    }
+
+    /**
+     * Sets the "id" attribute for this tag.
+     *
+     * @param id the value for the id attribute
+     * @return this object
+     */
+    public HtmlTree setId(String id) {
+        put(HtmlAttr.ID, id);
         return this;
     }
 
@@ -112,7 +121,7 @@ public class HtmlTree extends Content {
      * @return this object
      */
     public HtmlTree setTitle(Content body) {
-        addAttr(HtmlAttr.TITLE, stripHtml(body));
+        put(HtmlAttr.TITLE, stripHtml(body));
         return this;
     }
 
@@ -123,7 +132,7 @@ public class HtmlTree extends Content {
      * @return this object
      */
     public HtmlTree setRole(Role role) {
-        addAttr(HtmlAttr.ROLE, role.toString());
+        put(HtmlAttr.ROLE, role.toString());
         return this;
     }
 
@@ -134,7 +143,7 @@ public class HtmlTree extends Content {
      * @return this object
      */
     public HtmlTree setStyle(HtmlStyle style) {
-        addAttr(HtmlAttr.CLASS, style.toString());
+        put(HtmlAttr.CLASS, style.toString());
         return this;
     }
 
@@ -144,10 +153,10 @@ public class HtmlTree extends Content {
      * @param tagContent tag content to be added
      */
     @Override
-    public void addContent(Content tagContent) {
+    public void add(Content tagContent) {
         if (tagContent instanceof ContentBuilder) {
             for (Content c: ((ContentBuilder)tagContent).contents) {
-                addContent(c);
+                add(c);
             }
         }
         else if (tagContent == HtmlTree.EMPTY || tagContent.isValid()) {
@@ -165,56 +174,24 @@ public class HtmlTree extends Content {
      * @param stringContent string content that needs to be added
      */
     @Override
-    public void addContent(CharSequence stringContent) {
+    public void add(CharSequence stringContent) {
         if (!content.isEmpty()) {
             Content lastContent = content.get(content.size() - 1);
             if (lastContent instanceof StringContent)
-                lastContent.addContent(stringContent);
+                lastContent.add(stringContent);
             else
-                addContent(new StringContent(stringContent));
+                add(new StringContent(stringContent));
         }
         else
-            addContent(new StringContent(stringContent));
+            add(new StringContent(stringContent));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int charCount() {
         int n = 0;
         for (Content c : content)
             n += c.charCount();
         return n;
-    }
-
-    /**
-     * Given a string, escape all special HTML characters and
-     * return the result.
-     *
-     * @param s The string to check.
-     * @return the original string with all of the HTML characters escaped.
-     */
-    private static String escapeHtmlChars(String s) {
-        for (int i = 0; i < s.length(); i++) {
-            char ch = s.charAt(i);
-            switch (ch) {
-                // only start building a new string if we need to
-                case '<': case '>': case '&':
-                    StringBuilder sb = new StringBuilder(s.substring(0, i));
-                    for ( ; i < s.length(); i++) {
-                        ch = s.charAt(i);
-                        switch (ch) {
-                            case '<': sb.append("&lt;");  break;
-                            case '>': sb.append("&gt;");  break;
-                            case '&': sb.append("&amp;"); break;
-                            default:  sb.append(ch);      break;
-                        }
-                    }
-                    return sb.toString();
-            }
-        }
-        return s;
     }
 
     /*
@@ -294,54 +271,7 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree A(String ref, Content body) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.A, nullCheck(body));
-        htmltree.addAttr(HtmlAttr.HREF, encodeURL(ref));
-        return htmltree;
-    }
-
-    /**
-     * Generates an HTML anchor tag with an id or a name attribute and content.
-     *
-     * @param htmlVersion the version of the generated HTML
-     * @param attr name or id attribute for the anchor tag
-     * @param body content for the anchor tag
-     * @return an HtmlTree object
-     */
-    public static HtmlTree A(HtmlVersion htmlVersion, String attr, Content body) {
-        HtmlTree htmltree = new HtmlTree(HtmlTag.A);
-        htmltree.addAttr((htmlVersion == HtmlVersion.HTML4)
-                ? HtmlAttr.NAME
-                : HtmlAttr.ID,
-                nullCheck(attr));
-        htmltree.addContent(nullCheck(body));
-        return htmltree;
-    }
-
-    /**
-     * Generates an HTML anchor tag with id attribute and a body.
-     *
-     * @param id id for the anchor tag
-     * @param body body for the anchor tag
-     * @return an HtmlTree object
-     */
-    public static HtmlTree A_ID(String id, Content body) {
-        HtmlTree htmltree = new HtmlTree(HtmlTag.A);
-        htmltree.addAttr(HtmlAttr.ID, nullCheck(id));
-        htmltree.addContent(nullCheck(body));
-        return htmltree;
-    }
-
-    /**
-     * Generates an HTML anchor tag with a style class, id attribute and a body.
-     *
-     * @param styleClass stylesheet class for the tag
-     * @param id id for the anchor tag
-     * @param body body for the anchor tag
-     * @return an HtmlTree object
-     */
-    public static HtmlTree A_ID(HtmlStyle styleClass, String id, Content body) {
-        HtmlTree htmltree = A_ID(id, body);
-        if (styleClass != null)
-            htmltree.setStyle(styleClass);
+        htmltree.put(HtmlAttr.HREF, encodeURL(ref));
         return htmltree;
     }
 
@@ -515,7 +445,7 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree HTML(String lang, Content head, Content body) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.HTML, nullCheck(head), nullCheck(body));
-        htmltree.addAttr(HtmlAttr.LANG, nullCheck(lang));
+        htmltree.put(HtmlAttr.LANG, nullCheck(lang));
         return htmltree;
     }
 
@@ -529,9 +459,9 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree IFRAME(String src, String name, String title) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.IFRAME);
-        htmltree.addAttr(HtmlAttr.SRC, nullCheck(src));
-        htmltree.addAttr(HtmlAttr.NAME, nullCheck(name));
-        htmltree.addAttr(HtmlAttr.TITLE, nullCheck(title));
+        htmltree.put(HtmlAttr.SRC, nullCheck(src));
+        htmltree.put(HtmlAttr.NAME, nullCheck(name));
+        htmltree.put(HtmlAttr.TITLE, nullCheck(title));
         return htmltree;
     }
 
@@ -545,10 +475,10 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree INPUT(String type, String id, String value) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.INPUT);
-        htmltree.addAttr(HtmlAttr.TYPE, nullCheck(type));
-        htmltree.addAttr(HtmlAttr.ID, nullCheck(id));
-        htmltree.addAttr(HtmlAttr.VALUE, nullCheck(value));
-        htmltree.addAttr(HtmlAttr.DISABLED, "disabled");
+        htmltree.put(HtmlAttr.TYPE, nullCheck(type));
+        htmltree.put(HtmlAttr.ID, nullCheck(id));
+        htmltree.put(HtmlAttr.VALUE, nullCheck(value));
+        htmltree.put(HtmlAttr.DISABLED, "disabled");
         return htmltree;
     }
 
@@ -561,7 +491,7 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree LABEL(String forLabel, Content body) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.LABEL, nullCheck(body));
-        htmltree.addAttr(HtmlAttr.FOR, nullCheck(forLabel));
+        htmltree.put(HtmlAttr.FOR, nullCheck(forLabel));
         return htmltree;
     }
 
@@ -600,10 +530,10 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree LINK(String rel, String type, String href, String title) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.LINK);
-        htmltree.addAttr(HtmlAttr.REL, nullCheck(rel));
-        htmltree.addAttr(HtmlAttr.TYPE, nullCheck(type));
-        htmltree.addAttr(HtmlAttr.HREF, nullCheck(href));
-        htmltree.addAttr(HtmlAttr.TITLE, nullCheck(title));
+        htmltree.put(HtmlAttr.REL, nullCheck(rel));
+        htmltree.put(HtmlAttr.TYPE, nullCheck(type));
+        htmltree.put(HtmlAttr.HREF, nullCheck(href));
+        htmltree.put(HtmlAttr.TITLE, nullCheck(title));
         return htmltree;
     }
 
@@ -631,21 +561,6 @@ public class HtmlTree extends Content {
     }
 
     /**
-     * Generates a MAIN tag with role attribute, style attribute and some content.
-     *
-     * @param styleClass style of the MAIN tag
-     * @param body content of the MAIN tag
-     * @return an HtmlTree object for the MAIN tag
-     */
-    public static HtmlTree MAIN(HtmlStyle styleClass, Content body) {
-        HtmlTree htmltree = HtmlTree.MAIN(body);
-        if (styleClass != null) {
-            htmltree.setStyle(styleClass);
-        }
-        return htmltree;
-    }
-
-    /**
      * Generates a META tag with the http-equiv, content and charset attributes.
      *
      * @param httpEquiv http equiv attribute for the META tag
@@ -656,8 +571,8 @@ public class HtmlTree extends Content {
     public static HtmlTree META(String httpEquiv, String content, String charSet) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.META);
         String contentCharset = content + "; charset=" + charSet;
-        htmltree.addAttr(HtmlAttr.HTTP_EQUIV, nullCheck(httpEquiv));
-        htmltree.addAttr(HtmlAttr.CONTENT, contentCharset);
+        htmltree.put(HtmlAttr.HTTP_EQUIV, nullCheck(httpEquiv));
+        htmltree.put(HtmlAttr.CONTENT, contentCharset);
         return htmltree;
     }
 
@@ -670,8 +585,8 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree META(String name, String content) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.META);
-        htmltree.addAttr(HtmlAttr.NAME, nullCheck(name));
-        htmltree.addAttr(HtmlAttr.CONTENT, nullCheck(content));
+        htmltree.put(HtmlAttr.NAME, nullCheck(name));
+        htmltree.put(HtmlAttr.CONTENT, nullCheck(content));
         return htmltree;
     }
 
@@ -729,32 +644,36 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree SCRIPT(String src) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.SCRIPT);
-        htmltree.addAttr(HtmlAttr.TYPE, "text/javascript");
-        htmltree.addAttr(HtmlAttr.SRC, nullCheck(src));
+        htmltree.put(HtmlAttr.TYPE, "text/javascript");
+        htmltree.put(HtmlAttr.SRC, nullCheck(src));
         return htmltree;
     }
 
     /**
-     * Generates a SECTION tag with role attribute.
+     * Generates a SECTION tag with style class attribute.
      *
+     * @param styleClass the style class for the tag
      * @return an HtmlTree object for the SECTION tag
      */
-    public static HtmlTree SECTION() {
-        HtmlTree htmltree = new HtmlTree(HtmlTag.SECTION);
-        htmltree.setRole(Role.REGION);
-        return htmltree;
+    public static HtmlTree SECTION(HtmlStyle styleClass) {
+        HtmlTree htmlTree = new HtmlTree(HtmlTag.SECTION);
+        htmlTree.setStyle(styleClass);
+        return htmlTree;
     }
 
     /**
-     * Generates a SECTION tag with role attribute and some content.
+     * Generates a SECTION tag with style class attribute and some content.
      *
+     * @param styleClass the style class for the tag
      * @param body content of the section tag
      * @return an HtmlTree object for the SECTION tag
      */
-    public static HtmlTree SECTION(Content body) {
-        HtmlTree htmltree = new HtmlTree(HtmlTag.SECTION, nullCheck(body));
-        htmltree.setRole(Role.REGION);
-        return htmltree;
+    public static HtmlTree SECTION(HtmlStyle styleClass, Content body) {
+        HtmlTree htmlTree = new HtmlTree(HtmlTag.SECTION, nullCheck(body));
+        if (styleClass != null) {
+            htmlTree.setStyle(styleClass);
+        }
+        return htmlTree;
     }
 
     /**
@@ -793,6 +712,19 @@ public class HtmlTree extends Content {
     }
 
     /**
+     * Generates an SPAN tag with id attribute and a body.
+     *
+     * @param id id for the tag
+     * @param body body for the tag
+     * @return an HtmlTree object for the SPAN tag
+     */
+    public static HtmlTree SPAN_ID(String id, Content body) {
+        HtmlTree htmltree = new HtmlTree(HtmlTag.SPAN, nullCheck(body));
+        htmltree.put(HtmlAttr.ID, nullCheck(id));
+        return htmltree;
+    }
+
+    /**
      * Generates a SPAN tag with id and style class attributes. It also encloses
      * a content.
      *
@@ -803,7 +735,7 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree SPAN(String id, HtmlStyle styleClass, Content body) {
         HtmlTree htmltree = new HtmlTree(HtmlTag.SPAN, nullCheck(body));
-        htmltree.addAttr(HtmlAttr.ID, nullCheck(id));
+        htmltree.put(HtmlAttr.ID, nullCheck(id));
         if (styleClass != null)
             htmltree.setStyle(styleClass);
         return htmltree;
@@ -821,7 +753,7 @@ public class HtmlTree extends Content {
         HtmlTree htmltree = new HtmlTree(HtmlTag.TABLE, nullCheck(body));
         if (styleClass != null)
             htmltree.setStyle(styleClass);
-        htmltree.addAttr(HtmlAttr.SUMMARY, nullCheck(summary));
+        htmltree.put(HtmlAttr.SUMMARY, nullCheck(summary));
         return htmltree;
     }
 
@@ -876,7 +808,7 @@ public class HtmlTree extends Content {
         HtmlTree htmltree = new HtmlTree(HtmlTag.TH, nullCheck(body));
         if (styleClass != null)
             htmltree.setStyle(styleClass);
-        htmltree.addAttr(HtmlAttr.SCOPE, nullCheck(scope));
+        htmltree.put(HtmlAttr.SCOPE, nullCheck(scope));
         return htmltree;
     }
 
@@ -934,17 +866,14 @@ public class HtmlTree extends Content {
      */
     public static HtmlTree UL(HtmlStyle styleClass, Content first, Content... more) {
         HtmlTree htmlTree = new HtmlTree(HtmlTag.UL);
-        htmlTree.addContent(nullCheck(first));
+        htmlTree.add(nullCheck(first));
         for (Content c : more) {
-            htmlTree.addContent(nullCheck(c));
+            htmlTree.add(nullCheck(c));
         }
         htmlTree.setStyle(nullCheck(styleClass));
         return htmlTree;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isEmpty() {
         return (!hasContent() && !hasAttrs());
@@ -1006,6 +935,8 @@ public class HtmlTree extends Content {
             case SCRIPT :
                 return ((hasAttr(HtmlAttr.TYPE) && hasAttr(HtmlAttr.SRC) && !hasContent()) ||
                         (hasAttr(HtmlAttr.TYPE) && hasContent()));
+            case SPAN :
+                return (hasAttr(HtmlAttr.ID) || hasContent());
             default :
                 return hasContent();
         }
@@ -1020,9 +951,6 @@ public class HtmlTree extends Content {
         return (htmlTag.blockType == HtmlTag.BlockType.INLINE);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean write(Writer out, boolean atNewline) throws IOException {
         if (!isInline() && !atNewline)

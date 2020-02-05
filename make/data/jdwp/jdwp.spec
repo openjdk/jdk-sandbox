@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -468,7 +468,7 @@ JDWP "Java(tm) Debug Wire Protocol"
         "<li>deleting a method</li>"
         "<li>changing class modifiers</li>"
         "<li>changing method modifiers</li>"
-        "<li>changing the <code>NestHost</code> or <code>NestMembers</code> class attributes</li>"
+        "<li>changing the <code>NestHost</code>, <code>NestMembers</code>, or <code>Record</code> class attributes</li>"
         "</ul>"
         "<p>"
         "Requires canRedefineClasses capability - see "
@@ -602,7 +602,7 @@ JDWP "Java(tm) Debug Wire Protocol"
     (Command Signature=1
         "Returns the JNI signature of a reference type. "
         "JNI signature formats are described in the "
-        "<a href=\"http://java.sun.com/products/jdk/1.2/docs/guide/jni/index.html\">Java Native Inteface Specification</a>"
+        "<a href=\"../jni/index.html\">Java Native Interface Specification</a>"
         "<p>
         "For primitive classes "
         "the returned signature is the signature of the corresponding primitive "
@@ -3167,8 +3167,8 @@ JDWP "Java(tm) Debug Wire Protocol"
                                           "than its counterpart in the old class version and "
                                           "canUnrestrictedlyRedefineClasses is false.")
     (Constant CLASS_ATTRIBUTE_CHANGE_NOT_IMPLEMENTED
-                                     =72  "The new class version has different NestHost or "
-                                          "NestMembers class attribute and "
+                                     =72  "The new class version has a different NestHost, "
+                                          "NestMembers, or Record class attribute and "
                                           "canUnrestrictedlyRedefineClasses is false.")
     (Constant NOT_IMPLEMENTED        =99  "The functionality is not implemented in "
                                           "this virtual machine.")

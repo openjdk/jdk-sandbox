@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, 2018, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -25,7 +26,7 @@
  * @summary Test selective barrier enabling works, by aggressively compiling HelloWorld with combinations
  *          of barrier flags
  * @key gc
- * @requires vm.gc.Shenandoah
+ * @requires vm.gc.Shenandoah & !vm.graal.enabled
  * @library /test/lib
  * @run main/othervm TestSelectiveBarrierFlags -Xint
  * @run main/othervm TestSelectiveBarrierFlags -Xbatch -XX:CompileThreshold=100 -XX:TieredStopAtLevel=1
@@ -43,13 +44,9 @@ public class TestSelectiveBarrierFlags {
     public static void main(String[] args) throws Exception {
         String[][] opts = {
                 new String[] { "ShenandoahKeepAliveBarrier" },
-                new String[] { "ShenandoahWriteBarrier" },
-                new String[] { "ShenandoahReadBarrier" },
-                // StoreValRead+SATB are actually compatible, but we need to protect against
-                // StorveValEnqueue+SATB. TODO: Make it better.
-                new String[] { "ShenandoahSATBBarrier", "ShenandoahStoreValReadBarrier", "ShenandoahStoreValEnqueueBarrier" },
+                new String[] { "ShenandoahLoadRefBarrier" },
+                new String[] { "ShenandoahSATBBarrier", "ShenandoahStoreValEnqueueBarrier" },
                 new String[] { "ShenandoahCASBarrier" },
-                new String[] { "ShenandoahAcmpBarrier" },
                 new String[] { "ShenandoahCloneBarrier" },
         };
 
@@ -69,7 +66,7 @@ public class TestSelectiveBarrierFlags {
             conf.add("-XX:+UnlockDiagnosticVMOptions");
             conf.add("-XX:+UnlockExperimentalVMOptions");
             conf.add("-XX:+UseShenandoahGC");
-            conf.add("-XX:ShenandoahGCHeuristics=passive");
+            conf.add("-XX:ShenandoahGCMode=passive");
 
             StringBuilder sb = new StringBuilder();
             for (String[] l : opts) {

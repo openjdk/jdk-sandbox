@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -38,19 +39,15 @@ protected:
 public:
   ShenandoahTraversalHeuristics();
 
-  virtual bool should_start_normal_gc() const;
-
   virtual bool is_experimental();
 
   virtual bool is_diagnostic();
-
-  virtual bool can_do_traversal_gc();
 
   virtual const char* name();
 
   virtual void choose_collection_set(ShenandoahCollectionSet* collection_set);
 
-  virtual bool should_start_traversal_gc();
+  virtual bool should_start_gc() const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_HEURISTICS_SHENANDOAHTRAVERSALHEURISTICS_HPP

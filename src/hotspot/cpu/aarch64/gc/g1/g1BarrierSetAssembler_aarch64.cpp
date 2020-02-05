@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,15 +72,12 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
 }
 
 void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
-                                                             Register start, Register end, Register scratch, RegSet saved_regs) {
+                                                             Register start, Register count, Register scratch, RegSet saved_regs) {
   __ push(saved_regs, sp);
-  // must compute element count unless barrier set interface is changed (other platforms supply count)
-  assert_different_registers(start, end, scratch);
-  __ lea(scratch, Address(end, BytesPerHeapOop));
-  __ sub(scratch, scratch, start);               // subtract start to get #bytes
-  __ lsr(scratch, scratch, LogBytesPerHeapOop);  // convert to element count
+  assert_different_registers(start, count, scratch);
+  assert_different_registers(c_rarg0, count);
   __ mov(c_rarg0, start);
-  __ mov(c_rarg1, scratch);
+  __ mov(c_rarg1, count);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry), 2);
   __ pop(saved_regs, sp);
 }
@@ -193,7 +190,6 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   BarrierSet* bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   Label done;
   Label runtime;
@@ -211,7 +207,6 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   // storing region crossing non-NULL, is card already dirty?
 
   ExternalAddress cardtable((address) ct->byte_map_base());
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
   const Register card_addr = tmp;
 
   __ lsr(card_addr, store_addr, CardTable::card_shift);
@@ -256,7 +251,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                     Register dst, Address src, Register tmp1, Register tmp_thread) {
-  bool on_oop = type == T_OBJECT || type == T_ARRAY;
+  bool on_oop = is_reference_type(type);
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool on_reference = on_weak || on_phantom;
@@ -417,7 +412,6 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   BarrierSet* bs = BarrierSet::barrier_set();
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
-  assert(sizeof(*ct->byte_map_base()) == sizeof(jbyte), "adjust this code");
 
   Label done;
   Label runtime;

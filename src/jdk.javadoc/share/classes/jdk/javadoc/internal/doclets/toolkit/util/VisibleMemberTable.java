@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.SimpleElementVisitor9;
+import javax.lang.model.util.SimpleElementVisitor14;
 import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,6 +48,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.PropertyUtils;
 
 /**
@@ -105,6 +107,7 @@ public class VisibleMemberTable {
     final TypeElement parent;
 
     final BaseConfiguration config;
+    final BaseOptions options;
     final Utils utils;
     final VisibleMemberCache mcache;
 
@@ -125,6 +128,7 @@ public class VisibleMemberTable {
                                  VisibleMemberCache mcache) {
         config = configuration;
         utils = configuration.utils;
+        options = configuration.getOptions();
         te = typeElement;
         parent = utils.getSuperClass(te);
         this.mcache = mcache;
@@ -168,7 +172,7 @@ public class VisibleMemberTable {
      * a. The list may or may not contain simple overridden methods.
      * A simple overridden method is one that overrides a super method
      * with no specification changes as indicated by the existence of a
-     * sole &commat;inheritDoc or devoid of any API commments.
+     * sole &commat;inheritDoc or devoid of any API comments.
      * <p>
      * b.The list may contain (extra) members, inherited by inaccessible
      * super types, primarily package private types. These members are
@@ -208,7 +212,7 @@ public class VisibleMemberTable {
     public List<? extends Element> getVisibleMembers(Kind kind) {
         Predicate<Element> declaredAndLeafMembers = e -> {
             TypeElement encl = utils.getEnclosingTypeElement(e);
-            return encl == te || isUndocumentedEnclosure(encl);
+            return encl == te || utils.isUndocumentedEnclosure(encl);
         };
         return getVisibleMembers(kind, declaredAndLeafMembers);
     }
@@ -226,7 +230,7 @@ public class VisibleMemberTable {
     }
 
     /**
-     * Returns the overridden method, if it is simply overridding or the
+     * Returns the overridden method, if it is simply overriding or the
      * method is a member of a package private type, this method is
      * primarily used to determine the location of a possible comment.
      *
@@ -237,7 +241,8 @@ public class VisibleMemberTable {
         ensureInitialized();
 
         OverridingMethodInfo found = overriddenMethodTable.get(e);
-        if (found != null && (found.simpleOverride || isUndocumentedEnclosure(utils.getEnclosingTypeElement(e)))) {
+        if (found != null
+                && (found.simpleOverride || utils.isUndocumentedEnclosure(utils.getEnclosingTypeElement(e)))) {
             return found.overrider;
         }
         return null;
@@ -303,7 +308,7 @@ public class VisibleMemberTable {
 
     /**
      * Returns true if this table contains visible members of
-     * the specified kind, including inhertied members.
+     * the specified kind, including inherited members.
      *
      * @return true if visible members are present.
      */
@@ -346,10 +351,6 @@ public class VisibleMemberTable {
         return pm == null ? null : pm.setter;
     }
 
-    boolean isUndocumentedEnclosure(TypeElement encl) {
-        return utils.isPackagePrivate(encl) && !utils.isLinkable(encl);
-    }
-
     private void computeParents() {
         for (TypeMirror intfType : te.getInterfaces()) {
             TypeElement intfc = utils.asTypeElement(intfType);
@@ -387,7 +388,7 @@ public class VisibleMemberTable {
 
     private void computeLeafMembers(LocalMemberTable lmt, Kind kind) {
         List<Element> list = new ArrayList<>();
-        if (isUndocumentedEnclosure(te)) {
+        if (utils.isUndocumentedEnclosure(te)) {
             list.addAll(lmt.getOrderedMembers(kind));
         }
         parents.forEach(pvmt -> {
@@ -564,7 +565,6 @@ public class VisibleMemberTable {
     boolean allowInheritedMethods(ExecutableElement inheritedMethod,
                                   Map<ExecutableElement, List<ExecutableElement>> inheritedOverriddenTable,
                                   LocalMemberTable lmt) {
-
         if (!isInherited(inheritedMethod))
             return false;
 
@@ -598,7 +598,8 @@ public class VisibleMemberTable {
 
         // Check the local methods in this type.
         List<Element> lMethods = lmt.getMembers(inheritedMethod, Kind.METHODS);
-        for (Element lMethod : lMethods) {
+        for (Element le : lMethods) {
+            ExecutableElement lMethod = (ExecutableElement) le;
             // Ignore private methods or those methods marked with
             // a "hidden" tag.
             if (utils.isPrivate(lMethod))
@@ -611,18 +612,26 @@ public class VisibleMemberTable {
             }
 
             // Check for overriding methods.
-            if (elementUtils.overrides((ExecutableElement)lMethod, inheritedMethod,
+            if (elementUtils.overrides(lMethod, inheritedMethod,
                     utils.getEnclosingTypeElement(lMethod))) {
 
                 // Disallow package-private super methods to leak in
                 TypeElement encl = utils.getEnclosingTypeElement(inheritedMethod);
-                if (isUndocumentedEnclosure(encl)) {
-                    overriddenMethodTable.computeIfAbsent((ExecutableElement)lMethod,
+                if (utils.isUndocumentedEnclosure(encl)) {
+                    overriddenMethodTable.computeIfAbsent(lMethod,
                             l -> new OverridingMethodInfo(inheritedMethod, false));
                     return false;
                 }
-                boolean simpleOverride = utils.isSimpleOverride((ExecutableElement)lMethod);
-                overriddenMethodTable.computeIfAbsent((ExecutableElement)lMethod,
+
+                TypeMirror inheritedMethodReturn = inheritedMethod.getReturnType();
+                TypeMirror lMethodReturn = lMethod.getReturnType();
+                boolean covariantReturn =
+                        lMethodReturn.getKind() == TypeKind.DECLARED
+                        && inheritedMethodReturn.getKind() == TypeKind.DECLARED
+                        && !utils.typeUtils.isSameType(lMethodReturn, inheritedMethodReturn)
+                        && utils.typeUtils.isSubtype(lMethodReturn, inheritedMethodReturn);
+                boolean simpleOverride = covariantReturn ? false : utils.isSimpleOverride(lMethod);
+                overriddenMethodTable.computeIfAbsent(lMethod,
                         l -> new OverridingMethodInfo(inheritedMethod, simpleOverride));
                 return simpleOverride;
             }
@@ -652,7 +661,7 @@ public class VisibleMemberTable {
 
             List<? extends Element> elements = te.getEnclosedElements();
             for (Element e : elements) {
-                if (config.nodeprecated && utils.isDeprecated(e)) {
+                if (options.noDeprecated() && utils.isDeprecated(e)) {
                     continue;
                 }
                 switch (e.getKind()) {
@@ -660,6 +669,7 @@ public class VisibleMemberTable {
                     case INTERFACE:
                     case ENUM:
                     case ANNOTATION_TYPE:
+                    case RECORD:
                         addMember(e, Kind.INNER_CLASSES);
                         break;
                     case FIELD:
@@ -694,8 +704,9 @@ public class VisibleMemberTable {
             }
         }
 
+        @SuppressWarnings("preview")
         String getMemberKey(Element e) {
-            return new SimpleElementVisitor9<String, Void>() {
+            return new SimpleElementVisitor14<String, Void>() {
                 @Override
                 public String visitExecutable(ExecutableElement e, Void aVoid) {
                     return e.getSimpleName() + ":" + e.getParameters().size();
@@ -792,7 +803,7 @@ public class VisibleMemberTable {
      * {@code boolean isFoo()}
      */
     private void computeVisibleProperties(LocalMemberTable lmt) {
-        if (!config.javafx)
+        if (!options.javafx())
             return;
 
         PropertyUtils pUtils = config.propertyUtils;
@@ -893,7 +904,7 @@ public class VisibleMemberTable {
             /*
              * Search for the method in the list of interfaces. If found check if it is
              * overridden by any other subinterface method which this class
-             * implements. If it is not overidden, add it in the method list.
+             * implements. If it is not overridden, add it in the method list.
              * Do this recursively for all the extended interfaces for each interface
              * from the list.
              */
@@ -986,6 +997,11 @@ public class VisibleMemberTable {
         public OverridingMethodInfo(ExecutableElement overrider, boolean simpleOverride) {
             this.overrider = overrider;
             this.simpleOverride = simpleOverride;
+        }
+
+        @Override
+        public String toString() {
+            return "OverridingMethodInfo[" + overrider + ",simple:" + simpleOverride + "]";
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@
 #include "runtime/reflection.hpp"
 #include "runtime/reflectionUtils.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
 
 static void trace_class_resolution(const Klass* to_class) {
@@ -91,7 +92,7 @@ oop Reflection::box(jvalue* value, BasicType type, TRAPS) {
   if (type == T_VOID) {
     return NULL;
   }
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     // regular objects are not boxed
     return (oop) value->l;
   }
@@ -112,7 +113,7 @@ BasicType Reflection::unbox_for_primitive(oop box, jvalue* value, TRAPS) {
 
 BasicType Reflection::unbox_for_regular_object(oop box, jvalue* value) {
   // Note:  box is really the unboxed oop.  It might even be a Short, etc.!
-  value->l = (jobject) box;
+  value->l = cast_from_oop<jobject>(box);
   return T_OBJECT;
 }
 
@@ -223,7 +224,7 @@ BasicType Reflection::array_get(jvalue* value, arrayOop a, int index, TRAPS) {
     THROW_(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), T_ILLEGAL);
   }
   if (a->is_objArray()) {
-    value->l = (jobject) objArrayOop(a)->obj_at(index);
+    value->l = cast_from_oop<jobject>(objArrayOop(a)->obj_at(index));
     return T_OBJECT;
   } else {
     assert(a->is_typeArray(), "just checking");
@@ -755,8 +756,8 @@ static oop get_mirror_from_signature(const methodHandle& method,
                                      TRAPS) {
 
 
-  if (T_OBJECT == ss->type() || T_ARRAY == ss->type()) {
-    Symbol* name = ss->as_symbol(CHECK_NULL);
+  if (is_reference_type(ss->type())) {
+    Symbol* name = ss->as_symbol();
     oop loader = method->method_holder()->class_loader();
     oop protection_domain = method->method_holder()->protection_domain();
     const Klass* k = SystemDictionary::resolve_or_fail(name,
@@ -977,7 +978,7 @@ static methodHandle resolve_interface_call(InstanceKlass* klass,
                                        LinkInfo(klass, name, signature),
                                        true,
                                        CHECK_(methodHandle()));
-  return info.selected_method();
+  return methodHandle(THREAD, info.selected_method());
 }
 
 // Conversion
@@ -1084,11 +1085,12 @@ static oop invoke(InstanceKlass* klass,
           if (method->is_abstract()) {
             // new default: 6531596
             ResourceMark rm(THREAD);
+            stringStream ss;
+            ss.print("'");
+            Method::print_external_name(&ss, target_klass, method->name(), method->signature());
+            ss.print("'");
             Handle h_origexception = Exceptions::new_exception(THREAD,
-              vmSymbols::java_lang_AbstractMethodError(),
-              Method::name_and_sig_as_C_string(target_klass,
-              method->name(),
-              method->signature()));
+              vmSymbols::java_lang_AbstractMethodError(), ss.as_string());
             JavaCallArguments args(h_origexception);
             THROW_ARG_0(vmSymbols::java_lang_reflect_InvocationTargetException(),
               vmSymbols::throwable_void_signature(),
@@ -1103,10 +1105,13 @@ static oop invoke(InstanceKlass* klass,
   // an internal vtable bug. If you ever get this please let Karen know.
   if (method.is_null()) {
     ResourceMark rm(THREAD);
-    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(),
-                Method::name_and_sig_as_C_string(klass,
-                reflected_method->name(),
-                reflected_method->signature()));
+    stringStream ss;
+    ss.print("'");
+    Method::print_external_name(&ss, klass,
+                                     reflected_method->name(),
+                                     reflected_method->signature());
+    ss.print("'");
+    THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), ss.as_string());
   }
 
   assert(ptypes->is_objArray(), "just checking");

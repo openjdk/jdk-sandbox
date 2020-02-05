@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ package jdk.test.lib;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
@@ -88,6 +89,11 @@ public final class Utils {
      */
     public static final String TEST_SRC = System.getProperty("test.src", "").trim();
 
+    /**
+     * Returns the value of 'test.root' system property.
+     */
+    public static final String TEST_ROOT = System.getProperty("test.root", "").trim();
+
     /*
      * Returns the value of 'test.jdk' system property
      */
@@ -96,12 +102,13 @@ public final class Utils {
     /*
      * Returns the value of 'compile.jdk' system property
      */
-    public static final String COMPILE_JDK= System.getProperty("compile.jdk", TEST_JDK);
+    public static final String COMPILE_JDK = System.getProperty("compile.jdk", TEST_JDK);
 
     /**
      * Returns the value of 'test.classes' system property
      */
     public static final String TEST_CLASSES = System.getProperty("test.classes", ".");
+
     /**
      * Defines property name for seed value.
      */
@@ -118,9 +125,9 @@ public final class Utils {
      */
     public static final long SEED = Long.getLong(SEED_PROPERTY_NAME, new Random().nextLong());
     /**
-    * Returns the value of 'test.timeout.factor' system property
-    * converted to {@code double}.
-    */
+     * Returns the value of 'test.timeout.factor' system property
+     * converted to {@code double}.
+     */
     public static final double TIMEOUT_FACTOR;
     static {
         String toFactor = System.getProperty("test.timeout.factor", "1.0");
@@ -128,22 +135,13 @@ public final class Utils {
     }
 
     /**
-    * Returns the value of JTREG default test timeout in milliseconds
-    * converted to {@code long}.
-    */
+     * Returns the value of JTREG default test timeout in milliseconds
+     * converted to {@code long}.
+     */
     public static final long DEFAULT_TEST_TIMEOUT = TimeUnit.SECONDS.toMillis(120);
 
     private Utils() {
         // Private constructor to prevent class instantiation
-    }
-
-    /**
-     * Returns the list of VM options.
-     *
-     * @return List of VM options
-     */
-    public static List<String> getVmOptions() {
-        return Arrays.asList(safeSplitString(VM_OPTIONS));
     }
 
     /**
@@ -176,11 +174,32 @@ public final class Utils {
      * This is the combination of JTReg arguments test.vm.opts and test.java.opts
      * @return The combination of JTReg test java options and user args.
      */
-    public static String[] addTestJavaOpts(String... userArgs) {
+    public static String[] prependTestJavaOpts(String... userArgs) {
         List<String> opts = new ArrayList<String>();
         Collections.addAll(opts, getTestJavaOpts());
         Collections.addAll(opts, userArgs);
         return opts.toArray(new String[0]);
+    }
+
+    /**
+     * Combines given arguments with default JTReg arguments for a jvm running a test.
+     * This is the combination of JTReg arguments test.vm.opts and test.java.opts
+     * @return The combination of JTReg test java options and user args.
+     */
+    public static String[] appendTestJavaOpts(String... userArgs) {
+        List<String> opts = new ArrayList<String>();
+        Collections.addAll(opts, userArgs);
+        Collections.addAll(opts, getTestJavaOpts());
+        return opts.toArray(new String[0]);
+    }
+
+    /**
+     * Combines given arguments with default JTReg arguments for a jvm running a test.
+     * This is the combination of JTReg arguments test.vm.opts and test.java.opts
+     * @return The combination of JTReg test java options and user args.
+     */
+    public static String[] addTestJavaOpts(String... userArgs) {
+        return prependTestJavaOpts(userArgs);
     }
 
     /**
@@ -191,8 +210,7 @@ public final class Utils {
      * @return A copy of given opts with all GC options removed.
      */
     private static final Pattern useGcPattern = Pattern.compile(
-            "(?:\\-XX\\:[\\+\\-]Use.+GC)"
-            + "|(?:\\-Xconcgc)");
+            "(?:\\-XX\\:[\\+\\-]Use.+GC)");
     public static List<String> removeGcOpts(List<String> opts) {
         List<String> optsWithoutGC = new ArrayList<String>();
         for (String opt : opts) {
@@ -743,13 +761,14 @@ public final class Utils {
     // until the method main() is found; the class containing that method is the
     // main test class and will be returned as the name of the test.
     // Special handling is used for testng tests.
+    @SuppressWarnings("unchecked")
     public static String getTestName() {
         String result = null;
         // If we are using testng, then we should be able to load the "Test" annotation.
-        Class testClassAnnotation;
+        Class<? extends Annotation> testClassAnnotation;
 
         try {
-            testClassAnnotation = Class.forName("org.testng.annotations.Test");
+            testClassAnnotation = (Class<? extends Annotation>)Class.forName("org.testng.annotations.Test");
         } catch (ClassNotFoundException e) {
             testClassAnnotation = null;
         }
@@ -770,7 +789,7 @@ public final class Utils {
             // annotation. If present, then use the name of this class.
             if (testClassAnnotation != null) {
                 try {
-                    Class c = Class.forName(className);
+                    Class<?> c = Class.forName(className);
                     if (c.isAnnotationPresent(testClassAnnotation)) {
                         result = className;
                         break;
@@ -808,5 +827,25 @@ public final class Utils {
     public static Path createTempFile(String prefix, String suffix, FileAttribute<?>... attrs) throws IOException {
         Path dir = Paths.get(System.getProperty("user.dir", "."));
         return Files.createTempFile(dir, prefix, suffix);
+    }
+
+    /**
+     * Creates an empty directory in "user.dir" or "."
+     * <p>
+     * This method is meant as a replacement for {@code Files#createTempDirectory(String, String, FileAttribute...)}
+     * that doesn't leave files behind in /tmp directory of the test machine
+     * <p>
+     * If the property "user.dir" is not set, "." will be used.
+     *
+     * @param prefix
+     * @param attrs
+     * @return the path to the newly created directory
+     * @throws IOException
+     *
+     * @see {@link Files#createTempDirectory(String, String, FileAttribute...)}
+     */
+    public static Path createTempDirectory(String prefix, FileAttribute<?>... attrs) throws IOException {
+        Path dir = Paths.get(System.getProperty("user.dir", "."));
+        return Files.createTempDirectory(dir, prefix);
     }
 }

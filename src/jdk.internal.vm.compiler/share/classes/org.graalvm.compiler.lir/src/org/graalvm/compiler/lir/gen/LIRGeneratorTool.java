@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,11 +39,13 @@ import org.graalvm.compiler.lir.LIRInstruction;
 import org.graalvm.compiler.lir.LabelRef;
 import org.graalvm.compiler.lir.SwitchStrategy;
 import org.graalvm.compiler.lir.Variable;
+import org.graalvm.compiler.lir.VirtualStackSlot;
 
 import jdk.vm.ci.code.CodeCacheProvider;
 import jdk.vm.ci.code.Register;
 import jdk.vm.ci.code.RegisterAttributes;
 import jdk.vm.ci.code.RegisterConfig;
+import jdk.vm.ci.code.StackSlot;
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.code.ValueKindFactory;
 import jdk.vm.ci.meta.AllocatableValue;
@@ -63,14 +65,22 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
     interface MoveFactory {
 
         /**
+         * Checks whether the loading of the supplied constant can be deferred until usage.
+         */
+        @SuppressWarnings("unused")
+        default boolean mayEmbedConstantLoad(Constant constant) {
+            return false;
+        }
+
+        /**
          * Checks whether the supplied constant can be used without loading it into a register for
          * most operations, i.e., for commonly used arithmetic, logical, and comparison operations.
          *
-         * @param c The constant to check.
+         * @param constant The constant to check.
          * @return True if the constant can be used directly, false if the constant needs to be in a
          *         register.
          */
-        boolean canInlineConstant(Constant c);
+        boolean canInlineConstant(Constant constant);
 
         /**
          * @param constant The constant that might be moved to a stack slot.
@@ -127,6 +137,10 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
     MoveFactory getSpillMoveFactory();
 
     BlockScope getBlockScope(AbstractBlockBase<?> block);
+
+    boolean canInlineConstant(Constant constant);
+
+    boolean mayEmbedConstantLoad(Constant constant);
 
     Value emitConstant(LIRKind kind, Constant constant);
 
@@ -189,6 +203,10 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
     Variable emitMove(Value input);
 
     void emitMove(AllocatableValue dst, Value src);
+
+    Variable emitReadRegister(Register register, ValueKind<?> kind);
+
+    void emitWriteRegister(Register dst, Value src, ValueKind<?> wordStamp);
 
     void emitMoveConstant(AllocatableValue dst, Constant src);
 
@@ -261,10 +279,18 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
         throw GraalError.unimplemented("String.compareTo substitution is not implemented on this architecture");
     }
 
-    Variable emitArrayEquals(JavaKind kind, Value array1, Value array2, Value length, int constantLength, boolean directPointers);
+    @SuppressWarnings("unused")
+    default Variable emitArrayEquals(JavaKind kind, Value array1, Value array2, Value length, boolean directPointers) {
+        throw GraalError.unimplemented("Array.equals substitution is not implemented on this architecture");
+    }
 
     @SuppressWarnings("unused")
-    default Variable emitArrayIndexOf(JavaKind kind, boolean findTwoConsecutive, Value sourcePointer, Value sourceCount, Value... searchValues) {
+    default Variable emitArrayEquals(JavaKind kind1, JavaKind kind2, Value array1, Value array2, Value length, boolean directPointers) {
+        throw GraalError.unimplemented("Array.equals with different types substitution is not implemented on this architecture");
+    }
+
+    @SuppressWarnings("unused")
+    default Variable emitArrayIndexOf(JavaKind arrayKind, JavaKind valueKind, boolean findTwoConsecutive, Value sourcePointer, Value sourceCount, Value fromIndex, Value... searchValues) {
         throw GraalError.unimplemented("String.indexOf substitution is not implemented on this architecture");
     }
 
@@ -313,4 +339,26 @@ public interface LIRGeneratorTool extends DiagnosticLIRGeneratorTool, ValueKindF
      * after this fence will execute until all previous instructions have retired.
      */
     void emitSpeculationFence();
+
+    default VirtualStackSlot allocateStackSlots(int slots) {
+        return getResult().getFrameMapBuilder().allocateStackSlots(slots);
+    }
+
+    default Value emitReadCallerStackPointer(Stamp wordStamp) {
+        /*
+         * We do not know the frame size yet. So we load the address of the first spill slot
+         * relative to the beginning of the frame, which is equivalent to the stack pointer of the
+         * caller.
+         */
+        return emitAddress(StackSlot.get(getLIRKind(wordStamp), 0, true));
+    }
+
+    default Value emitReadReturnAddress(Stamp wordStamp, int returnAddressSize) {
+        return emitMove(StackSlot.get(getLIRKind(wordStamp), -returnAddressSize, true));
+    }
+
+    @SuppressWarnings("unused")
+    default void emitZeroMemory(Value address, Value length, boolean isAligned) {
+        throw GraalError.unimplemented("Bulk zeroing is not implemented on this architecture");
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -229,9 +229,14 @@ public class GraalUnitTestLauncher {
         javaFlags.add("jdk.internal.vm.compiler,jdk.internal.vm.ci");
         javaFlags.add("--add-exports");
         javaFlags.add("java.base/jdk.internal.module=ALL-UNNAMED");
+        javaFlags.add("--add-exports");
+        javaFlags.add("java.base/jdk.internal.misc=ALL-UNNAMED");
         javaFlags.addAll(getModuleExports("jdk.internal.vm.compiler", "ALL-UNNAMED"));
         javaFlags.addAll(getModuleExports("jdk.internal.vm.ci", "ALL-UNNAMED,jdk.internal.vm.compiler"));
 
+        // add opens, see JDK-8236211
+        javaFlags.add("--add-opens");
+        javaFlags.add("jdk.internal.vm.compiler/org.graalvm.graphio=ALL-UNNAMED");
 
         // add VM flags
         javaFlags.add("-XX:+UnlockExperimentalVMOptions");
@@ -241,7 +246,8 @@ public class GraalUnitTestLauncher {
         javaFlags.add("-ea");
         // Make sure exception message is never null
         javaFlags.add("-XX:-OmitStackTraceInFastThrow");
-
+        // set timeout factor based on jtreg harness settings
+        javaFlags.add("-Dgraaltest.timeout.factor=" + System.getProperty("test.timeout.factor", "1.0"));
 
         // generate class path
         ArrayList<String> graalJars = new ArrayList<String>(Arrays.asList(GRAAL_EXTRA_JARS));
@@ -253,7 +259,11 @@ public class GraalUnitTestLauncher {
                                       .collect(Collectors.joining(File.pathSeparator));
 
         javaFlags.add("-cp");
-        javaFlags.add(String.join(File.pathSeparator, System.getProperty("java.class.path"), graalJarsCP));
+        // Existing classpath returned by System.getProperty("java.class.path") may contain another
+        // version of junit with which the jtreg tool is built. It may be incompatible with required
+        // junit version. So we put graalJarsCP before existing classpath when generating a new one
+        // to avoid incompatibility issues.
+        javaFlags.add(String.join(File.pathSeparator, graalJarsCP, System.getProperty("java.class.path")));
 
         //
         javaFlags.add("com.oracle.mxtool.junit.MxJUnitWrapper");
@@ -269,8 +279,7 @@ public class GraalUnitTestLauncher {
         // Some tests rely on MX_SUBPROCESS_COMMAND_FILE env variable which contains
         // name of the file with java executable and java args used to launch the current process.
         Path cmdFile = Files.createTempFile(Path.of(""), "mx_subprocess_", ".cmd");
-        Files.writeString(cmdFile, JDKToolFinder.getJDKTool("java") + System.lineSeparator());
-        Files.write(cmdFile, javaFlags, StandardOpenOption.APPEND);
+        Files.write(cmdFile, javaPB.command());
         javaPB.environment().put("MX_SUBPROCESS_COMMAND_FILE", cmdFile.toAbsolutePath().toString());
 
         System.out.println("INFO: run command: " + String.join(" ", javaPB.command()));

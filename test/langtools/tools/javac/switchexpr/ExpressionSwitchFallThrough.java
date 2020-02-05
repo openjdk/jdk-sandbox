@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test
  * @bug 8206986
  * @summary Check fall through in switch expressions.
- * @compile --enable-preview -source 13 ExpressionSwitchFallThrough.java
- * @run main/othervm --enable-preview ExpressionSwitchFallThrough
+ * @compile ExpressionSwitchFallThrough.java
+ * @run main ExpressionSwitchFallThrough
  */
 
 import java.util.Objects;
@@ -53,7 +53,7 @@ public class ExpressionSwitchFallThrough {
         return switch (t) {
             case A: help = "a";
             case B: help += "b";
-            default: break help;
+            default: yield help;
         };
     }
 
@@ -62,7 +62,7 @@ public class ExpressionSwitchFallThrough {
         return switch (t) {
             case A: help = "a";
             case B: help += "b";
-            default: break help;
+            default: yield help;
         };
     }
 

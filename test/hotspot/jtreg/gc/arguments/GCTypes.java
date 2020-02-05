@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+
+package gc.arguments;
 
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
@@ -68,7 +70,6 @@ public final class GCTypes {
 
     public static enum YoungGCType implements GCType {
         DefNew("Copy"),
-        ParNew("ParNew"),
         PSNew("PS Scavenge"),
         G1("G1 Young Generation");
 
@@ -93,7 +94,6 @@ public final class GCTypes {
 
     public static enum OldGCType implements GCType {
         Serial("MarkSweepCompact"),
-        CMS("ConcurrentMarkSweep"),
         PSOld("PS MarkSweep"),
         G1("G1 Old Generation");
 

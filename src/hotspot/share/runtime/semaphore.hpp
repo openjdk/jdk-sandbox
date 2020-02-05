@@ -26,6 +26,7 @@
 #define SHARE_RUNTIME_SEMAPHORE_HPP
 
 #include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 #if defined(LINUX) || defined(SOLARIS) || defined(AIX)
 # include "semaphore_posix.hpp"
@@ -40,12 +41,10 @@
 class JavaThread;
 
 // Implements the limited, platform independent Semaphore API.
-class Semaphore : public CHeapObj<mtInternal> {
+class Semaphore : public CHeapObj<mtSynchronizer> {
   SemaphoreImpl _impl;
 
-  // Prevent copying and assignment of Semaphore instances.
-  Semaphore(const Semaphore&);
-  Semaphore& operator=(const Semaphore&);
+  NONCOPYABLE(Semaphore);
 
  public:
   Semaphore(uint value = 0) : _impl(value) {}

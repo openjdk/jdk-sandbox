@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8210047 8199892
+ * @bug 8210047 8199892 8215599 8223378
  * @summary some pages contains content outside of landmark region
  * @library /tools/lib ../../lib
  * @modules
@@ -57,7 +57,6 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
 
     TestHtmlLandmarkRegions() {
         tb = new ToolBox();
-        setAutomaticCheckLinks(false); // @ignore 8217013
     }
 
     @Test
@@ -69,33 +68,13 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
         javadoc("-d", outDir.toString(),
                 "-doctitle", "Document Title",
                 "-header", "Test Header",
-                "--frames",
                 "--module-source-path", srcDir.toString(),
                 "--module", "m1,m2");
 
         checkExit(Exit.OK);
 
-        checkOrder("module-overview-frame.html",
-                "<header role=\"banner\">\n"
-                + "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<nav role=\"navigation\" class=\"indexNav\">",
-                "<main role=\"main\">\n"
-                + "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"Modules\">Modules</h2>\n"
-                + "<ul title=\"Modules\">",
-                "<footer role=\"contentinfo\">");
-
-        checkOrder("m1/module-frame.html",
-                "<header role=\"banner\">\n"
-                + "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<nav role=\"navigation\" class=\"indexNav\">",
-                "<main role=\"main\">\n"
-                + "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"m1\"><a href=\"module-summary.html\" target=\"classFrame\">m1</a>&nbsp;Packages</h2>",
-                "<footer role=\"contentinfo\">");
-
-        checkOrder("overview-summary.html",
-                "<header role=\"banner\">\n"
+        checkOrder("index.html",
+                "<header role=\"banner\" class=\"flexHeader\">\n"
                 + "<nav role=\"navigation\">",
                 "<main role=\"main\">\n"
                 + "<div class=\"header\">\n"
@@ -105,103 +84,27 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
     }
 
     @Test
-    public void testModulesHtml4(Path base) throws Exception {
-        Path srcDir = base.resolve("src");
-        createModules(srcDir);
-
-        Path outDir = base.resolve("out2");
-        javadoc("-d", outDir.toString(),
-                "-doctitle", "Document Title",
-                "-header", "Test Header",
-                "--frames",
-                "--module-source-path", srcDir.toString(),
-                "--module", "m1,m2",
-                "-html4");
-
-        checkExit(Exit.OK);
-
-        checkOrder("module-overview-frame.html",
-                "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<div class=\"indexNav\">",
-                "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"Modules\">Modules</h2>\n"
-                + "<ul title=\"Modules\">");
-
-        checkOrder("m1/module-frame.html",
-                "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<div class=\"indexNav\">",
-                "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"m1\"><a href=\"module-summary.html\" target=\"classFrame\">m1</a>&nbsp;Packages</h2>");
-
-        checkOrder("overview-summary.html",
-                "<div class=\"fixedNav\">",
-                "<div class=\"header\">\n"
-                + "<h1 class=\"title\">Document Title</h1>",
-                "<div class=\"bottomNav\"><a name=\"navbar.bottom\">");
-    }
-
-    @Test
     public void testPackages(Path base) throws Exception {
         Path srcDir = base.resolve("src");
         createPackages(srcDir);
 
-        Path outDir = base.resolve("out3");
+        Path outDir = base.resolve("out");
         javadoc("-d", outDir.toString(),
                 "-doctitle", "Document Title",
                 "-header", "Test Header",
-                "--frames",
                 "-sourcepath", srcDir.toString(),
                 "pkg1", "pkg2");
 
         checkExit(Exit.OK);
 
-        checkOrder("overview-summary.html",
-                "<header role=\"banner\">\n"
+        checkOrder("index.html",
+                "<header role=\"banner\" class=\"flexHeader\">\n"
                 + "<nav role=\"navigation\">",
                 "<main role=\"main\">\n"
                 + "<div class=\"header\">\n"
                 + "<h1 class=\"title\">Document Title</h1>",
                 "<footer role=\"contentinfo\">\n" +
                         "<nav role=\"navigation\">");
-
-        checkOrder("overview-frame.html",
-                "<header role=\"banner\">\n"
-                + "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<nav role=\"navigation\" class=\"indexNav\">",
-                "<main role=\"main\">\n"
-                + "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"Packages\">Packages</h2>",
-                "<footer role=\"contentinfo\">");
-    }
-
-    @Test
-    public void testPackagesHtml4(Path base) throws Exception {
-        Path srcDir = base.resolve("src");
-        createPackages(srcDir);
-
-        Path outDir = base.resolve("out4");
-        javadoc("-d", outDir.toString(),
-                "-doctitle", "Document Title",
-                "-header", "Test Header",
-                "--frames",
-                "-sourcepath", srcDir.toString(),
-                "pkg1", "pkg2",
-                "-html4");
-
-        checkExit(Exit.OK);
-
-        checkOrder("overview-summary.html",
-                "<div class=\"fixedNav\">",
-                "<div class=\"header\">\n"
-                + "<h1 class=\"title\">Document Title</h1>",
-                "<div class=\"bottomNav\"><a name=\"navbar.bottom\">");
-
-        checkOrder("overview-frame.html",
-                "<h1 title=\"Test Header\" class=\"bar\">Test Header</h1>\n"
-                + "<div class=\"indexNav\">",
-                "<div class=\"indexContainer\">\n"
-                + "<h2 title=\"Packages\">Packages</h2>"
-        );
     }
 
     @Test
@@ -219,7 +122,7 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
                 + "  </body>\n"
                 + "</html>"));
 
-        Path outDir = base.resolve("out5");
+        Path outDir = base.resolve("out");
         javadoc("-d", outDir.toString(),
                 "-sourcepath", srcDir.toString(),
                 "pkg1", "pkg2");
@@ -227,9 +130,10 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOrder("pkg1/doc-files/s.html",
-                "<header role=\"banner\">\n"
+                "<header role=\"banner\" class=\"flexHeader\">\n"
                 + "<nav role=\"navigation\">\n",
-                "<main role=\"main\">A sample doc file",
+                "<main role=\"main\">\n"
+                + "<div class=\"contentContainer\">A sample doc file",
                 "<footer role=\"contentinfo\">\n"
                 + "<nav role=\"navigation\">"
                 );
@@ -237,12 +141,12 @@ public class TestHtmlLandmarkRegions extends JavadocTester {
 
     void createModules(Path srcDir) throws Exception {
         new ModuleBuilder(tb, "m1")
-                .classes("package p1; public class a{}")
-                .classes("package p2; public class b{}")
+                .classes("package p1; public class a { }")
+                .classes("package p2; public class b { }")
                 .write(srcDir);
         new ModuleBuilder(tb, "m2")
-                .classes("package p3; public class c{}")
-                .classes("package p4; public class d{}")
+                .classes("package p3; public class c { }")
+                .classes("package p4; public class d { }")
                 .write(srcDir);
     }
 

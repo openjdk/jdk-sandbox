@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,41 @@
  * questions.
  */
 
+package gc;
+
 import java.util.List;
-import java.util.ArrayList;
 import java.lang.management.*;
 import static jdk.test.lib.Asserts.*;
 import java.util.stream.*;
 
-/* @test TestMemoryMXBeansAndPoolsPresence
+/* @test TestMemoryMXBeansAndPoolsPresenceG1
  * @bug 8191564
  * @summary Tests that GarbageCollectorMXBeans and GC MemoryPools are created.
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @requires vm.gc == null
- * @run main/othervm -XX:+UseG1GC TestMemoryMXBeansAndPoolsPresence G1
- * @run main/othervm -XX:+UseParallelGC TestMemoryMXBeansAndPoolsPresence Parallel
- * @run main/othervm -XX:+UseSerialGC TestMemoryMXBeansAndPoolsPresence Serial
+ * @requires vm.gc.G1
+ * @run main/othervm -XX:+UseG1GC gc.TestMemoryMXBeansAndPoolsPresence G1
  */
 
-/* @test TestMemoryMXBeansAndPoolsPresenceCMS
+/* @test TestMemoryMXBeansAndPoolsPresenceParallel
  * @bug 8191564
+ * @summary Tests that GarbageCollectorMXBeans and GC MemoryPools are created.
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @comment Graal does not support CMS
- * @requires vm.gc == null & !vm.graal.enabled
- * @run main/othervm -XX:+UseConcMarkSweepGC TestMemoryMXBeansAndPoolsPresence CMS
+ * @requires vm.gc.Parallel
+ * @run main/othervm -XX:+UseParallelGC gc.TestMemoryMXBeansAndPoolsPresence Parallel
+ */
+
+/* @test TestMemoryMXBeansAndPoolsPresenceSerial
+ * @bug 8191564
+ * @summary Tests that GarbageCollectorMXBeans and GC MemoryPools are created.
+ * @library /test/lib
+ * @modules java.base/jdk.internal.misc
+ *          java.management
+ * @requires vm.gc.Serial
+ * @run main/othervm -XX:+UseSerialGC gc.TestMemoryMXBeansAndPoolsPresence Serial
  */
 
 class GCBeanDescription {
@@ -88,10 +97,6 @@ public class TestMemoryMXBeansAndPoolsPresence {
             case "G1":
                 test(new GCBeanDescription("G1 Young Generation", new String[] {"G1 Eden Space", "G1 Survivor Space", "G1 Old Gen"}),
                      new GCBeanDescription("G1 Old Generation",   new String[] {"G1 Eden Space", "G1 Survivor Space", "G1 Old Gen"}));
-                break;
-            case "CMS":
-                test(new GCBeanDescription("ParNew",              new String[] {"Par Eden Space", "Par Survivor Space"}),
-                     new GCBeanDescription("ConcurrentMarkSweep", new String[] {"Par Eden Space", "Par Survivor Space", "CMS Old Gen"}));
                 break;
             case "Parallel":
                 test(new GCBeanDescription("PS Scavenge",         new String[] {"PS Eden Space", "PS Survivor Space"}),

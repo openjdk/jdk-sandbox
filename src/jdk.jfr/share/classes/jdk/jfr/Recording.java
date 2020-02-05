@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,10 +93,29 @@ public final class Recording implements Closeable {
 
     private final PlatformRecording internal;
 
+    /**
+     * Creates a recording with settings from a map of name-value pairs.
+     * <p>
+     * A newly created recording is in the {@link RecordingState#NEW} state. To start
+     * the recording, invoke the {@link Recording#start()} method.
+     *
+     * @param settings settings as a map of name-value pairs, not {@code null}
+     *
+     * @throws IllegalStateException if Flight Recorder can't be created (for
+     *         example, if the Java Virtual Machine (JVM) lacks Flight Recorder
+     *         support, or if the file repository can't be created or accessed)
+     *
+     * @throws SecurityException If a security manager is used and
+     *         FlightRecorderPermission "accessFlightRecorder" is not set.
+     *
+     * @see jdk.jfr
+     */
     public Recording(Map<String, String> settings) {
+        Objects.requireNonNull(settings);
+        Map<String, String> sanitized = Utils.sanitizeNullFreeStringMap(settings);
         PlatformRecorder r = FlightRecorder.getFlightRecorder().getInternal();
         synchronized (r) {
-            this.internal = r.newRecording(settings);
+            this.internal = r.newRecording(sanitized);
             this.internal.setRecording(this);
             if (internal.getRecording() != this) {
                 throw new InternalError("Internal recording not properly setup");
@@ -411,6 +430,36 @@ public final class Recording implements Closeable {
             throw new IllegalArgumentException("Max size of recording can't be negative");
         }
         internal.setMaxSize(maxSize);
+    }
+
+        /**
+         * Determines how often events are made available for streaming.
+         *
+         * @param interval the interval at which events are made available for streaming.
+         *
+         * @throws IllegalArgumentException if {@code interval} is negative
+         *
+         * @throws IllegalStateException if the recording is in the {@code CLOSED} state
+         *
+         * @since 14
+         */
+        /*package private*/ void setFlushInterval(Duration interval) {
+            Objects.nonNull(interval);
+            if (interval.isNegative()) {
+                throw new IllegalArgumentException("Stream interval can't be negative");
+            }
+            internal.setFlushInterval(interval);
+        }
+
+    /**
+     * Returns how often events are made available for streaming purposes.
+     *
+     * @return the flush interval, or {@code null} if no interval has been set
+     *
+     * @since 14
+     */
+    /*package private*/ Duration getFlushInterval() {
+        return internal.getFlushInterval();
     }
 
     /**

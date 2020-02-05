@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ TOOLCHAIN_DESCRIPTION_xlc="IBM XL C/C++"
 
 # Minimum supported versions, empty means unspecified
 TOOLCHAIN_MINIMUM_VERSION_clang="3.2"
-TOOLCHAIN_MINIMUM_VERSION_gcc="4.8"
+TOOLCHAIN_MINIMUM_VERSION_gcc="5.0"
 TOOLCHAIN_MINIMUM_VERSION_microsoft="16.00.30319.01" # VS2010
 TOOLCHAIN_MINIMUM_VERSION_solstudio="5.13"
 TOOLCHAIN_MINIMUM_VERSION_xlc=""
@@ -276,17 +276,32 @@ AC_DEFUN_ONCE([TOOLCHAIN_DETERMINE_TOOLCHAIN_TYPE],
   fi
   AC_SUBST(TOOLCHAIN_TYPE)
 
+  # on AIX, check for xlclang++ on the PATH and TOOLCHAIN_PATH and use it if it is available
+  if test "x$OPENJDK_TARGET_OS" = xaix; then
+    if test "x$TOOLCHAIN_PATH" != x; then
+      XLC_TEST_PATH=${TOOLCHAIN_PATH}/
+    fi
+
+    XLCLANG_VERSION_OUTPUT=`${XLC_TEST_PATH}xlclang++ -qversion 2>&1 | $HEAD -n 1`
+    $ECHO "$XLCLANG_VERSION_OUTPUT" | $GREP "IBM XL C/C++ for AIX" > /dev/null
+    if test $? -eq 0; then
+      AC_MSG_NOTICE([xlclang++ output: $XLCLANG_VERSION_OUTPUT])
+    else
+      AC_MSG_ERROR([xlclang++ version output check failed, output: $XLCLANG_VERSION_OUTPUT])
+    fi
+  fi
+
   TOOLCHAIN_CC_BINARY_clang="clang"
   TOOLCHAIN_CC_BINARY_gcc="gcc"
   TOOLCHAIN_CC_BINARY_microsoft="cl$EXE_SUFFIX"
   TOOLCHAIN_CC_BINARY_solstudio="cc"
-  TOOLCHAIN_CC_BINARY_xlc="xlc_r"
+  TOOLCHAIN_CC_BINARY_xlc="xlclang"
 
   TOOLCHAIN_CXX_BINARY_clang="clang++"
   TOOLCHAIN_CXX_BINARY_gcc="g++"
   TOOLCHAIN_CXX_BINARY_microsoft="cl$EXE_SUFFIX"
   TOOLCHAIN_CXX_BINARY_solstudio="CC"
-  TOOLCHAIN_CXX_BINARY_xlc="xlC_r"
+  TOOLCHAIN_CXX_BINARY_xlc="xlclang++"
 
   # Use indirect variable referencing
   toolchain_var_name=TOOLCHAIN_DESCRIPTION_$TOOLCHAIN_TYPE
@@ -466,7 +481,7 @@ AC_DEFUN([TOOLCHAIN_EXTRACT_COMPILER_VERSION],
     COMPILER_VERSION_STRING=`$ECHO $COMPILER_VERSION_OUTPUT | \
         $SED -e 's/ *Copyright .*//'`
     COMPILER_VERSION_NUMBER=`$ECHO $COMPILER_VERSION_OUTPUT | \
-        $SED -e 's/^.* \(@<:@1-9@:>@\.@<:@0-9.@:>@*\)@<:@^0-9.@:>@.*$/\1/'`
+        $SED -e 's/^.* \(@<:@1-9@:>@<:@0-9@:>@*\.@<:@0-9.@:>@*\)@<:@^0-9.@:>@.*$/\1/'`
   elif test  "x$TOOLCHAIN_TYPE" = xclang; then
     # clang --version output typically looks like
     #    Apple LLVM version 5.0 (clang-500.2.79) (based on LLVM 3.3svn)
@@ -595,7 +610,7 @@ AC_DEFUN([TOOLCHAIN_FIND_COMPILER],
 AC_DEFUN([TOOLCHAIN_EXTRACT_LD_VERSION],
 [
   LINKER=[$]$1
-  LINKER_NAME=$2
+  LINKER_NAME="$2"
 
   if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
     # cc -Wl,-V output typically looks like
@@ -621,14 +636,21 @@ AC_DEFUN([TOOLCHAIN_EXTRACT_LD_VERSION],
     [ LINKER_VERSION_NUMBER=`$ECHO $LINKER_VERSION_STRING | \
         $SED -e 's/.* \([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/'` ]
   elif test  "x$TOOLCHAIN_TYPE" = xgcc; then
-    # gcc -Wl,-version output typically looks like
+    # gcc -Wl,-version output typically looks like:
     #   GNU ld (GNU Binutils for Ubuntu) 2.26.1
     #   Copyright (C) 2015 Free Software Foundation, Inc.
     #   This program is free software; [...]
-    LINKER_VERSION_STRING=`$LD -Wl,-version 2>&1 | $HEAD -n 1`
+    # If using gold it will look like:
+    #   GNU gold (GNU Binutils 2.30) 1.15
+    LINKER_VERSION_STRING=`$LD -Wl,--version 2> /dev/null | $HEAD -n 1`
     # Extract version number
-    [ LINKER_VERSION_NUMBER=`$ECHO $LINKER_VERSION_STRING | \
-        $SED -e 's/.* \([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/'` ]
+    if [ [[ "$LINKER_VERSION_STRING" == *gold* ]] ]; then
+      [ LINKER_VERSION_NUMBER=`$ECHO $LINKER_VERSION_STRING | \
+          $SED -e 's/.* \([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*) .*/\1/'` ]
+    else
+      [ LINKER_VERSION_NUMBER=`$ECHO $LINKER_VERSION_STRING | \
+          $SED -e 's/.* \([0-9][0-9]*\(\.[0-9][0-9]*\)*\).*/\1/'` ]
+    fi
   elif test  "x$TOOLCHAIN_TYPE" = xclang; then
     # clang -Wl,-v output typically looks like
     #   @(#)PROGRAM:ld  PROJECT:ld64-305

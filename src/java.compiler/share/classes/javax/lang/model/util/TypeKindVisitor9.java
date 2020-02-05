@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import static javax.lang.model.SourceVersion.*;
  * A visitor of types based on their {@linkplain TypeKind kind} with
  * default behavior appropriate for source versions {@link
  * SourceVersion#RELEASE_9 RELEASE_9} through {@link
- * SourceVersion#RELEASE_13 RELEASE_13}.
+ * SourceVersion#RELEASE_14 RELEASE_14}.
  *
  * For {@linkplain
  * TypeMirror types} <code><i>Xyz</i></code> that may have more than one
@@ -75,9 +75,10 @@ import static javax.lang.model.SourceVersion.*;
  * @see TypeKindVisitor6
  * @see TypeKindVisitor7
  * @see TypeKindVisitor8
+ * @see TypeKindVisitor14
  * @since 9
  */
-@SupportedSourceVersion(RELEASE_13)
+@SupportedSourceVersion(RELEASE_14)
 public class TypeKindVisitor9<R, P> extends TypeKindVisitor8<R, P> {
     /**
      * Constructor for concrete subclasses to call; uses {@code null}

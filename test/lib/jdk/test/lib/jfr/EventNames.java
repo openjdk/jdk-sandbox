@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,6 @@ public class EventNames {
     public final static String ClassUnload = PREFIX + "ClassUnload";
     public final static String SafepointBegin = PREFIX + "SafepointBegin";
     public final static String SafepointStateSynchronization = PREFIX + "SafepointStateSynchronization";
-    public final static String SafepointWaitBlocked = PREFIX + "SafepointWaitBlocked";
     public final static String SafepointCleanup = PREFIX + "SafepointCleanup";
     public final static String SafepointCleanupTask = PREFIX + "SafepointCleanupTask";
     public final static String SafepointEnd = PREFIX + "SafepointEnd";
@@ -83,6 +82,11 @@ public class EventNames {
     public final static String BiasedLockRevocation = PREFIX + "BiasedLockRevocation";
     public final static String BiasedLockSelfRevocation = PREFIX + "BiasedLockSelfRevocation";
     public final static String BiasedLockClassRevocation = PREFIX + "BiasedLockClassRevocation";
+    public final static String SymbolTableStatistics = PREFIX + "SymbolTableStatistics";
+    public final static String StringTableStatistics = PREFIX + "StringTableStatistics";
+    public final static String PlaceholderTableStatistics = PREFIX + "PlaceholderTableStatistics";
+    public final static String LoaderConstraintsTableStatistics = PREFIX + "LoaderConstraintsTableStatistics";
+    public final static String ProtectionDomainCacheTableStatistics = PREFIX + "ProtectionDomainCacheTableStatistics";
     // This event is hard to test
     public final static String ReservedStackActivation = PREFIX + "ReservedStackActivation";
 
@@ -97,6 +101,8 @@ public class EventNames {
     public final static String G1HeapSummary = PREFIX + "G1HeapSummary";
     public final static String G1HeapRegionInformation = PREFIX + "G1HeapRegionInformation";
     public final static String G1HeapRegionTypeChange = PREFIX + "G1HeapRegionTypeChange";
+    public final static String ShenandoahHeapRegionInformation = PREFIX + "ShenandoahHeapRegionInformation";
+    public final static String ShenandoahHeapRegionStateChange = PREFIX + "ShenandoahHeapRegionStateChange";
     public final static String TenuringDistribution = PREFIX + "TenuringDistribution";
     public final static String GarbageCollection = PREFIX + "GarbageCollection";
     public final static String ParallelOldGarbageCollection = PREFIX + "ParallelOldGarbageCollection";
@@ -147,9 +153,11 @@ public class EventNames {
     public final static String CodeCacheFull = PREFIX + "CodeCacheFull";
     public final static String ObjectAllocationInNewTLAB = PREFIX + "ObjectAllocationInNewTLAB";
     public final static String ObjectAllocationOutsideTLAB = PREFIX + "ObjectAllocationOutsideTLAB";
+    public final static String Deoptimization = PREFIX + "Deoptimization";
 
     // OS
     public final static String OSInformation = PREFIX + "OSInformation";
+    public final static String VirtualizationInformation = PREFIX + "VirtualizationInformation";
     public final static String CPUInformation = PREFIX + "CPUInformation";
     public final static String CPULoad = PREFIX + "CPULoad";
     public final static String ThreadCPULoad = PREFIX + "ThreadCPULoad";
@@ -182,6 +190,10 @@ public class EventNames {
     public final static String CPUTimeStampCounter = PREFIX + "CPUTimeStampCounter";
     public final static String ActiveRecording = PREFIX + "ActiveRecording";
     public final static String ActiveSetting = PREFIX + "ActiveSetting";
+    public static final String Flush = PREFIX + "Flush";
+
+    // Diagnostics
+    public static final String HeapDump = PREFIX + "HeapDump";
 
     public static boolean isGcEvent(EventType et) {
         return et.getCategoryNames().contains(GC_CATEGORY);

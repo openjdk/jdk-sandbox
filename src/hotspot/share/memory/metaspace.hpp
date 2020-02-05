@@ -28,6 +28,8 @@
 #include "memory/memRegion.hpp"
 #include "memory/metaspaceChunkFreeListSummary.hpp"
 #include "memory/virtualspace.hpp"
+#include "memory/metaspace/metaspaceSizesSnapshot.hpp"
+#include "runtime/globals.hpp"
 #include "utilities/exceptions.hpp"
 
 // Metaspace
@@ -57,7 +59,6 @@
 
 class ClassLoaderData;
 class MetaspaceTracer;
-class MetaWord;
 class Mutex;
 class outputStream;
 
@@ -140,6 +141,8 @@ class Metaspace : public AllStatic {
 
   static const MetaspaceTracer* _tracer;
 
+  static bool _initialized;
+
  public:
   static metaspace::VirtualSpaceList* space_list()       { return _space_list; }
   static metaspace::VirtualSpaceList* class_space_list() { return _class_space_list; }
@@ -169,18 +172,24 @@ class Metaspace : public AllStatic {
     assert(!_frozen, "sanity");
   }
 #ifdef _LP64
-  static void allocate_metaspace_compressed_klass_ptrs(char* requested_addr, address cds_base);
+  static void allocate_metaspace_compressed_klass_ptrs(ReservedSpace metaspace_rs, char* requested_addr, address cds_base);
 #endif
 
  private:
 
 #ifdef _LP64
-  static void set_narrow_klass_base_and_shift(address metaspace_base, address cds_base);
-
-  // Returns true if can use CDS with metaspace allocated as specified address.
-  static bool can_use_cds_with_metaspace_addr(char* metaspace_base, address cds_base);
+  static void set_narrow_klass_base_and_shift(ReservedSpace metaspace_rs, address cds_base);
 
   static void initialize_class_space(ReservedSpace rs);
+#endif
+
+  static ReservedSpace reserve_space(size_t size, size_t alignment,
+                                     char* requested_addr, bool use_requested_addr);
+
+#ifdef PREFERRED_METASPACE_ALIGNMENT
+  static ReservedSpace reserve_preferred_space(size_t size, size_t alignment,
+                                               bool large_pages, char *requested_addr,
+                                               bool use_requested_addr);
 #endif
 
  public:
@@ -224,6 +233,8 @@ class Metaspace : public AllStatic {
   static bool is_class_space_allocation(MetadataType mdType) {
     return mdType == ClassType && using_class_space();
   }
+
+  static bool initialized() { return _initialized; }
 
 };
 
@@ -330,12 +341,6 @@ class MetaspaceUtils : AllStatic {
   // Helper for print_xx_report.
   static void print_vs(outputStream* out, size_t scale);
 
-  // Utils to check if a pointer or range is part of a committed metaspace region
-  // without acquiring any locks.
-  static metaspace::VirtualSpaceNode* find_enclosing_virtual_space(const void* p);
-  static bool is_in_committed(const void* p);
-  static bool is_range_in_committed(const void* from, const void* to);
-
 public:
 
   // Collect used metaspace statistics. This involves walking the CLDG. The resulting
@@ -387,9 +392,6 @@ public:
   }
 
   static size_t min_chunk_size_words();
-  static size_t min_chunk_size_bytes() {
-    return min_chunk_size_words() * BytesPerWord;
-  }
 
   // Flags for print_report().
   enum ReportFlag {
@@ -420,8 +422,8 @@ public:
   static bool has_chunk_free_list(Metaspace::MetadataType mdtype);
   static MetaspaceChunkFreeListSummary chunk_free_list_summary(Metaspace::MetadataType mdtype);
 
-  // Print change in used metadata.
-  static void print_metaspace_change(size_t prev_metadata_used);
+  // Log change in used metadata.
+  static void print_metaspace_change(const metaspace::MetaspaceSizesSnapshot& pre_meta_values);
   static void print_on(outputStream * out);
 
   // Prints an ASCII representation of the given space.
@@ -443,11 +445,6 @@ class MetaspaceGC : AllStatic {
   // When committed memory of all metaspaces reaches this value,
   // a GC is induced and the value is increased. Size is in bytes.
   static volatile size_t _capacity_until_GC;
-
-  // For a CMS collection, signal that a concurrent collection should
-  // be started.
-  static bool _should_concurrent_collect;
-
   static uint _shrink_factor;
 
   static size_t shrink_factor() { return _shrink_factor; }
@@ -461,13 +458,9 @@ class MetaspaceGC : AllStatic {
   static size_t capacity_until_GC();
   static bool inc_capacity_until_GC(size_t v,
                                     size_t* new_cap_until_GC = NULL,
-                                    size_t* old_cap_until_GC = NULL);
+                                    size_t* old_cap_until_GC = NULL,
+                                    bool* can_retry = NULL);
   static size_t dec_capacity_until_GC(size_t v);
-
-  static bool should_concurrent_collect() { return _should_concurrent_collect; }
-  static void set_should_concurrent_collect(bool v) {
-    _should_concurrent_collect = v;
-  }
 
   // The amount to increase the high-water-mark (_capacity_until_GC)
   static size_t delta_capacity_until_GC(size_t bytes);

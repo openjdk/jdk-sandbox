@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test
  * @bug 8206986
  * @summary Verify rule cases with expression statements and throw statements work.
- * @compile --enable-preview -source 13 BlockExpression.java
- * @run main/othervm --enable-preview BlockExpression
+ * @compile BlockExpression.java
+ * @run main BlockExpression
  */
 
 public class BlockExpression {

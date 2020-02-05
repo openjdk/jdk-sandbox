@@ -21,12 +21,16 @@
  * questions.
  */
 
+package gc.nvdimm;
+
 /* @test TestAllocateOldGenAtError.java
  * @key gc
  * @summary Test to check correct handling of non-existent directory passed to AllocateOldGenAt option
  * @requires vm.gc=="null" & os.family != "aix"
+ * @requires test.vm.gc.nvdimm
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
+ * @run main gc.nvdimm.TestAllocateOldGenAtError
  */
 
 import java.io.File;
@@ -41,7 +45,7 @@ public class TestAllocateOldGenAtError {
   private static ArrayList<String> commonOpts;
 
   public static void main(String args[]) throws Exception {
-    commonOpts = new ArrayList();
+    commonOpts = new ArrayList<>();
 
     String testVmOptsStr = System.getProperty("test.java.opts");
     if (!testVmOptsStr.isEmpty()) {
@@ -78,19 +82,19 @@ public class TestAllocateOldGenAtError {
   }
 
   private static void testParallelOld() throws Exception {
-    System.out.println("Testing ParallelOld GC with UseAdaptiveGCBoundary disabled");
-    OutputAnalyzer output = runTest("-XX:+UseParallelOldGC -XX:-UseAdaptiveGCBoundary");
+    System.out.println("Testing Parallel GC with UseAdaptiveGCBoundary disabled");
+    OutputAnalyzer output = runTest("-XX:+UseParallelGC -XX:-UseAdaptiveGCBoundary");
     output.shouldContain("Error occurred during initialization of VM");
     output.shouldNotHaveExitValue(0);
 
-    System.out.println("Testing ParallelOld GC with UseAdaptiveGCBoundary enabled");
-    output = runTest("-XX:+UseParallelOldGC -XX:+UseAdaptiveGCBoundary");
+    System.out.println("Testing Parallel GC with UseAdaptiveGCBoundary enabled");
+    output = runTest("-XX:+UseParallelGC -XX:+UseAdaptiveGCBoundary");
     output.shouldContain("Error occurred during initialization of VM");
     output.shouldNotHaveExitValue(0);
   }
 
   private static OutputAnalyzer runTest(String... extraFlags) throws Exception {
-    ArrayList<String> testOpts = new ArrayList();
+    ArrayList<String> testOpts = new ArrayList<>();
     Collections.addAll(testOpts, commonOpts.toArray(new String[commonOpts.size()]));
     Collections.addAll(testOpts, extraFlags);
 

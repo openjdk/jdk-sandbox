@@ -883,7 +883,7 @@ uint PhiNode::hash() const {
   const Type* at = _adr_type;
   return TypeNode::hash() + (at ? at->hash() : 0);
 }
-uint PhiNode::cmp( const Node &n ) const {
+bool PhiNode::cmp( const Node &n ) const {
   return TypeNode::cmp(n) && _adr_type == ((PhiNode&)n)._adr_type;
 }
 static inline
@@ -1449,10 +1449,7 @@ static Node *is_x2logic( PhaseGVN *phase, PhiNode *phi, int true_path ) {
   } else return NULL;
 
   // Build int->bool conversion
-  Node *in1 = cmp->in(1);
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  in1 = bs->step_over_gc_barrier(in1);
-  Node *n = new Conv2BNode(in1);
+  Node *n = new Conv2BNode(cmp->in(1));
   if( flipped )
     n = new XorINode( phase->transform(n), phase->intcon(1) );
 
@@ -1878,12 +1875,13 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       // Wait until after parsing for the type information to propagate from the casts.
       assert(can_reshape, "Invalid during parsing");
       const Type* phi_type = bottom_type();
-      assert(phi_type->isa_int() || phi_type->isa_ptr(), "bad phi type");
-      // Add casts to carry the control dependency of the Phi that is
-      // going away
+      assert(phi_type->isa_int() || phi_type->isa_long() || phi_type->isa_ptr(), "bad phi type");
+      // Add casts to carry the control dependency of the Phi that is going away
       Node* cast = NULL;
       if (phi_type->isa_int()) {
         cast = ConstraintCastNode::make_cast(Op_CastII, r, uin, phi_type, true);
+      } else if (phi_type->isa_long()) {
+        cast = ConstraintCastNode::make_cast(Op_CastLL, r, uin, phi_type, true);
       } else {
         const Type* uin_type = phase->type(uin);
         if (!phi_type->isa_oopptr() && !uin_type->isa_oopptr()) {
@@ -2353,7 +2351,7 @@ const RegMask &CProjNode::out_RegMask() const {
 //=============================================================================
 
 uint PCTableNode::hash() const { return Node::hash() + _size; }
-uint PCTableNode::cmp( const Node &n ) const
+bool PCTableNode::cmp( const Node &n ) const
 { return _size == ((PCTableNode&)n)._size; }
 
 const Type *PCTableNode::bottom_type() const {
@@ -2383,7 +2381,7 @@ uint JumpProjNode::hash() const {
   return Node::hash() + _dest_bci;
 }
 
-uint JumpProjNode::cmp( const Node &n ) const {
+bool JumpProjNode::cmp( const Node &n ) const {
   return ProjNode::cmp(n) &&
     _dest_bci == ((JumpProjNode&)n)._dest_bci;
 }
@@ -2446,7 +2444,7 @@ uint CatchProjNode::hash() const {
 }
 
 
-uint CatchProjNode::cmp( const Node &n ) const {
+bool CatchProjNode::cmp( const Node &n ) const {
   return ProjNode::cmp(n) &&
     _handler_bci == ((CatchProjNode&)n)._handler_bci;
 }

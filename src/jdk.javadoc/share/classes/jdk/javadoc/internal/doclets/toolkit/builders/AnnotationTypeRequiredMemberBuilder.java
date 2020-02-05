@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeRequiredMemberWriter;
-import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
 import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
@@ -45,9 +45,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
 
@@ -110,9 +107,6 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
         return !members.isEmpty();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build(Content contentTree) throws DocletException {
         buildAnnotationTypeRequiredMember(contentTree);
@@ -142,20 +136,18 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationDetailsMarker(memberDetailsTree);
-            Element lastMember = members.get((members.size() - 1));
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader();
+            Content detailsTree = writer.getMemberTreeHeader();
+
             for (Element member : members) {
                 currentMember = member;
-                Content detailsTree = writer.getMemberTreeHeader();
-                writer.addAnnotationDetailsTreeHeader(typeElement, detailsTree);
-                Content annotationDocTree = writer.getAnnotationDocTreeHeader(
-                        currentMember, detailsTree);
+                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember);
 
                 buildAnnotationTypeMemberChildren(annotationDocTree);
 
-                detailsTree.addContent(writer.getAnnotationDoc(
-                        annotationDocTree, currentMember == lastMember));
-                memberDetailsTree.addContent(writer.getAnnotationDetails(detailsTree));
+                detailsTree.add(writer.getAnnotationDoc(annotationDocTree));
             }
+            memberDetailsTree.add(writer.getAnnotationDetails(annotationDetailsTreeHeader, detailsTree));
         }
     }
 
@@ -172,7 +164,7 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
      * @param annotationDocTree the content tree to which the documentation will be added
      */
     protected void buildSignature(Content annotationDocTree) {
-        annotationDocTree.addContent(writer.getSignature(currentMember));
+        annotationDocTree.add(writer.getSignature(currentMember));
     }
 
     /**
@@ -186,12 +178,12 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
 
     /**
      * Build the comments for the member.  Do nothing if
-     * {@link BaseConfiguration#nocomment} is set to true.
+     * {@link BaseOptions#noComment} is set to true.
      *
      * @param annotationDocTree the content tree to which the documentation will be added
      */
     protected void buildMemberComments(Content annotationDocTree) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             writer.addComments(currentMember, annotationDocTree);
         }
     }

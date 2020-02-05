@@ -31,6 +31,9 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
+
+import static gc.testlibrary.Allocation.blackHole;
+
 import java.lang.management.ManagementFactory;
 import java.util.LinkedList;
 import java.util.List;
@@ -128,7 +131,7 @@ class MemoryStresser implements Runnable {
             // Dead object allocation
             () -> {
                 int size = RND.nextInt(DEAD_OBJECT_MAX_SIZE);
-                byte[] deadObject = new byte[size];
+                blackHole(new byte[size]);
             }
     };
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -362,8 +362,8 @@ void NativeJump::verify() {
 
 void NativeGeneralJump::insert_unconditional(address code_pos, address entry) {
   CodeBuffer cb(code_pos, BytesPerInstWord + 1);
-  MacroAssembler* a = new MacroAssembler(&cb);
-  a->b(entry);
+  MacroAssembler a(&cb);
+  a.b(entry);
   ICache::ppc64_flush_icache_bytes(code_pos, NativeGeneralJump::instruction_size);
 }
 
@@ -374,7 +374,7 @@ void NativeGeneralJump::replace_mt_safe(address instr_addr, address code_buffer)
   // Finally patch out the jump.
   volatile juint *jump_addr = (volatile juint*)instr_addr;
   // Release not needed because caller uses invalidate_range after copying the remaining bytes.
-  //OrderAccess::release_store(jump_addr, *((juint*)code_buffer));
+  //Atomic::release_store(jump_addr, *((juint*)code_buffer));
   *jump_addr = *((juint*)code_buffer); // atomically store code over branch instruction
   ICache::ppc64_flush_icache_bytes(instr_addr, NativeGeneralJump::instruction_size);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
 #define SHARE_GC_PARALLEL_PSCOMPACTIONMANAGER_HPP
 
+#include "gc/parallel/psParallelCompact.hpp"
 #include "gc/shared/taskqueue.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/stack.hpp"
@@ -37,26 +38,17 @@ class ParallelCompactData;
 class ParMarkBitMap;
 
 class ParCompactionManager : public CHeapObj<mtGC> {
-  friend class ParallelTaskTerminator;
   friend class ParMarkBitMap;
   friend class PSParallelCompact;
   friend class CompactionWithStealingTask;
   friend class UpdateAndFillClosure;
   friend class RefProcTaskExecutor;
-  friend class IdleGCTask;
+  friend class PCRefProcTask;
+  friend class MarkFromRootsTask;
+  friend class UpdateDensePrefixAndCompactionTask;
 
  public:
 
-// ------------------------  Don't putback if not needed
-  // Actions that the compaction manager should take.
-  enum Action {
-    Update,
-    Copy,
-    UpdateAndCopy,
-    CopyAndUpdate,
-    NotValid
-  };
-// ------------------------  End don't putback if not needed
 
  private:
   // 32-bit:  4K * 8 = 32KiB; 64-bit:  8K * 16 = 128KiB
@@ -75,6 +67,7 @@ class ParCompactionManager : public CHeapObj<mtGC> {
 private:
   OverflowTaskQueue<oop, mtGC>        _marking_stack;
   ObjArrayTaskQueue             _objarray_stack;
+  size_t                        _next_shadow_region;
 
   // Is there a way to reuse the _marking_stack for the
   // saving empty regions?  For now just create a different
@@ -83,7 +76,13 @@ private:
 
   static ParMarkBitMap* _mark_bitmap;
 
-  Action _action;
+  // Contains currently free shadow regions. We use it in
+  // a LIFO fashion for better data locality and utilization.
+  static GrowableArray<size_t>* _shadow_region_array;
+
+  // Provides mutual exclusive access of _shadow_region_array.
+  // See pop/push_shadow_region_mt_safe() below
+  static Monitor*               _shadow_region_monitor;
 
   HeapWord* _last_query_beg;
   oop _last_query_obj;
@@ -96,7 +95,7 @@ private:
   static void initialize(ParMarkBitMap* mbm);
 
  protected:
-  // Array of tasks.  Needed by the ParallelTaskTerminator.
+  // Array of task queues.  Needed by the task terminator.
   static RegionTaskQueueSet* region_array()      { return _region_array; }
   OverflowTaskQueue<oop, mtGC>*  marking_stack()       { return &_marking_stack; }
 
@@ -107,14 +106,24 @@ private:
   // marking stack and overflow stack directly.
 
  public:
+  static const size_t InvalidShadow = ~0;
+  static size_t  pop_shadow_region_mt_safe(PSParallelCompact::RegionData* region_ptr);
+  static void    push_shadow_region_mt_safe(size_t shadow_region);
+  static void    push_shadow_region(size_t shadow_region);
+  static void    remove_all_shadow_regions();
+
+  inline size_t  next_shadow_region() { return _next_shadow_region; }
+  inline void    set_next_shadow_region(size_t record) { _next_shadow_region = record; }
+  inline size_t  move_next_shadow_region_by(size_t workers) {
+    _next_shadow_region += workers;
+    return next_shadow_region();
+  }
+
   void reset_bitmap_query_cache() {
     _last_query_beg = NULL;
     _last_query_obj = NULL;
     _last_query_ret = 0;
   }
-
-  Action action() { return _action; }
-  void set_action(Action v) { _action = v; }
 
   // Bitmap query support, cache last query and result
   HeapWord* last_query_begin() { return _last_query_beg; }

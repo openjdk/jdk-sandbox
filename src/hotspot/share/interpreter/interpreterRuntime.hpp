@@ -27,7 +27,6 @@
 
 #include "interpreter/bytecode.hpp"
 #include "interpreter/linkResolver.hpp"
-#include "memory/universe.hpp"
 #include "oops/method.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/signature.hpp"
@@ -126,7 +125,6 @@ class InterpreterRuntime: AllStatic {
   static void _breakpoint(JavaThread* thread, Method* method, address bcp);
   static Bytecodes::Code get_original_bytecode_at(JavaThread* thread, Method* method, address bcp);
   static void            set_original_bytecode_at(JavaThread* thread, Method* method, address bcp, Bytecodes::Code new_code);
-  static bool is_breakpoint(JavaThread *thread);
 
   // Safepoints
   static void    at_safepoint(JavaThread* thread);

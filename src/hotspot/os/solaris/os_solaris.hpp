@@ -271,17 +271,13 @@ class Solaris {
 
   static void correct_stack_boundaries_for_primordial_thread(Thread* thr);
 
-  // Stack overflow handling
-
-  static int max_register_window_saves_before_flushing();
-
   // Stack repair handling
 
   // none present
 
 };
 
-class PlatformEvent : public CHeapObj<mtInternal> {
+class PlatformEvent : public CHeapObj<mtSynchronizer> {
  private:
   double CachePad[4];   // increase odds that _mutex is sole occupant of cache line
   volatile int _Event;
@@ -317,7 +313,7 @@ class PlatformEvent : public CHeapObj<mtInternal> {
   void unpark();
 };
 
-class PlatformParker : public CHeapObj<mtInternal> {
+class PlatformParker : public CHeapObj<mtSynchronizer> {
  protected:
   mutex_t _mutex[1];
   cond_t  _cond[1];
@@ -333,6 +329,36 @@ class PlatformParker : public CHeapObj<mtInternal> {
     status = os::Solaris::mutex_init(_mutex);
     assert_status(status == 0, status, "mutex_init");
   }
+};
+
+// Platform specific implementations that underpin VM Mutex/Monitor classes
+
+class PlatformMutex : public CHeapObj<mtSynchronizer> {
+  NONCOPYABLE(PlatformMutex);
+
+ protected:
+  mutex_t _mutex; // Native mutex for locking
+
+ public:
+  PlatformMutex();
+  ~PlatformMutex();
+  void lock();
+  void unlock();
+  bool try_lock();
+};
+
+class PlatformMonitor : public PlatformMutex {
+ private:
+  cond_t  _cond;  // Native condition variable for blocking
+
+  NONCOPYABLE(PlatformMonitor);
+
+ public:
+  PlatformMonitor();
+  ~PlatformMonitor();
+  int wait(jlong millis);
+  void notify();
+  void notify_all();
 };
 
 #endif // OS_SOLARIS_OS_SOLARIS_HPP

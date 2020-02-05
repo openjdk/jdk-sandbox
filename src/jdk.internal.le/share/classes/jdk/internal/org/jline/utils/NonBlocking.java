@@ -4,7 +4,7 @@
  * This software is distributable under the BSD license. See the terms of the
  * BSD license in the documentation provided with this software.
  *
- * http://www.opensource.org/licenses/bsd-license.php
+ * https://opensource.org/licenses/BSD-3-Clause
  */
 package jdk.internal.org.jline.utils;
 
@@ -123,9 +123,9 @@ public class NonBlocking {
             }
             if (bytes.hasRemaining()) {
                 if (isPeek) {
-                    return bytes.get(bytes.position());
+                    return Byte.toUnsignedInt(bytes.get(bytes.position()));
                 } else {
-                    return bytes.get();
+                    return Byte.toUnsignedInt(bytes.get());
                 }
             } else {
                 return READ_EXPIRED;

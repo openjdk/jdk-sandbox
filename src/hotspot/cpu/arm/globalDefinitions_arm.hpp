@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,9 @@ const bool HaveVFP = true;
 #define SUPPORTS_NATIVE_CX8
 #endif
 
+// arm32 is not specified as multi-copy-atomic
+// So we must not #define CPU_MULTI_COPY_ATOMIC
+
 #define STUBROUTINES_MD_HPP    "stubRoutines_arm.hpp"
 #define INTERP_MASM_MD_HPP     "interp_masm_arm.hpp"
 #define TEMPLATETABLE_MD_HPP   "templateTable_arm.hpp"
@@ -58,5 +61,7 @@ const bool HaveVFP = true;
 #define BREAKPOINT __asm__ volatile ("bkpt")
 #endif
 #endif
+
+#define THREAD_LOCAL_POLL
 
 #endif // CPU_ARM_GLOBALDEFINITIONS_ARM_HPP

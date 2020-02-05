@@ -1,5 +1,7 @@
 /*
- * Copyright (c) 2016, 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -36,8 +38,7 @@
                             product_rw,                                     \
                             lp64_product,                                   \
                             range,                                          \
-                            constraint,                                     \
-                            writeable)                                      \
+                            constraint)                                     \
                                                                             \
   experimental(size_t, ShenandoahHeapRegionSize, 0,                         \
           "Size of the Shenandoah regions. Set to zero to detect "          \
@@ -65,12 +66,17 @@
           " *) static  -  start concurrent GC when static free heap "       \
           "               threshold and static allocation threshold are "   \
           "               tripped;"                                         \
-          " *) passive -  do not start concurrent GC, wait for Full GC; "   \
           " *) aggressive - run concurrent GC continuously, evacuate "      \
           "               everything;"                                      \
           " *) compact - run GC with lower footprint target, may end up "   \
           "               doing continuous GC, evacuate lots of live "      \
           "               objects, uncommit heap aggressively;")            \
+                                                                            \
+  experimental(ccstr, ShenandoahGCMode, "normal",                           \
+          "The GC mode to use in Shenandoah GC. Possible values"            \
+          " *) normal    - normal GC (mark-evac-update)"                    \
+          " *) traversal - traversal GC (single-pass)"                      \
+          " *) passive   - disable concurrent GC, do stop-the-world GC")    \
                                                                             \
   experimental(ccstr, ShenandoahUpdateRefsEarly, "adaptive",                \
           "Run a separate concurrent reference updating phase after"        \
@@ -81,7 +87,7 @@
           "References get processed at every Nth GC cycle. Set to zero "    \
           "to disable reference processing.")                               \
                                                                             \
-  experimental(uintx, ShenandoahUnloadClassesFrequency, 5,                  \
+  experimental(uintx, ShenandoahUnloadClassesFrequency, 1,                  \
           "How often should classes get unloaded. "                         \
           "Class unloading is performed at every Nth GC cycle. "            \
           "Set to zero to disable class unloading during concurrent GC.")   \
@@ -90,11 +96,6 @@
           "Sets the percentage of garbage a region need to contain before " \
           "it can be marked for collection. Does not apply to all "         \
           "heuristics.")                                                    \
-          range(0,100)                                                      \
-                                                                            \
-  experimental(uintx, ShenandoahFreeThreshold, 10,                          \
-          "Set the percentage of free heap at which a GC cycle is started. "\
-          "Does not apply to all heuristics.")                              \
           range(0,100)                                                      \
                                                                             \
   experimental(uintx, ShenandoahInitFreeThreshold, 70,                      \
@@ -140,10 +141,11 @@
           "to duration(marking)+duration(update-refs).")                    \
                                                                             \
   experimental(uintx, ShenandoahGuaranteedGCInterval, 5*60*1000,            \
-          "Adaptive and dynamic heuristics would guarantee a GC cycle "     \
-          "at least with this interval. This is useful when large idle"     \
-          " intervals are present, where GC can run without stealing "      \
-          "time from active application. Time is in milliseconds.")         \
+          "Most heuristics would guarantee a concurrent GC cycle at "       \
+          "least with this interval. This is useful when large idle "       \
+          "intervals are present, where GC can run without stealing "       \
+          "time from active application. Time is in milliseconds. "         \
+          "(Setting this interval to 0 disables this feature).")            \
                                                                             \
   experimental(bool, ShenandoahAlwaysClearSoftRefs, false,                  \
           "Clear soft references always, instead of using any smart "       \
@@ -244,7 +246,7 @@
           "Time is in microseconds.")                                       \
                                                                             \
   experimental(uintx, ShenandoahEvacAssist, 10,                             \
-          "How many objects to evacuate on WB assist path. "                \
+          "How many objects to evacuate on LRB assist path. "               \
           "Use zero to disable.")                                           \
                                                                             \
   experimental(bool, ShenandoahPacing, true,                                \
@@ -294,11 +296,11 @@
           "Should internally-caused GCs invoke concurrent cycles, or go to" \
           "stop-the-world (degenerated/full)?")                             \
                                                                             \
-  experimental(bool, ShenandoahHumongousMoves, true,                        \
+  diagnostic(bool, ShenandoahHumongousMoves, true,                          \
           "Allow moving humongous regions. This makes GC more resistant "   \
           "to external fragmentation that may otherwise fail other "        \
           "humongous allocations, at the expense of higher GC copying "     \
-          "costs.")                                                         \
+          "costs. Currently affects stop-the-world (full) cycle only.")     \
                                                                             \
   diagnostic(bool, ShenandoahOOMDuringEvacALot, false,                      \
           "Simulate OOM during evacuation frequently.")                     \
@@ -308,9 +310,6 @@
                                                                             \
   diagnostic(bool, ShenandoahTerminationTrace, false,                       \
           "Tracing task termination timings")                               \
-                                                                            \
-  develop(bool, ShenandoahVerifyObjectEquals, false,                        \
-          "Verify that == and != are not used on oops. Only in fastdebug")  \
                                                                             \
   diagnostic(bool, ShenandoahAlwaysPreTouch, false,                         \
           "Pre-touch heap memory, overrides global AlwaysPreTouch")         \
@@ -352,30 +351,17 @@
   diagnostic(bool, ShenandoahKeepAliveBarrier, true,                        \
           "Turn on/off keep alive barriers in Shenandoah")                  \
                                                                             \
-  diagnostic(bool, ShenandoahWriteBarrier, true,                            \
-          "Turn on/off write barriers in Shenandoah")                       \
-                                                                            \
-  diagnostic(bool, ShenandoahReadBarrier, true,                             \
-          "Turn on/off read barriers in Shenandoah")                        \
-                                                                            \
   diagnostic(bool, ShenandoahStoreValEnqueueBarrier, false,                 \
           "Turn on/off enqueuing of oops for storeval barriers")            \
-                                                                            \
-  diagnostic(bool, ShenandoahStoreValReadBarrier, true,                     \
-          "Turn on/off store val read barriers in Shenandoah")              \
                                                                             \
   diagnostic(bool, ShenandoahCASBarrier, true,                              \
           "Turn on/off CAS barriers in Shenandoah")                         \
                                                                             \
-  diagnostic(bool, ShenandoahAcmpBarrier, true,                             \
-          "Turn on/off acmp barriers in Shenandoah")                        \
-                                                                            \
   diagnostic(bool, ShenandoahCloneBarrier, true,                            \
           "Turn on/off clone barriers in Shenandoah")                       \
                                                                             \
-  diagnostic(bool, ShenandoahStoreCheck, false,                             \
-          "Emit additional code that checks objects are written to only"    \
-          " in to-space")                                                   \
+  diagnostic(bool, ShenandoahLoadRefBarrier, true,                          \
+          "Turn on/off load-reference barriers in Shenandoah")              \
                                                                             \
   experimental(bool, ShenandoahConcurrentScanCodeRoots, true,               \
           "Scan code roots concurrently, instead of during a pause")        \
@@ -386,23 +372,10 @@
           " 1 - parallel iterator;"                                         \
           " 2 - parallel iterator with cset filters;")                      \
                                                                             \
-  experimental(bool, ShenandoahOptimizeStaticFinals, true,                  \
+  diagnostic(bool, ShenandoahOptimizeStaticFinals, true,                    \
           "Optimize barriers on static final fields. "                      \
           "Turn it off for maximum compatibility with reflection or JNI "   \
           "code that manipulates final fields.")                            \
-                                                                            \
-  experimental(bool, ShenandoahOptimizeInstanceFinals, false,               \
-          "Optimize barriers on final instance fields."                     \
-          "Turn it off for maximum compatibility with reflection or JNI "   \
-          "code that manipulates final fields.")                            \
-                                                                            \
-  experimental(bool, ShenandoahOptimizeStableFinals, false,                 \
-          "Optimize barriers on stable fields."                             \
-          "Turn it off for maximum compatibility with reflection or JNI "   \
-          "code that manipulates final fields.")                            \
-                                                                            \
-  diagnostic(bool, ShenandoahDecreaseRegisterPressure, false,               \
-          "Try to reuse after-barrier values to reduce register pressure")  \
                                                                             \
   experimental(bool, ShenandoahCommonGCStateLoads, false,                   \
          "Enable commonming for GC state loads in generated code.")         \
@@ -410,11 +383,12 @@
   develop(bool, ShenandoahVerifyOptoBarriers, false,                        \
           "Verify no missing barriers in C2")                               \
                                                                             \
-  experimental(bool, ShenandoahDontIncreaseWBFreq, true,                    \
-          "Common 2 WriteBarriers or WriteBarrier and a ReadBarrier only "  \
-          "if the resulting WriteBarrier isn't executed more frequently")   \
-                                                                            \
   experimental(bool, ShenandoahLoopOptsAfterExpansion, true,                \
-          "Attempt more loop opts after write barrier expansion")           \
+          "Attempt more loop opts after barrier expansion")                 \
+                                                                            \
+  diagnostic(bool, ShenandoahSelfFixing, true,                              \
+          "Fix references with load reference barrier. Disabling this "     \
+          "might degrade performance.")                                     \
+
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAH_GLOBALS_HPP

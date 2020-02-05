@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -351,10 +351,7 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   // If this does safepoint polling, then do it here
   if (do_polling() && ra_->C->is_method_compilation()) {
-    // mov_slow here is usually one or two instruction
-    __ mov_address(Rtemp, (address)os::get_polling_page(), symbolic_Relocation::polling_page_reference);
-    __ relocate(relocInfo::poll_return_type);
-    __ ldr(Rtemp, Address(Rtemp));
+    __ read_polling_page(Rtemp, relocInfo::poll_return_type);
   }
 }
 
@@ -971,7 +968,7 @@ const bool Matcher::match_rule_supported(int opcode) {
   return true;  // Per default match rules are supported.
 }
 
-const bool Matcher::match_rule_supported_vector(int opcode, int vlen) {
+const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType bt) {
 
   // TODO
   // identify extra cases that we might want to provide match rules for
@@ -1076,6 +1073,24 @@ const bool Matcher::require_postalloc_expand = false;
 const bool Matcher::need_masked_shift_count = true;
 
 const bool Matcher::convi2l_type_required = true;
+
+// No support for generic vector operands.
+const bool Matcher::supports_generic_vector_operands  = false;
+
+MachOper* Matcher::specialize_generic_vector_operand(MachOper* original_opnd, uint ideal_reg, bool is_temp) {
+  ShouldNotReachHere(); // generic vector operands not supported
+  return NULL;
+}
+
+bool Matcher::is_generic_reg2reg_move(MachNode* m) {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
+
+bool Matcher::is_generic_vector(MachOper* opnd)  {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
 
 // Should the Matcher clone shifts on addressing modes, expecting them
 // to be subsumed into complex addressing expressions or compute them
@@ -2204,6 +2219,30 @@ operand R1RegP() %{
   interface(REG_INTER);
 %}
 
+operand R8RegP() %{
+  constraint(ALLOC_IN_RC(R8_regP));
+  match(iRegP);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand R9RegP() %{
+  constraint(ALLOC_IN_RC(R9_regP));
+  match(iRegP);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand R12RegP() %{
+  constraint(ALLOC_IN_RC(R12_regP));
+  match(iRegP);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 operand R2RegP() %{
   constraint(ALLOC_IN_RC(R2_regP));
   match(iRegP);
@@ -2230,6 +2269,14 @@ operand RthreadRegP() %{
 
 operand IPRegP() %{
   constraint(ALLOC_IN_RC(IP_regP));
+  match(iRegP);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand SPRegP() %{
+  constraint(ALLOC_IN_RC(SP_regP));
   match(iRegP);
 
   format %{ %}
@@ -4348,7 +4395,8 @@ instruct loadConD(regD dst, immD src, iRegP tmp) %{
 // Prefetch instructions.
 // Must be safe to execute with invalid address (cannot fault).
 
-instruct prefetchAlloc( memoryP mem ) %{
+instruct prefetchAlloc_mp( memoryP mem ) %{
+  predicate(VM_Version::has_multiprocessing_extensions());
   match( PrefetchAllocation mem );
   ins_cost(MEMORY_REF_COST);
   size(4);
@@ -4359,6 +4407,20 @@ instruct prefetchAlloc( memoryP mem ) %{
   %}
   ins_pipe(iload_mem);
 %}
+
+instruct prefetchAlloc_sp( memoryP mem ) %{
+  predicate(!VM_Version::has_multiprocessing_extensions());
+  match( PrefetchAllocation mem );
+  ins_cost(MEMORY_REF_COST);
+  size(4);
+
+  format %{ "PLD $mem\t! Prefetch allocation" %}
+  ins_encode %{
+    __ pld($mem$$Address);
+  %}
+  ins_pipe(iload_mem);
+%}
+
 
 //----------Store Instructions-------------------------------------------------
 // Store Byte
@@ -5256,6 +5318,14 @@ instruct castPP( iRegP dst ) %{
 instruct castII( iRegI dst ) %{
   match(Set dst (CastII dst));
   format %{ "! castII of $dst" %}
+  ins_encode( /*empty encoding*/ );
+  ins_cost(0);
+  ins_pipe(empty);
+%}
+
+instruct castLL( iRegL dst ) %{
+  match(Set dst (CastLL dst));
+  format %{ "! castLL of $dst" %}
   ins_encode( /*empty encoding*/ );
   ins_cost(0);
   ins_pipe(empty);

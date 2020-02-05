@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -386,6 +386,42 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
     tmp = new_register(T_DOUBLE);
   }
 
+#ifdef _LP64
+  if (x->op() == Bytecodes::_frem || x->op() == Bytecodes::_drem) {
+    // frem and drem are implemented as a direct call into the runtime.
+    LIRItem left(x->x(), this);
+    LIRItem right(x->y(), this);
+
+    BasicType bt = as_BasicType(x->type());
+    BasicTypeList signature(2);
+    signature.append(bt);
+    signature.append(bt);
+    CallingConvention* cc = frame_map()->c_calling_convention(&signature);
+
+    const LIR_Opr result_reg = result_register_for(x->type());
+    left.load_item_force(cc->at(0));
+    right.load_item_force(cc->at(1));
+
+    address entry = NULL;
+    switch (x->op()) {
+      case Bytecodes::_frem:
+        entry = CAST_FROM_FN_PTR(address, SharedRuntime::frem);
+        break;
+      case Bytecodes::_drem:
+        entry = CAST_FROM_FN_PTR(address, SharedRuntime::drem);
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+
+    LIR_Opr result = rlock_result(x);
+    __ call_runtime_leaf(entry, getThreadTemp(), result_reg, cc->args());
+    __ move(result_reg, result);
+  } else {
+    arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), x->is_strictfp(), tmp);
+    set_result(x, round_item(reg));
+  }
+#else
   if ((UseSSE >= 1 && x->op() == Bytecodes::_frem) || (UseSSE >= 2 && x->op() == Bytecodes::_drem)) {
     // special handling for frem and drem: no SSE instruction, so must use FPU with temporary fpu stack slots
     LIR_Opr fpu0, fpu1;
@@ -404,8 +440,8 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
   } else {
     arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), x->is_strictfp(), tmp);
   }
-
   set_result(x, round_item(reg));
+#endif // _LP64
 }
 
 
@@ -444,9 +480,6 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
     case Bytecodes::_ldiv:
       entry = CAST_FROM_FN_PTR(address, SharedRuntime::ldiv);
       break; // check if dividend is 0 is done elsewhere
-    case Bytecodes::_lmul:
-      entry = CAST_FROM_FN_PTR(address, SharedRuntime::lmul);
-      break;
     default:
       ShouldNotReachHere();
     }
@@ -671,7 +704,7 @@ void LIRGenerator::do_CompareOp(CompareOp* x) {
 
 LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_value, LIRItem& new_value) {
   LIR_Opr ill = LIR_OprFact::illegalOpr;  // for convenience
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     cmp_value.load_item_force(FrameMap::rax_oop_opr);
     new_value.load_item();
     __ cas_obj(addr->as_address_ptr()->base(), cmp_value.result(), new_value.result(), ill, ill);
@@ -693,7 +726,7 @@ LIR_Opr LIRGenerator::atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_
 }
 
 LIR_Opr LIRGenerator::atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& value) {
-  bool is_oop = type == T_OBJECT || type == T_ARRAY;
+  bool is_oop = is_reference_type(type);
   LIR_Opr result = new_register(type);
   value.load_item();
   // Because we want a 2-arg form of xchg and xadd
@@ -1145,6 +1178,15 @@ LIR_Opr fixed_register_for(BasicType type) {
 }
 
 void LIRGenerator::do_Convert(Convert* x) {
+#ifdef _LP64
+  LIRItem value(x->value(), this);
+  value.load_item();
+  LIR_Opr input = value.result();
+  LIR_Opr result = rlock(x);
+  __ convert(x->op(), input, result);
+  assert(result->is_virtual(), "result must be virtual register");
+  set_result(x, result);
+#else
   // flags that vary for the different operations and different SSE-settings
   bool fixed_input = false, fixed_result = false, round_result = false, needs_stub = false;
 
@@ -1203,6 +1245,7 @@ void LIRGenerator::do_Convert(Convert* x) {
 
   assert(result->is_virtual(), "result must be virtual register");
   set_result(x, result);
+#endif // _LP64
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,8 @@
  * @test
  * @bug 8141492 8071982 8141636 8147890 8166175 8168965 8176794 8175218 8147881
  *      8181622 8182263 8074407 8187521 8198522 8182765 8199278 8196201 8196202
- *      8184205 8214468
+ *      8184205 8214468 8222548 8223378 8234746
  * @summary Test the search feature of javadoc.
- * @author bpatel
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -70,7 +69,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -92,24 +90,11 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    public void test2_html4() {
-        javadoc("-d", "out-2-html4",
-                "-html4",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSingleIndex(true, false);
-    }
-
-    @Test
     public void test2a() {
         javadoc("-d", "out-2a",
                 "-Xdoclint:all",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.ERROR);
         checkDocLintErrors();
@@ -130,24 +115,12 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    public void test2a_html4() {
-        javadoc("-d", "out-2a-html4",
-                "-html4",
-                "-Xdoclint:all",
-                "-sourcepath", testSrc,
-                "-use",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkSingleIndex(true, false);
-    }
-
-    @Test
     public void test3() {
         javadoc("-d", "out-3",
                 "-noindex",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -173,7 +146,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -200,7 +172,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(false);
@@ -224,7 +195,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -249,7 +219,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
 
         checkExit(Exit.OK);
@@ -275,7 +244,6 @@ public class TestSearch extends JavadocTester {
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", "pkg2", "pkg3");
         checkExit(Exit.OK);
         checkInvalidUsageIndexTag();
@@ -303,7 +271,6 @@ public class TestSearch extends JavadocTester {
                 "--disable-javafx-strict-checks",
                 "-package",
                 "-use",
-                "--frames",
                 "pkgfx", "pkg3");
         checkExit(Exit.OK);
         checkSearchOutput(true);
@@ -323,23 +290,8 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    public void testNoModuleDirectories() {
-        javadoc("-d", "out-noMdlDir",
-                "--no-module-directories",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "--frames",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSearchOutput(true, false);
-        checkSearchJS();
-    }
-
-    @Test
     public void testURLEncoding() {
         javadoc("-d", "out-encode-html5",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -350,25 +302,9 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    public void testURLEncoding_html4() {
-        javadoc("-d", "out-encode-html4",
-                "-html4",
-                "--no-module-directories",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "--frames",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSearchJS();
-        checkSearchIndex(false);
-    }
-
-    @Test
     public void testJapaneseLocale() {
         javadoc("-locale", "ja_JP",
                 "-d", "out-jp",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -387,7 +323,6 @@ public class TestSearch extends JavadocTester {
     public void testChineseLocale() {
         javadoc("-locale", "zh_CN",
                 "-d", "out-cn",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -411,7 +346,7 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput) {
-        checkSearchOutput("overview-summary.html", expectedOutput, true);
+        checkSearchOutput("index.html", expectedOutput, true);
     }
 
     void checkSearchIndex(boolean expectedOutput) {
@@ -428,30 +363,28 @@ public class TestSearch extends JavadocTester {
     }
 
     void checkSearchOutput(boolean expectedOutput, boolean moduleDirectoriesVar) {
-        checkSearchOutput("overview-summary.html", expectedOutput, moduleDirectoriesVar);
+        checkSearchOutput("index.html", expectedOutput, moduleDirectoriesVar);
     }
 
     void checkSearchOutput(String fileName, boolean expectedOutput, boolean moduleDirectoriesVar) {
         // Test for search related markup
         checkOutput(fileName, expectedOutput,
-                "<link rel=\"stylesheet\" type=\"text/css\" href=\"jquery/jquery-ui.css\" title=\"Style\">\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip/dist/jszip.min.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils.min.js\"></script>\n",
+                "<link rel=\"stylesheet\" type=\"text/css\" href=\"script-dir/jquery-ui.css\" title=\"Style\">\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip/dist/jszip.min.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip-utils/dist/jszip-utils.min.js\"></script>\n",
                 "<!--[if IE]>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
                 "<![endif]-->\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-3.3.1.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-migrate-3.0.1.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-ui.js\"></script>",
+                "<script type=\"text/javascript\" src=\"script-dir/jquery-3.4.1.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jquery-ui.js\"></script>",
                 "var pathtoroot = \"./\";\n"
-                + "var useModuleDirectories = " + moduleDirectoriesVar + ";\n"
                 + "loadScripts(document, 'script');",
-                "<ul class=\"navListSearch\">\n",
-                "<li><label for=\"search\">SEARCH:</label>\n"
+                "<div class=\"navListSearch\">",
+                "<label for=\"search\">SEARCH:</label>\n"
                 + "<input type=\"text\" id=\"search\" value=\"search\" disabled=\"disabled\">\n"
                 + "<input type=\"reset\" id=\"reset\" value=\"reset\" disabled=\"disabled\">\n");
         checkOutput(fileName, true,
-                "<div class=\"fixedNav\">");
+                "<div class=\"flexBox\">");
     }
 
     void checkSingleIndex(boolean expectedOutput, boolean html5) {
@@ -460,31 +393,31 @@ public class TestSearch extends JavadocTester {
         // Test for search tags markup in index file.
         checkOutput("index-all.html", expectedOutput,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#phrasewithspaces\">"
-                + "phrase with spaces</a></span> - Search tag in pkg</dt>",
+                + "phrase with spaces</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#pkg\">"
-                + "pkg</a></span> - Search tag in pkg</dt>",
+                + "pkg</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#pkg2.5\">"
-                + "pkg2.5</a></span> - Search tag in pkg</dt>",
+                + "pkg2.5</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#r\">"
-                + "r</a></span> - Search tag in pkg</dt>",
+                + "r</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in pkg1.RegClass</dt>",
+                + "search phrase</a></span> - Search tag in class pkg1.RegClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#SearchWordWithDescription\">"
                 + "SearchWordWithDescription</a></span> - Search tag in pkg1.RegClass.CONSTANT_FIELD_1</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestAnnotationType.html#searchphrasewithdescdeprecated\">"
-                + "search phrase with desc deprecated</a></span> - Search tag in pkg2.TestAnnotationType</dt>",
+                + "search phrase with desc deprecated</a></span> - Search tag in annotation type pkg2.TestAnnotationType</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestClass.html#SearchTagDeprecatedClass\">"
-                + "SearchTagDeprecatedClass</a></span> - Search tag in pkg2.TestClass</dt>",
+                + "SearchTagDeprecatedClass</a></span> - Search tag in class pkg2.TestClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#SingleWord\">"
-                + "SingleWord</a></span> - Search tag in pkg</dt>",
+                + "SingleWord</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/AnotherClass.ModalExclusionType.html"
                 + "#nested%7B@indexnested_tag_test%7D\">nested {@index nested_tag_test}</a></span> - "
                 + "Search tag in pkg.AnotherClass.ModalExclusionType.NO_EXCLUDE</dt>",
@@ -501,44 +434,45 @@ public class TestSearch extends JavadocTester {
                 + "pkg2.<a href=\"pkg2/TestEnum.html\" title=\"enum in pkg2\">TestEnum</a></dt>");
         checkOutput("index-all.html", true,
                 "<div class=\"deprecationComment\">class_test1 passes. Search tag"
-                + " <a id=\"SearchTagDeprecatedClass\" class=\"searchTagResult\">SearchTagDeprecatedClass</a></div>",
+                + " <span id=\"SearchTagDeprecatedClass\" class=\"searchTagResult\">SearchTagDeprecatedClass</span></div>",
                 "<div class=\"deprecationComment\">error_test3 passes. Search tag for\n"
-                + " method <a id=\"SearchTagDeprecatedMethod\" class=\"searchTagResult\">SearchTagDeprecatedMethod</a></div>");
+                + " method <span id=\"SearchTagDeprecatedMethod\" class=\"searchTagResult\">SearchTagDeprecatedMethod</span></div>");
     }
 
     void checkSplitIndex() {
         // Test for search tags markup in split index file.
         checkOutput("index-files/index-13.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg1/RegClass.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in pkg1.RegClass</dt>",
+                + "search phrase</a></span> - Search tag in class pkg1.RegClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg1/RegClass.html#SearchWordWithDescription\">"
                 + "SearchWordWithDescription</a></span> - Search tag in pkg1.RegClass.CONSTANT_FIELD_1</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestAnnotationType.html#searchphrasewithdescdeprecated\">"
-                + "search phrase with desc deprecated</a></span> - Search tag in pkg2.TestAnnotationType</dt>",
+                + "search phrase with desc deprecated</a></span> - Search tag in annotation type pkg2.TestAnnotationType</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestClass.html#SearchTagDeprecatedClass\">"
-                + "SearchTagDeprecatedClass</a></span> - Search tag in pkg2.TestClass</dt>",
+                + "SearchTagDeprecatedClass</a></span> - Search tag in class pkg2.TestClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#SingleWord\">"
-                + "SingleWord</a></span> - Search tag in pkg</dt>",
-                "<br><a href=\"../allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                + "SingleWord</a></span> - Search tag in package pkg</dt>",
+                "<br><a href=\"../allclasses-index.html\">All&nbsp;Classes</a>"
+                + "<span class=\"verticalSeparator\">|</span>"
                 + "<a href=\"../allpackages-index.html\">All&nbsp;Packages</a>");
         checkOutput("index-files/index-10.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#phrasewithspaces\">"
-                + "phrase with spaces</a></span> - Search tag in pkg</dt>",
+                + "phrase with spaces</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#pkg\">"
-                + "pkg</a></span> - Search tag in pkg</dt>",
+                + "pkg</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#pkg2.5\">"
-                + "pkg2.5</a></span> - Search tag in pkg</dt>");
+                + "pkg2.5</a></span> - Search tag in package pkg</dt>");
         checkOutput("index-files/index-12.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/package-summary.html#r\">"
-                + "r</a></span> - Search tag in pkg</dt>");
+                + "r</a></span> - Search tag in package pkg</dt>");
         checkOutput("index-files/index-8.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg/AnotherClass.ModalExclusionType.html"
                 + "#nested%7B@indexnested_tag_test%7D\">nested {@index nested_tag_test}</a></span> - "
@@ -564,58 +498,58 @@ public class TestSearch extends JavadocTester {
         // Test for search tags markup in index file when javadoc is executed with -nocomment.
         checkOutput("index-all.html", false,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#phrasewithspaces\">"
-                + "phrase with spaces</a></span> - Search tag in pkg</dt>",
+                + "phrase with spaces</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#pkg\">"
-                + "pkg</a></span> - Search tag in pkg</dt>",
+                + "pkg</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#pkg2.5\">"
-                + "pkg2.5</a></span> - Search tag in pkg</dt>",
+                + "pkg2.5</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#r\">"
-                + "r</a></span> - Search tag in pkg</dt>",
+                + "r</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in pkg1.RegClass</dt>",
+                + "search phrase</a></span> - Search tag in class pkg1.RegClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#SearchWordWithDescription\">"
                 + "SearchWordWithDescription</a></span> - Search tag in pkg1.RegClass.CONSTANT_FIELD_1</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestAnnotationType.html#searchphrasewithdescdeprecated\">"
-                + "search phrase with desc deprecated</a></span> - Search tag in pkg2.TestAnnotationType</dt>",
+                + "search phrase with desc deprecated</a></span> - Search tag in annotation type pkg2.TestAnnotationType</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestClass.html#SearchTagDeprecatedClass\">"
-                + "SearchTagDeprecatedClass</a></span> - Search tag in pkg2.TestClass</dt>",
+                + "SearchTagDeprecatedClass</a></span> - Search tag in class pkg2.TestClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#SingleWord\">"
-                + "SingleWord</a></span> - Search tag in pkg</dt>",
+                + "SingleWord</a></span> - Search tag in package pkg</dt>",
                 "<div class=\"deprecationComment\">class_test1 passes. Search tag"
-                + " <a id=\"SearchTagDeprecatedClass\">SearchTagDeprecatedClass</a></div>",
+                + " <span id=\"SearchTagDeprecatedClass\">SearchTagDeprecatedClass</span></div>",
                 "<div class=\"deprecationComment\">error_test3 passes. Search tag for\n"
-                + " method <a id=\"SearchTagDeprecatedMethod\">SearchTagDeprecatedMethod</a></div>");
+                + " method <span id=\"SearchTagDeprecatedMethod\">SearchTagDeprecatedMethod</span></div>");
         checkOutput("index-all.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>");
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>");
     }
 
     void checkIndexNoDeprecated() {
         // Test for search tags markup in index file when javadoc is executed using -nodeprecated.
         checkOutput("index-all.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#phrasewithspaces\">"
-                + "phrase with spaces</a></span> - Search tag in pkg</dt>",
+                + "phrase with spaces</a></span> - Search tag in package pkg</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in pkg1.RegClass</dt>",
+                + "search phrase</a></span> - Search tag in class pkg1.RegClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg1/RegClass.html#SearchWordWithDescription\">"
                 + "SearchWordWithDescription</a></span> - Search tag in pkg1.RegClass.CONSTANT_FIELD_1</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg/package-summary.html#SingleWord\">"
-                + "SingleWord</a></span> - Search tag in pkg</dt>");
+                + "SingleWord</a></span> - Search tag in package pkg</dt>");
         checkOutput("index-all.html", false,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestAnnotationType.html#searchphrasewithdescdeprecated\">"
-                + "search phrase with desc deprecated</a></span> - Search tag in pkg2.TestAnnotationType</dt>",
+                + "search phrase with desc deprecated</a></span> - Search tag in annotation type pkg2.TestAnnotationType</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestClass.html#SearchTagDeprecatedClass\">"
-                + "SearchTagDeprecatedClass</a></span> - Search tag in pkg2.TestClass</dt>",
+                + "SearchTagDeprecatedClass</a></span> - Search tag in class pkg2.TestClass</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestEnum.html#searchphrasedeprecated\">"
                 + "search phrase deprecated</a></span> - Search tag in pkg2.TestEnum.ONE</dt>",
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>",
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>",
                 "<div class=\"deprecationComment\">class_test1 passes. Search tag"
-                + " <a id=\"SearchTagDeprecatedClass\">SearchTagDeprecatedClass</a></div>",
+                + " <span id=\"SearchTagDeprecatedClass\">SearchTagDeprecatedClass</span></div>",
                 "<div class=\"deprecationComment\">error_test3 passes. Search tag for\n"
-                + " method <a id=\"SearchTagDeprecatedMethod\">SearchTagDeprecatedMethod</a></div>");
+                + " method <span id=\"SearchTagDeprecatedMethod\">SearchTagDeprecatedMethod</span></div>");
     }
 
     void checkJavaFXOutput() {
@@ -625,77 +559,66 @@ public class TestSearch extends JavadocTester {
     void checkInvalidUsageIndexTag() {
         checkOutput(Output.OUT, true,
                 "AnotherClass.java:29: warning - invalid usage of tag {@index",
-                "AnotherClass.java:41: warning - invalid usage of tag {@index",
-                "AnotherClass.java:36: warning - invalid usage of tag {@index",
-                "AnotherClass.java:70: warning - invalid usage of tag {@index");
+                "AnotherClass.java:39: warning - invalid usage of tag {@index",
+                "AnotherClass.java:34: warning - invalid usage of tag {@index",
+                "AnotherClass.java:68: warning - invalid usage of tag {@index");
     }
 
     void checkJqueryAndImageFiles(boolean expectedOutput) {
         checkFiles(expectedOutput,
                 "search.js",
-                "jquery/jquery-3.3.1.js",
-                "jquery/jquery-migrate-3.0.1.js",
-                "jquery/jquery-ui.js",
-                "jquery/jquery-ui.css",
-                "jquery/jquery-ui.min.js",
-                "jquery/jquery-ui.min.css",
-                "jquery/jquery-ui.structure.min.css",
-                "jquery/jquery-ui.structure.css",
-                "jquery/external/jquery/jquery.js",
-                "jquery/jszip/dist/jszip.js",
-                "jquery/jszip/dist/jszip.min.js",
-                "jquery/jszip-utils/dist/jszip-utils.js",
-                "jquery/jszip-utils/dist/jszip-utils.min.js",
-                "jquery/jszip-utils/dist/jszip-utils-ie.js",
-                "jquery/jszip-utils/dist/jszip-utils-ie.min.js",
-                "jquery/images/ui-bg_glass_65_dadada_1x400.png",
-                "jquery/images/ui-icons_454545_256x240.png",
-                "jquery/images/ui-bg_glass_95_fef1ec_1x400.png",
-                "jquery/images/ui-bg_glass_75_dadada_1x400.png",
-                "jquery/images/ui-bg_highlight-soft_75_cccccc_1x100.png",
-                "jquery/images/ui-icons_888888_256x240.png",
-                "jquery/images/ui-icons_2e83ff_256x240.png",
-                "jquery/images/ui-icons_cd0a0a_256x240.png",
-                "jquery/images/ui-bg_glass_55_fbf9ee_1x400.png",
-                "jquery/images/ui-icons_222222_256x240.png",
-                "jquery/images/ui-bg_glass_75_e6e6e6_1x400.png",
+                "script-dir/jquery-3.4.1.js",
+                "script-dir/jquery-ui.js",
+                "script-dir/jquery-ui.css",
+                "script-dir/jquery-ui.min.js",
+                "script-dir/jquery-ui.min.css",
+                "script-dir/jquery-ui.structure.min.css",
+                "script-dir/jquery-ui.structure.css",
+                "script-dir/jszip/dist/jszip.js",
+                "script-dir/jszip/dist/jszip.min.js",
+                "script-dir/jszip-utils/dist/jszip-utils.js",
+                "script-dir/jszip-utils/dist/jszip-utils.min.js",
+                "script-dir/jszip-utils/dist/jszip-utils-ie.js",
+                "script-dir/jszip-utils/dist/jszip-utils-ie.min.js",
+                "script-dir/images/ui-bg_glass_65_dadada_1x400.png",
+                "script-dir/images/ui-icons_454545_256x240.png",
+                "script-dir/images/ui-bg_glass_95_fef1ec_1x400.png",
+                "script-dir/images/ui-bg_glass_75_dadada_1x400.png",
+                "script-dir/images/ui-bg_highlight-soft_75_cccccc_1x100.png",
+                "script-dir/images/ui-icons_888888_256x240.png",
+                "script-dir/images/ui-icons_2e83ff_256x240.png",
+                "script-dir/images/ui-icons_cd0a0a_256x240.png",
+                "script-dir/images/ui-bg_glass_55_fbf9ee_1x400.png",
+                "script-dir/images/ui-icons_222222_256x240.png",
+                "script-dir/images/ui-bg_glass_75_e6e6e6_1x400.png",
                 "resources/x.png",
                 "resources/glass.png");
     }
 
     void checkSearchJS() {
         checkOutput("search.js", true,
-                "camelCaseRegexp = ($.ui.autocomplete.escapeRegex(request.term)).split(/(?=[A-Z])/).join(\"([a-z0-9_$]*?)\");",
-                "var camelCaseMatcher = new RegExp(\"^\" + camelCaseRegexp);",
-                "camelCaseMatcher.test(item.l)",
-                "var secondaryresult = new Array();",
-                "function nestedName(e) {",
                 "function concatResults(a1, a2) {",
-                "if (exactMatcher.test(item.l)) {\n"
-                + "                        presult.push(item);",
-                "$(\"#search\").on('click keydown', function() {\n"
+                "$(\"#search\").on('click keydown paste', function() {\n"
                 + "        if ($(this).val() == watermark) {\n"
                 + "            $(this).val('').removeClass('watermark');\n"
                 + "        }\n"
                 + "    });",
                 "function getURLPrefix(ui) {\n"
                 + "    var urlPrefix=\"\";\n"
-                + "    if (useModuleDirectories) {\n"
-                + "        var slash = \"/\";\n"
-                + "        if (ui.item.category === catModules) {\n"
-                + "            return ui.item.l + slash;\n"
-                + "        } else if (ui.item.category === catPackages && ui.item.m) {\n"
-                + "            return ui.item.m + slash;\n"
-                + "        } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
-                + "            $.each(packageSearchIndex, function(index, item) {\n"
-                + "                if (item.m && ui.item.p == item.l) {\n"
-                + "                    urlPrefix = item.m + slash;\n"
-                + "                }\n"
-                + "            });\n"
-                + "            return urlPrefix;\n"
-                + "        } else {\n"
-                + "            return urlPrefix;\n"
-                + "        }\n"
+                + "    var slash = \"/\";\n"
+                + "    if (ui.item.category === catModules) {\n"
+                + "        return ui.item.l + slash;\n"
+                + "    } else if (ui.item.category === catPackages && ui.item.m) {\n"
+                + "        return ui.item.m + slash;\n"
+                + "    } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
+                + "        $.each(packageSearchIndex, function(index, item) {\n"
+                + "            if (item.m && ui.item.p == item.l) {\n"
+                + "                urlPrefix = item.m + slash;\n"
+                + "            }\n"
+                + "        });\n"
+                + "        return urlPrefix;\n"
+                + "    } else {\n"
+                + "        return urlPrefix;\n"
                 + "    }\n"
                 + "    return urlPrefix;\n"
                 + "}",
@@ -706,14 +629,14 @@ public class TestSearch extends JavadocTester {
         // Test for search tags duplication in index file.
         checkOutput("index-all.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>");
         checkOutput("index-all.html", false,
                 "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>");
     }
 
@@ -721,14 +644,14 @@ public class TestSearch extends JavadocTester {
         // Test for search tags duplication in index file.
         checkOutput("index-files/index-13.html", true,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>");
         checkOutput("index-files/index-13.html", false,
                 "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"../pkg2/TestError.html#SearchTagDeprecatedMethod\">"
-                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError</dt>\n"
+                + "SearchTagDeprecatedMethod</a></span> - Search tag in pkg2.TestError.TestError()</dt>\n"
                 + "<dd>with description</dd>");
     }
 
@@ -755,6 +678,7 @@ public class TestSearch extends JavadocTester {
                 + " id=\"t6\" class=\"tableTab\" onclick=\"show(32);\">Annotation Types Summary</button></div>\n"
                 + "<div id=\"typeSummary_tabpanel\" role=\"tabpanel\">\n"
                 + "<table aria-labelledby=\"t0\">\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Class</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
@@ -764,6 +688,7 @@ public class TestSearch extends JavadocTester {
         checkOutput("allpackages-index.html", true,
                 "<div class=\"packagesSummary\">\n<table>\n"
                 + "<caption><span>Package Summary</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
+                + "<thead>\n"
                 + "<tr>\n"
                 + "<th class=\"colFirst\" scope=\"col\">Package</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
@@ -773,7 +698,8 @@ public class TestSearch extends JavadocTester {
         checkOutput("package-search-index.js", true,
                 "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
-                + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
-}
+                    "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>"
+                    + "<span class=\"verticalSeparator\">|</span>"
+                    + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
+    }
 }

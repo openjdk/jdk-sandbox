@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,8 +37,7 @@
                           product_rw,                                       \
                           lp64_product,                                     \
                           range,                                            \
-                          constraint,                                       \
-                          writeable)                                        \
+                          constraint)                                       \
   product(uintx, HeapMaximumCompactionInterval, 20,                         \
           "How often should we maximally compact the heap (not allowing "   \
           "any dead space)")                                                \
@@ -61,12 +60,6 @@
           "The standard deviation used by the parallel compact dead wood "  \
           "limiter (a number between 0-100)")                               \
           range(0, 100)                                                     \
-                                                                            \
-  develop(bool, TraceGCTaskManager, false,                                  \
-          "Trace actions of the GC task manager")                           \
-                                                                            \
-  develop(bool, TraceGCTaskQueue, false,                                    \
-          "Trace actions of the GC task queues")                            \
                                                                             \
   develop(bool, TraceParallelOldGCMarkingPhase, false,                      \
           "Trace marking phase in ParallelOldGC")                           \

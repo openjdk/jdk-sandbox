@@ -50,6 +50,7 @@
 
 class AbstractGangWorker;
 class Semaphore;
+class ThreadClosure;
 class WorkGang;
 
 // An abstract task to be worked on by a gang.
@@ -239,7 +240,7 @@ public:
   virtual bool is_ConcurrentGC_thread() const;
   // Printing
   void print_on(outputStream* st) const;
-  virtual void print() const { print_on(tty); }
+  virtual void print() const;
 
 protected:
   AbstractWorkGang* _gang;

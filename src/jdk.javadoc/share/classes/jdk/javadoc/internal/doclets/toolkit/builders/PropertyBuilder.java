@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,11 +31,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
-import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
 import jdk.javadoc.internal.doclets.toolkit.PropertyWriter;
-import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
 
 import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.*;
 
@@ -46,9 +45,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class PropertyBuilder extends AbstractMemberBuilder {
 
@@ -72,7 +68,7 @@ public class PropertyBuilder extends AbstractMemberBuilder {
      * Construct a new PropertyBuilder.
      *
      * @param context  the build context.
-     * @param typeElement the class whoses members are being documented.
+     * @param typeElement the class whose members are being documented.
      * @param writer the doclet specific writer.
      */
     private PropertyBuilder(Context context,
@@ -87,7 +83,7 @@ public class PropertyBuilder extends AbstractMemberBuilder {
      * Construct a new PropertyBuilder.
      *
      * @param context  the build context.
-     * @param typeElement the class whoses members are being documented.
+     * @param typeElement the class whose members are being documented.
      * @param writer the doclet specific writer.
      * @return the new PropertyBuilder
      */
@@ -107,9 +103,6 @@ public class PropertyBuilder extends AbstractMemberBuilder {
         return !properties.isEmpty();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build(Content contentTree) throws DocletException {
         buildPropertyDoc(contentTree);
@@ -126,23 +119,21 @@ public class PropertyBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content propertyDetailsTree = writer.getPropertyDetailsTreeHeader(typeElement,
-                    memberDetailsTree);
-            Element lastElement = properties.get(properties.size() - 1);
+            Content propertyDetailsTreeHeader = writer.getPropertyDetailsTreeHeader(memberDetailsTree);
+            Content propertyDetailsTree = writer.getMemberTreeHeader();
+
             for (Element property : properties) {
                 currentProperty = (ExecutableElement)property;
-                Content propertyDocTree = writer.getPropertyDocTreeHeader(currentProperty,
-                        propertyDetailsTree);
+                Content propertyDocTree = writer.getPropertyDocTreeHeader(currentProperty);
 
                 buildSignature(propertyDocTree);
                 buildPropertyComments(propertyDocTree);
                 buildTagInfo(propertyDocTree);
 
-                propertyDetailsTree.addContent(writer.getPropertyDoc(
-                        propertyDocTree, currentProperty == lastElement));
+                propertyDetailsTree.add(writer.getPropertyDoc(propertyDocTree));
             }
-            memberDetailsTree.addContent(
-                    writer.getPropertyDetails(propertyDetailsTree));
+            memberDetailsTree.add(
+                    writer.getPropertyDetails(propertyDetailsTreeHeader, propertyDetailsTree));
         }
     }
 
@@ -152,7 +143,7 @@ public class PropertyBuilder extends AbstractMemberBuilder {
      * @param propertyDocTree the content tree to which the documentation will be added
      */
     protected void buildSignature(Content propertyDocTree) {
-        propertyDocTree.addContent(writer.getSignature(currentProperty));
+        propertyDocTree.add(writer.getSignature(currentProperty));
     }
 
     /**
@@ -166,12 +157,12 @@ public class PropertyBuilder extends AbstractMemberBuilder {
 
     /**
      * Build the comments for the property.  Do nothing if
-     * {@link BaseConfiguration#nocomment} is set to true.
+     * {@link BaseOptions#noComment} is set to true.
      *
      * @param propertyDocTree the content tree to which the documentation will be added
      */
     protected void buildPropertyComments(Content propertyDocTree) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             writer.addComments(currentProperty, propertyDocTree);
         }
     }

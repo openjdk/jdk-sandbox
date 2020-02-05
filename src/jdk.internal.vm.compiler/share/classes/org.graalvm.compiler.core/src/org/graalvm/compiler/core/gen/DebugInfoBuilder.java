@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,9 +41,12 @@ import org.graalvm.compiler.nodes.ConstantNode;
 import org.graalvm.compiler.nodes.FrameState;
 import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.spi.NodeValueMap;
+import org.graalvm.compiler.nodes.spi.NodeWithState;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.EscapeObjectState;
+import org.graalvm.compiler.nodes.virtual.VirtualBoxingNode;
 import org.graalvm.compiler.nodes.virtual.VirtualObjectNode;
+import org.graalvm.compiler.serviceprovider.GraalServices;
 import org.graalvm.compiler.virtual.nodes.MaterializedObjectState;
 import org.graalvm.compiler.virtual.nodes.VirtualObjectState;
 
@@ -78,7 +81,7 @@ public class DebugInfoBuilder {
 
     protected final Queue<VirtualObjectNode> pendingVirtualObjects = new ArrayDeque<>();
 
-    public LIRFrameState build(FrameState topState, LabelRef exceptionEdge) {
+    public LIRFrameState build(NodeWithState node, FrameState topState, LabelRef exceptionEdge) {
         assert virtualObjects.size() == 0;
         assert objectStates.size() == 0;
         assert pendingVirtualObjects.size() == 0;
@@ -98,7 +101,8 @@ public class DebugInfoBuilder {
             current = current.outerFrameState();
         } while (current != null);
 
-        BytecodeFrame frame = computeFrameForState(topState);
+        assert verifyFrameState(node, topState);
+        BytecodeFrame frame = computeFrameForState(node, topState);
 
         VirtualObject[] virtualObjectsArray = null;
         if (virtualObjects.size() != 0) {
@@ -221,7 +225,18 @@ public class DebugInfoBuilder {
         return new LIRFrameState(frame, virtualObjectsArray, exceptionEdge);
     }
 
-    protected BytecodeFrame computeFrameForState(FrameState state) {
+    /**
+     * Perform platform dependent verification of the FrameState.
+     *
+     * @param node the node using the state
+     * @param topState the state
+     * @return true if the validation succeeded
+     */
+    protected boolean verifyFrameState(NodeWithState node, FrameState topState) {
+        return true;
+    }
+
+    protected BytecodeFrame computeFrameForState(NodeWithState node, FrameState state) {
         try {
             assert state.bci != BytecodeFrame.INVALID_FRAMESTATE_BCI;
             assert state.bci != BytecodeFrame.UNKNOWN_BCI;
@@ -247,12 +262,12 @@ public class DebugInfoBuilder {
 
             BytecodeFrame caller = null;
             if (state.outerFrameState() != null) {
-                caller = computeFrameForState(state.outerFrameState());
+                caller = computeFrameForState(node, state.outerFrameState());
             }
 
             if (!state.canProduceBytecodeFrame()) {
                 // This typically means a snippet or intrinsic frame state made it to the backend
-                StackTraceElement ste = state.getCode().asStackTraceElement(state.bci);
+                String ste = state.getCode() != null ? state.getCode().asStackTraceElement(state.bci).toString() : state.toString();
                 throw new GraalError("Frame state for %s cannot be converted to a BytecodeFrame since the frame state's code is " +
                                 "not the same as the frame state method's code", ste);
             }
@@ -317,7 +332,8 @@ public class DebugInfoBuilder {
                     assert obj.entryCount() == 0 || state instanceof VirtualObjectState;
                     VirtualObject vobject = virtualObjects.get(obj);
                     if (vobject == null) {
-                        vobject = VirtualObject.get(obj.type(), virtualObjects.size());
+                        boolean isAutoBox = obj instanceof VirtualBoxingNode;
+                        vobject = GraalServices.createVirtualObject(obj.type(), virtualObjects.size(), isAutoBox);
                         virtualObjects.put(obj, vobject);
                         pendingVirtualObjects.add(obj);
                     }

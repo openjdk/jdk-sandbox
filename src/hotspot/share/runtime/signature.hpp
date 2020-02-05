@@ -90,7 +90,6 @@ class SignatureIterator: public ResourceObj {
   SignatureIterator(Symbol* signature);
 
   // Iteration
-  void dispatch_field();               // dispatches once for field signatures
   void iterate_parameters();           // iterates over parameters only
   void iterate_parameters( uint64_t fingerprint );
   void iterate_returntype();           // iterates over returntype only
@@ -363,8 +362,8 @@ class SignatureStream : public StackObj {
   int          _end;
   BasicType    _type;
   bool         _at_return_type;
-  GrowableArray<Symbol*>* _names;  // symbols created while parsing signature
-
+  Symbol*      _previous_name;     // cache the previously looked up symbol to avoid lookups
+  GrowableArray<Symbol*>* _names;  // symbols created while parsing that need to be dereferenced
  public:
   bool at_return_type() const                    { return _at_return_type; }
   bool is_done() const;
@@ -380,15 +379,15 @@ class SignatureStream : public StackObj {
     _begin = _end;
     int t = sig->char_at(_begin);
     switch (t) {
-      case 'B': _type = T_BYTE;    break;
-      case 'C': _type = T_CHAR;    break;
-      case 'D': _type = T_DOUBLE;  break;
-      case 'F': _type = T_FLOAT;   break;
-      case 'I': _type = T_INT;     break;
-      case 'J': _type = T_LONG;    break;
-      case 'S': _type = T_SHORT;   break;
-      case 'Z': _type = T_BOOLEAN; break;
-      case 'V': _type = T_VOID;    break;
+      case JVM_SIGNATURE_BYTE:    _type = T_BYTE;    break;
+      case JVM_SIGNATURE_CHAR:    _type = T_CHAR;    break;
+      case JVM_SIGNATURE_DOUBLE:  _type = T_DOUBLE;  break;
+      case JVM_SIGNATURE_FLOAT:   _type = T_FLOAT;   break;
+      case JVM_SIGNATURE_INT:     _type = T_INT;     break;
+      case JVM_SIGNATURE_LONG:    _type = T_LONG;    break;
+      case JVM_SIGNATURE_SHORT:   _type = T_SHORT;   break;
+      case JVM_SIGNATURE_BOOLEAN: _type = T_BOOLEAN; break;
+      case JVM_SIGNATURE_VOID:    _type = T_VOID;    break;
       default : next_non_primitive(t);
                 return;
     }
@@ -401,8 +400,8 @@ class SignatureStream : public StackObj {
   bool is_object() const;                        // True if this argument is an object
   bool is_array() const;                         // True if this argument is an array
   BasicType type() const                         { return _type; }
-  Symbol* as_symbol(TRAPS);
-  enum FailureMode { ReturnNull, CNFException, NCDFError };
+  Symbol* as_symbol();
+  enum FailureMode { ReturnNull, NCDFError };
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   const u1* raw_bytes()  { return _signature->bytes() + _begin; }
@@ -415,17 +414,13 @@ class SignatureStream : public StackObj {
   int reference_parameter_count();
 };
 
+#ifdef ASSERT
 class SignatureVerifier : public StackObj {
   public:
-    // Returns true if the symbol is valid method or type signature
-    static bool is_valid_signature(Symbol* sig);
-
     static bool is_valid_method_signature(Symbol* sig);
     static bool is_valid_type_signature(Symbol* sig);
   private:
-
     static ssize_t is_valid_type(const char*, ssize_t);
-    static bool invalid_name_char(char);
 };
-
+#endif
 #endif // SHARE_RUNTIME_SIGNATURE_HPP

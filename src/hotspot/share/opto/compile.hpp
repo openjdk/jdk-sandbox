@@ -52,9 +52,9 @@ class C2Compiler;
 class CallGenerator;
 class CloneMap;
 class ConnectionGraph;
+class IdealGraphPrinter;
 class InlineTree;
 class Int_Array;
-class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -96,8 +96,7 @@ enum LoopOptsMode {
   LoopOptsShenandoahExpand,
   LoopOptsShenandoahPostExpand,
   LoopOptsSkipSplitIf,
-  LoopOptsVerify,
-  LoopOptsLastRound
+  LoopOptsVerify
 };
 
 typedef unsigned int node_idx_t;
@@ -383,6 +382,7 @@ class Compile : public Phase {
   int                   _major_progress;        // Count of something big happening
   bool                  _inlining_progress;     // progress doing incremental inlining?
   bool                  _inlining_incrementally;// Are we doing incremental inlining (post parse)
+  bool                  _do_cleanup;            // Cleanup is needed before proceeding with incremental inlining
   bool                  _has_loops;             // True if the method _may_ have some loops
   bool                  _has_split_ifs;         // True if the method _may_ have some split-if
   bool                  _has_unsafe_access;     // True if the method _may_ produce faults in unsafe loads or stores.
@@ -408,6 +408,7 @@ class Compile : public Phase {
   bool                  _print_intrinsics;      // True if we should print intrinsics for this compilation
 #ifndef PRODUCT
   bool                  _trace_opto_output;
+  bool                  _print_ideal;
   bool                  _parsed_irreducible_loop; // True if ciTypeFlow detected irreducible loops during parsing
 #endif
   bool                  _has_irreducible_loop;  // Found irreducible loops
@@ -415,6 +416,7 @@ class Compile : public Phase {
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
+  bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
@@ -475,7 +477,6 @@ class Compile : public Phase {
   Arena*                _type_arena;            // Alias for _Compile_types except in Initialize_shared()
   Dict*                 _type_dict;             // Intern table
   CloneMap              _clone_map;             // used for recording history of cloned nodes
-  void*                 _type_hwm;              // Last allocation (see Type::operator new/delete)
   size_t                _type_last_size;        // Last allocation size (see Type::operator new/delete)
   ciMethod*             _last_tf_m;             // Cache for
   const TypeFunc*       _last_tf;               //  TypeFunc::make
@@ -511,6 +512,8 @@ class Compile : public Phase {
     PrintInliningBuffer()
       : _cg(NULL) { _ss = new stringStream(); }
 
+    void freeStream() { _ss->~stringStream(); _ss = NULL; }
+
     stringStream* ss() const { return _ss; }
     CallGenerator* cg() const { return _cg; }
     void set_cg(CallGenerator* cg) { _cg = cg; }
@@ -532,6 +535,7 @@ class Compile : public Phase {
 
   void* _replay_inline_data; // Pointer to data loaded from file
 
+  void print_inlining_stream_free();
   void print_inlining_init();
   void print_inlining_reinit();
   void print_inlining_commit();
@@ -653,7 +657,10 @@ class Compile : public Phase {
   int               inlining_progress() const   { return _inlining_progress; }
   void          set_inlining_incrementally(bool z) { _inlining_incrementally = z; }
   int               inlining_incrementally() const { return _inlining_incrementally; }
+  void          set_do_cleanup(bool z)          { _do_cleanup = z; }
+  int               do_cleanup() const          { return _do_cleanup; }
   void          set_major_progress()            { _major_progress++; }
+  void          restore_major_progress(int progress) { _major_progress += progress; }
   void        clear_major_progress()            { _major_progress = 0; }
   int               max_inline_size() const     { return _max_inline_size; }
   void          set_freq_inline_size(int n)     { _freq_inline_size = n; }
@@ -711,6 +718,8 @@ class Compile : public Phase {
   bool          profile_rtm() const              { return _rtm_state == ProfileRTM; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
+  bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
+  void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(const char * option) {
@@ -719,6 +728,7 @@ class Compile : public Phase {
 
 #ifndef PRODUCT
   bool          trace_opto_output() const       { return _trace_opto_output; }
+  bool          print_ideal() const             { return _print_ideal; }
   bool              parsed_irreducible_loop() const { return _parsed_irreducible_loop; }
   void          set_parsed_irreducible_loop(bool z) { _parsed_irreducible_loop = z; }
   int _in_dump_cnt;  // Required for dumping ir nodes.
@@ -741,7 +751,15 @@ class Compile : public Phase {
     C->_latest_stage_start_counter.stamp();
   }
 
-  void print_method(CompilerPhaseType cpt, int level = 1) {
+  bool should_print(int level = 1) {
+#ifndef PRODUCT
+    return (_printer && _printer->should_print(level));
+#else
+    return false;
+#endif
+  }
+
+  void print_method(CompilerPhaseType cpt, int level = 1, int idx = 0) {
     EventCompilerPhase event;
     if (event.should_commit()) {
       event.set_starttime(C->_latest_stage_start_counter);
@@ -751,10 +769,15 @@ class Compile : public Phase {
       event.commit();
     }
 
-
 #ifndef PRODUCT
-    if (_printer && _printer->should_print(level)) {
-      _printer->print_method(CompilerPhaseTypeHelper::to_string(cpt), level);
+    if (should_print(level)) {
+      char output[1024];
+      if (idx != 0) {
+        sprintf(output, "%s:%d", CompilerPhaseTypeHelper::to_string(cpt), idx);
+      } else {
+        sprintf(output, "%s", CompilerPhaseTypeHelper::to_string(cpt));
+      }
+      _printer->print_method(output, level);
     }
 #endif
     C->_latest_stage_start_counter.stamp();
@@ -897,9 +920,7 @@ class Compile : public Phase {
   void         record_dead_node(uint idx)  { if (_dead_node_list.test_set(idx)) return;
                                              _dead_node_count++;
                                            }
-  bool         is_dead_node(uint idx)      { return _dead_node_list.test(idx) != 0; }
-  uint         dead_node_count()           { return _dead_node_count; }
-  void         reset_dead_node_list()      { _dead_node_list.Reset();
+  void         reset_dead_node_list()      { _dead_node_list.reset();
                                              _dead_node_count = 0;
                                            }
   uint          live_nodes() const         {
@@ -956,14 +977,12 @@ class Compile : public Phase {
   // Type management
   Arena*            type_arena()                { return _type_arena; }
   Dict*             type_dict()                 { return _type_dict; }
-  void*             type_hwm()                  { return _type_hwm; }
   size_t            type_last_size()            { return _type_last_size; }
   int               num_alias_types()           { return _num_alias_types; }
 
   void          init_type_arena()                       { _type_arena = &_Compile_types; }
   void          set_type_arena(Arena* a)                { _type_arena = a; }
   void          set_type_dict(Dict* d)                  { _type_dict = d; }
-  void          set_type_hwm(void* p)                   { _type_hwm = p; }
   void          set_type_last_size(size_t sz)           { _type_last_size = sz; }
 
   const TypeFunc* last_tf(ciMethod* m) {
@@ -1022,6 +1041,11 @@ class Compile : public Phase {
                       ciMethodData* logmd = NULL);
   // Report if there were too many recompiles at a method and bci.
   bool too_many_recompiles(ciMethod* method, int bci, Deoptimization::DeoptReason reason);
+  // Report if there were too many traps or recompiles at a method and bci.
+  bool too_many_traps_or_recompiles(ciMethod* method, int bci, Deoptimization::DeoptReason reason) {
+    return too_many_traps(method, bci, reason) ||
+           too_many_recompiles(method, bci, reason);
+  }
   // Return a bitset with the reasons where deoptimization is allowed,
   // i.e., where there were not too many uncommon traps.
   int _allowed_reasons;
@@ -1075,7 +1099,11 @@ class Compile : public Phase {
     if (!inlining_incrementally()) {
       return unique() > (uint)NodeCountInliningCutoff;
     } else {
-      return live_nodes() > (uint)LiveNodeCountInliningCutoff;
+      // Give some room for incremental inlining algorithm to "breathe"
+      // and avoid thrashing when live node count is close to the limit.
+      // Keep in mind that live_nodes() isn't accurate during inlining until
+      // dead node elimination step happens (see Compile::inline_incrementally).
+      return live_nodes() > (uint)LiveNodeCountInliningCutoff * 11 / 10;
     }
   }
 
@@ -1083,7 +1111,8 @@ class Compile : public Phase {
   void dec_number_of_mh_late_inlines() { assert(_number_of_mh_late_inlines > 0, "_number_of_mh_late_inlines < 0 !"); _number_of_mh_late_inlines--; }
   bool has_mh_late_inlines() const     { return _number_of_mh_late_inlines > 0; }
 
-  void inline_incrementally_one(PhaseIterGVN& igvn);
+  bool inline_incrementally_one();
+  void inline_incrementally_cleanup(PhaseIterGVN& igvn);
   void inline_incrementally(PhaseIterGVN& igvn);
   void inline_string_calls(bool parse_time);
   void inline_boxing_calls(PhaseIterGVN& igvn);
@@ -1158,11 +1187,7 @@ class Compile : public Phase {
   bool           in_scratch_emit_size() const   { return _in_scratch_emit_size;     }
 
   enum ScratchBufferBlob {
-#if defined(PPC64)
     MAX_inst_size       = 2048,
-#else
-    MAX_inst_size       = 1024,
-#endif
     MAX_locs_size       = 128, // number of relocInfo elements
     MAX_const_size      = 128,
     MAX_stubs_size      = 128
@@ -1237,14 +1262,30 @@ class Compile : public Phase {
   // Process an OopMap Element while emitting nodes
   void Process_OopMap_Node(MachNode *mach, int code_offset);
 
+  class BufferSizingData {
+  public:
+    int _stub;
+    int _code;
+    int _const;
+    int _reloc;
+
+      BufferSizingData() :
+      _stub(0),
+      _code(0),
+      _const(0),
+      _reloc(0)
+      { };
+  };
+
   // Initialize code buffer
-  CodeBuffer* init_buffer(uint* blk_starts);
+  void        estimate_buffer_size(int& const_req);
+  CodeBuffer* init_buffer(BufferSizingData& buf_sizes);
 
   // Write out basic block data to code buffer
   void fill_buffer(CodeBuffer* cb, uint* blk_starts);
 
   // Determine which variable sized branches can be shortened
-  void shorten_branches(uint* blk_starts, int& code_size, int& reloc_size, int& stub_size);
+  void shorten_branches(uint* blk_starts, BufferSizingData& buf_sizes);
 
   // Compute the size of first NumberOfLoopInstrToAlign instructions
   // at the head of a loop.
@@ -1335,7 +1376,13 @@ class Compile : public Phase {
   static void print_statistics() PRODUCT_RETURN;
 
   // Dump formatted assembly
-  void dump_asm(int *pcs = NULL, uint pc_limit = 0) PRODUCT_RETURN;
+#if defined(SUPPORT_OPTO_ASSEMBLY)
+  void dump_asm_on(outputStream* ost, int* pcs, uint pc_limit);
+  void dump_asm(int* pcs = NULL, uint pc_limit = 0) { dump_asm_on(tty, pcs, pc_limit); }
+#else
+  void dump_asm_on(outputStream* ost, int* pcs, uint pc_limit) { return; }
+  void dump_asm(int* pcs = NULL, uint pc_limit = 0) { return; }
+#endif
   void dump_pc(int *pcs, int pc_limit, Node *n);
 
   // Verify ADLC assumptions during startup
@@ -1361,6 +1408,10 @@ class Compile : public Phase {
   // supporting clone_map
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
+
+  bool needs_clinit_barrier(ciField* ik,         ciMethod* accessing_method);
+  bool needs_clinit_barrier(ciMethod* ik,        ciMethod* accessing_method);
+  bool needs_clinit_barrier(ciInstanceKlass* ik, ciMethod* accessing_method);
 };
 
 #endif // SHARE_OPTO_COMPILE_HPP

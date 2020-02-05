@@ -25,7 +25,6 @@
  * @test
  * @bug      6492694 8026567 8048351 8162363 8183511 8169819 8074407 8196202 8202626
  * @summary  Test package deprecation.
- * @author   bpatel
  * @library  ../../lib/
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.* TestPackageDeprecation
@@ -46,7 +45,6 @@ public class TestPackageDeprecation extends JavadocTester {
         javadoc("-d", "out-default",
                 "-sourcepath", testSrc,
                 "-use",
-                "--frames",
                 "pkg", "pkg1", testSrc("C2.java"), testSrc("FooDepr.java"));
         checkExit(Exit.OK);
 
@@ -66,14 +64,11 @@ public class TestPackageDeprecation extends JavadocTester {
                 "-sourcepath", testSrc,
                 "-use",
                 "-nodeprecated",
-                "--frames",
                 "pkg", "pkg1", testSrc("C2.java"), testSrc("FooDepr.java"));
         checkExit(Exit.OK);
 
-        checkOutput("overview-summary.html", false,
+        checkOutput("index.html", false,
                 "pkg1");
-        checkOutput("allclasses-frame.html", false,
-                "FooDepr");
         checkOutput("class-use/C2.ModalExclusionType.html", true,
                 "<th class=\"colFirst\" scope=\"row\"><a href=\"#unnamed.package\">&lt;Unnamed&gt;</a></th>");
 

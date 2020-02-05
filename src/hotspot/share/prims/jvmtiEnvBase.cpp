@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,10 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/moduleEntry.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.hpp"
@@ -41,6 +43,7 @@
 #include "runtime/biasedLocking.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -657,10 +660,9 @@ JvmtiEnvBase::get_current_contended_monitor(JavaThread *calling_thread, JavaThre
     // thread is not doing an Object.wait() call
     mon = java_thread->current_pending_monitor();
     if (mon != NULL) {
-      // The thread is trying to enter() or raw_enter() an ObjectMonitor.
+      // The thread is trying to enter() an ObjectMonitor.
       obj = (oop)mon->object();
-      // If obj == NULL, then ObjectMonitor is raw which doesn't count
-      // as contended for this API
+      assert(obj != NULL, "ObjectMonitor should have a valid object!");
     }
     // implied else: no contended ObjectMonitor
   } else {
@@ -958,23 +960,23 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
     if (at_safepoint) {
       BiasedLocking::revoke_at_safepoint(hobj);
     } else {
-      BiasedLocking::revoke_and_rebias(hobj, false, calling_thread);
+      BiasedLocking::revoke(hobj, calling_thread);
     }
 
     address owner = NULL;
     {
-      markOop mark = hobj()->mark();
+      markWord mark = hobj()->mark();
 
-      if (!mark->has_monitor()) {
+      if (!mark.has_monitor()) {
         // this object has a lightweight monitor
 
-        if (mark->has_locker()) {
-          owner = (address)mark->locker(); // save the address of the Lock word
+        if (mark.has_locker()) {
+          owner = (address)mark.locker(); // save the address of the Lock word
         }
         // implied else: no owner
       } else {
         // this object has a heavyweight monitor
-        mon = mark->monitor();
+        mon = mark.monitor();
 
         // The owner field of a heavyweight monitor may be NULL for no
         // owner, a JavaThread * or it may still be the address of the
@@ -1081,7 +1083,7 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
           // If the monitor has no owner, then a non-suspended contending
           // thread could potentially change the state of the monitor by
           // entering it. The JVM/TI spec doesn't allow this.
-          if (owning_thread == NULL && !at_safepoint &
+          if (owning_thread == NULL && !at_safepoint &&
               !pending_thread->is_thread_fully_suspended(true, &debug_bits)) {
             if (ret.owner != NULL) {
               destroy_jni_reference(calling_thread, ret.owner);
@@ -1213,8 +1215,7 @@ VM_GetMultipleStackTraces::fill_frames(jthread jt, JavaThread *thr, oop thread_o
     if (jts == _thread_in_native) {
       state |= JVMTI_THREAD_STATE_IN_NATIVE;
     }
-    OSThread* osThread = thr->osthread();
-    if (osThread != NULL && osThread->interrupted()) {
+    if (thr->is_interrupted(false)) {
       state |= JVMTI_THREAD_STATE_INTERRUPTED;
     }
   }
@@ -1360,7 +1361,7 @@ JvmtiEnvBase::check_top_frame(JavaThread* current_thread, JavaThread* java_threa
     NULL_CHECK(ob_k, JVMTI_ERROR_INVALID_OBJECT);
 
     // Method return type signature.
-    char* ty_sign = 1 + strchr(signature->as_C_string(), ')');
+    char* ty_sign = 1 + strchr(signature->as_C_string(), JVM_SIGNATURE_ENDFUNC);
 
     if (!VM_GetOrSetLocal::is_assignable(ty_sign, ob_k, current_thread)) {
       return JVMTI_ERROR_TYPE_MISMATCH;

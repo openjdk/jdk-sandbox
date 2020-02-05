@@ -61,7 +61,7 @@ define SetTestOpt
 endef
 
 # Setup _NT_SYMBOL_PATH on Windows
-ifeq ($(OPENJDK_TARGET_OS), windows)
+ifeq ($(call isTargetOs, windows), true)
   ifndef _NT_SYMBOL_PATH
     # Can't use PathList here as it adds quotes around the value.
     _NT_SYMBOL_PATH := \
@@ -98,19 +98,24 @@ endif
 JTREG_FAILURE_HANDLER_DIR := $(TEST_IMAGE_DIR)/failure_handler
 JTREG_FAILURE_HANDLER := $(JTREG_FAILURE_HANDLER_DIR)/jtregFailureHandler.jar
 
+JTREG_FAILURE_HANDLER_TIMEOUT ?= 0
+
 ifneq ($(wildcard $(JTREG_FAILURE_HANDLER)), )
   JTREG_FAILURE_HANDLER_OPTIONS := \
       -timeoutHandlerDir:$(JTREG_FAILURE_HANDLER) \
       -observerDir:$(JTREG_FAILURE_HANDLER) \
       -timeoutHandler:jdk.test.failurehandler.jtreg.GatherProcessInfoTimeoutHandler \
       -observer:jdk.test.failurehandler.jtreg.GatherDiagnosticInfoObserver \
-      -timeoutHandlerTimeout:0
+      -timeoutHandlerTimeout:$(JTREG_FAILURE_HANDLER_TIMEOUT)
 endif
 
 GTEST_LAUNCHER_DIRS := $(patsubst %/gtestLauncher, %, \
     $(wildcard $(TEST_IMAGE_DIR)/hotspot/gtest/*/gtestLauncher))
 GTEST_VARIANTS := $(strip $(patsubst $(TEST_IMAGE_DIR)/hotspot/gtest/%, %, \
     $(GTEST_LAUNCHER_DIRS)))
+
+COV_ENVIRONMENT :=
+JTREG_COV_OPTIONS :=
 
 ifeq ($(TEST_OPTS_JCOV), true)
   JCOV_OUTPUT_DIR := $(TEST_RESULTS_DIR)/jcov-output
@@ -119,15 +124,19 @@ ifeq ($(TEST_OPTS_JCOV), true)
   JCOV_REPORT := $(JCOV_OUTPUT_DIR)/report
   JCOV_MEM_OPTIONS := -Xms64m -Xmx4g
 
-  ifneq ($(JCOV_IMAGE_DIR), )
-    # Replace our normal test JDK with the JCov image, if present.
-    JDK_UNDER_TEST := $(JCOV_IMAGE_DIR)
-  endif
+  # Replace our normal test JDK with the JCov image.
+  JDK_UNDER_TEST := $(JCOV_IMAGE_DIR)
 
-  JCOV_ENVIRONMENT := JAVA_TOOL_OPTIONS="$(JCOV_MEM_OPTIONS)" \
+  COV_ENVIRONMENT += JAVA_TOOL_OPTIONS="$(JCOV_MEM_OPTIONS)" \
       _JAVA_OPTIONS="$(JCOV_MEM_OPTIONS)"
-  JTREG_JCOV_OPTIONS := -e:JAVA_TOOL_OPTIONS='$(JCOV_MEM_OPTIONS)' \
+  JTREG_COV_OPTIONS += -e:JAVA_TOOL_OPTIONS='$(JCOV_MEM_OPTIONS)' \
       -e:_JAVA_OPTIONS='$(JCOV_MEM_OPTIONS)'
+endif
+
+ifeq ($(GCOV_ENABLED), true)
+  GCOV_OUTPUT_DIR := $(TEST_RESULTS_DIR)/gcov-output
+  COV_ENVIRONMENT += GCOV_PREFIX="$(GCOV_OUTPUT_DIR)"
+  JTREG_COV_OPTIONS += -e:GCOV_PREFIX="$(GCOV_OUTPUT_DIR)"
 endif
 
 ################################################################################
@@ -172,17 +181,19 @@ define SetupAotModuleBody
 	$$(call LogWarn, Generating $$(patsubst $$(OUTPUTDIR)/%, %, $$@))
 	$$(call MakeTargetDir)
 	$$(call ExecuteWithLog, $$@, \
+	    $((COV_ENVIRONMENT) \
 	    $$(FIXPATH) $$(JDK_UNDER_TEST)/bin/jaotc \
 	        $$($1_JAOTC_OPTS) --output $$@ --module $$($1_MODULE) \
 	)
-	$$(call ExecuteWithLog, $$@.check, \
+	$$(call ExecuteWithLog, $$@.check, ( \
 	    $$(FIXPATH) $$(JDK_UNDER_TEST)/bin/java \
-	        $$($1_VM_OPTIONS) -XX:+UnlockDiagnosticVMOptions \
+	        $$($1_VM_OPTIONS) -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions \
 	        -XX:+PrintAOT -XX:+UseAOTStrictLoading \
 	        -XX:AOTLibrary=$$@ -version \
 	         > $$@.verify-aot \
-	)
+	))
 
+  $1_AOT_OPTIONS += -XX:+UnlockExperimentalVMOptions
   $1_AOT_OPTIONS += -XX:AOTLibrary=$$($1_AOT_LIB)
   $1_AOT_TARGETS += $$($1_AOT_LIB)
 endef
@@ -226,7 +237,7 @@ TEST_JOBS_FACTOR_MACHINE ?= 1
 
 ifeq ($(TEST_JOBS), 0)
   CORES_DIVIDER := 2
-  ifeq ($(OPENJDK_TARGET_CPU_ARCH), sparc)
+  ifeq ($(call isTargetCpuArch, sparc), true)
     # For smaller SPARC machines we see reasonable scaling of throughput up to
     # cpus/4 without affecting test reliability. On the bigger machines, cpus/4
     # causes intermittent timeouts.
@@ -236,11 +247,29 @@ ifeq ($(TEST_JOBS), 0)
       CORES_DIVIDER := 4
     endif
   endif
+  # For some big multi-core machines with low ulimit -u setting we hit the max
+  # threads/process limit. In such a setup the memory/cores-only-guided
+  # TEST_JOBS config is insufficient. From experience a concurrency setting of
+  # 14 works reasonably well for low ulimit values (<= 4096). Thus, use
+  # divider 4096/14. For high ulimit -u values this shouldn't make a difference.
+  ULIMIT_DIVIDER := (4096/14)
+  PROC_ULIMIT := -1
+  ifneq ($(OPENJDK_TARGET_OS), windows)
+    PROC_ULIMIT := $(shell $(ULIMIT) -u)
+    ifeq ($(PROC_ULIMIT), unlimited)
+      PROC_ULIMIT := -1
+    endif
+  endif
   MEMORY_DIVIDER := 2048
   TEST_JOBS := $(shell $(AWK) \
     'BEGIN { \
       c = $(NUM_CORES) / $(CORES_DIVIDER); \
       m = $(MEMORY_SIZE) / $(MEMORY_DIVIDER); \
+      u = $(PROC_ULIMIT); \
+      if (u > -1) { \
+        u = u / $(ULIMIT_DIVIDER); \
+        if (u < c) c = u; \
+      } \
       if (c > m) c = m; \
       c = c * $(TEST_JOBS_FACTOR); \
       c = c * $(TEST_JOBS_FACTOR_JDL); \
@@ -267,10 +296,12 @@ $(eval $(call SetTestOpt,AOT_MODULES,JTREG))
 
 $(eval $(call SetTestOpt,JOBS,JTREG))
 $(eval $(call SetTestOpt,TIMEOUT_FACTOR,JTREG))
+$(eval $(call SetTestOpt,FAILURE_HANDLER_TIMEOUT,JTREG))
 
 $(eval $(call ParseKeywordVariable, JTREG, \
-    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR TEST_MODE ASSERT VERBOSE RETAIN \
-        MAX_MEM, \
+    SINGLE_KEYWORDS := JOBS TIMEOUT_FACTOR FAILURE_HANDLER_TIMEOUT \
+        TEST_MODE ASSERT VERBOSE RETAIN MAX_MEM RUN_PROBLEM_LISTS \
+        RETRY_COUNT, \
     STRING_KEYWORDS := OPTIONS JAVA_OPTIONS VM_OPTIONS KEYWORDS \
         EXTRA_PROBLEM_LISTS AOT_MODULES, \
 ))
@@ -581,7 +612,7 @@ define SetupRunGtestTestBody
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, \
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/gtest, ( \
 	    $$(FIXPATH) $$(TEST_IMAGE_DIR)/hotspot/gtest/$$($1_VARIANT)/gtestLauncher \
 	        -jdk $(JDK_UNDER_TEST) $$($1_GTEST_FILTER) \
 	        --gtest_output=xml:$$($1_TEST_RESULTS_DIR)/gtest.xml \
@@ -590,7 +621,7 @@ define SetupRunGtestTestBody
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/gtest.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -660,6 +691,8 @@ define SetupRunMicroTestBody
 
   # Current tests needs to open java.io
   $1_MICRO_JAVA_OPTIONS += --add-opens=java.base/java.io=ALL-UNNAMED
+  # Set library path for native dependencies
+  $1_MICRO_JAVA_OPTIONS += -Djava.library.path=$$(TEST_IMAGE_DIR)/micro/native
 
   # Save output as JSON or CSV file
   ifneq ($$(MICRO_RESULTS_FORMAT), )
@@ -668,7 +701,8 @@ define SetupRunMicroTestBody
   endif
 
   ifneq ($$(MICRO_VM_OPTIONS)$$(MICRO_JAVA_OPTIONS), )
-    $1_MICRO_VM_OPTIONS := -jvmArgs $$(MICRO_VM_OPTIONS) $$(MICRO_JAVA_OPTIONS)
+    JMH_JVM_ARGS := $$(MICRO_VM_OPTIONS) $$(MICRO_JAVA_OPTIONS)
+    $1_MICRO_VM_OPTIONS := -jvmArgs $(call ShellQuote,$$(JMH_JVM_ARGS))
   endif
 
   ifneq ($$(MICRO_ITER), )
@@ -691,8 +725,9 @@ define SetupRunMicroTestBody
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/micro, \
-	    $$($1_MICRO_TEST_JDK)/bin/java $$($1_MICRO_JAVA_OPTIONS) -jar $$($1_MICRO_BENCHMARKS_JAR) \
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/micro, ( \
+	    $$(FIXPATH) $$($1_MICRO_TEST_JDK)/bin/java $$($1_MICRO_JAVA_OPTIONS) \
+	        -jar $$($1_MICRO_BENCHMARKS_JAR) \
 	        $$($1_MICRO_ITER) $$($1_MICRO_FORK) $$($1_MICRO_TIME) \
 	        $$($1_MICRO_WARMUP_ITER) $$($1_MICRO_WARMUP_TIME) \
 	        $$($1_MICRO_VM_OPTIONS) $$($1_MICRO_BASIC_OPTIONS) $$(MICRO_OPTIONS) \
@@ -700,7 +735,7 @@ define SetupRunMicroTestBody
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/micro.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/micro.txt
 
@@ -810,13 +845,15 @@ define SetupRunJtregTestBody
   $1_JTREG_MAX_RAM_PERCENTAGE := $$(shell $$(EXPR) 25 / $$($1_JTREG_JOBS))
 
   # SPARC is in general slower per core so need to scale up timeouts a bit.
-  ifeq ($(OPENJDK_TARGET_CPU_ARCH), sparc)
+  ifeq ($(call isTargetCpuArch, sparc), true)
     JTREG_TIMEOUT_FACTOR ?= 8
   else
     JTREG_TIMEOUT_FACTOR ?= 4
   endif
   JTREG_VERBOSE ?= fail,error,summary
   JTREG_RETAIN ?= fail,error
+  JTREG_RUN_PROBLEM_LISTS ?= false
+  JTREG_RETRY_COUNT ?= 0
 
   ifneq ($$($1_JTREG_MAX_MEM), 0)
     $1_JTREG_BASIC_OPTIONS += -vmoption:-Xmx$$($1_JTREG_MAX_MEM)
@@ -837,7 +874,7 @@ define SetupRunJtregTestBody
   $1_JTREG_BASIC_OPTIONS += -e:JDK8_HOME=$$(BOOT_JDK)
   # If running on Windows, propagate the _NT_SYMBOL_PATH to enable
   # symbol lookup in hserr files
-  ifeq ($$(OPENJDK_TARGET_OS), windows)
+  ifeq ($$(call isTargetOs, windows), true)
     $1_JTREG_BASIC_OPTIONS += -e:_NT_SYMBOL_PATH
   endif
 
@@ -854,13 +891,19 @@ define SetupRunJtregTestBody
     $1_JTREG_BASIC_OPTIONS += -nativepath:$$($1_JTREG_NATIVEPATH)
   endif
 
+  ifeq ($$(JTREG_RUN_PROBLEM_LISTS), true)
+    JTREG_PROBLEM_LIST_PREFIX := -match:
+  else
+    JTREG_PROBLEM_LIST_PREFIX := -exclude:
+  endif
+
   ifneq ($$($1_JTREG_PROBLEM_LIST), )
-    $1_JTREG_BASIC_OPTIONS += $$(addprefix -exclude:, $$($1_JTREG_PROBLEM_LIST))
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$($1_JTREG_PROBLEM_LIST))
   endif
 
   ifneq ($$(JTREG_EXTRA_PROBLEM_LISTS), )
     # Accept both absolute paths as well as relative to the current test root.
-    $1_JTREG_BASIC_OPTIONS += $$(addprefix -exclude:, $$(wildcard \
+    $1_JTREG_BASIC_OPTIONS += $$(addprefix $$(JTREG_PROBLEM_LIST_PREFIX), $$(wildcard \
         $$(JTREG_EXTRA_PROBLEM_LISTS) \
         $$(addprefix $$($1_TEST_ROOT)/, $$(JTREG_EXTRA_PROBLEM_LISTS)) \
     ))
@@ -870,7 +913,8 @@ define SetupRunJtregTestBody
     $1_JTREG_BASIC_OPTIONS += -e:JIB_HOME=$$(JIB_HOME)
   endif
 
-  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_GRAAL_DIR=${TEST_IMAGE_DIR}/hotspot/jtreg/graal
+  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_DIR=$(TEST_IMAGE_DIR)
+  $1_JTREG_BASIC_OPTIONS += -e:TEST_IMAGE_GRAAL_DIR=$(TEST_IMAGE_DIR)/hotspot/jtreg/graal
 
   ifneq ($$(JTREG_FAILURE_HANDLER_OPTIONS), )
     $1_JTREG_LAUNCHER_OPTIONS += -Djava.library.path="$(JTREG_FAILURE_HANDLER_DIR)"
@@ -901,26 +945,44 @@ define SetupRunJtregTestBody
   clean-workdir-$1:
 	$$(RM) -r $$($1_TEST_SUPPORT_DIR)
 
+  $1_COMMAND_LINE := \
+      $$(JAVA) $$($1_JTREG_LAUNCHER_OPTIONS) \
+          -Dprogram=jtreg -jar $$(JT_HOME)/lib/jtreg.jar \
+          $$($1_JTREG_BASIC_OPTIONS) \
+          -testjdk:$$(JDK_UNDER_TEST) \
+          -dir:$$(JTREG_TOPDIR) \
+          -reportDir:$$($1_TEST_RESULTS_DIR) \
+          -workDir:$$($1_TEST_SUPPORT_DIR) \
+          -status:$$$${JTREG_STATUS} \
+          $$(JTREG_OPTIONS) \
+          $$(JTREG_FAILURE_HANDLER_OPTIONS) \
+          $$(JTREG_COV_OPTIONS) \
+          $$($1_TEST_NAME) \
+      && $$(ECHO) $$$$? > $$($1_EXITCODE) \
+      || $$(ECHO) $$$$? > $$($1_EXITCODE)
+
+
+  ifneq ($$(JTREG_RETRY_COUNT), 0)
+    $1_COMMAND_LINE := \
+        for i in {0..$$(JTREG_RETRY_COUNT)}; do \
+          if [ "$$$$i" != 0 ]; then \
+            $$(PRINTF) "\nRetrying Jtreg run. Attempt: $$$$i\n"; \
+          fi; \
+          $$($1_COMMAND_LINE); \
+          if [ "`$$(CAT) $$($1_EXITCODE)`" = "0" ]; then \
+            break; \
+          fi; \
+          export JTREG_STATUS="-status:error,fail"; \
+        done
+  endif
+
   run-test-$1: pre-run-test clean-workdir-$1 $$($1_AOT_TARGETS)
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/jtreg, \
-	    $$(JCOV_ENVIRONMENT) \
-	    $$(JAVA) $$($1_JTREG_LAUNCHER_OPTIONS) \
-	        -Dprogram=jtreg -jar $$(JT_HOME)/lib/jtreg.jar \
-	        $$($1_JTREG_BASIC_OPTIONS) \
-	        -testjdk:$$(JDK_UNDER_TEST) \
-	        -dir:$$(JTREG_TOPDIR) \
-	        -reportDir:$$($1_TEST_RESULTS_DIR) \
-	        -workDir:$$($1_TEST_SUPPORT_DIR) \
-	        $$(JTREG_OPTIONS) \
-	        $$(JTREG_FAILURE_HANDLER_OPTIONS) \
-	        $$(JTREG_JCOV_OPTIONS) \
-	        $$($1_TEST_NAME) \
-	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/jtreg, ( \
+            $$(COV_ENVIRONMENT) $$($1_COMMAND_LINE) \
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/text/stats.txt
 
@@ -996,12 +1058,12 @@ define SetupRunSpecialTestBody
 	$$(call LogWarn)
 	$$(call LogWarn, Running test '$$($1_TEST)')
 	$$(call MakeDir, $$($1_TEST_RESULTS_DIR) $$($1_TEST_SUPPORT_DIR))
-	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/test-execution, \
+	$$(call ExecuteWithLog, $$($1_TEST_SUPPORT_DIR)/test-execution, ( \
 	    $$($1_TEST_COMMAND_LINE) \
 	        > >($(TEE) $$($1_TEST_RESULTS_DIR)/test-output.txt) \
 	    && $$(ECHO) $$$$? > $$($1_EXITCODE) \
 	    || $$(ECHO) $$$$? > $$($1_EXITCODE) \
-	)
+	))
 
   $1_RESULT_FILE := $$($1_TEST_RESULTS_DIR)/gtest.txt
 
@@ -1011,10 +1073,14 @@ define SetupRunSpecialTestBody
 	$$(call LogWarn, Test report is stored in $$(strip \
 	    $$(subst $$(TOPDIR)/, , $$($1_TEST_RESULTS_DIR))))
 	$$(call LogWarn, Warning: Special test results are not properly parsed!)
-	$$(eval $1_PASSED := 0)
-	$$(eval $1_FAILED := 0)
+	$$(eval $1_PASSED := $$(shell \
+	  if [ `$(CAT) $$($1_EXITCODE)` = "0" ]; then $(ECHO) 1; else $(ECHO) 0; fi \
+	))
+	$$(eval $1_FAILED := $$(shell \
+	  if [ `$(CAT) $$($1_EXITCODE)` = "0" ]; then $(ECHO) 0; else $(ECHO) 1; fi \
+	))
 	$$(eval $1_ERROR := 0)
-	$$(eval $1_TOTAL := 0)
+	$$(eval $1_TOTAL := 1)
 
   $1: run-test-$1 parse-test-$1
 
@@ -1183,10 +1249,18 @@ ifeq ($(TEST_OPTS_JCOV), true)
 	$(call LogWarn, Stopping JCov Grabber...)
 	$(JAVA) -jar $(JCOV_HOME)/lib/jcov.jar GrabberManager -stop -stoptimeout 3600
 
+  JCOV_REPORT_TITLE := JDK code coverage report<br/>
+  ifneq ($(JCOV_FILTERS), )
+    JCOV_REPORT_TITLE += Code filters: $(JCOV_FILTERS)<br>
+  endif
+  JCOV_REPORT_TITLE += Tests: $(TEST)
+
   jcov-gen-report: jcov-stop-grabber
 	$(call LogWarn, Generating JCov report ...)
 	$(JAVA) -Xmx4g -jar $(JCOV_HOME)/lib/jcov.jar RepGen -sourcepath \
 	    `$(ECHO) $(TOPDIR)/src/*/share/classes/ | $(TR) ' ' ':'` -fmt html \
+	    $(JCOV_FILTERS) \
+	    -mainReportTitle "$(JCOV_REPORT_TITLE)" \
 	    -o $(JCOV_REPORT) $(JCOV_RESULT_FILE)
 
   TARGETS += jcov-do-start-grabber jcov-start-grabber jcov-stop-grabber \

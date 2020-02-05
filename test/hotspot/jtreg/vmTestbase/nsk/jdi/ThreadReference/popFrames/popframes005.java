@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,12 +158,6 @@ public class popframes005 {
     BreakpointRequest breakpointRequest2;
 
 
-    class JDITestRuntimeException extends RuntimeException {
-        JDITestRuntimeException(String str) {
-            super("JDITestRuntimeException : " + str);
-        }
-    }
-
     //------------------------------------------------------ methods
 
     private int runThis (String argv[], PrintStream out) {
@@ -313,7 +307,7 @@ public class popframes005 {
         String lineForComm  = "lineForComm";
 
         log2("......setting BreakpointRequest (bpRequest) in main thread");
-        bpRequest = settingBreakpoint(threadByName("main"),
+        bpRequest = settingBreakpoint(debuggee.threadByNameOrThrow("main"),
                                           debuggeeClass,
                                           bPointMethod, lineForComm, "zero");
         log2("bpRequest.enable();");
@@ -329,7 +323,7 @@ public class popframes005 {
             breakpointForCommunication();
 
             String thread2Name         = "thread2";
-            ThreadReference thread2Ref = threadByName(thread2Name);
+            ThreadReference thread2Ref = debuggee.threadByNameOrThrow(thread2Name);
 
             StackFrame stackFrame0 = null;
             StackFrame stackFrame1 = null;
@@ -346,7 +340,7 @@ public class popframes005 {
 
             {  // to get mainThread suspended; otherwise its end results in
                // no suspention for breakpointRequest2 (bug or not?), end of test,
-               // and VMDisconnectException
+               // and VMDisconnectedException
             thread2Ref.suspend();
             log2("......eventSet.resume();");
             eventSet.resume();
@@ -398,20 +392,6 @@ public class popframes005 {
         }
         log1("    TESTING ENDS");
         return;
-    }
-
-    private ThreadReference threadByName(String name)
-                 throws JDITestRuntimeException {
-
-        List         all = vm.allThreads();
-        ListIterator li  = all.listIterator();
-
-        for (; li.hasNext(); ) {
-            ThreadReference thread = (ThreadReference) li.next();
-            if (thread.name().equals(name))
-                return thread;
-        }
-        throw new JDITestRuntimeException("** Thread IS NOT found ** : " + name);
     }
 
    /*

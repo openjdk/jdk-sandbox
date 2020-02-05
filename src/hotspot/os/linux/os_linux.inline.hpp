@@ -26,6 +26,7 @@
 #define OS_LINUX_OS_LINUX_INLINE_HPP
 
 #include "runtime/os.hpp"
+#include "os_posix.inline.hpp"
 
 // System includes
 
@@ -33,11 +34,6 @@
 #include <sys/socket.h>
 #include <poll.h>
 #include <netdb.h>
-
-// File names are case-insensitive on windows only
-inline int os::file_name_strncmp(const char* s1, const char* s2, size_t num) {
-  return strncmp(s1, s2, num);
-}
 
 inline bool os::uses_stack_guard_pages() {
   return true;
@@ -62,8 +58,6 @@ inline void os::map_stack_shadow_pages(address sp) {
 inline void os::dll_unload(void *lib) {
   ::dlclose(lib);
 }
-
-inline const int os::default_file_open_flags() { return 0;}
 
 inline jlong os::lseek(int fd, jlong offset, int whence) {
   return (jlong) ::lseek64(fd, offset, whence);

@@ -31,6 +31,7 @@
 
 class InstanceKlass;
 class Klass;
+class Thread;
 
 //------------------------------------------------------------------------------------------------------------------------
 // In order to preserve oops during garbage collection, they should be
@@ -78,8 +79,8 @@ class Handle {
   oop     operator () () const                   { return obj(); }
   oop     operator -> () const                   { return non_null_obj(); }
 
-  bool operator == (oop o) const                 { return oopDesc::equals(obj(), o); }
-  bool operator == (const Handle& h) const       { return oopDesc::equals(obj(), h.obj()); }
+  bool operator == (oop o) const                 { return obj() == o; }
+  bool operator == (const Handle& h) const       { return obj() == h.obj(); }
 
   // Null checks
   bool    is_null() const                        { return _handle == NULL; }
@@ -142,7 +143,6 @@ DEF_HANDLE(typeArray        , is_typeArray_noinline        )
    public:                                       \
     /* Constructors */                           \
     name##Handle () : _value(NULL), _thread(NULL) {}   \
-    name##Handle (type* obj);                    \
     name##Handle (Thread* thread, type* obj);    \
                                                  \
     name##Handle (const name##Handle &h);        \
@@ -252,6 +252,8 @@ class HandleMark {
   HandleMark* previous_handle_mark() const        { return _previous_handle_mark; }
 
   size_t size_in_bytes() const { return _size_in_bytes; }
+  // remove all chunks beginning with the next
+  void chop_later_chunks();
  public:
   HandleMark();                            // see handles_inline.hpp
   HandleMark(Thread* thread)                      { initialize(thread); }

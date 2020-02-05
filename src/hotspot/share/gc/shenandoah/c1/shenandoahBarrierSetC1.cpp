@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -24,16 +25,13 @@
 #include "precompiled.hpp"
 #include "c1/c1_IR.hpp"
 #include "gc/shared/satbMarkQueue.hpp"
+#include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-#include "gc/shenandoah/shenandoahBrooksPointer.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
+#include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "gc/shenandoah/c1/shenandoahBarrierSetC1.hpp"
-
-#ifndef PATCHED_ADDR
-#define PATCHED_ADDR  (max_jint)
-#endif
 
 #ifdef ASSERT
 #define __ gen->lir(__FILE__, __LINE__)->
@@ -46,10 +44,14 @@ void ShenandoahPreBarrierStub::emit_code(LIR_Assembler* ce) {
   bs->gen_pre_barrier_stub(ce, this);
 }
 
-void ShenandoahWriteBarrierStub::emit_code(LIR_Assembler* ce) {
+void ShenandoahLoadReferenceBarrierStub::emit_code(LIR_Assembler* ce) {
   ShenandoahBarrierSetAssembler* bs = (ShenandoahBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->gen_write_barrier_stub(ce, this);
+  bs->gen_load_reference_barrier_stub(ce, this);
 }
+
+ShenandoahBarrierSetC1::ShenandoahBarrierSetC1() :
+  _pre_barrier_c1_runtime_code_blob(NULL),
+  _load_reference_barrier_rt_code_blob(NULL) {}
 
 void ShenandoahBarrierSetC1::pre_barrier(LIRGenerator* gen, CodeEmitInfo* info, DecoratorSet decorators, LIR_Opr addr_opr, LIR_Opr pre_val) {
   // First we test whether marking is in progress.
@@ -105,45 +107,25 @@ void ShenandoahBarrierSetC1::pre_barrier(LIRGenerator* gen, CodeEmitInfo* info, 
   __ branch_destination(slow->continuation());
 }
 
-LIR_Opr ShenandoahBarrierSetC1::read_barrier(LIRGenerator* gen, LIR_Opr obj, CodeEmitInfo* info, bool need_null_check) {
-  if (UseShenandoahGC && ShenandoahReadBarrier) {
-    return read_barrier_impl(gen, obj, info, need_null_check);
+LIR_Opr ShenandoahBarrierSetC1::load_reference_barrier(LIRGenerator* gen, LIR_Opr obj, LIR_Opr addr) {
+  if (ShenandoahLoadRefBarrier) {
+    return load_reference_barrier_impl(gen, obj, addr);
   } else {
     return obj;
   }
 }
 
-LIR_Opr ShenandoahBarrierSetC1::read_barrier_impl(LIRGenerator* gen, LIR_Opr obj, CodeEmitInfo* info, bool need_null_check) {
-  assert(UseShenandoahGC && (ShenandoahReadBarrier || ShenandoahStoreValReadBarrier), "Should be enabled");
-  LabelObj* done = new LabelObj();
-  LIR_Opr result = gen->new_register(T_OBJECT);
-  __ move(obj, result);
-  if (need_null_check) {
-    __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_equal, T_LONG, done->label());
-  }
-  LIR_Address* brooks_ptr_address = gen->generate_address(result, ShenandoahBrooksPointer::byte_offset(), T_ADDRESS);
-  __ load(brooks_ptr_address, result, info ? new CodeEmitInfo(info) : NULL, lir_patch_none);
-
-  __ branch_destination(done->label());
-  return result;
-}
-
-LIR_Opr ShenandoahBarrierSetC1::write_barrier(LIRGenerator* gen, LIR_Opr obj, CodeEmitInfo* info, bool need_null_check) {
-  if (UseShenandoahGC && ShenandoahWriteBarrier) {
-    return write_barrier_impl(gen, obj, info, need_null_check);
-  } else {
-    return obj;
-  }
-}
-
-LIR_Opr ShenandoahBarrierSetC1::write_barrier_impl(LIRGenerator* gen, LIR_Opr obj, CodeEmitInfo* info, bool need_null_check) {
-  assert(UseShenandoahGC && (ShenandoahWriteBarrier || ShenandoahStoreValEnqueueBarrier), "Should be enabled");
+LIR_Opr ShenandoahBarrierSetC1::load_reference_barrier_impl(LIRGenerator* gen, LIR_Opr obj, LIR_Opr addr) {
+  assert(ShenandoahLoadRefBarrier, "Should be enabled");
 
   obj = ensure_in_register(gen, obj);
   assert(obj->is_register(), "must be a register at this point");
-  LIR_Opr result = gen->new_register(T_OBJECT);
+  addr = ensure_in_register(gen, addr);
+  assert(addr->is_register(), "must be a register at this point");
+  LIR_Opr result = gen->result_register_for(obj->value_type());
   __ move(obj, result);
+  LIR_Opr tmp1 = gen->new_register(T_OBJECT);
+  LIR_Opr tmp2 = gen->new_register(T_OBJECT);
 
   LIR_Opr thrd = gen->getThreadPointer();
   LIR_Address* active_flag_addr =
@@ -168,7 +150,7 @@ LIR_Opr ShenandoahBarrierSetC1::write_barrier_impl(LIRGenerator* gen, LIR_Opr ob
   }
   __ cmp(lir_cond_notEqual, flag_val, LIR_OprFact::intConst(0));
 
-  CodeStub* slow = new ShenandoahWriteBarrierStub(obj, result, info ? new CodeEmitInfo(info) : NULL, need_null_check);
+  CodeStub* slow = new ShenandoahLoadReferenceBarrierStub(obj, addr, result, tmp1, tmp2);
   __ branch(lir_cond_notEqual, T_INT, slow);
   __ branch_destination(slow->continuation());
 
@@ -177,10 +159,18 @@ LIR_Opr ShenandoahBarrierSetC1::write_barrier_impl(LIRGenerator* gen, LIR_Opr ob
 
 LIR_Opr ShenandoahBarrierSetC1::ensure_in_register(LIRGenerator* gen, LIR_Opr obj) {
   if (!obj->is_register()) {
-    LIR_Opr obj_reg = gen->new_register(T_OBJECT);
+    LIR_Opr obj_reg;
     if (obj->is_constant()) {
+      obj_reg = gen->new_register(T_OBJECT);
       __ move(obj, obj_reg);
     } else {
+#ifdef AARCH64
+      // AArch64 expects double-size register.
+      obj_reg = gen->new_pointer_register();
+#else
+      // x86 expects single-size register.
+      obj_reg = gen->new_register(T_OBJECT);
+#endif
       __ leal(obj, obj_reg);
     }
     obj = obj_reg;
@@ -189,56 +179,11 @@ LIR_Opr ShenandoahBarrierSetC1::ensure_in_register(LIRGenerator* gen, LIR_Opr ob
 }
 
 LIR_Opr ShenandoahBarrierSetC1::storeval_barrier(LIRGenerator* gen, LIR_Opr obj, CodeEmitInfo* info, DecoratorSet decorators) {
-  bool need_null_check = (decorators & IS_NOT_NULL) == 0;
   if (ShenandoahStoreValEnqueueBarrier) {
-    obj = write_barrier_impl(gen, obj, info, need_null_check);
+    obj = ensure_in_register(gen, obj);
     pre_barrier(gen, info, decorators, LIR_OprFact::illegalOpr, obj);
   }
-  if (ShenandoahStoreValReadBarrier) {
-    obj = read_barrier_impl(gen, obj, info, true /*need_null_check*/);
-  }
   return obj;
-}
-
-LIR_Opr ShenandoahBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
-  DecoratorSet decorators = access.decorators();
-  bool is_array = (decorators & IS_ARRAY) != 0;
-  bool needs_patching = (decorators & C1_NEEDS_PATCHING) != 0;
-
-  bool is_write = (decorators & ACCESS_WRITE) != 0;
-  bool needs_null_check = (decorators & IS_NOT_NULL) == 0;
-
-  LIR_Opr base = access.base().item().result();
-  LIR_Opr offset = access.offset().opr();
-  LIRGenerator* gen = access.gen();
-
-  if (is_write) {
-    base = write_barrier(gen, base, access.access_emit_info(), needs_null_check);
-  } else {
-    base = read_barrier(gen, base, access.access_emit_info(), needs_null_check);
-  }
-
-  LIR_Opr addr_opr;
-  if (is_array) {
-    addr_opr = LIR_OprFact::address(gen->emit_array_address(base, offset, access.type()));
-  } else if (needs_patching) {
-    // we need to patch the offset in the instruction so don't allow
-    // generate_address to try to be smart about emitting the -1.
-    // Otherwise the patching code won't know how to find the
-    // instruction to patch.
-    addr_opr = LIR_OprFact::address(new LIR_Address(base, PATCHED_ADDR, access.type()));
-  } else {
-    addr_opr = LIR_OprFact::address(gen->generate_address(base, offset, 0, 0, access.type()));
-  }
-
-  if (resolve_in_register) {
-    LIR_Opr resolved_addr = gen->new_pointer_register();
-    __ leal(addr_opr, resolved_addr);
-    resolved_addr = LIR_OprFact::address(new LIR_Address(resolved_addr, access.type()));
-    return resolved_addr;
-  } else {
-    return addr_opr;
-  }
 }
 
 void ShenandoahBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
@@ -251,42 +196,73 @@ void ShenandoahBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value)
   BarrierSetC1::store_at_resolved(access, value);
 }
 
-void ShenandoahBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
-  BarrierSetC1::load_at_resolved(access, result);
+LIR_Opr ShenandoahBarrierSetC1::resolve_address(LIRAccess& access, bool resolve_in_register) {
+  // We must resolve in register when patching. This is to avoid
+  // having a patch area in the load barrier stub, since the call
+  // into the runtime to patch will not have the proper oop map.
+  const bool patch_before_barrier = access.is_oop() && (access.decorators() & C1_NEEDS_PATCHING) != 0;
+  return BarrierSetC1::resolve_address(access, resolve_in_register || patch_before_barrier);
+}
 
+void ShenandoahBarrierSetC1::load_at_resolved(LIRAccess& access, LIR_Opr result) {
+  // 1: non-reference load, no additional barrier is needed
+  if (!access.is_oop()) {
+    BarrierSetC1::load_at_resolved(access, result);
+    return;
+  }
+
+  LIRGenerator* gen = access.gen();
+  DecoratorSet decorators = access.decorators();
+  BasicType type = access.type();
+
+  // 2: load a reference from src location and apply LRB if ShenandoahLoadRefBarrier is set
+  if (ShenandoahBarrierSet::need_load_reference_barrier(decorators, type)) {
+    if (ShenandoahBarrierSet::use_load_reference_barrier_native(decorators, type)) {
+      BarrierSetC1::load_at_resolved(access, result);
+      LIR_OprList* args = new LIR_OprList();
+      LIR_Opr addr = access.resolved_addr();
+      addr = ensure_in_register(gen, addr);
+      args->append(result);
+      args->append(addr);
+      BasicTypeList signature;
+      signature.append(T_OBJECT);
+      signature.append(T_ADDRESS);
+      LIR_Opr call_result = gen->call_runtime(&signature, args,
+                                              CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native),
+                                              objectType, NULL);
+      __ move(call_result, result);
+    } else {
+      LIR_Opr tmp = gen->new_register(T_OBJECT);
+      BarrierSetC1::load_at_resolved(access, tmp);
+      tmp = load_reference_barrier(gen, tmp, access.resolved_addr());
+      __ move(tmp, result);
+    }
+  } else {
+    BarrierSetC1::load_at_resolved(access, result);
+  }
+
+  // 3: apply keep-alive barrier if ShenandoahKeepAliveBarrier is set
   if (ShenandoahKeepAliveBarrier) {
-    DecoratorSet decorators = access.decorators();
     bool is_weak = (decorators & ON_WEAK_OOP_REF) != 0;
     bool is_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
     bool is_anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-    LIRGenerator *gen = access.gen();
-    if (access.is_oop() && (is_weak || is_phantom || is_anonymous)) {
+    bool is_traversal_mode = ShenandoahHeap::heap()->is_traversal_mode();
+    bool keep_alive = (decorators & AS_NO_KEEPALIVE) == 0 || is_traversal_mode;
+
+    if ((is_weak || is_phantom || is_anonymous) && keep_alive) {
       // Register the value in the referent field with the pre-barrier
       LabelObj *Lcont_anonymous;
       if (is_anonymous) {
         Lcont_anonymous = new LabelObj();
         generate_referent_check(access, Lcont_anonymous);
       }
-      pre_barrier(access.gen(), access.access_emit_info(), access.decorators(), LIR_OprFact::illegalOpr /* addr_opr */,
+      pre_barrier(gen, access.access_emit_info(), decorators, LIR_OprFact::illegalOpr /* addr_opr */,
                   result /* pre_val */);
       if (is_anonymous) {
         __ branch_destination(Lcont_anonymous->label());
       }
     }
-  }
-}
-
-LIR_Opr ShenandoahBarrierSetC1::atomic_add_at_resolved(LIRAccess& access, LIRItem& value) {
-  return BarrierSetC1::atomic_add_at_resolved(access, value);
-}
-
-LIR_Opr ShenandoahBarrierSetC1::resolve(LIRGenerator* gen, DecoratorSet decorators, LIR_Opr obj) {
-  bool is_write = decorators & ACCESS_WRITE;
-  if (is_write) {
-    return write_barrier(gen, obj, NULL, (decorators & IS_NOT_NULL) == 0);
-  } else {
-    return read_barrier(gen, obj, NULL, (decorators & IS_NOT_NULL) == 0);
-  }
+ }
 }
 
 class C1ShenandoahPreBarrierCodeGenClosure : public StubAssemblerCodeGenClosure {
@@ -297,9 +273,30 @@ class C1ShenandoahPreBarrierCodeGenClosure : public StubAssemblerCodeGenClosure 
   }
 };
 
+class C1ShenandoahLoadReferenceBarrierCodeGenClosure : public StubAssemblerCodeGenClosure {
+  virtual OopMapSet* generate_code(StubAssembler* sasm) {
+    ShenandoahBarrierSetAssembler* bs = (ShenandoahBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+    bs->generate_c1_load_reference_barrier_runtime_stub(sasm);
+    return NULL;
+  }
+};
+
 void ShenandoahBarrierSetC1::generate_c1_runtime_stubs(BufferBlob* buffer_blob) {
   C1ShenandoahPreBarrierCodeGenClosure pre_code_gen_cl;
   _pre_barrier_c1_runtime_code_blob = Runtime1::generate_blob(buffer_blob, -1,
                                                               "shenandoah_pre_barrier_slow",
                                                               false, &pre_code_gen_cl);
+  if (ShenandoahLoadRefBarrier) {
+    C1ShenandoahLoadReferenceBarrierCodeGenClosure lrb_code_gen_cl;
+    _load_reference_barrier_rt_code_blob = Runtime1::generate_blob(buffer_blob, -1,
+                                                                  "shenandoah_load_reference_barrier_slow",
+                                                                  false, &lrb_code_gen_cl);
+  }
+}
+
+const char* ShenandoahBarrierSetC1::rtcall_name_for_address(address entry) {
+  if (entry == CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native)) {
+    return "ShenandoahRuntime::load_reference_barrier_native";
+  }
+  return NULL;
 }

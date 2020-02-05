@@ -42,6 +42,7 @@ class FieldInfo;
 template <typename T>
 class GrowableArray;
 class InstanceKlass;
+class RecordComponent;
 class Symbol;
 class TempNewSymbol;
 
@@ -68,8 +69,7 @@ class ClassFileParser {
   //
   enum Publicity {
     INTERNAL,
-    BROADCAST,
-    NOF_PUBLICITY_LEVELS
+    BROADCAST
   };
 
   enum { LegalClass, LegalField, LegalMethod }; // used to verify unqualified names
@@ -99,11 +99,12 @@ class ClassFileParser {
   Array<u2>* _inner_classes;
   Array<u2>* _nest_members;
   u2 _nest_host;
+  Array<RecordComponent*>* _record_components;
   Array<InstanceKlass*>* _local_interfaces;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
-  AnnotationArray* _annotations;
-  AnnotationArray* _type_annotations;
+  AnnotationArray* _class_annotations;
+  AnnotationArray* _class_type_annotations;
   Array<AnnotationArray*>* _fields_annotations;
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass* _klass;  // InstanceKlass* once created.
@@ -270,14 +271,6 @@ class ClassFileParser {
                                             u4 method_attribute_length,
                                             TRAPS);
 
-  void parse_type_array(u2 array_length,
-                        u4 code_length,
-                        u4* const u1_index,
-                        u4* const u2_index,
-                        u1* const u1_array,
-                        u2* const u2_array,
-                        TRAPS);
-
   // Classfile attribute parsing
   u2 parse_generic_signature_attribute(const ClassFileStream* const cfs, TRAPS);
   void parse_classfile_sourcefile_attribute(const ClassFileStream* const cfs, TRAPS);
@@ -295,6 +288,13 @@ class ClassFileParser {
   u2 parse_classfile_nest_members_attribute(const ClassFileStream* const cfs,
                                             const u1* const nest_members_attribute_start,
                                             TRAPS);
+
+  u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
+                                      const ConstantPool* cp,
+                                      const u1* const record_attribute_start,
+                                      TRAPS);
+
+  bool supports_records();
 
   void parse_classfile_attributes(const ClassFileStream* const cfs,
                                   ConstantPool* cp,
@@ -496,6 +496,8 @@ class ClassFileParser {
                      FieldLayoutInfo* info,
                      TRAPS);
 
+   void update_class_name(Symbol* new_name);
+
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
@@ -522,7 +524,6 @@ class ClassFileParser {
   int itable_size() const { return _itable_size; }
 
   u2 this_class_index() const { return _this_class_index; }
-  u2 super_class_index() const { return _super_class_index; }
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }

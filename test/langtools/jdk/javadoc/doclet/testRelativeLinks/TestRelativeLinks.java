@@ -26,7 +26,6 @@
  * @bug      4460354 8014636 8043186 8195805 8182765 8196202
  * @summary  Test to make sure that relative paths are redirected in the
  *           output so that they are not broken.
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -50,7 +49,6 @@ public class TestRelativeLinks extends JavadocTester {
     public void test() {
         javadoc("-d", "out",
                 "-use",
-                "--frames",
                 "-sourcepath", testSrc,
                 "pkg", "pkg2");
         checkExit(Exit.ERROR);
@@ -98,30 +96,8 @@ public class TestRelativeLinks extends JavadocTester {
             " <a href=\"../../pkg/relative-multi-line-link.html\">relative-multi-line-link</a>.");
 
         // PACKAGE OVERVIEW
-        checkOutput("overview-summary.html", true,
+        checkOutput("index.html", true,
             "<a href=\"./pkg/relative-package-link.html\">relative package link</a>");
-    }
-
-    @Test
-    public void test_html4() {
-        javadoc("-d", "out-html4",
-                "-html4",
-                "-use",
-                "-sourcepath", testSrc,
-                "pkg", "pkg2");
-        checkExit(Exit.OK);
-    }
-
-    @Override
-    public void checkLinks() {
-        // since the test uses explicit links to non-existent files,
-        // we create those files to avoid false positive errors from checkLinks
-        touch("pkg/relative-class-link.html");
-        touch("pkg/relative-field-link.html");
-        touch("pkg/relative-method-link.html");
-        touch("pkg/relative-package-link.html");
-        touch("pkg/relative-multi-line-link.html");
-        super.checkLinks();
     }
 
     private void touch(String file) {

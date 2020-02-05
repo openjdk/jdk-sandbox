@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ import com.sun.jdi.request.*;
 import com.sun.jdi.connect.*;
 
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.io.*;
 
 public class TTY implements EventNotifier {
@@ -48,7 +49,7 @@ public class TTY implements EventNotifier {
     /**
      * List of Strings to execute at each stop.
      */
-    private List<String> monitorCommands = new ArrayList<String>();
+    private List<String> monitorCommands = new CopyOnWriteArrayList<>();
     private int monitorCount = 0;
 
     /**
@@ -304,6 +305,7 @@ public class TTY implements EventNotifier {
         {"clear",        "y",         "n"},
         {"connectors",   "y",         "y"},
         {"cont",         "n",         "n"},
+        {"dbgtrace",     "y",         "y"},
         {"disablegc",    "n",         "n"},
         {"down",         "n",         "y"},
         {"dump",         "n",         "y"},
@@ -587,6 +589,8 @@ public class TTY implements EventNotifier {
                             evaluator.commandExclude(t);
                         } else if (cmd.equals("read")) {
                             readCommand(t);
+                        } else if (cmd.equals("dbgtrace")) {
+                            evaluator.commandDbgTrace(t);
                         } else if (cmd.equals("help") || cmd.equals("?")) {
                             help();
                         } else if (cmd.equals("version")) {
@@ -928,7 +932,7 @@ public class TTY implements EventNotifier {
                    // Old-style options (These should remain in place as long as
                    //  the standard VM accepts them)
                    token.equals("-noasyncgc") || token.equals("-prof") ||
-                   token.equals("-verify") || token.equals("-noverify") ||
+                   token.equals("-verify") ||
                    token.equals("-verifyremote") ||
                    token.equals("-verbosegc") ||
                    token.startsWith("-ms") || token.startsWith("-mx") ||

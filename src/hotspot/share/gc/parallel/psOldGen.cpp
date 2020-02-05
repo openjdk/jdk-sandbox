@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,28 +24,24 @@
 
 #include "precompiled.hpp"
 #include "gc/parallel/objectStartArray.inline.hpp"
+#include "gc/parallel/parallelArguments.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/parallel/psAdaptiveSizePolicy.hpp"
 #include "gc/parallel/psCardTable.hpp"
 #include "gc/parallel/psFileBackedVirtualspace.hpp"
-#include "gc/parallel/psMarkSweepDecorator.hpp"
 #include "gc/parallel/psOldGen.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/gcLocker.hpp"
-#include "gc/shared/spaceDecorator.hpp"
+#include "gc/shared/spaceDecorator.inline.hpp"
 #include "logging/log.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/java.hpp"
 #include "utilities/align.hpp"
 
-inline const char* PSOldGen::select_name() {
-  return UseParallelOldGC ? "ParOldGen" : "PSOldGen";
-}
-
 PSOldGen::PSOldGen(ReservedSpace rs, size_t alignment,
                    size_t initial_size, size_t min_size, size_t max_size,
                    const char* perf_data_name, int level):
-  _name(select_name()), _init_gen_size(initial_size), _min_gen_size(min_size),
+  _init_gen_size(initial_size), _min_gen_size(min_size),
   _max_gen_size(max_size)
 {
   initialize(rs, alignment, perf_data_name, level);
@@ -54,7 +50,7 @@ PSOldGen::PSOldGen(ReservedSpace rs, size_t alignment,
 PSOldGen::PSOldGen(size_t initial_size,
                    size_t min_size, size_t max_size,
                    const char* perf_data_name, int level):
-  _name(select_name()), _init_gen_size(initial_size), _min_gen_size(min_size),
+  _init_gen_size(initial_size), _min_gen_size(min_size),
   _max_gen_size(max_size)
 {}
 
@@ -72,7 +68,7 @@ void PSOldGen::initialize(ReservedSpace rs, size_t alignment,
 
 void PSOldGen::initialize_virtual_space(ReservedSpace rs, size_t alignment) {
 
-  if(ParallelScavengeHeap::heap()->ps_collector_policy()->is_hetero_heap()) {
+  if(ParallelArguments::is_heterogeneous_heap()) {
     _virtual_space = new PSFileBackedVirtualSpace(rs, alignment, AllocateOldGenAt);
     if (!(static_cast <PSFileBackedVirtualSpace*>(_virtual_space))->initialize()) {
       vm_exit_during_initialization("Could not map space for PSOldGen at given AllocateOldGenAt path");
@@ -147,14 +143,6 @@ void PSOldGen::initialize_work(const char* perf_data_name, int level) {
                              SpaceDecorator::Clear,
                              SpaceDecorator::Mangle);
 
-#if INCLUDE_SERIALGC
-  _object_mark_sweep = new PSMarkSweepDecorator(_object_space, start_array(), MarkSweepDeadRatio);
-
-  if (_object_mark_sweep == NULL) {
-    vm_exit_during_initialization("Could not complete allocation of old generation");
-  }
-#endif // INCLUDE_SERIALGC
-
   // Update the start_array
   start_array()->set_covered_region(cmr);
 }
@@ -173,30 +161,6 @@ void PSOldGen::initialize_performance_counters(const char* perf_data_name, int l
 bool  PSOldGen::is_allocated() {
   return virtual_space()->reserved_size() != 0;
 }
-
-#if INCLUDE_SERIALGC
-
-void PSOldGen::precompact() {
-  ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
-
-  // Reset start array first.
-  start_array()->reset();
-
-  object_mark_sweep()->precompact();
-
-  // Now compact the young gen
-  heap->young_gen()->precompact();
-}
-
-void PSOldGen::adjust_pointers() {
-  object_mark_sweep()->adjust_pointers();
-}
-
-void PSOldGen::compact() {
-  object_mark_sweep()->compact(ZapUnusedHeapArea);
-}
-
-#endif // INCLUDE_SERIALGC
 
 size_t PSOldGen::contiguous_available() const {
   return object_space()->free_in_bytes() + virtual_space()->uncommitted_size();
@@ -224,7 +188,7 @@ HeapWord* PSOldGen::allocate(size_t word_size) {
 HeapWord* PSOldGen::expand_and_allocate(size_t word_size) {
   expand(word_size*HeapWordSize);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return allocate_noexpand(word_size);
 }
@@ -232,7 +196,7 @@ HeapWord* PSOldGen::expand_and_allocate(size_t word_size) {
 HeapWord* PSOldGen::expand_and_cas_allocate(size_t word_size) {
   expand(word_size*HeapWordSize);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return cas_allocate_noexpand(word_size);
 }
@@ -354,7 +318,7 @@ void PSOldGen::resize(size_t desired_free_space) {
     new_size = gen_size_limit();
   }
   // Adjust according to our min and max
-  new_size = MAX2(MIN2(new_size, gen_size_limit()), min_gen_size());
+  new_size = clamp(new_size, min_gen_size(), gen_size_limit());
 
   assert(gen_size_limit() >= reserved().byte_size(), "max new size problem?");
   new_size = align_up(new_size, alignment);
@@ -442,11 +406,6 @@ void PSOldGen::print_on(outputStream* st) const {
   st->print("  object"); object_space()->print_on(st);
 }
 
-void PSOldGen::print_used_change(size_t prev_used) const {
-  log_info(gc, heap)("%s: "  SIZE_FORMAT "K->" SIZE_FORMAT "K("  SIZE_FORMAT "K)",
-      name(), prev_used / K, used_in_bytes() / K, capacity_in_bytes() / K);
-}
-
 void PSOldGen::update_counters() {
   if (UsePerfData) {
     _space_counters->update_all();
@@ -486,9 +445,9 @@ class VerifyObjectStartArrayClosure : public ObjectClosure {
     _old_gen(old_gen), _start_array(start_array) { }
 
   virtual void do_object(oop obj) {
-    HeapWord* test_addr = (HeapWord*)obj + 1;
-    guarantee(_start_array->object_start(test_addr) == (HeapWord*)obj, "ObjectStartArray cannot find start of object");
-    guarantee(_start_array->is_block_allocated((HeapWord*)obj), "ObjectStartArray missing block allocation");
+    HeapWord* test_addr = cast_from_oop<HeapWord*>(obj) + 1;
+    guarantee(_start_array->object_start(test_addr) == cast_from_oop<HeapWord*>(obj), "ObjectStartArray cannot find start of object");
+    guarantee(_start_array->is_block_allocated(cast_from_oop<HeapWord*>(obj)), "ObjectStartArray missing block allocation");
   }
 };
 

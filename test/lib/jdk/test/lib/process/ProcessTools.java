@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,13 @@
 
 package jdk.test.lib.process;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -44,6 +47,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
 import jdk.test.lib.JDKToolFinder;
+import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
 public final class ProcessTools {
@@ -359,6 +363,21 @@ public final class ProcessTools {
      * @return The {@linkplain OutputAnalyzer} instance wrapping the process.
      */
     public static OutputAnalyzer executeProcess(ProcessBuilder pb, String input) throws Exception {
+        return executeProcess(pb, input, null);
+    }
+
+    /**
+     * Executes a process, pipe some text into its STDIN, waits for it
+     * to finish and returns the process output. The process will have exited
+     * before this method returns.
+     * @param pb The ProcessBuilder to execute.
+     * @param input The text to pipe into STDIN. Can be null.
+     * @param cs The charset used to convert from bytes to chars or null for
+     *           the default charset.
+     * @return The {@linkplain OutputAnalyzer} instance wrapping the process.
+     */
+    public static OutputAnalyzer executeProcess(ProcessBuilder pb, String input,
+            Charset cs) throws Exception {
         OutputAnalyzer output = null;
         Process p = null;
         boolean failed = false;
@@ -370,7 +389,7 @@ public final class ProcessTools {
                }
             }
 
-            output = new OutputAnalyzer(p);
+            output = new OutputAnalyzer(p, cs);
             p.waitFor();
 
             return output;
@@ -474,12 +493,53 @@ public final class ProcessTools {
         return analyzer;
     }
 
+    /**
+     * Helper method to create a process builder for launching native executable
+     * test that uses/loads JVM.
+     *
+     * @param executableName The name of an executable to be launched.
+     * @param args Arguments for the executable.
+     * @return New ProcessBuilder instance representing the command.
+     */
+    public static ProcessBuilder createNativeTestProcessBuilder(String executableName,
+                                                                String... args) throws Exception {
+        executableName = Platform.isWindows() ? executableName + ".exe" : executableName;
+        String executable = Paths.get(System.getProperty("test.nativepath"), executableName)
+            .toAbsolutePath()
+            .toString();
+
+        ProcessBuilder pb = new ProcessBuilder(executable);
+        pb.command().addAll(Arrays.asList(args));
+        addJvmLib(pb);
+        return pb;
+    }
+
+    /**
+     * Adds JVM library path to the native library path.
+     *
+     * @param pb ProcessBuilder to be updated with JVM library path.
+     * @return pb Update ProcessBuilder instance.
+     */
+    public static ProcessBuilder addJvmLib(ProcessBuilder pb) throws Exception {
+        String jvmLibDir = Platform.jvmLibDir().toString();
+        String libPathVar = Platform.sharedLibraryPathVariableName();
+        String currentLibPath = pb.environment().get(libPathVar);
+
+        String newLibPath = jvmLibDir;
+        if ( (currentLibPath != null) && !currentLibPath.isEmpty() ) {
+            newLibPath = currentLibPath + File.pathSeparator + jvmLibDir;
+        }
+
+        pb.environment().put(libPathVar, newLibPath);
+
+        return pb;
+    }
+
     private static Process privilegedStart(ProcessBuilder pb) throws IOException {
         try {
             return AccessController.doPrivileged(
                 (PrivilegedExceptionAction<Process>) () -> pb.start());
         } catch (PrivilegedActionException e) {
-            @SuppressWarnings("unchecked")
             IOException t = (IOException) e.getException();
             throw t;
         }

@@ -96,6 +96,8 @@ public interface Opcodes {
     int V11 = 0 << 16 | 55;
     int V12 = 0 << 16 | 56;
     int V13 = 0 << 16 | 57;
+    int V14 = 0 << 16 | 58;
+    int V15 = 0 << 16 | 59;
 
     /**
       * Version flag indicating that the class is using 'preview' features.

@@ -30,13 +30,6 @@
 
 inline const char* os::dll_file_extension()            { return ".dll"; }
 
-inline const int os::default_file_open_flags() { return O_BINARY | O_NOINHERIT;}
-
-// File names are case-insensitive on windows only
-inline int os::file_name_strncmp(const char* s, const char* t, size_t num) {
-  return _strnicmp(s, t, num);
-}
-
 inline void  os::dll_unload(void *lib) {
   ::FreeLibrary((HMODULE)lib);
 }
@@ -84,6 +77,44 @@ inline bool os::supports_monotonic_clock() {
 
 inline void os::exit(int num) {
   win32::exit_process_or_thread(win32::EPT_PROCESS, num);
+}
+
+// Platform Mutex/Monitor implementation
+
+inline os::PlatformMutex::PlatformMutex() {
+  InitializeCriticalSection(&_mutex);
+}
+
+inline os::PlatformMutex::~PlatformMutex() {
+  DeleteCriticalSection(&_mutex);
+}
+
+inline os::PlatformMonitor::PlatformMonitor() {
+  InitializeConditionVariable(&_cond);
+}
+
+inline os::PlatformMonitor::~PlatformMonitor() {
+  // There is no DeleteConditionVariable API
+}
+
+inline void os::PlatformMutex::lock() {
+  EnterCriticalSection(&_mutex);
+}
+
+inline void os::PlatformMutex::unlock() {
+  LeaveCriticalSection(&_mutex);
+}
+
+inline bool os::PlatformMutex::try_lock() {
+  return TryEnterCriticalSection(&_mutex);
+}
+
+inline void os::PlatformMonitor::notify() {
+  WakeConditionVariable(&_cond);
+}
+
+inline void os::PlatformMonitor::notify_all() {
+  WakeAllConditionVariable(&_cond);
 }
 
 #endif // OS_WINDOWS_OS_WINDOWS_INLINE_HPP
