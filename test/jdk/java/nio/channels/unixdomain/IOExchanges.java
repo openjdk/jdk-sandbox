@@ -63,7 +63,7 @@ public class IOExchanges {
                 : SocketChannel.open();
     }
 
-    static ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
+static ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
              throws IOException {
         return family == UNIX ? ServerSocketChannel.open(family)
                      : ServerSocketChannel.open();
