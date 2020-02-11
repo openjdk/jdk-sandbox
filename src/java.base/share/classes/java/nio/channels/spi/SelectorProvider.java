@@ -28,6 +28,7 @@ package java.nio.channels.spi;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.nio.channels.Channel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
@@ -315,4 +316,37 @@ public abstract class SelectorProvider {
         return null;
     }
 
+    /**
+     * Returns a {@link SocketChannel} from the given protocol family.
+     *
+     * @param family the protocol family
+     *
+     * @return a SocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedOperationException
+     *         If the specified protocol family is not supported
+     *
+     * @since 15
+     */
+    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        throw new UnsupportedOperationException("protocol family not supported");
+    }
+
+    /**
+     * Returns a {@link ServerSocketChannel} from the given protocol family.
+     *
+     * @param family the protocol family
+     *
+     * @return a ServerSocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedOperationException
+     *         If the specified protocol family is not supported
+     *
+     * @since 15
+     */
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        throw new UnsupportedOperationException("protocol family not supported");
+    }
 }

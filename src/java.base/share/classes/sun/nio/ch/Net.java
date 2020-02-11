@@ -300,6 +300,34 @@ public class Net {
         }
     }
 
+    static InetAddress anyLocalInet4Address() {
+        return inet4FromInt(0);
+    }
+
+    static InetAddress anyLocalInet6Address() {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<InetAddress>)() -> {
+            try {
+                return InetAddress.getByName("::0");
+            } catch (IOException e) {
+                throw new InternalError(e);
+            }
+        });
+    }
+
+    private static InetAddress anyLocalInet4 = anyLocalInet4Address();
+    private static InetAddress anyLocalInet6 = anyLocalInet6Address();
+
+    static InetSocketAddress anyLocalSocketAddress(ProtocolFamily family) {
+        if (family == StandardProtocolFamily.INET) {
+            return new InetSocketAddress(anyLocalInet4, 0);
+        } else if (family == StandardProtocolFamily.INET6) {
+            return new InetSocketAddress(anyLocalInet6, 0);
+        } else {
+            throw new UnsupportedAddressTypeException();
+        }
+    }
+
     /**
      * Returns an IPv6 address as a byte array
      */
@@ -467,7 +495,13 @@ public class Net {
     }
 
     static FileDescriptor serverSocket(boolean stream) {
-        return IOUtil.newFD(socket0(isIPv6Available(), stream, true, fastLoopback));
+        return serverSocket(UNSPEC, stream);
+    }
+
+    static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
+        boolean preferIPv6 = isIPv6Available() &&
+            (family != StandardProtocolFamily.INET);
+        return IOUtil.newFD(socket0(preferIPv6, stream, true, fastLoopback));
     }
 
     // Due to oddities SO_REUSEADDR on windows reuse is ignored

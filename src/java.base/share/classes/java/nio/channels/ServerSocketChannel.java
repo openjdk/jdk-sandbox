@@ -26,6 +26,8 @@
 package java.nio.channels;
 
 import java.io.IOException;
+import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketOption;
 import java.net.SocketAddress;
@@ -111,6 +113,24 @@ public abstract class ServerSocketChannel
      */
     public static ServerSocketChannel open() throws IOException {
         return SelectorProvider.provider().openServerSocketChannel();
+    }
+
+    /**
+     * Returns a {@link ServerSocketChannel} of the given protocol family.
+     * Where family is equal to {@link StandardProtocolFamily#INET INET} or {@link
+     * StandardProtocolFamily#INET6 INET6} the returned channel must be bound to an
+     * {@link InetSocketAddress}.
+     *
+     * @param family the protocol family
+     *
+     * @return a ServerSocketChannel
+     *
+     * @throws IOException if an I/O error occurs
+     * @throws UnsupportedOperationException if the protocol family is not supported
+     * @since 15
+     */
+    public static ServerSocketChannel open(ProtocolFamily family) throws IOException {
+        return SelectorProvider.provider().openServerSocketChannel(family);
     }
 
     /**
