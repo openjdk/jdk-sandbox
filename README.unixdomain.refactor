@@ -1,0 +1,7 @@
+This is the refactored version of unixdomainchannels branch
+
+uses a patch imported from JDK-8238770-branch containing the
+SocketChannel/ServerSocketChannel open(ProtocolFamily) methods
+
+and builds the same functionality as unixdomainchannels on top
+also as a versioned patch
