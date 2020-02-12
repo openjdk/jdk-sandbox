@@ -61,9 +61,11 @@ public class ProtocolFamilies {
         out.println("preferIPv4: " + preferIPv4);
         out.println("preferIPv6: " + preferIPv6);
         out.println("IPv6 supported: " + IPSupport.hasIPv6());
+        out.println("ia4: " + ia4);
+        out.println("ia6: " + ia6);
     }
 
-    // SocketChannel open   - Dualstack, INET, INET6
+    // SocketChannel open   - default, INET, INET6
     // SocketChannel bind   - INET, INET6, null
 
     @DataProvider(name = "scOpenBind")
@@ -72,7 +74,7 @@ public class ProtocolFamilies {
                 {   INET,   INET,   true   },
                 {   INET,   INET6,  false  },
                 {   INET,   null,   true   },
-                {   INET6,  INET,   false  },
+                {   INET6,  INET,   true   },
                 {   INET6,  INET6,  true   },
                 {   INET6,  null,   true   },
                 {   null,   INET,   true   },
@@ -101,20 +103,20 @@ public class ProtocolFamilies {
         }
     }
 
-    //  SocketChannel open    - Dualstack, INET, INET6
-    //  SocketChannel connect - Dualstack, INET, INET6
+    //  SocketChannel open    - default, INET, INET6
+    //  SocketChannel connect - default, INET, INET6
 
     @DataProvider(name = "scOpenConnect")
     public Object[][] scOpenConnect() {
         return new Object[][]{
                 {   INET,   INET,   true   },
-                {   INET,   INET6,  false  },
+                {   INET,   INET6,  true   },
                 {   INET,   null,   true   },
                 {   INET6,  INET,   false  },
-                {   INET6,  INET6,  false  },
-                {   INET6,  null,   false  },
+                {   INET6,  INET6,  true   },
+                {   INET6,  null,   true   },
                 {   null,   INET,   false  },
-                {   null,   INET6,  false  },
+                {   null,   INET6,  true   },
                 {   null,   null,   true   }
         };
     }
@@ -127,7 +129,6 @@ public class ProtocolFamilies {
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
-
             try (SocketChannel sc = openSC(cfam)) {
                 sc.connect(saddr);
                 if (!expectPass) {
@@ -143,7 +144,7 @@ public class ProtocolFamilies {
         }
     }
 
-    //  ServerSocketChannel open    - Dualstack, INET, INET6
+    //  ServerSocketChannel open    - default, INET, INET6
     //  ServerSocketChannel bind    - INET, INET6, null
 
     @DataProvider(name = "sscOpenBind")
@@ -152,7 +153,7 @@ public class ProtocolFamilies {
                 {   INET,   INET,   true   },
                 {   INET,   INET6,  false  },
                 {   INET,   null,   true   },
-                {   INET6,  INET,   false  },
+                {   INET6,  INET,   true   },
                 {   INET6,  INET6,  true   },
                 {   INET6,  null,   true   },
                 {   null,   INET,   true   },
