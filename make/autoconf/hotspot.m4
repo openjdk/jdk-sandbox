@@ -224,7 +224,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
 
 # dependencied: aot needs graal, graal needs jvmci. jvmci is present in: Only enable jvmci on x86_64 and aarch64.
 
-AC_DEFUN([HOTSPOT_CHECK_AVAILABLE_PLATFORM_FEATURES],
+AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
 [
   # Check if features are unavailble for this platform.
   UNAVAILABLE_FEATURES=""
@@ -433,7 +433,7 @@ AC_DEFUN([HOTSPOT_CHECK_AVAILABLE_PLATFORM_FEATURES],
   fi
 ])
 
-AC_DEFUN([HOTSPOT_CHECK_AVAILABLE_VARIANT_FEATURES],
+AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 [
   # Check if features are unavailble for this JVM variant.
   # This means that is not possible to build this feature for this variant.
@@ -463,7 +463,7 @@ echo "UNAVAILABLE_FEATURES for variant $VARIANT is is :$UNAVAILABLE_FEATURES:"
 ])
 
 
-AC_DEFUN([HOTSPOT_CHECK_AVAILABLE_DEFAULT_FILTER],
+AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 [
   # Check if a feature should be off by default for this JVM variant.
   DEFAULT_FILTER=""
@@ -506,16 +506,56 @@ AC_DEFUN([HOTSPOT_CHECK_AVAILABLE_DEFAULT_FILTER],
 ###############################################################################
 # Check if dtrace should be enabled and has all prerequisites present.
 #
+AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
+[
+  ### FIXME!!!
+
+  # Verify that dependencies are met for explicitly set features.
+  if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
+    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services'])
+  fi
+
+  if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
+    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt'])
+  fi
+
+  if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
+    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1'])
+  fi
+
+        if test "x$JVM_FEATURES_jvmci" != "xjvmci" ; then
+        AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci'])
+      fi
+
+    if test "x$JVM_FEATURES_graal" != "xgraal"; then
+      if test "x$enable_aot" = "xyes" || HOTSPOT_CHECK_JVM_FEATURE(aot); then
+        AC_MSG_RESULT([yes, forced])
+        AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal'])
+      else
+        AC_MSG_RESULT([no])
+      fi
+
+    # Verify that we have at least one gc selected
+    GC_FEATURES=`$ECHO $JVM_FEATURES_FOR_VARIANT | $GREP gc`
+    if test "x$GC_FEATURES" = x; then
+      AC_MSG_WARN([Invalid JVM features: No gc selected for variant $variant.])
+    fi
+])
+
+###############################################################################
+# Check if dtrace should be enabled and has all prerequisites present.
+#
 AC_DEFUN_ONCE([HOTSPOT_SETUP_DTRACE],
 [
-HOTSPOT_CHECK_AVAILABLE_PLATFORM_FEATURES
-HOTSPOT_CHECK_AVAILABLE_VARIANT_FEATURES(zero)
-HOTSPOT_CHECK_AVAILABLE_VARIANT_FEATURES(server)
-HOTSPOT_CHECK_AVAILABLE_VARIANT_FEATURES(minimal)
+HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
 
-HOTSPOT_CHECK_AVAILABLE_DEFAULT_FILTER(zero)
-HOTSPOT_CHECK_AVAILABLE_DEFAULT_FILTER(server)
-HOTSPOT_CHECK_AVAILABLE_DEFAULT_FILTER(minimal)
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(zero)
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(server)
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(minimal)
+
+HOTSPOT_SETUP_FEATURES_FILTER(zero)
+HOTSPOT_SETUP_FEATURES_FILTER(server)
+HOTSPOT_SETUP_FEATURES_FILTER(minimal)
 
 
 exit 0
