@@ -28,7 +28,6 @@ package java.nio.channels.spi;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.nio.channels.Channel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
