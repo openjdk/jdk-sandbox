@@ -55,6 +55,8 @@ public class ProtocolFamilies {
 
     @BeforeTest()
     public void setup() throws Exception {
+        checkSupport();
+
         ia4 = getFirstLinkLocalIPv4Address();
         ia6 = getFirstLinkLocalIPv6Address();
 
@@ -184,19 +186,28 @@ public class ProtocolFamilies {
 
     // Helper methods
 
-    static SocketChannel openSC(StandardProtocolFamily fam)
+    private static void checkSupport() {
+        try {
+            Class<?> cls = Class.forName("java.nio.channels.SocketChannel");
+            cls.getDeclaredMethod("open", ProtocolFamily.class);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError("open(ProtocolFamily) not supported");
+        }
+    }
+
+    private static SocketChannel openSC(StandardProtocolFamily fam)
             throws IOException {
         return fam == null ? SocketChannel.open()
                 : SocketChannel.open(fam);
     }
 
-    static ServerSocketChannel openSSC(StandardProtocolFamily fam)
+    private static ServerSocketChannel openSSC(StandardProtocolFamily fam)
             throws IOException {
         return fam == null ? ServerSocketChannel.open()
                 : ServerSocketChannel.open(fam);
     }
 
-    public static SocketAddress getSocketAddress(StandardProtocolFamily fam) {
+    private static SocketAddress getSocketAddress(StandardProtocolFamily fam) {
         return fam == null ? null : switch (fam) {
             case INET -> new InetSocketAddress(ia4, 0);
             case INET6 -> new InetSocketAddress(ia6, 0);
@@ -204,7 +215,7 @@ public class ProtocolFamilies {
         };
     }
 
-    public static Inet4Address getFirstLinkLocalIPv4Address()
+    private static Inet4Address getFirstLinkLocalIPv4Address()
             throws Exception {
         return NetworkConfiguration.probe()
                 .ip4Addresses()
@@ -213,12 +224,12 @@ public class ProtocolFamilies {
                 .orElse(null);
     }
 
-    public static Inet6Address getFirstLinkLocalIPv6Address()
+    private static Inet6Address getFirstLinkLocalIPv6Address()
             throws Exception {
         return NetworkConfiguration.probe()
                 .ip6Addresses()
                 .filter(Inet6Address::isLinkLocalAddress)
                 .findFirst()
-                .orElse(null);
+                .orElse((Inet6Address) InetAddress.getByName("::0"));
     }
 }
