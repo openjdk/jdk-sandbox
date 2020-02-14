@@ -261,8 +261,7 @@ public class UnreferencedMulticastSockets {
             } else {
                 // MulticastSocket using PlainDatagramSocketImpl
                 Object MulticastSocket = datagramSocketField.get(s);
-                System.out.println("HERE: " + MulticastSocket.getClass());
-                assert MulticastSocket.getClass() == Class.forName("java.net.NetDatagramSocket");
+                assert MulticastSocket.getClass() == Class.forName("java.net.NetMulticastSocket");
 
                 Method m = MulticastSocket.getClass().getDeclaredMethod("getImpl");
                 m.setAccessible(true);

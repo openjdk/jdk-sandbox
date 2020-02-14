@@ -40,7 +40,11 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.io.IOException;
 import java.lang.reflect.Method;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.DatagramSocketImpl;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.channels.DatagramChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -219,7 +223,7 @@ public class UnreferencedDatagramSockets {
             } else {
                 // DatagramSocket using PlainDatagramSocketImpl
                 Object DatagramSocket = datagramSocketField.get(s);
-                assert DatagramSocket.getClass() == Class.forName("java.net.NetDatagramSocket");
+                assert DatagramSocket.getClass() == Class.forName("java.net.NetMulticastSocket");
 
                 Method m = DatagramSocket.getClass().getDeclaredMethod("getImpl");
                 m.setAccessible(true);

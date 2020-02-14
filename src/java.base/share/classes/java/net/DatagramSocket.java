@@ -114,6 +114,7 @@ import sun.nio.ch.DefaultSelectorProvider;
  */
 public class DatagramSocket implements java.io.Closeable {
 
+    // Temporary solution until JDK-8237352 is addressed
     static final SocketAddress NONE = new SocketAddress() {};
     static final boolean USE_PLAIN_DATAGRAM_SOCKET = usePlainDatagramSocketImpl();
     static final boolean CONFIGURE_SO_SNDBUF = configureSendBuffer();
@@ -140,7 +141,7 @@ public class DatagramSocket implements java.io.Closeable {
             if (CONFIGURE_SO_SNDBUF) {
                 try {
                     if (channel.getOption(StandardSocketOptions.SO_SNDBUF) < MAX_PACKET_LEN) {
-                        // NetDatagramSocket does this when it creates the socket on
+                        // NetMulticastSocket does this when it creates the socket on
                         // Mac OS X
                         channel.setOption(StandardSocketOptions.SO_SNDBUF, MAX_PACKET_LEN);
                     }
@@ -166,11 +167,11 @@ public class DatagramSocket implements java.io.Closeable {
             throws SocketException {
         if (bindaddr == NONE) return null;
         MulticastSocket delegate = null;
-        boolean opened = false;
+        boolean initialized = false;
         try {
             if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
                 // create legacy DatagramSocket
-                delegate = NetDatagramSocket.create(multicast);
+                delegate = NetMulticastSocket.create(multicast);
             } else {
                 // create NIO adaptor
                 delegate = createAdaptor();
@@ -189,13 +190,13 @@ public class DatagramSocket implements java.io.Closeable {
                 delegate.setBroadcast(true);
             } catch (IOException ioe) {
             }
-            opened = bindaddr == null || delegate.isBound();
+            initialized = bindaddr == null || delegate.isBound();
         } catch (IOException ioe) {
             throw toSocketException(ioe);
         } finally {
             // make sure the delegate is closed if anything
             // went wrong
-            if (!opened) {
+            if (!initialized) {
                 if (delegate != null) delegate.close();
             }
         }
@@ -210,9 +211,9 @@ public class DatagramSocket implements java.io.Closeable {
 
 
     // `socket` is either an instance of DatagramSocketAdaptor
-    // NetDatagramSocket, or null. `socket` is null when
+    // NetMulticastSocket, or null. `socket` is null when
     // `this` is an instance of DatagramSocketAdaptor or
-    // NetDatagramSocket.
+    // NetMulticastSocket.
     private final MulticastSocket delegate;
 
     // MulticastSocket needs to access the socket field.
@@ -254,7 +255,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since   1.4
      */
     protected DatagramSocket(DatagramSocketImpl impl) {
-        this(new NetDatagramSocket(impl));
+        this(new NetMulticastSocket(impl));
     }
 
     /**
@@ -344,8 +345,8 @@ public class DatagramSocket implements java.io.Closeable {
         // delegate can be null in which case any call to
         // delegate() will throw an InternalError("should not come here");
         // Otherwise - it must be one of the "approved" subclasses:
-        assert delegate == null // NetDatagramSocket and DatagramSocketAdaptor have no delegate
-                || delegate instanceof NetDatagramSocket  // Classical net-based impl
+        assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
+                || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
         this.delegate = delegate;
     }

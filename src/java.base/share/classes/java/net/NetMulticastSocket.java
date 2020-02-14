@@ -39,7 +39,7 @@ import java.util.Collections;
  * This class is the legacy implementation of {@link DatagramSocket} based
  * on {@link DatagramSocketImpl}.
  */
-final class NetDatagramSocket extends MulticastSocket {
+final class NetMulticastSocket extends MulticastSocket {
     /**
      * Various states of this socket.
      */
@@ -87,26 +87,17 @@ final class NetDatagramSocket extends MulticastSocket {
     InetAddress connectedAddress = null;
     int connectedPort = -1;
 
-    static NetDatagramSocket create(boolean isMulticast) throws SocketException {
-        NetDatagramSocket socket = new NetDatagramSocket(createImpl(isMulticast));
-        socket.getImpl(); // force early creation of underlying socket here
-        return socket;
-    }
-
-    // checks that the provided DatagramSocketImpl is non null, and
-    // returns a null DatagramSocket for delegation
-    static MulticastSocket nullDatagramSocket(DatagramSocketImpl impl) {
-        Objects.requireNonNull(impl);
-        return null;
+    static NetMulticastSocket create(boolean isMulticast) throws SocketException {
+        return new NetMulticastSocket(createImpl(isMulticast));
     }
 
     /**
      * This constructor is also used by {@link DatagramSocket#DatagramSocket(DatagramSocketImpl)}.
      * @param impl The impl used in this instance.
      */
-    NetDatagramSocket(DatagramSocketImpl impl) {
-        super(nullDatagramSocket(impl));
-        this.impl = impl;
+    NetMulticastSocket(DatagramSocketImpl impl) {
+        super((MulticastSocket) null);
+        this.impl = Objects.requireNonNull(impl);
         this.oldImpl = checkOldImpl(impl);
     }
 
@@ -223,7 +214,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void bind(SocketAddress addr) throws SocketException {
+    public synchronized void bind(SocketAddress addr) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (isBound())
@@ -261,7 +252,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void connect(InetAddress address, int port) {
+    public void connect(InetAddress address, int port) {
         try {
             connectInternal(address, port);
         } catch (SocketException se) {
@@ -270,7 +261,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void connect(SocketAddress addr) throws SocketException {
+    public void connect(SocketAddress addr) throws SocketException {
         if (addr == null)
             throw new IllegalArgumentException("Address can't be null");
         if (!(addr instanceof InetSocketAddress))
@@ -282,7 +273,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void disconnect() {
+    public void disconnect() {
         synchronized (this) {
             if (isClosed())
                 return;
@@ -297,34 +288,34 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final boolean isBound() {
+    public boolean isBound() {
         return bound;
     }
 
     @Override
-    public final boolean isConnected() {
+    public boolean isConnected() {
         return connectState != ST_NOT_CONNECTED;
     }
 
     @Override
-    public final InetAddress getInetAddress() {
+    public InetAddress getInetAddress() {
         return connectedAddress;
     }
 
     @Override
-    public final int getPort() {
+    public int getPort() {
         return connectedPort;
     }
 
     @Override
-    public final SocketAddress getRemoteSocketAddress() {
+    public SocketAddress getRemoteSocketAddress() {
         if (!isConnected())
             return null;
         return new InetSocketAddress(getInetAddress(), getPort());
     }
 
     @Override
-    public final SocketAddress getLocalSocketAddress() {
+    public SocketAddress getLocalSocketAddress() {
         if (isClosed())
             return null;
         if (!isBound())
@@ -333,7 +324,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void send(DatagramPacket p) throws IOException {
+    public void send(DatagramPacket p) throws IOException {
         synchronized (p) {
             if (isClosed())
                 throw new SocketException("Socket is closed");
@@ -382,7 +373,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void receive(DatagramPacket p) throws IOException {
+    public synchronized void receive(DatagramPacket p) throws IOException {
         synchronized (p) {
             if (!isBound())
                 bind(new InetSocketAddress(0));
@@ -484,7 +475,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final InetAddress getLocalAddress() {
+    public InetAddress getLocalAddress() {
         if (isClosed())
             return null;
         InetAddress in = null;
@@ -504,7 +495,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final int getLocalPort() {
+    public int getLocalPort() {
         if (isClosed())
             return -1;
         try {
@@ -515,7 +506,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void setSoTimeout(int timeout) throws SocketException {
+    public synchronized void setSoTimeout(int timeout) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (timeout < 0)
@@ -524,7 +515,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized int getSoTimeout() throws SocketException {
+    public synchronized int getSoTimeout() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         if (getImpl() == null)
@@ -539,7 +530,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void setSendBufferSize(int size)
+    public synchronized void setSendBufferSize(int size)
             throws SocketException {
         if (!(size > 0)) {
             throw new IllegalArgumentException("negative send size");
@@ -550,7 +541,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized int getSendBufferSize() throws SocketException {
+    public synchronized int getSendBufferSize() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         int result = 0;
@@ -562,7 +553,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void setReceiveBufferSize(int size)
+    public synchronized void setReceiveBufferSize(int size)
             throws SocketException {
         if (size <= 0) {
             throw new IllegalArgumentException("invalid receive size");
@@ -573,7 +564,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized int getReceiveBufferSize()
+    public synchronized int getReceiveBufferSize()
             throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -586,7 +577,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void setReuseAddress(boolean on) throws SocketException {
+    public synchronized void setReuseAddress(boolean on) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         // Integer instead of Boolean for compatibility with older DatagramSocketImpl
@@ -597,7 +588,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized boolean getReuseAddress() throws SocketException {
+    public synchronized boolean getReuseAddress() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         Object o = getImpl().getOption(SocketOptions.SO_REUSEADDR);
@@ -605,21 +596,21 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized void setBroadcast(boolean on) throws SocketException {
+    public synchronized void setBroadcast(boolean on) throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         getImpl().setOption(SocketOptions.SO_BROADCAST, Boolean.valueOf(on));
     }
 
     @Override
-    public final synchronized boolean getBroadcast() throws SocketException {
+    public synchronized boolean getBroadcast() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         return ((Boolean) (getImpl().getOption(SocketOptions.SO_BROADCAST))).booleanValue();
     }
 
     @Override
-    public final synchronized void setTrafficClass(int tc) throws SocketException {
+    public synchronized void setTrafficClass(int tc) throws SocketException {
         if (tc < 0 || tc > 255)
             throw new IllegalArgumentException("tc is not in range 0 -- 255");
 
@@ -636,14 +627,14 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final synchronized int getTrafficClass() throws SocketException {
+    public synchronized int getTrafficClass() throws SocketException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         return ((Integer) (getImpl().getOption(SocketOptions.IP_TOS))).intValue();
     }
 
     @Override
-    public final void close() {
+    public void close() {
         synchronized (closeLock) {
             if (isClosed())
                 return;
@@ -653,19 +644,19 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final boolean isClosed() {
+    public boolean isClosed() {
         synchronized (closeLock) {
             return closed;
         }
     }
 
     @Override
-    public final DatagramChannel getChannel() {
+    public DatagramChannel getChannel() {
         return null;
     }
 
     @Override
-    public final  <T> DatagramSocket setOption(SocketOption<T> name, T value)
+    public  <T> DatagramSocket setOption(SocketOption<T> name, T value)
             throws IOException {
         Objects.requireNonNull(name);
         if (isClosed())
@@ -675,7 +666,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final <T> T getOption(SocketOption<T> name) throws IOException {
+    public <T> T getOption(SocketOption<T> name) throws IOException {
         Objects.requireNonNull(name);
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -686,8 +677,8 @@ final class NetDatagramSocket extends MulticastSocket {
     private static boolean optionsSet = false;
 
     @Override
-    public final Set<SocketOption<?>> supportedOptions() {
-        synchronized (NetDatagramSocket.class) {
+    public Set<SocketOption<?>> supportedOptions() {
+        synchronized (NetMulticastSocket.class) {
             if (optionsSet) {
                 return options;
             }
@@ -727,25 +718,25 @@ final class NetDatagramSocket extends MulticastSocket {
      */
     private InetAddress infAddress = null;
 
-    final InetAddress connectedAddress() {
+    InetAddress connectedAddress() {
         return connectedAddress;
     }
 
-    final int connectedPort() {
+    int connectedPort() {
         return connectedPort;
     }
 
-    final int connectState() {
+    int connectState() {
         return connectState;
     }
 
-    final boolean oldImpl() throws SocketException {
+    boolean oldImpl() throws SocketException {
         return oldImpl;
     }
 
     @Override
     @Deprecated
-    public final void setInterface(InetAddress inf) throws SocketException {
+    public void setInterface(InetAddress inf) throws SocketException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
         }
@@ -759,7 +750,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Override
     @Deprecated
-    public final InetAddress getInterface() throws SocketException {
+    public InetAddress getInterface() throws SocketException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
         }
@@ -811,18 +802,18 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Override
     @Deprecated
-    public final void setLoopbackMode(boolean disable) throws SocketException {
+    public void setLoopbackMode(boolean disable) throws SocketException {
         getImpl().setOption(SocketOptions.IP_MULTICAST_LOOP, Boolean.valueOf(disable));
     }
 
     @Override
     @Deprecated
-    public final boolean getLoopbackMode() throws SocketException {
+    public boolean getLoopbackMode() throws SocketException {
         return ((Boolean)getImpl().getOption(SocketOptions.IP_MULTICAST_LOOP)).booleanValue();
     }
 
     @Override
-    public final void setNetworkInterface(NetworkInterface netIf)
+    public void setNetworkInterface(NetworkInterface netIf)
             throws SocketException {
 
         synchronized (infLock) {
@@ -833,7 +824,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final NetworkInterface getNetworkInterface() throws SocketException {
+    public NetworkInterface getNetworkInterface() throws SocketException {
         NetworkInterface ni
                 = (NetworkInterface)getImpl().getOption(SocketOptions.IP_MULTICAST_IF2);
         if (ni == null) {
@@ -846,7 +837,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void setTimeToLive(int ttl) throws IOException {
+    public void setTimeToLive(int ttl) throws IOException {
         if (ttl < 0 || ttl > 255) {
             throw new IllegalArgumentException("ttl out of range");
         }
@@ -856,7 +847,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final int getTimeToLive() throws IOException {
+    public int getTimeToLive() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         return getImpl().getTimeToLive();
@@ -864,7 +855,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Deprecated
     @Override
-    public final void setTTL(byte ttl) throws IOException {
+    public void setTTL(byte ttl) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         getImpl().setTTL(ttl);
@@ -872,7 +863,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Deprecated
     @Override
-    public final byte getTTL() throws IOException {
+    public byte getTTL() throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
         return getImpl().getTTL();
@@ -880,7 +871,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Override
     @Deprecated
-    public final void joinGroup(InetAddress mcastaddr) throws IOException {
+    public void joinGroup(InetAddress mcastaddr) throws IOException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
         }
@@ -909,7 +900,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
             throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -935,7 +926,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Override
     @Deprecated
-    public final void leaveGroup(InetAddress mcastaddr) throws IOException {
+    public void leaveGroup(InetAddress mcastaddr) throws IOException {
         if (isClosed()) {
             throw new SocketException("Socket is closed");
         }
@@ -954,7 +945,7 @@ final class NetDatagramSocket extends MulticastSocket {
     }
 
     @Override
-    public final void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
+    public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
             throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -980,7 +971,7 @@ final class NetDatagramSocket extends MulticastSocket {
 
     @Deprecated
     @Override
-    public final void send(DatagramPacket p, byte ttl)
+    public void send(DatagramPacket p, byte ttl)
             throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
@@ -988,7 +979,7 @@ final class NetDatagramSocket extends MulticastSocket {
             synchronized(p) {
                 InetAddress packetAddress = p.getAddress();
                 checkAddress(packetAddress, "send");
-                if (connectState() == NetDatagramSocket.ST_NOT_CONNECTED) {
+                if (connectState() == NetMulticastSocket.ST_NOT_CONNECTED) {
                     if (packetAddress == null) {
                         throw new IllegalArgumentException("Address not set");
                     }

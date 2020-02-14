@@ -129,11 +129,6 @@ import java.io.IOException;
  */
 public class MulticastSocket extends DatagramSocket {
 
-    private static MulticastSocket createMulticastSocket(SocketAddress bindaddr)
-            throws SocketException {
-        return DatagramSocket.createDelegate(bindaddr, true);
-    }
-
     /**
      * Create a multicast socket.
      *
@@ -209,14 +204,15 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.4
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
-        this(createMulticastSocket(bindaddr));
+        this(createDelegate(bindaddr, true));
     }
 
-    // This constructor is used by NetDatagramSocket.
-    // In this case the delegate null, since the subclass doesn't
-    // delegate any MulticastSocket calls.
-    MulticastSocket(MulticastSocket socket)  {
-        super(socket);
+    /**
+     * Create a MulticastSocket that delegates to the given delegate if not null.
+     * @param delegate the delegate, can be null.
+     */
+    MulticastSocket(MulticastSocket delegate)  {
+        super(delegate);
     }
 
 
