@@ -55,8 +55,6 @@ public class ProtocolFamilies {
 
     @BeforeTest()
     public void setup() throws Exception {
-        checkSupport();
-
         ia4 = getFirstLinkLocalIPv4Address();
         ia6 = getFirstLinkLocalIPv6Address();
 
@@ -185,15 +183,6 @@ public class ProtocolFamilies {
     }
 
     // Helper methods
-
-    private static void checkSupport() {
-        try {
-            Class<?> cls = Class.forName("java.nio.channels.SocketChannel");
-            cls.getDeclaredMethod("open", ProtocolFamily.class);
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError("open(ProtocolFamily) not supported");
-        }
-    }
 
     private static SocketChannel openSC(StandardProtocolFamily fam)
             throws IOException {
