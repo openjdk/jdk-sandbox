@@ -252,22 +252,6 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
   # The code block in HOTSPOT_CHECK_FEATURE_AVAILABILITY should set
   # AVAILABLE=false if the feature is not available on this platform.
 
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace,
-  [
-    AC_MSG_CHECKING([for dtrace tool])
-    if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
-      AC_MSG_RESULT([$DTRACE])
-    else
-      AC_MSG_RESULT([no])
-      AVAILABLE=false
-    fi
-
-    AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
-    if test "x$DTRACE_HEADERS_OK" != "xyes"; then
-      AVAILABLE=false
-    fi
-  ])
-
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot,
   [
     AC_MSG_CHECKING([if platform is supported by AOT])
@@ -288,6 +272,45 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
     fi
   ])
 
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds,
+  [
+    AC_MSG_CHECKING([if platform is supported by CDS])
+    if test "x$OPENJDK_TARGET_OS" != xaix; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace,
+  [
+    AC_MSG_CHECKING([for dtrace tool])
+    if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
+      AC_MSG_RESULT([$DTRACE])
+    else
+      AC_MSG_RESULT([no])
+      AVAILABLE=false
+    fi
+
+    AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
+    if test "x$DTRACE_HEADERS_OK" != "xyes"; then
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal,
+  [
+    AC_MSG_CHECKING([if platform is supported by Graal])
+    # Graal requires JVMCI, and is therefore only available where JVMCI is available.
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(jfr,
   [
     AC_MSG_CHECKING([if platform is supported by JFR])
@@ -300,13 +323,13 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
     fi
   ])
 
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds,
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci,
   [
-    AC_MSG_CHECKING([if platform is supported by CDS])
-    if test "x$OPENJDK_TARGET_OS" != xaix; then
+    AC_MSG_CHECKING([if platform is supported by JVMCI])
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
       AC_MSG_RESULT([yes])
     else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
       AVAILABLE=false
     fi
   ])
@@ -318,6 +341,17 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AC_MSG_RESULT([yes])
     else
       AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build,
+  [
+    AC_MSG_CHECKING([if static-build is enabled in configure])
+    if test "x$STATIC_BUILD" = "xtrue"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
       AVAILABLE=false
     fi
   ])
@@ -354,40 +388,6 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
           AVAILABLE=false
         ]
       )
-    fi
-  ])
-
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build,
-  [
-    AC_MSG_CHECKING([if static-build is enabled in configure])
-    if test "x$STATIC_BUILD" = "xtrue"; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
-      AVAILABLE=false
-    fi
-  ])
-
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci,
-  [
-    AC_MSG_CHECKING([if platform is supported by JVMCI])
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    fi
-  ])
-
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal,
-  [
-    AC_MSG_CHECKING([if platform is supported by Graal])
-    # Graal requires JVMCI, and is therefore only available where JVMCI is available.
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
     fi
   ])
 ])
