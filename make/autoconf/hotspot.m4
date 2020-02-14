@@ -224,213 +224,172 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
 
 # dependencied: aot needs graal, graal needs jvmci. jvmci is present in: Only enable jvmci on x86_64 and aarch64.
 
+
+# arg 1: feature name
+# arg 2: code block to execute. Should set AVAILABLE=false in case of failure
+AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
+[
+  # Assume that feature is available
+  AVAILABLE=true
+
+  # Execute feature test block
+  $2
+
+  AC_MSG_CHECKING([if JVM feature '$1' is available])
+  if test "x$AVAILABLE" = "xtrue"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES $1"
+  fi
+])
+
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
 [
-  # Check if features are unavailble for this platform.
+  # Check if features are unavailable for this platform.
   UNAVAILABLE_FEATURES=""
 
-  # Check dtrace
-  AVAILABLE=true
-  AC_MSG_CHECKING([for dtrace tool])
-  if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
-    AC_MSG_RESULT([$DTRACE])
-  else
-    AC_MSG_RESULT([no])
-    AVAILABLE=false
-  fi
+  # The code block in HOTSPOT_CHECK_FEATURE_AVAILABILITY should set
+  # AVAILABLE=false if the feature is not available on this platform.
 
-  AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
-  if test "x$DTRACE_HEADERS_OK" != "xyes"; then
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature dtrace is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES dtrace"
-  fi
-
-  # Check aot
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by AOT])
-  # AOT requires JVMCI, and is therefore only available where JVMCI is available.
-  if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if AOT source code is present])
-  if test -e "${TOPDIR}/src/jdk.internal.vm.compiler" && test -e "${TOPDIR}/src/jdk.aot"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, src/jdk.internal.vm.compiler or src/jdk.aot is missing])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature aot is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES aot"
-  fi
-
-  # Check jfr
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by JFR])
-  if test "x$OPENJDK_TARGET_OS" = xaix || \
-      test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
-    AVAILABLE=false
-  else
-    AC_MSG_RESULT([yes])
-  fi
-
-  AC_MSG_CHECKING([if JVM feature jfr is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES jfr"
-  fi
-
-  # Check cds
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by CDS])
-  if test "x$OPENJDK_TARGET_OS" != xaix; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature cds is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds"
-  fi
-
-  # Check shenandoahgc
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by Shenandoah])
-  if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature shenandoahgc is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES shenandoahgc"
-  fi
-
-
-  # Check zgc
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by ZGC])
-  if test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
-    if test "x$OPENJDK_TARGET_OS" = "xlinux" || test "x$OPENJDK_TARGET_OS" = "xwindows" || \
-        test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-      AC_MSG_RESULT([yes])
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace,
+  [
+    AC_MSG_CHECKING([for dtrace tool])
+    if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
+      AC_MSG_RESULT([$DTRACE])
     else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+      AC_MSG_RESULT([no])
       AVAILABLE=false
     fi
-  elif test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-aarch64"; then
+
+    AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
+    if test "x$DTRACE_HEADERS_OK" != "xyes"; then
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot,
+  [
+    AC_MSG_CHECKING([if platform is supported by AOT])
+    # AOT requires JVMCI, and is therefore only available where JVMCI is available.
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
       AC_MSG_RESULT([yes])
-  else
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+
+    AC_MSG_CHECKING([if AOT source code is present])
+    if test -e "${TOPDIR}/src/jdk.internal.vm.compiler" && test -e "${TOPDIR}/src/jdk.aot"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, src/jdk.internal.vm.compiler or src/jdk.aot is missing])
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jfr,
+  [
+    AC_MSG_CHECKING([if platform is supported by JFR])
+    if test "x$OPENJDK_TARGET_OS" = xaix || \
+        test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
       AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
       AVAILABLE=false
-  fi
+    else
+      AC_MSG_RESULT([yes])
+    fi
+  ])
 
-  if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-    AC_MSG_CHECKING([if Windows APIs required for ZGC is present])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([[#include <windows.h>]],
-        [[struct MEM_EXTENDED_PARAMETER x;]])
-      ],
-      [
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds,
+  [
+    AC_MSG_CHECKING([if platform is supported by CDS])
+    if test "x$OPENJDK_TARGET_OS" != xaix; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(shenandoahgc,
+  [
+    AC_MSG_CHECKING([if platform is supported by Shenandoah])
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(zgc,
+  [
+    AC_MSG_CHECKING([if platform is supported by ZGC])
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
+      if test "x$OPENJDK_TARGET_OS" = "xlinux" || test "x$OPENJDK_TARGET_OS" = "xwindows" || \
+          test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
         AC_MSG_RESULT([yes])
-      ],
-      [
-        AC_MSG_RESULT([no, missing required APIs])
+      else
+        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
         AVAILABLE=false
-      ]
-    )
-  fi
+      fi
+    elif test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-aarch64"; then
+        AC_MSG_RESULT([yes])
+    else
+        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+        AVAILABLE=false
+    fi
 
-  AC_MSG_CHECKING([if JVM feature zgc is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES zgc"
-  fi
+    if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
+      AC_MSG_CHECKING([if Windows APIs required for ZGC is present])
+      AC_COMPILE_IFELSE(
+        [AC_LANG_PROGRAM([[#include <windows.h>]],
+          [[struct MEM_EXTENDED_PARAMETER x;]])
+        ],
+        [
+          AC_MSG_RESULT([yes])
+        ],
+        [
+          AC_MSG_RESULT([no, missing required APIs])
+          AVAILABLE=false
+        ]
+      )
+    fi
+  ])
 
-  # Check static-build
-  AVAILABLE=true
-  AC_MSG_CHECKING([if static-build is enabled in configure])
-  if test "x$STATIC_BUILD" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
-    AVAILABLE=false
-  fi
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build,
+  [
+    AC_MSG_CHECKING([if static-build is enabled in configure])
+    if test "x$STATIC_BUILD" = "xtrue"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
+      AVAILABLE=false
+    fi
+  ])
 
-  AC_MSG_CHECKING([if JVM feature static-build is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES static-build"
-  fi
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci,
+  [
+    AC_MSG_CHECKING([if platform is supported by JVMCI])
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
 
-  # Check jvmci
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by JVMCI])
-  if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature jvmci is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES jvmci"
-  fi
-
-  # Check graal
-  AVAILABLE=true
-  AC_MSG_CHECKING([if platform is supported by Graal])
-  # Graal requires JVMCI, and is therefore only available where JVMCI is available.
-  if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-    AVAILABLE=false
-  fi
-
-  AC_MSG_CHECKING([if JVM feature graal is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES graal"
-  fi
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal,
+  [
+    AC_MSG_CHECKING([if platform is supported by Graal])
+    # Graal requires JVMCI, and is therefore only available where JVMCI is available.
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
 ])
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
