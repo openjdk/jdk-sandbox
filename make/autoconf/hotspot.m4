@@ -247,10 +247,10 @@ AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
 [
   # Check if features are unavailable for this platform.
-  UNAVAILABLE_FEATURES=""
 
   # The code block in HOTSPOT_CHECK_FEATURE_AVAILABILITY should set
-  # AVAILABLE=false if the feature is not available on this platform.
+  # AVAILABLE=false if the feature is not available on this platform. If so, the
+  # feature will be added to UNAVAILABLE_FEATURES.
 
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot,
   [
@@ -396,14 +396,10 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 [
   # Check if features are unavailble for this JVM variant.
   # This means that is not possible to build this feature for this variant.
-  UNAVAILABLE_FEATURES=""
-
   VARIANT=$1
 
-  if test "x$VARIANT" = "xzero"; then
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds epsilongc g1gc zgc shenandoahgc jvmci aot graal"
-  else
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES zero"
+  if test "x$VARIANT" = "xcore"; then
+    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds"
   fi
 
   if test "x$VARIANT" = "xminimal"; then
@@ -412,27 +408,47 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
     UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES minimal"
   fi
 
-  if test "x$VARIANT" = "xcore"; then
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds"
+  if test "x$VARIANT" = "xzero"; then
+    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds epsilongc g1gc zgc shenandoahgc jvmci aot graal"
+  else
+    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES zero"
   fi
-
-
-echo "UNAVAILABLE_FEATURES for variant $VARIANT is is :$UNAVAILABLE_FEATURES:"
-
 ])
 
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 [
   # Check if a feature should be off by default for this JVM variant.
-  DEFAULT_FILTER=""
-
   VARIANT=$1
 
+  # Is this variant client?
+  if test "x$VARIANT" = "xclient"; then
+    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jvmci aot graal"
+  fi
+
+  # Is this variant core?
+  if test "x$VARIANT" = "xcore"; then
+    DEFAULT_FILTER="$DEFAULT_FILTER compiler1 compiler2 jvmci aot graal"
+  fi
+
+  # Is this variant minimal?
+  if test "x$VARIANT" = "xminimal"; then
+    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jfr g1gc parallelgc epsilongc shenandoahgc jni-check jvmti jvmci graal aot management nmt services vm-structs zgc cds dtrace"
+    if test "x$OPENJDK_TARGET_CPU" != xarm ; then
+      # No other platforms than arm-32 should have link-time-opt as default.
+      DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
+    fi
+  else
+    # No other variants should have link-time-opt as default.
+    DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
+  fi
+
+  # Is this variant zero?
   if test "x$VARIANT" = "xzero"; then
     DEFAULT_FILTER="$DEFAULT_FILTER jfr"
   fi
 
+  # Platform-specific filters
   if test "x$OPENJDK_TARGET_OS" = xaix; then
     DEFAULT_FILTER="$DEFAULT_FILTER jfr"
   fi
@@ -440,26 +456,6 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
   if test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
     DEFAULT_FILTER="$DEFAULT_FILTER jfr"
   fi
-
-  if test "x$VARIANT" = "xminimal"; then
-    if test "x$OPENJDK_TARGET_CPU" != xarm ; then
-      # On arm32, include lto as default, otherwise filter it out
-      DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
-    fi
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jfr g1gc parallelgc epsilongc shenandoahgc jni-check jvmti jvmci graal aot management nmt services vm-structs zgc cds dtrace"
-  else
-    DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
-  fi
-
-  if test "x$VARIANT" = "xclient"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jvmci aot graal"
-  fi
-
-  if test "x$VARIANT" = "xcore"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler1 compiler2 jvmci aot graal"
-  fi
-
-  echo DEFAULT_FILTER is $DEFAULT_FILTER for variant $VARIANT.
 ])
 
 ###############################################################################
