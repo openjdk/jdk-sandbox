@@ -194,7 +194,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
 
 # current-set -= explicit-off (NOTE if not part of current-set!)
 # check if present in availble (that is, neither in unavailble_platform or unavailable_variant), else NOTE that this features were not available anyway.
-# finally verify current-set for inconsistencies (re: dependencies). FAIL if found.
+# finally verify current-set for inconsistencies (re: dependencies). FAIL if found. Do this for each variant!
 
 
 # all features:
@@ -295,6 +295,8 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
 
     AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
     if test "x$DTRACE_HEADERS_OK" != "xyes"; then
+      HELP_MSG_MISSING_DEPENDENCY([dtrace])
+      AC_MSG_NOTICE([Cannot enable dtrace with missing dependencies. See above.])
       AVAILABLE=false
     fi
   ])
@@ -463,177 +465,37 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 #
 AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 [
+  VARIANT=$1
   ### FIXME!!!
+  ## HACK: this allows the use of  HOTSPOT_CHECK_JVM_FEATURE
+  JVM_FEATURES = JVM_FEATURES_$1
 
   # Verify that dependencies are met for explicitly set features.
   if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services'])
+    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$1'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
-    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt'])
+    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$1'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1'])
+    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$1'])
   fi
 
-        if test "x$JVM_FEATURES_jvmci" != "xjvmci" ; then
-        AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci'])
-      fi
-
-    if test "x$JVM_FEATURES_graal" != "xgraal"; then
-      if test "x$enable_aot" = "xyes" || HOTSPOT_CHECK_JVM_FEATURE(aot); then
-        AC_MSG_RESULT([yes, forced])
-        AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal'])
-      else
-        AC_MSG_RESULT([no])
-      fi
-
-    # Verify that we have at least one gc selected
-    GC_FEATURES=`$ECHO $JVM_FEATURES_FOR_VARIANT | $GREP gc`
-    if test "x$GC_FEATURES" = x; then
-      AC_MSG_WARN([Invalid JVM features: No gc selected for variant $variant.])
-    fi
-])
-
-###############################################################################
-# Check if dtrace should be enabled and has all prerequisites present.
-#
-AC_DEFUN_ONCE([HOTSPOT_SETUP_DTRACE],
-[
-HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
-
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(zero)
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(server)
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(minimal)
-
-HOTSPOT_SETUP_FEATURES_FILTER(zero)
-HOTSPOT_SETUP_FEATURES_FILTER(server)
-HOTSPOT_SETUP_FEATURES_FILTER(minimal)
-
-
-exit 0
-
-
-  # Test for dtrace dependencies
-  AC_ARG_ENABLE([dtrace], [AS_HELP_STRING([--enable-dtrace@<:@=yes/no/auto@:>@],
-      [enable dtrace. Default is auto, where dtrace is enabled if all dependencies
-      are present.])])
-
-####€€€€€ FIXME
-
-  DTRACE_DEP_MISSING=false
-
-  AC_MSG_CHECKING([for dtrace tool])
-  if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
-    AC_MSG_RESULT([$DTRACE])
-  else
-    AC_MSG_RESULT([not found, cannot build dtrace])
-    DTRACE_DEP_MISSING=true
+  if HOTSPOT_CHECK_JVM_FEATURE(graal) && ! HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
+    AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$1'])
   fi
 
-  AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
-  if test "x$DTRACE_HEADERS_OK" != "xyes"; then
-    DTRACE_DEP_MISSING=true
+  if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
+    AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
   fi
 
-  AC_MSG_CHECKING([if dtrace should be built])
-  if test "x$enable_dtrace" = "xyes"; then
-    if test "x$DTRACE_DEP_MISSING" = "xtrue"; then
-      AC_MSG_RESULT([no, missing dependencies])
-      HELP_MSG_MISSING_DEPENDENCY([dtrace])
-      AC_MSG_ERROR([Cannot enable dtrace with missing dependencies. See above. $HELP_MSG])
-    else
-      INCLUDE_DTRACE=true
-      AC_MSG_RESULT([yes, forced])
-    fi
-  elif test "x$enable_dtrace" = "xno"; then
-    INCLUDE_DTRACE=false
-    AC_MSG_RESULT([no, forced])
-  elif test "x$enable_dtrace" = "xauto" || test "x$enable_dtrace" = "x"; then
-    if test "x$DTRACE_DEP_MISSING" = "xtrue"; then
-      INCLUDE_DTRACE=false
-      AC_MSG_RESULT([no, missing dependencies])
-    else
-      INCLUDE_DTRACE=true
-      AC_MSG_RESULT([yes, dependencies present])
-    fi
-  else
-    AC_MSG_ERROR([Invalid value for --enable-dtrace: $enable_dtrace])
+  # Verify that we have at least one gc selected
+  GC_FEATURES=`$ECHO $JVM_FEATURES | $GREP gc`
+  if test "x$GC_FEATURES" = x; then
+    AC_MSG_WARN([Invalid JVM features: No gc selected for variant '$1'.])
   fi
-])
-
-################################################################################
-# Check if AOT should be enabled
-#
-AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_AOT],
-[
-  AC_ARG_ENABLE([aot], [AS_HELP_STRING([--enable-aot@<:@=yes/no/auto@:>@],
-      [enable ahead of time compilation feature. Default is auto, where aot is enabled if all dependencies are present.])])
-
-####€€€€€ FIXME
-
-  if test "x$enable_aot" = "x" || test "x$enable_aot" = "xauto"; then
-    ENABLE_AOT="true"
-  elif test "x$enable_aot" = "xyes"; then
-    ENABLE_AOT="true"
-  elif test "x$enable_aot" = "xno"; then
-    ENABLE_AOT="false"
-  else
-    AC_MSG_ERROR([Invalid value for --enable-aot: $enable_aot])
-  fi
-
-  if test "x$ENABLE_AOT" = "xtrue"; then
-    # Only enable AOT on X64 platforms.
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      if test -e "${TOPDIR}/src/jdk.aot"; then
-        if test -e "${TOPDIR}/src/jdk.internal.vm.compiler"; then
-          ENABLE_AOT="true"
-        else
-          ENABLE_AOT="false"
-          if test "x$enable_aot" = "xyes"; then
-            AC_MSG_ERROR([Cannot build AOT without src/jdk.internal.vm.compiler sources. Remove --enable-aot.])
-          fi
-        fi
-      else
-        ENABLE_AOT="false"
-        if test "x$enable_aot" = "xyes"; then
-          AC_MSG_ERROR([Cannot build AOT without src/jdk.aot sources. Remove --enable-aot.])
-        fi
-      fi
-    else
-      ENABLE_AOT="false"
-      if test "x$enable_aot" = "xyes"; then
-        AC_MSG_ERROR([AOT is currently only supported on x86_64 and aarch64. Remove --enable-aot.])
-      fi
-    fi
-  fi
-
-  AC_SUBST(ENABLE_AOT)
-])
-
-################################################################################
-# Allow to disable CDS
-#
-AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_CDS],
-[
-  AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds@<:@=yes/no/auto@:>@],
-      [enable class data sharing feature in non-minimal VM. Default is auto, where cds is enabled if supported on the platform.])])
-
-####€€€€€ FIXME
-
-  if test "x$enable_cds" = "x" || test "x$enable_cds" = "xauto"; then
-    ENABLE_CDS="true"
-  elif test "x$enable_cds" = "xyes"; then
-    ENABLE_CDS="true"
-  elif test "x$enable_cds" = "xno"; then
-    ENABLE_CDS="false"
-  else
-    AC_MSG_ERROR([Invalid value for --enable-cds: $enable_cds])
-  fi
-
-  AC_SUBST(ENABLE_CDS)
 ])
 
 ###############################################################################
@@ -682,255 +544,21 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     HOTSPOT_TARGET_CPU_DEFINE="ARM32"
   fi
 
-  # Verify that dependencies are met for explicitly set features.
-  if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services'])
-  fi
-
-  if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
-    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt'])
-  fi
-
-  if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1'])
-  fi
-
-  # Enable JFR by default, except for Zero, linux-sparcv9 and on minimal.
-  if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-    if test "x$OPENJDK_TARGET_OS" != xaix; then
-      if test "x$OPENJDK_TARGET_OS" != xlinux || test "x$OPENJDK_TARGET_CPU" != xsparcv9; then
-        NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES jfr"
-      fi
-    fi
-  fi
-
-  # Only enable Shenandoah on supported arches
-  AC_MSG_CHECKING([if shenandoah can be built])
-  if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-    AC_MSG_RESULT([yes])
-  else
-    DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES shenandoahgc"
-    AC_MSG_RESULT([no, platform not supported])
-  fi
-
-  # Only enable ZGC on supported platforms
-  if (test "x$OPENJDK_TARGET_OS" = "xwindows" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"); then
-    AC_MSG_CHECKING([if zgc can be built on windows])
-    AC_COMPILE_IFELSE(
-      [AC_LANG_PROGRAM([[#include <windows.h>]],
-        [[struct MEM_EXTENDED_PARAMETER x;]])
-      ],
-      [
-        AC_MSG_RESULT([yes])
-        CAN_BUILD_ZGC_ON_WINDOWS="yes"
-      ],
-      [
-        AC_MSG_RESULT([no, missing required APIs])
-        CAN_BUILD_ZGC_ON_WINDOWS="no"
-      ]
-    )
-  fi
-
-  AC_MSG_CHECKING([if zgc can be built])
-  if (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64") || \
-     (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xaarch64") || \
-     (test "x$CAN_BUILD_ZGC_ON_WINDOWS" = "xyes") || \
-     (test "x$OPENJDK_TARGET_OS" = "xmacosx" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"); then
-    AC_MSG_RESULT([yes])
-  else
-    DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES zgc"
-    AC_MSG_RESULT([no, platform not supported])
-  fi
-
-  # Disable unsupported GCs for Zero
-  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
-    DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES epsilongc g1gc zgc shenandoahgc"
-  fi
-
 ####€€€€€ FIXME
-  # Turn on additional features based on other parts of configure
-  if test "x$INCLUDE_DTRACE" = "xtrue"; then
-    JVM_FEATURES="$JVM_FEATURES dtrace"
-  else
-    if HOTSPOT_CHECK_JVM_FEATURE(dtrace); then
-      AC_MSG_ERROR([To enable dtrace, you must use --enable-dtrace])
-    fi
-  fi
 
-####€€€€€ FIXME
-  if test "x$STATIC_BUILD" = "xtrue"; then
-    JVM_FEATURES="$JVM_FEATURES static-build"
-  else
-    if HOTSPOT_CHECK_JVM_FEATURE(static-build); then
-      AC_MSG_ERROR([To enable static-build, you must use --enable-static-build])
-    fi
-  fi
+HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
 
-  if ! HOTSPOT_CHECK_JVM_VARIANT(zero); then
-    if HOTSPOT_CHECK_JVM_FEATURE(zero); then
-      AC_MSG_ERROR([To enable zero, you must use --with-jvm-variants=zero])
-    fi
-  fi
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(zero)
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(server)
+HOTSPOT_SETUP_FEATURES_FOR_VARIANT(minimal)
 
-  AC_MSG_CHECKING([if jvmci module jdk.internal.vm.ci should be built])
-  # Check if jvmci is diabled
-  if HOTSPOT_IS_JVM_FEATURE_DISABLED(jvmci); then
-    AC_MSG_RESULT([no, forced])
-    JVM_FEATURES_jvmci=""
-    INCLUDE_JVMCI="false"
-  else
-    # Only enable jvmci on x86_64 and aarch64
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || \
-       test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-      JVM_FEATURES_jvmci="jvmci"
-      INCLUDE_JVMCI="true"
-    else
-      AC_MSG_RESULT([no])
-      JVM_FEATURES_jvmci=""
-      INCLUDE_JVMCI="false"
-      if HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
-        AC_MSG_ERROR([JVMCI is currently not supported on this platform.])
-      fi
-    fi
-  fi
+HOTSPOT_SETUP_FEATURES_FILTER(zero)
+HOTSPOT_SETUP_FEATURES_FILTER(server)
+HOTSPOT_SETUP_FEATURES_FILTER(minimal)
 
-  AC_SUBST(INCLUDE_JVMCI)
 
-  AC_MSG_CHECKING([if graal module jdk.internal.vm.compiler should be built])
-  # Check if graal is diabled
-  if HOTSPOT_IS_JVM_FEATURE_DISABLED(graal); then
-    AC_MSG_RESULT([no, forced])
-    JVM_FEATURES_graal=""
-    INCLUDE_GRAAL="false"
-  else
-    if HOTSPOT_CHECK_JVM_FEATURE(graal); then
-      AC_MSG_RESULT([yes, forced])
-      if test "x$JVM_FEATURES_jvmci" != "xjvmci" ; then
-        AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci'])
-      fi
-      JVM_FEATURES_graal="graal"
-      INCLUDE_GRAAL="true"
-    else
-      # By default enable graal build on x64 or where AOT is available.
-      # graal build requires jvmci.
-      if test "x$JVM_FEATURES_jvmci" = "xjvmci" && \
-          (test "x$OPENJDK_TARGET_CPU" = "xx86_64" || \
-           test "x$ENABLE_AOT" = "xtrue") ; then
-        AC_MSG_RESULT([yes])
-        JVM_FEATURES_graal="graal"
-        INCLUDE_GRAAL="true"
-      else
-        AC_MSG_RESULT([no])
-        JVM_FEATURES_graal=""
-        INCLUDE_GRAAL="false"
-      fi
-    fi
-  fi
+exit 0
 
-  AC_SUBST(INCLUDE_GRAAL)
-
-  # Disable aot with '--with-jvm-features=-aot'
-  if HOTSPOT_IS_JVM_FEATURE_DISABLED(aot); then
-    ENABLE_AOT="false"
-  fi
-
-  AC_MSG_CHECKING([if aot should be enabled])
-  ####€€€€€ FIXME
-
-  if test "x$ENABLE_AOT" = "xtrue"; then
-    if test "x$JVM_FEATURES_graal" != "xgraal"; then
-      if test "x$enable_aot" = "xyes" || HOTSPOT_CHECK_JVM_FEATURE(aot); then
-        AC_MSG_RESULT([yes, forced])
-        AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal'])
-      else
-        AC_MSG_RESULT([no])
-      fi
-      JVM_FEATURES_aot=""
-      ENABLE_AOT="false"
-    else
-      if test "x$enable_aot" = "xyes" || HOTSPOT_CHECK_JVM_FEATURE(aot); then
-        AC_MSG_RESULT([yes, forced])
-      else
-        AC_MSG_RESULT([yes])
-      fi
-      JVM_FEATURES_aot="aot"
-    fi
-  else
-    if test "x$enable_aot" = "xno" || HOTSPOT_IS_JVM_FEATURE_DISABLED(aot); then
-      AC_MSG_RESULT([no, forced])
-    else
-      AC_MSG_RESULT([no])
-    fi
-    JVM_FEATURES_aot=""
-    if HOTSPOT_CHECK_JVM_FEATURE(aot); then
-      AC_MSG_ERROR([To enable aot, you must use --enable-aot])
-    fi
-  fi
-
-  AC_SUBST(ENABLE_AOT)
-
-  if test "x$OPENJDK_TARGET_CPU" = xarm ; then
-    # Default to use link time optimizations on minimal on arm
-    JVM_FEATURES_link_time_opt="link-time-opt"
-  else
-    JVM_FEATURES_link_time_opt=""
-  fi
-
-  # All variants but minimal (and custom) get these features
-  NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES g1gc parallelgc serialgc epsilongc shenandoahgc jni-check jvmti management nmt services vm-structs zgc"
-
-  # Disable CDS on AIX.
-####€€€€€ FIXME
-  if test "x$OPENJDK_TARGET_OS" = "xaix"; then
-    ENABLE_CDS="false"
-    if test "x$enable_cds" = "xyes"; then
-      AC_MSG_ERROR([CDS is currently not supported on AIX. Remove --enable-cds.])
-    fi
-  fi
-
-####€€€€€ FIXME
-  # Disable CDS if user requested it with --with-jvm-features=-cds.
-  if HOTSPOT_IS_JVM_FEATURE_DISABLED(cds); then
-    ENABLE_CDS="false"
-    if test "x$enable_cds" = "xyes"; then
-      AC_MSG_ERROR([CDS was disabled by --with-jvm-features=-cds. Remove --enable-cds.])
-    fi
-  fi
-
-  if ! HOTSPOT_CHECK_JVM_VARIANT(server) && ! HOTSPOT_CHECK_JVM_VARIANT(client); then
-    # ..except when the user explicitely requested it with --enable-jvm-features
-    if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
-      ENABLE_CDS="false"
-      if test "x$enable_cds" = "xyes"; then
-        AC_MSG_ERROR([CDS not implemented for variants zero, minimal, core. Remove --enable-cds.])
-      fi
-    fi
-  fi
-
-  AC_MSG_CHECKING([if cds should be enabled])
-  if test "x$ENABLE_CDS" = "xtrue"; then
-    if test "x$enable_cds" = "xyes"; then
-      AC_MSG_RESULT([yes, forced])
-    else
-      AC_MSG_RESULT([yes])
-    fi
-    NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES cds"
-  else
-    if test "x$enable_cds" = "xno"; then
-      AC_MSG_RESULT([no, forced])
-    else
-      AC_MSG_RESULT([no])
-    fi
-  fi
-
-  # Enable features depending on variant.
-  JVM_FEATURES_server="compiler1 compiler2 $NON_MINIMAL_FEATURES $JVM_FEATURES $JVM_FEATURES_jvmci $JVM_FEATURES_aot $JVM_FEATURES_graal"
-  JVM_FEATURES_client="compiler1 $NON_MINIMAL_FEATURES $JVM_FEATURES"
-  JVM_FEATURES_core="$NON_MINIMAL_FEATURES $JVM_FEATURES"
-  JVM_FEATURES_minimal="compiler1 minimal serialgc $JVM_FEATURES $JVM_FEATURES_link_time_opt"
-  JVM_FEATURES_zero="zero $NON_MINIMAL_FEATURES $JVM_FEATURES"
-  JVM_FEATURES_custom="$JVM_FEATURES"
 
   AC_SUBST(JVM_FEATURES_server)
   AC_SUBST(JVM_FEATURES_client)
@@ -944,6 +572,17 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   # --with-cpu-port is no longer supported
   BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
+
+####€€€€€ FIXME
+  AC_ARG_ENABLE([dtrace], [AS_HELP_STRING([--enable-dtrace@<:@=yes/no/auto@:>@],
+      [enable dtrace. Default is auto, where dtrace is enabled if all dependencies
+      are present.])])
+  AC_ARG_ENABLE([aot], [AS_HELP_STRING([--enable-aot@<:@=yes/no/auto@:>@],
+      [enable ahead of time compilation feature. Default is auto, where aot is enabled if all dependencies are present.])])
+  AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds@<:@=yes/no/auto@:>@],
+      [enable class data sharing feature in non-minimal VM. Default is auto, where cds is enabled if supported on the platform.])])
+
+
 ])
 
 ###############################################################################

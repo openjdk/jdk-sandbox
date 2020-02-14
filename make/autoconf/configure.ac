@@ -203,12 +203,6 @@ JDKOPT_SETUP_CODE_COVERAGE
 # AddressSanitizer
 JDKOPT_SETUP_ADDRESS_SANITIZER
 
-# Need toolchain to setup dtrace
-HOTSPOT_SETUP_DTRACE
-HOTSPOT_ENABLE_DISABLE_AOT
-HOTSPOT_ENABLE_DISABLE_CDS
-HOTSPOT_ENABLE_DISABLE_GTEST
-
 ###############################################################################
 #
 # Check dependencies for external and internal libraries.
@@ -222,7 +216,7 @@ LIB_DETERMINE_DEPENDENCIES
 LIB_SETUP_LIBRARIES
 
 # Hotspot setup depends on lib checks.
-
+HOTSPOT_ENABLE_DISABLE_GTEST
 HOTSPOT_SETUP_JVM_FEATURES
 
 ###############################################################################
