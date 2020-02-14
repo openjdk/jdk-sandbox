@@ -24,12 +24,12 @@
 #
 
 # All valid JVM features, regardless of platform
-VALID_JVM_FEATURES="compiler1 compiler2 zero minimal dtrace jvmti jvmci \
-    graal vm-structs jni-check services management epsilongc g1gc parallelgc serialgc shenandoahgc zgc nmt cds \
-    static-build link-time-opt aot jfr"
+VALID_JVM_FEATURES="aot cds compiler1 compiler2 dtrace epsilongc g1gc graal \
+    jfr jni-check jvmci jvmti link-time-opt management minimal nmt parallelgc \
+    serialgc services shenandoahgc static-build vm-structs zero zgc"
 
 # Deprecated JVM features (these are ignored, but with a warning)
-DEPRECATED_JVM_FEATURES="trace cmsgc"
+DEPRECATED_JVM_FEATURES="cmsgc trace"
 
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
@@ -145,6 +145,14 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
     # We are guaranteed that we do not build any other variants when building zero.
     HOTSPOT_TARGET_CPU=zero
     HOTSPOT_TARGET_CPU_ARCH=zero
+  fi
+
+  # This is not really a variant setup, but we have no better place for this.
+
+  # Override hotspot cpu definitions for ARM platforms
+  if test "x$OPENJDK_TARGET_CPU" = xarm; then
+    HOTSPOT_TARGET_CPU=arm_32
+    HOTSPOT_TARGET_CPU_DEFINE="ARM32"
   fi
 ])
 
@@ -538,11 +546,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   fi
 
-  # Override hotspot cpu definitions for ARM platforms
-  if test "x$OPENJDK_TARGET_CPU" = xarm; then
-    HOTSPOT_TARGET_CPU=arm_32
-    HOTSPOT_TARGET_CPU_DEFINE="ARM32"
-  fi
 
 ####€€€€€ FIXME
 
