@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -409,19 +409,19 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
   VARIANT=$1
 
   if test "x$VARIANT" = "xcore"; then
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds"
+    UNAVAILABLE_FEATURES_VARIANT="cds"
   fi
 
   if test "x$VARIANT" = "xminimal"; then
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds"
+    UNAVAILABLE_FEATURES_VARIANT="cds"
   else
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES minimal"
+    UNAVAILABLE_FEATURES_VARIANT="minimal"
   fi
 
   if test "x$VARIANT" = "xzero"; then
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES cds epsilongc g1gc zgc shenandoahgc jvmci aot graal"
+    UNAVAILABLE_FEATURES_VARIANT="cds epsilongc g1gc zgc shenandoahgc jvmci aot graal"
   else
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES zero"
+    UNAVAILABLE_FEATURES_VARIANT="zero"
   fi
 ])
 
@@ -430,6 +430,8 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 [
   # Check if a feature should be off by default for this JVM variant.
   VARIANT=$1
+
+  DEFAULT_FILTER="$DEFAULT_FILTER_BASE"
 
   # Is this variant client?
   if test "x$VARIANT" = "xclient"; then
@@ -473,11 +475,6 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 #
 AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 [
-  VARIANT=$1
-  ### FIXME!!!
-  ## HACK: this allows the use of  HOTSPOT_CHECK_JVM_FEATURE
-  JVM_FEATURES = JVM_FEATURES_$1
-
   # Verify that dependencies are met for explicitly set features.
   if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
     AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$1'])
@@ -497,6 +494,11 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 
   if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
     AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
+  fi
+
+  if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
+    # If at least one variant is missing cds, generating classlists is not possible.
+    CDS_IS_ENABLED="false"
   fi
 
   # Verify that we have at least one gc selected
@@ -546,29 +548,75 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   fi
 
+  # It is possible to generate classlists only if all JVM variants has cds enabled.
+  CDS_IS_ENABLED="true"
 
-####€€€€€ FIXME
+  # Figure out if any features is unavailable for this platform.
+  # The result is stored in UNAVAILABLE_FEATURES.
+  HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
 
-HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
+  for variant in $JVM_VARIANTS; do
+    # Figure out if any features is unavailable for this variant.
+    # The result is stored in UNAVAILABLE_FEATURES_VARIANT.
+    HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
 
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(zero)
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(server)
-HOTSPOT_SETUP_FEATURES_FOR_VARIANT(minimal)
+    # Setup the string used to filter out features from being turned on by default.
+    # The result is stored in DEFAULT_FILTER.
+    HOTSPOT_SETUP_FEATURES_FILTER($variant)
 
-HOTSPOT_SETUP_FEATURES_FILTER(zero)
-HOTSPOT_SETUP_FEATURES_FILTER(server)
-HOTSPOT_SETUP_FEATURES_FILTER(minimal)
+    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
 
+    # Verify explicitly enabled features
+    BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+    if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
+      AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
+      AC_MSG_ERROR([Cannot continue])
+    fi
 
-exit 0
+    BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
+    if test "x$ENABLED_BUT_DEFAULT" != x; then
+      AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
+    fi
 
+    # Verify explicitly disabled features
+    BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+    if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
+      AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
+    fi
 
+    # RESULTING_FEATURES is all default and all explicitly enabled, with explicitly disabled filtered out.
+    BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
+
+    # Verify consistency for RESULTING_FEATURES
+    ## HACK: this allows the use of  HOTSPOT_CHECK_JVM_FEATURE
+    SAVED_JVM_FEATURES="$JVM_FEATURES"
+    JVM_FEATURES="$RESULTING_FEATURES"
+
+    # Verify that all inter-feature dependencies are still being met.
+    HOTSPOT_VERIFY_FEATURES($variant)
+
+    JVM_FEATURES="$SAVED_JVM_FEATURES"
+
+    AC_MSG_CHECKING([JVM features to use for '$variant'])
+    AC_MSG_RESULT([$RESULTING_FEATURES])
+
+    # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
+    features_var_name=JVM_FEATURES_$variant
+    eval $features_var_name=\"$RESULTING_FEATURES\"
+  done
+
+  # Unfortunately AC_SUBST does not work with variably named variables
   AC_SUBST(JVM_FEATURES_server)
   AC_SUBST(JVM_FEATURES_client)
-  AC_SUBST(JVM_FEATURES_core)
   AC_SUBST(JVM_FEATURES_minimal)
+  AC_SUBST(JVM_FEATURES_core)
   AC_SUBST(JVM_FEATURES_zero)
   AC_SUBST(JVM_FEATURES_custom)
+
+exit 0
+# except for custom, where we calculate available, but set current-set to empty!
+# REMEMBER: all values could have been written to by customization. Never overwrite!
+
 
   # Used for verification of Makefiles by check-jvm-feature
   AC_SUBST(VALID_JVM_FEATURES)
