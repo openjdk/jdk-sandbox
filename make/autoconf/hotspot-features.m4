@@ -39,6 +39,9 @@ define(deprecated_jvm_features, m4_normalize(
     cmsgc trace \
 ))
 
+# Parse command line options for JVM features selection. After this function
+# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $VALID_JVM_FEATURES can be
+# used.
 AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
 [
   # Setup shell variables from the m4 lists
@@ -144,14 +147,9 @@ AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
   fi
 ])
 
-AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
+# Check if the feature 'aot' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_AOT],
 [
-  # Check if features are unavailable for this platform.
-
-  # The code block in HOTSPOT_CHECK_FEATURE_AVAILABILITY should set
-  # AVAILABLE=false if the feature is not available on this platform. If so, the
-  # feature will be added to UNAVAILABLE_FEATURES.
-
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot,
   [
     AC_MSG_CHECKING([if platform is supported by AOT])
@@ -171,7 +169,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'cds' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_CDS],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds,
   [
     AC_MSG_CHECKING([if platform is supported by CDS])
@@ -182,7 +184,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'dtrace' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_DTRACE],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace,
   [
     AC_MSG_CHECKING([for dtrace tool])
@@ -200,7 +206,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'graal' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_GRAAL],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal,
   [
     AC_MSG_CHECKING([if platform is supported by Graal])
@@ -212,7 +222,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'jfr' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_JFR],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(jfr,
   [
     AC_MSG_CHECKING([if platform is supported by JFR])
@@ -224,7 +238,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AC_MSG_RESULT([yes])
     fi
   ])
+])
 
+# Check if the feature 'jvmci' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_JVMCI],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci,
   [
     AC_MSG_CHECKING([if platform is supported by JVMCI])
@@ -235,7 +253,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'shenandoahgc' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_SHENANDOAHGC],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(shenandoahgc,
   [
     AC_MSG_CHECKING([if platform is supported by Shenandoah])
@@ -246,7 +268,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'static-build' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_STATIC_BUILD],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build,
   [
     AC_MSG_CHECKING([if static-build is enabled in configure])
@@ -257,7 +283,11 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       AVAILABLE=false
     fi
   ])
+])
 
+# Check if the feature 'zgc' is available on this platform.
+AC_DEFUN([HOTSPOT_FEATURE_CHECK_ZGC],
+[
   HOTSPOT_CHECK_FEATURE_AVAILABILITY(zgc,
   [
     AC_MSG_CHECKING([if platform is supported by ZGC])
@@ -292,6 +322,24 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
       )
     fi
   ])
+])
+
+# Figure out if any features is unavailable for this platform.
+# The result is stored in UNAVAILABLE_FEATURES.
+AC_DEFUN_ONCE([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
+[
+  # Check if features are unavailable for this platform.
+
+  # The checks below should add unavailable features to UNAVAILABLE_FEATURES.
+  HOTSPOT_FEATURE_CHECK_AOT
+  HOTSPOT_FEATURE_CHECK_CDS
+  HOTSPOT_FEATURE_CHECK_DTRACE
+  HOTSPOT_FEATURE_CHECK_GRAAL
+  HOTSPOT_FEATURE_CHECK_JFR
+  HOTSPOT_FEATURE_CHECK_JVMCI
+  HOTSPOT_FEATURE_CHECK_SHENANDOAHGC
+  HOTSPOT_FEATURE_CHECK_STATIC_BUILD
+  HOTSPOT_FEATURE_CHECK_ZGC
 ])
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
@@ -435,10 +483,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 [
   # It is possible to generate classlists only if all JVM variants has cds enabled.
   CDS_IS_ENABLED="true"
-
-  # Figure out if any features is unavailable for this platform.
-  # The result is stored in UNAVAILABLE_FEATURES.
-  HOTSPOT_SETUP_FEATURES_FOR_PLATFORM
 
   for variant in $JVM_VARIANTS; do
     # Figure out if any features is unavailable for this variant.
