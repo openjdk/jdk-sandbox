@@ -404,6 +404,38 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
   fi
 ])
 
+AC_DEFUN([HOTSPOT_CALCULATE_FEATURES],
+[
+  if test "x$variant" != xcustom; then
+    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
+  else
+    # For the 'custom' variant, the default is to start with an empty set
+    DEFAULT_FOR_VARIANT=""
+  fi
+
+  # Verify explicitly enabled features
+  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+  if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
+    AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
+    AC_MSG_ERROR([Cannot continue])
+  fi
+
+  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
+  if test "x$ENABLED_BUT_DEFAULT" != x; then
+    AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
+  fi
+
+  # Verify explicitly disabled features
+  BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+  if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
+    AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
+  fi
+
+  # RESULTING_FEATURES is the set of all default features and all explicitly
+  # enabled features, with the explicitly disabled features filtered out.
+  BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
+])
+
 ###############################################################################
 # Check if the specified JVM feature is enabled. To be used in shell if
 # constructs, like this:
@@ -450,6 +482,7 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
   # Verify that we have at least one gc selected (i.e., feature named "*gc").
   # Additional [] needed to keep m4 from mangling shell constructs.
   [ GC_FEATURES=`$ECHO $RESULTING_FEATURES | $GREP -w '[^ ]*gc'` ]
+  #FIXME: use HOTSPOT_CHECK_JVM_FEATURE???
   if test "x$GC_FEATURES" = x; then
       AC_MSG_NOTICE([At least one gc needed for variant '$1'.])
       AC_MSG_NOTICE([Specified features: '$RESULTING_FEATURES'])
@@ -477,37 +510,11 @@ AC_DEFUN([HOTSPOT_SETUP_JVM_FEATURES_FOR_ONE_VARIANT],
   HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
 
   # Setup the string used to filter out features from being turned on by default.
-  # The result is stored in DEFAULT_FILTER.
   HOTSPOT_SETUP_FEATURES_FILTER($variant)
 
-  if test "x$variant" != xcustom; then
-    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
-  else
-    # For the 'custom' variant, the default is to start with an empty set
-    DEFAULT_FOR_VARIANT=""
-  fi
-
-  # Verify explicitly enabled features
-  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
-  if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
-    AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
-    AC_MSG_ERROR([Cannot continue])
-  fi
-
-  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
-  if test "x$ENABLED_BUT_DEFAULT" != x; then
-    AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
-  fi
-
-  # Verify explicitly disabled features
-  BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
-  if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
-    AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
-  fi
-
-  # RESULTING_FEATURES is the set of all default features and all explicitly
-  # enabled features, with the explicitly disabled features filtered out.
-  BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
+  # Calculate the resulting set of enabled features for this variant.
+  # The result is stored in RESULTING_FEATURES.
+  HOTSPOT_CALCULATE_FEATURES
 
   # Verify consistency for RESULTING_FEATURES
   HOTSPOT_VERIFY_FEATURES($variant)
