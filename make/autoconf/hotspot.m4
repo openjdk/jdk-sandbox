@@ -67,20 +67,6 @@ AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
 [ [ [[ " $JVM_FEATURES " =~ " $1 " ]] ] ])
 
 ###############################################################################
-# Check if the specified JVM feature is explicitly disabled. To be used in
-# shell if constructs, like this:
-# if HOTSPOT_IS_JVM_FEATURE_DISABLED(jvmci); then
-#
-# This function is internal to hotspot.m4, and is only used when constructing
-# the valid set of enabled JVM features. Users outside of hotspot.m4 should just
-# use HOTSPOT_CHECK_JVM_FEATURE to check if a feature is enabled or not.
-
-# Definition kept in one line to allow inlining in if statements.
-# Additional [] needed to keep m4 from mangling shell constructs.
-AC_DEFUN([HOTSPOT_IS_JVM_FEATURE_DISABLED],
-[ [ [[ " $DISABLED_JVM_FEATURES " =~ " $1 " ]] ] ])
-
-###############################################################################
 # Check which variants of the JVM that we want to build. Available variants are:
 #   server: normal interpreter, and a tiered C1/C2 compiler
 #   client: normal interpreter, and C1 (no C2 compiler)
@@ -518,24 +504,6 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 
 AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
 [
- AC_ARG_ENABLE([dtrace], [AS_HELP_STRING([--enable-dtrace],
-      [alias for --enable-jvm-feature-dtrace])],
-      [
-        enable_jvm_feature_dtrace=$enable_dtrace
-      ])
-
- AC_ARG_ENABLE([aot], [AS_HELP_STRING([--enable-aot],
-      [alias for --enable-jvm-feature-aot])],
-      [
-        enable_jvm_feature_aot=$enable_aot
-      ])
-
- AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds],
-      [alias for --enable-jvm-feature-cds])],
-      [
-        enable_jvm_feature_cds=$enable_cds
-      ])
-
   # The user can in some cases supply additional jvm features. For the custom
   # variant, this defines the entire variant.
   AC_ARG_WITH([jvm-features], [AS_HELP_STRING([--with-jvm-features],
@@ -565,8 +533,13 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
       BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
       BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
     fi
-
   fi
+
+  # For historical reasons, some jvm features have their own, shorter names.
+  # Keep those as aliases for the --enable-jvm-feature-* style arguments.
+  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
+  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
+  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
 
   m4_foreach(FEATURE, m4_split(valid_jvm_features), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
@@ -581,6 +554,8 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
     elif test "x$FEATURE_SHELL" != x; then
       AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: $FEATURE_SHELL])
     fi
+
+    undefine([FEATURE_SHELL])
   ])
 
   m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
@@ -592,6 +567,8 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
     if test "x$FEATURE_SHELL" != x; then
       AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
     fi
+
+    undefine([FEATURE_SHELL])
   ])
 
 ])
@@ -617,7 +594,12 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     # The result is stored in DEFAULT_FILTER.
     HOTSPOT_SETUP_FEATURES_FILTER($variant)
 
-    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
+    if test "x$variant" != xcustom; then
+      BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
+    else
+      # For the 'custom' variant, the default is to start with an empty set
+      DEFAULT_FOR_VARIANT=""
+    fi
 
     # Verify explicitly enabled features
     BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
@@ -667,7 +649,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   AC_SUBST(JVM_FEATURES_custom)
 
 exit 0
-# except for custom, where we calculate available, but set current-set to empty!
 # REMEMBER: all values could have been written to by customization. Never overwrite!
 
 
