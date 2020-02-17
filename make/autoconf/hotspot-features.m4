@@ -39,6 +39,212 @@ define(deprecated_jvm_features, m4_normalize(
     cmsgc trace \
 ))
 
+
+# arg 1: feature name
+# arg 2: code block to execute. Should set AVAILABLE=false in case of failure
+AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
+[
+  # Assume that feature is available
+  AVAILABLE=true
+
+  # Execute feature test block
+  $2
+
+  AC_MSG_CHECKING([if JVM feature '$1' is available])
+  if test "x$AVAILABLE" = "xtrue"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES $1"
+  fi
+])
+
+# Check if the feature 'aot' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_AOT],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot, [
+    AC_MSG_CHECKING([if platform is supported by AOT])
+    # AOT requires JVMCI, and is therefore only available where JVMCI is available.
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+
+    AC_MSG_CHECKING([if AOT source code is present])
+    if test -e "${TOPDIR}/src/jdk.internal.vm.compiler" && test -e "${TOPDIR}/src/jdk.aot"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, src/jdk.internal.vm.compiler or src/jdk.aot is missing])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'cds' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_CDS],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds, [
+    AC_MSG_CHECKING([if platform is supported by CDS])
+    if test "x$OPENJDK_TARGET_OS" != xaix; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'dtrace' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_DTRACE],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace, [
+    AC_MSG_CHECKING([for dtrace tool])
+    if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
+      AC_MSG_RESULT([$DTRACE])
+    else
+      AC_MSG_RESULT([no])
+      AVAILABLE=false
+    fi
+
+    AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
+    if test "x$DTRACE_HEADERS_OK" != "xyes"; then
+      HELP_MSG_MISSING_DEPENDENCY([dtrace])
+      AC_MSG_NOTICE([Cannot enable dtrace with missing dependencies. See above.])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'graal' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_GRAAL],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal, [
+    AC_MSG_CHECKING([if platform is supported by Graal])
+    # Graal requires JVMCI, and is therefore only available where JVMCI is available.
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'jfr' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_JFR],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jfr, [
+    AC_MSG_CHECKING([if platform is supported by JFR])
+    if test "x$OPENJDK_TARGET_OS" = xaix || \
+        test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    else
+      AC_MSG_RESULT([yes])
+    fi
+  ])
+])
+
+# Check if the feature 'jvmci' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_JVMCI],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci, [
+    AC_MSG_CHECKING([if platform is supported by JVMCI])
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'shenandoahgc' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_SHENANDOAHGC],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(shenandoahgc, [
+    AC_MSG_CHECKING([if platform is supported by Shenandoah])
+    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'static-build' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_STATIC_BUILD],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build, [
+    AC_MSG_CHECKING([if static-build is enabled in configure])
+    if test "x$STATIC_BUILD" = "xtrue"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
+      AVAILABLE=false
+    fi
+  ])
+])
+
+# Check if the feature 'zgc' is available on this platform.
+AC_DEFUN_ONCE([HOTSPOT_FEATURE_CHECK_ZGC],
+[
+  HOTSPOT_CHECK_FEATURE_AVAILABILITY(zgc, [
+    AC_MSG_CHECKING([if platform is supported by ZGC])
+    if test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
+      if test "x$OPENJDK_TARGET_OS" = "xlinux" || test "x$OPENJDK_TARGET_OS" = "xwindows" || \
+          test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
+        AC_MSG_RESULT([yes])
+      else
+        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+        AVAILABLE=false
+      fi
+    elif test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-aarch64"; then
+        AC_MSG_RESULT([yes])
+    else
+        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+        AVAILABLE=false
+    fi
+
+    if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
+      AC_MSG_CHECKING([if Windows APIs required for ZGC is present])
+      AC_COMPILE_IFELSE(
+        [AC_LANG_PROGRAM([[#include <windows.h>]],
+          [[struct MEM_EXTENDED_PARAMETER x;]])
+        ],
+        [
+          AC_MSG_RESULT([yes])
+        ],
+        [
+          AC_MSG_RESULT([no, missing required APIs])
+          AVAILABLE=false
+        ]
+      )
+    fi
+  ])
+])
+
+# Figure out if any features is unavailable for this platform.
+# The result is stored in UNAVAILABLE_FEATURES.
+AC_DEFUN_ONCE([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
+[
+  # Check if features are unavailable for this platform.
+  # The checks below should add unavailable features to UNAVAILABLE_FEATURES.
+
+  HOTSPOT_FEATURE_CHECK_AOT
+  HOTSPOT_FEATURE_CHECK_CDS
+  HOTSPOT_FEATURE_CHECK_DTRACE
+  HOTSPOT_FEATURE_CHECK_GRAAL
+  HOTSPOT_FEATURE_CHECK_JFR
+  HOTSPOT_FEATURE_CHECK_JVMCI
+  HOTSPOT_FEATURE_CHECK_SHENANDOAHGC
+  HOTSPOT_FEATURE_CHECK_STATIC_BUILD
+  HOTSPOT_FEATURE_CHECK_ZGC
+])
+
 # Parse command line options for JVM features selection. After this function
 # has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $VALID_JVM_FEATURES can be
 # used.
@@ -127,221 +333,6 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
   AC_SUBST(VALID_JVM_FEATURES)
 ])
 
-
-# arg 1: feature name
-# arg 2: code block to execute. Should set AVAILABLE=false in case of failure
-AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
-[
-  # Assume that feature is available
-  AVAILABLE=true
-
-  # Execute feature test block
-  $2
-
-  AC_MSG_CHECKING([if JVM feature '$1' is available])
-  if test "x$AVAILABLE" = "xtrue"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-    UNAVAILABLE_FEATURES="$UNAVAILABLE_FEATURES $1"
-  fi
-])
-
-# Check if the feature 'aot' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_AOT],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(aot,
-  [
-    AC_MSG_CHECKING([if platform is supported by AOT])
-    # AOT requires JVMCI, and is therefore only available where JVMCI is available.
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64"; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    fi
-
-    AC_MSG_CHECKING([if AOT source code is present])
-    if test -e "${TOPDIR}/src/jdk.internal.vm.compiler" && test -e "${TOPDIR}/src/jdk.aot"; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, src/jdk.internal.vm.compiler or src/jdk.aot is missing])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'cds' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_CDS],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(cds,
-  [
-    AC_MSG_CHECKING([if platform is supported by CDS])
-    if test "x$OPENJDK_TARGET_OS" != xaix; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'dtrace' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_DTRACE],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(dtrace,
-  [
-    AC_MSG_CHECKING([for dtrace tool])
-    if test "x$DTRACE" != "x" && test -x "$DTRACE"; then
-      AC_MSG_RESULT([$DTRACE])
-    else
-      AC_MSG_RESULT([no])
-      AVAILABLE=false
-    fi
-
-    AC_CHECK_HEADERS([sys/sdt.h], [DTRACE_HEADERS_OK=yes],[DTRACE_HEADERS_OK=no])
-    if test "x$DTRACE_HEADERS_OK" != "xyes"; then
-      HELP_MSG_MISSING_DEPENDENCY([dtrace])
-      AC_MSG_NOTICE([Cannot enable dtrace with missing dependencies. See above.])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'graal' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_GRAAL],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(graal,
-  [
-    AC_MSG_CHECKING([if platform is supported by Graal])
-    # Graal requires JVMCI, and is therefore only available where JVMCI is available.
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'jfr' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_JFR],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jfr,
-  [
-    AC_MSG_CHECKING([if platform is supported by JFR])
-    if test "x$OPENJDK_TARGET_OS" = xaix || \
-        test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    else
-      AC_MSG_RESULT([yes])
-    fi
-  ])
-])
-
-# Check if the feature 'jvmci' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_JVMCI],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(jvmci,
-  [
-    AC_MSG_CHECKING([if platform is supported by JVMCI])
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'shenandoahgc' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_SHENANDOAHGC],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(shenandoahgc,
-  [
-    AC_MSG_CHECKING([if platform is supported by Shenandoah])
-    if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, $OPENJDK_TARGET_CPU])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'static-build' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_STATIC_BUILD],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(static-build,
-  [
-    AC_MSG_CHECKING([if static-build is enabled in configure])
-    if test "x$STATIC_BUILD" = "xtrue"; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no, use --enable-static-build to enable static build.])
-      AVAILABLE=false
-    fi
-  ])
-])
-
-# Check if the feature 'zgc' is available on this platform.
-AC_DEFUN([HOTSPOT_FEATURE_CHECK_ZGC],
-[
-  HOTSPOT_CHECK_FEATURE_AVAILABILITY(zgc,
-  [
-    AC_MSG_CHECKING([if platform is supported by ZGC])
-    if test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
-      if test "x$OPENJDK_TARGET_OS" = "xlinux" || test "x$OPENJDK_TARGET_OS" = "xwindows" || \
-          test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-        AC_MSG_RESULT([yes])
-      else
-        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
-        AVAILABLE=false
-      fi
-    elif test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-aarch64"; then
-        AC_MSG_RESULT([yes])
-    else
-        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
-        AVAILABLE=false
-    fi
-
-    if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-      AC_MSG_CHECKING([if Windows APIs required for ZGC is present])
-      AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM([[#include <windows.h>]],
-          [[struct MEM_EXTENDED_PARAMETER x;]])
-        ],
-        [
-          AC_MSG_RESULT([yes])
-        ],
-        [
-          AC_MSG_RESULT([no, missing required APIs])
-          AVAILABLE=false
-        ]
-      )
-    fi
-  ])
-])
-
-# Figure out if any features is unavailable for this platform.
-# The result is stored in UNAVAILABLE_FEATURES.
-AC_DEFUN_ONCE([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
-[
-  # Check if features are unavailable for this platform.
-
-  # The checks below should add unavailable features to UNAVAILABLE_FEATURES.
-  HOTSPOT_FEATURE_CHECK_AOT
-  HOTSPOT_FEATURE_CHECK_CDS
-  HOTSPOT_FEATURE_CHECK_DTRACE
-  HOTSPOT_FEATURE_CHECK_GRAAL
-  HOTSPOT_FEATURE_CHECK_JFR
-  HOTSPOT_FEATURE_CHECK_JVMCI
-  HOTSPOT_FEATURE_CHECK_SHENANDOAHGC
-  HOTSPOT_FEATURE_CHECK_STATIC_BUILD
-  HOTSPOT_FEATURE_CHECK_ZGC
-])
-
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 [
   # Check if features are unavailable for this JVM variant.
@@ -365,7 +356,6 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
     UNAVAILABLE_FEATURES_VARIANT="zero"
   fi
 ])
-
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 [
@@ -477,6 +467,60 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 ])
 
 ###############################################################################
+# Set up all JVM features for a single JVM variant.
+#
+AC_DEFUN([HOTSPOT_SETUP_JVM_FEATURES_FOR_ONE_VARIANT],
+[
+  variant=$1
+  # Figure out if any features is unavailable for this variant.
+  # The result is stored in UNAVAILABLE_FEATURES_VARIANT.
+  HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
+
+  # Setup the string used to filter out features from being turned on by default.
+  # The result is stored in DEFAULT_FILTER.
+  HOTSPOT_SETUP_FEATURES_FILTER($variant)
+
+  if test "x$variant" != xcustom; then
+    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
+  else
+    # For the 'custom' variant, the default is to start with an empty set
+    DEFAULT_FOR_VARIANT=""
+  fi
+
+  # Verify explicitly enabled features
+  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+  if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
+    AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
+    AC_MSG_ERROR([Cannot continue])
+  fi
+
+  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
+  if test "x$ENABLED_BUT_DEFAULT" != x; then
+    AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
+  fi
+
+  # Verify explicitly disabled features
+  BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
+  if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
+    AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
+  fi
+
+  # RESULTING_FEATURES is the set of all default features and all explicitly
+  # enabled features, with the explicitly disabled features filtered out.
+  BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
+
+  # Verify consistency for RESULTING_FEATURES
+  HOTSPOT_VERIFY_FEATURES($variant)
+
+  AC_MSG_CHECKING([JVM features to use for variant '$variant'])
+  AC_MSG_RESULT([$RESULTING_FEATURES])
+
+  # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
+  features_var_name=JVM_FEATURES_$variant
+  eval $features_var_name=\"$RESULTING_FEATURES\"
+])
+
+###############################################################################
 # Set up all JVM features for each JVM variant.
 #
 AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
@@ -485,52 +529,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   CDS_IS_ENABLED="true"
 
   for variant in $JVM_VARIANTS; do
-    # Figure out if any features is unavailable for this variant.
-    # The result is stored in UNAVAILABLE_FEATURES_VARIANT.
-    HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
-
-    # Setup the string used to filter out features from being turned on by default.
-    # The result is stored in DEFAULT_FILTER.
-    HOTSPOT_SETUP_FEATURES_FILTER($variant)
-
-    if test "x$variant" != xcustom; then
-      BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
-    else
-      # For the 'custom' variant, the default is to start with an empty set
-      DEFAULT_FOR_VARIANT=""
-    fi
-
-    # Verify explicitly enabled features
-    BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
-    if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
-      AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
-      AC_MSG_ERROR([Cannot continue])
-    fi
-
-    BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
-    if test "x$ENABLED_BUT_DEFAULT" != x; then
-      AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
-    fi
-
-    # Verify explicitly disabled features
-    BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT)
-    if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
-      AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
-    fi
-
-    # RESULTING_FEATURES is the set of all default features and all explicitly
-    # enabled features, with the explicitly disabled features filtered out.
-    BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
-
-    # Verify consistency for RESULTING_FEATURES
-    HOTSPOT_VERIFY_FEATURES($variant)
-
-    AC_MSG_CHECKING([JVM features to use for variant '$variant'])
-    AC_MSG_RESULT([$RESULTING_FEATURES])
-
-    # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
-    features_var_name=JVM_FEATURES_$variant
-    eval $features_var_name=\"$RESULTING_FEATURES\"
+    HOTSPOT_SETUP_JVM_FEATURES_FOR_ONE_VARIANT($variant)
   done
 
   # Unfortunately AC_SUBST does not work with non-literally named variables,
