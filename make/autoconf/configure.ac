@@ -36,6 +36,16 @@ AC_INIT(OpenJDK, openjdk, build-dev@openjdk.java.net,,http://openjdk.java.net)
 AC_CONFIG_AUX_DIR([$TOPDIR/make/autoconf/build-aux])
 m4_include([build-aux/pkg.m4])
 
+AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK])
+AC_DEFUN_ONCE([CUSTOM_LATE_HOOK])
+AC_DEFUN_ONCE([CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK])
+AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
+
+# This line needs to be here, verbatim, after the dummy hook definitions but
+# before all includes. It is replaced with custom functionality when building
+# custom sources.
+#CUSTOM_AUTOCONF_INCLUDE
+
 # Include these first...
 m4_include([basics.m4])
 m4_include([basics_windows.m4])
@@ -52,16 +62,6 @@ m4_include([platform.m4])
 m4_include([source-dirs.m4])
 m4_include([toolchain.m4])
 m4_include([toolchain_windows.m4])
-
-AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK])
-AC_DEFUN_ONCE([CUSTOM_LATE_HOOK])
-AC_DEFUN_ONCE([CUSTOM_CONFIG_OUTPUT_GENERATED_HOOK])
-AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
-
-# This line needs to be here, verbatim, after all includes and the dummy hook
-# definitions. It is replaced with custom functionality when building
-# custom sources.
-#CUSTOM_AUTOCONF_INCLUDE
 
 ###############################################################################
 #
@@ -272,9 +272,6 @@ BASIC_TEST_USABILITY_ISSUES
 
 # At the end, call the custom hook. (Dummy macro if no custom sources available)
 CUSTOM_LATE_HOOK
-
-# This needs to be done after CUSTOM_LATE_HOOK since we can setup custom features.
-HOTSPOT_FINALIZE_JVM_FEATURES
 
 # Did user specify any unknown variables?
 BASIC_CHECK_LEFTOVER_OVERRIDDEN

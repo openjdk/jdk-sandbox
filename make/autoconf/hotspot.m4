@@ -26,18 +26,18 @@
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JVM features, regardless of platform
-define(valid_jvm_features, m4_normalize(
+define(valid_jvm_features, m4_normalize( \
+    ifdef([custom_valid_jvm_features], custom_valid_jvm_features) \
+    \
     aot cds compiler1 compiler2 dtrace epsilongc g1gc graal jfr jni-check \
     jvmci jvmti link-time-opt management minimal nmt parallelgc serialgc \
     services shenandoahgc static-build vm-structs zero zgc \
 ))
-VALID_JVM_FEATURES="valid_jvm_features"
 
 # Deprecated JVM features (these are ignored, but with a warning)
 define(deprecated_jvm_features, m4_normalize(
     cmsgc trace \
 ))
-DEPRECATED_JVM_FEATURES="deprecated_jvm_features"
 
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
@@ -53,18 +53,6 @@ VALID_JVM_VARIANTS="server client minimal core zero custom"
 # Additional [] needed to keep m4 from mangling shell constructs.
 AC_DEFUN([HOTSPOT_CHECK_JVM_VARIANT],
 [ [ [[ " $JVM_VARIANTS " =~ " $1 " ]] ] ])
-
-###############################################################################
-# Check if the specified JVM feature is enabled. To be used in shell if
-# constructs, like this:
-# if HOTSPOT_CHECK_JVM_FEATURE(jvmti); then
-#
-# Only valid to use after HOTSPOT_SETUP_JVM_FEATURES has setup features.
-
-# Definition kept in one line to allow inlining in if statements.
-# Additional [] needed to keep m4 from mangling shell constructs.
-AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
-[ [ [[ " $JVM_FEATURES " =~ " $1 " ]] ] ])
 
 ###############################################################################
 # Check which variants of the JVM that we want to build. Available variants are:
@@ -148,6 +136,9 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
     HOTSPOT_TARGET_CPU=arm_32
     HOTSPOT_TARGET_CPU_DEFINE="ARM32"
   fi
+
+  # --with-cpu-port is no longer supported
+  BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
 ])
 
 ## vad är det jag gör?
@@ -413,7 +404,7 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
   fi
 
   if test "x$VARIANT" = "xzero"; then
-    UNAVAILABLE_FEATURES_VARIANT="cds epsilongc g1gc zgc shenandoahgc jvmci aot graal"
+    UNAVAILABLE_FEATURES_VARIANT="aot cds compiler1 compiler2 epsilongc g1gc graal jvmci shenandoahgc zgc"
   else
     UNAVAILABLE_FEATURES_VARIANT="zero"
   fi
@@ -425,21 +416,22 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
   # Check if a feature should be off by default for this JVM variant.
   VARIANT=$1
 
-  DEFAULT_FILTER="$DEFAULT_FILTER_BASE"
+  # Allow for custom extensions to have a default filter for all variants.
+  DEFAULT_FILTER="$CUSTOM_DEFAULT_FILTER"
 
   # Is this variant client?
   if test "x$VARIANT" = "xclient"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jvmci aot graal"
+    DEFAULT_FILTER="$DEFAULT_FILTER aot compiler2 graal jvmci"
   fi
 
   # Is this variant core?
   if test "x$VARIANT" = "xcore"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler1 compiler2 jvmci aot graal"
+    DEFAULT_FILTER="$DEFAULT_FILTER aot compiler1 compiler2 graal jvmci"
   fi
 
   # Is this variant minimal?
   if test "x$VARIANT" = "xminimal"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER compiler2 jfr g1gc parallelgc epsilongc shenandoahgc jni-check jvmti jvmci graal aot management nmt services vm-structs zgc cds dtrace"
+    DEFAULT_FILTER="$DEFAULT_FILTER aot cds compiler2 dtrace epsilongc g1gc graal jfr jni-check jvmci jvmti management nmt parallelgc services shenandoahgc vm-structs zgc"
     if test "x$OPENJDK_TARGET_CPU" != xarm ; then
       # No other platforms than arm-32 should have link-time-opt as default.
       DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
@@ -465,11 +457,24 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 ])
 
 ###############################################################################
+# Check if the specified JVM feature is enabled. To be used in shell if
+# constructs, like this:
+# if HOTSPOT_CHECK_JVM_FEATURE(jvmti); then
+#
+# Only valid to use in HOTSPOT_VERIFY_FEATURES.
+
+# Definition kept in one line to allow inlining in if statements.
+# Additional [] needed to keep m4 from mangling shell constructs.
+AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
+[ [ [[ " $RESULTING_FEATURES " =~ " $1 " ]] ] ])
+
+###############################################################################
 # Check if dtrace should be enabled and has all prerequisites present.
 #
 AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 [
-  # Verify that dependencies are met for explicitly set features.
+  # Verify that dependencies are met for inter-feature relations.
+
   if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
     AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$1'])
   fi
@@ -490,22 +495,47 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
     AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
   fi
 
+  # If at least one variant is missing cds, generating classlists is not possible.
   if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
-    # If at least one variant is missing cds, generating classlists is not possible.
     CDS_IS_ENABLED="false"
   fi
 
-  # Verify that we have at least one gc selected
-  GC_FEATURES=`$ECHO $JVM_FEATURES | $GREP gc`
+  # Verify that we have at least one gc selected (i.e., feature named "*gc").
+  # Additional [] needed to keep m4 from mangling shell constructs.
+  [ GC_FEATURES=`$ECHO $RESULTING_FEATURES | $GREP -w '[^ ]*gc'` ]
   if test "x$GC_FEATURES" = x; then
-    AC_MSG_WARN([Invalid JVM features: No gc selected for variant '$1'.])
+      AC_MSG_NOTICE([At least one gc needed for variant '$1'.])
+      AC_MSG_NOTICE([Specified features: '$RESULTING_FEATURES'])
+      AC_MSG_ERROR([Cannot continue])
   fi
+
+  # Validate features for configure script errors (not user errors)
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $RESULTING_FEATURES, $VALID_JVM_FEATURES)
+  if test "x$INVALID_FEATURES" != x; then
+    AC_MSG_ERROR([Internal configure script error. Invalid JVM feature(s): $INVALID_FEATURES])
+  fi
+
+  # Keep feature list sorted and free of duplicates
+  BASIC_SORT_LIST(RESULTING_FEATURES, $RESULTING_FEATURES)
 ])
 
 AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
 [
+  # Setup shell variables from the m4 lists
+  BASIC_SORT_LIST(VALID_JVM_FEATURES, "valid_jvm_features")
+  BASIC_SORT_LIST(DEPRECATED_JVM_FEATURES, "deprecated_jvm_features")
+
   # The user can in some cases supply additional jvm features. For the custom
   # variant, this defines the entire variant.
+
+  # For historical reasons, some jvm features have their own, shorter names.
+  # Keep those as aliases for the --enable-jvm-feature-* style arguments.
+  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
+  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
+  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
+
+  # First check for features using the
+  # --with-jvm-features="<[-]feature>[,<[-]feature> ...]" syntax.
   AC_ARG_WITH([jvm-features], [AS_HELP_STRING([--with-jvm-features],
       [JVM features to enable (foo) or disable (-foo), separated by comma. Use '--help' to show possible values @<:@none@:>@])])
   if test "x$with_jvm_features" != x; then
@@ -535,16 +565,14 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
     fi
   fi
 
-  # For historical reasons, some jvm features have their own, shorter names.
-  # Keep those as aliases for the --enable-jvm-feature-* style arguments.
-  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
-  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
-  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
-
+  # Then check for features using the "--enable-jvm-feature-<feature>" syntax.
+  # Using m4, loop over all features with the variable FEATURE.
   m4_foreach(FEATURE, m4_split(valid_jvm_features), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
         [enable jvm feature 'FEATURE']))
 
+    # Create an m4 variable containing a shell variable name like
+    # "enable_jvm_feature_static_build".
     define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" = xyes; then
@@ -558,6 +586,7 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
     undefine([FEATURE_SHELL])
   ])
 
+  # Likewise, check for deprecated arguments.
   m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
         [enable jvm feature 'FEATURE' (deprecated)]))
@@ -571,6 +600,8 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
     undefine([FEATURE_SHELL])
   ])
 
+  # Used for verification of Makefiles by check-jvm-feature
+  AC_SUBST(VALID_JVM_FEATURES)
 ])
 
 ###############################################################################
@@ -623,16 +654,9 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
 
     # Verify consistency for RESULTING_FEATURES
-    ## HACK: this allows the use of  HOTSPOT_CHECK_JVM_FEATURE
-    SAVED_JVM_FEATURES="$JVM_FEATURES"
-    JVM_FEATURES="$RESULTING_FEATURES"
-
-    # Verify that all inter-feature dependencies are still being met.
     HOTSPOT_VERIFY_FEATURES($variant)
 
-    JVM_FEATURES="$SAVED_JVM_FEATURES"
-
-    AC_MSG_CHECKING([JVM features to use for '$variant'])
+    AC_MSG_CHECKING([JVM features to use for variant '$variant'])
     AC_MSG_RESULT([$RESULTING_FEATURES])
 
     # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
@@ -640,59 +664,16 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     eval $features_var_name=\"$RESULTING_FEATURES\"
   done
 
-  # Unfortunately AC_SUBST does not work with variably named variables
+  # Unfortunately AC_SUBST does not work with non-literally named variables,
+  # so list all variants here.
   AC_SUBST(JVM_FEATURES_server)
   AC_SUBST(JVM_FEATURES_client)
   AC_SUBST(JVM_FEATURES_minimal)
   AC_SUBST(JVM_FEATURES_core)
   AC_SUBST(JVM_FEATURES_zero)
   AC_SUBST(JVM_FEATURES_custom)
-
-exit 0
-# REMEMBER: all values could have been written to by customization. Never overwrite!
-
-
-  # Used for verification of Makefiles by check-jvm-feature
-  AC_SUBST(VALID_JVM_FEATURES)
-
-  # --with-cpu-port is no longer supported
-  BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
 ])
 
-###############################################################################
-# Finalize JVM features once all setup is complete, including custom setup.
-#
-AC_DEFUN_ONCE([HOTSPOT_FINALIZE_JVM_FEATURES],
-[
-  for variant in $JVM_VARIANTS; do
-    AC_MSG_CHECKING([JVM features for JVM variant '$variant'])
-    features_var_name=JVM_FEATURES_$variant
-    JVM_FEATURES_FOR_VARIANT=${!features_var_name}
-
-    # Filter out user-requested disabled features
-    BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_FOR_VARIANT, $JVM_FEATURES_FOR_VARIANT, $DISABLED_JVM_FEATURES)
-
-    # Keep feature lists sorted and free of duplicates
-    ## FIXME: not needed?
-    BASIC_SORT_LIST(JVM_FEATURES_FOR_VARIANT, $JVM_FEATURES_FOR_VARIANT)
-
-    # Update real feature set variable
-    eval $features_var_name='"'$JVM_FEATURES_FOR_VARIANT'"'
-    AC_MSG_RESULT(["$JVM_FEATURES_FOR_VARIANT"])
-
-    # Verify that we have at least one gc selected
-    GC_FEATURES=`$ECHO $JVM_FEATURES_FOR_VARIANT | $GREP gc`
-    if test "x$GC_FEATURES" = x; then
-      AC_MSG_WARN([Invalid JVM features: No gc selected for variant $variant.])
-    fi
-
-    # Validate features (for configure script errors, not user errors)
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES_FOR_VARIANT, $VALID_JVM_FEATURES)
-    if test "x$INVALID_FEATURES" != x; then
-      AC_MSG_ERROR([Internal configure script error. Invalid JVM feature(s): $INVALID_FEATURES])
-    fi
-  done
-])
 
 ################################################################################
 # Check if gtest should be built
