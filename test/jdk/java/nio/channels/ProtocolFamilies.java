@@ -39,7 +39,8 @@ import static java.net.StandardProtocolFamily.INET6;
 
 /*
  * @test
- * @summary Test methods with various ProtocolFamily combinations
+ * @summary Test SocketChannel, ServerSocketChannel and DatagramChannel
+ *          methods with various ProtocolFamily combinations
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm ProtocolFamilies
@@ -65,11 +66,8 @@ public class ProtocolFamilies {
         out.println("ia6: " + ia6);
     }
 
-    // SocketChannel open   - default, INET, INET6
-    // SocketChannel bind   - INET, INET6, null
-
-    @DataProvider(name = "scOpenBind")
-    public Object[][] scOpenBind() {
+    @DataProvider(name = "openBind")
+    public Object[][] openBind() {
         return new Object[][]{
                 {   INET,   INET,   true   },
                 {   INET,   INET6,  false  },
@@ -83,7 +81,10 @@ public class ProtocolFamilies {
         };
     }
 
-    @Test(dataProvider = "scOpenBind")
+    // SocketChannel open   - INET, INET6, default
+    // SocketChannel bind   - INET, INET6, null
+
+    @Test(dataProvider = "openBind")
     public void scOpenBind(StandardProtocolFamily ofam,
                            StandardProtocolFamily bfam,
                            boolean expectPass) {
@@ -103,66 +104,10 @@ public class ProtocolFamilies {
         }
     }
 
-    //  SocketChannel open    - default, INET, INET6
-    //  SocketChannel connect - default, INET, INET6
-
-    @DataProvider(name = "scOpenConnect")
-    public Object[][] scOpenConnect() {
-        return new Object[][]{
-                {   INET,   INET,   true   },
-                {   INET,   INET6,  true   },
-                {   INET,   null,   true   },
-                {   INET6,  INET,   false  },
-                {   INET6,  INET6,  true   },
-                {   INET6,  null,   true   },
-                {   null,   INET,   false  },
-                {   null,   INET6,  true   },
-                {   null,   null,   true   }
-        };
-    }
-
-    @Test(dataProvider = "scOpenConnect")
-    public void scOpenConnect(StandardProtocolFamily sfam,
-                           StandardProtocolFamily cfam,
-                           boolean expectPass) throws Exception {
-        out.println("\n");
-        try (ServerSocketChannel ssc = openSSC(sfam)) {
-            ssc.bind(null);
-            SocketAddress saddr = ssc.getLocalAddress();
-            try (SocketChannel sc = openSC(cfam)) {
-                sc.connect(saddr);
-                if (!expectPass) {
-                    throw new RuntimeException("Expected to fail");
-                }
-            } catch (UnsupportedAddressTypeException uate) {
-                if (expectPass) {
-                    throw new RuntimeException("Expected to pass", uate);
-                }
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
-            }
-        }
-    }
-
-    //  ServerSocketChannel open    - default, INET, INET6
+    //  ServerSocketChannel open    - INET, INET6, default
     //  ServerSocketChannel bind    - INET, INET6, null
 
-    @DataProvider(name = "sscOpenBind")
-    public Object[][] sscOpenBind() {
-        return new Object[][]{
-                {   INET,   INET,   true   },
-                {   INET,   INET6,  false  },
-                {   INET,   null,   true   },
-                {   INET6,  INET,   true   },
-                {   INET6,  INET6,  true   },
-                {   INET6,  null,   true   },
-                {   null,   INET,   true   },
-                {   null,   INET6,  true   },
-                {   null,   null,   true   }
-        };
-    }
-
-    @Test(dataProvider = "sscOpenBind")
+    @Test(dataProvider = "openBind")
     public void sscOpenBind(StandardProtocolFamily ofam,
                            StandardProtocolFamily bfam,
                            boolean expectPass) {
@@ -182,6 +127,92 @@ public class ProtocolFamilies {
         }
     }
 
+    //  DatagramChannel open    - INET, INET6, default
+    //  DatagramChannel bind    - INET, INET6, null
+
+    @Test(dataProvider = "openBind")
+    public void dcOpenBind(StandardProtocolFamily ofam,
+                           StandardProtocolFamily bfam,
+                           boolean expectPass) throws Exception {
+        out.println("\n");
+        try (DatagramChannel sc = openDC(ofam)) {
+            SocketAddress addr = getSocketAddress(bfam);
+            sc.bind(addr);
+            if (!expectPass) {
+                throw new RuntimeException("Expected to fail");
+            }
+        } catch (UnsupportedAddressTypeException uate) {
+            if (expectPass) {
+                throw new RuntimeException("Expected to pass", uate);
+            }
+        }
+    }
+
+    //  SocketChannel open      - INET, INET6, default
+    //  SocketChannel connect   - INET, INET6, default
+
+    @DataProvider(name = "openConnect")
+    public Object[][] openConnect() {
+        return new Object[][]{
+                {   INET,   INET,   true   },
+                {   INET,   INET6,  true   },
+                {   INET,   null,   true   },
+                {   INET6,  INET,   false  },
+                {   INET6,  INET6,  true   },
+                {   INET6,  null,   true   },
+                {   null,   INET,   false  },
+                {   null,   INET6,  true   },
+                {   null,   null,   true   }
+        };
+    }
+
+    @Test(dataProvider = "openConnect")
+    public void scOpenConnect(StandardProtocolFamily sfam,
+                              StandardProtocolFamily cfam,
+                              boolean expectPass) throws Exception {
+        out.println("\n");
+        try (ServerSocketChannel ssc = openSSC(sfam)) {
+            ssc.bind(null);
+            SocketAddress saddr = ssc.getLocalAddress();
+            try (SocketChannel sc = openSC(cfam)) {
+                sc.connect(saddr);
+                if (!expectPass) {
+                    throw new RuntimeException("Expected to fail");
+                }
+            } catch (UnsupportedAddressTypeException uate) {
+                if (expectPass) {
+                    throw new RuntimeException("Expected to pass", uate);
+                }
+            } catch (Throwable t) {
+                throw new RuntimeException(t);
+            }
+        }
+    }
+
+    //  DatagramChannel open        - INET, INET6, default
+    //  DatagramChannel connect     - INET, INET6, default
+
+    @Test(dataProvider = "openConnect")
+    public void dcOpenConnect(StandardProtocolFamily sfam,
+                              StandardProtocolFamily cfam,
+                              boolean expectPass) throws Exception {
+        out.println("\n");
+        try (DatagramChannel ssc = openDC(sfam)) {
+            ssc.bind(null);
+            SocketAddress saddr = ssc.getLocalAddress();
+            try (DatagramChannel dc = openDC(cfam)) {
+                dc.connect(saddr);
+                if (!expectPass) {
+                    throw new RuntimeException("Expected to fail");
+                }
+            } catch (UnsupportedAddressTypeException uate) {
+                if (expectPass) {
+                    throw new RuntimeException("Expected to pass", uate);
+                }
+            }
+        }
+    }
+
     // Helper methods
 
     private static SocketChannel openSC(StandardProtocolFamily fam)
@@ -194,6 +225,12 @@ public class ProtocolFamilies {
             throws IOException {
         return fam == null ? ServerSocketChannel.open()
                 : ServerSocketChannel.open(fam);
+    }
+
+    private static DatagramChannel openDC(StandardProtocolFamily fam)
+            throws IOException {
+        return fam == null ? DatagramChannel.open()
+                : DatagramChannel.open(fam);
     }
 
     private static SocketAddress getSocketAddress(StandardProtocolFamily fam) {
