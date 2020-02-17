@@ -121,102 +121,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
   AC_SUBST(JVM_VARIANTS)
   AC_SUBST(VALID_JVM_VARIANTS)
   AC_SUBST(JVM_VARIANT_MAIN)
-
-  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
-    # zero behaves as a platform and rewrites these values. This is really weird. :(
-    # We are guaranteed that we do not build any other variants when building zero.
-    HOTSPOT_TARGET_CPU=zero
-    HOTSPOT_TARGET_CPU_ARCH=zero
-  fi
-
-  # This is not really a variant setup, but we have no better place for this.
-
-  # Override hotspot cpu definitions for ARM platforms
-  if test "x$OPENJDK_TARGET_CPU" = xarm; then
-    HOTSPOT_TARGET_CPU=arm_32
-    HOTSPOT_TARGET_CPU_DEFINE="ARM32"
-  fi
-
-  # --with-cpu-port is no longer supported
-  BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
 ])
-
-## vad är det jag gör?
-# för varje feature, bestäm om den ska vara på eller av.
-# om en användare explicit har sagt på eller av, så gäller det -- om det är möjligt. Kontrollera
-# att det är möjligt. Det kan vara omöjligt att slå på pga pattform. Det kan vara omöjligt att slå av pga
-# dependencies till andra features. Då får man antingen slå av dem också, eller klaga.
-# Om inget är angivet är standard "auto", då ska vi bestämma om den ska vara av eller på.
-# För enkla features så beror det bara på JVM variant.
-# För komplicerade features beror det på plattform.
-# Vissa komplicerade ska vara på om de är möjliga, av annars.
-# Annars ska alltid vara av by default, även om de funkar.
-
-# should ALL features be on by default if available? Except for the per-variant filtering (turn off link-time-opt and non-minimal stuff).
-# all = alla
-# available = on this platform
-# not available = {all \ available}
-
-# VALID == ALL
-# UNAVAILABLE == on this platform == PLATFORM_UNAVAILABLE.
-# AVAILABLE == { VALID \ UNAVAILABLE }
-# VARIANT_FILTER == exclude for this variant and possibly platform. döp till DEFAULT_FILTER istället!
-# VARIANT_UNAVAILABLE == typ zero har ej jfr, minimal ej cds. Kan ej bygga!
-# EXPLICIT_ON == user specified enable
-# EXPLICIT_OFF == user specified disable.
-# ENABLED == current set. bad name. use JVM_FEATURE_SET_server instead?
-
-# skillnaden på VARIANT_FILTER och inte i AVAILABLE: i det förstnämnda är det default-värden, i det sistnämnda
-# är det omöjligt att bygga.
-
-# check which are available. store non-available in UNAVAILABLE. AVAILABLE is ALL minus UNAVAILABLE.
-# print reason for unavailable.
-# för varje variant, gör följande:::::
-# available_variant = all - unavailable_platform - unavailable_variant.
-# current-set = available_variant.
-# now we need to filter out from variant-default-off, this is basically a bunch of things for minimal, and link-time-opt for non-minimal, zero etc.
-# except for custom, where we calculate available, but set current-set to empty!
-
-
-# REMEMBER: all values could have been written to by customization. Never overwrite!
-
-# current-set += explicit-on (NOTE if part of current-set!)
-# if present in unavailalbe_platform,  ERROR this feature cannot be enabled on this platform
-# if present in unavailable_variant,  ERROR this feature cannot be enabled on this variant
-# else if present in current-set NOTE that this was already turned on.
-
-# current-set -= explicit-off (NOTE if not part of current-set!)
-# check if present in availble (that is, neither in unavailble_platform or unavailable_variant), else NOTE that this features were not available anyway.
-# finally verify current-set for inconsistencies (re: dependencies). FAIL if found. Do this for each variant!
-
-
-# all features:
-# VALID_JVM_FEATURES="compiler1 compiler2 zero minimal dtrace jvmti jvmci
-#    graal vm-structs jni-check services management epsilongc g1gc parallelgc serialgc shenandoahgc zgc nmt cds
-#    static-build link-time-opt aot jfr
-
-# these are "platform sensitive features":
-# zero?
-# dtrace
-# aot
-# cds
-# jfr
-# shenandoahgc
-# zgc
-# epsilongc g1gc zgc shenandoahgc -- not supported on zero!
-# static-build, you must use --enable-static-build])
-# zero, --with-jvm-variants=zero
-# jvmci
-# graal
-# link-time-opt on arm for minimal.
-
-# for variant CUSTOM filter out ALL as default!
-
-#   # All variants but minimal (and custom) get these features
-#  NON_MINIMAL_FEATURES="$NON_MINIMAL_FEATURES g1gc parallelgc serialgc epsilongc shenandoahgc jni-check jvmti management nmt services vm-structs zgc"
-
-# dependencied: aot needs graal, graal needs jvmci. jvmci is present in: Only enable jvmci on x86_64 and aarch64.
-
 
 # arg 1: feature name
 # arg 2: code block to execute. Should set AVAILABLE=false in case of failure
@@ -389,7 +294,7 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_PLATFORM],
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 [
-  # Check if features are unavailble for this JVM variant.
+  # Check if features are unavailable for this JVM variant.
   # This means that is not possible to build this feature for this variant.
   VARIANT=$1
 
@@ -404,7 +309,8 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
   fi
 
   if test "x$VARIANT" = "xzero"; then
-    UNAVAILABLE_FEATURES_VARIANT="aot cds compiler1 compiler2 epsilongc g1gc graal jvmci shenandoahgc zgc"
+    UNAVAILABLE_FEATURES_VARIANT="aot cds compiler1 compiler2 epsilongc g1gc \
+        graal jvmci shenandoahgc zgc"
   else
     UNAVAILABLE_FEATURES_VARIANT="zero"
   fi
@@ -431,7 +337,9 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 
   # Is this variant minimal?
   if test "x$VARIANT" = "xminimal"; then
-    DEFAULT_FILTER="$DEFAULT_FILTER aot cds compiler2 dtrace epsilongc g1gc graal jfr jni-check jvmci jvmti management nmt parallelgc services shenandoahgc vm-structs zgc"
+    DEFAULT_FILTER="$DEFAULT_FILTER aot cds compiler2 dtrace epsilongc g1gc \
+        graal jfr jni-check jvmci jvmti management nmt parallelgc services \
+        shenandoahgc vm-structs zgc"
     if test "x$OPENJDK_TARGET_CPU" != xarm ; then
       # No other platforms than arm-32 should have link-time-opt as default.
       DEFAULT_FILTER="$DEFAULT_FILTER link-time-opt"
@@ -474,6 +382,17 @@ AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
 AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 [
   # Verify that dependencies are met for inter-feature relations.
+  if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
+    AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
+  fi
+
+  if HOTSPOT_CHECK_JVM_FEATURE(graal) && ! HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
+    AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$1'])
+  fi
+
+  if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
+    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$1'])
+  fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
     AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$1'])
@@ -481,18 +400,6 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 
   if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
     AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$1'])
-  fi
-
-  if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$1'])
-  fi
-
-  if HOTSPOT_CHECK_JVM_FEATURE(graal) && ! HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
-    AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$1'])
-  fi
-
-  if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
-    AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
   fi
 
   # If at least one variant is missing cds, generating classlists is not possible.
@@ -650,7 +557,8 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
       AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
     fi
 
-    # RESULTING_FEATURES is all default and all explicitly enabled, with explicitly disabled filtered out.
+    # RESULTING_FEATURES is the set of all default features and all explicitly
+    # enabled features, with the explicitly disabled features filtered out.
     BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
 
     # Verify consistency for RESULTING_FEATURES
@@ -673,7 +581,6 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   AC_SUBST(JVM_FEATURES_zero)
   AC_SUBST(JVM_FEATURES_custom)
 ])
-
 
 ################################################################################
 # Check if gtest should be built
@@ -713,4 +620,25 @@ AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_GTEST],
   fi
 
   AC_SUBST(BUILD_GTEST)
+])
+
+###############################################################################
+# Misc hotspot setup that does not fit elsewhere.
+AC_DEFUN_ONCE([HOTSPOT_SETUP_MISC],
+[
+  if HOTSPOT_CHECK_JVM_VARIANT(zero); then
+    # zero behaves as a platform and rewrites these values. This is a bit weird.
+    # We are guaranteed that we do not build any other variants when building zero.
+    HOTSPOT_TARGET_CPU=zero
+    HOTSPOT_TARGET_CPU_ARCH=zero
+  fi
+
+  # Override hotspot cpu definitions for ARM platforms
+  if test "x$OPENJDK_TARGET_CPU" = xarm; then
+    HOTSPOT_TARGET_CPU=arm_32
+    HOTSPOT_TARGET_CPU_DEFINE="ARM32"
+  fi
+
+  # --with-cpu-port is no longer supported
+  BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
 ])

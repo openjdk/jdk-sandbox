@@ -216,10 +216,11 @@ LIB_DETERMINE_DEPENDENCIES
 LIB_SETUP_LIBRARIES
 
 # Hotspot setup depends on lib checks.
-HOTSPOT_ENABLE_DISABLE_GTEST
-
 HOTSPOT_PARSE_JVM_FEATURES
 HOTSPOT_SETUP_JVM_FEATURES
+
+HOTSPOT_ENABLE_DISABLE_GTEST
+HOTSPOT_SETUP_MISC
 
 ###############################################################################
 #
