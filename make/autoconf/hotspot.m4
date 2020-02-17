@@ -23,13 +23,21 @@
 # questions.
 #
 
+# We need these as m4 defines to be able to loop over them using m4 later on.
+
 # All valid JVM features, regardless of platform
-VALID_JVM_FEATURES="aot cds compiler1 compiler2 dtrace epsilongc g1gc graal \
-    jfr jni-check jvmci jvmti link-time-opt management minimal nmt parallelgc \
-    serialgc services shenandoahgc static-build vm-structs zero zgc"
+define(valid_jvm_features, m4_normalize(
+    aot cds compiler1 compiler2 dtrace epsilongc g1gc graal jfr jni-check \
+    jvmci jvmti link-time-opt management minimal nmt parallelgc serialgc \
+    services shenandoahgc static-build vm-structs zero zgc \
+))
+VALID_JVM_FEATURES="valid_jvm_features"
 
 # Deprecated JVM features (these are ignored, but with a warning)
-DEPRECATED_JVM_FEATURES="cmsgc trace"
+define(deprecated_jvm_features, m4_normalize(
+    cmsgc trace \
+))
+DEPRECATED_JVM_FEATURES="deprecated_jvm_features"
 
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
@@ -508,13 +516,25 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
   fi
 ])
 
-###############################################################################
-# Set up all JVM features for each JVM variant.
-#
-AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
+AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
 [
-  # Prettify the VALID_JVM_FEATURES string
-  BASIC_SORT_LIST(VALID_JVM_FEATURES, $VALID_JVM_FEATURES)
+ AC_ARG_ENABLE([dtrace], [AS_HELP_STRING([--enable-dtrace],
+      [alias for --enable-jvm-feature-dtrace])],
+      [
+        enable_jvm_feature_dtrace=$enable_dtrace
+      ])
+
+ AC_ARG_ENABLE([aot], [AS_HELP_STRING([--enable-aot],
+      [alias for --enable-jvm-feature-aot])],
+      [
+        enable_jvm_feature_aot=$enable_aot
+      ])
+
+ AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds],
+      [alias for --enable-jvm-feature-cds])],
+      [
+        enable_jvm_feature_cds=$enable_cds
+      ])
 
   # The user can in some cases supply additional jvm features. For the custom
   # variant, this defines the entire variant.
@@ -548,6 +568,39 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   fi
 
+  m4_foreach(FEATURE, m4_split(valid_jvm_features), [
+    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
+        [enable jvm feature 'FEATURE']))
+
+    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+
+    if test "x$FEATURE_SHELL" = xyes; then
+      JVM_FEATURES="$JVM_FEATURES FEATURE"
+    elif test "x$FEATURE_SHELL" = xno; then
+      DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES FEATURE"
+    elif test "x$FEATURE_SHELL" != x; then
+      AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: $FEATURE_SHELL])
+    fi
+  ])
+
+  m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
+    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
+        [enable jvm feature 'FEATURE' (deprecated)]))
+
+    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+
+    if test "x$FEATURE_SHELL" != x; then
+      AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
+    fi
+  ])
+
+])
+
+###############################################################################
+# Set up all JVM features for each JVM variant.
+#
+AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
+[
   # It is possible to generate classlists only if all JVM variants has cds enabled.
   CDS_IS_ENABLED="true"
 
@@ -623,17 +676,6 @@ exit 0
 
   # --with-cpu-port is no longer supported
   BASIC_DEPRECATED_ARG_WITH(with-cpu-port)
-
-####€€€€€ FIXME
-  AC_ARG_ENABLE([dtrace], [AS_HELP_STRING([--enable-dtrace@<:@=yes/no/auto@:>@],
-      [enable dtrace. Default is auto, where dtrace is enabled if all dependencies
-      are present.])])
-  AC_ARG_ENABLE([aot], [AS_HELP_STRING([--enable-aot@<:@=yes/no/auto@:>@],
-      [enable ahead of time compilation feature. Default is auto, where aot is enabled if all dependencies are present.])])
-  AC_ARG_ENABLE([cds], [AS_HELP_STRING([--enable-cds@<:@=yes/no/auto@:>@],
-      [enable class data sharing feature in non-minimal VM. Default is auto, where cds is enabled if supported on the platform.])])
-
-
 ])
 
 ###############################################################################
@@ -650,6 +692,7 @@ AC_DEFUN_ONCE([HOTSPOT_FINALIZE_JVM_FEATURES],
     BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_FOR_VARIANT, $JVM_FEATURES_FOR_VARIANT, $DISABLED_JVM_FEATURES)
 
     # Keep feature lists sorted and free of duplicates
+    ## FIXME: not needed?
     BASIC_SORT_LIST(JVM_FEATURES_FOR_VARIANT, $JVM_FEATURES_FOR_VARIANT)
 
     # Update real feature set variable

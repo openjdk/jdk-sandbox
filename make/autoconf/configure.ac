@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -217,6 +217,8 @@ LIB_SETUP_LIBRARIES
 
 # Hotspot setup depends on lib checks.
 HOTSPOT_ENABLE_DISABLE_GTEST
+
+HOTSPOT_PARSE_JVM_FEATURES
 HOTSPOT_SETUP_JVM_FEATURES
 
 ###############################################################################
