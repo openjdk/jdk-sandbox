@@ -138,7 +138,6 @@ JDKVER_SETUP_JDK_VERSION_NUMBERS
 #
 ###############################################################################
 
-HOTSPOT_FEATURES_PREPARE
 HOTSPOT_FEATURES_PARSE_OPTIONS
 HOTSPOT_FEATURES_SETUP
 

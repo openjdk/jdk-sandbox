@@ -40,6 +40,94 @@ define(deprecated_jvm_features, m4_normalize(
 ))
 
 
+# Parse command line options for JVM features selection. After this function
+# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $VALID_JVM_FEATURES can be
+# used.
+AC_DEFUN_ONCE([HOTSPOT_FEATURES_PARSE_OPTIONS],
+[
+  # Setup shell variables from the m4 lists
+  BASIC_SORT_LIST(VALID_JVM_FEATURES, "valid_jvm_features")
+  BASIC_SORT_LIST(DEPRECATED_JVM_FEATURES, "deprecated_jvm_features")
+
+  # The user can in some cases supply additional jvm features. For the custom
+  # variant, this defines the entire variant.
+
+  # For historical reasons, some jvm features have their own, shorter names.
+  # Keep those as aliases for the --enable-jvm-feature-* style arguments.
+  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
+  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
+  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
+
+  # First check for features using the
+  # --with-jvm-features="<[-]feature>[,<[-]feature> ...]" syntax.
+  AC_ARG_WITH([jvm-features], [AS_HELP_STRING([--with-jvm-features],
+      [JVM features to enable (foo) or disable (-foo), separated by comma. Use '--help' to show possible values @<:@none@:>@])])
+  if test "x$with_jvm_features" != x; then
+    AC_MSG_CHECKING([user specified JVM feature list])
+    USER_JVM_FEATURE_LIST=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
+    AC_MSG_RESULT([$user_jvm_feature_list])
+    # These features will be added to all variant defaults
+    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
+    # These features will be removed from all variant defaults
+    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
+
+    # Verify that the user has provided valid features
+    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES $DEPRECATED_JVM_FEATURES)
+    if test "x$INVALID_FEATURES" != x; then
+      AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
+      AC_MSG_NOTICE([The available JVM features are: "$VALID_JVM_FEATURES"])
+      AC_MSG_ERROR([Cannot continue])
+    fi
+
+    # Check if the user has provided deprecated features
+    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $DEPRECATED_JVM_FEATURES)
+    if test "x$DEPRECATED_FEATURES" != x; then
+      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
+      # Filter out deprecated features
+      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
+      BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
+    fi
+  fi
+
+  # Then check for features using the "--enable-jvm-feature-<feature>" syntax.
+  # Using m4, loop over all features with the variable FEATURE.
+  m4_foreach(FEATURE, m4_split(valid_jvm_features), [
+    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
+        [enable jvm feature 'FEATURE']))
+
+    # Create an m4 variable containing a shell variable name like
+    # "enable_jvm_feature_static_build".
+    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+
+    if test "x$FEATURE_SHELL" = xyes; then
+      JVM_FEATURES="$JVM_FEATURES FEATURE"
+    elif test "x$FEATURE_SHELL" = xno; then
+      DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES FEATURE"
+    elif test "x$FEATURE_SHELL" != x; then
+      AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: $FEATURE_SHELL])
+    fi
+
+    undefine([FEATURE_SHELL])
+  ])
+
+  # Likewise, check for deprecated arguments.
+  m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
+    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
+        [enable jvm feature 'FEATURE' (deprecated)]))
+
+    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+
+    if test "x$FEATURE_SHELL" != x; then
+      AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
+    fi
+
+    undefine([FEATURE_SHELL])
+  ])
+
+  # Used for verification of Makefiles by check-jvm-feature
+  AC_SUBST(VALID_JVM_FEATURES)
+])
+
 # Helper function for the HOTSPOT_FEATURES_CHECK_* suite.
 # The code in the code block should assign 'false' to the variable AVAILABLE
 # if the feature is not available, and this function will handle everything
@@ -234,7 +322,7 @@ AC_DEFUN_ONCE([HOTSPOT_FEATURES_CHECK_ZGC],
 
 # Figure out if any features is unavailable for this platform.
 # The result is stored in HOTSPOT_FEATURES_PLATFORM_UNAVAILABLE.
-AC_DEFUN_ONCE([HOTSPOT_FEATURES_PREPARE],
+AC_DEFUN_ONCE([HOTSPOT_FEATURES_PREPARE_PLATFORM],
 [
   # Check if features are unavailable for this platform.
   # The checks below should add unavailable features to
@@ -260,94 +348,6 @@ AC_DEFUN_ONCE([HOTSPOT_FEATURES_PREPARE],
   if test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-sparcv9"; then
     HOTSPOT_FEATURES_PLATFORM_FILTER="$HOTSPOT_FEATURES_PLATFORM_FILTER jfr"
   fi
-])
-
-# Parse command line options for JVM features selection. After this function
-# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $VALID_JVM_FEATURES can be
-# used.
-AC_DEFUN_ONCE([HOTSPOT_FEATURES_PARSE_OPTIONS],
-[
-  # Setup shell variables from the m4 lists
-  BASIC_SORT_LIST(VALID_JVM_FEATURES, "valid_jvm_features")
-  BASIC_SORT_LIST(DEPRECATED_JVM_FEATURES, "deprecated_jvm_features")
-
-  # The user can in some cases supply additional jvm features. For the custom
-  # variant, this defines the entire variant.
-
-  # For historical reasons, some jvm features have their own, shorter names.
-  # Keep those as aliases for the --enable-jvm-feature-* style arguments.
-  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
-  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
-  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
-
-  # First check for features using the
-  # --with-jvm-features="<[-]feature>[,<[-]feature> ...]" syntax.
-  AC_ARG_WITH([jvm-features], [AS_HELP_STRING([--with-jvm-features],
-      [JVM features to enable (foo) or disable (-foo), separated by comma. Use '--help' to show possible values @<:@none@:>@])])
-  if test "x$with_jvm_features" != x; then
-    AC_MSG_CHECKING([user specified JVM feature list])
-    USER_JVM_FEATURE_LIST=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
-    AC_MSG_RESULT([$user_jvm_feature_list])
-    # These features will be added to all variant defaults
-    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
-    # These features will be removed from all variant defaults
-    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
-
-    # Verify that the user has provided valid features
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES $DEPRECATED_JVM_FEATURES)
-    if test "x$INVALID_FEATURES" != x; then
-      AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
-      AC_MSG_NOTICE([The available JVM features are: "$VALID_JVM_FEATURES"])
-      AC_MSG_ERROR([Cannot continue])
-    fi
-
-    # Check if the user has provided deprecated features
-    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $DEPRECATED_JVM_FEATURES)
-    if test "x$DEPRECATED_FEATURES" != x; then
-      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
-      # Filter out deprecated features
-      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
-      BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
-    fi
-  fi
-
-  # Then check for features using the "--enable-jvm-feature-<feature>" syntax.
-  # Using m4, loop over all features with the variable FEATURE.
-  m4_foreach(FEATURE, m4_split(valid_jvm_features), [
-    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
-        [enable jvm feature 'FEATURE']))
-
-    # Create an m4 variable containing a shell variable name like
-    # "enable_jvm_feature_static_build".
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
-
-    if test "x$FEATURE_SHELL" = xyes; then
-      JVM_FEATURES="$JVM_FEATURES FEATURE"
-    elif test "x$FEATURE_SHELL" = xno; then
-      DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES FEATURE"
-    elif test "x$FEATURE_SHELL" != x; then
-      AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: $FEATURE_SHELL])
-    fi
-
-    undefine([FEATURE_SHELL])
-  ])
-
-  # Likewise, check for deprecated arguments.
-  m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
-    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
-        [enable jvm feature 'FEATURE' (deprecated)]))
-
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
-
-    if test "x$FEATURE_SHELL" != x; then
-      AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
-    fi
-
-    undefine([FEATURE_SHELL])
-  ])
-
-  # Used for verification of Makefiles by check-jvm-feature
-  AC_SUBST(VALID_JVM_FEATURES)
 ])
 
 AC_DEFUN([HOTSPOT_FEATURES_PREPARE_VARIANT],
@@ -487,6 +487,8 @@ AC_DEFUN([HOTSPOT_FEATURES_VERIFY],
 #
 AC_DEFUN_ONCE([HOTSPOT_FEATURES_SETUP],
 [
+  HOTSPOT_FEATURES_PREPARE_PLATFORM
+
   # For classlist generation, we must know if all variants support CDS. Assume
   # so, and disable in HOTSPOT_FEATURES_VERIFY if a non-CDS variant is found.
   CDS_IS_ENABLED="true"
