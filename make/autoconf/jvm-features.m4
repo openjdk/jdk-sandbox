@@ -26,8 +26,8 @@
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JVM features, regardless of platform
-define(valid_jvm_features, m4_normalize( \
-    ifdef([custom_valid_jvm_features], custom_valid_jvm_features) \
+define(jvm_features_valid, m4_normalize( \
+    ifdef([custom_jvm_features_valid], custom_jvm_features_valid) \
     \
     aot cds compiler1 compiler2 dtrace epsilongc g1gc graal jfr jni-check \
     jvmci jvmti link-time-opt management minimal nmt parallelgc serialgc \
@@ -35,19 +35,19 @@ define(valid_jvm_features, m4_normalize( \
 ))
 
 # Deprecated JVM features (these are ignored, but with a warning)
-define(deprecated_jvm_features, m4_normalize(
+define(jvm_features_deprecated, m4_normalize(
     cmsgc trace \
 ))
 
 
 # Parse command line options for JVM features selection. After this function
-# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $VALID_JVM_FEATURES can be
+# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $JVM_FEATURES_VALID can be
 # used.
 AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 [
   # Setup shell variables from the m4 lists
-  BASIC_SORT_LIST(VALID_JVM_FEATURES, "valid_jvm_features")
-  BASIC_SORT_LIST(DEPRECATED_JVM_FEATURES, "deprecated_jvm_features")
+  BASIC_SORT_LIST(JVM_FEATURES_VALID, "jvm_features_valid")
+  BASIC_SORT_LIST(JVM_FEATURES_DEPRECATED, "jvm_features_deprecated")
 
   # The user can in some cases supply additional jvm features. For the custom
   # variant, this defines the entire variant.
@@ -72,15 +72,15 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
     # Verify that the user has provided valid features
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $VALID_JVM_FEATURES $DEPRECATED_JVM_FEATURES)
+    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $JVM_FEATURES_VALID $JVM_FEATURES_DEPRECATED)
     if test "x$INVALID_FEATURES" != x; then
       AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
-      AC_MSG_NOTICE([The available JVM features are: "$VALID_JVM_FEATURES"])
+      AC_MSG_NOTICE([The available JVM features are: "$JVM_FEATURES_VALID"])
       AC_MSG_ERROR([Cannot continue])
     fi
 
     # Check if the user has provided deprecated features
-    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $DEPRECATED_JVM_FEATURES)
+    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $JVM_FEATURES_DEPRECATED)
     if test "x$DEPRECATED_FEATURES" != x; then
       AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
       # Filter out deprecated features
@@ -91,7 +91,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 
   # Then check for features using the "--enable-jvm-feature-<feature>" syntax.
   # Using m4, loop over all features with the variable FEATURE.
-  m4_foreach(FEATURE, m4_split(valid_jvm_features), [
+  m4_foreach(FEATURE, m4_split(jvm_features_valid), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
         [enable jvm feature 'FEATURE']))
 
@@ -111,7 +111,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
   ])
 
   # Likewise, check for deprecated arguments.
-  m4_foreach(FEATURE, m4_split(deprecated_jvm_features), [
+  m4_foreach(FEATURE, m4_split(jvm_features_deprecated), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
         [enable jvm feature 'FEATURE' (deprecated)]))
 
@@ -125,6 +125,8 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
   ])
 
   # Used for verification of Makefiles by check-jvm-feature
+  # FIXME!!!!
+  VALID_JVM_FEATURES="$JVM_FEATURES_VALID"
   AC_SUBST(VALID_JVM_FEATURES)
 ])
 
@@ -396,7 +398,7 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
   # As default, start with all valid features, and then remove unavailable
   # features, and those in the platform/variant filters.
   if test "x$variant" != xcustom; then
-    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE $JVM_FEATURES_PLATFORM_FILTER $JVM_FEATURES_VARIANT_FILTER)
+    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $JVM_FEATURES_VALID, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE $JVM_FEATURES_PLATFORM_FILTER $JVM_FEATURES_VARIANT_FILTER)
   else
     # Except for the 'custom' variant, where the default is to start with an
     # empty set.
@@ -476,7 +478,7 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
   fi
 
   # Validate features for configure script errors (not user errors)
-  BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $RESULTING_FEATURES, $VALID_JVM_FEATURES)
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $RESULTING_FEATURES, $JVM_FEATURES_VALID)
   if test "x$INVALID_FEATURES" != x; then
     AC_MSG_ERROR([Internal configure script error. Invalid JVM feature(s): $INVALID_FEATURES])
   fi
