@@ -23,9 +23,92 @@
 # questions.
 #
 
-# Handling of JVM variants and JVM features reside in separate files.
-m4_include([hotspot-variants.m4])
+# Handling of JVM features reside in a separate file.
 m4_include([hotspot-features.m4])
+
+# All valid JVM variants
+VALID_JVM_VARIANTS="server client minimal core zero custom"
+
+###############################################################################
+# Check if the specified JVM variant should be built. To be used in shell if
+# constructs, like this:
+# if HOTSPOT_CHECK_JVM_VARIANT(server); then
+#
+# Only valid to use after HOTSPOT_SETUP_JVM_VARIANTS has setup variants.
+
+# Definition kept in one line to allow inlining in if statements.
+# Additional [] needed to keep m4 from mangling shell constructs.
+AC_DEFUN([HOTSPOT_CHECK_JVM_VARIANT],
+[ [ [[ " $JVM_VARIANTS " =~ " $1 " ]] ] ])
+
+###############################################################################
+# Check which variants of the JVM that we want to build. Available variants are:
+#   server: normal interpreter, and a tiered C1/C2 compiler
+#   client: normal interpreter, and C1 (no C2 compiler)
+#   minimal: reduced form of client with optional features stripped out
+#   core: normal interpreter only, no compiler
+#   zero: C++ based interpreter only, no compiler
+#   custom: baseline JVM with no default features
+#
+AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
+[
+  AC_ARG_WITH([jvm-variants], [AS_HELP_STRING([--with-jvm-variants],
+      [JVM variants (separated by commas) to build (server,client,minimal,core,zero,custom) @<:@server@:>@])])
+
+  if test "x$with_jvm_variants" = x; then
+    with_jvm_variants="server"
+  fi
+  JVM_VARIANTS_OPT="$with_jvm_variants"
+
+  # Has the user listed more than one variant?
+  # Additional [] needed to keep m4 from mangling shell constructs.
+  if [ [[ "$JVM_VARIANTS_OPT" =~ "," ]] ]; then
+    BUILDING_MULTIPLE_JVM_VARIANTS=true
+  else
+    BUILDING_MULTIPLE_JVM_VARIANTS=false
+  fi
+  # Replace the commas with AND for use in the build directory name.
+  JVM_VARIANTS_WITH_AND=`$ECHO "$JVM_VARIANTS_OPT" | $SED -e 's/,/AND/g'`
+
+  AC_MSG_CHECKING([which variants of the JVM to build])
+  # JVM_VARIANTS is a space-separated list.
+  # Also use minimal, not minimal1 (which is kept for backwards compatibility).
+  JVM_VARIANTS=`$ECHO $JVM_VARIANTS_OPT | $SED -e 's/,/ /g' -e 's/minimal1/minimal/'`
+  AC_MSG_RESULT([$JVM_VARIANTS])
+
+  # Check that the selected variants are valid
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_VARIANTS, $JVM_VARIANTS, $VALID_JVM_VARIANTS)
+  if test "x$INVALID_VARIANTS" != x; then
+    AC_MSG_NOTICE([Unknown variant(s) specified: "$INVALID_VARIANTS"])
+    AC_MSG_NOTICE([The available JVM variants are: "$VALID_JVM_VARIANTS"])
+    AC_MSG_ERROR([Cannot continue])
+  fi
+
+  # All "special" variants share the same output directory ("server")
+  VALID_MULTIPLE_JVM_VARIANTS="server client minimal"
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_MULTIPLE_VARIANTS, $JVM_VARIANTS, $VALID_MULTIPLE_JVM_VARIANTS)
+  if  test "x$INVALID_MULTIPLE_VARIANTS" != x && test "x$BUILDING_MULTIPLE_JVM_VARIANTS" = xtrue; then
+    AC_MSG_ERROR([You can only build multiple variants using these variants: '$VALID_MULTIPLE_JVM_VARIANTS'])
+  fi
+
+  # The "main" variant is the one used by other libs to link against during the
+  # build.
+  if test "x$BUILDING_MULTIPLE_JVM_VARIANTS" = "xtrue"; then
+    MAIN_VARIANT_PRIO_ORDER="server client minimal"
+    for variant in $MAIN_VARIANT_PRIO_ORDER; do
+      if HOTSPOT_CHECK_JVM_VARIANT($variant); then
+        JVM_VARIANT_MAIN="$variant"
+        break
+      fi
+    done
+  else
+    JVM_VARIANT_MAIN="$JVM_VARIANTS"
+  fi
+
+  AC_SUBST(JVM_VARIANTS)
+  AC_SUBST(VALID_JVM_VARIANTS)
+  AC_SUBST(JVM_VARIANT_MAIN)
+])
 
 ################################################################################
 # Check if gtest should be built
