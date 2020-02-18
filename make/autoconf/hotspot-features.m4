@@ -40,8 +40,13 @@ define(deprecated_jvm_features, m4_normalize(
 ))
 
 
-# arg 1: feature name
-# arg 2: code block to execute. Should set AVAILABLE=false in case of failure
+# Helper function for the HOTSPOT_FEATURE_CHECK_* suite.
+# The code in the code block should assign 'false' to the variable AVAILABLE
+# if the feature is not available, and this function will handle everything
+# else that is needed.
+#
+# arg 1: The name of the feature to test
+# arg 2: The code block to execute
 AC_DEFUN([HOTSPOT_CHECK_FEATURE_AVAILABILITY],
 [
   # Assume that feature is available
@@ -335,21 +340,21 @@ AC_DEFUN_ONCE([HOTSPOT_PARSE_JVM_FEATURES],
 
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 [
-  # Check if features are unavailable for this JVM variant.
-  # This means that is not possible to build this feature for this variant.
-  VARIANT=$1
+  # Check if any features are unavailable for this JVM variant.
+  # This means that is not possible to build these features for this variant.
+  variant=$1
 
-  if test "x$VARIANT" = "xcore"; then
+  if test "x$variant" = "xcore"; then
     UNAVAILABLE_FEATURES_VARIANT="cds"
   fi
 
-  if test "x$VARIANT" = "xminimal"; then
+  if test "x$variant" = "xminimal"; then
     UNAVAILABLE_FEATURES_VARIANT="cds"
   else
     UNAVAILABLE_FEATURES_VARIANT="minimal"
   fi
 
-  if test "x$VARIANT" = "xzero"; then
+  if test "x$variant" = "xzero"; then
     UNAVAILABLE_FEATURES_VARIANT="aot cds compiler1 compiler2 epsilongc g1gc \
         graal jvmci shenandoahgc zgc"
   else
@@ -360,23 +365,23 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FOR_VARIANT],
 AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 [
   # Check if a feature should be off by default for this JVM variant.
-  VARIANT=$1
+  variant=$1
 
   # Allow for custom extensions to have a default filter for all variants.
   DEFAULT_FILTER="$CUSTOM_DEFAULT_FILTER"
 
   # Is this variant client?
-  if test "x$VARIANT" = "xclient"; then
+  if test "x$variant" = "xclient"; then
     DEFAULT_FILTER="$DEFAULT_FILTER aot compiler2 graal jvmci"
   fi
 
   # Is this variant core?
-  if test "x$VARIANT" = "xcore"; then
+  if test "x$variant" = "xcore"; then
     DEFAULT_FILTER="$DEFAULT_FILTER aot compiler1 compiler2 graal jvmci"
   fi
 
   # Is this variant minimal?
-  if test "x$VARIANT" = "xminimal"; then
+  if test "x$variant" = "xminimal"; then
     DEFAULT_FILTER="$DEFAULT_FILTER aot cds compiler2 dtrace epsilongc g1gc \
         graal jfr jni-check jvmci jvmti management nmt parallelgc services \
         shenandoahgc vm-structs zgc"
@@ -390,7 +395,7 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
   fi
 
   # Is this variant zero?
-  if test "x$VARIANT" = "xzero"; then
+  if test "x$variant" = "xzero"; then
     DEFAULT_FILTER="$DEFAULT_FILTER jfr"
   fi
 
@@ -406,6 +411,8 @@ AC_DEFUN([HOTSPOT_SETUP_FEATURES_FILTER],
 
 AC_DEFUN([HOTSPOT_CALCULATE_FEATURES],
 [
+  variant=$1
+
   if test "x$variant" != xcustom; then
     BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $VALID_JVM_FEATURES, $UNAVAILABLE_FEATURES $UNAVAILABLE_FEATURES_VARIANT $DEFAULT_FILTER)
   else
@@ -437,41 +444,41 @@ AC_DEFUN([HOTSPOT_CALCULATE_FEATURES],
 ])
 
 ###############################################################################
-# Check if the specified JVM feature is enabled. To be used in shell if
-# constructs, like this:
+# Helper function for HOTSPOT_VERIFY_FEATURES. Check if the specified JVM
+# feature is enabled. To be used in shell if constructs, like this:
 # if HOTSPOT_CHECK_JVM_FEATURE(jvmti); then
 #
-# Only valid to use in HOTSPOT_VERIFY_FEATURES.
-
 # Definition kept in one line to allow inlining in if statements.
 # Additional [] needed to keep m4 from mangling shell constructs.
 AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
 [ [ [[ " $RESULTING_FEATURES " =~ " $1 " ]] ] ])
 
 ###############################################################################
-# Check if dtrace should be enabled and has all prerequisites present.
+# Verify that the resulting set of features is consistent and allowed.
 #
 AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 [
+  variant=$1
+
   # Verify that dependencies are met for inter-feature relations.
   if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
-    AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$1'])
+    AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$variant'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(graal) && ! HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
-    AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$1'])
+    AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$variant'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$1'])
+    AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$variant'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
-    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$1'])
+    AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$variant'])
   fi
 
   if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
-    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$1'])
+    AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$variant'])
   fi
 
   # If at least one variant is missing cds, generating classlists is not possible.
@@ -484,7 +491,7 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
   [ GC_FEATURES=`$ECHO $RESULTING_FEATURES | $GREP -w '[^ ]*gc'` ]
   #FIXME: use HOTSPOT_CHECK_JVM_FEATURE???
   if test "x$GC_FEATURES" = x; then
-      AC_MSG_NOTICE([At least one gc needed for variant '$1'.])
+      AC_MSG_NOTICE([At least one gc needed for variant '$variant'.])
       AC_MSG_NOTICE([Specified features: '$RESULTING_FEATURES'])
       AC_MSG_ERROR([Cannot continue])
   fi
@@ -500,34 +507,6 @@ AC_DEFUN([HOTSPOT_VERIFY_FEATURES],
 ])
 
 ###############################################################################
-# Set up all JVM features for a single JVM variant.
-#
-AC_DEFUN([HOTSPOT_SETUP_JVM_FEATURES_FOR_ONE_VARIANT],
-[
-  variant=$1
-  # Figure out if any features is unavailable for this variant.
-  # The result is stored in UNAVAILABLE_FEATURES_VARIANT.
-  HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
-
-  # Setup the string used to filter out features from being turned on by default.
-  HOTSPOT_SETUP_FEATURES_FILTER($variant)
-
-  # Calculate the resulting set of enabled features for this variant.
-  # The result is stored in RESULTING_FEATURES.
-  HOTSPOT_CALCULATE_FEATURES
-
-  # Verify consistency for RESULTING_FEATURES
-  HOTSPOT_VERIFY_FEATURES($variant)
-
-  AC_MSG_CHECKING([JVM features to use for variant '$variant'])
-  AC_MSG_RESULT([$RESULTING_FEATURES])
-
-  # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
-  features_var_name=JVM_FEATURES_$variant
-  eval $features_var_name=\"$RESULTING_FEATURES\"
-])
-
-###############################################################################
 # Set up all JVM features for each JVM variant.
 #
 AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
@@ -536,7 +515,26 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   CDS_IS_ENABLED="true"
 
   for variant in $JVM_VARIANTS; do
-    HOTSPOT_SETUP_JVM_FEATURES_FOR_ONE_VARIANT($variant)
+      # Figure out if any features is unavailable for this variant.
+      # The result is stored in UNAVAILABLE_FEATURES_VARIANT.
+      HOTSPOT_SETUP_FEATURES_FOR_VARIANT($variant)
+
+      # Setup the string used to filter out features from being turned on by default.
+      HOTSPOT_SETUP_FEATURES_FILTER($variant)
+
+      # Calculate the resulting set of enabled features for this variant.
+      # The result is stored in RESULTING_FEATURES.
+      HOTSPOT_CALCULATE_FEATURES($variant)
+
+      # Verify consistency for RESULTING_FEATURES
+      HOTSPOT_VERIFY_FEATURES($variant)
+
+      AC_MSG_CHECKING([JVM features to use for variant '$variant'])
+      AC_MSG_RESULT([$RESULTING_FEATURES])
+
+      # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
+      features_var_name=JVM_FEATURES_$variant
+      eval $features_var_name=\"$RESULTING_FEATURES\"
   done
 
   # Unfortunately AC_SUBST does not work with non-literally named variables,
