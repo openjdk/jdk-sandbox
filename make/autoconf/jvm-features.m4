@@ -430,11 +430,11 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
 ###############################################################################
 # Helper function for JVM_FEATURES_VERIFY. Check if the specified JVM
 # feature is enabled. To be used in shell if constructs, like this:
-# if HOTSPOT_CHECK_JVM_FEATURE(jvmti); then
+# if JVM_FEATURES_IS_ACTIVE(jvmti); then
 #
 # Definition kept in one line to allow inlining in if statements.
 # Additional [] needed to keep m4 from mangling shell constructs.
-AC_DEFUN([HOTSPOT_CHECK_JVM_FEATURE],
+AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
 [ [ [[ " $RESULTING_FEATURES " =~ ' '$1' ' ]] ] ])
 
 ###############################################################################
@@ -445,33 +445,33 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
   variant=$1
 
   # Verify that dependencies are met for inter-feature relations.
-  if HOTSPOT_CHECK_JVM_FEATURE(aot) && ! HOTSPOT_CHECK_JVM_FEATURE(graal); then
+  if JVM_FEATURES_IS_ACTIVE(aot) && ! JVM_FEATURES_IS_ACTIVE(graal); then
     AC_MSG_ERROR([Specified JVM feature 'aot' requires feature 'graal' for variant '$variant'])
   fi
 
-  if HOTSPOT_CHECK_JVM_FEATURE(graal) && ! HOTSPOT_CHECK_JVM_FEATURE(jvmci); then
+  if JVM_FEATURES_IS_ACTIVE(graal) && ! JVM_FEATURES_IS_ACTIVE(jvmci); then
     AC_MSG_ERROR([Specified JVM feature 'graal' requires feature 'jvmci' for variant '$variant'])
   fi
 
-  if HOTSPOT_CHECK_JVM_FEATURE(jvmci) && ! (HOTSPOT_CHECK_JVM_FEATURE(compiler1) || HOTSPOT_CHECK_JVM_FEATURE(compiler2)); then
+  if JVM_FEATURES_IS_ACTIVE(jvmci) && ! (JVM_FEATURES_IS_ACTIVE(compiler1) || JVM_FEATURES_IS_ACTIVE(compiler2)); then
     AC_MSG_ERROR([Specified JVM feature 'jvmci' requires feature 'compiler2' or 'compiler1' for variant '$variant'])
   fi
 
-  if HOTSPOT_CHECK_JVM_FEATURE(jvmti) && ! HOTSPOT_CHECK_JVM_FEATURE(services); then
+  if JVM_FEATURES_IS_ACTIVE(jvmti) && ! JVM_FEATURES_IS_ACTIVE(services); then
     AC_MSG_ERROR([Specified JVM feature 'jvmti' requires feature 'services' for variant '$variant'])
   fi
 
-  if HOTSPOT_CHECK_JVM_FEATURE(management) && ! HOTSPOT_CHECK_JVM_FEATURE(nmt); then
+  if JVM_FEATURES_IS_ACTIVE(management) && ! JVM_FEATURES_IS_ACTIVE(nmt); then
     AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$variant'])
   fi
 
   # If at least one variant is missing cds, generating classlists is not possible.
-  if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
+  if ! JVM_FEATURES_IS_ACTIVE(cds); then
     CDS_IS_ENABLED="false"
   fi
 
   # Verify that we have at least one gc selected (i.e., feature named "*gc").
-  if ! HOTSPOT_CHECK_JVM_FEATURE(.*gc); then
+  if ! JVM_FEATURES_IS_ACTIVE(.*gc); then
       AC_MSG_NOTICE([At least one gc needed for variant '$variant'.])
       AC_MSG_NOTICE([Specified features: '$RESULTING_FEATURES'])
       AC_MSG_ERROR([Cannot continue])
