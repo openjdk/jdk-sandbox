@@ -22,6 +22,7 @@
  */
 
 import jdk.test.lib.NetworkConfiguration;
+import jdk.test.lib.Platform;
 import jdk.test.lib.net.IPSupport;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -47,6 +48,7 @@ import static java.net.StandardProtocolFamily.INET6;
  */
 
 public class ProtocolFamilies {
+    static final boolean isWindows = Platform.isWindows();
     static Inet4Address ia4;
     static Inet6Address ia6;
     static final boolean preferIPv4 =
@@ -147,9 +149,9 @@ public class ProtocolFamilies {
                            StandardProtocolFamily bfam,
                            boolean expectPass) throws Exception {
         out.println("\n");
-        try (DatagramChannel sc = openDC(ofam)) {
+        try (DatagramChannel dc = openDC(ofam)) {
             SocketAddress addr = getSocketAddress(bfam);
-            sc.bind(addr);
+            dc.bind(addr);
             if (!expectPass) {
                 throw new RuntimeException("Expected to fail");
             }
@@ -210,9 +212,14 @@ public class ProtocolFamilies {
                               StandardProtocolFamily cfam,
                               boolean expectPass) throws Exception {
         out.println("\n");
-        try (DatagramChannel ssc = openDC(sfam)) {
-            ssc.bind(null);
-            SocketAddress saddr = ssc.getLocalAddress();
+        try (DatagramChannel sdc = openDC(sfam)) {
+            if (isWindows) {
+                sdc.bind(getSocketAddressWindows(sfam));
+            } else {
+                sdc.bind(null);
+            }
+            SocketAddress saddr = sdc.getLocalAddress();
+            out.println("SSC address: " + saddr);
             try (DatagramChannel dc = openDC(cfam)) {
                 dc.connect(saddr);
                 if (!expectPass) {
@@ -250,6 +257,15 @@ public class ProtocolFamilies {
         return fam == null ? null : switch (fam) {
             case INET -> new InetSocketAddress(ia4, 0);
             case INET6 -> new InetSocketAddress(ia6, 0);
+            default -> throw new RuntimeException("address couldn't be allocated");
+        };
+    }
+
+    private static SocketAddress getSocketAddressWindows(StandardProtocolFamily fam)
+            throws UnknownHostException {
+        return fam == null ? null : switch (fam) {
+            case INET -> new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
+            case INET6 -> new InetSocketAddress(InetAddress.getByName("::1"), 0);
             default -> throw new RuntimeException("address couldn't be allocated");
         };
     }
