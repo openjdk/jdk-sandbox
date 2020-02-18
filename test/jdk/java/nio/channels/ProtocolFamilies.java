@@ -37,11 +37,13 @@ import static java.lang.System.getProperty;
 import static java.lang.Boolean.parseBoolean;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
+import static jdk.test.lib.net.IPSupport.preferIPv4Stack;
+import static jdk.test.lib.net.IPSupport.hasIPv6;
 
 /*
  * @test
  * @summary Test SocketChannel, ServerSocketChannel and DatagramChannel
- *          methods with various ProtocolFamily combinations
+ *          with various ProtocolFamily combinations
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm ProtocolFamilies
@@ -49,35 +51,23 @@ import static java.net.StandardProtocolFamily.INET6;
 
 public class ProtocolFamilies {
     static final boolean isWindows = Platform.isWindows();
-    static Inet4Address ia4;
-    static Inet6Address ia6;
-    static final boolean preferIPv4 =
-            parseBoolean(getProperty("java.net.preferIPv4Stack", "false"));
+    static final boolean isIPv6available = hasIPv6();
+    static final boolean preferIPv4 = preferIPv4Stack();
     static final boolean preferIPv6 =
             parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
-
-    static void dumpNetworkConfig() throws IOException {
-        System.out.printf("Network Interfaces:\n");
-        NetworkInterface.networkInterfaces().forEach(nif -> {
-            System.out.printf("%s index: %d\n", nif.getDisplayName(), nif.getIndex());
-            nif.inetAddresses().forEach(addr -> {
-	        System.out.println("\t" + addr.toString());
-            });
-        });
-        System.out.printf("\n");
-    }
+    static Inet4Address ia4;
+    static Inet6Address ia6;
 
     @BeforeTest()
     public void setup() throws Exception {
-	dumpNetworkConfig();
+            NetworkConfiguration.printSystemConfiguration(out);
+            IPSupport.printPlatformSupport(out);
+        out.println("preferIPv6Addresses: " + preferIPv6 + "\n");
+
         ia4 = getFirstLinkLocalIPv4Address();
         ia6 = getFirstLinkLocalIPv6Address();
-
-        out.println("preferIPv4: " + preferIPv4);
-        out.println("preferIPv6: " + preferIPv6);
-        out.println("IPv6 supported: " + IPSupport.hasIPv6());
         out.println("ia4: " + ia4);
-        out.println("ia6: " + ia6);
+        out.println("ia6: " + ia6 + "\n");
     }
 
     @DataProvider(name = "openBind")
@@ -188,7 +178,6 @@ public class ProtocolFamilies {
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
-	    out.println("Server address = " +saddr);
             try (SocketChannel sc = openSC(cfam)) {
                 sc.connect(saddr);
                 if (!expectPass) {
@@ -213,15 +202,16 @@ public class ProtocolFamilies {
                               boolean expectPass) throws Exception {
         out.println("\n");
         try (DatagramChannel sdc = openDC(sfam)) {
-            if (isWindows) {
-                sdc.bind(getSocketAddressWindows(sfam));
-            } else {
-                sdc.bind(null);
-            }
+            sdc.bind(null);
             SocketAddress saddr = sdc.getLocalAddress();
-            out.println("SSC address: " + saddr);
             try (DatagramChannel dc = openDC(cfam)) {
-                dc.connect(saddr);
+                // Cannot connect DatagramChannel to any local address on Windows
+                // use loopback address in this case
+                if (isWindows) {
+                    dc.connect(getLoopback(sfam));
+                } else {
+                    dc.connect(saddr);
+                }
                 if (!expectPass) {
                     throw new RuntimeException("Expected to fail");
                 }
@@ -261,13 +251,15 @@ public class ProtocolFamilies {
         };
     }
 
-    private static SocketAddress getSocketAddressWindows(StandardProtocolFamily fam)
+    private static SocketAddress getLoopback(StandardProtocolFamily fam)
             throws UnknownHostException {
-        return fam == null ? null : switch (fam) {
-            case INET -> new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
-            case INET6 -> new InetSocketAddress(InetAddress.getByName("::1"), 0);
-            default -> throw new RuntimeException("address couldn't be allocated");
-        };
+        if ((fam == null || fam == INET6) && isIPv6available) {
+            return new InetSocketAddress(InetAddress.getByName("::1"), 0);
+        }
+        if (fam == INET) {
+            return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
+        }
+        throw new RuntimeException("address couldn't be allocated");
     }
 
     private static Inet4Address getFirstLinkLocalIPv4Address()
