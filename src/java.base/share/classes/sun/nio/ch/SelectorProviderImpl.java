@@ -66,28 +66,32 @@ public abstract class SelectorProviderImpl
 
     @Override
     public ServerSocketChannel openServerSocketChannel() throws IOException {
-        return new ServerSocketChannelImpl(this);
+        return new InetServerSocketChannelImpl(this);
     }
 
     @Override
     public SocketChannel openSocketChannel() throws IOException {
-        return new SocketChannelImpl(this);
+        return new InetSocketChannelImpl(this);
     }
 
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");
         } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
-            return new SocketChannelImpl(this, family);
+            return new InetSocketChannelImpl(this, family);
+        } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
+            return new UnixDomainSocketChannelImpl(this, Net.unixDomainSocket(), false);
         } else
             return super.openSocketChannel(family);
     }
-    
+
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");
         } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
-            return new ServerSocketChannelImpl(this, family);
+            return new InetServerSocketChannelImpl(this, family);
+        } else if (family == StandardProtocolFamily.UNIX && Net.isUnixDomainSupported()) {
+            return new UnixDomainServerSocketChannelImpl(this);
         } else
             return super.openServerSocketChannel(family);
     }

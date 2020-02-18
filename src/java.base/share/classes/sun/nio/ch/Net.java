@@ -26,7 +26,9 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
+import java.io.FilePermission;
 import java.io.IOException;
+import java.lang.annotation.Native;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -43,6 +45,7 @@ import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
+import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.AccessController;
@@ -56,6 +59,18 @@ import sun.security.action.GetPropertyAction;
 public class Net {
 
     private Net() { }
+
+    static {
+        // Load all required native libs
+        IOUtil.load();
+    }
+
+    public static void init () {
+        // trigger initialization
+    }
+
+    private static final boolean unixDomainSupported =
+        unixDomainSocketSupported();
 
     // unspecified protocol family
     static final ProtocolFamily UNSPEC = new ProtocolFamily() {
@@ -491,7 +506,8 @@ public class Net {
     static FileDescriptor socket(ProtocolFamily family, boolean stream) throws IOException {
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
-        return IOUtil.newFD(socket0(preferIPv6, stream, false, fastLoopback));
+        boolean afunix = family == StandardProtocolFamily.UNIX;
+        return IOUtil.newFD(socket0(preferIPv6, afunix, stream, false, fastLoopback));
     }
 
     static FileDescriptor serverSocket(boolean stream) {
@@ -501,11 +517,13 @@ public class Net {
     static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
-        return IOUtil.newFD(socket0(preferIPv6, stream, true, fastLoopback));
+        boolean afunix = family == StandardProtocolFamily.UNIX;
+        return IOUtil.newFD(socket0(preferIPv6, afunix, stream, true, fastLoopback));
     }
 
     // Due to oddities SO_REUSEADDR on windows reuse is ignored
-    private static native int socket0(boolean preferIPv6, boolean stream, boolean reuse,
+    private static native int socket0(boolean preferIPv6, boolean unixdomain,
+                                      boolean stream, boolean reuse,
                                       boolean fastLoopback);
 
     public static void bind(FileDescriptor fd, InetAddress addr, int port)
@@ -749,6 +767,71 @@ public class Net {
      */
     public static final short POLLIN;
     public static final short POLLOUT;
+
+    public static UnixDomainSocketAddress checkUnixAddress(SocketAddress sa) {
+        if (sa == null)
+            return null;
+        if (!(sa instanceof UnixDomainSocketAddress))
+            throw new UnsupportedAddressTypeException();
+        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
+        return usa;
+    }
+
+    public static boolean isUnixDomainSupported() {
+        return unixDomainSupported;
+    }
+
+    public static int unixDomainMaxNameLen() {
+        return unixDomainSupported ? unixDomainMaxNameLen0() : -1;
+    }
+
+    static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
+        SecurityManager sm = System.getSecurityManager();
+        if (addr == null || sm == null)
+            return addr;
+
+        try{
+            FilePermission p = new FilePermission(addr.getPathName(), "read");
+            sm.checkPermission(p);
+            // Security check passed
+        } catch (SecurityException e) {
+            // Return unnamed address only if security check fails
+            addr = UnixDomainSocketAddress.UNNAMED;
+        }
+        return addr;
+    }
+
+    static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
+        return System.getSecurityManager() == null ? addr.toString() :
+                UnixDomainSocketAddress.UNNAMED.toString();
+    }
+
+    // -- Socket operations --
+
+    public static FileDescriptor unixDomainSocket() throws IOException {
+        return IOUtil.newFD(unixDomainSocket0());
+    }
+
+    private static native int unixDomainSocket0();
+
+    private static native boolean unixDomainSocketSupported();
+
+    static native void unixDomainBind(FileDescriptor fd, UnixDomainSocketAddress addr)
+        throws IOException;
+
+    static native int unixDomainConnect(FileDescriptor fd, UnixDomainSocketAddress remote)
+        throws IOException;
+
+    static native int unixDomainAccept(FileDescriptor fd,
+                                     FileDescriptor newfd,
+                                     SocketAddress[] isaa)
+        throws IOException;
+
+    static native int unixDomainMaxNameLen0();
+
+    public static native UnixDomainSocketAddress localUnixAddress(FileDescriptor fd)
+        throws IOException;
+
     public static final short POLLERR;
     public static final short POLLHUP;
     public static final short POLLNVAL;
@@ -762,7 +845,6 @@ public class Net {
     static native short pollconnValue();
 
     static {
-        IOUtil.load();
         initIDs();
 
         POLLIN     = pollinValue();

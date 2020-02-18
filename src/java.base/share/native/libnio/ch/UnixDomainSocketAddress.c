@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2009, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,40 @@
  * questions.
  */
 
-package java.net;
+#include <string.h>
 
-/**
- * Defines the standard families of communication protocols.
- *
- * @since 1.7
+#include "java_nio_channels_UnixDomainSocketAddress.h"
+#include "net_util.h"
+
+/************************************************************************
+ * UnixDomainSocketAddress
  */
 
-public enum StandardProtocolFamily implements ProtocolFamily {
+jclass udsa_class;
+jmethodID udsa_ctorID;
+jfieldID udsa_pathID;
 
-    /**
-     * Internet Protocol Version 4 (IPv4)
-     */
-    INET,
+static int udsa_initialized = 0;
 
-    /**
-     * Internet Protocol Version 6 (IPv6)
-     */
-    INET6,
+/*
+ * Class:     java_nio_channels_UnixDomainSocketAddress
+ * Method:    init
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL
+Java_java_nio_channels_UnixDomainSocketAddress_init(JNIEnv *env, jclass dontuse) {
+    if (!udsa_initialized) {
+        jclass c = (*env)->FindClass(env,"java/nio/channels/UnixDomainSocketAddress");
+        CHECK_NULL(c);
+        udsa_class = (*env)->NewGlobalRef(env, c);
+        CHECK_NULL(udsa_class);
 
-    /**
-     * Unix domain (AF_UNIX)
-     */
-    UNIX
+        udsa_pathID = (*env)->GetFieldID(env, udsa_class, "pathname", "Ljava/lang/String;");
+        CHECK_NULL(udsa_pathID);
+
+        udsa_ctorID = (*env)->GetMethodID(env, udsa_class, "<init>", "(Ljava/lang/String;)V");
+        CHECK_NULL(udsa_ctorID);
+
+        udsa_initialized = 1;
+    }
 }

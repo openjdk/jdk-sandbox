@@ -190,7 +190,8 @@ int getInetAddress_addr(JNIEnv *env, jobject iaObj) {
     return (*env)->GetIntField(env, holder, iac_addressID);
 }
 
-int getInetAddress_family(JNIEnv *env, jobject iaObj) {
+JNIEXPORT int JNICALL
+getInetAddress_family(JNIEnv *env, jobject iaObj) {
     jobject holder = (*env)->GetObjectField(env, iaObj, ia_holderID);
     CHECK_NULL_THROW_NPE_RETURN(env, holder, "InetAddress holder is null", -1);
     return (*env)->GetIntField(env, holder, iac_familyID);
