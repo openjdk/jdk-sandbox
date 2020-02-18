@@ -131,15 +131,6 @@ class SocketChannelImpl
 
     SocketChannelImpl(SelectorProvider sp, ProtocolFamily family) throws IOException {
         super(sp);
-        Objects.requireNonNull(family, "'family' is null");
-        if ((family != StandardProtocolFamily.INET) &&
-                (family != StandardProtocolFamily.INET6)) {
-            throw new UnsupportedOperationException("Protocol family not supported");
-        }
-        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
-            throw new UnsupportedOperationException("IPv6 not available");
-        }
-
         this.fd = Net.socket(family, true);
         this.fdVal = IOUtil.fdVal(fd);
         this.family = family;

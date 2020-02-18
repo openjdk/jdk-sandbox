@@ -74,23 +74,19 @@ public abstract class SelectorProviderImpl
         return new SocketChannelImpl(this);
     }
 
-    @Override
-    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException
-    {
-        if (family == StandardProtocolFamily.INET ||
-                                family == StandardProtocolFamily.INET6) {
+    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
             return new SocketChannelImpl(this, family);
         } else
             return super.openSocketChannel(family);
     }
-
-    @Override
-    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
-        throws IOException
-    {
-        if (family == StandardProtocolFamily.INET ||
-                                family == StandardProtocolFamily.INET6)
-        {
+    
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
             return new ServerSocketChannelImpl(this, family);
         } else
             return super.openServerSocketChannel(family);

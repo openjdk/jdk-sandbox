@@ -54,8 +54,20 @@ public class ProtocolFamilies {
     static final boolean preferIPv6 =
             parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
 
+    static void dumpNetworkConfig() throws IOException {
+        System.out.printf("Network Interfaces:\n");
+        NetworkInterface.networkInterfaces().forEach(nif -> {
+            System.out.printf("%s index: %d\n", nif.getDisplayName(), nif.getIndex());
+            nif.inetAddresses().forEach(addr -> {
+	        System.out.println("\t" + addr.toString());
+            });
+        });
+        System.out.printf("\n");
+    }
+
     @BeforeTest()
     public void setup() throws Exception {
+	dumpNetworkConfig();
         ia4 = getFirstLinkLocalIPv4Address();
         ia6 = getFirstLinkLocalIPv6Address();
 
@@ -174,6 +186,7 @@ public class ProtocolFamilies {
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
+	    out.println("Server address = " +saddr);
             try (SocketChannel sc = openSC(cfam)) {
                 sc.connect(saddr);
                 if (!expectPass) {
