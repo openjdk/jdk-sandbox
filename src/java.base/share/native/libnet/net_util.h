@@ -40,9 +40,6 @@
 #define NET_WAIT_WRITE   0x02
 #define NET_WAIT_CONNECT 0x04
 
-/* 2 bytes to allow for null at end of string and null at start of string for abstract name */
-#define MAX_UNIX_DOMAIN_PATH_LEN (int)(sizeof(((struct sockaddr_un *)0)->sun_path)-2)
-
 /************************************************************************
  * Cached field IDs
  *
@@ -74,7 +71,7 @@ extern void setInetAddress_addr(JNIEnv *env, jobject iaObj, int address);
 extern void setInetAddress_family(JNIEnv *env, jobject iaObj, int family);
 extern void setInetAddress_hostName(JNIEnv *env, jobject iaObj, jobject h);
 extern int getInetAddress_addr(JNIEnv *env, jobject iaObj);
-JNIEXPORT int JNICALL getInetAddress_family(JNIEnv *env, jobject iaObj);
+extern int getInetAddress_family(JNIEnv *env, jobject iaObj);
 
 extern jclass ia4_class;
 extern jmethodID ia4_ctrID;
@@ -110,11 +107,6 @@ extern jfieldID ia6_scopeidID;
 extern jfieldID ia6_scopeidsetID;
 extern jfieldID ia6_scopeifnameID;
 extern jmethodID ia6_ctrID;
-
-/* UnixDomainSocketAddress methods */
-extern jclass udsa_class;
-extern jmethodID udsa_ctorID;
-extern jfieldID udsa_pathID;
 
 /************************************************************************
  *  Utilities
@@ -161,16 +153,6 @@ NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
 
 JNIEXPORT jobject JNICALL
 NET_SockaddrToInetAddress(JNIEnv *env, SOCKETADDRESS *sa, int *port);
-
-JNIEXPORT int JNICALL
-NET_InetAddressToSockaddr0(JNIEnv *env, jobject iaObj, jint src_family, jint target_family,
-                          int port, SOCKETADDRESS *sa, int *len);
-
-JNIEXPORT jobject JNICALL
-NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len);
-
-JNIEXPORT jint JNICALL
-NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len);
 
 void platformInit();
 

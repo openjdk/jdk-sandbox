@@ -26,7 +26,6 @@
 #include <WS2tcpip.h>
 #include <iphlpapi.h>
 #include <icmpapi.h>
-#include <afunix.h>
 
 /* used to disable connection reset messages on Windows XP */
 #ifndef SIO_UDP_CONNRESET

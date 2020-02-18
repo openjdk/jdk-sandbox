@@ -34,7 +34,6 @@
 #include "nio_util.h"
 #include "net_util.h"
 
-#include "java_net_InetAddress.h"
 #include "sun_nio_ch_Net.h"
 #include "sun_nio_ch_PollArrayWrapper.h"
 
@@ -86,177 +85,6 @@ jint handleSocketError(JNIEnv *env, int errorValue)
 
 static jclass isa_class;        /* java.net.InetSocketAddress */
 static jmethodID isa_ctorID;    /* InetSocketAddress(InetAddress, int) */
-
-extern jclass udsa_class;
-extern jmethodID udsa_ctorID;
-extern jfieldID udsa_pathID;
-
-
-JNIEXPORT jobject JNICALL
-NET_SockaddrToUnixAddress(JNIEnv *env, struct sockaddr_un *sa, socklen_t len) {
-
-    if (sa->sun_family == AF_UNIX) {
-        jstring nstr = JNU_NewStringPlatform(env, sa->sun_path);
-        return (*env)->NewObject(env, udsa_class, udsa_ctorID, nstr);
-    }
-    return NULL;
-}
-
-JNIEXPORT jint JNICALL
-NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *sa, int *len)
-{
-    jstring path;
-    memset(sa, 0, sizeof(struct sockaddr_un));
-    sa->sun_family = AF_UNIX;
-    if (uaddr == NULL) {
-        /* Do explicit bind on Windows */
-        *len = (int)(offsetof(struct sockaddr_un, sun_path));
-        return 0;
-    }
-    path = (*env)->GetObjectField(env, uaddr, udsa_pathID);
-    jboolean isCopy;
-    int ret;
-    const char* pname = JNU_GetStringPlatformChars(env, path, &isCopy);
-    size_t name_len = strlen(pname)+1;
-    if (name_len > MAX_UNIX_DOMAIN_PATH_LEN) {
-        JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "unix domain path too long");
-        ret = 1;
-        goto finish;
-    }
-    strncpy(sa->sun_path, pname, name_len);
-    *len = (int)(offsetof(struct sockaddr_un, sun_path) + name_len);
-    ret = 0;
-  finish:
-    if (isCopy)
-        JNU_ReleaseStringPlatformChars(env, path, pname);
-    return ret;
-}
-
-JNIEXPORT jboolean JNICALL
-Java_sun_nio_ch_Net_unixDomainSocketSupported(JNIEnv *env, jclass cl)
-{
-    SOCKET fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (fd == INVALID_SOCKET) {
-        return JNI_FALSE;
-    }
-    closesocket(fd);
-    return JNI_TRUE;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainMaxNameLen0(JNIEnv *env, jclass cl)
-{
-    return MAX_UNIX_DOMAIN_PATH_LEN - 1;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainSocket0(JNIEnv *env, jclass cl)
-{
-    SOCKET fd = socket(PF_UNIX, SOCK_STREAM, 0);
-    if (fd == INVALID_SOCKET) {
-        return handleSocketError(env, WSAGetLastError());
-    }
-    return (int)fd;
-}
-
-/**
- * Windows does not support auto bind. So, the windows version of NET_UnixSocketAddressToSockaddr
- * looks out for a null 'uaddr' and handles it specially
- */
-JNIEXPORT void JNICALL
-Java_sun_nio_ch_Net_unixDomainBind(JNIEnv *env, jclass clazz, jobject fdo, jobject uaddr)
-{
-    struct sockaddr_un sa;
-    int sa_len = 0;
-    int rv = 0;
-
-    if (NET_UnixSocketAddressToSockaddr(env, uaddr, &sa, &sa_len) != 0)
-        return;
-
-    int fd = fdval(env, fdo);
-
-    rv = bind(fdval(env, fdo), (struct sockaddr *)&sa, sa_len);
-    if (rv != 0) {
-        int err = WSAGetLastError();
-        NET_ThrowNew(env, err, "bind");
-    }
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainConnect(JNIEnv *env, jclass clazz, jobject fdo, jobject usa)
-{
-    struct sockaddr_un sa;
-    int sa_len = 0;
-    int rv;
-
-    if (NET_UnixSocketAddressToSockaddr(env, usa, &sa, &sa_len) != 0) {
-        return IOS_THROWN;
-    }
-
-    rv = connect(fdval(env, fdo), (const struct sockaddr *)&sa, sa_len);
-    if (rv != 0) {
-        int err = WSAGetLastError();
-        if (err == WSAEINPROGRESS || err == WSAEWOULDBLOCK) {
-            return IOS_UNAVAILABLE;
-        }
-        NET_ThrowNew(env, err, "connect");
-        return IOS_THROWN;
-    }
-    return 1;
-}
-
-JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, jobject newfdo,
-                           jobjectArray usaa)
-{
-    jint fd = fdval(env, fdo);
-    jint newfd;
-    struct sockaddr_un sa;
-    socklen_t sa_len = sizeof(sa);
-    jobject usa;
-
-    /* accept connection but ignore ECONNABORTED */
-    for (;;) {
-        newfd = (jint)accept(fd, (struct sockaddr *)&sa, &sa_len);
-        if (newfd >= 0) {
-            break;
-        }
-        if (errno != ECONNABORTED) {
-            break;
-        }
-        /* ECONNABORTED => restart accept */
-    }
-
-    if (newfd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return IOS_UNAVAILABLE;
-        if (errno == EINTR)
-            return IOS_INTERRUPTED;
-        JNU_ThrowIOExceptionWithLastError(env, "Accept failed");
-        return IOS_THROWN;
-    }
-
-    setfdval(env, newfdo, newfd);
-
-    usa = NET_SockaddrToUnixAddress(env, &sa, sa_len);
-    CHECK_NULL_RETURN(usa, IOS_THROWN);
-
-    (*env)->SetObjectArrayElement(env, usaa, 0, usa);
-
-    return 1;
-}
-
-JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_Net_localUnixAddress(JNIEnv *env, jclass clazz, jobject fdo)
-{
-    struct sockaddr_un sa;
-    socklen_t sa_len = sizeof(sa);
-    if (getsockname(fdval(env, fdo), (struct sockaddr *)&sa, &sa_len) < 0) {
-        handleSocketError(env, WSAGetLastError());
-        return NULL;
-    }
-    return NET_SockaddrToUnixAddress(env, &sa, sa_len);
-}
 
 JNIEXPORT void JNICALL
 Java_sun_nio_ch_Net_initIDs(JNIEnv *env, jclass clazz)
@@ -324,38 +152,21 @@ Java_sun_nio_ch_Net_canUseIPv6OptionsWithIPv4LocalAddress0(JNIEnv* env, jclass c
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6, jint family,
+Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6,
                             jboolean stream, jboolean reuse, jboolean fastLoopback)
 {
     SOCKET s;
-    int domain;
-    if (family == sun_nio_ch_Net_UNSPECIFIED) {
-        domain = (preferIPv6) ? AF_INET6 : AF_INET;
-    } else {
-        domain = family == sun_nio_ch_Net_IPv6 ? AF_INET6 : AF_INET;
-    }
+    int domain = (preferIPv6) ? AF_INET6 : AF_INET;
 
     s = socket(domain, (stream ? SOCK_STREAM : SOCK_DGRAM), 0);
     if (s != INVALID_SOCKET) {
         SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
         /* IPV6_V6ONLY is true by default */
-        if (family == sun_nio_ch_Net_UNSPECIFIED && domain == AF_INET6 && ipv4_available()) {
+        if (domain == AF_INET6) {
             int opt = 0;
             setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
                        (const char *)&opt, sizeof(opt));
-        }
-
-        if (family == sun_nio_ch_Net_IPv6) {
-            int opt = 1;
-             if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&opt,
-                            sizeof(int)) < 0) {
-                JNU_ThrowByNameWithLastError(env,
-                                             JNU_JAVANETPKG "SocketException",
-                                             "Unable to set IPV6_V6ONLY");
-                closesocket(s);
-                return -1;
-            }
         }
 
         /* Disable WSAECONNRESET errors for initially unconnected UDP sockets */
@@ -385,23 +196,15 @@ Java_sun_nio_ch_Net_socket0(JNIEnv *env, jclass cl, jboolean preferIPv6, jint fa
 }
 
 JNIEXPORT void JNICALL
-Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jint target_family, jboolean preferIPv6,
+Java_sun_nio_ch_Net_bind0(JNIEnv *env, jclass clazz, jobject fdo, jboolean preferIPv6,
                           jboolean isExclBind, jobject iao, jint port)
 {
     SOCKETADDRESS sa;
     int rv;
     int sa_len = 0;
 
-    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
-        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
-            return;
-        }
-    } else {
-        jint src_family = getInetAddress_family(env, iao);
-        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
-                                            port, &sa, &sa_len) != 0) {
-                return;
-            }
+    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
+        return;
     }
 
     rv = NET_WinBind(fdval(env, fdo), &sa, sa_len, isExclBind);
@@ -418,24 +221,16 @@ Java_sun_nio_ch_Net_listen(JNIEnv *env, jclass cl, jobject fdo, jint backlog)
 }
 
 JNIEXPORT jint JNICALL
-Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, jint target_family,
-                             jobject fdo, jobject iao, jint port)
+Java_sun_nio_ch_Net_connect0(JNIEnv *env, jclass clazz, jboolean preferIPv6, jobject fdo,
+                             jobject iao, jint port)
 {
     SOCKETADDRESS sa;
     int rv;
     int sa_len = 0;
     SOCKET s = (SOCKET)fdval(env, fdo);
 
-    if (target_family == sun_nio_ch_Net_UNSPECIFIED) {
-        if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
-            return IOS_THROWN;
-        }
-    } else {
-        jint src_family = getInetAddress_family(env, iao);
-        if (NET_InetAddressToSockaddr0(env, iao, src_family, target_family,
-                                            port, &sa, &sa_len) != 0) {
-            return IOS_THROWN;
-        }
+    if (NET_InetAddressToSockaddr(env, iao, port, &sa, &sa_len, preferIPv6) != 0) {
+        return IOS_THROWN;
     }
 
     rv = connect(s, &sa.sa, sa_len);

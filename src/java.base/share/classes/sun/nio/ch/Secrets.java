@@ -47,7 +47,7 @@ public final class Secrets {
 
     public static SocketChannel newSocketChannel(FileDescriptor fd) {
         try {
-            return new InetSocketChannelImpl(provider(), fd, false);
+            return new SocketChannelImpl(provider(), fd, false);
         } catch (IOException ioe) {
             throw new AssertionError(ioe);
         }
@@ -55,7 +55,7 @@ public final class Secrets {
 
     public static ServerSocketChannel newServerSocketChannel(FileDescriptor fd) {
         try {
-            return new InetServerSocketChannelImpl(provider(), fd, false);
+            return new ServerSocketChannelImpl(provider(), fd, false);
         } catch (IOException ioe) {
             throw new AssertionError(ioe);
         }

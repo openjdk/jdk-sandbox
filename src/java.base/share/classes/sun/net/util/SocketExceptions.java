@@ -28,8 +28,6 @@ package sun.net.util;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
-import java.nio.channels.UnixDomainSocketAddress;
-import java.net.SocketAddress;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
@@ -53,13 +51,7 @@ public final class SocketExceptions {
      *
      * Only specific IOException subtypes are supported.
      */
-    public static IOException of(IOException e, SocketAddress addr) {
-        if (addr instanceof UnixDomainSocketAddress)
-            return ofUnixDomain(e, (UnixDomainSocketAddress)addr);
-        if (!(addr instanceof InetSocketAddress))
-            return e;
-
-        InetSocketAddress address = (InetSocketAddress)addr;
+    public static IOException of(IOException e, InetSocketAddress address) {
         if (!enhancedExceptionText || address == null)
             return e;
         int port = address.getPort();
@@ -70,18 +62,6 @@ public final class SocketExceptions {
         sb.append(host);
         sb.append(':');
         sb.append(Integer.toString(port));
-        String enhancedMsg = sb.toString();
-        return create(e, enhancedMsg);
-    }
-
-    private static IOException ofUnixDomain(IOException e, UnixDomainSocketAddress addr) {
-        if (!enhancedExceptionText || addr == null)
-            return e;
-        String path = addr.getPathName();
-        StringBuilder sb = new StringBuilder();
-        sb.append(e.getMessage());
-        sb.append(": ");
-        sb.append(path);
         String enhancedMsg = sb.toString();
         return create(e, enhancedMsg);
     }

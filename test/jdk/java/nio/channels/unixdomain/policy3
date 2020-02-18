@@ -1,7 +1,0 @@
-grant {
-    // permission to bind in temp directory
-    permission java.io.FilePermission "${java.io.tmpdir}", "write";
-
-    // permission to connect to temp directory
-    permission java.io.FilePermission "${java.io.tmpdir}${file.separator}*", "read,write";
-};

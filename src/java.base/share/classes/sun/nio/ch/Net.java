@@ -26,9 +26,7 @@
 package sun.nio.ch;
 
 import java.io.FileDescriptor;
-import java.io.FilePermission;
 import java.io.IOException;
-import java.lang.annotation.Native;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -45,7 +43,6 @@ import java.nio.channels.AlreadyBoundException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetBoundException;
 import java.nio.channels.NotYetConnectedException;
-import java.nio.channels.UnixDomainSocketAddress;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.AccessController;
@@ -59,18 +56,6 @@ import sun.security.action.GetPropertyAction;
 public class Net {
 
     private Net() { }
-
-    static {
-        // Load all required native libs
-        IOUtil.load();
-    }
-
-    public static void init () {
-        // trigger initialization
-    }
-
-    private static final boolean unixDomainSupported =
-        unixDomainSocketSupported();
 
     // unspecified protocol family
     static final ProtocolFamily UNSPEC = new ProtocolFamily() {
@@ -155,14 +140,6 @@ public class Net {
     }
 
     public static InetSocketAddress checkAddress(SocketAddress sa) {
-        return checkAddress(sa, Net.UNSPEC);
-    }
-
-    public static InetSocketAddress checkAddress(SocketAddress sa, ProtocolFamily family) {
-        return checkAddress(sa, family, false);
-    }
-
-    public static InetSocketAddress checkAddress(SocketAddress sa, ProtocolFamily family, boolean exactMatch) {
         if (sa == null)
             throw new NullPointerException();
         if (!(sa instanceof InetSocketAddress))
@@ -173,14 +150,16 @@ public class Net {
         InetAddress addr = isa.getAddress();
         if (!(addr instanceof Inet4Address || addr instanceof Inet6Address))
             throw new IllegalArgumentException("Invalid address type");
-        if (family == Net.UNSPEC || !exactMatch) {
-            return isa;
+        return isa;
+    }
+
+    static InetSocketAddress checkAddress(SocketAddress sa, ProtocolFamily family) {
+        InetSocketAddress isa = checkAddress(sa);
+        if (family == StandardProtocolFamily.INET) {
+            InetAddress addr = isa.getAddress();
+            if (!(addr instanceof Inet4Address))
+                throw new UnsupportedAddressTypeException();
         }
-        // check family is same
-        if ((addr instanceof Inet4Address) && (family != StandardProtocolFamily.INET))
-            throw new UnsupportedAddressTypeException();
-        if ((addr instanceof Inet6Address) && (family != StandardProtocolFamily.INET6))
-            throw new UnsupportedAddressTypeException();
         return isa;
     }
 
@@ -326,13 +305,27 @@ public class Net {
     }
 
     static InetAddress anyLocalInet6Address() {
-        return AccessController.doPrivileged((PrivilegedAction<InetAddress>)() -> {
+        return AccessController.doPrivileged(
+            (PrivilegedAction<InetAddress>)() -> {
             try {
                 return InetAddress.getByName("::0");
             } catch (IOException e) {
                 throw new InternalError(e);
             }
         });
+    }
+
+    private static InetAddress anyLocalInet4 = anyLocalInet4Address();
+    private static InetAddress anyLocalInet6 = anyLocalInet6Address();
+
+    static InetSocketAddress anyLocalSocketAddress(ProtocolFamily family) {
+        if (family == StandardProtocolFamily.INET) {
+            return new InetSocketAddress(anyLocalInet4, 0);
+        } else if (family == StandardProtocolFamily.INET6) {
+            return new InetSocketAddress(anyLocalInet6, 0);
+        } else {
+            throw new UnsupportedAddressTypeException();
+        }
     }
 
     /**
@@ -496,38 +489,23 @@ public class Net {
     }
 
     static FileDescriptor socket(ProtocolFamily family, boolean stream) throws IOException {
-        if (family == Net.UNSPEC || !stream) {
-            boolean preferIPv6 = isIPv6Available() &&
-                (family != StandardProtocolFamily.INET);
-            return IOUtil.newFD(socket0(preferIPv6, UNSPECIFIED, stream, false, fastLoopback));
-        } else {
-            return IOUtil.newFD(socket0(false, protFamilyToInt(family), true, false, fastLoopback));
-        }
-    }
-
-    // Protocol family as requested by user when creating a channel, mapped to an integer
-    @Native static final int IPv4 = 1;
-    @Native static final int IPv6 = 2;
-    @Native static final int UNSPECIFIED = -1;
-
-    static int protFamilyToInt(ProtocolFamily family) {
-        assert family == StandardProtocolFamily.INET ||
-               family == StandardProtocolFamily.INET6 ||
-               family == Net.UNSPEC;
-        return family == Net.UNSPEC ? UNSPECIFIED :
-                (family == StandardProtocolFamily.INET ? IPv4 : IPv6);
+        boolean preferIPv6 = isIPv6Available() &&
+            (family != StandardProtocolFamily.INET);
+        return IOUtil.newFD(socket0(preferIPv6, stream, false, fastLoopback));
     }
 
     static FileDescriptor serverSocket(boolean stream) {
-        return serverSocket(stream, UNSPECIFIED);
+        return serverSocket(UNSPEC, stream);
     }
 
-    static FileDescriptor serverSocket(boolean stream, int family) {
-        return IOUtil.newFD(socket0(isIPv6Available(), family, stream, true, fastLoopback));
+    static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
+        boolean preferIPv6 = isIPv6Available() &&
+            (family != StandardProtocolFamily.INET);
+        return IOUtil.newFD(socket0(preferIPv6, stream, true, fastLoopback));
     }
 
     // Due to oddities SO_REUSEADDR on windows reuse is ignored
-    private static native int socket0(boolean preferIPv6, int fam, boolean stream, boolean reuse,
+    private static native int socket0(boolean preferIPv6, boolean stream, boolean reuse,
                                       boolean fastLoopback);
 
     public static void bind(FileDescriptor fd, InetAddress addr, int port)
@@ -544,10 +522,10 @@ public class Net {
         if (addr.isLinkLocalAddress()) {
             addr = IPAddressUtil.toScopedAddress(addr);
         }
-        bind0(fd, protFamilyToInt(family), preferIPv6, exclusiveBind, addr, port);
+        bind0(fd, preferIPv6, exclusiveBind, addr, port);
     }
 
-    private static native void bind0(FileDescriptor fd, int family, boolean preferIPv6,
+    private static native void bind0(FileDescriptor fd, boolean preferIPv6,
                                      boolean useExclBind, InetAddress addr,
                                      int port)
         throws IOException;
@@ -568,11 +546,10 @@ public class Net {
         }
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
-        return connect0(preferIPv6, protFamilyToInt(family), fd, remote, remotePort);
+        return connect0(preferIPv6, fd, remote, remotePort);
     }
 
     private static native int connect0(boolean preferIPv6,
-                                       int family,
                                        FileDescriptor fd,
                                        InetAddress remote,
                                        int remotePort)
@@ -772,71 +749,6 @@ public class Net {
      */
     public static final short POLLIN;
     public static final short POLLOUT;
-
-    public static UnixDomainSocketAddress checkUnixAddress(SocketAddress sa) {
-        if (sa == null)
-            return null;
-        if (!(sa instanceof UnixDomainSocketAddress))
-            throw new UnsupportedAddressTypeException();
-        UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
-        return usa;
-    }
-
-    public static boolean isUnixDomainSupported() {
-        return unixDomainSupported;
-    }
-
-    public static int unixDomainMaxNameLen() {
-        return unixDomainSupported ? unixDomainMaxNameLen0() : -1;
-    }
-
-    static UnixDomainSocketAddress getRevealedLocalAddress(UnixDomainSocketAddress addr) {
-        SecurityManager sm = System.getSecurityManager();
-        if (addr == null || sm == null)
-            return addr;
-
-        try{
-            FilePermission p = new FilePermission(addr.getPathName(), "read");
-            sm.checkPermission(p);
-            // Security check passed
-        } catch (SecurityException e) {
-            // Return unnamed address only if security check fails
-            addr = UnixDomainSocketAddress.UNNAMED;
-        }
-        return addr;
-    }
-
-    static String getRevealedLocalAddressAsString(UnixDomainSocketAddress addr) {
-        return System.getSecurityManager() == null ? addr.toString() :
-                UnixDomainSocketAddress.UNNAMED.toString();
-    }
-
-    // -- Socket operations --
-
-    public static FileDescriptor unixDomainSocket() throws IOException {
-        return IOUtil.newFD(unixDomainSocket0());
-    }
-
-    private static native int unixDomainSocket0();
-
-    private static native boolean unixDomainSocketSupported();
-
-    static native void unixDomainBind(FileDescriptor fd, UnixDomainSocketAddress addr)
-        throws IOException;
-
-    static native int unixDomainConnect(FileDescriptor fd, UnixDomainSocketAddress remote)
-        throws IOException;
-
-    static native int unixDomainAccept(FileDescriptor fd,
-                                     FileDescriptor newfd,
-                                     SocketAddress[] isaa)
-        throws IOException;
-
-    static native int unixDomainMaxNameLen0();
-
-    public static native UnixDomainSocketAddress localUnixAddress(FileDescriptor fd)
-        throws IOException;
-
     public static final short POLLERR;
     public static final short POLLHUP;
     public static final short POLLNVAL;
@@ -850,6 +762,7 @@ public class Net {
     static native short pollconnValue();
 
     static {
+        IOUtil.load();
         initIDs();
 
         POLLIN     = pollinValue();

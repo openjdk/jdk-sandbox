@@ -28,6 +28,8 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -55,7 +57,7 @@ import sun.net.ext.ExtendedSocketOptions;
  * An implementation of ServerSocketChannels
  */
 
-abstract class ServerSocketChannelImpl
+class ServerSocketChannelImpl
     extends ServerSocketChannel
     implements SelChImpl
 {
@@ -85,12 +87,31 @@ abstract class ServerSocketChannelImpl
     private long thread;
 
     // Binding
-    private SocketAddress localAddress; // null => unbound
+    private InetSocketAddress localAddress; // null => unbound
+
+    // set true when exclusive binding is on and SO_REUSEADDR is emulated
+    private boolean isReuseAddress;
 
     // Our socket adaptor, if any
     private ServerSocket socket;
 
     // -- End of fields protected by stateLock
+
+    // the protocol family requested by the user
+    private final ProtocolFamily family;
+
+    ServerSocketChannelImpl(SelectorProvider sp) {
+        this(sp, Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET);
+    }
+
+    ServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) {
+        super(sp);
+        this.fd = Net.serverSocket(family, true);
+        this.fdVal = IOUtil.fdVal(fd);
+        this.family = family;
+    }
 
     ServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
@@ -98,9 +119,13 @@ abstract class ServerSocketChannelImpl
         super(sp);
         this.fd =  fd;
         this.fdVal = IOUtil.fdVal(fd);
+        this.family = Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET;
+
         if (bound) {
             synchronized (stateLock) {
-                localAddress = localAddressImpl(fd);
+                localAddress = Net.localAddress(fd);
             }
         }
     }
@@ -125,42 +150,9 @@ abstract class ServerSocketChannelImpl
         synchronized (stateLock) {
             ensureOpen();
             return (localAddress == null)
-                ? null
-                : getRevealedLocalAddress(localAddress);
+                    ? null
+                    : Net.getRevealedLocalAddress(localAddress);
         }
-    }
-
-    abstract SocketAddress localAddressImpl(FileDescriptor fd) throws IOException;
-
-    abstract SocketAddress getRevealedLocalAddress(SocketAddress addr);
-
-    abstract String getRevealedLocalAddressAsString(SocketAddress addr);
-
-    /**
-     * If special handling of a socket option is required, override this in subclass
-     * and return true.
-     *
-     * @param name
-     * @param value
-     * @param <T>
-     * @return
-     * @throws IOException
-     */
-    <T> boolean setOptionSpecial(SocketOption<T> name, T value) throws IOException {
-        return false;
-    }
-
-    /**
-     * If special handling of a socket option is required, override this in subclass
-     * and return the option value.
-     *
-     * @param name
-     * @param <T>
-     * @return
-     * @throws IOException
-     */
-    <T> T getOptionSpecial(SocketOption<T> name) throws IOException {
-        return null;
     }
 
     @Override
@@ -176,7 +168,10 @@ abstract class ServerSocketChannelImpl
         synchronized (stateLock) {
             ensureOpen();
 
-            if (!setOptionSpecial(name, value)) {
+            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+                // SO_REUSEADDR emulated when using exclusive bind
+                isReuseAddress = (Boolean)value;
+            } else {
                 // no options that require special handling
                 Net.setSocketOption(fd, Net.UNSPEC, name, value);
             }
@@ -195,13 +190,33 @@ abstract class ServerSocketChannelImpl
 
         synchronized (stateLock) {
             ensureOpen();
-            T ret;
-            if ((ret = getOptionSpecial(name)) != null) {
-                return ret;
+            if (name == StandardSocketOptions.SO_REUSEADDR && Net.useExclusiveBind()) {
+                // SO_REUSEADDR emulated when using exclusive bind
+                return (T)Boolean.valueOf(isReuseAddress);
             }
             // no options that require special handling
             return (T) Net.getSocketOption(fd, Net.UNSPEC, name);
         }
+    }
+
+    private static class DefaultOptionsHolder {
+        static final Set<SocketOption<?>> defaultOptions = defaultOptions();
+
+        private static Set<SocketOption<?>> defaultOptions() {
+            HashSet<SocketOption<?>> set = new HashSet<>();
+            set.add(StandardSocketOptions.SO_RCVBUF);
+            set.add(StandardSocketOptions.SO_REUSEADDR);
+            if (Net.isReusePortAvailable()) {
+                set.add(StandardSocketOptions.SO_REUSEPORT);
+            }
+            set.addAll(ExtendedSocketOptions.serverSocketOptions());
+            return Collections.unmodifiableSet(set);
+        }
+    }
+
+    @Override
+    public final Set<SocketOption<?>> supportedOptions() {
+        return DefaultOptionsHolder.defaultOptions;
     }
 
     @Override
@@ -210,12 +225,19 @@ abstract class ServerSocketChannelImpl
             ensureOpen();
             if (localAddress != null)
                 throw new AlreadyBoundException();
-            localAddress = bindImpl(local, backlog);
+            InetSocketAddress isa = (local == null)
+                                    ? Net.anyLocalSocketAddress(family)
+                                    : Net.checkAddress(local, family);
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null)
+                sm.checkListen(isa.getPort());
+            NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
+            Net.bind(family, fd, isa.getAddress(), isa.getPort());
+            Net.listen(fd, backlog < 1 ? 50 : backlog);
+            localAddress = Net.localAddress(fd);
         }
         return this;
     }
-
-    abstract SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException;
 
     /**
      * Marks the beginning of an I/O operation that might block.
@@ -255,25 +277,22 @@ abstract class ServerSocketChannelImpl
         }
     }
 
-    protected abstract int acceptImpl(FileDescriptor fd, FileDescriptor newfd, SocketAddress[] sa)
-        throws IOException;
-
     @Override
     public SocketChannel accept() throws IOException {
         int n = 0;
         FileDescriptor newfd = new FileDescriptor();
-        SocketAddress[] isaa = new SocketAddress[1];
+        InetSocketAddress[] isaa = new InetSocketAddress[1];
 
         acceptLock.lock();
         try {
             boolean blocking = isBlocking();
             try {
                 begin(blocking);
-                n = acceptImpl(this.fd, newfd, isaa);
+                n = Net.accept(this.fd, newfd, isaa);
                 if (blocking) {
                     while (IOStatus.okayToRetry(n) && isOpen()) {
                         park(Net.POLLIN);
-                        n = acceptImpl(this.fd, newfd, isaa);
+                        n = Net.accept(this.fd, newfd, isaa);
                     }
                 }
             } finally {
@@ -304,7 +323,7 @@ abstract class ServerSocketChannelImpl
     SocketChannel blockingAccept(long nanos) throws IOException {
         int n = 0;
         FileDescriptor newfd = new FileDescriptor();
-        SocketAddress[] isaa = new SocketAddress[1];
+        InetSocketAddress[] isaa = new InetSocketAddress[1];
 
         acceptLock.lock();
         try {
@@ -318,14 +337,14 @@ abstract class ServerSocketChannelImpl
                 lockedConfigureBlocking(false);
                 try {
                     long startNanos = System.nanoTime();
-                    n = acceptImpl(fd, newfd, isaa);
+                    n = Net.accept(fd, newfd, isaa);
                     while (n == IOStatus.UNAVAILABLE && isOpen()) {
                         long remainingNanos = nanos - (System.nanoTime() - startNanos);
                         if (remainingNanos <= 0) {
                             throw new SocketTimeoutException("Accept timed out");
                         }
                         park(Net.POLLIN, remainingNanos);
-                        n = acceptImpl(fd, newfd, isaa);
+                        n = Net.accept(fd, newfd, isaa);
                     }
                 } finally {
                     // restore socket to blocking mode (if channel is open)
@@ -342,16 +361,19 @@ abstract class ServerSocketChannelImpl
         return finishAccept(newfd, isaa[0]);
     }
 
-    abstract SocketChannel finishAcceptImpl(FileDescriptor newfd, SocketAddress isa)
-        throws IOException;
-
-    protected SocketChannel finishAccept(FileDescriptor newfd, SocketAddress sa)
+    private SocketChannel finishAccept(FileDescriptor newfd, InetSocketAddress isa)
         throws IOException
     {
         try {
             // newly accepted socket is initially in blocking mode
             IOUtil.configureBlocking(newfd, true);
-            return finishAcceptImpl(newfd, sa);
+
+            // check permitted to accept connections from the remote address
+            SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
+            }
+            return new SocketChannelImpl(provider(), newfd, isa);
         } catch (Exception e) {
             nd.close(newfd);
             throw e;
@@ -500,7 +522,7 @@ abstract class ServerSocketChannelImpl
     /**
      * Returns the local address, or null if not bound
      */
-    SocketAddress localAddress() {
+    InetSocketAddress localAddress() {
         synchronized (stateLock) {
             return localAddress;
         }
@@ -569,11 +591,11 @@ abstract class ServerSocketChannelImpl
             sb.append("closed");
         } else {
             synchronized (stateLock) {
-                SocketAddress addr = localAddress;
+                InetSocketAddress addr = localAddress;
                 if (addr == null) {
                     sb.append("unbound");
                 } else {
-                    sb.append(getRevealedLocalAddressAsString(addr));
+                    sb.append(Net.getRevealedLocalAddressAsString(addr));
                 }
             }
         }

@@ -54,7 +54,6 @@
 
 #include "java_net_SocketOptions.h"
 #include "java_net_InetAddress.h"
-#include "sun_nio_ch_Net.h"
 
 #if defined(__linux__) && !defined(IPV6_FLOWINFO_SEND)
 #define IPV6_FLOWINFO_SEND      33
@@ -426,6 +425,76 @@ void parseExclusiveBindProperty(JNIEnv *env) {
 
 JNIEXPORT jint JNICALL
 NET_EnableFastTcpLoopback(int fd) {
+    return 0;
+}
+
+/**
+ * See net_util.h for documentation
+ */
+JNIEXPORT int JNICALL
+NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
+                          SOCKETADDRESS *sa, int *len,
+                          jboolean v4MappedAddress)
+{
+    jint family = getInetAddress_family(env, iaObj);
+    JNU_CHECK_EXCEPTION_RETURN(env, -1);
+    memset((char *)sa, 0, sizeof(SOCKETADDRESS));
+
+    if (ipv6_available() &&
+        !(family == java_net_InetAddress_IPv4 &&
+          v4MappedAddress == JNI_FALSE))
+    {
+        jbyte caddr[16];
+        jint address;
+
+        if (family == java_net_InetAddress_IPv4) {
+            // convert to IPv4-mapped address
+            memset((char *)caddr, 0, 16);
+            address = getInetAddress_addr(env, iaObj);
+            JNU_CHECK_EXCEPTION_RETURN(env, -1);
+            if (address == INADDR_ANY) {
+                /* we would always prefer IPv6 wildcard address
+                 * caddr[10] = 0xff;
+                 * caddr[11] = 0xff; */
+            } else {
+                caddr[10] = 0xff;
+                caddr[11] = 0xff;
+                caddr[12] = ((address >> 24) & 0xff);
+                caddr[13] = ((address >> 16) & 0xff);
+                caddr[14] = ((address >> 8) & 0xff);
+                caddr[15] = (address & 0xff);
+            }
+        } else {
+            getInet6Address_ipaddress(env, iaObj, (char *)caddr);
+        }
+        sa->sa6.sin6_port = htons(port);
+        memcpy((void *)&sa->sa6.sin6_addr, caddr, sizeof(struct in6_addr));
+        sa->sa6.sin6_family = AF_INET6;
+        if (len != NULL) {
+            *len = sizeof(struct sockaddr_in6);
+        }
+
+        /* handle scope_id */
+        if (family != java_net_InetAddress_IPv4) {
+            if (ia6_scopeidID) {
+                sa->sa6.sin6_scope_id = getInet6Address_scopeid(env, iaObj);
+            }
+        }
+    } else {
+        jint address;
+        if (family != java_net_InetAddress_IPv4) {
+            JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Protocol family unavailable");
+            return -1;
+        }
+        address = getInetAddress_addr(env, iaObj);
+        JNU_CHECK_EXCEPTION_RETURN(env, -1);
+        sa->sa4.sin_port = htons(port);
+        sa->sa4.sin_addr.s_addr = htonl(address);
+        sa->sa4.sin_family = AF_INET;
+        if (len != NULL) {
+            *len = sizeof(struct sockaddr_in);
+        }
+    }
     return 0;
 }
 

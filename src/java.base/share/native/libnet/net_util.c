@@ -23,11 +23,9 @@
  * questions.
  */
 
-#include <string.h>
 #include "net_util.h"
 
 #include "java_net_InetAddress.h"
-#include "sun_nio_ch_Net.h"
 
 int IPv4_supported();
 int IPv6_supported();
@@ -192,8 +190,7 @@ int getInetAddress_addr(JNIEnv *env, jobject iaObj) {
     return (*env)->GetIntField(env, holder, iac_addressID);
 }
 
-JNIEXPORT int JNICALL
-getInetAddress_family(JNIEnv *env, jobject iaObj) {
+int getInetAddress_family(JNIEnv *env, jobject iaObj) {
     jobject holder = (*env)->GetObjectField(env, iaObj, ia_holderID);
     CHECK_NULL_THROW_NPE_RETURN(env, holder, "InetAddress holder is null", -1);
     return (*env)->GetIntField(env, holder, iac_familyID);
@@ -237,103 +234,6 @@ NET_SockaddrToInetAddress(JNIEnv *env, SOCKETADDRESS *sa, int *port) {
     return iaObj;
 }
 
-JNIEXPORT int JNICALL
-NET_InetAddressToSockaddr(JNIEnv *env, jobject iaObj, int port,
-                          SOCKETADDRESS *sa, int *len,
-                          jboolean v4MappedAddress)
-{
-    jint src_family = getInetAddress_family(env, iaObj);
-    JNU_CHECK_EXCEPTION_RETURN(env, -1);
-
-    if (ipv6_available() &&
-        !(src_family == java_net_InetAddress_IPv4 &&
-          v4MappedAddress == JNI_FALSE))
-    {
-        return NET_InetAddressToSockaddr0(env, iaObj, src_family,
-                    sun_nio_ch_Net_IPv6, port, sa, len);
-    } else {
-        return NET_InetAddressToSockaddr0(env, iaObj, src_family,
-                    sun_nio_ch_Net_IPv4, port, sa, len);
-    }
-}
-
-/**
- * convert an InetAddress to the target family regardless of ipv6_available setting.
- * src_family is the family from the passed in InetAddress. target_family is what we want to return.
- *
- * This function is used externally to map an InetAddress to a sockaddr
- * exclusively based on the target family. This ensures that
- * an Inet4 address is not mapped to an IPv4 mapped, IPv6 address
- * when a socket channel is created with SC.open(StandardProtocolFamily.INET)
- *
- * src_family values (java_net_InetAddress_IPv4, java_net_InetAddress_IPv6)
- *
- * target_family values (sun_nio_ch_Net_IPv4, sun_nio_ch_Net_IPv6, sun_nio_ch_Net_UNSPECIFIED)
- *
- * Mapping between two family types required because 'family' is package private in java.net.InetAddress
- */
-JNIEXPORT int JNICALL
-NET_InetAddressToSockaddr0(JNIEnv *env, jobject iaObj, jint src_family, jint target_family,
-                          int port, SOCKETADDRESS *sa, int *len)
-{
-    memset((void *)sa, 0, sizeof(SOCKETADDRESS));
-    if (target_family == sun_nio_ch_Net_IPv6)
-    {
-        jbyte caddr[16];
-        jint address;
-        unsigned int scopeid = 0;
-
-        if (src_family == java_net_InetAddress_IPv4) {
-            // convert to IPv4-mapped address
-            memset((char *)caddr, 0, 16);
-            address = getInetAddress_addr(env, iaObj);
-            JNU_CHECK_EXCEPTION_RETURN(env, -1);
-            if (address == INADDR_ANY) {
-                /* we would always prefer IPv6 wildcard address
-                 * caddr[10] = 0xff;
-                 * caddr[11] = 0xff; */
-            } else {
-                caddr[10] = 0xff;
-                caddr[11] = 0xff;
-                caddr[12] = ((address >> 24) & 0xff);
-                caddr[13] = ((address >> 16) & 0xff);
-                caddr[14] = ((address >> 8) & 0xff);
-                caddr[15] = (address & 0xff);
-            }
-        } else {
-            getInet6Address_ipaddress(env, iaObj, (char *)caddr);
-        }
-        sa->sa6.sin6_port = htons(port);
-        memcpy((void *)&sa->sa6.sin6_addr, caddr, sizeof(struct in6_addr));
-        sa->sa6.sin6_family = AF_INET6;
-        if (len != NULL) {
-            *len = sizeof(struct sockaddr_in6);
-        }
-
-        /* handle scope_id */
-        if (src_family == java_net_InetAddress_IPv6) {
-            if (ia6_scopeidID) {
-                scopeid = getInet6Address_scopeid(env, iaObj);
-            }
-        }
-        sa->sa6.sin6_scope_id = scopeid;
-    } else {
-        jint address;
-        if (src_family != java_net_InetAddress_IPv4) {
-            JNU_ThrowByName(env, JNU_JAVANETPKG "SocketException", "Protocol family unavailable");
-            return -1;
-        }
-        address = getInetAddress_addr(env, iaObj);
-        JNU_CHECK_EXCEPTION_RETURN(env, -1);
-        sa->sa4.sin_port = htons(port);
-        sa->sa4.sin_addr.s_addr = htonl(address);
-        sa->sa4.sin_family = AF_INET;
-        if (len != NULL) {
-            *len = sizeof(struct sockaddr_in);
-        }
-    }
-    return 0;
-}
 JNIEXPORT jboolean JNICALL
 NET_SockaddrEqualsInetAddress(JNIEnv *env, SOCKETADDRESS *sa, jobject iaObj)
 {

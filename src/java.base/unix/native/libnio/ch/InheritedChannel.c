@@ -36,9 +36,8 @@
 #include "net_util.h"
 
 #include "sun_nio_ch_InheritedChannel.h"
-#include "java_nio_channels_UnixDomainSocketAddress.h"
 
-static int matchFamilyInet(SOCKETADDRESS *sa) {
+static int matchFamily(SOCKETADDRESS *sa) {
     return (sa->sa.sa_family == (ipv6_available() ? AF_INET6 : AF_INET));
 }
 
@@ -47,12 +46,10 @@ Java_sun_nio_ch_InheritedChannel_initIDs(JNIEnv *env, jclass cla)
 {
     /* Initialize InetAddress IDs before later use of NET_XXX functions */
     initInetAddressIDs(env);
-    /* Same for UnixDomainSocketAddress */
-    Java_java_nio_channels_UnixDomainSocketAddress_init(env, NULL);
 }
 
 JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint fd)
+Java_sun_nio_ch_InheritedChannel_peerAddress0(JNIEnv *env, jclass cla, jint fd)
 {
     SOCKETADDRESS sa;
     socklen_t len = sizeof(SOCKETADDRESS);
@@ -60,27 +57,12 @@ Java_sun_nio_ch_InheritedChannel_peerAddressInet(JNIEnv *env, jclass cla, jint f
     jint remote_port;
 
     if (getpeername(fd, &sa.sa, &len) == 0) {
-        if (matchFamilyInet(&sa)) {
+        if (matchFamily(&sa)) {
             remote_ia = NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
         }
     }
 
     return remote_ia;
-}
-
-JNIEXPORT jobject JNICALL
-Java_sun_nio_ch_InheritedChannel_peerAddressUnix(JNIEnv *env, jclass cla, jint fd)
-{
-    struct sockaddr_un sa;
-    socklen_t len = sizeof(struct sockaddr_un);
-    jobject remote_sa = NULL;
-
-    if (getpeername(fd, (struct sockaddr *)&sa, &len) == 0) {
-        if (sa.sun_family == AF_UNIX) {
-            remote_sa = NET_SockaddrToUnixAddress(env, &sa, len);
-        }
-    }
-    return remote_sa;
 }
 
 JNIEXPORT jint JNICALL
@@ -90,8 +72,8 @@ Java_sun_nio_ch_InheritedChannel_peerPort0(JNIEnv *env, jclass cla, jint fd)
     socklen_t len = sizeof(SOCKETADDRESS);
     jint remote_port = -1;
 
-    if (getpeername(fd, (struct sockaddr *)&sa.sa, &len) == 0) {
-        if (matchFamilyInet(&sa)) {
+    if (getpeername(fd, &sa.sa, &len) == 0) {
+        if (matchFamily(&sa)) {
             NET_SockaddrToInetAddress(env, &sa, (int *)&remote_port);
         }
     }

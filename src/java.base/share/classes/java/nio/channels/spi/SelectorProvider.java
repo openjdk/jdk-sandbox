@@ -323,12 +323,13 @@ public abstract class SelectorProvider {
      * @return a SocketChannel
      *
      * @throws IOException if an I/O error occurs
-     * @throws UnsupportedAddressTypeException if the protocol family not supported
+     * @throws UnsupportedOperationException
+     *         If the specified protocol family is not supported
      *
-     * @since 14
+     * @since 15
      */
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
-        return null;
+        throw new UnsupportedOperationException("protocol family not supported");
     }
 
     /**
@@ -339,11 +340,12 @@ public abstract class SelectorProvider {
      * @return a ServerSocketChannel
      *
      * @throws IOException if an I/O error occurs
-     * @throws UnsupportedAddressTypeException if the protocol family not supported
+     * @throws UnsupportedOperationException
+     *         If the specified protocol family is not supported
      *
-     * @since 14
+     * @since 15
      */
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
-        return null;
+        throw new UnsupportedOperationException("protocol family not supported");
     }
 }
