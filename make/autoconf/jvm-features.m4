@@ -484,6 +484,18 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
   fi
 ])
 
+# TODO
+# KVAR ATT FIXA:
+# RESULTING => ACTIVE
+# DÖPA OM I PARSE.
+# DÖPA OM I CALCULATE.
+# kolla jib conf.
+# skriva kommentarer.
+# dokumentera termer, active available osv.
+# dubbelkolla placering i configure.ac.
+# skriva dokumentation!
+
+
 ###############################################################################
 # Set up all JVM features for each enabled JVM variant.
 #
