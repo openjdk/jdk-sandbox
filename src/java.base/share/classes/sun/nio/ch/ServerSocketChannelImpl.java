@@ -98,6 +98,7 @@ abstract class ServerSocketChannelImpl
         super(sp);
         this.fd =  fd;
         this.fdVal = IOUtil.fdVal(fd);
+
         if (bound) {
             synchronized (stateLock) {
                 localAddress = localAddressImpl(fd);
