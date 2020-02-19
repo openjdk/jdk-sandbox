@@ -156,8 +156,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     AC_MSG_RESULT([none])
   fi
 
-  # Used for verification of Makefiles by check-jvm-feature
-  # FIXME!!!!
+  # Makefiles use VALID_JVM_FEATURES in check-jvm-feature to verify correctness.
   VALID_JVM_FEATURES="$JVM_FEATURES_VALID"
   AC_SUBST(VALID_JVM_FEATURES)
 ])

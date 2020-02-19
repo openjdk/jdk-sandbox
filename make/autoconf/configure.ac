@@ -134,15 +134,6 @@ JDKVER_SETUP_JDK_VERSION_NUMBERS
 
 ###############################################################################
 #
-# Setup hotspot JVM features
-#
-###############################################################################
-
-JVM_FEATURES_PARSE_OPTIONS
-JVM_FEATURES_SETUP
-
-###############################################################################
-#
 # Setup BootJDK, used to bootstrap the build.
 #
 ###############################################################################
@@ -224,7 +215,15 @@ BASIC_COMPILE_FIXPATH
 LIB_DETERMINE_DEPENDENCIES
 LIB_SETUP_LIBRARIES
 
-# Hotspot gtest setup depends on lib checks.
+###############################################################################
+#
+# Setup hotspot and JVM features (needs toolchain).
+#
+###############################################################################
+
+JVM_FEATURES_PARSE_OPTIONS
+JVM_FEATURES_SETUP
+
 HOTSPOT_ENABLE_DISABLE_GTEST
 HOTSPOT_SETUP_MISC
 
