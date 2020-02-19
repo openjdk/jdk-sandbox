@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,29 @@
  * questions.
  */
 
-package jdk.test.lib.artifacts;
+/*
+ * @test
+ * @bug 8187305
+ * @summary Tests logging of shared library loads and unloads.
+ * @library /runtime/testlibrary /test/lib
+ * @compile LoadLibrary.java
+ * @run main LoadLibraryTest
+ */
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
 
-public class DefaultArtifactManager implements ArtifactManager {
-    @Override
-    public Path resolve(Artifact artifact) throws ArtifactResolverException {
-        return resolve(artifact.name());
-    }
+public class LoadLibraryTest {
 
-    public Path resolve(String name) throws ArtifactResolverException {
-        String location = System.getProperty(artifactProperty(name));
-        if (location == null) {
-            throw new ArtifactResolverException("Couldn't automatically resolve dependency for " + name + "\n" +
-                    "Please specify the location using " + artifactProperty(name));
-        }
-        return Paths.get(location);
-    }
-    private static String artifactProperty(String name) {
-        return "jdk.test.lib.artifacts." + name;
+    public static void main(String... args) throws Exception {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+            "-Xlog:library=info", "-Djava.library.path=" + System.getProperty("java.library.path"),
+            "LoadLibrary", System.getProperty("test.classes"));
+
+        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        output.shouldContain("Loaded library");
+        output.shouldContain("Found Java_LoadLibraryClass_nTest in library");
+        output.shouldContain("Unloaded library with handle");
+        output.shouldHaveExitValue(0);
     }
 }

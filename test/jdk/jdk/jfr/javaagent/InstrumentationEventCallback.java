@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,44 +22,23 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package jdk.jfr.javaagent;
 
-package jdk.javadoc.internal.doclets.toolkit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.lang.model.element.PackageElement;
-import javax.tools.FileObject;
+public class InstrumentationEventCallback {
+    private static AtomicBoolean wasCalled = new AtomicBoolean(false);
 
-/**
- * This is a pseudo element wrapper for the overview element, essentially to
- * associate overview documentation's DocCommentTree to this element.
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
- */
-public class OverviewElement implements DocletElement {
-
-    private final PackageElement pkg;
-    private final FileObject fo;
-
-    public OverviewElement(PackageElement pkg, FileObject fo) {
-        this.pkg = pkg;
-        this.fo = fo;
+    public static void callback() {
+        wasCalled.set(true);
     }
 
-    @Override
-    public PackageElement getPackageElement() {
-        return pkg;
+    public static void clear() {
+        wasCalled.set(false);
     }
 
-    @Override
-    public FileObject getFileObject() {
-        return fo;
-    }
-
-    @Override
-    public Kind getSubKind() {
-        return Kind.OVERVIEW;
+    public static boolean wasCalled() {
+        return wasCalled.get();
     }
 }
 

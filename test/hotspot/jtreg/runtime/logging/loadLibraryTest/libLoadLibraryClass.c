@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,26 +21,10 @@
  * questions.
  */
 
-package jdk.test.lib.artifacts;
+/*
+ * Native test for LoadLibraryTest.
+ */
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+#include "jni.h"
 
-public class DefaultArtifactManager implements ArtifactManager {
-    @Override
-    public Path resolve(Artifact artifact) throws ArtifactResolverException {
-        return resolve(artifact.name());
-    }
-
-    public Path resolve(String name) throws ArtifactResolverException {
-        String location = System.getProperty(artifactProperty(name));
-        if (location == null) {
-            throw new ArtifactResolverException("Couldn't automatically resolve dependency for " + name + "\n" +
-                    "Please specify the location using " + artifactProperty(name));
-        }
-        return Paths.get(location);
-    }
-    private static String artifactProperty(String name) {
-        return "jdk.test.lib.artifacts." + name;
-    }
-}
+JNIEXPORT void JNICALL Java_LoadLibraryClass_nTest(JNIEnv* env, jclass jclazz) { }
