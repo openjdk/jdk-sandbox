@@ -34,7 +34,7 @@ import java.io.IOException;
  */
 
 public class SocketDispatcher extends NativeDispatcher {
-    SocketDispatcher() { }
+    public SocketDispatcher() { }
 
     /**
      * Reads up to len bytes from a socket with special handling for "connection
