@@ -23,6 +23,19 @@
 # questions.
 #
 
+# Terminology used in this file:
+#
+# Valid features      == All possible features that the JVM knows about.
+# Deprecated features == Previously known features (not considered valid).
+# Available features  == Features that are possible to use in this configuration.
+# Default features    == Features that are on by default in this configuration.
+# Enabled features    == Features requested by the user to be present.
+# Disabled features   == Features excluded from being used by the user.
+# Active features     == The exact set of features to be used for a JVM variant.
+#
+# All valid features are considered available, unless listed as unavailable.
+# All available features will be turned on as default, unless listed in a filter.
+
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JVM features, regardless of platform
@@ -41,16 +54,13 @@ define(jvm_features_deprecated, m4_normalize(
 
 
 # Parse command line options for JVM features selection. After this function
-# has run $JVM_FEATURES, $DISABLED_JVM_FEATURES and $JVM_FEATURES_VALID can be
+# has run $JVM_FEATURES_ENABLED, $JVM_FEATURES_DISABLED and $JVM_FEATURES_VALID can be
 # used.
 AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 [
   # Setup shell variables from the m4 lists
   BASIC_SORT_LIST(JVM_FEATURES_VALID, "jvm_features_valid")
   BASIC_SORT_LIST(JVM_FEATURES_DEPRECATED, "jvm_features_deprecated")
-
-  # The user can in some cases supply additional jvm features. For the custom
-  # variant, this defines the entire variant.
 
   # For historical reasons, some jvm features have their own, shorter names.
   # Keep those as aliases for the --enable-jvm-feature-* style arguments.
@@ -63,29 +73,28 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
   AC_ARG_WITH([jvm-features], [AS_HELP_STRING([--with-jvm-features],
       [JVM features to enable (foo) or disable (-foo), separated by comma. Use '--help' to show possible values @<:@none@:>@])])
   if test "x$with_jvm_features" != x; then
-    AC_MSG_CHECKING([user specified JVM feature list])
-    USER_JVM_FEATURE_LIST=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
-    AC_MSG_RESULT([$user_jvm_feature_list])
+    # Replace ","  with " ".
+    user_jvm_feature_list=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
     # These features will be added to all variant defaults
-    JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
+    JVM_FEATURES_ENABLED=`$ECHO $user_jvm_feature_list | $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
     # These features will be removed from all variant defaults
-    DISABLED_JVM_FEATURES=`$ECHO $USER_JVM_FEATURE_LIST | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
+    JVM_FEATURES_DISABLED=`$ECHO $user_jvm_feature_list | $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
-    # Verify that the user has provided valid features
-    BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $JVM_FEATURES_VALID $JVM_FEATURES_DEPRECATED)
-    if test "x$INVALID_FEATURES" != x; then
-      AC_MSG_NOTICE([Unknown JVM features specified: "$INVALID_FEATURES"])
+    # Verify that the user has provided only valid (or deprecated) features
+    BASIC_GET_NON_MATCHING_VALUES(invalid_features, $JVM_FEATURES_ENABLED $JVM_FEATURES_DISABLED, $JVM_FEATURES_VALID $JVM_FEATURES_DEPRECATED)
+    if test "x$invalid_features" != x; then
+      AC_MSG_NOTICE([Unknown JVM features specified: "$invalid_features"])
       AC_MSG_NOTICE([The available JVM features are: "$JVM_FEATURES_VALID"])
       AC_MSG_ERROR([Cannot continue])
     fi
 
     # Check if the user has provided deprecated features
-    BASIC_GET_MATCHING_VALUES(DEPRECATED_FEATURES, $JVM_FEATURES $DISABLED_JVM_FEATURES, $JVM_FEATURES_DEPRECATED)
-    if test "x$DEPRECATED_FEATURES" != x; then
-      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$DEPRECATED_FEATURES"])
+    BASIC_GET_MATCHING_VALUES(deprecated_features, $JVM_FEATURES_ENABLED $JVM_FEATURES_DISABLED, $JVM_FEATURES_DEPRECATED)
+    if test "x$deprecated_features" != x; then
+      AC_MSG_WARN([Deprecated JVM features specified (will be ignored): "$deprecated_features"])
       # Filter out deprecated features
-      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES, $JVM_FEATURES, $DEPRECATED_FEATURES)
-      BASIC_GET_NON_MATCHING_VALUES(DISABLED_JVM_FEATURES, $DISABLED_JVM_FEATURES, $DEPRECATED_FEATURES)
+      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_ENABLED, $JVM_FEATURES_ENABLED, $deprecated_features)
+      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_DISABLED, $JVM_FEATURES_DISABLED, $deprecated_features)
     fi
   fi
 
@@ -95,14 +104,14 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING([--enable-jvm-feature-FEATURE],
         [enable jvm feature 'FEATURE']))
 
-    # Create an m4 variable containing a shell variable name like
-    # "enable_jvm_feature_static_build".
+    # Create an m4 variable containing a shell variable name (like
+    # "enable_jvm_feature_static_build").
     define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" = xyes; then
-      JVM_FEATURES="$JVM_FEATURES FEATURE"
+      JVM_FEATURES_ENABLED="$JVM_FEATURES_ENABLED FEATURE"
     elif test "x$FEATURE_SHELL" = xno; then
-      DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES FEATURE"
+      JVM_FEATURES_DISABLED="$JVM_FEATURES_DISABLED FEATURE"
     elif test "x$FEATURE_SHELL" != x; then
       AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: $FEATURE_SHELL])
     fi
@@ -123,6 +132,29 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 
     undefine([FEATURE_SHELL])
   ])
+
+  # Warn if the user has both enabled and disabled a feature (disable will override).
+  BASIC_GET_MATCHING_VALUES(enabled_and_disabled, $JVM_FEATURES_ENABLED, $JVM_FEATURES_DISABLED)
+  if test "x$enabled_and_disabled" != x; then
+    AC_MSG_WARN([Disabling of these features will override enabling: "$enabled_and_disabled"])
+  fi
+
+  # Clean up lists and announce results to user
+  BASIC_SORT_LIST(JVM_FEATURES_ENABLED, $JVM_FEATURES_ENABLED)
+  AC_MSG_CHECKING([for JVM features enabled by the user])
+  if test "x$JVM_FEATURES_ENABLED" != x; then
+    AC_MSG_RESULT(['$JVM_FEATURES_ENABLED'])
+  else
+    AC_MSG_RESULT([none])
+  fi
+
+  BASIC_SORT_LIST(JVM_FEATURES_DISABLED, $JVM_FEATURES_DISABLED)
+  AC_MSG_CHECKING([for JVM features disabled by the user])
+  if test "x$JVM_FEATURES_DISABLED" != x; then
+    AC_MSG_RESULT(['$JVM_FEATURES_DISABLED'])
+  else
+    AC_MSG_RESULT([none])
+  fi
 
   # Used for verification of Makefiles by check-jvm-feature
   # FIXME!!!!
@@ -398,44 +430,44 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
   # As default, start with all valid features, and then remove unavailable
   # features, and those in the platform/variant filters.
   if test "x$variant" != xcustom; then
-    BASIC_GET_NON_MATCHING_VALUES(DEFAULT_FOR_VARIANT, $JVM_FEATURES_VALID, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE $JVM_FEATURES_PLATFORM_FILTER $JVM_FEATURES_VARIANT_FILTER)
+    BASIC_GET_NON_MATCHING_VALUES(default_for_variant, $JVM_FEATURES_VALID, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE $JVM_FEATURES_PLATFORM_FILTER $JVM_FEATURES_VARIANT_FILTER)
   else
     # Except for the 'custom' variant, where the default is to start with an
     # empty set.
-    DEFAULT_FOR_VARIANT=""
+    default_for_variant=""
   fi
 
-  # Verify explicitly enabled features
-  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_UNAVAILABLE, $JVM_FEATURES, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
-  if test "x$ENABLED_BUT_UNAVAILABLE" != x; then
-    AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$ENABLED_BUT_UNAVAILABLE'])
+  # Verify that explicitly enabled features are available
+  BASIC_GET_MATCHING_VALUES(enabled_but_unavailable, $JVM_FEATURES_ENABLED, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
+  if test "x$enabled_but_unavailable" != x; then
+    AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$enabled_but_unavailable'])
     AC_MSG_ERROR([Cannot continue])
   fi
-  BASIC_GET_MATCHING_VALUES(ENABLED_BUT_DEFAULT, $JVM_FEATURES, $DEFAULT_FOR_VARIANT)
-  if test "x$ENABLED_BUT_DEFAULT" != x; then
-    AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$ENABLED_BUT_DEFAULT'])
+
+  # Notify the user if their command line options has no real effect
+  BASIC_GET_MATCHING_VALUES(enabled_but_default, $JVM_FEATURES_ENABLED, $default_for_variant)
+  if test "x$enabled_but_default" != x; then
+    AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$enabled_but_default'])
+  fi
+  BASIC_GET_MATCHING_VALUES(disabled_but_unavailable, $JVM_FEATURES_DISABLED, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
+  if test "x$disabled_but_unavailable" != x; then
+    AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$disabled_but_unavailable'])
   fi
 
-  # Verify explicitly disabled features
-  BASIC_GET_MATCHING_VALUES(DISABLED_BUT_UNAVAILABLE, $DISABLED_JVM_FEATURES, $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
-  if test "x$DISABLED_BUT_UNAVAILABLE" != x; then
-    AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$DISABLED_BUT_UNAVAILABLE'])
-  fi
-
-  # RESULTING_FEATURES is the set of all default features and all explicitly
+  # JVM_FEATURES_ACTIVE is the set of all default features and all explicitly
   # enabled features, with the explicitly disabled features filtered out.
-  BASIC_GET_NON_MATCHING_VALUES(RESULTING_FEATURES, $DEFAULT_FOR_VARIANT $JVM_FEATURES, $DISABLED_JVM_FEATURES)
+  BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_ACTIVE, $default_for_variant $JVM_FEATURES_ENABLED, $JVM_FEATURES_DISABLED)
 ])
 
 ###############################################################################
 # Helper function for JVM_FEATURES_VERIFY. Check if the specified JVM
-# feature is enabled. To be used in shell if constructs, like this:
+# feature is active. To be used in shell if constructs, like this:
 # if JVM_FEATURES_IS_ACTIVE(jvmti); then
 #
 # Definition kept in one line to allow inlining in if statements.
 # Additional [] needed to keep m4 from mangling shell constructs.
 AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
-[ [ [[ " $RESULTING_FEATURES " =~ ' '$1' ' ]] ] ])
+[ [ [[ " $JVM_FEATURES_ACTIVE " =~ ' '$1' ' ]] ] ])
 
 ###############################################################################
 # Verify that the resulting set of features is consistent and allowed.
@@ -473,22 +505,14 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
   # Verify that we have at least one gc selected (i.e., feature named "*gc").
   if ! JVM_FEATURES_IS_ACTIVE(.*gc); then
       AC_MSG_NOTICE([At least one gc needed for variant '$variant'.])
-      AC_MSG_NOTICE([Specified features: '$RESULTING_FEATURES'])
+      AC_MSG_NOTICE([Specified features: '$JVM_FEATURES_ACTIVE'])
       AC_MSG_ERROR([Cannot continue])
-  fi
-
-  # Validate features for configure script errors (not user errors)
-  BASIC_GET_NON_MATCHING_VALUES(INVALID_FEATURES, $RESULTING_FEATURES, $JVM_FEATURES_VALID)
-  if test "x$INVALID_FEATURES" != x; then
-    AC_MSG_ERROR([Internal configure script error. Invalid JVM feature(s): $INVALID_FEATURES])
   fi
 ])
 
 # TODO
 # KVAR ATT FIXA:
-# RESULTING => ACTIVE
 # DÖPA OM I PARSE.
-# DÖPA OM I CALCULATE.
 # kolla jib conf.
 # skriva kommentarer.
 # dokumentera termer, active available osv.
@@ -515,20 +539,20 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
       JVM_FEATURES_PREPARE_VARIANT($variant)
 
       # Calculate the resulting set of enabled features for this variant.
-      # The result is stored in RESULTING_FEATURES.
+      # The result is stored in JVM_FEATURES_ACTIVE.
       JVM_FEATURES_CALCULATE_ACTIVE($variant)
 
-      # Verify consistency for RESULTING_FEATURES
+      # Verify consistency for JVM_FEATURES_ACTIVE.
       JVM_FEATURES_VERIFY($variant)
 
       # Keep feature list sorted and free of duplicates
-      BASIC_SORT_LIST(RESULTING_FEATURES, $RESULTING_FEATURES)
+      BASIC_SORT_LIST(JVM_FEATURES_ACTIVE, $JVM_FEATURES_ACTIVE)
       AC_MSG_CHECKING([JVM features to use for variant '$variant'])
-      AC_MSG_RESULT([$RESULTING_FEATURES])
+      AC_MSG_RESULT([$JVM_FEATURES_ACTIVE])
 
       # Save this as e.g. JVM_FEATURES_server, using indirect variable referencing.
       features_var_name=JVM_FEATURES_$variant
-      eval $features_var_name=\"$RESULTING_FEATURES\"
+      eval $features_var_name=\"$JVM_FEATURES_ACTIVE\"
   done
 
   # Unfortunately AC_SUBST does not work with non-literally named variables,
