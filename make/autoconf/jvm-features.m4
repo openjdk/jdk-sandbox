@@ -553,7 +553,6 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
 # KVAR ATT FIXA:
 # kolla jib conf.
 # skriva kommentarer.
-# skriva dokumentation!
 
 
 ###############################################################################
