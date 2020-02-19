@@ -53,7 +53,8 @@ AC_DEFUN([HOTSPOT_CHECK_JVM_VARIANT],
 AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
 [
   AC_ARG_WITH([jvm-variants], [AS_HELP_STRING([--with-jvm-variants],
-      [JVM variants (separated by commas) to build (server,client,minimal,core,zero,custom) @<:@server@:>@])])
+      [JVM variants to build, separated by commas (server client minimal core
+      zero custom) @<:@server@:>@])])
 
   if test "x$with_jvm_variants" = x; then
     with_jvm_variants="server"
@@ -77,7 +78,8 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
   AC_MSG_RESULT([$JVM_VARIANTS])
 
   # Check that the selected variants are valid
-  BASIC_GET_NON_MATCHING_VALUES(INVALID_VARIANTS, $JVM_VARIANTS, $VALID_JVM_VARIANTS)
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_VARIANTS, $JVM_VARIANTS, \
+      $VALID_JVM_VARIANTS)
   if test "x$INVALID_VARIANTS" != x; then
     AC_MSG_NOTICE([Unknown variant(s) specified: "$INVALID_VARIANTS"])
     AC_MSG_NOTICE([The available JVM variants are: "$VALID_JVM_VARIANTS"])
@@ -86,8 +88,10 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
 
   # All "special" variants share the same output directory ("server")
   VALID_MULTIPLE_JVM_VARIANTS="server client minimal"
-  BASIC_GET_NON_MATCHING_VALUES(INVALID_MULTIPLE_VARIANTS, $JVM_VARIANTS, $VALID_MULTIPLE_JVM_VARIANTS)
-  if  test "x$INVALID_MULTIPLE_VARIANTS" != x && test "x$BUILDING_MULTIPLE_JVM_VARIANTS" = xtrue; then
+  BASIC_GET_NON_MATCHING_VALUES(INVALID_MULTIPLE_VARIANTS, $JVM_VARIANTS, \
+      $VALID_MULTIPLE_JVM_VARIANTS)
+  if  test "x$INVALID_MULTIPLE_VARIANTS" != x && \
+      test "x$BUILDING_MULTIPLE_JVM_VARIANTS" = xtrue; then
     AC_MSG_ERROR([You can only build multiple variants using these variants: '$VALID_MULTIPLE_JVM_VARIANTS'])
   fi
 
@@ -110,7 +114,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_VARIANTS],
   AC_SUBST(JVM_VARIANT_MAIN)
 ])
 
-################################################################################
+###############################################################################
 # Check if gtest should be built
 #
 AC_DEFUN_ONCE([HOTSPOT_ENABLE_DISABLE_GTEST],
@@ -157,7 +161,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_MISC],
 [
   if HOTSPOT_CHECK_JVM_VARIANT(zero); then
     # zero behaves as a platform and rewrites these values. This is a bit weird.
-    # We are guaranteed that we do not build any other variants when building zero.
+    # But when building zero, we never build any other variants so it works.
     HOTSPOT_TARGET_CPU=zero
     HOTSPOT_TARGET_CPU_ARCH=zero
   fi
