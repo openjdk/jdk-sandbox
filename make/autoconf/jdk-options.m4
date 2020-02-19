@@ -616,7 +616,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
       Default is to generate it when either the server or client JVMs are built and
       enable-cds is true.])])
 
-  # In hotspot.m4 ENABLE_CDS is set to true iff all JVM variants has cds
+  # In jvm-features.m4 ENABLE_CDS is set to true iff all JVM variants has cds
   # enabled.
 
   AC_MSG_CHECKING([if the CDS classlist generation should be enabled])
