@@ -56,9 +56,10 @@ define(jvm_features_deprecated, m4_normalize(
 
 
 ###############################################################################
-# Parse command line options for JVM features selection. After this function
+# Parse command line options for JVM feature selection. After this function
 # has run $JVM_FEATURES_ENABLED, $JVM_FEATURES_DISABLED and $JVM_FEATURES_VALID
 # can be used.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 [
   # Setup shell variables from the m4 lists
@@ -79,10 +80,8 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
   if test "x$with_jvm_features" != x; then
     # Replace ","  with " ".
     user_jvm_feature_list=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
-    # These features will be added to all variant defaults
     JVM_FEATURES_ENABLED=`$ECHO $user_jvm_feature_list | \
         $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
-    # These features will be removed from all variant defaults
     JVM_FEATURES_DISABLED=`$ECHO $user_jvm_feature_list | \
         $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
@@ -182,6 +181,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 #
 # arg 1: The name of the feature to test
 # arg 2: The code block to execute
+#
 AC_DEFUN([JVM_FEATURES_CHECK_AVAILABILITY],
 [
   # Assume that feature is available
@@ -201,6 +201,7 @@ AC_DEFUN([JVM_FEATURES_CHECK_AVAILABILITY],
 
 ###############################################################################
 # Check if the feature 'aot' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_AOT],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(aot, [
@@ -227,6 +228,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_AOT],
 
 ###############################################################################
 # Check if the feature 'cds' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_CDS],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(cds, [
@@ -242,6 +244,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_CDS],
 
 ###############################################################################
 # Check if the feature 'dtrace' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_DTRACE],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(dtrace, [
@@ -264,6 +267,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_DTRACE],
 
 ###############################################################################
 # Check if the feature 'graal' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_GRAAL],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(graal, [
@@ -281,6 +285,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_GRAAL],
 
 ###############################################################################
 # Check if the feature 'jfr' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_JFR],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(jfr, [
@@ -297,6 +302,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_JFR],
 
 ###############################################################################
 # Check if the feature 'jvmci' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_JVMCI],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(jvmci, [
@@ -313,6 +319,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_JVMCI],
 
 ###############################################################################
 # Check if the feature 'shenandoahgc' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_SHENANDOAHGC],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(shenandoahgc, [
@@ -329,6 +336,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_SHENANDOAHGC],
 
 ###############################################################################
 # Check if the feature 'static-build' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_STATIC_BUILD],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(static-build, [
@@ -344,6 +352,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_STATIC_BUILD],
 
 ###############################################################################
 # Check if the feature 'zgc' is available on this platform.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_CHECK_ZGC],
 [
   JVM_FEATURES_CHECK_AVAILABILITY(zgc, [
@@ -383,11 +392,12 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_ZGC],
 ])
 
 ###############################################################################
-# Figure out if any features is unavailable for this platform.
-# The result is stored in JVM_FEATURES_PLATFORM_UNAVAILABLE.
+# Setup JVM_FEATURES_PLATFORM_UNAVAILABLE and JVM_FEATURES_PLATFORM_FILTER
+# to contain those features that are unavailable, or should be off by default,
+# for this platform, regardless of JVM variant.
+#
 AC_DEFUN_ONCE([JVM_FEATURES_PREPARE_PLATFORM],
 [
-  # Check if features are unavailable for this platform.
   # The checks below should add unavailable features to
   # JVM_FEATURES_PLATFORM_UNAVAILABLE.
 
@@ -414,6 +424,12 @@ AC_DEFUN_ONCE([JVM_FEATURES_PREPARE_PLATFORM],
 ])
 
 ###############################################################################
+# Setup JVM_FEATURES_VARIANT_UNAVAILABLE and JVM_FEATURES_VARIANT_FILTER
+# to contain those features that are unavailable, or should be off by default,
+# for this particular JVM variant.
+#
+# arg 1: JVM variant
+#
 AC_DEFUN([JVM_FEATURES_PREPARE_VARIANT],
 [
   variant=$1
@@ -454,12 +470,17 @@ AC_DEFUN([JVM_FEATURES_PREPARE_VARIANT],
 ])
 
 ###############################################################################
+# Calculate the actual set of active JVM features for this JVM variant. Store
+# the result in JVM_FEATURES_ACTIVE.
+#
+# arg 1: JVM variant
+#
 AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
 [
   variant=$1
 
-  # As default, start with all valid features, and then remove unavailable
-  # features, and those in the platform/variant filters.
+  # The default is set to all valid features except those unavailable or listed
+  # in a filter.
   if test "x$variant" != xcustom; then
     BASIC_GET_NON_MATCHING_VALUES(default_for_variant, $JVM_FEATURES_VALID, \
         $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE \
@@ -499,15 +520,17 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
 ###############################################################################
 # Helper function for JVM_FEATURES_VERIFY. Check if the specified JVM
 # feature is active. To be used in shell if constructs, like this:
-# if JVM_FEATURES_IS_ACTIVE(jvmti); then
+# 'if JVM_FEATURES_IS_ACTIVE(jvmti); then'
 #
+AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
 # Definition kept in one line to allow inlining in if statements.
 # Additional [] needed to keep m4 from mangling shell constructs.
-AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
 [ [ [[ " $JVM_FEATURES_ACTIVE " =~ ' '$1' ' ]] ] ])
 
 ###############################################################################
-# Verify that the resulting set of features is consistent and allowed.
+# Verify that the resulting set of features is consistent and legal.
+#
+# arg 1: JVM variant
 #
 AC_DEFUN([JVM_FEATURES_VERIFY],
 [
@@ -549,17 +572,13 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
   fi
 ])
 
-# TODO
-# KVAR ATT FIXA:
-# kolla jib conf.
-# skriva kommentarer.
-
-
 ###############################################################################
-# Set up all JVM features for each enabled JVM variant.
+# Set up all JVM features for each enabled JVM variant. Requires that
+# JVM_FEATURES_PARSE_OPTIONS has been called.
 #
 AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
 [
+  # Set up variant-independent factors
   JVM_FEATURES_PREPARE_PLATFORM
 
   # For classlist generation, we must know if all variants support CDS. Assume
@@ -567,28 +586,28 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
   CDS_IS_ENABLED="true"
 
   for variant in $JVM_VARIANTS; do
-      # Figure out if any features are unavailable, or should be filtered out
-      # by default, for this variant.
-      # Store the result in JVM_FEATURES_VARIANT_UNAVAILABLE and
-      # JVM_FEATURES_VARIANT_FILTER.
-      JVM_FEATURES_PREPARE_VARIANT($variant)
+    # Figure out if any features are unavailable, or should be filtered out
+    # by default, for this variant.
+    # Store the result in JVM_FEATURES_VARIANT_UNAVAILABLE and
+    # JVM_FEATURES_VARIANT_FILTER.
+    JVM_FEATURES_PREPARE_VARIANT($variant)
 
-      # Calculate the resulting set of enabled features for this variant.
-      # The result is stored in JVM_FEATURES_ACTIVE.
-      JVM_FEATURES_CALCULATE_ACTIVE($variant)
+    # Calculate the resulting set of enabled features for this variant.
+    # The result is stored in JVM_FEATURES_ACTIVE.
+    JVM_FEATURES_CALCULATE_ACTIVE($variant)
 
-      # Verify consistency for JVM_FEATURES_ACTIVE.
-      JVM_FEATURES_VERIFY($variant)
+    # Verify consistency for JVM_FEATURES_ACTIVE.
+    JVM_FEATURES_VERIFY($variant)
 
-      # Keep feature list sorted and free of duplicates
-      BASIC_SORT_LIST(JVM_FEATURES_ACTIVE, $JVM_FEATURES_ACTIVE)
-      AC_MSG_CHECKING([JVM features to use for variant '$variant'])
-      AC_MSG_RESULT(['$JVM_FEATURES_ACTIVE'])
+    # Keep feature list sorted and free of duplicates
+    BASIC_SORT_LIST(JVM_FEATURES_ACTIVE, $JVM_FEATURES_ACTIVE)
+    AC_MSG_CHECKING([JVM features to use for variant '$variant'])
+    AC_MSG_RESULT(['$JVM_FEATURES_ACTIVE'])
 
-      # Save this as e.g. JVM_FEATURES_server, using indirect variable
-      # referencing.
-      features_var_name=JVM_FEATURES_$variant
-      eval $features_var_name=\"$JVM_FEATURES_ACTIVE\"
+    # Save this as e.g. JVM_FEATURES_server, using indirect variable
+    # referencing.
+    features_var_name=JVM_FEATURES_$variant
+    eval $features_var_name=\"$JVM_FEATURES_ACTIVE\"
   done
 
   # Unfortunately AC_SUBST does not work with non-literally named variables,

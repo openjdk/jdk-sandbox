@@ -23,9 +23,6 @@
 # questions.
 #
 
-# Handling of JVM features reside in a separate file.
-m4_include([jvm-features.m4])
-
 # All valid JVM variants
 VALID_JVM_VARIANTS="server client minimal core zero custom"
 
