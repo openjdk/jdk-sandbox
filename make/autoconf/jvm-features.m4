@@ -558,10 +558,19 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
     AC_MSG_ERROR([Specified JVM feature 'management' requires feature 'nmt' for variant '$variant'])
   fi
 
-  # If at least one variant is missing cds, generating classlists is not
-  # possible.
+  # For backwards compatibility, disable a feature "globally" if one variant
+  # is missing the feature.
+  if ! JVM_FEATURES_IS_ACTIVE(aot); then
+    ENABLE_AOT="false"
+  fi
   if ! JVM_FEATURES_IS_ACTIVE(cds); then
     CDS_IS_ENABLED="false"
+  fi
+  if ! JVM_FEATURES_IS_ACTIVE(graal); then
+    INCLUDE_GRAAL="false"
+  fi
+  if ! JVM_FEATURES_IS_ACTIVE(jvmci); then
+    INCLUDE_JVMCI="false"
   fi
 
   # Verify that we have at least one gc selected (i.e., feature named "*gc").
@@ -581,9 +590,13 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
   # Set up variant-independent factors
   JVM_FEATURES_PREPARE_PLATFORM
 
-  # For classlist generation, we must know if all variants support CDS. Assume
-  # so, and disable in JVM_FEATURES_VERIFY if a non-CDS variant is found.
+  # For backwards compatibility, tentatively enable these features "globally",
+  # and disable them in JVM_FEATURES_VERIFY if a variant is found that are
+  # missing any of them.
+  ENABLE_AOT="true"
   CDS_IS_ENABLED="true"
+  INCLUDE_GRAAL="true"
+  INCLUDE_JVMCI="true"
 
   for variant in $JVM_VARIANTS; do
     # Figure out if any features are unavailable, or should be filtered out
@@ -618,4 +631,9 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
   AC_SUBST(JVM_FEATURES_core)
   AC_SUBST(JVM_FEATURES_zero)
   AC_SUBST(JVM_FEATURES_custom)
+
+  AC_SUBST(ENABLE_AOT)
+  AC_SUBST(INCLUDE_GRAAL)
+  AC_SUBST(INCLUDE_JVMCI)
+
 ])
