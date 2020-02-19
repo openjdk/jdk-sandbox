@@ -616,14 +616,14 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
       Default is to generate it when either the server or client JVMs are built and
       enable-cds is true.])])
 
-  # In hotspot.m4 CDS_IS_ENABLED is set to true iff all JVM variants has cds
+  # In hotspot.m4 ENABLE_CDS is set to true iff all JVM variants has cds
   # enabled.
 
   AC_MSG_CHECKING([if the CDS classlist generation should be enabled])
   if test "x$enable_generate_classlist" = "xyes"; then
     AC_MSG_RESULT([yes, forced])
     ENABLE_GENERATE_CLASSLIST="true"
-    if test "x$CDS_IS_ENABLED" = "xfalse"; then
+    if test "x$ENABLE_CDS" = "xfalse"; then
       # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
       # classlist file. It never will work in this case since the VM will report
       # an error for DumpLoadedClassList when CDS is disabled.
@@ -633,7 +633,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
     AC_MSG_RESULT([no, forced])
     ENABLE_GENERATE_CLASSLIST="false"
   elif test "x$enable_generate_classlist" = "x"; then
-    if test "x$CDS_IS_ENABLED" = "xtrue"; then
+    if test "x$ENABLE_CDS" = "xtrue"; then
       AC_MSG_RESULT([yes])
       ENABLE_GENERATE_CLASSLIST="true"
     else
@@ -706,7 +706,7 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
       [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
 
   AC_MSG_CHECKING([if a default CDS archive should be generated])
-  if test "x$CDS_IS_ENABLED" = "xfalse"; then
+  if test "x$ENABLE_CDS" = "xfalse"; then
     AC_MSG_RESULT([no, because CDS is disabled])
     BUILD_CDS_ARCHIVE="false"
   elif test "x$COMPILE_TYPE" = "xcross"; then

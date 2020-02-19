@@ -564,7 +564,7 @@ AC_DEFUN([JVM_FEATURES_VERIFY],
     ENABLE_AOT="false"
   fi
   if ! JVM_FEATURES_IS_ACTIVE(cds); then
-    CDS_IS_ENABLED="false"
+    ENABLE_CDS="false"
   fi
   if ! JVM_FEATURES_IS_ACTIVE(graal); then
     INCLUDE_GRAAL="false"
@@ -594,7 +594,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
   # and disable them in JVM_FEATURES_VERIFY if a variant is found that are
   # missing any of them.
   ENABLE_AOT="true"
-  CDS_IS_ENABLED="true"
+  ENABLE_CDS="true"
   INCLUDE_GRAAL="true"
   INCLUDE_JVMCI="true"
 
