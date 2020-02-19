@@ -522,9 +522,9 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
 # feature is active. To be used in shell if constructs, like this:
 # 'if JVM_FEATURES_IS_ACTIVE(jvmti); then'
 #
-AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
 # Definition kept in one line to allow inlining in if statements.
 # Additional [] needed to keep m4 from mangling shell constructs.
+AC_DEFUN([JVM_FEATURES_IS_ACTIVE],
 [ [ [[ " $JVM_FEATURES_ACTIVE " =~ ' '$1' ' ]] ] ])
 
 ###############################################################################
