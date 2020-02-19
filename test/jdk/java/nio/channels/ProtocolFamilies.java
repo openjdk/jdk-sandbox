@@ -75,7 +75,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openBind")
     public Object[][] openBind() {
-        if (!preferIPv4) {
+        if (!preferIPv4 && isIPv6available) {
             return new Object[][]{
                     {   INET,   INET,   true   },
                     {   INET,   INET6,  false  },
@@ -113,7 +113,8 @@ public class ProtocolFamilies {
             SocketAddress addr = getSocketAddress(bfam);
             sc.bind(addr);
             throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException | UnsupportedOperationException re) {
+        } catch (UnsupportedAddressTypeException
+                | UnsupportedOperationException re) {
             throwIf(expectPass, re);
         } catch (Throwable t) {
             throw new RuntimeException(t);
@@ -131,7 +132,8 @@ public class ProtocolFamilies {
             SocketAddress addr = getSocketAddress(bfam);
             ssc.bind(addr);
             throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException | UnsupportedOperationException re) {
+        } catch (UnsupportedAddressTypeException
+                | UnsupportedOperationException re) {
             throwIf(expectPass, re);
         } catch (Throwable t) {
             throw new RuntimeException(t);
@@ -149,7 +151,8 @@ public class ProtocolFamilies {
             SocketAddress addr = getSocketAddress(bfam);
             dc.bind(addr);
             throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException | UnsupportedOperationException re) {
+        } catch (UnsupportedAddressTypeException
+                | UnsupportedOperationException re) {
             throwIf(expectPass, re);
         }
     }
@@ -159,7 +162,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
-        if (!preferIPv4) {
+        if (!preferIPv4 && isIPv6available) {
             return new Object[][]{
                     {   INET,   INET,   true   },
                     {   INET,   INET6,  true   },
@@ -196,7 +199,8 @@ public class ProtocolFamilies {
             try (SocketChannel sc = openSC(cfam)) {
                 sc.connect(saddr);
                 throwIf(!expectPass);
-            } catch (UnsupportedAddressTypeException | UnsupportedOperationException re) {
+            } catch (UnsupportedAddressTypeException
+                    | UnsupportedOperationException re) {
                 throwIf(expectPass, re);
             } catch (Throwable t) {
                 throw new RuntimeException(t);
@@ -217,7 +221,7 @@ public class ProtocolFamilies {
             sdc.bind(null);
             SocketAddress saddr = sdc.getLocalAddress();
             try (DatagramChannel dc = openDC(cfam)) {
-                // Cannot connect DatagramChannel to any local address on Windows
+                // Cannot connect to any local address on Windows
                 // use loopback address in this case
                 if (isWindows) {
                     dc.connect(getLoopback(sfam));
@@ -225,7 +229,8 @@ public class ProtocolFamilies {
                     dc.connect(saddr);
                 }
                 throwIf(!expectPass);
-            } catch (UnsupportedAddressTypeException | UnsupportedOperationException re) {
+            } catch (UnsupportedAddressTypeException
+                    | UnsupportedOperationException re) {
                 throwIf(expectPass, re);
             }
         } catch (UnsupportedOperationException re) {
@@ -264,11 +269,9 @@ public class ProtocolFamilies {
             throws UnknownHostException {
         if ((fam == null || fam == INET6) && isIPv6available) {
             return new InetSocketAddress(InetAddress.getByName("::1"), 0);
-        }
-        if (fam == INET) {
+        } else {
             return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
         }
-        throw new RuntimeException("address couldn't be allocated");
     }
 
     private static Inet4Address getFirstLinkLocalIPv4Address()
