@@ -327,7 +327,7 @@ public class IOExchanges {
 
     // Similar to the previous six scenarios, but with same-thread
     // non-blocking connect.
-/*
+
     @Test
     public void BAccep_NBConn_BIO_WR_7() throws Throwable {
         try (ServerSocketChannel ssc = openServerSocketChannel(family)) {
@@ -547,7 +547,7 @@ public class IOExchanges {
             }
         }
     }
-*/
+
     // ---
     // Similar to the previous twelve scenarios but with non-blocking IO
     // ---
@@ -841,7 +841,7 @@ public class IOExchanges {
 
     // Similar to the previous six scenarios but with same-thread
     // non-blocking connect.
-/*
+
     @Test
     public void BAccep_NBConn_NBIO_WR_7a() throws Throwable {
         try (ServerSocketChannel ssc = openServerSocketChannel(family)) {
@@ -1160,7 +1160,7 @@ public class IOExchanges {
             }
         }
     }
-*/
+
     // --
 
     static class TestThread extends Thread {
