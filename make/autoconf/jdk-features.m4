@@ -58,6 +58,51 @@ define(jdk_features_deprecated, m4_normalize(
 JDK_FEATURE_DESCRIPTION_asan="ASan Adress Sanitation"
 JDK_FEATURE_DESCRIPTION_native_coverage="GCov"
 
+AC_DEFUN_ONCE([JDK_FEATURES_LEGACY],
+[
+  AC_ARG_ENABLE([headless-only], [AS_HELP_STRING([--enable-headless-only],
+    [only build headless (no GUI) support @<:@disabled@:>@])])
+  ENABLE_HEADLESS_ONLY="true"
+
+  AC_ARG_ENABLE([linktime-gc], [AS_HELP_STRING([--enable-linktime-gc],
+      [linktime gc unused code sections in the JDK build @<:@disabled@:>@])])
+  ENABLE_LINKTIME_GC="true"
+
+  AC_ARG_ENABLE(unlimited-crypto, [AS_HELP_STRING([--disable-unlimited-crypto],
+      [Disable unlimited crypto policy @<:@enabled@:>@])],,
+      [enable_unlimited_crypto=yes])
+  UNLIMITED_CRYPTO=true
+
+  INCLUDE_SA=false
+
+  AC_ARG_ENABLE(native-coverage, [AS_HELP_STRING([--enable-native-coverage],
+      [enable native compilation with code coverage data@<:@disabled@:>@])])
+  GCOV_ENABLED="false"
+
+  AC_ARG_WITH(jcov, [AS_HELP_STRING([--with-jcov],
+      [jcov library location])])
+  JCOV_HOME=
+  JCOV_ENABLED=
+
+  AC_ARG_ENABLE(asan, [AS_HELP_STRING([--enable-asan],
+      [enable AddressSanitizer if possible @<:@disabled@:>@])])
+  ASAN_ENABLED="no"
+
+  AC_ARG_ENABLE([static-build], [AS_HELP_STRING([--enable-static-build],
+    [enable static library build @<:@disabled@:>@])])
+  STATIC_BUILD=false
+
+  AC_ARG_ENABLE([generate-classlist], [AS_HELP_STRING([--disable-generate-classlist],
+      [forces enabling or disabling of the generation of a CDS classlist at build time.
+      Default is to generate it when either the server or client JVMs are built and
+      enable-cds is true.])])
+  ENABLE_GENERATE_CLASSLIST="true"
+
+  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
+      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
+  BUILD_CDS_ARCHIVE="false"
+])
+
 ###############################################################################
 # Parse command line options for JDK feature selection. After this function
 # has run $JDK_FEATURES_ENABLED, $JDK_FEATURES_DISABLED and $JDK_FEATURES_VALID
