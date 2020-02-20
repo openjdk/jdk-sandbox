@@ -48,13 +48,12 @@ import static jdk.test.lib.net.IPSupport.*;
  * @run testng/othervm ProtocolFamilies
  * @run testng/othervm -Djava.net.preferIPv4Stack=true ProtocolFamilies
  * @run testng/othervm -Djava.net.preferIPv6Addresses=true ProtocolFamilies
- * @run testng/othervm -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=true ProtocolFamilies
  */
 
 
 public class ProtocolFamilies {
     static final boolean isWindows = Platform.isWindows();
-    static final boolean isIPv6available = hasIPv6();
+    static final boolean hasIPv6 = hasIPv6();
     static final boolean preferIPv4 = preferIPv4Stack();
     static final boolean preferIPv6 =
             parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
@@ -66,6 +65,7 @@ public class ProtocolFamilies {
         NetworkConfiguration.printSystemConfiguration(out);
         IPSupport.printPlatformSupport(out);
         out.println("preferIPv6Addresses: " + preferIPv6);
+        throwSkippedExceptionIfNonOperational();
 
         ia4 = getFirstLinkLocalIPv4Address();
         ia6 = getFirstLinkLocalIPv6Address();
@@ -75,7 +75,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openBind")
     public Object[][] openBind() {
-        if (!preferIPv4 && isIPv6available) {
+        if (!preferIPv4 && hasIPv6) {
             return new Object[][]{
                     {   INET,   INET,   true   },
                     {   INET,   INET6,  false  },
@@ -162,7 +162,7 @@ public class ProtocolFamilies {
 
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
-        if (!preferIPv4 && isIPv6available) {
+        if (!preferIPv4 && hasIPv6) {
             return new Object[][]{
                     {   INET,   INET,   true   },
                     {   INET,   INET6,  true   },
@@ -267,7 +267,7 @@ public class ProtocolFamilies {
 
     private static SocketAddress getLoopback(StandardProtocolFamily fam)
             throws UnknownHostException {
-        if ((fam == null || fam == INET6) && isIPv6available) {
+        if ((fam == null || fam == INET6) && hasIPv6) {
             return new InetSocketAddress(InetAddress.getByName("::1"), 0);
         } else {
             return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
