@@ -54,6 +54,11 @@ define(jvm_features_deprecated, m4_normalize(
     cmsgc trace \
 ))
 
+# Feature descriptions
+# FIXME ...
+JVM_FEATURE_DESCRIPTION_aot="Ahead of Time-compilation"
+JVM_FEATURE_DESCRIPTION_static_build="Create only static libraries"
+
 
 ###############################################################################
 # Parse command line options for JVM feature selection. After this function

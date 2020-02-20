@@ -180,21 +180,37 @@ AC_DEFUN_ONCE([HELP_PRINT_ADDITIONAL_HELP_AND_EXIT],
   if test "x$CONFIGURE_PRINT_ADDITIONAL_HELP" != x; then
 
     # Print available toolchains
-    $PRINTF "The following toolchains are available as arguments to --with-toolchain-type.\n"
-    $PRINTF "Which are valid to use depends on the build platform.\n"
+    $PRINTF "The following toolchains are valid as arguments to --with-toolchain-type.\n"
+    $PRINTF "Which are available to use depends on the build platform.\n"
     for toolchain in $VALID_TOOLCHAINS_all; do
       # Use indirect variable referencing
       toolchain_var_name=TOOLCHAIN_DESCRIPTION_$toolchain
       TOOLCHAIN_DESCRIPTION=${!toolchain_var_name}
-      $PRINTF "  %-10s  %s\n" $toolchain "$TOOLCHAIN_DESCRIPTION"
+      $PRINTF "  %-22s  %s\n" $toolchain "$TOOLCHAIN_DESCRIPTION"
     done
     $PRINTF "\n"
 
-    # Print available jvm features
-    $PRINTF "The following JVM features are available as arguments to --with-jvm-features.\n"
-    $PRINTF "Which are valid to use depends on the target platform and JVM variant.\n  "
-    $PRINTF "%s " valid_jvm_features
+    # Print available JDK features
+    $PRINTF "The following JDK features are valid as arguments to --with-jdk-features.\n"
+    $PRINTF "Which are available to use depends on the environment.\n"
+    m4_foreach(FEATURE, m4_split(jdk_features_valid), [
+      # Create an m4 variable containing a shell variable name (like
+      # "JDK_FEATURE_DESCRIPTION_signed").
+      define(FEATURE_DESCRIPTION, [JDK_FEATURE_DESCRIPTION_]translit(FEATURE, -, _))
+      $PRINTF "  %-22s  %s\n" FEATURE "$FEATURE_DESCRIPTION"
+    ])
+
     $PRINTF "\n"
+
+    # Print available JVM features
+    $PRINTF "The following JVM features are valid as arguments to --with-jvm-features.\n"
+    $PRINTF "Which are available to use depends on the environment and JVM variant.\n"
+    m4_foreach(FEATURE, m4_split(jvm_features_valid), [
+      # Create an m4 variable containing a shell variable name (like
+      # "JVM_FEATURE_DESCRIPTION_zgc").
+      define(FEATURE_DESCRIPTION, [JVM_FEATURE_DESCRIPTION_]translit(FEATURE, -, _))
+      $PRINTF "  %-22s  %s\n" FEATURE "$FEATURE_DESCRIPTION"
+    ])
 
     # And now exit directly
     exit 0
@@ -230,6 +246,7 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
   printf "Configuration summary:\n"
   printf "* Debug level:    $DEBUG_LEVEL\n"
   printf "* HS debug level: $HOTSPOT_DEBUG_LEVEL\n"
+  printf "* JDK features:   $JDK_FEATURES\n"
   printf "* JVM variants:   $JVM_VARIANTS\n"
   printf "* JVM features:   "
 

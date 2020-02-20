@@ -53,6 +53,10 @@ define(jdk_features_valid, m4_normalize( \
 define(jdk_features_deprecated, m4_normalize(
 ))
 
+# Feature descriptions
+# FIXME ...
+JDK_FEATURE_DESCRIPTION_asan="ASan Adress Sanitation"
+JDK_FEATURE_DESCRIPTION_native_coverage="GCov"
 
 ###############################################################################
 # Parse command line options for JDK feature selection. After this function
