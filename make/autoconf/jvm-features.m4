@@ -79,7 +79,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
       '--help' to show possible values @<:@none@:>@])])
   if test "x$with_jvm_features" != x; then
     # Replace ","  with " ".
-    user_jvm_feature_list=`$ECHO $with_jvm_features | $SED -e 's/,/ /g'`
+    user_jvm_feature_list=${with_jvm_features//,/ }
     JVM_FEATURES_ENABLED=`$ECHO $user_jvm_feature_list | \
         $AWK '{ for (i=1; i<=NF; i++) if (!match($i, /^-.*/)) printf("%s ", $i) }'`
     JVM_FEATURES_DISABLED=`$ECHO $user_jvm_feature_list | \
@@ -367,10 +367,10 @@ AC_DEFUN_ONCE([JVM_FEATURES_CHECK_ZGC],
         AVAILABLE=false
       fi
     elif test "x$OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU" = "xlinux-aarch64"; then
-        AC_MSG_RESULT([yes])
+      AC_MSG_RESULT([yes])
     else
-        AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
-        AVAILABLE=false
+      AC_MSG_RESULT([no, $OPENJDK_TARGET_OS-$OPENJDK_TARGET_CPU])
+      AVAILABLE=false
     fi
 
     if test "x$OPENJDK_TARGET_OS" = "xwindows"; then
