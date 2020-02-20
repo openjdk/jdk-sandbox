@@ -55,6 +55,7 @@ m4_include([build-performance.m4])
 m4_include([flags.m4])
 m4_include([help.m4])
 m4_include([hotspot.m4])
+m4_include([jdk-features.m4])
 m4_include([jdk-options.m4])
 m4_include([jdk-version.m4])
 m4_include([jvm-features.m4])
@@ -227,6 +228,10 @@ JVM_FEATURES_SETUP
 
 HOTSPOT_ENABLE_DISABLE_GTEST
 HOTSPOT_SETUP_MISC
+
+# JDK features depends on JVM features
+JDK_FEATURES_PARSE_OPTIONS
+JDK_FEATURES_SETUP
 
 ###############################################################################
 #
