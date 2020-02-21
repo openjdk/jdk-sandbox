@@ -23,7 +23,7 @@
 # questions.
 #
 
-m4_include([basics_windows.m4])
+m4_include([basic_windows.m4])
 
 ###############################################################################
 AC_DEFUN_ONCE([BASIC_INIT],

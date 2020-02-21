@@ -49,7 +49,7 @@ AC_DEFUN_ONCE([CUSTOM_SUMMARY_AND_WARNINGS_HOOK])
 # Include these first...
 m4_include([util.m4])
 # ... then the rest
-m4_include([basics.m4])
+m4_include([basic.m4])
 m4_include([boot-jdk.m4])
 m4_include([build-performance.m4])
 m4_include([flags.m4])
