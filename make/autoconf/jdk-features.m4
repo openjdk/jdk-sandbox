@@ -78,6 +78,17 @@ m4_define(jdk_feature_desc_signed, [sign the generated binaries])
 m4_define(jdk_feature_desc_static_build, [build static library instead of dynamic])
 m4_define(jdk_feature_desc_unlimited_crypto, [use unlimited crypto policy as default])
 
+
+###############################################################################
+# Check if the specified JDK feature is active. To be used in shell if
+# constructs, like this:
+# 'if JDK_FEATURES_CHECK(cds-archive); then'
+#
+# Definition kept in one line to allow inlining in if statements.
+# Additional [] needed to keep m4 from mangling shell constructs.
+AC_DEFUN([JDK_FEATURES_CHECK],
+[ [ [[ " $JDK_FEATURES " =~ ' '$1' ' ]] ] ])
+
 AC_DEFUN_ONCE([JDK_FEATURES_LEGACY],
 [
   BASIC_ALIASED_ARG_ENABLE(linktime-gc, --enable-jdk-feature-link-time-gc)
