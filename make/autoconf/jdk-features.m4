@@ -41,66 +41,69 @@
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JDK features, regardless of platform
-define(jdk_features_valid, m4_normalize( \
+m4_define(jdk_features_valid, m4_normalize( \
     ifdef([custom_jdk_features_valid], custom_jdk_features_valid) \
     \
     asan cds-archive cds-classlist full-desktop java-coverage link-time-gc \
     native-coverage serviceability-agent signed static-build unlimited-crypto \
 ))
 
+# asan
+# cds-archive
+# cds-classlist
+# full-desktop
+# java-coverage
+# link-time-gc
+# native-coverage
+# serviceability-agent
+# signed
+# static-build
+# unlimited-crypto
+
 # Deprecated JDK features (these are ignored, but with a warning)
 # Currently empty, but stays as placeholder.
-define(jdk_features_deprecated, m4_normalize(
+m4_define(jdk_features_deprecated, m4_normalize(
 ))
 
 # Feature descriptions
-# FIXME ...
-JDK_FEATURE_DESCRIPTION_asan="ASan Adress Sanitation"
-JDK_FEATURE_DESCRIPTION_native_coverage="GCov"
+m4_define(jdk_feature_desc_asan, [use ASan adress sanitation])
+m4_define(jdk_feature_desc_cds_archive, [generate a default CDS archive in the product image])
+m4_define(jdk_feature_desc_cds_classlist, [generate a CDS classlist at build time])
+m4_define(jdk_feature_desc_full_desktop, [include support for display device, keyboard and mouse])
+m4_define(jdk_feature_desc_java_coverage, [compile Java code with code coverage])
+m4_define(jdk_feature_desc_link_time_gc, [enable link time removal of unused code sections])
+m4_define(jdk_feature_desc_native_coverage, [compile native code with code coverage])
+m4_define(jdk_feature_desc_serviceability_agent, [include Serviceability Agent (SA)])
+m4_define(jdk_feature_desc_signed, [sign the generated binaries])
+m4_define(jdk_feature_desc_static_build, [build static library instead of dynamic])
+m4_define(jdk_feature_desc_unlimited_crypto, [use unlimited crypto policy as default])
 
 AC_DEFUN_ONCE([JDK_FEATURES_LEGACY],
 [
+  BASIC_ALIASED_ARG_ENABLE(linktime-gc, --enable-jdk-feature-link-time-gc)
+  BASIC_ALIASED_ARG_ENABLE(unlimited-crypto, --enable-jdk-feature-unlimited-crypto)
+  BASIC_ALIASED_ARG_ENABLE(native-coverage, --enable-jdk-feature-native-coverage)
+  BASIC_ALIASED_ARG_ENABLE(asan, --enable-jdk-feature-asan)
+  BASIC_ALIASED_ARG_ENABLE(static-build, --enable-jdk-feature-static-build)
+  BASIC_ALIASED_ARG_ENABLE(generate-classlist, --enable-jdk-feature-cds-classlist)
+  BASIC_ALIASED_ARG_ENABLE(cds-archive, --enable-jdk-feature-cds-archive)
+
+  ENABLE_HEADLESS_ONLY="true"
+  ENABLE_LINKTIME_GC="true"
+  UNLIMITED_CRYPTO=true
+  INCLUDE_SA=false
+  GCOV_ENABLED="false"
+  ASAN_ENABLED="no"
+  STATIC_BUILD=false
+  ENABLE_GENERATE_CLASSLIST="true"
+  BUILD_CDS_ARCHIVE="false"
+
   AC_ARG_ENABLE([headless-only], [AS_HELP_STRING([--enable-headless-only],
     [only build headless (no GUI) support @<:@disabled@:>@])])
-  ENABLE_HEADLESS_ONLY="true"
-
-  AC_ARG_ENABLE([linktime-gc], [AS_HELP_STRING([--enable-linktime-gc],
-      [linktime gc unused code sections in the JDK build @<:@disabled@:>@])])
-  ENABLE_LINKTIME_GC="true"
-
-  AC_ARG_ENABLE(unlimited-crypto, [AS_HELP_STRING([--disable-unlimited-crypto],
-      [Disable unlimited crypto policy @<:@enabled@:>@])],,
-      [enable_unlimited_crypto=yes])
-  UNLIMITED_CRYPTO=true
-
-  INCLUDE_SA=false
-
-  AC_ARG_ENABLE(native-coverage, [AS_HELP_STRING([--enable-native-coverage],
-      [enable native compilation with code coverage data@<:@disabled@:>@])])
-  GCOV_ENABLED="false"
-
   AC_ARG_WITH(jcov, [AS_HELP_STRING([--with-jcov],
       [jcov library location])])
   JCOV_HOME=
   JCOV_ENABLED=
-
-  AC_ARG_ENABLE(asan, [AS_HELP_STRING([--enable-asan],
-      [enable AddressSanitizer if possible @<:@disabled@:>@])])
-  ASAN_ENABLED="no"
-
-  AC_ARG_ENABLE([static-build], [AS_HELP_STRING([--enable-static-build],
-    [enable static library build @<:@disabled@:>@])])
-  STATIC_BUILD=false
-
-  AC_ARG_ENABLE([generate-classlist], [AS_HELP_STRING([--disable-generate-classlist],
-      [forces enabling or disabling of the generation of a CDS classlist at build time.
-      Default is to generate it when either the server or client JVMs are built and
-      enable-cds is true.])])
-  ENABLE_GENERATE_CLASSLIST="true"
-
-  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
-      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
-  BUILD_CDS_ARCHIVE="false"
 ])
 
 ###############################################################################
@@ -152,12 +155,13 @@ AC_DEFUN_ONCE([JDK_FEATURES_PARSE_OPTIONS],
   # Then check for features using the "--enable-jdk-feature-<feature>" syntax.
   # Using m4, loop over all features with the variable FEATURE.
   m4_foreach(FEATURE, m4_split(jdk_features_valid), [
-    AC_ARG_ENABLE(jdk-feature-FEATURE, AS_HELP_STRING(
-        [--enable-jdk-feature-FEATURE], [enable jdk feature 'FEATURE']))
-
     # Create an m4 variable containing a shell variable name (like
-    # "enable_jdk_feature_static_build").
-    define(FEATURE_SHELL, [enable_jdk_feature_]translit(FEATURE, -, _))
+    # "enable_jdk_feature_static_build"), and the description.
+    m4_define(FEATURE_SHELL, [enable_jdk_feature_]m4_translit(FEATURE, -, _))
+    m4_define(FEATURE_DESCRIPTION, [jdk_feature_desc_]m4_translit(FEATURE, -, _))
+
+    AC_ARG_ENABLE(jdk-feature-FEATURE, AS_HELP_STRING(
+        [--enable-jdk-feature-FEATURE], enable jdk feature 'FEATURE' (FEATURE_DESCRIPTION)))
 
     if test "x$FEATURE_SHELL" = xyes; then
       JDK_FEATURES_ENABLED="$JDK_FEATURES_ENABLED FEATURE"
@@ -167,22 +171,23 @@ AC_DEFUN_ONCE([JDK_FEATURES_PARSE_OPTIONS],
       AC_MSG_ERROR([Invalid value for --enable-jdk-feature-FEATURE: '$FEATURE_SHELL'])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_DESCRIPTION])
   ])
 
   # Likewise, check for deprecated arguments.
   m4_foreach(FEATURE, m4_split(jdk_features_deprecated), [
     AC_ARG_ENABLE(jdk-feature-FEATURE, AS_HELP_STRING(
         [--enable-jdk-feature-FEATURE], [enable jdk feature 'FEATURE'
-         (deprecated)]))
+         (deprecated, will be ignored)]))
 
-    define(FEATURE_SHELL, [enable_jdk_feature_]translit(FEATURE, -, _))
+    m4_define(FEATURE_SHELL, [enable_jdk_feature_]m4_translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" != x; then
       AC_MSG_WARN([Deprecated JDK feature, will be ignored: --enable-jdk-feature-FEATURE])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
   ])
 
   # Warn if the user has both enabled and disabled a feature

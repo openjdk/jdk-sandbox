@@ -41,7 +41,7 @@
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JVM features, regardless of platform
-define(jvm_features_valid, m4_normalize( \
+m4_define(jvm_features_valid, m4_normalize( \
     ifdef([custom_jvm_features_valid], custom_jvm_features_valid) \
     \
     aot cds compiler1 compiler2 dtrace epsilongc g1gc graal jfr jni-check \
@@ -50,7 +50,7 @@ define(jvm_features_valid, m4_normalize( \
 ))
 
 # Deprecated JVM features (these are ignored, but with a warning)
-define(jvm_features_deprecated, m4_normalize(
+m4_define(jvm_features_deprecated, m4_normalize(
     cmsgc trace \
 ))
 
@@ -120,7 +120,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 
     # Create an m4 variable containing a shell variable name (like
     # "enable_jvm_feature_static_build").
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+    m4_define(FEATURE_SHELL, [enable_jvm_feature_]m4_translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" = xyes; then
       JVM_FEATURES_ENABLED="$JVM_FEATURES_ENABLED FEATURE"
@@ -130,7 +130,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
       AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: '$FEATURE_SHELL'])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
   ])
 
   # Likewise, check for deprecated arguments.
@@ -139,13 +139,13 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
         [--enable-jvm-feature-FEATURE], [enable jvm feature 'FEATURE'
          (deprecated)]))
 
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+    m4_define(FEATURE_SHELL, [enable_jvm_feature_]m4_translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" != x; then
       AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
   ])
 
   # Warn if the user has both enabled and disabled a feature

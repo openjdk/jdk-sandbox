@@ -194,10 +194,10 @@ AC_DEFUN_ONCE([HELP_PRINT_ADDITIONAL_HELP_AND_EXIT],
     $PRINTF "The following JDK features are valid as arguments to --with-jdk-features.\n"
     $PRINTF "Which are available to use depends on the environment.\n"
     m4_foreach(FEATURE, m4_split(jdk_features_valid), [
-      # Create an m4 variable containing a shell variable name (like
-      # "JDK_FEATURE_DESCRIPTION_signed").
-      define(FEATURE_DESCRIPTION, [JDK_FEATURE_DESCRIPTION_]translit(FEATURE, -, _))
-      $PRINTF "  %-22s  %s\n" FEATURE "$FEATURE_DESCRIPTION"
+      # Create an m4 variable containing the description for FEATURE.
+      m4_define(FEATURE_DESCRIPTION, [jdk_feature_desc_]m4_translit(FEATURE, -, _))
+      $PRINTF "  %-22s  %s\n" FEATURE "FEATURE_DESCRIPTION"
+      m4_undefine([FEATURE_DESCRIPTION])
     ])
 
     $PRINTF "\n"
@@ -206,10 +206,10 @@ AC_DEFUN_ONCE([HELP_PRINT_ADDITIONAL_HELP_AND_EXIT],
     $PRINTF "The following JVM features are valid as arguments to --with-jvm-features.\n"
     $PRINTF "Which are available to use depends on the environment and JVM variant.\n"
     m4_foreach(FEATURE, m4_split(jvm_features_valid), [
-      # Create an m4 variable containing a shell variable name (like
-      # "JVM_FEATURE_DESCRIPTION_zgc").
-      define(FEATURE_DESCRIPTION, [JVM_FEATURE_DESCRIPTION_]translit(FEATURE, -, _))
-      $PRINTF "  %-22s  %s\n" FEATURE "$FEATURE_DESCRIPTION"
+      # Create an m4 variable containing the description for FEATURE.
+      m4_define(FEATURE_DESCRIPTION, [jvm_feature_desc_]m4_translit(FEATURE, -, _))
+      $PRINTF "  %-22s  %s\n" FEATURE "FEATURE_DESCRIPTION"
+      m4_undefine([FEATURE_DESCRIPTION])
     ])
 
     # And now exit directly
