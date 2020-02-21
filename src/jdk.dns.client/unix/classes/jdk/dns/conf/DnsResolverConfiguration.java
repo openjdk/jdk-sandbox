@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.StringTokenizer;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.TimeUnit;
 
 /*
  * An implementation of DnsResolverConfiguration for Solaris
@@ -50,6 +51,22 @@ public class DnsResolverConfiguration {
 
     public static String getDefaultHostsFileLocation() {
         return "/etc/hosts";
+    }
+
+    // Not needed on *nix platforms since /etc/hosts should contain
+    // address for local host name
+    public List<byte[]> nativeLookup0(String hostName) {
+        return null;
+    }
+
+    // Not needed on *nix platforms since /etc/hosts should contain
+    // address for local host name
+    public String nativeReverseLookup0(byte[] address) {
+        return null;
+    }
+
+    public void cacheLocalHostAddresses(List<byte[]> addressesList) {
+        // NO-OP: see Windows implementation
     }
 
     // Lock held whilst loading configuration or checking
@@ -63,7 +80,7 @@ public class DnsResolverConfiguration {
 
     // Cache timeout (300 seconds) in nano seconds - should be converted into property
     // or configured as preference in the future.
-    private static final long TIMEOUT = 300_000_000_000L;
+    private static final long TIMEOUT = TimeUnit.SECONDS.toNanos(300);
 
     // Parse /etc/resolv.conf to get the values for a particular
     // keyword.

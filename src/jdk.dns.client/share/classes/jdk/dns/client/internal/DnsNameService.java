@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,12 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.Comparator;
 
 public class DnsNameService implements InetAddress.NameService {
-    private static final InetAddress[] NONE = new InetAddress[0];
+
+    final InetAddress.NameService platformNativeNameService;
 
     enum AddressOrder {
         DontCare,
@@ -71,16 +73,20 @@ public class DnsNameService implements InetAddress.NameService {
     }
 
     public DnsNameService() {
+        this.platformNativeNameService = null;
+    }
+
+    public DnsNameService(InetAddress.NameService platformNativeNameService) {
+        this.platformNativeNameService = platformNativeNameService;
     }
 
     @Override
     public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
+        InetAddress[] addresses = NetworkNamesResolver.open().lookupAllHostAddr(host);
         if (order == AddressOrder.DontCare) {
-            return NetworkNamesResolver.open().lookupAllHostAddr(host).toArray(NONE);
+            return addresses;
         } else {
-            return NetworkNamesResolver.open()
-                    .lookupAllHostAddr(host)
-                    .stream()
+            return Arrays.stream(addresses)
                     .sorted(Comparator.comparing(
                             ia -> (ia instanceof Inet4Address && order == AddressOrder.IPv4First)
                                     || (ia instanceof Inet6Address && order == AddressOrder.IPv6First),
@@ -92,6 +98,6 @@ public class DnsNameService implements InetAddress.NameService {
 
     @Override
     public String getHostByAddr(byte[] addr) throws UnknownHostException {
-        return NetworkNamesResolver.open().getHostByAddr(InetAddress.getByAddress(addr));
+        return NetworkNamesResolver.open().getHostByAddr(addr);
     }
 }

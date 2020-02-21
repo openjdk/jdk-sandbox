@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,10 @@ import jdk.dns.client.ex.DnsResolverException;
 import jdk.dns.conf.DnsResolverConfiguration;
 
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -66,9 +68,44 @@ public class DnsResolver implements AutoCloseable {
         // Then iterate over the search list
         domainsToSearch.addAll(dnsResolverConfiguration.searchlist());
         if (DEBUG) {
-            System.out.printf("Domains search list:%s%n", domainsToSearch);
+            System.err.printf("Domains search list:%s%n", domainsToSearch);
         }
         return domainsToSearch;
+    }
+
+    public InetAddress[] resolvePlatform(String hostName) {
+        List<byte[]> addressesList = dnsResolverConfiguration.nativeLookup0(hostName);
+
+        if (addressesList == null || addressesList.isEmpty()) {
+            return null;
+        }
+        dnsResolverConfiguration.cacheLocalHostAddresses(addressesList);
+        var result = new ArrayList<InetAddress>();
+        for (var bytes : addressesList) {
+            try {
+                var address = InetAddress.getByAddress(hostName, bytes);
+                result.add(address);
+            } catch (UnknownHostException e) {
+                if (DEBUG) {
+                    System.err.printf("Wrong address bytes array length: %d. Ignoring.", bytes.length);
+                }
+            }
+        }
+        if (result.isEmpty()) {
+            return null;
+        }
+        return result.toArray(new InetAddress[0]);
+    }
+
+    public String reverseResolvePlatform(byte[] address) {
+        if (DEBUG) {
+            System.err.printf("Calling reverse resolve platform for: %s%n", Arrays.toString(address));
+        }
+        if (address != null) {
+            return dnsResolverConfiguration.nativeReverseLookup0(address);
+        } else {
+            return null;
+        }
     }
 
     /*
@@ -81,9 +118,8 @@ public class DnsResolver implements AutoCloseable {
         return dnsClient.query(new DnsName(fqdn), ResourceRecord.CLASS_INTERNET, rrtype, true, false);
     }
 
-    public List<String> rlookup(String literalIP, InetAddress address) throws DnsResolverException {
-
-        switch (AddressFamily.fromInetAddress(address)) {
+    public List<String> rlookup(String literalIP, AddressFamily addressFamily) throws DnsResolverException {
+        switch (addressFamily) {
             case IPv4:
                 return ipv4rlookup(literalIP);
             case IPv6:

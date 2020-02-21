@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -155,6 +155,8 @@ public class AddressResolutionQueue {
                 if (isAnyMode || !needAllAddresses) {
                     return Collections.unmodifiableList(addresses);
                 } else if (gotResultsFor.isEmpty()) {
+                    // !ANY mode - save the hostName=requested+dnsSuffix to remove other host names from
+                    // the resolution queue
                     gotResultsFor = resRequest.hostName;
                 }
             }
@@ -228,7 +230,6 @@ public class AddressResolutionQueue {
                     addQueriesForHostname(cname);
                 }
             }
-            // Filter the results depending on typeOfAddress
             return Collections.emptyList();
         } catch (DnsResolverException e) {
             return Collections.emptyList();
@@ -307,7 +308,7 @@ public class AddressResolutionQueue {
     private boolean isAnyMode;
     // Use any mode property value
     private static final boolean USE_ANY_SP_VALUE = java.security.AccessController.doPrivileged(
-            (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.use.any"));
+            (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.useAny"));
     // Maximum number of sequential CNAME requests
     private static final int MAX_CNAME_RESOLUTION_DEPTH = 4;
     // Enable debug output

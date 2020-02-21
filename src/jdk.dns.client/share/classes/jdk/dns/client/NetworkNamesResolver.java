@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,20 +26,24 @@
 package jdk.dns.client;
 
 import jdk.dns.client.ex.DnsResolverException;
+import jdk.dns.client.internal.AddressFamily;
 import jdk.dns.client.internal.AddressResolutionQueue;
 import jdk.dns.client.internal.DnsResolver;
 import jdk.dns.client.internal.HostsFileResolver;
+import jdk.dns.client.internal.util.IPUtils;
 
 import java.net.InetAddress;
 import java.net.ProtocolFamily;
 import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class NetworkNamesResolver {
 
     private final ProtocolFamily protocolFamily;
+    private static final InetAddress[] NONE = new InetAddress[0];
 
     public static NetworkNamesResolver open() throws UnknownHostException {
         // null for any (IPv4+IPv6) addresses family
@@ -73,9 +77,14 @@ public class NetworkNamesResolver {
                         hostname, protocolFamily == null ? "ANY" : protocolFamily.toString());
             }
         }
-
         // If no luck - try to ask name servers
         try (DnsResolver dnsResolver = new DnsResolver()) {
+            // Try platform resolver first, to resolve the local host name OR localhost
+            // only takes place on Windows hosts, on other platforms will do that
+            var addresses = dnsResolver.resolvePlatform(hostname);
+            if (addresses != null) {
+                return addresses[0];
+            }
             var results = lookup(dnsResolver, hostname, protocolFamily, false);
             return results.get(0);
         }
@@ -89,11 +98,11 @@ public class NetworkNamesResolver {
      * @return array of IP addresses for the requested host
      * @throws UnknownHostException if no IP address for the {@code hostname} could be found
      */
-    public List<InetAddress> lookupAllHostAddr(String hostname) throws UnknownHostException {
+    public InetAddress[] lookupAllHostAddr(String hostname) throws UnknownHostException {
         // First try hosts file
         // TODO: Add nsswitch.conf ReloadTracker and parser to select proper order
         try {
-            return List.of(hostsFileResolver.getHostAddress(hostname, protocolFamily));
+            return new InetAddress[]{hostsFileResolver.getHostAddress(hostname, protocolFamily)};
         } catch (UnknownHostException uhe) {
             if (DEBUG) {
                 System.err.printf("Resolver API: Hosts file doesn't know '%s' host%n", hostname);
@@ -101,11 +110,18 @@ public class NetworkNamesResolver {
         }
 
         try (var dnsResolver = new DnsResolver()) {
-            var results = lookup(dnsResolver, hostname, null, true);
-            if (results.isEmpty()) {
-                throw new UnknownHostException(hostname + " unknown host name");
+            // Try to call native method to resolve local host name or 'localhost' first
+            // only takes place on Windows hosts, on other platforms will do that
+            var addresses = dnsResolver.resolvePlatform(hostname);
+            if (addresses != null) {
+                if (DEBUG) {
+                    System.err.println("Resolver API: Host name matches local host name" +
+                            " OR equals to 'localhost' and were resolved natively");
+                }
+                return addresses;
             }
-            return results;
+            // If platform resolver doesn't know local host address - perform DNS lookup
+            return lookup(dnsResolver, hostname, null, true).toArray(NONE);
         }
     }
 
@@ -116,7 +132,7 @@ public class NetworkNamesResolver {
      * @return {@code String} representing the host name
      * @throws UnknownHostException if no host found for the specified IP address
      */
-    public String getHostByAddr(InetAddress address) throws UnknownHostException {
+    public String getHostByAddr(byte[] address) throws UnknownHostException {
         var results = getAllHostsByAddr(address);
         return results.get(0);
     }
@@ -128,22 +144,31 @@ public class NetworkNamesResolver {
      * @return array of {@code String} representing the host names
      * @throws UnknownHostException if no host found for the specified IP address
      */
-    public List<String> getAllHostsByAddr(InetAddress address) throws UnknownHostException {
+    public List<String> getAllHostsByAddr(byte[] address) throws UnknownHostException {
         // First try hosts file
         // TODO: Add nsswitch.conf to select proper order
         if (DEBUG) {
-            System.err.println("Resolver API: Reverse lookup call for address:"+address);
+            System.err.println("Resolver API: Reverse lookup call for address:" + Arrays.toString(address));
         }
         try {
             return List.of(hostsFileResolver.getByAddress(address));
         } catch (UnknownHostException uhe) {
             if (DEBUG) {
-                System.err.printf("Resolver API: No host in hosts file with %s address%n", address);
+                System.err.printf("Resolver API: No host in hosts file with %s address%n", Arrays.toString(address));
             }
         }
+
         try (DnsResolver dnsResolver = new DnsResolver()) {
-            var literalIP = addressToLiteralIP(address);
-            var results = dnsResolver.rlookup(literalIP, address);
+            var literalIP = IPUtils.addressToLiteralIP(address);
+            // Check local host name first - takes place only on Windows platform
+            if (DEBUG) {
+                System.err.printf("Resolver API: Checking Windows local host name  for %s address%n", Arrays.toString(address));
+            }
+            var resultNative = dnsResolver.reverseResolvePlatform(address);
+            if (resultNative != null) {
+                return List.of(resultNative);
+            }
+            var results = dnsResolver.rlookup(literalIP, AddressFamily.fromByteArray(address));
             if (results.isEmpty()) {
                 throw new UnknownHostException();
             }
@@ -156,29 +181,6 @@ public class NetworkNamesResolver {
             uhe.initCause(dre);
             throw uhe;
         }
-    }
-
-    private static String addressToLiteralIP(InetAddress address) {
-        byte[] bytes = address.getAddress();
-        StringBuilder addressBuff = new StringBuilder();
-        // IPv4 address
-        if (bytes.length == 4) {
-            for (int i = bytes.length - 1; i >= 0; i--) {
-                addressBuff.append(bytes[i] & 0xff);
-                addressBuff.append(".");
-            }
-            // IPv6 address
-        } else if (bytes.length == 16) {
-            for (int i = bytes.length - 1; i >= 0; i--) {
-                addressBuff.append(Integer.toHexString((bytes[i] & 0x0f)));
-                addressBuff.append(".");
-                addressBuff.append(Integer.toHexString((bytes[i] & 0xf0) >> 4));
-                addressBuff.append(".");
-            }
-        } else {
-            return null;
-        }
-        return addressBuff.toString();
     }
 
     private List<InetAddress> lookup(DnsResolver dnsResolver, String host, ProtocolFamily protocolFamily, boolean needAllAddresses) throws UnknownHostException {
