@@ -23,7 +23,7 @@
 # questions.
 #
 
-AC_DEFUN([BASIC_WINDOWS_REWRITE_AS_UNIX_PATH],
+AC_DEFUN([UTIL_REWRITE_AS_UNIX_PATH],
 [
   windows_path="[$]$1"
   if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
@@ -42,7 +42,7 @@ AC_DEFUN([BASIC_WINDOWS_REWRITE_AS_UNIX_PATH],
   fi
 ])
 
-AC_DEFUN([BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH],
+AC_DEFUN([UTIL_REWRITE_AS_WINDOWS_MIXED_PATH],
 [
   unix_path="[$]$1"
   if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
@@ -60,7 +60,7 @@ AC_DEFUN([BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH],
 # Helper function which possibly converts a path using DOS-style short mode.
 # If so, the updated path is stored in $new_path.
 # $1: The path to check
-AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_CYGWIN],
+AC_DEFUN([UTIL_MAKE_WINDOWS_SPACE_SAFE_CYGWIN],
 [
   input_path="$1"
   # Check if we need to convert this using DOS-style short mode. If the path
@@ -96,7 +96,7 @@ AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_CYGWIN],
 # Helper function which possibly converts a path using DOS-style short mode.
 # If so, the updated path is stored in $new_path.
 # $1: The path to check
-AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_MSYS],
+AC_DEFUN([UTIL_MAKE_WINDOWS_SPACE_SAFE_MSYS],
 [
   input_path="$1"
   # Check if we need to convert this using DOS-style short mode. If the path
@@ -113,7 +113,7 @@ AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_MSYS],
 # Helper function which possibly converts a path using DOS-style short mode.
 # If so, the updated path is stored in $new_path.
 # $1: The path to check
-AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_WSL],
+AC_DEFUN([UTIL_MAKE_WINDOWS_SPACE_SAFE_WSL],
 [
   input_path="$1"
   # Check if we need to convert this using DOS-style short mode. If the path
@@ -124,31 +124,31 @@ AC_DEFUN([BASIC_MAKE_WINDOWS_SPACE_SAFE_WSL],
   if test "x$has_forbidden_chars" != x; then
     # Now convert it to mixed DOS-style, short mode (no spaces, and / instead of \)
     TOPDIR_windows="$TOPDIR"
-    BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([TOPDIR_windows])
+    UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([TOPDIR_windows])
     # First convert to Windows path to make input valid for cmd
-    BASIC_WINDOWS_REWRITE_AS_WINDOWS_MIXED_PATH([input_path])
+    UTIL_REWRITE_AS_WINDOWS_MIXED_PATH([input_path])
     new_path=`$CMD /c $TOPDIR_windows/make/scripts/windowsShortName.bat "$input_path" \
         | $SED -e 's|\r||g' \
         | $TR \\\\\\\\ / | $TR 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz'`
     # Rewrite back to unix style
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([new_path])
+    UTIL_REWRITE_AS_UNIX_PATH([new_path])
   fi
 ])
 
-# FIXME: The BASIC_FIXUP_*_CYGWIN/MSYS is most likely too convoluted
+# FIXME: The UTIL_FIXUP_*_CYGWIN/MSYS is most likely too convoluted
 # and could probably be heavily simplified. However, all changes in this
 # area tend to need lot of testing in different scenarios, and in lack of
 # proper unit testing, cleaning this up has not been deemed worth the effort
 # at the moment.
 
-AC_DEFUN([BASIC_FIXUP_PATH_CYGWIN],
+AC_DEFUN([UTIL_FIXUP_PATH_CYGWIN],
 [
   # Input might be given as Windows format, start by converting to
   # unix format.
   path="[$]$1"
   new_path=`$CYGPATH -u "$path"`
 
-  BASIC_ABSOLUTE_PATH(new_path)
+  UTIL_ABSOLUTE_PATH(new_path)
 
   # Cygwin tries to hide some aspects of the Windows file system, such that binaries are
   # named .exe but called without that suffix. Therefore, "foo" and "foo.exe" are considered
@@ -165,7 +165,7 @@ AC_DEFUN([BASIC_FIXUP_PATH_CYGWIN],
 
   # Call helper function which possibly converts this using DOS-style short mode.
   # If so, the updated path is stored in $new_path.
-  BASIC_MAKE_WINDOWS_SPACE_SAFE_CYGWIN([$new_path])
+  UTIL_MAKE_WINDOWS_SPACE_SAFE_CYGWIN([$new_path])
 
   if test "x$path" != "x$new_path"; then
     $1="$new_path"
@@ -173,7 +173,7 @@ AC_DEFUN([BASIC_FIXUP_PATH_CYGWIN],
   fi
 ])
 
-AC_DEFUN([BASIC_FIXUP_PATH_MSYS],
+AC_DEFUN([UTIL_FIXUP_PATH_MSYS],
 [
   path="[$]$1"
   has_colon=`$ECHO $path | $GREP ^.:`
@@ -183,10 +183,10 @@ AC_DEFUN([BASIC_FIXUP_PATH_MSYS],
     new_path=`cmd //c echo $path`
   fi
 
-  BASIC_ABSOLUTE_PATH(new_path)
+  UTIL_ABSOLUTE_PATH(new_path)
 
-  BASIC_MAKE_WINDOWS_SPACE_SAFE_MSYS([$new_path])
-  BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(new_path)
+  UTIL_MAKE_WINDOWS_SPACE_SAFE_MSYS([$new_path])
+  UTIL_REWRITE_AS_UNIX_PATH(new_path)
   if test "x$path" != "x$new_path"; then
     $1="$new_path"
     AC_MSG_NOTICE([Rewriting $1 to "$new_path"])
@@ -196,18 +196,18 @@ AC_DEFUN([BASIC_FIXUP_PATH_MSYS],
   all_fixpath_prefixes=("${all_fixpath_prefixes@<:@@@:>@}" "${new_path:0:10}")
 ])
 
-AC_DEFUN([BASIC_FIXUP_PATH_WSL],
+AC_DEFUN([UTIL_FIXUP_PATH_WSL],
 [
   # Input might be given as Windows format, start by converting to
   # unix format.
   new_path="[$]$1"
-  BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([new_path])
+  UTIL_REWRITE_AS_UNIX_PATH([new_path])
 
-  BASIC_ABSOLUTE_PATH(new_path)
+  UTIL_ABSOLUTE_PATH(new_path)
 
   # Call helper function which possibly converts this using DOS-style short mode.
   # If so, the updated path is stored in $new_path.
-  BASIC_MAKE_WINDOWS_SPACE_SAFE_WSL([$new_path])
+  UTIL_MAKE_WINDOWS_SPACE_SAFE_WSL([$new_path])
 
   if test "x$path" != "x$new_path"; then
     $1="$new_path"
@@ -215,7 +215,7 @@ AC_DEFUN([BASIC_FIXUP_PATH_WSL],
   fi
 ])
 
-AC_DEFUN([BASIC_FIXUP_EXECUTABLE_CYGWIN],
+AC_DEFUN([UTIL_FIXUP_EXECUTABLE_CYGWIN],
 [
   # First separate the path from the arguments. This will split at the first
   # space.
@@ -291,12 +291,12 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_CYGWIN],
   # Call helper function which possibly converts this using DOS-style short mode.
   # If so, the updated path is stored in $new_path.
   new_path="$input_to_shortpath"
-  BASIC_MAKE_WINDOWS_SPACE_SAFE_CYGWIN([$input_to_shortpath])
+  UTIL_MAKE_WINDOWS_SPACE_SAFE_CYGWIN([$input_to_shortpath])
   # remove trailing .exe if any
   new_path="${new_path/%.exe/}"
 ])
 
-AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
+AC_DEFUN([UTIL_FIXUP_EXECUTABLE_MSYS],
 [
   # First separate the path from the arguments. This will split at the first
   # space.
@@ -308,7 +308,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
   # Input might be given as Windows format, start by converting to
   # unix format.
   new_path="$path"
-  BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(new_path)
+  UTIL_REWRITE_AS_UNIX_PATH(new_path)
 
   # Now try to locate executable using which
   new_path=`$WHICH "$new_path" 2> /dev/null`
@@ -321,7 +321,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
     path="$complete"
     arguments="EOL"
     new_path="$path"
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(new_path)
+    UTIL_REWRITE_AS_UNIX_PATH(new_path)
 
     new_path=`$WHICH "$new_path" 2> /dev/null`
     # bat and cmd files are not always considered executable in MSYS causing which
@@ -330,7 +330,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
         && test "x`$ECHO \"$path\" | $GREP -i -e \"\\.bat$\" -e \"\\.cmd$\"`" != x \
         && test "x`$LS \"$path\" 2>/dev/null`" != x; then
       new_path="$path"
-      BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(new_path)
+      UTIL_REWRITE_AS_UNIX_PATH(new_path)
     fi
 
     if test "x$new_path" = x; then
@@ -352,9 +352,9 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
   else
     # Not in mixed or Windows style, start by that.
     new_path=`cmd //c echo $new_path`
-    BASIC_MAKE_WINDOWS_SPACE_SAFE_MSYS([$new_path])
+    UTIL_MAKE_WINDOWS_SPACE_SAFE_MSYS([$new_path])
     # Output is in $new_path
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH(new_path)
+    UTIL_REWRITE_AS_UNIX_PATH(new_path)
     # remove trailing .exe if any
     new_path="${new_path/%.exe/}"
 
@@ -363,7 +363,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_MSYS],
   fi
 ])
 
-AC_DEFUN([BASIC_FIXUP_EXECUTABLE_WSL],
+AC_DEFUN([UTIL_FIXUP_EXECUTABLE_WSL],
 [
   # First separate the path from the arguments. This will split at the first
   # space.
@@ -375,7 +375,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_WSL],
   # Input might be given as Windows format, start by converting to
   # unix format.
   new_path="$path"
-  BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([new_path])
+  UTIL_REWRITE_AS_UNIX_PATH([new_path])
 
   # Now try to locate executable using which
   new_path_bak="$new_path"
@@ -394,7 +394,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_WSL],
     path="$complete"
     arguments="EOL"
     new_path="$path"
-    BASIC_WINDOWS_REWRITE_AS_UNIX_PATH([new_path])
+    UTIL_REWRITE_AS_UNIX_PATH([new_path])
     new_path_bak="$new_path"
     new_path=`$WHICH "$new_path" 2> /dev/null`
     # bat and cmd files are not considered executable in WSL
@@ -433,6 +433,6 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE_WSL],
   # Call helper function which possibly converts this using DOS-style short mode.
   # If so, the updated path is stored in $new_path.
   new_path="$input_to_shortpath"
-  BASIC_MAKE_WINDOWS_SPACE_SAFE_WSL([$input_to_shortpath])
+  UTIL_MAKE_WINDOWS_SPACE_SAFE_WSL([$input_to_shortpath])
 ])
 

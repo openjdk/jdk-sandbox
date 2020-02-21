@@ -26,7 +26,7 @@
 ###############################################################################
 # Create a function/macro that takes a series of named arguments. The call is
 # similar to AC_DEFUN, but the setup of the function looks like this:
-# BASIC_DEFUN_NAMED([MYFUNC], [FOO *BAR], [$@], [
+# UTIL_DEFUN_NAMED([MYFUNC], [FOO *BAR], [$@], [
 # ... do something
 #   AC_MSG_NOTICE([Value of BAR is ARG_BAR])
 # ])
@@ -47,7 +47,7 @@
 # Argument 2: List of legal named arguments, with a * prefix for required arguments
 # Argument 3: Argument array to treat as named, typically $@
 # Argument 4: The main function body
-AC_DEFUN([BASIC_DEFUN_NAMED],
+AC_DEFUN([UTIL_DEFUN_NAMED],
 [
   AC_DEFUN($1, [
     m4_foreach(arg, m4_split($2), [
@@ -103,7 +103,7 @@ AC_DEFUN([BASIC_DEFUN_NAMED],
 # $1: result variable name
 # $2: list of values to check
 # $3: list of legal values
-AC_DEFUN([BASIC_GET_NON_MATCHING_VALUES],
+AC_DEFUN([UTIL_GET_NON_MATCHING_VALUES],
 [
   # grep filter function inspired by a comment to http://stackoverflow.com/a/1617326
   # Notice that the original variant fails on SLES 10 and 11
@@ -130,7 +130,7 @@ AC_DEFUN([BASIC_GET_NON_MATCHING_VALUES],
 # $1: result variable name
 # $2: list of values to check
 # $3: list of illegal values
-AC_DEFUN([BASIC_GET_MATCHING_VALUES],
+AC_DEFUN([UTIL_GET_MATCHING_VALUES],
 [
   # grep filter function inspired by a comment to http://stackoverflow.com/a/1617326
   # Notice that the original variant fails on SLES 10 and 11
@@ -153,7 +153,7 @@ AC_DEFUN([BASIC_GET_MATCHING_VALUES],
 #
 # $1: result variable name
 # $2: list of values to sort
-AC_DEFUN([BASIC_SORT_LIST],
+AC_DEFUN([UTIL_SORT_LIST],
 [
   values_to_sort=`$ECHO $2 | $TR ' ' '\n'`
   result=`$SORT -u <<< "$values_to_sort" | $GREP -v '^$'`
@@ -164,7 +164,7 @@ AC_DEFUN([BASIC_SORT_LIST],
 # Test if $1 is a valid argument to $3 (often is $JAVA passed as $3)
 # If so, then append $1 to $2 \
 # Also set JVM_ARG_OK to true/false depending on outcome.
-AC_DEFUN([ADD_JVM_ARG_IF_OK],
+AC_DEFUN([UTIL_ADD_JVM_ARG_IF_OK],
 [
   $ECHO "Check if jvm arg is ok: $1" >&AS_MESSAGE_LOG_FD
   $ECHO "Command: $3 $1 -version" >&AS_MESSAGE_LOG_FD
@@ -182,7 +182,7 @@ AC_DEFUN([ADD_JVM_ARG_IF_OK],
 ])
 
 # Appends a string to a path variable, only adding the : when needed.
-AC_DEFUN([BASIC_APPEND_TO_PATH],
+AC_DEFUN([UTIL_APPEND_TO_PATH],
 [
   if test "x$2" != x; then
     if test "x[$]$1" = x; then
@@ -194,7 +194,7 @@ AC_DEFUN([BASIC_APPEND_TO_PATH],
 ])
 
 # Prepends a string to a path variable, only adding the : when needed.
-AC_DEFUN([BASIC_PREPEND_TO_PATH],
+AC_DEFUN([UTIL_PREPEND_TO_PATH],
 [
   if test "x$2" != x; then
     if test "x[$]$1" = x; then
@@ -208,7 +208,7 @@ AC_DEFUN([BASIC_PREPEND_TO_PATH],
 ################################################################################
 # This will make a path absolute. Assumes it's already a unix path. Also
 # resolves ~ to homedir.
-AC_DEFUN([BASIC_ABSOLUTE_PATH],
+AC_DEFUN([UTIL_ABSOLUTE_PATH],
 [
   if test "x[$]$1" != x; then
     new_path="[$]$1"
@@ -242,16 +242,16 @@ AC_DEFUN([BASIC_ABSOLUTE_PATH],
 # 2) The path will be absolute, and it will be in unix-style (on
 #     cygwin).
 # $1: The name of the variable to fix
-AC_DEFUN([BASIC_FIXUP_PATH],
+AC_DEFUN([UTIL_FIXUP_PATH],
 [
   # Only process if variable expands to non-empty
   if test "x[$]$1" != x; then
     if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-      BASIC_FIXUP_PATH_CYGWIN($1)
+      UTIL_FIXUP_PATH_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-      BASIC_FIXUP_PATH_MSYS($1)
+      UTIL_FIXUP_PATH_MSYS($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
-      BASIC_FIXUP_PATH_WSL($1)
+      UTIL_FIXUP_PATH_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       path="[$]$1"
@@ -261,7 +261,7 @@ AC_DEFUN([BASIC_FIXUP_PATH],
         AC_MSG_ERROR([Spaces are not allowed in this path.])
       fi
 
-      BASIC_ABSOLUTE_PATH(path)
+      UTIL_ABSOLUTE_PATH(path)
       $1="$path"
     fi
   fi
@@ -279,17 +279,17 @@ AC_DEFUN([BASIC_FIXUP_PATH],
 # If the input variable does not have a directory specification, then
 # it need to be in the PATH.
 # $1: The name of the variable to fix
-AC_DEFUN([BASIC_FIXUP_EXECUTABLE],
+AC_DEFUN([UTIL_FIXUP_EXECUTABLE],
 [
   # Only process if variable expands to non-empty
 
   if test "x[$]$1" != x; then
     if test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.cygwin"; then
-      BASIC_FIXUP_EXECUTABLE_CYGWIN($1)
+      UTIL_FIXUP_EXECUTABLE_CYGWIN($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.msys"; then
-      BASIC_FIXUP_EXECUTABLE_MSYS($1)
+      UTIL_FIXUP_EXECUTABLE_MSYS($1)
     elif test "x$OPENJDK_BUILD_OS_ENV" = "xwindows.wsl"; then
-      BASIC_FIXUP_EXECUTABLE_WSL($1)
+      UTIL_FIXUP_EXECUTABLE_WSL($1)
     else
       # We're on a unix platform. Hooray! :)
       # First separate the path from the arguments. This will split at the first
@@ -342,7 +342,7 @@ AC_DEFUN([BASIC_FIXUP_EXECUTABLE],
 ])
 
 ###############################################################################
-AC_DEFUN([BASIC_REMOVE_SYMBOLIC_LINKS],
+AC_DEFUN([UTIL_REMOVE_SYMBOLIC_LINKS],
 [
   if test "x$OPENJDK_BUILD_OS" != xwindows; then
     # Follow a chain of symbolic links. Use readlink
@@ -391,7 +391,7 @@ AC_DEFUN([BASIC_REMOVE_SYMBOLIC_LINKS],
 ###############################################################################
 # Register a --with argument but mark it as deprecated
 # $1: The name of the with argument to deprecate, not including --with-
-AC_DEFUN([BASIC_DEPRECATED_ARG_WITH],
+AC_DEFUN([UTIL_DEPRECATED_ARG_WITH],
 [
   AC_ARG_WITH($1, [AS_HELP_STRING([--with-$1],
       [Deprecated. Option is kept for backwards compatibility and is ignored])],
@@ -403,7 +403,7 @@ AC_DEFUN([BASIC_DEPRECATED_ARG_WITH],
 # $1: The name of the with argument to deprecate, not including --enable-
 # $2: The name of the argument to deprecate, in shell variable style (i.e. with _ instead of -)
 # $3: Messages to user.
-AC_DEFUN([BASIC_DEPRECATED_ARG_ENABLE],
+AC_DEFUN([UTIL_DEPRECATED_ARG_ENABLE],
 [
   AC_ARG_ENABLE($1, [AS_HELP_STRING([--enable-$1],
       [Deprecated. Option is kept for backwards compatibility and is ignored])])
@@ -422,7 +422,7 @@ AC_DEFUN([BASIC_DEPRECATED_ARG_ENABLE],
 # $1: The name of the enable argument for the new alias, not including --enable-
 # $2: The full name of the argument of which to make this an alias, including
 #     --enable- or --with-.
-AC_DEFUN([BASIC_ALIASED_ARG_ENABLE],
+AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
 [
   AC_ARG_ENABLE($1, [AS_HELP_STRING([--enable-$1], [alias for $2])], [
     # Use m4 to strip initial -- from target ($2), convert - to _, prefix enable_
@@ -435,7 +435,7 @@ AC_DEFUN([BASIC_ALIASED_ARG_ENABLE],
 ###############################################################################
 # Test that variable $1 denoting a program is not empty. If empty, exit with an error.
 # $1: variable to check
-AC_DEFUN([BASIC_CHECK_NONEMPTY],
+AC_DEFUN([UTIL_CHECK_NONEMPTY],
 [
   if test "x[$]$1" = x; then
     AC_MSG_ERROR([Could not find required tool for $1])
@@ -448,7 +448,7 @@ AC_DEFUN([BASIC_CHECK_NONEMPTY],
 # $1: variable to set
 # $2: code snippet to call to look for the tool
 # $3: code snippet to call if variable was used to find tool
-AC_DEFUN([BASIC_SETUP_TOOL],
+AC_DEFUN([UTIL_SETUP_TOOL],
 [
   # Publish this variable in the help.
   AC_ARG_VAR($1, [Override default value for $1])
@@ -522,53 +522,53 @@ AC_DEFUN([BASIC_SETUP_TOOL],
 ])
 
 ###############################################################################
-# Call BASIC_SETUP_TOOL with AC_PATH_PROGS to locate the tool
+# Call UTIL_SETUP_TOOL with AC_PATH_PROGS to locate the tool
 # $1: variable to set
 # $2: executable name (or list of names) to look for
 # $3: [path]
-AC_DEFUN([BASIC_PATH_PROGS],
+AC_DEFUN([UTIL_PATH_PROGS],
 [
-  BASIC_SETUP_TOOL($1, [AC_PATH_PROGS($1, $2, , $3)])
+  UTIL_SETUP_TOOL($1, [AC_PATH_PROGS($1, $2, , $3)])
 ])
 
 ###############################################################################
-# Call BASIC_SETUP_TOOL with AC_CHECK_TOOLS to locate the tool
+# Call UTIL_SETUP_TOOL with AC_CHECK_TOOLS to locate the tool
 # $1: variable to set
 # $2: executable name (or list of names) to look for
-AC_DEFUN([BASIC_CHECK_TOOLS],
+AC_DEFUN([UTIL_CHECK_TOOLS],
 [
-  BASIC_SETUP_TOOL($1, [AC_CHECK_TOOLS($1, $2)])
+  UTIL_SETUP_TOOL($1, [AC_CHECK_TOOLS($1, $2)])
 ])
 
 ###############################################################################
-# Like BASIC_PATH_PROGS but fails if no tool was found.
+# Like UTIL_PATH_PROGS but fails if no tool was found.
 # $1: variable to set
 # $2: executable name (or list of names) to look for
 # $3: [path]
-AC_DEFUN([BASIC_REQUIRE_PROGS],
+AC_DEFUN([UTIL_REQUIRE_PROGS],
 [
-  BASIC_PATH_PROGS($1, $2, , $3)
-  BASIC_CHECK_NONEMPTY($1)
+  UTIL_PATH_PROGS($1, $2, , $3)
+  UTIL_CHECK_NONEMPTY($1)
 ])
 
 ###############################################################################
-# Like BASIC_SETUP_TOOL but fails if no tool was found.
+# Like UTIL_SETUP_TOOL but fails if no tool was found.
 # $1: variable to set
 # $2: autoconf macro to call to look for the special tool
-AC_DEFUN([BASIC_REQUIRE_SPECIAL],
+AC_DEFUN([UTIL_REQUIRE_SPECIAL],
 [
-  BASIC_SETUP_TOOL($1, [$2])
-  BASIC_CHECK_NONEMPTY($1)
+  UTIL_SETUP_TOOL($1, [$2])
+  UTIL_CHECK_NONEMPTY($1)
 ])
 
 ###############################################################################
-# Like BASIC_REQUIRE_PROGS but also allows for bash built-ins
+# Like UTIL_REQUIRE_PROGS but also allows for bash built-ins
 # $1: variable to set
 # $2: executable name (or list of names) to look for
 # $3: [path]
-AC_DEFUN([BASIC_REQUIRE_BUILTIN_PROGS],
+AC_DEFUN([UTIL_REQUIRE_BUILTIN_PROGS],
 [
-  BASIC_SETUP_TOOL($1, [AC_PATH_PROGS($1, $2, , $3)])
+  UTIL_SETUP_TOOL($1, [AC_PATH_PROGS($1, $2, , $3)])
   if test "x[$]$1" = x; then
     AC_MSG_NOTICE([Required tool $2 not found in PATH, checking built-in])
     if help $2 > /dev/null 2>&1; then
@@ -578,6 +578,6 @@ AC_DEFUN([BASIC_REQUIRE_BUILTIN_PROGS],
       AC_MSG_ERROR([Required tool $2 also not found as built-in.])
     fi
   fi
-  BASIC_CHECK_NONEMPTY($1)
+  UTIL_CHECK_NONEMPTY($1)
 ])
 

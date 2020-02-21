@@ -60,54 +60,54 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   # used by configure.
 
   # First are all the simple required tools.
-  BASIC_REQUIRE_PROGS(BASENAME, basename)
-  BASIC_REQUIRE_PROGS(BASH, bash)
-  BASIC_REQUIRE_PROGS(CAT, cat)
-  BASIC_REQUIRE_PROGS(CHMOD, chmod)
-  BASIC_REQUIRE_PROGS(CMP, cmp)
-  BASIC_REQUIRE_PROGS(COMM, comm)
-  BASIC_REQUIRE_PROGS(CP, cp)
-  BASIC_REQUIRE_PROGS(CUT, cut)
-  BASIC_REQUIRE_PROGS(DATE, date)
-  BASIC_REQUIRE_PROGS(DIFF, [gdiff diff])
-  BASIC_REQUIRE_PROGS(DIRNAME, dirname)
-  BASIC_REQUIRE_PROGS(ECHO, echo)
-  BASIC_REQUIRE_PROGS(EXPR, expr)
-  BASIC_REQUIRE_PROGS(FILE, file)
-  BASIC_REQUIRE_PROGS(FIND, find)
-  BASIC_REQUIRE_PROGS(HEAD, head)
-  BASIC_REQUIRE_PROGS(GUNZIP, gunzip)
-  BASIC_REQUIRE_PROGS(GZIP, pigz gzip)
-  BASIC_REQUIRE_PROGS(LN, ln)
-  BASIC_REQUIRE_PROGS(LS, ls)
+  UTIL_REQUIRE_PROGS(BASENAME, basename)
+  UTIL_REQUIRE_PROGS(BASH, bash)
+  UTIL_REQUIRE_PROGS(CAT, cat)
+  UTIL_REQUIRE_PROGS(CHMOD, chmod)
+  UTIL_REQUIRE_PROGS(CMP, cmp)
+  UTIL_REQUIRE_PROGS(COMM, comm)
+  UTIL_REQUIRE_PROGS(CP, cp)
+  UTIL_REQUIRE_PROGS(CUT, cut)
+  UTIL_REQUIRE_PROGS(DATE, date)
+  UTIL_REQUIRE_PROGS(DIFF, [gdiff diff])
+  UTIL_REQUIRE_PROGS(DIRNAME, dirname)
+  UTIL_REQUIRE_PROGS(ECHO, echo)
+  UTIL_REQUIRE_PROGS(EXPR, expr)
+  UTIL_REQUIRE_PROGS(FILE, file)
+  UTIL_REQUIRE_PROGS(FIND, find)
+  UTIL_REQUIRE_PROGS(HEAD, head)
+  UTIL_REQUIRE_PROGS(GUNZIP, gunzip)
+  UTIL_REQUIRE_PROGS(GZIP, pigz gzip)
+  UTIL_REQUIRE_PROGS(LN, ln)
+  UTIL_REQUIRE_PROGS(LS, ls)
   # gmkdir is known to be safe for concurrent invocations with -p flag.
-  BASIC_REQUIRE_PROGS(MKDIR, [gmkdir mkdir])
-  BASIC_REQUIRE_PROGS(MKTEMP, mktemp)
-  BASIC_REQUIRE_PROGS(MV, mv)
-  BASIC_REQUIRE_PROGS(NAWK, [nawk gawk awk])
-  BASIC_REQUIRE_PROGS(PRINTF, printf)
-  BASIC_REQUIRE_PROGS(READLINK, [greadlink readlink])
-  BASIC_REQUIRE_PROGS(RM, rm)
-  BASIC_REQUIRE_PROGS(RMDIR, rmdir)
-  BASIC_REQUIRE_PROGS(SH, sh)
-  BASIC_REQUIRE_PROGS(SORT, sort)
-  BASIC_REQUIRE_PROGS(TAIL, tail)
-  BASIC_REQUIRE_PROGS(TAR, gtar tar)
-  BASIC_REQUIRE_PROGS(TEE, tee)
-  BASIC_REQUIRE_PROGS(TOUCH, touch)
-  BASIC_REQUIRE_PROGS(TR, tr)
-  BASIC_REQUIRE_PROGS(UNAME, uname)
-  BASIC_REQUIRE_PROGS(UNIQ, uniq)
-  BASIC_REQUIRE_PROGS(WC, wc)
-  BASIC_REQUIRE_PROGS(WHICH, which)
-  BASIC_REQUIRE_PROGS(XARGS, xargs)
+  UTIL_REQUIRE_PROGS(MKDIR, [gmkdir mkdir])
+  UTIL_REQUIRE_PROGS(MKTEMP, mktemp)
+  UTIL_REQUIRE_PROGS(MV, mv)
+  UTIL_REQUIRE_PROGS(NAWK, [nawk gawk awk])
+  UTIL_REQUIRE_PROGS(PRINTF, printf)
+  UTIL_REQUIRE_PROGS(READLINK, [greadlink readlink])
+  UTIL_REQUIRE_PROGS(RM, rm)
+  UTIL_REQUIRE_PROGS(RMDIR, rmdir)
+  UTIL_REQUIRE_PROGS(SH, sh)
+  UTIL_REQUIRE_PROGS(SORT, sort)
+  UTIL_REQUIRE_PROGS(TAIL, tail)
+  UTIL_REQUIRE_PROGS(TAR, gtar tar)
+  UTIL_REQUIRE_PROGS(TEE, tee)
+  UTIL_REQUIRE_PROGS(TOUCH, touch)
+  UTIL_REQUIRE_PROGS(TR, tr)
+  UTIL_REQUIRE_PROGS(UNAME, uname)
+  UTIL_REQUIRE_PROGS(UNIQ, uniq)
+  UTIL_REQUIRE_PROGS(WC, wc)
+  UTIL_REQUIRE_PROGS(WHICH, which)
+  UTIL_REQUIRE_PROGS(XARGS, xargs)
 
   # Then required tools that require some special treatment.
-  BASIC_REQUIRE_SPECIAL(AWK, [AC_PROG_AWK])
-  BASIC_REQUIRE_SPECIAL(GREP, [AC_PROG_GREP])
-  BASIC_REQUIRE_SPECIAL(EGREP, [AC_PROG_EGREP])
-  BASIC_REQUIRE_SPECIAL(FGREP, [AC_PROG_FGREP])
-  BASIC_REQUIRE_SPECIAL(SED, [AC_PROG_SED])
+  UTIL_REQUIRE_SPECIAL(AWK, [AC_PROG_AWK])
+  UTIL_REQUIRE_SPECIAL(GREP, [AC_PROG_GREP])
+  UTIL_REQUIRE_SPECIAL(EGREP, [AC_PROG_EGREP])
+  UTIL_REQUIRE_SPECIAL(FGREP, [AC_PROG_FGREP])
+  UTIL_REQUIRE_SPECIAL(SED, [AC_PROG_SED])
 
   # Always force rm.
   RM="$RM -f"
@@ -117,14 +117,14 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   THEPWDCMD=pwd
 
   # These are not required on all platforms
-  BASIC_PATH_PROGS(CYGPATH, cygpath)
-  BASIC_PATH_PROGS(WSLPATH, wslpath)
-  BASIC_PATH_PROGS(DF, df)
-  BASIC_PATH_PROGS(CPIO, [cpio bsdcpio])
-  BASIC_PATH_PROGS(NICE, nice)
+  UTIL_PATH_PROGS(CYGPATH, cygpath)
+  UTIL_PATH_PROGS(WSLPATH, wslpath)
+  UTIL_PATH_PROGS(DF, df)
+  UTIL_PATH_PROGS(CPIO, [cpio bsdcpio])
+  UTIL_PATH_PROGS(NICE, nice)
 
-  BASIC_PATH_PROGS(LSB_RELEASE, lsb_release)
-  BASIC_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
+  UTIL_PATH_PROGS(LSB_RELEASE, lsb_release)
+  UTIL_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
 ])
 
 ###############################################################################
@@ -160,9 +160,9 @@ AC_DEFUN_ONCE([BASIC_SETUP_PATHS],
   AC_SUBST(TOPDIR)
   AC_SUBST(CONFIGURE_START_DIR)
 
-  # We can only call BASIC_FIXUP_PATH after BASIC_CHECK_PATHS_WINDOWS.
-  BASIC_FIXUP_PATH(CONFIGURE_START_DIR)
-  BASIC_FIXUP_PATH(TOPDIR)
+  # We can only call UTIL_FIXUP_PATH after BASIC_CHECK_PATHS_WINDOWS.
+  UTIL_FIXUP_PATH(CONFIGURE_START_DIR)
+  UTIL_FIXUP_PATH(TOPDIR)
 
   # Locate the directory of this script.
   AUTOCONF_DIR=$TOPDIR/make/autoconf
@@ -192,7 +192,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
   if test "x$with_devkit" = xyes; then
     AC_MSG_ERROR([--with-devkit must have a value])
   elif test "x$with_devkit" != x && test "x$with_devkit" != xno; then
-    BASIC_FIXUP_PATH([with_devkit])
+    UTIL_FIXUP_PATH([with_devkit])
     DEVKIT_ROOT="$with_devkit"
     # Check for a meta data info file in the root of the devkit
     if test -f "$DEVKIT_ROOT/devkit.info"; then
@@ -228,13 +228,13 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
       AC_MSG_RESULT([$DEVKIT_ROOT])
     fi
 
-    BASIC_PREPEND_TO_PATH([EXTRA_PATH],$DEVKIT_EXTRA_PATH)
+    UTIL_PREPEND_TO_PATH([EXTRA_PATH],$DEVKIT_EXTRA_PATH)
 
     # Fallback default of just /bin if DEVKIT_PATH is not defined
     if test "x$DEVKIT_TOOLCHAIN_PATH" = x; then
       DEVKIT_TOOLCHAIN_PATH="$DEVKIT_ROOT/bin"
     fi
-    BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$DEVKIT_TOOLCHAIN_PATH)
+    UTIL_PREPEND_TO_PATH([TOOLCHAIN_PATH],$DEVKIT_TOOLCHAIN_PATH)
 
     # If DEVKIT_SYSROOT is set, use that, otherwise try a couple of known
     # places for backwards compatiblity.
@@ -269,17 +269,17 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
 
   AC_ARG_WITH([tools-dir], [AS_HELP_STRING([--with-tools-dir],
       [alias for --with-toolchain-path for backwards compatibility])],
-      [BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_tools_dir)]
+      [UTIL_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_tools_dir)]
   )
 
   AC_ARG_WITH([toolchain-path], [AS_HELP_STRING([--with-toolchain-path],
       [prepend these directories when searching for toolchain binaries (compilers etc)])],
-      [BASIC_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_toolchain_path)]
+      [UTIL_PREPEND_TO_PATH([TOOLCHAIN_PATH],$with_toolchain_path)]
   )
 
   AC_ARG_WITH([extra-path], [AS_HELP_STRING([--with-extra-path],
       [prepend these directories to the default path])],
-      [BASIC_PREPEND_TO_PATH([EXTRA_PATH],$with_extra_path)]
+      [UTIL_PREPEND_TO_PATH([EXTRA_PATH],$with_extra_path)]
   )
 
   if test "x$OPENJDK_BUILD_OS" = "xmacosx"; then
@@ -354,7 +354,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_DEVKIT],
   fi
 
   # Prepend the extra path to the global path
-  BASIC_PREPEND_TO_PATH([PATH],$EXTRA_PATH)
+  UTIL_PREPEND_TO_PATH([PATH],$EXTRA_PATH)
 
   AC_MSG_CHECKING([for sysroot])
   AC_MSG_RESULT([$SYSROOT])
@@ -439,7 +439,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_OUTPUT_DIR],
   AC_MSG_CHECKING([what configuration name to use])
   AC_MSG_RESULT([$CONF_NAME])
 
-  BASIC_FIXUP_PATH(OUTPUTDIR)
+  UTIL_FIXUP_PATH(OUTPUTDIR)
 
   CONFIGURESUPPORT_OUTPUTDIR="$OUTPUTDIR/configure-support"
   $MKDIR -p "$CONFIGURESUPPORT_OUTPUTDIR"
@@ -516,7 +516,7 @@ AC_DEFUN([BASIC_CHECK_MAKE_VERSION],
           AC_MSG_NOTICE([Found GNU make version $MAKE_VERSION_STRING at $MAKE_CANDIDATE, but it is not for $MAKE_EXPECTED_ENV (it says: $MAKE_BUILT_FOR). Ignoring.])
         else
           FOUND_MAKE=$MAKE_CANDIDATE
-          BASIC_FIXUP_EXECUTABLE(FOUND_MAKE)
+          UTIL_FIXUP_EXECUTABLE(FOUND_MAKE)
         fi
       fi
     fi
@@ -554,7 +554,7 @@ AC_DEFUN([BASIC_CHECK_MAKE_OUTPUT_SYNC],
 # Goes looking for a usable version of GNU make.
 AC_DEFUN([BASIC_CHECK_GNU_MAKE],
 [
-  BASIC_SETUP_TOOL([MAKE],
+  UTIL_SETUP_TOOL([MAKE],
   [
     # Try our hardest to locate a correct version of GNU make
     AC_PATH_PROGS(CHECK_GMAKE, gmake)
@@ -705,31 +705,31 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
 
   # These tools might not be installed by default,
   # need hint on how to install them.
-  BASIC_REQUIRE_PROGS(UNZIP, unzip)
+  UTIL_REQUIRE_PROGS(UNZIP, unzip)
   # Since zip uses "ZIP" as a environment variable for passing options, we need
   # to name our variable differently, hence ZIPEXE.
-  BASIC_REQUIRE_PROGS(ZIPEXE, zip)
+  UTIL_REQUIRE_PROGS(ZIPEXE, zip)
 
   # Non-required basic tools
 
-  BASIC_PATH_PROGS(LDD, ldd)
+  UTIL_PATH_PROGS(LDD, ldd)
   if test "x$LDD" = "x"; then
     # List shared lib dependencies is used for
     # debug output and checking for forbidden dependencies.
     # We can build without it.
     LDD="true"
   fi
-  BASIC_PATH_PROGS(READELF, [greadelf readelf])
-  BASIC_PATH_PROGS(DOT, dot)
-  BASIC_PATH_PROGS(HG, hg)
-  BASIC_PATH_PROGS(GIT, git)
-  BASIC_PATH_PROGS(STAT, stat)
-  BASIC_PATH_PROGS(TIME, time)
-  BASIC_PATH_PROGS(FLOCK, flock)
+  UTIL_PATH_PROGS(READELF, [greadelf readelf])
+  UTIL_PATH_PROGS(DOT, dot)
+  UTIL_PATH_PROGS(HG, hg)
+  UTIL_PATH_PROGS(GIT, git)
+  UTIL_PATH_PROGS(STAT, stat)
+  UTIL_PATH_PROGS(TIME, time)
+  UTIL_PATH_PROGS(FLOCK, flock)
   # Dtrace is usually found in /usr/sbin on Solaris, but that directory may not
   # be in the user path.
-  BASIC_PATH_PROGS(DTRACE, dtrace, $PATH:/usr/sbin)
-  BASIC_PATH_PROGS(PATCH, [gpatch patch])
+  UTIL_PATH_PROGS(DTRACE, dtrace, $PATH:/usr/sbin)
+  UTIL_PATH_PROGS(PATCH, [gpatch patch])
   # Check if it's GNU time
   IS_GNU_TIME=`$TIME --version 2>&1 | $GREP 'GNU time'`
   if test "x$IS_GNU_TIME" != x; then
@@ -740,10 +740,10 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   AC_SUBST(IS_GNU_TIME)
 
   if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
-    BASIC_REQUIRE_PROGS(DSYMUTIL, dsymutil)
-    BASIC_REQUIRE_PROGS(MIG, mig)
-    BASIC_REQUIRE_PROGS(XATTR, xattr)
-    BASIC_PATH_PROGS(CODESIGN, codesign)
+    UTIL_REQUIRE_PROGS(DSYMUTIL, dsymutil)
+    UTIL_REQUIRE_PROGS(MIG, mig)
+    UTIL_REQUIRE_PROGS(XATTR, xattr)
+    UTIL_PATH_PROGS(CODESIGN, codesign)
 
     if test "x$CODESIGN" != "x"; then
       # Check for user provided code signing identity.
@@ -768,12 +768,12 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
         AC_MSG_RESULT([yes])
       fi
     fi
-    BASIC_REQUIRE_PROGS(SETFILE, SetFile)
+    UTIL_REQUIRE_PROGS(SETFILE, SetFile)
   elif test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-    BASIC_REQUIRE_PROGS(ELFEDIT, elfedit)
+    UTIL_REQUIRE_PROGS(ELFEDIT, elfedit)
   fi
   if ! test "x$OPENJDK_TARGET_OS" = "xwindows"; then
-    BASIC_REQUIRE_BUILTIN_PROGS(ULIMIT, ulimit)
+    UTIL_REQUIRE_BUILTIN_PROGS(ULIMIT, ulimit)
   fi
 ])
 
@@ -906,7 +906,7 @@ AC_DEFUN_ONCE([BASIC_CHECK_BASH_OPTIONS],
 #
 AC_DEFUN_ONCE([BASIC_SETUP_PANDOC],
 [
-  BASIC_PATH_PROGS(PANDOC, pandoc)
+  UTIL_PATH_PROGS(PANDOC, pandoc)
 
   PANDOC_MARKDOWN_FLAG="markdown"
   if test -n "$PANDOC"; then
