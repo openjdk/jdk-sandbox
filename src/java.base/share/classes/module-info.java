@@ -163,6 +163,7 @@ module java.base {
     exports jdk.internal.loader to
         java.instrument,
         java.logging,
+        java.naming,
         jdk.dns.client;
     exports jdk.internal.jmod to
         jdk.compiler,

@@ -55,8 +55,17 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  */
 public class HtmlDoclet extends AbstractDoclet {
 
-    public HtmlDoclet(Doclet parent) {
-        configuration = new HtmlConfiguration(parent);
+    /**
+     * Creates a doclet to generate HTML documentation,
+     * specifying the "initiating doclet" to be used when
+     * initializing any taglets for this doclet.
+     * An initiating doclet is one that delegates to
+     * this doclet.
+     *
+     * @param initiatingDoclet the initiating doclet
+     */
+    public HtmlDoclet(Doclet initiatingDoclet) {
+        this.initiatingDoclet = initiatingDoclet;
     }
 
     @Override // defined by Doclet
@@ -65,20 +74,31 @@ public class HtmlDoclet extends AbstractDoclet {
     }
 
     /**
-     * The global configuration information for this run.
+     * The initiating doclet, to be specified when creating
+     * the configuration.
      */
-    private final HtmlConfiguration configuration;
+    private final Doclet initiatingDoclet;
 
+    /**
+     * The global configuration information for this run.
+     * Initialized in {@link #init(Locale, Reporter)}.
+     */
+    private HtmlConfiguration configuration;
+
+    /**
+     * Object for generating messages and diagnostics.
+     */
     private Messages messages;
 
-
+    /**
+     * Base path for resources for this doclet.
+     */
     private static final DocPath DOCLET_RESOURCES = DocPath
             .create("/jdk/javadoc/internal/doclets/formats/html/resources");
 
     @Override // defined by Doclet
     public void init(Locale locale, Reporter reporter) {
-        configuration.reporter = reporter;
-        configuration.locale = locale;
+        configuration = new HtmlConfiguration(initiatingDoclet, locale, reporter);
         messages = configuration.getMessages();
     }
 
@@ -130,7 +150,6 @@ public class HtmlDoclet extends AbstractDoclet {
         if (options.classUse()) {
             ClassUseWriter.generate(configuration, classtree);
         }
-        IndexBuilder indexbuilder = new IndexBuilder(configuration, nodeprecated);
 
         if (options.createTree()) {
             TreeWriter.generate(configuration, classtree);
@@ -149,11 +168,12 @@ public class HtmlDoclet extends AbstractDoclet {
         }
 
         if (options.createIndex()) {
+            IndexBuilder indexBuilder = new IndexBuilder(configuration, nodeprecated);
             configuration.buildSearchTagIndex();
             if (options.splitIndex()) {
-                SplitIndexWriter.generate(configuration, indexbuilder);
+                SplitIndexWriter.generate(configuration, indexBuilder);
             } else {
-                SingleIndexWriter.generate(configuration, indexbuilder);
+                SingleIndexWriter.generate(configuration, indexBuilder);
             }
             AllClassesIndexWriter.generate(configuration,
                     new IndexBuilder(configuration, nodeprecated, true));
@@ -203,12 +223,6 @@ public class HtmlDoclet extends AbstractDoclet {
                 "jquery-ui.min.css",
                 "jquery-ui.structure.min.css",
                 "jquery-ui.structure.css",
-                "jszip/dist/jszip.js",
-                "jszip/dist/jszip.min.js",
-                "jszip-utils/dist/jszip-utils.js",
-                "jszip-utils/dist/jszip-utils.min.js",
-                "jszip-utils/dist/jszip-utils-ie.js",
-                "jszip-utils/dist/jszip-utils-ie.min.js",
                 "images/ui-bg_glass_65_dadada_1x400.png",
                 "images/ui-icons_454545_256x240.png",
                 "images/ui-bg_glass_95_fef1ec_1x400.png",
@@ -228,9 +242,6 @@ public class HtmlDoclet extends AbstractDoclet {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
     protected void generateClassFiles(SortedSet<TypeElement> typeElems, ClassTree classTree)
             throws DocletException {
@@ -252,9 +263,6 @@ public class HtmlDoclet extends AbstractDoclet {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
     protected void generateModuleFiles() throws DocletException {
         if (configuration.showModules) {
@@ -267,9 +275,6 @@ public class HtmlDoclet extends AbstractDoclet {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
     protected void generatePackageFiles(ClassTree classtree) throws DocletException {
         HtmlOptions options = configuration.getOptions();

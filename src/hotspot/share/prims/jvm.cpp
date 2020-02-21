@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2783,7 +2783,7 @@ void jio_print(const char* s, size_t len) {
   if (Arguments::vfprintf_hook() != NULL) {
     jio_fprintf(defaultStream::output_stream(), "%.*s", (int)len, s);
   } else {
-    // Make an unused local variable to avoid warning from gcc 4.x compiler.
+    // Make an unused local variable to avoid warning from gcc compiler.
     size_t count = ::write(defaultStream::output_fd(), s, (int)len);
   }
 }
@@ -3371,6 +3371,7 @@ JVM_ENTRY_NO_ENV(void*, JVM_LoadLibrary(const char* name))
 
     THROW_HANDLE_0(h_exception);
   }
+  log_info(library)("Loaded library %s, handle " INTPTR_FORMAT, name, p2i(load_result));
   return load_result;
 JVM_END
 
@@ -3378,12 +3379,17 @@ JVM_END
 JVM_LEAF(void, JVM_UnloadLibrary(void* handle))
   JVMWrapper("JVM_UnloadLibrary");
   os::dll_unload(handle);
+  log_info(library)("Unloaded library with handle " INTPTR_FORMAT, p2i(handle));
 JVM_END
 
 
 JVM_LEAF(void*, JVM_FindLibraryEntry(void* handle, const char* name))
   JVMWrapper("JVM_FindLibraryEntry");
-  return os::dll_lookup(handle, name);
+  void* find_result = os::dll_lookup(handle, name);
+  log_info(library)("%s %s in library with handle " INTPTR_FORMAT,
+                    find_result != NULL ? "Found" : "Failed to find",
+                    name, p2i(handle));
+  return find_result;
 JVM_END
 
 
