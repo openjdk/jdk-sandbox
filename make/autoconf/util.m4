@@ -23,6 +23,8 @@
 # questions.
 #
 
+m4_include([util_windows.m4])
+
 ###############################################################################
 # Create a function/macro that takes a series of named arguments. The call is
 # similar to AC_DEFUN, but the setup of the function looks like this:
