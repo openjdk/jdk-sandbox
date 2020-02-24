@@ -66,11 +66,12 @@ AC_DEFUN([UTIL_DEFUN_NAMED],
     ])
 
     m4_foreach([arg], [$3], [
+      ifelse(m4_bregexp(arg, [: ]), -1, m4_define([arg], m4_bpatsubst(arg, [:], [: ])))
       m4_define(arg_name, m4_substr(arg, 0, m4_bregexp(arg, [: ])))
-      m4_set_contains(legal_named_args, arg_name, [],[AC_MSG_ERROR([Internal error: arg_name is not a valid named argument to [$1]. Valid arguments are 'm4_set_contents(legal_named_args, [ ])'.])])
+      m4_set_contains(legal_named_args, arg_name, [],[AC_MSG_ERROR([Internal error: ifelse(arg_name, , arg, arg_name) is not a valid named argument to [$1]. Valid arguments are 'm4_set_contents(legal_named_args, [ ])'.])])
       m4_set_remove(required_named_args, arg_name)
       m4_set_remove(legal_named_args, arg_name)
-      m4_pushdef([ARG_][]arg_name, m4_substr(arg, m4_incr(m4_incr(m4_bregexp(arg, [: ])))))
+      m4_pushdef([ARG_][]arg_name, m4_bpatsubst(m4_substr(arg, m4_incr(m4_incr(m4_bregexp(arg, [: ])))), [^\s*], []))
       m4_set_add(defined_args, arg_name)
       m4_undefine([arg_name])
     ])
