@@ -26,8 +26,8 @@
 #ifndef SHARE_MEMORY_METASPACE_LEFTOVERBINS_HPP
 #define SHARE_MEMORY_METASPACE_LEFTOVERBINS_HPP
 
+#include <memory/metaspace/bins.hpp>
 #include "memory/allocation.hpp"
-#include "memory/metaspace/blockListArray.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/debug.hpp"
@@ -50,7 +50,7 @@ namespace metaspace {
 
 class LeftOverManager : public CHeapObj<mtInternal> {
 
-  typedef BlockListArray<2, 2, 16> VerySmallBinsType;
+  typedef Bins<2, 2, 16> VerySmallBinsType;
   VerySmallBinsType _very_small_bins;
 
   block_t* _large_block_reserve;

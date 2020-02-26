@@ -27,7 +27,7 @@
 #define SHARE_MEMORY_METASPACE_LEFTOVERBINS_INLINE_HPP
 
 #include "memory/allocation.hpp"
-#include "memory/metaspace/blockListArray.inline.hpp"
+#include "memory/metaspace/bins.inline.hpp"
 #include "memory/metaspace/leftOverBins.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"

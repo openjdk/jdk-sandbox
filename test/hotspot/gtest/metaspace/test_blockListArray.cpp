@@ -29,9 +29,9 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-TEST_VM(metaspace, BlockListFreeMap_mask_basic) {
+TEST_VM(metaspace, BinMask_basic) {
   // Basic tests
-  metaspace::BlockListArrayMask map;
+  metaspace::BinMask map;
   EXPECT_TRUE(map.all_zero());
   for (int i = 0; i < map.size(); i ++) {
     map.set_bit(i);
@@ -42,8 +42,8 @@ TEST_VM(metaspace, BlockListFreeMap_mask_basic) {
   }
 }
 
-TEST_VM(metaspace, BlockListFreeMap_mask_find_next_set_bit) {
-  metaspace::BlockListArrayMask map;
+TEST_VM(metaspace, BinMask_find_next_set_bit) {
+  metaspace::BinMask map;
   EXPECT_TRUE(map.all_zero());
   for (int i = 0; i < map.size(); i ++) {
     map.set_bit(i);
@@ -75,9 +75,9 @@ TEST_VM(metaspace, BlockListFreeMap_mask_find_next_set_bit) {
 
 
 
-TEST_VM(metaspace, BlockListArray_basic) {
+TEST_VM(metaspace, Bins_basic) {
 
-  metaspace::BlockListArray<100, 5, 20> bla;
+  metaspace::Bins<100, 5, 20> bla;
   ASSERT_EQ(bla.maximal_word_size(), (size_t)200);
   ASSERT_EQ(bla.minimal_word_size(), (size_t)100);
 
@@ -120,9 +120,9 @@ TEST_VM(metaspace, BlockListArray_basic) {
   }
 }
 
-TEST_VM(metaspace, BlockListArray_fill_and_drain) {
+TEST_VM(metaspace, Bins_fill_and_drain) {
 
-  metaspace::BlockListArray<100, 5, 20> bla;
+  metaspace::Bins<100, 5, 20> bla;
   ASSERT_EQ(bla.maximal_word_size(), (size_t)200);
   ASSERT_EQ(bla.minimal_word_size(), (size_t)100);
 

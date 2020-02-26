@@ -24,8 +24,8 @@
  */
 
 #include "precompiled.hpp"
-#include "memory/metaspace/blockListArray.inline.hpp"
 #include "memory/metaspace/leftOverBins.inline.hpp"
+#include "memory/metaspace/bins.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/ostream.hpp"
 
