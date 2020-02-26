@@ -73,6 +73,8 @@ class LeftOverManager : public CHeapObj<mtInternal> {
 
 public:
 
+  // Returns smallest size, in words, a block has to have
+  // to be managed by the LeftOverManager
   static size_t minimal_word_size() {
     return VerySmallBinsType::minimal_word_size();
   }

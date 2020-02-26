@@ -28,7 +28,6 @@
 
 #include "memory/allocation.hpp"
 #include "memory/metaspace.hpp"
-#include "memory/metaspace/blockFreelist.hpp"
 #include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
@@ -40,7 +39,6 @@ class Mutex;
 
 namespace metaspace {
 
-class BlockFreeList;
 class LeftOverManager;
 
 struct sm_stats_t;
@@ -69,16 +67,11 @@ class SpaceManager : public CHeapObj<mtClass> {
   // chunks when the SpaceManager is freed.
   MetachunkList _chunks;
 
+  // Structure to take care of leftover/deallocated space in used chunks
+  LeftOverManager* _lom;
+
   Metachunk* current_chunk()              { return _chunks.first(); }
   const Metachunk* current_chunk() const  { return _chunks.first(); }
-
-  // These structures take care of 1) prematurely deallocated Metaspace blocks
-  //  and 2) leftover space from retired chunks.
-  // Only one of these is active; one will eventually go. We are still testing
-  //  which implementation is better suited to the task. _lom is default. Change
-  //  with -XX:+-MetaspaceUseLOM.
-  BlockFreelist* _block_freelist;
-  LeftOverManager* _lom;
 
   // Points to outside size counter which we are to increase/decrease when we allocate memory
   // on behalf of a user or when we are destroyed.
@@ -93,7 +86,6 @@ class SpaceManager : public CHeapObj<mtClass> {
   ChunkManager* chunk_manager() const           { return _chunk_manager; }
   const ChunkAllocSequence* chunk_alloc_sequence() const    { return _chunk_alloc_sequence; }
 
-  BlockFreelist* block_freelist() const         { return _block_freelist; }
   void create_block_freelist();
   void add_allocation_to_block_freelist(MetaWord* p, size_t word_size);
 

@@ -128,4 +128,4 @@ void print_chunk_size(outputStream* st, chklvl_t lvl);
 
 } // namespace metaspace
 
-#endif // SHARE_MEMORY_METASPACE_BLOCKFREELIST_HPP
+#endif // SHARE_MEMORY_METASPACE_CHUNKLEVEL_HPP

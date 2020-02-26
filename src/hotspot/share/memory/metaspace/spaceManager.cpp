@@ -26,7 +26,6 @@
 
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
-#include "memory/metaspace/blockFreelist.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/leftOverBins.inline.hpp"
@@ -34,7 +33,6 @@
 #include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
-#include "memory/metaspace/smallBlocks.hpp"
 #include "memory/metaspace/spaceManager.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "runtime/atomic.hpp"
@@ -61,11 +59,14 @@ namespace metaspace {
 //static
 size_t get_raw_allocation_word_size(size_t net_word_size) {
 
+  STATIC_ASSERT(Metachunk::allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
+
   size_t byte_size = net_word_size * BytesPerWord;
-  byte_size = MAX2(byte_size, (size_t)SmallBlocks::small_block_min_byte_size());
+  byte_size = MAX2(byte_size, LeftOverManager::minimal_word_size());
   byte_size = align_up(byte_size, Metachunk::allocation_alignment_bytes);
 
   size_t word_size = byte_size / BytesPerWord;
+
   assert(word_size * BytesPerWord == byte_size, "Sanity");
 
   return word_size;
@@ -80,7 +81,7 @@ static size_t get_net_allocation_word_size(size_t raw_word_size) {
 
   size_t byte_size = raw_word_size * BytesPerWord;
   byte_size = align_down(byte_size, Metachunk::allocation_alignment_bytes);
-  if (byte_size < SmallBlocks::small_block_min_byte_size()) {
+  if (byte_size < LeftOverManager::minimal_word_size()) {
     return 0;
   }
   return byte_size / BytesPerWord;
@@ -147,19 +148,6 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
 }
 
-void SpaceManager::create_block_freelist() {
-  assert(_block_freelist == NULL, "Only call once");
-  _block_freelist = new BlockFreelist();
-}
-
-void SpaceManager::add_allocation_to_block_freelist(MetaWord* p, size_t word_size) {
-  if (_block_freelist == NULL) {
-    _block_freelist = new BlockFreelist(); // Create only on demand
-  }
-  _block_freelist->return_block(p, word_size);
-}
-
-
 void SpaceManager::create_lom() {
   assert(_lom == NULL, "Only call once");
   _lom = new LeftOverManager();
@@ -182,7 +170,7 @@ SpaceManager::SpaceManager(ChunkManager* chunk_manager,
   _chunk_manager(chunk_manager),
   _chunk_alloc_sequence(alloc_sequence),
   _chunks(),
-  _block_freelist(NULL), _lom(NULL),
+  _lom(NULL),
   _total_used_words_counter(total_used_words_counter),
   _name(name),
   _is_micro_loader(is_micro_loader)
@@ -205,7 +193,6 @@ SpaceManager::~SpaceManager() {
 
   DEBUG_ONLY(chunk_manager()->verify(true);)
 
-  delete _block_freelist;
   delete _lom;
 
 }
@@ -247,11 +234,7 @@ void SpaceManager::retire_current_chunk() {
     MetaWord* ptr = c->allocate(net_remaining_words, &did_hit_limit);
     assert(ptr != NULL && did_hit_limit == false, "Should have worked");
 
-    if (Settings::use_lom()) {
-      add_allocation_to_lom(ptr, net_remaining_words);
-    } else {
-      add_allocation_to_block_freelist(ptr, net_remaining_words);
-    }
+    add_allocation_to_lom(ptr, net_remaining_words);
 
     _total_used_words_counter->increment_by(net_remaining_words);
 
@@ -297,28 +280,8 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
   }
 
   // 1) Attempt to allocate from the dictionary of deallocated blocks.
-
-  // Allocation from the dictionary is expensive in the sense that
-  // the dictionary has to be searched for a size.  Don't allocate
-  // from the dictionary until it starts to get fat.  Is this
-  // a reasonable policy?  Maybe an skinny dictionary is fast enough
-  // for allocations.  Do some profiling.  JJJ
-  if (Settings::use_lom()) {
-    if (_lom != NULL) {
-      p = _lom->get_block(raw_word_size);
-      if (p != NULL) {
-        DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
-        log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from freelist.", LOGFMT_SPCMGR_ARGS);
-        // Note: space in the freeblock dictionary counts as used (see retire_current_chunk()) -
-        // that means that we must not increase the used counter again when allocating from the dictionary.
-        // Therefore we return here.
-        return p;
-      }
-    }
-  } else {
-  if (_block_freelist != NULL && _block_freelist->total_size() > Settings::allocation_from_dictionary_limit()) {
-    p = _block_freelist->get_block(raw_word_size);
-
+  if (_lom != NULL) {
+    p = _lom->get_block(raw_word_size);
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
       log_trace(metaspace)(LOGFMT_SPCMGR ": .. taken from freelist.", LOGFMT_SPCMGR_ARGS);
@@ -327,8 +290,6 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
       // Therefore we return here.
       return p;
     }
-
-  }
   }
 
   // 2) Failing that, attempt to allocate from the current chunk. If we hit commit limit, return NULL.
@@ -441,11 +402,7 @@ void SpaceManager::deallocate_locked(MetaWord* p, size_t word_size) {
     return;
   }
 
-  if (Settings::use_lom()) {
-    add_allocation_to_lom(p, raw_word_size);
-  } else {
-    add_allocation_to_block_freelist(p, raw_word_size);
-  }
+  add_allocation_to_lom(p, raw_word_size);
 
   DEBUG_ONLY(verify_locked();)
 
@@ -477,18 +434,11 @@ void SpaceManager::add_to_statistics(sm_stats_t* out) const {
     }
   }
 
-  if (Settings::use_lom()) {
-    if (lom() != NULL) {
-      block_stats_t s;
-      lom()->statistics(&s);
-      out->free_blocks_num += s.num_blocks;
-      out->free_blocks_word_size += s.word_size;
-    }
-  } else {
-    if (block_freelist() != NULL) {
-      out->free_blocks_num += block_freelist()->num_blocks();
-      out->free_blocks_word_size += block_freelist()->total_size();
-    }
+  if (lom() != NULL) {
+    block_stats_t s;
+    lom()->statistics(&s);
+    out->free_blocks_num += s.num_blocks;
+    out->free_blocks_word_size += s.word_size;
   }
 
   SOMETIMES(out->verify();)
@@ -505,10 +455,8 @@ void SpaceManager::verify_locked() const {
 
   _chunks.verify();
 
-  if (Settings::use_lom()) {
-    if (lom() != NULL) {
-      lom()->verify();
-    }
+  if (lom() != NULL) {
+    lom()->verify();
   }
 
 }
