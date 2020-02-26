@@ -750,10 +750,20 @@ class SocketChannelImpl
             sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
         }
         if (isa.getAddress().isAnyLocalAddress()) {
-            return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
+            if (family == Net.UNSPEC)
+                return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
+            else
+                return loopbackAddressFor(isa);
         } else {
             return isa;
         }
+    }
+
+    private static InetSocketAddress loopbackAddressFor(InetSocketAddress any) {
+        InetAddress anyAddr = any.getAddress();
+        assert anyAddr.isAnyLocalAddress();
+        InetAddress la = Net.loopBackAddressFor(anyAddr.getClass());
+        return new InetSocketAddress(la, any.getPort());
     }
 
     @Override
