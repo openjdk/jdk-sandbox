@@ -280,7 +280,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
   }
 
   // 1) Attempt to allocate from the dictionary of deallocated blocks.
-  if (_lom != NULL) {
+  if (_lom != NULL && !_lom->is_empty()) {
     p = _lom->get_block(raw_word_size);
     if (p != NULL) {
       DEBUG_ONLY(InternalStats::inc_num_allocs_from_deallocated_blocks();)
