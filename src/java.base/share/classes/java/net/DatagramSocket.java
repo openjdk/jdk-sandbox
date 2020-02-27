@@ -214,10 +214,15 @@ public class DatagramSocket implements java.io.Closeable {
     // NetMulticastSocket, or null. `socket` is null when
     // `this` is an instance of DatagramSocketAdaptor or
     // NetMulticastSocket.
-    private final MulticastSocket delegate;
+    private final DatagramSocket delegate;
+
+    @SuppressWarnings("unchecked")
+    final <T extends DatagramSocket> T delegate(Class<T> type) {
+        return (T) delegate();
+    }
 
     // MulticastSocket needs to access the socket field.
-    final MulticastSocket delegate() {
+    private final DatagramSocket delegate() {
         if (delegate == null) {
             throw new InternalError("Should not come here");
         }
@@ -341,14 +346,26 @@ public class DatagramSocket implements java.io.Closeable {
      * All constructors eventually call this one.
      * @param delegate The wrapped DatagramSocket implementation, or null.
      */
-    DatagramSocket(MulticastSocket delegate) {
+    DatagramSocket(DatagramSocket delegate) {
         // delegate can be null in which case any call to
         // delegate() will throw an InternalError("should not come here");
         // Otherwise - it must be one of the "approved" subclasses:
         assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
                 || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
-        this.delegate = delegate;
+        this.delegate = checkDelegate(delegate);
+    }
+
+    // Throws IllegalArgumentException if delegate is neither null nor in java.base.
+    private static DatagramSocket checkDelegate(DatagramSocket delegate) {
+        if (delegate == null) return null;
+        var type = delegate.getClass();
+        var module = DatagramSocket.class.getModule();
+        if (!module.equals(type.getModule())) {
+            // should never happen
+            throw new IllegalArgumentException("Class " + type + " is not in " + module.getName());
+        }
+        return delegate;
     }
 
     /**

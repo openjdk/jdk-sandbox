@@ -26,6 +26,9 @@
 package java.net;
 
 import java.io.IOException;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.MulticastChannel;
+
 /**
  * The multicast datagram socket class is useful for sending
  * and receiving IP multicast packets. A MulticastSocket is
@@ -128,6 +131,10 @@ import java.io.IOException;
  * @since 1.1
  */
 public class MulticastSocket extends DatagramSocket {
+
+    final MulticastSocket delegate() {
+        return super.delegate(MulticastSocket.class);
+    }
 
     /**
      * Create a multicast socket.
