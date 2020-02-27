@@ -87,10 +87,6 @@ final class NetMulticastSocket extends MulticastSocket {
     InetAddress connectedAddress = null;
     int connectedPort = -1;
 
-    static NetMulticastSocket create(boolean isMulticast) throws SocketException {
-        return new NetMulticastSocket(createImpl(isMulticast));
-    }
-
     /**
      * This constructor is also used by {@link DatagramSocket#DatagramSocket(DatagramSocketImpl)}.
      * @param impl The impl used in this instance.
@@ -173,23 +169,6 @@ final class NetMulticastSocket extends MulticastSocket {
         } catch (java.security.PrivilegedActionException e) {
             return true;
         }
-    }
-
-    static Class<?> implClass = null;
-
-    /**
-     * Creates a DatagramSocketImpl.
-     * @param multicast true if the DatagramSocketImpl is for a MulticastSocket
-     */
-    private static DatagramSocketImpl createImpl(boolean multicast) throws SocketException {
-        DatagramSocketImpl impl;
-        DatagramSocketImplFactory factory = DatagramSocket.factory;
-        if (factory != null) {
-            impl = factory.createDatagramSocketImpl();
-        } else {
-            impl = DefaultDatagramSocketImplFactory.createDatagramSocketImpl(multicast);
-        }
-        return impl;
     }
 
     /**

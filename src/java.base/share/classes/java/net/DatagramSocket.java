@@ -171,7 +171,7 @@ public class DatagramSocket implements java.io.Closeable {
         try {
             if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
                 // create legacy DatagramSocket
-                delegate = NetMulticastSocket.create(multicast);
+                delegate = new NetMulticastSocket(createImpl(multicast));
             } else {
                 // create NIO adaptor
                 delegate = createAdaptor();
@@ -349,6 +349,21 @@ public class DatagramSocket implements java.io.Closeable {
                 || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
         this.delegate = delegate;
+    }
+
+    /**
+     * Creates a DatagramSocketImpl.
+     * @param multicast true if the DatagramSocketImpl is for a MulticastSocket
+     */
+    private static DatagramSocketImpl createImpl(boolean multicast) throws SocketException {
+        DatagramSocketImpl impl;
+        DatagramSocketImplFactory factory = DatagramSocket.factory;
+        if (factory != null) {
+            impl = factory.createDatagramSocketImpl();
+        } else {
+            impl = DefaultDatagramSocketImplFactory.createDatagramSocketImpl(multicast);
+        }
+        return impl;
     }
 
     /**
@@ -1010,7 +1025,7 @@ public class DatagramSocket implements java.io.Closeable {
     /**
      * User defined factory for all datagram sockets.
      */
-    static volatile DatagramSocketImplFactory factory;
+    private static volatile DatagramSocketImplFactory factory;
 
     /**
      * Sets the datagram socket implementation factory for the
