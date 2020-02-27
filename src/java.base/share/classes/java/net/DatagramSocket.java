@@ -115,7 +115,7 @@ import sun.nio.ch.DefaultSelectorProvider;
 public class DatagramSocket implements java.io.Closeable {
 
     // Temporary solution until JDK-8237352 is addressed
-    static final SocketAddress NONE = new SocketAddress() {};
+    static final SocketAddress NO_DELEGATE = new SocketAddress() {};
     static final boolean USE_PLAIN_DATAGRAM_SOCKET = usePlainDatagramSocketImpl();
     static final boolean CONFIGURE_SO_SNDBUF = configureSendBuffer();
     static final int MAX_PACKET_LEN = 65507;
@@ -165,7 +165,7 @@ public class DatagramSocket implements java.io.Closeable {
 
     static MulticastSocket createDelegate(SocketAddress bindaddr, boolean multicast)
             throws SocketException {
-        if (bindaddr == NONE) return null;
+        if (bindaddr == NO_DELEGATE) return null;
         MulticastSocket delegate = null;
         boolean initialized = false;
         try {
