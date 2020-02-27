@@ -25,6 +25,8 @@
  * @test
  * @bug 4742177
  * @summary Re-test IPv6 (and specifically MulticastSocket) with latest Linux & USAGI code
+ * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl SetOutgoingIf
+ * @run main SetOutgoingIf
  */
 import java.net.*;
 import java.util.*;
