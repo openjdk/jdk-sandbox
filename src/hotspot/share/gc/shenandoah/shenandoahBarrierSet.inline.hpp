@@ -49,6 +49,10 @@ inline oop ShenandoahBarrierSet::resolve_forwarded(oop p) {
   }
 }
 
+inline oop ShenandoahBarrierSet::resolve_forwarded_not_null_mutator(oop p) {
+  return ShenandoahForwarding::get_forwardee_mutator(p);
+}
+
 inline void ShenandoahBarrierSet::enqueue(oop obj) {
   shenandoah_assert_not_forwarded_if(NULL, obj, _heap->is_concurrent_traversal_in_progress());
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
@@ -120,7 +124,9 @@ inline oop ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_loa
   if (value != NULL) {
     ShenandoahBarrierSet *const bs = ShenandoahBarrierSet::barrier_set();
     value = bs->load_reference_barrier_native(value, addr);
-    bs->keep_alive_if_weak<decorators>(value);
+    if (value != NULL) {
+      bs->keep_alive_if_weak<decorators>(value);
+    }
   }
   return value;
 }

@@ -180,7 +180,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
     @Override
     public void addMemberDescription(VariableElement field, DocTree serialFieldTag, Content contentTree) {
         CommentHelper ch = utils.getCommentHelper(field);
-        List<? extends DocTree> description = ch.getDescription(configuration, serialFieldTag);
+        List<? extends DocTree> description = ch.getDescription(serialFieldTag);
         if (!description.isEmpty()) {
             Content serialFieldContent = new RawHtml(ch.getText(description));
             Content div = HtmlTree.DIV(HtmlStyle.block, serialFieldContent);
@@ -200,7 +200,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
         TagletWriter.genTagOutput(configuration.tagletManager, field,
                 configuration.tagletManager.getBlockTaglets(field),
                 writer.getTagletWriterInstance(false), tagContent);
-        Content dlTags = new HtmlTree(HtmlTag.DL);
+        Content dlTags = new HtmlTree(HtmlTag.DL).setStyle(HtmlStyle.notes);
         dlTags.add(tagContent);
         contentTree.add(dlTags);  // TODO: what if empty?
     }

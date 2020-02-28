@@ -51,6 +51,7 @@ import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletElement;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.builders.SerializedFormBuilder;
+import jdk.javadoc.internal.doclets.toolkit.taglets.ParamTaglet;
 import jdk.javadoc.internal.doclets.toolkit.taglets.TagletWriter;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocLink;
@@ -76,6 +77,7 @@ public class TagletWriterImpl extends TagletWriter {
     private final Utils utils;
     private final boolean inSummary;
     private final Resources resources;
+    private final Contents contents;
 
     public TagletWriterImpl(HtmlDocletWriter htmlWriter, boolean isFirstSentence) {
         this(htmlWriter, isFirstSentence, false);
@@ -88,7 +90,8 @@ public class TagletWriterImpl extends TagletWriter {
         configuration = htmlWriter.configuration;
         options = configuration.getOptions();
         utils = configuration.utils;
-        resources = configuration.getResources();
+        resources = configuration.getDocResources();
+        contents = configuration.getContents();
     }
 
     @Override
@@ -139,7 +142,7 @@ public class TagletWriterImpl extends TagletWriter {
                 result.add(HtmlTree.SPAN(HtmlStyle.deprecatedLabel,
                         htmlWriter.getDeprecatedPhrase(element)));
                 if (!deprs.isEmpty()) {
-                    List<? extends DocTree> commentTags = ch.getDescription(configuration, deprs.get(0));
+                    List<? extends DocTree> commentTags = ch.getDescription(deprs.get(0));
                     if (!commentTags.isEmpty()) {
                         result.add(commentTagsToOutput(null, element, commentTags, false));
                     }
@@ -150,7 +153,7 @@ public class TagletWriterImpl extends TagletWriter {
                 result.add(HtmlTree.SPAN(HtmlStyle.deprecatedLabel,
                         htmlWriter.getDeprecatedPhrase(element)));
                 if (!deprs.isEmpty()) {
-                    List<? extends DocTree> bodyTags = ch.getBody(configuration, deprs.get(0));
+                    List<? extends DocTree> bodyTags = ch.getBody(deprs.get(0));
                     Content body = commentTagsToOutput(null, element, bodyTags, false);
                     if (!body.isEmpty())
                         result.add(HtmlTree.DIV(HtmlStyle.deprecationComment, body));
@@ -174,10 +177,15 @@ public class TagletWriterImpl extends TagletWriter {
     }
 
     @Override
-    public Content getParamHeader(String header) {
-        HtmlTree result = HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.paramLabel,
-                new StringContent(header)));
-        return result;
+    public Content getParamHeader(ParamTaglet.ParamKind kind) {
+        Content header;
+        switch (kind) {
+            case PARAMETER:         header = contents.parameters ; break;
+            case TYPE_PARAMETER:    header = contents.typeParameters ; break;
+            case RECORD_COMPONENT:  header = contents.recordComponents ; break;
+            default: throw new IllegalArgumentException(kind.toString());
+        }
+        return HtmlTree.DT(header);
     }
 
     @Override
@@ -191,7 +199,7 @@ public class TagletWriterImpl extends TagletWriter {
         Content nameTree = new StringContent(paramName);
         body.add(HtmlTree.CODE(defineID ? HtmlTree.SPAN_ID("param-" + paramName, nameTree) : nameTree));
         body.add(" - ");
-        List<? extends DocTree> description = ch.getDescription(configuration, paramTag);
+        List<? extends DocTree> description = ch.getDescription(paramTag);
         body.add(htmlWriter.commentTagsToContent(paramTag, element, description, false, inSummary));
         return HtmlTree.DD(body);
     }
@@ -210,13 +218,11 @@ public class TagletWriterImpl extends TagletWriter {
 
     @Override
     public Content returnTagOutput(Element element, DocTree returnTag) {
-        ContentBuilder result = new ContentBuilder();
         CommentHelper ch = utils.getCommentHelper(element);
-        result.add(HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.returnLabel,
-                new StringContent(resources.getText("doclet.Returns")))));
-        result.add(HtmlTree.DD(htmlWriter.commentTagsToContent(
-                returnTag, element, ch.getDescription(configuration, returnTag), false, inSummary)));
-        return result;
+        return new ContentBuilder(
+                HtmlTree.DT(contents.returns),
+                HtmlTree.DD(htmlWriter.commentTagsToContent(
+                        returnTag, element, ch.getDescription(returnTag), false, inSummary)));
     }
 
     @Override
@@ -253,12 +259,9 @@ public class TagletWriterImpl extends TagletWriter {
         if (body.isEmpty())
             return body;
 
-        ContentBuilder result = new ContentBuilder();
-        result.add(HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.seeLabel,
-                new StringContent(resources.getText("doclet.See_Also")))));
-        result.add(HtmlTree.DD(body));
-        return result;
-
+        return new ContentBuilder(
+                HtmlTree.DT(contents.seeAlso),
+                HtmlTree.DD(body));
     }
 
     private void appendSeparatorIfNotEmpty(ContentBuilder body) {
@@ -271,36 +274,34 @@ public class TagletWriterImpl extends TagletWriter {
     @Override
     public Content simpleTagOutput(Element element, List<? extends DocTree> simpleTags, String header) {
         CommentHelper ch = utils.getCommentHelper(element);
-        ContentBuilder result = new ContentBuilder();
-        result.add(HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.simpleTagLabel, new RawHtml(header))));
         ContentBuilder body = new ContentBuilder();
         boolean many = false;
         for (DocTree simpleTag : simpleTags) {
             if (many) {
                 body.add(", ");
             }
-            List<? extends DocTree> bodyTags = ch.getBody(configuration, simpleTag);
+            List<? extends DocTree> bodyTags = ch.getBody(simpleTag);
             body.add(htmlWriter.commentTagsToContent(simpleTag, element, bodyTags, false, inSummary));
             many = true;
         }
-        result.add(HtmlTree.DD(body));
-        return result;
+        return new ContentBuilder(
+                HtmlTree.DT(new RawHtml(header)),
+                HtmlTree.DD(body));
     }
 
     @Override
     public Content simpleTagOutput(Element element, DocTree simpleTag, String header) {
-        ContentBuilder result = new ContentBuilder();
-        result.add(HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.simpleTagLabel, new RawHtml(header))));
         CommentHelper ch = utils.getCommentHelper(element);
-        List<? extends DocTree> description = ch.getDescription(configuration, simpleTag);
+        List<? extends DocTree> description = ch.getDescription(simpleTag);
         Content body = htmlWriter.commentTagsToContent(simpleTag, element, description, false, inSummary);
-        result.add(HtmlTree.DD(body));
-        return result;
+        return new ContentBuilder(
+                HtmlTree.DT(new RawHtml(header)),
+                HtmlTree.DD(body));
     }
 
     @Override
     protected Content systemPropertyTagOutput(Element element, DocTree tag) {
-        SystemPropertyTree itt = (SystemPropertyTree)tag;
+        SystemPropertyTree itt = (SystemPropertyTree) tag;
         String tagText = itt.getPropertyName().toString();
         return HtmlTree.CODE(createAnchorAndSearchIndex(element, tagText,
                 resources.getText("doclet.System_Property"), true));
@@ -308,16 +309,14 @@ public class TagletWriterImpl extends TagletWriter {
 
     @Override
     public Content getThrowsHeader() {
-        HtmlTree result = HtmlTree.DT(HtmlTree.SPAN(HtmlStyle.throwsLabel,
-                new StringContent(resources.getText("doclet.Throws"))));
-        return result;
+        return HtmlTree.DT(contents.throws_);
     }
 
     @Override
     public Content throwsTagOutput(Element element, DocTree throwsTag, TypeMirror substituteType) {
         ContentBuilder body = new ContentBuilder();
         CommentHelper ch = utils.getCommentHelper(element);
-        Element exception = ch.getException(configuration, throwsTag);
+        Element exception = ch.getException(throwsTag);
         Content excName;
         if (substituteType != null) {
            excName = htmlWriter.getLink(new LinkInfoImpl(configuration, LinkInfoImpl.Kind.MEMBER,
@@ -333,7 +332,7 @@ public class TagletWriterImpl extends TagletWriter {
             excName = htmlWriter.getLink(link);
         }
         body.add(HtmlTree.CODE(excName));
-        List<? extends DocTree> description = ch.getDescription(configuration, throwsTag);
+        List<? extends DocTree> description = ch.getDescription(throwsTag);
         Content desc = htmlWriter.commentTagsToContent(throwsTag, element, description, false, inSummary);
         if (desc != null && !desc.isEmpty()) {
             body.add(" - ");
@@ -369,7 +368,10 @@ public class TagletWriterImpl extends TagletWriter {
 
     @Override
     public Content commentTagsToOutput(DocTree holderTag,
-        Element holder, List<? extends DocTree> tags, boolean isFirstSentence) {
+                                       Element holder,
+                                       List<? extends DocTree> tags,
+                                       boolean isFirstSentence)
+    {
         return htmlWriter.commentTagsToContent(holderTag, holder,
                 tags, isFirstSentence, inSummary);
     }
@@ -467,7 +469,7 @@ public class TagletWriterImpl extends TagletWriter {
                     }
                 }.visit(element);
                 si.setCategory(SearchIndexItem.Category.SEARCH_TAGS);
-                configuration.tagSearchIndex.add(si);
+                configuration.searchItems.add(si);
             }
         }
         return result;
