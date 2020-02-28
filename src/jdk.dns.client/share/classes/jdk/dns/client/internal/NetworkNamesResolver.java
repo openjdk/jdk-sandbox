@@ -23,13 +23,9 @@
  * questions.
  */
 
-package jdk.dns.client;
+package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsResolverException;
-import jdk.dns.client.internal.AddressFamily;
-import jdk.dns.client.internal.AddressResolutionQueue;
-import jdk.dns.client.internal.DnsResolver;
-import jdk.dns.client.internal.HostsFileResolver;
+import jdk.dns.client.internal.ex.DnsResolverException;
 import jdk.dns.client.internal.util.IPUtils;
 
 import java.net.InetAddress;
@@ -44,51 +40,24 @@ public class NetworkNamesResolver {
 
     private final ProtocolFamily protocolFamily;
     private static final InetAddress[] NONE = new InetAddress[0];
+    private final InetAddress.NameServiceProvider.NameService defaultPlatformResolver;
 
-    public static NetworkNamesResolver open() throws UnknownHostException {
+    public static NetworkNamesResolver open(InetAddress.NameServiceProvider.NameService defaultPlatformResolver) {
         // null for any (IPv4+IPv6) addresses family
-        return new NetworkNamesResolver(null);
+        return new NetworkNamesResolver(defaultPlatformResolver, null);
     }
 
-    public static NetworkNamesResolver open(ProtocolFamily protocolFamily) throws UnknownHostException {
-        return new NetworkNamesResolver(protocolFamily);
+    public static NetworkNamesResolver open(InetAddress.NameServiceProvider.NameService defaultPlatformResolver,
+                                            ProtocolFamily protocolFamily) {
+        return new NetworkNamesResolver(defaultPlatformResolver, protocolFamily);
     }
 
-    private NetworkNamesResolver(ProtocolFamily protocolFamily) throws UnknownHostException {
+    private NetworkNamesResolver(InetAddress.NameServiceProvider.NameService defaultPlatformResolver,
+                                 ProtocolFamily protocolFamily) {
         this.protocolFamily = protocolFamily;
+        this.defaultPlatformResolver = defaultPlatformResolver;
     }
 
-    /**
-     * Lookup the IP address of a host.
-     * The family of required address needed can be specified with {@code addressFamily} parameter.
-     *
-     * @param hostname the specified host name
-     * @return first IP address that matches requested {@code addressFamily}
-     * @throws UnknownHostException if no IP address found for the specified host name and the specified address family
-     */
-    public InetAddress lookupHostAddr(String hostname) throws UnknownHostException {
-        // First try hosts file
-        // TODO: Add nsswitch.conf to select proper order
-        try {
-            return hostsFileResolver.getHostAddress(hostname, protocolFamily);
-        } catch (UnknownHostException uhe) {
-            if (DEBUG) {
-                System.err.printf("Hosts file doesn't know '%s' host with '%s' address family%n",
-                        hostname, protocolFamily == null ? "ANY" : protocolFamily.toString());
-            }
-        }
-        // If no luck - try to ask name servers
-        try (DnsResolver dnsResolver = new DnsResolver()) {
-            // Try platform resolver first, to resolve the local host name OR localhost
-            // only takes place on Windows hosts, on other platforms will do that
-            var addresses = dnsResolver.resolvePlatform(hostname);
-            if (addresses != null) {
-                return addresses[0];
-            }
-            var results = lookup(dnsResolver, hostname, protocolFamily, false);
-            return results.get(0);
-        }
-    }
 
     /**
      * <p>Lookup a host mapping by name. Retrieve the IP addresses
@@ -112,11 +81,11 @@ public class NetworkNamesResolver {
         try (var dnsResolver = new DnsResolver()) {
             // Try to call native method to resolve local host name or 'localhost' first
             // only takes place on Windows hosts, on other platforms will do that
-            var addresses = dnsResolver.resolvePlatform(hostname);
+            var addresses = dnsResolver.resolvePlatform(hostname, defaultPlatformResolver);
             if (addresses != null) {
                 if (DEBUG) {
                     System.err.println("Resolver API: Host name matches local host name" +
-                            " OR equals to 'localhost' and were resolved natively");
+                            " OR equals to 'localhost' and was resolved natively");
                 }
                 return addresses;
             }
@@ -164,7 +133,7 @@ public class NetworkNamesResolver {
             if (DEBUG) {
                 System.err.printf("Resolver API: Checking Windows local host name  for %s address%n", Arrays.toString(address));
             }
-            var resultNative = dnsResolver.reverseResolvePlatform(address);
+            var resultNative = dnsResolver.reverseResolvePlatform(address, defaultPlatformResolver);
             if (resultNative != null) {
                 return List.of(resultNative);
             }

@@ -25,7 +25,7 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsResolverException;
+import jdk.dns.client.internal.ex.DnsResolverException;
 import sun.net.util.IPAddressUtil;
 
 import java.net.InetAddress;
@@ -170,7 +170,7 @@ public class AddressResolutionQueue {
             if (requestedAddressType == AddressFamily.ANY || requestedAddressType == AddressFamily.IPv4) {
                 queue.add(ResolutionRequest.of(hostname, ResourceRecord.TYPE_A));
             }
-            if (requestedAddressType == AddressFamily.ANY || requestedAddressType == AddressFamily.IPv6) {
+            if (!ASK_FOR_IPV4_ADDRESSES_ONLY && (requestedAddressType == AddressFamily.ANY || requestedAddressType == AddressFamily.IPv6)) {
                 queue.add(ResolutionRequest.of(hostname, ResourceRecord.TYPE_AAAA));
             }
             queue.add(ResolutionRequest.of(hostname, ResourceRecord.TYPE_CNAME));
@@ -306,6 +306,9 @@ public class AddressResolutionQueue {
     // Private resolution queue has two modes - ANY and single requests.
     // The mode in use is tracked with this boolean flag
     private boolean isAnyMode;
+    // Get java.net.preferIPv4Stack system property value
+    private static final boolean ASK_FOR_IPV4_ADDRESSES_ONLY = java.security.AccessController.doPrivileged(
+            (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("java.net.preferIPv4Stack"));
     // Use any mode property value
     private static final boolean USE_ANY_SP_VALUE = java.security.AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.useAny"));

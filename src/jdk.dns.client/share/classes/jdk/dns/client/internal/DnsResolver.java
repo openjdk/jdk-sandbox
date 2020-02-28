@@ -25,11 +25,10 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsResolverException;
+import jdk.dns.client.internal.ex.DnsResolverException;
 import jdk.dns.conf.DnsResolverConfiguration;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +48,7 @@ public class DnsResolver implements AutoCloseable {
      * and "retries" gives the number of retries per server.
      */
     public DnsResolver() {
-        dnsClient = new DnsClient(dnsResolverConfiguration.nameservers(), 1000, 4);
+        dnsClient = new DnsClient(InetAddress.NameServiceProvider.getNameServers(), 1000, 4);
     }
 
     @Override
@@ -60,49 +59,33 @@ public class DnsResolver implements AutoCloseable {
 
     public Set<String> getDomainsSearchList() {
         var domainsToSearch = new LinkedHashSet<String>();
-        var domain = dnsResolverConfiguration.domain();
+        //var domain = dnsResolverConfiguration.domain();
         // First, try the domain
-        if (!domain.isBlank()) {
+        /*if (!domain.isBlank()) {
             domainsToSearch.add(domain);
-        }
+        }*/
         // Then iterate over the search list
-        domainsToSearch.addAll(dnsResolverConfiguration.searchlist());
+        domainsToSearch.addAll(InetAddress.NameServiceProvider.getSearchList());
         if (DEBUG) {
             System.err.printf("Domains search list:%s%n", domainsToSearch);
         }
         return domainsToSearch;
     }
 
-    public InetAddress[] resolvePlatform(String hostName) {
-        List<byte[]> addressesList = dnsResolverConfiguration.nativeLookup0(hostName);
-
-        if (addressesList == null || addressesList.isEmpty()) {
+    public InetAddress[] resolvePlatform(String hostName, InetAddress.NameServiceProvider.NameService defaultPlatformNS) {
+        InetAddress[] addresses = dnsResolverConfiguration.nativeLookup0(hostName, defaultPlatformNS);
+        if (addresses == null) {
             return null;
         }
-        dnsResolverConfiguration.cacheLocalHostAddresses(addressesList);
-        var result = new ArrayList<InetAddress>();
-        for (var bytes : addressesList) {
-            try {
-                var address = InetAddress.getByAddress(hostName, bytes);
-                result.add(address);
-            } catch (UnknownHostException e) {
-                if (DEBUG) {
-                    System.err.printf("Wrong address bytes array length: %d. Ignoring.", bytes.length);
-                }
-            }
-        }
-        if (result.isEmpty()) {
-            return null;
-        }
-        return result.toArray(new InetAddress[0]);
+        return addresses;
     }
 
-    public String reverseResolvePlatform(byte[] address) {
+    public String reverseResolvePlatform(byte[] address, InetAddress.NameServiceProvider.NameService defaultPlatformNS) {
         if (DEBUG) {
             System.err.printf("Calling reverse resolve platform for: %s%n", Arrays.toString(address));
         }
         if (address != null) {
-            return dnsResolverConfiguration.nativeReverseLookup0(address);
+            return dnsResolverConfiguration.nativeReverseLookup0(address, defaultPlatformNS);
         } else {
             return null;
         }

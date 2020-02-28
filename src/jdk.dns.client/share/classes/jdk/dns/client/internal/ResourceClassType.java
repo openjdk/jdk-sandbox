@@ -25,7 +25,7 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsResolverException;
+import jdk.dns.client.internal.ex.DnsResolverException;
 
 public class ResourceClassType {
     int rrclass;

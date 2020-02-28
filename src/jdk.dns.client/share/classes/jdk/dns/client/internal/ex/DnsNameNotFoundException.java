@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.dns.client.ex;
+package jdk.dns.client.internal.ex;
 
 public class DnsNameNotFoundException extends DnsResolverException {
     private static final long serialVersionUID = 2646341064300322397L;

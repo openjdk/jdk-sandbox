@@ -25,8 +25,6 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.NetworkNamesResolver;
-
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -35,10 +33,48 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.function.Predicate;
 
-public class DnsNameService implements InetAddress.NameService {
+public class DnsNameServiceProvider extends InetAddress.NameServiceProvider {
 
-    final InetAddress.NameService platformNativeNameService;
+    public DnsNameServiceProvider() {
+    }
+
+    @Override
+    public NameService init(NameService delegate) {
+        return new DnsNameService(delegate);
+    }
+
+    public static final class DnsNameService implements NameService {
+        private final NameService defaultPlatfromNS;
+
+        DnsNameService(NameService defaultPlatformNS) {
+            this.defaultPlatfromNS = defaultPlatformNS;
+        }
+
+        @Override
+        public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
+            InetAddress[] addresses = NetworkNamesResolver.open(defaultPlatfromNS).lookupAllHostAddr(host);
+            if (order == AddressOrder.DontCare && !IPv4Only) {
+                return addresses;
+            } else {
+                Predicate<InetAddress> filter = IPv4Only ? (ia) -> ia instanceof Inet4Address : (ia) -> true;
+                return Arrays.stream(addresses)
+                        .filter(filter)
+                        .sorted(Comparator.comparing(
+                                ia -> (ia instanceof Inet4Address && order == AddressOrder.IPv4First) ||
+                                      (ia instanceof Inet6Address && order == AddressOrder.IPv6First),
+                                Boolean::compareTo)
+                                .reversed())
+                        .toArray(InetAddress[]::new);
+            }
+        }
+
+        @Override
+        public String getHostByAddr(byte[] addr) throws UnknownHostException {
+            return NetworkNamesResolver.open(defaultPlatfromNS).getHostByAddr(addr);
+        }
+    }
 
     enum AddressOrder {
         DontCare,
@@ -64,40 +100,14 @@ public class DnsNameService implements InetAddress.NameService {
     }
 
     static final AddressOrder order;
+    static final boolean IPv4Only;
 
     static {
-        var action = (PrivilegedAction<String>) () -> System.getProperty("java.net.preferIPv6Addresses");
+        var ipv6action = (PrivilegedAction<String>) () -> System.getProperty("java.net.preferIPv6Addresses");
+        var ipv4action = (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("java.net.preferIPv4Stack");
 
-        String spValue = System.getSecurityManager() == null ? action.run() : AccessController.doPrivileged(action);
+        String spValue = System.getSecurityManager() == null ? ipv6action.run() : AccessController.doPrivileged(ipv6action);
         order = AddressOrder.fromString(spValue);
-    }
-
-    public DnsNameService() {
-        this.platformNativeNameService = null;
-    }
-
-    public DnsNameService(InetAddress.NameService platformNativeNameService) {
-        this.platformNativeNameService = platformNativeNameService;
-    }
-
-    @Override
-    public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
-        InetAddress[] addresses = NetworkNamesResolver.open().lookupAllHostAddr(host);
-        if (order == AddressOrder.DontCare) {
-            return addresses;
-        } else {
-            return Arrays.stream(addresses)
-                    .sorted(Comparator.comparing(
-                            ia -> (ia instanceof Inet4Address && order == AddressOrder.IPv4First)
-                                    || (ia instanceof Inet6Address && order == AddressOrder.IPv6First),
-                            Boolean::compareTo)
-                            .reversed())
-                    .toArray(InetAddress[]::new);
-        }
-    }
-
-    @Override
-    public String getHostByAddr(byte[] addr) throws UnknownHostException {
-        return NetworkNamesResolver.open().getHostByAddr(addr);
+        IPv4Only = System.getSecurityManager() == null ? ipv4action.run() : AccessController.doPrivileged(ipv4action);
     }
 }

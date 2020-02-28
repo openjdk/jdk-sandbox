@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.dns.client.ex;
+package jdk.dns.client.internal.ex;
 
 public class DnsResolverException extends Exception {
 

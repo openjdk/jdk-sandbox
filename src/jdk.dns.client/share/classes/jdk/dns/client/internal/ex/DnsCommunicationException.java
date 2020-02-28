@@ -23,7 +23,7 @@
  * questions.
  */
 
-package jdk.dns.client.ex;
+package jdk.dns.client.internal.ex;
 
 public class DnsCommunicationException extends DnsResolverException {
     private static final long serialVersionUID = 5764739815069894318L;

@@ -26,83 +26,20 @@
 package jdk.dns.conf;
 
 import jdk.dns.client.internal.util.AddressArray;
-import jdk.dns.client.internal.util.IPUtils;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class DnsResolverConfiguration {
-    // Lock held whilst loading configuration or checking
-    private static ReentrantLock lock = new ReentrantLock();
 
-    // Addresses have changed
-    private static boolean changed = false;
-
-    // Time of last refresh
-    private static long lastRefresh = -1;
-
-    // Cache timeout (120 seconds in nanoseconds) - should be converted into property
-    // or configured as preference in the future.
-    private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(120);
-
-    // DNS suffix list, name servers and default hostname populated by native method
-    private static String os_searchlist;
-    private static String os_nameservers;
-
-    private static String os_hostname;
     private static volatile Set<AddressArray> knownLocalHostAddresses = Collections.emptySet();
-
-    // Cached lists
-    private static ArrayList<String> searchlist;
-    private static ArrayList<String> nameservers;
-    private volatile String domain = "";
-
-    // Parse string that consists of token delimited by comma
-    // and return ArrayList. Refer to ResolverConfigurationImpl.c and
-    // strappend to see how the string is created.
-    private ArrayList<String> stringToList(String str) {
-        // String is delimited by comma.
-        String[] tokens = str.split(" ");
-        ArrayList<String> l = new ArrayList<>(tokens.length);
-        for (String s : tokens) {
-            if (!s.isEmpty() && !l.contains(s)) {
-                l.add(s);
-            }
-        }
-        l.trimToSize();
-        return l;
-    }
-
-    // Parse string that consists of token delimited by comma
-    // and return ArrayList.  Refer to ResolverConfigurationImpl.c and
-    // strappend to see how the string is created.
-    // In addition to splitting the string, converts IPv6 addresses to
-    // BSD-style.
-    private ArrayList<String> addressesToList(String str) {
-        // String is delimited by comma
-        String[] tokens = str.split(" ");
-        ArrayList<String> l = new ArrayList<>(tokens.length);
-
-        for (String s : tokens) {
-            if (!s.isEmpty()) {
-                if (s.indexOf(':') >= 0 && s.charAt(0) != '[') {
-                    // Not BSD style
-                    s = '[' + s + ']';
-                }
-                if (!s.isEmpty() && !l.contains(s)) {
-                    l.add(s);
-                }
-            }
-        }
-        l.trimToSize();
-        return l;
-    }
 
     public static String getDefaultHostsFileLocation() {
         return Paths.get(System.getenv("SystemRoot"))
@@ -113,160 +50,62 @@ public class DnsResolverConfiguration {
                 .toString();
     }
 
-    public List<byte[]> nativeLookup0(String hostName) {
-        List<byte[]> resList = null;
-        if (hostName != null && (hostName.equals(os_hostname) || hostName.equals("localhost"))) {
-            String result = nativeLocalhostResolve0(hostName);
-            resList = new ArrayList<>();
-            for (var addressString : result.split(" ")) {
-                if (!addressString.isBlank()) {
-                    resList.add(
-                            IPUtils.stringToAddressBytes(addressString)
-                    );
-                }
-            }
+    // Caching of local host name is needed to resolve the following inconsistency in Windows:
+    // %COMPUTERNAME% environment variable is in uppercase,
+    // but hostname can be in any case.
+    // Therefore getCanonicalName results will differ from original local hostname
+    private static final String cachedLocalHostname = cacheLocalHostName();
+
+    private static String cacheLocalHostName() {
+        try {
+            // Try to getLocalHostName from platform first
+            return InetAddress.NameServiceProvider.getLocalHostName();
+        } catch (UnknownHostException e) {
+            // If it fails then use %COMPUTERNAME% environment variable.
+            // It is not used in the first place because %COMPUTERNAME% and gethostname
+            // results can differ in terms of case, e.g. %COMPUTERNAME% is in upper-case
+            // gethostname is in lower-case
+            PrivilegedAction<String> pae = () -> System.getenv("COMPUTERNAME");
+            return System.getSecurityManager() == null ?
+                    pae.run() : AccessController.doPrivileged(pae);
         }
-        return resList;
     }
 
-    public String nativeReverseLookup0(byte[] address) {
-        if (address == null) {
+    public InetAddress[] nativeLookup0(String hostName, InetAddress.NameServiceProvider.NameService dpns) {
+        if (hostName != null && (hostName.equalsIgnoreCase(cachedLocalHostname) || hostName.equals("localhost"))) {
+            try {
+                var addresses = dpns.lookupAllHostAddr(hostName);
+                cacheLocalHostAddresses(addresses);
+                return addresses;
+            } catch (UnknownHostException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public String nativeReverseLookup0(byte[] address, InetAddress.NameServiceProvider.NameService defaultPlatformNS) {
+        if (address == null || address.length < 4) {
             return null;
         }
-
+        // If local host name was never resolved before - do that
         if (knownLocalHostAddresses.isEmpty()) {
-            nativeLocalhostResolve0(os_hostname);
+            nativeLookup0(cachedLocalHostname, defaultPlatformNS);
         }
         if (knownLocalHostAddresses.contains(AddressArray.newAddressArray(address))) {
-            return os_hostname;
+            return cachedLocalHostname;
         }
         return null;
     }
 
     // Perform caching only on Windows Platform - other platforms NO-OP
-    public void cacheLocalHostAddresses(List<byte[]> addressesList) {
-        knownLocalHostAddresses = addressesList.stream().map(AddressArray::newAddressArray)
+    private void cacheLocalHostAddresses(InetAddress[] addressesList) {
+        knownLocalHostAddresses = Arrays.stream(addressesList)
+                .map(InetAddress::getAddress)
+                .map(AddressArray::newAddressArray)
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    // Load DNS configuration from OS
-
-    private void loadConfig() {
-        assert lock.isHeldByCurrentThread();
-
-        // A change in the network address of the machine usually indicates
-        // a change in DNS configuration too so we always refresh the config
-        // after such a change.
-        if (changed) {
-            changed = false;
-        } else {
-            // Otherwise we refresh if TIMEOUT_NANOS has passed since last
-            // load.
-            long currTime = System.nanoTime();
-            // lastRefresh will always have been set once because we start with
-            // changed = true.
-            if ((currTime - lastRefresh) < TIMEOUT_NANOS) {
-                return;
-            }
-        }
-
-
-        // Native code that uses Windows API to find out the DNS server
-        // addresses and search suffixes. It builds a comma-delimited string
-        // of nameservers and domain suffixes and sets them to the static
-        // os_nameservers and os_searchlist. We then split these into Java
-        // Lists here.
-        loadDNSconfig0();
-
-        // Record the time of update and refresh the lists of addresses /
-        // domain suffixes.
-        lastRefresh = System.nanoTime();
-        searchlist = stringToList(os_searchlist);
-        if (searchlist.size() > 0) {
-            domain = searchlist.get(0);
-        } else {
-            domain = "";
-        }
-        nameservers = addressesToList(os_nameservers);
-        os_searchlist = null;                       // can be GC'ed
-        os_nameservers = null;
-    }
-
     public DnsResolverConfiguration() {
-    }
-
-    @SuppressWarnings("unchecked") // clone()
-    public List<String> searchlist() {
-        lock.lock();
-        try {
-            loadConfig();
-
-            // List is mutable so return a shallow copy
-            return (List<String>) searchlist.clone();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    @SuppressWarnings("unchecked") // clone()
-    public List<String> nameservers() {
-        lock.lock();
-        try {
-            loadConfig();
-
-            // List is mutable so return a shallow copy
-            return (List<String>) nameservers.clone();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public String domain() {
-        lock.lock();
-        try {
-            loadConfig();
-            return domain;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    // --- Address Change Listener
-
-    static class AddressChangeListener extends Thread {
-        public void run() {
-            for (; ; ) {
-                // wait for configuration to change
-                if (notifyAddrChange0() != 0)
-                    return;
-                lock.lock();
-                try {
-                    changed = true;
-                } finally {
-                    lock.unlock();
-                }
-            }
-        }
-    }
-
-
-    // --- Native methods --
-
-    static native void init0();
-
-    static native void loadDNSconfig0();
-
-    static native int notifyAddrChange0();
-
-    static native String nativeLocalhostResolve0(String localHostName);
-
-    static {
-        System.loadLibrary("resolver");
-        init0();
-
-        // start the address listener thread
-        AddressChangeListener thr = new AddressChangeListener();
-        thr.setDaemon(true);
-        thr.start();
     }
 }

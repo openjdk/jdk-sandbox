@@ -25,9 +25,9 @@
 
 package jdk.dns.client.internal;
 
-import jdk.dns.client.ex.DnsCommunicationException;
-import jdk.dns.client.ex.DnsNameNotFoundException;
-import jdk.dns.client.ex.DnsResolverException;
+import jdk.dns.client.internal.ex.DnsCommunicationException;
+import jdk.dns.client.internal.ex.DnsNameNotFoundException;
+import jdk.dns.client.internal.ex.DnsResolverException;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;

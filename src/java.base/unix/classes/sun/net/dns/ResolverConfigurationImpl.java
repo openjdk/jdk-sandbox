@@ -31,6 +31,8 @@ import java.util.StringTokenizer;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /*
  * An implementation of ResolverConfiguration for Solaris
@@ -41,14 +43,14 @@ public class ResolverConfigurationImpl
     extends ResolverConfiguration
 {
     // Lock helds whilst loading configuration or checking
-    private static Object lock = new Object();
+    private static ReentrantLock lock = new ReentrantLock();
 
     // Time of last refresh.
     private static long lastRefresh = -1;
 
     // Cache timeout (300 seconds) - should be converted into property
     // or configured as preference in the future.
-    private static final int TIMEOUT = 300000;
+    private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(300);
 
     // Resolver options
     private final Options opts;
@@ -118,12 +120,12 @@ public class ResolverConfigurationImpl
     // Load DNS configuration from OS
 
     private void loadConfig() {
-        assert Thread.holdsLock(lock);
+        assert lock.isHeldByCurrentThread();
 
         // check if cached settings have expired.
         if (lastRefresh >= 0) {
-            long currTime = System.currentTimeMillis();
-            if ((currTime - lastRefresh) < TIMEOUT) {
+            long currTime = System.nanoTime();
+            if ((currTime - lastRefresh) < TIMEOUT_NANOS) {
                 return;
             }
         }
@@ -227,23 +229,29 @@ public class ResolverConfigurationImpl
 
     @SuppressWarnings("unchecked")
     public List<String> searchlist() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             loadConfig();
 
             // List is mutable so return a shallow copy
-            return (List<String>)searchlist.clone();
+            return (List<String>) searchlist.clone();
+        } finally {
+            lock.unlock();
         }
     }
 
     @SuppressWarnings("unchecked")
     public List<String> nameservers() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             loadConfig();
 
             // List is mutable so return a shallow copy
 
-          return (List<String>)nameservers.clone();
+            return (List<String>) nameservers.clone();
 
+        } finally {
+            lock.unlock();
         }
     }
 

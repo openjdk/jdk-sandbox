@@ -379,7 +379,7 @@ module java.base {
     uses java.util.spi.TimeZoneNameProvider;
     uses java.util.spi.ToolProvider;
     uses javax.security.auth.spi.LoginModule;
-    uses java.net.InetAddress.NameService;
+    uses java.net.InetAddress.NameServiceProvider;
 
     // JDK-internal service types
 

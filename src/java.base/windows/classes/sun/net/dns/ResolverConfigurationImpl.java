@@ -28,6 +28,7 @@ package sun.net.dns;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /*
  * An implementation of sun.net.ResolverConfiguration for Windows.
@@ -37,7 +38,7 @@ public class ResolverConfigurationImpl
     extends ResolverConfiguration
 {
     // Lock held whilst loading configuration or checking
-    private static Object lock = new Object();
+    private static ReentrantLock lock = new ReentrantLock();
 
     // Resolver options
     private final Options opts;
@@ -105,7 +106,7 @@ public class ResolverConfigurationImpl
     // Load DNS configuration from OS
 
     private void loadConfig() {
-        assert Thread.holdsLock(lock);
+        assert lock.isHeldByCurrentThread();
 
         // A change in the network address of the machine usually indicates
         // a change in DNS configuration too so we always refresh the config
@@ -145,22 +146,28 @@ public class ResolverConfigurationImpl
 
     @SuppressWarnings("unchecked") // clone()
     public List<String> searchlist() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             loadConfig();
 
             // List is mutable so return a shallow copy
-            return (List<String>)searchlist.clone();
+            return (List<String>) searchlist.clone();
+        } finally {
+            lock.unlock();
         }
     }
 
     @SuppressWarnings("unchecked") // clone()
     public List<String> nameservers() {
-        synchronized (lock) {
+        lock.lock();
+        try {
             loadConfig();
 
             // List is mutable so return a shallow copy
-            return (List<String>)nameservers.clone();
-         }
+            return (List<String>) nameservers.clone();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public Options options() {
@@ -175,8 +182,11 @@ public class ResolverConfigurationImpl
                 // wait for configuration to change
                 if (notifyAddrChange0() != 0)
                     return;
-                synchronized (lock) {
+                lock.lock();
+                try {
                     changed = true;
+                } finally {
+                    lock.unlock();
                 }
             }
         }

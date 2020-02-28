@@ -25,6 +25,11 @@
 
 package java.net;
 
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Collections;
+import java.util.List;
 import java.util.NavigableSet;
 import java.util.ArrayList;
 import java.util.Objects;
@@ -290,9 +295,9 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /* Used to store the name service provider */
-    private static transient NameService nameService;
+    private static transient NameServiceProvider.NameService nameService;
 
-    private static transient NameService defaultNameService;
+    private static transient NameServiceProvider.NameService defaultNameService;
 
     /**
      * Used to store the best available hostname.
@@ -346,27 +351,43 @@ public class InetAddress implements java.io.Serializable {
         init();
     }
 
-    private static NameService nameService() {
-        if (nameService != null) {
-            return nameService;
+    private static NameServiceProvider.NameService nameService() {
+        NameServiceProvider.NameService cns = nameService;
+        if (cns != null) {
+            return cns;
         }
         if (VM.isBooted()) {
-            synchronized (NameService.class) {
-                if (nameService != null) {
-                    return nameService;
+            synchronized (NameServiceProvider.class) {
+                cns = nameService;
+                if (cns != null) {
+                    return cns;
                 }
                 String hostsFileProperty = GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-                var cns = hostsFileProperty == null ?
-                        ServiceLoader.load(NameService.class).findFirst().orElse(defaultNameService)
-                        : defaultNameService;
+                if (hostsFileProperty != null) {
+                    // The default name service is already host file name service
+                    cns = defaultNameService;
+                } else if (System.getSecurityManager() != null) {
+                    PrivilegedAction<NameServiceProvider.NameService> pa = InetAddress::loadNameService;
+                    cns = AccessController.doPrivileged(
+                            pa, null, NameServiceProvider.NAMESERVICE_PERMISSION);
+                } else {
+                    cns = loadNameService();
+                }
+
                 InetAddress.nameService = cns;
-                return nameService;
+                return cns;
             }
         } else {
             return defaultNameService;
         }
     }
 
+    private static NameServiceProvider.NameService loadNameService() {
+        return ServiceLoader.load(NameServiceProvider.class)
+                .findFirst()
+                .map(nsp -> nsp.init(defaultNameService))
+                .orElse(defaultNameService);
+    }
 
     /**
      * Constructor for the Socket.accept() method.
@@ -913,34 +934,116 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /**
-     * NameService provides host and address lookup service
-     *
-     * @since 9
+     * A {@code NameServiceProvider} can be used to provide a system-wide alternative name
+     * service resolution mechanism used for {@link InetAddress} host name and IP address resolution.
      */
-    public interface NameService {
+    public static abstract class NameServiceProvider {
 
         /**
-         * Lookup a host mapping by name. Retrieve the IP addresses
-         * associated with a host
-         *
-         * @param host the specified hostname
-         * @return array of IP addresses for the requested host
-         * @throws UnknownHostException
-         *             if no IP address for the {@code host} could be found
+         * NameService provides host and address lookup service
          */
-        InetAddress[] lookupAllHostAddr(String host)
-                throws UnknownHostException;
+        public interface NameService {
+
+            /**
+             * Lookup a host mapping by name. Retrieve the IP addresses
+             * associated with a host
+             *
+             * @param host the specified hostname
+             * @return array of IP addresses for the requested host
+             * @throws UnknownHostException if no IP address for the {@code host} could be found
+             */
+            InetAddress[] lookupAllHostAddr(String host)
+                    throws UnknownHostException;
+
+            /**
+             * Lookup the host corresponding to the IP address provided
+             *
+             * @param addr byte array representing an IP address
+             * @return {@code String} representing the host name mapping
+             * @throws UnknownHostException if no host found for the specified IP address
+             */
+            String getHostByAddr(byte[] addr) throws UnknownHostException;
+
+        }
 
         /**
-         * Lookup the host corresponding to the IP address provided
-         *
-         * @param addr byte array representing an IP address
-         * @return {@code String} representing the host name mapping
-         * @throws UnknownHostException
-         *             if no host found for the specified IP address
+         * The {@code RuntimePermission("nameServiceProvider")} is
+         * necessary to subclass and instantiate the {@code NameServiceProvider} class,
+         * as well as to obtain name service from an instance of that class,
+         * and it is also required to obtain the operating system name resolution configurations.
          */
-        String getHostByAddr(byte[] addr) throws UnknownHostException;
+        static final RuntimePermission NAMESERVICE_PERMISSION =
+                new RuntimePermission("nameServiceProvider");
 
+        /**
+         * Creates a new instance of {@code NameServiceProvider}.
+         *
+         * @throws SecurityException if a security manager is present and its
+         *                           {@code checkPermission} method doesn't allow the
+         *                           {@code RuntimePermission("nameServiceProvider")}.
+         * @implNote It is recommended that a {@code NameServiceProvider} service
+         * implementation does not perform any heavy initialization in its
+         * constructor, in order to avoid possible risks of deadlock or class
+         * loading cycles during the instantiation of the service provider.
+         */
+        protected NameServiceProvider() {
+            this(checkPermission());
+        }
+
+        private NameServiceProvider(Void unused) {
+        }
+
+        private static Void checkPermission() {
+            final SecurityManager sm = System.getSecurityManager();
+            if (sm != null) {
+                sm.checkPermission(NAMESERVICE_PERMISSION);
+            }
+            return null;
+        }
+
+        /**
+         * Initialise and return the {@link NameService} provided by
+         * this provider.
+         *
+         * @param delegate The platform default name service which can
+         *                 be used to bootstrap this provider.
+         * @return the name service provided by this provider
+         */
+        public abstract NameService init(NameService delegate);
+
+        /**
+         * Get the name servers defined in the operating system configuration.
+         * This is a helper method for the {@link NameService} implementors.
+         *
+         * @return the list of name servers
+         */
+        public static final List<String> getNameServers() {
+            // checkPermission(); // A lot of tests which run with SM are failing
+            return sun.net.dns.ResolverConfigurationImpl.open().nameservers();
+        }
+
+        /**
+         * Get the network domain search suffixes list defined by the operating system configuration.
+         * This is a helper method for the {@link NameService} implementors.
+         *
+         * @return the list of search suffixes
+         */
+        public static final List<String> getSearchList() {
+            // checkPermission(); // A lot of tests which run with SM are failing
+            return sun.net.dns.ResolverConfigurationImpl.open().searchlist();
+        }
+
+        /**
+         * Get the local host name.
+         * This is a helper method for the {@link NameService} implementors.
+         * It is advised to cache the result of this call to avoid additional native calls.
+         *
+         * @return the local host name
+         * @throws UnknownHostException if the local host name can't be acquired
+         */
+        public static final String getLocalHostName() throws UnknownHostException {
+            return impl.getLocalHostName();
+        }
     }
 
     /**
@@ -949,17 +1052,15 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class PlatformNameService implements NameService {
+    private static final class PlatformNameService implements NameServiceProvider.NameService {
 
         public InetAddress[] lookupAllHostAddr(String host)
-            throws UnknownHostException
-        {
+                throws UnknownHostException {
             return impl.lookupAllHostAddr(host);
         }
 
         public String getHostByAddr(byte[] addr)
-            throws UnknownHostException
-        {
+                throws UnknownHostException {
             return impl.getHostByAddr(addr);
         }
     }
@@ -977,15 +1078,15 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class HostsFileNameService implements NameService {
+    private static final class HostsFileNameService implements NameServiceProvider.NameService {
 
         private final String hostsFile;
 
-        public HostsFileNameService (String hostsFileName) {
+        public HostsFileNameService(String hostsFileName) {
             this.hostsFile = hostsFileName;
         }
 
-        private  String addrToString(byte addr[]) {
+        private String addrToString(byte addr[]) {
           String stringifiedAddress = null;
 
             if (addr.length == Inet4Address.INADDRSZ) {
@@ -1165,11 +1266,11 @@ public class InetAddress implements java.io.Serializable {
      *
      * @return a NameService
      */
-    private static NameService createNameService() {
+    private static NameServiceProvider.NameService createNameService() {
 
         String hostsFileName =
                 GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-        NameService theNameService;
+        NameServiceProvider.NameService theNameService;
         if (hostsFileName != null) {
             theNameService = new HostsFileNameService(hostsFileName);
         } else {
