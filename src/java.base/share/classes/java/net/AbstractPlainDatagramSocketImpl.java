@@ -49,10 +49,10 @@ import sun.security.action.GetPropertyAction;
 abstract class AbstractPlainDatagramSocketImpl extends DatagramSocketImpl
 {
     /* timeout value for receive() */
-    int timeout = 0;
-    boolean connected = false;
-    private int trafficClass = 0;
-    protected InetAddress connectedAddress = null;
+    int timeout;
+    boolean connected;
+    protected InetAddress connectedAddress;
+    private int trafficClass;
     private int connectedPort = -1;
     private final boolean isMulticast;
 
