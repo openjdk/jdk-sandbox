@@ -712,6 +712,13 @@ abstract class SocketChannelImpl
 
     abstract int connectImpl(FileDescriptor fd,SocketAddress sa) throws IOException;
 
+    private static InetSocketAddress loopbackAddressFor(InetSocketAddress any) {
+        InetAddress anyAddr = any.getAddress();
+        assert anyAddr.isAnyLocalAddress();
+        InetAddress la = Net.loopBackAddressFor(anyAddr.getClass());
+        return new InetSocketAddress(la, any.getPort());
+    }
+
     @Override
     public boolean connect(SocketAddress remote) throws IOException {
         SocketAddress sa = checkRemote(remote);
