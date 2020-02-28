@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,8 @@
  * @test
  * @library /test/lib
  * @modules java.management java.base/java.io:+open java.base/java.net:+open
- *          java.base/sun.net
  * @run main/othervm UnreferencedDatagramSockets
  * @run main/othervm -Djava.net.preferIPv4Stack=true UnreferencedDatagramSockets
- * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl UnreferencedDatagramSockets
  * @summary Check that unreferenced datagram sockets are closed
  */
 
@@ -39,18 +37,14 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.DatagramSocketImpl;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.channels.DatagramChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
@@ -60,7 +54,6 @@ import java.util.concurrent.CountDownLatch;
 import com.sun.management.UnixOperatingSystemMXBean;
 
 import jdk.test.lib.net.IPSupport;
-import sun.net.NetProperties;
 
 public class UnreferencedDatagramSockets {
 
@@ -192,62 +185,32 @@ public class UnreferencedDatagramSockets {
                 : -1L;
     }
 
-    private static boolean usePlainDatagramSocketImpl() {
-        PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainDatagramSocketImpl");
-        String s = AccessController.doPrivileged(pa);
-        return (s != null) && (s.isEmpty() || s.equalsIgnoreCase("true"));
-    }
-
     // Reflect to find references in the datagram implementation that will be gc'd
     private static void extractRefs(DatagramSocket s, String name) {
         try {
-            Field datagramSocketField = DatagramSocket.class.getDeclaredField("delegate");
-            datagramSocketField.setAccessible(true);
 
-            if (!usePlainDatagramSocketImpl()) {
-                // DatagramSocket using DatagramSocketAdaptor
-                Object DatagramSocket = datagramSocketField.get(s);
-                assert DatagramSocket.getClass() == Class.forName("sun.nio.ch.DatagramSocketAdaptor");
+            Field socketImplField = DatagramSocket.class.getDeclaredField("impl");
+            socketImplField.setAccessible(true);
+            Object socketImpl = socketImplField.get(s);
 
-                Method m = DatagramSocket.class.getDeclaredMethod("getChannel");
-                m.setAccessible(true);
-                DatagramChannel datagramChannel = (DatagramChannel) m.invoke(DatagramSocket);
+            Field fileDescriptorField = DatagramSocketImpl.class.getDeclaredField("fd");
+            fileDescriptorField.setAccessible(true);
+            FileDescriptor fileDescriptor = (FileDescriptor) fileDescriptorField.get(socketImpl);
+            extractRefs(fileDescriptor, name);
 
-                assert datagramChannel.getClass() == Class.forName("sun.nio.ch.DatagramChannelImpl");
-
-                Field fileDescriptorField = datagramChannel.getClass().getDeclaredField("fd");
-                fileDescriptorField.setAccessible(true);
-                FileDescriptor fileDescriptor = (FileDescriptor) fileDescriptorField.get(datagramChannel);
-                extractRefs(fileDescriptor, name);
+            Class<?> socketImplClass = socketImpl.getClass();
+            System.out.printf("socketImplClass: %s%n", socketImplClass);
+            if (socketImplClass.getName().equals("java.net.TwoStacksPlainDatagramSocketImpl")) {
+                Field fileDescriptor1Field = socketImplClass.getDeclaredField("fd1");
+                fileDescriptor1Field.setAccessible(true);
+                FileDescriptor fileDescriptor1 = (FileDescriptor) fileDescriptor1Field.get(socketImpl);
+                extractRefs(fileDescriptor1, name + "::twoStacksFd1");
 
             } else {
-                // DatagramSocket using PlainDatagramSocketImpl
-                Object DatagramSocket = datagramSocketField.get(s);
-                assert DatagramSocket.getClass() == Class.forName("java.net.NetMulticastSocket");
-
-                Method m = DatagramSocket.getClass().getDeclaredMethod("getImpl");
-                m.setAccessible(true);
-                DatagramSocketImpl datagramSocketImpl = (DatagramSocketImpl) m.invoke(DatagramSocket);
-
-                Field fileDescriptorField = DatagramSocketImpl.class.getDeclaredField("fd");
-                fileDescriptorField.setAccessible(true);
-                FileDescriptor fileDescriptor = (FileDescriptor) fileDescriptorField.get(datagramSocketImpl);
-                extractRefs(fileDescriptor, name);
-
-                Class<?> socketImplClass = datagramSocketImpl.getClass();
-                System.out.printf("socketImplClass: %s%n", socketImplClass);
-                if (socketImplClass.getName().equals("java.net.TwoStacksPlainDatagramSocketImpl")) {
-                    Field fileDescriptor1Field = socketImplClass.getDeclaredField("fd1");
-                    fileDescriptor1Field.setAccessible(true);
-                    FileDescriptor fileDescriptor1 = (FileDescriptor) fileDescriptor1Field.get(datagramSocketImpl);
-                    extractRefs(fileDescriptor1, name + "::twoStacksFd1");
-
-                } else {
-                    System.out.printf("socketImpl class name not matched: %s != %s%n",
-                            socketImplClass.getName(), "java.net.TwoStacksPlainDatagramSocketImpl");
-                }
+                System.out.printf("socketImpl class name not matched: %s != %s%n",
+                        socketImplClass.getName(), "java.net.TwoStacksPlainDatagramSocketImpl");
             }
-        } catch (Exception ex) {
+        } catch (NoSuchFieldException | IllegalAccessException ex) {
             ex.printStackTrace();
             throw new AssertionError("missing field", ex);
         }

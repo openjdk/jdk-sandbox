@@ -27,7 +27,6 @@
  * @summary DatagramSocket.send should throw IllegalArgumentException
  *          when the packet address is not correctly set.
  * @run main AddressNotSet
- * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl AddressNotSet
  */
 
 import java.net.DatagramPacket;

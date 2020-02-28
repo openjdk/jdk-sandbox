@@ -74,7 +74,7 @@ public class DatagramSocketAdaptor
     private volatile int timeout;
 
     private DatagramSocketAdaptor(DatagramChannelImpl dc) throws IOException {
-        super(/*SocketAddress*/ DatagramSockets.NONE);
+        super(/*SocketAddress*/null);
         this.dc = dc;
     }
 
@@ -760,28 +760,4 @@ public class DatagramSocketAdaptor
             }
         }
     }
-
-    /**
-     * Provides access to the value of the private static DatagramSocket.NONE
-     * constant, to work around the absence of a public/protected constructor
-     * that would allow to subclass DatagramSocket/MulticastSocket with a
-     * null delegate.
-     */
-    private static class DatagramSockets {
-        private static final SocketAddress NONE;
-        static {
-
-            try {
-                PrivilegedExceptionAction<Lookup> pa = () ->
-                        MethodHandles.privateLookupIn(DatagramSocket.class, MethodHandles.lookup());
-                MethodHandles.Lookup l = AccessController.doPrivileged(pa);
-                NONE = (SocketAddress) l.findStaticVarHandle(DatagramSocket.class, "NONE",
-                        SocketAddress.class).get();
-            } catch (Exception e) {
-                throw new ExceptionInInitializerError(e);
-            }
-        }
-
-    }
-
 }

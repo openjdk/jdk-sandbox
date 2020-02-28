@@ -28,6 +28,9 @@ package java.net;
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.MulticastChannel;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Set;
 
 /**
  * The multicast datagram socket class is useful for sending
@@ -132,9 +135,11 @@ import java.nio.channels.MulticastChannel;
  */
 public class MulticastSocket extends DatagramSocket {
 
-    final MulticastSocket delegate() {
-        return super.delegate(MulticastSocket.class);
-    }
+    /**
+     * Used on some platforms to record if an outgoing interface
+     * has been set for this socket.
+     */
+    private boolean interfaceSet;
 
     /**
      * Create a multicast socket.
@@ -211,16 +216,42 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.4
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
-        this(createDelegate(bindaddr, true));
+        super((SocketAddress) null);
+
+        // No further initialization when this is a DatagramChannel socket adaptor
+        if (this instanceof sun.nio.ch.DatagramSocketAdaptor)
+            return;
+
+        // Enable SO_REUSEADDR before binding
+        setReuseAddress(true);
+
+        if (bindaddr != null) {
+            try {
+                bind(bindaddr);
+            } finally {
+                if (!isBound()) {
+                    close();
+                }
+            }
+        }
     }
 
     /**
-     * Create a MulticastSocket that delegates to the given delegate if not null.
-     * @param delegate the delegate, can be null.
+     * The lock on the socket's TTL. This is for set/getTTL and
+     * send(packet,ttl).
      */
-    MulticastSocket(MulticastSocket delegate)  {
-        super(delegate);
-    }
+    private Object ttlLock = new Object();
+
+    /**
+     * The lock on the socket's interface - used by setInterface
+     * and getInterface
+     */
+    private Object infLock = new Object();
+
+    /**
+     * The "last" interface set by setInterface on this MulticastSocket
+     */
+    private InetAddress infAddress = null;
 
 
     /**
@@ -240,7 +271,9 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated
     public void setTTL(byte ttl) throws IOException {
-        delegate().setTTL(ttl);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+        getImpl().setTTL(ttl);
     }
 
     /**
@@ -264,7 +297,12 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.2
      */
     public void setTimeToLive(int ttl) throws IOException {
-        delegate().setTimeToLive(ttl);
+        if (ttl < 0 || ttl > 255) {
+            throw new IllegalArgumentException("ttl out of range");
+        }
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+        getImpl().setTimeToLive(ttl);
     }
 
     /**
@@ -280,7 +318,9 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated
     public byte getTTL() throws IOException {
-        return delegate().getTTL();
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+        return getImpl().getTTL();
     }
 
     /**
@@ -293,7 +333,9 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.2
      */
     public int getTimeToLive() throws IOException {
-        return delegate().getTimeToLive();
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+        return getImpl().getTimeToLive();
     }
 
     /**
@@ -317,7 +359,31 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void joinGroup(InetAddress mcastaddr) throws IOException {
-        delegate().joinGroup(mcastaddr);
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+
+        checkAddress(mcastaddr, "joinGroup");
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkMulticast(mcastaddr);
+        }
+
+        if (!mcastaddr.isMulticastAddress()) {
+            throw new SocketException("Not a multicast address");
+        }
+
+        /**
+         * required for some platforms where it's not possible to join
+         * a group without setting the interface first.
+         */
+        NetworkInterface defaultInterface = NetworkInterface.getDefault();
+
+        if (!interfaceSet && defaultInterface != null) {
+            setNetworkInterface(defaultInterface);
+        }
+
+        getImpl().join(mcastaddr);
     }
 
     /**
@@ -340,7 +406,21 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void leaveGroup(InetAddress mcastaddr) throws IOException {
-        delegate().leaveGroup(mcastaddr);
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+
+        checkAddress(mcastaddr, "leaveGroup");
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkMulticast(mcastaddr);
+        }
+
+        if (!mcastaddr.isMulticastAddress()) {
+            throw new SocketException("Not a multicast address");
+        }
+
+        getImpl().leave(mcastaddr);
     }
 
     /**
@@ -372,7 +452,26 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        delegate().joinGroup(mcastaddr, netIf);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+
+        if (mcastaddr == null || !(mcastaddr instanceof InetSocketAddress))
+            throw new IllegalArgumentException("Unsupported address type");
+
+        if (oldImpl)
+            throw new UnsupportedOperationException();
+
+        checkAddress(((InetSocketAddress)mcastaddr).getAddress(), "joinGroup");
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkMulticast(((InetSocketAddress)mcastaddr).getAddress());
+        }
+
+        if (!((InetSocketAddress)mcastaddr).getAddress().isMulticastAddress()) {
+            throw new SocketException("Not a multicast address");
+        }
+
+        getImpl().joinGroup(mcastaddr, netIf);
     }
 
     /**
@@ -401,7 +500,26 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void leaveGroup(SocketAddress mcastaddr, NetworkInterface netIf)
         throws IOException {
-        delegate().leaveGroup(mcastaddr, netIf);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
+
+        if (mcastaddr == null || !(mcastaddr instanceof InetSocketAddress))
+            throw new IllegalArgumentException("Unsupported address type");
+
+        if (oldImpl)
+            throw new UnsupportedOperationException();
+
+        checkAddress(((InetSocketAddress)mcastaddr).getAddress(), "leaveGroup");
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkMulticast(((InetSocketAddress)mcastaddr).getAddress());
+        }
+
+        if (!((InetSocketAddress)mcastaddr).getAddress().isMulticastAddress()) {
+            throw new SocketException("Not a multicast address");
+        }
+
+        getImpl().leaveGroup(mcastaddr, netIf);
      }
 
     /**
@@ -419,7 +537,15 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void setInterface(InetAddress inf) throws SocketException {
-        delegate().setInterface(inf);
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        checkAddress(inf, "setInterface");
+        synchronized (infLock) {
+            getImpl().setOption(SocketOptions.IP_MULTICAST_IF, inf);
+            infAddress = inf;
+            interfaceSet = true;
+        }
     }
 
     /**
@@ -439,7 +565,53 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public InetAddress getInterface() throws SocketException {
-        return delegate().getInterface();
+        if (isClosed()) {
+            throw new SocketException("Socket is closed");
+        }
+        synchronized (infLock) {
+            InetAddress ia =
+                (InetAddress)getImpl().getOption(SocketOptions.IP_MULTICAST_IF);
+
+            /**
+             * No previous setInterface or interface can be
+             * set using setNetworkInterface
+             */
+            if (infAddress == null) {
+                return ia;
+            }
+
+            /**
+             * Same interface set with setInterface?
+             */
+            if (ia.equals(infAddress)) {
+                return ia;
+            }
+
+            /**
+             * Different InetAddress from what we set with setInterface
+             * so enumerate the current interface to see if the
+             * address set by setInterface is bound to this interface.
+             */
+            try {
+                NetworkInterface ni = NetworkInterface.getByInetAddress(ia);
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (addr.equals(infAddress)) {
+                        return infAddress;
+                    }
+                }
+
+                /**
+                 * No match so reset infAddress to indicate that the
+                 * interface has changed via means
+                 */
+                infAddress = null;
+                return ia;
+            } catch (Exception e) {
+                return ia;
+            }
+        }
     }
 
     /**
@@ -454,7 +626,12 @@ public class MulticastSocket extends DatagramSocket {
      */
     public void setNetworkInterface(NetworkInterface netIf)
         throws SocketException {
-        delegate().setNetworkInterface(netIf);
+
+        synchronized (infLock) {
+            getImpl().setOption(SocketOptions.IP_MULTICAST_IF2, netIf);
+            infAddress = null;
+            interfaceSet = true;
+        }
     }
 
     /**
@@ -469,7 +646,15 @@ public class MulticastSocket extends DatagramSocket {
      * @since  1.4
      */
     public NetworkInterface getNetworkInterface() throws SocketException {
-        return delegate().getNetworkInterface();
+        NetworkInterface ni
+            = (NetworkInterface)getImpl().getOption(SocketOptions.IP_MULTICAST_IF2);
+        if (ni == null) {
+            InetAddress[] addrs = new InetAddress[1];
+            addrs[0] = InetAddress.anyLocalAddress();
+            return new NetworkInterface(addrs[0].getHostName(), 0, addrs);
+        } else {
+            return ni;
+        }
     }
 
     /**
@@ -493,7 +678,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public void setLoopbackMode(boolean disable) throws SocketException {
-        delegate().setLoopbackMode(disable);
+        getImpl().setOption(SocketOptions.IP_MULTICAST_LOOP, Boolean.valueOf(disable));
     }
 
     /**
@@ -509,7 +694,7 @@ public class MulticastSocket extends DatagramSocket {
      */
     @Deprecated(since="14")
     public boolean getLoopbackMode() throws SocketException {
-        return delegate().getLoopbackMode();
+        return ((Boolean)getImpl().getOption(SocketOptions.IP_MULTICAST_LOOP)).booleanValue();
     }
 
     /**
@@ -570,6 +755,77 @@ public class MulticastSocket extends DatagramSocket {
     @Deprecated
     public void send(DatagramPacket p, byte ttl)
         throws IOException {
-        delegate().send(p, ttl);
+            if (isClosed())
+                throw new SocketException("Socket is closed");
+            synchronized(ttlLock) {
+                synchronized(p) {
+                    InetAddress packetAddress = p.getAddress();
+                    int packetPort = p.getPort();
+                    checkAddress(packetAddress, "send");
+                    if (connectState == ST_NOT_CONNECTED) {
+                        if (packetAddress == null) {
+                            throw new IllegalArgumentException("Address not set");
+                        }
+                        if (packetPort < 0 || packetPort > 0xFFFF)
+                            throw new IllegalArgumentException("port out of range:" + packetPort);
+                        // Security manager makes sure that the multicast address
+                        // is allowed one and that the ttl used is less
+                        // than the allowed maxttl.
+                        SecurityManager security = System.getSecurityManager();
+                        if (security != null) {
+                            if (packetAddress.isMulticastAddress()) {
+                                security.checkMulticast(packetAddress, ttl);
+                            } else {
+                                security.checkConnect(packetAddress.getHostAddress(),
+                                        packetPort);
+                            }
+                        }
+                    } else {
+                        // we're connected
+                        if (packetAddress == null) {
+                            p.setAddress(connectedAddress);
+                            p.setPort(connectedPort);
+                        } else if ((!packetAddress.equals(connectedAddress)) ||
+                                packetPort != connectedPort) {
+                            throw new IllegalArgumentException("connected address and packet address" +
+                                                        " differ");
+                        }
+                    }
+                    byte dttl = getTTL();
+                    try {
+                        if (ttl != dttl) {
+                            // set the ttl
+                            getImpl().setTTL(ttl);
+                        }
+                        // call the datagram method to send
+                        getImpl().send(p);
+                    } finally {
+                        // set it back to default
+                        if (ttl != dttl) {
+                            getImpl().setTTL(dttl);
+                        }
+                    }
+                } // synch p
+            }  //synch ttl
+    } //method
+
+    private static Set<SocketOption<?>> options;
+    private static boolean optionsSet = false;
+
+    @Override
+    public Set<SocketOption<?>> supportedOptions() {
+        synchronized (MulticastSocket.class) {
+            if (optionsSet) {
+                return options;
+            }
+            try {
+                DatagramSocketImpl impl = getImpl();
+                options = Collections.unmodifiableSet(impl.supportedOptions());
+            } catch (SocketException ex) {
+                options = Collections.emptySet();
+            }
+            optionsSet = true;
+            return options;
+        }
     }
 }
