@@ -370,6 +370,14 @@ public class Net {
             ? inet4LoopBack : inet6LoopBack;
     }
 
+    public static InetAddress anyLocalInet4Address() {
+        return anyLocalInet4;
+    }
+
+    public static InetAddress anyLocalInet6Address() {
+        return anyLocalInet6;
+    }
+
     public static InetSocketAddress anyLocalSocketAddress(ProtocolFamily family) {
         if (family == StandardProtocolFamily.INET) {
             return new InetSocketAddress(anyLocalInet4, 0);
