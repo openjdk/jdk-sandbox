@@ -105,6 +105,9 @@ public class OpenConnect {
 
     static final int ALL = L|M|W|S;
     static final int MWS = M|W|S; // ALL except Linux
+    static final int MLS = M|L|S; // ALL except Windows
+    static final int MS = M|S; // Mac OS & Solaris
+    static final int LS = L|S; // Linux & Solaris
 
     static final boolean passOnThisPlatform(int mask) {
         if (Platform.isLinux())
@@ -124,41 +127,41 @@ public class OpenConnect {
             //                                                                       Should pass
             //  {   sfam,   saddr,         cfam,    caddr,         ipv4,    ipv6,    DG    SC     }
 
-                {   INET,   null,          INET,    null,          false,   false,   ALL,  ALL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   INET,   null,          INET,    null,          false,   false,   MLS,  ALL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   false,   false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      false,   false,   ALL,  ALL    },
-                {   INET,   null,          null,    null,          false,   false,   ALL,  ALL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   INET,   null,          null,    null,          false,   false,   MLS,  ALL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   false,   false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      false,   false,   ALL,  ALL    },
 
-                {   INET,   null,          INET,    null,          true,    false,   ALL,  ALL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   true,    false,   ALL,  ALL    },
+                {   INET,   null,          INET,    null,          true,    false,   MLS,  ALL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   true,    false,   MLS,  ALL    },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   true,    false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      true,    false,   ALL,  ALL    },
-                {   INET,   null,          null,    null,          true,    false,   ALL,  ALL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   true,    false,   ALL,  ALL    },
+                {   INET,   null,          null,    null,          true,    false,   MLS,  ALL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   true,    false,   MLS,  ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   true,    false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      true,    false,   ALL,  ALL    },
 
-                {   INET,   null,          INET,    null,          false,   true,    ALL,  ALL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   true,    ALL,  ALL    },
+                {   INET,   null,          INET,    null,          false,   true,    MLS,  MLS    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   true,    MLS,  MLS    },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      false,   true,    ALL,  ALL    },
-                {   INET,   null,          null,    null,          false,   true,    ALL,  ALL    },
+                {   INET,   null,          null,    null,          false,   true,    MLS,  MLS    },
                 {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      false,   true,    ALL,  ALL    },
 
 
-                {   INET6,   null,          INET6,   null,          false,   false,  ALL,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,  ALL,  ALL    },
+                {   INET6,   null,          INET6,   null,          false,   false,  MLS,  ALL    },
+                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
                 {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,  ALL,  ALL    },
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,  ALL,  ALL    },
-                {   INET6,   null,          null,    null,          false,   false,  ALL,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  ALL,  ALL    },
-                {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  ALL,  ALL    },
+                {   INET6,   null,          null,    null,          false,   false,  MLS,  ALL    },
+                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
+                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  MLS,  LS     },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,  ALL,  ALL    },
 
                 {   INET6,   null,          INET6,   null,          true,    false,  ~ALL, ~ALL   },
@@ -170,13 +173,13 @@ public class OpenConnect {
                 {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   true,    false,  ~ALL, ~ALL   },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      true,    false,  ~ALL, ~ALL   },
 
-                {   INET6,   null,          INET6,   null,          false,   true,   ALL,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   true,   ALL,  ALL    },
+                {   INET6,   null,          INET6,   null,          false,   true,   MLS,  ALL    },
+                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   true,   MLS,  ALL    },
                 {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   true,   ALL,  ALL    },
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   true,   ALL,  ALL    },
-                {   INET6,   null,          null,    null,          false,   true,   ALL,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   true,   ALL,  ALL    },
-                {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   true,   ALL,  ALL    },
+                {   INET6,   null,          null,    null,          false,   true,   MLS,  MLS    },
+                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   true,   MLS,  MLS    },
+                {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   true,   MLS,  MLS    },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   true,   ALL,  ALL    },
 
 
@@ -192,7 +195,7 @@ public class OpenConnect {
 
                 {   null,   IA4ANYLOCAL,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK,    false,   false,  ALL,  ALL    },
-                {   null,   IA4LOCAL,      INET,    IA4LOOPBACK,    false,   false,  ALL,  ALL    },
+                {   null,   IA4LOCAL,      INET,    IA4LOOPBACK,    false,   false,  MLS,  MLS    },
                 {   null,   IA6ANYLOCAL,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOOPBACK,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOCAL,      INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
@@ -201,7 +204,7 @@ public class OpenConnect {
                 {   null,   IA4ANYLOCAL,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
 
                 // true on Macos(??)
-                {   null,   IA4LOOPBACK,   INET,    IA4LOCAL,       false,   false,  ALL,  ALL    },
+                {   null,   IA4LOOPBACK,   INET,    IA4LOCAL,       false,   false,  MLS,  MLS    },
                 {   null,   IA4LOCAL,      INET,    IA4LOCAL,       false,   false,  ALL,  ALL    },
                 {   null,   IA6ANYLOCAL,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOOPBACK,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
@@ -217,69 +220,69 @@ public class OpenConnect {
                 {   null,   null,          INET,    null,           false,   false,  ~ALL, ~ALL   },
 
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   null,          INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   MWS,  ~ALL   },
-                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MWS,  ~ALL   },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   MS ,  ~ALL   },
+                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MS ,  ~ALL   },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   ALL,  MWS    },//?
-                {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
+                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MS ,  MS     },
+                {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MWS,  MWS    },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MWS,  ~ALL  }, // *
-                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   MWS,  ~ALL  }, // *
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MWS,  MWS    },
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MWS,  MWS    },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MS ,  ~ALL  }, // *
+                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   MS ,  ~ALL  }, // *
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   MWS,  MWS    },
+                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
 
-                {   null,   IA4ANYLOCAL,   INET6,   null,          false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   null,          false,   false,   MLS,  ALL    },
                 {   null,   IA4LOOPBACK,   INET6,   null,          false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      INET6,   null,          false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   INET6,   null,          false,   false,   ALL,  ALL    },
+                {   null,   IA6ANYLOCAL,   INET6,   null,          false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   null,          false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      INET6,   null,          false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   null,          false,   false,   ALL,  ALL    },
+                {   null,   null,          INET6,   null,          false,   false,   MLS,  ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
+                {   null,   null,          null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   MWS,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   MWS,  ~ALL   }, //*
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   ALL,  MWS    }, // hangs L
-                {   null,   null,          null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
+                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   MLS,  MS     }, // hangs L
+                {   null,   null,          null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MWS,  MWS    },
-                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   MWS,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   MWS,  ~ALL   }, //*
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MWS,  MWS    },
-                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   MWS,  MWS    },
+                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    IA6LOCAL,      false,   false,   MWS,  MWS    },
+                {   null,   null,          null,    IA6LOCAL,      false,   false,   MS ,  MS     },
 
-                {   null,   IA4ANYLOCAL,   null,    null,          false,   false,   ALL,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    null,          false,   false,   MLS,  ALL    },
                 {   null,   IA4LOOPBACK,   null,    null,          false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      null,    null,          false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   null,    null,          false,   false,   ALL,  ALL    },
+                {   null,   IA6ANYLOCAL,   null,    null,          false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   null,    null,          false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      null,    null,          false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    null,          false,   false,   ALL,  ALL    },
+                {   null,   null,          null,    null,          false,   false,   MLS,  ALL    },
         };
     }
 
