@@ -24,6 +24,7 @@
 import jdk.test.lib.NetworkConfiguration;
 import jdk.test.lib.Platform;
 import jdk.test.lib.net.IPSupport;
+import org.testng.SkipException;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -107,6 +108,7 @@ public class OpenConnect {
     static final int MWS = M|W|S; // ALL except Linux
     static final int MLS = M|L|S; // ALL except Windows
     static final int MS = M|S; // Mac OS & Solaris
+    static final int ML = M|L; // Mac OS & Linux
     static final int LS = L|S; // Linux & Solaris
 
     static final boolean passOnThisPlatform(int mask) {
@@ -161,7 +163,7 @@ public class OpenConnect {
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,  ALL,  ALL    },
                 {   INET6,   null,          null,    null,          false,   false,  MLS,  ALL    },
                 {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
-                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  MS ,  ~ALL   },
+                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  M  ,  ~ALL   },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,  ALL,  ALL    },
 
                 {   INET6,   null,          INET6,   null,          true,    false,  ~ALL, ~ALL   },
@@ -229,16 +231,16 @@ public class OpenConnect {
                 {   null,   null,          INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
 
                 {   null,   IA4ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   MS ,  ~ALL   },
-                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MS ,  ~ALL   },
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   M  ,  ~ALL   },
+                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   M  ,  ~ALL   },
                 {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MLS,  MS     },
+                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MLS,  M      },
                 {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
 
                 {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MS ,  ~ALL  }, // *
-                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   MS ,  ~ALL  }, // *
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M  ,  ~ALL   }, // *
+                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   M  ,  ~ALL  }, // *
                 {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,   ALL,  ALL    },
@@ -261,16 +263,16 @@ public class OpenConnect {
                 {   null,   null,          null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
 
                 {   null,   IA4ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
-                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   MS ,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   M  ,  ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   M  ,  ~ALL   }, //*
                 {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   MLS,  MS     }, // hangs L
+                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   MLS,  M      }, // hangs L
                 {   null,   null,          null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
 
                 {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   MS ,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   MS ,  ~ALL   }, //*
+                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   M  ,  ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   M  ,  ~ALL   }, //*
                 {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
                 {   null,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,   ALL,  ALL    },
@@ -297,6 +299,10 @@ public class OpenConnect {
         if (ipv4 != preferIPv4 || ipv6 != preferIPv6) {
             return;
         }
+
+        if (IA4LOCAL == null || IA6LOCAL == null)
+            throw new SkipException("can't run due to configuration"); // mark test as skipped
+
         boolean scPass = passOnThisPlatform(scMask);
         System.out.printf("scOpenConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
@@ -344,6 +350,10 @@ public class OpenConnect {
         if (ipv4 != preferIPv4 || ipv6 != preferIPv6) {
             return;
         }
+
+        if (IA4LOCAL == null || IA6LOCAL == null)
+            throw new SkipException("can't run due to configuration"); // mark test as skipped
+
         boolean dgPass = passOnThisPlatform(dgMask);
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
@@ -435,6 +445,12 @@ public class OpenConnect {
                 .filter(nif -> hasV4andV6Addrs(nif))
                 .findFirst()
                 .orElse(null);
+
+        if (iface == null) {
+            IA6LOCAL = null;
+            IA4LOCAL = null;
+            return;
+        }
 
         IA6LOCAL = (Inet6Address)iface.inetAddresses()
                 .filter(linkLocalAddr)
