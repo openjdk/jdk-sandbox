@@ -161,7 +161,7 @@ public class OpenConnect {
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,  ALL,  ALL    },
                 {   INET6,   null,          null,    null,          false,   false,  MLS,  ALL    },
                 {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
-                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  MLS,  LS     },
+                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  MS ,  ~ALL   },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,  ALL,  ALL    },
 
                 {   INET6,   null,          INET6,   null,          true,    false,  ~ALL, ~ALL   },
@@ -233,7 +233,7 @@ public class OpenConnect {
                 {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MS ,  ~ALL   },
                 {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MS ,  MS     },
+                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MLS,  MS     },
                 {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
 
                 {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
