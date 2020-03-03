@@ -44,16 +44,12 @@ class AbstractCounter {
 
   T _c;
 
-  // Optional name for easier reference
-  const char* const _name;
-
   // Only allow unsigned values for now
   STATIC_ASSERT(IsSigned<T>::value == false);
 
 public:
 
-  AbstractCounter(const char* name) : _c(0), _name(name) {}
-  AbstractCounter() : _c(0), _name("") {}
+  AbstractCounter() : _c(0) {}
 
   T get() const           { return _c; }
 
@@ -62,15 +58,15 @@ public:
 
   void increment_by(T v) {
     assert(_c + v >= _c,
-        "%s overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
-        _name, (uint64_t)_c, (uint64_t)v);
+        "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
+        (uint64_t)_c, (uint64_t)v);
     _c += v;
   }
 
   void decrement_by(T v) {
     assert(_c - v <= _c,
-        "%s underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
-        _name, (uint64_t)_c, (uint64_t)v);
+        "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
+        (uint64_t)_c, (uint64_t)v);
     _c -= v;
   }
 
@@ -94,31 +90,24 @@ class AbstractAtomicCounter {
 
   volatile T _c;
 
-  // Optional name for easier reference
-  const char* const _name;
-
   // Only allow unsigned values for now
   STATIC_ASSERT(IsSigned<T>::value == false);
 
 public:
 
-
-  AbstractAtomicCounter(const char* name) : _c(0), _name(name) {}
-  AbstractAtomicCounter() : _c(0), _name("") {}
+  AbstractAtomicCounter() : _c(0) {}
 
   T get() const               { return _c; }
 
   void increment() {
     assert(_c + 1 != 0,
-        "%s overflow (" UINT64_FORMAT "+1)",
-        _name, (uint64_t)_c);
+        "overflow (" UINT64_FORMAT "+1)", (uint64_t)_c);
     Atomic::inc(&_c);
   }
 
   void decrement() {
     assert(_c >= 1,
-        "%s underflow (" UINT64_FORMAT "-1)",
-        _name, (uint64_t)_c);
+        "underflow (" UINT64_FORMAT "-1)", (uint64_t)_c);
     Atomic::dec(&_c);
   }
 
@@ -126,14 +115,14 @@ public:
     T v1 = _c;
     T v2 = Atomic::add(v, &_c);
     assert(v2 > v1,
-           "%s overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
-           _name, (uint64_t)v1, (uint64_t)v);
+           "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
+           (uint64_t)v1, (uint64_t)v);
   }
 
   void decrement_by(T v) {
     assert(_c >= v,
-           "%s underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
-           _name, (uint64_t)_c, (uint64_t)v);
+           "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
+           (uint64_t)_c, (uint64_t)v);
     Atomic::sub(v, &_c);
   }
 

@@ -27,7 +27,8 @@
 #include "memory/allocation.hpp"
 
 
-#include "memory/metaspace/bins.inline.hpp"
+#include "memory/metaspace/binlist.hpp"
+#include "memory/metaspace/blocktree.hpp"
 #include "memory/metaspace/chunkAllocSequence.hpp"
 #include "memory/metaspace/chunkHeaderPool.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
@@ -35,7 +36,7 @@
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
-#include "memory/metaspace/leftOverBins.inline.hpp"
+#include "memory/metaspace/leftOverManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -58,6 +59,8 @@
 //////////////////////////////////////////////////////////
 // handy aliases
 
+using metaspace::BinListImpl;
+using metaspace::BlockTree;
 using metaspace::ChunkAllocSequence;
 using metaspace::ChunkHeaderPool;
 using metaspace::ChunkManager;
@@ -173,6 +176,17 @@ public:
 
 }; // end RandSizeGenerator
 
+// A helper class to count blocks of something; since we often add blocks of something.
+struct BlockCounter {
+  SizeCounter size;
+  IntCounter num;
+  void add(size_t s) { num.increment(); size.increment_by(s); }
+  void sub(size_t s) { num.decrement(); size.decrement_by(s); }
+  void check(int expected_num, size_t expected_size) const {
+    DEBUG_ONLY(num.check(expected_num);)
+    DEBUG_ONLY(size.check(expected_size);)
+  }
+};
 
 ///////////////////////////////////////////////////////////
 // Function to test-access a memory range
@@ -218,7 +232,7 @@ bool check_marked_range(const MetaWord* p, size_t word_size);
 
 // Define "LOG_PLEASE" to switch on logging for a particular test before inclusion of this header.
 #ifdef LOG_PLEASE
-  #define LOG(...) { printf(__VA_ARGS__); printf("\n"); }
+  #define LOG(...) { printf(__VA_ARGS__); printf("\n"); fflush(stdout); }
 #else
   #define LOG(...)
 #endif
@@ -233,13 +247,17 @@ size_t get_workingset_size();
 class FeederBuffer {
 
   MetaWord* _buf;
-  const size_t _size;
+
+  // Buffer capacity in size of words.
+  const size_t _cap;
+
+  // Used words.
   size_t _used;
 
 public:
 
-  FeederBuffer(size_t size) : _buf(NULL), _size(size), _used(0) {
-    _buf = NEW_C_HEAP_ARRAY(MetaWord, _size, mtInternal);
+  FeederBuffer(size_t size) : _buf(NULL), _cap(size), _used(0) {
+    _buf = NEW_C_HEAP_ARRAY(MetaWord, _cap, mtInternal);
   }
 
   ~FeederBuffer() {
@@ -247,12 +265,21 @@ public:
   }
 
   MetaWord* get(size_t word_size) {
-    if (_used > (_size - word_size)) {
+    if (_used + word_size > _cap) {
       return NULL;
     }
     MetaWord* p = _buf + _used;
     _used += word_size;
     return p;
+  }
+
+  bool is_valid_pointer(MetaWord* p) const {
+    return p >= _buf && p < _buf + _used;
+  }
+
+  bool is_valid_range(MetaWord* p, size_t word_size) const {
+    return is_valid_pointer(p) &&
+           word_size > 0 ? is_valid_pointer(p + word_size - 1) : true;
   }
 
 };

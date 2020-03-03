@@ -36,14 +36,8 @@
   } else { \
     EXPECT_TRUE(lom.is_empty()); \
   } \
-  EXPECT_EQ(lom.total_word_size(), (size_t)word_size_expected); \
-  metaspace::block_stats_t s; \
-  memset(&s, 0xDD, sizeof(s)); \
-  lom.statistics(&s); \
-  EXPECT_EQ((size_t)word_size_expected, s.word_size); \
-  if (num_blocks_expected >= 0) { \
-	  EXPECT_EQ(num_blocks_expected, s.num_blocks); \
-  } \
+  EXPECT_EQ(lom.total_size(), (size_t)word_size_expected); \
+  EXPECT_EQ(lom.count(), (int)num_blocks_expected); \
 }
 
 class LeftOverBinsTest {
@@ -96,7 +90,7 @@ class LeftOverBinsTest {
 
   bool allocate() {
 
-    size_t word_size = MAX2(_rgen_allocations.get(), _lom.minimal_word_size());
+    size_t word_size = MAX2(_rgen_allocations.get(), _lom.minimal_word_size);
     MetaWord* p = _lom.get_block(word_size);
     if (p != NULL) {
       _allocated_words.increment_by(word_size);
@@ -147,7 +141,7 @@ class LeftOverBinsTest {
           _num_allocs ++;
         } else {
           if (draining) {
-            stop = _lom.total_word_size() < 512;
+            stop = _lom.total_size() < 512;
           } else {
             forcefeed = true;
           }
@@ -210,7 +204,6 @@ TEST_VM(metaspace, leftoverbins_basics) {
 
   LeftOverManager lom;
   MetaWord tmp[1024];
-  metaspace::block_stats_t stats;
   CHECK_LOM_CONTENT(lom, 0, 0);
 
   lom.add_block(tmp, 1024);

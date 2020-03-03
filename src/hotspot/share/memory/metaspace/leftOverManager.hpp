@@ -26,10 +26,12 @@
 #ifndef SHARE_MEMORY_METASPACE_LEFTOVERBINS_HPP
 #define SHARE_MEMORY_METASPACE_LEFTOVERBINS_HPP
 
-#include <memory/metaspace/bins.hpp>
 #include "memory/allocation.hpp"
+
 #include "memory/metaspace/counter.hpp"
-#include "utilities/bitMap.hpp"
+#include "memory/metaspace/binlist.hpp"
+#include "memory/metaspace/blocktree.hpp"
+
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -50,59 +52,41 @@ namespace metaspace {
 
 class LeftOverManager : public CHeapObj<mtInternal> {
 
-  typedef Bins<2, 2, 16> VerySmallBinsType;
-  VerySmallBinsType _very_small_bins;
+  typedef BinList32 SmallBlocksType;
 
-  block_t* _large_block_reserve;
+  SmallBlocksType _small_blocks;
+  BlockTree _tree;
 
-  // The current large block we gnaw on
-  MetaWord* _current;
-  size_t _current_size;
-
-  SizeCounter _total_word_size;
-
-  // Take the topmost block from the large block reserve list
-  // and make it current.
-  inline void prime_current();
-
-  // Allocate from current block. Returns NULL if current block
-  // is too small.
-  inline MetaWord* alloc_from_current(size_t word_size);
-
-  void large_block_statistics(block_stats_t* stats) const;
+  static const size_t splinter_threshold = 0x100;
 
 public:
 
-  // Returns smallest size, in words, a block has to have
-  // to be managed by the LeftOverManager
-  static size_t minimal_word_size() {
-    return VerySmallBinsType::minimal_word_size();
-  }
+  const static size_t minimal_word_size = SmallBlocksType::minimal_word_size;
 
-  LeftOverManager() :
-    _very_small_bins(),
-    _large_block_reserve(NULL),
-    _current(NULL),
-    _current_size(0)
-  {}
-
-  inline void add_block(MetaWord* p, size_t word_size);
-
-  inline MetaWord* get_block(size_t requested_word_size);
+  void add_block(MetaWord* p, size_t word_size);
+  MetaWord* get_block(size_t requested_word_size);
 
 #ifdef ASSERT
-  void verify() const;
+  void verify() const {
+    _tree.verify();
+    _small_blocks.verify();
+  };
 #endif
 
-  void statistics(block_stats_t* stats) const;
-
-  void print(outputStream* st, bool detailed = false) const;
-
-  bool is_empty() const {
-    return _very_small_bins.is_empty() && _current == NULL;
+  // Returns number of blocks.
+  int count() const {
+    return _small_blocks.count() + _tree.count();
   }
 
-  size_t total_word_size() const { return _total_word_size.get(); }
+  // Returns total size, in words, of all elements.
+  size_t total_size() const {
+    return _small_blocks.total_size() + _tree.total_size();
+  }
+
+  // Returns true if empty.
+  bool is_empty() const {
+    return _small_blocks.is_empty() && _tree.is_empty();
+  }
 
 };
 

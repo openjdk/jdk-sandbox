@@ -28,7 +28,7 @@
 #include "logging/logStream.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
-#include "memory/metaspace/leftOverBins.inline.hpp"
+#include "memory/metaspace/leftOverManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
@@ -62,7 +62,7 @@ size_t get_raw_allocation_word_size(size_t net_word_size) {
   STATIC_ASSERT(Metachunk::allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
 
   size_t byte_size = net_word_size * BytesPerWord;
-  byte_size = MAX2(byte_size, LeftOverManager::minimal_word_size());
+  byte_size = MAX2(byte_size, LeftOverManager::minimal_word_size * BytesPerWord);
   byte_size = align_up(byte_size, Metachunk::allocation_alignment_bytes);
 
   size_t word_size = byte_size / BytesPerWord;
@@ -74,20 +74,20 @@ size_t get_raw_allocation_word_size(size_t net_word_size) {
 }
 
 static const size_t highest_possible_delta_between_raw_and_net_size = get_raw_allocation_word_size(1) - 1;
-
+/*
 // The inverse function to get_raw_allocation_word_size: Given a raw size, return the max net word size
 // fitting into it.
 static size_t get_net_allocation_word_size(size_t raw_word_size) {
 
   size_t byte_size = raw_word_size * BytesPerWord;
   byte_size = align_down(byte_size, Metachunk::allocation_alignment_bytes);
-  if (byte_size < LeftOverManager::minimal_word_size()) {
+  if (byte_size < LeftOverManager::minimal_word_size) {
     return 0;
   }
   return byte_size / BytesPerWord;
 
 }
-
+*/
 // Given a requested word size, will allocate a chunk large enough to at least fit that
 // size, but may be larger according to internal heuristics.
 //
@@ -213,7 +213,8 @@ void SpaceManager::retire_current_chunk() {
   // the code simple.
 
   size_t raw_remaining_words = c->free_below_committed_words();
-  size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
+  //size_t net_remaining_words = get_net_allocation_word_size(raw_remaining_words);
+  size_t net_remaining_words = raw_remaining_words;
 
   // Note: Micro class loaders (lambdas, reflection) are typically the vast majority of loaders. They
   //  will typically only once - if at all - ever retire a chunk, and the remaining size is typically
@@ -223,7 +224,7 @@ void SpaceManager::retire_current_chunk() {
   //  benefit of managing free space out-weights the costs for that structure.
   // Non-micro loaders may continue loading, deallocating and retiring more chunks, so the cost of that
   //  structure may amortize over time. But micro loaders probably never will.
-  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : 0;
+  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : LeftOverManager::minimal_word_size;
 
   if (net_remaining_words > dont_bother_below_word_size) {
 
@@ -434,11 +435,9 @@ void SpaceManager::add_to_statistics(sm_stats_t* out) const {
     }
   }
 
-  if (lom() != NULL) {
-    block_stats_t s;
-    lom()->statistics(&s);
-    out->free_blocks_num += s.num_blocks;
-    out->free_blocks_word_size += s.word_size;
+  if (_lom != NULL) {
+    out->free_blocks_num += _lom->count();
+    out->free_blocks_word_size += _lom->total_size();
   }
 
   SOMETIMES(out->verify();)
