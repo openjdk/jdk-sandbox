@@ -31,6 +31,7 @@ import jdk.dns.client.internal.util.IPUtils;
 import java.net.InetAddress;
 import java.net.ProtocolFamily;
 import java.net.UnknownHostException;
+import java.net.spi.NameServiceProvider;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.List;
@@ -40,19 +41,19 @@ public class NetworkNamesResolver {
 
     private final ProtocolFamily protocolFamily;
     private static final InetAddress[] NONE = new InetAddress[0];
-    private final InetAddress.NameServiceProvider.NameService defaultPlatformResolver;
+    private final NameServiceProvider.NameService defaultPlatformResolver;
 
-    public static NetworkNamesResolver open(InetAddress.NameServiceProvider.NameService defaultPlatformResolver) {
+    public static NetworkNamesResolver open(NameServiceProvider.NameService defaultPlatformResolver) {
         // null for any (IPv4+IPv6) addresses family
         return new NetworkNamesResolver(defaultPlatformResolver, null);
     }
 
-    public static NetworkNamesResolver open(InetAddress.NameServiceProvider.NameService defaultPlatformResolver,
+    public static NetworkNamesResolver open(NameServiceProvider.NameService defaultPlatformResolver,
                                             ProtocolFamily protocolFamily) {
         return new NetworkNamesResolver(defaultPlatformResolver, protocolFamily);
     }
 
-    private NetworkNamesResolver(InetAddress.NameServiceProvider.NameService defaultPlatformResolver,
+    private NetworkNamesResolver(NameServiceProvider.NameService defaultPlatformResolver,
                                  ProtocolFamily protocolFamily) {
         this.protocolFamily = protocolFamily;
         this.defaultPlatformResolver = defaultPlatformResolver;

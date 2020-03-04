@@ -29,32 +29,33 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.spi.NameServiceProvider;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.function.Predicate;
 
-public class DnsNameServiceProvider extends InetAddress.NameServiceProvider {
+public class DnsNameServiceProvider extends NameServiceProvider {
 
     public DnsNameServiceProvider() {
     }
 
     @Override
-    public NameService init(NameService delegate) {
+    public NameService get(NameService delegate) {
         return new DnsNameService(delegate);
     }
 
     public static final class DnsNameService implements NameService {
-        private final NameService defaultPlatfromNS;
+        private final NameService defaultPlatformNS;
 
         DnsNameService(NameService defaultPlatformNS) {
-            this.defaultPlatfromNS = defaultPlatformNS;
+            this.defaultPlatformNS = defaultPlatformNS;
         }
 
         @Override
         public InetAddress[] lookupAllHostAddr(String host) throws UnknownHostException {
-            InetAddress[] addresses = NetworkNamesResolver.open(defaultPlatfromNS).lookupAllHostAddr(host);
+            InetAddress[] addresses = NetworkNamesResolver.open(defaultPlatformNS).lookupAllHostAddr(host);
             if (order == AddressOrder.DontCare && !IPv4Only) {
                 return addresses;
             } else {
@@ -72,7 +73,7 @@ public class DnsNameServiceProvider extends InetAddress.NameServiceProvider {
 
         @Override
         public String getHostByAddr(byte[] addr) throws UnknownHostException {
-            return NetworkNamesResolver.open(defaultPlatfromNS).getHostByAddr(addr);
+            return NetworkNamesResolver.open(defaultPlatformNS).getHostByAddr(addr);
         }
     }
 
@@ -82,6 +83,7 @@ public class DnsNameServiceProvider extends InetAddress.NameServiceProvider {
         IPv6First;
 
         private static AddressOrder fromString(String value) {
+            //  Try to match static initialization block in InetAddress
             if (value == null) {
                 return IPv4First;
             }
@@ -91,7 +93,6 @@ public class DnsNameServiceProvider extends InetAddress.NameServiceProvider {
             if ("false".equals(value)) {
                 return IPv4First;
             }
-            // TODO: Decide if it is compatible way with default InetAddress resolver
             if ("system".equals(value)) {
                 return DontCare;
             }

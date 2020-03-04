@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,34 +23,26 @@
  * questions.
  */
 
-package jdk.dns.conf;
+#include <malloc.h>
 
-import java.net.InetAddress;
-import java.net.spi.NameServiceProvider;
+#include "net_util.h"
 
 /*
- * An implementation of DnsResolverConfiguration for Solaris
- * and Linux.
+ * DnsResolverConfiguration
  */
 
-public class DnsResolverConfiguration {
+/*
+ * Class:     jdk_dns_conf_DnsResolverConfiguration
+ * Method:    getLocalHostName
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL
+Java_jdk_dns_conf_DnsResolverConfiguration_getLocalHostNameNative(JNIEnv *env, jclass clazz) {
+    char hostname[256];
 
-    public static String getDefaultHostsFileLocation() {
-        return "/etc/hosts";
+    if (gethostname(hostname, sizeof(hostname)) == -1) {
+        strcpy(hostname, "localhost");
     }
-
-    // Not needed on *nix platforms since /etc/hosts should contain
-    // address for local host name
-    public InetAddress[] nativeLookup0(String hostName, NameServiceProvider.NameService dpns) {
-        return null;
-    }
-
-    // Not needed on *nix platforms since /etc/hosts should contain
-    // address for local host name
-    public String nativeReverseLookup0(byte[] address, NameServiceProvider.NameService defaultPlatformNS) {
-        return null;
-    }
-
-    public DnsResolverConfiguration() {
-    }
+    return JNU_NewStringPlatform(env, hostname);
 }
+

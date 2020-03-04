@@ -29,6 +29,7 @@ import jdk.dns.client.internal.util.AddressArray;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.net.spi.NameServiceProvider;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -50,31 +51,10 @@ public class DnsResolverConfiguration {
                 .toString();
     }
 
-    // Caching of local host name is needed to resolve the following inconsistency in Windows:
-    // %COMPUTERNAME% environment variable is in uppercase,
-    // but hostname can be in any case.
-    // Therefore getCanonicalName results will differ from original local hostname
-    private static final String cachedLocalHostname = cacheLocalHostName();
-
-    private static String cacheLocalHostName() {
-        try {
-            // Try to getLocalHostName from platform first
-            return InetAddress.NameServiceProvider.getLocalHostName();
-        } catch (UnknownHostException e) {
-            // If it fails then use %COMPUTERNAME% environment variable.
-            // It is not used in the first place because %COMPUTERNAME% and gethostname
-            // results can differ in terms of case, e.g. %COMPUTERNAME% is in upper-case
-            // gethostname is in lower-case
-            PrivilegedAction<String> pae = () -> System.getenv("COMPUTERNAME");
-            return System.getSecurityManager() == null ?
-                    pae.run() : AccessController.doPrivileged(pae);
-        }
-    }
-
-    public InetAddress[] nativeLookup0(String hostName, InetAddress.NameServiceProvider.NameService dpns) {
-        if (hostName != null && (hostName.equalsIgnoreCase(cachedLocalHostname) || hostName.equals("localhost"))) {
+    public InetAddress[] nativeLookup0(String hostName, NameServiceProvider.NameService defaultPlatformNS) {
+        if (hostName != null && (LOCAL_HOSTNAME.equals(hostName) || hostName.equals("localhost"))) {
             try {
-                var addresses = dpns.lookupAllHostAddr(hostName);
+                var addresses = defaultPlatformNS.lookupAllHostAddr(hostName);
                 cacheLocalHostAddresses(addresses);
                 return addresses;
             } catch (UnknownHostException e) {
@@ -84,16 +64,16 @@ public class DnsResolverConfiguration {
         return null;
     }
 
-    public String nativeReverseLookup0(byte[] address, InetAddress.NameServiceProvider.NameService defaultPlatformNS) {
+    public String nativeReverseLookup0(byte[] address, NameServiceProvider.NameService defaultPlatformNS) {
         if (address == null || address.length < 4) {
             return null;
         }
         // If local host name was never resolved before - do that
         if (knownLocalHostAddresses.isEmpty()) {
-            nativeLookup0(cachedLocalHostname, defaultPlatformNS);
+            nativeLookup0(LOCAL_HOSTNAME, defaultPlatformNS);
         }
         if (knownLocalHostAddresses.contains(AddressArray.newAddressArray(address))) {
-            return cachedLocalHostname;
+            return LOCAL_HOSTNAME;
         }
         return null;
     }
@@ -108,4 +88,26 @@ public class DnsResolverConfiguration {
 
     public DnsResolverConfiguration() {
     }
+
+    // Alternative is to call hostname cmd tool:
+    // ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", "hostname");
+    private static native String getLocalHostNameNative();
+
+    static {
+        var pa = (PrivilegedAction<Void>) () -> {
+            System.loadLibrary("resolver");
+            return null;
+        };
+        if (System.getSecurityManager() == null) {
+            pa.run();
+        } else {
+            AccessController.doPrivileged(pa);
+        }
+    }
+
+    // Caching of local host name is needed to resolve the following inconsistency in Windows:
+    // %COMPUTERNAME% environment variable is in uppercase,
+    // but hostname can be in any case.
+    // Therefore getCanonicalName results will differ from original local hostname
+    private static final String LOCAL_HOSTNAME = getLocalHostNameNative();
 }

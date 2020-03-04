@@ -23,8 +23,6 @@
  * questions.
  */
 
-import java.net.InetAddress;
-
 module jdk.dns.client {
-    provides InetAddress.NameServiceProvider with jdk.dns.client.internal.DnsNameServiceProvider;
+    provides java.net.spi.NameServiceProvider with jdk.dns.client.internal.DnsNameServiceProvider;
 }

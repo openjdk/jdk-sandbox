@@ -26,6 +26,7 @@
 package sun.net.dns;
 
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * The configuration of the client resolver.
@@ -39,7 +40,7 @@ import java.util.List;
 
 public abstract class ResolverConfiguration {
 
-    private static final Object lock = new Object();
+    private static final ReentrantLock lock = new ReentrantLock();
 
     private static ResolverConfiguration provider;
 
@@ -51,11 +52,17 @@ public abstract class ResolverConfiguration {
      * @return the resolver configuration
      */
     public static ResolverConfiguration open() {
-        synchronized (lock) {
+        if (provider != null) {
+            return provider;
+        }
+        lock.lock();
+        try {
             if (provider == null) {
                 provider = new sun.net.dns.ResolverConfigurationImpl();
             }
             return provider;
+        } finally {
+            lock.unlock();
         }
     }
 

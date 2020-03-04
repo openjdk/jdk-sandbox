@@ -252,7 +252,8 @@ module java.base {
         jdk.net;
     exports sun.net.dns to
         java.security.jgss,
-        jdk.naming.dns;
+        jdk.naming.dns,
+        jdk.dns.client;
     exports sun.net.util to
         java.desktop,
         java.net.http,
@@ -354,6 +355,7 @@ module java.base {
 
     uses java.lang.System.LoggerFinder;
     uses java.net.ContentHandlerFactory;
+    uses java.net.spi.NameServiceProvider;
     uses java.net.spi.URLStreamHandlerProvider;
     uses java.nio.channels.spi.AsynchronousChannelProvider;
     uses java.nio.channels.spi.SelectorProvider;
@@ -379,7 +381,6 @@ module java.base {
     uses java.util.spi.TimeZoneNameProvider;
     uses java.util.spi.ToolProvider;
     uses javax.security.auth.spi.LoginModule;
-    uses java.net.InetAddress.NameServiceProvider;
 
     // JDK-internal service types
 
