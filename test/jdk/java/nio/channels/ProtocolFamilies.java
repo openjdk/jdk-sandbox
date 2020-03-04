@@ -262,8 +262,7 @@ public class ProtocolFamilies {
         return fam == null ? null : switch (fam) {
             case INET -> new InetSocketAddress(ia4, 0);
             case INET6 -> new InetSocketAddress(ia6, 0);
-            default:
-                throw new RuntimeException("Unexpected protocol family");
+            default -> throw new RuntimeException("Unexpected protocol family");
         };
     }
 

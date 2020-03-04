@@ -551,7 +551,6 @@ public class Net {
     static FileDescriptor socket(ProtocolFamily family, boolean stream) throws IOException {
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
-        boolean afunix = family == StandardProtocolFamily.UNIX;
         return IOUtil.newFD(socket0(preferIPv6, stream, false, fastLoopback));
     }
 
@@ -562,7 +561,6 @@ public class Net {
     static FileDescriptor serverSocket(ProtocolFamily family, boolean stream) {
         boolean preferIPv6 = isIPv6Available() &&
             (family != StandardProtocolFamily.INET);
-        boolean afunix = family == StandardProtocolFamily.UNIX;
         return IOUtil.newFD(socket0(preferIPv6, stream, true, fastLoopback));
     }
 
