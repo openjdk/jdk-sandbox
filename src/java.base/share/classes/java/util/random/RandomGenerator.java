@@ -486,6 +486,27 @@ public interface RandomGenerator {
     }
 
     /**
+     * Fills a user-supplied byte array with generated pseudorandom bytes with
+     * values between zero (inclusive) and 255 (inclusive).
+     *
+     * @param  bytes the byte array to fill with pseudorandom bytes
+     * @throws NullPointerException if bytes is null
+     * @since  10
+     */
+    default void nextBytes(byte[] bytes) {
+        int i = 0;
+        int len = bytes.length;
+        for (int words = len >> 3; words--> 0; ) {
+            long rnd = nextLong();
+            for (int n = 8; n--> 0; rnd >>>= Byte.SIZE)
+                bytes[i++] = (byte)rnd;
+        }
+        if (i < len)
+            for (long rnd = nextLong(); i < len; rnd >>>= Byte.SIZE)
+                bytes[i++] = (byte)rnd;
+    }
+
+    /**
      * Returns a pseudorandom {@code float} value between zero (inclusive) and one (exclusive).
      * <p>
      * The default implementation uses the 24 high-order bits from a call to {@code nextInt()}.
