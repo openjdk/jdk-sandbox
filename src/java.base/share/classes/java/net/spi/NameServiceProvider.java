@@ -74,7 +74,7 @@ public abstract class NameServiceProvider {
      * as well as to obtain name service from an instance of that class,
      * and it is also required to obtain the operating system name resolution configurations.
      */
-    public static final RuntimePermission NAMESERVICE_PERMISSION =
+    private static final RuntimePermission NAMESERVICE_PERMISSION =
             new RuntimePermission("nameServiceProvider");
 
     /**

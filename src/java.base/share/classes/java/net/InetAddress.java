@@ -349,6 +349,15 @@ public class InetAddress implements java.io.Serializable {
         init();
     }
 
+    /**
+     * The {@code RuntimePermission("nameServiceProvider")} is
+     * necessary to subclass and instantiate the {@code NameServiceProvider} class,
+     * as well as to obtain name service from an instance of that class,
+     * and it is also required to obtain the operating system name resolution configurations.
+     */
+    private static final RuntimePermission NAMESERVICE_PERMISSION =
+            new RuntimePermission("nameServiceProvider");
+
     private static NameServiceProvider.NameService nameService() {
         NameServiceProvider.NameService cns = nameService;
         if (cns != null) {
@@ -367,7 +376,7 @@ public class InetAddress implements java.io.Serializable {
                 } else if (System.getSecurityManager() != null) {
                     PrivilegedAction<NameServiceProvider.NameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
-                            pa, null, NameServiceProvider.NAMESERVICE_PERMISSION);
+                            pa, null, NAMESERVICE_PERMISSION);
                 } else {
                     cns = loadNameService();
                 }
