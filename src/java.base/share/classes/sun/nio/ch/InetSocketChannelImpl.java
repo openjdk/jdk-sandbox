@@ -105,7 +105,9 @@ class InetSocketChannelImpl extends SocketChannelImpl
         throws IOException
     {
         super(sp, fd, isa);
-        this.family = Net.UNSPEC;
+        this.family = Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET;
     }
 
     @Override
@@ -173,23 +175,10 @@ class InetSocketChannelImpl extends SocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
-    private static InetAddress anyLocalInet4 = Net.anyLocalInet4Address();
-    private static InetAddress anyLocalInet6 = Net.anyLocalInet6Address();
-
-    private InetSocketAddress anyLocalSocketAddress() {
-        if (family == Net.UNSPEC) {
-            return new InetSocketAddress(0);
-        } else if (family == StandardProtocolFamily.INET) {
-            return new InetSocketAddress(anyLocalInet4, 0);
-        } else {
-            return new InetSocketAddress(anyLocalInet6, 0);
-        }
-    }
-
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         InetSocketAddress isa = (local == null) ?
-            anyLocalSocketAddress() : Net.checkAddress(local, family);
+            Net.anyLocalSocketAddress(family) : Net.checkAddress(local, family);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkListen(isa.getPort());
