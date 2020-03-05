@@ -1043,31 +1043,3 @@ NET_Wait(JNIEnv *env, jint fd, jint flags, jint timeout)
       } /* while */
     return (nanoTimeout / NET_NSEC_PER_MSEC);
 }
-
-JNIEXPORT void JNICALL
-dumpAddr (char *str, void *addr) {
-    struct sockaddr_in6 *a = (struct sockaddr_in6 *)addr;
-    int family = a->sin6_family;
-    printf ("%s\n", str);
-    if (family == AF_INET) {
-        struct sockaddr_in *him = (struct sockaddr_in *)addr;
-        printf ("AF_INET: port %d: %x\n", ntohs(him->sin_port),
-                                          ntohl(him->sin_addr.s_addr));
-    } else {
-        int i;
-        struct in6_addr *in = &a->sin6_addr;
-        printf ("AF_INET6 ");
-        printf ("port %d ", ntohs (a->sin6_port));
-        printf ("flow %d ", a->sin6_flowinfo);
-        printf ("addr ");
-        for (i=0; i<14; i+=2) {
-            printf ("%02x", in->s6_addr[i]);
-            printf ("%02x:",in->s6_addr[i+1]);
-        }
-        printf ("%02x", in->s6_addr[14]);
-        printf ("%02x", in->s6_addr[15]);
-        printf (" scope %d\n", a->sin6_scope_id);
-    }
-    fflush(stdout);
-}
-

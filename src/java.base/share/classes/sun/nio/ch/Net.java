@@ -48,7 +48,6 @@ import java.nio.channels.UnsupportedAddressTypeException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Enumeration;
-import java.util.stream.Stream;
 
 import sun.net.ext.ExtendedSocketOptions;
 import sun.net.util.IPAddressUtil;

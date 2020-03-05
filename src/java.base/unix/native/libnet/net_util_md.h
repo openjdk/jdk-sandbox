@@ -56,9 +56,6 @@
 #endif
 #endif
 
-JNIEXPORT void JNICALL
-dumpAddr (char *str, void *addr);
-
 /*
  * On 64-bit JDKs we use a much larger stack and heap buffer.
  */
