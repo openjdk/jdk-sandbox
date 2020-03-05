@@ -364,14 +364,11 @@ public class IPAddressUtil {
         try {
             result = AccessController.doPrivileged(pa);
             var sz = result.size();
-            if (sz == 0) {
-                System.out.println("findScopedAddress -> null");
+            if (sz == 0)
                 return null;
-            }
             if (sz > 1)
                 throw new UncheckedIOException(new SocketException(
                     "Duplicate link local addresses: must specify scope-id"));
-                System.out.println("findScopedAddress => " + result.get(0));
             return result.get(0);
         } catch (PrivilegedActionException pae) {
             return null;
