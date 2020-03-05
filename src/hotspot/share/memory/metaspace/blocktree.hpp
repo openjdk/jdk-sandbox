@@ -331,7 +331,8 @@ public:
   // Add a block to the tree.
   void add_block(MetaWord* p, size_t word_size) {
     DEBUG_ONLY(zap_range(p, word_size));
-    assert(word_size >= minimal_word_size && word_size < maximal_word_size, "invalid block size");
+    assert(word_size >= minimal_word_size && word_size < maximal_word_size,
+           "invalid block size " SIZE_FORMAT, word_size);
     node_t* n = (node_t*)p;
     n->size = word_size;
     n->next = n->left = n->right = n->parent = NULL;
@@ -354,7 +355,7 @@ public:
   // Block may be larger. Real block size is returned in *p_real_word_size.
   MetaWord* get_block(size_t word_size, size_t* p_real_word_size) {
     assert(word_size >= minimal_word_size && word_size < maximal_word_size,
-        "invalid block size");
+           "invalid block size " SIZE_FORMAT, word_size);
 
     if (_largest_size_added < word_size) {
       return NULL;

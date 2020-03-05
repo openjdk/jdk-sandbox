@@ -162,6 +162,9 @@ public:
     : _min(min), _max(max), _outlier_chance(outlier_chance), _outlier_min(outlier_min), _outlier_max(outlier_max)
   {}
 
+  size_t min() const { return _min; }
+  size_t max() const { return _max; }
+
   size_t get() const {
     size_t l1 = _min;
     size_t l2 = _max;

@@ -25,7 +25,7 @@
 
 #include "precompiled.hpp"
 
-#define LOG_PLEASE
+//#define LOG_PLEASE
 
 #include "metaspaceTestsCommon.hpp"
 
@@ -189,14 +189,41 @@ class BlockTreeTest {
   }
 #endif
 
-  void feed_all() {
-    // Feed the whole feederbuffer randomly to the trees
+  enum feeding_pattern_t {
+    scattershot = 1,
+    strafe_left_right = 2,
+    strafe_right_left = 3
+  };
+
+  void feed_all(feeding_pattern_t feeding_pattern) {
+
+    // Feed the whole feaderbuffer space to the trees.
     MetaWord* p = NULL;
     unsigned added = 0;
-    // We cap the number of blocks to limit test duration.
+
+    // If we feed in small graining, we cap the number of blocks to limit test duration.
     const unsigned max_blocks = 10000;
+
+    size_t old_feeding_size = feeding_pattern == strafe_right_left ? _rgen.max() : _rgen.min();
     do {
-      size_t s =_rgen.get();
+      size_t s = 0;
+      switch (feeding_pattern) {
+      case scattershot:
+        // fill completely random
+        s =_rgen.get();
+        break;
+      case strafe_left_right:
+        // fill in ascending order to annoy trees.
+        s = MIN2(_rgen.get(), old_feeding_size);
+        old_feeding_size = s;
+        break;
+      case strafe_right_left:
+        // same, but descending.
+        s = MAX2(_rgen.get(), old_feeding_size);
+        old_feeding_size = s;
+        break;
+      }
+
       p = _fb.get(s);
       if (p != NULL) {
         int which = added % 2;
@@ -276,6 +303,28 @@ class BlockTreeTest {
 
   }
 
+  void test(feeding_pattern_t feeding_pattern) {
+
+    CHECK_COUNTERS_ARE_0
+
+    feed_all(feeding_pattern);
+
+    LOG("Blocks in circulation: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
+        _bt[0].count(), _bt[0].total_size(),
+        _bt[1].count(), _bt[1].total_size());
+
+    ping_pong_loop(5000);
+
+    LOG("After Pingpong: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
+        _bt[0].count(), _bt[0].total_size(),
+        _bt[1].count(), _bt[1].total_size());
+
+    drain_all();
+
+    CHECK_COUNTERS_ARE_0
+  }
+
+
 public:
 
   BlockTreeTest(size_t min_word_size, size_t max_word_size) :
@@ -287,50 +336,29 @@ public:
     DEBUG_ONLY(verify_trees();)
   }
 
-  void run_test() {
 
-    CHECK_COUNTERS_ARE_0
-
-    feed_all();
-
-    LOG("Blocks in circulation: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
-        _bt[0].count(), _bt[0].total_size(),
-        _bt[1].count(), _bt[1].total_size());
-
-    ping_pong_loop(10000);
-
-    LOG("After Pingpong: bt1=%d:" SIZE_FORMAT ", bt2=%d:" SIZE_FORMAT ".",
-        _bt[0].count(), _bt[0].total_size(),
-        _bt[1].count(), _bt[1].total_size());
-
-    drain_all();
-
-    CHECK_COUNTERS_ARE_0
-  }
+  void test_scattershot()         { test(scattershot); }
+  void test_strafe_right_left()   { test(strafe_right_left); }
+  void test_strafe_left_right()   { test(strafe_left_right); }
 
 };
 
-TEST_VM(metaspace, BlockTree_random_wide) {
-  BlockTreeTest btt(BlockTree::minimal_word_size, 128 * K);
-  btt.run_test();
-}
+#define DO_TEST(name, feedingpattern, min, max) \
+		TEST_VM(metaspace, BlockTree_##name##_##feedingpattern) { \
+      BlockTreeTest btt(min, max); \
+      btt.test_##feedingpattern(); \
+    }
 
-TEST_VM(metaspace, BlockTree_random_narrow) {
-  BlockTreeTest btt(BlockTree::minimal_word_size, BlockTree::minimal_word_size + 8);
-  btt.run_test();
-}
+#define DO_TEST_ALL_PATTERNS(name, min, max) \
+  DO_TEST(name, scattershot, min, max) \
+  DO_TEST(name, strafe_right_left, min, max) \
+  DO_TEST(name, strafe_left_right, min, max)
 
-TEST_VM(metaspace, BlockTree_random_64) {
-  BlockTreeTest btt(BlockTree::minimal_word_size, 64);
-  btt.run_test();
-}
 
-TEST_VM(metaspace, BlockTree_random_1024) {
-  BlockTreeTest btt(1024, 2048);
-  btt.run_test();
-}
-
-TEST_VM(metaspace, BlockTree_random_4K) {
-  BlockTreeTest btt(BlockTree::minimal_word_size, 4 * K);
-  btt.run_test();
-}
+DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
+DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
+DO_TEST_ALL_PATTERNS(t34, BlockTree::minimal_word_size, 85)
+DO_TEST_ALL_PATTERNS(t54, BlockTree::minimal_word_size, 100)
+DO_TEST_ALL_PATTERNS(t72, BlockTree::minimal_word_size, 125)
+DO_TEST_ALL_PATTERNS(k1, BlockTree::minimal_word_size, 1*K)
+DO_TEST_ALL_PATTERNS(k4, BlockTree::minimal_word_size, 4*K)
