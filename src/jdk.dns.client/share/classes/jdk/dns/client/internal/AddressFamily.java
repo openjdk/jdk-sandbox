@@ -50,31 +50,21 @@ public enum AddressFamily {
     }
 
     public boolean sameFamily(InetAddress inetAddress) {
-        switch (this) {
-            case IPv4:
-                return inetAddress instanceof Inet4Address;
-            case IPv6:
-                return inetAddress instanceof Inet6Address;
-            case ANY:
-                return true;
-            default:
-                return false;
-        }
+        return switch (this) {
+            case IPv4 -> inetAddress instanceof Inet4Address;
+            case IPv6 -> inetAddress instanceof Inet6Address;
+            case ANY -> true;
+        };
     }
 
     boolean matchesResourceRecord(ResourceRecord rr) {
         int type = rr.getType();
-        switch (this) {
-            case IPv4:
-                return type == ResourceRecord.TYPE_A;
-            case IPv6:
-                return type == ResourceRecord.TYPE_AAAA;
-            case ANY:
-                return type == ResourceRecord.TYPE_A ||
-                        type == ResourceRecord.TYPE_AAAA;
-            default:
-                return false;
-        }
+        return switch (this) {
+            case IPv4 -> type == ResourceRecord.TYPE_A;
+            case IPv6 -> type == ResourceRecord.TYPE_AAAA;
+            case ANY -> type == ResourceRecord.TYPE_A ||
+                    type == ResourceRecord.TYPE_AAAA;
+        };
     }
 
     static AddressFamily fromResourceRecord(ResourceRecord rr) {
@@ -82,17 +72,10 @@ public enum AddressFamily {
     }
 
     public static AddressFamily fromByteArray(byte[] bytes) {
-        switch (bytes.length) {
-            case 16:
-                return IPv6;
-            case 4:
-                return IPv4;
-            default:
-                return ANY;
-        }
-    }
-
-    static AddressFamily fromInetAddress(InetAddress addr) {
-        return addr instanceof Inet4Address ? IPv4 : addr instanceof Inet6Address ? IPv6 : ANY;
+        return switch (bytes.length) {
+            case 16 -> IPv6;
+            case 4 -> IPv4;
+            default -> ANY;
+        };
     }
 }

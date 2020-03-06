@@ -31,7 +31,7 @@ import jdk.dns.client.internal.util.IPUtils;
 import java.net.InetAddress;
 import java.net.ProtocolFamily;
 import java.net.UnknownHostException;
-import java.net.spi.NameServiceProvider;
+import java.net.spi.NameServiceProvider.NameService;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.List;
@@ -41,19 +41,19 @@ public class NetworkNamesResolver {
 
     private final ProtocolFamily protocolFamily;
     private static final InetAddress[] NONE = new InetAddress[0];
-    private final NameServiceProvider.NameService defaultPlatformResolver;
+    private final NameService defaultPlatformResolver;
 
-    public static NetworkNamesResolver open(NameServiceProvider.NameService defaultPlatformResolver) {
+    public static NetworkNamesResolver open(NameService defaultPlatformResolver) {
         // null for any (IPv4+IPv6) addresses family
         return new NetworkNamesResolver(defaultPlatformResolver, null);
     }
 
-    public static NetworkNamesResolver open(NameServiceProvider.NameService defaultPlatformResolver,
+    public static NetworkNamesResolver open(NameService defaultPlatformResolver,
                                             ProtocolFamily protocolFamily) {
         return new NetworkNamesResolver(defaultPlatformResolver, protocolFamily);
     }
 
-    private NetworkNamesResolver(NameServiceProvider.NameService defaultPlatformResolver,
+    private NetworkNamesResolver(NameService defaultPlatformResolver,
                                  ProtocolFamily protocolFamily) {
         this.protocolFamily = protocolFamily;
         this.defaultPlatformResolver = defaultPlatformResolver;
@@ -160,7 +160,7 @@ public class NetworkNamesResolver {
         return AddressResolutionQueue.resolve(dnsResolver, host, protocolFamily, needAllAddresses);
     }
 
-    private static HostsFileResolver hostsFileResolver = new HostsFileResolver();
+    private static final HostsFileResolver hostsFileResolver = new HostsFileResolver();
     private static final boolean DEBUG = java.security.AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.debug"));
 }

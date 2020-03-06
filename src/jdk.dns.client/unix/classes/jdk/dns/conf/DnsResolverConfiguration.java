@@ -26,7 +26,7 @@
 package jdk.dns.conf;
 
 import java.net.InetAddress;
-import java.net.spi.NameServiceProvider;
+import java.net.spi.NameServiceProvider.NameService;
 
 /*
  * An implementation of DnsResolverConfiguration for Solaris
@@ -41,13 +41,13 @@ public class DnsResolverConfiguration {
 
     // Not needed on *nix platforms since /etc/hosts should contain
     // address for local host name
-    public InetAddress[] nativeLookup0(String hostName, NameServiceProvider.NameService dpns) {
+    public InetAddress[] nativeLookup0(String hostName, NameService dpns) {
         return null;
     }
 
     // Not needed on *nix platforms since /etc/hosts should contain
     // address for local host name
-    public String nativeReverseLookup0(byte[] address, NameServiceProvider.NameService defaultPlatformNS) {
+    public String nativeReverseLookup0(byte[] address, NameService defaultPlatformNS) {
         return null;
     }
 

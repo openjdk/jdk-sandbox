@@ -69,17 +69,11 @@ public class AddressResolutionQueue {
         // Parse answers
         var results = new ArrayList<InetAddress>();
         for (var result : rqResults) {
-            byte[] addrBytes = null;
-            switch (result.getType()) {
-                case IPv4:
-                    addrBytes = IPAddressUtil.textToNumericFormatV4(result.getAddressString());
-                    break;
-                case IPv6:
-                    addrBytes = IPAddressUtil.textToNumericFormatV6(result.getAddressString());
-                    break;
-                default:
-                    break;
-            }
+            byte[] addrBytes = switch (result.getType()) {
+                case IPv4 -> IPAddressUtil.textToNumericFormatV4(result.getAddressString());
+                case IPv6 -> IPAddressUtil.textToNumericFormatV6(result.getAddressString());
+                default -> null;
+            };
 
             if (addrBytes == null) {
                 if (DEBUG) {
@@ -142,8 +136,10 @@ public class AddressResolutionQueue {
             var resRequest = queue.poll();
             // If not in ANY mode and already found something - continue searches only for the same
             // name and only for the left addresses and no need to process CNAME requests
-            if (gotResultsFor.isEmpty() || (resRequest.hostName.equals(gotResultsFor)
-                    && resRequest.resourceId != ResourceRecord.TYPE_CNAME)) {
+            if (gotResultsFor.isEmpty() ||
+                    (resRequest != null
+                            && resRequest.hostName.equals(gotResultsFor)
+                            && resRequest.resourceId != ResourceRecord.TYPE_CNAME)) {
                 var result = executeRequest(resRequest, !gotResultsFor.isEmpty());
                 addresses.addAll(result);
             }
@@ -317,6 +313,4 @@ public class AddressResolutionQueue {
     // Enable debug output
     private static final boolean DEBUG = java.security.AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.debug"));
-
-
 }

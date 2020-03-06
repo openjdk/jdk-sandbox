@@ -29,7 +29,7 @@ import jdk.dns.client.internal.ex.DnsResolverException;
 import jdk.dns.conf.DnsResolverConfiguration;
 
 import java.net.InetAddress;
-import java.net.spi.NameServiceProvider;
+import java.net.spi.NameServiceProvider.NameService;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
@@ -64,15 +64,12 @@ public class DnsResolver implements AutoCloseable {
         return System.getSecurityManager() == null ? pa.run() : AccessController.doPrivileged(pa);
     }
 
-    public InetAddress[] resolvePlatform(String hostName, NameServiceProvider.NameService defaultPlatformNS) {
+    public InetAddress[] resolvePlatform(String hostName, NameService defaultPlatformNS) {
         InetAddress[] addresses = dnsResolverConfiguration.nativeLookup0(hostName, defaultPlatformNS);
-        if (addresses == null) {
-            return null;
-        }
         return addresses;
     }
 
-    public String reverseResolvePlatform(byte[] address, NameServiceProvider.NameService defaultPlatformNS) {
+    public String reverseResolvePlatform(byte[] address, NameService defaultPlatformNS) {
         if (DEBUG) {
             System.err.printf("Calling reverse resolve platform for: %s%n", Arrays.toString(address));
         }
@@ -94,14 +91,11 @@ public class DnsResolver implements AutoCloseable {
     }
 
     public List<String> rlookup(String literalIP, AddressFamily addressFamily) throws DnsResolverException {
-        switch (addressFamily) {
-            case IPv4:
-                return ipv4rlookup(literalIP);
-            case IPv6:
-                return ipv6rlookup(literalIP);
-            default:
-                throw new RuntimeException("Only IPv4 and IPv6 addresses are supported");
-        }
+        return switch (addressFamily) {
+            case IPv4 -> ipv4rlookup(literalIP);
+            case IPv6 -> ipv6rlookup(literalIP);
+            default -> throw new RuntimeException("Only IPv4 and IPv6 addresses are supported");
+        };
     }
 
     private List<String> ipv4rlookup(String literalIP) throws DnsResolverException {
@@ -118,7 +112,7 @@ public class DnsResolver implements AutoCloseable {
     private List<String> ipv6rlookup(String literalIP) throws DnsResolverException {
         List<String> hostNames = new ArrayList<>();
         ResourceRecords rrs = query(literalIP + "IP6.ARPA.", ResourceRecord.TYPE_PTR);
-        /**
+        /*
          * Because RFC 3152 changed the root domain name for reverse
          * lookups from IP6.INT. to IP6.ARPA., we need to check
          * both. I.E. first the new one, IP6.ARPA, then if it fails
@@ -136,7 +130,7 @@ public class DnsResolver implements AutoCloseable {
 
 
     // Configuration file tracker
-    private static DnsResolverConfiguration dnsResolverConfiguration = new DnsResolverConfiguration();
+    private static final DnsResolverConfiguration dnsResolverConfiguration = new DnsResolverConfiguration();
     private static final boolean DEBUG = java.security.AccessController.doPrivileged(
             (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("jdk.dns.client.debug"));
 }

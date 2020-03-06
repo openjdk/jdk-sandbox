@@ -82,7 +82,7 @@ public class DnsNameServiceProvider extends NameServiceProvider {
         IPv4First,
         IPv6First;
 
-        private static AddressOrder fromString(String value) {
+        private static AddressOrder fromPreferIPv6AddressesProp(String value) {
             //  Try to match static initialization block in InetAddress
             if (value == null) {
                 return IPv4First;
@@ -108,7 +108,7 @@ public class DnsNameServiceProvider extends NameServiceProvider {
         var ipv4action = (PrivilegedAction<Boolean>) () -> Boolean.getBoolean("java.net.preferIPv4Stack");
 
         String spValue = System.getSecurityManager() == null ? ipv6action.run() : AccessController.doPrivileged(ipv6action);
-        order = AddressOrder.fromString(spValue);
+        order = AddressOrder.fromPreferIPv6AddressesProp(spValue);
         IPv4Only = System.getSecurityManager() == null ? ipv4action.run() : AccessController.doPrivileged(ipv4action);
     }
 }

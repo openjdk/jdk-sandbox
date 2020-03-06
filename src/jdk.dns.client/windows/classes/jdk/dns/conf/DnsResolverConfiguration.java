@@ -29,7 +29,7 @@ import jdk.dns.client.internal.util.AddressArray;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.net.spi.NameServiceProvider;
+import java.net.spi.NameServiceProvider.NameService;
 import java.nio.file.Paths;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -51,7 +51,7 @@ public class DnsResolverConfiguration {
                 .toString();
     }
 
-    public InetAddress[] nativeLookup0(String hostName, NameServiceProvider.NameService defaultPlatformNS) {
+    public InetAddress[] nativeLookup0(String hostName, NameService defaultPlatformNS) {
         if (hostName != null && (LOCAL_HOSTNAME.equals(hostName) || hostName.equals("localhost"))) {
             try {
                 var addresses = defaultPlatformNS.lookupAllHostAddr(hostName);
@@ -64,7 +64,7 @@ public class DnsResolverConfiguration {
         return null;
     }
 
-    public String nativeReverseLookup0(byte[] address, NameServiceProvider.NameService defaultPlatformNS) {
+    public String nativeReverseLookup0(byte[] address, NameService defaultPlatformNS) {
         if (address == null || address.length < 4) {
             return null;
         }

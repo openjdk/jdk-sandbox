@@ -46,21 +46,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class HostsFileResolver {
-    private static final String HOSTS_FILE_LOCATION_PROPERTY_VALUE =
-            AccessController.doPrivileged((PrivilegedAction<String>)
-                    () -> System.getProperty("jdk.dns.client.hosts.file",
-                            DnsResolverConfiguration.getDefaultHostsFileLocation())
-            );
+    private static final String HOSTS_FILE_LOCATION_PROPERTY_VALUE;
+
+    static {
+        PrivilegedAction<String> pa = () -> System.getProperty("jdk.dns.client.hosts.file",
+                DnsResolverConfiguration.getDefaultHostsFileLocation());
+        HOSTS_FILE_LOCATION_PROPERTY_VALUE = System.getSecurityManager() != null ?
+                AccessController.doPrivileged(pa) : pa.run();
+    }
+
     private static final ReadWriteLock LOCK = new ReentrantReadWriteLock();
 
     // 300 seconds, similar to DnsResolverConfiguration in millis since Epoch
-    private static final long REFRESH_TIMEOUT_NANOS = 300_000_000_000L;
+    private static final long REFRESH_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(300);
     private static final ReloadTracker HOSTS_FILE_TRACKER;
     private static volatile Map<String, HostFileEntry> HOST_ADDRESSES = Collections.emptyMap();
 
@@ -214,10 +219,6 @@ public class HostsFileResolver {
         return Collections.emptyMap();
     }
 
-    public InetAddress getHostAddress(String hostName) throws UnknownHostException {
-        return getHostAddress(hostName, null);
-    }
-
     public InetAddress getHostAddress(String hostName, ProtocolFamily family) throws UnknownHostException {
         var af = AddressFamily.fromProtocolFamily(family);
         loadHostsAddresses();
@@ -241,7 +242,7 @@ public class HostsFileResolver {
                 .filter(e -> isAddressBytesTheSame(ha, e.address.getAddress()))
                 .findFirst();
         if (entry.isEmpty()) {
-            throw new UnknownHostException(ha.toString());
+            throw new UnknownHostException(Arrays.toString(ha));
         }
         return entry.get().getHostName();
     }

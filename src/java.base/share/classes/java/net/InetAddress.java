@@ -26,6 +26,7 @@
 package java.net;
 
 import java.net.spi.NameServiceProvider;
+import java.net.spi.NameServiceProvider.NameService;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.NavigableSet;
@@ -48,6 +49,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
+
 import jdk.internal.misc.VM;
 
 import jdk.internal.access.JavaNetInetAddressAccess;
@@ -219,7 +222,7 @@ public class InetAddress implements java.io.Serializable {
     @Native static final int IPv6 = 2;
 
     /* Specify address family preference */
-    static transient final int preferIPv6Address;
+    static final int preferIPv6Address;
 
     static class InetAddressHolder {
         /**
@@ -293,9 +296,9 @@ public class InetAddress implements java.io.Serializable {
     }
 
     /* Used to store the name service provider */
-    private static transient NameServiceProvider.NameService nameService;
+    private static volatile NameService nameService;
 
-    private static transient NameServiceProvider.NameService defaultNameService;
+    private static final NameService defaultNameService;
 
     /**
      * Used to store the best available hostname.
@@ -358,13 +361,16 @@ public class InetAddress implements java.io.Serializable {
     private static final RuntimePermission NAMESERVICE_PERMISSION =
             new RuntimePermission("nameServiceProvider");
 
-    private static NameServiceProvider.NameService nameService() {
-        NameServiceProvider.NameService cns = nameService;
+    private static final ReentrantLock NAMESERVICE_LOCK = new ReentrantLock();
+
+    private static NameService nameService() {
+        NameService cns = nameService;
         if (cns != null) {
             return cns;
         }
         if (VM.isBooted()) {
-            synchronized (NameServiceProvider.class) {
+            NAMESERVICE_LOCK.lock();
+            try {
                 cns = nameService;
                 if (cns != null) {
                     return cns;
@@ -374,7 +380,7 @@ public class InetAddress implements java.io.Serializable {
                     // The default name service is already host file name service
                     cns = defaultNameService;
                 } else if (System.getSecurityManager() != null) {
-                    PrivilegedAction<NameServiceProvider.NameService> pa = InetAddress::loadNameService;
+                    PrivilegedAction<NameService> pa = InetAddress::loadNameService;
                     cns = AccessController.doPrivileged(
                             pa, null, NAMESERVICE_PERMISSION);
                 } else {
@@ -383,13 +389,15 @@ public class InetAddress implements java.io.Serializable {
 
                 InetAddress.nameService = cns;
                 return cns;
+            } finally {
+                NAMESERVICE_LOCK.unlock();
             }
         } else {
             return defaultNameService;
         }
     }
 
-    private static NameServiceProvider.NameService loadNameService() {
+    private static NameService loadNameService() {
         return ServiceLoader.load(NameServiceProvider.class)
                 .findFirst()
                 .map(nsp -> nsp.get(defaultNameService))
@@ -946,7 +954,7 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class PlatformNameService implements NameServiceProvider.NameService {
+    private static final class PlatformNameService implements NameService {
 
         public InetAddress[] lookupAllHostAddr(String host)
                 throws UnknownHostException {
@@ -972,29 +980,12 @@ public class InetAddress implements java.io.Serializable {
      *
      * @since 9
      */
-    private static final class HostsFileNameService implements NameServiceProvider.NameService {
+    private static final class HostsFileNameService implements NameService {
 
         private final String hostsFile;
 
         public HostsFileNameService(String hostsFileName) {
             this.hostsFile = hostsFileName;
-        }
-
-        private String addrToString(byte addr[]) {
-          String stringifiedAddress = null;
-
-            if (addr.length == Inet4Address.INADDRSZ) {
-                stringifiedAddress = Inet4Address.numericToTextFormat(addr);
-            } else { // treat as an IPV6 jobby
-                byte[] newAddr
-                    = IPAddressUtil.convertFromIPv4MappedAddress(addr);
-                if (newAddr != null) {
-                   stringifiedAddress = Inet4Address.numericToTextFormat(addr);
-                } else {
-                    stringifiedAddress = Inet6Address.numericToTextFormat(addr);
-                }
-            }
-            return stringifiedAddress;
         }
 
         /**
@@ -1160,11 +1151,11 @@ public class InetAddress implements java.io.Serializable {
      *
      * @return a NameService
      */
-    private static NameServiceProvider.NameService createNameService() {
+    private static NameService createNameService() {
 
         String hostsFileName =
                 GetPropertyAction.privilegedGetProperty("jdk.net.hosts.file");
-        NameServiceProvider.NameService theNameService;
+        NameService theNameService;
         if (hostsFileName != null) {
             theNameService = new HostsFileNameService(hostsFileName);
         } else {

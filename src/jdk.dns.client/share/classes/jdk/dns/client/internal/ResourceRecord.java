@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -92,10 +92,10 @@ public class ResourceRecord {
     private static final int MAXIMUM_COMPRESSION_REFERENCES = 16;
 
     byte[] msg;                 // DNS message
-    int msgLen;                 // msg size (in octets)
-    boolean qSection;           // true if this RR is part of question section
+    final int msgLen;                 // msg size (in octets)
+    final boolean qSection;           // true if this RR is part of question section
     // and therefore has no ttl or rdata
-    int offset;                 // offset of RR w/in msg
+    final int offset;                 // offset of RR w/in msg
     int rrlen;                  // number of octets in encoded RR
     DnsName name;               // name field of RR, including root label
     int rrtype;                 // type field of RR
@@ -167,21 +167,17 @@ public class ResourceRecord {
 
 
     public static String getTypeName(int rrtype) {
-        return valueToName(rrtype, rrTypeNames);
+        return valueToName(rrtype);
     }
 
     public static int getType(String typeName) {
         return nameToValue(typeName, rrTypeNames);
     }
 
-    public static int getRrclass(String className) {
-        return nameToValue(className, rrClassNames);
-    }
-
-    private static String valueToName(int val, String[] names) {
+    private static String valueToName(int val) {
         String name = null;
-        if ((val > 0) && (val < names.length)) {
-            name = names[val];
+        if ((val > 0) && (val < ResourceRecord.rrTypeNames.length)) {
+            name = ResourceRecord.rrTypeNames[val];
         } else if (val == TYPE_ANY) {         // QTYPE_STAR == QCLASS_STAR
             name = "*";
         }
@@ -363,29 +359,23 @@ public class ResourceRecord {
      */
     private Object decodeRdata(int pos) throws DnsCommunicationException {
         if (rrclass == CLASS_INTERNET) {
-            switch (rrtype) {
-                case TYPE_A:
-                    return decodeA(pos);
-                case TYPE_AAAA:
-                    return decodeAAAA(pos);
-                case TYPE_CNAME:
-                case TYPE_NS:
-                case TYPE_PTR:
-                    return decodeName(pos);
-                case TYPE_MX:
-                    return decodeMx(pos);
-                case TYPE_SOA:
-                    return decodeSoa(pos);
-                case TYPE_SRV:
-                    return decodeSrv(pos);
-                case TYPE_NAPTR:
-                    return decodeNaptr(pos);
-                case TYPE_TXT:
-                    return decodeTxt(pos);
-                case TYPE_HINFO:
-                    return decodeHinfo(pos);
-            }
+            return switch (rrtype) {
+                case TYPE_A -> decodeA(pos);
+                case TYPE_AAAA -> decodeAAAA(pos);
+                case TYPE_CNAME, TYPE_NS, TYPE_PTR -> decodeName(pos);
+                case TYPE_MX -> decodeMx(pos);
+                case TYPE_SOA -> decodeSoa(pos);
+                case TYPE_SRV -> decodeSrv(pos);
+                case TYPE_NAPTR -> decodeNaptr(pos);
+                case TYPE_TXT -> decodeTxt(pos);
+                case TYPE_HINFO -> decodeHinfo(pos);
+                default -> unknownRrType(pos);
+            };
         }
+        return unknownRrType(pos);
+    }
+
+    private Object unknownRrType(int pos) {
         // Unknown RR type/class
         if (debug) {
             dprint("Unknown RR type for RR data: " + rrtype + " rdlen=" + rdlen
@@ -425,7 +415,6 @@ public class ResourceRecord {
         long expire = getUInt(pos);
         pos += 4;
         long minimum = getUInt(pos);    // now used as negative TTL
-        pos += 4;
 
         return (mname + " " + rname + " " + serial + " " +
                 refresh + " " + retry + " " + expire + " " + minimum);
@@ -491,7 +480,7 @@ public class ResourceRecord {
         StringBuffer buf = new StringBuffer(rdlen);
         pos += decodeCharString(pos, buf);
         buf.append(' ');
-        pos += decodeCharString(pos, buf);
+        decodeCharString(pos, buf);
         return buf.toString();
     }
 

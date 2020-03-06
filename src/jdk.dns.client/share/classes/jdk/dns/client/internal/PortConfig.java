@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,20 +25,24 @@
 
 package jdk.dns.client.internal;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+
 final class PortConfig {
     /**
      * Determines the ephemeral port range in use on this system.
      * If this cannot be determined, then the default settings
      * of the OS are returned.
      */
-    private static int defaultUpper, defaultLower;
     private static final int upper, lower;
 
     private PortConfig() {
     }
 
     static {
-        String os = System.getProperty("os.name");
+        int defaultUpper, defaultLower;
+        PrivilegedAction<String> pa = () -> System.getProperty("os.name");
+        String os = System.getSecurityManager() != null ? AccessController.doPrivileged(pa) : pa.run();
         if (os.startsWith("Linux")) {
             defaultLower = 32768;
             defaultUpper = 61000;
