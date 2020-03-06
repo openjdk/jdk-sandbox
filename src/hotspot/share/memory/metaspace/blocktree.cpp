@@ -51,8 +51,7 @@ namespace metaspace {
 	  }
 
 struct BlockTree::veri_data_t {
-  int num_nodes;
-  size_t size;
+  MemRangeCounter counter;
   int max_edge;
   size_t largest;
 };
@@ -65,8 +64,7 @@ void BlockTree::verify_node_siblings(node_t* n, veri_data_t* vd) const {
   node_t* prev_sib = NULL;
   while (n2 != NULL) {
     assrt0(n2->size == size);
-    vd->num_nodes++;
-    vd->size += n2->size;
+    vd->counter.add(n2->size);
     if (prev_sib != NULL) {
       assrt0(prev_sib->next == n2);
       assrt0(prev_sib != n2);
@@ -101,8 +99,7 @@ void BlockTree::verify_node(node_t* n, size_t left_limit, size_t right_limit,
   assrt0(n->size < right_limit);
   assrt0(n->size > left_limit);
 
-  vd->num_nodes++;
-  vd->size += n->size;
+  vd->counter.add(n->size);
 
   if (n->left != NULL) {
     assrt0(n != n->left);
@@ -126,17 +123,14 @@ void BlockTree::verify_tree() const {
   int num = 0;
   size_t size = 0;
   veri_data_t vd;
-  vd.size = 0;
   vd.max_edge = 0;
-  vd.num_nodes = 0;
   vd.largest = 0;
   if (_root != NULL) {
     assrt0(_root->parent == NULL);
     verify_node(_root, 0, maximal_word_size + 1, &vd, 0);
-    assrt0(vd.num_nodes > 0 && vd.size > 0);
     assrt0(vd.largest == _largest_size_added);
-    _count.check(vd.num_nodes);
-    _total_size.check(vd.size);
+    vd.counter.check(_counter);
+    assrt0(vd.counter.zero() == false);
   }
 }
 

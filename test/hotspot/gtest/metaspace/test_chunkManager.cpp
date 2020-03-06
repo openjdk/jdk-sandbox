@@ -37,8 +37,8 @@ class ChunkManagerTest {
   ChunkManager* _cm;
 
   Metachunk* _elems[max_num_chunks];
-  SizeCounter _word_size_allocated;
-  IntCounter _num_allocated;
+
+  MemRangeCounter _counter;
 
   // Note: [min_level ... max_level] (inclusive max)
   static chklvl_t get_random_level(chklvl_t min_level, chklvl_t max_level) {
@@ -78,8 +78,7 @@ class ChunkManagerTest {
     DEBUG_ONLY(_vs_list->verify(true);)
     DEBUG_ONLY(_cm->verify(true);)
 
-    _word_size_allocated.decrement_by(chunk_word_size);
-    _num_allocated.decrement();
+    _counter.sub(chunk_word_size);
 
     return true;
   }
@@ -105,8 +104,7 @@ class ChunkManagerTest {
     DEBUG_ONLY(_vs_list->verify(true);)
     DEBUG_ONLY(_cm->verify(true);)
 
-    _word_size_allocated.increment_by(c->word_size());
-    _num_allocated.increment();
+    _counter.add(c->word_size());
 
     if (fully_commit) {
       c->ensure_fully_committed();
@@ -132,8 +130,7 @@ class ChunkManagerTest {
     for (int i = 0; i < max_num_chunks; i ++) {
       attempt_free_at(i);
     }
-    assert(_num_allocated.get() == 0, "Sanity");
-    assert(_word_size_allocated.get() == 0, "Sanity");
+    assert(_counter.zero(), "Sanity");
   }
 
   void random_alloc_free(int iterations, chklvl_t min_level, chklvl_t max_level) {
@@ -150,7 +147,7 @@ class ChunkManagerTest {
 public:
 
   ChunkManagerTest()
-    : _commit_limiter(50 * M), _vs_list(NULL), _cm(NULL), _word_size_allocated()
+    : _commit_limiter(50 * M), _vs_list(NULL), _cm(NULL)
   {
     _vs_list = new VirtualSpaceList("test_vs_lust", &_commit_limiter);
     _cm = new ChunkManager("test_cm", _vs_list);
@@ -225,16 +222,16 @@ public:
   void test_wholesale_reclaim() {
 
     // test that if a chunk is committed again, already committed content stays.
-    assert(_num_allocated.get() == 0, "Call this on an empty cm.");
+    assert(_counter.zero(), "Call this on an empty cm.");
 
     // Get a number of random sized but large chunks, be sure to cover multiple vsnodes.
     // Also, commit those chunks.
     const size_t min_words_to_allocate = 4 * Settings::virtual_space_node_default_word_size(); // about 16 m
 
-    while (_num_allocated.get() < max_num_chunks &&
-           _word_size_allocated.get() < min_words_to_allocate) {
+    while (_counter.count() < max_num_chunks &&
+           _counter.total_size() < min_words_to_allocate) {
       const chklvl_t lvl = LOWEST_CHUNK_LEVEL + os::random() % 4;
-      attempt_allocate_at(_num_allocated.get(), lvl, lvl, true); // < fully committed please
+      attempt_allocate_at(_counter.count(), lvl, lvl, true); // < fully committed please
     }
 
 //_cm->print_on(tty);

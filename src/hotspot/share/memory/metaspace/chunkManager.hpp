@@ -52,7 +52,7 @@ class ChunkManager : public CHeapObj<mtInternal> {
   const char* const _name;
 
   // Freelist
-  MetachunkListCluster _chunks;
+  MetachunkListVector _chunks;
 
   // Returns true if this manager contains the given chunk. Slow (walks free list) and
   // only needed for verifications.

@@ -60,8 +60,7 @@ private:
 
   block_t* _v[num_lists];
 
-  SizeCounter _total_size;
-  IntCounter _count;
+  MemRangeCounter _counter;
 
   static int index_for_word_size(size_t word_size) {
     int index = (int)(word_size - minimal_word_size);
@@ -113,8 +112,7 @@ public:
     b->size = word_size;
     b->next = _v[index];
     _v[index] = b;
-    _count.increment();
-    _total_size.increment_by(word_size);
+    _counter.add(word_size);
     mask_set_bit(index);
   }
 
@@ -137,8 +135,7 @@ public:
         mask_clr_bit(index);
       }
 
-      _count.decrement();
-      _total_size.decrement_by(real_word_size);
+      _counter.sub(real_word_size);
       *p_real_word_size = real_word_size;
 
       return p;
@@ -153,27 +150,25 @@ public:
 
 
   // Returns number of blocks in this structure
-  int count() const { return _count.get(); }
+  int count() const { return _counter.count(); }
 
   // Returns total size, in words, of all elements.
-  size_t total_size() const { return _total_size.get(); }
+  size_t total_size() const { return _counter.total_size(); }
 
-  bool is_empty() const { return _count.get() == 0; }
+  bool is_empty() const { return _mask == 0; }
 
 #ifdef ASSERT
   void verify() const {
-    int total_num = 0;
-    size_t total_size = 0;
+    MemRangeCounter local_counter;
     for (int i = 0; i < num_lists; i ++) {
       assert(((_mask >> i) & 1) == ((_v[i] == 0) ? 0 : 1), "sanity");
       const size_t s = minimal_word_size + i;
       for (block_t* b = _v[i]; b != NULL; b = b->next) {
         assert(b->size == s, "bad block size");
-        total_num ++; total_size += s;
+        local_counter.add(s);
       }
     }
-    _count.check(total_num);
-    _total_size.check(total_size);
+    local_counter.check(_counter);
   }
 #endif // ASSERT
 

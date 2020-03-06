@@ -72,8 +72,7 @@ private:
   // As a performance optimization, we keep the size of the largest node.
   size_t _largest_size_added;
 
-  IntCounter _count;
-  SizeCounter _total_size;
+  MemRangeCounter _counter;
 
   // given a node n, add it to the list starting at head
   static void add_to_list(node_t* n, node_t* head) {
@@ -341,8 +340,7 @@ public:
     } else {
       insert(_root, n);
     }
-    _count.increment();
-    _total_size.increment_by(word_size);
+    _counter.add(word_size);
 
     // Maintain largest node to speed up lookup
     if (_largest_size_added < n->size) {
@@ -377,8 +375,7 @@ public:
       MetaWord* p = (MetaWord*)n;
       *p_real_word_size = n->size;
 
-      _count.decrement();
-      _total_size.decrement_by(n->size);
+      _counter.sub(n->size);
 
       DEBUG_ONLY(zap_range(p, n->size));
 
@@ -389,13 +386,12 @@ public:
 
 
   // Returns number of blocks in this structure
-  int count() const { return _count.get(); }
+  int count() const { return _counter.count(); }
 
   // Returns total size, in words, of all elements.
-  size_t total_size() const { return _total_size.get(); }
+  size_t total_size() const { return _counter.total_size(); }
 
-  bool is_empty() const { return _count.get() == 0; }
-
+  bool is_empty() const { return _root == NULL; }
 
   void print_tree(outputStream* st) const;
 

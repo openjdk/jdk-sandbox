@@ -119,7 +119,7 @@ public:
   int used() const                   { return _num_handed_out.get(); }
 
   // Returns number of elements in free list.
-  int freelist_size() const          { return _freelist.size(); }
+  int freelist_size() const          { return _freelist.count(); }
 
   // Returns size of memory used.
   size_t memory_footprint_words() const;

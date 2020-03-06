@@ -38,7 +38,7 @@ class outputStream;
 namespace metaspace {
 
 class Metachunk;
-class MetachunkListCluster;
+class MetachunkListVector;
 
 class VirtualSpaceList : public CHeapObj<mtClass> {
 
@@ -94,7 +94,7 @@ public:
   // Attempts to purge nodes. This will remove and delete nodes which only contain free chunks.
   // The free chunks are removed from the freelists before the nodes are deleted.
   // Return number of purged nodes.
-  int purge(MetachunkListCluster* freelists);
+  int purge(MetachunkListVector* freelists);
 
   //// Statistics ////
 

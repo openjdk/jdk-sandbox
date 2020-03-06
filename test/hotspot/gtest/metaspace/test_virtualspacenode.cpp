@@ -46,7 +46,7 @@ class VirtualSpaceNodeTest {
 
   void verify() const {
 
-    ASSERT_EQ(_root_chunks.size() * metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
+    ASSERT_EQ(_root_chunks.count() * metaspace::chklvl::MAX_CHUNK_WORD_SIZE,
               _node->used_words());
 
     ASSERT_GE(_commit_limit,                      _counter_committed_words.get());
@@ -193,7 +193,7 @@ class VirtualSpaceNodeTest {
 
   } // uncommit_chunk
 
-  Metachunk* split_chunk_with_checks(Metachunk* c, chklvl_t target_level, MetachunkListCluster* freelist) {
+  Metachunk* split_chunk_with_checks(Metachunk* c, chklvl_t target_level, MetachunkListVector* freelist) {
 
     DEBUG_ONLY(c->verify(true);)
 
@@ -239,7 +239,7 @@ class VirtualSpaceNodeTest {
   } // end: split_chunk_with_checks
 
 
-  Metachunk* merge_chunk_with_checks(Metachunk* c, chklvl_t expected_target_level, MetachunkListCluster* freelist) {
+  Metachunk* merge_chunk_with_checks(Metachunk* c, chklvl_t expected_target_level, MetachunkListVector* freelist) {
 
     const chklvl_t orig_level = c->level();
     assert(expected_target_level < orig_level, "Sanity");
@@ -408,7 +408,7 @@ public:
     }
 
     // To capture split-off chunks. Note: it is okay to use this here as a temp object.
-    MetachunkListCluster freelist;
+    MetachunkListVector freelist;
 
     const int granules_per_root_chunk = (int)(c->word_size() / Settings::commit_granule_words());
 

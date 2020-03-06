@@ -170,13 +170,13 @@ class BlockTreeTest {
   FeederBuffer _fb;
 
   BlockTree _bt[2];
-  BlockCounter _cnt[2];
+  MemRangeCounter _cnt[2];
 
   RandSizeGenerator _rgen;
 
 #define CHECK_COUNTERS \
-		CHECK_BT_CONTENT(_bt[0], _cnt[0].num.get(), _cnt[0].size.get()) \
-    CHECK_BT_CONTENT(_bt[1], _cnt[1].num.get(), _cnt[1].size.get())
+		CHECK_BT_CONTENT(_bt[0], _cnt[0].count(), _cnt[0].total_size()) \
+    CHECK_BT_CONTENT(_bt[1], _cnt[1].count(), _cnt[1].total_size())
 
 #define CHECK_COUNTERS_ARE_0 \
     CHECK_BT_CONTENT(_bt[0], 0, 0) \
@@ -357,8 +357,11 @@ public:
 
 DO_TEST_ALL_PATTERNS(wide, BlockTree::minimal_word_size, 128 * K);
 DO_TEST_ALL_PATTERNS(narrow, BlockTree::minimal_word_size, 16)
-DO_TEST_ALL_PATTERNS(t34, BlockTree::minimal_word_size, 85)
-DO_TEST_ALL_PATTERNS(t54, BlockTree::minimal_word_size, 100)
-DO_TEST_ALL_PATTERNS(t72, BlockTree::minimal_word_size, 125)
-DO_TEST_ALL_PATTERNS(k1, BlockTree::minimal_word_size, 1*K)
-DO_TEST_ALL_PATTERNS(k4, BlockTree::minimal_word_size, 4*K)
+DO_TEST_ALL_PATTERNS(85, BlockTree::minimal_word_size, 85)
+DO_TEST_ALL_PATTERNS(129, BlockTree::minimal_word_size, 129)
+DO_TEST_ALL_PATTERNS(1024, BlockTree::minimal_word_size, 1*K)
+DO_TEST_ALL_PATTERNS(4096, BlockTree::minimal_word_size, 4*K)
+DO_TEST_ALL_PATTERNS(1M, BlockTree::minimal_word_size, 1 * M)
+
+
+

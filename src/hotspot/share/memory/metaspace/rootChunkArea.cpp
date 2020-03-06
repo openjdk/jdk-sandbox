@@ -80,7 +80,7 @@ Metachunk* RootChunkArea::alloc_root_chunk_header(VirtualSpaceNode* node) {
 //  free chunks to the freelists.
 //
 // Returns NULL if chunk cannot be split at least once.
-Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkListCluster* freelists) {
+Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists) {
 
   // Splitting a chunk once works like this:
   //
@@ -180,7 +180,7 @@ Metachunk* RootChunkArea::split(chklvl_t target_level, Metachunk* c, MetachunkLi
 //
 // !!! Please note that if this method returns a non-NULL value, the
 // original chunk will be invalid and should not be accessed anymore! !!!
-Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListCluster* freelists) {
+Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListVector* freelists) {
 
   // Note rules:
   //
@@ -337,7 +337,7 @@ Metachunk* RootChunkArea::merge(Metachunk* c, MetachunkListCluster* freelists) {
 // double in size (level decreased by one).
 //
 // On success, true is returned, false otherwise.
-bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster* freelists) {
+bool RootChunkArea::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists) {
 
   DEBUG_ONLY(check_pointer(c->base());)
   assert(!c->is_root_chunk(), "Cannot be merged further.");

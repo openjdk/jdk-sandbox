@@ -70,9 +70,10 @@ using metaspace::SizeCounter;
 using metaspace::SizeAtomicCounter;
 using metaspace::IntCounter;
 using metaspace::LeftOverManager;
+using metaspace::MemRangeCounter;
 using metaspace::Metachunk;
 using metaspace::MetachunkList;
-using metaspace::MetachunkListCluster;
+using metaspace::MetachunkListVector;
 using metaspace::Settings;
 using metaspace::sm_stats_t;
 using metaspace::in_use_chunk_stats_t;
@@ -179,17 +180,6 @@ public:
 
 }; // end RandSizeGenerator
 
-// A helper class to count blocks of something; since we often add blocks of something.
-struct BlockCounter {
-  SizeCounter size;
-  IntCounter num;
-  void add(size_t s) { num.increment(); size.increment_by(s); }
-  void sub(size_t s) { num.decrement(); size.decrement_by(s); }
-  void check(int expected_num, size_t expected_size) const {
-    DEBUG_ONLY(num.check(expected_num);)
-    DEBUG_ONLY(size.check(expected_size);)
-  }
-};
 
 ///////////////////////////////////////////////////////////
 // Function to test-access a memory range

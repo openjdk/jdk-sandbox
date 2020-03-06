@@ -142,7 +142,7 @@ Metachunk*  VirtualSpaceList::allocate_root_chunk() {
 // Attempts to purge nodes. This will remove and delete nodes which only contain free chunks.
 // The free chunks are removed from the freelists before the nodes are deleted.
 // Return number of purged nodes.
-int VirtualSpaceList::purge(MetachunkListCluster* freelists) {
+int VirtualSpaceList::purge(MetachunkListVector* freelists) {
 
   // Note: I am not sure all that purging business is even necessary anymore
   // since we have a good reclaim mechanism in place. Need to measure.

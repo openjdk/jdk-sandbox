@@ -34,11 +34,10 @@
 
 namespace metaspace {
 
-// A very simple helper class which counts something, offers decrement/increment
-// methods and, on debug, checks for overflow/underflow on increment/decrement.
-//
-// Two variants exists, a thread-safe one using atomic counting, a normal one
-//  which does not.
+// We seem to be counting a lot of things which makes it worthwhile to
+// make helper classes for all that boilerplate coding.
+
+// AbstractCounter counts something and asserts overflow and underflow.
 template <class T>
 class AbstractCounter {
 
@@ -81,10 +80,7 @@ public:
 
 };
 
-typedef AbstractCounter<size_t>   SizeCounter;
-typedef AbstractCounter<unsigned> IntCounter;
-
-
+// Atomic variant of AbstractCounter.
 template <class T>
 class AbstractAtomicCounter {
 
@@ -135,9 +131,59 @@ public:
 
 };
 
+typedef AbstractCounter<size_t>   SizeCounter;
+typedef AbstractCounter<unsigned> IntCounter;
+
 typedef AbstractAtomicCounter<size_t> SizeAtomicCounter;
 
 
+// We often count memory ranges (blocks, chunks etc).
+// Make a helper class for that.
+template <class T_num, class T_size>
+class AbstractMemoryRangeCounter {
+
+  AbstractCounter<T_num>  _count;
+  AbstractCounter<T_size> _total_size;
+
+public:
+
+  void add(T_size s) {
+    assert(s > 0, "sanity");
+    _count.increment();
+    _total_size.increment_by(s);
+  }
+
+  void add_multiple(T_num n, T_size s) {
+    assert(s > 0 && n > 0, "sanity");
+    _count.increment_by(n);
+    _total_size.increment_by(s);
+  }
+
+  void sub(T_size s) {
+    assert(s > 0, "sanity");
+    _count.decrement();
+    _total_size.decrement_by(s);
+  }
+
+  T_num count() const       { return _count.get(); }
+  T_size total_size() const { return _total_size.get(); }
+
+
+  bool zero() const         { return _count.get() == 0; }
+
+#ifdef ASSERT
+  void check(T_num expected_count, T_size expected_size) const {
+    _count.check(expected_count);
+    _total_size.check(expected_size);
+  }
+  void check(const AbstractMemoryRangeCounter<T_num, T_size>& other) const {
+    check(other.count(), other.total_size());
+  }
+#endif
+
+};
+
+typedef AbstractMemoryRangeCounter<unsigned, size_t> MemRangeCounter;
 
 } // namespace metaspace
 

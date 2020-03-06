@@ -448,6 +448,7 @@ void MetachunkList::verify() const {
   const Metachunk* last_c = NULL;
   for (const Metachunk* c = first(); c != NULL; c = c->next()) {
     num ++;
+    assert(c->prev() != c && c->next() != c, "circularity");
     assert(c->prev() == last_c,
            "Broken link to predecessor. Chunk " METACHUNK_FULL_FORMAT ".",
            METACHUNK_FULL_FORMAT_ARGS(c));
@@ -479,7 +480,7 @@ void MetachunkList::print_on(outputStream* st) const {
 
 #ifdef ASSERT
 
-bool MetachunkListCluster::contains(const Metachunk* c) const {
+bool MetachunkListVector::contains(const Metachunk* c) const {
   for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
     if (list_for_level(l)->contains(c)) {
       return true;
@@ -488,9 +489,9 @@ bool MetachunkListCluster::contains(const Metachunk* c) const {
   return false;
 }
 
-void MetachunkListCluster::verify(bool slow) const {
+void MetachunkListVector::verify(bool slow) const {
 
-  int num = 0; size_t word_size = 0;
+  MemRangeCounter local_count;
 
   for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
 
@@ -502,23 +503,26 @@ void MetachunkListCluster::verify(bool slow) const {
     // Check each list.
     list_for_level(l)->verify();
 
-    num += list_for_level(l)->size();
-    word_size += list_for_level(l)->size() * chklvl::word_size_for_level(l);
+    unsigned count = list_for_level(l)->count();
+    if (count > 0) {
+      local_count.add_multiple(count, count * chklvl::word_size_for_level(l));
+    }
+
   }
-  _total_num_chunks.check(num);
-  _total_word_size.check(word_size);
+
+  _counter.check(local_count);
 
 }
 #endif // ASSERT
 
-void MetachunkListCluster::print_on(outputStream* st) const {
+void MetachunkListVector::print_on(outputStream* st) const {
 
   for (chklvl_t l = chklvl::LOWEST_CHUNK_LEVEL; l <= chklvl::HIGHEST_CHUNK_LEVEL; l ++) {
     st->print("-- List[" CHKLVL_FORMAT "]: ", l);
     list_for_level(l)->print_on(st);
     st->cr();
   }
-  st->print_cr("total chunks: %d, total word size: " SIZE_FORMAT ".", _total_num_chunks.get(), _total_word_size.get());
+  st->print_cr("total chunks: %d, total word size: " SIZE_FORMAT ".", _counter.count(), _counter.total_size());
 
 }
 

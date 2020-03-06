@@ -110,7 +110,7 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
          (_is_micro_loader || current_chunk()->free_below_committed_words() <= 10), "Must retire chunk beforehand");
 
   const chklvl_t min_level = chklvl::level_fitting_word_size(requested_word_size);
-  chklvl_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.size());
+  chklvl_t pref_level = _chunk_alloc_sequence->get_next_chunk_level(_chunks.count());
 
   if (pref_level > min_level) {
     pref_level = min_level;
@@ -118,7 +118,7 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
   log_trace(metaspace)(LOGFMT_SPCMGR ": requested word size_ " SIZE_FORMAT ", num chunks so far: %d, preferred level: "
                        CHKLVL_FORMAT ", min level: " CHKLVL_FORMAT ".",
-                       LOGFMT_SPCMGR_ARGS, requested_word_size, _chunks.size(), pref_level, min_level);
+                       LOGFMT_SPCMGR_ARGS, requested_word_size, _chunks.count(), pref_level, min_level);
 
   Metachunk* c = _chunk_manager->get_chunk(min_level, pref_level);
   if (c == NULL) {
@@ -320,7 +320,7 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
         current_chunk()->is_root_chunk() == false &&        // 1
         current_chunk()->is_leader() &&                     // 2
         current_chunk()->word_size() + current_chunk()->free_words() >= requested_word_size &&      // 3
-        _chunk_alloc_sequence->get_next_chunk_level(_chunks.size()) <= current_chunk()->level() &&  // 4
+        _chunk_alloc_sequence->get_next_chunk_level(_chunks.count()) <= current_chunk()->level() &&  // 4
         current_chunk()->word_size() <= Settings::enlarge_chunks_in_place_max_word_size())          // 5
     {
 

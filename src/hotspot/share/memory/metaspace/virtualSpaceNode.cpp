@@ -366,7 +366,7 @@ Metachunk* VirtualSpaceNode::allocate_root_chunk() {
 //  free chunks to the freelists.
 //
 // Returns NULL if chunk cannot be split at least once.
-Metachunk* VirtualSpaceNode::split(chklvl_t target_level, Metachunk* c, MetachunkListCluster* freelists) {
+Metachunk* VirtualSpaceNode::split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 
@@ -389,7 +389,7 @@ Metachunk* VirtualSpaceNode::split(chklvl_t target_level, Metachunk* c, Metachun
 //
 // !!! Please note that if this method returns a non-NULL value, the
 // original chunk will be invalid and should not be accessed anymore! !!!
-Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListCluster* freelists) {
+Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListVector* freelists) {
 
   assert(c != NULL && c->is_free(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
@@ -414,7 +414,7 @@ Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListCluster* freelists
 // double in size (level decreased by one).
 //
 // On success, true is returned, false otherwise.
-bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster* freelists) {
+bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists) {
 
   assert(c != NULL && c->is_in_use() && !c->is_root_chunk(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
@@ -437,7 +437,7 @@ bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster*
 //
 // Returns true if the node has been deleted, false if not.
 // !! If this returns true, do not access the node from this point on. !!
-bool VirtualSpaceNode::attempt_purge(MetachunkListCluster* freelists) {
+bool VirtualSpaceNode::attempt_purge(MetachunkListVector* freelists) {
 
   assert_lock_strong(MetaspaceExpand_lock);
 

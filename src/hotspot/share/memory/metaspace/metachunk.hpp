@@ -258,6 +258,8 @@ public:
 
 /////////
 // A list of Metachunks.
+//
+// Note: no assumption is made about the chunk sizes.
 class MetachunkList {
 
   Metachunk* _first;
@@ -270,7 +272,7 @@ public:
   MetachunkList() : _first(NULL), _num() {}
 
   Metachunk* first() const { return _first; }
-  int size() const { return _num.get(); }
+  int count() const { return _num.get(); }
 
   void add(Metachunk* c) {
     assert(!c->in_list(), "Chunk must not be in a list");
@@ -340,12 +342,14 @@ public:
 };
 
 //////////////////
-// A cluster of Metachunk Lists, one for each chunk level, together with associated counters.
-class MetachunkListCluster {
+// A set of Metachunk lists.
+//
+// List are homogenously sized, and there is a list per chunk level.
+//
+class MetachunkListVector {
 
   MetachunkList _lists[chklvl::NUM_CHUNK_LEVELS];
-  SizeCounter   _total_word_size;
-  IntCounter    _total_num_chunks;
+  MemRangeCounter _counter;
 
   const MetachunkList* list_for_level(chklvl_t lvl) const         { DEBUG_ONLY(chklvl::check_valid_level(lvl)); return _lists + lvl; }
   MetachunkList* list_for_level(chklvl_t lvl)                     { DEBUG_ONLY(chklvl::check_valid_level(lvl)); return _lists + lvl; }
@@ -361,29 +365,26 @@ public:
   // Remove given chunk from its list. List must contain that chunk.
   void remove(Metachunk* c) {
     list_for_chunk(c)->remove(c);
-    _total_word_size.decrement_by(c->word_size());
-    _total_num_chunks.decrement();
+    _counter.sub(c->word_size());
   }
 
   // Remove first node unless empty. Returns node or NULL.
   Metachunk* remove_first(chklvl_t lvl) {
     Metachunk* c = list_for_level(lvl)->remove_first();
     if (c != NULL) {
-      _total_word_size.decrement_by(c->word_size());
-      _total_num_chunks.decrement();
+      _counter.sub(c->word_size());
     }
     return c;
   }
 
   void add(Metachunk* c) {
     list_for_chunk(c)->add(c);
-    _total_word_size.increment_by(c->word_size());
-    _total_num_chunks.increment();
+    _counter.add(c->word_size());
   }
 
   // Returns number of chunks for a given level.
   int num_chunks_at_level(chklvl_t lvl) const {
-    return list_for_level(lvl)->size();
+    return list_for_level(lvl)->count();
   }
 
   // Returns number of chunks for a given level.
@@ -392,10 +393,10 @@ public:
   }
 
   // Returs word size, in total, of all chunks in all lists.
-  size_t total_word_size() const          { return _total_word_size.get(); }
+  size_t total_word_size() const          { return _counter.total_size(); }
 
   // Returns number of chunks in total
-  int total_num_chunks() const            { return _total_num_chunks.get(); }
+  int total_num_chunks() const            { return _counter.count(); }
 
   // Returns size, in words, of committed space of all chunks in all list.
   // Note: walks lists.

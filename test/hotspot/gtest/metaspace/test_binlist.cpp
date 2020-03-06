@@ -121,7 +121,7 @@ struct BinListBasicTest {
   static void random_test() {
 
     metaspace::BinListImpl<T> bl[2];
-    BlockCounter cnt[2];
+    MemRangeCounter cnt[2];
 
 #define CHECK_COUNTERS \
   cnt[0].check(bl[0].count(), bl[0].total_size()); \

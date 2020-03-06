@@ -44,7 +44,7 @@ class outputStream;
 namespace metaspace {
 
 class CommitLimiter;
-class MetachunkListCluster;
+class MetachunkListVector;
 
 // VirtualSpaceNode manages a single address range of the Metaspace.
 //
@@ -166,7 +166,7 @@ public:
   //  free chunks to the freelists.
   //
   // Returns NULL if chunk cannot be split at least once.
-  Metachunk* split(chklvl_t target_level, Metachunk* c, MetachunkListCluster* freelists);
+  Metachunk* split(chklvl_t target_level, Metachunk* c, MetachunkListVector* freelists);
 
   // Given a chunk, attempt to merge it recursively with its neighboring chunks.
   //
@@ -177,7 +177,7 @@ public:
   //
   // !!! Please note that if this method returns a non-NULL value, the
   // original chunk will be invalid and should not be accessed anymore! !!!
-  Metachunk* merge(Metachunk* c, MetachunkListCluster* freelists);
+  Metachunk* merge(Metachunk* c, MetachunkListVector* freelists);
 
   // Given a chunk c, which must be "in use" and must not be a root chunk, attempt to
   // enlarge it in place by claiming its trailing buddy.
@@ -188,7 +188,7 @@ public:
   // double in size (level decreased by one).
   //
   // On success, true is returned, false otherwise.
-  bool attempt_enlarge_chunk(Metachunk* c, MetachunkListCluster* freelists);
+  bool attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* freelists);
 
   // Attempts to purge the node:
   //
@@ -197,7 +197,7 @@ public:
   //
   // Returns true if the node has been deleted, false if not.
   // !! If this returns true, do not access the node from this point on. !!
-  bool attempt_purge(MetachunkListCluster* freelists);
+  bool attempt_purge(MetachunkListVector* freelists);
 
   // Attempts to uncommit free areas according to the rules set in settings.
   // Returns number of words uncommitted.
