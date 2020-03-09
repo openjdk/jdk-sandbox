@@ -509,9 +509,9 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER],
       RESULT: BUILD_FAILURE_HANDLER,
       DESC: [enable keeping of packaged modules in jdk image],
       DEFAULT_DESC: [enabled if jtreg is present],
-      CHECKING_MSG: [if jtreg failure handler should be built],
+      CHECKING_MSG: [if the jtreg failure handler should be built],
       CHECK_AVAILABLE: [
-        AC_MSG_CHECKING([if jtreg failure handler is available])
+        AC_MSG_CHECKING([if the jtreg failure handler is available])
         if test "x$JT_HOME" != "x"; then
           AC_MSG_RESULT([yes])
         else
@@ -528,39 +528,14 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER],
 #
 AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
 [
-  AC_ARG_ENABLE([generate-classlist], [AS_HELP_STRING([--disable-generate-classlist],
-      [forces enabling or disabling of the generation of a CDS classlist at build time.
-      Default is to generate it when either the server or client JVMs are built and
-      enable-cds is true.])])
-
-  # In jvm-features.m4 ENABLE_CDS is set to true iff all JVM variants has cds
-  # enabled.
-
-  AC_MSG_CHECKING([if the CDS classlist generation should be enabled])
-  if test "x$enable_generate_classlist" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-    ENABLE_GENERATE_CLASSLIST="true"
-    if test "x$ENABLE_CDS" = "xfalse"; then
-      # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
-      # classlist file. It never will work in this case since the VM will report
-      # an error for DumpLoadedClassList when CDS is disabled.
-      AC_MSG_ERROR([Generation of classlist is not possible without JVM feature 'cds'])
-    fi
-  elif test "x$enable_generate_classlist" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    ENABLE_GENERATE_CLASSLIST="false"
-  elif test "x$enable_generate_classlist" = "x"; then
-    if test "x$ENABLE_CDS" = "xtrue"; then
-      AC_MSG_RESULT([yes])
-      ENABLE_GENERATE_CLASSLIST="true"
-    else
-      AC_MSG_RESULT([no])
-      ENABLE_GENERATE_CLASSLIST="false"
-    fi
-  else
-    AC_MSG_ERROR([Invalid value for --enable-generate-classlist: $enable_generate_classlist])
-  fi
-
+  # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
+  # classlist file. It never will work  if CDS is disabled, since the VM will report
+  # an error for DumpLoadedClassList.
+  UTIL_ARG_ENABLE(NAME: generate-classlist, DEFAULT: auto,
+      RESULT: ENABLE_GENERATE_CLASSLIST, AVAILABLE: $ENABLE_CDS,
+      DESC: [enable generation of a CDS classlist at build time],
+      DEFAULT_DESC: [enabled if the JVM feature 'cds' is enabled for all JVM variants],
+      CHECKING_MSG: [if the CDS classlist generation should be enabled])
   AC_SUBST(ENABLE_GENERATE_CLASSLIST)
 ])
 
@@ -592,56 +567,32 @@ AC_DEFUN([JDKOPT_EXCLUDE_TRANSLATIONS],
 #
 AC_DEFUN([JDKOPT_ENABLE_DISABLE_MANPAGES],
 [
-  AC_ARG_ENABLE([manpages], [AS_HELP_STRING([--disable-manpages],
-      [Set to disable copy of static man pages @<:@enabled@:>@])])
-
-  BUILD_MANPAGES="true"
-  AC_MSG_CHECKING([if static man pages should be copied])
-  if test "x$enable_manpages" = "x"; then
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_manpages" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-  elif test "x$enable_manpages" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    BUILD_MANPAGES="false"
-  else
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([--enable-manpages can only yes/no or empty])
-  fi
-
+  UTIL_ARG_ENABLE(NAME: manpages, DEFAULT: true, RESULT: BUILD_MANPAGES,
+      DESC: [enable copying of static man pages],
+      CHECKING_MSG: [if static man pages should be copied])
   AC_SUBST(BUILD_MANPAGES)
 ])
 
 ################################################################################
 #
 # Disable the default CDS archive generation
-#   cross compilation - disabled
 #
 AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
 [
-  AC_ARG_ENABLE([cds-archive], [AS_HELP_STRING([--disable-cds-archive],
-      [Set to disable generation of a default CDS archive in the product image @<:@enabled@:>@])])
-
-  AC_MSG_CHECKING([if a default CDS archive should be generated])
-  if test "x$ENABLE_CDS" = "xfalse"; then
-    AC_MSG_RESULT([no, because CDS is disabled])
-    BUILD_CDS_ARCHIVE="false"
-  elif test "x$COMPILE_TYPE" = "xcross"; then
-    AC_MSG_RESULT([no, not possible with cross compilation])
-    BUILD_CDS_ARCHIVE="false"
-  elif test "x$enable_cds_archive" = "xyes"; then
-    AC_MSG_RESULT([yes, forced])
-    BUILD_CDS_ARCHIVE="true"
-  elif test "x$enable_cds_archive" = "x"; then
-    AC_MSG_RESULT([yes])
-    BUILD_CDS_ARCHIVE="true"
-  elif test "x$enable_cds_archive" = "xno"; then
-    AC_MSG_RESULT([no, forced])
-    BUILD_CDS_ARCHIVE="false"
-  else
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([--enable-cds_archive can only be yes/no or empty])
-  fi
-
-  AC_SUBST(BUILD_CDS_ARCHIVE)
+  UTIL_ARG_ENABLE(NAME: cds-archive, DEFAULT: auto, RESULT: BUILD_CDS_ARCHIVE,
+      DESC: [enable generation of a default CDS archive in the product image],
+      DEFAULT_DESC: [enabled if possible],
+      CHECKING_MSG: [if a default CDS archive should be generated],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if CDS archive is available])
+        if test "x$ENABLE_CDS" = "xfalse"; then
+          AC_MSG_RESULT([no (CDS is disabled)])
+          AVAILABLE=false
+        elif test "x$COMPILE_TYPE" = "xcross"; then
+          AC_MSG_RESULT([no (not possible with cross compilation)])
+          AVAILABLE=false
+        else
+          AC_MSG_RESULT([yes])
+        fi
+      ])
 ])
