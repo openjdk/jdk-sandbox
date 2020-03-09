@@ -269,7 +269,7 @@ AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
 #     to the literal value of DEFAULT.
 #   CHECKING_MSG: The message to present to user when checking this option.
 #     Defaults to a generic message.
-#   AVAILABLE_CHECK: An optional code block to execute to determine if the
+#   CHECK_AVAILABLE: An optional code block to execute to determine if the
 #     option should be available. Must set AVAILABLE to 'false' if not.
 #   IF_GIVEN:  An optional code block to execute if the option was given on the
 #     command line (regardless of the value).
@@ -278,7 +278,7 @@ AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
 #
 UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
     [*NAME RESULT DEFAULT DEFAULT_DESC DESC CHECKING_MSG AVAILABLE
-    AVAILABLE_CHECK MISSING_DEPS_MSG IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
+    CHECK_AVAILABLE MISSING_DEPS_MSG IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
 [
   ##########################
   # Part 1: Set up m4 macros
@@ -300,14 +300,14 @@ UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
   m4_define(ARG_GIVEN, m4_translit(ARG_NAME, [a-z-], [A-Z_])[_GIVEN])
 
   # If DESC is not specified, set it to a generic description.
-  m4_define([ARG_DESC], ifelse(ARG_DESC, , [Enable the ARG_NAME feature], ARG_DESC))
+  m4_define([ARG_DESC], ifelse(ARG_DESC, , [Enable the ARG_NAME feature], m4_normalize(ARG_DESC)))
 
   # If CHECKING_MSG is not specified, set it to a generic description.
   m4_define([ARG_CHECKING_MSG], ifelse(ARG_CHECKING_MSG, , [for --enable-ARG_NAME], ARG_CHECKING_MSG))
 
   # If the code blocks are not given, set them to the empty statements to avoid
   # tripping up bash.
-  m4_define([ARG_AVAILABLE_CHECK], ifelse(ARG_AVAILABLE_CHECK, , :, ARG_AVAILABLE_CHECK))
+  m4_define([ARG_CHECK_AVAILABLE], ifelse(ARG_CHECK_AVAILABLE, , :, ARG_CHECK_AVAILABLE))
   m4_define([ARG_IF_GIVEN], ifelse(ARG_IF_GIVEN, , :, ARG_IF_GIVEN))
   m4_define([ARG_IF_ENABLED], ifelse(ARG_IF_ENABLED, , :, ARG_IF_ENABLED))
   m4_define([ARG_IF_DISABLED], ifelse(ARG_IF_DISABLED, , :, ARG_IF_DISABLED))
@@ -333,7 +333,7 @@ UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
   # Check if the option is available
   AVAILABLE=ARG_AVAILABLE
   # Run the available check block (if any), which can overwrite AVAILABLE.
-  ARG_AVAILABLE_CHECK
+  ARG_CHECK_AVAILABLE
 
   # Check if the option should be turned on
   AC_MSG_CHECKING(ARG_CHECKING_MSG)
