@@ -26,13 +26,7 @@ package java.util.stream;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Spliterator;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -281,6 +275,24 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @return the new stream
      */
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
+
+
+    /**
+     * consumerFlatMap test implementation
+     * @param mapper BiConsumer
+     * @param <R> Result
+     * @return Stream
+     */
+    default <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+        return this.flatMap(e -> {
+            List<R> buffer = new ArrayList<>();
+            Consumer<R> c =  buffer::add;
+
+            mapper.accept(e, c);
+            // make sure any operation on c throws an exception
+            return buffer.stream();
+        });
+    }
 
     /**
      * Returns an {@code IntStream} consisting of the results of replacing each
