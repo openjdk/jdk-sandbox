@@ -53,7 +53,7 @@ m4_include([util_windows.m4])
 AC_DEFUN([UTIL_DEFUN_NAMED],
 [
   AC_DEFUN($1, [
-    m4_foreach(arg, m4_split($2), [
+    m4_foreach(arg, m4_split(m4_normalize($2)), [
       m4_if(m4_bregexp(arg, [^\*]), -1,
         [
           m4_set_add(legal_named_args, arg)
@@ -248,6 +248,145 @@ AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
     # e.g.: enable_old_style="$enable_new_alias"
     m4_translit(m4_bpatsubst($2, --), -, _)="$[enable_]m4_translit($1, -, _)"
   ])
+])
+
+
+
+# Creates a command-line option using the --enable-* pattern.
+#
+# Arguments:
+#   NAME:   The version string to check against the found version
+#   DEFAULT:   block to run if the compiler is at least this version (>=)
+#   IF_OLDER_THAN:   block to run if the compiler is older than this version (<)
+#   PREFIX:   Optional variable prefix for compiler to compare version for (OPENJDK_BUILD_)
+
+# args:
+# NAME: arg name
+# RESULT: variable to set to true or false
+# DEFAULT: default on or off or auto? (can be "off" even if we have a dep-check-block!)
+# (description for default, if not "enabled", "disabled" or "auto" --- perhaps not needed)
+# DESC: description
+# CHECKING_MSG message for CHECKING (otherwise "checking if <warnings-is-errors> is enabled")
+# missing dependencies etc, means "on" is impossible and default_on == auto
+#   because it depends on circumstances. name of variable to check, perhaps?
+#   or a code block to execute... create a bash function, so we can use
+#   return <n>?
+# if we have missing dep check on, and "yes" is forced, supply a user message. also display this message as a reason for
+# chosing "off" by default? yeah, AVAILABLE_CHECK or AVAILABLE,
+# and a MISSING_DEPS_MSG used in both error (for force=yes) and info (for default).
+# IF_ENABLED if_enabled: block, in addition to setting variable.
+# IF_DISABLED if_disabled: block
+# IF_GIVEN: block
+
+#
+
+UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
+    [*NAME RESULT DEFAULT DEFAULT_DESC DESC CHECKING_MSG AVAILABLE
+    AVAILABLE_CHECK MISSING_DEPS_MSG IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
+[
+  ##########################
+  # Part 1: Set up m4 macros
+  ##########################
+
+  # If DEFAULT is not specified, set it to 'true'.
+  m4_define([ARG_DEFAULT], ifelse(ARG_DEFAULT, , true, ARG_DEFAULT))
+  # Check that DEFAULT has a valid value
+  DEFAULT_VAL_CHECK=ifelse(ARG_DEFAULT, true, OK, ifelse(ARG_DEFAULT, false, OK, ifelse(ARG_DEFAULT, auto, OK, ERROR)))
+  if test "x$DEFAULT_VAL_CHECK" = xERROR; then
+    AC_MSG_ERROR([Internal error: Argument DEFAULT to [UTIL_ARG_ENABLE] can only be true, false or auto, was: 'ARG_DEFAULT'])
+  fi
+
+  # If AVAILABLE is not specified, set it to 'true'.
+  m4_define([ARG_AVAILABLE], ifelse(ARG_AVAILABLE, , true, ARG_AVAILABLE))
+  # Check that AVAILABLE has a valid value
+  AVAILABLE_VAL_CHECK=ifelse(ARG_AVAILABLE, true, OK, ifelse(ARG_AVAILABLE, false, OK, ERROR))
+  if test "x$AVAILABLE_VAL_CHECK" = xERROR; then
+    AC_MSG_ERROR([Internal error: Argument AVAILABLE to [UTIL_ARG_ENABLE] can only be true, or false, was: 'ARG_AVAILABLE'])
+  fi
+
+  # If DEFAULT_DESC is not specified, calculate it from DEFAULT.
+  m4_define([ARG_DEFAULT_DESC], ifelse(ARG_DEFAULT_DESC, , ifelse(ARG_DEFAULT, true, enabled, ifelse(ARG_DEFAULT, false, disabled, ARG_DEFAULT)), ARG_DEFAULT_DESC))
+
+  # If RESULT is not specified, set it to 'ARG_NAME[_ENABLED]'.
+  m4_define([ARG_RESULT], ifelse(ARG_RESULT, , m4_translit(ARG_NAME, [a-z-], [A-Z_])[_ENABLED], ARG_RESULT))
+  m4_define(ARG_GIVEN, m4_translit(ARG_NAME, [a-z-], [A-Z_])[_GIVEN])
+  m4_define(ARG_OPTION, [enable_]m4_translit(ARG_NAME, [-], [_]))
+
+  # If DESC is not specified, set it to a generic description.
+  m4_define([ARG_DESC], ifelse(ARG_DESC, , [Enable the ARG_NAME feature], ARG_DESC))
+
+  # If CHECKING_MSG is not specified, set it to a generic description.
+  m4_define([ARG_CHECKING_MSG], ifelse(ARG_CHECKING_MSG, , [for --enable-ARG_NAME], ARG_CHECKING_MSG))
+
+  # If the code blocks are not given, set them to the empty statements to avoid
+  # tripping up bash.
+  m4_define([ARG_AVAILABLE_CHECK], ifelse(ARG_AVAILABLE_CHECK, , :, ARG_AVAILABLE_CHECK))
+  m4_define([ARG_IF_GIVEN], ifelse(ARG_IF_GIVEN, , :, ARG_IF_GIVEN))
+  m4_define([ARG_IF_ENABLED], ifelse(ARG_IF_ENABLED, , :, ARG_IF_ENABLED))
+  m4_define([ARG_IF_DISABLED], ifelse(ARG_IF_DISABLED, , :, ARG_IF_DISABLED))
+
+  ##########################
+  # Part 2: Set up autoconf shell code
+  ##########################
+
+  AC_ARG_ENABLE(ARG_NAME, AS_HELP_STRING([--enable-]ARG_NAME,
+      [ARG_DESC [ARG_DEFAULT_DESC]]), [ARG_GIVEN=true], [ARG_GIVEN=false])
+
+  # Check if the option is available
+  AVAILABLE=ARG_AVAILABLE
+  # Run the available check block (if any), which can overwrite AVAILABLE.
+  ARG_AVAILABLE_CHECK
+
+  # Check if the option should be turned on
+  AC_MSG_CHECKING(ARG_CHECKING_MSG)
+  if test x$ARG_GIVEN = xfalse; then
+    if test ARG_DEFAULT = auto; then
+      # If not given, and default is auto, set it to true iff it's available.
+      ARG_RESULT=$AVAILABLE
+      REASON="from default 'auto'"
+    else
+      ARG_RESULT=ARG_DEFAULT
+      REASON="default"
+    fi
+  else
+    if test x$ARG_OPTION = xyes; then
+      ARG_RESULT=true
+      REASON="from command line"
+    elif test x$ARG_OPTION = xno; then
+      ARG_RESULT=false
+      REASON="from command line"
+    elif test x$ARG_OPTION = xauto; then
+      if test ARG_DEFAULT = auto; then
+        # If both given and default is auto, set it to true iff it's available.
+        ARG_RESULT=$AVAILABLE
+      else
+        ARG_RESULT=ARG_DEFAULT
+      fi
+      REASON="from command line 'auto'"
+    else
+      AC_MSG_ERROR([Option [--enable-]ARG_NAME can only be 'yes', 'no' or 'auto'])
+    fi
+  fi
+
+  if test x$ARG_RESULT = xtrue; then
+    AC_MSG_RESULT([enabled, $REASON])
+    if test x$AVAILABLE = xfalse; then
+      AC_MSG_ERROR([Option [--enable-]ARG_NAME is not available])
+    fi
+  else
+    AC_MSG_RESULT([disabled, $REASON])
+  fi
+
+  # Execute result payloads, if present
+  if test x$ARG_GIVEN = xtrue; then
+    ARG_IF_GIVEN
+  fi
+
+  if test x$ARG_RESULT = xtrue; then
+    ARG_IF_ENABLED
+  else
+    ARG_IF_DISABLED
+  fi
 ])
 
 ###############################################################################
