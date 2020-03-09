@@ -250,36 +250,32 @@ AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
   ])
 ])
 
-
-
-# Creates a command-line option using the --enable-* pattern.
+###############################################################################
+# Creates a command-line option using the --enable-* pattern. Will return a
+# value of 'true' or 'false' in the RESULT variable, depending on whether the
+# option was enabled or not by the user. The option can not be turned on if it
+# is not available, as specified by AVAILABLE and/or AVAILABLE_CHECK.
 #
 # Arguments:
-#   NAME:   The version string to check against the found version
-#   DEFAULT:   block to run if the compiler is at least this version (>=)
-#   IF_OLDER_THAN:   block to run if the compiler is older than this version (<)
-#   PREFIX:   Optional variable prefix for compiler to compare version for (OPENJDK_BUILD_)
-
-# args:
-# NAME: arg name
-# RESULT: variable to set to true or false
-# DEFAULT: default on or off or auto? (can be "off" even if we have a dep-check-block!)
-# (description for default, if not "enabled", "disabled" or "auto" --- perhaps not needed)
-# DESC: description
-# CHECKING_MSG message for CHECKING (otherwise "checking if <warnings-is-errors> is enabled")
-# missing dependencies etc, means "on" is impossible and default_on == auto
-#   because it depends on circumstances. name of variable to check, perhaps?
-#   or a code block to execute... create a bash function, so we can use
-#   return <n>?
-# if we have missing dep check on, and "yes" is forced, supply a user message. also display this message as a reason for
-# chosing "off" by default? yeah, AVAILABLE_CHECK or AVAILABLE,
-# and a MISSING_DEPS_MSG used in both error (for force=yes) and info (for default).
-# IF_ENABLED if_enabled: block, in addition to setting variable.
-# IF_DISABLED if_disabled: block
-# IF_GIVEN: block
-
+#   NAME: The base name of this option (i.e. what follows --enable-). Required.
+#   RESULT: The name of the variable to set to the result. Defaults to
+#     <NAME in uppercase>_RESULT.
+#   DEFAULT: The default value for this option. Can be true, false or auto.
+#     Defaults to true.
+#   AVAILABLE: If true, this option is allowed to be selected. Defaults to true.
+#   DESC: A description of this option. Defaults to a generic and unhelpful
+#     string.
+#   DEFAULT_DESC: A message describing the default value, for the help. Defaults
+#     to the literal value of DEFAULT.
+#   CHECKING_MSG: The message to present to user when checking this option.
+#     Defaults to a generic message.
+#   AVAILABLE_CHECK: An optional code block to execute to determine if the
+#     option should be available. Must set AVAILABLE to 'false' if not.
+#   IF_GIVEN:  An optional code block to execute if the option was given on the
+#     command line (regardless of the value).
+#   IF_ENABLED:  An optional code block to execute if the option is turned on.
+#   IF_DISABLED:  An optional code block to execute if the option is turned off.
 #
-
 UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
     [*NAME RESULT DEFAULT DEFAULT_DESC DESC CHECKING_MSG AVAILABLE
     AVAILABLE_CHECK MISSING_DEPS_MSG IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
@@ -309,8 +305,9 @@ UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
 
   # If RESULT is not specified, set it to 'ARG_NAME[_ENABLED]'.
   m4_define([ARG_RESULT], ifelse(ARG_RESULT, , m4_translit(ARG_NAME, [a-z-], [A-Z_])[_ENABLED], ARG_RESULT))
-  m4_define(ARG_GIVEN, m4_translit(ARG_NAME, [a-z-], [A-Z_])[_GIVEN])
+  # Construct shell variable names for the option
   m4_define(ARG_OPTION, [enable_]m4_translit(ARG_NAME, [-], [_]))
+  m4_define(ARG_GIVEN, m4_translit(ARG_NAME, [a-z-], [A-Z_])[_GIVEN])
 
   # If DESC is not specified, set it to a generic description.
   m4_define([ARG_DESC], ifelse(ARG_DESC, , [Enable the ARG_NAME feature], ARG_DESC))
