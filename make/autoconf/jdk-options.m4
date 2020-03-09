@@ -45,20 +45,17 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VARIANT],
 #    slowdebug: debug information (-g), no optimizations, all asserts
 AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_LEVEL],
 [
+  UTIL_ARG_ENABLE(NAME: debug, DEFAULT: false, RESULT: ENABLE_DEBUG,
+      DESC: [enable debugging (shorthand for --with-debug-level=fastdebug)],
+      IF_ENABLED: [ DEBUG_LEVEL="fastdebug" ])
+
   DEBUG_LEVEL="release"
   AC_MSG_CHECKING([which debug level to use])
-  AC_ARG_ENABLE([debug], [AS_HELP_STRING([--enable-debug],
-      [set the debug level to fastdebug (shorthand for --with-debug-level=fastdebug) @<:@disabled@:>@])],
-      [
-        ENABLE_DEBUG="${enableval}"
-        DEBUG_LEVEL="fastdebug"
-      ], [ENABLE_DEBUG="no"])
-
   AC_ARG_WITH([debug-level], [AS_HELP_STRING([--with-debug-level],
       [set the debug level (release, fastdebug, slowdebug, optimized) @<:@release@:>@])],
       [
         DEBUG_LEVEL="${withval}"
-        if test "x$ENABLE_DEBUG" = xyes; then
+        if test "x$ENABLE_DEBUG" = xtrue; then
           AC_MSG_ERROR([You cannot use both --enable-debug and --with-debug-level at the same time.])
         fi
       ])
@@ -103,77 +100,42 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_LEVEL],
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_OPEN_OR_CUSTOM],
 [
-  AC_ARG_ENABLE([openjdk-only], [AS_HELP_STRING([--enable-openjdk-only],
-      [suppress building custom source even if present @<:@disabled@:>@])],,[enable_openjdk_only="no"])
-
-  AC_MSG_CHECKING([if custom source is suppressed (openjdk-only)])
-  AC_MSG_RESULT([$enable_openjdk_only])
-  if test "x$enable_openjdk_only" = "xyes"; then
-    SUPPRESS_CUSTOM_EXTENSIONS="true"
-  elif test "x$enable_openjdk_only" = "xno"; then
-    SUPPRESS_CUSTOM_EXTENSIONS="false"
-  else
-    AC_MSG_ERROR([Invalid value for --enable-openjdk-only: $enable_openjdk_only])
-  fi
+  UTIL_ARG_ENABLE(NAME: openjdk-only, DEFAULT: false,
+      RESULT: SUPPRESS_CUSTOM_EXTENSIONS,
+      DESC: [suppress building custom source even if present],
+      CHECKING_MSG: [if custom source is suppressed (openjdk-only)])
 ])
 
 AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
 [
   # Should we build a JDK without a graphical UI?
-  AC_MSG_CHECKING([headless only])
-  AC_ARG_ENABLE([headless-only], [AS_HELP_STRING([--enable-headless-only],
-      [only build headless (no GUI) support @<:@disabled@:>@])])
-
-  if test "x$enable_headless_only" = "xyes"; then
-    ENABLE_HEADLESS_ONLY="true"
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_headless_only" = "xno"; then
-    ENABLE_HEADLESS_ONLY="false"
-    AC_MSG_RESULT([no])
-  elif test "x$enable_headless_only" = "x"; then
-    ENABLE_HEADLESS_ONLY="false"
-    AC_MSG_RESULT([no])
-  else
-    AC_MSG_ERROR([--enable-headless-only can only take yes or no])
-  fi
-
+  UTIL_ARG_ENABLE(NAME: headless-only, DEFAULT: false,
+      RESULT: ENABLE_HEADLESS_ONLY,
+      DESC: [only build headless (no GUI) support],
+      CHECKING_MSG: [if we should build headless-only (no GUI)])
   AC_SUBST(ENABLE_HEADLESS_ONLY)
 
   # should we linktime gc unused code sections in the JDK build ?
-  AC_MSG_CHECKING([linktime gc])
-  AC_ARG_ENABLE([linktime-gc], [AS_HELP_STRING([--enable-linktime-gc],
-      [linktime gc unused code sections in the JDK build @<:@disabled@:>@])])
-
-  if test "x$enable_linktime_gc" = "xyes"; then
-    ENABLE_LINKTIME_GC="true"
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_linktime_gc" = "xno"; then
-    ENABLE_LINKTIME_GC="false"
-    AC_MSG_RESULT([no])
-  elif test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = xs390x; then
-    ENABLE_LINKTIME_GC="true"
-    AC_MSG_RESULT([yes])
-  elif test "x$enable_linktime_gc" = "x"; then
-    ENABLE_LINKTIME_GC="false"
-    AC_MSG_RESULT([no])
+  if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = xs390x; then
+    LINKTIME_GC_DEFAULT=true
   else
-    AC_MSG_ERROR([--enable-linktime-gc can only take yes or no])
+    LINKTIME_GC_DEFAULT=false
   fi
 
+  UTIL_ARG_ENABLE(NAME: linktime-gc, DEFAULT: $LINKTIME_GC_DEFAULT,
+      DEFAULT_DESC: [auto], RESULT: ENABLE_LINKTIME_GC,
+      DESC: [use link time gc on unused code sections in the JDK build],
+      CHECKING_MSG: [if linker should clean out unused code (linktime-gc)])
   AC_SUBST(ENABLE_LINKTIME_GC)
 
-
-  # Should we build the complete docs, or just a lightweight version?
-  AC_ARG_ENABLE([full-docs], [AS_HELP_STRING([--enable-full-docs],
-      [build complete documentation @<:@enabled if all tools found@:>@])])
-
-  # Verify dependencies
+  # Check for full doc dependencies
+  FULL_DOCS_AVAILABLE=true
   AC_MSG_CHECKING([for graphviz dot])
   if test "x$DOT" != "x"; then
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no, cannot generate full docs])
-    FULL_DOCS_DEP_MISSING=true
+    FULL_DOCS_AVAILABLE=false
   fi
 
   AC_MSG_CHECKING([for pandoc])
@@ -181,35 +143,13 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no, cannot generate full docs])
-    FULL_DOCS_DEP_MISSING=true
+    FULL_DOCS_AVAILABLE=false
   fi
 
-  AC_MSG_CHECKING([full docs])
-  if test "x$enable_full_docs" = xyes; then
-    if test "x$FULL_DOCS_DEP_MISSING" = "xtrue"; then
-      AC_MSG_RESULT([no, missing dependencies])
-      HELP_MSG_MISSING_DEPENDENCY([dot])
-      AC_MSG_ERROR([Cannot enable full docs with missing dependencies. See above. $HELP_MSG])
-    else
-      ENABLE_FULL_DOCS=true
-      AC_MSG_RESULT([yes, forced])
-    fi
-  elif test "x$enable_full_docs" = xno; then
-    ENABLE_FULL_DOCS=false
-    AC_MSG_RESULT([no, forced])
-  elif test "x$enable_full_docs" = x; then
-    # Check for prerequisites
-    if test "x$FULL_DOCS_DEP_MISSING" = xtrue; then
-      ENABLE_FULL_DOCS=false
-      AC_MSG_RESULT([no, missing dependencies])
-    else
-      ENABLE_FULL_DOCS=true
-      AC_MSG_RESULT([yes, dependencies present])
-    fi
-  else
-    AC_MSG_ERROR([--enable-full-docs can only take yes or no])
-  fi
-
+  # Should we build the complete docs, or just a lightweight version?
+  UTIL_ARG_ENABLE(NAME: full-docs, DEFAULT: auto, RESULT: ENABLE_FULL_DOCS,
+      AVAILABLE: $FULL_DOCS_AVAILABLE, DESC: [build complete documentation],
+      DEFAULT_DESC: [enabled if all tools found])
   AC_SUBST(ENABLE_FULL_DOCS)
 
   # Choose cacerts source file
