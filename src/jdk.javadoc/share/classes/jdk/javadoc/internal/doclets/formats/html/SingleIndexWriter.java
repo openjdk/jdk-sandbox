@@ -99,22 +99,21 @@ public class SingleIndexWriter extends AbstractIndexWriter {
         addTop(headerContent);
         navBar.setUserHeader(getUserHeaderFooter(true));
         headerContent.add(navBar.getContent(true));
-        HtmlTree divTree = new HtmlTree(HtmlTag.DIV);
-        divTree.setStyle(HtmlStyle.contentContainer);
+        Content mainContent = new ContentBuilder();
         elements = new TreeSet<>(indexBuilder.asMap().keySet());
-        elements.addAll(configuration.tagSearchIndexKeys);
-        addLinksForIndexes(divTree);
+        elements.addAll(tagSearchIndexMap.keySet());
+        addLinksForIndexes(mainContent);
         for (Character unicode : elements) {
-            if (configuration.tagSearchIndexMap.get(unicode) == null) {
-                addContents(unicode, indexBuilder.getMemberList(unicode), divTree);
+            if (tagSearchIndexMap.get(unicode) == null) {
+                addContents(unicode, indexBuilder.getMemberList(unicode), mainContent);
             } else if (indexBuilder.getMemberList(unicode) == null) {
-                addSearchContents(unicode, configuration.tagSearchIndexMap.get(unicode), divTree);
+                addSearchContents(unicode, tagSearchIndexMap.get(unicode), mainContent);
             } else {
                 addContents(unicode, indexBuilder.getMemberList(unicode),
-                            configuration.tagSearchIndexMap.get(unicode), divTree);
+                            tagSearchIndexMap.get(unicode), mainContent);
             }
         }
-        addLinksForIndexes(divTree);
+        addLinksForIndexes(mainContent);
         HtmlTree footer = HtmlTree.FOOTER();
         navBar.setUserFooter(getUserHeaderFooter(false));
         footer.add(navBar.getContent(false));
@@ -124,7 +123,7 @@ public class SingleIndexWriter extends AbstractIndexWriter {
                 .addMainContent(HtmlTree.DIV(HtmlStyle.header,
                         HtmlTree.HEADING(Headings.PAGE_TITLE_HEADING,
                                 contents.getContent("doclet.Index"))))
-                .addMainContent(divTree)
+                .addMainContent(mainContent)
                 .setFooter(footer)
                 .toContent());
         createSearchIndexFiles();
@@ -137,22 +136,22 @@ public class SingleIndexWriter extends AbstractIndexWriter {
      * @param contentTree the content tree to which the links for indexes will be added
      */
     protected void addLinksForIndexes(Content contentTree) {
-        for (Object ch : elements) {
+        for (Character ch : elements) {
             String unicode = ch.toString();
             contentTree.add(
                     links.createLink(getNameForIndex(unicode),
-                            new StringContent(unicode)));
+                                     new StringContent(unicode)));
             contentTree.add(Entity.NO_BREAK_SPACE);
         }
         contentTree.add(new HtmlTree(HtmlTag.BR));
         contentTree.add(links.createLink(DocPaths.ALLCLASSES_INDEX,
-                contents.allClassesLabel));
+                                         contents.allClassesLabel));
         if (!configuration.packages.isEmpty()) {
             contentTree.add(getVerticalSeparator());
             contentTree.add(links.createLink(DocPaths.ALLPACKAGES_INDEX,
-                    contents.allPackagesLabel));
+                                             contents.allPackagesLabel));
         }
-        if (!configuration.tagSearchIndex.isEmpty()) {
+        if (!searchItems.get(SearchIndexItem.Category.SEARCH_TAGS).isEmpty()) {
             contentTree.add(getVerticalSeparator());
             contentTree.add(links.createLink(DocPaths.SYSTEM_PROPERTIES, contents.systemPropertiesLabel));
         }
