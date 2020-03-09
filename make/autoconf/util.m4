@@ -98,6 +98,27 @@ AC_DEFUN([UTIL_DEFUN_NAMED],
 
 ###############################################################################
 # Assert that a programmatic condition holds. If not, exit with an error message.
+# Check that a shell expression gives return code 0
+#
+# $1: The shell expression to evaluate
+# $2: A message to describe the expression in case of failure
+# $2: An message to print in case of failure [optional]
+#
+AC_DEFUN([UTIL_ASSERT_SHELL_TEST],
+[
+  ASSERTION_MSG="m4_normalize([$3])"
+  if $1; then
+    $ECHO Assertion failed: $2
+    if test "x$3" != x; then
+      $ECHO Assertion message: "$3"
+    fi
+    exit 1
+  fi
+])
+
+
+###############################################################################
+# Assert that a programmatic condition holds. If not, exit with an error message.
 # Check that two strings are equal.
 #
 # $1: The actual string found
@@ -106,15 +127,50 @@ AC_DEFUN([UTIL_DEFUN_NAMED],
 #
 AC_DEFUN([UTIL_ASSERT_STRING_EQUALS],
 [
-  ASSERTION_MSG="m4_normalize([$3])"
-  if test "x[$1]" != "x[$2]"; then
-    $ECHO Assertion failed: Actual value '[$1]' \("[$1]"\) did not match \
-        expected value '[$2]' \("[$2]"\)
-    if test "x$ASSERTION_MSG" != x; then
-      $ECHO Assertion message: "$ASSERTION_MSG"
-    fi
-    exit 1
-  fi
+  UTIL_ASSERT_SHELL_TEST(
+      [test "x[$1]" != "x[$2]"],
+      [Actual value '[$1]' \("[$1]"\) did not match expected value '[$2]' \("[$2]"\)],
+      $3)
+])
+
+###############################################################################
+# Assert that a programmatic condition holds. If not, exit with an error message.
+# Check that two strings not are equal.
+#
+# $1: The actual string found
+# $2: The expected string
+# $3: An message to print in case of failure [optional]
+#
+AC_DEFUN([UTIL_ASSERT_STRING_NOT_EQUALS],
+[
+  UTIL_ASSERT_SHELL_TEST(
+      [test "x[$1]" = "x[$2]"],
+      [Actual value '[$1]' \("[$1]"\) unexpectedly matched '[$2]' \("[$2]"\)],
+      $3)
+])
+
+###############################################################################
+# Assert that a programmatic condition holds. If not, exit with an error message.
+# Check that the given expression evaluates to the string 'true'
+#
+# $1: The expression to evaluate
+# $2: An message to print in case of failure [optional]
+#
+AC_DEFUN([UTIL_ASSERT_TRUE],
+[
+  UTIL_ASSERT_STRING_EQUALS($1, true, $3)
+])
+
+###############################################################################
+# Assert that a programmatic condition holds. If not, exit with an error message.
+# Check that the given expression does not evaluate to the string 'true'
+#
+# $1: The expression to evaluate
+# $2: An message to print in case of failure [optional]
+#
+AC_DEFUN([UTIL_ASSERT_NOT_TRUE],
+[
+  UTIL_ASSERT_STRING_NOT_EQUALS($1, true, $3)
 ])
 
 ###############################################################################

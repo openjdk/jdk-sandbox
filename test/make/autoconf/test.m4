@@ -46,6 +46,18 @@ AC_DEFUN([TEST_STRING_OPS],
       [UTIL_GET_MATCHING_VALUES failed])
 ])
 
+AC_DEFUN([TEST_ARG_ENABLE],
+[
+  # fake '--enable-test-option=yes' on the command line
+  enable_test_option=yes
+
+  UTIL_ARG_ENABLE(NAME: default-false, DEFAULT: false, RESULT: TEST_RESULT)
+  UTIL_ASSERT_TRUE($TEST_RESULT)
+
+  UTIL_ARG_ENABLE(NAME: default-true-but-unavailable, DEFAULT: auto, RESULT: TEST_RESULT, AVAILABLE: false)
+  UTIL_ASSERT_NOT_TRUE($TEST_RESULT)
+])
+
 # Use the CUSTOM_EARLY_HOOK to inject our test after basic init is done.
 AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK],
 [
@@ -53,6 +65,7 @@ AC_DEFUN_ONCE([CUSTOM_EARLY_HOOK],
   $PRINTF "==============================\n"
 
   TEST_STRING_OPS
+  TEST_ARG_ENABLE
 
   # If no assertions failed, report success
   $PRINTF "==============================\n"

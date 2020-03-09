@@ -45,11 +45,12 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_VARIANT],
 #    slowdebug: debug information (-g), no optimizations, all asserts
 AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_LEVEL],
 [
+  DEBUG_LEVEL="release"
+
   UTIL_ARG_ENABLE(NAME: debug, DEFAULT: false, RESULT: ENABLE_DEBUG,
       DESC: [enable debugging (shorthand for --with-debug-level=fastdebug)],
       IF_ENABLED: [ DEBUG_LEVEL="fastdebug" ])
 
-  DEBUG_LEVEL="release"
   AC_MSG_CHECKING([which debug level to use])
   AC_ARG_WITH([debug-level], [AS_HELP_STRING([--with-debug-level],
       [set the debug level (release, fastdebug, slowdebug, optimized) @<:@release@:>@])],
