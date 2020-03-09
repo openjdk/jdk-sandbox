@@ -169,14 +169,8 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_JDK_OPTIONS],
   AC_SUBST(CACERTS_FILE)
 
   # Enable or disable unlimited crypto
-  AC_ARG_ENABLE(unlimited-crypto, [AS_HELP_STRING([--disable-unlimited-crypto],
-      [Disable unlimited crypto policy @<:@enabled@:>@])],,
-      [enable_unlimited_crypto=yes])
-  if test "x$enable_unlimited_crypto" = "xyes"; then
-    UNLIMITED_CRYPTO=true
-  else
-    UNLIMITED_CRYPTO=false
-  fi
+  UTIL_ARG_ENABLE(NAME: unlimited-crypto, DEFAULT: true, RESULT: UNLIMITED_CRYPTO,
+      DESC: [enable unlimited crypto policy])
   AC_SUBST(UNLIMITED_CRYPTO)
 
   # Should we build the serviceability agent (SA)?
@@ -362,14 +356,19 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_DEBUG_SYMBOLS],
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
 [
-  AC_ARG_ENABLE(native-coverage, [AS_HELP_STRING([--enable-native-coverage],
-      [enable native compilation with code coverage data@<:@disabled@:>@])])
-  GCOV_ENABLED="false"
-  if test "x$enable_native_coverage" = "xyes"; then
-    case $TOOLCHAIN_TYPE in
-      gcc | clang)
-        AC_MSG_CHECKING([if native coverage is enabled])
-        AC_MSG_RESULT([yes])
+  UTIL_ARG_ENABLE(NAME: native-coverage, DEFAULT: false, RESULT: GCOV_ENABLED,
+      DESC: [enable native compilation with code coverage data],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if native coverage is available])
+        if test "x$TOOLCHAIN_TYPE" = "xgcc" ||
+            test "x$TOOLCHAIN_TYPE" = "xclang"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
         GCOV_CFLAGS="-fprofile-arcs -ftest-coverage -fno-inline"
         GCOV_LDFLAGS="-fprofile-arcs"
         JVM_CFLAGS="$JVM_CFLAGS $GCOV_CFLAGS"
@@ -380,18 +379,7 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
         CXXFLAGS_JDKEXE="$CXXFLAGS_JDKEXE $GCOV_CFLAGS"
         LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $GCOV_LDFLAGS"
         LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $GCOV_LDFLAGS"
-        GCOV_ENABLED="true"
-        ;;
-      *)
-        AC_MSG_ERROR([--enable-native-coverage only works with toolchain type gcc or clang])
-        ;;
-    esac
-  elif test "x$enable_native_coverage" = "xno"; then
-    AC_MSG_CHECKING([if native coverage is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_native_coverage" != "x"; then
-    AC_MSG_ERROR([--enable-native-coverage can only be assigned "yes" or "no"])
-  fi
+      ])
   AC_SUBST(GCOV_ENABLED)
 
   AC_ARG_WITH(jcov, [AS_HELP_STRING([--with-jcov],
@@ -438,14 +426,19 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_CODE_COVERAGE],
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
 [
-  AC_ARG_ENABLE(asan, [AS_HELP_STRING([--enable-asan],
-      [enable AddressSanitizer if possible @<:@disabled@:>@])])
-  ASAN_ENABLED="no"
-  if test "x$enable_asan" = "xyes"; then
-    case $TOOLCHAIN_TYPE in
-      gcc | clang)
-        AC_MSG_CHECKING([if asan is enabled])
-        AC_MSG_RESULT([yes])
+  UTIL_ARG_ENABLE(NAME: asan, DEFAULT: false,
+      DESC: [enable AddressSanitizer],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if AddressSanitizer (asan) is available])
+        if test "x$TOOLCHAIN_TYPE" = "xgcc" ||
+            test "x$TOOLCHAIN_TYPE" = "xclang"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
         ASAN_CFLAGS="-fsanitize=address -fno-omit-frame-pointer"
         ASAN_LDFLAGS="-fsanitize=address"
         JVM_CFLAGS="$JVM_CFLAGS $ASAN_CFLAGS"
@@ -457,17 +450,10 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
         LDFLAGS_JDKLIB="$LDFLAGS_JDKLIB $ASAN_LDFLAGS"
         LDFLAGS_JDKEXE="$LDFLAGS_JDKEXE $ASAN_LDFLAGS"
         ASAN_ENABLED="yes"
-        ;;
-      *)
-        AC_MSG_ERROR([--enable-asan only works with toolchain type gcc or clang])
-        ;;
-    esac
-  elif test "x$enable_asan" = "xno"; then
-    AC_MSG_CHECKING([if asan is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_asan" != "x"; then
-    AC_MSG_ERROR([--enable-asan can only be assigned "yes" or "no"])
-  fi
+      ],
+      IF_DISABLED: [
+        ASAN_ENABLED="no"
+      ])
 
   AC_SUBST(ASAN_ENABLED)
 ])
@@ -479,26 +465,23 @@ AC_DEFUN_ONCE([JDKOPT_SETUP_ADDRESS_SANITIZER],
 #
 AC_DEFUN_ONCE([JDKOPT_SETUP_STATIC_BUILD],
 [
-  AC_ARG_ENABLE([static-build], [AS_HELP_STRING([--enable-static-build],
-    [enable static library build @<:@disabled@:>@])])
-  STATIC_BUILD=false
-  if test "x$enable_static_build" = "xyes"; then
-    AC_MSG_CHECKING([if static build is enabled])
-    AC_MSG_RESULT([yes])
-    if test "x$OPENJDK_TARGET_OS" != "xmacosx"; then
-      AC_MSG_ERROR([--enable-static-build is only supported for macosx builds])
-    fi
-    STATIC_BUILD_CFLAGS="-DSTATIC_BUILD=1"
-    CFLAGS_JDKLIB_EXTRA="$CFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
-    CXXFLAGS_JDKLIB_EXTRA="$CXXFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
-    STATIC_BUILD=true
-  elif test "x$enable_static_build" = "xno"; then
-    AC_MSG_CHECKING([if static build is enabled])
-    AC_MSG_RESULT([no])
-  elif test "x$enable_static_build" != "x"; then
-    AC_MSG_ERROR([--enable-static-build can only be assigned "yes" or "no"])
-  fi
-
+  UTIL_ARG_ENABLE(NAME: static-build, DEFAULT: false, RESULT: STATIC_BUILD,
+      DESC: [enable static library build],
+      CHECKING_MSG: [if static build is enabled],
+      CHECK_AVAILABLE: [
+        AC_MSG_CHECKING([if static build is available])
+        if test "x$OPENJDK_TARGET_OS" = "xmacosx"; then
+          AC_MSG_RESULT([yes])
+        else
+          AC_MSG_RESULT([no])
+          AVAILABLE=false
+        fi
+      ],
+      IF_ENABLED: [
+        STATIC_BUILD_CFLAGS="-DSTATIC_BUILD=1"
+        CFLAGS_JDKLIB_EXTRA="$CFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
+        CXXFLAGS_JDKLIB_EXTRA="$CXXFLAGS_JDKLIB_EXTRA $STATIC_BUILD_CFLAGS"
+      ])
   AC_SUBST(STATIC_BUILD)
 ])
 
