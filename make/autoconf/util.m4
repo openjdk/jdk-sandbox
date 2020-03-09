@@ -66,9 +66,9 @@ AC_DEFUN([UTIL_DEFUN_NAMED],
     ])
 
     m4_foreach([arg], [$3], [
-      ifelse(m4_bregexp(arg, [: ]), -1, m4_define([arg], m4_bpatsubst(arg, [:], [: ])))
+      m4_if(m4_bregexp(arg, [: ]), -1, m4_define([arg], m4_bpatsubst(arg, [:], [: ])))
       m4_define(arg_name, m4_substr(arg, 0, m4_bregexp(arg, [: ])))
-      m4_set_contains(legal_named_args, arg_name, [],[AC_MSG_ERROR([Internal error: ifelse(arg_name, , arg, arg_name) is not a valid named argument to [$1]. Valid arguments are 'm4_set_contents(legal_named_args, [ ])'.])])
+      m4_set_contains(legal_named_args, arg_name, [],[AC_MSG_ERROR([Internal error: m4_if(arg_name, , arg, arg_name) is not a valid named argument to [$1]. Valid arguments are 'm4_set_contents(defined_args, [ ]) m4_set_contents(legal_named_args, [ ])'.])])
       m4_set_remove(required_named_args, arg_name)
       m4_set_remove(legal_named_args, arg_name)
       m4_pushdef([ARG_][]arg_name, m4_bpatsubst(m4_substr(arg, m4_incr(m4_incr(m4_bregexp(arg, [: ])))), [^\s*], []))
@@ -277,40 +277,40 @@ AC_DEFUN([UTIL_ALIASED_ARG_ENABLE],
 #   IF_DISABLED:  An optional code block to execute if the option is turned off.
 #
 UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
-    [*NAME RESULT DEFAULT DEFAULT_DESC DESC CHECKING_MSG AVAILABLE
-    CHECK_AVAILABLE MISSING_DEPS_MSG IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
+    [*NAME RESULT DEFAULT AVAILABLE DESC DEFAULT_DESC CHECKING_MSG
+    CHECK_AVAILABLE IF_GIVEN IF_ENABLED IF_DISABLED], [$@],
 [
   ##########################
   # Part 1: Set up m4 macros
   ##########################
 
   # If DEFAULT is not specified, set it to 'true'.
-  m4_define([ARG_DEFAULT], ifelse(ARG_DEFAULT, , true, ARG_DEFAULT))
+  m4_define([ARG_DEFAULT], m4_if(ARG_DEFAULT, , true, ARG_DEFAULT))
 
   # If AVAILABLE is not specified, set it to 'true'.
-  m4_define([ARG_AVAILABLE], ifelse(ARG_AVAILABLE, , true, ARG_AVAILABLE))
+  m4_define([ARG_AVAILABLE], m4_if(ARG_AVAILABLE, , true, ARG_AVAILABLE))
 
   # If DEFAULT_DESC is not specified, calculate it from DEFAULT.
-  m4_define([ARG_DEFAULT_DESC], ifelse(ARG_DEFAULT_DESC, , ifelse(ARG_DEFAULT, true, enabled, ifelse(ARG_DEFAULT, false, disabled, ARG_DEFAULT)), ARG_DEFAULT_DESC))
+  m4_define([ARG_DEFAULT_DESC], m4_if(ARG_DEFAULT_DESC, , m4_if(ARG_DEFAULT, true, enabled, m4_if(ARG_DEFAULT, false, disabled, ARG_DEFAULT)), ARG_DEFAULT_DESC))
 
   # If RESULT is not specified, set it to 'ARG_NAME[_ENABLED]'.
-  m4_define([ARG_RESULT], ifelse(ARG_RESULT, , m4_translit(ARG_NAME, [a-z-], [A-Z_])[_ENABLED], ARG_RESULT))
+  m4_define([ARG_RESULT], m4_if(ARG_RESULT, , m4_translit(ARG_NAME, [a-z-], [A-Z_])[_ENABLED], ARG_RESULT))
   # Construct shell variable names for the option
   m4_define(ARG_OPTION, [enable_]m4_translit(ARG_NAME, [-], [_]))
   m4_define(ARG_GIVEN, m4_translit(ARG_NAME, [a-z-], [A-Z_])[_GIVEN])
 
   # If DESC is not specified, set it to a generic description.
-  m4_define([ARG_DESC], ifelse(ARG_DESC, , [Enable the ARG_NAME feature], m4_normalize(ARG_DESC)))
+  m4_define([ARG_DESC], m4_if(ARG_DESC, , [Enable the ARG_NAME feature], m4_normalize(ARG_DESC)))
 
   # If CHECKING_MSG is not specified, set it to a generic description.
-  m4_define([ARG_CHECKING_MSG], ifelse(ARG_CHECKING_MSG, , [for --enable-ARG_NAME], ARG_CHECKING_MSG))
+  m4_define([ARG_CHECKING_MSG], m4_if(ARG_CHECKING_MSG, , [for --enable-ARG_NAME], ARG_CHECKING_MSG))
 
   # If the code blocks are not given, set them to the empty statements to avoid
   # tripping up bash.
-  m4_define([ARG_CHECK_AVAILABLE], ifelse(ARG_CHECK_AVAILABLE, , :, ARG_CHECK_AVAILABLE))
-  m4_define([ARG_IF_GIVEN], ifelse(ARG_IF_GIVEN, , :, ARG_IF_GIVEN))
-  m4_define([ARG_IF_ENABLED], ifelse(ARG_IF_ENABLED, , :, ARG_IF_ENABLED))
-  m4_define([ARG_IF_DISABLED], ifelse(ARG_IF_DISABLED, , :, ARG_IF_DISABLED))
+  m4_define([ARG_CHECK_AVAILABLE], m4_if(ARG_CHECK_AVAILABLE, , :, ARG_CHECK_AVAILABLE))
+  m4_define([ARG_IF_GIVEN], m4_if(ARG_IF_GIVEN, , :, ARG_IF_GIVEN))
+  m4_define([ARG_IF_ENABLED], m4_if(ARG_IF_ENABLED, , :, ARG_IF_ENABLED))
+  m4_define([ARG_IF_DISABLED], m4_if(ARG_IF_DISABLED, , :, ARG_IF_DISABLED))
 
   ##########################
   # Part 2: Set up autoconf shell code
