@@ -286,19 +286,9 @@ UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
 
   # If DEFAULT is not specified, set it to 'true'.
   m4_define([ARG_DEFAULT], ifelse(ARG_DEFAULT, , true, ARG_DEFAULT))
-  # Check that DEFAULT has a valid value
-  DEFAULT_VAL_CHECK=ifelse(ARG_DEFAULT, true, OK, ifelse(ARG_DEFAULT, false, OK, ifelse(ARG_DEFAULT, auto, OK, ERROR)))
-  if test "x$DEFAULT_VAL_CHECK" = xERROR; then
-    AC_MSG_ERROR([Internal error: Argument DEFAULT to [UTIL_ARG_ENABLE] can only be true, false or auto, was: 'ARG_DEFAULT'])
-  fi
 
   # If AVAILABLE is not specified, set it to 'true'.
   m4_define([ARG_AVAILABLE], ifelse(ARG_AVAILABLE, , true, ARG_AVAILABLE))
-  # Check that AVAILABLE has a valid value
-  AVAILABLE_VAL_CHECK=ifelse(ARG_AVAILABLE, true, OK, ifelse(ARG_AVAILABLE, false, OK, ERROR))
-  if test "x$AVAILABLE_VAL_CHECK" = xERROR; then
-    AC_MSG_ERROR([Internal error: Argument AVAILABLE to [UTIL_ARG_ENABLE] can only be true, or false, was: 'ARG_AVAILABLE'])
-  fi
 
   # If DEFAULT_DESC is not specified, calculate it from DEFAULT.
   m4_define([ARG_DEFAULT_DESC], ifelse(ARG_DEFAULT_DESC, , ifelse(ARG_DEFAULT, true, enabled, ifelse(ARG_DEFAULT, false, disabled, ARG_DEFAULT)), ARG_DEFAULT_DESC))
@@ -325,6 +315,17 @@ UTIL_DEFUN_NAMED([UTIL_ARG_ENABLE],
   ##########################
   # Part 2: Set up autoconf shell code
   ##########################
+
+  # Check that DEFAULT has a valid value
+  if test "[x]ARG_DEFAULT" != xtrue && test "[x]ARG_DEFAULT" != xfalse && \
+      test "[x]ARG_DEFAULT" != xauto ; then
+    AC_MSG_ERROR([Internal error: Argument DEFAULT to [UTIL_ARG_ENABLE] can only be true, false or auto, was: 'ARG_DEFAULT'])
+  fi
+
+  # Check that AVAILABLE has a valid value
+  if test "[x]ARG_AVAILABLE" != xtrue && test "[x]ARG_AVAILABLE" != xfalse; then
+    AC_MSG_ERROR([Internal error: Argument AVAILABLE to [UTIL_ARG_ENABLE] can only be true or false, was: 'ARG_AVAILABLE'])
+  fi
 
   AC_ARG_ENABLE(ARG_NAME, AS_HELP_STRING([--enable-]ARG_NAME,
       [ARG_DESC [ARG_DEFAULT_DESC]]), [ARG_GIVEN=true], [ARG_GIVEN=false])
