@@ -596,4 +596,5 @@ AC_DEFUN([JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE],
           AC_MSG_RESULT([yes])
         fi
       ])
+  AC_SUBST(BUILD_CDS_ARCHIVE)
 ])
