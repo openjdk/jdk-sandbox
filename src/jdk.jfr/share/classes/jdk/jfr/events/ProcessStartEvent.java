@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,30 +23,26 @@
  * questions.
  */
 
-package gc.concurrent_phase_control;
+package jdk.jfr.events;
 
-/*
- * @test TestConcurrentPhaseControlG1Basics
- * @bug 8169517
- * @requires vm.gc.G1
- * @summary Verify G1 supports concurrent phase control.
- * @key gc
- * @modules java.base
- * @library /test/lib /
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *    sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseG1GC
- *   -Xbootclasspath/a:.
- *   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *   gc.concurrent_phase_control.TestConcurrentPhaseControlG1Basics
- */
+import jdk.jfr.Category;
+import jdk.jfr.Description;
+import jdk.jfr.Label;
+import jdk.jfr.Name;
+import jdk.jfr.internal.MirrorEvent;
 
-import gc.concurrent_phase_control.CheckSupported;
+@Category({"Operating System"})
+@Label("Process Start")
+@Name("jdk.ProcessStart")
+@Description("Operating system process started")
+@MirrorEvent(className = "jdk.internal.event.ProcessStartEvent")
+public final class ProcessStartEvent extends AbstractJDKEvent {
+    @Label("Process Id")
+    public long pid;
 
-public class TestConcurrentPhaseControlG1Basics {
+    @Label("Directory")
+    public String directory;
 
-    public static void main(String[] args) throws Exception {
-        CheckSupported.check("G1");
-    }
+    @Label("Command")
+    public String command;
 }

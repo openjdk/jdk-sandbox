@@ -34,7 +34,6 @@
 #include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/plab.hpp"
 
-#include "gc/shenandoah/shenandoahAllocTracker.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
@@ -2176,23 +2175,16 @@ void ShenandoahHeap::stw_process_weak_roots(bool full_gc) {
   ShenandoahPhaseTimings::Phase timing_phase = full_gc ?
                                                ShenandoahPhaseTimings::full_gc_purge_par :
                                                ShenandoahPhaseTimings::purge_par;
-  // Cleanup weak roots
   ShenandoahGCPhase phase(timing_phase);
-  phase_timings()->record_workers_start(timing_phase);
+  ShenandoahGCWorkerPhase worker_phase(timing_phase);
+
+  // Cleanup weak roots
   if (has_forwarded_objects()) {
-    if (is_traversal_mode()) {
-      ShenandoahForwardedIsAliveClosure is_alive;
-      ShenandoahTraversalUpdateRefsClosure keep_alive;
-      ShenandoahParallelWeakRootsCleaningTask<ShenandoahForwardedIsAliveClosure, ShenandoahTraversalUpdateRefsClosure>
-        cleaning_task(&is_alive, &keep_alive, num_workers, !ShenandoahConcurrentRoots::should_do_concurrent_class_unloading());
-      _workers->run_task(&cleaning_task);
-    } else {
-      ShenandoahForwardedIsAliveClosure is_alive;
-      ShenandoahUpdateRefsClosure keep_alive;
-      ShenandoahParallelWeakRootsCleaningTask<ShenandoahForwardedIsAliveClosure, ShenandoahUpdateRefsClosure>
-        cleaning_task(&is_alive, &keep_alive, num_workers, !ShenandoahConcurrentRoots::should_do_concurrent_class_unloading());
-      _workers->run_task(&cleaning_task);
-    }
+    ShenandoahForwardedIsAliveClosure is_alive;
+    ShenandoahUpdateRefsClosure keep_alive;
+    ShenandoahParallelWeakRootsCleaningTask<ShenandoahForwardedIsAliveClosure, ShenandoahUpdateRefsClosure>
+      cleaning_task(&is_alive, &keep_alive, num_workers, !ShenandoahConcurrentRoots::should_do_concurrent_class_unloading());
+    _workers->run_task(&cleaning_task);
   } else {
     ShenandoahIsAliveClosure is_alive;
 #ifdef ASSERT
@@ -2205,7 +2197,6 @@ void ShenandoahHeap::stw_process_weak_roots(bool full_gc) {
 #endif
     _workers->run_task(&cleaning_task);
   }
-  phase_timings()->record_workers_end(timing_phase);
 }
 
 void ShenandoahHeap::parallel_cleaning(bool full_gc) {
