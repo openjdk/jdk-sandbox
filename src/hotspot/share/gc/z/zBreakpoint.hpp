@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,22 @@
  * questions.
  */
 
-/**
- * @test
- * @bug 8238384
- * @summary CTW: C2 compilation fails with "assert(store != load->find_exact_control(load->in(0))) failed: dependence cycle found"
- *
- * @run main/othervm -XX:-BackgroundCompilation TestCopyOfBrokenAntiDependency
- *
- */
+#ifndef SHARE_GC_Z_ZBREAKPOINT_HPP
+#define SHARE_GC_Z_ZBREAKPOINT_HPP
 
-import java.util.Arrays;
+#include "memory/allocation.hpp"
 
-public class TestCopyOfBrokenAntiDependency {
+class ZBreakpoint : public AllStatic {
+private:
+  static bool _start_gc;
 
-    public static void main(String[] args) {
-        for (int i = 0; i < 20_000; i++) {
-            test(100);
-        }
-    }
+public:
+  static void start_gc();
 
-    private static Object test(int length) {
-        Object[] src  = new Object[length]; // non escaping
-        final Object[] dst = Arrays.copyOf(src, 10); // can't be removed
-        final Object[] dst2 = Arrays.copyOf(dst, 100);
-        // load is control dependent on membar from previous copyOf
-        // but has memory edge to first copyOf.
-        final Object v = dst[0];
-        return v;
-    }
-}
+  static void at_before_gc();
+  static void at_after_gc();
+  static void at_after_marking_started();
+  static void at_before_marking_completed();
+};
+
+#endif // SHARE_GC_Z_ZBREAKPOINT_HPP

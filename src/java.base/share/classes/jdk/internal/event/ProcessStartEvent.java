@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,30 +23,14 @@
  * questions.
  */
 
-package gc.concurrent_phase_control;
+package jdk.internal.event;
 
-/*
- * @test TestConcurrentPhaseControlParallel
- * @bug 8169517
- * @requires vm.gc.Parallel
- * @summary Verify Parallel GC doesn't support WhiteBox concurrent phase control.
- * @key gc
- * @modules java.base
- * @library /test/lib /
- * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *    sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseParallelGC
- *   -Xbootclasspath/a:.
- *   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *   gc.concurrent_phase_control.TestConcurrentPhaseControlParallel
+/**
+ * Event for the start of an OS procsss
  */
 
-import gc.concurrent_phase_control.CheckUnsupported;
-
-public class TestConcurrentPhaseControlParallel {
-
-    public static void main(String[] args) throws Exception {
-        CheckUnsupported.check("Parallel");
-    }
+public final class ProcessStartEvent extends Event {
+    public long pid;
+    public String directory;
+    public String command;
 }
