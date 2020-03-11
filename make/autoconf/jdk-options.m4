@@ -530,7 +530,7 @@ AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_FAILURE_HANDLER],
 AC_DEFUN_ONCE([JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST],
 [
   # In GenerateLinkOptData.gmk, DumpLoadedClassList is used to generate the
-  # classlist file. It never will work  if CDS is disabled, since the VM will report
+  # classlist file. It never will work if CDS is disabled, since the VM will report
   # an error for DumpLoadedClassList.
   UTIL_ARG_ENABLE(NAME: generate-classlist, DEFAULT: auto,
       RESULT: ENABLE_GENERATE_CLASSLIST, AVAILABLE: $ENABLE_CDS,
