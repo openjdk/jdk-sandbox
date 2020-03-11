@@ -277,12 +277,19 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
     /**
-     * consumerFlatMap test implementation goes here
+     * Returns a stream consisting of the results of applying the provided
+     * BiConsumer to each element. The Biconsumer will read each element from
+     * this stream and apply the Consumer method to it. It will return the
+     * resulting mapped stream.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param <R> The element type of the new stream
      * @param mapper BiConsumer
-     * @param <R> Result type
-     * @return Returns Stream of type R
+     * @return the new stream
      */
-    default <R>Stream<R> consumerFlatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+    default <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
 
         return this.flatMap(e -> {

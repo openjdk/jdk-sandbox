@@ -26,18 +26,7 @@ package java.util.stream;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Comparator;
-import java.util.DoubleSummaryStatistics;
-import java.util.IntSummaryStatistics;
-import java.util.Iterator;
-import java.util.LongSummaryStatistics;
-import java.util.Optional;
-import java.util.OptionalDouble;
-import java.util.OptionalInt;
-import java.util.OptionalLong;
-import java.util.PrimitiveIterator;
-import java.util.Set;
-import java.util.Spliterator;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -92,19 +81,28 @@ public final class DefaultMethodStreams {
                 .filter(c -> BaseStream.class.isAssignableFrom(c))
                 .findFirst().get();
 
+        Function<Method, String> filterAndReturnName = m -> {
+            if (m.getName() == "flatMap" &&
+                    m.getParameterTypes()[0]
+                            .getSimpleName().contains("BiConsumer")) {
+                    return "consumerFlatMap";
+            }
+                return m.getName();
+        };
+
         // Get all default methods on the stream class
         Set<String> dms = Stream.of(s.getMethods())
                 .filter(m -> !Modifier.isStatic(m.getModifiers()))
                 .filter(m -> !m.isBridge())
                 .filter(Method::isDefault)
-                .map(Method::getName)
+                .map(filterAndReturnName::apply)
                 .collect(toSet());
 
         // Get all methods on the delegating class
         Set<String> ims = Stream.of(del.getMethods())
                 .filter(m -> !Modifier.isStatic(m.getModifiers()))
                 .filter(m -> m.getDeclaringClass() == del)
-                .map(Method::getName)
+                .map(filterAndReturnName::apply)
                 .collect(toSet());
 
         if (ims.stream().anyMatch(dms::contains)) {

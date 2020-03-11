@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary consumerFlatMap operations
+ * @summary flatMap operations
  */
 
 package org.openjdk.tests.java.util.stream;
@@ -32,72 +32,71 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.*;
+import java.util.stream.IntStream;
+import java.util.stream.OpTestCase;
+import java.util.stream.Stream;
+import java.util.stream.StreamTestDataProvider;
+import java.util.stream.TestData;
 
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.LambdaTestHelpers.*;
+import static java.util.stream.LambdaTestHelpers.LONG_STRING;
+import static java.util.stream.LambdaTestHelpers.assertConcat;
+import static java.util.stream.LambdaTestHelpers.assertCountSum;
+import static java.util.stream.LambdaTestHelpers.countTo;
+import static java.util.stream.LambdaTestHelpers.flattenChars;
+import static java.util.stream.LambdaTestHelpers.mfId;
+import static java.util.stream.LambdaTestHelpers.mfLt;
+import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
 
 @Test
 public class ConsumerFlatMapOpTest extends OpTestCase {
 
-    BiConsumer<Integer, Consumer<Integer>> nullConsumer = (e, sink) -> {
-        mfNull.apply(e).forEach(sink::accept);
-    };
-    BiConsumer<Integer, Consumer<Integer>> idConsumer = (e, sink) -> {
-        mfId.apply(e).forEach(sink::accept);
-    };
-    BiConsumer<Integer, Consumer<Integer>> listConsumer = (e, sink) -> {
-        mfLt.apply(e).forEach(sink::accept);
-    };
-    BiConsumer<String, Consumer<Character>> charConsumer = (e, sink) -> {
-        flattenChars.apply(e).forEach(sink::accept);
-    };
-    BiConsumer<Integer, Consumer<Integer>> emptyStreamConsumer = (e, sink) -> {
-        Stream.empty().forEach(i->sink.accept((Integer)i));
-    };
+    BiConsumer<Integer, Consumer<Integer>> nullConsumer =
+            (e, sink) -> mfNull.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> idConsumer =
+            (e, sink) -> mfId.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> listConsumer =
+            (e, sink) -> mfLt.apply(e).forEach(sink::accept);
+    BiConsumer<String, Consumer<Character>> charConsumer =
+            (e, sink) -> flattenChars.apply(e).forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> emptyStreamConsumer =
+            (e, sink) -> Stream.empty().forEach(i->sink.accept((Integer)i));
 
     BiConsumer<Integer, Consumer<Integer>> intRangeConsumer =
-            (e, sink) -> {
-                IntStream.range(0, e).boxed().forEach(sink::accept);
-            };
+            (e, sink) -> IntStream.range(0, e).boxed().forEach(sink::accept);
+    BiConsumer<Integer, Consumer<Integer>> rangeConsumer100 =
+            (e, sink) -> IntStream.range(0, 100).boxed().forEach(sink::accept);
     BiConsumer<Integer, Consumer<Integer>> rangeConsumerWithLimit =
-            (e, sink) -> {
-                IntStream.range(0, e).boxed().limit(10).forEach(sink::accept);
-            };
-    BiConsumer<Integer, Consumer<Integer>> rangeConsumerWithLimit100 =
-            (e, sink) -> {
-                IntStream.range(0, 100).boxed().forEach(sink::accept);
-            };
+            (e, sink) -> IntStream.range(0, e).boxed().limit(10)
+                    .forEach(sink::accept);
     @Test
     public void testNullMapper() {
-        checkNPE(() -> Stream.of(1).consumerFlatMap(null));
+        checkNPE(() -> Stream.of(1)
+                .flatMap((BiConsumer<Object, Consumer<Object>>) null));
     }
 
     @Test
     public void testFlatMap() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
-        assertConcat(strings.consumerFlatMap(charConsumer).iterator(),
-                "hellothereyada");
 
-        assertCountSum((countTo(10).stream().consumerFlatMap(idConsumer)),
+        assertConcat(strings.flatMap(charConsumer)
+                        .iterator(), "hellothereyada");
+        assertCountSum((countTo(10).stream().flatMap(idConsumer)),
                 10, 55);
-        assertCountSum(countTo(10).stream().consumerFlatMap(nullConsumer),
+        assertCountSum(countTo(10).stream().flatMap(nullConsumer),
                 0, 0);
-        assertCountSum(countTo(3).stream().consumerFlatMap(listConsumer),
+        assertCountSum(countTo(3).stream().flatMap(listConsumer),
                 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> s.consumerFlatMap(charConsumer));
+                stringsArray), s -> s.flatMap(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> s.consumerFlatMap(charConsumer));
+                new String[]{LONG_STRING}), s -> s.flatMap(charConsumer));
     }
 
     @Test
@@ -114,36 +113,36 @@ public class ConsumerFlatMapOpTest extends OpTestCase {
             onClose.getAndIncrement();
             sink.accept(e);
         };
-        s.get().consumerFlatMap(onCloseConsumer).count();
+        s.get().flatMap(onCloseConsumer).count();
         assertEquals(before.get(), onClose.get());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOps(String name, TestData.OfRef<Integer> data) {
-        Collection<Integer> result = exerciseOps(data,
-                s -> s.consumerFlatMap(idConsumer));
+        Collection<Integer> result;
+        result = exerciseOps(data, s -> s.flatMap(idConsumer));
         assertEquals(data.size(), result.size());
 
-        result = exerciseOps(data, s -> s.consumerFlatMap(nullConsumer));
+        result = exerciseOps(data, s -> s.flatMap(nullConsumer));
         assertEquals(0, result.size());
 
-        result = exerciseOps(data, s -> s.consumerFlatMap(emptyStreamConsumer));
+        result = exerciseOps(data, s -> s.flatMap(emptyStreamConsumer));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> s.consumerFlatMap(listConsumer));
-        exerciseOps(data, s -> s.consumerFlatMap(intRangeConsumer));
-        exerciseOps(data, s -> s.consumerFlatMap(rangeConsumerWithLimit));
+        exerciseOps(data, s -> s.flatMap(listConsumer));
+        exerciseOps(data, s -> s.flatMap(intRangeConsumer));
+        exerciseOps(data, s -> s.flatMap(rangeConsumerWithLimit));
     }
 
     @Test
     public void testOpsShortCircuit() {
         AtomicInteger count = new AtomicInteger();
-        Stream.of(0).consumerFlatMap(rangeConsumerWithLimit100).
+        Stream.of(0).flatMap(rangeConsumer100).
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);

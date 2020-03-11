@@ -33,7 +33,6 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -56,7 +55,8 @@ public class FlatMapOpTest extends OpTestCase {
 
     @Test
     public void testNullMapper() {
-        checkNPE(() -> Stream.of(1).flatMap(null));
+        checkNPE(() -> Stream.of(1)
+                .flatMap((Function<Object, Stream<Object>>)null));
         checkNPE(() -> IntStream.of(1).flatMap(null));
         checkNPE(() -> LongStream.of(1).flatMap(null));
         checkNPE(() -> DoubleStream.of(1).flatMap(null));
