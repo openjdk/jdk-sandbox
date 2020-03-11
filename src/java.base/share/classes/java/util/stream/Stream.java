@@ -276,20 +276,20 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      */
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
-
     /**
-     * consumerFlatMap test implementation
+     * consumerFlatMap test implementation goes here
      * @param mapper BiConsumer
-     * @param <R> Result
-     * @return Stream
+     * @param <R> Result type
+     * @return Returns Stream of type R
      */
-    default <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+    default <R>Stream<R> consumerFlatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+        Objects.requireNonNull(mapper);
+
         return this.flatMap(e -> {
             List<R> buffer = new ArrayList<>();
             Consumer<R> c =  buffer::add;
 
             mapper.accept(e, c);
-            // make sure any operation on c throws an exception
             return buffer.stream();
         });
     }
