@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,6 @@ TARGETS += $(COPY_PREVIEW_FEATURES)
 define SetupInterimModule
   $$(eval $$(call SetupJavaCompilation, BUILD_$1.interim, \
       SETUP := BOOT_JAVAC, \
-      DISABLE_SJAVAC := true, \
       SRC := $(BUILDTOOLS_OUTPUTDIR)/gensrc/$1.interim \
           $$(wildcard $(SUPPORT_OUTPUTDIR)/gensrc/$1) \
           $(TOPDIR)/src/$1/share/classes, \

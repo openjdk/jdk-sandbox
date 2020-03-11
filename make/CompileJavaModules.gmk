@@ -536,11 +536,6 @@ jdk.localedata_EXCLUDE_FILES += sun/text/resources/ext/BreakIteratorRules_th.jav
 jdk.localedata_KEEP_ALL_TRANSLATIONS := true
 ################################################################################
 
-# There is an issue in sjavac that triggers a warning in jdk.jfr that isn't
-# triggered without sjavac.
-ifeq ($(ENABLE_SJAVAC), yes)
-  jdk.jfr_SETUP := GENERATE_JDKBYTECODE_NOWARNINGS
-endif
 jdk.jfr_COPY := .xsd .xml .dtd
 jdk.jfr_ADD_JAVAC_FLAGS := -XDstringConcat=inline -Xlint:-exports
 

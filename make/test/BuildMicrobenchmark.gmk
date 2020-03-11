@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -82,15 +82,11 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
 
 #### Compile Targets
 
-# Building microbenchmark requires the jdk.unsupported and java.management modules,
-# and to have sjavac disabled.
+# Building microbenchmark requires the jdk.unsupported and java.management modules.
 $(eval $(call SetupJavaCompiler, MICROBENCHMARK_JAVA_COMPILER, \
     JVM := $(JAVA) --add-modules jdk.unsupported --limit-modules java.management, \
     JAVAC := $(NEW_JAVAC), \
-    DISABLE_SJAVAC := true, \
     FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS), \
-    SERVER_DIR := $(SJAVAC_SERVER_DIR), \
-    SERVER_JVM := $(SJAVAC_SERVER_JAVA), \
 ))
 
 # Build microbenchmark suite for the current JDK
