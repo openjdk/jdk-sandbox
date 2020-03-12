@@ -32,7 +32,6 @@ JFR_TOOLS_OUTPUTDIR := $(JVM_VARIANT_OUTPUTDIR)/buildtools/tools_classes
 $(eval $(call SetupJavaCompilation, BUILD_JFR_TOOLS, \
     COMPILER := bootjdk, \
     SMALL_JAVA := false, \
-    FLAGS := $(GENERATE_JFRBYTECODE_FLAGS), \
     SRC := $(JFR_TOOLS_SRCDIR), \
     BIN := $(JFR_TOOLS_OUTPUTDIR), \
     DISABLED_WARNINGS := try, \

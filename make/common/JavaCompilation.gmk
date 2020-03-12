@@ -149,7 +149,6 @@ endef
 #   KEEP_DUPS:=Do not remove duplicate file names from different source roots.
 #   FAIL_NO_SRC:=Set to false to not fail the build if no source files are found,
 #        default is true.
-#   DEBUG_SYMBOLS:=Set to false to disable generation of debug symbols.
 #   CREATE_API_DIGEST:=Set to true to use a javac plugin to generate a public API
 #        hash which can be used for down stream dependencies to only rebuild
 #        when the API changes.
@@ -209,10 +208,10 @@ define SetupJavaCompilationBody
     $$(error Invalid value for COMPILER in SetupJavaCompilation for $1: '$$($1_COMPILER)')
   endif
 
-  ifneq ($$($1_DEBUG_SYMBOLS), false)
-    $1_FLAGS += -g
-  endif
+  $1_FLAGS += -g
   $1_FLAGS += $$($1_ADD_JAVAC_FLAGS) $(JAVAC_FLAGS)
+  # We should perhaps only add -Werror if WARNINGS_AS_ERRORS is true..?
+  $1_FLAGS += -Xlint:all -Werror
 
   ifneq ($$($1_DISABLED_WARNINGS), )
     $1_FLAGS += -Xlint:$$(call CommaList, $$(addprefix -, $$($1_DISABLED_WARNINGS)))
