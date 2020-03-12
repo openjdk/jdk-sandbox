@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary flatMap operations
+ * @summary FlatMap(BiConsumer) operations
  */
 
 package org.openjdk.tests.java.util.stream;
@@ -35,7 +35,6 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.OpTestCase;
 import java.util.stream.Stream;
@@ -53,7 +52,7 @@ import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
 
 @Test
-public class ConsumerFlatMapOpTest extends OpTestCase {
+public class BiConsumerFlatMapOpTest extends OpTestCase {
 
     BiConsumer<Integer, Consumer<Integer>> nullConsumer =
             (e, sink) -> mfNull.apply(e).forEach(sink::accept);
@@ -97,24 +96,6 @@ public class ConsumerFlatMapOpTest extends OpTestCase {
                 stringsArray), s -> s.flatMap(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
                 new String[]{LONG_STRING}), s -> s.flatMap(charConsumer));
-    }
-
-    @Test
-    public void testClose() {
-        AtomicInteger before = new AtomicInteger();
-        AtomicInteger onClose = new AtomicInteger();
-
-        Supplier<Stream<Integer>> s = () -> {
-            before.set(0);
-            onClose.set(0);
-            return Stream.of(1, 2).peek(e -> before.getAndIncrement());
-        };
-        BiConsumer<Integer, Consumer<Integer>> onCloseConsumer = (e, sink) -> {
-            onClose.getAndIncrement();
-            sink.accept(e);
-        };
-        s.get().flatMap(onCloseConsumer).count();
-        assertEquals(before.get(), onClose.get());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",

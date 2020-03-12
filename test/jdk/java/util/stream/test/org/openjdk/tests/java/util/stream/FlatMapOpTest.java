@@ -72,7 +72,10 @@ public class FlatMapOpTest extends OpTestCase {
         assertConcat(strings.flatMap(flattenChars).iterator(), "hellothereyada");
 
         assertCountSum(countTo(10).stream().flatMap(mfId), 10, 55);
+
         assertCountSum(countTo(10).stream().flatMap(mfNull), 0, 0);
+        assertCountSum(countTo(10).stream().flatMap(e -> Stream.empty()), 0, 0);
+
         assertCountSum(countTo(3).stream().flatMap(mfLt), 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray", stringsArray), s -> s.flatMap(flattenChars));

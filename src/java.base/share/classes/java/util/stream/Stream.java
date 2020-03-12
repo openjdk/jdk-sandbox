@@ -277,17 +277,40 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
     /**
-     * Returns a stream consisting of the results of applying the provided
-     * BiConsumer to each element. The Biconsumer will read each element from
-     * this stream and apply the Consumer method to it. It will return the
-     * resulting mapped stream.
+     * Returns a stream consisting of the results of replacing each element of
+     * this stream with elements produced by applying the provided
+     * {@link BiConsumer} {@code mapper} to the element.
+     *
+     * For each element <em>E</em>, the mapper is invoked with <em>E</em> and a
+     * {@link Consumer Consumer}{@code <R>} lambda, which it can call zero or
+     * more times to map <em>E</em> to zero or more elements of type {@code R}.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
-     * @param <R> The element type of the new stream
-     * @param mapper BiConsumer
-     * @return the new stream
+     * @apiNote
+     * The {@code flatMap()} operation has the effect of applying a one-to-many
+     * transformation to the elements of the stream, and then flattening the
+     * resulting elements into a new stream.
+     *
+     * @implSpec
+     * The default implementation is equivalent to:
+     * <pre>{@code
+     *      return this.flatMap(e -> {
+     *             List<R> buffer = new ArrayList<>();
+     *             Consumer<R> c =  buffer::add;
+     *
+     *             mapper.accept(e, c);
+     *             return buffer.stream();
+     *      });}
+     * </pre>
+     *
+     * @param <R>    The element type of the new stream
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               {@code BiConsumer} to map each element to one or or more
+     *               new values
+     * @return       the new stream
      */
     default <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
