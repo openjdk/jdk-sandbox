@@ -96,8 +96,8 @@ ifeq ($(call isTargetOs, windows), true)
   TOOLS_OUTPUTDIR := $(HOTSPOT_OUTPUTDIR)/support/tools_classes
 
   $(eval $(call SetupJavaCompilation, BUILD_PROJECT_CREATOR, \
-      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS) \
-          -Xlint:-auxiliaryclass, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+      DISABLED_WARNINGS := auxiliaryclass deprecation rawtypes unchecked cast, \
       SRC := $(TOPDIR)/make/hotspot/src/classes, \
       BIN := $(TOOLS_OUTPUTDIR), \
   ))

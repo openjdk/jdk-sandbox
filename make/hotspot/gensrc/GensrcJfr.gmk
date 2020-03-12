@@ -35,6 +35,7 @@ $(eval $(call SetupJavaCompilation, BUILD_JFR_TOOLS, \
     FLAGS := $(GENERATE_JFRBYTECODE_FLAGS), \
     SRC := $(JFR_TOOLS_SRCDIR), \
     BIN := $(JFR_TOOLS_OUTPUTDIR), \
+    DISABLED_WARNINGS := try, \
 ))
 
 TARGETS += $(BUILD_JFR_TOOLS)

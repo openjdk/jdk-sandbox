@@ -37,6 +37,7 @@ $(eval $(call SetupJavaCompilation, BUILD_JVMTI_TOOLS, \
     SMALL_JAVA := false, \
     FLAGS := $(GENERATE_OLDBYTECODE_JVMTI_FLAGS), \
     SRC := $(JVMTI_TOOLS_SRCDIR), \
+    DISABLED_WARNINGS := rawtypes cast, \
     INCLUDE_FILES := jvmtiGen.java jvmtiEnvFill.java, \
     BIN := $(JVMTI_TOOLS_OUTPUTDIR), \
 ))

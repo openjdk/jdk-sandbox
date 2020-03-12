@@ -34,7 +34,7 @@ JAVAC_WARNINGS ?= -Xlint:all -Werror
 # and the interim javac, to be run by the boot jdk.
 BOOT_JAVAC_FLAGS := $(BOOT_JDK_SOURCETARGET) \
         -XDignore.symbol.file=true -g \
-        -Xlint:all$(COMMA)-deprecation$(COMMA)-options -Werror
+        $(JAVAC_WARNINGS) -Xlint:-option
 
 # Any java code executed during a JDK build to build other parts of the JDK must be
 # executed by the bootstrap JDK (probably with -Xbootclasspath/p: ) and for this
@@ -47,7 +47,7 @@ BOOT_JAVAC_FLAGS := $(BOOT_JDK_SOURCETARGET) \
 # Add -Xlint:-options to avoid the warning about not setting -bootclasspath. Since
 # it's running on the boot jdk, the default bootclasspath is correct.
 GENERATE_OLDBYTECODE_FLAGS := $(BOOT_JDK_SOURCETARGET) \
-    -XDignore.symbol.file=true -XDstringConcat=inline $(DISABLE_WARNINGS) -Xlint:-options
+    -XDignore.symbol.file=true -XDstringConcat=inline  $(JAVAC_WARNINGS) -Xlint:-options
 
 # The generate new bytecode javac setup uses the new compiler to compile for the
 # new jdk. This new bytecode might only be possible to run using the new jvm.
@@ -61,17 +61,17 @@ GENERATE_JDKBYTECODE_FLAGS := $(JDK_SOURCE_TARGET_FLAGS) --doclint-format html5 
 # generated jdk classes and nothing else, no jdk source, etc etc.
 # I.e. the rt.jar, but since rt.jar has not yet been generated
 # (it will be in "make images") therefore we use classes instead.
-GENERATE_USINGJDKBYTECODE_FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS)
+GENERATE_USINGJDKBYTECODE_FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(JAVAC_WARNINGS)
 
 # Use boot javac to generate JDK 8 compatible class files explicitly
 GENERATE_8_BYTECODE_FLAGS := --release 8 \
         -XDignore.symbol.file=true -g \
-        -Xlint:all -Werror
+        $(JAVAC_WARNINGS)
 
-GENERATE_JFRBYTECODE_FLAGS := $(DISABLE_WARNINGS)
+GENERATE_JFRBYTECODE_FLAGS := $(JAVAC_WARNINGS)
 
-GENERATE_OLDBYTECODE_JVMTI_FLAGS := $(DISABLE_WARNINGS)
+GENERATE_OLDBYTECODE_JVMTI_FLAGS := $(JAVAC_WARNINGS)
 
-MICROBENCHMARK_JAVA_COMPILER_FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(DISABLE_WARNINGS)
+MICROBENCHMARK_JAVA_COMPILER_FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none $(JAVAC_WARNINGS)
 
 endif # _SETUP_GMK

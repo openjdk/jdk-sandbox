@@ -44,6 +44,7 @@ $(eval $(call SetupJavaCompilation,BUILD_JIGSAW_TOOLS, \
                 build/tools/jigsaw, \
     COPY := .properties .html, \
     BIN := $(TOOLS_CLASSES_DIR), \
+    DISABLED_WARNINGS := fallthrough, \
 ))
 
 TARGETS += $(BUILD_JIGSAW_TOOLS)

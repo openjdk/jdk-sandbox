@@ -51,6 +51,7 @@ $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
     FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
     SRC := $(FH_BASEDIR)/src/share/classes $(FH_BASEDIR)/src/share/conf, \
     BIN := $(FH_SUPPORT)/classes, \
+    DISABLED_WARNINGS := deprecation serial try, \
     COPY := .properties, \
     CLASSPATH := $(JTREG_JAR) $(TOOLS_JAR), \
     JAR := $(FH_JAR), \
