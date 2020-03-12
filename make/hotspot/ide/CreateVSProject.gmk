@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ default: all
 include $(SPEC)
 include MakeBase.gmk
 include JavaCompilation.gmk
-include SetupJavaCompilers.gmk
 include Execute.gmk
 
 ifeq ($(call isTargetOs, windows), true)
@@ -97,8 +96,8 @@ ifeq ($(call isTargetOs, windows), true)
   TOOLS_OUTPUTDIR := $(HOTSPOT_OUTPUTDIR)/support/tools_classes
 
   $(eval $(call SetupJavaCompilation, BUILD_PROJECT_CREATOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
-      ADD_JAVAC_FLAGS := -Xlint:-auxiliaryclass, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS) \
+          -Xlint:-auxiliaryclass, \
       SRC := $(TOPDIR)/make/hotspot/src/classes, \
       BIN := $(TOOLS_OUTPUTDIR), \
   ))

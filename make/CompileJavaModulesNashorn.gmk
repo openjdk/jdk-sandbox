@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@ ASM_SRC := $(TOPDIR)/src/java.base/share/classes/jdk/internal/org/objectweb/asm
 
 # Build nasgen
 $(eval $(call SetupJavaCompilation, BUILD_NASGEN, \
-    SETUP := GENERATE_OLDBYTECODE, \
+    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
     SRC := $(NASGEN_SRC) $(ASM_SRC), \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/nasgen_classes, \
 ))

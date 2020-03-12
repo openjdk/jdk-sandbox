@@ -33,7 +33,6 @@ include $(SPEC)
 include MakeBase.gmk
 include JavaCompilation.gmk
 include NativeCompilation.gmk
-include SetupJavaCompilers.gmk
 include TextFileProcessing.gmk
 include ZipArchive.gmk
 
@@ -124,7 +123,7 @@ define SetupBuildDemoBody
 
   ifneq ($$($1_SKIP_COMPILATION), true)
     $$(eval $$(call SetupJavaCompilation, BUILD_DEMO_$1, \
-        SETUP := GENERATE_USINGJDKBYTECODE, \
+        FLAGS := $$(GENERATE_USINGJDKBYTECODE_FLAGS), \
         SRC := $$($1_MAIN_SRC) $$($1_EXTRA_SRC_DIR), \
         BIN := $(SUPPORT_OUTPUTDIR)/demos/classes/$$($1_DEMO_SUBDIR)/$1, \
         COPY := $(COPY_TO_JAR) $$($1_EXTRA_COPY_TO_JAR), \

@@ -26,7 +26,6 @@
 include JarArchive.gmk
 include JavaCompilation.gmk
 include Modules.gmk
-include SetupJavaCompilers.gmk
 
 ################################################################################
 
@@ -53,12 +52,12 @@ COMPILECREATESYMBOLS_ADD_EXPORTS := \
     #
 
 $(eval $(call SetupJavaCompilation, COMPILE_CREATE_SYMBOLS, \
-    SETUP := GENERATE_OLDBYTECODE, \
     SRC := $(TOPDIR)/make/langtools/src/classes \
         $(TOPDIR)/src/jdk.jdeps/share/classes, \
     INCLUDES := build/tools/symbolgenerator com/sun/tools/classfile, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/create_symbols, \
-    ADD_JAVAC_FLAGS := $(INTERIM_LANGTOOLS_ARGS) \
+    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS) \
+        $(INTERIM_LANGTOOLS_ARGS) \
         --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \
         $(COMPILECREATESYMBOLS_ADD_EXPORTS), \
 ))

@@ -400,10 +400,5 @@ AC_DEFUN_ONCE([BPERF_SETUP_SMART_JAVAC],
       CHECKING_MSG: [whether to use javac server],
       IF_ENABLED: [ ENABLE_JAVAC_SERVER="yes" ],
       IF_DISABLED: [ ENABLE_JAVAC_SERVER="no" ])
-
-  if test "x$ENABLE_JAVAC_SERVER" = "xyes"; then
-    # When using a server javac, the small client instances do not need much
-    # resources.
-    JAVA_FLAGS_JAVAC="$JAVA_FLAGS_SMALL"
-  fi
+  AC_SUBST(ENABLE_JAVAC_SERVER)
 ])

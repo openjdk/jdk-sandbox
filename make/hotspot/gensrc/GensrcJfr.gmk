@@ -29,13 +29,10 @@
 JFR_TOOLS_SRCDIR := $(TOPDIR)/make/src/classes
 JFR_TOOLS_OUTPUTDIR := $(JVM_VARIANT_OUTPUTDIR)/buildtools/tools_classes
 
-$(eval $(call SetupJavaCompiler, GENERATE_JFRBYTECODE, \
-    JAVAC := $(JAVAC), \
-    FLAGS := $(DISABLE_WARNINGS), \
-))
-
 $(eval $(call SetupJavaCompilation, BUILD_JFR_TOOLS, \
-    SETUP := GENERATE_JFRBYTECODE, \
+    COMPILER := bootjdk, \
+    SMALL_JAVA := false, \
+    FLAGS := $(GENERATE_JFRBYTECODE_FLAGS), \
     SRC := $(JFR_TOOLS_SRCDIR), \
     BIN := $(JFR_TOOLS_OUTPUTDIR), \
 ))

@@ -32,13 +32,10 @@ $(eval $(call IncludeCustomExtension, hotspot/gensrc/GensrcJvmti.gmk))
 JVMTI_TOOLS_SRCDIR := $(TOPDIR)/src/hotspot/share/prims
 JVMTI_TOOLS_OUTPUTDIR := $(JVM_VARIANT_OUTPUTDIR)/tools/jvmti
 
-$(eval $(call SetupJavaCompiler, GENERATE_OLDBYTECODE, \
-    JAVAC := $(JAVAC), \
-    FLAGS := $(DISABLE_WARNINGS), \
-))
-
 $(eval $(call SetupJavaCompilation, BUILD_JVMTI_TOOLS, \
-    SETUP := GENERATE_OLDBYTECODE, \
+    COMPILER := bootjdk, \
+    SMALL_JAVA := false, \
+    FLAGS := $(GENERATE_OLDBYTECODE_JVMTI_FLAGS), \
     SRC := $(JVMTI_TOOLS_SRCDIR), \
     INCLUDE_FILES := jvmtiGen.java jvmtiEnvFill.java, \
     BIN := $(JVMTI_TOOLS_OUTPUTDIR), \

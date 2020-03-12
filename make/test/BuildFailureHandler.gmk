@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ default: build
 include $(SPEC)
 include MakeBase.gmk
 include JavaCompilation.gmk
-include SetupJavaCompilers.gmk
 include NativeCompilation.gmk
 
 TARGETS :=
@@ -49,7 +48,7 @@ TOOLS_JAR := $(wildcard $(BOOT_JDK)/lib/tools.jar)
 FH_CLASSPATH := $(call PathList, $(JTREG_JAR) $(TOOLS_JAR))
 
 $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
-    SETUP := GENERATE_OLDBYTECODE, \
+    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
     SRC := $(FH_BASEDIR)/src/share/classes $(FH_BASEDIR)/src/share/conf, \
     BIN := $(FH_SUPPORT)/classes, \
     COPY := .properties, \

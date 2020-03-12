@@ -29,7 +29,6 @@ default: all
 include $(SPEC)
 include MakeBase.gmk
 include JavaCompilation.gmk
-include SetupJavaCompilers.gmk
 include Modules.gmk
 
 ################################################################################
@@ -66,7 +65,7 @@ TARGETS += $(COPY_PREVIEW_FEATURES)
 # Param 1 - Name of module to compile
 define SetupInterimModule
   $$(eval $$(call SetupJavaCompilation, BUILD_$1.interim, \
-      SETUP := BOOT_JAVAC, \
+      COMPILER := bootjdk, \
       SRC := $(BUILDTOOLS_OUTPUTDIR)/gensrc/$1.interim \
           $$(wildcard $(SUPPORT_OUTPUTDIR)/gensrc/$1) \
           $(TOPDIR)/src/$1/share/classes, \
@@ -76,7 +75,8 @@ define SetupInterimModule
       EXTRA_FILES := $(BUILDTOOLS_OUTPUTDIR)/gensrc/$1.interim/module-info.java, \
       COPY := .gif .png .xml .css .js javax.tools.JavaCompilerTool, \
       BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules/$1.interim, \
-      ADD_JAVAC_FLAGS := --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules \
+      FLAGS := $$(BOOT_JAVAC_FLAGS) \
+          --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules \
           $$(INTERIM_LANGTOOLS_ADD_EXPORTS) \
           --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \
           --add-exports java.base/jdk.internal=java.compiler.interim \

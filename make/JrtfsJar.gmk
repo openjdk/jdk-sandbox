@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,6 @@ default: all
 include $(SPEC)
 include MakeBase.gmk
 include JarArchive.gmk
-include SetupJavaCompilers.gmk
 include TextFileProcessing.gmk
 
 # This rule will be depended on due to the MANIFEST line
@@ -47,11 +46,13 @@ JIMAGE_PKGS := \
     #
 
 $(eval $(call SetupJavaCompilation, BUILD_JRTFS, \
-    SETUP := GENERATE_8_BYTECODE, \
+    COMPILER := bootjdk, \
+    FLAGS := $(GENERATE_8_BYTECODE_FLAGS), \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     EXCLUDE_FILES := module-info.java, \
     INCLUDES := $(JIMAGE_PKGS), \
-    BIN := $(SUPPORT_OUTPUTDIR)/jrtfs_classes))
+    BIN := $(SUPPORT_OUTPUTDIR)/jrtfs_classes, \
+))
 
 # Because of the explicit INCLUDES in the compilation setup above, the service provider
 # file will not be copied unless META-INF/services would also be added to the INCLUDES.

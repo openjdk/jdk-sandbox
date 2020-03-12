@@ -34,25 +34,12 @@ ifeq (,$(_MAKEBASE_GMK))
   $(error You must include MakeBase.gmk prior to including JavaCompilation.gmk)
 endif
 
+include SetupJavaCompilers.gmk
+
 # Java compilation needs SetupJarArchive and/or SetupZipArchive, if we're
 # generating a jar file or a source zip.
 include JarArchive.gmk
 include ZipArchive.gmk
-
-# Setup make rules for defining a Java compiler, which is needed to compile
-# Java code. This rule generates no output.
-#
-# Parameter 1 is the name of the compiler definition. This name needs to be
-# passed to SetupJavaCompilation. This name is used as variable prefix.
-#
-# Remaining parameters are named arguments. These include:
-#   JVM:=The jvm used to run the javac command
-#   JAVAC:=The javac jar and bootstrap classpath changes, or just bin/javac if JVM is left out
-#   FLAGS:=Flags to be supplied to javac
-SetupJavaCompiler = $(NamedParamsMacroTemplate)
-define SetupJavaCompilerBody
-# empty FIXME
-endef
 
 define add_file_to_copy
   # param 1 = BUILD_MYPACKAGE
@@ -138,8 +125,6 @@ endef
 # The target for public API digest is returned in $1_API_TARGET.
 #
 # Remaining parameters are named arguments. These include:
-#   SETUP:=must point to a previously setup java compiler, for example: SETUP:=BOOTJAVAC
-#   JVM:=path to ..bin/java
 #   ADD_JAVAC_FLAGS:=javac flags to append to the default ones.
 #   SRC:=one or more directories to search for sources. The order of the source roots
 #        is significant. The first found file of a certain name has priority.
@@ -176,19 +161,59 @@ define SetupJavaCompilationBody
     $$(error Must specify BIN (in $1))
   endif
 
-  # Extract the info from the java compiler setup.
-  $1_JVM := $$($$($1_SETUP)_JVM)
-  $1_JAVAC := $$($$($1_SETUP)_JAVAC)
-  $1_FLAGS :=
-  ifneq ($$($1_DEBUG_SYMBOLS), false)
-    $1_FLAGS := -g
+  ifeq ($$($1_SMALL_JAVA), )
+    # If unspecified, default to true
+    $1_SMALL_JAVA=true
   endif
-  $1_FLAGS += $$($$($1_SETUP)_FLAGS) $$($1_ADD_JAVAC_FLAGS) $(JAVAC_FLAGS)
+
+  ifeq ($$($1_COMPILER), )
+    # If unspecified, default to interim compiler
+    $1_COMPILER=interim
+  endif
+
+  ifeq ($$($1_COMPILER), bootjdk)
+    # Javac server is not available when using the bootjdk compiler.
+    $1_JAVAC_CMD := $$(JAVAC)
+    ifeq ($$($1_SMALL_JAVA), true)
+      $1_FLAGS += $(addprefix -J, $(JAVA_FLAGS_SMALL))
+    endif
+  else ifeq ($$($1_COMPILER), interim)
+      ifeq ($$($1_SMALL_JAVA), true)
+       $1_JAVA_CMD := $(JAVA_SMALL)
+      else
+       $1_JAVA_CMD := $(JAVA)
+      endif
+
+    ifeq ($(ENABLE_JAVAC_SERVER), yes)
+      $1_JAVAC := $(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.sjavac.Main
+
+      # How to launch the server
+      $1_JAVAC_SERVER_CMD := $$($1_JAVA_CMD) $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC)
+
+      # Argument to sjavac to spawn a background javac server.
+      # The port file contains the tcp/ip on which the server listens
+      # and the cookie necessary to talk to the server.
+      $1_JAVA_SERVER_FLAGS := --server:portfile=$$(SJAVAC_SERVER_DIR)/server.port,id=$1,sjavac=$$(subst \
+          $$(SPACE),%20,$$(subst $$(COMMA),%2C,$$(strip $$($1_JAVAC_SERVER_CMD))))
+
+      # Always use small to launch client
+      $1_JAVAC_CMD :=  $(JAVA_SMALL)  $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC) $$($1_JAVA_SERVER_FLAGS)
+    else
+      # no javac server
+      $1_JAVAC := $(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.javac.Main
+
+      $1_JAVAC_CMD := $$($1_JAVA_CMD) $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC)
+    endif
+  else
+    $$(error Invalid value for COMPILER in SetupJavaCompilation for $1: '$$($1_COMPILER)')
+  endif
+
+  ifneq ($$($1_DEBUG_SYMBOLS), false)
+    $1_FLAGS += -g
+  endif
+  $1_FLAGS += $$($1_ADD_JAVAC_FLAGS) $(JAVAC_FLAGS) -Xlint:none
   ifneq ($$($1_CLASSPATH), )
     $1_FLAGS += -cp $$(call PathList, $$($1_CLASSPATH))
-  endif
-  ifeq ($$($1_JAVAC),)
-    $$(error The Java compilation $1 refers to a non-existant java compiler setup $$($1_SETUP))
   endif
 
   ifneq ($$($1_MODULE), )
@@ -344,33 +369,11 @@ define SetupJavaCompilationBody
       $1_HEADER_TARGETS := $$($1_HEADERS)/_the.$1_headers
     endif
 
-    $1_VARDEPS := $$($1_JVM) $$($1_JAVAC) $$($1_FLAGS) $$($1_BIN) \
+    $1_VARDEPS := $$($1_JAVAC_CMD) $$($1_FLAGS) $$($1_BIN) \
         $$($1_HEADERS_ARG) $$($1_EXCLUDES) $$($1_INCLUDES) \
         $$($1_EXCLUDE_FILES) $$($1_INCLUDE_FILES)
     $1_VARDEPS_FILE := $$(call DependOnVariable, $1_VARDEPS, \
         $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$1.vardeps)
-
-    ifeq ($(ENABLE_JAVAC_SERVER), yes)
-      # The port file contains the tcp/ip on which the server listens
-      # and the cookie necessary to talk to the server.
-      $1_SJAVAC_PORTFILE:=$$(SJAVAC_SERVER_DIR)/server.port
-      # You can use a different JVM to run the background javac server.
-      # It defaults to the same JVM that is used to start the javac command.
-      $1_SERVER_JVM:=$$($1_JVM)
-
-      # Create SJAVAC variable from JAVAC variable. Expects $1_JAVAC to be
-      # "bootclasspathprepend -cp .../javac.jar com.sun.tools.javac.Main"
-      # and javac is simply replaced with sjavac.
-      $1_SJAVAC:=$$(subst com.sun.tools.javac.Main,com.sun.tools.sjavac.Main,$$($1_JAVAC))
-
-      # Set the $1_REMOTE to spawn a background javac server.
-      $1_REMOTE:=--server:portfile=$$($1_SJAVAC_PORTFILE),id=$1,sjavac=$$(subst \
-          $$(SPACE),%20,$$(subst $$(COMMA),%2C,$$(strip $$($1_SERVER_JVM) $$($1_SJAVAC))))
-
-      $1_JAVAC_CMD := $$($1_SJAVAC) $$($1_REMOTE)
-    else
-      $1_JAVAC_CMD := $$($1_JAVAC)
-    endif
 
     ifeq ($$($1_CREATE_API_DIGEST), true)
       $1_API_DIGEST_FLAGS := \
@@ -388,7 +391,7 @@ define SetupJavaCompilationBody
 		$$(eval $$(call ListPathsSafely,$1_SRCS, $$@.tmp))
 		$$(call LogWarn, Compiling $$(words $$($1_SRCS)) files for $1)
 		$$(call ExecuteWithLog, $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$$($1_SAFE_NAME)_batch, \
-		    $$($1_JVM) $$($1_JAVAC_CMD) $$($1_FLAGS) \
+		    $$($1_JAVAC_CMD) $$($1_FLAGS) \
 		        -implicit:none \
 		        $$($1_API_DIGEST_FLAGS) \
 		        -d $$($1_BIN) $$($1_HEADERS_ARG) @$$@.tmp) && \
@@ -421,7 +424,6 @@ define SetupJavaCompilationBody
         EXTRA_MANIFEST_ATTR:=$$($1_EXTRA_MANIFEST_ATTR), \
         JARINDEX:=$$($1_JARINDEX), \
         HEADERS:=$$($1_HEADERS), \
-        SETUP:=$$($1_SETUP), \
     ))
 
     # Add jar to target list

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,6 @@ include $(SPEC)
 include MakeBase.gmk
 
 include JavaCompilation.gmk
-include SetupJavaCompilers.gmk
 
 TARGETS :=
 
@@ -45,7 +44,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
   # Compile the annotation processors
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_MATCH_PROCESSOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
           $(SRC_DIR)/org.graalvm.compiler.core.match.processor/src \
@@ -60,7 +59,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_NODEINFO_PROCESSOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
           $(SRC_DIR)/org.graalvm.compiler.nodeinfo.processor/src \
@@ -74,7 +73,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_OPTIONS_PROCESSOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
           $(SRC_DIR)/org.graalvm.compiler.options.processor/src \
@@ -88,7 +87,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_REPLACEMENTS_PROCESSOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
           $(SRC_DIR)/org.graalvm.compiler.replacements.processor/src \
@@ -103,7 +102,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_SERVICEPROVIDER_PROCESSOR, \
-      SETUP := GENERATE_OLDBYTECODE, \
+      FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
           $(SRC_DIR)/org.graalvm.compiler.serviceprovider.processor/src \
