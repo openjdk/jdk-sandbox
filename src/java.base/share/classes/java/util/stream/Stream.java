@@ -302,7 +302,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      *             mapper.accept(e, c);
      *             return buffer.stream();
-     *      });}
+     *      });
      * </pre>
      *
      * @param <R>    The element type of the new stream
