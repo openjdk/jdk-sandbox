@@ -88,8 +88,8 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
 $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
     SMALL_JAVA := false, \
     EXTRA_JAVA_FLAGS := --add-modules jdk.unsupported --limit-modules java.management, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS) \
-        -cp $(MICROBENCHMARK_CLASSPATH), \
+    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS), \
+    CLASSPATH := $(MICROBENCHMARK_CLASSPATH), \
     DISABLED_WARNINGS := processing rawtypes cast serial deprecation, \
     SRC := $(MICROBENCHMARK_SRC), \
     BIN := $(MICROBENCHMARK_CLASSES), \

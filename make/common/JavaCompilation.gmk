@@ -125,7 +125,7 @@ endef
 # The target for public API digest is returned in $1_API_TARGET.
 #
 # Remaining parameters are named arguments. These include:
-#   ADD_JAVAC_FLAGS:=javac flags to append to the default ones.
+#   FLAGS:=javac flags to append to the default ones.
 #   DISABLED_WARNINGS:=list of Xlint warnings that should be disabled
 #   SRC:=one or more directories to search for sources. The order of the source roots
 #        is significant. The first found file of a certain name has priority.
