@@ -27,6 +27,7 @@
 
 #include "asm/register.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 class BiasedLockingCounters;
 
@@ -659,7 +660,6 @@ private:
   bool _legacy_mode_vl;
   bool _legacy_mode_vlbw;
   bool _is_managed;
-  bool _vector_masking;    // For stub code use only
 
   class InstructionAttr *_attributes;
 
@@ -871,7 +871,6 @@ private:
     _legacy_mode_vl = (VM_Version::supports_avx512vl() == false);
     _legacy_mode_vlbw = (VM_Version::supports_avx512vlbw() == false);
     _is_managed = false;
-    _vector_masking = false;
     _attributes = NULL;
   }
 
@@ -885,6 +884,17 @@ private:
   void lea(Register dst, Address src);
 
   void mov(Register dst, Register src);
+
+#ifdef _LP64
+  // support caching the result of some routines
+
+  // must be called before pusha(), popa(), vzeroupper() - checked with asserts
+  static void precompute_instructions();
+
+  void pusha_uncached();
+  void popa_uncached();
+#endif
+  void vzeroupper_uncached();
 
   void pusha();
   void popa();
