@@ -34,7 +34,7 @@ JAVAC_WARNINGS ?= -Xlint:all -Werror
 # and the interim javac, to be run by the boot jdk.
 BOOT_JAVAC_FLAGS := $(BOOT_JDK_SOURCETARGET) \
         -XDignore.symbol.file=true -g \
-        $(JAVAC_WARNINGS) -Xlint:-option
+        $(JAVAC_WARNINGS) -Xlint:-options
 
 # Any java code executed during a JDK build to build other parts of the JDK must be
 # executed by the bootstrap JDK (probably with -Xbootclasspath/p: ) and for this

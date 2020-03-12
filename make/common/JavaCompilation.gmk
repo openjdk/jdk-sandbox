@@ -185,7 +185,7 @@ define SetupJavaCompilationBody
        $1_JAVA_CMD := $(JAVA)
       endif
 
-    ifeq ($(ENABLE_JAVAC_SERVER), yes)
+    ifeq ($(ENABLE_JAVAC_SERVER), true)
       $1_JAVAC := $(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.sjavac.Main
 
       # How to launch the server

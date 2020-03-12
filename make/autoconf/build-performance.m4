@@ -396,9 +396,8 @@ AC_DEFUN_ONCE([BPERF_SETUP_PRECOMPILED_HEADERS],
 AC_DEFUN_ONCE([BPERF_SETUP_SMART_JAVAC],
 [
   UTIL_ARG_ENABLE(NAME: javac-server, DEFAULT: true,
+      RESULT: ENABLE_JAVAC_SERVER,
       DESC: [enable javac server],
-      CHECKING_MSG: [whether to use javac server],
-      IF_ENABLED: [ ENABLE_JAVAC_SERVER="yes" ],
-      IF_DISABLED: [ ENABLE_JAVAC_SERVER="no" ])
+      CHECKING_MSG: [whether to use javac server])
   AC_SUBST(ENABLE_JAVAC_SERVER)
 ])
