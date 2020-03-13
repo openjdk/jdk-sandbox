@@ -45,7 +45,7 @@ TARGET_RELEASE_JDK8 := --release 8
 
 # The BOOT_JAVAC setup uses the boot jdk compiler to compile the tools
 # and the interim javac, to be run by the boot jdk.
-BOOT_JAVAC_FLAGS := -XDignore.symbol.file=true -Xlint:-options
+BOOT_JAVAC_FLAGS := -XDignore.symbol.file=true
 
 # Any java code executed during a JDK build to build other parts of the JDK must be
 # executed by the bootstrap JDK (probably with -Xbootclasspath/p: ) and for this
@@ -57,7 +57,7 @@ BOOT_JAVAC_FLAGS := -XDignore.symbol.file=true -Xlint:-options
 # Thus we force the target bytecode to the previous JDK version.
 # Add -Xlint:-options to avoid the warning about not setting -bootclasspath. Since
 # it's running on the boot jdk, the default bootclasspath is correct.
-GENERATE_OLDBYTECODE_FLAGS := -XDignore.symbol.file=true -Xlint:-options -XDstringConcat=inline
+GENERATE_OLDBYTECODE_FLAGS := -XDignore.symbol.file=true -XDstringConcat=inline
 
 # The generate new bytecode javac setup uses the new compiler to compile for the
 # new jdk. This new bytecode might only be possible to run using the new jvm.
