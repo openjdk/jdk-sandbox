@@ -700,7 +700,7 @@ OUTER:  for (int i = 0; i < n; i += m) {
         PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(theOutputFileName)));
         out.println(commentStart +
             " This file was generated AUTOMATICALLY from a template file " +
-            new java.util.Date() + commentEnd);
+            commentEnd);
         int marklen = commandMarker.length();
         LOOP: while(true) {
             try {
