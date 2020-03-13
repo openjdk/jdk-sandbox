@@ -126,15 +126,15 @@ define SetupBuildDemoBody
     $$(eval $$(call SetupJavaCompilation, BUILD_DEMO_$1, \
         TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
         SRC := $$($1_MAIN_SRC) $$($1_EXTRA_SRC_DIR), \
-        BIN := $(SUPPORT_OUTPUTDIR)/demos/classes/$$($1_DEMO_SUBDIR)/$1, \
+        EXCLUDE_FILES := $$($1_EXCLUDE_FILES), \
         COPY := $(COPY_TO_JAR) $$($1_EXTRA_COPY_TO_JAR), \
+        BIN := $(SUPPORT_OUTPUTDIR)/demos/classes/$$($1_DEMO_SUBDIR)/$1, \
         JAR := $(SUPPORT_OUTPUTDIR)/demos/image/$$($1_DEMO_SUBDIR)/$1/$$($1_JAR_NAME).jar, \
+        SRCZIP := $(SUPPORT_OUTPUTDIR)/demos/image/$$($1_DEMO_SUBDIR)/$1/src.zip, \
+        DISABLED_WARNINGS := $$($1_DISABLED_WARNINGS), \
         JARMAIN := $$($1_MAIN_CLASS), \
         MANIFEST := $(DEMO_MANIFEST), \
         EXTRA_MANIFEST_ATTR := $$($1_EXTRA_MANIFEST_ATTR), \
-        SRCZIP := $(SUPPORT_OUTPUTDIR)/demos/image/$$($1_DEMO_SUBDIR)/$1/src.zip, \
-        EXCLUDE_FILES := $$($1_EXCLUDE_FILES), \
-        DISABLED_WARNINGS := $$($1_DISABLED_WARNINGS), \
     ))
 
     $1 += $$(BUILD_DEMO_$1)

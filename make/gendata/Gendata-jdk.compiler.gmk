@@ -53,11 +53,11 @@ COMPILECREATESYMBOLS_ADD_EXPORTS := \
 
 $(eval $(call SetupJavaCompilation, COMPILE_CREATE_SYMBOLS, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    DISABLED_WARNINGS := options, \
     SRC := $(TOPDIR)/make/langtools/src/classes \
         $(TOPDIR)/src/jdk.jdeps/share/classes, \
     INCLUDES := build/tools/symbolgenerator com/sun/tools/classfile, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/create_symbols, \
+    DISABLED_WARNINGS := options, \
     JAVAC_FLAGS := -XDstringConcat=inline \
         $(INTERIM_LANGTOOLS_ARGS) \
         --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \

@@ -29,10 +29,10 @@ ASM_SRC := $(TOPDIR)/src/java.base/share/classes/jdk/internal/org/objectweb/asm
 # Build nasgen
 $(eval $(call SetupJavaCompilation, BUILD_NASGEN, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     SRC := $(NASGEN_SRC) $(ASM_SRC), \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/nasgen_classes, \
+    DISABLED_WARNINGS := options, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 NASHORN_CLASSES_DIR := $(JDK_OUTPUTDIR)/modules/$(MODULE)

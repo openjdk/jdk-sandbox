@@ -74,11 +74,11 @@ MICROBENCHMARK_MANIFEST := Build: $(FULL_VERSION)\n\
 
 $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/test/jdk/java/lang/invoke, \
     INCLUDE_FILES := indify/Indify.java, \
-    DISABLED_WARNINGS := rawtypes unchecked serial deprecation options, \
     BIN := $(MICROBENCHMARK_TOOLS_CLASSES), \
+    DISABLED_WARNINGS := rawtypes unchecked serial deprecation options, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 #### Compile Targets
@@ -89,11 +89,11 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
 $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
     TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SMALL_JAVA := false, \
-    JAVA_FLAGS := --add-modules jdk.unsupported --limit-modules java.management, \
-    CLASSPATH := $(MICROBENCHMARK_CLASSPATH), \
-    DISABLED_WARNINGS := processing rawtypes cast serial deprecation, \
     SRC := $(MICROBENCHMARK_SRC), \
     BIN := $(MICROBENCHMARK_CLASSES), \
+    CLASSPATH := $(MICROBENCHMARK_CLASSPATH), \
+    DISABLED_WARNINGS := processing rawtypes cast serial deprecation, \
+    JAVA_FLAGS := --add-modules jdk.unsupported --limit-modules java.management, \
 ))
 
 $(BUILD_JDK_MICROBENCHMARK): $(JMH_COMPILE_JARS)

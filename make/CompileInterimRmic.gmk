@@ -64,8 +64,8 @@ $(eval $(call SetupJavaCompilation, BUILD_jdk.rmic.interim, \
     EXCLUDE_FILES := $(TOPDIR)/src/jdk.rmic/share/classes/module-info.java, \
     EXTRA_FILES := $(BUILDTOOLS_OUTPUTDIR)/gensrc/jdk.rmic.interim/module-info.java, \
     INCLUDES := $(RMIC_PKGS), \
-    BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules/jdk.rmic.interim, \
     COPY := .properties, \
+    BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules/jdk.rmic.interim, \
     DISABLED_WARNINGS := deprecation options, \
     JAVAC_FLAGS := -XDstringConcat=inline \
         --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules \

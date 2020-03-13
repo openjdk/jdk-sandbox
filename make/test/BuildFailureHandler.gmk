@@ -49,14 +49,13 @@ FH_CLASSPATH := $(call PathList, $(JTREG_JAR) $(TOOLS_JAR))
 
 $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     SRC := $(FH_BASEDIR)/src/share/classes $(FH_BASEDIR)/src/share/conf, \
-    BIN := $(FH_SUPPORT)/classes, \
-    DISABLED_WARNINGS := deprecation serial try, \
     COPY := .properties, \
-    CLASSPATH := $(JTREG_JAR) $(TOOLS_JAR), \
+    BIN := $(FH_SUPPORT)/classes, \
     JAR := $(FH_JAR), \
+    CLASSPATH := $(JTREG_JAR) $(TOOLS_JAR), \
+    DISABLED_WARNINGS := options deprecation serial try, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 TARGETS += $(BUILD_FAILURE_HANDLER)

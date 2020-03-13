@@ -52,8 +52,8 @@ $(eval $(call SetupJavaCompilation, BUILD_TOOLS_JDK, \
         build/tools/jigsaw \
         build/tools/depend \
         , \
-    DISABLED_WARNINGS := unchecked rawtypes deprecation cast options, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes, \
+    DISABLED_WARNINGS := unchecked rawtypes deprecation cast options, \
     JAVAC_FLAGS := -XDstringConcat=inline \
         --add-exports java.desktop/sun.awt=ALL-UNNAMED \
         --add-exports java.base/sun.text=ALL-UNNAMED, \
@@ -72,11 +72,11 @@ TARGETS += $(COPY_NIMBUS_TEMPLATES)
 
 $(eval $(call SetupJavaCompilation, COMPILE_DEPEND, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
-    DISABLED_WARNINGS := options, \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/depend, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/depend, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
+    DISABLED_WARNINGS := options, \
 ))
 
 DEPEND_SERVICE_PROVIDER := $(BUILDTOOLS_OUTPUTDIR)/depend/META-INF/services/com.sun.source.util.Plugin

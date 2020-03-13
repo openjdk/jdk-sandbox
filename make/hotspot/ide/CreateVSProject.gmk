@@ -97,10 +97,10 @@ ifeq ($(call isTargetOs, windows), true)
 
   $(eval $(call SetupJavaCompilation, BUILD_PROJECT_CREATOR, \
       TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-      JAVAC_FLAGS := -XDstringConcat=inline, \
-      DISABLED_WARNINGS := auxiliaryclass deprecation rawtypes unchecked cast options, \
       SRC := $(TOPDIR)/make/hotspot/src/classes, \
       BIN := $(TOOLS_OUTPUTDIR), \
+      DISABLED_WARNINGS := auxiliaryclass deprecation rawtypes unchecked cast options, \
+      JAVAC_FLAGS := -XDstringConcat=inline, \
   ))
 
   TARGETS += $(BUILD_PROJECT_CREATOR)

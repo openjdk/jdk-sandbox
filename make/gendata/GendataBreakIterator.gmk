@@ -46,24 +46,24 @@ BREAK_ITERATOR_CLASSES := $(BUILDTOOLS_OUTPUTDIR)/break_iterator_classes
 # These two files should be moved out to a build tool!
 $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_BASE, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     INCLUDE_FILES := \
         $(TEXT_PKG)/BreakIteratorRules.java \
         $(TEXT_PKG)/BreakIteratorInfo.java, \
     BIN := $(BREAK_ITERATOR_CLASSES)/java.base, \
+    DISABLED_WARNINGS := options, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_LD, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/src/jdk.localedata/share/classes, \
     INCLUDE_FILES := \
         $(TEXT_PKG_LD)/BreakIteratorRules_th.java \
         $(TEXT_PKG_LD)/BreakIteratorInfo_th.java, \
     BIN := $(BREAK_ITERATOR_CLASSES)/jdk.localedata, \
+    DISABLED_WARNINGS := options, \
+    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 BREAK_ITERATOR_BOOTCLASSPATH := \
