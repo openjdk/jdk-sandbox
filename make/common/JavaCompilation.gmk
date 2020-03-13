@@ -125,6 +125,8 @@ endef
 # The target for public API digest is returned in $1_API_TARGET.
 #
 # Remaining parameters are named arguments. These include:
+#   SMALL_JAVA:=set to false to run javac as a "big" java app
+#   COMPILER:=bootjdk or interim, the latter is default
 #   FLAGS:=javac flags to append to the default ones.
 #   DISABLED_WARNINGS:=list of Xlint warnings that should be disabled
 #   SRC:=one or more directories to search for sources. The order of the source roots
@@ -178,26 +180,26 @@ define SetupJavaCompilationBody
       $1_FLAGS += $(addprefix -J, $(JAVA_FLAGS_SMALL))
     endif
   else ifeq ($$($1_COMPILER), interim)
-      ifeq ($$($1_SMALL_JAVA), true)
-       $1_JAVA_CMD := $(JAVA_SMALL)
-      else
-       $1_JAVA_CMD := $(JAVA)
-      endif
+    ifeq ($$($1_SMALL_JAVA), true)
+     $1_JAVA_CMD := $(JAVA_SMALL)
+    else
+     $1_JAVA_CMD := $(JAVA)
+    endif
 
     ifeq ($(ENABLE_JAVAC_SERVER), true)
       $1_JAVAC := $(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.sjavac.Main
 
       # How to launch the server
       $1_JAVAC_SERVER_CMD := $$($1_JAVA_CMD) $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC)
+      $1_ESCAPED_CMD := $$(subst $$(SPACE),%20,$$(subst $$(COMMA),%2C,$$(strip $$($1_JAVAC_SERVER_CMD))))
 
       # Argument to sjavac to spawn a background javac server.
       # The port file contains the tcp/ip on which the server listens
       # and the cookie necessary to talk to the server.
-      $1_JAVA_SERVER_FLAGS := --server:portfile=$$(SJAVAC_SERVER_DIR)/server.port,id=$1,sjavac=$$(subst \
-          $$(SPACE),%20,$$(subst $$(COMMA),%2C,$$(strip $$($1_JAVAC_SERVER_CMD))))
+      $1_JAVA_SERVER_FLAGS := --server:portfile=$$(SJAVAC_SERVER_DIR)/server.port,id=$1,sjavac=$$($1_ESCAPED_CMD)
 
       # Always use small to launch client
-      $1_JAVAC_CMD :=  $(JAVA_SMALL)  $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC) $$($1_JAVA_SERVER_FLAGS)
+      $1_JAVAC_CMD :=  $(JAVA_SMALL) $$($1_EXTRA_JAVA_FLAGS) $$($1_JAVAC) $$($1_JAVA_SERVER_FLAGS)
     else
       # no javac server
       $1_JAVAC := $(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.javac.Main
@@ -211,7 +213,7 @@ define SetupJavaCompilationBody
   # Allow overriding on the command line
   JAVA_WARNINGS_ARE_ERRORS ?= -Werror
 
-  $1_FLAGS += -g -Xlint:all $(JAVA_WARNINGS_ARE_ERRORS)
+  $1_FLAGS += -g -Xlint:all -implicit:none $(JAVA_WARNINGS_ARE_ERRORS)
 
   ifneq ($$($1_DISABLED_WARNINGS), )
     $1_FLAGS += -Xlint:$$(call CommaList, $$(addprefix -, $$($1_DISABLED_WARNINGS)))
@@ -270,9 +272,6 @@ define SetupJavaCompilationBody
     # Remove duplicate source files by keeping the first found of each duplicate.
     # This allows for automatic overrides with custom or platform specific versions
     # source files.
-    #
-    # For the smart javac wrapper case, add each removed file to an extra exclude
-    # file list to prevent sjavac from finding duplicate sources.
     $1_SRCS := $$(strip $$(foreach s, $$($1_SRCS), \
         $$(eval relative_src := $$(call remove-prefixes, $$($1_SRC), $$(s))) \
         $$(if $$($1_$$(relative_src)), \
@@ -352,7 +351,7 @@ define SetupJavaCompilationBody
     $1_COMPILE_TARGET := $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$1_batch
     $1_API_TARGET := $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$1_pubapi
 
-    # When building in batch, put headers in a temp dir to filter out those that actually
+    # Put headers in a temp dir to filter out those that actually
     # changed before copying them to the real header dir.
     ifneq (,$$($1_HEADERS))
       $1_HEADERS_ARG := -h $$($1_HEADERS).$1.tmp
@@ -397,42 +396,41 @@ define SetupJavaCompilationBody
 		$$(call LogWarn, Compiling $$(words $$($1_SRCS)) files for $1)
 		$$(call ExecuteWithLog, $$($1_BIN)$$($1_MODULE_SUBDIR)/_the.$$($1_SAFE_NAME)_batch, \
 		    $$($1_JAVAC_CMD) $$($1_FLAGS) \
-		        -implicit:none \
 		        $$($1_API_DIGEST_FLAGS) \
 		        -d $$($1_BIN) $$($1_HEADERS_ARG) @$$@.tmp) && \
 		$(MV) $$@.tmp $$@
-  endif
 
-  # Add all targets to main variable
-  $1 := $$($1_ALL_COPY_TARGETS) $$($1_ALL_COPY_CLEAN_TARGETS) $$($1_COMPILE_TARGET) \
-      $$($1_HEADER_TARGETS)
+    # Add all targets to main variable
+    $1 := $$($1_ALL_COPY_TARGETS) $$($1_ALL_COPY_CLEAN_TARGETS) $$($1_COMPILE_TARGET) \
+        $$($1_HEADER_TARGETS)
 
-  # Check if a jar file was specified, then setup the rules for the jar.
-  ifneq (,$$($1_JAR))
-    # If no suffixes was explicitly set for this jar file.
-    # Use class and the cleaned/copied properties file suffixes as the default
-    # for the types of files to be put into the jar.
-    ifeq (,$$($1_SUFFIXES))
-      $1_SUFFIXES:=.class $$($1_CLEAN) $$($1_COPY)
+    # Check if a jar file was specified, then setup the rules for the jar.
+    ifneq (,$$($1_JAR))
+      # If no suffixes was explicitly set for this jar file.
+      # Use class and the cleaned/copied properties file suffixes as the default
+      # for the types of files to be put into the jar.
+      ifeq (,$$($1_SUFFIXES))
+        $1_SUFFIXES:=.class $$($1_CLEAN) $$($1_COPY)
+      endif
+
+      $$(eval $$(call SetupJarArchive, ARCHIVE_$1, \
+          DEPENDENCIES:=$$($1), \
+          SRCS:=$$($1_BIN)$$($1_MODULE_SUBDIR), \
+          SUFFIXES:=$$($1_SUFFIXES), \
+          EXCLUDE:=$$($1_EXCLUDES), \
+          INCLUDES:=$$($1_INCLUDES), \
+          EXTRA_FILES:=$$($1_ALL_COPY_TARGETS) $$($1_ALL_COPY_CLEAN_TARGETS), \
+          JAR:=$$($1_JAR), \
+          JARMAIN:=$$($1_JARMAIN), \
+          MANIFEST:=$$($1_MANIFEST), \
+          EXTRA_MANIFEST_ATTR:=$$($1_EXTRA_MANIFEST_ATTR), \
+          JARINDEX:=$$($1_JARINDEX), \
+          HEADERS:=$$($1_HEADERS), \
+      ))
+
+      # Add jar to target list
+      $1 += $$($1_JAR)
     endif
-
-    $$(eval $$(call SetupJarArchive, ARCHIVE_$1, \
-        DEPENDENCIES:=$$($1), \
-        SRCS:=$$($1_BIN)$$($1_MODULE_SUBDIR), \
-        SUFFIXES:=$$($1_SUFFIXES), \
-        EXCLUDE:=$$($1_EXCLUDES), \
-        INCLUDES:=$$($1_INCLUDES), \
-        EXTRA_FILES:=$$($1_ALL_COPY_TARGETS) $$($1_ALL_COPY_CLEAN_TARGETS), \
-        JAR:=$$($1_JAR), \
-        JARMAIN:=$$($1_JARMAIN), \
-        MANIFEST:=$$($1_MANIFEST), \
-        EXTRA_MANIFEST_ATTR:=$$($1_EXTRA_MANIFEST_ATTR), \
-        JARINDEX:=$$($1_JARINDEX), \
-        HEADERS:=$$($1_HEADERS), \
-    ))
-
-    # Add jar to target list
-    $1 += $$($1_JAR)
 
     # Check if a srczip was specified, then setup the rules for the srczip.
     ifneq (,$$($1_SRCZIP))

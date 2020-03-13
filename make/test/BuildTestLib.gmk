@@ -35,8 +35,7 @@ TEST_LIB_SOURCE_DIR := $(TOPDIR)/test/lib
 TEST_LIB_SUPPORT := $(SUPPORT_OUTPUTDIR)/test/lib
 
 $(eval $(call SetupJavaCompilation, BUILD_WB_JAR, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS) \
-        $(JAVAC_WARNINGS), \
+    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS), \
     SRC := $(TEST_LIB_SOURCE_DIR)/sun, \
     BIN := $(TEST_LIB_SUPPORT)/wb_classes, \
     JAR := $(TEST_LIB_SUPPORT)/wb.jar, \

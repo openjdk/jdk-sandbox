@@ -36,7 +36,6 @@ else
   JAVA_EXEC_POS=1
 endif
 
-
 # Override specific values to do a boot cycle build
 
 # Use a different Boot JDK
