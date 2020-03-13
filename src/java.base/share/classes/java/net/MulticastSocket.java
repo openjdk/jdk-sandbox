@@ -211,7 +211,7 @@ public class MulticastSocket extends DatagramSocket {
      * @since 1.4
      */
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
-        this(createDelegate(bindaddr, true));
+        this(createDelegate(bindaddr, MulticastSocket.class));
     }
 
     /**

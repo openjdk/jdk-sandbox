@@ -124,13 +124,13 @@ public class DatagramSocket implements java.io.Closeable {
         return (s != null) && (s.isEmpty() || s.equalsIgnoreCase("true"));
     }
 
-    private static MulticastSocket createAdaptor() throws IOException {
+    private static DatagramSocket createAdaptor() throws IOException {
         boolean opened = false;
         DatagramChannel channel = null;
-        MulticastSocket delegate;
+        DatagramSocket delegate;
         try {
             channel = DefaultSelectorProvider.get().openUninterruptibleDatagramChannel();
-            delegate = (MulticastSocket) channel.socket();
+            delegate = channel.socket();
             opened = true; // everything was fine!
         } finally {
             if (!opened) {
@@ -144,18 +144,43 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate;
     }
 
-    static MulticastSocket createDelegate(SocketAddress bindaddr, boolean multicast)
+    /**
+     * Creates a delegate for the specific requested {@code type}. This method should
+     * only be called by {@code DatagramSocket} and {@code MulticastSocket}
+     * public constructors.
+     *
+     * @param bindaddr An address to bind to, or {@code null} if creating an unbound
+     *                 socket.
+     * @param type This is either {@code MulticastSocket.class}, if the delegate needs
+     *             to support joining multicast groups, or {@code DatagramSocket.class},
+     *             if it doesn't. Typically, this will be {@code DatagramSocket.class}
+     *             when creating a delegate for {@code DatagramSocket}, and
+     *             {@code MulticastSocket.class} when creating a delegate for
+     *             {@code MulticastSocket}.
+     * @param <T> The target type for which the delegate is created.
+     *            This is either {@code java.net.DatagramSocket} or {@code java.net.MulticastSocket}.
+     * @return {@code null} if {@code bindaddr == NO_DELEGATE}, a delegate for the
+     *         requested {@code type} otherwise.
+     * @throws SocketException if an exception occurs while creating or binding the
+     *         the delegate.
+     */
+    static <T extends DatagramSocket> T createDelegate(SocketAddress bindaddr, Class<T> type)
             throws SocketException {
+
+        // Temporary solution until JDK-8237352 is addressed
         if (bindaddr == NO_DELEGATE) return null;
-        MulticastSocket delegate = null;
+
+        assert type == DatagramSocket.class || type == MulticastSocket.class;
+        boolean multicast = (type == MulticastSocket.class);
+        T delegate = null;
         boolean initialized = false;
         try {
             if (USE_PLAIN_DATAGRAM_SOCKET || factory != null) {
-                // create legacy DatagramSocket
-                delegate = new NetMulticastSocket(createImpl(multicast));
+                // create legacy DatagramSocket delegate
+                delegate = type.cast(new NetMulticastSocket(createImpl(multicast)));
             } else {
                 // create NIO adaptor
-                delegate = createAdaptor();
+                delegate = type.cast(createAdaptor());
             }
             if (multicast) {
                 // set reuseaddress if multicasting
@@ -185,14 +210,8 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate;
     }
 
-    private static MulticastSocket createDatagramSocket(SocketAddress bindaddr)
-            throws SocketException {
-        return createDelegate(bindaddr, false);
-    }
-
-
-    // `socket` is either an instance of DatagramSocketAdaptor
-    // NetMulticastSocket, or null. `socket` is null when
+    // `delegate` is either an instance of DatagramSocketAdaptor
+    // NetMulticastSocket, or null. `delegate` is null when
     // `this` is an instance of DatagramSocketAdaptor or
     // NetMulticastSocket.
     private final DatagramSocket delegate;
@@ -202,7 +221,6 @@ public class DatagramSocket implements java.io.Closeable {
         return (T) delegate();
     }
 
-    // MulticastSocket needs to access the socket field.
     private final DatagramSocket delegate() {
         if (delegate == null) {
             throw new InternalError("Should not come here");
@@ -268,7 +286,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @since   1.4
      */
     public DatagramSocket(SocketAddress bindaddr) throws SocketException {
-        this(createDatagramSocket(bindaddr));
+        this(createDelegate(bindaddr, DatagramSocket.class));
     }
 
     /**
