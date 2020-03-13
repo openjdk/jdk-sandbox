@@ -23,42 +23,30 @@
  * questions.
  */
 
-package build.tools.util;
+package jdk.internal.loader;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+/**
+ * NativeLibrary represents a loaded native library instance.
+ */
+public interface NativeLibrary {
+    String name();
 
-public class Header {
+    /*
+     * Finds the address of the entry of the given name.  Returns 0
+     * if not found.
+     */
+    long find(String name);
 
-    // template: a file inside make/template/
-    // years: "2020," or "2000, 2020,"
-    public static List<String> javaHeader(Path template, String years)
-            throws IOException {
-        List<String> result = new ArrayList<>();
-        result.add("/*");
-        int emptyLines = 0;
-        for (String line :  Files.readAllLines(template)) {
-            if (line.isEmpty()) {
-                emptyLines++;
-            } else {
-                // Only add empty lines when they are not at the end
-                for (int i = 0; i < emptyLines; i++) {
-                    result.add(" *");
-                }
-                emptyLines = 0;
-                result.add(" * " + line.replace("%YEARS%", years));
-            }
+    /*
+     * Finds the address of the entry of the given name.
+     *
+     * @throws NoSuchMethodException if the named entry is not found.
+     */
+    default long lookup(String name) throws NoSuchMethodException {
+        long addr = find(name);
+        if (0 == addr) {
+            throw new NoSuchMethodException("Cannot find symbol " + name + " in library " + name());
         }
-        result.add(" */");
-        return result;
-    }
-
-    public static List<String> javaHeader(Path template)
-            throws IOException {
-        return javaHeader(template, LocalDate.now().getYear() + ",");
+        return addr;
     }
 }
