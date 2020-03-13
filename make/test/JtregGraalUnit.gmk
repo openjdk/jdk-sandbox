@@ -114,7 +114,7 @@ ifeq ($(INCLUDE_GRAAL), true)
           BIN := $(COMPILE_OUTPUTDIR)/jdk.vm.compiler.tests, \
           CLASSPATH := $(TEST_COMPILE_CP), \
           DISABLED_WARNINGS := processing, \
-          FLAGS := $(TEST_JAVAC_FLAGS), \
+          JAVAC_FLAGS := $(TEST_JAVAC_FLAGS), \
           COPY := .input, \
       ))
 
@@ -131,7 +131,7 @@ ifeq ($(INCLUDE_GRAAL), true)
               $(TEST_COMPILE_CP) \
               $(COMPILE_OUTPUTDIR)/jdk.vm.compiler.tests, \
           DISABLED_WARNINGS := processing, \
-          FLAGS := $(TEST_JAVAC_FLAGS) -XDstringConcat=inline, \
+          JAVAC_FLAGS := $(TEST_JAVAC_FLAGS) -XDstringConcat=inline, \
       ))
 
       TARGETS_BUILD += $(BUILD_VM_COMPILER_TESTS_SET2)

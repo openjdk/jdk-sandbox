@@ -607,7 +607,7 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
     BIN := $(if $($(MODULE)_BIN), $($(MODULE)_BIN), $(JDK_OUTPUTDIR)/modules), \
     HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
     CREATE_API_DIGEST := true, \
-    FLAGS := \
+    JAVAC_FLAGS := \
         $($(MODULE)_DOCLINT) \
         $($(MODULE)_JAVAC_FLAGS) \
         --module-source-path $(MODULESOURCEPATH) \
