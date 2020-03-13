@@ -117,19 +117,11 @@ public class DatagramSocket implements java.io.Closeable {
     // Temporary solution until JDK-8237352 is addressed
     static final SocketAddress NO_DELEGATE = new SocketAddress() {};
     static final boolean USE_PLAIN_DATAGRAM_SOCKET = usePlainDatagramSocketImpl();
-    static final boolean CONFIGURE_SO_SNDBUF = configureSendBuffer();
-    static final int MAX_PACKET_LEN = 65507;
 
     private static boolean usePlainDatagramSocketImpl() {
         PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainDatagramSocketImpl");
         String s = AccessController.doPrivileged(pa);
         return (s != null) && (s.isEmpty() || s.equalsIgnoreCase("true"));
-    }
-
-    private static boolean configureSendBuffer() {
-        PrivilegedAction<String> pa = () -> NetProperties.get("os.name");
-        String s = AccessController.doPrivileged(pa);
-        return s.contains("OS X");
     }
 
     private static MulticastSocket createAdaptor() throws IOException {
@@ -138,17 +130,6 @@ public class DatagramSocket implements java.io.Closeable {
         MulticastSocket delegate;
         try {
             channel = DefaultSelectorProvider.get().openUninterruptibleDatagramChannel();
-            if (CONFIGURE_SO_SNDBUF) {
-                try {
-                    if (channel.getOption(StandardSocketOptions.SO_SNDBUF) < MAX_PACKET_LEN) {
-                        // NetMulticastSocket does this when it creates the socket on
-                        // Mac OS X
-                        channel.setOption(StandardSocketOptions.SO_SNDBUF, MAX_PACKET_LEN);
-                    }
-                } catch (Exception x) {
-                    // best effort
-                }
-            }
             delegate = (MulticastSocket) channel.socket();
             opened = true; // everything was fine!
         } finally {
