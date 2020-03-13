@@ -58,7 +58,7 @@ $(eval $(call SetupJavaCompilation, COMPILE_CREATE_SYMBOLS, \
         $(TOPDIR)/src/jdk.jdeps/share/classes, \
     INCLUDES := build/tools/symbolgenerator com/sun/tools/classfile, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/create_symbols, \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS) \
+    FLAGS := -XDstringConcat=inline \
         $(INTERIM_LANGTOOLS_ARGS) \
         --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \
         $(COMPILECREATESYMBOLS_ADD_EXPORTS), \

@@ -54,7 +54,7 @@ $(eval $(call SetupJavaCompilation, BUILD_TOOLS_JDK, \
         , \
     DISABLED_WARNINGS := unchecked rawtypes deprecation cast options, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes, \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS) \
+    FLAGS := -XDstringConcat=inline \
         --add-exports java.desktop/sun.awt=ALL-UNNAMED \
         --add-exports java.base/sun.text=ALL-UNNAMED, \
 ))
@@ -72,7 +72,7 @@ TARGETS += $(COPY_NIMBUS_TEMPLATES)
 
 $(eval $(call SetupJavaCompilation, COMPILE_DEPEND, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+    FLAGS := -XDstringConcat=inline, \
     DISABLED_WARNINGS := options, \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/depend, \

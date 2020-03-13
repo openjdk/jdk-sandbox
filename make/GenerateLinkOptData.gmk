@@ -38,7 +38,6 @@ include JavaCompilation.gmk
 # will load more classes
 
 $(eval $(call SetupJavaCompilation, CLASSLIST_JAR, \
-    FLAGS := $(GENERATE_JDKBYTECODE_FLAGS), \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/classlist, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/classlist_classes, \

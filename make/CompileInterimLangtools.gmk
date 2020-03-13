@@ -77,7 +77,7 @@ define SetupInterimModule
       COPY := .gif .png .xml .css .js javax.tools.JavaCompilerTool, \
       BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules/$1.interim, \
       DISABLED_WARNINGS := module options, \
-      FLAGS := $$(BOOT_JAVAC_FLAGS) \
+      FLAGS := \
           --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_langtools_modules \
           $$(INTERIM_LANGTOOLS_ADD_EXPORTS) \
           --patch-module java.base=$(BUILDTOOLS_OUTPUTDIR)/gensrc/java.base.interim \

@@ -35,7 +35,7 @@ TEST_LIB_SOURCE_DIR := $(TOPDIR)/test/lib
 TEST_LIB_SUPPORT := $(SUPPORT_OUTPUTDIR)/test/lib
 
 $(eval $(call SetupJavaCompilation, BUILD_WB_JAR, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS), \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SRC := $(TEST_LIB_SOURCE_DIR)/sun, \
     BIN := $(TEST_LIB_SUPPORT)/wb_classes, \
     JAR := $(TEST_LIB_SUPPORT)/wb.jar, \
@@ -45,7 +45,7 @@ TARGETS += $(BUILD_WB_JAR)
 
 # test-lib.jar will contain only hprof classes until JDK-8081381 is resolved
 $(eval $(call SetupJavaCompilation, BUILD_TEST_LIB_JAR, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS), \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SRC := $(TEST_LIB_SOURCE_DIR)/jdk/test/lib/hprof, \
     BIN := $(TEST_LIB_SUPPORT)/test-lib_classes, \
     JAR := $(TEST_LIB_SUPPORT)/test-lib.jar, \

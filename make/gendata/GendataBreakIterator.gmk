@@ -47,7 +47,7 @@ BREAK_ITERATOR_CLASSES := $(BUILDTOOLS_OUTPUTDIR)/break_iterator_classes
 $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_BASE, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     DISABLED_WARNINGS := options, \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+    FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     INCLUDE_FILES := \
         $(TEXT_PKG)/BreakIteratorRules.java \
@@ -58,7 +58,7 @@ $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_BASE, \
 $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_LD, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     DISABLED_WARNINGS := options, \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+    FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/src/jdk.localedata/share/classes, \
     INCLUDE_FILES := \
         $(TEXT_PKG_LD)/BreakIteratorRules_th.java \

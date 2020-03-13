@@ -34,10 +34,7 @@ include JavaCompilation.gmk
 TOOLS_CLASSES_DIR := $(BUILDTOOLS_OUTPUTDIR)/tools_jigsaw_classes
 
 $(eval $(call SetupJavaCompilation, BUILD_JIGSAW_TOOLS, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS) \
-        --add-modules jdk.jdeps \
-        --add-exports java.base/jdk.internal.module=ALL-UNNAMED \
-        --add-exports jdk.jdeps/com.sun.tools.jdeps=ALL-UNNAMED, \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/deps \
                 build/tools/docs \
@@ -45,6 +42,10 @@ $(eval $(call SetupJavaCompilation, BUILD_JIGSAW_TOOLS, \
     COPY := .properties .html, \
     BIN := $(TOOLS_CLASSES_DIR), \
     DISABLED_WARNINGS := fallthrough, \
+    FLAGS :=  \
+        --add-modules jdk.jdeps \
+        --add-exports java.base/jdk.internal.module=ALL-UNNAMED \
+        --add-exports jdk.jdeps/com.sun.tools.jdeps=ALL-UNNAMED, \
 ))
 
 TARGETS += $(BUILD_JIGSAW_TOOLS)

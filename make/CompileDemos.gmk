@@ -124,7 +124,7 @@ define SetupBuildDemoBody
 
   ifneq ($$($1_SKIP_COMPILATION), true)
     $$(eval $$(call SetupJavaCompilation, BUILD_DEMO_$1, \
-        FLAGS := $$(GENERATE_USINGJDKBYTECODE_FLAGS), \
+        TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
         SRC := $$($1_MAIN_SRC) $$($1_EXTRA_SRC_DIR), \
         BIN := $(SUPPORT_OUTPUTDIR)/demos/classes/$$($1_DEMO_SUBDIR)/$1, \
         COPY := $(COPY_TO_JAR) $$($1_EXTRA_COPY_TO_JAR), \

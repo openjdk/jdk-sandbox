@@ -50,7 +50,7 @@ FH_CLASSPATH := $(call PathList, $(JTREG_JAR) $(TOOLS_JAR))
 $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     DISABLED_WARNINGS := options, \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+    FLAGS := -XDstringConcat=inline, \
     SRC := $(FH_BASEDIR)/src/share/classes $(FH_BASEDIR)/src/share/conf, \
     BIN := $(FH_SUPPORT)/classes, \
     DISABLED_WARNINGS := deprecation serial try, \

@@ -74,7 +74,7 @@ MICROBENCHMARK_MANIFEST := Build: $(FULL_VERSION)\n\
 
 $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
+    FLAGS := -XDstringConcat=inline, \
     SRC := $(TOPDIR)/test/jdk/java/lang/invoke, \
     INCLUDE_FILES := indify/Indify.java, \
     DISABLED_WARNINGS := rawtypes unchecked serial deprecation options, \
@@ -87,9 +87,9 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
 
 # Build microbenchmark suite for the current JDK
 $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
+    TARGET_RELEASE := $(TARGET_RELEASE_NEWJDK_UPGRADED), \
     SMALL_JAVA := false, \
     EXTRA_JAVA_FLAGS := --add-modules jdk.unsupported --limit-modules java.management, \
-    FLAGS := $(GENERATE_USINGJDKBYTECODE_FLAGS), \
     CLASSPATH := $(MICROBENCHMARK_CLASSPATH), \
     DISABLED_WARNINGS := processing rawtypes cast serial deprecation, \
     SRC := $(MICROBENCHMARK_SRC), \
