@@ -36,7 +36,7 @@ include JavaCompilation.gmk
 $(eval $(call SetupJavaCompilation, BUILD_TOOLS_LANGTOOLS, \
     COMPILER := bootjdk, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
-    FLAGS := $(BOOT_JAVAC_FLAGS) -Xprefer:source, \
+    FLAGS := $(BOOT_JAVAC_FLAGS), \
     SRC := $(TOPDIR)/make/langtools/tools, \
     INCLUDES := compileproperties propertiesparser, \
     COPY := .properties, \
