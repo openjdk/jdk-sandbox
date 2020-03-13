@@ -303,7 +303,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *             mapper.accept(e, c);
      *             return buffer.stream();
      *      });
-     * </pre>
+     * }</pre>
      *
      * @param <R>    The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
