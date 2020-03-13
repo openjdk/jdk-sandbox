@@ -600,6 +600,7 @@ ifeq ($(MODULE), jdk.aot)
 endif
 
 $(eval $(call SetupJavaCompilation, $(MODULE), \
+    SMALL_JAVA := false, \
     MODULE := $(MODULE), \
     SRC := $(wildcard $(MODULE_SRC_DIRS)), \
     INCLUDES := $(JDK_USER_DEFINED_FILTER), \
