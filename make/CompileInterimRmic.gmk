@@ -67,7 +67,7 @@ $(eval $(call SetupJavaCompilation, BUILD_jdk.rmic.interim, \
     COPY := .properties, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules/jdk.rmic.interim, \
     DISABLED_WARNINGS := deprecation options, \
-    JAVAC_FLAGS := -XDstringConcat=inline \
+    JAVAC_FLAGS := \
         --module-path $(BUILDTOOLS_OUTPUTDIR)/interim_rmic_modules \
         $(INTERIM_RMIC_ADD_EXPORTS), \
 ))

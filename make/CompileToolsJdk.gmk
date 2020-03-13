@@ -54,7 +54,7 @@ $(eval $(call SetupJavaCompilation, BUILD_TOOLS_JDK, \
         , \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes, \
     DISABLED_WARNINGS := unchecked rawtypes deprecation cast options, \
-    JAVAC_FLAGS := -XDstringConcat=inline \
+    JAVAC_FLAGS := \
         --add-exports java.desktop/sun.awt=ALL-UNNAMED \
         --add-exports java.base/sun.text=ALL-UNNAMED, \
 ))

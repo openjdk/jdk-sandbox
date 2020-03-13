@@ -52,7 +52,6 @@ $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_BASE, \
         $(TEXT_PKG)/BreakIteratorInfo.java, \
     BIN := $(BREAK_ITERATOR_CLASSES)/java.base, \
     DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_LD, \
@@ -63,7 +62,6 @@ $(eval $(call SetupJavaCompilation, BUILD_BREAKITERATOR_LD, \
         $(TEXT_PKG_LD)/BreakIteratorInfo_th.java, \
     BIN := $(BREAK_ITERATOR_CLASSES)/jdk.localedata, \
     DISABLED_WARNINGS := options, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
 
 BREAK_ITERATOR_BOOTCLASSPATH := \
