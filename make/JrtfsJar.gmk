@@ -47,6 +47,7 @@ JIMAGE_PKGS := \
 
 $(eval $(call SetupJavaCompilation, BUILD_JRTFS, \
     COMPILER := bootjdk, \
+    TARGET_RELEASE := $(TARGET_RELEASE_JDK8), \
     FLAGS := $(GENERATE_8_BYTECODE_FLAGS), \
     SRC := $(TOPDIR)/src/java.base/share/classes, \
     EXCLUDE_FILES := module-info.java, \

@@ -35,6 +35,7 @@ include JavaCompilation.gmk
 # upon $(BUILD_TOOLS_LANGTOOLS) to trigger a compilation of the tools.
 $(eval $(call SetupJavaCompilation, BUILD_TOOLS_LANGTOOLS, \
     COMPILER := bootjdk, \
+    TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     FLAGS := $(BOOT_JAVAC_FLAGS) -Xprefer:source, \
     SRC := $(TOPDIR)/make/langtools/tools, \
     INCLUDES := compileproperties propertiesparser, \

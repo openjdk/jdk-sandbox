@@ -44,6 +44,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
   # Compile the annotation processors
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_MATCH_PROCESSOR, \
+      TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
       FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
@@ -59,6 +60,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_NODEINFO_PROCESSOR, \
+      TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
       FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
@@ -73,6 +75,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_OPTIONS_PROCESSOR, \
+      TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
       FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
@@ -87,6 +90,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_REPLACEMENTS_PROCESSOR, \
+      TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
       FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \
@@ -102,6 +106,7 @@ ifeq ($(INCLUDE_GRAAL), true)
   ##############################################################################
 
   $(eval $(call SetupJavaCompilation, BUILD_VM_COMPILER_SERVICEPROVIDER_PROCESSOR, \
+      TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
       FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
       SRC := \
           $(SRC_DIR)/org.graalvm.compiler.processor/src \

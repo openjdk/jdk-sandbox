@@ -73,6 +73,7 @@ MICROBENCHMARK_MANIFEST := Build: $(FULL_VERSION)\n\
 #### Compile Indify tool
 
 $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
+    TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
     SRC := $(TOPDIR)/test/jdk/java/lang/invoke, \
     INCLUDE_FILES := indify/Indify.java, \

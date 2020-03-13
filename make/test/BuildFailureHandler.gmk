@@ -48,6 +48,7 @@ TOOLS_JAR := $(wildcard $(BOOT_JDK)/lib/tools.jar)
 FH_CLASSPATH := $(call PathList, $(JTREG_JAR) $(TOOLS_JAR))
 
 $(eval $(call SetupJavaCompilation, BUILD_FAILURE_HANDLER, \
+    TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     FLAGS := $(GENERATE_OLDBYTECODE_FLAGS), \
     SRC := $(FH_BASEDIR)/src/share/classes $(FH_BASEDIR)/src/share/conf, \
     BIN := $(FH_SUPPORT)/classes, \

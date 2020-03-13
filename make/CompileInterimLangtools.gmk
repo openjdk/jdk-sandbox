@@ -66,6 +66,7 @@ TARGETS += $(COPY_PREVIEW_FEATURES)
 define SetupInterimModule
   $$(eval $$(call SetupJavaCompilation, BUILD_$1.interim, \
       COMPILER := bootjdk, \
+      TARGET_RELEASE := $$(TARGET_RELEASE_BOOTJDK), \
       SRC := $(BUILDTOOLS_OUTPUTDIR)/gensrc/$1.interim \
           $$(wildcard $(SUPPORT_OUTPUTDIR)/gensrc/$1) \
           $(TOPDIR)/src/$1/share/classes, \

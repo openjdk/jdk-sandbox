@@ -34,12 +34,43 @@ ifeq (,$(_MAKEBASE_GMK))
   $(error You must include MakeBase.gmk prior to including JavaCompilation.gmk)
 endif
 
-include SetupJavaCompilers.gmk
-
 # Java compilation needs SetupJarArchive and/or SetupZipArchive, if we're
 # generating a jar file or a source zip.
 include JarArchive.gmk
 include ZipArchive.gmk
+
+TARGET_RELEASE_BOOTJDK := $(BOOT_JDK_SOURCETARGET)
+TARGET_RELEASE_NEWJDK := -source $(JDK_SOURCE_TARGET_VERSION) -target $(JDK_SOURCE_TARGET_VERSION)
+TARGET_RELEASE_JDK8 := --release 8
+
+# The BOOT_JAVAC setup uses the boot jdk compiler to compile the tools
+# and the interim javac, to be run by the boot jdk.
+BOOT_JAVAC_FLAGS := -XDignore.symbol.file=true -Xlint:-options
+
+# Any java code executed during a JDK build to build other parts of the JDK must be
+# executed by the bootstrap JDK (probably with -Xbootclasspath/p: ) and for this
+# purpose must be built with -target PREVIOUS for bootstrapping purposes, which
+# requires restricting to language level and api of previous JDK.
+#
+# The generate old bytecode javac setup uses the new compiler to compile for the
+# boot jdk to generate tools that need to be run with the boot jdk.
+# Thus we force the target bytecode to the previous JDK version.
+# Add -Xlint:-options to avoid the warning about not setting -bootclasspath. Since
+# it's running on the boot jdk, the default bootclasspath is correct.
+GENERATE_OLDBYTECODE_FLAGS := -XDignore.symbol.file=true -Xlint:-options -XDstringConcat=inline
+
+# The generate new bytecode javac setup uses the new compiler to compile for the
+# new jdk. This new bytecode might only be possible to run using the new jvm.
+GENERATE_JDKBYTECODE_FLAGS := -XDignore.symbol.file=true --doclint-format html5 -encoding ascii
+
+# After the jdk is built, we want to build demos using only the recently
+# generated jdk classes and nothing else, no jdk source, etc etc.
+# I.e. the rt.jar, but since rt.jar has not yet been generated
+# (it will be in "make images") therefore we use classes instead.
+GENERATE_USINGJDKBYTECODE_FLAGS := --upgrade-module-path $(JDK_OUTPUTDIR)/modules --system none
+
+# Use boot javac to generate JDK 8 compatible class files explicitly
+GENERATE_8_BYTECODE_FLAGS := -XDignore.symbol.file=true
 
 define add_file_to_copy
   # param 1 = BUILD_MYPACKAGE
@@ -127,6 +158,8 @@ endef
 # Remaining parameters are named arguments. These include:
 #   SMALL_JAVA:=set to false to run javac as a "big" java app
 #   COMPILER:=bootjdk or interim, the latter is default
+#   TARGET_RELEASE:=javac flags to set the targeted jdk release (-source/-target or --release)
+#   Defaults to $(TARGET_RELEASE_NEWJDK).
 #   FLAGS:=javac flags to append to the default ones.
 #   DISABLED_WARNINGS:=list of Xlint warnings that should be disabled
 #   SRC:=one or more directories to search for sources. The order of the source roots
@@ -165,12 +198,17 @@ define SetupJavaCompilationBody
 
   ifeq ($$($1_SMALL_JAVA), )
     # If unspecified, default to true
-    $1_SMALL_JAVA=true
+    $1_SMALL_JAVA := true
   endif
 
   ifeq ($$($1_COMPILER), )
     # If unspecified, default to interim compiler
-    $1_COMPILER=interim
+    $1_COMPILER := interim
+  endif
+
+  ifeq ($$($1_TARGET_RELEASE), )
+    # If unspecified, default to the new jdk we're building
+    $1_TARGET_RELEASE := $$(TARGET_RELEASE_NEWJDK)
   endif
 
   ifeq ($$($1_COMPILER), bootjdk)
@@ -213,7 +251,7 @@ define SetupJavaCompilationBody
   # Allow overriding on the command line
   JAVA_WARNINGS_ARE_ERRORS ?= -Werror
 
-  $1_FLAGS += -g -Xlint:all -implicit:none $(JAVA_WARNINGS_ARE_ERRORS)
+  $1_FLAGS += -g -Xlint:all -implicit:none $$($1_TARGET_RELEASE) $(JAVA_WARNINGS_ARE_ERRORS)
 
   ifneq ($$($1_DISABLED_WARNINGS), )
     $1_FLAGS += -Xlint:$$(call CommaList, $$(addprefix -, $$($1_DISABLED_WARNINGS)))
