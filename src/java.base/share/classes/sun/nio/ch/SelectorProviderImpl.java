@@ -27,7 +27,6 @@ package sun.nio.ch;
 
 import java.io.IOException;
 import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ServerSocketChannel;
@@ -72,27 +71,5 @@ public abstract class SelectorProviderImpl
     @Override
     public SocketChannel openSocketChannel() throws IOException {
         return new SocketChannelImpl(this);
-    }
-
-    @Override
-    public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException
-    {
-        if (family == StandardProtocolFamily.INET ||
-                                family == StandardProtocolFamily.INET6) {
-            return new SocketChannelImpl(this, family);
-        } else
-            return super.openSocketChannel(family);
-    }
-
-    @Override
-    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family)
-        throws IOException
-    {
-        if (family == StandardProtocolFamily.INET ||
-                                family == StandardProtocolFamily.INET6)
-        {
-            return new ServerSocketChannelImpl(this, family);
-        } else
-            return super.openServerSocketChannel(family);
     }
 }

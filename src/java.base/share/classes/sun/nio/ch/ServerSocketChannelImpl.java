@@ -28,8 +28,6 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.net.SocketOption;
@@ -97,30 +95,11 @@ class ServerSocketChannelImpl
 
     // -- End of fields protected by stateLock
 
-    // the protocol family requested by the user
-    private final ProtocolFamily family;
 
     ServerSocketChannelImpl(SelectorProvider sp) {
-        this(sp, Net.isIPv6Available()
-                ? StandardProtocolFamily.INET6
-                : StandardProtocolFamily.INET);
-    }
-
-    ServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) {
         super(sp);
-
-        Objects.requireNonNull(family, "'family' is null");
-        if ((family != StandardProtocolFamily.INET) &&
-                (family != StandardProtocolFamily.INET6)) {
-            throw new UnsupportedOperationException("Protocol family not supported");
-        }
-        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
-            throw new UnsupportedOperationException("IPv6 not available");
-        }
-
-        this.fd = Net.serverSocket(family, true);
+        this.fd = Net.serverSocket(true);
         this.fdVal = IOUtil.fdVal(fd);
-        this.family = family;
     }
 
     ServerSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
@@ -129,10 +108,6 @@ class ServerSocketChannelImpl
         super(sp);
         this.fd =  fd;
         this.fdVal = IOUtil.fdVal(fd);
-        this.family = Net.isIPv6Available()
-                ? StandardProtocolFamily.INET6
-                : StandardProtocolFamily.INET;
-
         if (bound) {
             synchronized (stateLock) {
                 localAddress = Net.localAddress(fd);
@@ -236,13 +211,13 @@ class ServerSocketChannelImpl
             if (localAddress != null)
                 throw new AlreadyBoundException();
             InetSocketAddress isa = (local == null)
-                                    ? Net.anyLocalSocketAddress(family)
-                                    : Net.checkAddress(local, family);
+                                    ? new InetSocketAddress(0)
+                                    : Net.checkAddress(local);
             SecurityManager sm = System.getSecurityManager();
             if (sm != null)
                 sm.checkListen(isa.getPort());
             NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
-            Net.bind(family, fd, isa.getAddress(), isa.getPort());
+            Net.bind(fd, isa.getAddress(), isa.getPort());
             Net.listen(fd, backlog < 1 ? 50 : backlog);
             localAddress = Net.localAddress(fd);
         }
