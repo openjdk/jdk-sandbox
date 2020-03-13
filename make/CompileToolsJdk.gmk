@@ -75,7 +75,6 @@ $(eval $(call SetupJavaCompilation, COMPILE_DEPEND, \
     SRC := $(TOPDIR)/make/jdk/src/classes, \
     INCLUDES := build/tools/depend, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/depend, \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
     DISABLED_WARNINGS := options, \
 ))
 
