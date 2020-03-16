@@ -35,25 +35,33 @@
 
 namespace metaspace {
 
-// Structure keeps lists of same-sized memory blocks.
-// The list heads are kept in a pointer vector, _v, ordered by element size.
-// _v[0] contains list of elements of <smallest_word_size>,
-// _v[1] of <smallest_word_size + 1> and so on.
-template <typename T>
+// A vector of lists of equal-sized memory blocks. Vector is ordered, such
+// as that the first list only contains blocks of min_word_size, the second
+// only blocks of min_word_size + 1 etc.
+//
+// Insertion: O(1)
+// Removal: the "get_block()" operation retrieves the closest fit - for that
+// it searches upward for the first non-empty list. To speed that up a bitmask
+// is used internally to keep the state (nonempty/empty) of every list.
+
+template <size_t smallest_size, int num_lists>
 class BinListImpl {
 
   struct block_t { block_t* next; size_t size; };
 
   // a mask to speed up searching for populated lists: 0 for an empty list, 1 for a non-empty one.
-  T _mask;
+  typedef uint32_t mask_t;
+  STATIC_ASSERT(num_lists <= sizeof(mask_t) * 8);
+
+  mask_t _mask;
+
+  // minimal block size must be large enough to hold a block.
+  STATIC_ASSERT(smallest_size * sizeof(MetaWord) >= sizeof(block_t));
 
 public:
 
-  // Number of lists
-  const static int num_lists = (int)(sizeof(T) * 8);
-
   // block sizes this structure can keep are limited by [_min_block_size, _max_block_size)
-  const static size_t minimal_word_size = (sizeof(block_t) + sizeof(MetaWord) - 1) / sizeof(MetaWord);
+  const static size_t minimal_word_size = smallest_size;
   const static size_t maximal_word_size = minimal_word_size + num_lists;
 
 private:
@@ -77,7 +85,7 @@ private:
   int index_for_next_non_empty_list(int index) {
     assert(index >= 0 && index < num_lists, "Invalid index %d", index);
     int i2 = index;
-    T m = _mask >> i2;
+    mask_t m = _mask >> i2;
     if (m > 0) {
       // count leading zeros would be helpful.
       while ((m & 1) == 0) {
@@ -93,8 +101,8 @@ private:
     return -1;
   }
 
-  void mask_set_bit(int bit) { _mask |= (((T)1) << bit); }
-  void mask_clr_bit(int bit) { _mask &= ~(((T)1) << bit); }
+  void mask_set_bit(int bit) { _mask |= (((mask_t)1) << bit); }
+  void mask_clr_bit(int bit) { _mask &= ~(((mask_t)1) << bit); }
 
 public:
 
@@ -175,10 +183,10 @@ public:
 
 };
 
-typedef BinListImpl<uint8_t>  BinList8;
-typedef BinListImpl<uint16_t> BinList16;
-typedef BinListImpl<uint32_t> BinList32;
-typedef BinListImpl<uint64_t> BinList64;
+typedef BinListImpl<2, 8>  BinList8;
+typedef BinListImpl<2, 16> BinList16;
+typedef BinListImpl<2, 32> BinList32;
+typedef BinListImpl<2, 64> BinList64;
 
 } // namespace metaspace
 
