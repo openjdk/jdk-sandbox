@@ -45,7 +45,7 @@ import jdk.test.lib.JDKToolFinder;
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
- * @run main/othervm -XX:MaxMetaspaceSize=201M -Xmx100M PrintMetaspaceDcmd without-compressed-class-space
+ * @run main/othervm -XX:MaxMetaspaceSize=200M -Xmx100M PrintMetaspaceDcmd without-compressed-class-space
  */
 
 public class PrintMetaspaceDcmd {
@@ -67,7 +67,7 @@ public class PrintMetaspaceDcmd {
         }
         output.shouldContain("Virtual space:");
         output.shouldContain("Chunk freelists:");
-        output.shouldMatch("MaxMetaspaceSize:.*201.00.*MB");
+        output.shouldMatch("MaxMetaspaceSize:.*200.00.*MB");
 
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace"});
         output = new OutputAnalyzer(pb.start());
@@ -79,7 +79,7 @@ public class PrintMetaspaceDcmd {
         output.shouldContain("Virtual space:");
         output.shouldContain("Chunk freelist");
         output.shouldContain("Waste");
-        output.shouldMatch("MaxMetaspaceSize:.*201.00.*MB");
+        output.shouldMatch("MaxMetaspaceSize:.*200.00.*MB");
 
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "show-loaders"});
         output = new OutputAnalyzer(pb.start());
@@ -89,10 +89,19 @@ public class PrintMetaspaceDcmd {
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "by-chunktype"});
         output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
-        output.shouldContain("specialized:");
-        output.shouldContain("small:");
-        output.shouldContain("medium:");
-        output.shouldContain("humongous:");
+        output.shouldContain("1k:");
+        output.shouldContain("2k:");
+        output.shouldContain("4k:");
+        output.shouldContain("8k:");
+        output.shouldContain("16k:");
+        output.shouldContain("32k:");
+        output.shouldContain("64k:");
+        output.shouldContain("128k:");
+        output.shouldContain("256k:");
+        output.shouldContain("512k:");
+        output.shouldContain("1m:");
+        output.shouldContain("2m:");
+        output.shouldContain("4m:");
 
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "vslist"});
         output = new OutputAnalyzer(pb.start());
@@ -100,11 +109,13 @@ public class PrintMetaspaceDcmd {
         output.shouldContain("Virtual space list");
         output.shouldMatch("node.*reserved.*committed.*used.*");
 
+/*      Feature has been deactivated in the new Metaspace prototype. Not that important, reimplement if needed.
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "vsmap"});
         output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
         output.shouldContain("Virtual space map:");
         output.shouldContain("HHHHHHHHHHH");
+*/
 
         // Test with different scales
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "scale=G"});
@@ -115,12 +126,12 @@ public class PrintMetaspaceDcmd {
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "scale=K"});
         output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
-        output.shouldMatch("MaxMetaspaceSize:.*205824.00 KB");
+        output.shouldMatch("MaxMetaspaceSize:.*204800.00 KB");
 
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "scale=1"});
         output = new OutputAnalyzer(pb.start());
         output.shouldHaveExitValue(0);
-        output.shouldMatch("MaxMetaspaceSize:.*210763776 bytes");
+        output.shouldMatch("MaxMetaspaceSize:.*209715200 bytes");
     }
 
     public static void main(String args[]) throws Exception {

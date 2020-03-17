@@ -64,13 +64,14 @@ public class CompressedClassSpaceSize {
                   .shouldHaveExitValue(1);
 
 
-            // Make sure the minimum size is set correctly and printed
+            // Make sure the minimum size is set correctly and printed. Note that reservation of
+            // Metaspace happens with a 4M grain.
             pb = ProcessTools.createJavaProcessBuilder("-XX:+UnlockDiagnosticVMOptions",
                                                        "-XX:CompressedClassSpaceSize=1m",
                                                        "-Xlog:gc+metaspace=trace",
                                                        "-version");
             output = new OutputAnalyzer(pb.start());
-            output.shouldContain("Compressed class space size: 1048576")
+            output.shouldContain("Compressed class space size: 4194304")
                   .shouldHaveExitValue(0);
 
 
