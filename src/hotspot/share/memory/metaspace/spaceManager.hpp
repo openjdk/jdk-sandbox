@@ -39,7 +39,7 @@ class Mutex;
 
 namespace metaspace {
 
-class LeftOverManager;
+class FreeBlocks;
 
 struct sm_stats_t;
 
@@ -68,7 +68,7 @@ class SpaceManager : public CHeapObj<mtClass> {
   MetachunkList _chunks;
 
   // Structure to take care of leftover/deallocated space in used chunks
-  LeftOverManager* _lom;
+  FreeBlocks* _lom;
 
   Metachunk* current_chunk()              { return _chunks.first(); }
   const Metachunk* current_chunk() const  { return _chunks.first(); }
@@ -89,7 +89,7 @@ class SpaceManager : public CHeapObj<mtClass> {
   void create_block_freelist();
   void add_allocation_to_block_freelist(MetaWord* p, size_t word_size);
 
-  LeftOverManager* lom() const                  { return _lom; }
+  FreeBlocks* lom() const                  { return _lom; }
   void create_lom();
   void add_allocation_to_lom(MetaWord* p, size_t word_size);
 

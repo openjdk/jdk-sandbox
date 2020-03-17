@@ -29,21 +29,21 @@
 
 #include "metaspaceTestsCommon.hpp"
 
-#define CHECK_LOM_CONTENT(lom, num_blocks_expected, word_size_expected) \
+#define CHECK_CONTENT(fb, num_blocks_expected, word_size_expected) \
 { \
   if (word_size_expected > 0) { \
-    EXPECT_FALSE(lom.is_empty()); \
+    EXPECT_FALSE(fb.is_empty()); \
   } else { \
-    EXPECT_TRUE(lom.is_empty()); \
+    EXPECT_TRUE(fb.is_empty()); \
   } \
-  EXPECT_EQ(lom.total_size(), (size_t)word_size_expected); \
-  EXPECT_EQ(lom.count(), (int)num_blocks_expected); \
+  EXPECT_EQ(fb.total_size(), (size_t)word_size_expected); \
+  EXPECT_EQ(fb.count(), (int)num_blocks_expected); \
 }
 
-class LeftOverBinsTest {
+class FreeBlocksTest {
 
   FeederBuffer _fb;
-  LeftOverManager _lom;
+  FreeBlocks _freeblocks;
 
   // random generator for block feeding
   RandSizeGenerator _rgen_feeding;
@@ -70,7 +70,7 @@ class LeftOverBinsTest {
     size_t word_size = _rgen_feeding.get();
     MetaWord* p = _fb.get(word_size);
     if (p != NULL) {
-      _lom.add_block(p, word_size);
+      _freeblocks.add_block(p, word_size);
       return true;
     }
     return false;
@@ -82,23 +82,23 @@ class LeftOverBinsTest {
     if (a != NULL) {
       _allocations = a->next;
       check_marked_range(a->p, a->word_size);
-      _lom.add_block(a->p, a->word_size);
+      _freeblocks.add_block(a->p, a->word_size);
       delete a;
-      DEBUG_ONLY(_lom.verify();)
+      DEBUG_ONLY(_freeblocks.verify();)
     }
   }
 
   bool allocate() {
 
-    size_t word_size = MAX2(_rgen_allocations.get(), _lom.minimal_word_size);
-    MetaWord* p = _lom.get_block(word_size);
+    size_t word_size = MAX2(_rgen_allocations.get(), _freeblocks.minimal_word_size);
+    MetaWord* p = _freeblocks.get_block(word_size);
     if (p != NULL) {
       _allocated_words.increment_by(word_size);
       allocation_t* a = new allocation_t;
       a->p = p; a->word_size = word_size;
       a->next = _allocations;
       _allocations = a;
-      DEBUG_ONLY(_lom.verify();)
+      DEBUG_ONLY(_freeblocks.verify();)
       mark_range(p, word_size);
       return true;
     }
@@ -141,18 +141,18 @@ class LeftOverBinsTest {
           _num_allocs ++;
         } else {
           if (draining) {
-            stop = _lom.total_size() < 512;
+            stop = _freeblocks.total_size() < 512;
           } else {
             forcefeed = true;
           }
         }
       }
       if ((iter % 1000) == 0) {
-        DEBUG_ONLY(_lom.verify();)
+        DEBUG_ONLY(_freeblocks.verify();)
         test_all_marked_ranges();
         LOG("a %d (" SIZE_FORMAT "), d %d, f %d", _num_allocs, _allocated_words.get(), _num_deallocs, _num_feeds);
 #ifdef LOG_PLEASE
-        _lom.print(tty, true);
+        _freeblocks.print(tty, true);
         tty->cr();
 #endif
       }
@@ -167,32 +167,32 @@ class LeftOverBinsTest {
 
 public:
 
-  LeftOverBinsTest(size_t avg_alloc_size) :
-    _fb(512 * K), _lom(),
+  FreeBlocksTest(size_t avg_alloc_size) :
+    _fb(512 * K), _freeblocks(),
     _rgen_feeding(128, 4096),
     _rgen_allocations(avg_alloc_size / 4, avg_alloc_size * 2, 0.01f, avg_alloc_size / 3, avg_alloc_size * 30),
     _allocations(NULL),
     _num_allocs(0), _num_deallocs(0), _num_feeds(0)
   {
-    CHECK_LOM_CONTENT(_lom, 0, 0);
+    CHECK_CONTENT(_freeblocks, 0, 0);
     // some initial feeding
-    _lom.add_block(_fb.get(1024), 1024);
-    CHECK_LOM_CONTENT(_lom, 1, 1024);
+    _freeblocks.add_block(_fb.get(1024), 1024);
+    CHECK_CONTENT(_freeblocks, 1, 1024);
   }
 
 
   static void test_small_allocations() {
-    LeftOverBinsTest test(10);
+    FreeBlocksTest test(10);
     test.test_loop();
   }
 
   static void test_medium_allocations() {
-    LeftOverBinsTest test(30);
+    FreeBlocksTest test(30);
     test.test_loop();
   }
 
   static void test_large_allocations() {
-    LeftOverBinsTest test(150);
+    FreeBlocksTest test(150);
     test.test_loop();
   }
 
@@ -200,33 +200,33 @@ public:
 };
 
 
-TEST_VM(metaspace, leftoverbins_basics) {
+TEST_VM(metaspace, freeblocks_basics) {
 
-  LeftOverManager lom;
+  FreeBlocks lom;
   MetaWord tmp[1024];
-  CHECK_LOM_CONTENT(lom, 0, 0);
+  CHECK_CONTENT(lom, 0, 0);
 
   lom.add_block(tmp, 1024);
   DEBUG_ONLY(lom.verify();)
   ASSERT_FALSE(lom.is_empty());
-  CHECK_LOM_CONTENT(lom, 1, 1024);
+  CHECK_CONTENT(lom, 1, 1024);
 
   MetaWord* p = lom.get_block(1024);
   EXPECT_EQ(p, tmp);
   DEBUG_ONLY(lom.verify();)
-  CHECK_LOM_CONTENT(lom, 0, 0);
+  CHECK_CONTENT(lom, 0, 0);
 
 }
 
-TEST_VM(metaspace, leftoverbins_small) {
-  LeftOverBinsTest::test_small_allocations();
+TEST_VM(metaspace, freeblocks_small) {
+  FreeBlocksTest::test_small_allocations();
 }
 
-TEST_VM(metaspace, leftoverbins_medium) {
-  LeftOverBinsTest::test_medium_allocations();
+TEST_VM(metaspace, freeblocks_medium) {
+  FreeBlocksTest::test_medium_allocations();
 }
 
-TEST_VM(metaspace, leftoverbins_large) {
-  LeftOverBinsTest::test_large_allocations();
+TEST_VM(metaspace, freeblocks_large) {
+  FreeBlocksTest::test_large_allocations();
 }
 

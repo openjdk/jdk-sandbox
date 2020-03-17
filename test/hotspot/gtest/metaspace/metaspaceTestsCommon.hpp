@@ -36,7 +36,7 @@
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitLimiter.hpp"
 #include "memory/metaspace/commitMask.hpp"
-#include "memory/metaspace/leftOverManager.hpp"
+#include "memory/metaspace/freeBlocks.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceEnums.hpp"
@@ -69,7 +69,7 @@ using metaspace::CommitMask;
 using metaspace::SizeCounter;
 using metaspace::SizeAtomicCounter;
 using metaspace::IntCounter;
-using metaspace::LeftOverManager;
+using metaspace::FreeBlocks;
 using metaspace::MemRangeCounter;
 using metaspace::Metachunk;
 using metaspace::MetachunkList;

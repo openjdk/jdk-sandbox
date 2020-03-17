@@ -22,13 +22,13 @@
  * questions.
  *
  */
+#include <memory/metaspace/freeBlocks.hpp>
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
-#include "memory/metaspace/leftOverManager.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
@@ -62,7 +62,7 @@ size_t get_raw_allocation_word_size(size_t net_word_size) {
   STATIC_ASSERT(Metachunk::allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
 
   size_t byte_size = net_word_size * BytesPerWord;
-  byte_size = MAX2(byte_size, LeftOverManager::minimal_word_size * BytesPerWord);
+  byte_size = MAX2(byte_size, FreeBlocks::minimal_word_size * BytesPerWord);
   byte_size = align_up(byte_size, Metachunk::allocation_alignment_bytes);
 
   size_t word_size = byte_size / BytesPerWord;
@@ -81,7 +81,7 @@ static size_t get_net_allocation_word_size(size_t raw_word_size) {
 
   size_t byte_size = raw_word_size * BytesPerWord;
   byte_size = align_down(byte_size, Metachunk::allocation_alignment_bytes);
-  if (byte_size < LeftOverManager::minimal_word_size) {
+  if (byte_size < FreeBlocks::minimal_word_size) {
     return 0;
   }
   return byte_size / BytesPerWord;
@@ -150,12 +150,12 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
 
 void SpaceManager::create_lom() {
   assert(_lom == NULL, "Only call once");
-  _lom = new LeftOverManager();
+  _lom = new FreeBlocks();
 }
 
 void SpaceManager::add_allocation_to_lom(MetaWord* p, size_t word_size) {
   if (_lom == NULL) {
-    _lom = new LeftOverManager(); // Create only on demand
+    _lom = new FreeBlocks(); // Create only on demand
   }
   _lom->add_block(p, word_size);
 }
@@ -224,7 +224,7 @@ void SpaceManager::retire_current_chunk() {
   //  benefit of managing free space out-weights the costs for that structure.
   // Non-micro loaders may continue loading, deallocating and retiring more chunks, so the cost of that
   //  structure may amortize over time. But micro loaders probably never will.
-  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : LeftOverManager::minimal_word_size;
+  const size_t dont_bother_below_word_size = _is_micro_loader ? 64 : FreeBlocks::minimal_word_size;
 
   if (net_remaining_words > dont_bother_below_word_size) {
 

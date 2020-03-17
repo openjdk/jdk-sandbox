@@ -40,7 +40,7 @@ class outputStream;
 
 namespace metaspace {
 
-// The LeftOverManager is responsible for managing small leftover-
+// class FreeBlocks is responsible for managing small leftover-
 // and deallocated blocks.
 // They come from two sources:
 // a) the leftover space left in a chunk when a chunk gets retired
@@ -50,7 +50,7 @@ namespace metaspace {
 //    due to interrupted class loading. These blocks are small or
 //    very small.
 
-class LeftOverManager : public CHeapObj<mtInternal> {
+class FreeBlocks : public CHeapObj<mtInternal> {
 
   typedef BinList32 SmallBlocksType;
 
