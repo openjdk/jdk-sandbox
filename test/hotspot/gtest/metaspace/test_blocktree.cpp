@@ -31,7 +31,7 @@
 
 
 #define CHECK_BT_CONTENT(bt, expected_num, expected_size) { \
-  EXPECT_EQ(bt.count(), (int)expected_num); \
+  EXPECT_EQ(bt.count(), (unsigned)expected_num); \
   EXPECT_EQ(bt.total_size(), (size_t)expected_size); \
   if (expected_num == 0) { \
     EXPECT_TRUE(bt.is_empty()); \

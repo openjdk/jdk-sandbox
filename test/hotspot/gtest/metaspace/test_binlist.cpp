@@ -31,7 +31,7 @@
 
 
 #define CHECK_BL_CONTENT(bl, expected_num, expected_size) { \
-  EXPECT_EQ(bl.count(), (int)expected_num); \
+  EXPECT_EQ(bl.count(), (unsigned)expected_num); \
   EXPECT_EQ(bl.total_size(), (size_t)expected_size); \
   if (expected_num == 0) { \
     EXPECT_TRUE(bl.is_empty()); \
@@ -121,8 +121,10 @@ struct BinListBasicTest {
     MemRangeCounter cnt[2];
 
 #define CHECK_COUNTERS \
-  cnt[0].check(bl[0].count(), bl[0].total_size()); \
-  cnt[1].check(bl[1].count(), bl[1].total_size());
+  ASSERT_EQ(cnt[0].count(), bl[0].count()); \
+  ASSERT_EQ(cnt[1].count(), bl[1].count()); \
+  ASSERT_EQ(cnt[0].total_size(), bl[0].total_size()); \
+  ASSERT_EQ(cnt[1].total_size(), bl[1].total_size());
 
     FeederBuffer fb(1024);
     RandSizeGenerator rgen(minws, maxws);

@@ -386,7 +386,7 @@ public:
 
 
   // Returns number of blocks in this structure
-  int count() const { return _counter.count(); }
+  unsigned count() const { return _counter.count(); }
 
   // Returns total size, in words, of all elements.
   size_t total_size() const { return _counter.total_size(); }
