@@ -45,11 +45,12 @@ static void print_vs(outputStream* out, size_t scale) {
   const size_t reserved_nc = RunningCounters::reserved_words_nonclass();
   const size_t committed_nc = RunningCounters::committed_words_nonclass();
   const int num_nodes_nc = VirtualSpaceList::vslist_nonclass()->num_nodes();
-  const size_t reserved_c = RunningCounters::reserved_words_class();
-  const size_t committed_c = RunningCounters::committed_words_class();
-  const int num_nodes_c = VirtualSpaceList::vslist_class()->num_nodes();
 
   if (Metaspace::using_class_space()) {
+
+    const size_t reserved_c = RunningCounters::reserved_words_class();
+    const size_t committed_c = RunningCounters::committed_words_class();
+    const int num_nodes_c = VirtualSpaceList::vslist_class()->num_nodes();
 
     out->print("  Non-class space:  ");
     print_scaled_words(out, reserved_nc, scale, 7);
@@ -73,7 +74,6 @@ static void print_vs(outputStream* out, size_t scale) {
     out->cr();
 
   } else {
-    assert(committed_c == 0 && reserved_c == 0 && num_nodes_c == 0, "Sanity");
     print_scaled_words(out, reserved_nc, scale, 7);
     out->print(" reserved, ");
     print_scaled_words_and_percentage(out, committed_nc, reserved_nc, scale, 7);
