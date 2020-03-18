@@ -137,6 +137,15 @@ public class MulticastSocket extends DatagramSocket {
     }
 
     /**
+     * Create a MulticastSocket that delegates to the given delegate if not null.
+     * @param delegate the delegate, can be null.
+     */
+    MulticastSocket(MulticastSocket delegate)  {
+        super(delegate);
+    }
+
+
+    /**
      * Create a multicast socket.
      *
      * <p>
@@ -213,15 +222,6 @@ public class MulticastSocket extends DatagramSocket {
     public MulticastSocket(SocketAddress bindaddr) throws IOException {
         this(createDelegate(bindaddr, MulticastSocket.class));
     }
-
-    /**
-     * Create a MulticastSocket that delegates to the given delegate if not null.
-     * @param delegate the delegate, can be null.
-     */
-    MulticastSocket(MulticastSocket delegate)  {
-        super(delegate);
-    }
-
 
     /**
      * Set the default time-to-live for multicast packets sent out
