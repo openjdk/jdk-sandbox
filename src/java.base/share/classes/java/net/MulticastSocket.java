@@ -132,8 +132,9 @@ import java.nio.channels.MulticastChannel;
  */
 public class MulticastSocket extends DatagramSocket {
 
+    @Override
     final MulticastSocket delegate() {
-        return super.delegate(MulticastSocket.class);
+        return (MulticastSocket) super.delegate();
     }
 
     /**
