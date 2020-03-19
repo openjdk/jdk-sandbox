@@ -129,6 +129,32 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate;
     }
 
+    // Throws IllegalArgumentException if delegate is neither null nor in java.base.
+    private static DatagramSocket checkDelegate(DatagramSocket delegate) {
+        if (delegate == null) return null;
+        var type = delegate.getClass();
+        var module = DatagramSocket.class.getModule();
+        if (!module.equals(type.getModule())) {
+            // should never happen
+            throw new IllegalArgumentException("Class " + type + " is not in " + module.getName());
+        }
+        return delegate;
+    }
+
+    /**
+     * All constructors eventually call this one.
+     * @param delegate The wrapped DatagramSocket implementation, or null.
+     */
+    DatagramSocket(DatagramSocket delegate) {
+        // delegate can be null in which case any call to
+        // delegate() will throw an InternalError("should not come here");
+        // Otherwise - it must be one of the "approved" subclasses:
+        assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
+                || delegate instanceof NetMulticastSocket  // Classical net-based impl
+                || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
+        this.delegate = checkDelegate(delegate);
+    }
+    
     /**
      * Constructs a datagram socket and binds it to any available port
      * on the local host machine.  The socket will be bound to the
@@ -240,32 +266,6 @@ public class DatagramSocket implements java.io.Closeable {
      */
     public DatagramSocket(int port, InetAddress laddr) throws SocketException {
         this(new InetSocketAddress(laddr, port));
-    }
-
-    /**
-     * All constructors eventually call this one.
-     * @param delegate The wrapped DatagramSocket implementation, or null.
-     */
-    DatagramSocket(DatagramSocket delegate) {
-        // delegate can be null in which case any call to
-        // delegate() will throw an InternalError("should not come here");
-        // Otherwise - it must be one of the "approved" subclasses:
-        assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
-                || delegate instanceof NetMulticastSocket  // Classical net-based impl
-                || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
-        this.delegate = checkDelegate(delegate);
-    }
-
-    // Throws IllegalArgumentException if delegate is neither null nor in java.base.
-    private static DatagramSocket checkDelegate(DatagramSocket delegate) {
-        if (delegate == null) return null;
-        var type = delegate.getClass();
-        var module = DatagramSocket.class.getModule();
-        if (!module.equals(type.getModule())) {
-            // should never happen
-            throw new IllegalArgumentException("Class " + type + " is not in " + module.getName());
-        }
-        return delegate;
     }
 
     /**
@@ -1046,6 +1046,13 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate().supportedOptions();
     }
 
+    /*
+     * A global switch allows to select whether DatagramSocket delegates
+     * to the old legacy implementation that further delegates to
+     * DatagramSocketImpl (java.net.NetMulticastSocket), or to the NIO
+     * implementation (sun.nio.ch.DatagramSocketAdaptor)
+     */
+
     // Temporary solution until JDK-8237352 is addressed
     static final SocketAddress NO_DELEGATE = new SocketAddress() {};
     static final boolean USE_PLAINDATAGRAMSOCKET = usePlainDatagramSocketImpl();
@@ -1054,6 +1061,24 @@ public class DatagramSocket implements java.io.Closeable {
         PrivilegedAction<String> pa = () -> NetProperties.get("jdk.net.usePlainDatagramSocketImpl");
         String s = AccessController.doPrivileged(pa);
         return (s != null) && (s.isEmpty() || s.equalsIgnoreCase("true"));
+    }
+
+    /**
+     * Best effort to convert an {@link IOException}
+     * into a {@link SocketException}.
+     *
+     * @param e an instance of {@link IOException}
+     * @return an instance of {@link SocketException}
+     */
+    static SocketException toSocketException(IOException e) {
+        if (e instanceof SocketException)
+            return (SocketException) e;
+        Throwable cause = e.getCause();
+        if (cause instanceof SocketException)
+            return (SocketException) cause;
+        SocketException se = new SocketException(e.getMessage());
+        se.initCause(e);
+        return se;
     }
 
     /**
@@ -1136,24 +1161,6 @@ public class DatagramSocket implements java.io.Closeable {
         }
 
         return delegate;
-    }
-
-    /**
-     * Best effort to convert an {@link IOException}
-     * into a {@link SocketException}.
-     *
-     * @param e an instance of {@link IOException}
-     * @return an instance of {@link SocketException}
-     */
-    static SocketException toSocketException(IOException e) {
-        if (e instanceof SocketException)
-            return (SocketException) e;
-        Throwable cause = e.getCause();
-        if (cause instanceof SocketException)
-            return (SocketException) cause;
-        SocketException se = new SocketException(e.getMessage());
-        se.initCause(e);
-        return se;
     }
 
 }
