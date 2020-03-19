@@ -154,7 +154,7 @@ public class DatagramSocket implements java.io.Closeable {
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
         this.delegate = checkDelegate(delegate);
     }
-    
+
     /**
      * Constructs a datagram socket and binds it to any available port
      * on the local host machine.  The socket will be bound to the
@@ -955,8 +955,8 @@ public class DatagramSocket implements java.io.Closeable {
      * @see       SecurityManager#checkSetFactory
      * @since 1.3
      */
-    // @Deprecated(forRemoval = true)
-    public static synchronized void setDatagramSocketImplFactory(DatagramSocketImplFactory fac)
+    public static synchronized void
+    setDatagramSocketImplFactory(DatagramSocketImplFactory fac)
             throws IOException
     {
         if (factory != null) {
