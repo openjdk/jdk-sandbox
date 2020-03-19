@@ -89,7 +89,6 @@ class GCHeapLog : public EventLogBase<GCMessage> {
 // CollectedHeap
 //   GenCollectedHeap
 //     SerialHeap
-//     CMSHeap
 //   G1CollectedHeap
 //   ParallelScavengeHeap
 //   ShenandoahHeap
@@ -173,7 +172,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     None,
     Serial,
     Parallel,
-    CMS,
     G1,
     Epsilon,
     Z,

@@ -217,7 +217,6 @@ void MetaspaceUtils::verify(bool slow) {
 
 volatile size_t MetaspaceGC::_capacity_until_GC = 0;
 uint MetaspaceGC::_shrink_factor = 0;
-bool MetaspaceGC::_should_concurrent_collect = false;
 
 // VM_CollectForMetadataAllocation is the vm operation used to GC.
 // Within the VM operation after the GC the attempt to allocate the metadata
