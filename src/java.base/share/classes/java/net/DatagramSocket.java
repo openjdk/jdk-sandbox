@@ -129,18 +129,6 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate;
     }
 
-    // Throws IllegalArgumentException if delegate is neither null nor in java.base.
-    private static DatagramSocket checkDelegate(DatagramSocket delegate) {
-        if (delegate == null) return null;
-        var type = delegate.getClass();
-        var module = DatagramSocket.class.getModule();
-        if (!module.equals(type.getModule())) {
-            // should never happen
-            throw new IllegalArgumentException("Class " + type + " is not in " + module.getName());
-        }
-        return delegate;
-    }
-
     /**
      * All constructors eventually call this one.
      * @param delegate The wrapped DatagramSocket implementation, or null.
@@ -152,7 +140,12 @@ public class DatagramSocket implements java.io.Closeable {
         assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
                 || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
-        this.delegate = checkDelegate(delegate);
+        // Note: if we decide to expose this constructor later on as a protected
+        // constructor to allow custom subclasses to pass a null delegate and get
+        // rid of NO_DELEGATE, we might want to replace the assert above by a conditional
+        // that throws an IllegalArgumentException if the delegate is not null and its
+        // module is not java.base.
+        this.delegate = delegate;
     }
 
     /**
