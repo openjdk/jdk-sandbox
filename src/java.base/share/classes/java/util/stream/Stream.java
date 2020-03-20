@@ -336,7 +336,15 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               new values
      * @return       the new stream
      */
-     <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper);
+    default <R> Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+        SpinedBuffer<R> buffer = new SpinedBuffer<>();
+        return this.flatMap(e -> {
+            try (FlatMapConsumer<R> c = new FlatMapConsumer<>(buffer)) {
+                mapper.accept(e, c);
+                return StreamSupport.stream(buffer.spliterator(), false);
+            }
+        });
+    }
 
     /**
      * Returns an {@code IntStream} consisting of the results of replacing each
