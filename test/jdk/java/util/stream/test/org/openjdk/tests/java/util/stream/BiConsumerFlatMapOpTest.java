@@ -32,9 +32,11 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.OpTestCase;
 import java.util.stream.Stream;
@@ -50,6 +52,8 @@ import static java.util.stream.LambdaTestHelpers.mfId;
 import static java.util.stream.LambdaTestHelpers.mfLt;
 import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.expectThrows;
 
 @Test
 public class BiConsumerFlatMapOpTest extends OpTestCase {
@@ -127,5 +131,19 @@ public class BiConsumerFlatMapOpTest extends OpTestCase {
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);
+    }
+
+    @Test
+    public void testConsumerContained() {
+        var s = List.of(0, 1, 2).stream();
+        Consumer<Integer>[] capture = new Consumer[1];
+        BiConsumer<Integer, Consumer<Integer>> mapper = (i, c) -> {
+            c.accept(i);
+            capture[0] = c;
+        };
+        expectThrows(NullPointerException.class,
+                () -> s.flatMap(mapper)
+                        .peek(e -> capture[0].accept(666))
+                        .collect(Collectors.toList()));
     }
 }

@@ -296,6 +296,75 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
+    public final <R> Stream<R> flatMap(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
+        Objects.requireNonNull(mapper);
+        return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
+                return new Sink.ChainedReference<P_OUT, R>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(P_OUT u) {
+                        SpinedBuffer<R> buffer = new SpinedBuffer<>();
+                        Stream<? extends R> result;
+
+                        // Try-with-resources to contain buffer
+                        try (FlatMapConsumer<R> c = new FlatMapConsumer<R>(buffer)) {
+                            mapper.accept(u, c);
+                            result = StreamSupport.stream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstream);
+                            } else {
+                                var s = result.sequential().spliterator();
+                                do {
+                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstream));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        // If this method is called then an operation within the stream
+                        // pipeline is short-circuiting (see AbstractPipeline.copyInto).
+                        // Note that we cannot differentiate between an upstream or
+                        // downstream operation
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    private class FlatMapConsumer<R> implements AutoCloseable, Consumer<R> {
+        private SpinedBuffer<R> buffer;
+
+        public FlatMapConsumer(SpinedBuffer<R> buffer) {
+            this.buffer = buffer;
+        }
+
+        @Override
+        public void close() {
+            buffer = null;
+        }
+
+        @Override
+        public void accept(R r) {
+            buffer.accept(r);
+        }
+    }
+
+    @Override
     public final IntStream flatMapToInt(Function<? super P_OUT, ? extends IntStream> mapper) {
         Objects.requireNonNull(mapper);
         return new IntPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,

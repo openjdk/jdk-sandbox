@@ -221,6 +221,11 @@ public final class DefaultMethodStreams {
         }
 
         @Override
+        public <R> Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+            return s.flatMap(mapper);
+        }
+
+        @Override
         public IntStream flatMapToInt(Function<? super T, ? extends IntStream> mapper) {
             return s.flatMapToInt(mapper);
         }

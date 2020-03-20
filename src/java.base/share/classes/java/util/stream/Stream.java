@@ -305,6 +305,30 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *      });
      * }</pre>
      *
+     * <p><b>Examples</b>
+     *
+     * <p>If {@code orders} is a stream of purchase orders, and the status of
+     * each purchase order can be checked, then the following produces a stream
+     * containing all the orders that have been completed:
+     * <pre>{@code
+     *      orders.flatMap((order, sink) -> {
+     *          if (order.isCompleted())
+     *              sink.accept(order);
+     *      });
+     * }</pre>
+     *
+     *  <p>If {@code numbers} is a stream of Number objects, then the following
+     *  produces a stream of only the Integer objects in the numbers stream:
+     * <pre>{@code
+     *       numbers.flatMap((n, sink) -> {
+     *           if (n instanceof Integer)
+     *               sink.accept((Integer) n);
+     *       });
+     * }</pre>
+     * The {@code mapper} passed to {@code flatMap} checks the class type of
+     * each element of the numbers stream and only pushes those elements to
+     * the sink that are of type Integer.
+     *
      * @param <R>    The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
@@ -312,17 +336,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               new values
      * @return       the new stream
      */
-    default <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
-        Objects.requireNonNull(mapper);
-
-        return this.flatMap(e -> {
-            List<R> buffer = new ArrayList<>();
-            Consumer<R> c =  buffer::add;
-
-            mapper.accept(e, c);
-            return buffer.stream();
-        });
-    }
+     <R>Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper);
 
     /**
      * Returns an {@code IntStream} consisting of the results of replacing each
