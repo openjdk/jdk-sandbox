@@ -316,7 +316,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         SpinedBuffer<R> buffer = new SpinedBuffer<>();
                         Stream<? extends R> result;
 
-                        // Try-with-resources to contain buffer
+                        // Close when finished to contain buffer
                         try (FlatMapConsumer<R> c = new FlatMapConsumer<R>(buffer)) {
                             mapper.accept(u, c);
                             result = StreamSupport.stream(buffer.spliterator(), false);
@@ -346,20 +346,20 @@ abstract class ReferencePipeline<P_IN, P_OUT>
         };
     }
 
-    private class FlatMapConsumer<R> implements AutoCloseable, Consumer<R> {
-        private SpinedBuffer<R> buffer;
+    private class FlatMapConsumer<T> implements AutoCloseable, Consumer<T> {
+        private SpinedBuffer<T> buffer;
 
-        public FlatMapConsumer(SpinedBuffer<R> buffer) {
+        public FlatMapConsumer(SpinedBuffer<T> buffer) {
             this.buffer = buffer;
         }
 
         @Override
         public void close() {
-            buffer = null;
+            buffer = null;  // dereference to contain buffer
         }
 
         @Override
-        public void accept(R r) {
+        public void accept(T r) {
             buffer.accept(r);
         }
     }
