@@ -532,7 +532,7 @@ void Metaspace::set_narrow_klass_base_and_shift(ReservedSpace metaspace_rs, addr
   // pointer of 0, which has a special meaning (invalid) (Note: that was
   // never a problem in old metaspace, since every chunk was prefixed by its
   // header, so allocation at position 0 in a chunk was never possible).
-  if (lower_base == metaspace_base) {
+  if (lower_base == (address)metaspace_rs.base()) {
     lower_base -= os::vm_page_size();
   }
 
