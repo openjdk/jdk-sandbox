@@ -368,7 +368,7 @@ jint ShenandoahHeap::initialize() {
   }
 
   _traversal_gc = strcmp(ShenandoahGCMode, "traversal") == 0 ?
-                  new ShenandoahTraversalGC(this, _num_regions) :
+                  new ShenandoahTraversalGC(this) :
                   NULL;
 
   _control_thread = new ShenandoahControlThread();
@@ -2407,7 +2407,6 @@ private:
       if (r->is_active() && !r->is_cset()) {
         _heap->marked_object_oop_iterate(r, &cl, update_watermark);
       }
-      r->set_update_watermark(r->bottom());
       if (ShenandoahPacing) {
         _heap->pacer()->report_updaterefs(pointer_delta(update_watermark, r->bottom()));
       }
