@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
 
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
-#include "vm_version_s390.hpp"
+#include "runtime/vm_version.hpp"
 
 // Note that the compare-and-swap instructions on System z perform
 // a serialization function before the storage operand is fetched
@@ -78,13 +78,13 @@ template<size_t byte_size>
 struct Atomic::PlatformAdd
   : Atomic::AddAndFetch<Atomic::PlatformAdd<byte_size> >
 {
-  template<typename I, typename D>
-  D add_and_fetch(I add_value, D volatile* dest, atomic_memory_order order) const;
+  template<typename D, typename I>
+  D add_and_fetch(D volatile* dest, I add_value, atomic_memory_order order) const;
 };
 
 template<>
-template<typename I, typename D>
-inline D Atomic::PlatformAdd<4>::add_and_fetch(I inc, D volatile* dest,
+template<typename D, typename I>
+inline D Atomic::PlatformAdd<4>::add_and_fetch(D volatile* dest, I inc,
                                                atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(I));
   STATIC_ASSERT(4 == sizeof(D));
@@ -137,8 +137,8 @@ inline D Atomic::PlatformAdd<4>::add_and_fetch(I inc, D volatile* dest,
 
 
 template<>
-template<typename I, typename D>
-inline D Atomic::PlatformAdd<8>::add_and_fetch(I inc, D volatile* dest,
+template<typename D, typename I>
+inline D Atomic::PlatformAdd<8>::add_and_fetch(D volatile* dest, I inc,
                                                atomic_memory_order order) const {
   STATIC_ASSERT(8 == sizeof(I));
   STATIC_ASSERT(8 == sizeof(D));
@@ -334,5 +334,12 @@ inline T Atomic::PlatformCmpxchg<8>::operator()(T xchg_val,
 
   return old;
 }
+
+template<size_t byte_size>
+struct Atomic::PlatformOrderedLoad<byte_size, X_ACQUIRE>
+{
+  template <typename T>
+  T operator()(const volatile T* p) const { T t = *p; OrderAccess::acquire(); return t; }
+};
 
 #endif // OS_CPU_LINUX_S390_ATOMIC_LINUX_S390_HPP

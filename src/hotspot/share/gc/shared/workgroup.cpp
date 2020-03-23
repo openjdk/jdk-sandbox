@@ -153,7 +153,7 @@ public:
     // Wait for the coordinator to dispatch a task.
     _start_semaphore->wait();
 
-    uint num_started = Atomic::add(1u, &_started);
+    uint num_started = Atomic::add(&_started, 1u);
 
     // Subtract one to get a zero-indexed worker id.
     uint worker_id = num_started - 1;
@@ -164,7 +164,7 @@ public:
   void worker_done_with_task() {
     // Mark that the worker is done with the task.
     // The worker is not allowed to read the state variables after this line.
-    uint not_finished = Atomic::sub(1u, &_not_finished);
+    uint not_finished = Atomic::sub(&_not_finished, 1u);
 
     // The last worker signals to the coordinator that all work is completed.
     if (not_finished == 0) {

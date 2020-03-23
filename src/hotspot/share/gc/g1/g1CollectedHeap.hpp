@@ -214,6 +214,10 @@ private:
 
   void set_used(size_t bytes);
 
+  // Number of bytes used in all regions during GC. Typically changed when
+  // retiring a GC alloc region.
+  size_t _bytes_used_during_gc;
+
   // Class that handles archive allocation ranges.
   G1ArchiveAllocator* _archive_allocator;
 
@@ -262,12 +266,11 @@ private:
 
   // Return true if an explicit GC should start a concurrent cycle instead
   // of doing a STW full GC. A concurrent cycle should be started if:
-  // (a) cause == _gc_locker and +GCLockerInvokesConcurrent,
-  // (b) cause == _g1_humongous_allocation,
-  // (c) cause == _java_lang_system_gc and +ExplicitGCInvokesConcurrent,
-  // (d) cause == _dcmd_gc_run and +ExplicitGCInvokesConcurrent,
-  // (e) cause == _wb_conc_mark,
-  // (f) cause == _g1_periodic_collection and +G1PeriodicGCInvokesConcurrent.
+  // (a) cause == _g1_humongous_allocation,
+  // (b) cause == _java_lang_system_gc and +ExplicitGCInvokesConcurrent,
+  // (c) cause == _dcmd_gc_run and +ExplicitGCInvokesConcurrent,
+  // (d) cause == _wb_conc_mark,
+  // (e) cause == _g1_periodic_collection and +G1PeriodicGCInvokesConcurrent.
   bool should_do_concurrent_full_gc(GCCause::Cause cause);
 
   // Attempt to start a concurrent cycle with the indicated cause.
@@ -1166,10 +1169,6 @@ public:
 
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl);
-
-  virtual void safe_object_iterate(ObjectClosure* cl) {
-    object_iterate(cl);
-  }
 
   // Iterate over heap regions, in address order, terminating the
   // iteration early if the "do_heap_region" method returns "true".

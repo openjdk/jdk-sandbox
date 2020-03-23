@@ -27,6 +27,17 @@
 
 #include "runtime/os.hpp"
 
+// Note that in MSVC, volatile memory accesses are explicitly
+// guaranteed to have acquire release semantics (w.r.t. compiler
+// reordering) and therefore does not even need a compiler barrier
+// for normal acquire release accesses. And all generalized
+// bound calls like release_store go through Atomic::load
+// and Atomic::store which do volatile memory accesses.
+template<> inline void ScopedFence<X_ACQUIRE>::postfix()       { }
+template<> inline void ScopedFence<RELEASE_X>::prefix()        { }
+template<> inline void ScopedFence<RELEASE_X_FENCE>::prefix()  { }
+template<> inline void ScopedFence<RELEASE_X_FENCE>::postfix() { OrderAccess::fence(); }
+
 // The following alternative implementations are needed because
 // Windows 95 doesn't support (some of) the corresponding Windows NT
 // calls. Furthermore, these versions allow inlining in the caller.
@@ -46,23 +57,23 @@ template<size_t byte_size>
 struct Atomic::PlatformAdd
   : Atomic::AddAndFetch<Atomic::PlatformAdd<byte_size> >
 {
-  template<typename I, typename D>
-  D add_and_fetch(I add_value, D volatile* dest, atomic_memory_order order) const;
+  template<typename D, typename I>
+  D add_and_fetch(D volatile* dest, I add_value, atomic_memory_order order) const;
 };
 
 #ifdef AMD64
 template<>
-template<typename I, typename D>
-inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest,
+template<typename D, typename I>
+inline D Atomic::PlatformAdd<4>::add_and_fetch(D volatile* dest, I add_value,
                                                atomic_memory_order order) const {
-  return add_using_helper<int32_t>(os::atomic_add_func, add_value, dest);
+  return add_using_helper<int32_t>(os::atomic_add_func, dest, add_value);
 }
 
 template<>
-template<typename I, typename D>
-inline D Atomic::PlatformAdd<8>::add_and_fetch(I add_value, D volatile* dest,
+template<typename D, typename I>
+inline D Atomic::PlatformAdd<8>::add_and_fetch(D volatile* dest, I add_value,
                                                atomic_memory_order order) const {
-  return add_using_helper<int64_t>(os::atomic_add_long_func, add_value, dest);
+  return add_using_helper<int64_t>(os::atomic_add_long_func, dest, add_value);
 }
 
 #define DEFINE_STUB_XCHG(ByteSize, StubType, StubName)                  \
@@ -100,8 +111,8 @@ DEFINE_STUB_CMPXCHG(8, int64_t, os::atomic_cmpxchg_long_func)
 #else // !AMD64
 
 template<>
-template<typename I, typename D>
-inline D Atomic::PlatformAdd<4>::add_and_fetch(I add_value, D volatile* dest,
+template<typename D, typename I>
+inline D Atomic::PlatformAdd<4>::add_and_fetch(D volatile* dest, I add_value,
                                                atomic_memory_order order) const {
   STATIC_ASSERT(4 == sizeof(I));
   STATIC_ASSERT(4 == sizeof(D));
@@ -202,8 +213,8 @@ inline T Atomic::PlatformLoad<8>::operator()(T const volatile* src) const {
 
 template<>
 template<typename T>
-inline void Atomic::PlatformStore<8>::operator()(T store_value,
-                                                 T volatile* dest) const {
+inline void Atomic::PlatformStore<8>::operator()(T volatile* dest,
+                                                 T store_value) const {
   STATIC_ASSERT(8 == sizeof(T));
   volatile T* src = &store_value;
   __asm {
@@ -217,5 +228,46 @@ inline void Atomic::PlatformStore<8>::operator()(T store_value,
 #endif // AMD64
 
 #pragma warning(default: 4035) // Enables warnings reporting missing return statement
+
+#ifndef AMD64
+template<>
+struct Atomic::PlatformOrderedStore<1, RELEASE_X_FENCE>
+{
+  template <typename T>
+  void operator()(volatile T* p, T v) const {
+    __asm {
+      mov edx, p;
+      mov al, v;
+      xchg al, byte ptr [edx];
+    }
+  }
+};
+
+template<>
+struct Atomic::PlatformOrderedStore<2, RELEASE_X_FENCE>
+{
+  template <typename T>
+  void operator()(volatile T* p, T v) const {
+    __asm {
+      mov edx, p;
+      mov ax, v;
+      xchg ax, word ptr [edx];
+    }
+  }
+};
+
+template<>
+struct Atomic::PlatformOrderedStore<4, RELEASE_X_FENCE>
+{
+  template <typename T>
+  void operator()(volatile T* p, T v) const {
+    __asm {
+      mov edx, p;
+      mov eax, v;
+      xchg eax, dword ptr [edx];
+    }
+  }
+};
+#endif // AMD64
 
 #endif // OS_CPU_WINDOWS_X86_ATOMIC_WINDOWS_X86_HPP

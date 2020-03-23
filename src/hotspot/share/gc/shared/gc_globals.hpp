@@ -210,10 +210,6 @@
           "Number of threads concurrent gc will use")                       \
           constraint(ConcGCThreadsConstraintFunc,AfterErgo)                 \
                                                                             \
-  product(uint, GCTaskTimeStampEntries, 200,                                \
-          "Number of time stamp entries per gc worker thread")              \
-          range(1, max_jint)                                                \
-                                                                            \
   product(bool, AlwaysTenure, false,                                        \
           "Always tenure objects in eden (ParallelGC only)")                \
                                                                             \
@@ -227,10 +223,6 @@
   product(bool, ExplicitGCInvokesConcurrent, false,                         \
           "A System.gc() request invokes a concurrent collection; "         \
           "(effective only when using concurrent collectors)")              \
-                                                                            \
-  product(bool, GCLockerInvokesConcurrent, false,                           \
-          "The exit of a JNI critical section necessitating a scavenge, "   \
-          "also kicks off a background concurrent collection")              \
                                                                             \
   product(uintx, GCLockerEdenExpansionPercent, 5,                           \
           "How much the GC can expand the eden by while the GC locker "     \

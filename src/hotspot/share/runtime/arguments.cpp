@@ -619,8 +619,10 @@ static SpecialFlag const special_jvm_flags[] = {
   { "ResizeOldPLAB",                           JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "UseCMSBestFit",                           JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "UseCMSInitiatingOccupancyOnly",           JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
+  { "GCLockerInvokesConcurrent",     JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "BindGCTaskThreadsToCPUs",       JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
   { "UseGCTaskAffinity",             JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
+  { "GCTaskTimeStampEntries",        JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   // These entries will generate build errors.  Their purpose is to test the macros.

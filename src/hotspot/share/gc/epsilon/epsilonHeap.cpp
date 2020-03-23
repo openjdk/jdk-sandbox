@@ -212,7 +212,7 @@ HeapWord* EpsilonHeap::allocate_new_tlab(size_t min_size,
   }
 
   // Always honor boundaries
-  size = MAX2(min_size, MIN2(_max_tlab_size, size));
+  size = clamp(size, min_size, _max_tlab_size);
 
   // Always honor alignment
   size = align_up(size, MinObjAlignment);
@@ -290,8 +290,8 @@ void EpsilonHeap::do_full_collection(bool clear_all_soft_refs) {
   collect(gc_cause());
 }
 
-void EpsilonHeap::safe_object_iterate(ObjectClosure *cl) {
-  _space->safe_object_iterate(cl);
+void EpsilonHeap::object_iterate(ObjectClosure *cl) {
+  _space->object_iterate(cl);
 }
 
 void EpsilonHeap::print_on(outputStream *st) const {

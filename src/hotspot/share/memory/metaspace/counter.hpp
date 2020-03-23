@@ -109,7 +109,7 @@ public:
 
   void increment_by(T v) {
     T v1 = _c;
-    T v2 = Atomic::add(v, &_c);
+    T v2 = Atomic::add(&_c, v);
     assert(v2 > v1,
            "overflow (" UINT64_FORMAT "+" UINT64_FORMAT ")",
            (uint64_t)v1, (uint64_t)v);
@@ -119,7 +119,7 @@ public:
     assert(_c >= v,
            "underflow (" UINT64_FORMAT "-" UINT64_FORMAT ")",
            (uint64_t)_c, (uint64_t)v);
-    Atomic::sub(v, &_c);
+    Atomic::sub(&_c, v);
   }
 
 #ifdef ASSERT

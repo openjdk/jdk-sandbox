@@ -274,7 +274,7 @@ void jfieldIDWorkaround::verify_instance_jfieldID(Klass* k, jfieldID id) {
     uintx count = 0;
 
     while (Atomic::cmpxchg(1, &JNIHistogram_lock, 0) != 0) {
-      while (OrderAccess::load_acquire(&JNIHistogram_lock) != 0) {
+      while (Atomic::load_acquire(&JNIHistogram_lock) != 0) {
         count +=1;
         if ( (WarnOnStalledSpinLock > 0)
           && (count % WarnOnStalledSpinLock == 0)) {
@@ -3689,7 +3689,7 @@ void copy_jni_function_table(const struct JNINativeInterface_ *new_jni_NativeInt
   intptr_t *a = (intptr_t *) jni_functions();
   intptr_t *b = (intptr_t *) new_jni_NativeInterface;
   for (uint i=0; i <  sizeof(struct JNINativeInterface_)/sizeof(void *); i++) {
-    Atomic::store(*b++, a++);
+    Atomic::store(a++, *b++);
   }
 }
 
@@ -3916,7 +3916,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     *(JNIEnv**)penv = 0;
     // reset vm_created last to avoid race condition. Use OrderAccess to
     // control both compiler and architectural-based reordering.
-    OrderAccess::release_store(&vm_created, 0);
+    Atomic::release_store(&vm_created, 0);
   }
 
   // Flush stdout and stderr before exit.

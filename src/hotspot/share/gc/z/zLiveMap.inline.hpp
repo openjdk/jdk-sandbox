@@ -39,7 +39,7 @@ inline void ZLiveMap::reset() {
 }
 
 inline bool ZLiveMap::is_marked() const {
-  return OrderAccess::load_acquire(&_seqnum) == ZGlobalSeqNum;
+  return Atomic::load_acquire(&_seqnum) == ZGlobalSeqNum;
 }
 
 inline uint32_t ZLiveMap::live_objects() const {
@@ -121,8 +121,8 @@ inline bool ZLiveMap::set(size_t index, bool finalizable, bool& inc_live) {
 }
 
 inline void ZLiveMap::inc_live(uint32_t objects, size_t bytes) {
-  Atomic::add(objects, &_live_objects);
-  Atomic::add(bytes, &_live_bytes);
+  Atomic::add(&_live_objects, objects);
+  Atomic::add(&_live_bytes, bytes);
 }
 
 inline BitMap::idx_t ZLiveMap::segment_start(BitMap::idx_t segment) const {

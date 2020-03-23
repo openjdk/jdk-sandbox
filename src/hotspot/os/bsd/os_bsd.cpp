@@ -51,7 +51,6 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/semaphore.hpp"
@@ -1895,7 +1894,7 @@ void bsd_wrap_code(char* base, size_t size) {
   }
 
   char buf[PATH_MAX + 1];
-  int num = Atomic::add(1, &cnt);
+  int num = Atomic::add(&cnt, 1);
 
   snprintf(buf, PATH_MAX + 1, "%s/hs-vm-%d-%d",
            os::get_temp_directory(), os::current_process_id(), num);
@@ -3205,14 +3204,14 @@ int os::active_processor_count() {
 }
 
 #ifdef __APPLE__
-uint os::processor_id() {
-  static volatile int* volatile apic_to_cpu_mapping = NULL;
-  static volatile int next_cpu_id = 0;
+static volatile int* volatile apic_to_processor_mapping = NULL;
+static volatile int next_processor_id = 0;
 
-  volatile int* mapping = OrderAccess::load_acquire(&apic_to_cpu_mapping);
+static inline volatile int* get_apic_to_processor_mapping() {
+  volatile int* mapping = Atomic::load_acquire(&apic_to_processor_mapping);
   if (mapping == NULL) {
     // Calculate possible number space for APIC ids. This space is not necessarily
-    // in the range [0, number_of_cpus).
+    // in the range [0, number_of_processors).
     uint total_bits = 0;
     for (uint i = 0;; ++i) {
       uint eax = 0xb; // Query topology leaf
@@ -3238,33 +3237,41 @@ uint os::processor_id() {
       mapping[i] = -1;
     }
 
-    if (!Atomic::replace_if_null(mapping, &apic_to_cpu_mapping)) {
+    if (!Atomic::replace_if_null(mapping, &apic_to_processor_mapping)) {
       FREE_C_HEAP_ARRAY(int, mapping);
-      mapping = OrderAccess::load_acquire(&apic_to_cpu_mapping);
+      mapping = Atomic::load_acquire(&apic_to_processor_mapping);
     }
   }
+
+  return mapping;
+}
+
+uint os::processor_id() {
+  volatile int* mapping = get_apic_to_processor_mapping();
 
   uint eax = 0xb;
   uint ebx;
   uint ecx = 0;
   uint edx;
 
-  asm ("cpuid\n\t" : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx) : );
+  __asm__ ("cpuid\n\t" : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx) : );
 
   // Map from APIC id to a unique logical processor ID in the expected
   // [0, num_processors) range.
 
   uint apic_id = edx;
-  int cpu_id = Atomic::load(&mapping[apic_id]);
+  int processor_id = Atomic::load(&mapping[apic_id]);
 
-  while (cpu_id < 0) {
-    if (Atomic::cmpxchg(-2, &mapping[apic_id], -1)) {
-      Atomic::store(Atomic::add(1, &next_cpu_id) - 1, &mapping[apic_id]);
+  while (processor_id < 0) {
+    if (Atomic::cmpxchg(-2, &mapping[apic_id], -1) == -1) {
+      Atomic::store(&mapping[apic_id], Atomic::add(&next_processor_id, 1) - 1);
     }
-    cpu_id = Atomic::load(&mapping[apic_id]);
+    processor_id = Atomic::load(&mapping[apic_id]);
   }
 
-  return (uint)cpu_id;
+  assert(processor_id >= 0 && processor_id < os::processor_count(), "invalid processor id");
+
+  return (uint)processor_id;
 }
 #endif
 

@@ -266,7 +266,7 @@ size_t MetaspaceGC::delta_capacity_until_GC(size_t bytes) {
 }
 
 size_t MetaspaceGC::capacity_until_GC() {
-  size_t value = OrderAccess::load_acquire(&_capacity_until_GC);
+  size_t value = Atomic::load_acquire(&_capacity_until_GC);
   assert(value >= MetaspaceSize, "Not initialized properly?");
   return value;
 }
@@ -318,7 +318,7 @@ bool MetaspaceGC::inc_capacity_until_GC(size_t v, size_t* new_cap_until_GC, size
 size_t MetaspaceGC::dec_capacity_until_GC(size_t v) {
   assert_is_aligned(v, Metaspace::commit_alignment());
 
-  return Atomic::sub(v, &_capacity_until_GC);
+  return Atomic::sub(&_capacity_until_GC, v);
 }
 
 void MetaspaceGC::initialize() {

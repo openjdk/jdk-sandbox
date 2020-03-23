@@ -134,7 +134,7 @@ uint                  ThreadsSMRSupport::_to_delete_list_max = 0;
 // 'inline' functions first so the definitions are before first use:
 
 inline void ThreadsSMRSupport::add_deleted_thread_times(uint add_value) {
-  Atomic::add(add_value, &_deleted_thread_times);
+  Atomic::add(&_deleted_thread_times, add_value);
 }
 
 inline void ThreadsSMRSupport::inc_deleted_thread_cnt() {
@@ -601,8 +601,6 @@ ThreadsList *ThreadsList::add_thread(ThreadsList *list, JavaThread *java_thread)
 }
 
 void ThreadsList::dec_nested_handle_cnt() {
-  // The decrement only needs to be MO_ACQ_REL since the reference
-  // counter is volatile (and the hazard ptr is already NULL).
   Atomic::dec(&_nested_handle_cnt);
 }
 
@@ -646,8 +644,6 @@ JavaThread* ThreadsList::find_JavaThread_from_java_tid(jlong java_tid) const {
 }
 
 void ThreadsList::inc_nested_handle_cnt() {
-  // The increment needs to be MO_SEQ_CST so that the reference counter
-  // update is seen before the subsequent hazard ptr update.
   Atomic::inc(&_nested_handle_cnt);
 }
 
@@ -783,7 +779,7 @@ void ThreadsSMRSupport::clear_delete_notify() {
 bool ThreadsSMRSupport::delete_notify() {
   // Use load_acquire() in order to see any updates to _delete_notify
   // earlier than when delete_lock is grabbed.
-  return (OrderAccess::load_acquire(&_delete_notify) != 0);
+  return (Atomic::load_acquire(&_delete_notify) != 0);
 }
 
 // Safely free a ThreadsList after a Threads::add() or Threads::remove().
