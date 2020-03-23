@@ -46,8 +46,8 @@ struct Atomic::PlatformAdd
 
 template<size_t byte_size>
 template<typename T>
-inline T Atomic::PlatformXchg<byte_size>::operator()(T exchange_value,
-                                                     T volatile* dest,
+inline T Atomic::PlatformXchg<byte_size>::operator()(T volatile* dest,
+                                                     T exchange_value,
                                                      atomic_memory_order order) const {
   STATIC_ASSERT(byte_size == sizeof(T));
   T res = __atomic_exchange_n(dest, exchange_value, __ATOMIC_RELEASE);
@@ -57,9 +57,9 @@ inline T Atomic::PlatformXchg<byte_size>::operator()(T exchange_value,
 
 template<size_t byte_size>
 template<typename T>
-inline T Atomic::PlatformCmpxchg<byte_size>::operator()(T exchange_value,
-                                                        T volatile* dest,
+inline T Atomic::PlatformCmpxchg<byte_size>::operator()(T volatile* dest,
                                                         T compare_value,
+                                                        T exchange_value,
                                                         atomic_memory_order order) const {
   STATIC_ASSERT(byte_size == sizeof(T));
   if (order == memory_order_relaxed) {

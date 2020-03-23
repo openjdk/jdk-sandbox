@@ -191,7 +191,7 @@ size_t ShenandoahPacer::update_and_get_progress_history() {
 void ShenandoahPacer::restart_with(size_t non_taxable_bytes, double tax_rate) {
   size_t initial = (size_t)(non_taxable_bytes * tax_rate) >> LogHeapWordSize;
   STATIC_ASSERT(sizeof(size_t) <= sizeof(intptr_t));
-  Atomic::xchg((intptr_t)initial, &_budget);
+  Atomic::xchg(&_budget, (intptr_t)initial);
   Atomic::store(&_tax_rate, tax_rate);
   Atomic::inc(&_epoch);
 }
@@ -210,7 +210,7 @@ bool ShenandoahPacer::claim_for_alloc(size_t words, bool force) {
       return false;
     }
     new_val = cur - tax;
-  } while (Atomic::cmpxchg(new_val, &_budget, cur) != cur);
+  } while (Atomic::cmpxchg(&_budget, cur, new_val) != cur);
   return true;
 }
 

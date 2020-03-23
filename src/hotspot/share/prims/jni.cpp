@@ -273,7 +273,7 @@ void jfieldIDWorkaround::verify_instance_jfieldID(Klass* k, jfieldID id) {
     _name = elementName;
     uintx count = 0;
 
-    while (Atomic::cmpxchg(1, &JNIHistogram_lock, 0) != 0) {
+    while (Atomic::cmpxchg(&JNIHistogram_lock, 0, 1) != 0) {
       while (Atomic::load_acquire(&JNIHistogram_lock) != 0) {
         count +=1;
         if ( (WarnOnStalledSpinLock > 0)
@@ -3233,7 +3233,7 @@ static bool initializeDirectBufferSupport(JNIEnv* env, JavaThread* thread) {
     return false;
   }
 
-  if (Atomic::cmpxchg(1, &directBufferSupportInitializeStarted, 0) == 0) {
+  if (Atomic::cmpxchg(&directBufferSupportInitializeStarted, 0, 1) == 0) {
     if (!lookupDirectBufferClasses(env)) {
       directBufferSupportInitializeFailed = 1;
       return false;
@@ -3811,9 +3811,9 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 #if defined(ZERO) && defined(ASSERT)
   {
     jint a = 0xcafebabe;
-    jint b = Atomic::xchg((jint) 0xdeadbeef, &a);
+    jint b = Atomic::xchg(&a, (jint) 0xdeadbeef);
     void *c = &a;
-    void *d = Atomic::xchg(&b, &c);
+    void *d = Atomic::xchg(&c, &b);
     assert(a == (jint) 0xdeadbeef && b == (jint) 0xcafebabe, "Atomic::xchg() works");
     assert(c == &b && d == &a, "Atomic::xchg() works");
   }
@@ -3829,10 +3829,10 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
   // We use Atomic::xchg rather than Atomic::add/dec since on some platforms
   // the add/dec implementations are dependent on whether we are running
   // on a multiprocessor Atomic::xchg does not have this problem.
-  if (Atomic::xchg(1, &vm_created) == 1) {
+  if (Atomic::xchg(&vm_created, 1) == 1) {
     return JNI_EEXIST;   // already created, or create attempt in progress
   }
-  if (Atomic::xchg(0, &safe_to_recreate_vm) == 0) {
+  if (Atomic::xchg(&safe_to_recreate_vm, 0) == 0) {
     return JNI_ERR;  // someone tried and failed and retry not allowed.
   }
 

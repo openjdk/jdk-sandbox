@@ -67,39 +67,41 @@
       addq     %rdi, %rax
       .end
 
-  // Support for jint Atomic::xchg(jint exchange_value, volatile jint* dest).
+  // Implementation of jint _Atomic_xchg(jint exchange_value, volatile jint* dest)
+  // used by Atomic::xchg(volatile jint* dest, jint exchange_value)
       .inline _Atomic_xchg,2
       xchgl    (%rsi), %edi
       movl     %edi, %eax
       .end
 
-  // Support for jlong Atomic::xchg(jlong exchange_value, volatile jlong* dest).
+  // Implementation of jlong _Atomic_xchg(jlong exchange_value, volatile jlong* dest)
+  // used by Atomic::xchg(volatile jlong* dest, jlong exchange_value)
       .inline _Atomic_xchg_long,2
       xchgq    (%rsi), %rdi
       movq     %rdi, %rax
       .end
 
-  // Support for jbyte Atomic::cmpxchg(jbyte exchange_value,
-  //                                   volatile jbyte *dest,
-  //                                   jbyte compare_value)
+  // Support for jbyte Atomic::cmpxchg(volatile jbyte *dest,
+  //                                   jbyte compare_value,
+  //                                   jbyte exchange_value)
       .inline _Atomic_cmpxchg_byte,3
       movb     %dl, %al      // compare_value
       lock
       cmpxchgb %dil, (%rsi)
       .end
 
-  // Support for jint Atomic::cmpxchg(jint exchange_value,
-  //                                  volatile jint *dest,
-  //                                  jint compare_value)
+  // Support for jint Atomic::cmpxchg(volatile jint *dest,
+  //                                  int compare_value,
+  //                                  jint exchange_value)
       .inline _Atomic_cmpxchg,3
       movl     %edx, %eax      // compare_value
       lock
       cmpxchgl %edi, (%rsi)
       .end
 
-  // Support for jlong Atomic::cmpxchg(jlong exchange_value,
-  //                                   volatile jlong* dest,
-  //                                   jlong compare_value)
+  // Support for jlong Atomic::cmpxchg(volatile jlong* dest,
+  //                                   jlong compare_value,
+  //                                   jlong exchange_value)
       .inline _Atomic_cmpxchg_long,3
       movq     %rdx, %rax      // compare_value
       lock

@@ -488,7 +488,8 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  // Support for jint Atomic::xchg(jint exchange_value, volatile jint *dest)
+  // Implementation of jint atomic_xchg(jint exchange_value, volatile jint* dest)
+  // used by Atomic::add(volatile jint* dest, jint exchange_value)
   //
   // Arguments :
   //
@@ -536,7 +537,8 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
-  // Support for jint Atomic::cmpxchg(jint exchange_value, volatile jint *dest, jint compare_value)
+  // Implementation of jint atomic_cmpxchg(jint exchange_value, volatile jint *dest, jint compare_value)
+  // used by Atomic::cmpxchg(volatile jint *dest, jint compare_value, jint exchange_value)
   //
   // Arguments :
   //
