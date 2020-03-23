@@ -177,7 +177,7 @@ void DumpRegion::print_out_of_space_msg(const char* failing_region, size_t neede
 
 void DumpRegion::pack(DumpRegion* next) {
   assert(!is_packed(), "sanity");
-  _end = (char*)align_up(_top, Metaspace::reserve_alignment());
+  _end = (char*)align_up(_top, os::vm_allocation_granularity());
   _is_packed = true;
   if (next != NULL) {
     next->_base = next->_top = this->_end;
