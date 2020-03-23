@@ -270,4 +270,3 @@ void VirtualSpaceList::set_vslist_nonclass(VirtualSpaceList* vsl) {
 }
 
 } // namespace metaspace
-
