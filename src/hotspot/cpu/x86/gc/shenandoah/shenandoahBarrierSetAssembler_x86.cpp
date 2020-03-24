@@ -512,8 +512,11 @@ void ShenandoahBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet d
   // 3: apply keep-alive barrier if needed
   if (ShenandoahBarrierSet::need_keep_alive_barrier(decorators, type)) {
     __ push_IU_state();
-    const Register thread = NOT_LP64(tmp_thread) LP64_ONLY(r15_thread);
+    Register thread = NOT_LP64(tmp_thread) LP64_ONLY(r15_thread);
     assert_different_registers(dst, tmp1, tmp_thread);
+    if (!thread->is_valid()) {
+      thread = rdx;
+    }
     NOT_LP64(__ get_thread(thread));
     // Generate the SATB pre-barrier code to log the value of
     // the referent field in an SATB buffer.

@@ -55,6 +55,7 @@
 #include "gc/shared/weakProcessor.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "memory/filemap.hpp"
+#include "memory/iterator.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "memory/metaspace/metaspaceSizesSnapshot.hpp"
 #include "memory/resourceArea.hpp"
@@ -472,7 +473,7 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("Before GC");
   }
-  COMPILER2_PRESENT(DerivedPointerTable::clear());
+  COMPILER2_OR_JVMCI_PRESENT(DerivedPointerTable::clear());
 
   if (restore_marks_for_biased_locking) {
     // We perform this mark word preservation work lazily
@@ -520,7 +521,7 @@ void GenCollectedHeap::collect_generation(Generation* gen, bool full, size_t siz
     rp->verify_no_references_recorded();
   }
 
-  COMPILER2_PRESENT(DerivedPointerTable::update_pointers());
+  COMPILER2_OR_JVMCI_PRESENT(DerivedPointerTable::update_pointers());
 
   gen->stat_record()->accumulated_time.stop();
 

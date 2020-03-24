@@ -34,6 +34,7 @@
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "memory/metaspace/classLoaderMetaspace.hpp"
+#include "memory/iterator.hpp"
 #include "memory/universe.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/align.hpp"
@@ -245,6 +246,10 @@ GrowableArray<MemoryPool*> ZCollectedHeap::memory_pools() {
 
 void ZCollectedHeap::object_iterate(ObjectClosure* cl) {
   _heap.object_iterate(cl, true /* visit_weaks */);
+}
+
+void ZCollectedHeap::keep_alive(oop obj) {
+  _heap.keep_alive(obj);
 }
 
 void ZCollectedHeap::register_nmethod(nmethod* nm) {

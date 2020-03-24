@@ -528,4 +528,3 @@ void VirtualSpaceNode::verify(bool slow) const {
 
 
 } // namespace metaspace
-
