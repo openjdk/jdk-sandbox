@@ -53,10 +53,9 @@ import static java.util.stream.LambdaTestHelpers.mfLt;
 import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.expectThrows;
 
 @Test
-public class BiConsumerFlatMapOpTest extends OpTestCase {
+public class FlatPushOpTest extends OpTestCase {
 
     BiConsumer<Integer, Consumer<Integer>> nullConsumer =
             (e, sink) -> mfNull.apply(e).forEach(sink::accept);
@@ -79,7 +78,7 @@ public class BiConsumerFlatMapOpTest extends OpTestCase {
     @Test
     public void testNullMapper() {
         checkNPE(() -> Stream.of(1)
-                .flatMap((BiConsumer<Object, Consumer<Object>>) null));
+                .flatPush((BiConsumer<Object, Consumer<Object>>) null));
     }
 
     @Test
@@ -87,47 +86,44 @@ public class BiConsumerFlatMapOpTest extends OpTestCase {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
 
-        assertConcat(strings.flatMap(charConsumer)
+        assertConcat(strings.flatPush(charConsumer)
                         .iterator(), "hellothereyada");
-        assertCountSum((countTo(10).stream().flatMap(idConsumer)),
-                10, 55);
-        assertCountSum(countTo(10).stream().flatMap(nullConsumer),
-                0, 0);
-        assertCountSum(countTo(3).stream().flatMap(listConsumer),
-                6, 4);
+        assertCountSum((countTo(10).stream().flatPush(idConsumer)), 10, 55);
+        assertCountSum(countTo(10).stream().flatPush(nullConsumer), 0, 0);
+        assertCountSum(countTo(3).stream().flatPush(listConsumer), 6, 4);
 
         exerciseOps(TestData.Factory.ofArray("stringsArray",
-                stringsArray), s -> s.flatMap(charConsumer));
+                stringsArray), s -> s.flatPush(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
-                new String[]{LONG_STRING}), s -> s.flatMap(charConsumer));
+                new String[]{LONG_STRING}), s -> s.flatPush(charConsumer));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOps(String name, TestData.OfRef<Integer> data) {
         Collection<Integer> result;
-        result = exerciseOps(data, s -> s.flatMap(idConsumer));
+        result = exerciseOps(data, s -> s.flatPush(idConsumer));
         assertEquals(data.size(), result.size());
 
-        result = exerciseOps(data, s -> s.flatMap(nullConsumer));
+        result = exerciseOps(data, s -> s.flatPush(nullConsumer));
         assertEquals(0, result.size());
 
-        result = exerciseOps(data, s -> s.flatMap(emptyStreamConsumer));
+        result = exerciseOps(data, s -> s.flatPush(emptyStreamConsumer));
         assertEquals(0, result.size());
     }
 
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOpsX(String name, TestData.OfRef<Integer> data) {
-        exerciseOps(data, s -> s.flatMap(listConsumer));
-        exerciseOps(data, s -> s.flatMap(intRangeConsumer));
-        exerciseOps(data, s -> s.flatMap(rangeConsumerWithLimit));
+        exerciseOps(data, s -> s.flatPush(listConsumer));
+        exerciseOps(data, s -> s.flatPush(intRangeConsumer));
+        exerciseOps(data, s -> s.flatPush(rangeConsumerWithLimit));
     }
 
     @Test
     public void testOpsShortCircuit() {
         AtomicInteger count = new AtomicInteger();
-        Stream.of(0).flatMap(rangeConsumer100).
+        Stream.of(0).flatPush(rangeConsumer100).
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);
@@ -142,8 +138,9 @@ public class BiConsumerFlatMapOpTest extends OpTestCase {
             capture[0] = c;
         };
         expectThrows(NullPointerException.class,
-                () -> s.flatMap(mapper)
+                () -> s.flatPush(mapper)
                         .peek(e -> capture[0].accept(666))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList())
+        );
     }
 }

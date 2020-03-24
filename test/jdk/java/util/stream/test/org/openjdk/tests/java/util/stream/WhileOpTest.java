@@ -375,7 +375,7 @@ public class WhileOpTest extends OpTestCase {
                          // stream the single array (not the elements),
                          // then flat map to stream the array elements
                          s -> Stream.<Integer[]>of(s.toArray(Integer[]::new)).
-                                 flatMap(i -> Stream.of(i)).
+                                 flatMap(Stream::of).
                                  takeWhile(e -> e != 50),
                          s -> Stream.of(s.mapToInt(e -> e).toArray()).
                                  flatMapToInt(IntStream::of).

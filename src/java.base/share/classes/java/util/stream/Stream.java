@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -289,14 +289,14 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * operation</a>.
      *
      * @apiNote
-     * The {@code flatMap()} operation has the effect of applying a one-to-many
+     * The {@code flatPush()} operation has the effect of applying a one-to-many
      * transformation to the elements of the stream, and then flattening the
      * resulting elements into a new stream.
      *
      * @implSpec
      * The default implementation is equivalent to:
      * <pre>{@code
-     *      return this.flatMap(e -> {
+     *      return this.flatPush(e -> {
      *             List<R> buffer = new ArrayList<>();
      *             Consumer<R> c =  buffer::add;
      *
@@ -311,7 +311,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * order can be updated and checked, then the following updates each order and
      * produces a stream containing all the orders that have been completed:
      * <pre>{@code
-     *       orders.flatMap((order, sink) -> {
+     *       orders.flatPush((order, sink) -> {
      *       order.update();
      *       if (order.isCompleted())
      *       sink.accept(order);
@@ -322,13 +322,13 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * produces a stream of only the Integer objects in {@code numbers}. Each
      * of these objects is added twice to the resulting stream:
      * <pre>{@code
-     *       numbers.flatMap((n, sink) -> {
+     *       numbers.flatPush((n, sink) -> {
      *           if (n instanceof Integer)
      *               sink.accept(n);
      *               sink.accept(n)
      *       });
      * }</pre>
-     * The {@code mapper} passed to {@code flatMap} checks the class type of
+     * The {@code mapper} passed to {@code flatPush} checks the class type of
      * each element of the numbers stream and pushes only the elements that are
      * of type Integer to the sink twice.
      *
@@ -339,11 +339,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *               new values
      * @return       the new stream
      */
-    default <R> Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+    default <R> Stream<R> flatPush(BiConsumer<? super T, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         SpinedBuffer<R> buffer = new SpinedBuffer<>();
         return this.flatMap(e -> {
-            try (FlatMapConsumer<R> c = new FlatMapConsumer<>(buffer)) {
+            try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
                 mapper.accept(e, c);
                 return StreamSupport.stream(buffer.spliterator(), false);
             }

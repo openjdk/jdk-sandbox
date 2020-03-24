@@ -92,28 +92,19 @@ public final class DefaultMethodStreams {
                 .filter(c -> BaseStream.class.isAssignableFrom(c))
                 .findFirst().get();
 
-        Function<Method, String> filterAndReturnName = m -> {
-            if (m.getName() == "flatMap" &&
-                    m.getParameterTypes()[0]
-                            .getSimpleName().contains("BiConsumer")) {
-                    return "consumerFlatMap";
-            }
-                return m.getName();
-        };
-
         // Get all default methods on the stream class
         Set<String> dms = Stream.of(s.getMethods())
                 .filter(m -> !Modifier.isStatic(m.getModifiers()))
                 .filter(m -> !m.isBridge())
                 .filter(Method::isDefault)
-                .map(filterAndReturnName::apply)
+                .map(Method::getName)
                 .collect(toSet());
 
         // Get all methods on the delegating class
         Set<String> ims = Stream.of(del.getMethods())
                 .filter(m -> !Modifier.isStatic(m.getModifiers()))
                 .filter(m -> m.getDeclaringClass() == del)
-                .map(filterAndReturnName::apply)
+                .map(Method::getName)
                 .collect(toSet());
 
         if (ims.stream().anyMatch(dms::contains)) {

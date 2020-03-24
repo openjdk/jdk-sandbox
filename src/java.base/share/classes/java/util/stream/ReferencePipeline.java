@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -296,7 +296,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final <R> Stream<R> flatMap(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
+    public final <R> Stream<R> flatPush(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
         return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
                 StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
@@ -317,7 +317,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         Stream<? extends R> result;
 
                         // Close when finished to contain buffer
-                        try (FlatMapConsumer<R> c = new FlatMapConsumer<>(buffer)) {
+                        try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
                             mapper.accept(u, c);
                             result = StreamSupport.stream(buffer.spliterator(), false);
                         }

@@ -2,10 +2,10 @@ package java.util.stream;
 
 import java.util.function.Consumer;
 
-final class FlatMapConsumer<T> implements Consumer<T>, AutoCloseable {
+final class FlatPushConsumer<T> implements Consumer<T>, AutoCloseable {
     SpinedBuffer<T> buffer;
 
-    FlatMapConsumer(SpinedBuffer<T> buffer) {
+    FlatPushConsumer(SpinedBuffer<T> buffer) {
         this.buffer = buffer;
     }
 
