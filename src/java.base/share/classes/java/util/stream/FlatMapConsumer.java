@@ -14,7 +14,7 @@ final class FlatMapConsumer<T> implements Consumer<T>, AutoCloseable {
         buffer.accept(t);
     }
 
-    // Deference to ensure buffer is inaccessible after use
+    // Dereference to ensure buffer is inaccessible after use
     @Override
     public void close() {
         buffer = null;

@@ -307,27 +307,30 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * <p><b>Examples</b>
      *
-     * <p>If {@code orders} is a stream of purchase orders, and the status of
-     * each purchase order can be checked, then the following produces a stream
-     * containing all the orders that have been completed:
+     * <p>If {@code orders} is a stream of purchase orders, and the status of each
+     * order can be updated and checked, then the following updates each order and
+     * produces a stream containing all the orders that have been completed:
      * <pre>{@code
-     *      orders.flatMap((order, sink) -> {
-     *          if (order.isCompleted())
-     *              sink.accept(order);
-     *      });
+     *       orders.flatMap((order, sink) -> {
+     *       order.update();
+     *       if (order.isCompleted())
+     *       sink.accept(order);
+     *       });
      * }</pre>
      *
-     *  <p>If {@code numbers} is a stream of Number objects, then the following
-     *  produces a stream of only the Integer objects in the numbers stream:
+     * <p>If {@code numbers} is a stream of Number objects, then the following
+     * produces a stream of only the Integer objects in {@code numbers}. Each
+     * of these objects is added twice to the resulting stream:
      * <pre>{@code
      *       numbers.flatMap((n, sink) -> {
      *           if (n instanceof Integer)
-     *               sink.accept((Integer) n);
+     *               sink.accept(n);
+     *               sink.accept(n)
      *       });
      * }</pre>
      * The {@code mapper} passed to {@code flatMap} checks the class type of
-     * each element of the numbers stream and only pushes those elements to
-     * the sink that are of type Integer.
+     * each element of the numbers stream and pushes only the elements that are
+     * of type Integer to the sink twice.
      *
      * @param <R>    The element type of the new stream
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
@@ -337,6 +340,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @return       the new stream
      */
     default <R> Stream<R> flatMap(BiConsumer<? super T, Consumer<R>> mapper) {
+        Objects.requireNonNull(mapper);
         SpinedBuffer<R> buffer = new SpinedBuffer<>();
         return this.flatMap(e -> {
             try (FlatMapConsumer<R> c = new FlatMapConsumer<>(buffer)) {
