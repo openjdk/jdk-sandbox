@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2016, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -90,6 +91,9 @@ public:
 
   HeapWord* allocate(ShenandoahAllocRequest& req, bool& in_new_region);
   size_t unsafe_peek_free() const;
+
+  double internal_fragmentation();
+  double external_fragmentation();
 
   void print_on(outputStream* out) const;
 };

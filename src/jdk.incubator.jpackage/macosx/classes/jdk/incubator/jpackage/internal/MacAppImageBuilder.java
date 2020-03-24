@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,7 +111,15 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
                             return identifier;
                         }
 
-                        return IDENTIFIER.fetchFrom(params);
+                        identifier = IDENTIFIER.fetchFrom(params);
+                        if (identifier != null) {
+                            return identifier;
+                        }
+                        // the IDENTIFIER (above) will default to derive from
+                        // the main-class, in case there is no main-class
+                        // (such as runtime installer) revert to the name.
+                        // any of these could be invalid, so check later.
+                        return APP_NAME.fetchFrom(params);
                     },
                     (s, p) -> s);
 
@@ -823,6 +831,7 @@ public class MacAppImageBuilder extends AbstractAppImageBuilder {
             try {
                 List<String> args = new ArrayList<>();
                 args.addAll(Arrays.asList("codesign",
+                        "-f",
                         "-s", signingIdentity, // sign with this key
                         "--prefix", identifierPrefix,
                         // use the identifier as a prefix

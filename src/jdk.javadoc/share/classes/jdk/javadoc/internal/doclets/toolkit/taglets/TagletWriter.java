@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package jdk.javadoc.internal.doclets.toolkit.taglets;
 import java.util.List;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -73,7 +74,7 @@ public abstract class TagletWriter {
     protected abstract Content codeTagOutput(Element element, DocTree tag);
 
     /**
-     * Return the output for a {@index...} tag.
+     * Return the output for a {@code {@index...}} tag.
      *
      * @param tag the tag.
      * @return the output of the taglet.
@@ -106,10 +107,10 @@ public abstract class TagletWriter {
     /**
      * Return the header for the param tags.
      *
-     * @param header the header to display.
-     * @return the header for the param tags.
+     * @param kind the kind of header that is required
+     * @return the header for the param tags
      */
-    protected abstract Content getParamHeader(String header);
+    protected abstract Content getParamHeader(ParamTaglet.ParamKind kind);
 
     /**
      * Return the output for param tags.
@@ -190,9 +191,10 @@ public abstract class TagletWriter {
      *
      * @param element
      * @param throwsTag the throws tag.
+     * @param substituteType instantiated type of a generic type-variable, or null.
      * @return the output of the throws tag.
      */
-    protected abstract Content throwsTagOutput(Element element, DocTree throwsTag);
+    protected abstract Content throwsTagOutput(Element element, DocTree throwsTag, TypeMirror substituteType);
 
     /**
      * Return the output for the throws tag.
@@ -215,6 +217,13 @@ public abstract class TagletWriter {
         String constantVal, boolean includeLink);
 
     /**
+     * Return the main type element of the current page or null for pages that don't have one.
+     *
+     * @return the type element of the current page or null.
+     */
+    protected abstract TypeElement getCurrentPageElement();
+
+    /**
      * Given an output object, append to it the tag documentation for
      * the given member.
      *
@@ -224,8 +233,12 @@ public abstract class TagletWriter {
      * @param writer the writer that will generate the output strings.
      * @param output the output buffer to store the output in.
      */
-    public static void genTagOutput(TagletManager tagletManager, Element element,
-            List<Taglet> taglets, TagletWriter writer, Content output) {
+    public static void genTagOutput(TagletManager tagletManager,
+                                    Element element,
+                                    List<Taglet> taglets,
+                                    TagletWriter writer,
+                                    Content output)
+    {
         Utils utils = writer.configuration().utils;
         tagletManager.checkTags(element, utils.getBlockTags(element), false);
         tagletManager.checkTags(element, utils.getFullBody(element), true);
@@ -275,14 +288,18 @@ public abstract class TagletWriter {
      * Given an inline tag, return its output.
      * @param holder
      * @param tagletManager The taglet manager for the current doclet.
-     * @param holderTag The tag this holds this inline tag.  Null if there
-     * is no tag that holds it.
+     * @param holderTag The tag that holds this inline tag, or {@code null} if
+     *                  there is no tag that holds it.
      * @param inlineTag The inline tag to be documented.
      * @param tagletWriter The taglet writer to write the output.
      * @return The output of the inline tag.
      */
-    public static Content getInlineTagOutput(Element holder, TagletManager tagletManager,
-            DocTree holderTag, DocTree inlineTag, TagletWriter tagletWriter) {
+    public static Content getInlineTagOutput(Element holder,
+                                             TagletManager tagletManager,
+                                             DocTree holderTag,
+                                             DocTree inlineTag,
+                                             TagletWriter tagletWriter)
+    {
         List<Taglet> definedTags = tagletManager.getInlineTaglets();
         CommentHelper ch = tagletWriter.configuration().utils.getCommentHelper(holder);
         final String inlineTagName = ch.getTagName(inlineTag);

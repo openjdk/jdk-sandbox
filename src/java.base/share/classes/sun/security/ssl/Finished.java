@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -589,6 +589,16 @@ final class Finished {
 
         private void onConsumeFinished(ServerHandshakeContext shc,
                 ByteBuffer message) throws IOException {
+            // Make sure that any expected CertificateVerify message
+            // has been received and processed.
+            if (!shc.isResumption) {
+                if (shc.handshakeConsumers.containsKey(
+                        SSLHandshake.CERTIFICATE_VERIFY.id)) {
+                    throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                            "Unexpected Finished handshake message");
+                }
+            }
+
             FinishedMessage fm = new FinishedMessage(shc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -883,6 +893,16 @@ final class Finished {
 
         private void onConsumeFinished(ClientHandshakeContext chc,
                 ByteBuffer message) throws IOException {
+            // Make sure that any expected CertificateVerify message
+            // has been received and processed.
+            if (!chc.isResumption) {
+                if (chc.handshakeConsumers.containsKey(
+                        SSLHandshake.CERTIFICATE_VERIFY.id)) {
+                    throw chc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                            "Unexpected Finished handshake message");
+                }
+            }
+
             FinishedMessage fm = new FinishedMessage(chc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -1005,6 +1025,16 @@ final class Finished {
 
         private void onConsumeFinished(ServerHandshakeContext shc,
                 ByteBuffer message) throws IOException {
+            // Make sure that any expected CertificateVerify message
+            // has been received and processed.
+            if (!shc.isResumption) {
+                if (shc.handshakeConsumers.containsKey(
+                        SSLHandshake.CERTIFICATE_VERIFY.id)) {
+                    throw shc.conContext.fatal(Alert.UNEXPECTED_MESSAGE,
+                            "Unexpected Finished handshake message");
+                }
+            }
+
             FinishedMessage fm = new FinishedMessage(shc, message);
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.fine(
@@ -1110,8 +1140,8 @@ final class Finished {
                 SSLLogger.fine(
                 "Sending new session ticket");
             }
-            NewSessionTicket.kickstartProducer.produce(shc);
 
+            NewSessionTicket.kickstartProducer.produce(shc);
         }
     }
 

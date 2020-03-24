@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,9 +91,14 @@ package java.lang;
                              essentialAPI=true)
 public abstract class Record {
     /**
+     * Constructor for record classes to call.
+     */
+    protected Record() {}
+
+    /**
      * Indicates whether some other object is "equal to" this one.  In addition
-     * to the general contract of {@link Object#equals(Object)},
-     * record classes must further participate in the invariant that when
+     * to the general contract of {@link Object#equals(Object) Object.equals},
+     * record classes must further obey the invariant that when
      * a record instance is "copied" by passing the result of the record component
      * accessor methods to the canonical constructor, as follows:
      * <pre>
@@ -102,48 +107,93 @@ public abstract class Record {
      * then it must be the case that {@code r.equals(copy)}.
      *
      * @implSpec
-     * The implicitly provided implementation returns {@code true} if and
-     * only if the argument is an instance of the same record type as this object,
-     * and each component of this record is equal to the corresponding component
-     * of the argument, according to {@link java.util.Objects#equals(Object,Object)}
-     * for components whose types are reference types, and according to the semantics
-     * of the {@code equals} method on the corresponding primitive wrapper type.
+     * The implicitly provided implementation returns {@code true} if
+     * and only if the argument is an instance of the same record type
+     * as this record, and each component of this record is equal to
+     * the corresponding component of the argument; otherwise, {@code
+     * false} is returned. Equality of a component {@code c} is
+     * determined as follows:
+     * <ul>
+     *
+     * <li> If the component is of a reference type, the component is
+     * considered equal if and only if {@link
+     * java.util.Objects#equals(Object,Object)
+     * Objects.equals(this.c(), r.c()} would return {@code true}.
+     *
+     * <li> If the component is of a primitive type, using the
+     * corresponding primitive wrapper class {@code PW} (the
+     * corresponding wrapper class for {@code int} is {@code
+     * java.lang.Integer}, and so on), the component is considered
+     * equal if and only if {@code
+     * PW.valueOf(this.c()).equals(PW.valueOf(r.c()))} would return
+     * {@code true}.
+     *
+     * </ul>
+     *
+     * Apart from the semantics described above, the precise algorithm
+     * used in the implicitly provided implementation is unspecified
+     * and is subject to change. The implementation may or may not use
+     * calls to the particular methods listed, and may or may not
+     * perform comparisons in the order of component declaration.
      *
      * @see java.util.Objects#equals(Object,Object)
      *
      * @param   obj   the reference object with which to compare.
-     * @return  {@code true} if this object is the same as the obj
+     * @return  {@code true} if this record is equal to the
      *          argument; {@code false} otherwise.
      */
     @Override
     public abstract boolean equals(Object obj);
 
     /**
+     * Returns a hash code value for the record.
      * Obeys the general contract of {@link Object#hashCode Object.hashCode}.
+     * For records, hashing behavior is constrained by the refined contract
+     * of {@link Record#equals Record.equals}, so that any two records
+     * created from the same components must have the same hash code.
      *
      * @implSpec
      * The implicitly provided implementation returns a hash code value derived
-     * by combining the hash code value for all the components, according to
-     * {@link Object#hashCode()} for components whose types are reference types,
-     * or the primitive wrapper hash code for components whose types are primitive
-     * types.
+     * by combining appropriate hashes from each component.
+     * The precise algorithm used in the implicitly provided implementation
+     * is unspecified and is subject to change within the above limits.
+     * The resulting integer need not remain consistent from one
+     * execution of an application to another execution of the same
+     * application, even if the hashes of the component values were to
+     * remain consistent in this way.  Also, a component of primitive
+     * type may contribute its bits to the hash code differently than
+     * the {@code hashCode} of its primitive wrapper class.
      *
      * @see     Object#hashCode()
      *
-     * @return  a hash code value for this object.
+     * @return  a hash code value for this record.
      */
     @Override
     public abstract int hashCode();
 
     /**
-     * Obeys the general contract of {@link Object#toString Object.toString}.
+     * Returns a string representation of the record.
+     * In accordance with the general contract of {@link Object#toString()},
+     * the {@code toString} method returns a string that
+     * "textually represents" this record. The result should
+     * be a concise but informative representation that is easy for a
+     * person to read.
+     * <p>
+     * In addition to this general contract, record classes must further
+     * participate in the invariant that any two records which are
+     * {@linkplain Record#equals(Object) equal} must produce equal
+     * strings.  This invariant is necessarily relaxed in the rare
+     * case where corresponding equal component values might fail
+     * to produce equal strings for themselves.
      *
      * @implSpec
-     * The implicitly provided implementation returns a string that is derived
-     * from the name of the record class and the names and string representations
-     * of all the components, according to {@link Object#toString()} for components
-     * whose types are reference types, and the primitive wrapper {@code toString}
-     * method for components whose types are primitive types.
+     * The implicitly provided implementation returns a string which
+     * contains the name of the record class, the names of components
+     * of the record, and string representations of component values,
+     * so as to fulfill the contract of this method.
+     * The precise format produced by this implicitly provided implementation
+     * is subject to change, so the present syntax should not be parsed
+     * by applications to recover record component values.
      *
      * @see     Object#toString()
      *

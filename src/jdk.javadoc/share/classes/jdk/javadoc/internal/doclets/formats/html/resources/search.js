@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ var catPackages = "Packages";
 var catTypes = "Types";
 var catMembers = "Members";
 var catSearchTags = "SearchTags";
-var highlight = "<span class=\"resultHighlight\">$&</span>";
+var highlight = "<span class=\"result-highlight\">$&</span>";
 var searchPattern = "";
 var RANKING_THRESHOLD = 2;
 var NO_MATCH = 0xffff;
@@ -128,10 +128,10 @@ $.widget("custom.catcomplete", $.ui.autocomplete, {
             li = rMenu._renderItemData(ul, item);
             if (item.category) {
                 li.attr("aria-label", item.category + " : " + item.l);
-                li.attr("class", "resultItem");
+                li.attr("class", "result-item");
             } else {
                 li.attr("aria-label", item.l);
-                li.attr("class", "resultItem");
+                li.attr("class", "result-item");
             }
         });
     },
@@ -159,10 +159,10 @@ $.widget("custom.catcomplete", $.ui.autocomplete, {
         var div = $("<div/>").appendTo(li);
         if (item.category === catSearchTags) {
             if (item.d) {
-                div.html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span><br><span class=\"searchTagDescResult\">"
+                div.html(label + "<span class=\"search-tag-holder-result\"> (" + item.h + ")</span><br><span class=\"search-tag-desc-result\">"
                                 + item.d + "</span><br>");
             } else {
-                div.html(label + "<span class=\"searchTagHolderResult\"> (" + item.h + ")</span>");
+                div.html(label + "<span class=\"search-tag-holder-result\"> (" + item.h + ")</span>");
             }
         } else {
             div.html(label);
@@ -319,14 +319,14 @@ $(function() {
                 if (ui.item.category === catModules) {
                     url += "module-summary.html";
                 } else if (ui.item.category === catPackages) {
-                    if (ui.item.url) {
-                        url = ui.item.url;
+                    if (ui.item.u) {
+                        url = ui.item.u;
                     } else {
-                    url += ui.item.l.replace(/\./g, '/') + "/package-summary.html";
+                        url += ui.item.l.replace(/\./g, '/') + "/package-summary.html";
                     }
                 } else if (ui.item.category === catTypes) {
-                    if (ui.item.url) {
-                        url = ui.item.url;
+                    if (ui.item.u) {
+                        url = ui.item.u;
                     } else if (ui.item.p === "<Unnamed>") {
                         url += ui.item.l + ".html";
                     } else {
@@ -338,8 +338,8 @@ $(function() {
                     } else {
                         url += ui.item.p.replace(/\./g, '/') + "/" + ui.item.c + ".html" + "#";
                     }
-                    if (ui.item.url) {
-                        url += ui.item.url;
+                    if (ui.item.u) {
+                        url += ui.item.u;
                     } else {
                         url += ui.item.l;
                     }

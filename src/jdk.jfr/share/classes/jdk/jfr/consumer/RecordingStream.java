@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,6 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         Utils.checkAccessFlightRecorder();
         AccessControlContext acc = AccessController.getContext();
         this.recording = new Recording();
-        this.recording.setFlushInterval(Duration.ofMillis(1000));
         try {
             PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);
             this.directoryStream = new EventDirectoryStream(acc, null, SecuritySupport.PRIVILIGED, pr);
@@ -267,20 +266,6 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         recording.setMaxSize(maxSize);
     }
 
-    /**
-     * Determines how often events are made available for streaming.
-     *
-     * @param interval the interval at which events are made available to the
-     *        stream, no {@code null}
-     *
-     * @throws IllegalArgumentException if {@code interval} is negative
-     *
-     * @throws IllegalStateException if the stream is closed
-     */
-    public void setFlushInterval(Duration interval) {
-        recording.setFlushInterval(interval);
-    }
-
     @Override
     public void setReuse(boolean reuse) {
         directoryStream.setReuse(reuse);
@@ -344,6 +329,32 @@ public final class RecordingStream implements AutoCloseable, EventStream {
         directoryStream.start(startNanos);
     }
 
+    /**
+     * Start asynchronous processing of actions.
+     * <p>
+     * Actions are performed in a single separate thread.
+     * <p>
+     * To stop the stream, use the {@code #close()} method.
+     * <p>
+     * The following example prints the CPU usage for ten seconds. When
+     * the current thread leaves the try-with-resources block the
+     * stream is stopped/closed.
+     * <pre>
+     * <code>
+     * try (var stream = new RecordingStream()) {
+     *   stream.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
+     *   stream.onEvent("jdk.CPULoad", event -> {
+     *     System.out.println(event);
+     *   });
+     *   stream.startAsync();
+     *   Thread.sleep(10_000);
+     * }
+     * </code>
+     * </pre>
+     *
+     * @throws IllegalStateException if the stream is already started or closed
+     *
+     */
     @Override
     public void startAsync() {
         PlatformRecording pr = PrivateAccess.getInstance().getPlatformRecording(recording);

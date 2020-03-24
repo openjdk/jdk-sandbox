@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import static java.util.FormattableFlags.LEFT_JUSTIFY;
 import static java.util.FormattableFlags.UPPERCASE;
 import static org.graalvm.compiler.debug.DebugOptions.Count;
 import static org.graalvm.compiler.debug.DebugOptions.Counters;
+import static org.graalvm.compiler.debug.DebugOptions.DisableIntercept;
 import static org.graalvm.compiler.debug.DebugOptions.Dump;
 import static org.graalvm.compiler.debug.DebugOptions.DumpOnError;
 import static org.graalvm.compiler.debug.DebugOptions.DumpOnPhaseChange;
@@ -53,6 +54,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Formatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -446,7 +448,7 @@ public final class DebugContext implements AutoCloseable {
                 }
             }
             currentConfig = new DebugConfigImpl(options, logStream, dumpHandlers, verifyHandlers);
-            currentScope = new ScopeImpl(this, Thread.currentThread());
+            currentScope = new ScopeImpl(this, Thread.currentThread(), DisableIntercept.getValue(options));
             currentScope.updateFlags(currentConfig);
             metricsEnabled = true;
         } else {
@@ -2159,6 +2161,18 @@ public final class DebugContext implements AutoCloseable {
             out.printf("%-" + String.valueOf(maxKeyWidth) + "s = %20s%n", e.getKey(), e.getValue());
         }
         out.println();
+    }
+
+    public Map<MetricKey, Long> getMetricsSnapshot() {
+        Map<MetricKey, Long> res = new HashMap<>();
+        for (MetricKey key : KeyRegistry.getKeys()) {
+            int index = ((AbstractKey) key).getIndex();
+            if (index < metricValues.length && metricValues[index] != 0) {
+                long value = metricValues[index];
+                res.put(key, value);
+            }
+        }
+        return res;
     }
 
     @SuppressWarnings({"unused", "unchecked"})

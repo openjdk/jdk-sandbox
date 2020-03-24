@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.PropertyUtils;
 
 /**
@@ -106,6 +107,7 @@ public class VisibleMemberTable {
     final TypeElement parent;
 
     final BaseConfiguration config;
+    final BaseOptions options;
     final Utils utils;
     final VisibleMemberCache mcache;
 
@@ -126,6 +128,7 @@ public class VisibleMemberTable {
                                  VisibleMemberCache mcache) {
         config = configuration;
         utils = configuration.utils;
+        options = configuration.getOptions();
         te = typeElement;
         parent = utils.getSuperClass(te);
         this.mcache = mcache;
@@ -388,9 +391,7 @@ public class VisibleMemberTable {
         if (utils.isUndocumentedEnclosure(te)) {
             list.addAll(lmt.getOrderedMembers(kind));
         }
-        parents.forEach(pvmt -> {
-            list.addAll(pvmt.getExtraMembers(kind));
-        });
+        parents.forEach(pvmt -> list.addAll(pvmt.getExtraMembers(kind)));
         extraMembers.put(kind, Collections.unmodifiableList(list));
     }
 
@@ -459,7 +460,8 @@ public class VisibleMemberTable {
         // Filter out members in the inherited list that are hidden
         // by this type or should not be inherited at all.
         List<Element> list = result.stream()
-                .filter(e -> allowInheritedMembers(e, kind, lmt)).collect(Collectors.toList());
+                .filter(e -> allowInheritedMembers(e, kind, lmt))
+                .collect(Collectors.toList());
 
         // Prefix local results first
         list.addAll(0, lmt.getOrderedMembers(kind));
@@ -520,7 +522,7 @@ public class VisibleMemberTable {
         // c. are hidden in the type being considered
         // see allowInheritedMethods, which performs the above actions
         List<Element> list = inheritedMethods.stream()
-                .filter(e -> allowInheritedMethods((ExecutableElement)e, overriddenByTable, lmt))
+                .filter(e -> allowInheritedMethods((ExecutableElement) e, overriddenByTable, lmt))
                 .collect(Collectors.toList());
 
         // Filter out the local methods, that do not override or simply
@@ -658,7 +660,7 @@ public class VisibleMemberTable {
 
             List<? extends Element> elements = te.getEnclosedElements();
             for (Element e : elements) {
-                if (config.nodeprecated && utils.isDeprecated(e)) {
+                if (options.noDeprecated() && utils.isDeprecated(e)) {
                     continue;
                 }
                 switch (e.getKind()) {
@@ -800,7 +802,7 @@ public class VisibleMemberTable {
      * {@code boolean isFoo()}
      */
     private void computeVisibleProperties(LocalMemberTable lmt) {
-        if (!config.javafx)
+        if (!options.javafx())
             return;
 
         PropertyUtils pUtils = config.propertyUtils;

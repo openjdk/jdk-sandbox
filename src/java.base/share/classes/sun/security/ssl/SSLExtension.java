@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,7 +113,6 @@ enum SSLExtension implements SSLStringizer {
                                 null,
                                 null,
                                 CertStatusExtension.certStatusReqStringizer),
-
     CR_STATUS_REQUEST       (0x0005, "status_request"),
     CT_STATUS_REQUEST       (0x0005, "status_request",
                                 SSLHandshake.CERTIFICATE,
@@ -124,6 +123,7 @@ enum SSLExtension implements SSLStringizer {
                                 null,
                                 null,
                                 CertStatusExtension.certStatusRespStringizer),
+
     // extensions defined in RFC 4681
     USER_MAPPING            (0x0006, "user_mapping"),
 
@@ -554,6 +554,16 @@ enum SSLExtension implements SSLStringizer {
         return null;
     }
 
+    static String nameOf(int extensionType) {
+        for (SSLExtension ext : SSLExtension.values()) {
+            if (ext.id == extensionType) {
+                return ext.name;
+            }
+        }
+
+        return "unknown extension";
+    }
+
     static boolean isConsumable(int extensionType) {
         for (SSLExtension ext : SSLExtension.values()) {
             if (ext.id == extensionType &&
@@ -631,7 +641,8 @@ enum SSLExtension implements SSLStringizer {
     }
 
     @Override
-    public String toString(ByteBuffer byteBuffer) {
+    public String toString(
+            HandshakeContext handshakeContext, ByteBuffer byteBuffer) {
         MessageFormat messageFormat = new MessageFormat(
             "\"{0} ({1})\": '{'\n" +
             "{2}\n" +
@@ -644,7 +655,7 @@ enum SSLExtension implements SSLStringizer {
             String encoded = hexEncoder.encode(byteBuffer.duplicate());
             extData = encoded;
         } else {
-            extData = stringizer.toString(byteBuffer);
+            extData = stringizer.toString(handshakeContext, byteBuffer);
         }
 
         Object[] messageFields = {

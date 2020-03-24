@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -950,8 +950,8 @@ public class BytecodeParser implements GraphBuilderContext {
         }
         String filterValue = DebugOptions.MethodFilter.getValue(options);
         if (filterValue != null) {
-            MethodFilter[] filters = MethodFilter.parse(filterValue);
-            if (!MethodFilter.matches(filters, tmethod)) {
+            MethodFilter filter = MethodFilter.parse(filterValue);
+            if (!filter.matches(tmethod)) {
                 return 0;
             }
         }
@@ -1321,10 +1321,10 @@ public class BytecodeParser implements GraphBuilderContext {
         AbstractBeginNode dispatchBegin;
         if (exceptionObject == null) {
             ExceptionObjectNode newExceptionObject = graph.add(new ExceptionObjectNode(getMetaAccess()));
-            dispatchBegin = newExceptionObject;
-            dispatchState.push(JavaKind.Object, dispatchBegin);
+            dispatchState.push(JavaKind.Object, newExceptionObject);
             dispatchState.setRethrowException(true);
             newExceptionObject.setStateAfter(dispatchState.create(bci, newExceptionObject));
+            dispatchBegin = newExceptionObject;
         } else {
             dispatchBegin = graph.add(new BeginNode());
             dispatchState.push(JavaKind.Object, exceptionObject);
@@ -1346,7 +1346,7 @@ public class BytecodeParser implements GraphBuilderContext {
     protected void createHandleExceptionTarget(FixedWithNextNode afterExceptionLoaded, int bci, FrameStateBuilder dispatchState) {
         FixedWithNextNode afterInstrumentation = afterExceptionLoaded;
         for (NodePlugin plugin : graphBuilderConfig.getPlugins().getNodePlugins()) {
-            afterInstrumentation = plugin.instrumentExceptionDispatch(graph, afterInstrumentation);
+            afterInstrumentation = plugin.instrumentExceptionDispatch(graph, afterInstrumentation, () -> dispatchState.create(bci, getNonIntrinsicAncestor(), false, null, null));
             assert afterInstrumentation.next() == null : "exception dispatch instrumentation will be linked to dispatch block";
         }
 
@@ -1611,7 +1611,7 @@ public class BytecodeParser implements GraphBuilderContext {
         append(new IfNode(condition, trueSuccessor, falseSuccessor, passingOnTrue ? LUDICROUSLY_FAST_PATH_PROBABILITY : LUDICROUSLY_SLOW_PATH_PROBABILITY));
         lastInstr = passingSuccessor;
 
-        exception.setStateAfter(createFrameState(bci(), exception));
+        exception.setStateAfter(createBytecodeExceptionFrameState(bci(), exception));
         exception.setNext(handleException(exception, bci(), false));
         EXPLICIT_EXCEPTIONS.increment(debug);
 
@@ -2959,6 +2959,10 @@ public class BytecodeParser implements GraphBuilderContext {
                     bci = ((ExceptionDispatchBlock) targetBlock).deoptBci;
                 }
                 FrameStateBuilder newState = target.state.copy();
+                // Perform the same logic as is done in processBlock
+                if (targetBlock != blockMap.getUnwindBlock() && !(targetBlock instanceof ExceptionDispatchBlock)) {
+                    newState.setRethrowException(false);
+                }
                 for (BciBlock loop : exitLoops) {
                     LoopBeginNode loopBegin = (LoopBeginNode) getFirstInstruction(loop);
                     LoopExitNode loopExit = graph.add(new LoopExitNode(loopBegin));
@@ -3909,10 +3913,22 @@ public class BytecodeParser implements GraphBuilderContext {
     }
 
     private FrameState createFrameState(int bci, StateSplit forStateSplit) {
+        assert !(forStateSplit instanceof BytecodeExceptionNode);
         if (currentBlock != null && bci > currentBlock.endBci) {
             frameState.clearNonLiveLocals(currentBlock, liveness, false);
         }
         return frameState.create(bci, forStateSplit);
+    }
+
+    private FrameState createBytecodeExceptionFrameState(int bci, BytecodeExceptionNode bytecodeException) {
+        FrameStateBuilder copy = frameState.copy();
+        copy.clearStack();
+        if (currentBlock != null) {
+            copy.clearNonLiveLocals(currentBlock, liveness, false);
+        }
+        copy.setRethrowException(true);
+        copy.push(JavaKind.Object, bytecodeException);
+        return copy.create(bci, bytecodeException);
     }
 
     @Override
@@ -4747,7 +4763,7 @@ public class BytecodeParser implements GraphBuilderContext {
     @Override
     public AbstractBeginNode genExplicitExceptionEdge(BytecodeExceptionKind exceptionKind) {
         BytecodeExceptionNode exceptionNode = graph.add(new BytecodeExceptionNode(getMetaAccess(), exceptionKind));
-        exceptionNode.setStateAfter(createFrameState(bci(), exceptionNode));
+        exceptionNode.setStateAfter(createBytecodeExceptionFrameState(bci(), exceptionNode));
         AbstractBeginNode exceptionDispatch = handleException(exceptionNode, bci(), false);
         exceptionNode.setNext(exceptionDispatch);
         return BeginNode.begin(exceptionNode);

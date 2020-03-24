@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,11 +154,15 @@ static s4 get_flags(const T* ptr) {
 
 static bool is_unsafe_anonymous(const Klass* klass) {
   assert(klass != NULL, "invariant");
-  return klass->is_instance_klass() && ((const InstanceKlass*)klass)->is_unsafe_anonymous();
+  assert(!klass->is_objArray_klass(), "invariant");
+  return klass->is_instance_klass() && InstanceKlass::cast(klass)->is_unsafe_anonymous();
 }
 
 static ClassLoaderData* get_cld(const Klass* klass) {
   assert(klass != NULL, "invariant");
+  if (klass->is_objArray_klass()) {
+    klass = ObjArrayKlass::cast(klass)->bottom_klass();
+  }
   return is_unsafe_anonymous(klass) ?
     InstanceKlass::cast(klass)->unsafe_anonymous_host()->class_loader_data() : klass->class_loader_data();
 }
@@ -168,6 +172,7 @@ static void set_serialized(const T* ptr) {
   assert(ptr != NULL, "invariant");
   SET_SERIALIZED(ptr);
   assert(IS_SERIALIZED(ptr), "invariant");
+  CLEAR_THIS_EPOCH_CLEARED_BIT(ptr);
 }
 
 /*
@@ -182,21 +187,10 @@ static int write_klass(JfrCheckpointWriter* writer, KlassPtr klass, bool leakp) 
   assert(writer != NULL, "invariant");
   assert(_artifacts != NULL, "invariant");
   assert(klass != NULL, "invariant");
-  traceid pkg_id = 0;
-  KlassPtr theklass = klass;
-  if (theklass->is_objArray_klass()) {
-    const ObjArrayKlass* obj_arr_klass = ObjArrayKlass::cast(klass);
-    theklass = obj_arr_klass->bottom_klass();
-  }
-  if (theklass->is_instance_klass()) {
-    pkg_id = package_id(theklass, leakp);
-  } else {
-    assert(theklass->is_typeArray_klass(), "invariant");
-  }
   writer->write(artifact_id(klass));
   writer->write(cld_id(get_cld(klass), leakp));
   writer->write(mark_symbol(klass, leakp));
-  writer->write(pkg_id);
+  writer->write(package_id(klass, leakp));
   writer->write(get_flags(klass));
   return 1;
 }
@@ -303,7 +297,7 @@ static bool write_klasses() {
     _subsystem_callback = &callback;
     do_klasses();
   } else {
-    LeakKlassWriter lkw(_leakp_writer, _artifacts, _class_unload);
+    LeakKlassWriter lkw(_leakp_writer, _class_unload);
     CompositeKlassWriter ckw(&lkw, &kw);
     CompositeKlassWriterRegistration ckwr(&ckw, &reg);
     CompositeKlassCallback callback(&ckwr);
@@ -330,6 +324,26 @@ static void do_previous_epoch_artifact(JfrArtifactClosure* callback, T* value) {
     CLEAR_SERIALIZED(value);
   }
   assert(IS_NOT_SERIALIZED(value), "invariant");
+}
+
+typedef JfrArtifactCallbackHost<KlassPtr, KlassArtifactRegistrator> RegistrationCallback;
+
+static void register_klass(Klass* klass) {
+  assert(klass != NULL, "invariant");
+  assert(_subsystem_callback != NULL, "invariant");
+  do_previous_epoch_artifact(_subsystem_callback, klass);
+}
+
+static void do_register_klasses() {
+  ClassLoaderDataGraph::classes_do(&register_klass);
+}
+
+static void register_klasses() {
+  assert(!_artifacts->has_klass_entries(), "invariant");
+  KlassArtifactRegistrator reg(_artifacts);
+  RegistrationCallback callback(&reg);
+  _subsystem_callback = &callback;
+  do_register_klasses();
 }
 
 static int write_package(JfrCheckpointWriter* writer, PkgPtr pkg, bool leakp) {
@@ -370,7 +384,7 @@ class PackageFieldSelector {
   typedef PkgPtr TypePtr;
   static TypePtr select(KlassPtr klass) {
     assert(klass != NULL, "invariant");
-    return ((InstanceKlass*)klass)->package();
+    return klass->package();
   }
 };
 
@@ -420,6 +434,15 @@ static void write_packages() {
     do_packages();
   }
   _artifacts->tally(pw);
+}
+
+typedef JfrArtifactCallbackHost<PkgPtr, ClearArtifact<PkgPtr> > ClearPackageCallback;
+
+static void clear_packages() {
+  ClearArtifact<PkgPtr> clear;
+  ClearPackageCallback callback(&clear);
+  _subsystem_callback = &callback;
+  do_packages();
 }
 
 static int write_module(JfrCheckpointWriter* writer, ModPtr mod, bool leakp) {
@@ -510,6 +533,15 @@ static void write_modules() {
     do_modules();
   }
   _artifacts->tally(mw);
+}
+
+typedef JfrArtifactCallbackHost<ModPtr, ClearArtifact<ModPtr> > ClearModuleCallback;
+
+static void clear_modules() {
+  ClearArtifact<ModPtr> clear;
+  ClearModuleCallback callback(&clear);
+  _subsystem_callback = &callback;
+  do_modules();
 }
 
 static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp) {
@@ -639,6 +671,15 @@ static void write_classloaders() {
   _artifacts->tally(cldw);
 }
 
+typedef JfrArtifactCallbackHost<CldPtr, ClearArtifact<CldPtr> > ClearCLDCallback;
+
+static void clear_classloaders() {
+  ClearArtifact<CldPtr> clear;
+  ClearCLDCallback callback(&clear);
+  _subsystem_callback = &callback;
+  do_class_loaders();
+}
+
 static u1 get_visibility(MethodPtr method) {
   assert(method != NULL, "invariant");
   return const_cast<Method*>(method)->is_hidden() ? (u1)1 : (u1)0;
@@ -649,6 +690,7 @@ void set_serialized<Method>(MethodPtr method) {
   assert(method != NULL, "invariant");
   SET_METHOD_SERIALIZED(method);
   assert(IS_METHOD_SERIALIZED(method), "invariant");
+  CLEAR_THIS_EPOCH_METHOD_CLEARED_BIT(method);
 }
 
 static int write_method(JfrCheckpointWriter* writer, MethodPtr method, bool leakp) {
@@ -888,24 +930,23 @@ static void write_symbols() {
   _artifacts->tally(sw);
 }
 
-static bool clear_artifacts = false;
-
-void JfrTypeSet::clear() {
-  clear_artifacts = true;
-}
-
 typedef Wrapper<KlassPtr, ClearArtifact> ClearKlassBits;
 typedef Wrapper<MethodPtr, ClearArtifact> ClearMethodFlag;
 typedef MethodIteratorHost<ClearMethodFlag, ClearKlassBits, AlwaysTrue, false> ClearKlassAndMethods;
+
+static bool clear_artifacts = false;
+
+static void clear_klasses_and_methods() {
+  ClearKlassAndMethods clear(_writer);
+  _artifacts->iterate_klasses(clear);
+}
 
 static size_t teardown() {
   assert(_artifacts != NULL, "invariant");
   const size_t total_count = _artifacts->total_count();
   if (previous_epoch()) {
-    assert(_writer != NULL, "invariant");
-    ClearKlassAndMethods clear(_writer);
-    _artifacts->iterate_klasses(clear);
-    JfrTypeSet::clear();
+    clear_klasses_and_methods();
+    clear_artifacts = true;
     ++checkpoint_id;
   }
   return total_count;
@@ -944,4 +985,17 @@ size_t JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* l
   write_methods();
   write_symbols();
   return teardown();
+}
+
+/**
+ * Clear all tags from the previous epoch.
+ */
+void JfrTypeSet::clear() {
+  clear_artifacts = true;
+  setup(NULL, NULL, false, false);
+  register_klasses();
+  clear_packages();
+  clear_modules();
+  clear_classloaders();
+  clear_klasses_and_methods();
 }

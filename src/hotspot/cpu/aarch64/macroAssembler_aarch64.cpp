@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.hpp"
+#include "utilities/powerOfTwo.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #endif
@@ -55,6 +56,7 @@
 #include "opto/compile.hpp"
 #include "opto/intrinsicnode.hpp"
 #include "opto/node.hpp"
+#include "opto/output.hpp"
 #endif
 
 #ifdef PRODUCT
@@ -744,7 +746,7 @@ address MacroAssembler::trampoline_call(Address entry, CodeBuffer *cbuf) {
     CompileTask* task = ciEnv::current()->task();
     in_scratch_emit_size =
       (task != NULL && is_c2_compile(task->comp_level()) &&
-       Compile::current()->in_scratch_emit_size());
+       Compile::current()->output()->in_scratch_emit_size());
 #endif
     if (!in_scratch_emit_size) {
       address stub = emit_trampoline_stub(offset(), entry.target());
@@ -1741,7 +1743,7 @@ Address MacroAssembler::form_address(Register Rd, Register base, long byte_offse
   {
     unsigned long word_offset = byte_offset >> shift;
     unsigned long masked_offset = word_offset & 0xfff000;
-    if (Address::offset_ok_for_immed(word_offset - masked_offset)
+    if (Address::offset_ok_for_immed(word_offset - masked_offset, 0)
         && Assembler::operand_valid_for_add_sub_immediate(masked_offset << shift)) {
       add(Rd, base, masked_offset << shift);
       word_offset -= masked_offset;
@@ -4859,6 +4861,8 @@ void MacroAssembler::string_indexof_char(Register str1, Register cnt1,
   Register ch1 = rscratch1;
   Register result_tmp = rscratch2;
 
+  cbz(cnt1, NOMATCH);
+
   cmp(cnt1, (u1)4);
   br(LT, DO1_SHORT);
 
@@ -4977,8 +4981,6 @@ void MacroAssembler::string_compare(Register str1, Register str2,
       sub(cnt2, zr, cnt2, LSL, str2_chr_shift);
     } else if (isLU) {
       ldrs(vtmp, Address(str1));
-      cmp(str1, str2);
-      br(Assembler::EQ, DONE);
       ldr(tmp2, Address(str2));
       cmp(cnt2, stub_threshold);
       br(GE, STUB);
@@ -4993,8 +4995,6 @@ void MacroAssembler::string_compare(Register str1, Register str2,
       fmovd(tmp1, vtmp);
     } else { // UL case
       ldr(tmp1, Address(str1));
-      cmp(str1, str2);
-      br(Assembler::EQ, DONE);
       ldrs(vtmp, Address(str2));
       cmp(cnt2, stub_threshold);
       br(GE, STUB);
