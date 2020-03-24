@@ -134,6 +134,15 @@ public:
   static void initialize_class_space(ReservedSpace rs);
 #endif
 
+  static ReservedSpace reserve_space(size_t size, size_t alignment,
+                                     char* requested_addr, bool use_requested_addr);
+
+#ifdef PREFERRED_METASPACE_ALIGNMENT
+  static ReservedSpace reserve_preferred_space(size_t size, size_t alignment,
+                                               bool large_pages, char *requested_addr,
+                                               bool use_requested_addr);
+#endif
+
  public:
 
   static void ergo_initialize();
