@@ -28,21 +28,23 @@
 
 package org.openjdk.tests.java.util.stream;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.DefaultMethodStreams;
 import java.util.stream.IntStream;
 import java.util.stream.OpTestCase;
 import java.util.stream.Stream;
 import java.util.stream.StreamTestDataProvider;
 import java.util.stream.TestData;
 
+import static java.util.stream.DefaultMethodStreams.delegateTo;
 import static java.util.stream.LambdaTestHelpers.LONG_STRING;
 import static java.util.stream.LambdaTestHelpers.assertConcat;
 import static java.util.stream.LambdaTestHelpers.assertCountSum;
@@ -52,7 +54,6 @@ import static java.util.stream.LambdaTestHelpers.mfId;
 import static java.util.stream.LambdaTestHelpers.mfLt;
 import static java.util.stream.LambdaTestHelpers.mfNull;
 import static java.util.stream.ThrowableHelper.checkNPE;
-import static org.testng.Assert.assertEquals;
 
 @Test
 public class FlatPushOpTest extends OpTestCase {
@@ -75,19 +76,51 @@ public class FlatPushOpTest extends OpTestCase {
     BiConsumer<Integer, Consumer<Integer>> rangeConsumerWithLimit =
             (e, sink) -> IntStream.range(0, e).boxed().limit(10)
                     .forEach(sink::accept);
-    @Test
-    public void testNullMapper() {
-        checkNPE(() -> Stream.of(1)
-                .flatPush((BiConsumer<Object, Consumer<Object>>) null));
+
+    @DataProvider(name="Stream<Integer>")
+    public Object[][] streamTest() {
+        return new Object[][] {
+                {Stream.of(0, 1, 2)},
+                {DefaultMethodStreams.delegateTo(Stream.of(0, 1, 2))}
+        };
+    }
+
+    @Test(dataProvider = "Stream<Integer>")
+    public void testNullMapper(Stream<Integer> s) {
+        checkNPE(() -> s.flatPush(null));
+    }
+
+
+    @Test(dataProvider = "Stream<Integer>")
+    public void testOpsShortCircuit(Stream<Integer> s) {
+        AtomicInteger count = new AtomicInteger();
+        s.flatPush(rangeConsumer100)
+                .peek(i -> count.incrementAndGet())
+                .limit(10).toArray();
+        assertEquals(count.get(), 10);
+    }
+
+    @Test(dataProvider = "Stream<Integer>")
+    public void testConsumerContained(Stream<Integer> s) {
+        Consumer<Integer>[] capture = new Consumer[1];
+        BiConsumer<Integer, Consumer<Integer>> mapper = (i, c) -> {
+            c.accept(i);
+            capture[0] = c;
+        };
+        expectThrows(NullPointerException.class,
+                () -> s.flatPush(mapper)
+                        .peek(e -> capture[0].accept(666))
+                        .collect(Collectors.toList())
+        );
     }
 
     @Test
-    public void testFlatMap() {
+    public void testFlatPush() {
         String[] stringsArray = {"hello", "there", "", "yada"};
         Stream<String> strings = Arrays.asList(stringsArray).stream();
 
         assertConcat(strings.flatPush(charConsumer)
-                        .iterator(), "hellothereyada");
+                .iterator(), "hellothereyada");
         assertCountSum((countTo(10).stream().flatPush(idConsumer)), 10, 55);
         assertCountSum(countTo(10).stream().flatPush(nullConsumer), 0, 0);
         assertCountSum(countTo(3).stream().flatPush(listConsumer), 6, 4);
@@ -96,6 +129,26 @@ public class FlatPushOpTest extends OpTestCase {
                 stringsArray), s -> s.flatPush(charConsumer));
         exerciseOps(TestData.Factory.ofArray("LONG_STRING",
                 new String[]{LONG_STRING}), s -> s.flatPush(charConsumer));
+    }
+
+    @Test
+    public void testDefaultFlatPush() {
+        String[] stringsArray = {"hello", "there", "", "yada"};
+        Stream<String> strings = Arrays.asList(stringsArray).stream();
+
+        assertConcat(delegateTo(strings)
+                .flatPush(charConsumer).iterator(), "hellothereyada");
+        assertCountSum(delegateTo(countTo(10).stream())
+                .flatPush(idConsumer), 10, 55);
+        assertCountSum(delegateTo(countTo(10).stream())
+                .flatPush(nullConsumer), 0, 0);
+        assertCountSum(delegateTo(countTo(3).stream())
+                .flatPush(listConsumer), 6, 4);
+
+        exerciseOps(TestData.Factory.ofArray("stringsArray",
+                stringsArray), s -> delegateTo(s).flatPush(charConsumer));
+        exerciseOps(TestData.Factory.ofArray("LONG_STRING",
+                new String[]{LONG_STRING}), s -> delegateTo(s).flatPush(charConsumer));
     }
 
     @Test(dataProvider = "StreamTestData<Integer>",
@@ -112,6 +165,20 @@ public class FlatPushOpTest extends OpTestCase {
         assertEquals(0, result.size());
     }
 
+    @Test(dataProvider = "StreamTestData<Integer>",
+            dataProviderClass = StreamTestDataProvider.class)
+    public void testDefaultOps(String name, TestData.OfRef<Integer> data) {
+        Collection<Integer> result;
+        result = exerciseOps(data, s -> delegateTo(s).flatPush(idConsumer));
+        assertEquals(data.size(), result.size());
+
+        result = exerciseOps(data, s -> delegateTo(s).flatPush(nullConsumer));
+        assertEquals(0, result.size());
+
+        result = exerciseOps(data, s -> delegateTo(s).flatPush(emptyStreamConsumer));
+        assertEquals(0, result.size());
+    }
+
     @Test(dataProvider = "StreamTestData<Integer>.small",
             dataProviderClass = StreamTestDataProvider.class)
     public void testOpsX(String name, TestData.OfRef<Integer> data) {
@@ -120,27 +187,11 @@ public class FlatPushOpTest extends OpTestCase {
         exerciseOps(data, s -> s.flatPush(rangeConsumerWithLimit));
     }
 
-    @Test
-    public void testOpsShortCircuit() {
-        AtomicInteger count = new AtomicInteger();
-        Stream.of(0).flatPush(rangeConsumer100).
-                peek(i -> count.incrementAndGet()).
-                limit(10).toArray();
-        assertEquals(count.get(), 10);
-    }
-
-    @Test
-    public void testConsumerContained() {
-        var s = List.of(0, 1, 2).stream();
-        Consumer<Integer>[] capture = new Consumer[1];
-        BiConsumer<Integer, Consumer<Integer>> mapper = (i, c) -> {
-            c.accept(i);
-            capture[0] = c;
-        };
-        expectThrows(NullPointerException.class,
-                () -> s.flatPush(mapper)
-                        .peek(e -> capture[0].accept(666))
-                        .collect(Collectors.toList())
-        );
+    @Test(dataProvider = "StreamTestData<Integer>.small",
+            dataProviderClass = StreamTestDataProvider.class)
+    public void testDefaultOpsX(String name, TestData.OfRef<Integer> data) {
+        exerciseOps(data, s -> delegateTo(s).flatPush(listConsumer));
+        exerciseOps(data, s -> delegateTo(s).flatPush(intRangeConsumer));
+        exerciseOps(data, s -> delegateTo(s).flatPush(rangeConsumerWithLimit));
     }
 }

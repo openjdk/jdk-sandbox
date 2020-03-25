@@ -341,8 +341,8 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      */
     default <R> Stream<R> flatPush(BiConsumer<? super T, Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
-        SpinedBuffer<R> buffer = new SpinedBuffer<>();
         return this.flatMap(e -> {
+            SpinedBuffer<R> buffer = new SpinedBuffer<>();
             try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
                 mapper.accept(e, c);
                 return StreamSupport.stream(buffer.spliterator(), false);
