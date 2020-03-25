@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,15 +36,15 @@ import sun.jvm.hotspot.HotSpotTypeDataBase;
  * type is know and the expected subclasses are within a particular
  * package. */
 
-public class VirtualBaseConstructor<T> extends InstanceConstructor {
+public class VirtualBaseConstructor<T> extends InstanceConstructor<T> {
   private TypeDataBase db;
-  private HashMap      map; // Map<String, Class>
+  private Map<String, Class<?>> map;
   private Type         baseType;
-  private Class        unknownTypeHandler;
+  private Class<? extends T> unknownTypeHandler;
 
-  public VirtualBaseConstructor(TypeDataBase db, Type baseType, String packageName, Class unknownTypeHandler) {
+  public VirtualBaseConstructor(TypeDataBase db, Type baseType, String packageName, Class<T> unknownTypeHandler) {
     this.db = (HotSpotTypeDataBase)db;
-    map     = new HashMap();
+    map     = new HashMap<>();
     this.baseType = baseType;
     this.unknownTypeHandler = unknownTypeHandler;
     if (packageName != null) {
@@ -59,7 +59,7 @@ public class VirtualBaseConstructor<T> extends InstanceConstructor {
       }
       if (superType == baseType) {
         superType = t;
-        Class c = null;
+        Class<?> c = null;
         while (c == null && superType != null) {
           try {
             c = Class.forName(packageName + "." + superType.getName());
@@ -80,7 +80,7 @@ public class VirtualBaseConstructor<T> extends InstanceConstructor {
       class. The latter must be a subclass of
       sun.jvm.hotspot.runtime.VMObject. Returns false if there was
       already a class for this type name in the map. */
-  public boolean addMapping(String cTypeName, Class clazz) {
+  public boolean addMapping(String cTypeName, Class<? extends T> clazz) {
     if (map.get(cTypeName) != null) {
       return false;
     }
@@ -94,6 +94,7 @@ public class VirtualBaseConstructor<T> extends InstanceConstructor {
       matched the type of the Address, throws a WrongTypeException.
       Returns null for a null address (similar behavior to
       VMObjectFactory). */
+  @SuppressWarnings("unchecked")
   public T instantiateWrapperFor(Address addr) throws WrongTypeException {
     if (addr == null) {
       return null;
@@ -101,9 +102,9 @@ public class VirtualBaseConstructor<T> extends InstanceConstructor {
 
     Type type = db.findDynamicTypeForAddress(addr, baseType);
     if (type != null) {
-      return (T) VMObjectFactory.newObject((Class) map.get(type.getName()), addr);
+      return (T) VMObjectFactory.newObject(map.get(type.getName()), addr);
     } else if (unknownTypeHandler != null) {
-      return (T) VMObjectFactory.newObject(unknownTypeHandler, addr);
+      return VMObjectFactory.newObject(unknownTypeHandler, addr);
     }
 
     throw newWrongTypeException(addr);

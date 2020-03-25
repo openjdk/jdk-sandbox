@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,9 +55,9 @@ public class PMap extends Tool {
    public void run(PrintStream out, Debugger dbg) {
       CDebugger cdbg = dbg.getCDebugger();
       if (cdbg != null) {
-         List l = cdbg.getLoadObjectList();
-         for (Iterator itr = l.iterator() ; itr.hasNext();) {
-            LoadObject lo = (LoadObject) itr.next();
+         List<LoadObject> l = cdbg.getLoadObjectList();
+         for (Iterator<LoadObject> itr = l.iterator() ; itr.hasNext();) {
+            LoadObject lo = itr.next();
             out.print(lo.getBase() + "\t");
             out.print(lo.getSize()/1024 + "K\t");
             out.println(lo.getName());

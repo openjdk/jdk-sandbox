@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -498,6 +498,7 @@ public class MethodData extends Metadata implements MethodDataInterface<Klass,Me
     return count;
   }
 
+  @SuppressWarnings("unchecked")
   public void dumpReplayData(PrintStream out) {
     Method method = getMethod();
     out.print("ciMethodData " + method.nameAsAscii()

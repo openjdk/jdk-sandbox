@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import javax.swing.event.TableModelEvent;
 /**
  * A comparator which compares rows in a table model
  */
-public abstract class TableModelComparator implements Comparator {
+public abstract class TableModelComparator<T> implements Comparator<T> {
 
     private boolean ascending;
     protected TableModel model;
@@ -78,7 +78,7 @@ public abstract class TableModelComparator implements Comparator {
      * Implementation of the comparator method. A comparison is
      * made for rows.
      */
-    public int compare(Object row1, Object row2) {
+    public int compare(T row1, T row2) {
         for (int i = 0; i < columns.length; i++) {
 
             Object o1 = getValueForColumn(row1, columns[i]);
@@ -96,8 +96,10 @@ public abstract class TableModelComparator implements Comparator {
             int result = 0;
 
             if (o1 instanceof Comparable) {
-                Comparable c1 = (Comparable)o1;
-                Comparable c2 = (Comparable)o2;
+                @SuppressWarnings("unchecked")
+                Comparable<Object> c1 = (Comparable<Object>)o1;
+                @SuppressWarnings("unchecked")
+                Comparable<Object> c2 = (Comparable<Object>)o2;
 
                 result = c1.compareTo(c2);
             }
@@ -121,6 +123,6 @@ public abstract class TableModelComparator implements Comparator {
      * @param obj Row object that was passed into Comparator.
      * @param column the column to retrieve
      */
-    public abstract Object getValueForColumn(Object obj, int column);
+    public abstract Object getValueForColumn(T obj, int column);
 
 }
