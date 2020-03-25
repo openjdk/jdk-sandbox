@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -286,6 +286,61 @@ abstract class DoublePipeline<E_IN>
                                     var s = result.sequential().spliterator();
                                     do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsDouble));
                                 }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        // If this method is called then an operation within the stream
+                        // pipeline is short-circuiting (see AbstractPipeline.copyInto).
+                        // Note that we cannot differentiate between an upstream or
+                        // downstream operation
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    @Override
+    public final DoubleStream flatPush(ObjDoubleConsumer<DoubleConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return new StatelessOp<Double>(this, StreamShape.DOUBLE_VALUE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+
+            @Override
+            Sink<Double> opWrapSink(int flags, Sink<Double> sink) {
+                return new Sink.ChainedDouble<Double>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    DoubleConsumer downstreamAsDouble = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(double t) {
+                        SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
+                        DoubleStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<Double> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, t);
+                            result = StreamSupport.doubleStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsDouble);
+                            } else {
+                                var s = result.sequential().spliterator();
+                                do {
+                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsDouble));
                             }
                         }
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -162,6 +162,22 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * @see Stream#flatMap(Function)
      */
     DoubleStream flatMap(DoubleFunction<? extends DoubleStream> mapper);
+
+    /**
+     * DoubleStream flatPush
+     * @param mapper ObjDoubleConsumer(DoubleConsumer)
+     * @return DoubleStream
+     */
+    default DoubleStream flatPush(ObjDoubleConsumer<DoubleConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMap(e -> {
+            SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
+            try (FlatPushConsumer<DoubleStream> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.doubleStream(buffer.spliterator(), false);
+            }
+        });
+    }
 
     /**
      * Returns a stream consisting of the distinct elements of this stream. The

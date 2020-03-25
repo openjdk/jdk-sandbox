@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -312,6 +312,56 @@ abstract class LongPipeline<E_IN>
                         // pipeline is short-circuiting (see AbstractPipeline.copyInto).
                         // Note that we cannot differentiate between an upstream or
                         // downstream operation
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    @Override
+    public final LongStream flatPush(ObjLongConsumer<LongConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return new LongPipeline.StatelessOp<Long>(this, StreamShape.LONG_VALUE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<Long> opWrapSink(int flags, Sink<Long> sink) {
+                return new Sink.ChainedLong<Long>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    LongConsumer downstreamAsLong = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(long t) {
+                        SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
+                        LongStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<Long> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, t);
+                            result = StreamSupport.longStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsLong);
+                            }
+                            else {
+                                var s = result.sequential().spliterator();
+                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsLong));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
                         cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }

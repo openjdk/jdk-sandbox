@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,6 +163,22 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * @see Stream#flatMap(Function)
      */
     LongStream flatMap(LongFunction<? extends LongStream> mapper);
+
+    /**
+     * LongStream flatPush
+     * @param mapper ObjLongConsumer (LongConsumer)
+     * @return LongStream
+     */
+    default LongStream flatPush(ObjLongConsumer<LongConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMap(e -> {
+            SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
+            try (FlatPushConsumer<LongStream> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.longStream(buffer.spliterator(), false);
+            }
+        });
+    }
 
     /**
      * Returns a stream consisting of the distinct elements of this stream.

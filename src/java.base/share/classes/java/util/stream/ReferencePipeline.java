@@ -296,57 +296,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     }
 
     @Override
-    public final <R> Stream<R> flatPush(BiConsumer<? super P_OUT, Consumer<R>> mapper) {
-        Objects.requireNonNull(mapper);
-        return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
-                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                return new Sink.ChainedReference<P_OUT, R>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    @Override
-                    public void begin(long size) {
-                        downstream.begin(-1);
-                    }
-
-                    @Override
-                    public void accept(P_OUT u) {
-                        SpinedBuffer<R> buffer = new SpinedBuffer<>();
-                        Stream<? extends R> result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
-                            mapper.accept(u, c);
-                            result = StreamSupport.stream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstream);
-                            } else {
-                                var s = result.sequential().spliterator();
-                                do {
-                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstream));
-                            }
-                        }
-                    }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        // If this method is called then an operation within the stream
-                        // pipeline is short-circuiting (see AbstractPipeline.copyInto).
-                        // Note that we cannot differentiate between an upstream or
-                        // downstream operation
-                        cancellationRequestedCalled = true;
-                        return downstream.cancellationRequested();
-                    }
-                };
-            }
-        };
-    }
-
-    @Override
     public final IntStream flatMapToInt(Function<? super P_OUT, ? extends IntStream> mapper) {
         Objects.requireNonNull(mapper);
         return new IntPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
@@ -465,6 +414,207 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                                     var s = result.sequential().spliterator();
                                     do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsLong));
                                 }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    public final <R> Stream<R> flatPush(BiConsumer<Consumer<R>, ? super P_OUT> mapper) {
+        Objects.requireNonNull(mapper);
+        return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
+                return new Sink.ChainedReference<P_OUT, R>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(P_OUT u) {
+                        SpinedBuffer<R> buffer = new SpinedBuffer<>();
+                        Stream<? extends R> result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, u);
+                            result = StreamSupport.stream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstream);
+                            } else {
+                                var s = result.sequential().spliterator();
+                                do {
+                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstream));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        // If this method is called then an operation within the stream
+                        // pipeline is short-circuiting (see AbstractPipeline.copyInto).
+                        // Note that we cannot differentiate between an upstream or
+                        // downstream operation
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    @Override
+    public final IntStream flatPushToInt(BiConsumer<IntConsumer, ? super P_OUT> mapper) {
+        Objects.requireNonNull(mapper);
+        return new IntPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
+                return new Sink.ChainedReference<P_OUT, Integer>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    IntConsumer downstreamAsInt = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(P_OUT u) {
+                        SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
+                        IntStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<Integer> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, u);
+                            result = StreamSupport.intStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsInt);
+                            }
+                            else {
+                                var s = result.sequential().spliterator();
+                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsInt));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    @Override
+    public final LongStream flatPushToLong(BiConsumer<LongConsumer, ? super P_OUT> mapper) {
+        Objects.requireNonNull(mapper);
+        return new LongPipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
+                return new Sink.ChainedReference<P_OUT, Long>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    LongConsumer downstreamAsLong = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(P_OUT u) {
+                        SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
+                        LongStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<Long> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, u);
+                            result = StreamSupport.longStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsLong);
+                            }
+                            else {
+                                var s = result.sequential().spliterator();
+                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsLong));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+
+    @Override
+    public final DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super P_OUT> mapper) {
+        Objects.requireNonNull(mapper);
+        return new DoublePipeline.StatelessOp<P_OUT>(this, StreamShape.REFERENCE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<P_OUT> opWrapSink(int flags, Sink<Double> sink) {
+                return new Sink.ChainedReference<P_OUT, Double>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    DoubleConsumer downstreamAsDouble = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(P_OUT u) {
+                        SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
+                        DoubleStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<Double> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, u);
+                            result = StreamSupport.doubleStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsDouble);
+                            }
+                            else {
+                                var s = result.sequential().spliterator();
+                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsDouble));
                             }
                         }
                     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,6 +163,22 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * @see Stream#flatMap(Function)
      */
     IntStream flatMap(IntFunction<? extends IntStream> mapper);
+
+    /**
+     * IntStream flatPush
+     * @param mapper ObjIntConsumer (IntConsumer)
+     * @return IntStream
+     */
+    default IntStream flatPush(ObjIntConsumer<IntConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMap(e -> {
+            SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
+            try (FlatPushConsumer<IntConsumer> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.intStream(buffer.spliterator(), false);
+            }
+        });
+    }
 
     /**
      * Returns a stream consisting of the distinct elements of this stream.

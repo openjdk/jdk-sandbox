@@ -32,8 +32,11 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 import java.util.function.Function;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
+import java.util.function.LongConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.ToDoubleFunction;
@@ -277,80 +280,6 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     <R> Stream<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper);
 
     /**
-     * Returns a stream consisting of the results of replacing each element of
-     * this stream with elements produced by applying the provided
-     * {@link BiConsumer} {@code mapper} to the element.
-     *
-     * For each element <em>E</em>, the mapper is invoked with <em>E</em> and a
-     * {@link Consumer Consumer}{@code <R>} lambda, which it can call zero or
-     * more times to map <em>E</em> to zero or more elements of type {@code R}.
-     *
-     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
-     * operation</a>.
-     *
-     * @apiNote
-     * The {@code flatPush()} operation has the effect of applying a one-to-many
-     * transformation to the elements of the stream, and then flattening the
-     * resulting elements into a new stream.
-     *
-     * @implSpec
-     * The default implementation is equivalent to:
-     * <pre>{@code
-     *      return this.flatPush(e -> {
-     *             List<R> buffer = new ArrayList<>();
-     *             Consumer<R> c =  buffer::add;
-     *
-     *             mapper.accept(e, c);
-     *             return buffer.stream();
-     *      });
-     * }</pre>
-     *
-     * <p><b>Examples</b>
-     *
-     * <p>If {@code orders} is a stream of purchase orders, and the status of each
-     * order can be updated and checked, then the following updates each order and
-     * produces a stream containing all the orders that have been completed:
-     * <pre>{@code
-     *       orders.flatPush((order, sink) -> {
-     *       order.update();
-     *       if (order.isCompleted())
-     *       sink.accept(order);
-     *       });
-     * }</pre>
-     *
-     * <p>If {@code numbers} is a stream of Number objects, then the following
-     * produces a stream of only the Integer objects in {@code numbers}. Each
-     * of these objects is added twice to the resulting stream:
-     * <pre>{@code
-     *       numbers.flatPush((n, sink) -> {
-     *           if (n instanceof Integer)
-     *               sink.accept(n);
-     *               sink.accept(n)
-     *       });
-     * }</pre>
-     * The {@code mapper} passed to {@code flatPush} checks the class type of
-     * each element of the numbers stream and pushes only the elements that are
-     * of type Integer to the sink twice.
-     *
-     * @param <R>    The element type of the new stream
-     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
-     *               <a href="package-summary.html#Statelessness">stateless</a>
-     *               {@code BiConsumer} to map each element to one or or more
-     *               new values
-     * @return       the new stream
-     */
-    default <R> Stream<R> flatPush(BiConsumer<? super T, Consumer<R>> mapper) {
-        Objects.requireNonNull(mapper);
-        return this.flatMap(e -> {
-            SpinedBuffer<R> buffer = new SpinedBuffer<>();
-            try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
-                mapper.accept(e, c);
-                return StreamSupport.stream(buffer.spliterator(), false);
-            }
-        });
-    }
-
-    /**
      * Returns an {@code IntStream} consisting of the results of replacing each
      * element of this stream with the contents of a mapped stream produced by
      * applying the provided mapping function to each element.  Each mapped
@@ -409,6 +338,128 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @see #flatMap(Function)
      */
     DoubleStream flatMapToDouble(Function<? super T, ? extends DoubleStream> mapper);
+
+    /**
+     * Returns a stream consisting of the results of replacing each element of
+     * this stream with elements produced by applying the provided
+     * {@link BiConsumer} {@code mapper} to the element.
+     *
+     * For each element <em>E</em>, the mapper is invoked with <em>E</em> and a
+     * {@link Consumer Consumer}{@code <R>} lambda, which it can call zero or
+     * more times to map <em>E</em> to zero or more elements of type {@code R}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @apiNote
+     * The {@code flatPush()} operation has the effect of applying a one-to-many
+     * transformation to the elements of the stream, and then flattening the
+     * resulting elements into a new stream.
+     *
+     * @implSpec
+     * The default implementation is equivalent to:
+     * <pre>{@code
+     *      return this.flatPush(e -> {
+     *             List<R> buffer = new ArrayList<>();
+     *             Consumer<R> c =  buffer::add;
+     *
+     *             mapper.accept(e, c);
+     *             return buffer.stream();
+     *      });
+     * }</pre>
+     *
+     * <p><b>Examples</b>
+     *
+     * <p>If {@code orders} is a stream of purchase orders, and the status of each
+     * order can be updated and checked, then the following updates each order and
+     * produces a stream containing all the orders that have been completed:
+     * <pre>{@code
+     *       orders.flatPush((order, sink) -> {
+     *          order.update();
+     *          if (order.isCompleted())
+     *              sink.accept(order);
+     *       });
+     * }</pre>
+     *
+     * <p>If {@code numbers} is a stream of Number objects, then the following
+     * produces a stream of only the Integer objects in {@code numbers}. Each
+     * of these objects is added twice to the resulting stream:
+     * <pre>{@code
+     *       numbers.flatPush((n, sink) -> {
+     *           if (n instanceof Integer)
+     *               sink.accept(n);
+     *               sink.accept(n)
+     *       });
+     * }</pre>
+     * The {@code mapper} passed to {@code flatPush} checks the class type of
+     * each element of the numbers stream and pushes only the elements that are
+     * of type Integer to the sink twice.
+     *
+     * @param <R>    The element type of the new stream
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               {@code BiConsumer} to map each element to one or or more
+     *               new values
+     * @return       the new stream
+     */
+    default <R> Stream<R> flatPush(BiConsumer<Consumer<R>, ? super T> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMap(e -> {
+            SpinedBuffer<R> buffer = new SpinedBuffer<>();
+            try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.stream(buffer.spliterator(), false);
+            }
+        });
+    }
+
+    /**
+     * flatMapToInt
+     * @param mapper BiConsumer (IntConsumer, T)
+     * @return IntStream
+     */
+    default IntStream flatPushToInt(BiConsumer<IntConsumer, ? super T> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMapToInt(e -> {
+            SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
+            try (FlatPushConsumer<IntConsumer> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.intStream(buffer.spliterator(), false);
+            }
+        });
+    }
+
+    /**
+     * flatPushToLong
+     * @param mapper BiConsumer (LongConsumer, T)
+     * @return LongStream
+     */
+    default LongStream flatPushToLong(BiConsumer<LongConsumer, ? super T> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMapToLong(e -> {
+            SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
+            try (FlatPushConsumer<LongConsumer> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.longStream(buffer.spliterator(), false);
+            }
+        });
+    }
+
+    /**
+     * flatPushToDouble
+     * @param mapper BiConsumer (DoubleConsumer, T)
+     * @return DoubleStream
+     */
+    default DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
+        Objects.requireNonNull(mapper);
+        return this.flatMapToDouble(e -> {
+            SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
+            try (FlatPushConsumer<DoubleConsumer> c = new FlatPushConsumer<>(buffer)) {
+                mapper.accept(c, e);
+                return StreamSupport.doubleStream(buffer.spliterator(), false);
+            }
+        });
+    }
 
     /**
      * Returns a stream consisting of the distinct elements (according to

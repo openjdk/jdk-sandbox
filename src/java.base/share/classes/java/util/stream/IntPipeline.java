@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -330,6 +330,56 @@ abstract class IntPipeline<E_IN>
                         // pipeline is short-circuiting (see AbstractPipeline.copyInto).
                         // Note that we cannot differentiate between an upstream or
                         // downstream operation
+                        cancellationRequestedCalled = true;
+                        return downstream.cancellationRequested();
+                    }
+                };
+            }
+        };
+    }
+
+    @Override
+    public final IntStream flatPush(ObjIntConsumer<IntConsumer> mapper) {
+        Objects.requireNonNull(mapper);
+        return new StatelessOp<Integer>(this, StreamShape.INT_VALUE,
+                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
+            @Override
+            Sink<Integer> opWrapSink(int flags, Sink<Integer> sink) {
+                return new Sink.ChainedInt<Integer>(sink) {
+                    // true if cancellationRequested() has been called
+                    boolean cancellationRequestedCalled;
+
+                    // cache the consumer to avoid creation on every accepted element
+                    IntConsumer downstreamAsInt = downstream::accept;
+
+                    @Override
+                    public void begin(long size) {
+                        downstream.begin(-1);
+                    }
+
+                    @Override
+                    public void accept(int t) {
+                        SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
+                        IntStream result;
+
+                        // Close when finished to contain buffer
+                        try (FlatPushConsumer<IntConsumer> c = new FlatPushConsumer<>(buffer)) {
+                            mapper.accept(c, t);
+                            result = StreamSupport.intStream(buffer.spliterator(), false);
+                        }
+                        if (result != null) {
+                            if (!cancellationRequestedCalled) {
+                                result.sequential().forEach(downstreamAsInt);
+                            }
+                            else {
+                                var s = result.sequential().spliterator();
+                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsInt));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public boolean cancellationRequested() {
                         cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
