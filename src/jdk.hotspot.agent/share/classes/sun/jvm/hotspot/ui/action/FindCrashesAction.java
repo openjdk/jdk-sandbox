@@ -39,7 +39,7 @@ public class FindCrashesAction extends DelegateAction {
     // XXX - These icons are temporary. Should use a lightning bolt with a search arrow.
     public static final String VALUE_SMALL_ICON = "general/Delete16.gif";
     public static final String VALUE_LARGE_ICON = "general/Delete24.gif";
-    public static final Integer VALUE_MNEMONIC = new Integer('H');
+    public static final Integer VALUE_MNEMONIC = (int) 'H';
     public static final String VALUE_SHORT_DESCRIPTION = "Find Crashes";
     public static final String VALUE_LONG_DESCRIPTION = "Searches the threads for potential crashes";
 

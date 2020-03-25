@@ -52,7 +52,7 @@ public class AlignRightAction extends StateChangeAction
     public static final String VALUE_NAME = "Right Align";
     public static final String VALUE_SMALL_ICON = "text/AlignRight16.gif";
     public static final String VALUE_LARGE_ICON = "text/AlignRight24.gif";
-    public static final Integer VALUE_MNEMONIC = new Integer(82);
+    public static final Integer VALUE_MNEMONIC = 82;
     public static final KeyStroke VALUE_ACCELERATOR = KeyStroke.getKeyStroke(82, 2);
     public static final String VALUE_SHORT_DESCRIPTION = "Right Align";
     public static final String VALUE_LONG_DESCRIPTION = "Adjust the placement of text along the right edge";

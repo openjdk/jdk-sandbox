@@ -52,7 +52,7 @@ public class BackAction extends DelegateAction
     public static final String VALUE_NAME = "< Back";
     public static final String VALUE_SMALL_ICON = null;
     public static final String VALUE_LARGE_ICON = null;
-    public static final Integer VALUE_MNEMONIC = new Integer(66);
+    public static final Integer VALUE_MNEMONIC = 66;
     public static final KeyStroke VALUE_ACCELERATOR = null;
     public static final String VALUE_SHORT_DESCRIPTION = "Select previous item";
     public static final String VALUE_LONG_DESCRIPTION = "Select previous item";

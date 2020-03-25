@@ -42,7 +42,7 @@ public abstract class JSJavaArrayKlass extends JSJavaKlass {
 
    public Object getMetaClassFieldValue(String name) {
       if (name.equals("dimension")) {
-         return new Long(getArrayKlass().getDimension());
+         return getArrayKlass().getDimension();
       } else {
          return super.getMetaClassFieldValue(name);
       }

@@ -39,7 +39,7 @@ public class JSList extends DefaultScriptObject {
 
    public Object get(String name) {
       if (name.equals("length")) {
-         return new Integer(list.size());
+         return list.size();
       } else {
          return super.get(name);
       }
@@ -59,7 +59,7 @@ public class JSList extends DefaultScriptObject {
       final int size = list.size();
       Object[] res = new Object[superIds.length + size];
       for (int i = 0; i < size; i++) {
-          res[i] = new Integer(i);
+          res[i] = i;
       }
       System.arraycopy(superIds, 0, res, size, superIds.length);
       return res;

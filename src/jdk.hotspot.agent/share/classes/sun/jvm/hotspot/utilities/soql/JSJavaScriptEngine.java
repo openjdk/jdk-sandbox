@@ -240,7 +240,7 @@ public abstract class JSJavaScriptEngine extends MapScriptObject {
         if (args.length != 1) return UNDEFINED;
         Object o = args[0];
         if (o != null && o instanceof JSJavaObject) {
-            return new Long(((JSJavaObject)o).getOop().identityHash());
+            return ((JSJavaObject) o).getOop().identityHash();
         } else {
             return UNDEFINED;
         }
@@ -324,7 +324,7 @@ public abstract class JSJavaScriptEngine extends MapScriptObject {
         if (args.length != 1) return UNDEFINED;
         Object o = args[0];
         if (o != null && o instanceof JSJavaObject) {
-            return new Long(((JSJavaObject)o).getOop().getObjectSize());
+            return ((JSJavaObject) o).getOop().getObjectSize();
         } else {
             return UNDEFINED;
         }

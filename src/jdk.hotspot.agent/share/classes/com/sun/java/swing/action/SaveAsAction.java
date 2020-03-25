@@ -50,7 +50,7 @@ public class SaveAsAction extends DelegateAction
     public static final String VALUE_NAME = "Save As";
     public static final String VALUE_SMALL_ICON = "general/SaveAs16.gif";
     public static final String VALUE_LARGE_ICON = "general/SaveAs24.gif";
-    public static final Integer VALUE_MNEMONIC = new Integer(65);
+    public static final Integer VALUE_MNEMONIC = 65;
     public static final String VALUE_SHORT_DESCRIPTION = "Save as a new file";
     public static final String VALUE_LONG_DESCRIPTION = "Saves the current object as another object";
 

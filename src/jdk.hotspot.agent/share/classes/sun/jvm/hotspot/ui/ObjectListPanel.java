@@ -192,7 +192,7 @@ public class ObjectListPanel extends SAPanel {
       case 2:
         if (hasArrays) {
           if (oop instanceof Array) {
-            return new Long(((Array) oop).getLength());
+            return ((Array) oop).getLength();
           }
           return null;
         } else {
