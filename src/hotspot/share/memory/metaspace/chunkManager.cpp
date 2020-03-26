@@ -22,7 +22,6 @@
  * questions.
  *
  */
-#include <memory/metaspace/settings.hpp>
 #include "precompiled.hpp"
 
 
@@ -35,6 +34,7 @@
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 #include "memory/metaspace/virtualSpaceList.hpp"
 #include "runtime/mutexLocker.hpp"

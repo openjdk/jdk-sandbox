@@ -24,7 +24,7 @@
  */
 
 
-#include <memory/metaspace/settings.hpp>
+
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"
@@ -38,6 +38,7 @@
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
 #include "memory/metaspace/runningCounters.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 
 #include "runtime/globals.hpp"

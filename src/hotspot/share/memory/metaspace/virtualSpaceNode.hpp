@@ -27,13 +27,13 @@
 #define SHARE_MEMORY_METASPACE_VIRTUALSPACENODE_HPP
 
 
-#include <memory/metaspace/settings.hpp>
 #include "memory/allocation.hpp"
 #include "memory/metaspace/counter.hpp"
 #include "memory/metaspace/commitMask.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/rootChunkArea.hpp"
-#include "memory/virtualspace.hpp"
 #include "memory/memRegion.hpp"
+#include "memory/virtualspace.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/globalDefinitions.hpp"

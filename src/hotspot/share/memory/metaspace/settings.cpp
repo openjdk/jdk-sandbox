@@ -24,7 +24,6 @@
  */
 
 
-#include <memory/metaspace/settings.hpp>
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"

@@ -24,13 +24,13 @@
  */
 
 
-#include <memory/metaspace/settings.hpp>
 #include "precompiled.hpp"
 
 #include "logging/log.hpp"
 #include "memory/metaspace/chunkLevel.hpp"
 #include "memory/metaspace/metachunk.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
+#include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
 #include "runtime/mutexLocker.hpp"
 
