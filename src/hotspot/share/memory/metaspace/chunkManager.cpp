@@ -33,7 +33,6 @@
 #include "memory/metaspace/chunkManager.hpp"
 #include "memory/metaspace/internStat.hpp"
 #include "memory/metaspace/metachunk.hpp"
-#include "memory/metaspace/metaDebug.hpp"
 #include "memory/metaspace/metaspaceCommon.hpp"
 #include "memory/metaspace/metaspaceStatistics.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"

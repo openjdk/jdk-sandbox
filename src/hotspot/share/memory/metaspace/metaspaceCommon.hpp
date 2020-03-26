@@ -64,6 +64,39 @@ const char* classes_plural(uintx num);
 const char* loaders_plural(uintx num);
 void print_number_of_classes(outputStream* out, uintx classes, uintx classes_shared);
 
+
+// Since Metaspace verifications are expensive, we want to do them at a reduced rate,
+// but not completely avoiding them.
+// For that we introduce the macros SOMETIMES() and ASSERT_SOMETIMES() which will
+// execute code or assert at intervals controlled via VerifyMetaspaceInterval.
+#ifdef ASSERT
+
+#define EVERY_NTH(n)          \
+{ static int counter_ = 0;    \
+  if (n > 0) {                \
+    counter_ ++;              \
+    if (counter_ > n) {       \
+      counter_ = 0;           \
+
+#define END_EVERY_NTH         } } }
+
+#define SOMETIMES(code) \
+    EVERY_NTH(VerifyMetaspaceInterval) \
+    { code } \
+    END_EVERY_NTH
+
+#define ASSERT_SOMETIMES(condition, ...) \
+    EVERY_NTH(VerifyMetaspaceInterval) \
+    assert( (condition), __VA_ARGS__); \
+    END_EVERY_NTH
+
+#else
+
+#define SOMETIMES(code)
+#define ASSERT_SOMETIMES(condition, ...)
+
+#endif // ASSERT
+
 } // namespace metaspace
 
 #endif // SHARE_MEMORY_METASPACE_METASPACECOMMON_HPP
