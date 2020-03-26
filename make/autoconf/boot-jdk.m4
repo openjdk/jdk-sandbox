@@ -417,9 +417,9 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
   # Maximum amount of heap memory and stack size.
   JVM_HEAP_LIMIT_32="768"
   # Running a 64 bit JVM allows for and requires a bigger heap
-  JVM_HEAP_LIMIT_64="1600"
+  JVM_HEAP_LIMIT_64="2048"
   STACK_SIZE_32=768
-  STACK_SIZE_64=1536
+  STACK_SIZE_64=2K
   JVM_HEAP_LIMIT_GLOBAL=`expr $MEMORY_SIZE / 2`
   if test "$JVM_HEAP_LIMIT_GLOBAL" -lt "$JVM_HEAP_LIMIT_32"; then
     JVM_HEAP_LIMIT_32=$JVM_HEAP_LIMIT_GLOBAL
@@ -440,7 +440,7 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
     JVM_MAX_HEAP=$JVM_HEAP_LIMIT_64
   fi
   UTIL_ADD_JVM_ARG_IF_OK([-Xmx${JVM_MAX_HEAP}M],boot_jdk_jvmargs_big,[$JAVA])
-  UTIL_ADD_JVM_ARG_IF_OK([-XX:ThreadStackSize=$STACK_SIZE],boot_jdk_jvmargs_big,[$JAVA])
+  UTIL_ADD_JVM_ARG_IF_OK([-Xss$STACK_SIZE],boot_jdk_jvmargs_big,[$JAVA])
 
   AC_MSG_RESULT([$boot_jdk_jvmargs_big])
 
