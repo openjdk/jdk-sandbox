@@ -65,17 +65,6 @@ class CommitMask : public CHeapBitMap {
     bool do_bit(BitMap::idx_t offset) { cnt ++; return true; }
   };
 
-  // Missing from BitMap.
-  // Count 1 bits in range [start, end).
-  idx_t count_one_bits_in_range(idx_t start, idx_t end) const {
-    assert(start < end, "Zero range");
-    // TODO: This can be done more efficiently.
-    BitCounterClosure bcc;
-    bcc.cnt = 0;
-    iterate(&bcc, start, end);
-    return bcc.cnt;
-  }
-
 #ifdef ASSERT
   // Given a pointer, check if it points into the range this bitmap covers.
   bool is_pointer_valid(const MetaWord* p) const {
@@ -138,7 +127,7 @@ public:
     assert(word_size > 0, "zero range");
     const idx_t b1 = bitno_for_address(start);
     const idx_t b2 = bitno_for_address(start + word_size);
-    const idx_t num_bits = count_one_bits_in_range(b1, b2);
+    const idx_t num_bits = count_one_bits(b1, b2);
     return num_bits * _words_per_bit;
   }
 
@@ -158,7 +147,7 @@ public:
       bool was_committed = mark_granule(b1, true);
       return was_committed ? _words_per_bit : 0;
     }
-    const idx_t one_bits_in_range_before = count_one_bits_in_range(b1, b2);
+    const idx_t one_bits_in_range_before = count_one_bits(b1, b2);
     set_range(b1, b2);
     return one_bits_in_range_before * _words_per_bit;
   }
@@ -175,7 +164,7 @@ public:
       return was_committed ? 0 : _words_per_bit;
     }
     const idx_t zero_bits_in_range_before =
-        (b2 - b1) - count_one_bits_in_range(b1, b2);
+        (b2 - b1) - count_one_bits(b1, b2);
     clear_range(b1, b2);
     return zero_bits_in_range_before * _words_per_bit;
   }
