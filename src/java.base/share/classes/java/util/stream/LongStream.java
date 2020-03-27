@@ -173,7 +173,7 @@ public interface LongStream extends BaseStream<Long, LongStream> {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-            try (FlatPushConsumer<LongStream> c = new FlatPushConsumer<>(buffer)) {
+            try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.longStream(buffer.spliterator(), false);
             }

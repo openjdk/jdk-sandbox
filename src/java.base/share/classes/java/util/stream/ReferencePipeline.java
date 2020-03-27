@@ -503,7 +503,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         IntStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<Integer> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
                             mapper.accept(c, u);
                             result = StreamSupport.intStream(buffer.spliterator(), false);
                         }
@@ -553,7 +553,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         LongStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<Long> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
                             mapper.accept(c, u);
                             result = StreamSupport.longStream(buffer.spliterator(), false);
                         }
@@ -604,7 +604,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         DoubleStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<Double> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
                             mapper.accept(c, u);
                             result = StreamSupport.doubleStream(buffer.spliterator(), false);
                         }

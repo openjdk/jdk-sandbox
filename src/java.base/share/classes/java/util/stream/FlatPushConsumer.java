@@ -30,27 +30,12 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 
-final class FlatPushConsumer<T> implements DoubleConsumer, IntConsumer, LongConsumer, Consumer<T>, AutoCloseable {
-    SpinedBuffer<T> buffer;
+final class FlatPushConsumer<T> implements Consumer<T>, AutoCloseable {
 
-    SpinedBuffer.OfInt intBuffer;
-    SpinedBuffer.OfDouble doubleBuffer;
-    SpinedBuffer.OfLong longBuffer;
+    SpinedBuffer<T> buffer;
 
     FlatPushConsumer(SpinedBuffer<T> buffer) {
         this.buffer = buffer;
-    }
-
-    FlatPushConsumer(SpinedBuffer.OfInt intBuffer) {
-        this.intBuffer = intBuffer;
-    }
-
-    FlatPushConsumer(SpinedBuffer.OfDouble doubleBuffer) {
-        this.doubleBuffer = doubleBuffer;
-    }
-
-    FlatPushConsumer(SpinedBuffer.OfLong longBuffer) {
-        this.longBuffer = longBuffer;
     }
 
     @Override
@@ -58,24 +43,63 @@ final class FlatPushConsumer<T> implements DoubleConsumer, IntConsumer, LongCons
         buffer.accept(t);
     }
 
-    public void accept(int i) {
-        intBuffer.accept(i);
-    }
-
-    public void accept(double d) {
-        doubleBuffer.accept(d);
-    }
-
-    public void accept(long l) {
-        longBuffer.accept(l);
-    }
-
     // Dereference to ensure buffer is inaccessible after use
     @Override
     public void close() {
         buffer = null;
-        intBuffer = null;
-        doubleBuffer = null;
-        longBuffer = null;
+    }
+
+    static class OfInt implements IntConsumer, AutoCloseable {
+        SpinedBuffer.OfInt intBuffer;
+
+        OfInt(SpinedBuffer.OfInt intBuffer) {
+            this.intBuffer = intBuffer;
+        }
+
+        @Override
+        public void accept(int i) {
+            intBuffer.accept(i);
+        }
+
+        @Override
+        public void close() {
+            intBuffer = null;
+        }
+    }
+
+    static class OfDouble implements DoubleConsumer, AutoCloseable {
+        SpinedBuffer.OfDouble doubleBuffer;
+
+        OfDouble(SpinedBuffer.OfDouble doubleBuffer) {
+            this.doubleBuffer = doubleBuffer;
+        }
+
+        @Override
+        public void accept(double d) {
+            doubleBuffer.accept(d);
+        }
+
+        @Override
+        public void close() {
+            doubleBuffer = null;
+        }
+    }
+
+    static class OfLong implements LongConsumer, AutoCloseable {
+        SpinedBuffer.OfLong longBuffer;
+
+        OfLong(SpinedBuffer.OfLong longBuffer) {
+            this.longBuffer = longBuffer;
+        }
+
+        @Override
+        public void accept(long l) {
+            longBuffer.accept(l);
+        }
+
+        @Override
+        public void close() {
+            longBuffer = null;
+        }
     }
 }

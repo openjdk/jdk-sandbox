@@ -422,7 +422,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-            try (FlatPushConsumer<IntConsumer> c = new FlatPushConsumer<>(buffer)) {
+            try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.intStream(buffer.spliterator(), false);
             }
@@ -438,7 +438,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-            try (FlatPushConsumer<LongConsumer> c = new FlatPushConsumer<>(buffer)) {
+            try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.longStream(buffer.spliterator(), false);
             }
@@ -454,7 +454,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-            try (FlatPushConsumer<DoubleConsumer> c = new FlatPushConsumer<>(buffer)) {
+            try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.doubleStream(buffer.spliterator(), false);
             }

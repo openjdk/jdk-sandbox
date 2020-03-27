@@ -345,7 +345,7 @@ abstract class LongPipeline<E_IN>
                         LongStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<Long> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
                             mapper.accept(c, t);
                             result = StreamSupport.longStream(buffer.spliterator(), false);
                         }

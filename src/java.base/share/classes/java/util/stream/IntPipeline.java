@@ -363,7 +363,7 @@ abstract class IntPipeline<E_IN>
                         IntStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<IntConsumer> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
                             mapper.accept(c, t);
                             result = StreamSupport.intStream(buffer.spliterator(), false);
                         }

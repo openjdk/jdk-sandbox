@@ -330,7 +330,7 @@ abstract class DoublePipeline<E_IN>
                         DoubleStream result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<Double> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
                             mapper.accept(c, t);
                             result = StreamSupport.doubleStream(buffer.spliterator(), false);
                         }

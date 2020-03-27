@@ -222,11 +222,35 @@ public class FlatPushOpTest extends OpTestCase {
         assertEquals(0, result.size());
     }
 
+    @Test(dataProvider = "IntStreamTestData", dataProviderClass = IntStreamTestDataProvider.class)
+    public void testDefaultIntOps(String name, TestData.OfInt data) {
+        Collection<Integer> result = exerciseOps(data, s -> delegateTo(s).flatPush((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).boxed().flatPushToInt((sink, i) -> IntStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).flatPush((sink,i) -> IntStream.empty().forEach(sink::accept)));
+        assertEquals(0, result.size());
+    }
+
     @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOpsX(String name, TestData.OfInt data) {
 
         exerciseOps(data, s -> s.flatPush((sink,e) -> IntStream.range(0, e).forEach(sink::accept)));
         exerciseOps(data, s -> s.flatPush((sink,e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+
+        exerciseOps(data, s -> s.boxed().flatPushToInt((sink,e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> s.boxed().flatPushToInt((sink,e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
+    }
+
+    @Test(dataProvider = "IntStreamTestData.small", dataProviderClass = IntStreamTestDataProvider.class)
+    public void testDefaultIntOpsX(String name, TestData.OfInt data) {
+
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink,e) -> IntStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink,e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
 
         exerciseOps(data, s -> s.boxed().flatPushToInt((sink,e) -> IntStream.range(0, e).forEach(sink::accept)));
         exerciseOps(data, s -> s.boxed().flatPushToInt((sink,e) -> IntStream.range(0, e).limit(10).forEach(sink::accept)));
@@ -242,6 +266,21 @@ public class FlatPushOpTest extends OpTestCase {
 
         count.set(0);
         Stream.of(0).flatPushToInt((sink, e) -> IntStream.range(0, 100).forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+    }
+
+    @Test
+    public void testDefaultIntOpsShortCircuit() {
+        AtomicInteger count = new AtomicInteger();
+        delegateTo(IntStream.of(0)).flatPush((sink, e) -> IntStream.range(0, 100).forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+
+        count.set(0);
+        delegateTo(Stream.of(0)).flatPushToInt((sink, e) -> IntStream.range(0, 100).forEach(sink::accept)).
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);
@@ -263,10 +302,30 @@ public class FlatPushOpTest extends OpTestCase {
         assertEquals(0, result.size());
     }
 
+    @Test(dataProvider = "DoubleStreamTestData", dataProviderClass = DoubleStreamTestDataProvider.class)
+    public void testDefaultDoubleOps(String name, TestData.OfDouble data) {
+        Collection<Double> result = exerciseOps(data, s -> delegateTo(s).flatPush((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).boxed().flatPushToDouble((sink, i) -> DoubleStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).flatPush((sink, i) -> DoubleStream.empty().forEach(sink::accept)));
+        assertEquals(0, result.size());
+    }
+
     @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOpsX(String name, TestData.OfDouble data) {
         exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
         exerciseOps(data, s -> s.flatPush((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
+    }
+
+    @Test(dataProvider = "DoubleStreamTestData.small", dataProviderClass = DoubleStreamTestDataProvider.class)
+    public void testDefaultDoubleOpsX(String name, TestData.OfDouble data) {
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, (int) e).asDoubleStream().forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> IntStream.range(0, (int) e).limit(10).asDoubleStream().forEach(sink::accept)));
     }
 
     @Test
@@ -279,6 +338,21 @@ public class FlatPushOpTest extends OpTestCase {
 
         count.set(0);
         Stream.of(0).flatPushToDouble((sink, i) -> IntStream.range(0, 100).asDoubleStream().forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+    }
+
+    @Test
+    public void testDefaultDoubleOpsShortCircuit() {
+        AtomicInteger count = new AtomicInteger();
+        delegateTo(DoubleStream.of(0)).flatPush((sink, i) -> IntStream.range(0, 100).asDoubleStream().forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+
+        count.set(0);
+        delegateTo(Stream.of(0)).flatPushToDouble((sink, i) -> IntStream.range(0, 100).asDoubleStream().forEach(sink::accept)).
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);
@@ -300,10 +374,30 @@ public class FlatPushOpTest extends OpTestCase {
         assertEquals(0, result.size());
     }
 
+    @Test(dataProvider = "LongStreamTestData", dataProviderClass = LongStreamTestDataProvider.class)
+    public void testDefaultLongOps(String name, TestData.OfLong data) {
+        Collection<Long> result = exerciseOps(data, s -> delegateTo(s).flatPush((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).boxed().flatPushToLong((sink, i) -> LongStream.of(i).forEach(sink::accept)));
+        assertEquals(data.size(), result.size());
+        assertContents(data, result);
+
+        result = exerciseOps(data, s -> delegateTo(s).flatPush((sink, i) -> LongStream.empty().forEach(sink::accept)));
+        assertEquals(0, result.size());
+    }
+
     @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOpsX(String name, TestData.OfLong data) {
         exerciseOps(data, s -> s.flatPush((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
         exerciseOps(data, s -> s.flatPush((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
+    }
+
+    @Test(dataProvider = "LongStreamTestData.small", dataProviderClass = LongStreamTestDataProvider.class)
+    public void testDefaultLongOpsX(String name, TestData.OfLong data) {
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> LongStream.range(0, e).forEach(sink::accept)));
+        exerciseOps(data, s -> delegateTo(s).flatPush((sink, e) -> LongStream.range(0, e).limit(10).forEach(sink::accept)));
     }
 
     @Test
@@ -316,6 +410,21 @@ public class FlatPushOpTest extends OpTestCase {
 
         count.set(0);
         Stream.of(0).flatPushToLong((sink, i) -> LongStream.range(0, 100).forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+    }
+
+    @Test
+    public void testDefaultLongOpsShortCircuit() {
+        AtomicInteger count = new AtomicInteger();
+        delegateTo(LongStream.of(0)).flatPush((sink, i) -> LongStream.range(0, 100).forEach(sink::accept)).
+                peek(i -> count.incrementAndGet()).
+                limit(10).toArray();
+        assertEquals(count.get(), 10);
+
+        count.set(0);
+        delegateTo(Stream.of(0)).flatPushToLong((sink, i) -> LongStream.range(0, 100).forEach(sink::accept)).
                 peek(i -> count.incrementAndGet()).
                 limit(10).toArray();
         assertEquals(count.get(), 10);
