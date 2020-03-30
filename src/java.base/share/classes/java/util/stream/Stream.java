@@ -406,7 +406,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
-            try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
+            try (FlatPushConsumer.OfRef<R> c = new FlatPushConsumer.OfRef<>(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.stream(buffer.spliterator(), false);
             }

@@ -30,17 +30,12 @@ import java.util.function.DoubleConsumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
 
-final class FlatPushConsumer<T> implements Consumer<T>, AutoCloseable {
+abstract class FlatPushConsumer<T extends AbstractSpinedBuffer>
+        implements AutoCloseable {
+    T buffer;
 
-    SpinedBuffer<T> buffer;
-
-    FlatPushConsumer(SpinedBuffer<T> buffer) {
+    FlatPushConsumer(T buffer) {
         this.buffer = buffer;
-    }
-
-    @Override
-    public void accept(T t) {
-        buffer.accept(t);
     }
 
     // Dereference to ensure buffer is inaccessible after use
@@ -49,57 +44,55 @@ final class FlatPushConsumer<T> implements Consumer<T>, AutoCloseable {
         buffer = null;
     }
 
-    static class OfInt implements IntConsumer, AutoCloseable {
-        SpinedBuffer.OfInt intBuffer;
+    static class OfRef<U> extends FlatPushConsumer<SpinedBuffer<U>>
+            implements Consumer<U> {
 
-        OfInt(SpinedBuffer.OfInt intBuffer) {
-            this.intBuffer = intBuffer;
+        OfRef(SpinedBuffer<U> buffer) {
+            super(buffer);
         }
 
         @Override
-        public void accept(int i) {
-            intBuffer.accept(i);
-        }
-
-        @Override
-        public void close() {
-            intBuffer = null;
+        public void accept(U t) {
+            buffer.accept(t);
         }
     }
 
-    static class OfDouble implements DoubleConsumer, AutoCloseable {
-        SpinedBuffer.OfDouble doubleBuffer;
+    static class OfDouble extends FlatPushConsumer<SpinedBuffer.OfDouble>
+            implements DoubleConsumer {
 
-        OfDouble(SpinedBuffer.OfDouble doubleBuffer) {
-            this.doubleBuffer = doubleBuffer;
+        OfDouble(SpinedBuffer.OfDouble buffer) {
+            super(buffer);
         }
 
         @Override
-        public void accept(double d) {
-            doubleBuffer.accept(d);
-        }
-
-        @Override
-        public void close() {
-            doubleBuffer = null;
+        public void accept(double value) {
+            buffer.accept(value);
         }
     }
 
-    static class OfLong implements LongConsumer, AutoCloseable {
-        SpinedBuffer.OfLong longBuffer;
+    static class OfInt extends FlatPushConsumer<SpinedBuffer.OfInt>
+            implements IntConsumer {
 
-        OfLong(SpinedBuffer.OfLong longBuffer) {
-            this.longBuffer = longBuffer;
+        OfInt(SpinedBuffer.OfInt buffer) {
+            super(buffer);
         }
 
         @Override
-        public void accept(long l) {
-            longBuffer.accept(l);
+        public void accept(int value) {
+            buffer.accept(value);
+        }
+    }
+
+    static class OfLong extends FlatPushConsumer<SpinedBuffer.OfLong>
+            implements LongConsumer {
+
+        OfLong(SpinedBuffer.OfLong buffer) {
+            super(buffer);
         }
 
         @Override
-        public void close() {
-            longBuffer = null;
+        public void accept(long value) {
+            buffer.accept(value);
         }
     }
 }

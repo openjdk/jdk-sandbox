@@ -449,7 +449,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         Stream<? extends R> result;
 
                         // Close when finished to contain buffer
-                        try (FlatPushConsumer<R> c = new FlatPushConsumer<>(buffer)) {
+                        try (FlatPushConsumer.OfRef<R> c = new FlatPushConsumer.OfRef<>(buffer)) {
                             mapper.accept(c, u);
                             result = StreamSupport.stream(buffer.spliterator(), false);
                         }
