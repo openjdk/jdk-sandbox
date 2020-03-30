@@ -168,10 +168,9 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with elements produced by applying the provided
      * {@link ObjIntConsumer} {@code mapper} to the element. The mapper is
-     * invoked with each element <em>E</em> and an
+     * invoked with each integer <em>i</em> from upstream and an
      * {@link IntConsumer IntConsumer} lambda, which can be called zero or
-     * more times to map <em>E</em> to zero or more elements of type
-     * {@code int}.
+     * more times to map <em>i</em> to zero or more integers.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.

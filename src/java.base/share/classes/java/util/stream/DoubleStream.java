@@ -167,10 +167,9 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      * Returns a {@code DoubleStream} consisting of the results of replacing
      * each element of this stream with elements produced by applying the
      * provided {@link ObjDoubleConsumer} {@code mapper} to the element.
-     * The mapper is invoked with each element <em>E</em> and a
+     * The mapper is invoked with each double <em>d</em> from upstream and a
      * {@link DoubleConsumer DoubleConsumer} lambda, which can be called zero
-     * or more times to map <em>E</em> to zero or more elements of
-     * type {@code double}.
+     * or more times to map <em>d</em> to zero or more doubles.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.

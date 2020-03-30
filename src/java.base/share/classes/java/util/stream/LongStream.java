@@ -168,10 +168,9 @@ public interface LongStream extends BaseStream<Long, LongStream> {
      * Returns a stream consisting of the results of replacing each element of
      * this stream with elements produced by applying the provided
      * {@link ObjLongConsumer} {@code mapper} to the element.
-     * The mapper is invoked with each element <em>E</em> and a
+     * The mapper is invoked with each long <em>l</em> from upstream and a
      * {@link LongConsumer LongConsumer} lambda, which can be called zero or
-     * more times to map <em>E</em> to zero or more elements of type
-     * {@code long}.
+     * more times to map <em>l</em> to zero or more longs.
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
