@@ -165,9 +165,23 @@ public interface LongStream extends BaseStream<Long, LongStream> {
     LongStream flatMap(LongFunction<? extends LongStream> mapper);
 
     /**
-     * LongStream flatPush
-     * @param mapper ObjLongConsumer (LongConsumer)
-     * @return LongStream
+     * Returns a stream consisting of the results of replacing each element of
+     * this stream with elements produced by applying the provided
+     * {@link ObjLongConsumer} {@code mapper} to the element.
+     * The mapper is invoked with each element <em>E</em> and a
+     * {@link LongConsumer LongConsumer} lambda, which can be called zero or
+     * more times to map <em>E</em> to zero or more elements of type
+     * {@code long}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces a
+     *               {@code LongStream} of new values
+     * @return the new stream
+     * @see Stream#flatPush(BiConsumer)
      */
     default LongStream flatPush(ObjLongConsumer<LongConsumer> mapper) {
         Objects.requireNonNull(mapper);

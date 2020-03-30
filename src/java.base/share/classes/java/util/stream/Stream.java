@@ -414,9 +414,23 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     }
 
     /**
-     * flatMapToInt
-     * @param mapper BiConsumer (IntConsumer, T)
-     * @return IntStream
+     * Returns an {@code IntStream} consisting of the results of replacing
+     * each element of this stream with elements produced by applying the
+     * provided {@link BiConsumer} {@code mapper} to the element. The mapper
+     * is invoked with each element <em>E</em> and an
+     * {@link IntConsumer IntConsumer} lambda, which can be called zero or
+     * more times to map <em>E</em> to zero or more elements of type
+     * {@code int}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces a stream
+     *               of new values
+     * @return the new stream
+     * @see #flatPush(BiConsumer)
      */
     default IntStream flatPushToInt(BiConsumer<IntConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
@@ -430,9 +444,23 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     }
 
     /**
-     * flatPushToLong
-     * @param mapper BiConsumer (LongConsumer, T)
-     * @return LongStream
+     * Returns as {@code LongStream} consisting of the results of replacing
+     * each element of this stream with elements produced by applying the
+     * provided {@link BiConsumer} {@code mapper} to the element. The mapper
+     * is invoked with each element <em>E</em> and an
+     * {@link LongConsumer LongConsumer} lambda, which can be called zero or
+     * more times to map <em>E</em> to zero or more elements of type
+     * {@code long}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces a stream
+     *               of new values
+     * @return the new stream
+     * @see #flatPush(BiConsumer)
      */
     default LongStream flatPushToLong(BiConsumer<LongConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);
@@ -446,9 +474,23 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     }
 
     /**
-     * flatPushToDouble
-     * @param mapper BiConsumer (DoubleConsumer, T)
-     * @return DoubleStream
+     * Returns a {@code DoubleStream} consisting of the results of replacing
+     * each element of this stream with elements produced by applying the
+     * provided {@link BiConsumer} {@code mapper} to the element. The mapper
+     * is invoked with each element <em>E</em> and a
+     * {@link DoubleConsumer DoubleConsumer} lambda, which can be called zero
+     * or more times to map <em>E</em> to zero or more elements of
+     * type {@code double}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces a stream
+     *               of new values
+     * @return the new stream
+     * @see #flatPush(BiConsumer)
      */
     default DoubleStream flatPushToDouble(BiConsumer<DoubleConsumer, ? super T> mapper) {
         Objects.requireNonNull(mapper);

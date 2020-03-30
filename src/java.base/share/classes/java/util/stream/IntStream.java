@@ -165,9 +165,23 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
     IntStream flatMap(IntFunction<? extends IntStream> mapper);
 
     /**
-     * IntStream flatPush
-     * @param mapper ObjIntConsumer (IntConsumer)
-     * @return IntStream
+     * Returns a stream consisting of the results of replacing each element of
+     * this stream with elements produced by applying the provided
+     * {@link ObjIntConsumer} {@code mapper} to the element. The mapper is
+     * invoked with each element <em>E</em> and an
+     * {@link IntConsumer IntConsumer} lambda, which can be called zero or
+     * more times to map <em>E</em> to zero or more elements of type
+     * {@code int}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces an
+     *               {@code IntStream} of new values
+     * @return the new stream
+     * @see Stream#flatPush(BiConsumer)
      */
     default IntStream flatPush(ObjIntConsumer<IntConsumer> mapper) {
         Objects.requireNonNull(mapper);

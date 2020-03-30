@@ -164,9 +164,23 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
     DoubleStream flatMap(DoubleFunction<? extends DoubleStream> mapper);
 
     /**
-     * DoubleStream flatPush
-     * @param mapper ObjDoubleConsumer(DoubleConsumer)
-     * @return DoubleStream
+     * Returns a {@code DoubleStream} consisting of the results of replacing
+     * each element of this stream with elements produced by applying the
+     * provided {@link ObjDoubleConsumer} {@code mapper} to the element.
+     * The mapper is invoked with each element <em>E</em> and a
+     * {@link DoubleConsumer DoubleConsumer} lambda, which can be called zero
+     * or more times to map <em>E</em> to zero or more elements of
+     * type {@code double}.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
+     *               <a href="package-summary.html#Statelessness">stateless</a>
+     *               function to apply to each element which produces a
+     *               {@code DoubleStream} of new values
+     * @return the new stream
+     * @see Stream#flatPush(BiConsumer)
      */
     default DoubleStream flatPush(ObjDoubleConsumer<DoubleConsumer> mapper) {
         Objects.requireNonNull(mapper);
