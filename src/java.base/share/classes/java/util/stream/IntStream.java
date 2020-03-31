@@ -175,6 +175,11 @@ public interface IntStream extends BaseStream<Integer, IntStream> {
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
+     * @implSpec
+     * The default implementation constructs a new stream by invoking
+     * {@link #flatMap(IntFunction)} with a stream that consists of the
+     * elements the mapper pushes through the provided {@code IntConsumer}.
+     *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
      *               function to apply to each element which produces an

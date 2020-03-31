@@ -357,16 +357,9 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * resulting elements into a new stream.
      *
      * @implSpec
-     * The default implementation is equivalent to:
-     * <pre>{@code
-     *      return this.flatPush(e -> {
-     *             List<R> buffer = new ArrayList<>();
-     *             Consumer<R> c =  buffer::add;
-     *
-     *             mapper.accept(e, c);
-     *             return buffer.stream();
-     *      });
-     * }</pre>
+     * The default implementation constructs a new stream by invoking
+     * {@link #flatMap(Function)} with a stream that consists of the elements
+     * the mapper pushes through the provided {@code Consumer}.
      *
      * <p><b>Examples</b>
      *
@@ -425,6 +418,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
+     * @implSpec
+     * The default implementation constructs a new stream by invoking
+     * {@link #flatMapToInt(Function)} with a stream that consists of the
+     * elements the mapper pushes through the provided {@code IntConsumer}.
+     *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
      *               function to apply to each element which produces a stream
@@ -455,6 +453,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
      *
+     * @implSpec
+     * The default implementation constructs a new stream by invoking
+     * {@link #flatMapToLong(Function)} with a stream that consists of the
+     * elements the mapper pushes through the provided {@code LongConsumer}.
+     *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
      *               function to apply to each element which produces a stream
@@ -484,6 +487,11 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      *
      * <p>This is an <a href="package-summary.html#StreamOps">intermediate
      * operation</a>.
+     *
+     * @implSpec
+     * The default implementation constructs a new stream by invoking
+     * {@link #flatMapToDouble(Function)} with a stream that consists of the
+     * elements the mapper pushes through the provided {@code DoubleConsumer}.
      *
      * @param mapper a <a href="package-summary.html#NonInterference">non-interfering</a>,
      *               <a href="package-summary.html#Statelessness">stateless</a>
