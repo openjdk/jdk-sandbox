@@ -97,7 +97,7 @@ public class FlatPushOpTest extends OpTestCase {
             (sink, e) -> LongStream.range(0, 100).boxed().forEach(sink::accept);
 
     @DataProvider(name = "Stream<Integer>")
-    public Object[][] streamTest() {
+    public Object[][] streamProvider() {
         return new Object[][]{
                 {Stream.of(0, 1, 2)},
                 {DefaultMethodStreams.delegateTo(Stream.of(0, 1, 2))}
@@ -221,7 +221,7 @@ public class FlatPushOpTest extends OpTestCase {
     // Int
 
     @DataProvider(name = "IntStream")
-    public Object[][] intStreamTest() {
+    public Object[][] intStreamProvider() {
         return new Object[][]{
                 {IntStream.of(0, 1, 2)},
                 {DefaultMethodStreams.delegateTo(IntStream.of(0, 1, 2))}
@@ -229,12 +229,12 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "IntStream")
-    public void testNullMapper(IntStream s) {
+    public void testIntNullMapper(IntStream s) {
         checkNPE(() -> s.flatPush(null));
     }
 
     @Test(dataProvider = "IntStream")
-    public void testOpsShortCircuit(IntStream s) {
+    public void testIntOpsShortCircuit(IntStream s) {
         AtomicInteger count = new AtomicInteger();
         s.flatPush(rangeConsumer100Int)
                 .peek(i -> count.incrementAndGet())
@@ -291,7 +291,7 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "IntStream")
-    public void testConsumerContained(IntStream s) {
+    public void testIntConsumerContained(IntStream s) {
         IntConsumer[] capture = new IntConsumer[1];
         ObjIntConsumer<IntConsumer> mapper = (c, i) -> {
             c.accept(i);
@@ -307,7 +307,7 @@ public class FlatPushOpTest extends OpTestCase {
     // Double
 
     @DataProvider(name = "DoubleStream")
-    public Object[][] doubleStreamTest() {
+    public Object[][] doubleStreamProvider() {
         return new Object[][]{
                 {DoubleStream.of(0, 1, 2)},
                 {DefaultMethodStreams.delegateTo(DoubleStream.of(0, 1, 2))}
@@ -315,12 +315,12 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "DoubleStream")
-    public void testNullMapper(DoubleStream s) {
+    public void testDoubleNullMapper(DoubleStream s) {
         checkNPE(() -> s.flatPush(null));
     }
 
     @Test(dataProvider = "DoubleStream")
-    public void testOpsShortCircuit(DoubleStream s) {
+    public void testDoubleOpsShortCircuit(DoubleStream s) {
         AtomicInteger count = new AtomicInteger();
         s.flatPush(rangeConsumer100Double)
                 .peek(i -> count.incrementAndGet())
@@ -369,7 +369,7 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "DoubleStream")
-    public void testConsumerContained(DoubleStream s) {
+    public void testDoubleConsumerContained(DoubleStream s) {
         DoubleConsumer[] capture = new DoubleConsumer[1];
         ObjDoubleConsumer<DoubleConsumer> mapper = (c, i) -> {
             c.accept(i);
@@ -385,7 +385,7 @@ public class FlatPushOpTest extends OpTestCase {
     // Long
 
     @DataProvider(name = "LongStream")
-    public Object[][] longStreamTest() {
+    public Object[][] longStreamProvider() {
         return new Object[][]{
                 {LongStream.of(0, 1, 2)},
                 {DefaultMethodStreams.delegateTo(LongStream.of(0, 1, 2))}
@@ -393,12 +393,12 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "LongStream")
-    public void testNullMapper(LongStream s) {
+    public void testLongNullMapper(LongStream s) {
         checkNPE(() -> s.flatPush(null));
     }
 
     @Test(dataProvider = "LongStream")
-    public void testOpsShortCircuit(LongStream s) {
+    public void testLongOpsShortCircuit(LongStream s) {
         AtomicInteger count = new AtomicInteger();
         s.flatPush(rangeConsumer100Long)
                 .peek(i -> count.incrementAndGet())
@@ -447,7 +447,7 @@ public class FlatPushOpTest extends OpTestCase {
     }
 
     @Test(dataProvider = "LongStream")
-    public void testConsumerContained(LongStream s) {
+    public void testLongConsumerContained(LongStream s) {
         LongConsumer[] capture = new LongConsumer[1];
         ObjLongConsumer<LongConsumer> mapper = (c, i) -> {
             c.accept(i);
