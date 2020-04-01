@@ -101,13 +101,12 @@ class InetSocketChannelImpl extends SocketChannelImpl
 
     // Constructor for sockets obtained from server sockets
     //
-    InetSocketChannelImpl(SelectorProvider sp, FileDescriptor fd, InetSocketAddress isa)
+    InetSocketChannelImpl(SelectorProvider sp, FileDescriptor fd,
+                          InetSocketAddress isa, ProtocolFamily family)
         throws IOException
     {
         super(sp, fd, isa);
-        this.family = Net.isIPv6Available()
-                ? StandardProtocolFamily.INET6
-                : StandardProtocolFamily.INET;
+        this.family = family;
     }
 
     @Override

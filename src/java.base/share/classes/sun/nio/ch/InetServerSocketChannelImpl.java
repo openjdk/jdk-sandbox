@@ -191,6 +191,6 @@ class InetServerSocketChannelImpl
         if (sm != null) {
             sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
         }
-        return new InetSocketChannelImpl(provider(), newfd, isa);
+        return new InetSocketChannelImpl(provider(), newfd, isa, family);
     }
 }
