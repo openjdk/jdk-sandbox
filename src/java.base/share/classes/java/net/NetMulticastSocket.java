@@ -166,8 +166,6 @@ final class NetMulticastSocket extends MulticastSocket {
      * is one that doesn't implement the abstract methods added in Java SE 1.4.
      */
     private static boolean checkOldImpl(DatagramSocketImpl impl) {
-        if (impl == null)
-            return false;
         // DatagramSocketImpl.peekData() is a protected method, therefore we need to use
         // getDeclaredMethod, therefore we need permission to access the member
         try {
@@ -639,11 +637,6 @@ final class NetMulticastSocket extends MulticastSocket {
         synchronized (closeLock) {
             return closed;
         }
-    }
-
-    @Override
-    public DatagramChannel getChannel() {
-        return null;
     }
 
     @Override

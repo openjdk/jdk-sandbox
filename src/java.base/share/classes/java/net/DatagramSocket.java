@@ -120,7 +120,7 @@ public class DatagramSocket implements java.io.Closeable {
     // May be overriden to change the covariant return type in MulticastSocket.
     DatagramSocket delegate() {
         if (delegate == null) {
-            throw new InternalError("Should not come here");
+            throw new InternalError("Should not get here");
         }
         return delegate;
     }
@@ -130,16 +130,9 @@ public class DatagramSocket implements java.io.Closeable {
      * @param delegate The wrapped DatagramSocket implementation, or null.
      */
     DatagramSocket(DatagramSocket delegate) {
-        // delegate can be null in which case any call to
-        // delegate() will throw an InternalError("should not come here");
-        // Otherwise - it must be one of the "approved" subclasses:
         assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
                 || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
-        // Note:
-        // if custom subclasses are allowed to pass a null delegate, the
-        // assertion above should throw an IllegalArgumentException if delegate
-        // is not null and its module is not java.base.
         this.delegate = delegate;
     }
 
@@ -1083,9 +1076,10 @@ public class DatagramSocket implements java.io.Closeable {
      *                 {@code MulticastSocket.class} when creating a delegate for
      *                 {@code MulticastSocket}.
      * @param <T>      The target type for which the delegate is created.
-     *                 This is either {@code java.net.DatagramSocket} or {@code java.net.MulticastSocket}.
-     * @return {@code null} if {@code bindaddr == NO_DELEGATE}, a delegate for the
-     * requested {@code type} otherwise.
+     *                 This is either {@code java.net.DatagramSocket} or
+     *                 {@code java.net.MulticastSocket}.
+     * @return {@code null} if {@code bindaddr == NO_DELEGATE}, otherwise returns a
+     * delegate for the requested {@code type}.
      * @throws SocketException if an exception occurs while creating or binding the
      *                         the delegate.
      */
@@ -1141,8 +1135,8 @@ public class DatagramSocket implements java.io.Closeable {
         } finally {
             // make sure the delegate is closed if anything
             // went wrong
-            if (!initialized) {
-                if (delegate != null) delegate.close();
+            if (!initialized && delegate != null) {
+                delegate.close();
             }
         }
         @SuppressWarnings("unchecked")
