@@ -237,6 +237,9 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPush(null));
     }
 
+    /*
+    // Commented out until cancel operation for flatPush is revisited
+
     @Test(dataProvider = "IntStream")
     public void testIntOpsShortCircuit(IntStream s) {
         AtomicInteger count = new AtomicInteger();
@@ -245,6 +248,8 @@ public class FlatPushOpTest extends OpTestCase {
                 .limit(10).toArray();
         assertEquals(count.get(), 10);
     }
+    */
+
 
     @Test(dataProvider = "IntStreamTestData", dataProviderClass = IntStreamTestDataProvider.class)
     public void testIntOps(String name, TestData.OfInt data) {
@@ -323,6 +328,9 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPush(null));
     }
 
+    /*
+    // Commented out until cancel operation for flatPush is revisited
+
     @Test(dataProvider = "DoubleStream")
     public void testDoubleOpsShortCircuit(DoubleStream s) {
         AtomicInteger count = new AtomicInteger();
@@ -331,6 +339,7 @@ public class FlatPushOpTest extends OpTestCase {
                 .limit(10).toArray();
         assertEquals(count.get(), 10);
     }
+    */
 
     @Test(dataProvider = "DoubleStreamTestData", dataProviderClass = DoubleStreamTestDataProvider.class)
     public void testDoubleOps(String name, TestData.OfDouble data) {
@@ -401,6 +410,9 @@ public class FlatPushOpTest extends OpTestCase {
         checkNPE(() -> s.flatPush(null));
     }
 
+    /*
+    // Commented out until cancel operation for flatPush is revisited
+
     @Test(dataProvider = "LongStream")
     public void testLongOpsShortCircuit(LongStream s) {
         AtomicInteger count = new AtomicInteger();
@@ -409,6 +421,7 @@ public class FlatPushOpTest extends OpTestCase {
                 .limit(10).toArray();
         assertEquals(count.get(), 10);
     }
+     */
 
     @Test(dataProvider = "LongStreamTestData", dataProviderClass = LongStreamTestDataProvider.class)
     public void testLongOps(String name, TestData.OfLong data) {

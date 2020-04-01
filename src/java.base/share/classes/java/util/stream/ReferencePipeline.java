@@ -435,8 +435,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
                 return new Sink.ChainedReference<P_OUT, R>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
 
                     @Override
                     public void begin(long size) {
@@ -445,7 +443,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushSink<R> c = new FlatPushSink<>(downstream)) {
+                        try (FlatPushSink.OfRef<R> c = new FlatPushSink.OfRef<>(downstream)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -456,7 +454,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                         // pipeline is short-circuiting (see AbstractPipeline.copyInto).
                         // Note that we cannot differentiate between an upstream or
                         // downstream operation
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };
@@ -472,11 +469,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Integer> sink) {
                 return new Sink.ChainedReference<P_OUT, Integer>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    // cache the consumer to avoid creation on every accepted element
-                    IntConsumer downstreamAsInt = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -485,28 +477,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-                        IntStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
+                        try (FlatPushSink.OfInt c = new FlatPushSink.OfInt(downstream)) {
                             mapper.accept(c, u);
-                            result = StreamSupport.intStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsInt);
-                            }
-                            else {
-                                var s = result.sequential().spliterator();
-                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsInt));
-                            }
                         }
                     }
 
                     @Override
                     public boolean cancellationRequested() {
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };
@@ -522,11 +499,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
             @Override
             Sink<P_OUT> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedReference<P_OUT, Long>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    // cache the consumer to avoid creation on every accepted element
-                    LongConsumer downstreamAsLong = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -535,28 +507,13 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-                        LongStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
+                        try (FlatPushSink.OfLong c = new FlatPushSink.OfLong(downstream)) {
                             mapper.accept(c, u);
-                            result = StreamSupport.longStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsLong);
-                            }
-                            else {
-                                var s = result.sequential().spliterator();
-                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsLong));
-                            }
                         }
                     }
 
                     @Override
                     public boolean cancellationRequested() {
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };
@@ -576,9 +533,6 @@ abstract class ReferencePipeline<P_IN, P_OUT>
                     // true if cancellationRequested() has been called
                     boolean cancellationRequestedCalled;
 
-                    // cache the consumer to avoid creation on every accepted element
-                    DoubleConsumer downstreamAsDouble = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -586,22 +540,8 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-                        DoubleStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
+                        try (FlatPushSink.OfDouble c = new FlatPushSink.OfDouble(downstream)) {
                             mapper.accept(c, u);
-                            result = StreamSupport.doubleStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsDouble);
-                            }
-                            else {
-                                var s = result.sequential().spliterator();
-                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsDouble));
-                            }
                         }
                     }
 

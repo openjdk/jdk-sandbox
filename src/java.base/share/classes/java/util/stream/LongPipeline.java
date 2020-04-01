@@ -328,12 +328,6 @@ abstract class LongPipeline<E_IN>
             @Override
             Sink<Long> opWrapSink(int flags, Sink<Long> sink) {
                 return new Sink.ChainedLong<Long>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    // cache the consumer to avoid creation on every accepted element
-                    LongConsumer downstreamAsLong = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -341,28 +335,13 @@ abstract class LongPipeline<E_IN>
 
                     @Override
                     public void accept(long t) {
-                        SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-                        LongStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
+                        try (FlatPushSink.OfLong c = new FlatPushSink.OfLong(downstream)) {
                             mapper.accept(c, t);
-                            result = StreamSupport.longStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsLong);
-                            }
-                            else {
-                                var s = result.sequential().spliterator();
-                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsLong));
-                            }
                         }
                     }
 
                     @Override
                     public boolean cancellationRequested() {
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };

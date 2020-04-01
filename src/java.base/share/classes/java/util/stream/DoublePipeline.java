@@ -313,11 +313,6 @@ abstract class DoublePipeline<E_IN>
             @Override
             Sink<Double> opWrapSink(int flags, Sink<Double> sink) {
                 return new Sink.ChainedDouble<Double>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    // cache the consumer to avoid creation on every accepted element
-                    DoubleConsumer downstreamAsDouble = downstream::accept;
 
                     @Override
                     public void begin(long size) {
@@ -326,22 +321,8 @@ abstract class DoublePipeline<E_IN>
 
                     @Override
                     public void accept(double t) {
-                        SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-                        DoubleStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
+                        try (FlatPushSink.OfDouble c = new FlatPushSink.OfDouble(downstream)) {
                             mapper.accept(c, t);
-                            result = StreamSupport.doubleStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsDouble);
-                            } else {
-                                var s = result.sequential().spliterator();
-                                do {
-                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsDouble));
-                            }
                         }
                     }
 
@@ -351,7 +332,6 @@ abstract class DoublePipeline<E_IN>
                         // pipeline is short-circuiting (see AbstractPipeline.copyInto).
                         // Note that we cannot differentiate between an upstream or
                         // downstream operation
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };

@@ -346,12 +346,6 @@ abstract class IntPipeline<E_IN>
             @Override
             Sink<Integer> opWrapSink(int flags, Sink<Integer> sink) {
                 return new Sink.ChainedInt<Integer>(sink) {
-                    // true if cancellationRequested() has been called
-                    boolean cancellationRequestedCalled;
-
-                    // cache the consumer to avoid creation on every accepted element
-                    IntConsumer downstreamAsInt = downstream::accept;
-
                     @Override
                     public void begin(long size) {
                         downstream.begin(-1);
@@ -359,28 +353,13 @@ abstract class IntPipeline<E_IN>
 
                     @Override
                     public void accept(int t) {
-                        SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-                        IntStream result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
+                        try (FlatPushSink.OfInt c = new FlatPushSink.OfInt(downstream)) {
                             mapper.accept(c, t);
-                            result = StreamSupport.intStream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstreamAsInt);
-                            }
-                            else {
-                                var s = result.sequential().spliterator();
-                                do { } while (!downstream.cancellationRequested() && s.tryAdvance(downstreamAsInt));
-                            }
                         }
                     }
 
                     @Override
                     public boolean cancellationRequested() {
-                        cancellationRequestedCalled = true;
                         return downstream.cancellationRequested();
                     }
                 };
