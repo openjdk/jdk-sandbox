@@ -373,7 +373,7 @@ class ServerSocketChannelImpl
             if (sm != null) {
                 sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
             }
-            return new SocketChannelImpl(provider(), newfd, isa);
+            return new SocketChannelImpl(provider(), newfd, isa, family);
         } catch (Exception e) {
             nd.close(newfd);
             throw e;

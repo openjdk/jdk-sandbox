@@ -155,15 +155,14 @@ class SocketChannelImpl
 
     // Constructor for sockets obtained from server sockets
     //
-    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, InetSocketAddress isa)
+    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd,
+                      InetSocketAddress isa, ProtocolFamily family)
         throws IOException
     {
         super(sp);
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
-        this.family = Net.isIPv6Available()
-                ? StandardProtocolFamily.INET6
-                : StandardProtocolFamily.INET;
+        this.family = family;
 
         synchronized (stateLock) {
             this.localAddress = Net.localAddress(fd);

@@ -29,12 +29,15 @@ import java.lang.reflect.Constructor;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.spi.SelectorProvider;
+import static java.net.StandardProtocolFamily.INET6;
+import static java.net.StandardProtocolFamily.INET;
 
 class InheritedChannel {
 
@@ -86,7 +89,8 @@ class InheritedChannel {
                                    InetSocketAddress remote)
             throws IOException
         {
-            super(sp, fd, remote);
+            super(sp, fd, remote,
+                          remote.getAddress() instanceof Inet6Address ? INET6 : INET);
         }
 
         protected void implCloseSelectableChannel() throws IOException {
