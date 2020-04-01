@@ -85,7 +85,7 @@ gc/stress/gclocker/TestExcessGCLockerCollections.java 8229120 generic-all
 gc/stress/gclocker/TestGCLockerWithParallel.java 8180622 generic-all
 gc/stress/gclocker/TestGCLockerWithG1.java 8180622 generic-all
 gc/stress/TestJNIBlockFullGC/TestJNIBlockFullGC.java 8192647 generic-all
-gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java 8193639 solaris-all
+gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java 8193639,8241293 solaris-all,macosx-x64
 
 #############################################################################
 
@@ -140,7 +140,7 @@ serviceability/sa/TestJhsdbJstackLock.java 8193639 solaris-all
 serviceability/sa/TestJmapCore.java 8193639 solaris-all
 serviceability/sa/TestJmapCoreMetaspace.java 8193639 solaris-all
 serviceability/sa/TestPrintMdo.java 8193639 solaris-all
-serviceability/sa/TestRevPtrsForInvokeDynamic.java 8191270 generic-all
+serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 serviceability/sa/TestType.java 8193639 solaris-all
 serviceability/sa/TestUniverse.java#id0 8193639 solaris-all
 
