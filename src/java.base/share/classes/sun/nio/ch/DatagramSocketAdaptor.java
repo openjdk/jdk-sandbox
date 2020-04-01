@@ -64,9 +64,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * the same order as in java.net.DatagramSocket and java.net.MulticastSocket so
  * as to simplify tracking changes.
  */
-public class DatagramSocketAdaptor
-    extends MulticastSocket
-{
+public class DatagramSocketAdaptor extends MulticastSocket {
     // The channel being adapted
     private final DatagramChannelImpl dc;
 
@@ -294,8 +292,7 @@ public class DatagramSocketAdaptor
     }
 
     private void setBooleanOption(SocketOption<Boolean> name, boolean value)
-        throws SocketException
-    {
+            throws SocketException {
         try {
             dc.setOption(name, value);
         } catch (IOException x) {
@@ -304,8 +301,7 @@ public class DatagramSocketAdaptor
     }
 
     private void setIntOption(SocketOption<Integer> name, int value)
-        throws SocketException
-    {
+            throws SocketException {
         try {
             dc.setOption(name, value);
         } catch (IOException x) {
@@ -491,8 +487,8 @@ public class DatagramSocketAdaptor
      *
      * @return the multicast group
      * @throws IllegalArgumentException if group is null, an unsupported address
-     *         type, or an unresolved address
-     * @throws SocketException if group is not a multicast address
+     *                                  type, or an unresolved address
+     * @throws SocketException          if group is not a multicast address
      */
     private static InetAddress checkGroup(SocketAddress mcastaddr) throws SocketException {
         if (mcastaddr == null || !(mcastaddr instanceof InetSocketAddress))
@@ -686,10 +682,11 @@ public class DatagramSocketAdaptor
     private static class DatagramPackets {
         private static final VarHandle LENGTH;
         private static final VarHandle BUF_LENGTH;
+
         static {
             try {
                 PrivilegedExceptionAction<Lookup> pa = () ->
-                    MethodHandles.privateLookupIn(DatagramPacket.class, MethodHandles.lookup());
+                        MethodHandles.privateLookupIn(DatagramPacket.class, MethodHandles.lookup());
                 MethodHandles.Lookup l = AccessController.doPrivileged(pa);
                 LENGTH = l.findVarHandle(DatagramPacket.class, "length", int.class);
                 BUF_LENGTH = l.findVarHandle(DatagramPacket.class, "bufLength", int.class);
@@ -724,10 +721,11 @@ public class DatagramSocketAdaptor
     private static class NetworkInterfaces {
         static final MethodHandle GET_DEFAULT;
         static final MethodHandle CONSTRUCTOR;
+
         static {
             try {
                 PrivilegedExceptionAction<Lookup> pa = () ->
-                    MethodHandles.privateLookupIn(NetworkInterface.class, MethodHandles.lookup());
+                        MethodHandles.privateLookupIn(NetworkInterface.class, MethodHandles.lookup());
                 MethodHandles.Lookup l = AccessController.doPrivileged(pa);
                 MethodType methodType = MethodType.methodType(NetworkInterface.class);
                 GET_DEFAULT = l.findStatic(NetworkInterface.class, "getDefault", methodType);
@@ -763,13 +761,10 @@ public class DatagramSocketAdaptor
 
     /**
      * Provides access to the value of the private static DatagramSocket.NO_DELEGATE
-     * constant, to work around the absence of a public/protected constructor
-     * that would allow to subclass DatagramSocket/MulticastSocket with a
-     * null delegate.
      */
     private static class DatagramSockets {
-        // Temporary solution until JDK-8237352 is addressed
         private static final SocketAddress NO_DELEGATE;
+
         static {
             try {
                 PrivilegedExceptionAction<Lookup> pa = () ->
@@ -777,12 +772,11 @@ public class DatagramSocketAdaptor
                 MethodHandles.Lookup l = AccessController.doPrivileged(pa);
                 NO_DELEGATE = (SocketAddress)
                         l.findStaticVarHandle(DatagramSocket.class, "NO_DELEGATE",
-                                              SocketAddress.class).get();
+                                SocketAddress.class).get();
             } catch (Exception e) {
                 throw new ExceptionInInitializerError(e);
             }
         }
-
     }
 
 }
