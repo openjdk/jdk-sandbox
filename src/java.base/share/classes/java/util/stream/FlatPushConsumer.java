@@ -52,8 +52,8 @@ abstract class FlatPushConsumer<T extends AbstractSpinedBuffer>
         }
 
         @Override
-        public void accept(U t) {
-            buffer.accept(t);
+        public void accept(U u) {
+            buffer.accept(u);
         }
     }
 
@@ -65,8 +65,8 @@ abstract class FlatPushConsumer<T extends AbstractSpinedBuffer>
         }
 
         @Override
-        public void accept(double value) {
-            buffer.accept(value);
+        public void accept(double d) {
+            buffer.accept(d);
         }
     }
 
@@ -78,8 +78,8 @@ abstract class FlatPushConsumer<T extends AbstractSpinedBuffer>
         }
 
         @Override
-        public void accept(int value) {
-            buffer.accept(value);
+        public void accept(int i) {
+            buffer.accept(i);
         }
     }
 
@@ -91,8 +91,8 @@ abstract class FlatPushConsumer<T extends AbstractSpinedBuffer>
         }
 
         @Override
-        public void accept(long value) {
-            buffer.accept(value);
+        public void accept(long l) {
+            buffer.accept(l);
         }
     }
 }

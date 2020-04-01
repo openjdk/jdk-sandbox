@@ -445,22 +445,8 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        SpinedBuffer<R> buffer = new SpinedBuffer<>();
-                        Stream<? extends R> result;
-
-                        // Close when finished to contain buffer
-                        try (FlatPushConsumer.OfRef<R> c = new FlatPushConsumer.OfRef<>(buffer)) {
+                        try (FlatPushSink<R> c = new FlatPushSink<>(downstream)) {
                             mapper.accept(c, u);
-                            result = StreamSupport.stream(buffer.spliterator(), false);
-                        }
-                        if (result != null) {
-                            if (!cancellationRequestedCalled) {
-                                result.sequential().forEach(downstream);
-                            } else {
-                                var s = result.sequential().spliterator();
-                                do {
-                                } while (!downstream.cancellationRequested() && s.tryAdvance(downstream));
-                            }
                         }
                     }
 
