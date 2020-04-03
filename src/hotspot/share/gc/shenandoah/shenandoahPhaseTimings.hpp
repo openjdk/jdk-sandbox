@@ -34,6 +34,7 @@ class ShenandoahCollectorPolicy;
 class outputStream;
 
 #define SHENANDOAH_GC_PAR_PHASE_DO(CNT_PREFIX, DESC_PREFIX, f)                         \
+  f(CNT_PREFIX ## TotalWork,                DESC_PREFIX "<total>")                     \
   f(CNT_PREFIX ## ThreadRoots,              DESC_PREFIX "Thread Roots")                \
   f(CNT_PREFIX ## CodeCacheRoots,           DESC_PREFIX "Code Cache Roots")            \
   f(CNT_PREFIX ## UniverseRoots,            DESC_PREFIX "Universe Roots")              \
@@ -77,12 +78,13 @@ class outputStream;
   f(purge,                                          "  System Purge")                  \
   f(purge_class_unload,                             "    Unload Classes")              \
   f(purge_par,                                      "    Parallel Cleanup")            \
+  SHENANDOAH_GC_PAR_PHASE_DO(purge_par_roots,       "      PC: ", f)                   \
   f(purge_cldg,                                     "    CLDG")                        \
   f(complete_liveness,                              "  Complete Liveness")             \
   f(retire_tlabs,                                   "  Retire TLABs")                  \
   f(sync_pinned,                                    "  Sync Pinned")                   \
-  f(trash_cset,                                     "  Trash CSet")                    \
-  f(prepare_evac,                                   "  Prepare Evacuation")            \
+  f(choose_cset,                                    "  Choose Collection Set")         \
+  f(final_rebuild_freeset,                          "  Rebuild Free Set")              \
   f(init_evac,                                      "  Initial Evacuation")            \
   SHENANDOAH_GC_PAR_PHASE_DO(evac_,                 "    E: ", f)                      \
                                                                                        \
@@ -97,30 +99,13 @@ class outputStream;
   f(final_update_refs_roots,                        "  Update Roots")                  \
   SHENANDOAH_GC_PAR_PHASE_DO(final_update_,         "    UR: ", f)                     \
   f(final_update_refs_sync_pinned,                  "  Sync Pinned")                   \
-  f(final_update_refs_trash_cset,                   "  Trash CSet")                    \
+  f(final_update_refs_trash_cset,                   "  Trash Collection Set")          \
+  f(final_update_refs_rebuild_freeset,              "  Rebuild Free Set")              \
                                                                                        \
   f(degen_gc_gross,                                 "Pause Degenerated GC (G)")        \
   f(degen_gc,                                       "Pause Degenerated GC (N)")        \
   f(degen_gc_update_roots,                          "  Degen Update Roots")            \
   SHENANDOAH_GC_PAR_PHASE_DO(degen_gc_update_,      "    DU: ", f)                     \
-                                                                                       \
-  f(init_traversal_gc_gross,                        "Pause Init Traversal (G)")        \
-  f(init_traversal_gc,                              "Pause Init Traversal (N)")        \
-  f(traversal_gc_prepare,                           "  Prepare")                       \
-  f(traversal_gc_make_parsable,                     "    Make Parsable")               \
-  f(traversal_gc_resize_tlabs,                      "    Resize TLABs")                \
-  f(traversal_gc_prepare_sync_pinned,               "    Sync Pinned")                 \
-  f(init_traversal_gc_work,                         "  Work")                          \
-  SHENANDOAH_GC_PAR_PHASE_DO(init_traversal_,       "    TI: ", f)                     \
-                                                                                       \
-  f(final_traversal_gc_gross,                       "Pause Final Traversal (G)")       \
-  f(final_traversal_gc,                             "Pause Final Traversal (N)")       \
-  f(final_traversal_gc_work,                        "  Work")                          \
-  SHENANDOAH_GC_PAR_PHASE_DO(final_trav_gc_,        "    TF: ", f)                     \
-  f(final_traversal_update_roots,                   "  Update Roots")                  \
-  SHENANDOAH_GC_PAR_PHASE_DO(final_trav_update_,    "    TU: ", f)                     \
-  f(traversal_gc_sync_pinned,                       "  Sync Pinned")                   \
-  f(traversal_gc_cleanup,                           "  Cleanup")                       \
                                                                                        \
   f(full_gc_gross,                                  "Pause Full GC (G)")               \
   f(full_gc,                                        "Pause Full GC (N)")               \
@@ -135,6 +120,7 @@ class outputStream;
   f(full_gc_purge,                                  "    System Purge")                \
   f(full_gc_purge_class_unload,                     "      Unload Classes")            \
   f(full_gc_purge_par,                              "    Parallel Cleanup")            \
+  SHENANDOAH_GC_PAR_PHASE_DO(full_gc_purge_roots,   "      PC: ", f)                   \
   f(full_gc_purge_cldg,                             "    CLDG")                        \
   f(full_gc_calculate_addresses,                    "  Calculate Addresses")           \
   f(full_gc_calculate_addresses_regular,            "    Regular Objects")             \
@@ -155,7 +141,6 @@ class outputStream;
   f(conc_evac,                                      "Concurrent Evacuation")           \
   f(conc_update_refs,                               "Concurrent Update Refs")          \
   f(conc_cleanup,                                   "Concurrent Cleanup")              \
-  f(conc_traversal,                                 "Concurrent Traversal")            \
                                                                                        \
   f(conc_uncommit,                                  "Concurrent Uncommit")             \
                                                                                        \

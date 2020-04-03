@@ -54,7 +54,6 @@ inline oop ShenandoahBarrierSet::resolve_forwarded_not_null_mutator(oop p) {
 }
 
 inline void ShenandoahBarrierSet::enqueue(oop obj) {
-  shenandoah_assert_not_forwarded_if(NULL, obj, _heap->is_concurrent_traversal_in_progress());
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
@@ -87,15 +86,8 @@ inline void ShenandoahBarrierSet::satb_enqueue(oop value) {
 }
 
 inline void ShenandoahBarrierSet::storeval_barrier(oop obj) {
-  if (obj != NULL && ShenandoahStoreValEnqueueBarrier && _heap->is_concurrent_traversal_in_progress()) {
+  if (obj != NULL && ShenandoahStoreValEnqueueBarrier) {
     enqueue(obj);
-  }
-}
-
-inline void ShenandoahBarrierSet::keep_alive_barrier(oop value) {
-  assert(value != NULL, "checked before");
-  if (ShenandoahKeepAliveBarrier && _heap->is_concurrent_mark_in_progress()) {
-    enqueue(value);
   }
 }
 
@@ -104,7 +96,7 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(DecoratorSet decorators, oo
   const bool on_strong_oop_ref = (decorators & ON_STRONG_OOP_REF) != 0;
   const bool peek              = (decorators & AS_NO_KEEPALIVE) != 0;
   if (!peek && !on_strong_oop_ref) {
-    keep_alive_barrier(value);
+    satb_enqueue(value);
   }
 }
 
@@ -113,7 +105,7 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(oop value) {
   assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Reference strength must be known");
   if (!HasDecorator<decorators, ON_STRONG_OOP_REF>::value &&
       !HasDecorator<decorators, AS_NO_KEEPALIVE>::value) {
-    keep_alive_barrier(value);
+    satb_enqueue(value);
   }
 }
 
@@ -322,9 +314,6 @@ void ShenandoahBarrierSet::arraycopy_update_impl(T* src, size_t count) {
   if (_heap->is_evacuation_in_progress()) {
     ShenandoahEvacOOMScope oom_evac;
     arraycopy_work<T, true, true, false>(src, count);
-  } else if (_heap->is_concurrent_traversal_in_progress()){
-    ShenandoahEvacOOMScope oom_evac;
-    arraycopy_work<T, true, true, true>(src, count);
   } else if (_heap->has_forwarded_objects()) {
     arraycopy_work<T, true, false, false>(src, count);
   }
