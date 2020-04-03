@@ -658,7 +658,7 @@ final class NetMulticastSocket extends MulticastSocket {
         return getImpl().getOption(name);
     }
 
-    /*package*/ volatile Set<SocketOption<?>> options;
+    private volatile Set<SocketOption<?>> options;
     private final Object optionsLock = new Object();
 
     @Override

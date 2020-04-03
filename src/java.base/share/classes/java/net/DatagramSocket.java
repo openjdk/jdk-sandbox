@@ -1012,9 +1012,6 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate().getOption(name);
     }
 
-    private volatile Set<SocketOption<?>> options;
-    private final Object optionsLock = new Object();
-
     /**
      * Returns a set of the socket options supported by this socket.
      *
