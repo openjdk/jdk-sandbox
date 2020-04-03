@@ -74,6 +74,7 @@ public abstract class SelectorProviderImpl
         return new InetSocketChannelImpl(this);
     }
 
+    @Override
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");
@@ -85,6 +86,7 @@ public abstract class SelectorProviderImpl
             return super.openSocketChannel(family);
     }
 
+    @Override
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");

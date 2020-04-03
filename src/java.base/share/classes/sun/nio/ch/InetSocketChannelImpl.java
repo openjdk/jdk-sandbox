@@ -28,6 +28,7 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.Socket;
@@ -177,7 +178,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
         InetSocketAddress isa = (local == null) ?
-            Net.anyLocalSocketAddress(family) : Net.checkAddress(local, family);
+            Net.anyLocalAddress(family) : Net.checkAddress(local, family);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkListen(isa.getPort());
@@ -202,18 +203,16 @@ class InetSocketChannelImpl extends SocketChannelImpl
         if (isa.getAddress().isAnyLocalAddress()) {
             if (family == Net.UNSPEC)
                 return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
-            else
-                return loopbackAddressFor(isa);
+            else {
+                InetAddress anyAddr = isa.getAddress();
+                assert anyAddr.isAnyLocalAddress();
+                Class<?> clazz = anyAddr.getClass();
+                InetAddress la = clazz == Inet4Address.class ? Net.inet4LoopBack : Net.inet6LoopBack;
+                return new InetSocketAddress(la, isa.getPort());
+            }
         } else {
             return isa;
         }
-    }
-
-    private static InetSocketAddress loopbackAddressFor(InetSocketAddress any) {
-        InetAddress anyAddr = any.getAddress();
-        assert anyAddr.isAnyLocalAddress();
-        InetAddress la = Net.loopBackAddressFor(anyAddr.getClass());
-        return new InetSocketAddress(la, any.getPort());
     }
 
     @Override

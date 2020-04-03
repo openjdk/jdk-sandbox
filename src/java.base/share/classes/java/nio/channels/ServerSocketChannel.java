@@ -134,8 +134,9 @@ public abstract class ServerSocketChannel
     }
 
     /**
-     * Returns a {@link ServerSocketChannel} of the given protocol family.
-     * Where family is equal to {@link StandardProtocolFamily#INET INET} or {@link
+     * Opens a server-socket channel of the given protocol family.
+     *
+     * <p> Where family is equal to {@link StandardProtocolFamily#INET INET} or {@link
      * StandardProtocolFamily#INET6 INET6} the returned channel must be bound to an
      * {@link InetSocketAddress}. If family is {@link StandardProtocolFamily#UNIX UNIX}
      * the returned channel must be bound to a {@link UnixDomainSocketAddress}.

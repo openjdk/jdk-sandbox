@@ -137,16 +137,13 @@ class InetServerSocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
-    private static InetAddress anyLocalInet4 = Net.anyLocalInet4Address();
-    private static InetAddress anyLocalInet6 = Net.anyLocalInet6Address();
-
     private InetSocketAddress anyLocalSocketAddress() {
         if (family == Net.UNSPEC) {
             return new InetSocketAddress(0);
         } else if (family == StandardProtocolFamily.INET) {
-            return new InetSocketAddress(anyLocalInet4, 0);
+            return new InetSocketAddress(Net.anyLocalInet4, 0);
         } else {
-            return new InetSocketAddress(anyLocalInet6, 0);
+            return new InetSocketAddress(Net.anyLocalInet6, 0);
         }
     }
 
