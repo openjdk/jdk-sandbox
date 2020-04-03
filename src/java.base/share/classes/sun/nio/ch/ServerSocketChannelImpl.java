@@ -108,6 +108,15 @@ class ServerSocketChannelImpl
 
     ServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) {
         super(sp);
+
+        if ((family != StandardProtocolFamily.INET) &&
+                (family != StandardProtocolFamily.INET6)) {
+            throw new UnsupportedOperationException("Protocol family not supported");
+        }
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        }
+
         this.fd = Net.serverSocket(family, true);
         this.fdVal = IOUtil.fdVal(fd);
         this.family = family;
@@ -226,7 +235,7 @@ class ServerSocketChannelImpl
             if (localAddress != null)
                 throw new AlreadyBoundException();
             InetSocketAddress isa = (local == null)
-                                    ? Net.anyLocalSocketAddress(family)
+                                    ? Net.anyLocalAddress(family)
                                     : Net.checkAddress(local, family);
             SecurityManager sm = System.getSecurityManager();
             if (sm != null)

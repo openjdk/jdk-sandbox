@@ -153,7 +153,7 @@ public abstract class SocketChannel
     }
 
     /**
-     * Returns a {@link SocketChannel} of the given {@link ProtocolFamily}.
+     * Opens a socket channel of a specific protocol family.
      *
      * @param family the protocol family
      *

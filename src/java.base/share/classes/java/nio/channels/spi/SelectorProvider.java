@@ -316,7 +316,10 @@ public abstract class SelectorProvider {
     }
 
     /**
-     * Returns a {@link SocketChannel} from the given protocol family.
+     * Opens a socket channel from the given protocol family.
+     *
+     * @implSpec The default implementation throws
+     *           {@link UnsupportedOperationException}
      *
      * @param family the protocol family
      *
@@ -329,11 +332,14 @@ public abstract class SelectorProvider {
      * @since 15
      */
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
-        throw new UnsupportedOperationException("protocol family not supported");
+        throw new UnsupportedOperationException("Protocol family not supported");
     }
 
     /**
-     * Returns a {@link ServerSocketChannel} from the given protocol family.
+     * Opens a server-socket channel from the given protocol family.
+     *
+     * @implSpec The default implementation throws
+     *           {@link UnsupportedOperationException}
      *
      * @param family the protocol family
      *
@@ -346,6 +352,6 @@ public abstract class SelectorProvider {
      * @since 15
      */
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
-        throw new UnsupportedOperationException("protocol family not supported");
+        throw new UnsupportedOperationException("Protocol family not supported");
     }
 }

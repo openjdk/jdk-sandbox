@@ -28,6 +28,7 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.Socket;
@@ -70,6 +71,9 @@ class SocketChannelImpl
 {
     // Used to make native read and write calls
     private static final NativeDispatcher nd = new SocketDispatcher();
+
+    // the protocol family requested by the user
+    private final ProtocolFamily family;
 
     // Our file descriptor object
     private final FileDescriptor fd;
@@ -118,9 +122,6 @@ class SocketChannelImpl
 
     // -- End of fields protected by stateLock
 
-    // the protocol family requested by the user
-    private final ProtocolFamily family;
-
     // Constructor for normal connecting sockets
     //
     SocketChannelImpl(SelectorProvider sp) throws IOException {
@@ -131,20 +132,27 @@ class SocketChannelImpl
 
     SocketChannelImpl(SelectorProvider sp, ProtocolFamily family) throws IOException {
         super(sp);
+        if ((family != StandardProtocolFamily.INET) &&
+                (family != StandardProtocolFamily.INET6)) {
+            throw new UnsupportedOperationException("Protocol family not supported");
+        }
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        }
+        this.family = family;
         this.fd = Net.socket(family, true);
         this.fdVal = IOUtil.fdVal(fd);
-        this.family = family;
     }
 
     SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, boolean bound)
         throws IOException
     {
         super(sp);
-        this.fd = fd;
-        this.fdVal = IOUtil.fdVal(fd);
         this.family = Net.isIPv6Available()
                 ? StandardProtocolFamily.INET6
                 : StandardProtocolFamily.INET;
+        this.fd = fd;
+        this.fdVal = IOUtil.fdVal(fd);
 
         if (bound) {
             synchronized (stateLock) {
@@ -160,6 +168,15 @@ class SocketChannelImpl
         throws IOException
     {
         super(sp);
+
+        if ((family != StandardProtocolFamily.INET) &&
+                (family != StandardProtocolFamily.INET6)) {
+            throw new UnsupportedOperationException("Protocol family not supported");
+        }
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        }
+
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
         this.family = family;
@@ -645,7 +662,7 @@ class SocketChannelImpl
                     if (localAddress != null)
                         throw new AlreadyBoundException();
                     InetSocketAddress isa = (local == null) ?
-                        Net.anyLocalSocketAddress(family) :
+                        Net.anyLocalAddress(family) :
                         Net.checkAddress(local, family);
                     SecurityManager sm = System.getSecurityManager();
                     if (sm != null) {
@@ -751,18 +768,16 @@ class SocketChannelImpl
         if (isa.getAddress().isAnyLocalAddress()) {
             if (family == Net.UNSPEC)
                 return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
-            else
-                return loopbackAddressFor(isa);
+            else {
+                InetAddress anyAddr = isa.getAddress();
+                assert anyAddr.isAnyLocalAddress();
+                Class<?> clazz = anyAddr.getClass();
+                InetAddress la = clazz == Inet4Address.class ? Net.inet4LoopBack : Net.inet6LoopBack;
+                return new InetSocketAddress(la, isa.getPort());
+            }
         } else {
             return isa;
         }
-    }
-
-    private static InetSocketAddress loopbackAddressFor(InetSocketAddress any) {
-        InetAddress anyAddr = any.getAddress();
-        assert anyAddr.isAnyLocalAddress();
-        InetAddress la = Net.loopBackAddressFor(anyAddr.getClass());
-        return new InetSocketAddress(la, any.getPort());
     }
 
     @Override

@@ -139,35 +139,6 @@ public class Net {
         return canUseIPv6OptionsWithIPv4LocalAddress0();
     }
 
-    /**
-     * Return the local host address for the given family *only*
-     *
-     * If one cannot be found then return the appropriate loopback address
-     *
-     * @param family
-     * @return
-     */
-    public static InetSocketAddress getLocalHostDestination(ProtocolFamily family, int port) throws UnknownHostException {
-        InetAddress lh = InetAddress.getLocalHost();
-
-        if (family != StandardProtocolFamily.INET || (lh instanceof Inet4Address))
-            return new InetSocketAddress(lh, port);
-
-        // Find an Inet4Address
-        String lname = lh.getHostName();
-        InetAddress ia4 = null;
-        InetAddress[] addrs = InetAddress.getAllByName(lname);
-        for (InetAddress addr : addrs) {
-            if (addr instanceof Inet4Address) {
-                ia4 = addr;
-                break;
-            }
-        }
-        if (ia4 == null)
-            ia4 = InetAddress.getByName("127.0.0.1");
-        return new InetSocketAddress(ia4, port);
-    }
-
     public static InetSocketAddress checkAddress(SocketAddress sa) {
         if (sa == null)
             throw new NullPointerException();
@@ -331,30 +302,26 @@ public class Net {
 
     private static InetAddress anyLocalInet4;
     private static InetAddress anyLocalInet6;
-    private static InetAddress inet4LoopBack;
-    private static InetAddress inet6LoopBack;
+    static InetAddress inet4LoopBack;
+    static InetAddress inet6LoopBack;
+
+    private static PrivilegedAction<Void> initAction = () -> {
+        try {
+            anyLocalInet4 = inet4FromInt(0);
+            anyLocalInet6 = InetAddress.getByName("::0");
+            inet4LoopBack = InetAddress.getByName("127.0.0.1");
+            inet6LoopBack = InetAddress.getByName("::1");
+            return null;
+        } catch (IOException e) {
+            throw new InternalError(e);
+        }
+    };
 
     static {
-        AccessController.doPrivileged(
-            (PrivilegedAction<Void>)() -> {
-            try {
-                anyLocalInet4 = inet4FromInt(0);
-                anyLocalInet6 = InetAddress.getByName("::0");
-                inet4LoopBack = InetAddress.getByName("127.0.0.1");
-                inet6LoopBack = InetAddress.getByName("::1");
-                return null;
-            } catch (IOException e) {
-                throw new InternalError(e);
-            }
-        });
+        AccessController.doPrivileged(initAction);
     }
 
-    public static InetAddress loopBackAddressFor(Class<? extends InetAddress> clazz) {
-        return clazz == Inet4Address.class
-            ? inet4LoopBack : inet6LoopBack;
-    }
-
-    public static InetSocketAddress anyLocalSocketAddress(ProtocolFamily family) {
+    static InetSocketAddress anyLocalAddress(ProtocolFamily family) {
         if (family == StandardProtocolFamily.INET) {
             return new InetSocketAddress(anyLocalInet4, 0);
         } else if (family == StandardProtocolFamily.INET6) {
