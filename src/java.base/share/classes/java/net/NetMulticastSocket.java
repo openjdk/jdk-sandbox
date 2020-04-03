@@ -658,13 +658,15 @@ final class NetMulticastSocket extends MulticastSocket {
         return getImpl().getOption(name);
     }
 
-    private volatile Set<SocketOption<?>> options;
+    /*package*/ volatile Set<SocketOption<?>> options;
+    private final Object optionsLock = new Object();
 
     @Override
     public Set<SocketOption<?>> supportedOptions() {
         Set<SocketOption<?>> options = this.options;
-        if (options != null) return options;
-        synchronized (this) {
+        if (options != null)
+            return options;
+        synchronized (optionsLock) {
             options = this.options;
             if (options != null) {
                 return options;
