@@ -572,4 +572,5 @@ public class MulticastSocket extends DatagramSocket {
     public void send(DatagramPacket p, byte ttl)
         throws IOException {
         delegate().send(p, ttl);
+    }
 }
