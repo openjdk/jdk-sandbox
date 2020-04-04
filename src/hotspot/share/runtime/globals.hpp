@@ -1580,9 +1580,12 @@ const size_t minimumSymbolTableSize = 1024;
   product(ccstr, MetaspaceReclaimStrategy, "balanced",                      \
           "options: balanced, aggressive, none")                            \
                                                                             \
-  product(bool, MetaspaceEnlargeChunksInPlace, true,                        \
-          "Metapace chunks are enlarged in place.")                         \
+  develop(bool, MetaspaceGuardAllocations, false,                           \
+          "Metapace allocations are guarded.")                              \
                                                                             \
+  develop(bool, MetaspaceHandleDeallocations, true,                         \
+	        "Switch off Metapace deallocation handling.")                     \
+																		                                        \
   manageable(uintx, MinHeapFreeRatio, 40,                                   \
           "The minimum percentage of heap free after GC to avoid expansion."\
           " For most GCs this applies to the old generation. In G1 and"     \

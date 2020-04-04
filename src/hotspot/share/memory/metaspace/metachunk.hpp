@@ -107,8 +107,6 @@ class Metachunk {
   Metachunk* _prev_in_vs;
   Metachunk* _next_in_vs;
 
-  MetaWord* top() const           { return base() + _used_words; }
-
   // Commit uncommitted section of the chunk.
   // Fails if we hit a commit limit.
   bool commit_up_to(size_t new_committed_words);
@@ -131,7 +129,7 @@ public:
   size_t word_size() const        { return chklvl::word_size_for_level(_level); }
 
   MetaWord* base() const          { return _base; }
-//  void set_base(MetaWord* p)      { _base = p; }
+  MetaWord* top() const           { return base() + _used_words; }
   MetaWord* end() const           { return base() + word_size(); }
 
   // Chunk list wiring
@@ -193,10 +191,6 @@ public:
   // a commit granule size).
   void uncommit();
   void uncommit_locked();
-
-  // Alignment of an allocation.
-  static const size_t allocation_alignment_bytes = 8;
-  static const size_t allocation_alignment_words = allocation_alignment_bytes / BytesPerWord;
 
   // Allocation from a chunk
 

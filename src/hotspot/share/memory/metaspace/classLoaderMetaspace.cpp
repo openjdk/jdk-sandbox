@@ -176,10 +176,10 @@ void ClassLoaderMetaspace::add_to_statistics(clms_stats_t* out) const {
 void ClassLoaderMetaspace::verify() const {
   check_valid_spacetype(_space_type);
   if (non_class_space_manager() != NULL) {
-    non_class_space_manager()->verify();
+    non_class_space_manager()->verify(false);
   }
   if (class_space_manager() != NULL) {
-    class_space_manager()->verify();
+    class_space_manager()->verify(false);
   }
 }
 #endif // ASSERT

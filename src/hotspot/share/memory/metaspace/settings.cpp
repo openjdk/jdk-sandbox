@@ -42,9 +42,6 @@ size_t Settings::_commit_granule_words = 0;
 bool Settings::_newborn_root_chunks_are_fully_committed = false;
 size_t Settings::_committed_words_on_fresh_chunks = 0;
 
-bool Settings::_enlarge_chunks_in_place = false;
-size_t Settings::_enlarge_chunks_in_place_max_word_size = 0;
-
 bool Settings::_uncommit_on_return = false;
 size_t Settings::_uncommit_on_return_min_word_size = 0;
 
@@ -52,7 +49,8 @@ bool Settings::_delete_nodes_on_purge = false;
 bool Settings::_uncommit_on_purge = false;
 size_t Settings::_uncommit_on_purge_min_word_size = 0;
 
-
+DEBUG_ONLY(bool Settings::_use_allocation_guard = false;)
+DEBUG_ONLY(bool Settings::_handle_deallocations = true;)
 
 
 void Settings::ergo_initialize() {
@@ -125,14 +123,24 @@ void Settings::ergo_initialize() {
 
   }
 
-  // Since this has nothing to do with reclaiming, set it independently from the
-  // strategy. This is rather arbitrarily choosen.
-  _enlarge_chunks_in_place = MetaspaceEnlargeChunksInPlace;
-  _enlarge_chunks_in_place_max_word_size = 256 * K;
-
   // Sanity checks.
   guarantee(commit_granule_words() <= chklvl::MAX_CHUNK_WORD_SIZE, "Too large granule size");
   guarantee(is_power_of_2(commit_granule_words()), "granule size must be a power of 2");
+
+#ifdef ASSERT
+  // Off for release builds, and by default for debug builds, but can be switched on manually to aid
+  // error analysis.
+  _use_allocation_guard = MetaspaceGuardAllocations;
+
+  // Deallocations can be manually switched off to aid error analysis, since this removes one layer of complexity
+  //  from allocation.
+  _handle_deallocations = MetaspaceHandleDeallocations;
+
+  // We also switch it off automatically if we use allocation guards. This is to keep prefix handling in SpaceManager simple.
+  if (_use_allocation_guard) {
+    _handle_deallocations = false;
+  }
+#endif
 
   LogStream ls(Log(metaspace)::info());
   Settings::print_on(&ls);
@@ -161,6 +169,8 @@ void Settings::print_on(outputStream* st) {
   st->print_cr(" - uncommit_on_purge: %d.", (int)uncommit_on_purge());
   st->print_cr(" - uncommit_on_purge_min_word_size: " SIZE_FORMAT ".", uncommit_on_purge_min_word_size());
 
+  st->print_cr(" - use_allocation_guard: %d.", (int)use_allocation_guard());
+  st->print_cr(" - handle_deallocations: %d.", (int)handle_deallocations());
 
 }
 

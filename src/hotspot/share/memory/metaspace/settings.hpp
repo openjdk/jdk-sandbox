@@ -60,10 +60,10 @@ class Settings : public AllStatic {
 
   // When allocating from a chunk, if the remaining area in the chunk is too small to hold
   // the requested size, we attempt to double the chunk size in place...
-  static bool   _enlarge_chunks_in_place;
+  static const bool _enlarge_chunks_in_place = true;
 
   // .. but we do only do this for chunks below a given size to prevent unnecessary memory blowup.
-  static size_t _enlarge_chunks_in_place_max_word_size;
+  static const size_t _enlarge_chunks_in_place_max_word_size = 256 * K;
 
   // If true, chunks are uncommitted after gc (when metaspace is purged).
   static bool _uncommit_on_return;
@@ -88,6 +88,12 @@ class Settings : public AllStatic {
   // whose lower 32bits are zero.
   static const bool _do_not_return_32bit_aligned_addresses = true;
 
+  // If true, metablock allocations are guarded and periodically checked.
+  DEBUG_ONLY(static bool _use_allocation_guard;)
+
+  // If true, we handle deallocated blocks (default).
+  DEBUG_ONLY(static bool _handle_deallocations;)
+
 public:
 
   static size_t commit_granule_bytes()                        { return _commit_granule_bytes; }
@@ -104,6 +110,9 @@ public:
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
   static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
   static bool do_not_return_32bit_aligned_addresses()         { return _do_not_return_32bit_aligned_addresses; }
+
+  static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }
+  static bool handle_deallocations()                          { return DEBUG_ONLY(_handle_deallocations) NOT_DEBUG(true); }
 
   static void ergo_initialize();
 

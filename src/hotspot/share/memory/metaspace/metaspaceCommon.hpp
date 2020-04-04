@@ -35,6 +35,28 @@ class outputStream;
 namespace metaspace {
 
 
+// Metaspace allocation alignment:
+
+// 1) Metaspace allocations have to be aligned such that 64bit values are aligned
+//  correctly.
+//
+// 2) Klass* structures allocated from Metaspace have to be aligned to KlassAlignmentInBytes.
+//
+// At the moment LogKlassAlignmentInBytes is 3, so KlassAlignmentInBytes == 8,
+//  so (1) and (2) can both be fulfilled with an alignment of 8. Should we increase
+//  KlassAlignmentInBytes at any time this will increase the necessary alignment as well. In
+//  that case we may think about introducing a separate alignment just for the class space
+//  since that alignment would only be needed for Klass structures.
+
+static const size_t allocation_alignment_bytes = 8;
+STATIC_ASSERT(allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
+
+static const size_t allocation_alignment_words = allocation_alignment_bytes / BytesPerWord;
+
+
+
+// Utility functions
+
 // Print a size, in words, scaled.
 void print_scaled_words(outputStream* st, size_t word_size, size_t scale = 0, int width = -1);
 

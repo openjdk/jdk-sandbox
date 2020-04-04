@@ -68,7 +68,7 @@ class SpaceManager : public CHeapObj<mtClass> {
   MetachunkList _chunks;
 
   // Structure to take care of leftover/deallocated space in used chunks
-  FreeBlocks* _lom;
+  FreeBlocks* _fbl;
 
   Metachunk* current_chunk()              { return _chunks.first(); }
   const Metachunk* current_chunk() const  { return _chunks.first(); }
@@ -86,12 +86,9 @@ class SpaceManager : public CHeapObj<mtClass> {
   ChunkManager* chunk_manager() const           { return _chunk_manager; }
   const ChunkAllocSequence* chunk_alloc_sequence() const    { return _chunk_alloc_sequence; }
 
-  void create_block_freelist();
-  void add_allocation_to_block_freelist(MetaWord* p, size_t word_size);
-
-  FreeBlocks* lom() const                  { return _lom; }
-  void create_lom();
-  void add_allocation_to_lom(MetaWord* p, size_t word_size);
+  // free block list
+  FreeBlocks* fbl() const                       { return _fbl; }
+  void add_allocation_to_fbl(MetaWord* p, size_t word_size);
 
   // The remaining committed free space in the current chunk is chopped up and stored in the block
   // free list for later use. As a result, the current chunk will remain current but completely
@@ -142,8 +139,8 @@ public:
   // Update statistics. This walks all in-use chunks.
   void add_to_statistics(sm_stats_t* out) const;
 
-  DEBUG_ONLY(void verify() const;)
-  DEBUG_ONLY(void verify_locked() const;)
+  DEBUG_ONLY(void verify(bool slow) const;)
+  DEBUG_ONLY(void verify_locked(bool slow) const;)
 
 };
 

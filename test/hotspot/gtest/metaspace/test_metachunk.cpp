@@ -99,7 +99,7 @@ public:
     bool did_hit_commit_limit = false;
     do {
 
-      const size_t alloc_size = align_up(rgen.get(), Metachunk::allocation_alignment_words);
+      const size_t alloc_size = align_up(rgen.get(), metaspace::allocation_alignment_words);
 
       // Note: about net and raw sizes: these concepts only exist at the SpaceManager level.
       // At the chunk level (where we test here), we allocate exactly what we ask, in number of words.

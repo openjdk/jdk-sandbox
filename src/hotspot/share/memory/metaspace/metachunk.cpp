@@ -40,9 +40,6 @@
 
 namespace metaspace {
 
-// Make sure that the Klass alignment also agree.
-STATIC_ASSERT(Metachunk::allocation_alignment_bytes == (size_t)KlassAlignmentInBytes);
-
 // Return a single char presentation of the state ('f', 'u', 'd')
 char Metachunk::get_state_char() const {
   switch (_state) {
@@ -189,8 +186,6 @@ void Metachunk::set_committed_words(size_t v) {
 // If the remainder portion of the chunk was too small to hold the allocation,
 //  NULL is returned and p_did_hit_commit_limit will be set to false.
 MetaWord* Metachunk::allocate(size_t request_word_size, bool* p_did_hit_commit_limit) {
-
-  assert_is_aligned(request_word_size, allocation_alignment_words);
 
   log_trace(metaspace)("Chunk " METACHUNK_FULL_FORMAT ": allocating " SIZE_FORMAT " words.",
                        METACHUNK_FULL_FORMAT_ARGS(this), request_word_size);
