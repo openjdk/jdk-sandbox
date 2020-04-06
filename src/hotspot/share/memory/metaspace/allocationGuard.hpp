@@ -39,11 +39,19 @@ namespace metaspace {
 struct prefix_t {
   uintx mark;
   size_t word_size;       // raw word size including prefix
-  MetaWord payload [0];   // varsized
+  // MetaWord payload [0];   // varsized (but unfortunately not all our compilers understand that)
 };
+
+// The prefix structure must be aligned to MetaWord size.
+STATIC_ASSERT((sizeof(prefix_t) & WordAlignmentMask) == 0);
 
 inline prefix_t* prefix_from_payload(MetaWord* p) {
   return (prefix_t*)((address)p - sizeof(prefix_t));
+}
+
+inline MetaWord* payload_from_prefix(prefix_t* pp) {
+  // return pp->payload;
+  return (MetaWord*)((address)pp + sizeof(prefix_t));
 }
 
 inline size_t prefix_size() {
@@ -58,7 +66,7 @@ inline MetaWord* establish_prefix(MetaWord* p_raw, size_t raw_word_size) {
   prefix_t* pp = (prefix_t*)p_raw;
   pp->mark = EYECATCHER;
   pp->word_size = raw_word_size;
-  return pp->payload;
+  return payload_from_prefix(pp);
 }
 
 inline void check_prefix(const prefix_t* pp) {
