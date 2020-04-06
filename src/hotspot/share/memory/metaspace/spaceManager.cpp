@@ -63,9 +63,11 @@ size_t get_raw_allocation_word_size(size_t net_word_size) {
   byte_size = align_up(byte_size, allocation_alignment_bytes);
 
   // If we guard allocations, we need additional space for a prefix.
+#ifdef ASSERT
   if (Settings::use_allocation_guard()) {
     byte_size += align_up(prefix_size(), allocation_alignment_bytes);
   }
+#endif
 
   size_t word_size = byte_size / BytesPerWord;
 
@@ -352,10 +354,12 @@ MetaWord* SpaceManager::allocate(size_t requested_word_size) {
 
   assert(p != NULL || (p == NULL && did_hit_limit), "Sanity");
 
+#ifdef ASSERT
   // When using allocation guards, establish a prefix.
   if (p != NULL && Settings::use_allocation_guard()) {
     p = establish_prefix(p, raw_word_size);
   }
+#endif
 
   SOMETIMES(verify_locked(true);)
 
