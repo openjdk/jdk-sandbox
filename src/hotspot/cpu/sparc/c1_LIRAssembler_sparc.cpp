@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 #define __ _masm->
 
@@ -1427,11 +1428,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
   }
-  if (SafepointMechanism::uses_thread_local_poll()) {
-    __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), L0);
-  } else {
-    __ set((intptr_t)os::get_polling_page(), L0);
-  }
+  __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), L0);
   __ relocate(relocInfo::poll_return_type);
   __ ld_ptr(L0, 0, G0);
   __ ret();
@@ -1440,11 +1437,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
-  if (SafepointMechanism::uses_thread_local_poll()) {
-    __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), tmp->as_register());
-  } else {
-    __ set((intptr_t)os::get_polling_page(), tmp->as_register());
-  }
+  __ ld_ptr(Address(G2_thread, Thread::polling_page_offset()), tmp->as_register());
   if (info != NULL) {
     add_debug_info_for_branch(info);
   }
@@ -1731,12 +1724,6 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
     }
   }
 }
-
-
-void LIR_Assembler::fpop() {
-  // do nothing
-}
-
 
 void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr thread, LIR_Opr dest, LIR_Op* op) {
   switch (code) {
@@ -2658,16 +2645,6 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
   }
 }
 
-void LIR_Assembler::set_24bit_FPU() {
-  Unimplemented();
-}
-
-
-void LIR_Assembler::reset_FPU() {
-  Unimplemented();
-}
-
-
 void LIR_Assembler::breakpoint() {
   __ breakpoint_trap();
 }
@@ -3055,19 +3032,6 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest, LIR_Opr tmp) {
     Register Rhi = left->as_register_hi();
     __ sub(G0, Rlow, dest->as_register_lo());
   }
-}
-
-
-void LIR_Assembler::fxch(int i) {
-  Unimplemented();
-}
-
-void LIR_Assembler::fld(int i) {
-  Unimplemented();
-}
-
-void LIR_Assembler::ffree(int i) {
-  Unimplemented();
 }
 
 void LIR_Assembler::rt_call(LIR_Opr result, address dest,

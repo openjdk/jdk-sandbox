@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "gc/g1/g1HeapVerifier.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.hpp"
 #include "gc/g1/heapRegionSet.hpp"
+#include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
 #include "gc/shared/verifyOption.hpp"
 #include "gc/shared/workgroup.hpp"
@@ -302,7 +303,6 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
 
   G1ConcurrentMarkThread* _cm_thread;     // The thread doing the work
   G1CollectedHeap*        _g1h;           // The heap
-  bool                    _completed_initialization; // Set to true when initialization is complete
 
   // Concurrent marking support structures
   G1CMBitMap              _mark_bitmap_1;
@@ -414,10 +414,10 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   // Prints all gathered CM-related statistics
   void print_stats();
 
-  HeapWord*               finger()           { return _finger;   }
-  bool                    concurrent()       { return _concurrent; }
-  uint                    active_tasks()     { return _num_active_tasks; }
-  ParallelTaskTerminator* terminator() const { return _terminator.terminator(); }
+  HeapWord*           finger()       { return _finger;   }
+  bool                concurrent()   { return _concurrent; }
+  uint                active_tasks() { return _num_active_tasks; }
+  TaskTerminator*     terminator()   { return &_terminator; }
 
   // Claims the next available region to be scanned by a marking
   // task/thread. It might return NULL if the next region is empty or
@@ -602,11 +602,6 @@ public:
   inline bool mark_in_next_bitmap(uint worker_id, oop const obj);
 
   inline bool is_marked_in_next_bitmap(oop p) const;
-
-  // Returns true if initialization was successfully completed.
-  bool completed_initialization() const {
-    return _completed_initialization;
-  }
 
   ConcurrentGCTimer* gc_timer_cm() const { return _gc_timer_cm; }
   G1OldTracer* gc_tracer_cm() const { return _gc_tracer_cm; }

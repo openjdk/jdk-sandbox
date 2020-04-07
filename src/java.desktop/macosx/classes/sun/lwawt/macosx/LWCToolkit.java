@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package sun.lwawt.macosx;
 
 import java.awt.AWTError;
+import java.awt.AWTException;
 import java.awt.CheckboxMenuItem;
 import java.awt.Color;
 import java.awt.Component;
@@ -49,7 +50,6 @@ import java.awt.MenuItem;
 import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.RenderingHints;
-import java.awt.Robot;
 import java.awt.SystemTray;
 import java.awt.Taskbar;
 import java.awt.Toolkit;
@@ -102,7 +102,6 @@ import javax.swing.UIManager;
 import com.apple.laf.AquaMenuBarUI;
 import sun.awt.AWTAccessor;
 import sun.awt.AppContext;
-import sun.awt.CGraphicsConfig;
 import sun.awt.CGraphicsDevice;
 import sun.awt.LightweightFrame;
 import sun.awt.PlatformGraphicsInfo;
@@ -119,7 +118,6 @@ import sun.lwawt.PlatformComponent;
 import sun.lwawt.PlatformDropTarget;
 import sun.lwawt.PlatformWindow;
 import sun.lwawt.SecurityWarningWindow;
-import sun.security.action.GetBooleanAction;
 
 @SuppressWarnings("serial") // JDK implementation class
 final class NamedCursor extends Cursor {
@@ -480,7 +478,11 @@ public final class LWCToolkit extends LWToolkit {
 
     @Override
     public Insets getScreenInsets(final GraphicsConfiguration gc) {
-        return ((CGraphicsConfig) gc).getDevice().getScreenInsets();
+        GraphicsDevice gd = gc.getDevice();
+        if (!(gd instanceof CGraphicsDevice)) {
+            return super.getScreenInsets(gc);
+        }
+        return ((CGraphicsDevice)gd).getScreenInsets();
     }
 
     @Override
@@ -493,8 +495,11 @@ public final class LWCToolkit extends LWToolkit {
     }
 
     @Override
-    public RobotPeer createRobot(Robot target, GraphicsDevice screen) {
-        return new CRobot(target, (CGraphicsDevice)screen);
+    public RobotPeer createRobot(GraphicsDevice screen) throws AWTException {
+        if (screen instanceof CGraphicsDevice) {
+            return new CRobot((CGraphicsDevice) screen);
+        }
+        return super.createRobot(screen);
     }
 
     private native boolean isCapsLockOn();
@@ -803,6 +808,23 @@ public final class LWCToolkit extends LWToolkit {
         return locale;
     }
 
+    public static boolean isLocaleUSInternationalPC(Locale locale) {
+        return (locale != null ?
+            locale.toString().equals("_US_UserDefined_15000") : false);
+    }
+
+    public static boolean isCharModifierKeyInUSInternationalPC(char ch) {
+        // 5 characters: APOSTROPHE, QUOTATION MARK, ACCENT GRAVE, SMALL TILDE,
+        // CIRCUMFLEX ACCENT
+        final char[] modifierKeys = {'\'', '"', '`', '\u02DC', '\u02C6'};
+        for (char modKey : modifierKeys) {
+            if (modKey == ch) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public InputMethodDescriptor getInputMethodAdapterDescriptor() {
         if (sInputMethodDescriptor == null)
@@ -851,20 +873,6 @@ public final class LWCToolkit extends LWToolkit {
     @Override
     public boolean canPopupOverlapTaskBar() {
         return false;
-    }
-
-    private static Boolean sunAwtDisableCALayers = null;
-
-    /**
-     * Returns the value of "sun.awt.disableCALayers" property. Default
-     * value is {@code false}.
-     */
-    public static synchronized boolean getSunAwtDisableCALayers() {
-        if (sunAwtDisableCALayers == null) {
-            sunAwtDisableCALayers = AccessController.doPrivileged(
-                new GetBooleanAction("sun.awt.disableCALayers"));
-        }
-        return sunAwtDisableCALayers;
     }
 
     /*

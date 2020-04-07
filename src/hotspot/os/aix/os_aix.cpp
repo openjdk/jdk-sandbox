@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2019 SAP SE. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2528,17 +2528,13 @@ void os::large_page_init() {
   return; // Nothing to do. See query_multipage_support and friends.
 }
 
-char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
-  // reserve_memory_special() is used to allocate large paged memory. On AIX, we implement
-  // 64k paged memory reservation using the normal memory allocation paths (os::reserve_memory()),
-  // so this is not needed.
-  assert(false, "should not be called on AIX");
+char* os::pd_reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
+  fatal("os::reserve_memory_special should not be called on AIX.");
   return NULL;
 }
 
-bool os::release_memory_special(char* base, size_t bytes) {
-  // Detaching the SHM segment will also delete it, see reserve_memory_special().
-  Unimplemented();
+bool os::pd_release_memory_special(char* base, size_t bytes) {
+  fatal("os::release_memory_special should not be called on AIX.");
   return false;
 }
 
@@ -2649,7 +2645,7 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
     if (geteuid() != 0) {
-      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
+      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy) && !FLAG_IS_JIMAGE_RESOURCE(ThreadPriorityPolicy)) {
         warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
                 "e.g., being the root user. If the necessary permission is not " \
                 "possessed, changes to priority will be silently ignored.");
@@ -3594,21 +3590,6 @@ jint os::init_2(void) {
   return JNI_OK;
 }
 
-// Mark the polling page as unreadable
-void os::make_polling_page_unreadable(void) {
-  if (!guard_memory((char*)_polling_page, Aix::page_size())) {
-    fatal("Could not disable polling page");
-  }
-};
-
-// Mark the polling page as readable
-void os::make_polling_page_readable(void) {
-  // Changed according to os_linux.cpp.
-  if (!checked_mprotect((char *)_polling_page, Aix::page_size(), PROT_READ)) {
-    fatal("Could not enable polling page at " PTR_FORMAT, _polling_page);
-  }
-};
-
 int os::active_processor_count() {
   // User has overridden the number of active processors
   if (ActiveProcessorCount > 0) {
@@ -3720,10 +3701,18 @@ int os::open(const char *path, int oflag, int mode) {
     errno = ENAMETOOLONG;
     return -1;
   }
-  int fd;
+  // AIX 7.X now supports O_CLOEXEC too, like modern Linux; but we have to be careful, see
+  // IV90804: OPENING A FILE IN AFS WITH O_CLOEXEC FAILS WITH AN EINVAL ERROR APPLIES TO AIX 7100-04 17/04/14 PTF PECHANGE
+  int oflag_with_o_cloexec = oflag | O_CLOEXEC;
 
-  fd = ::open64(path, oflag, mode);
-  if (fd == -1) return -1;
+  int fd = ::open64(path, oflag_with_o_cloexec, mode);
+  if (fd == -1) {
+    // we might fail in the open call when O_CLOEXEC is set, so try again without (see IV90804)
+    fd = ::open64(path, oflag, mode);
+    if (fd == -1) {
+      return -1;
+    }
+  }
 
   // If the open succeeded, the file might still be a directory.
   {
@@ -3755,21 +3744,25 @@ int os::open(const char *path, int oflag, int mode) {
   //
   // - might cause an fopen in the subprocess to fail on a system
   //   suffering from bug 1085341.
-  //
-  // (Yes, the default setting of the close-on-exec flag is a Unix
-  // design flaw.)
-  //
-  // See:
-  // 1085341: 32-bit stdio routines should support file descriptors >255
-  // 4843136: (process) pipe file descriptor from Runtime.exec not being closed
-  // 6339493: (process) Runtime.exec does not close all file descriptors on Solaris 9
-#ifdef FD_CLOEXEC
-  {
+
+  // Validate that the use of the O_CLOEXEC flag on open above worked.
+  static sig_atomic_t O_CLOEXEC_is_known_to_work = 0;
+  if (O_CLOEXEC_is_known_to_work == 0) {
     int flags = ::fcntl(fd, F_GETFD);
-    if (flags != -1)
+    if (flags != -1) {
+      if ((flags & FD_CLOEXEC) != 0) {
+        O_CLOEXEC_is_known_to_work = 1;
+      } else { // it does not work
+        ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+        O_CLOEXEC_is_known_to_work = -1;
+      }
+    }
+  } else if (O_CLOEXEC_is_known_to_work == -1) {
+    int flags = ::fcntl(fd, F_GETFD);
+    if (flags != -1) {
       ::fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
   }
-#endif
 
   return fd;
 }

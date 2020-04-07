@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2015 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -35,6 +35,7 @@
 #include "oops/accessDecorators.hpp"
 #include "oops/compressedOops.hpp"
 #include "runtime/safepointMechanism.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 inline bool MacroAssembler::is_ld_largeoffset(address a) {
   const int inst1 = *(int *)a;
@@ -56,7 +57,7 @@ inline int MacroAssembler::get_ld_largeoffset_offset(address a) {
 }
 
 inline void MacroAssembler::round_to(Register r, int modulus) {
-  assert(is_power_of_2_long((jlong)modulus), "must be power of 2");
+  assert(is_power_of_2((jlong)modulus), "must be power of 2");
   addi(r, r, modulus-1);
   clrrdi(r, r, log2_long((jlong)modulus));
 }
@@ -266,7 +267,7 @@ inline address MacroAssembler::last_calls_return_pc() {
 
 // Read from the polling page, its address is already in a register.
 inline void MacroAssembler::load_from_polling_page(Register polling_page_address, int offset) {
-  if (SafepointMechanism::uses_thread_local_poll() && USE_POLL_BIT_ONLY) {
+  if (USE_POLL_BIT_ONLY) {
     int encoding = SafepointMechanism::poll_bit();
     tdi(traptoGreaterThanUnsigned | traptoEqual, polling_page_address, encoding);
   } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -346,7 +346,8 @@ final class SSLExtensions {
                     }
                     if (ext != null) {
                         builder.append(
-                                ext.toString(ByteBuffer.wrap(en.getValue())));
+                            ext.toString(handshakeMessage.handshakeContext,
+                                    ByteBuffer.wrap(en.getValue())));
                     } else {
                         builder.append(toString(en.getKey(), en.getValue()));
                     }
@@ -359,7 +360,8 @@ final class SSLExtensions {
                         builder.append(",\n");
                     }
                     builder.append(
-                        en.getKey().toString(ByteBuffer.wrap(en.getValue())));
+                        en.getKey().toString(handshakeMessage.handshakeContext,
+                                ByteBuffer.wrap(en.getValue())));
                 }
 
                 return builder.toString();

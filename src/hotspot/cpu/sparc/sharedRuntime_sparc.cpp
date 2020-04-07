@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1907,28 +1907,16 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
         // Arrays are passed as int, elem* pair
         out_sig_bt[argc++] = T_INT;
         out_sig_bt[argc++] = T_ADDRESS;
-        Symbol* atype = ss.as_symbol();
-        const char* at = atype->as_C_string();
-        if (strlen(at) == 2) {
-          assert(at[0] == '[', "must be");
-          switch (at[1]) {
-            case 'B': in_elem_bt[i]  = T_BYTE; break;
-            case 'C': in_elem_bt[i]  = T_CHAR; break;
-            case 'D': in_elem_bt[i]  = T_DOUBLE; break;
-            case 'F': in_elem_bt[i]  = T_FLOAT; break;
-            case 'I': in_elem_bt[i]  = T_INT; break;
-            case 'J': in_elem_bt[i]  = T_LONG; break;
-            case 'S': in_elem_bt[i]  = T_SHORT; break;
-            case 'Z': in_elem_bt[i]  = T_BOOLEAN; break;
-            default: ShouldNotReachHere();
-          }
-        }
+        ss.skip_array_prefix(1);  // skip one '['
+        assert(ss.is_primitive(), "primitive type expected");
+        in_elem_bt[i] = ss.type();
       } else {
         out_sig_bt[argc++] = in_sig_bt[i];
         in_elem_bt[i] = T_VOID;
       }
       if (in_sig_bt[i] != T_VOID) {
-        assert(in_sig_bt[i] == ss.type(), "must match");
+        assert(in_sig_bt[i] == ss.type() ||
+               in_sig_bt[i] == T_ARRAY, "must match");
         ss.next();
       }
     }
@@ -3098,7 +3086,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   __ set_last_Java_frame(SP, noreg);
 
   Register saved_O7 = O7->after_save();
-  if (!cause_return && SafepointMechanism::uses_thread_local_poll()) {
+  if (!cause_return) {
     // Keep a copy of the return pc in L0 to detect if it gets modified
     __ mov(saved_O7, L0);
     // Adjust and keep a copy of our npc saved by the signal handler
@@ -3129,7 +3117,7 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   __ ld_ptr(G2_thread, in_bytes(Thread::pending_exception_offset()), O1);
   __ br_notnull_short(O1, Assembler::pn, pending);
 
-  if (!cause_return && SafepointMechanism::uses_thread_local_poll()) {
+  if (!cause_return) {
     // If nobody modified our return pc then we must return to the npc which he saved in L1
     __ cmp(saved_O7, L0);
     __ movcc(Assembler::equal, false, Assembler::ptr_cc, L1, saved_O7);

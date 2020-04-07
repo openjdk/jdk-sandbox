@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -46,6 +46,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
@@ -293,7 +294,7 @@ JVM_handle_linux_signal(int sig,
     // Handle ALL stack overflow variations here
     if (sig == SIGSEGV) {
       // check if fault address is within thread stack
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
         if (thread->in_stack_yellow_reserved_zone(addr)) {
           if (thread->thread_state() == _thread_in_Java) {
@@ -364,7 +365,7 @@ JVM_handle_linux_signal(int sig,
           tty->print_cr("trap: zombie_not_entrant (%s)", (sig == SIGTRAP) ? "SIGTRAP" : "SIGILL");
         }
         stub = SharedRuntime::get_handle_wrong_method_stub();
-      } else if (sig == SIGSEGV && os::is_poll_address((address)info->si_addr)) {
+      } else if (sig == SIGSEGV && SafepointMechanism::is_poll_address((address)info->si_addr)) {
         stub = SharedRuntime::get_poll_stub(pc);
       } else if (sig == SIGBUS /* && info->si_code == BUS_OBJERR */) {
         // BugId 4454115: A read from a MappedByteBuffer can fault

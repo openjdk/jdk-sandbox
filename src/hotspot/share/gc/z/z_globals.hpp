@@ -38,36 +38,32 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  experimental(ccstr, ZPath, NULL,                                          \
-          "Filesystem path for Java heap backing storage "                  \
-          "(must be a tmpfs or a hugetlbfs filesystem)")                    \
-                                                                            \
-  experimental(double, ZAllocationSpikeTolerance, 2.0,                      \
+  product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
                                                                             \
-  experimental(double, ZFragmentationLimit, 25.0,                           \
+  product(double, ZFragmentationLimit, 25.0,                                \
           "Maximum allowed heap fragmentation")                             \
                                                                             \
-  experimental(size_t, ZMarkStackSpaceLimit, 8*G,                           \
+  product(size_t, ZMarkStackSpaceLimit, 8*G,                                \
           "Maximum number of bytes allocated for mark stacks")              \
           range(32*M, 1024*G)                                               \
                                                                             \
-  experimental(uint, ZCollectionInterval, 0,                                \
+  product(uint, ZCollectionInterval, 0,                                     \
           "Force GC at a fixed time interval (in seconds)")                 \
                                                                             \
-  experimental(bool, ZUncommit, true,                                       \
+  product(bool, ZProactive, true,                                           \
+          "Enable proactive GC cycles")                                     \
+                                                                            \
+  product(bool, ZUncommit, true,                                            \
           "Uncommit unused memory")                                         \
                                                                             \
-  experimental(uintx, ZUncommitDelay, 5 * 60,                               \
+  product(uintx, ZUncommitDelay, 5 * 60,                                    \
           "Uncommit memory if it has been unused for the specified "        \
           "amount of time (in seconds)")                                    \
                                                                             \
   diagnostic(uint, ZStatisticsInterval, 10,                                 \
           "Time between statistics print outs (in seconds)")                \
           range(1, (uint)-1)                                                \
-                                                                            \
-  diagnostic(bool, ZProactive, true,                                        \
-          "Enable proactive GC cycles")                                     \
                                                                             \
   diagnostic(bool, ZVerifyViews, false,                                     \
           "Verify heap view accesses")                                      \

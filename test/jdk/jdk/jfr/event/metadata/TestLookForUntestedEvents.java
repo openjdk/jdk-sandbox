@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,22 +70,19 @@ public class TestLookForUntestedEvents {
             "MetaspaceChunkFreeListSummary", "G1HeapSummary", "ParallelOldGarbageCollection",
             "OldGarbageCollection", "G1GarbageCollection", "GCPhasePause",
             "GCPhasePauseLevel1", "GCPhasePauseLevel2", "GCPhasePauseLevel3",
-            "GCPhasePauseLevel4", "GCPhaseConcurrent")
+            "GCPhasePauseLevel4")
     );
 
     // This is a "known failure list" for this test.
     // NOTE: if the event is not covered, a bug should be open, and bug number
     // noted in the comments for this set.
     private static final Set<String> knownNotCoveredEvents = new HashSet<>(
-        // DumpReason: JDK-8213918
-        Arrays.asList("DumpReason")
     );
 
     // Experimental events
     private static final Set<String> experimentalEvents = new HashSet<>(
-      Arrays.asList(
-                    "Flush", "FlushStorage", "FlushStacktrace",
-                    "FlushStringPool", "FlushMetadata", "FlushTypeSet")
+        Arrays.asList(
+            "Flush")
     );
 
 

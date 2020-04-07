@@ -49,7 +49,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/fieldType.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/javaCalls.hpp"
@@ -688,8 +687,7 @@ void ConstantPool::verify_constant_pool_resolve(const constantPoolHandle& this_c
     return;  // short cut, typeArray klass is always accessible
   }
   Klass* holder = this_cp->pool_holder();
-  bool fold_type_to_class = true;
-  LinkResolver::check_klass_accessability(holder, k, fold_type_to_class, CHECK);
+  LinkResolver::check_klass_accessibility(holder, k, CHECK);
 }
 
 
@@ -728,7 +726,7 @@ char* ConstantPool::string_at_noresolve(int which) {
 }
 
 BasicType ConstantPool::basic_type_for_signature_at(int which) const {
-  return FieldType::basic_type(symbol_at(which));
+  return Signature::basic_type(symbol_at(which));
 }
 
 
@@ -840,7 +838,7 @@ BasicType ConstantPool::basic_type_for_constant_at(int which) {
       tag.is_dynamic_constant_in_error()) {
     // have to look at the signature for this one
     Symbol* constant_type = uncached_signature_ref_at(which);
-    return FieldType::basic_type(constant_type);
+    return Signature::basic_type(constant_type);
   }
   return tag.basic_type();
 }
@@ -950,7 +948,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
         save_and_throw_exception(this_cp, index, tag, CHECK_NULL);
       }
       result_oop = bootstrap_specifier.resolved_value()();
-      BasicType type = FieldType::basic_type(bootstrap_specifier.signature());
+      BasicType type = Signature::basic_type(bootstrap_specifier.signature());
       if (!is_reference_type(type)) {
         // Make sure the primitive value is properly boxed.
         // This is a JDK responsibility.

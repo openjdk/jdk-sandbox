@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -183,6 +183,7 @@ public class GraalUnitTestLauncher {
 
         String testPrefix = null;
         String excludeFileName = null;
+        ArrayList<String> testJavaFlags = new ArrayList<String>();
 
         int i=0;
         String arg, val;
@@ -198,6 +199,10 @@ public class GraalUnitTestLauncher {
                 case "-exclude":
                     excludeFileName = val;
                     break;
+
+                case "-vmargs":
+                   testJavaFlags.addAll(Arrays.asList(val.split("(?i):space:")));
+                   break;
 
                 default:
                     System.out.println("WARN: illegal option " + arg);
@@ -234,6 +239,8 @@ public class GraalUnitTestLauncher {
         javaFlags.addAll(getModuleExports("jdk.internal.vm.compiler", "ALL-UNNAMED"));
         javaFlags.addAll(getModuleExports("jdk.internal.vm.ci", "ALL-UNNAMED,jdk.internal.vm.compiler"));
 
+        // add test specific flags
+        javaFlags.addAll(testJavaFlags);
 
         // add VM flags
         javaFlags.add("-XX:+UnlockExperimentalVMOptions");

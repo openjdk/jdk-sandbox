@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
@@ -79,18 +80,19 @@ void* VMError::get_segfault_address() {
 // List of environment variables that should be reported in error log file.
 const char *env_list[] = {
   // All platforms
-  "JAVA_HOME", "JRE_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
-  "JAVA_COMPILER", "PATH", "USERNAME",
+  "JAVA_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
+  "PATH", "USERNAME",
 
   // Env variables that are defined on Solaris/Linux/BSD
   "LD_LIBRARY_PATH", "LD_PRELOAD", "SHELL", "DISPLAY",
   "HOSTTYPE", "OSTYPE", "ARCH", "MACHTYPE",
+  "LANG", "LC_ALL", "LC_CTYPE", "TZ",
 
   // defined on AIX
   "LIBPATH", "LDR_PRELOAD", "LDR_PRELOAD64",
 
-  // defined on Linux
-  "LD_ASSUME_KERNEL", "_JAVA_SR_SIGNUM",
+  // defined on Linux/AIX/BSD
+  "_JAVA_SR_SIGNUM",
 
   // defined on Darwin
   "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH",
@@ -251,7 +253,7 @@ void VMError::print_native_stack(outputStream* st, frame fr, Thread* t, char* bu
       if (t && t->is_Java_thread()) {
         // Catch very first native frame by using stack address.
         // For JavaThread stack_base and stack_size should be set.
-        if (!t->on_local_stack((address)(fr.real_fp() + 1))) {
+        if (!t->is_in_full_stack((address)(fr.real_fp() + 1))) {
           break;
         }
         if (fr.is_java_frame() || fr.is_native_frame() || fr.is_runtime_frame()) {
@@ -918,7 +920,7 @@ void VMError::report(outputStream* st, bool _verbose) {
      if (_verbose && Universe::is_fully_initialized()) {
        Universe::heap()->print_on_error(st);
        st->cr();
-       st->print_cr("Polling page: " INTPTR_FORMAT, p2i(os::get_polling_page()));
+       st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
        st->cr();
      }
 
@@ -1120,7 +1122,7 @@ void VMError::print_vm_info(outputStream* st) {
     MutexLocker hl(Heap_lock);
     Universe::heap()->print_on_error(st);
     st->cr();
-    st->print_cr("Polling page: " INTPTR_FORMAT, p2i(os::get_polling_page()));
+    st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
     st->cr();
   }
 

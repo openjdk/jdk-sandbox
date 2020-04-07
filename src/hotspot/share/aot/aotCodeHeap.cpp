@@ -47,6 +47,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/vmOperations.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "utilities/sizes.hpp"
 
 bool AOTLib::_narrow_oop_shift_initialized = false;
@@ -463,6 +464,7 @@ void AOTCodeHeap::link_shared_runtime_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_resolve_virtual_entry", address, SharedRuntime::get_resolve_virtual_call_stub());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_resolve_opt_virtual_entry", address, SharedRuntime::get_resolve_opt_virtual_call_stub());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_deopt_blob_unpack", address, SharedRuntime::deopt_blob()->unpack());
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_deopt_blob_unpack_with_exception_in_tls", address, SharedRuntime::deopt_blob()->unpack_with_exception_in_tls());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_deopt_blob_uncommon_trap", address, SharedRuntime::deopt_blob()->uncommon_trap());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_ic_miss_stub", address, SharedRuntime::get_ic_miss_stub());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_handle_wrong_method_stub", address, SharedRuntime::get_handle_wrong_method_stub());
@@ -578,7 +580,6 @@ void AOTCodeHeap::link_global_lib_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_card_table_address", address, (BarrierSet::barrier_set()->is_a(BarrierSet::CardTableBarrierSet) ? ci_card_table_address() : NULL));
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_heap_top_address", address, (heap->supports_inline_contig_alloc() ? heap->top_addr() : NULL));
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_heap_end_address", address, (heap->supports_inline_contig_alloc() ? heap->end_addr() : NULL));
-    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_polling_page", address, os::get_polling_page());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_klass_base_address", address, CompressedKlassPointers::base());
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_narrow_oop_base_address", address, CompressedOops::base());
 #if INCLUDE_G1GC

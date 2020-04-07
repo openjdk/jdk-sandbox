@@ -57,8 +57,8 @@ private:
   bool                  _has_cset_oops;
 
 public:
-  ShenandoahHasCSetOopClosure() :
-    _heap(ShenandoahHeap::heap()),
+  ShenandoahHasCSetOopClosure(ShenandoahHeap *heap) :
+    _heap(heap),
     _has_cset_oops(false) {
   }
 
@@ -79,7 +79,7 @@ public:
 };
 
 bool ShenandoahNMethod::has_cset_oops(ShenandoahHeap *heap) {
-  ShenandoahHasCSetOopClosure cl;
+  ShenandoahHasCSetOopClosure cl(heap);
   oops_do(&cl);
   return cl.has_cset_oops();
 }
@@ -175,15 +175,54 @@ ShenandoahNMethod* ShenandoahNMethod::for_nmethod(nmethod* nm) {
   return new ShenandoahNMethod(nm, oops, non_immediate_oops);
 }
 
+template <bool HAS_FWD>
+class ShenandoahKeepNMethodMetadataAliveClosure : public OopClosure {
+private:
+  ShenandoahBarrierSet* const _bs;
+public:
+  ShenandoahKeepNMethodMetadataAliveClosure() :
+    _bs(static_cast<ShenandoahBarrierSet*>(BarrierSet::barrier_set())) {
+  }
+
+  virtual void do_oop(oop* p) {
+    oop obj = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(obj)) {
+      if (HAS_FWD) {
+        obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      }
+      _bs->enqueue(obj);
+    }
+  }
+
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+};
+
 void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
-  assert(ShenandoahHeap::heap()->is_concurrent_root_in_progress(), "Only this phase");
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != NULL, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
 
-  ShenandoahEvacOOMScope evac_scope;
-  ShenandoahEvacuateUpdateRootsClosure cl;
-  data->oops_do(&cl, true /*fix relocation*/);
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  if (heap->is_concurrent_mark_in_progress()) {
+    if (heap->has_forwarded_objects()) {
+      ShenandoahKeepNMethodMetadataAliveClosure<true> cl;
+      data->oops_do(&cl);
+    } else {
+      ShenandoahKeepNMethodMetadataAliveClosure<false> cl;
+      data->oops_do(&cl);
+    }
+  } else if (heap->is_concurrent_root_in_progress()) {
+    ShenandoahEvacOOMScope evac_scope;
+    ShenandoahEvacuateUpdateRootsClosure<> cl;
+    data->oops_do(&cl, true /*fix relocation*/);
+  } else {
+    // There is possibility that GC is cancelled when it arrives final mark.
+    // In this case, concurrent root phase is skipped and degenerated GC should be
+    // followed, where nmethods are disarmed.
+    assert(heap->cancelled_gc(), "What else?");
+  }
 }
 
 #ifdef ASSERT
@@ -237,14 +276,36 @@ void ShenandoahNMethod::assert_same_oops(bool allow_dead) {
 
   GrowableArray<oop*>* oops = detector.oops();
 
-  assert(oops->length() == oop_count(), "Must match");
-
+  int count = _oops_count;
   for (int index = 0; index < _oops_count; index ++) {
     assert(oops->contains(_oops[index]), "Must contain this oop");
   }
 
   for (oop* p = nm()->oops_begin(); p < nm()->oops_end(); p ++) {
+    if (*p == Universe::non_oop_word()) continue;
+    count++;
     assert(oops->contains(p), "Must contain this oop");
+  }
+
+  if (oops->length() < count) {
+    stringStream debug_stream;
+    debug_stream.print_cr("detected locs: %d", oops->length());
+    for (int i = 0; i < oops->length(); i++) {
+      debug_stream.print_cr("-> " PTR_FORMAT, p2i(oops->at(i)));
+    }
+    debug_stream.print_cr("recorded oops: %d", _oops_count);
+    for (int i = 0; i < _oops_count; i++) {
+      debug_stream.print_cr("-> " PTR_FORMAT, p2i(_oops[i]));
+    }
+    GrowableArray<oop*> check;
+    bool non_immed;
+    detect_reloc_oops(nm(), check, non_immed);
+    debug_stream.print_cr("check oops: %d", check.length());
+    for (int i = 0; i < check.length(); i++) {
+      debug_stream.print_cr("-> " PTR_FORMAT, p2i(check.at(i)));
+    }
+    fatal("Must match #detected: %d, #recorded: %d, #total: %d, begin: " PTR_FORMAT ", end: " PTR_FORMAT "\n%s",
+          oops->length(), _oops_count, count, p2i(nm()->oops_begin()), p2i(nm()->oops_end()), debug_stream.as_string());
   }
 }
 
@@ -277,6 +338,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
 
   if (data != NULL) {
     assert(contain(nm), "Must have been registered");
+    assert(nm == data->nm(), "Must be same nmethod");
     data->update();
   } else {
     data = ShenandoahNMethod::for_nmethod(nm);
@@ -484,7 +546,7 @@ void ShenandoahNMethodTableSnapshot::concurrent_nmethods_do(NMethodClosure* cl) 
   ShenandoahNMethod** list = _array;
   size_t max = (size_t)_length;
   while (_claimed < max) {
-    size_t cur = Atomic::add(&_claimed, stride) - stride;
+    size_t cur = Atomic::fetch_and_add(&_claimed, stride);
     size_t start = cur;
     size_t end = MIN2(cur + stride, max);
     if (start >= max) break;

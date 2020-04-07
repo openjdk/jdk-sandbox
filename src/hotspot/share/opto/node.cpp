@@ -1624,12 +1624,15 @@ static bool is_disconnected(const Node* n) {
 }
 
 #ifdef ASSERT
-static void dump_orig(Node* orig, outputStream *st) {
+void Node::dump_orig(outputStream *st, bool print_key) const {
   Compile* C = Compile::current();
+  Node* orig = _debug_orig;
   if (NotANode(orig)) orig = NULL;
   if (orig != NULL && !C->node_arena()->contains(orig)) orig = NULL;
   if (orig == NULL) return;
-  st->print(" !orig=");
+  if (print_key) {
+    st->print(" !orig=");
+  }
   Node* fast = orig->debug_orig(); // tortoise & hare algorithm to detect loops
   if (NotANode(fast)) fast = NULL;
   while (orig != NULL) {
@@ -1694,7 +1697,7 @@ void Node::dump(const char* suffix, bool mark, outputStream *st) const {
   if (is_disconnected(this)) {
 #ifdef ASSERT
     st->print("  [%d]",debug_idx());
-    dump_orig(debug_orig(), st);
+    dump_orig(st);
 #endif
     st->cr();
     C->_in_dump_cnt--;
@@ -1742,7 +1745,7 @@ void Node::dump(const char* suffix, bool mark, outputStream *st) const {
     t->dump_on(st);
   }
   if (is_new) {
-    debug_only(dump_orig(debug_orig(), st));
+    DEBUG_ONLY(dump_orig(st));
     Node_Notes* nn = C->node_notes_at(_idx);
     if (nn != NULL && !nn->is_clear()) {
       if (nn->jvms() != NULL) {
@@ -2123,7 +2126,8 @@ void Node::verify_edges(Unique_Node_List &visited) {
       }
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
-      assert(i >= req() || i == 0 || is_Region() || is_Phi(), "only regions or phis have null data edges");
+      assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy()
+              || (is_Unlock() && i == req()-1), "only region, phi, arraycopy or unlock nodes have null data edges");
     } else {
       assert(n->is_top(), "sanity");
       // Nothing to check.
@@ -2136,9 +2140,6 @@ void Node::verify_edges(Unique_Node_List &visited) {
       in(i)->verify_edges(visited);
   }
 }
-
-//------------------------------verify_recur-----------------------------------
-static const Node *unique_top = NULL;
 
 void Node::verify_recur(const Node *n, int verify_depth,
                         VectorSet &old_space, VectorSet &new_space) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2019 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -49,6 +49,7 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/osThread.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
@@ -321,7 +322,7 @@ JVM_handle_linux_signal(int sig,
       address addr = (address)info->si_addr; // Address causing SIGSEGV, usually mem ref target.
 
       // Check if fault address is within thread stack.
-      if (thread->on_local_stack(addr)) {
+      if (thread->is_in_full_stack(addr)) {
         // stack overflow
         if (thread->in_stack_yellow_reserved_zone(addr)) {
           if (thread->thread_state() == _thread_in_Java) {
@@ -393,7 +394,7 @@ JVM_handle_linux_signal(int sig,
       }
 
       else if (sig == SIGSEGV &&
-               os::is_poll_address((address)info->si_addr)) {
+               SafepointMechanism::is_poll_address((address)info->si_addr)) {
         if (TraceTraps) {
           tty->print_cr("trap: safepoint_poll at " INTPTR_FORMAT " (SIGSEGV)", p2i(pc));
         }

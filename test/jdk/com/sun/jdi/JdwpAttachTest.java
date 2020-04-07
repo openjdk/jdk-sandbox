@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,12 @@ import com.sun.jdi.VirtualMachine;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.ListeningConnector;
 import jdk.test.lib.apps.LingeredApp;
+import jdk.test.lib.Utils;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -54,15 +49,13 @@ import java.util.concurrent.Executors;
  */
 public class JdwpAttachTest {
 
-    private static final boolean IsWindows = System.getProperty("os.name").toLowerCase().contains("windows");
-
     // Set to true to perform testing of attach from wrong address (expected to fail).
     // It's off by default as it caused significant test time increase\
     // (tests <number_of_addresses> * <number_of_addresses> cases, each case fails by timeout).
     private static boolean testFailedAttach = false;
 
     public static void main(String[] args) throws Exception {
-        List<InetAddress> addresses = getAddresses();
+        List<InetAddress> addresses = Utils.getAddressesWithSymbolicAndNumericScopes();
 
         boolean ipv4EnclosedTested = false;
         boolean ipv6EnclosedTested = false;
@@ -115,7 +108,7 @@ public class JdwpAttachTest {
         }
         log("  Listening port: " + port);
 
-        log("  Attaching from " + connectAddress);
+        log("  Attaching to " + connectAddress);
         try {
             ExecutorService executor = Executors.newSingleThreadExecutor();
             executor.submit((Callable<Exception>)() -> {
@@ -127,11 +120,11 @@ public class JdwpAttachTest {
 
             try {
                 LingeredApp debuggee = LingeredApp.startApp(
-                        Arrays.asList("-agentlib:jdwp=transport=dt_socket"
+                        "-agentlib:jdwp=transport=dt_socket"
                                 + ",address=" + connectAddress + ":" + port
                                 + ",server=n,suspend=n"
                                 // if failure is expected set small timeout (default is 20 sec)
-                                + (!expectedResult ? ",timeout=1000" : "")));
+                                + (!expectedResult ? ",timeout=1000" : ""));
                 debuggee.stopApp();
                 if (expectedResult) {
                     log("OK: attached as expected");
@@ -148,65 +141,6 @@ public class JdwpAttachTest {
         } finally {
             connector.stopListening(args);
         }
-    }
-
-    private static void addAddr(List<InetAddress> list, InetAddress addr) {
-        log(" - (" + addr.getClass().getSimpleName() + ") " + addr.getHostAddress());
-        list.add(addr);
-    }
-
-    private static List<InetAddress> getAddresses() {
-        List<InetAddress> result = new LinkedList<>();
-        try {
-            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
-            while (networkInterfaces.hasMoreElements()) {
-                NetworkInterface iface = networkInterfaces.nextElement();
-                try {
-                    if (iface.isUp()) {
-                        Enumeration<InetAddress> addresses = iface.getInetAddresses();
-                        while (addresses.hasMoreElements()) {
-                            InetAddress addr = addresses.nextElement();
-                            // Java reports link local addresses with symbolic scope,
-                            // but on Windows java.net.NetworkInterface generates its own scope names
-                            // which are incompatible with native Windows routines.
-                            // So on Windows test only addresses with numeric scope.
-                            // On other platforms test both symbolic and numeric scopes.
-                            if (addr instanceof Inet6Address) {
-                                Inet6Address addr6 = (Inet6Address)addr;
-                                NetworkInterface scopeIface = addr6.getScopedInterface();
-                                if (scopeIface != null && scopeIface.getName() != null) {
-                                    // On some test machines VPN creates link local addresses
-                                    // which we cannot connect to.
-                                    // Skip them.
-                                    if (scopeIface.isPointToPoint()) {
-                                        continue;
-                                    }
-
-                                    try {
-                                        // the same address with numeric scope
-                                        addAddr(result, Inet6Address.getByAddress(null, addr6.getAddress(), addr6.getScopeId()));
-                                    } catch (UnknownHostException e) {
-                                        // cannot happen!
-                                        throw new RuntimeException("Unexpected", e);
-                                    }
-
-                                    if (IsWindows) {
-                                        // don't add addresses with symbolic scope
-                                        continue;
-                                    }
-                                }
-                            }
-                            addAddr(result, addr);
-                        }
-                    }
-                } catch (SocketException e) {
-                    log("Interface " + iface.getDisplayName() + ": failed to get addresses");
-                }
-            }
-        } catch (SocketException e) {
-            log("Interface enumeration error: " + e);
-        }
-        return result;
     }
 
     private static String LISTEN_CONNECTOR = "com.sun.jdi.SocketListen";

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocFinder.Input;
 import jdk.javadoc.internal.doclets.toolkit.util.Utils;
 
 /**
- * A taglet that represents the @param tag.
+ * A taglet that represents the {@code @param} tag.
  *
  *  <p><b>This is NOT part of any supported API.
  *  If you write code that depends on this, you do so at your own risk.
@@ -50,7 +50,7 @@ import jdk.javadoc.internal.doclets.toolkit.util.Utils;
  *  deletion without notice.</b>
  */
 public class ParamTaglet extends BaseTaglet implements InheritableTaglet {
-    private enum ParamKind {
+    public enum ParamKind {
         /** Parameter of an executable element. */
         PARAMETER,
         /** State components of a record. */
@@ -126,7 +126,7 @@ public class ParamTaglet extends BaseTaglet implements InheritableTaglet {
             if (rankMap.containsKey(paramName) && rankMap.get(paramName).equals((input.tagId))) {
                 output.holder = input.element;
                 output.holderTag = tag;
-                output.inlineTags = ch.getBody(utils.configuration, tag);
+                output.inlineTags = ch.getBody(tag);
                 return;
             }
         }
@@ -298,15 +298,7 @@ public class ParamTaglet extends BaseTaglet implements InheritableTaglet {
             boolean isFirstParam) {
         Content result = writer.getOutputInstance();
         if (isFirstParam) {
-            String key;
-            switch (kind) {
-                case PARAMETER:       key = "doclet.Parameters" ; break;
-                case TYPE_PARAMETER:  key = "doclet.TypeParameters" ; break;
-                case RECORD_COMPONENT: key = "doclet.RecordComponents" ; break;
-                default: throw new IllegalArgumentException(kind.toString());
-            }
-            String header = writer.configuration().getResources().getText(key);
-            result.add(writer.getParamHeader(header));
+            result.add(writer.getParamHeader(kind));
         }
         result.add(writer.paramTagOutput(e, paramTag, name));
         return result;

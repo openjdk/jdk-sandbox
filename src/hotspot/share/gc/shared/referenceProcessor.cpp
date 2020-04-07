@@ -64,9 +64,6 @@ void ReferenceProcessor::init_statics() {
   } else {
     _default_soft_ref_policy = new LRUCurrentHeapPolicy();
   }
-  if (_always_clear_soft_ref_policy == NULL || _default_soft_ref_policy == NULL) {
-    vm_exit_during_initialization("Could not allocate reference policy object");
-  }
   guarantee(RefDiscoveryPolicy == ReferenceBasedDiscovery ||
             RefDiscoveryPolicy == ReferentBasedDiscovery,
             "Unrecognized RefDiscoveryPolicy");
@@ -785,8 +782,13 @@ void ReferenceProcessor::process_soft_ref_reconsider(BoolObjectClosure* is_alive
 
   phase_times->set_processing_is_mt(_processing_is_mt);
 
-  if (num_soft_refs == 0 || _current_soft_ref_policy == NULL) {
-    log_debug(gc, ref)("Skipped phase1 of Reference Processing due to unavailable references");
+  if (num_soft_refs == 0) {
+    log_debug(gc, ref)("Skipped phase 1 of Reference Processing: no references");
+    return;
+  }
+
+  if (_current_soft_ref_policy == NULL) {
+    log_debug(gc, ref)("Skipped phase 1 of Reference Processing: no policy");
     return;
   }
 
@@ -799,7 +801,7 @@ void ReferenceProcessor::process_soft_ref_reconsider(BoolObjectClosure* is_alive
 
   RefProcPhaseTimeTracker tt(RefPhase1, phase_times);
 
-  log_reflist("Phase1 Soft before", _discoveredSoftRefs, _max_num_queues);
+  log_reflist("Phase 1 Soft before", _discoveredSoftRefs, _max_num_queues);
   if (_processing_is_mt) {
     RefProcPhase1Task phase1(*this, phase_times, _current_soft_ref_policy);
     task_executor->execute(phase1, num_queues());
@@ -814,7 +816,7 @@ void ReferenceProcessor::process_soft_ref_reconsider(BoolObjectClosure* is_alive
 
     phase_times->add_ref_cleared(REF_SOFT, removed);
   }
-  log_reflist("Phase1 Soft after", _discoveredSoftRefs, _max_num_queues);
+  log_reflist("Phase 1 Soft after", _discoveredSoftRefs, _max_num_queues);
 }
 
 void ReferenceProcessor::process_soft_weak_final_refs(BoolObjectClosure* is_alive,
@@ -834,7 +836,7 @@ void ReferenceProcessor::process_soft_weak_final_refs(BoolObjectClosure* is_aliv
   phase_times->set_processing_is_mt(_processing_is_mt);
 
   if (num_total_refs == 0) {
-    log_debug(gc, ref)("Skipped phase2 of Reference Processing due to unavailable references");
+    log_debug(gc, ref)("Skipped phase 2 of Reference Processing: no references");
     return;
   }
 
@@ -849,9 +851,9 @@ void ReferenceProcessor::process_soft_weak_final_refs(BoolObjectClosure* is_aliv
 
   RefProcPhaseTimeTracker tt(RefPhase2, phase_times);
 
-  log_reflist("Phase2 Soft before", _discoveredSoftRefs, _max_num_queues);
-  log_reflist("Phase2 Weak before", _discoveredWeakRefs, _max_num_queues);
-  log_reflist("Phase2 Final before", _discoveredFinalRefs, _max_num_queues);
+  log_reflist("Phase 2 Soft before", _discoveredSoftRefs, _max_num_queues);
+  log_reflist("Phase 2 Weak before", _discoveredWeakRefs, _max_num_queues);
+  log_reflist("Phase 2 Final before", _discoveredFinalRefs, _max_num_queues);
   if (_processing_is_mt) {
     RefProcPhase2Task phase2(*this, phase_times);
     task_executor->execute(phase2, num_queues());
@@ -891,7 +893,7 @@ void ReferenceProcessor::process_soft_weak_final_refs(BoolObjectClosure* is_aliv
   }
   verify_total_count_zero(_discoveredSoftRefs, "SoftReference");
   verify_total_count_zero(_discoveredWeakRefs, "WeakReference");
-  log_reflist("Phase2 Final after", _discoveredFinalRefs, _max_num_queues);
+  log_reflist("Phase 2 Final after", _discoveredFinalRefs, _max_num_queues);
 }
 
 void ReferenceProcessor::process_final_keep_alive(OopClosure* keep_alive,
@@ -905,7 +907,7 @@ void ReferenceProcessor::process_final_keep_alive(OopClosure* keep_alive,
   phase_times->set_processing_is_mt(_processing_is_mt);
 
   if (num_final_refs == 0) {
-    log_debug(gc, ref)("Skipped phase3 of Reference Processing due to unavailable references");
+    log_debug(gc, ref)("Skipped phase 3 of Reference Processing: no references");
     return;
   }
 
@@ -945,7 +947,7 @@ void ReferenceProcessor::process_phantom_refs(BoolObjectClosure* is_alive,
   phase_times->set_processing_is_mt(_processing_is_mt);
 
   if (num_phantom_refs == 0) {
-    log_debug(gc, ref)("Skipped phase4 of Reference Processing due to unavailable references");
+    log_debug(gc, ref)("Skipped phase 4 of Reference Processing: no references");
     return;
   }
 
@@ -959,7 +961,7 @@ void ReferenceProcessor::process_phantom_refs(BoolObjectClosure* is_alive,
   // Phase 4: Walk phantom references appropriately.
   RefProcPhaseTimeTracker tt(RefPhase4, phase_times);
 
-  log_reflist("Phase4 Phantom before", _discoveredPhantomRefs, _max_num_queues);
+  log_reflist("Phase 4 Phantom before", _discoveredPhantomRefs, _max_num_queues);
   if (_processing_is_mt) {
     RefProcPhase4Task phase4(*this, phase_times);
     task_executor->execute(phase4, num_queues());

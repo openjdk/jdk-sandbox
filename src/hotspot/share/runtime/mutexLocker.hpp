@@ -57,7 +57,6 @@ extern Monitor* CodeCache_lock;                  // a lock on the CodeCache, ran
 extern Mutex*   MethodData_lock;                 // a lock on installation of method data
 extern Mutex*   TouchedMethodLog_lock;           // a lock on allocation of LogExecutedMethods info
 extern Mutex*   RetData_lock;                    // a lock on installation of RetData inside method data
-extern Monitor* CGCPhaseManager_lock;            // a lock to protect a concurrent GC's phase management
 extern Monitor* VMOperationQueue_lock;           // a lock on queue of vm_operations waiting to execute
 extern Monitor* VMOperationRequest_lock;         // a lock on Threads waiting for a vm_operation to terminate
 extern Monitor* Threads_lock;                    // a lock on the Threads table of active Java threads
@@ -69,8 +68,6 @@ extern Monitor* CGC_lock;                        // used for coordination betwee
 extern Monitor* STS_lock;                        // used for joining/leaving SuspendibleThreadSet.
 extern Monitor* FullGCCount_lock;                // in support of "concurrent" full gc
 extern Monitor* G1OldGCCount_lock;               // in support of "concurrent" full gc
-extern Monitor* DirtyCardQ_CBL_mon;              // Protects dirty card Q
-                                                 // completed buffer queue.
 extern Mutex*   Shared_DirtyCardQ_lock;          // Lock protecting dirty card
                                                  // queue shared by
                                                  // non-Java threads.
@@ -78,6 +75,7 @@ extern Mutex*   MarkStackFreeList_lock;          // Protects access to the globa
 extern Mutex*   MarkStackChunkList_lock;         // Protects access to the global mark stack chunk list.
 extern Mutex*   MonitoringSupport_lock;          // Protects updates to the serviceability memory pools.
 extern Mutex*   ParGCRareEvent_lock;             // Synchronizes various (rare) parallel GC ops.
+extern Monitor* ConcurrentGCBreakpoints_lock;    // Protects concurrent GC breakpoint management
 extern Mutex*   Compile_lock;                    // a lock held when Compilation is updating code (used to block CodeCache traversal, CHA updates, etc)
 extern Monitor* MethodCompileQueue_lock;         // a lock held when method compilations are enqueued, dequeued
 extern Monitor* CompileThread_lock;              // a lock held by compile threads during compilation system initialization

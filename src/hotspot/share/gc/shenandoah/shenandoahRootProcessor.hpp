@@ -31,6 +31,7 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahPhaseTimings.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
+#include "gc/shenandoah/shenandoahUtils.hpp"
 #include "memory/iterator.hpp"
 
 class ShenandoahSerialRoot {
@@ -188,6 +189,14 @@ public:
   void oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive, uint worker_id);
 };
 
+class ShenandoahConcurrentStringDedupRoots {
+public:
+  ShenandoahConcurrentStringDedupRoots();
+  ~ShenandoahConcurrentStringDedupRoots();
+
+  void oops_do(BoolObjectClosure* is_alive, OopClosure* keep_alive, uint worker_id);
+};
+
 template <typename ITR>
 class ShenandoahCodeCacheRoots {
 private:
@@ -213,9 +222,9 @@ class ShenandoahRootProcessor : public StackObj {
 private:
   ShenandoahHeap* const               _heap;
   const ShenandoahPhaseTimings::Phase _phase;
+  const ShenandoahGCWorkerPhase       _worker_phase;
 public:
   ShenandoahRootProcessor(ShenandoahPhaseTimings::Phase phase);
-  ~ShenandoahRootProcessor();
 
   ShenandoahHeap* heap() const { return _heap; }
 };
@@ -258,14 +267,13 @@ private:
                                                            _cld_roots;
   ShenandoahSerialWeakRoots                                _serial_weak_roots;
   ShenandoahWeakRoots<false /*concurrent*/>                _weak_roots;
-  ShenandoahStringDedupRoots                               _dedup_roots;
+  ShenandoahConcurrentStringDedupRoots                     _dedup_roots;
   ShenandoahCodeCacheRoots<ShenandoahAllCodeRootsIterator> _code_roots;
 
 public:
   ShenandoahHeapIterationRootScanner();
 
   void roots_do(OopClosure* cl);
-  void strong_roots_do(OopClosure* cl);
 };
 
 // Evacuate all roots at a safepoint
@@ -280,11 +288,11 @@ private:
   ShenandoahWeakRoots<false /*concurrent*/>                 _weak_roots;
   ShenandoahStringDedupRoots                                _dedup_roots;
   ShenandoahCodeCacheRoots<ShenandoahAllCodeRootsIterator>  _code_roots;
-  bool                                                      _include_concurrent_roots;
-  bool                                                      _include_concurrent_code_roots;
+  bool                                                      _stw_roots_processing;
+  bool                                                      _stw_class_unloading;
 public:
   ShenandoahRootEvacuator(uint n_workers, ShenandoahPhaseTimings::Phase phase,
-                          bool include_concurrent_roots, bool _include_concurrent_code_roots);
+                          bool stw_roots_processing, bool stw_class_unloading);
 
   void roots_do(uint worker_id, OopClosure* oops);
 };

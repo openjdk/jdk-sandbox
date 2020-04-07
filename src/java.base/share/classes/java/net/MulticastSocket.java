@@ -26,6 +26,8 @@
 package java.net;
 
 import java.io.IOException;
+import java.nio.channels.DatagramChannel;
+import java.nio.channels.MulticastChannel;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Set;
@@ -120,6 +122,13 @@ import java.util.Set;
  * </table>
  * </blockquote>
  * Additional (implementation specific) options may also be supported.
+ *
+ * @apiNote {@link DatagramChannel} implements the {@link MulticastChannel} interface
+ *          and provides an alternative API for sending and receiving multicast datagrams.
+ *          The {@link MulticastChannel} API supports both {@linkplain
+ *          MulticastChannel#join(InetAddress, NetworkInterface) any-source} and
+ *          {@linkplain MulticastChannel#join(InetAddress, NetworkInterface, InetAddress)
+ *          source-specific} multicast.
  *
  * @author Pavani Diwanji
  * @since 1.1
@@ -438,6 +447,7 @@ public class MulticastSocket extends DatagramSocket {
      * @throws IllegalArgumentException if mcastaddr is {@code null} or is a
      *         SocketAddress subclass not supported by this socket
      * @see    SecurityManager#checkMulticast(InetAddress)
+     * @see    DatagramChannel#join(InetAddress, NetworkInterface)
      * @since  1.4
      */
     public void joinGroup(SocketAddress mcastaddr, NetworkInterface netIf)
@@ -648,7 +658,7 @@ public class MulticastSocket extends DatagramSocket {
     }
 
     /**
-     * Disable/Enable local loopback of multicast datagrams
+     * Disable/Enable local loopback of multicast datagrams.
      * The option is used by the platform's networking code as a hint
      * for setting whether multicast data will be looped back to
      * the local socket.
@@ -798,24 +808,4 @@ public class MulticastSocket extends DatagramSocket {
                 } // synch p
             }  //synch ttl
     } //method
-
-    private static Set<SocketOption<?>> options;
-    private static boolean optionsSet = false;
-
-    @Override
-    public Set<SocketOption<?>> supportedOptions() {
-        synchronized (MulticastSocket.class) {
-            if (optionsSet) {
-                return options;
-            }
-            try {
-                DatagramSocketImpl impl = getImpl();
-                options = Collections.unmodifiableSet(impl.supportedOptions());
-            } catch (SocketException ex) {
-                options = Collections.emptySet();
-            }
-            optionsSet = true;
-            return options;
-        }
-    }
 }

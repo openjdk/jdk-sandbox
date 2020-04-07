@@ -70,6 +70,8 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final boolean enableContended = getFlag("EnableContended", Boolean.class);
     public final boolean restrictContended = getFlag("RestrictContended", Boolean.class);
     public final int contendedPaddingWidth = getFlag("ContendedPaddingWidth", Integer.class);
+    public final int fieldsAllocationStyle = versioned.fieldsAllocationStyle;
+    public final boolean compactFields = versioned.compactFields;
     public final boolean verifyOops = getFlag("VerifyOops", Boolean.class);
     public final boolean ciTime = getFlag("CITime", Boolean.class);
     public final boolean ciTimeEach = getFlag("CITimeEach", Boolean.class);
@@ -108,6 +110,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     private final boolean useSquareToLenIntrinsic = getFlag("UseSquareToLenIntrinsic", Boolean.class, false);
     public final boolean useVectorizedMismatchIntrinsic = getFlag("UseVectorizedMismatchIntrinsic", Boolean.class, false);
     public final boolean useFMAIntrinsics = getFlag("UseFMA", Boolean.class, false);
+    public final int useAVX3Threshold = getFlag("AVX3Threshold", Integer.class, 4096);
 
     public final boolean preserveFramePointer = getFlag("PreserveFramePointer", Boolean.class, false);
 
@@ -519,7 +522,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
 
     public final int logOfHRGrainBytes = getFieldValue("HeapRegion::LogOfHRGrainBytes", Integer.class, "int");
 
-    public final long cardtableStartAddress = getFieldValue("CompilerToVM::Data::cardtable_start_address", Long.class, "jbyte*");
+    public final long cardtableStartAddress = getFieldValue("CompilerToVM::Data::cardtable_start_address", Long.class, "CardTable::CardValue*");
     public final int cardtableShift = getFieldValue("CompilerToVM::Data::cardtable_shift", Integer.class, "int");
 
     /**
@@ -547,7 +550,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int basicLockSize = getFieldValue("CompilerToVM::Data::sizeof_BasicLock", Integer.class, "int");
     public final int basicLockDisplacedHeaderOffset = getFieldOffset("BasicLock::_displaced_header", Integer.class, markWord);
 
-    public final int threadPollingPageOffset = getFieldOffset("Thread::_polling_page", Integer.class, "address", -1);
+    public final int threadPollingPageOffset = getFieldOffset("Thread::_polling_page", Integer.class, "volatile void*", -1);
     public final int threadAllocatedBytesOffset = getFieldOffset("Thread::_allocated_bytes", Integer.class, "jlong");
 
     public final int tlabRefillWasteIncrement = getFlag("TLABWasteIncrement", Integer.class);
@@ -618,8 +621,9 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final long inlineCacheMissStub = getFieldValue("CompilerToVM::Data::SharedRuntime_ic_miss_stub", Long.class, "address");
     public final long handleWrongMethodStub = getFieldValue("CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub", Long.class, "address");
 
-    public final long handleDeoptStub = getFieldValue("CompilerToVM::Data::SharedRuntime_deopt_blob_unpack", Long.class, "address");
-    public final long uncommonTrapStub = getFieldValue("CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap", Long.class, "address");
+    public final long deoptBlobUnpack = getFieldValue("CompilerToVM::Data::SharedRuntime_deopt_blob_unpack", Long.class, "address");
+    public final long deoptBlobUnpackWithExceptionInTLS = getFieldValue("CompilerToVM::Data::SharedRuntime_deopt_blob_unpack_with_exception_in_tls", Long.class, "address", 0L);
+    public final long deoptBlobUncommonTrap = getFieldValue("CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap", Long.class, "address");
 
     public final long codeCacheLowBound = versioned.codeCacheLowBound;
     public final long codeCacheHighBound = versioned.codeCacheHighBound;
@@ -772,6 +776,8 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigBase {
     public final int deoptimizationUnrollBlockFrameSizesOffset = getFieldOffset("Deoptimization::UnrollBlock::_frame_sizes", Integer.class, "intptr_t*");
     public final int deoptimizationUnrollBlockFramePcsOffset = getFieldOffset("Deoptimization::UnrollBlock::_frame_pcs", Integer.class, "address*");
     public final int deoptimizationUnrollBlockInitialInfoOffset = getFieldOffset("Deoptimization::UnrollBlock::_initial_info", Integer.class, "intptr_t");
+
+    public final boolean deoptimizationSupportLargeAccessByteArrayVirtualization = getConstant("Deoptimization::_support_large_access_byte_array_virtualization", Boolean.class, false);
 
     // Checkstyle: stop
     public final int MARKID_VERIFIED_ENTRY = getConstant("CodeInstaller::VERIFIED_ENTRY", Integer.class);

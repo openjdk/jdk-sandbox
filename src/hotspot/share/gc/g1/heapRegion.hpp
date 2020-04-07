@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -323,7 +323,7 @@ public:
   // CardsPerRegion). All those fields are considered constant
   // throughout the JVM's execution, therefore they should only be set
   // up once during initialization time.
-  static void setup_heap_region_size(size_t initial_heap_size, size_t max_heap_size);
+  static void setup_heap_region_size(size_t max_heap_size);
 
   // The number of bytes marked live in the region in the last marking phase.
   size_t marked_bytes()    { return _prev_marked_bytes; }
@@ -554,10 +554,10 @@ public:
   // mark performed by the collector. This returns true iff the object
   // is within the unmarked area of the region.
   bool obj_allocated_since_prev_marking(oop obj) const {
-    return (HeapWord *) obj >= prev_top_at_mark_start();
+    return cast_from_oop<HeapWord*>(obj) >= prev_top_at_mark_start();
   }
   bool obj_allocated_since_next_marking(oop obj) const {
-    return (HeapWord *) obj >= next_top_at_mark_start();
+    return cast_from_oop<HeapWord*>(obj) >= next_top_at_mark_start();
   }
 
   // Update the region state after a failed evacuation.

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -69,12 +69,17 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
       LIBJSIG_HASHSTYLE_LDFLAGS="-Wl,--hash-style=both"
     fi
 
-    # Add -z defs, to forbid undefined symbols in object files.
-    # add relro (mark relocations read only) for all libs
-    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs -Wl,-z,relro"
-    # s390x : remove unused code+data in link step
-    if test "x$OPENJDK_TARGET_CPU" = xs390x; then
-      BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,--gc-sections -Wl,--print-gc-sections"
+    # Add -z,defs, to forbid undefined symbols in object files.
+    # add -z,relro (mark relocations read only) for all libs
+    # add -z,now ("full relro" - more of the Global Offset Table GOT is marked read only)
+    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs -Wl,-z,relro -Wl,-z,now"
+    # Linux : remove unused code+data in link step
+    if test "x$ENABLE_LINKTIME_GC" = xtrue; then
+      if test "x$OPENJDK_TARGET_CPU" = xs390x; then
+        BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,--gc-sections -Wl,--print-gc-sections"
+      else
+        BASIC_LDFLAGS_JDK_ONLY="$BASIC_LDFLAGS_JDK_ONLY -Wl,--gc-sections"
+      fi
     fi
 
     BASIC_LDFLAGS_JVM_ONLY="-Wl,-O1"
@@ -124,10 +129,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     if test "x$OPENJDK_TARGET_OS" = xlinux; then
       if test x$DEBUG_LEVEL = xrelease; then
         DEBUGLEVEL_LDFLAGS_JDK_ONLY="$DEBUGLEVEL_LDFLAGS_JDK_ONLY -Wl,-O1"
-      fi
-      if test x$DEBUG_LEVEL = xslowdebug; then
-        # do relocations at load
-        DEBUGLEVEL_LDFLAGS="-Wl,-z,now"
       fi
     fi
 

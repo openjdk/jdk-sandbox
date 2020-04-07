@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
+#include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/workerPolicy.hpp"
@@ -209,7 +210,7 @@ G1CMMarkStack::TaskQueueEntryChunk* G1CMMarkStack::allocate_new_chunk() {
     return NULL;
   }
 
-  size_t cur_idx = Atomic::add(&_hwm, 1u) - 1;
+  size_t cur_idx = Atomic::fetch_and_add(&_hwm, 1u);
   if (cur_idx >= _chunk_capacity) {
     return NULL;
   }
@@ -260,20 +261,15 @@ void G1CMMarkStack::set_empty() {
 }
 
 G1CMRootMemRegions::G1CMRootMemRegions(uint const max_regions) :
-    _root_regions(NULL),
+    _root_regions(MemRegion::create_array(max_regions, mtGC)),
     _max_regions(max_regions),
     _num_root_regions(0),
     _claimed_root_regions(0),
     _scan_in_progress(false),
-    _should_abort(false) {
-  _root_regions = new MemRegion[_max_regions];
-  if (_root_regions == NULL) {
-    vm_exit_during_initialization("Could not allocate root MemRegion set.");
-  }
-}
+    _should_abort(false) { }
 
 G1CMRootMemRegions::~G1CMRootMemRegions() {
-  delete[] _root_regions;
+  MemRegion::destroy_array(_root_regions, _max_regions);
 }
 
 void G1CMRootMemRegions::reset() {
@@ -282,7 +278,7 @@ void G1CMRootMemRegions::reset() {
 
 void G1CMRootMemRegions::add(HeapWord* start, HeapWord* end) {
   assert_at_safepoint();
-  size_t idx = Atomic::add(&_num_root_regions, (size_t)1) - 1;
+  size_t idx = Atomic::fetch_and_add(&_num_root_regions, 1u);
   assert(idx < _max_regions, "Trying to add more root MemRegions than there is space " SIZE_FORMAT, _max_regions);
   assert(start != NULL && end != NULL && start <= end, "Start (" PTR_FORMAT ") should be less or equal to "
          "end (" PTR_FORMAT ")", p2i(start), p2i(end));
@@ -310,7 +306,7 @@ const MemRegion* G1CMRootMemRegions::claim_next() {
     return NULL;
   }
 
-  size_t claimed_index = Atomic::add(&_claimed_root_regions, (size_t)1) - 1;
+  size_t claimed_index = Atomic::fetch_and_add(&_claimed_root_regions, 1u);
   if (claimed_index < _num_root_regions) {
     return &_root_regions[claimed_index];
   }
@@ -357,19 +353,11 @@ bool G1CMRootMemRegions::wait_until_scan_finished() {
   return true;
 }
 
-// Returns the maximum number of workers to be used in a concurrent
-// phase based on the number of GC workers being used in a STW
-// phase.
-static uint scale_concurrent_worker_threads(uint num_gc_workers) {
-  return MAX2((num_gc_workers + 2) / 4, 1U);
-}
-
 G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
                                    G1RegionToSpaceMapper* prev_bitmap_storage,
                                    G1RegionToSpaceMapper* next_bitmap_storage) :
   // _cm_thread set inside the constructor
   _g1h(g1h),
-  _completed_initialization(false),
 
   _mark_bitmap_1(),
   _mark_bitmap_2(),
@@ -420,6 +408,8 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
   _region_mark_stats(NEW_C_HEAP_ARRAY(G1RegionMarkStats, _g1h->max_regions(), mtGC)),
   _top_at_rebuild_starts(NEW_C_HEAP_ARRAY(HeapWord*, _g1h->max_regions(), mtGC))
 {
+  assert(CGC_lock != NULL, "CGC_lock must be initialized");
+
   _mark_bitmap_1.initialize(g1h->reserved_region(), prev_bitmap_storage);
   _mark_bitmap_2.initialize(g1h->reserved_region(), next_bitmap_storage);
 
@@ -427,22 +417,6 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
   _cm_thread = new G1ConcurrentMarkThread(this);
   if (_cm_thread->osthread() == NULL) {
     vm_shutdown_during_initialization("Could not create ConcurrentMarkThread");
-  }
-
-  assert(CGC_lock != NULL, "CGC_lock must be initialized");
-
-  if (FLAG_IS_DEFAULT(ConcGCThreads) || ConcGCThreads == 0) {
-    // Calculate the number of concurrent worker threads by scaling
-    // the number of parallel GC threads.
-    uint marking_thread_num = scale_concurrent_worker_threads(ParallelGCThreads);
-    FLAG_SET_ERGO(ConcGCThreads, marking_thread_num);
-  }
-
-  assert(ConcGCThreads > 0, "ConcGCThreads have been set.");
-  if (ConcGCThreads > ParallelGCThreads) {
-    log_warning(gc)("More ConcGCThreads (%u) than ParallelGCThreads (%u).",
-                    ConcGCThreads, ParallelGCThreads);
-    return;
   }
 
   log_debug(gc)("ConcGCThreads: %u offset %u", ConcGCThreads, _worker_id_offset);
@@ -453,40 +427,6 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
 
   _concurrent_workers = new WorkGang("G1 Conc", _max_concurrent_workers, false, true);
   _concurrent_workers->initialize_workers();
-
-  if (FLAG_IS_DEFAULT(MarkStackSize)) {
-    size_t mark_stack_size =
-      MIN2(MarkStackSizeMax,
-          MAX2(MarkStackSize, (size_t) (_max_concurrent_workers * TASKQUEUE_SIZE)));
-    // Verify that the calculated value for MarkStackSize is in range.
-    // It would be nice to use the private utility routine from Arguments.
-    if (!(mark_stack_size >= 1 && mark_stack_size <= MarkStackSizeMax)) {
-      log_warning(gc)("Invalid value calculated for MarkStackSize (" SIZE_FORMAT "): "
-                      "must be between 1 and " SIZE_FORMAT,
-                      mark_stack_size, MarkStackSizeMax);
-      return;
-    }
-    FLAG_SET_ERGO(MarkStackSize, mark_stack_size);
-  } else {
-    // Verify MarkStackSize is in range.
-    if (FLAG_IS_CMDLINE(MarkStackSize)) {
-      if (FLAG_IS_DEFAULT(MarkStackSizeMax)) {
-        if (!(MarkStackSize >= 1 && MarkStackSize <= MarkStackSizeMax)) {
-          log_warning(gc)("Invalid value specified for MarkStackSize (" SIZE_FORMAT "): "
-                          "must be between 1 and " SIZE_FORMAT,
-                          MarkStackSize, MarkStackSizeMax);
-          return;
-        }
-      } else if (FLAG_IS_CMDLINE(MarkStackSizeMax)) {
-        if (!(MarkStackSize >= 1 && MarkStackSize <= MarkStackSizeMax)) {
-          log_warning(gc)("Invalid value specified for MarkStackSize (" SIZE_FORMAT ")"
-                          " or for MarkStackSizeMax (" SIZE_FORMAT ")",
-                          MarkStackSize, MarkStackSizeMax);
-          return;
-        }
-      }
-    }
-  }
 
   if (!_global_mark_stack.initialize(MarkStackSize, MarkStackSizeMax)) {
     vm_exit_during_initialization("Failed to allocate initial concurrent mark overflow mark stack.");
@@ -509,7 +449,6 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
   }
 
   reset_at_marking_complete();
-  _completed_initialization = true;
 }
 
 void G1ConcurrentMark::reset() {
@@ -600,7 +539,7 @@ void G1ConcurrentMark::set_concurrency(uint active_tasks) {
   _num_active_tasks = active_tasks;
   // Need to update the three data structures below according to the
   // number of active threads for this phase.
-  _terminator.terminator()->reset_for_reuse((int) active_tasks);
+  _terminator.reset_for_reuse(active_tasks);
   _first_overflow_barrier_sync.set_n_workers((int) active_tasks);
   _second_overflow_barrier_sync.set_n_workers((int) active_tasks);
 }
@@ -866,9 +805,7 @@ public:
 
 uint G1ConcurrentMark::calc_active_marking_workers() {
   uint result = 0;
-  if (!UseDynamicNumberOfGCThreads ||
-      (!FLAG_IS_DEFAULT(ConcGCThreads) &&
-       !ForceDynamicNumberOfGCThreads)) {
+  if (!UseDynamicNumberOfGCThreads || !FLAG_IS_DEFAULT(ConcGCThreads)) {
     result = _max_concurrent_workers;
   } else {
     result =
@@ -1728,9 +1665,8 @@ public:
   G1ObjectCountIsAliveClosure(G1CollectedHeap* g1h) : _g1h(g1h) { }
 
   bool do_object_b(oop obj) {
-    HeapWord* addr = (HeapWord*)obj;
-    return addr != NULL &&
-           (!_g1h->is_in_g1_reserved(addr) || !_g1h->is_obj_dead(obj));
+    return obj != NULL &&
+           (!_g1h->is_in_g1_reserved(obj) || !_g1h->is_obj_dead(obj));
   }
 };
 

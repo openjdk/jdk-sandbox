@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -65,7 +65,6 @@
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
   template(java_lang_Throwable,                       "java/lang/Throwable")                      \
   template(java_lang_ClassLoader,                     "java/lang/ClassLoader")                    \
-  template(java_lang_ClassLoader_NativeLibrary,       "java/lang/ClassLoader\x024NativeLibrary")  \
   template(java_lang_ThreadDeath,                     "java/lang/ThreadDeath")                    \
   template(java_lang_Boolean,                         "java/lang/Boolean")                        \
   template(java_lang_Character,                       "java/lang/Character")                      \
@@ -130,6 +129,7 @@
   template(java_util_Iterator,                        "java/util/Iterator")                       \
   template(java_lang_Record,                          "java/lang/Record")                       \
                                                                                                   \
+  template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
                                                                                                   \
@@ -1566,8 +1566,6 @@ class vmSymbols: AllStatic {
     assert(_type_signatures[t] != NULL, "domain check");
     return _type_signatures[t];
   }
-  // inverse of type_signature; returns T_OBJECT if s is not recognized
-  static BasicType signature_type(const Symbol* s);
 
   static Symbol* symbol_at(SID id) {
     assert(id >= FIRST_SID && id < SID_LIMIT, "oob");

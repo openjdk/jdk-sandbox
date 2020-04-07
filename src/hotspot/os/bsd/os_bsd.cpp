@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -634,19 +634,6 @@ extern "C" objc_registerThreadWithCollector_t objc_registerThreadWithCollectorFu
 objc_registerThreadWithCollector_t objc_registerThreadWithCollectorFunction = NULL;
 #endif
 
-#ifdef __APPLE__
-static uint64_t locate_unique_thread_id(mach_port_t mach_thread_port) {
-  // Additional thread_id used to correlate threads in SA
-  thread_identifier_info_data_t     m_ident_info;
-  mach_msg_type_number_t            count = THREAD_IDENTIFIER_INFO_COUNT;
-
-  thread_info(mach_thread_port, THREAD_IDENTIFIER_INFO,
-              (thread_info_t) &m_ident_info, &count);
-
-  return m_ident_info.thread_id;
-}
-#endif
-
 // Thread start routine for all newly created threads
 static void *thread_native_entry(Thread *thread) {
 
@@ -672,10 +659,10 @@ static void *thread_native_entry(Thread *thread) {
     os::current_thread_id(), (uintx) pthread_self());
 
 #ifdef __APPLE__
-  uint64_t unique_thread_id = locate_unique_thread_id(osthread->thread_id());
-  guarantee(unique_thread_id != 0, "unique thread id was not found");
-  osthread->set_unique_thread_id(unique_thread_id);
+  // Store unique OS X thread id used by SA
+  osthread->set_unique_thread_id();
 #endif
+
   // initialize signal mask for this thread
   os::Bsd::hotspot_sigmask(thread);
 
@@ -823,12 +810,12 @@ bool os::create_attached_thread(JavaThread* thread) {
 
   osthread->set_thread_id(os::Bsd::gettid());
 
-  // Store pthread info into the OSThread
 #ifdef __APPLE__
-  uint64_t unique_thread_id = locate_unique_thread_id(osthread->thread_id());
-  guarantee(unique_thread_id != 0, "just checking");
-  osthread->set_unique_thread_id(unique_thread_id);
+  // Store unique OS X thread id used by SA
+  osthread->set_unique_thread_id();
 #endif
+
+  // Store pthread info into the OSThread
   osthread->set_pthread_id(::pthread_self());
 
   // initialize floating point control register
@@ -1100,12 +1087,11 @@ void os::die() {
 pid_t os::Bsd::gettid() {
   int retval = -1;
 
-#ifdef __APPLE__ //XNU kernel
-  // despite the fact mach port is actually not a thread id use it
-  // instead of syscall(SYS_thread_selfid) as it certainly fits to u4
-  retval = ::pthread_mach_thread_np(::pthread_self());
-  guarantee(retval != 0, "just checking");
-  return retval;
+#ifdef __APPLE__ // XNU kernel
+  mach_port_t port = mach_thread_self();
+  guarantee(MACH_PORT_VALID(port), "just checking");
+  mach_port_deallocate(mach_task_self(), port);
+  return (pid_t)port;
 
 #else
   #ifdef __FreeBSD__
@@ -1128,7 +1114,7 @@ pid_t os::Bsd::gettid() {
 
 intx os::current_thread_id() {
 #ifdef __APPLE__
-  return (intx)::pthread_mach_thread_np(::pthread_self());
+  return (intx)os::Bsd::gettid();
 #else
   return (intx)::pthread_self();
 #endif
@@ -1590,6 +1576,8 @@ void os::print_os_info(outputStream* st) {
   os::Posix::print_rlimit_info(st);
 
   os::Posix::print_load_average(st);
+
+  VM_Version::print_platform_virtualization_info(st);
 }
 
 void os::pd_print_cpu_info(outputStream* st, char* buf, size_t buflen) {
@@ -2147,12 +2135,12 @@ void os::large_page_init() {
 }
 
 
-char* os::reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
+char* os::pd_reserve_memory_special(size_t bytes, size_t alignment, char* req_addr, bool exec) {
   fatal("os::reserve_memory_special should not be called on BSD.");
   return NULL;
 }
 
-bool os::release_memory_special(char* base, size_t bytes) {
+bool os::pd_release_memory_special(char* base, size_t bytes) {
   fatal("os::release_memory_special should not be called on BSD.");
   return false;
 }
@@ -2291,7 +2279,7 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
     if (geteuid() != 0) {
-      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
+      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy) && !FLAG_IS_JIMAGE_RESOURCE(ThreadPriorityPolicy)) {
         warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
                 "e.g., being the root user. If the necessary permission is not " \
                 "possessed, changes to priority will be silently ignored.");
@@ -3193,20 +3181,6 @@ jint os::init_2(void) {
 #endif
 
   return JNI_OK;
-}
-
-// Mark the polling page as unreadable
-void os::make_polling_page_unreadable(void) {
-  if (!guard_memory((char*)_polling_page, Bsd::page_size())) {
-    fatal("Could not disable polling page");
-  }
-}
-
-// Mark the polling page as readable
-void os::make_polling_page_readable(void) {
-  if (!bsd_mprotect((char *)_polling_page, Bsd::page_size(), PROT_READ)) {
-    fatal("Could not enable polling page");
-  }
 }
 
 int os::active_processor_count() {

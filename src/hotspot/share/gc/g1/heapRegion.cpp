@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 int    HeapRegion::LogOfHRGrainBytes = 0;
 int    HeapRegion::LogOfHRGrainWords = 0;
@@ -59,29 +60,23 @@ size_t HeapRegion::min_region_size_in_words() {
   return HeapRegionBounds::min_size() >> LogHeapWordSize;
 }
 
-void HeapRegion::setup_heap_region_size(size_t initial_heap_size, size_t max_heap_size) {
+void HeapRegion::setup_heap_region_size(size_t max_heap_size) {
   size_t region_size = G1HeapRegionSize;
-  if (FLAG_IS_DEFAULT(G1HeapRegionSize)) {
-    size_t average_heap_size = (initial_heap_size + max_heap_size) / 2;
-    region_size = MAX2(average_heap_size / HeapRegionBounds::target_number(),
+  // G1HeapRegionSize = 0 means decide ergonomically.
+  if (region_size == 0) {
+    region_size = MAX2(max_heap_size / HeapRegionBounds::target_number(),
                        HeapRegionBounds::min_size());
   }
 
-  int region_size_log = log2_long((jlong) region_size);
-  // Recalculate the region size to make sure it's a power of
-  // 2. This means that region_size is the largest power of 2 that's
-  // <= what we've calculated so far.
-  region_size = ((size_t)1 << region_size_log);
+  // Make sure region size is a power of 2. Rounding up since this
+  // is beneficial in most cases.
+  region_size = round_up_power_of_2(region_size);
 
   // Now make sure that we don't go over or under our limits.
-  if (region_size < HeapRegionBounds::min_size()) {
-    region_size = HeapRegionBounds::min_size();
-  } else if (region_size > HeapRegionBounds::max_size()) {
-    region_size = HeapRegionBounds::max_size();
-  }
+  region_size = clamp(region_size, HeapRegionBounds::min_size(), HeapRegionBounds::max_size());
 
-  // And recalculate the log.
-  region_size_log = log2_long((jlong) region_size);
+  // Calculate the log for the region size.
+  int region_size_log = exact_log2_long((jlong)region_size);
 
   // Now, set up the globals.
   guarantee(LogOfHRGrainBytes == 0, "we should only set it once");
@@ -357,7 +352,7 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
       // current region. We only look at those which are.
       if (_hr->is_in(obj)) {
         // Object is in the region. Check that its less than top
-        if (_hr->top() <= (HeapWord*)obj) {
+        if (_hr->top() <= cast_from_oop<HeapWord*>(obj)) {
           // Object is above top
           log_error(gc, verify)("Object " PTR_FORMAT " in region " HR_FORMAT " is above top ",
                                 p2i(obj), HR_FORMAT_PARAMS(_hr));
@@ -566,7 +561,7 @@ public:
                     p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
         } else {
           HeapRegion* from = _g1h->heap_region_containing((HeapWord*)p);
-          HeapRegion* to = _g1h->heap_region_containing((HeapWord*)obj);
+          HeapRegion* to = _g1h->heap_region_containing(obj);
           log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region " HR_FORMAT,
                     p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
           LogStream ls(log.error());
@@ -737,7 +732,7 @@ void HeapRegion::verify(VerifyOption vo,
 
   if (is_region_humongous) {
     oop obj = oop(this->humongous_start_region()->bottom());
-    if ((HeapWord*)obj > bottom() || (HeapWord*)obj + obj->size() < bottom()) {
+    if (cast_from_oop<HeapWord*>(obj) > bottom() || cast_from_oop<HeapWord*>(obj) + obj->size() < bottom()) {
       log_error(gc, verify)("this humongous region is not part of its' humongous object " PTR_FORMAT, p2i(obj));
       *failures = true;
       return;

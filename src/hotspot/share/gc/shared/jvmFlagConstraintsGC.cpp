@@ -36,6 +36,7 @@
 #include "runtime/thread.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/jvmFlagConstraintsG1.hpp"
 #endif
@@ -171,6 +172,7 @@ JVMFlag::Error SoftRefLRUPolicyMSPerMBConstraintFunc(intx value, bool verbose) {
 }
 
 JVMFlag::Error MarkStackSizeConstraintFunc(size_t value, bool verbose) {
+  // value == 0 is handled by the range constraint.
   if (value > MarkStackSizeMax) {
     JVMFlag::printError(verbose,
                         "MarkStackSize (" SIZE_FORMAT ") must be "

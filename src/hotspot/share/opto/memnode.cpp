@@ -48,6 +48,7 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "utilities/vmError.hpp"
 
 // Portions of code courtesy of Clifford Click
@@ -537,8 +538,7 @@ Node* LoadNode::find_previous_arraycopy(PhaseTransform* phase, Node* ld_alloc, N
         mb->in(0)->in(0) != NULL && mb->in(0)->in(0)->is_ArrayCopy()) {
       ArrayCopyNode* ac = mb->in(0)->in(0)->as_ArrayCopy();
       if (ac->is_clonebasic()) {
-        intptr_t offset;
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase, offset);
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(ac->in(ArrayCopyNode::Dest), phase);
         if (alloc != NULL && alloc == ld_alloc) {
           return ac;
         }
@@ -945,12 +945,11 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
     if (ac->as_ArrayCopy()->is_clonebasic()) {
       assert(ld_alloc != NULL, "need an alloc");
       assert(addp->is_AddP(), "address must be addp");
-      assert(ac->in(ArrayCopyNode::Dest)->is_AddP(), "dest must be an address");
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Base)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)->in(AddPNode::Base)), "strange pattern");
-      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Address)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)->in(AddPNode::Address)), "strange pattern");
-      addp->set_req(AddPNode::Base, src->in(AddPNode::Base));
-      addp->set_req(AddPNode::Address, src->in(AddPNode::Address));
+      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Base)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)), "strange pattern");
+      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Address)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)), "strange pattern");
+      addp->set_req(AddPNode::Base, src);
+      addp->set_req(AddPNode::Address, src);
     } else {
       assert(ac->as_ArrayCopy()->is_arraycopy_validated() ||
              ac->as_ArrayCopy()->is_copyof_validated() ||
@@ -1483,14 +1482,20 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
   for (uint i = 1; i < region->req(); i++) {
     Node* x;
     Node* the_clone = NULL;
-    if (region->in(i) == C->top()) {
+    Node* in = region->in(i);
+    if (region->is_CountedLoop() && region->as_Loop()->is_strip_mined() && i == LoopNode::EntryControl &&
+        in != NULL && in->is_OuterStripMinedLoop()) {
+      // No node should go in the outer strip mined loop
+      in = in->in(LoopNode::EntryControl);
+    }
+    if (in == NULL || in == C->top()) {
       x = C->top();      // Dead path?  Use a dead data op
     } else {
       x = this->clone();        // Else clone up the data op
       the_clone = x;            // Remember for possible deletion.
       // Alter data node to use pre-phi inputs
       if (this->in(0) == region) {
-        x->set_req(0, region->in(i));
+        x->set_req(0, in);
       } else {
         x->set_req(0, NULL);
       }

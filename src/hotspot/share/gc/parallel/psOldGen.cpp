@@ -135,10 +135,6 @@ void PSOldGen::initialize_work(const char* perf_data_name, int level) {
   //
 
   _object_space = new MutableSpace(virtual_space()->alignment());
-
-  if (_object_space == NULL)
-    vm_exit_during_initialization("Could not allocate an old gen space");
-
   object_space()->initialize(cmr,
                              SpaceDecorator::Clear,
                              SpaceDecorator::Mangle);
@@ -445,9 +441,9 @@ class VerifyObjectStartArrayClosure : public ObjectClosure {
     _old_gen(old_gen), _start_array(start_array) { }
 
   virtual void do_object(oop obj) {
-    HeapWord* test_addr = (HeapWord*)obj + 1;
-    guarantee(_start_array->object_start(test_addr) == (HeapWord*)obj, "ObjectStartArray cannot find start of object");
-    guarantee(_start_array->is_block_allocated((HeapWord*)obj), "ObjectStartArray missing block allocation");
+    HeapWord* test_addr = cast_from_oop<HeapWord*>(obj) + 1;
+    guarantee(_start_array->object_start(test_addr) == cast_from_oop<HeapWord*>(obj), "ObjectStartArray cannot find start of object");
+    guarantee(_start_array->is_block_allocated(cast_from_oop<HeapWord*>(obj)), "ObjectStartArray missing block allocation");
   }
 };
 

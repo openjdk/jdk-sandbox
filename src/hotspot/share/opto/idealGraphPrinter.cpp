@@ -584,12 +584,8 @@ void IdealGraphPrinter::visit_node(Node *n, bool edges, VectorSet* temp_set) {
 
 #ifdef ASSERT
     if (node->debug_orig() != NULL) {
-      temp_set->clear();
       stringStream dorigStream;
-      Node* dorig = node->debug_orig();
-      while (dorig && temp_set->test_set(dorig->_idx)) {
-        dorigStream.print("%d ", dorig->_idx);
-      }
+      node->dump_orig(&dorigStream, false);
       print_prop("debug_orig", dorigStream.as_string());
     }
 #endif
@@ -664,7 +660,7 @@ void IdealGraphPrinter::print_method(const char *name, int level) {
 // Print current ideal graph
 void IdealGraphPrinter::print(const char *name, Node *node) {
 
-  if (!_current_method || !_should_send_method) return;
+  if (!_current_method || !_should_send_method || node == NULL) return;
 
   // Warning, unsafe cast?
   _chaitin = (PhaseChaitin *)C->regalloc();

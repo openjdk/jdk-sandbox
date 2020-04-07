@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2015, 2020, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,10 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+inline ShenandoahHeap* ShenandoahHeap::heap() {
+  assert(_heap != NULL, "Heap is not initialized yet");
+  return _heap;
+}
 
 inline ShenandoahHeapRegion* ShenandoahRegionIterator::next() {
   size_t new_index = Atomic::add(&_index, (size_t) 1);
@@ -283,7 +287,7 @@ inline oop ShenandoahHeap::evacuate_object(oop p, Thread* thread) {
   }
 
   // Copy the object:
-  Copy::aligned_disjoint_words((HeapWord*) p, copy, size);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, size);
 
   // Try to install the new forwarding pointer.
   oop copy_val = oop(copy);
@@ -324,13 +328,14 @@ inline bool ShenandoahHeap::requires_marking(const void* entry) const {
   return !_marking_context->is_marked(obj);
 }
 
-template <class T>
-inline bool ShenandoahHeap::in_collection_set(T p) const {
-  HeapWord* obj = (HeapWord*) p;
+inline bool ShenandoahHeap::in_collection_set(oop p) const {
   assert(collection_set() != NULL, "Sanity");
-  assert(is_in(obj), "should be in heap");
+  return collection_set()->is_in(p);
+}
 
-  return collection_set()->is_in(obj);
+inline bool ShenandoahHeap::in_collection_set_loc(void* p) const {
+  assert(collection_set() != NULL, "Sanity");
+  return collection_set()->is_in_loc(p);
 }
 
 inline bool ShenandoahHeap::is_stable() const {
@@ -338,15 +343,11 @@ inline bool ShenandoahHeap::is_stable() const {
 }
 
 inline bool ShenandoahHeap::is_idle() const {
-  return _gc_state.is_unset(MARKING | EVACUATION | UPDATEREFS | TRAVERSAL);
+  return _gc_state.is_unset(MARKING | EVACUATION | UPDATEREFS);
 }
 
 inline bool ShenandoahHeap::is_concurrent_mark_in_progress() const {
   return _gc_state.is_set(MARKING);
-}
-
-inline bool ShenandoahHeap::is_concurrent_traversal_in_progress() const {
-  return _gc_state.is_set(TRAVERSAL);
 }
 
 inline bool ShenandoahHeap::is_evacuation_in_progress() const {

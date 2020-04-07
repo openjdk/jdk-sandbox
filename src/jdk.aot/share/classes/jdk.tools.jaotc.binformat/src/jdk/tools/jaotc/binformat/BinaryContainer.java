@@ -36,15 +36,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
+import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
+import org.graalvm.compiler.options.OptionValues;
+import org.graalvm.compiler.serviceprovider.JavaVersionUtil;
+
 import jdk.tools.jaotc.binformat.Symbol.Binding;
 import jdk.tools.jaotc.binformat.Symbol.Kind;
 import jdk.tools.jaotc.binformat.elf.JELFRelocObject;
 import jdk.tools.jaotc.binformat.macho.JMachORelocObject;
 import jdk.tools.jaotc.binformat.pecoff.JPECoffRelocObject;
-import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
-import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
-import org.graalvm.compiler.options.OptionValues;
-import org.graalvm.compiler.serviceprovider.JavaVersionUtil;
 
 /**
  * A format-agnostic container class that holds various components of a binary.
@@ -145,6 +146,7 @@ public final class BinaryContainer implements SymbolTable {
     private static final String[][] map = {
         {"CompilerToVM::Data::SharedRuntime_deopt_blob_unpack",         "_aot_deopt_blob_unpack"},
         {"CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap",  "_aot_deopt_blob_uncommon_trap"},
+        {"CompilerToVM::Data::SharedRuntime_deopt_blob_unpack_with_exception_in_tls",  "_aot_deopt_blob_unpack_with_exception_in_tls"},
         {"CompilerToVM::Data::SharedRuntime_ic_miss_stub",              "_aot_ic_miss_stub"},
         {"CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub",  "_aot_handle_wrong_method_stub"},
         {"SharedRuntime::exception_handler_for_return_address",         "_aot_exception_handler_for_return_address"},
@@ -335,34 +337,43 @@ public final class BinaryContainer implements SymbolTable {
     private void recordConfiguration(GraalHotSpotVMConfig graalHotSpotVMConfig, GraphBuilderConfiguration graphBuilderConfig, int gc) {
         // @Checkstyle: stop
         // @formatter:off
-        boolean[] booleanFlags = { graalHotSpotVMConfig.cAssertions, // Debug VM
-                                   graalHotSpotVMConfig.useCompressedOops,
-                                   graalHotSpotVMConfig.useCompressedClassPointers,
-                                   graalHotSpotVMConfig.useTLAB,
-                                   graalHotSpotVMConfig.useBiasedLocking,
-                                   TieredAOT.getValue(graalOptions),
-                                   graalHotSpotVMConfig.enableContended,
-                                   graalHotSpotVMConfig.restrictContended,
-                                   graphBuilderConfig.omitAssertions(),
-        };
+        ArrayList<Boolean> booleanFlagsList = new ArrayList<>();
 
-        int[] intFlags         = { graalHotSpotVMConfig.getOopEncoding().getShift(),
-                                   graalHotSpotVMConfig.getKlassEncoding().getShift(),
-                                   graalHotSpotVMConfig.contendedPaddingWidth,
-                                   1 << graalHotSpotVMConfig.logMinObjAlignment(),
-                                   graalHotSpotVMConfig.codeSegmentSize,
-                                   gc
-        };
+        booleanFlagsList.addAll(Arrays.asList(graalHotSpotVMConfig.cAssertions, // Debug VM
+                                              graalHotSpotVMConfig.useCompressedOops,
+                                              graalHotSpotVMConfig.useCompressedClassPointers));
+        if (JavaVersionUtil.JAVA_SPEC < 15) {
+            // See JDK-8236224. FieldsAllocationStyle and CompactFields flags were removed in JDK15.
+            booleanFlagsList.add(graalHotSpotVMConfig.compactFields);
+        }
+        booleanFlagsList.addAll(Arrays.asList(graalHotSpotVMConfig.useTLAB,
+                                              graalHotSpotVMConfig.useBiasedLocking,
+                                              TieredAOT.getValue(graalOptions),
+                                              graalHotSpotVMConfig.enableContended,
+                                              graalHotSpotVMConfig.restrictContended,
+                                              graphBuilderConfig.omitAssertions()));
+        if (JavaVersionUtil.JAVA_SPEC < 14) {
+            // See JDK-8220049. Thread local handshakes are on by default since JDK14, the command line option has been removed.
+            booleanFlagsList.add(graalHotSpotVMConfig.threadLocalHandshakes);
+        }
+
+        ArrayList<Integer> intFlagsList = new ArrayList<>();
+        intFlagsList.addAll(Arrays.asList(graalHotSpotVMConfig.getOopEncoding().getShift(),
+                                          graalHotSpotVMConfig.getKlassEncoding().getShift(),
+                                          graalHotSpotVMConfig.contendedPaddingWidth));
+        if (JavaVersionUtil.JAVA_SPEC < 15) {
+            // See JDK-8236224. FieldsAllocationStyle and CompactFields flags were removed in JDK15.
+            intFlagsList.add(graalHotSpotVMConfig.fieldsAllocationStyle);
+        }
+        intFlagsList.addAll(Arrays.asList(1 << graalHotSpotVMConfig.logMinObjAlignment(),
+                                          graalHotSpotVMConfig.codeSegmentSize,
+                                          gc));
+
         // @formatter:on
         // @Checkstyle: resume
 
-        if (JavaVersionUtil.JAVA_SPEC < 14) {
-            // See JDK-8220049. Thread local handshakes are on by default since JDK14, the command line option has been removed.
-            booleanFlags = Arrays.copyOf(booleanFlags, booleanFlags.length + 1);
-            booleanFlags[booleanFlags.length - 1] = graalHotSpotVMConfig.threadLocalHandshakes;
-        }
-
-        byte[] booleanFlagsAsBytes = flagsToByteArray(booleanFlags);
+        byte[] booleanFlagsAsBytes = booleanListToByteArray(booleanFlagsList);
+        int[] intFlags = intFlagsList.stream().mapToInt(i -> i).toArray();
         int size0 = configContainer.getByteStreamSize();
 
         // @formatter:off
@@ -379,10 +390,10 @@ public final class BinaryContainer implements SymbolTable {
         assert size == computedSize;
     }
 
-    private static byte[] flagsToByteArray(boolean[] flags) {
-        byte[] byteArray = new byte[flags.length];
-        for (int i = 0; i < flags.length; ++i) {
-            byteArray[i] = boolToByte(flags[i]);
+    private static byte[] booleanListToByteArray(ArrayList<Boolean> list) {
+        byte[] byteArray = new byte[list.size()];
+        for (int i = 0; i < list.size(); ++i) {
+            byteArray[i] = boolToByte(list.get(i));
         }
         return byteArray;
     }
@@ -419,10 +430,6 @@ public final class BinaryContainer implements SymbolTable {
 
     public static String getCrcTableAddressSymbolName() {
         return "_aot_stub_routines_crc_table_adr";
-    }
-
-    public static String getPollingPageSymbolName() {
-        return "_aot_polling_page";
     }
 
     public static String getResolveStaticEntrySymbolName() {
@@ -501,7 +508,6 @@ public final class BinaryContainer implements SymbolTable {
         createGotSymbol(getHeapEndAddressSymbolName());
         createGotSymbol(getNarrowKlassBaseAddressSymbolName());
         createGotSymbol(getNarrowOopBaseAddressSymbolName());
-        createGotSymbol(getPollingPageSymbolName());
         createGotSymbol(getLogOfHeapRegionGrainBytesSymbolName());
         createGotSymbol(getInlineContiguousAllocationSupportedSymbolName());
 

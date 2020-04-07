@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,7 @@
 #include "utilities/elfFile.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "utilities/vmError.hpp"
 
 // put OS-includes here
@@ -717,9 +718,8 @@ void os::Linux::expand_stack_to(address bottom) {
 bool os::Linux::manually_expand_stack(JavaThread * t, address addr) {
   assert(t!=NULL, "just checking");
   assert(t->osthread()->expanding_stack(), "expand should be set");
-  assert(t->stack_base() != NULL, "stack_base was not initialized");
 
-  if (addr <  t->stack_base() && addr >= t->stack_reserved_zone_base()) {
+  if (t->is_in_usable_stack(addr)) {
     sigset_t mask_all, old_sigset;
     sigfillset(&mask_all);
     pthread_sigmask(SIG_SETMASK, &mask_all, &old_sigset);
@@ -1851,6 +1851,9 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
 #ifndef EM_AARCH64
   #define EM_AARCH64    183               /* ARM AARCH64 */
 #endif
+#ifndef EM_RISCV
+  #define EM_RISCV      243               /* RISC-V */
+#endif
 
   static const arch_t arch_array[]={
     {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
@@ -1877,6 +1880,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_PARISC,      EM_PARISC,  ELFCLASS32, ELFDATA2MSB, (char*)"PARISC"},
     {EM_68K,         EM_68K,     ELFCLASS32, ELFDATA2MSB, (char*)"M68k"},
     {EM_AARCH64,     EM_AARCH64, ELFCLASS64, ELFDATA2LSB, (char*)"AARCH64"},
+    {EM_RISCV,       EM_RISCV,   ELFCLASS64, ELFDATA2LSB, (char*)"RISC-V"},
   };
 
 #if  (defined IA32)
@@ -1911,9 +1915,11 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_68K;
 #elif  (defined SH)
   static  Elf32_Half running_arch_code=EM_SH;
+#elif  (defined RISCV)
+  static  Elf32_Half running_arch_code=EM_RISCV;
 #else
     #error Method os::dll_load requires that one of following is defined:\
-        AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, S390, SH, __sparc
+        AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, RISCV, S390, SH, __sparc
 #endif
 
   // Identify compatibility class for VM's architecture and library's architecture
@@ -2301,6 +2307,19 @@ void os::Linux::print_proc_sys_info(outputStream* st) {
 void os::Linux::print_full_memory_info(outputStream* st) {
   st->print("\n/proc/meminfo:\n");
   _print_ascii_file("/proc/meminfo", st);
+  st->cr();
+
+  // some information regarding THPs; for details see
+  // https://www.kernel.org/doc/Documentation/vm/transhuge.txt
+  st->print_cr("/sys/kernel/mm/transparent_hugepage/enabled:");
+  if (!_print_ascii_file("/sys/kernel/mm/transparent_hugepage/enabled", st)) {
+    st->print_cr("  <Not Available>");
+  }
+  st->cr();
+  st->print_cr("/sys/kernel/mm/transparent_hugepage/defrag (defrag/compaction efforts parameter):");
+  if (!_print_ascii_file("/sys/kernel/mm/transparent_hugepage/defrag", st)) {
+    st->print_cr("  <Not Available>");
+  }
   st->cr();
 }
 
@@ -3163,6 +3182,8 @@ bool os::Linux::libnuma_init() {
                                                   libnuma_v2_dlsym(handle, "numa_get_interleave_mask")));
       set_numa_move_pages(CAST_TO_FN_PTR(numa_move_pages_func_t,
                                          libnuma_dlsym(handle, "numa_move_pages")));
+      set_numa_set_preferred(CAST_TO_FN_PTR(numa_set_preferred_func_t,
+                                            libnuma_dlsym(handle, "numa_set_preferred")));
 
       if (numa_available() != -1) {
         set_numa_all_nodes((unsigned long*)libnuma_dlsym(handle, "numa_all_nodes"));
@@ -3298,6 +3319,7 @@ os::Linux::numa_distance_func_t os::Linux::_numa_distance;
 os::Linux::numa_get_membind_func_t os::Linux::_numa_get_membind;
 os::Linux::numa_get_interleave_mask_func_t os::Linux::_numa_get_interleave_mask;
 os::Linux::numa_move_pages_func_t os::Linux::_numa_move_pages;
+os::Linux::numa_set_preferred_func_t os::Linux::_numa_set_preferred;
 os::Linux::NumaAllocationPolicy os::Linux::_current_numa_policy;
 unsigned long* os::Linux::_numa_all_nodes;
 struct bitmask* os::Linux::_numa_all_nodes_ptr;
@@ -4129,8 +4151,8 @@ char* os::Linux::reserve_memory_special_huge_tlbfs(size_t bytes,
   }
 }
 
-char* os::reserve_memory_special(size_t bytes, size_t alignment,
-                                 char* req_addr, bool exec) {
+char* os::pd_reserve_memory_special(size_t bytes, size_t alignment,
+                                    char* req_addr, bool exec) {
   assert(UseLargePages, "only for large pages");
 
   char* addr;
@@ -4145,9 +4167,6 @@ char* os::reserve_memory_special(size_t bytes, size_t alignment,
     if (UseNUMAInterleaving) {
       numa_make_global(addr, bytes);
     }
-
-    // The memory is committed
-    MemTracker::record_virtual_memory_reserve_and_commit((address)addr, bytes, CALLER_PC);
   }
 
   return addr;
@@ -4162,22 +4181,7 @@ bool os::Linux::release_memory_special_huge_tlbfs(char* base, size_t bytes) {
   return pd_release_memory(base, bytes);
 }
 
-bool os::release_memory_special(char* base, size_t bytes) {
-  bool res;
-  if (MemTracker::tracking_level() > NMT_minimal) {
-    Tracker tkr(Tracker::release);
-    res = os::Linux::release_memory_special_impl(base, bytes);
-    if (res) {
-      tkr.record((address)base, bytes);
-    }
-
-  } else {
-    res = os::Linux::release_memory_special_impl(base, bytes);
-  }
-  return res;
-}
-
-bool os::Linux::release_memory_special_impl(char* base, size_t bytes) {
+bool os::pd_release_memory_special(char* base, size_t bytes) {
   assert(UseLargePages, "only for large pages");
   bool res;
 
@@ -4316,7 +4320,7 @@ int os::java_to_os_priority[CriticalPriority + 1] = {
 static int prio_init() {
   if (ThreadPriorityPolicy == 1) {
     if (geteuid() != 0) {
-      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy)) {
+      if (!FLAG_IS_DEFAULT(ThreadPriorityPolicy) && !FLAG_IS_JIMAGE_RESOURCE(ThreadPriorityPolicy)) {
         warning("-XX:ThreadPriorityPolicy=1 may require system level permission, " \
                 "e.g., being the root user. If the necessary permission is not " \
                 "possessed, changes to priority will be silently ignored.");
@@ -5123,8 +5127,9 @@ void os::Linux::numa_init() {
   } else {
     if ((Linux::numa_max_node() < 1) || Linux::is_bound_to_single_node()) {
       // If there's only one node (they start from 0) or if the process
-      // is bound explicitly to a single node using membind, disable NUMA.
-      UseNUMA = false;
+      // is bound explicitly to a single node using membind, disable NUMA unless
+      // user explicilty forces NUMA optimizations on single-node/UMA systems
+      UseNUMA = ForceNUMA;
     } else {
 
       LogTarget(Info,os) log;
@@ -5162,10 +5167,6 @@ void os::Linux::numa_init() {
       UseAdaptiveSizePolicy = false;
       UseAdaptiveNUMAChunkSizing = false;
     }
-  }
-
-  if (!UseNUMA && ForceNUMA) {
-    UseNUMA = true;
   }
 }
 
@@ -5274,20 +5275,6 @@ jint os::init_2(void) {
   }
 
   return JNI_OK;
-}
-
-// Mark the polling page as unreadable
-void os::make_polling_page_unreadable(void) {
-  if (!guard_memory((char*)_polling_page, Linux::page_size())) {
-    fatal("Could not disable polling page");
-  }
-}
-
-// Mark the polling page as readable
-void os::make_polling_page_readable(void) {
-  if (!linux_mprotect((char *)_polling_page, Linux::page_size(), PROT_READ)) {
-    fatal("Could not enable polling page");
-  }
 }
 
 // older glibc versions don't have this macro (which expands to

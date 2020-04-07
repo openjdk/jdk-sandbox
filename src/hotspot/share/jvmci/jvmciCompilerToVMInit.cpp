@@ -44,6 +44,7 @@ int CompilerToVM::Data::Method_extra_stack_entries;
 address CompilerToVM::Data::SharedRuntime_ic_miss_stub;
 address CompilerToVM::Data::SharedRuntime_handle_wrong_method_stub;
 address CompilerToVM::Data::SharedRuntime_deopt_blob_unpack;
+address CompilerToVM::Data::SharedRuntime_deopt_blob_unpack_with_exception_in_tls;
 address CompilerToVM::Data::SharedRuntime_deopt_blob_uncommon_trap;
 
 size_t CompilerToVM::Data::ThreadLocalAllocBuffer_alignment_reserve;
@@ -97,6 +98,7 @@ void CompilerToVM::Data::initialize(JVMCI_TRAPS) {
   SharedRuntime_ic_miss_stub = SharedRuntime::get_ic_miss_stub();
   SharedRuntime_handle_wrong_method_stub = SharedRuntime::get_handle_wrong_method_stub();
   SharedRuntime_deopt_blob_unpack = SharedRuntime::deopt_blob()->unpack();
+  SharedRuntime_deopt_blob_unpack_with_exception_in_tls = SharedRuntime::deopt_blob()->unpack_with_exception_in_tls();
   SharedRuntime_deopt_blob_uncommon_trap = SharedRuntime::deopt_blob()->uncommon_trap();
 
   ThreadLocalAllocBuffer_alignment_reserve = ThreadLocalAllocBuffer::alignment_reserve();
@@ -208,7 +210,6 @@ JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
   do_intx_flag(JVMCICounterSize)                                           \
   do_bool_flag(JVMCIPrintProperties)                                       \
   do_bool_flag(JVMCIUseFastLocking)                                        \
-  do_intx_flag(MethodProfileWidth)                                         \
   do_intx_flag(ObjectAlignmentInBytes)                                     \
   do_bool_flag(PrintInlining)                                              \
   do_bool_flag(ReduceInitialCardMarks)                                     \
@@ -239,7 +240,7 @@ JVMCIObjectArray CompilerToVM::initialize_intrinsics(JVMCI_TRAPS) {
   do_bool_flag(UseSHA1Intrinsics)                                          \
   do_bool_flag(UseSHA256Intrinsics)                                        \
   do_bool_flag(UseSHA512Intrinsics)                                        \
-  do_intx_flag(UseSSE)                                                     \
+  X86_ONLY(do_intx_flag(UseSSE))                                           \
   COMPILER2_PRESENT(do_bool_flag(UseSquareToLenIntrinsic))                 \
   do_bool_flag(UseStackBanging)                                            \
   do_bool_flag(UseTLAB)                                                    \
