@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,39 +21,33 @@
  * questions.
  */
 
-/**
+/*
  * @test
- * @bug 4163126 8222829
- * @summary Test to see if timeout hangs. Also checks that
- * negative timeout value fails as expected.
- * @run testng/othervm DatagramTimeout
- * @run testng/othervm -Djdk.net.usePlainDatagramSocketImpl DatagramTimeout
+ * @bug 8239355
+ * @summary Check that setSendBufferSize and getSendBufferSize work as expected
+ * @run testng/othervm SetGetSendBufferSize
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true SetGetSendBufferSize
  */
-
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.MulticastSocket;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.nio.channels.DatagramChannel;
 
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.net.DatagramSocket;
+import java.net.MulticastSocket;
+import java.net.SocketException;
+import java.nio.channels.DatagramChannel;
+
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 
-public class DatagramTimeout {
+public class SetGetSendBufferSize {
+    DatagramSocket datagramSocket, multicastSocket, datagramSocketAdaptor;
+
+    private static final Class<SocketException> SE = SocketException.class;
     private static final Class<IllegalArgumentException> IAE =
             IllegalArgumentException.class;
-    private static final Class<SocketTimeoutException> STE =
-            SocketTimeoutException.class;
-    private static final Class<SocketException> SE = SocketException.class;
-
-    private DatagramSocket datagramSocket, multicastSocket,
-            datagramSocketAdaptor;
 
     @BeforeTest
     public void setUp() throws Exception {
@@ -72,22 +66,14 @@ public class DatagramTimeout {
     }
 
     @Test(dataProvider = "data")
-    public void testSetNegTimeout(DatagramSocket ds)  {
-        assertThrows(IAE, () -> ds.setSoTimeout(-1));
+    public void testSetNegArguments(DatagramSocket ds) {
+        assertThrows(IAE, () -> ds.setSendBufferSize(-1));
     }
 
     @Test(dataProvider = "data")
-    public void testSetTimeout(DatagramSocket ds) throws Exception {
-        byte[] buffer = new byte[50];
-        DatagramPacket pkt = new DatagramPacket(buffer, buffer.length);
-        ds.setSoTimeout(2);
-        assertThrows(STE, () -> ds.receive(pkt));
-    }
-
-    @Test(dataProvider = "data")
-    public void testGetTimeout(DatagramSocket ds) throws Exception {
-        ds.setSoTimeout(10);
-        assertEquals(10, ds.getSoTimeout());
+    public void testGetSendBufferSize(DatagramSocket ds) throws Exception {
+        ds.setSendBufferSize(2345);
+        assertEquals(ds.getSendBufferSize(), 2345);
     }
 
     @AfterTest
@@ -106,11 +92,11 @@ public class DatagramTimeout {
         ds.close();
         ms.close();
         dsa.close();
-        assertThrows(SE, () -> ds.setSendBufferSize(10));
+        assertThrows(SE, () -> ds.setSendBufferSize(2345));
         assertThrows(SE, () -> ds.getSoTimeout());
-        assertThrows(SE, () -> ms.setSendBufferSize(10));
+        assertThrows(SE, () -> ms.setSendBufferSize(2345));
         assertThrows(SE, () -> ms.getSoTimeout());
-        assertThrows(SE, () -> dsa.setSendBufferSize(10));
+        assertThrows(SE, () -> dsa.setSendBufferSize(2345));
         assertThrows(SE, () -> dsa.getSoTimeout());
     }
 }
