@@ -287,9 +287,6 @@ public:
   // Log change in used metadata.
   static void print_metaspace_change(const metaspace::MetaspaceSizesSnapshot& pre_meta_values);
 
-  // Prints an ASCII representation of the given space.
-  static void print_metaspace_map(outputStream* out, Metaspace::MetadataType mdtype);
-
   // This will print out a basic metaspace usage report but
   // unlike print_report() is guaranteed not to lock or to walk the CLDG.
   static void print_basic_report(outputStream* st, size_t scale = 0);

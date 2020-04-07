@@ -136,12 +136,6 @@ void MetaspaceUtils::print_metaspace_change(const metaspace::MetaspaceSizesSnaps
   }
 }
 
-
-// Prints an ASCII representation of the given space.
-void MetaspaceUtils::print_metaspace_map(outputStream* out, Metaspace::MetadataType mdtype) {
-  out->print_cr("-- not yet implemented ---");
-}
-
 // This will print out a basic metaspace usage report but
 // unlike print_report() is guaranteed not to lock or to walk the CLDG.
 void MetaspaceUtils::print_basic_report(outputStream* out, size_t scale) {

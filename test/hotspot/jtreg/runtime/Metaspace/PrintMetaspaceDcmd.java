@@ -109,14 +109,6 @@ public class PrintMetaspaceDcmd {
         output.shouldContain("Virtual space list");
         output.shouldMatch("node.*reserved.*committed.*used.*");
 
-/*      Feature has been deactivated in the new Metaspace prototype. Not that important, reimplement if needed.
-        pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "vsmap"});
-        output = new OutputAnalyzer(pb.start());
-        output.shouldHaveExitValue(0);
-        output.shouldContain("Virtual space map:");
-        output.shouldContain("HHHHHHHHHHH");
-*/
-
         // Test with different scales
         pb.command(new String[] { JDKToolFinder.getJDKTool("jcmd"), pid, "VM.metaspace", "scale=G"});
         output = new OutputAnalyzer(pb.start());

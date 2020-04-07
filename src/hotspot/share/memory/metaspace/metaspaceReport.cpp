@@ -269,24 +269,6 @@ void MetaspaceReporter::print_report(outputStream* out, size_t scale, int flags)
   }
   out->cr();
 
-  // -- Print VirtualSpaceList map.
-/* Deactivated for now.
-  if ((flags & rf_show_vsmap) > 0) {
-    out->cr();
-    out->print_cr("Virtual space map:");
-
-    if (Metaspace::using_class_space()) {
-      out->print_cr("   Non-Class:");
-    }
-    Metaspace::space_list()->print_map(out);
-    if (Metaspace::using_class_space()) {
-      out->print_cr("       Class:");
-      Metaspace::class_space_list()->print_map(out);
-    }
-  }
-  out->cr();
-*/
-
   //////////// Freelists (ChunkManager) section ///////////////////////////
 
   out->cr();

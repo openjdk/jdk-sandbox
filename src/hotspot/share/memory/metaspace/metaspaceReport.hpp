@@ -43,10 +43,8 @@ public:
     rf_break_down_by_spacetype      = (1 << 2),
     // Print details about the underlying virtual spaces.
     rf_show_vslist                  = (1 << 3),
-    // Print metaspace map.
-    rf_show_vsmap                   = (1 << 4),
     // If show_loaders: show loaded classes for each loader.
-    rf_show_classes                 = (1 << 5)
+    rf_show_classes                 = (1 << 4)
   };
 
   // This will print out a basic metaspace usage report but

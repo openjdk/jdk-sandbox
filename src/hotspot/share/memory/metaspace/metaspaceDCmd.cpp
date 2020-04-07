@@ -38,7 +38,6 @@ MetaspaceDCmd::MetaspaceDCmd(outputStream* output, bool heap)
   , _by_spacetype("by-spacetype", "Break down numbers by loader type.", "BOOLEAN", false, "false")
   , _by_chunktype("by-chunktype", "Break down numbers by chunk type.", "BOOLEAN", false, "false")
   , _show_vslist("vslist", "Shows details about the underlying virtual space.", "BOOLEAN", false, "false")
-  , _show_vsmap("vsmap", "Shows chunk composition of the underlying virtual spaces", "BOOLEAN", false, "false")
   , _scale("scale", "Memory usage in which to scale. Valid values are: 1, KB, MB or GB (fixed scale) "
            "or \"dynamic\" for a dynamically choosen scale.",
            "STRING", false, "dynamic")
@@ -50,7 +49,6 @@ MetaspaceDCmd::MetaspaceDCmd(outputStream* output, bool heap)
   _dcmdparser.add_dcmd_option(&_by_chunktype);
   _dcmdparser.add_dcmd_option(&_by_spacetype);
   _dcmdparser.add_dcmd_option(&_show_vslist);
-  _dcmdparser.add_dcmd_option(&_show_vsmap);
   _dcmdparser.add_dcmd_option(&_scale);
 }
 
@@ -81,7 +79,7 @@ void MetaspaceDCmd::execute(DCmdSource source, TRAPS) {
   }
   if (_basic.value() == true) {
     if (_show_loaders.value() || _by_chunktype.value() || _by_spacetype.value() ||
-        _show_vslist.value() || _show_vsmap.value()) {
+        _show_vslist.value()) {
       // Basic mode. Just print essentials. Does not need to be at a safepoint.
       output()->print_cr("In basic mode, additional arguments are ignored.");
     }
@@ -94,7 +92,6 @@ void MetaspaceDCmd::execute(DCmdSource source, TRAPS) {
     if (_by_chunktype.value())         flags |= MetaspaceReporter::rf_break_down_by_chunktype;
     if (_by_spacetype.value())         flags |= MetaspaceReporter::rf_break_down_by_spacetype;
     if (_show_vslist.value())          flags |= MetaspaceReporter::rf_show_vslist;
-    if (_show_vsmap.value())           flags |= MetaspaceReporter::rf_show_vsmap;
     VM_PrintMetadata op(output(), scale, flags);
     VMThread::execute(&op);
   }
