@@ -134,8 +134,9 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
       Settings::use_allocation_guard() == false)
   {
     bool ignored;
-    c->allocate(get_raw_allocation_word_size(1), &ignored);
-    _total_used_words_counter->increment();
+    const size_t safety_zone_len = get_raw_allocation_word_size(1);
+    c->allocate(safety_zone_len, &ignored);
+    _total_used_words_counter->increment_by(safety_zone_len);
   }
 #endif // _LP64
 
@@ -230,10 +231,9 @@ void SpaceManager::retire_current_chunk() {
     bool did_hit_limit = false;
     MetaWord* ptr = c->allocate(remaining_words, &did_hit_limit);
     assert(ptr != NULL && did_hit_limit == false, "Should have worked");
+    _total_used_words_counter->increment_by(remaining_words);
 
     add_allocation_to_fbl(ptr, remaining_words);
-
-    _total_used_words_counter->increment_by(remaining_words);
 
     // After this operation: the current chunk should have no free committed space left.
     assert(current_chunk()->free_below_committed_words() == 0,
