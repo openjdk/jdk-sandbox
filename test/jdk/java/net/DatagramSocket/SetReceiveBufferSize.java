@@ -25,8 +25,8 @@
    @bug 4173717
    @summary Make sure that passing 0 in setReceiveBufferSize will throw
    IllegalArgumentException
-    @run main/othervm TestAfterClose
-    @run main/othervm -Djdk.net.usePlainDatagramSocketImpl TestAfterClose
+   @run main/othervm SetReceiveBufferSize
+   @run main/othervm -Djdk.net.usePlainDatagramSocketImpl SetReceiveBufferSize
    */
 import java.net.*;
 
