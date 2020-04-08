@@ -87,6 +87,8 @@ using metaspace::chklvl_t;
 using metaspace::chklvl::HIGHEST_CHUNK_LEVEL;
 using metaspace::chklvl::MAX_CHUNK_WORD_SIZE;
 using metaspace::chklvl::MAX_CHUNK_BYTE_SIZE;
+using metaspace::chklvl::MIN_CHUNK_WORD_SIZE;
+using metaspace::chklvl::MIN_CHUNK_BYTE_SIZE;
 using metaspace::chklvl::LOWEST_CHUNK_LEVEL;
 using metaspace::chklvl::NUM_CHUNK_LEVELS;
 

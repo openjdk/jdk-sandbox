@@ -84,10 +84,6 @@ class Settings : public AllStatic {
   // Must be a multiple of and not smaller than commit granularity.
   static size_t _uncommit_on_purge_min_word_size;
 
-  // As a workaround for JDK-8233019, make it possible to forbid returning adresses
-  // whose lower 32bits are zero.
-  static const bool _do_not_return_32bit_aligned_addresses = true;
-
   // If true, metablock allocations are guarded and periodically checked.
   DEBUG_ONLY(static bool _use_allocation_guard;)
 
@@ -109,7 +105,6 @@ public:
   static bool delete_nodes_on_purge()                         { return _delete_nodes_on_purge; }
   static bool uncommit_on_purge()                             { return _uncommit_on_purge; }
   static size_t uncommit_on_purge_min_word_size()             { return _uncommit_on_purge_min_word_size; }
-  static bool do_not_return_32bit_aligned_addresses()         { return _do_not_return_32bit_aligned_addresses; }
 
   static bool use_allocation_guard()                          { return DEBUG_ONLY(_use_allocation_guard) NOT_DEBUG(false); }
   static bool handle_deallocations()                          { return DEBUG_ONLY(_handle_deallocations) NOT_DEBUG(true); }

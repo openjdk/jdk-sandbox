@@ -124,22 +124,6 @@ bool SpaceManager::allocate_new_current_chunk(size_t requested_word_size) {
   log_debug(metaspace)(LOGFMT_SPCMGR ": allocated new chunk " METACHUNK_FORMAT " for requested word size " SIZE_FORMAT ".",
                        LOGFMT_SPCMGR_ARGS, METACHUNK_FORMAT_ARGS(c), requested_word_size);
 
-  // Workaround for JDK-8233019: Do not return metadata allocated at a 32bit aligned address. Instead
-  //  of checking this at every allocation, it is cheaper just to make sure that if a meta chunk starts at a
-  //  32bit aligned address we just discard the first few words.
-  // Note that this workaround is not needed when we use allocation guards, since the first words
-  //  in a chunk contain a prefix and would never be handed out to the caller.
-#ifdef _LP64
-  if (Settings::do_not_return_32bit_aligned_addresses() && (((intptr_t)c->base()) & 0xFFFFFFFF) == 0 &&
-      Settings::use_allocation_guard() == false)
-  {
-    bool ignored;
-    const size_t safety_zone_len = get_raw_allocation_word_size(1);
-    c->allocate(safety_zone_len, &ignored);
-    _total_used_words_counter->increment_by(safety_zone_len);
-  }
-#endif // _LP64
-
   return c;
 
 }

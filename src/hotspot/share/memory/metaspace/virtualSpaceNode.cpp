@@ -270,6 +270,8 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 
   DEBUG_ONLY(assert_is_aligned(word_size, chklvl::MAX_CHUNK_WORD_SIZE);)
 
+  size_t alignment = chklvl::MAX_CHUNK_BYTE_SIZE;
+
   ReservedSpace rs(word_size * BytesPerWord,
                    chklvl::MAX_CHUNK_BYTE_SIZE,
                    false, // TODO deal with large pages

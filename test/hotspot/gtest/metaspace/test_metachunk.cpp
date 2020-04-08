@@ -51,7 +51,7 @@ class MetachunkTest {
     EXPECT_NOT_NULL(c->base());
     EXPECT_TRUE(_vs_list.contains(c->base()));
     EXPECT_TRUE(is_aligned(c->base(), MAX_CHUNK_BYTE_SIZE));
-    EXPECT_TRUE(is_aligned(c->word_size(), MAX_CHUNK_WORD_SIZE));
+    EXPECT_TRUE(is_aligned(c->word_size(), MIN_CHUNK_WORD_SIZE));
     EXPECT_TRUE(metaspace::chklvl::is_valid_level(c->level()));
 
     if (c->next() != NULL) EXPECT_EQ(c->next()->prev(), c);
@@ -144,7 +144,23 @@ public:
 
   }
 
-
+  // Test that allocating the full MetaChunk works and leaves no space.
+  void test_full_chunk() {
+    for (chklvl_t lvl = LOWEST_CHUNK_LEVEL; lvl <= HIGHEST_CHUNK_LEVEL; lvl ++) {
+      const size_t word_size = metaspace::chklvl::word_size_for_level(lvl);
+      Metachunk* c = alloc_chunk(lvl);
+      ASSERT_NOT_NULL(c);
+      ASSERT_EQ(c->used_words(), (size_t)0);
+      ASSERT_EQ(c->free_words(), word_size);
+      bool dummy = false;
+      MetaWord* p = c->allocate(word_size, &dummy);
+      ASSERT_NOT_NULL(p);
+      ASSERT_EQ(c->used_words(), word_size);
+      ASSERT_EQ(c->free_words(), (size_t)0);
+      ASSERT_EQ(c->free_below_committed_words(), (size_t)0);
+      _cm.return_chunk(c);
+    }
+  }
 
 };
 
@@ -165,5 +181,13 @@ TEST_VM(metaspace, metachunk_test_random_allocs_with_commit_limit) {
   // than root chunk size will be hit.
   MetachunkTest test(MAX_CHUNK_WORD_SIZE / 2);
   test.test_random_allocs();
+
+}
+
+TEST_VM(metaspace, metachunk_test_full_chunk) {
+
+  // Test that allocating the full MetaChunk works and leaves no space.
+  MetachunkTest test(2 * MAX_CHUNK_WORD_SIZE);
+  test.test_full_chunk();
 
 }
