@@ -77,7 +77,7 @@ public final class SocketExceptions {
     private static IOException ofUnixDomain(IOException e, UnixDomainSocketAddress addr) {
         if (!enhancedExceptionText || addr == null)
             return e;
-        String path = addr.getPathName();
+        String path = addr.getPath().toString();
         StringBuilder sb = new StringBuilder();
         sb.append(e.getMessage());
         sb.append(": ");

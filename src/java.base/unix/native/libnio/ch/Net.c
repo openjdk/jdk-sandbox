@@ -33,6 +33,7 @@
 #include <limits.h>
 
 #include "jni.h"
+#include "java_props.h"
 #include "jni_util.h"
 #include "jvm.h"
 #include "jlong.h"
@@ -97,7 +98,7 @@ NET_UnixSocketAddressToSockaddr(JNIEnv *env, jobject uaddr, struct sockaddr_un *
         ret = 1;
         goto finish;
     }
-    strncpy(sa->sun_path, pname, name_len);
+    memcpy(sa->sun_path, pname, name_len);
     *len = (int)(offsetof(struct sockaddr_un, sun_path) + name_len);
     ret = 0;
   finish:

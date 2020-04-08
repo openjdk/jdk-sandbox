@@ -332,9 +332,61 @@
  * or method in any class or interface in this package will cause a {@link
  * java.lang.NullPointerException NullPointerException} to be thrown.
  *
+ * <p><a id="unixdomain"></a><i>Unix domain channels</i>
+ *
+ * <p> There are two kinds of {@link SocketChannel} and {@link ServerSocketChannel}.
+ * <i>Internet protocol</i> channels support network communication
+ * and are addressed using {@link InetSocketAddress}es which encapsulate an IP address and port
+ * number. <i>Unix domain channels</i> support local inter-process communication on the same host,
+ * and are addressed using {@link UnixDomainSocketAddress}es which encapsulate a filesystem pathname
+ * on the local system. <i>Internet protocol</i> channels are the default kind created, when
+ * a protocol family is not specified in the factory creation method. <i>Unix domain</i> channels
+ * can only be created using {@link SocketChannel#open(ProtocolFamily)} or
+ * {@link ServerSocketChannel#open(ProtocolFamily)} with the parameter value
+ * {@link StandardProtocolFamily#UNIX}. Unix domain channels might not be supported on all platforms.
+ * An attempt to create a unix domain channel may throw {@link UnsupportedOperationException}.
+ *
+ * {@link UnixDomainSocketAddress}es contain a path which, when the address is bound to a channel,
+ * has an associated socket file in the file-system with the same name as the path. Address instances
+ * are created with either a {@link String} path name or a {@link Path}. Paths
+ * can be either absolute or relative with respect to the current working directory.
+ * <p>
+ * If a Unix domain {@link SocketChannel} is automatically bound by connecting it
+ * without calling {@link SocketChannel#bind(SocketAddress) bind} first, then its address
+ * is unnamed; it has an empty path field, and therefore has no associated file
+ * in the file-system. {@link SocketChannel#getLocalAddress() getLocalAddress} will return
+ * the constant value {@link UnixDomainSocketAddress#UNNAMED UNNAMED} in this case.
+ * Explicitly binding a {@code SocketChannel} to any unnamed address has the same effect.
+ * <p>
+ * If a Unix domain {@link ServerSocketChannel} is automatically bound by passing a {@code null}
+ * address to one of the {@link ServerSocketChannel#bind(SocketAddress) bind} methods, the channel
+ * is bound to a unique name in some temporary directory. The name can be obtained by calling
+ * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
+ * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
+ * <p>
+ * <i>Binding Unix domain channels</i>
+ * <p>
+ * A unix domain channel can be bound to a name if and only if, no file exists
+ * in the file-system with the same name, and the calling process has the required
+ * operating system permissions to create a file of that name.
+ * The socket file that is created when a channel binds to a name is not removed when
+ * the channel is closed. User code must arrange for the deletion of this file if
+ * another channel needs to bind to the same name. Note also, that it may be possible
+ * to delete the socket file, even before the channel is closed, thus allowing another
+ * channel to bind to the same name. The original channel is not notified of any error
+ * in this situation. Operating system permissions can be used to control who is allowed
+ * to create and delete these socket files.
+ *
  * @since 1.4
  * @author Mark Reinhold
  * @author JSR-51 Expert Group
  */
 
 package java.nio.channels;
+
+import java.net.InetSocketAddress;
+import java.net.ProtocolFamily;
+import java.net.StandardProtocolFamily;
+import java.nio.channels.SocketChannel;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.UnixDomainSocketAddress;

@@ -72,6 +72,17 @@ public class Net {
     private static final boolean unixDomainSupported =
         unixDomainSocketSupported();
 
+    static {
+        PrivilegedAction<Void> pa = () -> {
+            // -1 if unsupported or +ve integer otherwise. Prop set after Net initialization
+            // Undocumented. Just use for testing
+            System.setProperty("jdk.nio.channels.unixdomain.maxnamelength",
+                               Integer.toString(unixDomainMaxNameLen()));
+            return null;
+        };
+        AccessController.doPrivileged(pa);
+    }
+
     // unspecified protocol family
     static final ProtocolFamily UNSPEC = new ProtocolFamily() {
         public String name() {
@@ -791,7 +802,7 @@ public class Net {
             return addr;
 
         try{
-            FilePermission p = new FilePermission(addr.getPathName(), "read");
+            FilePermission p = new FilePermission(addr.getPath().toString(), "read");
             sm.checkPermission(p);
             // Security check passed
         } catch (SecurityException e) {

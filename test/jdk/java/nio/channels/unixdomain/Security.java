@@ -70,8 +70,12 @@ public class Security {
         }
     }
 
+
     public static void main(String[] args) throws Exception {
-        if (UnixDomainSocketAddress.MAXNAMELENGTH == -1) {
+        try {SocketChannel.open(); } catch (java.io.IOException e) {}
+
+        int namelen = Integer.parseInt(System.getProperty("jdk.nio.channels.unixdomain.maxnamelength"));
+        if (namelen == -1) {
             System.out.println("Unix domain not supported");
             return;
         }
@@ -134,7 +138,7 @@ public class Security {
     public static void testPolicy1() throws Exception {
         // Permission exists to bind and connect to this
         Path servername = Path.of("sockets", "sock1");
-        final UnixDomainSocketAddress saddr = new UnixDomainSocketAddress(servername);
+        final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
@@ -152,7 +156,7 @@ public class Security {
 
         // Permission to bind but not to connect to sock2
         Path servername1 = Path.of("sockets", "sock2");
-        final UnixDomainSocketAddress saddr1 = new UnixDomainSocketAddress(servername1);
+        final UnixDomainSocketAddress saddr1 = UnixDomainSocketAddress.of(servername1);
         final ServerSocketChannel server1 = ServerSocketChannel.open(UNIX);
         final SocketChannel client1 = SocketChannel.open(UNIX);
         call(() -> {
@@ -166,7 +170,7 @@ public class Security {
 
     public static void testPolicy2() throws Exception {
         Path servername = Path.of("server", "sock");
-        final UnixDomainSocketAddress saddr = new UnixDomainSocketAddress(servername);
+        final UnixDomainSocketAddress saddr = UnixDomainSocketAddress.of(servername);
         final ServerSocketChannel server = ServerSocketChannel.open(UNIX);
         final SocketChannel client = SocketChannel.open(UNIX);
         call(() -> {
@@ -184,7 +188,7 @@ public class Security {
 
         final SocketChannel client1 = SocketChannel.open(UNIX);
         Path clientname = Path.of("client1", "csock");
-        final UnixDomainSocketAddress caddr = new UnixDomainSocketAddress(clientname);
+        final UnixDomainSocketAddress caddr = UnixDomainSocketAddress.of(clientname);
 
         call(() -> {
             client1.bind(caddr);
@@ -208,7 +212,7 @@ public class Security {
         }, true);
 
         final SocketChannel client2 = SocketChannel.open(UNIX);
-        final UnixDomainSocketAddress caddr2 = new UnixDomainSocketAddress(System.getProperty("java.io.tmpdir") + "test");
+        final UnixDomainSocketAddress caddr2 = UnixDomainSocketAddress.of(System.getProperty("java.io.tmpdir") + "test");
         call(() -> {
             client2.connect(caddr2);
         }, true);

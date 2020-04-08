@@ -49,9 +49,12 @@ import static org.testng.Assert.assertTrue;
 public class IOExchanges {
     static boolean supported = true;
 
+
     @BeforeTest()
     public void setup() {
-        if (UnixDomainSocketAddress.MAXNAMELENGTH == -1) {
+        try {SocketChannel.open(); } catch (IOException e) {}
+        int namelen = Integer.parseInt(System.getProperty("jdk.nio.channels.unixdomain.maxnamelength"));
+        if (namelen == -1) {
             supported = false;
             out.println("Unix domain channels not supported");
         }

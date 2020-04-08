@@ -61,8 +61,12 @@ public final class SystemProps {
         putIfAbsent(props, "user.dir", raw.propDefault(Raw._user_dir_NDX));
         putIfAbsent(props, "user.name", raw.propDefault(Raw._user_name_NDX));
 
+
         // Platform defined encoding cannot be overridden on the command line
         put(props, "sun.jnu.encoding", raw.propDefault(Raw._sun_jnu_encoding_NDX));
+
+        // Unix domain max path len is constant that cannot be overridden
+        put(props, "java.nio.unixdomain.maxpathlen", raw.propDefault(Raw._unixdomainpath_NDX));
 
         // Add properties that have not been overridden on the cmdline
         putIfAbsent(props, "file.encoding",
@@ -220,7 +224,8 @@ public final class SystemProps {
         @Native private static final int _sun_os_patch_level_NDX = 1 + _sun_jnu_encoding_NDX;
         @Native private static final int _sun_stderr_encoding_NDX = 1 + _sun_os_patch_level_NDX;
         @Native private static final int _sun_stdout_encoding_NDX = 1 + _sun_stderr_encoding_NDX;
-        @Native private static final int _user_dir_NDX = 1 + _sun_stdout_encoding_NDX;
+        @Native private static final int _unixdomainpath_NDX = 1 + _sun_stdout_encoding_NDX;
+        @Native private static final int _user_dir_NDX = 1 + _unixdomainpath_NDX;
         @Native private static final int _user_home_NDX = 1 + _user_dir_NDX;
         @Native private static final int _user_name_NDX = 1 + _user_home_NDX;
         @Native private static final int FIXED_LENGTH = 1 + _user_name_NDX;

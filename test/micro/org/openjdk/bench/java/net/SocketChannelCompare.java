@@ -91,7 +91,7 @@ public class SocketChannelCompare {
     private ServerSocketChannel getUnixServerSocketChannel() throws IOException {
         int next = count.incrementAndGet();
         socket = Paths.get(tempDir, Integer.toString(next));
-        UnixDomainSocketAddress addr = new UnixDomainSocketAddress(socket);
+        UnixDomainSocketAddress addr = UnixDomainSocketAddress.of(socket);
         return ServerSocketChannel.open(StandardProtocolFamily.UNIX).bind(addr);
     }
 

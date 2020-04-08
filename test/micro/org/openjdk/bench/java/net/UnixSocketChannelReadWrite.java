@@ -65,7 +65,7 @@ public class UnixSocketChannelReadWrite {
     private ServerSocketChannel getServerSocketChannel() throws IOException {
         int next = count.incrementAndGet();
         socket = Paths.get(tempDir, Integer.toString(next));
-        UnixDomainSocketAddress addr = new UnixDomainSocketAddress(socket);
+        UnixDomainSocketAddress addr = UnixDomainSocketAddress.of(socket);
         ServerSocketChannel c = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         c.bind(addr);
         return c;

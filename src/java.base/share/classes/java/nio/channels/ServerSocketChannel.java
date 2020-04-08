@@ -36,7 +36,13 @@ import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
 
 /**
- * A selectable channel for stream-oriented listening sockets.
+ * A selectable channel for stream-oriented listening sockets that are either
+ * <i>Internet protocol</i> or <i>Unix domain</i> server-sockets.  Internet protocol server
+ * sockets accept network connections addressed by IP address and TCP port number.
+ * They use {@link InetSocketAddress} for local and remote addresses.
+ * <a href="package-summary.html#unixdomain">Unix domain</a> server-sockets are used for
+ * inter-process communication to other processes on the same host and use
+ * {@link UnixDomainSocketAddress} for their local and remote addresses.
  *
  * <p> A server-socket channel is created by invoking one of the open methods of this class.
  * It is not possible to create a channel for an arbitrary,
@@ -46,14 +52,12 @@ import java.nio.channels.spi.SelectorProvider;
  * to be thrown. A server-socket channel can be bound by invoking one of the
  * {@link #bind(java.net.SocketAddress,int) bind} methods defined by this class.
  *
- * <p>Two types of server-socket channel are supported: <i>IP</i> (Internet Protocol)
- * and <i>Unix Domain</i> depending on which open method is used to create them and which subtype of
- * {@link SocketAddress} that they support for local and remote addresses.
- * <i>IP</i> channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
+ * <p>Internet protocol channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
- * {@link StandardProtocolFamily#INET6 INET6}. <i>IP</i> channels use {@link
+ * {@link StandardProtocolFamily#INET6 INET6}. <i>Internet protocol</i> channels use {@link
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
- * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
+ *
+ * <p><i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
  * They use {@link UnixDomainSocketAddress} for local and remote addresses
  * and are used for inter-process communication within the same system.
@@ -63,7 +67,7 @@ import java.nio.channels.spi.SelectorProvider;
  * supported by <i>IP</i> channels.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
- * setOption} method. <i>IP</i> server-socket channels support the following options:
+ * setOption} method. <i>Internet protocol</i> server-socket channels support the following options:
  * <blockquote>
  * <table class="striped">
  * <caption style="display:none">Socket options</caption>
@@ -112,7 +116,7 @@ public abstract class ServerSocketChannel
     }
 
     /**
-     * Opens an <i>IP</i> server-socket channel.
+     * Opens an <i>Internet protocol</i> server-socket channel.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openServerSocketChannel
@@ -192,7 +196,7 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels; or for <i>Unix Domain</i>
+     *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
      *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
@@ -247,7 +251,7 @@ public abstract class ServerSocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels; or in the case of <i>Unix Domain</i>
+     *          the operation for <i>Internet protocol</i> channels; or in the case of <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
      *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
@@ -268,7 +272,7 @@ public abstract class ServerSocketChannel
         throws IOException;
 
     /**
-     * Retrieves a server socket associated with this channel if it is an <i>IP</i>
+     * Retrieves a server socket associated with this channel if it is an <i>Internet protocol</i>
      * channel. The operation is not supported for <i>Unix Domain</i> channels.
      *
      * <p> The returned object will not declare any public methods that are not
@@ -291,7 +295,7 @@ public abstract class ServerSocketChannel
      * <p> The socket channel returned by this method, if any, will be in
      * blocking mode regardless of the blocking mode of this channel.
      *
-     * <p> For <i>IP</i> channels, this method performs exactly the same security checks
+     * <p> For <i>Internet protocol</i> channels, this method performs exactly the same security checks
      * as the {@link java.net.ServerSocket#accept accept} method of the {@link
      * java.net.ServerSocket} class.  That is, if a security manager has been
      * installed then for each new connection this method verifies that the
@@ -341,7 +345,7 @@ public abstract class ServerSocketChannel
      * Where the channel is bound to a <i>Unix Domain</i> address, the return
      * value from this method is of type  {@link UnixDomainSocketAddress}.
      * <p>
-     * If there is a security manager set and this is an <i>IP</i> channel,
+     * If there is a security manager set and this is an <i>Internet protocol</i> channel,
      * {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,

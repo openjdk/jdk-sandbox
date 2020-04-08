@@ -204,7 +204,7 @@ public class UnixDomainServerSocketChannelImpl
         int rnd = random.nextInt(Integer.MAX_VALUE);
         StringBuilder sb = new StringBuilder();
         sb.append(tempDir).append("niosocket_").append(pid).append('_').append(rnd);
-        return new UnixDomainSocketAddress(sb.toString());
+        return UnixDomainSocketAddress.of(sb.toString());
     }
 
     @Override
@@ -230,7 +230,7 @@ public class UnixDomainServerSocketChannelImpl
         UnixDomainSocketAddress usa = (UnixDomainSocketAddress)sa;
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            String path = usa.getPathName();
+            String path = usa.getPath().toString();
             FilePermission p = new FilePermission(path, "read,write");
             sm.checkPermission(p);
         }

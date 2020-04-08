@@ -55,9 +55,9 @@ public class Bind {
         }
         spath = Path.of("server.sock");
         cpath = Path.of("client.sock");
-        sAddr = new UnixDomainSocketAddress(spath);
-        cAddr = new UnixDomainSocketAddress(cpath);
-        nullAddr = new UnixDomainSocketAddress("");
+        sAddr = UnixDomainSocketAddress.of(spath);
+        cAddr = UnixDomainSocketAddress.of(cpath);
+        nullAddr = UnixDomainSocketAddress.of("");
         runTests();
     }
 
@@ -164,7 +164,7 @@ public class Bind {
         // address with space should work
         checkNormal(() -> {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
-            UnixDomainSocketAddress usa =  new UnixDomainSocketAddress("with space"); // relative to CWD
+            UnixDomainSocketAddress usa =  UnixDomainSocketAddress.of("with space"); // relative to CWD
             Files.deleteIfExists(usa.getPath());
             server.bind(usa);
             client = SocketChannel.open(usa);
@@ -184,7 +184,7 @@ public class Bind {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(null);
             UnixDomainSocketAddress usa = (UnixDomainSocketAddress)server.getLocalAddress();
-            if (usa.getPathName().length() < 1)
+            if (usa.getPath().toString().length() < 1)
                 throw new RuntimeException("expected non zero address length");
         });
         // server no bind : not allowed
@@ -213,7 +213,7 @@ public class Bind {
             server.bind(sAddr);
             client.bind(null);
             client.connect(sAddr);
-            assertAddress(client.getLocalAddress(), nullAddr, "null address");
+            assertAddress(client.getLocalAddress(), UNNAMED, "unnamed address");
             assertServerAddress(server.getLocalAddress());
         });
         // client explicit bind and connect (check all addresses)
@@ -249,11 +249,12 @@ public class Bind {
 
         // bind and connect to name of max size
         checkNormal(() -> {
-            int len = UnixDomainSocketAddress.MAXNAMELENGTH;
+            int len = Integer.parseInt(System.getProperty("jdk.nio.channels.unixdomain.maxnamelength"));
+            System.out.printf("jdk.nio.channels.unixdomain.maxnamelength = %d\n", len);
             char[] chars = new char[len];
             Arrays.fill(chars, 'x');
             String name = new String(chars);
-            UnixDomainSocketAddress address = new UnixDomainSocketAddress(name);
+            UnixDomainSocketAddress address = UnixDomainSocketAddress.of(name);
             ServerSocketChannel server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(address);
             SocketChannel client = SocketChannel.open(address);

@@ -121,7 +121,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
             sm.checkPermission(p1);
         }
         Net.unixDomainBind(getFD(), usa);
-        if (usa == null || usa.getPathName().equals("")) {
+        if (usa == null || usa.getPath().toString().equals("")) {
             return UnixDomainSocketAddress.UNNAMED;
         } else {
             return Net.localUnixAddress(getFD());
@@ -152,7 +152,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
         UnixDomainSocketAddress usa = Net.checkUnixAddress(sa);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
-            FilePermission p = new FilePermission(usa.getPathName(), "read,write");
+            FilePermission p = new FilePermission(usa.getPath().toString(), "read,write");
             sm.checkPermission(p);
         }
         return usa;

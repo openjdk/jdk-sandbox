@@ -37,7 +37,13 @@ import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
 
 /**
- * A selectable channel for stream-oriented connecting sockets.
+ * A selectable channel for stream-oriented connecting sockets that are either
+ * <i>Internet protocol</i> or <i>Unix domain</i> sockets.
+ * Internet protocol sockets make network connections addressed by IP address and TCP port number.
+ * They use {@link InetSocketAddress} for local and remote addresses.
+ * <a href="package-summary.html#unixdomain">Unix domain</a> channels are used for
+ * inter-process communication to other processes on the same host and use
+ * {@link UnixDomainSocketAddress} for their local and remote addresses.
  *
  * <p> A socket channel is created by invoking one of the open methods of this class.
  * It is not possible to create a channel for an arbitrary,
@@ -66,24 +72,28 @@ import java.nio.channels.spi.SelectorProvider;
  * channel, then the blocked thread will receive an {@link
  * AsynchronousCloseException}.
  *
- * <p>Two types of socket channel are supported: <i>IP</i> (Internet Protocol)
- * and <i>Unix Domain</i> depending on which open method is used to create them and which subtype of
- * {@link SocketAddress} that they support for local and remote addresses.
- * <i>IP</i> channels are created using {@link #open()}, or {@link #open(ProtocolFamily)}
+ * <p> Internet protocol channels are the default kind when the protocol family
+ * is not specified directly or indirectly in the creation method.
+ * They are created using {@link #open()}, or {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#INET INET} or
- * {@link StandardProtocolFamily#INET6 INET6}. <i>IP</i> channels use {@link
+ * {@link StandardProtocolFamily#INET6 INET6}. Internet protocol channels use {@link
  * InetSocketAddress} addresses and support both IPv4 and IPv6 TCP/IP.
- * <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
+ *
+ * <p> <i>Unix Domain</i> channels are created using {@link #open(ProtocolFamily)}
  * with the family parameter set to {@link StandardProtocolFamily#UNIX UNIX}.
  * They use {@link UnixDomainSocketAddress} for local and remote addresses
  * and are used for inter-process communication within the same system.
  * The behavior of both channel types is the same except where specified differently
  * below. The two biggest differences are: <i>Unix domain</i> channels do not support the
  * {@link #socket()} method and they also only support a subset of the socket options
- * supported by <i>IP</i> channels.
+ * supported by <i>Internet protocol</i> channels.
+ *
+ * <p> The {@link #open(SocketAddress)} method will create either an Internet protocol
+ * channel or a Unix domain channel, depending on the sub-type of {@link SocketAddress}
+ * provided.
  *
  * <p> Socket options are configured using the {@link #setOption(SocketOption,Object)
- * setOption} method. <i>IP</i> socket channels support the following options:
+ * setOption} method. <i>Internet protocol</i> socket channels support the following options:
  * <blockquote>
  * <table class="striped">
  * <caption style="display:none">Socket options</caption>
@@ -124,6 +134,8 @@ import java.nio.channels.spi.SelectorProvider;
  * </blockquote>
  * Additional (implementation specific) options may also be supported.
  *
+ * <p><i>Unix Domain</i> channels support a subset of the options listed above.
+ *
  * <p> Socket channels are safe for use by multiple concurrent threads.  They
  * support concurrent reading and writing, though at most one thread may be
  * reading and at most one thread may be writing at any given time.  The {@link
@@ -131,8 +143,6 @@ import java.nio.channels.spi.SelectorProvider;
  * mutually synchronized against each other, and an attempt to initiate a read
  * or write operation while an invocation of one of these methods is in
  * progress will block until that invocation is complete.  </p>
- *
- * <p><i>Unix Domain</i> channels support a subset of the options listed above.
  *
  * @author Mark Reinhold
  * @author JSR-51 Expert Group
@@ -145,7 +155,7 @@ public abstract class SocketChannel
 {
 
     /**
-     * Initializes a new <i>IP</i> instance of this class.
+     * Initializes a new <i>Internet protocol</i> instance of this class.
      *
      * @param  provider
      *         The provider that created this channel
@@ -155,7 +165,7 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens an <i>IP</i> socket channel.
+     * Opens a channel to an <i>Internet protocol</i> socket.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel
@@ -172,7 +182,8 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens a socket channel of a specific protocol family.
+     * Opens a socket channel. The socket channel is to an <i>Internet protocol</i> socket
+     * or a <i>Unix domain</i> socket depending on the protocol family.
      *
      * @param family the protocol family
      *
@@ -189,11 +200,11 @@ public abstract class SocketChannel
     /**
      * Opens a socket channel and connects it to a remote address.
      * Depending on the type of {@link SocketAddress} supplied, the returned object
-     * is an <i>IP</i> or <i>Unix Domain</i> channel.
+     * is an <i>Internet protocol</i> or <i>Unix Domain</i> channel.
      *
-     * <p> For {@link InetSocketAddress}es this convenience method works as if by invoking the {@link #open()}
-     * method, invoking the {@link #connect(SocketAddress) connect} method upon
-     * the resulting socket channel, passing it {@code remote}, which must be an
+     * <p> For {@link InetSocketAddress}es this convenience method works as if by invoking
+     * the {@link #open()} method, invoking the {@link #connect(SocketAddress) connect} method
+     * upon the resulting socket channel, passing it {@code remote}, which must be an
      * {@link InetSocketAddress} and then returning that channel.  </p>
      *
      * <p> For {@link UnixDomainSocketAddress}es it works as if by invoking the {@link
@@ -281,8 +292,9 @@ public abstract class SocketChannel
      * <p> Note, for <i>Unix Domain</i> channels, a file is created in the file-system
      * with the same name as this channel's bound address. This file persists after
      * the channel is closed, and must be removed before another channel can bind
-     * to the same name. However, automatically assigned addresses have an empty
-     * pathname, and no corresponding file in the file-system.
+     * to the same name. However, automatically assigned addresses are {@link
+     * UnixDomainSocketAddress#UNNAMED unnamed} and therefore there is no
+     * no corresponding file in the file-system.
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on
@@ -294,7 +306,7 @@ public abstract class SocketChannel
      * @throws  SecurityException
      *          If a security manager has been installed and its
      *          {@link SecurityManager#checkListen checkListen} method denies
-     *          the operation for <i>IP</i> channels; or for <i>Unix Domain</i>
+     *          the operation for <i>Internet protocol</i> channels; or for <i>Unix Domain</i>
      *          channels, if the security manager denies the "write" action for
      *          {@link java.io.FilePermission} for the parent directory of local's path.
      *
@@ -358,7 +370,7 @@ public abstract class SocketChannel
     public abstract SocketChannel shutdownOutput() throws IOException;
 
     /**
-     * Retrieves a socket associated with this channel if it is an <i>IP</i>
+     * Retrieves a socket associated with this channel if it is an <i>Internet protocol</i>
      * channel. The operation is not supported for <i>Unix Domain</i> channels.
      *
      * <p> The returned object will not declare any public methods that are not
@@ -402,7 +414,7 @@ public abstract class SocketChannel
      * method will block until the connection is established or an I/O error
      * occurs.
      *
-     * <p> For <i>IP</i> channels, this method performs exactly the same security checks
+     * <p> For <i>Internet protocol</i> channels, this method performs exactly the same security checks
      * as the {@link java.net.Socket} class.  That is, if a security manager has been
      * installed then this method verifies that its {@link
      * java.lang.SecurityManager#checkConnect checkConnect} method permits
@@ -582,7 +594,7 @@ public abstract class SocketChannel
     /**
      * {@inheritDoc}
      * <p>
-     * If there is a security manager set and this is an <i>IP</i> channel,
+     * If there is a security manager set and this is an <i>Internet protocol</i> channel,
      * {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
