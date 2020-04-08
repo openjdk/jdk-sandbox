@@ -254,10 +254,6 @@ VirtualSpaceNode::VirtualSpaceNode(int node_id,
   assert_is_aligned(_base, chklvl::MAX_CHUNK_BYTE_SIZE);
   assert_is_aligned(_word_size, chklvl::MAX_CHUNK_WORD_SIZE);
 
-  // Explicitly uncommit the whole node to make it guaranteed
-  // inaccessible, for testing
-//  os::uncommit_memory((char*)_base, _word_size * BytesPerWord);
-
 }
 
 // Create a node of a given size
@@ -270,7 +266,9 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 
   DEBUG_ONLY(assert_is_aligned(word_size, chklvl::MAX_CHUNK_WORD_SIZE);)
 
+#ifdef ASSERT
   size_t alignment = chklvl::MAX_CHUNK_BYTE_SIZE;
+#endif
 
   ReservedSpace rs(word_size * BytesPerWord,
                    chklvl::MAX_CHUNK_BYTE_SIZE,

@@ -76,10 +76,14 @@ void print_human_readable_size(outputStream* st, size_t byte_size, size_t scale 
 void print_percentage(outputStream* st, size_t total, size_t part);
 
 
+#ifdef ASSERT
 #define assert_is_aligned(value, alignment)                  \
   assert(is_aligned((value), (alignment)),                   \
          SIZE_FORMAT_HEX " is not aligned to "               \
          SIZE_FORMAT, (size_t)(uintptr_t)value, (alignment))
+#else
+#define assert_is_aligned(value, alignment)
+#endif
 
 
 // Pretty printing helpers
