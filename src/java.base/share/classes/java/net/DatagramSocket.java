@@ -134,9 +134,6 @@ public class DatagramSocket implements java.io.Closeable {
                 || delegate instanceof NetMulticastSocket  // Classical net-based impl
                 || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
         this.delegate = delegate;
-        if (port == 0) {
-            throw new SocketException("Can't connect to port 0");
-        }
     }
 
     /**
@@ -518,9 +515,6 @@ public class DatagramSocket implements java.io.Closeable {
      */
     public void send(DatagramPacket p) throws IOException  {
         delegate().send(p);
-                if (packetPort == 0) {
-                    throw new SocketException("Can't send to port 0");
-                }
     }
 
     /**
