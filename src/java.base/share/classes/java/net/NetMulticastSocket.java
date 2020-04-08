@@ -128,6 +128,9 @@ final class NetMulticastSocket extends MulticastSocket {
             }
         }
 
+        if (port == 0) {
+            throw new SocketException("Can't connect to port 0");
+        }
         if (!isBound())
             bind(new InetSocketAddress(0));
 
@@ -343,6 +346,9 @@ final class NetMulticastSocket extends MulticastSocket {
                         security.checkConnect(packetAddress.getHostAddress(),
                                 packetPort);
                     }
+                }
+                if (packetPort == 0) {
+                    throw new SocketException("Can't send to port 0");
                 }
             } else {
                 // we're connected
