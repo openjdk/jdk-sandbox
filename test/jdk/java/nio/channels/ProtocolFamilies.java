@@ -219,12 +219,12 @@ public class ProtocolFamilies {
                               boolean expectPass) throws Exception {
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(null);
-            SocketAddress saddr = sdc.getLocalAddress();
+            InetSocketAddress saddr = (InetSocketAddress)sdc.getLocalAddress();
             try (DatagramChannel dc = openDC(cfam)) {
                 // Cannot connect to any local address on Windows
                 // use loopback address in this case
                 if (isWindows) {
-                    dc.connect(getLoopback(sfam));
+                    dc.connect(getLoopback(sfam, saddr.getPort()));
                 } else {
                     dc.connect(saddr);
                 }
@@ -265,12 +265,12 @@ public class ProtocolFamilies {
         };
     }
 
-    private static SocketAddress getLoopback(StandardProtocolFamily fam)
+    private static SocketAddress getLoopback(StandardProtocolFamily fam, int port)
             throws UnknownHostException {
         if ((fam == null || fam == INET6) && hasIPv6) {
-            return new InetSocketAddress(InetAddress.getByName("::1"), 0);
+            return new InetSocketAddress(InetAddress.getByName("::1"), port);
         } else {
-            return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0);
+            return new InetSocketAddress(InetAddress.getByName("127.0.0.1"), port);
         }
     }
 
