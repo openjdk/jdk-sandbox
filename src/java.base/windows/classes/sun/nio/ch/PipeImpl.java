@@ -190,7 +190,7 @@ class PipeImpl
         try {
             server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
             server.bind(null);
-        } catch (UnsupportedAddressTypeException e) {
+        } catch (UnsupportedOperationException e) {
             server = ServerSocketChannel.open();
             InetAddress lb = InetAddress.getLoopbackAddress();
             server.bind(new InetSocketAddress(lb, 0));
