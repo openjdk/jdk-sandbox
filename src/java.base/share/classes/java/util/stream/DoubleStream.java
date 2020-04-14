@@ -514,7 +514,7 @@ public interface DoubleStream extends BaseStream<Double, DoubleStream> {
      *
      * @apiNote Sum, min, max, and average are all special cases of reduction.
      * Summing a stream of numbers can be expressed as:
-
+     *
      * <pre>{@code
      *     double sum = numbers.reduce(0, (a, b) -> a+b);
      * }</pre>
