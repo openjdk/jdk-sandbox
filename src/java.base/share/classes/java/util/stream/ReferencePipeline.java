@@ -443,7 +443,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushSink.OfRef<R> c = new FlatPushSink.OfRef<>(downstream)) {
+                        try (FlatPushConsumer.RefSink<R> c = new FlatPushConsumer.RefSink<>(downstream)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -477,7 +477,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushSink.OfInt c = new FlatPushSink.OfInt(downstream)) {
+                        try (FlatPushConsumer.IntSink c = new FlatPushConsumer.IntSink(downstream)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -507,7 +507,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushSink.OfLong c = new FlatPushSink.OfLong(downstream)) {
+                        try (FlatPushConsumer.LongSink c = new FlatPushConsumer.LongSink(downstream)) {
                             mapper.accept(c, u);
                         }
                     }
@@ -540,7 +540,7 @@ abstract class ReferencePipeline<P_IN, P_OUT>
 
                     @Override
                     public void accept(P_OUT u) {
-                        try (FlatPushSink.OfDouble c = new FlatPushSink.OfDouble(downstream)) {
+                        try (FlatPushConsumer.DoubleSink c = new FlatPushConsumer.DoubleSink(downstream)) {
                             mapper.accept(c, u);
                         }
                     }

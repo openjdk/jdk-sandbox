@@ -399,7 +399,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMap(e -> {
             SpinedBuffer<R> buffer = new SpinedBuffer<>();
-            try (FlatPushConsumer.OfRef<R> c = new FlatPushConsumer.OfRef<>(buffer)) {
+            try (FlatPushConsumer.RefBuffer<R> c = new FlatPushConsumer.RefBuffer<>(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.stream(buffer.spliterator(), false);
             }
@@ -434,7 +434,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToInt(e -> {
             SpinedBuffer.OfInt buffer = new SpinedBuffer.OfInt();
-            try (FlatPushConsumer.OfInt c = new FlatPushConsumer.OfInt(buffer)) {
+            try (FlatPushConsumer.IntBuffer c = new FlatPushConsumer.IntBuffer(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.intStream(buffer.spliterator(), false);
             }
@@ -469,7 +469,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToLong(e -> {
             SpinedBuffer.OfLong buffer = new SpinedBuffer.OfLong();
-            try (FlatPushConsumer.OfLong c = new FlatPushConsumer.OfLong(buffer)) {
+            try (FlatPushConsumer.LongBuffer c = new FlatPushConsumer.LongBuffer(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.longStream(buffer.spliterator(), false);
             }
@@ -504,7 +504,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
         Objects.requireNonNull(mapper);
         return this.flatMapToDouble(e -> {
             SpinedBuffer.OfDouble buffer = new SpinedBuffer.OfDouble();
-            try (FlatPushConsumer.OfDouble c = new FlatPushConsumer.OfDouble(buffer)) {
+            try (FlatPushConsumer.DoubleBuffer c = new FlatPushConsumer.DoubleBuffer(buffer)) {
                 mapper.accept(c, e);
                 return StreamSupport.doubleStream(buffer.spliterator(), false);
             }
