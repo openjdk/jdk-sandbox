@@ -30,6 +30,8 @@ import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // Oop represents the superclass for all types of
 // objects in the HotSpot object heap.

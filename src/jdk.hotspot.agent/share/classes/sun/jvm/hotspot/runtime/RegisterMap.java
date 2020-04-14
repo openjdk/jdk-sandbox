@@ -32,6 +32,8 @@ import sun.jvm.hotspot.interpreter.*;
 import sun.jvm.hotspot.code.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** <P> A companion structure used for stack traversal. The
     RegisterMap contains misc. information needed in order to do

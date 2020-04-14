@@ -33,6 +33,8 @@ import sun.jvm.hotspot.runtime.amd64.*;
 import sun.jvm.hotspot.runtime.x86.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class SolarisAMD64JavaThreadPDAccess implements JavaThreadPDAccess {
     private static AddressField lastJavaFPField;

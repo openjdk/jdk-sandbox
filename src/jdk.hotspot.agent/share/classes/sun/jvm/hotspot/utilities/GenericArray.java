@@ -24,9 +24,6 @@
 
 package sun.jvm.hotspot.utilities;
 
-import java.util.Observable;
-import java.util.Observer;
-
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.oops.ArrayKlass;
 import sun.jvm.hotspot.oops.CIntField;
@@ -37,6 +34,8 @@ import sun.jvm.hotspot.types.AddressField;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
 import sun.jvm.hotspot.types.WrongTypeException;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /**
  * The base class for the mirrors of the Array<T> C++ classes.

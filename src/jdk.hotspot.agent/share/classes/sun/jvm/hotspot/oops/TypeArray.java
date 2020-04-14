@@ -29,6 +29,8 @@ import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // A TypeArray is an array containing basic types (non oop elements).
 // It is used for arrays of {characters, singles, doubles, bytes, shorts, integers, longs}

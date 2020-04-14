@@ -31,6 +31,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.gc.shared.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** DefNewGeneration is a young generation containing eden, from- and
     to-space. */

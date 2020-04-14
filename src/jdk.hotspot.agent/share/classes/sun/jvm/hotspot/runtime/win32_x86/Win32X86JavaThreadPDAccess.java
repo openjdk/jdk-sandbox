@@ -32,6 +32,8 @@ import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.runtime.x86.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** This class is only public to allow using the VMObjectFactory to
     instantiate these.

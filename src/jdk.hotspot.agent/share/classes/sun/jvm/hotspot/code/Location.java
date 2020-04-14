@@ -30,6 +30,8 @@ import java.util.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** <P> A Location describes a concrete machine variable location
     (such as integer or floating point register or a stack-held

@@ -27,6 +27,8 @@ package sun.jvm.hotspot.runtime;
 import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** <P> A JavaCallWrapper is constructed before each JavaCall and
     destroyed after the call.  Its purpose is to allocate/deallocate a

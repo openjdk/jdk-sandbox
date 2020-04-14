@@ -30,6 +30,8 @@ import sun.jvm.hotspot.classfile.*;
 import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class SystemDictionary {
   private static sun.jvm.hotspot.types.OopField javaSystemLoaderField;

@@ -35,8 +35,8 @@ import sun.jvm.hotspot.utilities.Assert;
 import sun.jvm.hotspot.utilities.CStringUtilities;
 
 import java.io.PrintStream;
-import java.util.Observable;
-import java.util.Observer;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class CodeBlob extends VMObject {
   private static AddressField nameField;

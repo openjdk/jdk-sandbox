@@ -26,8 +26,8 @@ package sun.jvm.hotspot.gc.g1;
 
 import java.io.PrintStream;
 import java.util.Iterator;
-import java.util.Observable;
-import java.util.Observer;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.gc.g1.HeapRegionClosure;

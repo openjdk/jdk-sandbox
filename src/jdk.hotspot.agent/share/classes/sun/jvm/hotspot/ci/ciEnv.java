@@ -34,6 +34,8 @@ import sun.jvm.hotspot.compiler.CompileTask;
 import sun.jvm.hotspot.prims.JvmtiExport;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.GrowableArray;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ciEnv extends VMObject {
   static {

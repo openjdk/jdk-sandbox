@@ -32,6 +32,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.opto.*;
 import sun.jvm.hotspot.prims.JvmtiExport;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class CompileTask extends VMObject {
   static {

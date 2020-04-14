@@ -33,6 +33,8 @@ import sun.jvm.hotspot.oops.*;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
 import sun.jvm.hotspot.types.WrongTypeException;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ciInstanceKlass extends ciKlass {
   static {

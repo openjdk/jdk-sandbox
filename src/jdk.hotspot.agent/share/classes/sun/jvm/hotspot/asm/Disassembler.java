@@ -25,8 +25,6 @@
 package sun.jvm.hotspot.asm;
 
 import java.io.PrintStream;
-import java.util.Observer;
-import java.util.Observable;
 import sun.jvm.hotspot.code.CodeBlob;
 import sun.jvm.hotspot.code.NMethod;
 import sun.jvm.hotspot.debugger.Address;

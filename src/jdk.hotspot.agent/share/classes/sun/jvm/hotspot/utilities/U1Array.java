@@ -24,14 +24,13 @@
 
 package sun.jvm.hotspot.utilities;
 
-import java.util.Observable;
-import java.util.Observer;
-
 import sun.jvm.hotspot.debugger.Address;
 import sun.jvm.hotspot.runtime.VM;
 import sun.jvm.hotspot.types.Type;
 import sun.jvm.hotspot.types.TypeDataBase;
 import sun.jvm.hotspot.types.WrongTypeException;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class U1Array extends GenericArray {
   static {

@@ -32,6 +32,8 @@ import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.runtime.x86.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 /** Placeholder for now to allow us to start the SA without support
     for stack traces */

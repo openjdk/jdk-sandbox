@@ -32,6 +32,8 @@ import sun.jvm.hotspot.gc.shared.*;
 import sun.jvm.hotspot.memory.MemRegion;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 public class ParallelScavengeHeap extends CollectedHeap {
    static {

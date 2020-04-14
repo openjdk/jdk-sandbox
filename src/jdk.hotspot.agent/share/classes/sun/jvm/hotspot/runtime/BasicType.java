@@ -24,7 +24,6 @@
 
 package sun.jvm.hotspot.runtime;
 
-import java.util.Observer;
 import sun.jvm.hotspot.types.TypeDataBase;
 
 
