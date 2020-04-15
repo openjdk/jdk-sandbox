@@ -46,7 +46,7 @@ public abstract class JSJavaArray extends JSJavaObject {
 
    public Object get(String name) {
       if (name.equals("length")) {
-         return new Integer((int)getArray().getLength());
+         return (int) getArray().getLength();
       } else {
          return super.get(name);
       }
@@ -62,7 +62,7 @@ public abstract class JSJavaArray extends JSJavaObject {
       final int len = (int) getArray().getLength();
       Object[] res = new Object[superFields.length + len];
       for (int i = 0; i < len; i++) {
-          res[i] = new Integer(i);
+          res[i] = i;
       }
       System.arraycopy(superFields, 0, res, len, superFields.length);
       return  res;

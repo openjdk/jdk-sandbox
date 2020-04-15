@@ -83,7 +83,7 @@ public class DebuggerUtilities {
     } else if (ascii >= 'a' && ascii <= 'f') {
       return 10 + ascii - 'a';
     }
-    throw new NumberFormatException(new Character(ascii).toString());
+    throw new NumberFormatException(Character.toString(ascii));
   }
 
   public boolean dataToJBoolean(byte[] data, long jbooleanSize) {

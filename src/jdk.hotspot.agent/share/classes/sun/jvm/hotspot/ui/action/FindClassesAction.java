@@ -38,7 +38,7 @@ public class FindClassesAction extends DelegateAction {
     public static final String VALUE_COMMAND = "find-classes-command";
     public static final String VALUE_NAME = "Find classes";
     public static final String VALUE_SMALL_ICON = "general/Find16.gif";
-    public static final Integer VALUE_MNEMONIC = new Integer('C');
+    public static final Integer VALUE_MNEMONIC = (int) 'C';
     public static final String VALUE_SHORT_DESCRIPTION = "Find classes with given name part";
     public static final String VALUE_LONG_DESCRIPTION = VALUE_SHORT_DESCRIPTION;
 
