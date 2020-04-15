@@ -607,16 +607,6 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
   ChunkManager* cm = new ChunkManager("class space chunk manager", vsl);
   ChunkManager::set_chunkmanager_class(cm);
 
-  // We must prevent any metaspace object from being allocated directly at
-  // CompressedKlassPointers::base() - that would translate to a narrow Klass
-  // pointer of 0, which has a special meaning (invalid) (Note: that was
-  // never a problem before Elastic Metaspace, since every chunk was prefixed
-  // by its header, so allocation at position 0 in a chunk was never possible).
-  if (CompressedKlassPointers::base() == (address)rs.base()) {
-    // We just allocate a chunk at the beginning of the ccs and leave that empty.
-    cm->get_chunk(metaspace::chklvl::HIGHEST_CHUNK_LEVEL, metaspace::chklvl::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
-  }
-
 }
 
 
@@ -815,6 +805,21 @@ void Metaspace::global_initialize() {
   _tracer = new MetaspaceTracer();
 
   _initialized = true;
+
+  // We must prevent the very first address of the ccs from being used to store
+  // metadata, since that address would translate to a narrow pointer of 0, and the
+  // VM does not distinguish between "narrow 0 as in NULL" and "narrow 0 as in start
+  //  of ccs".
+  // Before Elastic Metaspace that did not happen due to the fact that every Metachunk
+  // had a header and therefore could not allocate anything at offset 0.
+#ifdef _LP64
+  if (using_class_space()) {
+    // The simplest way to fix this is to allocate a tiny chunk right at the start of ccs
+    // and do not use it for anything.
+    ChunkManager::chunkmanager_class()->get_chunk(metaspace::chklvl::HIGHEST_CHUNK_LEVEL,
+                                                  metaspace::chklvl::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
+  }
+#endif
 
 }
 
