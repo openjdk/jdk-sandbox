@@ -255,6 +255,7 @@ public class SourceCodePanel extends JPanel {
   public void showLineNumber(int lineNo) {
     try {
       int offset = source.getLineStartOffset(lineNo - 1);
+      @SuppressWarnings("deprecation")
       Rectangle rect = source.modelToView(offset);
       if (rect == null) {
         return;
