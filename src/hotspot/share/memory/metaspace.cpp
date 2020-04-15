@@ -521,15 +521,6 @@ void Metaspace::set_narrow_klass_base_and_shift(ReservedSpace metaspace_rs, addr
     }
   }
 
-  // We must prevent any metaspace object from being allocated directly at
-  // CompressedKlassPointers::base() - that would translate to a narrow Klass
-  // pointer of 0, which has a special meaning (invalid) (Note: that was
-  // never a problem in old metaspace, since every chunk was prefixed by its
-  // header, so allocation at position 0 in a chunk was never possible).
-  if (lower_base == (address)metaspace_rs.base()) {
-    lower_base -= os::vm_page_size();
-  }
-
   CompressedKlassPointers::set_base(lower_base);
 
   // CDS uses LogKlassAlignmentInBytes for narrow_klass_shift. See
@@ -615,6 +606,16 @@ void Metaspace::initialize_class_space(ReservedSpace rs) {
   VirtualSpaceList::set_vslist_class(vsl);
   ChunkManager* cm = new ChunkManager("class space chunk manager", vsl);
   ChunkManager::set_chunkmanager_class(cm);
+
+  // We must prevent any metaspace object from being allocated directly at
+  // CompressedKlassPointers::base() - that would translate to a narrow Klass
+  // pointer of 0, which has a special meaning (invalid) (Note: that was
+  // never a problem before Elastic Metaspace, since every chunk was prefixed
+  // by its header, so allocation at position 0 in a chunk was never possible).
+  if (CompressedKlassPointers::base() == (address)rs.base()) {
+    // We just allocate a chunk at the beginning of the ccs and leave that empty.
+    cm->get_chunk(metaspace::chklvl::HIGHEST_CHUNK_LEVEL, metaspace::chklvl::HIGHEST_CHUNK_LEVEL); // smallest chunk possible.
+  }
 
 }
 
