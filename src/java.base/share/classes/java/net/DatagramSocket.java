@@ -114,10 +114,9 @@ import sun.nio.ch.DefaultSelectorProvider;
  */
 public class DatagramSocket implements java.io.Closeable {
 
-    // `delegate` can be an instance of DatagramSocketAdaptor, NetMulticastSocket, or null
+    // An instance of DatagramSocketAdaptor, NetMulticastSocket, or null
     private final DatagramSocket delegate;
 
-    // May be overriden to change the covariant return type in MulticastSocket.
     DatagramSocket delegate() {
         if (delegate == null) {
             throw new InternalError("Should not get here");
@@ -130,9 +129,9 @@ public class DatagramSocket implements java.io.Closeable {
      * @param delegate The wrapped DatagramSocket implementation, or null.
      */
     DatagramSocket(DatagramSocket delegate) {
-        assert delegate == null // NetMulticastSocket and DatagramSocketAdaptor have no delegate
-                || delegate instanceof NetMulticastSocket  // Classical net-based impl
-                || delegate instanceof sun.nio.ch.DatagramSocketAdaptor; // New nio-based impl
+        assert delegate == null
+                || delegate instanceof NetMulticastSocket
+                || delegate instanceof sun.nio.ch.DatagramSocketAdaptor;
         this.delegate = delegate;
     }
 
@@ -1027,13 +1026,6 @@ public class DatagramSocket implements java.io.Closeable {
         return delegate().supportedOptions();
     }
 
-    /*
-     * A global switch allows to select whether DatagramSocket delegates
-     * to the old legacy implementation that further delegates to
-     * DatagramSocketImpl (java.net.NetMulticastSocket), or to the NIO
-     * implementation (sun.nio.ch.DatagramSocketAdaptor)
-     */
-
     // Temporary solution until JDK-8237352 is addressed
     private static final SocketAddress NO_DELEGATE = new SocketAddress() {};
     private static final boolean USE_PLAINDATAGRAMSOCKET = usePlainDatagramSocketImpl();
@@ -1051,7 +1043,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @param e an instance of {@link IOException}
      * @return an instance of {@link SocketException}
      */
-    static SocketException toSocketException(IOException e) {
+    private static SocketException toSocketException(IOException e) {
         if (e instanceof SocketException)
             return (SocketException) e;
         Throwable cause = e.getCause();

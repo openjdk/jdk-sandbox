@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @bug 8239355
  * @summary Check that setSendBufferSize and getSendBufferSize work as expected
  * @run testng/othervm SetGetSendBufferSize
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SetGetSendBufferSize

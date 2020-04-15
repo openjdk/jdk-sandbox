@@ -26,7 +26,7 @@
  * @bug 4163126 8222829
  * @summary Test to see if timeout hangs. Also checks that
  * negative timeout value fails as expected.
- * @run testng/othervm DatagramTimeout
+ * @run testng DatagramTimeout
  * @run testng/othervm -Djdk.net.usePlainDatagramSocketImpl DatagramTimeout
  */
 
