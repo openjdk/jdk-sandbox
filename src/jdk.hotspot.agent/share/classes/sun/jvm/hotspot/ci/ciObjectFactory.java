@@ -65,13 +65,13 @@ public class ciObjectFactory extends VMObject {
   public static ciObject get(Address addr) {
     if (addr == null) return null;
 
-    return (ciObject)ciObjectConstructor.instantiateWrapperFor(addr);
+    return ciObjectConstructor.instantiateWrapperFor(addr);
   }
 
   public static ciMetadata getMetadata(Address addr) {
     if (addr == null) return null;
 
-    return (ciMetadata)ciMetadataConstructor.instantiateWrapperFor(addr);
+    return ciMetadataConstructor.instantiateWrapperFor(addr);
   }
 
   public GrowableArray<ciMetadata> objects() {

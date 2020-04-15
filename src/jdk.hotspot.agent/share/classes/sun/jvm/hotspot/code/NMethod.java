@@ -418,8 +418,8 @@ public class NMethod extends CompiledMethod {
     return new ScopeDesc(this, pd.getScopeDecodeOffset(), pd.getObjDecodeOffset(), pd.getReexecute());
   }
 
-  public Map/*<Address, PCDesc>*/ getSafepoints() {
-    Map safepoints = new HashMap(); // Map<Address, PCDesc>
+  public Map<sun.jvm.hotspot.debugger.Address, PCDesc> getSafepoints() {
+    Map<sun.jvm.hotspot.debugger.Address, PCDesc> safepoints = new HashMap<>();
     sun.jvm.hotspot.debugger.Address p = null;
     for (p = scopesPCsBegin(); p.lessThan(scopesPCsEnd());
          p = p.addOffsetTo(pcDescSize)) {
@@ -476,7 +476,7 @@ public class NMethod extends CompiledMethod {
   }
 
   public void dumpReplayData(PrintStream out) {
-    HashMap h = new HashMap();
+    HashMap<Metadata, Metadata> h = new HashMap<>();
     for (int i = 1; i < getMetadataLength(); i++) {
       Metadata meta = Metadata.instantiateWrapperFor(getMetadataAt(i));
       System.err.println(meta);

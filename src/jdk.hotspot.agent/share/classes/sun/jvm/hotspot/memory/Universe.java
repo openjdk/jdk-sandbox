@@ -40,6 +40,7 @@ import sun.jvm.hotspot.gc.z.ZCollectedHeap;
 import sun.jvm.hotspot.oops.Oop;
 import sun.jvm.hotspot.runtime.BasicType;
 import sun.jvm.hotspot.runtime.VM;
+import sun.jvm.hotspot.runtime.VMObject;
 import sun.jvm.hotspot.runtime.VirtualConstructor;
 import sun.jvm.hotspot.types.AddressField;
 import sun.jvm.hotspot.types.CIntegerField;
@@ -70,7 +71,7 @@ public class Universe {
       return true;
   }
 
-  private static void addHeapTypeIfInDB(TypeDataBase db, Class heapClass) {
+  private static void addHeapTypeIfInDB(TypeDataBase db, Class<? extends VMObject> heapClass) {
       String heapName = heapClass.getSimpleName();
       if (typeExists(db, heapName)) {
           heapConstructor.addMapping(heapName, heapClass);

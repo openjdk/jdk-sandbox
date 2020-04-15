@@ -54,7 +54,7 @@ public class SystemDictionaryHelper {
          return klasses;
       }
 
-      final Vector tmp = new Vector();
+      final Vector<InstanceKlass> tmp = new Vector<>();
       ClassLoaderDataGraph cldg = VM.getVM().getClassLoaderDataGraph();
       cldg.classesDo(new ClassLoaderDataGraph.ClassVisitor() {
                         public void visit(Klass k) {
@@ -68,10 +68,8 @@ public class SystemDictionaryHelper {
       Object[] tmpArray = tmp.toArray();
       klasses = new InstanceKlass[tmpArray.length];
       System.arraycopy(tmpArray, 0, klasses, 0, tmpArray.length);
-      Arrays.sort(klasses, new Comparator() {
-                          public int compare(Object o1, Object o2) {
-                             InstanceKlass k1 = (InstanceKlass) o1;
-                             InstanceKlass k2 = (InstanceKlass) o2;
+      Arrays.sort(klasses, new Comparator<>() {
+                          public int compare(InstanceKlass k1, InstanceKlass k2) {
                              Symbol s1 = k1.getName();
                              Symbol s2 = k2.getName();
                              return s1.asString().compareTo(s2.asString());
@@ -85,7 +83,7 @@ public class SystemDictionaryHelper {
       namePart = namePart.replace('.', '/');
       InstanceKlass[] tmpKlasses = getAllInstanceKlasses();
 
-      Vector tmp = new Vector();
+      Vector<InstanceKlass> tmp = new Vector<>();
       for (int i = 0; i < tmpKlasses.length; i++) {
          String name = tmpKlasses[i].getName().asString();
          if (name.indexOf(namePart) != -1) {

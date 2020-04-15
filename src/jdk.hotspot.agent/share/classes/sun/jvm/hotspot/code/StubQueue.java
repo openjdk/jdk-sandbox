@@ -55,7 +55,7 @@ public class StubQueue extends VMObject {
 
   // The type of the contained stubs (i.e., InterpreterCodelet,
   // ICStub). Must be a subclass of type Stub.
-  private Class stubType;
+  private Class<?> stubType;
 
   static {
     VM.registerVMInitializedObserver(new Observer() {

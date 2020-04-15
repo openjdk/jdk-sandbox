@@ -65,13 +65,13 @@ public class BasicHashtable extends VMObject {
     }
     Address tmp = bucketsField.getValue(addr);
     tmp = tmp.addOffsetTo(i * bucketSize);
-    HashtableBucket bucket = (HashtableBucket) VMObjectFactory.newObject(
+    HashtableBucket bucket = VMObjectFactory.newObject(
                                               HashtableBucket.class, tmp);
     return bucket.getEntry(getHashtableEntryClass());
   }
 
   // derived class may return Class<? extends BasicHashtableEntry>
-  protected Class getHashtableEntryClass() {
+  protected Class<? extends BasicHashtableEntry> getHashtableEntryClass() {
     return BasicHashtableEntry.class;
   }
 

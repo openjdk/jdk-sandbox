@@ -46,8 +46,7 @@ public class Hashtable extends BasicHashtable {
     Type type = db.lookupType("IntptrHashtable");
   }
 
-  // derived class may return Class<? extends HashtableEntry>
-  protected Class getHashtableEntryClass() {
+  protected Class<? extends HashtableEntry> getHashtableEntryClass() {
     return HashtableEntry.class;
   }
 

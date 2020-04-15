@@ -48,10 +48,10 @@ public class HashtableBucket extends VMObject {
   // Field
   private static AddressField entryField;
 
-  // Accessor - accepts Class<? extends BasicHashtableEntry>
-  public BasicHashtableEntry getEntry(Class clazz) {
+  // Accessor
+  public BasicHashtableEntry getEntry(Class<? extends BasicHashtableEntry> clazz) {
     Address tmp = entryField.getValue(addr);
-    return (BasicHashtableEntry) VMObjectFactory.newObject(clazz, tmp);
+    return VMObjectFactory.newObject(clazz, tmp);
   }
 
   public BasicHashtableEntry entry() {

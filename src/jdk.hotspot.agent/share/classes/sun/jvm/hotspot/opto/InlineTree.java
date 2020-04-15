@@ -57,7 +57,7 @@ public class InlineTree extends VMObject {
   private static AddressField callerTreeField;
   private static AddressField subtreesField;
 
-  private static StaticBaseConstructor inlineTreeConstructor = new StaticBaseConstructor<InlineTree>(InlineTree.class);
+  private static StaticBaseConstructor<InlineTree> inlineTreeConstructor = new StaticBaseConstructor<>(InlineTree.class);
 
   public InlineTree(Address addr) {
     super(addr);

@@ -54,7 +54,7 @@ public class Dictionary extends sun.jvm.hotspot.utilities.Hashtable {
 
   // this is overriden here so that Hashtable.bucket will return
   // object of DictionaryEntry.class
-  protected Class getHashtableEntryClass() {
+  protected Class<? extends HashtableEntry> getHashtableEntryClass() {
     return DictionaryEntry.class;
   }
 
