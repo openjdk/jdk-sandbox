@@ -36,7 +36,7 @@ import static java.lang.Thread.sleep;
  * @test
  * @summary Check interrupt mechanism for DatagramSocket,
  *      MulticastSocket, and DatagramSocketAdaptor
- * @run main/othervm InterruptibleDatagramSocket
+ * @run main InterruptibleDatagramSocket
  * @run main/othervm -Djdk.net.usePlainDatagramSocketImpl InterruptibleDatagramSocket
  */
 
