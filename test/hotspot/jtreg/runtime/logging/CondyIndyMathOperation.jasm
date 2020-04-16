@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,16 +20,12 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-import javax.script.*;
 
-/**
- * Helper class to consolidate testing requirements for a js engine.
- * A js engine is required as part of Oracle's product JDK.
- */
-public class Helper {
-    private Helper() {}; // Don't instantiate
+interface  CondyIndyMathOperation
+	version 59:0
+{
 
-    public static ScriptEngine getJsEngine(ScriptEngineManager m) {
-        return m.getEngineByName("nashorn");
-    }
-}
+
+public abstract Method operation:"(II)I";
+
+} // end Class CondyIndyMathOperation
