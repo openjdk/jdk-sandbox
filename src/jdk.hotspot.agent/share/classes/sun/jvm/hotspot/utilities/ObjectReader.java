@@ -205,6 +205,7 @@ public class ObjectReader {
       InstanceKlass ik = (InstanceKlass)oop.getKlass();
       OopField keyField = (OopField)ik.findField("key", "Ljava/lang/Object;");
       OopField valueField = (OopField)ik.findField("val", "Ljava/lang/Object;");
+      OopField nextField = (OopField)ik.findField("next", "Ljava/util/concurrent/ConcurrentHashMap$Node;");
 
       try {
          p.setProperty((String)readObject(keyField.getValue(oop)),
@@ -213,6 +214,11 @@ public class ObjectReader {
          if (DEBUG) {
             debugPrintStackTrace(ce);
          }
+      }
+      // If this hashmap table Node is chained, then follow the chain to the next Node.
+      Oop chainedOop = nextField.getValue(oop);
+      if (chainedOop != null) {
+          setPropertiesEntry(p, chainedOop);
       }
    }
 

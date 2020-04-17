@@ -495,15 +495,15 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleA</h1>\n"
                 + "</div>"
                 + "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<li>\n"
                 + "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<li>\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
         checkOutput("moduleB/module-summary.html", found,
                 "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<li>\n"
                 + "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<li>\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
     }
 
@@ -549,8 +549,8 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleA</h1>\n"
                 + "</div>\n"
                 + "<section class=\"summary\">\n"
-                + "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<ul class=\"summary-list\">\n"
+                + "<li>\n"
                 + "<section class=\"packages-summary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
         checkOutput("moduleB/module-summary.html", found,
@@ -561,8 +561,8 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleB</h1>\n"
                 + "</div>\n"
                 + "<section class=\"summary\">\n"
-                + "<ul class=\"block-list\">\n"
-                + "<li class=\"block-list\">\n"
+                + "<ul class=\"summary-list\">\n"
+                + "<li>\n"
                 + "<section class=\"packages-summary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
     }

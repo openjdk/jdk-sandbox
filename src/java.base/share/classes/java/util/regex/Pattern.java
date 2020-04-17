@@ -4035,17 +4035,8 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (i < matcher.to) {
                 int ch0 = Character.codePointAt(seq, i);
                 int n = Character.charCount(ch0);
-                int j = i + n;
-                // Fast check if it's necessary to call Normalizer;
-                // testing Grapheme.isBoundary is enough for this case
-                while (j < matcher.to) {
-                    int ch1 = Character.codePointAt(seq, j);
-                    if (Grapheme.isBoundary(ch0, ch1))
-                        break;
-                    ch0 = ch1;
-                    j += Character.charCount(ch1);
-                }
-                if (i + n == j) {    // single, assume nfc cp
+                int j = Grapheme.nextBoundary(seq, i, matcher.to);
+                if (i + n == j) { // single cp grapheme, assume nfc
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);
                 } else {
@@ -4109,13 +4100,12 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 endIndex = matcher.getTextLength();
             }
             if (i == startIndex) {
-                return next.match(matcher, i, seq);
-            }
-            if (i < endIndex) {
-                if (Character.isSurrogatePair(seq.charAt(i-1), seq.charAt(i)) ||
-                    Grapheme.nextBoundary(seq,
-                        i - Character.charCount(Character.codePointBefore(seq, i)),
-                        i + Character.charCount(Character.codePointAt(seq, i))) > i) {
+                // continue with return below
+            } else if (i < endIndex) {
+                if (Character.isSurrogatePair(seq.charAt(i - 1), seq.charAt(i))) {
+                    return false;
+                }
+                if (Grapheme.nextBoundary(seq, matcher.last, endIndex) > i) {
                     return false;
                 }
             } else {
@@ -4340,14 +4330,22 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             this.cmin = cmin;
         }
         boolean match(Matcher matcher, int i, CharSequence seq) {
+            int starti = i;
             int n = 0;
             int to = matcher.to;
             // greedy, all the way down
             while (i < to) {
                 int ch = Character.codePointAt(seq, i);
+                int len = Character.charCount(ch);
+                if (i + len > to) {
+                    // the region cut off the high half of a surrogate pair
+                    matcher.hitEnd = true;
+                    ch = seq.charAt(i);
+                    len = 1;
+                }
                 if (!predicate.is(ch))
-                   break;
-                i += Character.charCount(ch);
+                    break;
+                i += len;
                 n++;
             }
             if (i >= to) {
@@ -4358,9 +4356,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                     return true;
                 if (n == cmin)
                     return false;
-                 // backing off if match fails
+                // backing off if match fails
                 int ch = Character.codePointBefore(seq, i);
-                i -= Character.charCount(ch);
+                // check if the region cut off the low half of a surrogate pair
+                i = Math.max(starti, i - Character.charCount(ch));
                 n--;
             }
             return false;

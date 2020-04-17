@@ -57,8 +57,8 @@ private:
   bool                  _has_cset_oops;
 
 public:
-  ShenandoahHasCSetOopClosure() :
-    _heap(ShenandoahHeap::heap()),
+  ShenandoahHasCSetOopClosure(ShenandoahHeap *heap) :
+    _heap(heap),
     _has_cset_oops(false) {
   }
 
@@ -79,7 +79,7 @@ public:
 };
 
 bool ShenandoahNMethod::has_cset_oops(ShenandoahHeap *heap) {
-  ShenandoahHasCSetOopClosure cl;
+  ShenandoahHasCSetOopClosure cl(heap);
   oops_do(&cl);
   return cl.has_cset_oops();
 }
@@ -213,7 +213,7 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
       ShenandoahKeepNMethodMetadataAliveClosure<false> cl;
       data->oops_do(&cl);
     }
-  } else if (heap->is_concurrent_root_in_progress()) {
+  } else if (heap->is_concurrent_weak_root_in_progress()) {
     ShenandoahEvacOOMScope evac_scope;
     ShenandoahEvacuateUpdateRootsClosure<> cl;
     data->oops_do(&cl, true /*fix relocation*/);

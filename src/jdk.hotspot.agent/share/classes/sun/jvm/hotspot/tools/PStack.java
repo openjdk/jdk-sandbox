@@ -60,7 +60,7 @@ public class PStack extends Tool {
 
    public void run(PrintStream out, Debugger dbg) {
       if (PlatformInfo.getOS().equals("darwin")) {
-        out.println("Not available on Darwin");
+        out.println("Not available on Mac OS X");
         return;
       }
 

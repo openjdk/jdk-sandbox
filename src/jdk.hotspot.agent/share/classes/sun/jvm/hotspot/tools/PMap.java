@@ -28,6 +28,7 @@ import java.io.*;
 import java.util.*;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.cdbg.*;
+import sun.jvm.hotspot.utilities.PlatformInfo;
 
 public class PMap extends Tool {
 
@@ -53,6 +54,11 @@ public class PMap extends Tool {
    }
 
    public void run(PrintStream out, Debugger dbg) {
+      if (PlatformInfo.getOS().equals("darwin")) {
+        out.println("Not available on Mac OS X");
+        return;
+      }
+
       CDebugger cdbg = dbg.getCDebugger();
       if (cdbg != null) {
          List<LoadObject> l = cdbg.getLoadObjectList();

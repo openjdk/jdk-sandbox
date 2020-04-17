@@ -30,6 +30,8 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
+import sun.jvm.hotspot.utilities.Observable;
+import sun.jvm.hotspot.utilities.Observer;
 
 // A ConstantPool is an oop containing class constants
 // as described in the class file
@@ -551,7 +553,7 @@ public class ConstantPool extends Metadata implements ClassConstants {
           int cpConstType = tags.at(ci);
           if(cpConstType == JVM_CONSTANT_Utf8) {
               Symbol sym = getSymbolAt(ci);
-              utf8ToIndex.put(sym.asString(), new Short((short) ci));
+              utf8ToIndex.put(sym.asString(), (short) ci);
           }
           else if(cpConstType == JVM_CONSTANT_Long ||
                   cpConstType == JVM_CONSTANT_Double) {

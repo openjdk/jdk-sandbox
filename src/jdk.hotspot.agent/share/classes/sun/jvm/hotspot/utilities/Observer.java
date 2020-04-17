@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,23 +26,12 @@
 package sun.jvm.hotspot.utilities;
 
 /**
- * A class can implement the {@code Observer} interface when it
- * wants to be informed of changes in observable objects.
- *
- * @author  Chris Warth
- * @see     java.util.Observable
- * @since   1.0
+ * A simple class for sending updates to objects.
+ * The design of this class is based on the deprecated java.util.Observer.
  */
 public interface Observer {
     /**
-     * This method is called whenever the observed object is changed. An
-     * application calls an {@code Observable} object's
-     * {@code notifyObservers} method to have all the object's
-     * observers notified of the change.
-     *
-     * @param   o     the observable object.
-     * @param   arg   an argument passed to the {@code notifyObservers}
-     *                 method.
+     * This method is called whenever an update is needed.
      */
     void update(Observable o, Object arg);
 }
