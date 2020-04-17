@@ -118,16 +118,18 @@ public abstract class ServerSocketChannel
     /**
      * Opens a server-socket channel of the given protocol family.
      *
-     * <p> Where family is equal to {@link StandardProtocolFamily#INET INET} or {@link
-     * StandardProtocolFamily#INET6 INET6} the returned channel must be bound to an
-     * {@link InetSocketAddress}.
+     * <p> The new channel is created by invoking the {@link
+     * java.nio.channels.spi.SelectorProvider#openServerSocketChannel(ProtocolFamily)
+     * openServerSocketChannel(ProtocolFamily)} method of the system-wide default {@link
+     * java.nio.channels.spi.SelectorProvider} object.
      *
      * @param family the protocol family
      *
-     * @return a ServerSocketChannel
+     * @return A new ServerSocketChannel
      *
      * @throws IOException if an I/O error occurs
      * @throws UnsupportedOperationException if the protocol family is not supported
+     *
      * @since 15
      */
     public static ServerSocketChannel open(ProtocolFamily family) throws IOException {
