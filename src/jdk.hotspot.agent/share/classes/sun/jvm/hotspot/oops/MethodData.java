@@ -500,7 +500,6 @@ public class MethodData extends Metadata implements MethodDataInterface<Klass,Me
     return count;
   }
 
-  @SuppressWarnings("unchecked")
   public void dumpReplayData(PrintStream out) {
     Method method = getMethod();
     out.print("ciMethodData " + method.nameAsAscii()

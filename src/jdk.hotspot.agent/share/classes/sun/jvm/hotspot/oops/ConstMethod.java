@@ -36,8 +36,7 @@ import sun.jvm.hotspot.utilities.*;
 import sun.jvm.hotspot.utilities.Observable;
 import sun.jvm.hotspot.utilities.Observer;
 
-// FIXME: Ensure that moving this to Metadata is correct.
-public class ConstMethod extends Metadata {
+public class ConstMethod extends VMObject {
   static {
     VM.registerVMInitializedObserver(new Observer() {
         public void update(Observable o, Object data) {

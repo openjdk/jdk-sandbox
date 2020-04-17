@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,18 +40,18 @@ import sun.jvm.hotspot.types.*;
 
 public class VirtualConstructor extends InstanceConstructor<VMObject> {
   private TypeDataBase db;
-  private Map<String, Class<? extends VMObject>> map;
+  private Map          map; // Map<String, Class>
 
   public VirtualConstructor(TypeDataBase db) {
     this.db = db;
-    map     = new HashMap<>();
+    map     = new HashMap();
   }
 
   /** Adds a mapping from the given C++ type name to the given Java
       class. The latter must be a subclass of
       sun.jvm.hotspot.runtime.VMObject. Returns false if there was
       already a class for this type name in the map. */
-  public boolean addMapping(String cTypeName, Class<? extends VMObject> clazz) {
+  public boolean addMapping(String cTypeName, Class clazz) {
     if (map.get(cTypeName) != null) {
       return false;
     }
@@ -73,7 +73,7 @@ public class VirtualConstructor extends InstanceConstructor<VMObject> {
     for (Iterator iter = map.keySet().iterator(); iter.hasNext(); ) {
       String typeName = (String) iter.next();
       if (db.addressTypeIsEqualToType(addr, db.lookupType(typeName))) {
-        return VMObjectFactory.newObject(map.get(typeName), addr);
+        return (VMObject) VMObjectFactory.newObject((Class) map.get(typeName), addr);
       }
     }
 

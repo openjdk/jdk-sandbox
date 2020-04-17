@@ -160,7 +160,7 @@ public class ObjectHistogramPanel extends JPanel implements ActionListener {
     /**
      * A table model which encapsulates the ObjectHistogram
      */
-    private class ObjectHistogramTableModel extends SortableTableModel<Object> {
+    private class ObjectHistogramTableModel extends SortableTableModel {
         private String[] columnNames = { "Size", "Count", "Class Description" };
         private Class[] columnClasses = { Long.class, Long.class, String.class };
 
@@ -209,7 +209,7 @@ public class ObjectHistogramPanel extends JPanel implements ActionListener {
             return (ObjectHistogramElement) elements.get(index);
         }
 
-        private class ObjectHistogramComparator extends TableModelComparator<Object> {
+        private class ObjectHistogramComparator extends TableModelComparator {
 
             public ObjectHistogramComparator(ObjectHistogramTableModel model) {
                 super(model);

@@ -314,7 +314,6 @@ public class ciMethodData extends ciMetadata implements MethodDataInterface<ciKl
     return count;
   }
 
-  @SuppressWarnings("unchecked")
   public void dumpReplayData(PrintStream out) {
     MethodData mdo = (MethodData)getMetadata();
     Method method = mdo.getMethod();

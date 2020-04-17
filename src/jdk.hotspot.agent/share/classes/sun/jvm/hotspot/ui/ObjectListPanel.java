@@ -43,7 +43,7 @@ import sun.jvm.hotspot.ui.tree.*;
 public class ObjectListPanel extends SAPanel {
   private ObjectListTableModel dataModel;
   private JTable             table;
-  private java.util.List<Oop> elements;
+  private java.util.List     elements;
   private HeapProgressThunk  thunk;
   private boolean            checkedForArrays;
   private boolean            hasArrays;
@@ -55,7 +55,7 @@ public class ObjectListPanel extends SAPanel {
 
   /** Takes a List<Oop> in constructor, and an optional
       HeapProgressThunk used if computing liveness */
-  public ObjectListPanel(java.util.List<Oop> els,
+  public ObjectListPanel(java.util.List els,
                          HeapProgressThunk thunk) {
     super();
 
@@ -140,7 +140,7 @@ public class ObjectListPanel extends SAPanel {
     }
   }
 
-  private class ObjectListTableModel extends SortableTableModel<Oop> {
+  private class ObjectListTableModel extends SortableTableModel {
     public ObjectListTableModel() {
       // Set the rows
       this.elements = ObjectListPanel.this.elements;
@@ -229,7 +229,7 @@ public class ObjectListPanel extends SAPanel {
       return bos.toString();
     }
 
-    private class ObjectListComparator extends TableModelComparator<Oop> {
+    private class ObjectListComparator extends TableModelComparator {
       public ObjectListComparator(ObjectListTableModel model) {
         super(model);
       }
@@ -238,12 +238,12 @@ public class ObjectListPanel extends SAPanel {
        * Returns the value for the comparing object for the
        * column.
        *
-       * @param oop Object that was passed for Comparator
+       * @param obj Object that was passed for Comparator
        * @param column the column to retrieve
        */
-      public Object getValueForColumn(Oop oop, int column) {
+      public Object getValueForColumn(Object obj, int column) {
         ObjectListTableModel omodel = (ObjectListTableModel)model;
-        return omodel.getValueForColumn(oop, column);
+        return omodel.getValueForColumn((Oop) obj, column);
       }
     }
   }
@@ -254,7 +254,7 @@ public class ObjectListPanel extends SAPanel {
       return;
     }
 
-    Oop oop = elements.get(i);
+    Oop oop = (Oop) elements.get(i);
 
     for (Iterator iter = listeners.iterator(); iter.hasNext(); ) {
       SAListener listener = (SAListener) iter.next();
@@ -311,7 +311,7 @@ public class ObjectListPanel extends SAPanel {
       return;
     }
 
-    Oop oop = elements.get(i);
+    Oop oop = (Oop) elements.get(i);
     LivenessPathList list = LivenessAnalysis.computeAllLivenessPaths(oop);
     if (list == null) {
       return; // dead object
@@ -326,9 +326,8 @@ public class ObjectListPanel extends SAPanel {
   private void checkForArrays() {
     if (checkedForArrays) return;
     checkedForArrays = true;
-    for (Iterator<Oop> iter = elements.iterator(); iter.hasNext(); ) {
+    for (Iterator iter = elements.iterator(); iter.hasNext(); ) {
       if (iter.next() instanceof Array) {
-        // FIXME: Does not seem possible to happen
         hasArrays = true;
         return;
       }
