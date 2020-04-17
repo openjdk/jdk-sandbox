@@ -323,9 +323,10 @@ public abstract class SelectorProvider {
      *
      * @param family the protocol family
      *
-     * @return a SocketChannel
+     * @return The new channel
      *
      * @throws IOException if an I/O error occurs
+     *
      * @throws UnsupportedOperationException
      *         If the specified protocol family is not supported
      *
@@ -343,9 +344,10 @@ public abstract class SelectorProvider {
      *
      * @param family the protocol family
      *
-     * @return a ServerSocketChannel
+     * @return The new channel
      *
      * @throws IOException if an I/O error occurs
+     *
      * @throws UnsupportedOperationException
      *         If the specified protocol family is not supported
      *

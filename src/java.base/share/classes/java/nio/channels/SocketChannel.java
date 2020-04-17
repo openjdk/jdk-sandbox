@@ -185,9 +185,13 @@ public abstract class SocketChannel
      * Opens a socket channel. The socket channel is to an <i>Internet protocol</i> socket
      * or a <i>Unix domain</i> socket depending on the protocol family.
      *
+     * <p> The new channel is created by invoking the {@link
+     * java.nio.channels.spi.SelectorProvider#openSocketChannel(ProtocolFamily)
+     * openSocketChannel(ProtocolFamily)} method of the system-wide default {@link
+     * java.nio.channels.spi.SelectorProvider} object.  </p>
      * @param family the protocol family
      *
-     * @return a SocketChannel
+     * @return A new SocketChannel
      *
      * @throws IOException if an I/O error occurs
      * @throws UnsupportedOperationException if the protocol family is not supported
