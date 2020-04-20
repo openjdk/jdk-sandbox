@@ -972,9 +972,8 @@ public class Indify {
 
         private void flattenVarargs(List<Object> args) {
             int size = args.size();
-            if (size > 0 && args.get(size-1) instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<Object> removedArg = (List<Object>) args.remove(size - 1);
+            if (size > 0 && args.get(size - 1) instanceof List) {
+                List<?> removedArg = (List<?>) args.remove(size - 1);
                 args.addAll(removedArg);
             }
         }
