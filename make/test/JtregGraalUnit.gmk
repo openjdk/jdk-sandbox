@@ -111,11 +111,11 @@ ifeq ($(INCLUDE_GRAAL), true)
               $(SRC_DIR)/org.graalvm.util.test/src \
               , \
           EXCLUDE_FILES := org/graalvm/compiler/core/test/VerifyDebugUsageTest.java, \
-          COPY := .input, \
           BIN := $(COMPILE_OUTPUTDIR)/jdk.vm.compiler.tests, \
           CLASSPATH := $(TEST_COMPILE_CP), \
           DISABLED_WARNINGS := processing, \
           JAVAC_FLAGS := $(TEST_JAVAC_FLAGS), \
+          COPY := .input, \
       ))
 
       TARGETS_BUILD += $(BUILD_VM_COMPILER_TESTS)
@@ -152,8 +152,8 @@ ifeq ($(INCLUDE_GRAAL), true)
           SRC := $(TEST_DIR)/com.oracle.mxtool.junit, \
           BIN := $(COMPILE_OUTPUTDIR)/com.oracle.mxtool.junit, \
           JAR := $(COMPILE_OUTPUTDIR)/com.oracle.mxtool.junit.jar, \
-          CLASSPATH := $(LIB_OUTPUTDIR)/junit-4.12.jar, \
           DISABLED_WARNINGS := processing, \
+          CLASSPATH := $(LIB_OUTPUTDIR)/junit-4.12.jar, \
       ))
 
       TARGETS_BUILD += $(BUILD_MXTOOL)

@@ -36,9 +36,9 @@ $(eval $(call SetupJavaCompilation, BUILD_JVMTI_TOOLS, \
     COMPILER := bootjdk, \
     SMALL_JAVA := false, \
     SRC := $(JVMTI_TOOLS_SRCDIR), \
+    DISABLED_WARNINGS := rawtypes cast, \
     INCLUDE_FILES := jvmtiGen.java jvmtiEnvFill.java, \
     BIN := $(JVMTI_TOOLS_OUTPUTDIR), \
-    DISABLED_WARNINGS := rawtypes cast, \
 ))
 
 TOOL_JVMTI_GEN := $(JAVA_SMALL) -cp $(JVMTI_TOOLS_OUTPUTDIR) jvmtiGen
