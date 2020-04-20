@@ -27,7 +27,6 @@ package java.nio.channels;
 
 import java.io.IOException;
 import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.net.Socket;
 import java.net.SocketOption;
 import java.net.SocketAddress;
@@ -153,18 +152,27 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens a socket channel of a specific protocol family.
+     * Opens a socket channel. The {@code family} parameter specifies the
+     * {@link ProtocolFamily protocol family} of the channel's socket.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel(ProtocolFamily)
-     * openSocketChannel(ProtocolFamily)} method of the system-wide default {@link
-     * java.nio.channels.spi.SelectorProvider} object.  </p>
-     * @param family the protocol family
+     * openSocketChannel(ProtocolFamily)} method of the system-wide default.
+     * {@link java.nio.channels.spi.SelectorProvider} object.  </p>
      *
-     * @return A new SocketChannel
+     * @param   family
+     *          The protocol family
      *
-     * @throws IOException if an I/O error occurs
-     * @throws UnsupportedOperationException if the protocol family is not supported
+     * @return  A new socket channel
+     *
+     * @throws  UnsupportedOperationException
+     *          If the specified protocol family is not supported. For example,
+     *          suppose the parameter is specified as {@link
+     *          java.net.StandardProtocolFamily#INET6 StandardProtocolFamily.INET6}
+     *          but IPv6 is not enabled on the platform.
+     * @throws  IOException
+     *          If an I/O error occurs
+     *
      * @since 15
      */
     public static SocketChannel open(ProtocolFamily family) throws IOException {

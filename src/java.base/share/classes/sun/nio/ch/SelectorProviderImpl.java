@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package sun.nio.ch;
 
 import java.io.IOException;
 import java.net.ProtocolFamily;
-import java.net.StandardProtocolFamily;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ServerSocketChannel;
@@ -80,7 +79,7 @@ public abstract class SelectorProviderImpl
     }
 
     @Override
-    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+    public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) {
         return new ServerSocketChannelImpl(this, family);
     }
 }
