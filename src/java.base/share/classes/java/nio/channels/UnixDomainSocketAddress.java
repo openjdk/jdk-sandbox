@@ -25,7 +25,10 @@
 
 package java.nio.channels;
 
+import java.io.ObjectStreamException;
 import java.net.SocketAddress;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,6 +42,10 @@ import sun.nio.ch.Net;
  * {@link ServerSocketChannel}. This encapsulates a path which represents a filesystem pathname
  * that channels can bind or connect to.
  *
+ * <p>{@link Path} objects used to create instances of this class must be obtained from the
+ * {@linkplain FileSystems#getDefault system-default} filesystem.
+ * All other {@code Path}s are considered invalid.
+ *
  * @since 15
  */
 public class UnixDomainSocketAddress extends SocketAddress {
@@ -50,7 +57,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
         init();
     }
 
-    private final Path path;
+    private final transient Path path;
     private final String pathname; // used in native code
 
     /**
@@ -66,15 +73,16 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * @param pathname the pathname to the socket.
      * @return a UnixDomainSocketAddress
      *
-     * @throws InvalidPathException if pathname cannot be converted to a Path
+     * @throws InvalidPathException if pathname cannot be converted to a valid Path
      */
     public static  UnixDomainSocketAddress of(String pathname) {
         return new UnixDomainSocketAddress(pathname);
     }
 
-    private UnixDomainSocketAddress(String pathname) {
+    private UnixDomainSocketAddress(String pathname) throws InvalidPathException {
         Objects.requireNonNull(pathname);
         this.path = Paths.get(pathname);
+        checkPath(path);
         this.pathname = pathname;
     }
 
@@ -85,6 +93,7 @@ public class UnixDomainSocketAddress extends SocketAddress {
      * @return a UnixDomainSocketAddress
      *
      * @throws IllegalArgumentException if path name is too long
+     * @throws InvalidPathException if path is not from the system-default filesystem
      * @throws UnsupportedOperationException if Unix domain channels not supported
      *         on this platform.
      * @throws NullPointerException if path is null
@@ -93,9 +102,22 @@ public class UnixDomainSocketAddress extends SocketAddress {
         return new UnixDomainSocketAddress(path);
     }
 
-    private UnixDomainSocketAddress(Path path) {
+    private UnixDomainSocketAddress(Path path) throws InvalidPathException {
+        checkPath(path);
         this.pathname = path.toString();
         this.path = path;
+    }
+
+    private static void checkPath(Path path) throws InvalidPathException {
+        FileSystem fs = path.getFileSystem();
+        if (!fs.equals(FileSystems.getDefault())) {
+            throw new InvalidPathException(path.toString(),
+                        "path is not from the default file-system");
+        }
+        if (!fs.getClass().getModule().equals(Object.class.getModule())) {
+            throw new InvalidPathException(path.toString(),
+                        "default file-system is not the system-default");
+        }
     }
 
     /**
@@ -138,5 +160,18 @@ public class UnixDomainSocketAddress extends SocketAddress {
     @Override
     public String toString() {
         return path.toString();
+    }
+
+    /**
+     * Replaces the de-serialized object with a UnixDomainSocketAddress
+     *
+     * @return a UnixDomainSocketAddress created from the serialized pathname string
+     *
+     * @throws ObjectStreamException if a new object replacing this
+     * object could not be created
+     */
+    @java.io.Serial
+    private Object readResolve() throws ObjectStreamException {
+        return UnixDomainSocketAddress.of(pathname);
     }
 }
