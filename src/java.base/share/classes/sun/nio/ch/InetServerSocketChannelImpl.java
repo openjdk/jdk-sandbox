@@ -137,21 +137,14 @@ class InetServerSocketChannelImpl
         return DefaultOptionsHolder.defaultOptions;
     }
 
-    private InetSocketAddress anyLocalSocketAddress() {
-        if (family == Net.UNSPEC) {
-            return new InetSocketAddress(0);
-        } else if (family == StandardProtocolFamily.INET) {
-            return new InetSocketAddress(Net.anyLocalInet4, 0);
-        } else {
-            return new InetSocketAddress(Net.anyLocalInet6, 0);
-        }
-    }
-
     @Override
     SocketAddress bindImpl(SocketAddress local, int backlog) throws IOException {
-        InetSocketAddress isa = (local == null)
-            ? anyLocalSocketAddress()
-            : Net.checkAddress(local, family);
+        InetSocketAddress isa;
+        if (local == null) {
+            isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
+        } else {
+            isa = Net.checkAddress(local, family);
+        }
         SecurityManager sm = System.getSecurityManager();
         if (sm != null)
             sm.checkListen(isa.getPort());
@@ -188,6 +181,6 @@ class InetServerSocketChannelImpl
         if (sm != null) {
             sm.checkAccept(isa.getAddress().getHostAddress(), isa.getPort());
         }
-        return new InetSocketChannelImpl(provider(), newfd, isa, family);
+        return new InetSocketChannelImpl(provider(), family, newfd, isa);
     }
 }

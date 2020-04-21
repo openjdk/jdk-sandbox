@@ -70,7 +70,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
     // set true when exclusive binding is on and SO_REUSEADDR is emulated
     private boolean isReuseAddress;
 
-    // the protocol family requested by the user, or Net.UNSPEC if not specified
+    // the protocol family of the socket
     private final ProtocolFamily family;
 
     // Constructor for normal connecting sockets
@@ -102,8 +102,10 @@ class InetSocketChannelImpl extends SocketChannelImpl
 
     // Constructor for sockets obtained from server sockets
     //
-    InetSocketChannelImpl(SelectorProvider sp, FileDescriptor fd,
-                          InetSocketAddress isa, ProtocolFamily family)
+    InetSocketChannelImpl(SelectorProvider sp,
+                          ProtocolFamily family,
+                          FileDescriptor fd,
+                          InetSocketAddress isa)
         throws IOException
     {
         super(sp, fd, isa);
@@ -123,7 +125,7 @@ class InetSocketChannelImpl extends SocketChannelImpl
             return (T)Boolean.valueOf(isReuseAddress);
         }
 
-        // special handling for IP_TOS: always return 0 when IPv6
+        // special handling for IP_TOS
         if (name == StandardSocketOptions.IP_TOS) {
             ProtocolFamily family = Net.isIPv6Available() ?
                 StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
@@ -177,8 +179,12 @@ class InetSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress bindImpl(SocketAddress local) throws IOException {
-        InetSocketAddress isa = (local == null) ?
-            Net.anyLocalAddress(family) : Net.checkAddress(local, family);
+        InetSocketAddress isa;
+        if (local == null) {
+            isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
+        } else {
+            isa = Net.checkAddress(local, family);
+        }
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkListen(isa.getPort());
@@ -200,15 +206,14 @@ class InetSocketChannelImpl extends SocketChannelImpl
         if (sm != null) {
             sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
         }
-        if (isa.getAddress().isAnyLocalAddress()) {
-            if (family == Net.UNSPEC)
-                return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
-            else {
-                InetAddress anyAddr = isa.getAddress();
-                assert anyAddr.isAnyLocalAddress();
-                Class<?> clazz = anyAddr.getClass();
-                InetAddress la = clazz == Inet4Address.class ? Net.inet4LoopBack : Net.inet6LoopBack;
-                return new InetSocketAddress(la, isa.getPort());
+        InetAddress address = isa.getAddress();
+        if (address.isAnyLocalAddress()) {
+            int port = isa.getPort();
+            if (address instanceof Inet4Address) {
+                return new InetSocketAddress(Net.inet4LoopbackAddress(), port);
+            } else {
+                assert family == StandardProtocolFamily.INET6;
+                return new InetSocketAddress(Net.inet6LoopbackAddress(), port);
             }
         } else {
             return isa;

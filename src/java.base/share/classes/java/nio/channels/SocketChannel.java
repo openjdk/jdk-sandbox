@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,7 +165,7 @@ public abstract class SocketChannel
     }
 
     /**
-     * Opens a channel to an <i>Internet protocol</i> socket.
+     * Opens an <i>Internet protocol</i> socket channel.
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel
@@ -187,14 +187,22 @@ public abstract class SocketChannel
      *
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel(ProtocolFamily)
-     * openSocketChannel(ProtocolFamily)} method of the system-wide default {@link
-     * java.nio.channels.spi.SelectorProvider} object.  </p>
-     * @param family the protocol family
+     * openSocketChannel(ProtocolFamily)} method of the system-wide default.
+     * {@link java.nio.channels.spi.SelectorProvider} object.  </p>
      *
-     * @return A new SocketChannel
+     * @param   family
+     *          The protocol family
      *
-     * @throws IOException if an I/O error occurs
-     * @throws UnsupportedOperationException if the protocol family is not supported
+     * @return  A new socket channel
+     *
+     * @throws  UnsupportedOperationException
+     *          If the specified protocol family is not supported. For example,
+     *          suppose the parameter is specified as {@link
+     *          java.net.StandardProtocolFamily#INET6 StandardProtocolFamily.INET6}
+     *          but IPv6 is not enabled on the platform.
+     * @throws  IOException
+     *          If an I/O error occurs
+     *
      * @since 15
      */
     public static SocketChannel open(ProtocolFamily family) throws IOException {
