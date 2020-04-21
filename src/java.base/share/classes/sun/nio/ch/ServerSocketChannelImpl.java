@@ -108,6 +108,7 @@ class ServerSocketChannelImpl
 
     ServerSocketChannelImpl(SelectorProvider sp, ProtocolFamily family) {
         super(sp);
+        Objects.requireNonNull(family, "'family' is null");
 
         if ((family != StandardProtocolFamily.INET) &&
                 (family != StandardProtocolFamily.INET6)) {
