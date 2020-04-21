@@ -23,14 +23,16 @@
 
 package build.tools.pandocfilter.json;
 
-/**
- * Traverse a tree of pandoc format objects, calling callback on each
- * element, and replacing it if callback returns a new object.
- *
- * Inspired by the walk method in
- * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
- */
-function traverse(obj, callback) {
+public class PandocManPageTroffFilter {
+
+  /**
+   * Traverse a tree of pandoc format objects, calling callback on each
+   * element, and replacing it if callback returns a new object.
+   *
+   * Inspired by the walk method in
+   * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
+   */
+  private Object traverse(Object obj, Object callback) {
     if (Array.isArray(obj)) {
         var processed_array = [];
         obj.forEach(function(elem) {
@@ -62,40 +64,40 @@ function traverse(obj, callback) {
     } else {
         return obj;
     }
-}
+  }
 
-/*
- * Helper constructors to create pandoc format objects
- */
-function Space() {
+  /*
+   * Helper constructors to create pandoc format objects
+   */
+  private Object Space() {
     return { 't': 'Space', 'c': [] };
-}
+  }
 
-function Str(value) {
+  private Object Str(value) {
     return { 't': 'Str', 'c': value };
-}
+  }
 
-function Strong(value) {
+  private Object Strong(value) {
     return { 't': 'Strong', 'c': value };
-}
+  }
 
-function Header(value) {
+  private Object Header(value) {
     return { 't': 'Header', 'c': value };
-}
+  }
 
-/**
- * Callback to change all Str texts to upper case
- */
-function uppercase(type, value) {
+  /**
+   * Callback to change all Str texts to upper case
+   */
+  private Object uppercase(type, value) {
     if (type === 'Str') {
         return Str(value.toUpperCase());
     }
-}
+  }
 
-/**
- * Main callback function that performs our man page AST rewrites
- */
-function manpage_filter(type, value) {
+  /**
+   * Main callback function that performs our man page AST rewrites
+   */
+  private Object manpage_filter(type, value) {
     // If it is a header, decrease the heading level by one, and
     // if it is a level 1 header, convert it to upper case.
     if (type === 'Header') {
@@ -123,12 +125,12 @@ function manpage_filter(type, value) {
             return Strong(value[1]);
         }
     }
-}
+  }
 
-/**
- * Main function
- */
-function main() {
+  /**
+   * Main function
+   */
+  public static int main(String[] args) {
     var input = "";
     while (line = readLine()) {
         input = input.concat(line);
@@ -138,7 +140,6 @@ function main() {
     var transformed_json = traverse(json, manpage_filter);
 
     print(JSON.stringify(transformed_json));
-}
+  }
 
-// ... and execute it
-main();
+}

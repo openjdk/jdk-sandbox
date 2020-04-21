@@ -23,14 +23,16 @@
 
 package build.tools.pandocfilter.json;
 
-/**
- * Traverse a tree of pandoc format objects, calling callback on each
- * element, and replacing it if callback returns a new object.
- *
- * Inspired by the walk method in
- * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
- */
-function traverse(obj, callback) {
+public class PandocManPageHtmlFilter {
+
+  /**
+   * Traverse a tree of pandoc format objects, calling callback on each
+   * element, and replacing it if callback returns a new object.
+   *
+   * Inspired by the walk method in
+   * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
+   */
+  private Object traverse(Object obj, Object callback) {
     if (Array.isArray(obj)) {
         var processed_array = [];
         obj.forEach(function(elem) {
@@ -68,24 +70,24 @@ function traverse(obj, callback) {
     } else {
         return obj;
     }
-}
+  }
 
-/*
- * Helper constructors to create pandoc format objects
- */
-function Space() {
+  /*
+   * Helper constructors to create pandoc format objects
+   */
+  private Object Space() {
     return { 't': 'Space' };
-}
+  }
 
-function Str(value) {
+  private Object Str(value) {
     return { 't': 'Str', 'c': value };
-}
+  }
 
-function MetaInlines(value) {
+  private Object MetaInlines(value) {
     return { 't': 'MetaInlines', 'c': value };
-}
+  }
 
-function change_title(type, value) {
+  private Object change_title(type, value) {
     if (type === 'MetaInlines') {
         if (value[0].t === 'Str') {
             var match = value[0].c.match(/^([A-Z0-9]+)\([0-9]+\)$/);
@@ -98,12 +100,12 @@ function change_title(type, value) {
             }
         }
     }
-}
+  }
 
-/**
- * Main function
- */
-function main() {
+  /**
+   * Main function
+   */
+  public static int main(String[] args) {
     var input = "";
     while (line = readLine()) {
         input = input.concat(line);
@@ -121,7 +123,5 @@ function main() {
     }
 
     print(JSON.stringify(json));
+  }
 }
-
-// ... and execute it
-main();
