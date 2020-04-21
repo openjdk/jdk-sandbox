@@ -1310,7 +1310,7 @@ abstract class SocketChannelImpl
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(this.getClass().getSuperclass().getName());
+        sb.append(this.getClass().getName());
         sb.append('[');
         if (!isOpen())
             sb.append("closed");
