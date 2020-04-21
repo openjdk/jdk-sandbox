@@ -34,6 +34,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.AbstractSelector;
 import java.nio.channels.spi.SelectorProvider;
+import java.util.Objects;
 
 public abstract class SelectorProviderImpl
     extends SelectorProvider
@@ -76,6 +77,7 @@ public abstract class SelectorProviderImpl
 
     @Override
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        Objects.requireNonNull(family, "'family' is null");
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");
         } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
@@ -88,6 +90,7 @@ public abstract class SelectorProviderImpl
 
     @Override
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        Objects.requireNonNull(family, "'family' is null");
         if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
             throw new UnsupportedOperationException("IPv6 not available");
         } else if (family == StandardProtocolFamily.INET || family == StandardProtocolFamily.INET6)  {
