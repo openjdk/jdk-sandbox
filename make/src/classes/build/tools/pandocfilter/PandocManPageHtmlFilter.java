@@ -1,33 +1,35 @@
-//
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
-// DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-//
-// This code is free software; you can redistribute it and/or modify it
-// under the terms of the GNU General Public License version 2 only, as
-// published by the Free Software Foundation.
-//
-// This code is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-// version 2 for more details (a copy is included in the LICENSE file that
-// accompanied this code).
-//
-// You should have received a copy of the GNU General Public License version
-// 2 along with this work; if not, write to the Free Software Foundation,
-// Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
-//
-// Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
-// or visit www.oracle.com if you need additional information or have any
-// questions.
-//
+/*
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
 
-//
-// Traverse a tree of pandoc format objects, calling callback on each
-// element, and replacing it if callback returns a new object.
-//
-// Inspired by the walk method in
-// https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
-//
+package build.tools.pandocfilter.json;
+
+/**
+ * Traverse a tree of pandoc format objects, calling callback on each
+ * element, and replacing it if callback returns a new object.
+ *
+ * Inspired by the walk method in
+ * https://github.com/jgm/pandocfilters/blob/master/pandocfilters.py
+ */
 function traverse(obj, callback) {
     if (Array.isArray(obj)) {
         var processed_array = [];
@@ -68,9 +70,9 @@ function traverse(obj, callback) {
     }
 }
 
-//
-// Helper constructors to create pandoc format objects
-//
+/*
+ * Helper constructors to create pandoc format objects
+ */
 function Space() {
     return { 't': 'Space' };
 }
@@ -98,9 +100,9 @@ function change_title(type, value) {
     }
 }
 
-//
-// Main function
-//
+/**
+ * Main function
+ */
 function main() {
     var input = "";
     while (line = readLine()) {
