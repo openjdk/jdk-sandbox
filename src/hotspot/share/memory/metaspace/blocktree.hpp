@@ -35,7 +35,7 @@
 namespace metaspace {
 
 
-class BlockTree: public CHeapObj<mtInternal> {
+class BlockTree: public CHeapObj<mtMetaspace> {
 
 
   struct node_t {

@@ -39,10 +39,15 @@ class ChunkHeaderPool {
 
   static const int slab_capacity = 128;
 
-  struct slab_t {
+  struct slab_t : public CHeapObj<mtMetaspace> {
     slab_t* next;
     int top;
-    Metachunk elems [slab_capacity]; // var sized;
+    Metachunk elems [128]; // var sized;
+    slab_t() : next(NULL), top(0) {
+      for (int i = 0; i < slab_capacity; i++) {
+        elems[i].clear();
+      }
+    }
   };
 
   IntCounter _num_slabs;

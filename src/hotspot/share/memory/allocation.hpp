@@ -140,6 +140,7 @@ class AllocatedObj {
   f(mtModule,        "Module")                                                      \
   f(mtSafepoint,     "Safepoint")                                                   \
   f(mtSynchronizer,  "Synchronization")                                             \
+  f(mtMetaspace,     "Metaspace")                                                   \
   f(mtNone,          "Unknown")                                                     \
   //end
 

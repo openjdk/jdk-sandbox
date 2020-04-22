@@ -29,7 +29,7 @@
 #include "runtime/perfData.hpp"
 #include "utilities/exceptions.hpp"
 
-class MetaspacePerfCounters: public CHeapObj<mtInternal> {
+class MetaspacePerfCounters: public CHeapObj<mtMetaspace> {
   friend class VMStructs;
   PerfVariable*      _capacity;
   PerfVariable*      _used;

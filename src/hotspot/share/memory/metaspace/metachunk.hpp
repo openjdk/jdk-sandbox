@@ -126,6 +126,20 @@ public:
       _prev_in_vs(NULL), _next_in_vs(NULL)
   {}
 
+ void clear() {
+   _base = NULL;
+   _used_words = 0;
+   _committed_words = 0;
+   _level = chklvl::ROOT_CHUNK_LEVEL;
+   _state = state_free;
+   _vsnode = NULL;
+   _prev = NULL;
+   _next = NULL;
+   _prev_in_vs = NULL;
+   _next_in_vs = NULL;
+  }
+
+
   size_t word_size() const        { return chklvl::word_size_for_level(_level); }
 
   MetaWord* base() const          { return _base; }

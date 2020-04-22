@@ -41,7 +41,7 @@ namespace metaspace {
 //
 // Other versions of this Limiter can be implemented for tests (see metaspace
 //  gtests).
-class CommitLimiter : public CHeapObj<mtInternal> {
+class CommitLimiter : public CHeapObj<mtMetaspace> {
 
   // Counts total words committed for metaspace
   SizeCounter _cnt;

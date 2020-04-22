@@ -42,7 +42,7 @@ struct cm_stats_t;
 // It keeps the freelists for chunks. If the freelist is exhausted it
 // allocates new chunks from a connected VirtualSpaceList.
 //
-class ChunkManager : public CHeapObj<mtInternal> {
+class ChunkManager : public CHeapObj<mtMetaspace> {
 
   // A chunk manager is connected to a virtual space list which is used
   // to allocate new root chunks when no free chunks are found.

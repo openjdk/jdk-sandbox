@@ -54,8 +54,7 @@ ChunkHeaderPool::~ChunkHeaderPool() {
 }
 
 void ChunkHeaderPool::allocate_new_slab() {
-  slab_t* slab = (slab_t*)os::malloc(sizeof(slab_t), mtInternal);
-  memset(slab, 0, sizeof(slab_t));
+  slab_t* slab = new slab_t();
   if (_current_slab != NULL) {
     _current_slab->next = slab;
   }

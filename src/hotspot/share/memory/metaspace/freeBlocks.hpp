@@ -50,7 +50,7 @@ namespace metaspace {
 //    due to interrupted class loading. These blocks are small or
 //    very small.
 
-class FreeBlocks : public CHeapObj<mtInternal> {
+class FreeBlocks : public CHeapObj<mtMetaspace> {
 
   typedef BinList32 SmallBlocksType;
 
