@@ -55,6 +55,9 @@ public class LengthTest {
 
     @DataProvider(name = "strings")
     public Object[][] strings() {
+        if (namelen == -1)
+            return new Object[][] {new String[]{""}};
+
         return new Object[][]{
                 {""},
                 {new String(new char[100]).replaceAll("\0", "x")},
