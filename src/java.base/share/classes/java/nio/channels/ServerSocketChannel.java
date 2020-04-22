@@ -121,7 +121,7 @@ public abstract class ServerSocketChannel
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openServerSocketChannel(ProtocolFamily)
      * openServerSocketChannel(ProtocolFamily)} method of the system-wide default {@link
-     * java.nio.channels.spi.SelectorProvider} object.
+     * java.nio.channels.spi.SelectorProvider} object. </p>
      *
      * @param   family
      *          The protocol family

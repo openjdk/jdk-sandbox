@@ -158,7 +158,7 @@ public abstract class SocketChannel
      * <p> The new channel is created by invoking the {@link
      * java.nio.channels.spi.SelectorProvider#openSocketChannel(ProtocolFamily)
      * openSocketChannel(ProtocolFamily)} method of the system-wide default.
-     * {@link java.nio.channels.spi.SelectorProvider} object.  </p>
+     * {@link java.nio.channels.spi.SelectorProvider} object.</p>
      *
      * @param   family
      *          The protocol family
