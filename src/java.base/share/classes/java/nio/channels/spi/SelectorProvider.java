@@ -36,6 +36,7 @@ import java.nio.channels.SocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.ServiceConfigurationError;
 
@@ -318,8 +319,9 @@ public abstract class SelectorProvider {
     /**
      * Opens a socket channel.
      *
-     * @implSpec The default implementation throws
-     *           {@link UnsupportedOperationException}.
+     * @implSpec The default implementation throws {@link UnsupportedOperationException}
+     *          except if family is {@code null} in which case {@link NullPointerException}
+     *          is thrown.
      *
      * @param   family
      *          The protocol family
@@ -334,14 +336,16 @@ public abstract class SelectorProvider {
      * @since 15
      */
     public SocketChannel openSocketChannel(ProtocolFamily family) throws IOException {
+        Objects.requireNonNull(family);
         throw new UnsupportedOperationException("Protocol family not supported");
     }
 
     /**
      * Opens a server-socket channel.
      *
-     * @implSpec The default implementation throws
-     *           {@link UnsupportedOperationException}.
+     * @implSpec The default implementation throws {@link UnsupportedOperationException}
+     *          except if family is {@code null} in which case {@link NullPointerException}
+     *          is thrown.
      *
      * @param   family
      *          The protocol family
@@ -356,6 +360,7 @@ public abstract class SelectorProvider {
      * @since 15
      */
     public ServerSocketChannel openServerSocketChannel(ProtocolFamily family) throws IOException {
+        Objects.requireNonNull(family);
         throw new UnsupportedOperationException("Protocol family not supported");
     }
 }
