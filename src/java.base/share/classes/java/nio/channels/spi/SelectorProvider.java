@@ -319,9 +319,9 @@ public abstract class SelectorProvider {
     /**
      * Opens a socket channel.
      *
-     * @implSpec The default implementation throws {@link UnsupportedOperationException}
-     *          except if family is {@code null} in which case {@link NullPointerException}
-     *          is thrown.
+     * @implSpec The default implementation of this method first checks that
+     *          the given protocol {@code family} is not {@code null},
+     *          then throws {@link UnsupportedOperationException}.
      *
      * @param   family
      *          The protocol family
@@ -343,9 +343,9 @@ public abstract class SelectorProvider {
     /**
      * Opens a server-socket channel.
      *
-     * @implSpec The default implementation throws {@link UnsupportedOperationException}
-     *          except if family is {@code null} in which case {@link NullPointerException}
-     *          is thrown.
+     * @implSpec The default implementation of this method first checks that
+     *          the given protocol {@code family} is not {@code null},
+     *          then throws {@link UnsupportedOperationException}.
      *
      * @param   family
      *          The protocol family
