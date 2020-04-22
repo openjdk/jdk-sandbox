@@ -23,7 +23,7 @@
 package build.tools.pandocfilter.json;
 
 public class JSONDecimal implements JSONValue {
-    double value;
+    private double value;
 
     public JSONDecimal(double value) {
         this.value = value;

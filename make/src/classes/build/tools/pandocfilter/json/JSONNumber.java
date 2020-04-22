@@ -22,11 +22,11 @@
  */
 package build.tools.pandocfilter.json;
 
-class JSONNumber implements JSONValue {
-    long value;
+public class JSONNumber implements JSONValue {
+    private long value;
 
     public JSONNumber(int value) {
-        this.value = (long) value;
+        this.value = value;
     }
 
     public JSONNumber(long value) {

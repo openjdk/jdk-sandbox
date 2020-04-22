@@ -23,7 +23,7 @@
 package build.tools.pandocfilter.json;
 
 public class JSONBoolean implements JSONValue {
-    boolean value;
+    private boolean value;
 
     public JSONBoolean(boolean value) {
         this.value = value;

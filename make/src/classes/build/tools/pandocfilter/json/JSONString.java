@@ -22,8 +22,8 @@
  */
 package build.tools.pandocfilter.json;
 
-class JSONString implements JSONValue {
-    String value;
+public class JSONString implements JSONValue {
+    private String value;
 
     public JSONString(String value) {
         this.value = value;

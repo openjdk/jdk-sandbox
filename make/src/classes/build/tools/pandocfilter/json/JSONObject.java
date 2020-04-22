@@ -124,6 +124,10 @@ public class JSONObject implements JSONValue {
         return value.containsKey(field);
     }
 
+    public Set<String> keys() {
+        return value.keySet();
+    }
+
     @Override
     public String toString() {
         var builder = new StringBuilder();

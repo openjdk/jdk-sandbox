@@ -90,12 +90,12 @@ public interface JSONValue {
         return asObject().fields();
     }
 
-    default boolean contains(String field) {
-        return asObject().contains(field);
+    default boolean contains(String key) {
+        return asObject().contains(key);
     }
 
-    default JSONValue get(String field) {
-        return asObject().get(field);
+    default JSONValue get(String key) {
+        return asObject().get(key);
     }
 
     default JSONValue get(int i) {
