@@ -64,7 +64,7 @@ public class Bind {
     static boolean supported() {
         try {
             SocketChannel.open(StandardProtocolFamily.UNIX);
-        } catch (UnsupportedAddressTypeException e) {
+        } catch (UnsupportedOperationException e) {
             return false;
         } catch (Exception e) {
             return true; // continue test to see what problem is
