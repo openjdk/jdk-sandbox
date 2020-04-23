@@ -109,6 +109,10 @@ public class JSONObject implements JSONValue {
         return this;
     }
 
+    public JSONValue remove(String k) {
+        return value.remove(k);
+    }
+
     public JSONValue get(String k) {
         return value.get(k);
     }
