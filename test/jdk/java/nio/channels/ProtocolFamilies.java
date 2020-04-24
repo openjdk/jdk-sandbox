@@ -27,17 +27,18 @@ import jdk.test.lib.net.IPSupport;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import java.io.IOException;
 import java.net.*;
 import java.nio.channels.*;
-
+import java.nio.channels.spi.AbstractSelector;
+import java.nio.channels.spi.SelectorProvider;
 import static java.lang.System.out;
 import static java.lang.System.getProperty;
 import static java.lang.Boolean.parseBoolean;
 import static java.net.StandardProtocolFamily.INET;
 import static java.net.StandardProtocolFamily.INET6;
 import static jdk.test.lib.net.IPSupport.*;
+import static org.testng.Assert.assertThrows;
 
 /*
  * @test
@@ -236,6 +237,55 @@ public class ProtocolFamilies {
         } catch (UnsupportedOperationException re) {
             throwIf(expectPass, re);
         }
+    }
+
+    static final Class<NullPointerException> NPE = NullPointerException.class;
+
+    // Tests null handling
+    @Test
+    public void nulls() {
+        assertThrows(NPE, () -> SocketChannel.open((ProtocolFamily)null));
+        assertThrows(NPE, () -> ServerSocketChannel.open(null));
+        assertThrows(NPE, () -> DatagramChannel.open(null));
+
+        assertThrows(NPE, () -> SelectorProvider.provider().openSocketChannel(null));
+        assertThrows(NPE, () -> SelectorProvider.provider().openServerSocketChannel(null));
+        assertThrows(NPE, () -> SelectorProvider.provider().openDatagramChannel(null));
+    }
+
+    static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
+    static final ProtocolFamily STITCH = () -> "STITCH";
+
+    // Tests UOE handling
+    @Test
+    public void uoe() {
+        assertThrows(UOE, () -> SocketChannel.open(STITCH));
+        assertThrows(UOE, () -> ServerSocketChannel.open(STITCH));
+        assertThrows(UOE, () -> DatagramChannel.open(STITCH));
+
+        assertThrows(UOE, () -> SelectorProvider.provider().openSocketChannel(STITCH));
+        assertThrows(UOE, () -> SelectorProvider.provider().openServerSocketChannel(STITCH));
+        assertThrows(UOE, () -> SelectorProvider.provider().openDatagramChannel(STITCH));
+    }
+
+    // A concrete subclass of SelectorProvider, in order to test implSpec
+    static final SelectorProvider SELECTOR_PROVIDER = new SelectorProvider() {
+        @Override public DatagramChannel openDatagramChannel() { return null; }
+        @Override public DatagramChannel openDatagramChannel(ProtocolFamily family) { return null; }
+        @Override public Pipe openPipe() { return null; }
+        @Override public AbstractSelector openSelector() { return null; }
+        @Override public ServerSocketChannel openServerSocketChannel() { return null; }
+        @Override public SocketChannel openSocketChannel() { return null; }
+    };
+
+    // Tests the specified default implementation of SelectorProvider
+    @Test
+    public void defaultImpl() {
+        assertThrows(NPE, () -> SELECTOR_PROVIDER.openSocketChannel(null));
+        assertThrows(NPE, () -> SELECTOR_PROVIDER.openServerSocketChannel(null));
+
+        assertThrows(UOE, () -> SELECTOR_PROVIDER.openSocketChannel(STITCH));
+        assertThrows(UOE, () -> SELECTOR_PROVIDER.openServerSocketChannel(STITCH));
     }
 
     // Helper methods
