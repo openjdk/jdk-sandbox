@@ -48,7 +48,7 @@ import sun.nio.ch.Net;
  *
  * @since 15
  */
-public class UnixDomainSocketAddress extends SocketAddress {
+public final class UnixDomainSocketAddress extends SocketAddress {
 
     static final long serialVersionUID = 9829020419651288L;
 
