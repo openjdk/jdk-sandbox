@@ -35,6 +35,7 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.nio.channels.spi.SelectorProvider;
+import static java.util.Objects.requireNonNull;
 
 /**
  * A selectable channel for stream-oriented connecting sockets that are either
@@ -206,7 +207,7 @@ public abstract class SocketChannel
      * @since 15
      */
     public static SocketChannel open(ProtocolFamily family) throws IOException {
-        return SelectorProvider.provider().openSocketChannel(family);
+        return SelectorProvider.provider().openSocketChannel(requireNonNull(family));
     }
 
     /**
