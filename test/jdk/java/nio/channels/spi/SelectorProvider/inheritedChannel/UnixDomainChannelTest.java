@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,6 @@
 
 import java.nio.channels.*;
 import java.nio.ByteBuffer;
-import java.io.IOException;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /*
@@ -34,28 +33,22 @@ public class UnixDomainChannelTest {
 
     public static class Child {
         public static void main(String[] args) throws Exception {
-            // we just want to make sure that System.inheritedChannel either
-            // returns a connected channel, or null if it is given a listener
+            // we want to make sure that System.inheritedChannel either
+            // returns a ServerSocketChannel or a SocketChannel
             Channel channel = System.inheritedChannel();
             String result = channel == null ? "N" : "Y";
             if (args[0].equals("test1") || args[0].equals("test2")) {
-                // socket is writeable
-                ByteChannel bc = (ByteChannel)channel;
-                ByteBuffer buf = ByteBuffer.wrap(result.getBytes(ISO_8859_1));
-                bc.write(buf);
-            } else { // test3
-                // in this case the socket is a listener
-                if (!(channel instanceof ServerSocketChannel)) {
-                    // we can't write to it. So, use UnixDatagramSocket
-                    // to accept a writeable socket
-                    UnixDomainSocket listener = new UnixDomainSocket(0); // fd 0
-                    UnixDomainSocket sock = listener.accept();
-                    sock.write((int)'X');
-                } else {
-                    ServerSocketChannel server = (ServerSocketChannel)channel;
-                    ByteChannel bc = server.accept();
+                if (channel instanceof SocketChannel) {
+                    SocketChannel sc = (SocketChannel) channel;
                     ByteBuffer buf = ByteBuffer.wrap(result.getBytes(ISO_8859_1));
-                    bc.write(buf);
+                    sc.write(buf);
+                }
+            } else { // test3
+                if (channel instanceof ServerSocketChannel) {
+                    ServerSocketChannel server = (ServerSocketChannel) channel;
+                    SocketChannel sc = server.accept();
+                    ByteBuffer buf = ByteBuffer.wrap(result.getBytes(ISO_8859_1));
+                    sc.write(buf);
                 }
             }
         }
@@ -120,5 +113,4 @@ public class UnixDomainChannelTest {
         }
         closeAll(listener, sock1);
     }
-
 }

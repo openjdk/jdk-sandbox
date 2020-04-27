@@ -149,7 +149,7 @@ JNIEXPORT void JNICALL Java_Launcher_launch0
 
     /*
      * We need to close all file descriptors except for serviceFd. To
-     * get the list of open file descriptos we read through /proc/self/fd (/dev/fd)
+     * get the list of open file descriptors we read through /proc/self/fd (/dev/fd)
      * but to open this requires a file descriptor. We could use a specific
      * file descriptor and fdopendir but Linux doesn't seem to support
      * fdopendir. Instead we use opendir and make an assumption on the
