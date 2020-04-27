@@ -21,6 +21,8 @@
  * questions.
  */
 
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.channels.*;
 import java.nio.ByteBuffer;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
@@ -77,7 +79,7 @@ public class UnixDomainChannelTest {
         UnixDomainSocket sock1 = new UnixDomainSocket();
         sock1.connect("foo.socket");
         UnixDomainSocket sock2 = listener.accept();
-
+        System.out.println("test1: launching child");
         Launcher.launchWithUnixDomainSocket("UnixDomainChannelTest$Child", sock2, "test1");
         int c = sock1.read();
         if (c != 'Y') {
