@@ -78,7 +78,7 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
     INCLUDE_FILES := indify/Indify.java, \
     DISABLED_WARNINGS := rawtypes serial options, \
     BIN := $(MICROBENCHMARK_TOOLS_CLASSES), \
-    JAVAC_FLAGS := -XDstringConcat=inline, \
+    JAVAC_FLAGS := -XDstringConcat=inline -Xprefer:newer, \
 ))
 
 #### Compile Targets
