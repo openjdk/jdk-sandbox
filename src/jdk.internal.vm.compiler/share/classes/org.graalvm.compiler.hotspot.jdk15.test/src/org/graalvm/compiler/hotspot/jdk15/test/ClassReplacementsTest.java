@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,30 +21,36 @@
  * questions.
  */
 
+
+package org.graalvm.compiler.hotspot.jdk15.test;
+
+import org.graalvm.compiler.replacements.test.MethodSubstitutionTest;
+import org.junit.Test;
+
+import java.util.function.Supplier;
+
 /**
- * @test
- * @bug 8031320
- * @summary Verify processing of RTMAbortThreshold option.
- * @library /test/lib /
- * @modules java.base/jdk.internal.misc
- *          java.management
- * @requires vm.rtm.compiler
- * @run driver compiler.rtm.cli.TestRTMAbortThresholdOption
+ * As of JDK 15 {@code java.lang.Class::isHidden()} was added.
+ *
+ * @see "https://openjdk.java.net/jeps/371"
+ * @see "https://bugs.openjdk.java.net/browse/JDK-8238358"
  */
+public class ClassReplacementsTest extends MethodSubstitutionTest {
 
-package compiler.rtm.cli;
-
-public class TestRTMAbortThresholdOption
-        extends RTMGenericCommandLineOptionTest {
-    private static final String DEFAULT_VALUE = "1000";
-
-    private TestRTMAbortThresholdOption() {
-        super("RTMAbortThreshold", false, true,
-                TestRTMAbortThresholdOption.DEFAULT_VALUE,
-                "0", "42", "100", "10000");
+    @SuppressWarnings("all")
+    public static boolean isHidden(Class<?> clazz) {
+        return clazz.isHidden();
     }
 
-    public static void main(String args[]) throws Throwable {
-        new TestRTMAbortThresholdOption().runTestCases();
+    @Test
+    public void testIsHidden() {
+        testGraph("isHidden");
+
+        Supplier<Runnable> lambda = () -> () -> System.out.println("run");
+
+        for (Class<?> c : new Class<?>[]{getClass(), Cloneable.class, int[].class, String[][].class, lambda.getClass(), lambda.get().getClass()}) {
+            test("isHidden", c);
+        }
     }
+
 }
