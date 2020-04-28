@@ -40,6 +40,7 @@
 #include "memory/allocation.hpp"
 #include "memory/archiveUtils.hpp"
 #include "memory/filemap.hpp"
+#include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
 #include "memory/oopFactory.hpp"
@@ -479,37 +480,6 @@ void SystemDictionaryShared::define_shared_package(Symbol*  class_name,
   }
 }
 
-// Define Package for shared app/platform classes from named module
-void SystemDictionaryShared::define_shared_package(Symbol* class_name,
-                                                   Handle class_loader,
-                                                   ModuleEntry* mod_entry,
-                                                   TRAPS) {
-  assert(mod_entry != NULL, "module_entry should not be NULL");
-  Handle module_handle(THREAD, mod_entry->module());
-
-  Handle pkg_name = get_package_name(class_name, CHECK);
-  assert(pkg_name.not_null(), "Package should not be null for class in named module");
-
-  Klass* classLoader_klass;
-  if (SystemDictionary::is_system_class_loader(class_loader())) {
-    classLoader_klass = SystemDictionary::jdk_internal_loader_ClassLoaders_AppClassLoader_klass();
-  } else {
-    assert(SystemDictionary::is_platform_class_loader(class_loader()), "unexpected classloader");
-    classLoader_klass = SystemDictionary::jdk_internal_loader_ClassLoaders_PlatformClassLoader_klass();
-  }
-
-  JavaValue result(T_OBJECT);
-  JavaCallArguments args(2);
-  args.set_receiver(class_loader);
-  args.push_oop(pkg_name);
-  args.push_oop(module_handle);
-  JavaCalls::call_virtual(&result, classLoader_klass,
-                          vmSymbols::definePackage_name(),
-                          vmSymbols::definePackage_signature(),
-                          &args,
-                          CHECK);
-}
-
 // Get the ProtectionDomain associated with the CodeSource from the classloader.
 Handle SystemDictionaryShared::get_protection_domain_from_classloader(Handle class_loader,
                                                                       Handle url, TRAPS) {
@@ -598,11 +568,11 @@ Handle SystemDictionaryShared::init_security_info(Handle class_loader, InstanceK
       // For shared app/platform classes originated from the run-time image:
       //   The ProtectionDomains are cached in the corresponding ModuleEntries
       //   for fast access by the VM.
-      if (pkg_entry != NULL) {
-        ModuleEntry* mod_entry = pkg_entry->module();
-        pd = get_shared_protection_domain(class_loader, mod_entry, THREAD);
-        define_shared_package(class_name, class_loader, mod_entry, CHECK_(pd));
-      }
+      // all packages from module image are already created during VM bootstrap in
+      // Modules::define_module().
+      assert(pkg_entry != NULL, "archived class in module image cannot be from unnamed package");
+      ModuleEntry* mod_entry = pkg_entry->module();
+      pd = get_shared_protection_domain(class_loader, mod_entry, THREAD);
     } else {
       // For shared app/platform classes originated from JAR files on the class path:
       //   Each of the 3 SystemDictionaryShared::_shared_xxx arrays has the same length
@@ -914,7 +884,7 @@ InstanceKlass* SystemDictionaryShared::lookup_from_stream(Symbol* class_name,
   if (!UseSharedSpaces) {
     return NULL;
   }
-  if (class_name == NULL) {  // don't do this for anonymous classes
+  if (class_name == NULL) {  // don't do this for hidden and unsafe anonymous classes
     return NULL;
   }
   if (class_loader.is_null() ||
@@ -1096,9 +1066,9 @@ void SystemDictionaryShared::warn_excluded(InstanceKlass* k, const char* reason)
 }
 
 bool SystemDictionaryShared::should_be_excluded(InstanceKlass* k) {
-  if (k->class_loader_data()->is_unsafe_anonymous()) {
-    warn_excluded(k, "Unsafe anonymous class");
-    return true; // unsafe anonymous classes are not archived, skip
+  if (k->is_hidden() || k->is_unsafe_anonymous()) {
+    warn_excluded(k, "Hidden or Unsafe anonymous class");
+    return true; // hidden and unsafe anonymous classes are not archived, skip
   }
   if (k->is_in_error_state()) {
     warn_excluded(k, "In error state");
@@ -1541,3 +1511,52 @@ bool SystemDictionaryShared::empty_dumptime_table() {
   }
   return false;
 }
+
+#if INCLUDE_CDS_JAVA_HEAP
+
+class ArchivedMirrorPatcher {
+  static void update(Klass* k) {
+    if (k->has_raw_archived_mirror()) {
+      oop m = HeapShared::materialize_archived_object(k->archived_java_mirror_raw_narrow());
+      if (m != NULL) {
+        java_lang_Class::update_archived_mirror_native_pointers(m);
+      }
+    }
+  }
+
+public:
+  static void update_array_klasses(Klass* ak) {
+    while (ak != NULL) {
+      update(ak);
+      ak = ArrayKlass::cast(ak)->higher_dimension();
+    }
+  }
+
+  void do_value(const RunTimeSharedClassInfo* info) {
+    InstanceKlass* ik = info->_klass;
+    update(ik);
+    update_array_klasses(ik->array_klasses());
+  }
+};
+
+void SystemDictionaryShared::update_archived_mirror_native_pointers_for(RunTimeSharedDictionary* dict) {
+  ArchivedMirrorPatcher patcher;
+  dict->iterate(&patcher);
+}
+
+void SystemDictionaryShared::update_archived_mirror_native_pointers() {
+  if (!HeapShared::open_archive_heap_region_mapped()) {
+    return;
+  }
+  if (MetaspaceShared::relocation_delta() == 0) {
+    return;
+  }
+  update_archived_mirror_native_pointers_for(&_builtin_dictionary);
+  update_archived_mirror_native_pointers_for(&_unregistered_dictionary);
+
+  for (int t = T_BOOLEAN; t <= T_LONG; t++) {
+    Klass* k = Universe::typeArrayKlassObj((BasicType)t);
+    ArchivedMirrorPatcher::update_array_klasses(k);
+  }
+}
+#endif

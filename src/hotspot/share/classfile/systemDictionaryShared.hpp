@@ -167,10 +167,6 @@ private:
                                     Handle manifest,
                                     Handle url,
                                     TRAPS);
-  static void define_shared_package(Symbol* class_name,
-                                    Handle class_loader,
-                                    ModuleEntry* mod_entry,
-                                    TRAPS);
 
   static Handle get_shared_jar_manifest(int shared_path_index, TRAPS);
   static Handle get_shared_jar_url(int shared_path_index, TRAPS);
@@ -222,6 +218,7 @@ private:
   static bool should_be_excluded(InstanceKlass* k);
 
   DEBUG_ONLY(static bool _no_class_loading_should_happen;)
+
 public:
   static InstanceKlass* find_builtin_class(Symbol* class_name);
 
@@ -326,6 +323,13 @@ public:
     address p = address(ptr) - SharedBaseAddress;
     return primitive_hash<address>(p);
   }
+
+#if INCLUDE_CDS_JAVA_HEAP
+private:
+  static void update_archived_mirror_native_pointers_for(RunTimeSharedDictionary* dict);
+public:
+  static void update_archived_mirror_native_pointers() NOT_CDS_RETURN;
+#endif
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARYSHARED_HPP

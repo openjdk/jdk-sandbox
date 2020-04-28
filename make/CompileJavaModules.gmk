@@ -302,8 +302,8 @@ jdk.compiler_CLEAN_FILES += $(wildcard \
 
 ################################################################################
 
-jdk.hotspot.agent_DISABLED_WARNINGS += rawtypes serial unchecked \
-    cast static overrides fallthrough
+jdk.hotspot.agent_DISABLED_WARNINGS += rawtypes serial cast static overrides \
+    fallthrough
 jdk.hotspot.agent_COPY += .gif .png sa.js .properties
 
 ################################################################################
@@ -337,16 +337,6 @@ jdk.javadoc_COPY += .xml .css .js .png
 ################################################################################
 
 jdk.jartool_JAVAC_FLAGS += -XDstringConcat=inline
-
-################################################################################
-
-jdk.scripting.nashorn_DISABLED_WARNINGS += removal
-jdk.scripting.nashorn_COPY := .properties .js
-
-################################################################################
-
-jdk.scripting.nashorn.shell_DISABLED_WARNINGS += removal
-jdk.scripting.nashorn.shell_COPY += .js .properties
 
 ################################################################################
 
@@ -463,6 +453,7 @@ jdk.internal.vm.compiler_EXCLUDES += \
     org.graalvm.compiler.graph.test \
     org.graalvm.compiler.hotspot.aarch64.test \
     org.graalvm.compiler.hotspot.amd64.test \
+    org.graalvm.compiler.hotspot.jdk15.test \
     org.graalvm.compiler.hotspot.jdk9.test \
     org.graalvm.compiler.hotspot.lir.test \
     org.graalvm.compiler.hotspot.sparc.test \
