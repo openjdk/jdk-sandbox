@@ -65,7 +65,6 @@ ifeq ($(INCLUDE_GRAAL), true)
           --add-exports jdk.unsupported/sun.misc=ALL-UNNAMED \
           --add-exports java.base/jdk.internal.misc=ALL-UNNAMED \
           --add-exports java.base/jdk.internal.module=ALL-UNNAMED \
-          -Xprefer:newer \
           #
 
       ### Copy 3rd party libs

@@ -187,7 +187,6 @@ define SetupJavaCompilationBody
     $1_COMPILER := interim
   endif
 
-
   ifeq ($$($1_COMPILER), bootjdk)
     # Javac server is not available when using the bootjdk compiler.
     $1_JAVAC_CMD := $$(JAVAC)
@@ -204,7 +203,9 @@ define SetupJavaCompilationBody
       $1_TARGET_RELEASE := $$(TARGET_RELEASE_BOOTJDK)
     endif
   else ifeq ($$($1_COMPILER), interim)
-    ifeq ($$(ENABLE_JAVAC_SERVER), true)
+    # Use java server if it is enabled, and the user do not want a specialized
+    # class path.
+    ifeq ($$($1_ENABLE_JAVAC_SERVER+$$($1_CLASSPATH)), true+)
       $1_JAVAC := $$(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.sjavac.Main
 
       # How to launch the server. This must use JAVA_DETACH, which is the "big" java
