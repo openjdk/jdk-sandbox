@@ -341,16 +341,6 @@ jdk.jartool_ADD_JAVAC_FLAGS += -XDstringConcat=inline
 
 ################################################################################
 
-jdk.scripting.nashorn_DISABLED_WARNINGS += removal
-jdk.scripting.nashorn_COPY := .properties .js
-
-################################################################################
-
-jdk.scripting.nashorn.shell_DISABLED_WARNINGS += removal
-jdk.scripting.nashorn.shell_COPY += .js .properties
-
-################################################################################
-
 # No SCTP implementation on Mac OS X or AIX. These classes should be excluded.
 SCTP_IMPL_CLASSES = \
     $(TOPDIR)/src/jdk.sctp/unix/classes/sun/nio/ch/sctp/AssociationChange.java \
@@ -464,6 +454,7 @@ jdk.internal.vm.compiler_EXCLUDES += \
     org.graalvm.compiler.graph.test \
     org.graalvm.compiler.hotspot.aarch64.test \
     org.graalvm.compiler.hotspot.amd64.test \
+    org.graalvm.compiler.hotspot.jdk15.test \
     org.graalvm.compiler.hotspot.jdk9.test \
     org.graalvm.compiler.hotspot.lir.test \
     org.graalvm.compiler.hotspot.sparc.test \
