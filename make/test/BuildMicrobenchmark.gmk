@@ -76,7 +76,7 @@ $(eval $(call SetupJavaCompilation, BUILD_INDIFY, \
     TARGET_RELEASE := $(TARGET_RELEASE_BOOTJDK), \
     SRC := $(TOPDIR)/test/jdk/java/lang/invoke, \
     INCLUDE_FILES := indify/Indify.java, \
-    DISABLED_WARNINGS := rawtypes serial, \
+    DISABLED_WARNINGS := rawtypes serial options, \
     BIN := $(MICROBENCHMARK_TOOLS_CLASSES), \
     JAVAC_FLAGS := -XDstringConcat=inline, \
 ))
