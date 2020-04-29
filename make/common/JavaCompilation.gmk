@@ -35,8 +35,7 @@ endif
 include JarArchive.gmk
 include ZipArchive.gmk
 
-###
-### Definiions for common release targets
+### Definitions for common release targets
 ###
 
 # Create classes that can run on the bootjdk
@@ -203,7 +202,7 @@ define SetupJavaCompilationBody
       $1_TARGET_RELEASE := $$(TARGET_RELEASE_BOOTJDK)
     endif
   else ifeq ($$($1_COMPILER), interim)
-    # Use java server if it is enabled, and the user do not want a specialized
+    # Use java server if it is enabled, and the user does not want a specialized
     # class path.
     ifeq ($$($1_ENABLE_JAVAC_SERVER+$$($1_CLASSPATH)), true+)
       $1_JAVAC := $$(INTERIM_LANGTOOLS_ARGS) -m jdk.compiler.interim/com.sun.tools.sjavac.Main
