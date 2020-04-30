@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,26 +20,26 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package org.openjdk.bench.java.util.stream.tasks.IntegerSum;
 
-import java.util.Random;
+package test;
 
-public class IntegerSumProblem {
+public class TestGetElementReferenceDataWithErrors {
 
-    private static final int DATA_SIZE = Integer.getInteger("bench.problemSize", 10*1024*1024);
-
-    private final Integer[] data = new Integer[DATA_SIZE];
-
-    public IntegerSumProblem() {
-        // use fixed seed to reduce run-to-run variance
-        Random rand = new Random(0x30052012);
-
-        for (int i = 0; i < data.length; i++) {
-            data[i] = rand.nextInt();
+    class Constructors extends BaseWithConstructor {
+        Constructors(String name) {
+            System.err.println();
+            this(name/*getElement:PARAMETER:name*/.length/*getElement:METHOD:java.lang.String.length()*/());
+            super(name/*getElement:PARAMETER:name*/.length/*getElement:METHOD:java.lang.String.length()*/());
+            this(name/*getElement:PARAMETER:name*/.length/*getElement:METHOD:java.lang.String.length()*/());
+        }
+        Constructors(int name) {
+            System.err.println();
+            super(name/*getElement:PARAMETER:name*/);
+            this(name/*getElement:PARAMETER:name*/);
+            super(String/*getElement:CLASS:java.lang.String*/.valueOf(name/*getElement:PARAMETER:name*/));
         }
     }
-
-    public Integer[] get() {
-        return data;
+    class BaseWithConstructor {
+        BaseWithConstructor(int len) {}
     }
 }
