@@ -33,7 +33,7 @@ const char* describe_spacetype(MetaspaceType st) {
   switch (st) {
     case StandardMetaspaceType: s = "Standard"; break;
     case BootMetaspaceType: s = "Boot"; break;
-    case UnsafeAnonymousMetaspaceType: s = "UnsafeAnonymous"; break;
+    case ClassMirrorHolderMetaspaceType: s = "ClassMirrorHolder"; break;
     case ReflectionMetaspaceType: s = "Reflection"; break;
     default: ShouldNotReachHere();
   }

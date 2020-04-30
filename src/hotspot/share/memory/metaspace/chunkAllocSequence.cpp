@@ -182,7 +182,7 @@ const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(Metas
     switch(space_type) {
     case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_class;
     case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_class;
-    case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_class;
+    case ClassMirrorHolderMetaspaceType: return &g_chunk_alloc_sequence_anon_class;
     case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
     }
@@ -190,7 +190,7 @@ const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(Metas
     switch(space_type) {
     case StandardMetaspaceType:          return &g_chunk_alloc_sequence_standard_non_class;
     case ReflectionMetaspaceType:        return &g_chunk_alloc_sequence_refl_non_class;
-    case UnsafeAnonymousMetaspaceType:   return &g_chunk_alloc_sequence_anon_non_class;
+    case ClassMirrorHolderMetaspaceType: return &g_chunk_alloc_sequence_anon_non_class;
     case BootMetaspaceType:              return &g_chunk_alloc_sequence_boot_non_class;
     default: ShouldNotReachHere();
     }

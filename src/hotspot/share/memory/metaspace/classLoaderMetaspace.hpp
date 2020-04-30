@@ -56,7 +56,7 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
   // Returns true if this class loader is of a type which will only ever load one class.
   bool is_micro() const {
-    return _space_type == metaspace::UnsafeAnonymousMetaspaceType ||
+    return _space_type == metaspace::ClassMirrorHolderMetaspaceType ||
            _space_type == metaspace::ReflectionMetaspaceType;
   }
 

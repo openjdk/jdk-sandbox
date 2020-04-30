@@ -65,8 +65,8 @@ enum MetaspaceType {
   ZeroMetaspaceType = 0,
   StandardMetaspaceType = ZeroMetaspaceType,
   BootMetaspaceType = StandardMetaspaceType + 1,
-  UnsafeAnonymousMetaspaceType = BootMetaspaceType + 1,
-  ReflectionMetaspaceType = UnsafeAnonymousMetaspaceType + 1,
+  ClassMirrorHolderMetaspaceType = BootMetaspaceType + 1,
+  ReflectionMetaspaceType = ClassMirrorHolderMetaspaceType + 1,
   MetaspaceTypeCount
 };
 

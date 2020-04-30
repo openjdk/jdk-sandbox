@@ -85,7 +85,7 @@ ClassLoaderMetaspace::ClassLoaderMetaspace(Mutex* lock, MetaspaceType space_type
 
 #ifdef ASSERT
   InternalStats::inc_num_metaspace_births();
-  if (_space_type == metaspace::UnsafeAnonymousMetaspaceType) {
+  if (_space_type == metaspace::ClassMirrorHolderMetaspaceType) {
     InternalStats::inc_num_anon_cld_births();
   }
 #endif
@@ -99,7 +99,7 @@ ClassLoaderMetaspace::~ClassLoaderMetaspace() {
 
 #ifdef ASSERT
   InternalStats::inc_num_metaspace_deaths();
-  if (_space_type == metaspace::UnsafeAnonymousMetaspaceType) {
+  if (_space_type == metaspace::ClassMirrorHolderMetaspaceType) {
     InternalStats::inc_num_anon_cld_deaths();
   }
 #endif

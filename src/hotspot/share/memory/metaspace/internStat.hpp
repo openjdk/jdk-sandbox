@@ -69,7 +69,7 @@ class InternalStats : public AllStatic {
   x(num_metaspace_deaths)                           \
                                                     \
 	/* Number of times a ClassLoaderMetaspace was */  \
-	/*  born for an anonymous class... */             \
+	/*  born for a hidden or anonymous class... */    \
 	x(num_anon_cld_births)                            \
 	/* ... and died. */                               \
   x(num_anon_cld_deaths)                            \
