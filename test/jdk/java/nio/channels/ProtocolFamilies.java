@@ -27,6 +27,7 @@ import jdk.test.lib.net.IPSupport;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
+import org.testng.Assert.ThrowingRunnable;
 import java.io.IOException;
 import java.net.*;
 import java.nio.channels.*;
@@ -74,31 +75,85 @@ public class ProtocolFamilies {
         out.println("ia6: " + ia6 + "\n");
     }
 
+    static final Class<UnsupportedAddressTypeException> UATE = UnsupportedAddressTypeException.class;
+    static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
+
+    @DataProvider(name = "open")
+    public Object[][] open() {
+        if (!preferIPv4 && hasIPv6) {
+            return new Object[][]{
+                    {  INET,   null  },
+                    {  INET6,  null  }
+            };
+        } else {
+            return new Object[][]{
+                    {  INET,   null  },
+                    {  INET6,  UOE   }
+            };
+        }
+    }
+
+    @Test(dataProvider = "open")
+    public void scOpen(StandardProtocolFamily fam,
+                       Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(UOE, () -> openSC(fam));
+        } else {
+            openSC(fam);
+        }
+    }
+
+    @Test(dataProvider = "open")
+    public void sscOpen(StandardProtocolFamily fam,
+                        Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(UOE, () -> openSSC(fam));
+        } else {
+            openSSC(fam);
+        }
+    }
+
+    @Test(dataProvider = "open")
+    public void dcOpen(StandardProtocolFamily sfam,
+                       Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(UOE, () -> openDC(sfam));
+        } else {
+            openDC(sfam);
+        }
+    }
+
     @DataProvider(name = "openBind")
     public Object[][] openBind() {
         if (!preferIPv4 && hasIPv6) {
             return new Object[][]{
-                    {   INET,   INET,   true   },
-                    {   INET,   INET6,  false  },
-                    {   INET,   null,   true   },
-                    {   INET6,  INET,   true   },
-                    {   INET6,  INET6,  true   },
-                    {   INET6,  null,   true   },
-                    {   null,   INET,   true   },
-                    {   null,   INET6,  true   },
-                    {   null,   null,   true   }
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  UATE   },
+                    {   INET,   null,   null   },
+                    {   INET6,  INET,   null   },
+                    {   INET6,  INET6,  null   },
+                    {   INET6,  null,   null   },
+                    {   null,   INET,   null   },
+                    {   null,   INET6,  null   },
+                    {   null,   null,   null   }
             };
         } else {
             return new Object[][]{
-                    {   INET,   INET,   true   },
-                    {   INET,   INET6,  false  },
-                    {   INET,   null,   true   },
-                    {   INET6,  INET,   false  },
-                    {   INET6,  INET6,  false  },
-                    {   INET6,  null,   false  },
-                    {   null,   INET,   true   },
-                    {   null,   INET6,  false  },
-                    {   null,   null,   true   }
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  UATE   },
+                    {   INET,   null,   null   },
+                    {   INET6,  INET,   UOE    },
+                    {   INET6,  INET6,  UOE    },
+                    {   INET6,  null,   UOE    },
+                    {   null,   INET,   null   },
+                    {   null,   INET6,  UATE   },
+                    {   null,   null,   null   }
             };
         }
     }
@@ -109,16 +164,20 @@ public class ProtocolFamilies {
     @Test(dataProvider = "openBind")
     public void scOpenBind(StandardProtocolFamily ofam,
                            StandardProtocolFamily bfam,
-                           boolean expectPass) {
-        try (SocketChannel sc = openSC(ofam)) {
-            SocketAddress addr = getSocketAddress(bfam);
-            sc.bind(addr);
-            throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException
-                | UnsupportedOperationException re) {
-            throwIf(expectPass, re);
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+                           Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(UOE, () -> openSC(ofam));
+        } else {
+            try (SocketChannel sc = openSC(ofam)) {
+                SocketAddress addr = getSocketAddress(bfam);
+                ThrowingRunnable bindOp = () -> sc.bind(addr);
+                if (expExType == null)
+                    bindOp.run();
+                else
+                    assertThrows(expExType, bindOp);
+            }
         }
     }
 
@@ -127,17 +186,21 @@ public class ProtocolFamilies {
 
     @Test(dataProvider = "openBind")
     public void sscOpenBind(StandardProtocolFamily ofam,
-                           StandardProtocolFamily bfam,
-                           boolean expectPass) {
-        try (ServerSocketChannel ssc = openSSC(ofam)) {
-            SocketAddress addr = getSocketAddress(bfam);
-            ssc.bind(addr);
-            throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException
-                | UnsupportedOperationException re) {
-            throwIf(expectPass, re);
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+                            StandardProtocolFamily bfam,
+                            Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(UOE, () -> openSSC(ofam));
+        } else {
+            try (ServerSocketChannel ssc = openSSC(ofam)) {
+                SocketAddress addr = getSocketAddress(bfam);
+                ThrowingRunnable bindOp = () -> ssc.bind(addr);
+                if (expExType == null)
+                    bindOp.run();
+                else
+                    assertThrows(expExType, bindOp);
+            }
         }
     }
 
@@ -147,14 +210,20 @@ public class ProtocolFamilies {
     @Test(dataProvider = "openBind")
     public void dcOpenBind(StandardProtocolFamily ofam,
                            StandardProtocolFamily bfam,
-                           boolean expectPass) throws Exception {
-        try (DatagramChannel dc = openDC(ofam)) {
-            SocketAddress addr = getSocketAddress(bfam);
-            dc.bind(addr);
-            throwIf(!expectPass);
-        } catch (UnsupportedAddressTypeException
-                | UnsupportedOperationException re) {
-            throwIf(expectPass, re);
+                           Class<? extends Exception> expExType)
+        throws Throwable
+    {
+        if (expExType == UOE) {
+            assertThrows(() -> openDC(ofam));
+        } else {
+            try (DatagramChannel dc = openDC(ofam)) {
+                SocketAddress addr = getSocketAddress(bfam);
+                ThrowingRunnable bindOp = () -> dc.bind(addr);
+                if (expExType == null)
+                    bindOp.run();
+                else
+                    assertThrows(expExType, bindOp);
+            }
         }
     }
 
@@ -165,27 +234,28 @@ public class ProtocolFamilies {
     public Object[][] openConnect() {
         if (!preferIPv4 && hasIPv6) {
             return new Object[][]{
-                    {   INET,   INET,   true   },
-                    {   INET,   INET6,  true   },
-                    {   INET,   null,   true   },
-                    {   INET6,  INET,   false  },
-                    {   INET6,  INET6,  true   },
-                    {   INET6,  null,   true   },
-                    {   null,   INET,   false  },
-                    {   null,   INET6,  true   },
-                    {   null,   null,   true   }
+                    {   INET,   INET,   null   },
+                    {   INET,   INET6,  null   },
+                    {   INET,   null,   null   },
+                    {   INET6,  INET,   UATE   },
+                    {   INET6,  INET6,  null   },
+                    {   INET6,  null,   null   },
+                    {   null,   INET,   UATE   },
+                    {   null,   INET6,  null   },
+                    {   null,   null,   null   }
             };
         } else {
+            // INET6 channels cannot be created - UOE - tested elsewhere
             return new Object[][]{
-                    {   INET,   INET,   true   },
-                    {   INET,   INET6,  false  },
-                    {   INET,   null,   true   },
-                    {   INET6,  INET,   false  },
-                    {   INET6,  INET6,  false  },
-                    {   INET6,  null,   false  },
-                    {   null,   INET,   true   },
-                    {   null,   INET6,  false  },
-                    {   null,   null,   true   }
+                    {   INET,   INET,   null   },
+               //   {   INET,   INET6,  UOE    },
+                    {   INET,   null,   null   },
+               //   {   INET6,  INET,   UOE    },
+               //   {   INET6,  INET6,  UOE    },
+               //   {   INET6,  null,   UOE    },
+                    {   null,   INET,   null   },
+               //   {   null,   INET6,  UOE    },
+                    {   null,   null,   null   }
             };
         }
     }
@@ -193,21 +263,19 @@ public class ProtocolFamilies {
     @Test(dataProvider = "openConnect")
     public void scOpenConnect(StandardProtocolFamily sfam,
                               StandardProtocolFamily cfam,
-                              boolean expectPass) throws Exception {
+                              Class<? extends Exception> expExType)
+        throws Throwable
+    {
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(null);
             SocketAddress saddr = ssc.getLocalAddress();
             try (SocketChannel sc = openSC(cfam)) {
-                sc.connect(saddr);
-                throwIf(!expectPass);
-            } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException re) {
-                throwIf(expectPass, re);
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
+                ThrowingRunnable connectOp = () -> sc.connect(saddr);
+                if (expExType == null)
+                    connectOp.run();
+                else
+                    assertThrows(expExType, connectOp);
             }
-        } catch (UnsupportedOperationException re) {
-            throwIf(expectPass, re);
         }
     }
 
@@ -217,25 +285,26 @@ public class ProtocolFamilies {
     @Test(dataProvider = "openConnect")
     public void dcOpenConnect(StandardProtocolFamily sfam,
                               StandardProtocolFamily cfam,
-                              boolean expectPass) throws Exception {
+                              Class<? extends Exception> expExType)
+         throws Throwable
+    {
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(null);
-            InetSocketAddress saddr = (InetSocketAddress)sdc.getLocalAddress();
+            InetSocketAddress saddr = (InetSocketAddress) sdc.getLocalAddress();
             try (DatagramChannel dc = openDC(cfam)) {
+                ThrowingRunnable connectOp;
                 // Cannot connect to any local address on Windows
                 // use loopback address in this case
                 if (isWindows) {
-                    dc.connect(getLoopback(sfam, saddr.getPort()));
+                    connectOp = () -> dc.connect(getLoopback(sfam, saddr.getPort()));
                 } else {
-                    dc.connect(saddr);
+                    connectOp = () -> dc.connect(saddr);
                 }
-                throwIf(!expectPass);
-            } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException re) {
-                throwIf(expectPass, re);
+                if (expExType == null)
+                    connectOp.run();
+                else
+                    assertThrows(expExType, connectOp);
             }
-        } catch (UnsupportedOperationException re) {
-            throwIf(expectPass, re);
         }
     }
 
@@ -253,7 +322,6 @@ public class ProtocolFamilies {
         assertThrows(NPE, () -> SelectorProvider.provider().openDatagramChannel(null));
     }
 
-    static final Class<UnsupportedOperationException> UOE = UnsupportedOperationException.class;
     static final ProtocolFamily STITCH = () -> "STITCH";
 
     // Tests UOE handling
@@ -341,14 +409,5 @@ public class ProtocolFamilies {
                 .filter(Inet6Address::isLinkLocalAddress)
                 .findFirst()
                 .orElse((Inet6Address) InetAddress.getByName("::0"));
-    }
-
-    private static void throwIf(boolean condition, RuntimeException... re) {
-        if (condition && re.length > 0) {
-            throw new RuntimeException("Expected to pass", re[0]);
-        }
-        if (condition) {
-            throw new RuntimeException("Expected to fail");
-        }
     }
 }
