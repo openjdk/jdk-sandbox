@@ -307,7 +307,7 @@ public abstract class SocketChannel
      * the channel is closed, and must be removed before another channel can bind
      * to the same name. However, automatically assigned addresses are {@link
      * UnixDomainSocketAddress#UNNAMED unnamed} and therefore there is no
-     * no corresponding file in the file-system.
+     * corresponding file in the file-system.
      *
      * @throws  ConnectionPendingException
      *          If a non-blocking connect operation is already in progress on

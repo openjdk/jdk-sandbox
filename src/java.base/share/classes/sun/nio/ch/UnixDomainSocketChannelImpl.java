@@ -91,7 +91,8 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
 
     @Override
     SocketAddress getRevealedLocalAddress(SocketAddress address) {
-        return address;
+	UnixDomainSocketAddress uaddr = (UnixDomainSocketAddress)address
+        return Net.getRevealedLocalAddress(uaddr);
     }
 
     private static class DefaultOptionsHolder {
