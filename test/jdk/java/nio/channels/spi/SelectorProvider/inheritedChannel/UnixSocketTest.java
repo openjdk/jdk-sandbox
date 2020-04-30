@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,15 @@
  * and report back as appropriate.
  */
 
-import jdk.test.lib.Utils;
-import java.io.*;
 import java.net.InetAddress;
 import java.net.Inet6Address;
 import java.net.NetworkInterface;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.Collections;
 import java.util.Enumeration;
+
+import static java.net.StandardProtocolFamily.UNIX;
 
 public class UnixSocketTest {
 
@@ -53,24 +55,26 @@ public class UnixSocketTest {
     public static class Child {
         public static void main(String[] args) throws Exception {
             System.out.write('X');
-            System.out.flush();
             if (hasIPv6()) {
-                System.out.println("Y"); // GOOD
-            } else
-                System.out.println("N"); // BAD
+                System.out.write('Y'); // GOOD
+            } else {
+                System.out.write('N'); // BAD
+            }
+            System.out.flush();
         }
     }
 
     public static void main(String args[]) throws Exception {
-
         if (!hasIPv6()) {
             return; // can only test if IPv6 is present
         }
-        UnixDomainSocket sock = Launcher.launchWithUnixDomainSocket("UnixSocketTest$Child");
-        if (sock.read() != 'X') {
+        SocketChannel sc = Launcher.launchWithUnixSocketChannel("UnixSocketTest$Child");
+        ByteBuffer bb = ByteBuffer.allocate(10);
+        sc.read(bb);
+        if (bb.get(0) != 'X') {
             System.exit(-2);
         }
-        if (sock.read() != 'Y') {
+        if (bb.get(1) != 'Y') {
             System.exit(-2);
         }
     }

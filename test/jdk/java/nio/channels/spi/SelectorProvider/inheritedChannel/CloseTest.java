@@ -54,8 +54,7 @@ public class CloseTest {
         service_args[0] = String.valueOf(msg.length());
         service_args[1] = String.valueOf( Utils.adjustTimeout(15*1000) );
 
-
-        SocketChannel sc = Launcher.launchWithSocketChannel("EchoService", service_args);
+        SocketChannel sc = Launcher.launchWithSocketChannel("EchoService", null, service_args);
 
         // send message - service will echo the message and close the connection.
 

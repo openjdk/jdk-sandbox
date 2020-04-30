@@ -21,10 +21,14 @@
  * questions.
  */
 
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.channels.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static java.net.StandardProtocolFamily.UNIX;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 /*
@@ -32,6 +36,10 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
  */
 
 public class UnixDomainChannelTest {
+    private static final UnixDomainSocketAddress SOCK_ADDR =
+            UnixDomainSocketAddress.of(Path.of("foo.socket"));
+
+    private static boolean passed = true;
 
     public static class Child {
         public static void main(String[] args) throws Exception {
@@ -56,8 +64,6 @@ public class UnixDomainChannelTest {
         }
     }
 
-    static boolean passed = true;
-
     public static void main(String args[]) throws Exception {
         test1();
         test2();
@@ -66,53 +72,92 @@ public class UnixDomainChannelTest {
             throw new RuntimeException();
     }
 
-    private static void closeAll(UnixDomainSocket... sockets) {
-        for (UnixDomainSocket sock : sockets) {
-            sock.close();
-        }
-    }
-
     // Test with a named connected socket
     private static void test1() throws Exception {
-        UnixDomainSocket listener = new UnixDomainSocket();
-        listener.bind("foo.socket");
-        UnixDomainSocket sock1 = new UnixDomainSocket();
-        sock1.connect("foo.socket");
-        UnixDomainSocket sock2 = listener.accept();
+        ServerSocketChannel listener = ServerSocketChannel.open(UNIX);
+        listener.bind(SOCK_ADDR);
+        SocketChannel sock1 = SocketChannel.open(SOCK_ADDR);
+        SocketChannel sock2 = listener.accept();
         System.out.println("test1: launching child");
-        Launcher.launchWithUnixDomainSocket("UnixDomainChannelTest$Child", sock2, "test1");
-        int c = sock1.read();
-        if (c != 'Y') {
-            System.err.printf("test1: failed %d d\n", c );
+        Launcher.launchWithSocketChannel(
+                "UnixDomainChannelTest$Child", sock2, null, "test1");
+        ByteBuffer bb = ByteBuffer.allocate(10);
+        int c = sock1.read(bb);
+        if (c != 1) {
+            System.err.printf("test1: failed " +
+                    "- unexpected number of bytes read %d d\n", c);
+            passed = false;
+        }
+        byte b = bb.get(0);
+        if (b != 'Y') {
+            System.err.printf("test1: failed " +
+                    "- unexpected byte read %d d\n", b);
             passed = false;
         }
         closeAll(listener, sock1, sock2);
+        Files.deleteIfExists(SOCK_ADDR.getPath());
     }
 
     // Test with unnamed socketpair
     private static void test2() throws Exception {
-        UnixDomainSocket[] pair = UnixDomainSocket.socketpair();
+        ServerSocketChannel listener = ServerSocketChannel.open(UNIX);
+        SocketAddress addr = listener.bind(null).getLocalAddress();
+        SocketChannel sock1 = SocketChannel.open(addr);
+        SocketChannel sock2 = listener.accept();
         System.out.println("test2: launching child");
-        Launcher.launchWithUnixDomainSocket("UnixDomainChannelTest$Child", pair[0], "test2");
-        if (pair[1].read() != 'Y') {
-            System.err.println("test2: failed");
+        Launcher.launchWithSocketChannel(
+                "UnixDomainChannelTest$Child", sock2, null, "test2");
+        ByteBuffer bb = ByteBuffer.allocate(10);
+        int c = sock1.read(bb);
+        if (c != 1) {
+            System.err.printf("test3: failed " +
+                    "- unexpected number of bytes read %d d\n", c);
             passed = false;
         }
-        closeAll(pair[0], pair[1]);
+        byte b = bb.get(0);
+        if (b != 'Y') {
+            System.err.printf("test3: failed " +
+                    "- unexpected byte read %d d\n", b);
+            passed = false;
+        }
+        closeAll(listener, sock1, sock2);
+        Files.deleteIfExists(((UnixDomainSocketAddress)addr).getPath());
     }
 
     // Test with a named listener
     private static void test3() throws Exception {
-        UnixDomainSocket listener = new UnixDomainSocket();
-        listener.bind("foo.socket");
-        UnixDomainSocket sock1 = new UnixDomainSocket();
+        ServerSocketChannel listener = ServerSocketChannel.open(UNIX);
+        listener.bind(SOCK_ADDR);
+        SocketChannel sock1 = SocketChannel.open(UNIX);
         System.out.println("test3: launching child");
-        Launcher.launchWithUnixDomainSocket("UnixDomainChannelTest$Child", listener, "test3");
-        sock1.connect("foo.socket");
-        if (sock1.read() != 'Y') {
-            System.err.println("test3: failed");
+        Launcher.launchWithServerSocketChannel(
+                "UnixDomainChannelTest$Child", listener, null, "test3");
+        sock1.connect(SOCK_ADDR);
+        ByteBuffer bb = ByteBuffer.allocate(10);
+        int c = sock1.read(bb);
+        if (c != 1) {
+            System.err.printf("test3: failed " +
+                    "- unexpected number of bytes read %d d\n", c);
+            passed = false;
+        }
+        byte b = bb.get(0);
+        if (b != 'Y') {
+            System.err.printf("test3: failed " +
+                    "- unexpected byte read %d d\n", b);
             passed = false;
         }
         closeAll(listener, sock1);
+        Files.deleteIfExists(SOCK_ADDR.getPath());
+    }
+
+    private static void closeAll(Channel... channels) {
+        for (Channel c : channels) {
+            try {
+                if (c != null)
+                    c.close();
+            } catch (IOException e) {
+                throw new RuntimeException("Could not close channel " + c);
+            }
+        }
     }
 }
