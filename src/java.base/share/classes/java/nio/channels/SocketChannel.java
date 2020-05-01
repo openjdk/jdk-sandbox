@@ -302,7 +302,8 @@ public abstract class SocketChannel
     /**
      * {@inheritDoc}
      *
-     * <p> Note, for <i>Unix Domain</i> channels, a file is created in the file-system
+     * <p> Note, for <a href="package-summary.html#unixdomain">Unix Domain</a> channels,
+     * a file is created in the file-system
      * with the same name as this channel's bound address. This file persists after
      * the channel is closed, and must be removed before another channel can bind
      * to the same name. However, automatically assigned addresses are {@link

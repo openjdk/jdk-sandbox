@@ -332,13 +332,15 @@
  * or method in any class or interface in this package will cause a {@link
  * java.lang.NullPointerException NullPointerException} to be thrown.
  *
- * <p><a id="unixdomain"></a><i>Unix domain channels</i>
+ * <p>There are two kinds of {@link SocketChannel} and {@link ServerSocketChannel}.
  *
- * <p> There are two kinds of {@link SocketChannel} and {@link ServerSocketChannel}.
- * <i>Internet protocol</i> channels support network communication
- * and are addressed using {@link InetSocketAddress}es which encapsulate an IP address and port
- * number. <i>Unix domain channels</i> support local inter-process communication on the same host,
- * and are addressed using {@link UnixDomainSocketAddress}es which encapsulate a filesystem pathname
+ * <p><i>Internet protocol</i> channels support network
+ * communication using TCP/IP and are addressed using {@link InetSocketAddress}es
+ * which encapsulate an IP address and port number.
+ *
+ * <p><a id="unixdomain"></a> <i>Unix domain</i> channels
+ * support local inter-process communication on the same host, and are addressed
+ * using {@link UnixDomainSocketAddress}es which encapsulate a filesystem pathname
  * on the local system. <i>Internet protocol</i> channels are the default kind created, when
  * a protocol family is not specified in the factory creation method. <i>Unix domain</i> channels
  * can only be created using {@link SocketChannel#open(ProtocolFamily)} or
@@ -363,10 +365,8 @@
  * is bound to a unique name in some temporary directory. The name can be obtained by calling
  * {@link ServerSocketChannel#getLocalAddress() getLocalAddress} after bind returns.
  * It is an error to bind a {@code ServerSocketChannel} to an unnamed address.
- * <p>
- * <i>Binding Unix domain channels</i>
- * <p>
- * A unix domain channel can be bound to a name if and only if, no file exists
+ *
+ * <p> A unix domain channel can be bound to a name if and only if, no file exists
  * in the file-system with the same name, and the calling process has the required
  * operating system permissions to create a file of that name.
  * The socket file that is created when a channel binds to a name is not removed when
@@ -390,3 +390,4 @@ import java.net.StandardProtocolFamily;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.UnixDomainSocketAddress;
+import java.nio.file.Path;
