@@ -90,7 +90,7 @@ public abstract class ExtendedSocketOptions {
     }
 
     private static boolean isDatagramOption(SocketOption<?> option) {
-        return !option.name().startsWith("TCP_");
+        return !option.name().startsWith("TCP_") && !isUnixOption(option);
     }
 
     private static boolean isUnixOption(SocketOption<?> option) {
@@ -101,6 +101,9 @@ public abstract class ExtendedSocketOptions {
         if (server && "SO_FLOW_SLA".equals(option.name())) {
             return false;
         } else {
+            if (isUnixOption(option)) {
+                return false;
+            }
             return !option.name().startsWith("UDP_");
         }
     }
