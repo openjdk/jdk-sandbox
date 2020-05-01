@@ -40,6 +40,7 @@
 #include "memory/metaspace/runningCounters.hpp"
 #include "memory/metaspace/settings.hpp"
 #include "memory/metaspace/virtualSpaceNode.hpp"
+#include "memory/metaspace.hpp"
 
 #include "runtime/globals.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -271,9 +272,9 @@ VirtualSpaceNode* VirtualSpaceNode::create_node(int node_id,
 #endif
 
   ReservedSpace rs(word_size * BytesPerWord,
-                   chklvl::MAX_CHUNK_BYTE_SIZE,
-                   false, // TODO deal with large pages
-                   false);
+                   Metaspace::reserve_alignment(),
+                   false // large
+                   );
 
   if (!rs.is_reserved()) {
     vm_exit_out_of_memory(word_size * BytesPerWord, OOM_MMAP_ERROR, "Failed to reserve memory for metaspace");

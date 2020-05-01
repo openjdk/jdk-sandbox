@@ -154,6 +154,7 @@ public:
   static size_t reserve_alignment_words() { return _reserve_alignment / BytesPerWord; }
 
   // The granularity at which Metaspace is committed and uncommitted.
+  // (Todo: Why does this have to be exposed?)
   static size_t commit_alignment()        { return _commit_alignment; }
   static size_t commit_words()            { return _commit_alignment / BytesPerWord; }
 
