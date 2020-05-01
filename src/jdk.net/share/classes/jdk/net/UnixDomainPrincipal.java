@@ -25,12 +25,13 @@
 
 package jdk.net;
 
+import java.nio.channels.SocketChannel;
 import java.nio.file.attribute.UserPrincipal;
 import java.nio.file.attribute.GroupPrincipal;
 import java.util.Objects;
 
 /**
- * A user and group identity obtained from a Unix domain channel.
+ * A user and group identity obtained from a Unix domain {@link SocketChannel}.
  *
  * @since 15
  */

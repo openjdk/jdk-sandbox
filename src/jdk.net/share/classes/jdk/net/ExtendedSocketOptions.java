@@ -166,10 +166,10 @@ public final class ExtendedSocketOptions {
             = new ExtSocketOption<Integer>("TCP_KEEPCOUNT", Integer.class);
 
     /**
-     * Unix domain socket channel peer credentials.
+     * Unix domain {@link SocketChannel} peer credentials.
      * <p>
-     * This socket option returns a {@link UnixDomainPrincipal} of the remote process
-     * that this socket channel is connected to.
+     * This socket option returns a {@link UnixDomainPrincipal} for the 
+     * socket this channel is connected to.
      */
     public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
             = new ExtSocketOption<UnixDomainPrincipal>
