@@ -23,6 +23,8 @@
  * questions.
  */
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/types.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -126,6 +128,27 @@ static void handleError(JNIEnv *env, jint rv, const char *errmsg) {
             JNU_ThrowByNameWithLastError(env, "java/net/SocketException", errmsg);
         }
     }
+}
+
+/*
+ * Class:     jdk_net_LinuxSocketOptions
+ * Method:    getSoPeerCred0
+ * Signature: (I[I)I
+ */
+JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_getSoPeerCred0
+  (JNIEnv *env, jclass clazz, jint fd, jintArray result) {
+
+    int rv;
+    struct ucred cred;
+    socklen_t len = sizeof(cred);
+    int *rr = (int *)(*env)->GetIntArrayElements(env, result, NULL);
+
+    if ((rv=getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len)) < 0) {
+        handleError(env, rv, "get peer eid failed");
+    }
+    rr[0] =cred.uid;
+    rr[1] = cred.gid;
+    (*env)->ReleaseIntArrayElements(env, result, rr, 0);
 }
 
 /*

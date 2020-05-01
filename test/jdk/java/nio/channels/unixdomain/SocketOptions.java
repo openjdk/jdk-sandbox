@@ -35,6 +35,8 @@ import java.nio.channels.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import jdk.net.UnixDomainPrincipal;
+import static jdk.net.ExtendedSocketOptions.SO_PEERCRED;
 
 /**
  * Check that all supported options can actually be set and got
@@ -48,6 +50,21 @@ public class SocketOptions {
         }
         test(ServerSocketChannel.open(StandardProtocolFamily.UNIX));
         test(SocketChannel.open(StandardProtocolFamily.UNIX));
+        ServerSocketChannel s = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+        s.bind(null);
+        UnixDomainSocketAddress addr = (UnixDomainSocketAddress)s.getLocalAddress();
+        SocketChannel c = SocketChannel.open(addr);
+	if (!c.supportedOptions().contains(SO_PEERCRED)) {
+            return;
+        }
+        UnixDomainPrincipal p = c.getOption(SO_PEERCRED);
+        String s1 = p.getUser().getName();
+        System.out.println(s1);
+        System.out.println(p.getGroup().getName());
+        String s2 = System.getProperty("user.name");
+        if (!s1.equals(s2)) {
+            throw new RuntimeException("wrong username");
+        }
     }
 
     static boolean supported() {

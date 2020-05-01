@@ -103,6 +103,7 @@ public class UnixDomainSocketChannelImpl extends SocketChannelImpl
             set.add(StandardSocketOptions.SO_SNDBUF);
             set.add(StandardSocketOptions.SO_RCVBUF);
             set.add(StandardSocketOptions.SO_LINGER);
+            set.addAll(ExtendedSocketOptions.unixSocketOptions());
             return Collections.unmodifiableSet(set);
         }
     }
