@@ -746,18 +746,13 @@ void Metaspace::ergo_initialize() {
 
   CompressedClassSpaceSize = align_down_bounded(CompressedClassSpaceSize, _reserve_alignment);
 
-  // Note: InitialBootClassLoaderMetaspaceSize is an old parameter which is used to determine the chunk size
-  // of the first non-class chunk handed to the boot class loader. See metaspace/chunkAllocSequence.hpp.
-  size_t min_metaspace_sz = align_up(InitialBootClassLoaderMetaspaceSize, _reserve_alignment);
+  size_t min_metaspace_sz = _reserve_alignment;
   if (UseCompressedClassPointers) {
     if (min_metaspace_sz >= MaxMetaspaceSize) {
       vm_exit_during_initialization("MaxMetaspaceSize is too small.");
     } else if ((min_metaspace_sz + CompressedClassSpaceSize) >  MaxMetaspaceSize) {
       FLAG_SET_ERGO(CompressedClassSpaceSize, MaxMetaspaceSize - min_metaspace_sz);
     }
-  } else if (min_metaspace_sz >= MaxMetaspaceSize) {
-    FLAG_SET_ERGO(InitialBootClassLoaderMetaspaceSize,
-                  min_metaspace_sz);
   }
 
   _compressed_class_space_size = CompressedClassSpaceSize;

@@ -36,7 +36,6 @@ public class MaxMetaspaceSizeTest {
     public static void main(String... args) throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-Xmx1g",
-            "-XX:InitialBootClassLoaderMetaspaceSize=4195328",
             "-XX:MaxMetaspaceSize=4195328",
             "-XX:+UseCompressedClassPointers",
             "-XX:CompressedClassSpaceSize=1g",
