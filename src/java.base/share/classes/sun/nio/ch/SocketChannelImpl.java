@@ -215,7 +215,7 @@ abstract class SocketChannelImpl
 
     /**
      * If special handling of a socket option is required, override this in subclass
-     * and return true.
+     * and return true if no further action required.
      *
      * @param name
      * @param value

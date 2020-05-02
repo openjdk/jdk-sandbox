@@ -144,10 +144,15 @@ JNIEXPORT void JNICALL Java_jdk_net_LinuxSocketOptions_getSoPeerCred0
     int *rr = (int *)(*env)->GetIntArrayElements(env, result, NULL);
 
     if ((rv=getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cred, &len)) < 0) {
-        handleError(env, rv, "get peer eid failed");
+        handleError(env, rv, "get SO_PEERCRED failed");
+    } else {
+        if ((int)cred.uid == -1) {
+            handleError(env, -1, "get SO_PEERCRED failed");
+        } else {
+            rr[0] = cred.uid;
+            rr[1] = cred.gid;
+        }
     }
-    rr[0] =cred.uid;
-    rr[1] = cred.gid;
     (*env)->ReleaseIntArrayElements(env, result, rr, 0);
 }
 

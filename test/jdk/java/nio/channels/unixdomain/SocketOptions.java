@@ -89,6 +89,7 @@ public class SocketOptions {
         c = SocketChannel.open(StandardProtocolFamily.UNIX);
         try {
             p = c.getOption(SO_PEERCRED);
+            System.out.println(p.getUser());
             throw new RuntimeException("should have thrown SocketException");
         } catch (SocketException e) {}
     }
