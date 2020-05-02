@@ -35,7 +35,7 @@ class outputStream;
 namespace metaspace {
 
 // The CommitMask describes the committed-ness of a metaspace range.
-//  One bit corresponds to a commit granule.
+//  One bit corresponds to a commit granule (typically 64K).
 //  1 means the area is committed; 0 means it is uncommitted.
 class CommitMask : public CHeapBitMap {
 

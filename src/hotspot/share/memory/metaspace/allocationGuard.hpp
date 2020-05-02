@@ -32,6 +32,12 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+// In Debug builds, Metadata in Metaspace can be optionally guarded - enclosed in canaries -
+// to detect memory overwriters. This is switched on by "-XX:+MetaspaceGuardAllocations".
+//
+// These canaries are periodically checked, e.g. when the Metaspace is purged in a context
+// of a GC.
+
 namespace metaspace {
 
 #ifdef ASSERT

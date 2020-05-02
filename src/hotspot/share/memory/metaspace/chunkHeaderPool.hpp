@@ -33,7 +33,12 @@
 
 namespace metaspace {
 
-// A simple helper class; A pool of unused chunk headers.
+// Chunk headers are kept separate from the chunks themselves; in order to
+//  speed up allocation, reduce waste and increase locality when walking chains
+//  of linked headers, they are kept in a pool.
+//
+// The ChunkHeaderPool is a growable array of chunk headers. Unused chunk headers
+//  are kept in a free list.
 
 class ChunkHeaderPool {
 
@@ -42,7 +47,7 @@ class ChunkHeaderPool {
   struct slab_t : public CHeapObj<mtMetaspace> {
     slab_t* next;
     int top;
-    Metachunk elems [128]; // var sized;
+    Metachunk elems [slab_capacity];
     slab_t() : next(NULL), top(0) {
       for (int i = 0; i < slab_capacity; i++) {
         elems[i].clear();

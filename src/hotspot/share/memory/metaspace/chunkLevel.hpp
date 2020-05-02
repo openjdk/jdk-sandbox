@@ -34,16 +34,11 @@ class outputStream;
 
 namespace metaspace {
 
-// Metachunk level (must be signed)
-typedef signed char chklvl_t;
-
-#define CHKLVL_FORMAT "lv%.2d"
 
 // Chunks are managed by a binary buddy allocator.
 
 // Chunk sizes range from 1K to 4MB (64bit).
 //
-// Reasoning: .... TODO explain
 
 // Each chunk has a level; the level corresponds to its position in the tree
 // and describes its size.
@@ -65,6 +60,11 @@ typedef signed char chklvl_t;
 // 4K      10
 // 2K      11
 // 1K      12
+
+// Metachunk level (must be signed)
+typedef signed char chklvl_t;
+
+#define CHKLVL_FORMAT "lv%.2d"
 
 namespace chklvl {
 

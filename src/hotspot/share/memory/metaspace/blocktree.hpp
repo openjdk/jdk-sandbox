@@ -35,6 +35,20 @@
 namespace metaspace {
 
 
+// BlockTree is a rather simple binary search tree. It is used to
+// manage small to medium free memory blocks.
+//
+// There is no separation between payload (managed blocks) and nodes: the
+// memory blocks themselves are the nodes. Since they are considered to
+// be free when added to the structure, they are used to store the node
+// information directly. That also imposes a minimum size to the managed
+// memory blocks, which have to be able to hold at least a tree node.
+//
+// Each node corresponds to a memory block of a unique size. Subsequent memory
+// blocks of the same size are stacked below that node.
+//
+// Todo: this tree is unbalanced. It would be a good fit for a rb-tree.
+
 class BlockTree: public CHeapObj<mtMetaspace> {
 
 
@@ -199,6 +213,8 @@ private:
     }
   }
 
+  // Given a node and a wish size, search this node and all children for
+  // the node closest (equal or larger sized) to the size s.
   static node_t* find_closest_fit(node_t* n, size_t s) {
 
     if (n->size == s) {
@@ -226,6 +242,8 @@ private:
 
   }
 
+  // Given a wish size, search the whole tree for a
+  // node closest (equal or larger sized) to the size s.
   node_t* find_closest_fit(size_t s) {
     if (_root != NULL) {
       return find_closest_fit(_root, s);
@@ -233,6 +251,7 @@ private:
     return NULL;
   }
 
+  // Given a node n, remove it from the tree and repair tree.
   void remove_node_from_tree(node_t* n) {
 
     assert(n->next == NULL, "do not delete a node which has a non-empty list");
@@ -327,7 +346,8 @@ public:
 
   BlockTree() : _root(NULL), _largest_size_added(0) {}
 
-  // Add a block to the tree.
+  // Add a memory block to the tree. Memory block will be used to store
+  // node information.
   void add_block(MetaWord* p, size_t word_size) {
     DEBUG_ONLY(zap_range(p, word_size));
     assert(word_size >= minimal_word_size && word_size < maximal_word_size,

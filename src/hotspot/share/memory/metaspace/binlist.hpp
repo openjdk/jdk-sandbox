@@ -35,21 +35,26 @@
 
 namespace metaspace {
 
-// A vector of lists of equal-sized memory blocks. Vector is ordered, such
-// as that the first list only contains blocks of min_word_size, the second
-// only blocks of min_word_size + 1 etc.
+// BinList is a data structure to manage small to very small memory blocks
+// (only a few words). Memory blocks are kept in linked lists. Each list
+// contains blocks of only one size. There is a list for blocks of two words,
+// for blocks of three words, etc. The list heads are kept in a vector,
+// ordered by block size.
 //
-// Insertion: O(1)
-// Removal: the "get_block()" operation retrieves the closest fit - for that
-// it searches upward for the first non-empty list. To speed that up a bitmask
-// is used internally to keep the state (nonempty/empty) of every list.
+// This structure is very fast in insertion - O(1).
+// On retrieval, we attempt to find the closest fit to a given size, walking the
+// list head vector (a bitmask is used to speed that part up).
+//
+// This structure is rather expensive in memory cost (one pointer per managed
+// block size) so we only use it for a small number of sizes, see class FreeBlocks.
 
 template <size_t smallest_size, int num_lists>
 class BinListImpl {
 
   struct block_t { block_t* next; size_t size; };
 
-  // a mask to speed up searching for populated lists: 0 for an empty list, 1 for a non-empty one.
+  // a mask to speed up searching for populated lists.
+  // 0 marks an empty list, 1 for a non-empty one.
   typedef uint32_t mask_t;
   STATIC_ASSERT(num_lists <= sizeof(mask_t) * 8);
 

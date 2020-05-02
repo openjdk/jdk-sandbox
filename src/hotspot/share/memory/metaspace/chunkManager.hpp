@@ -36,11 +36,11 @@ namespace metaspace {
 class VirtualSpaceList;
 struct cm_stats_t;
 
-// class ChunkManager
-//
-// The ChunkManager has a central role. Callers request chunks from it.
-// It keeps the freelists for chunks. If the freelist is exhausted it
-// allocates new chunks from a connected VirtualSpaceList.
+// ChunkManager has a central role.
+
+// SpaceManagers request chunks from it. It keeps the freelists for chunks.
+// If the freelist is exhausted it allocates new chunks from a connected
+// VirtualSpaceList.
 //
 class ChunkManager : public CHeapObj<mtMetaspace> {
 

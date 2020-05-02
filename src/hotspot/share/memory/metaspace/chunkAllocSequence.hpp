@@ -33,6 +33,13 @@
 namespace metaspace {
 
 
+// Encodes the chunk progression - very simply, how big chunks are we hand to a class loader.
+//
+// This is a guessing game - giving it too large chunks may cause memory waste when it stops loading
+//  classes; giving it too small chunks may cause fragmentation and unnecessary contention when it
+//  calls into Metaspace to get a new chunk.
+//
+
 class ChunkAllocSequence {
 public:
 
