@@ -50,21 +50,47 @@ public class SocketOptions {
         }
         test(ServerSocketChannel.open(StandardProtocolFamily.UNIX));
         test(SocketChannel.open(StandardProtocolFamily.UNIX));
+        testPeerCred();
+    }
+
+    static void testPeerCred() throws Exception {
         ServerSocketChannel s = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
         s.bind(null);
         UnixDomainSocketAddress addr = (UnixDomainSocketAddress)s.getLocalAddress();
         SocketChannel c = SocketChannel.open(addr);
-	if (!c.supportedOptions().contains(SO_PEERCRED)) {
+        if (!c.supportedOptions().contains(SO_PEERCRED)) {
             return;
         }
+        Files.deleteIfExists(addr.getPath());
         UnixDomainPrincipal p = c.getOption(SO_PEERCRED);
         String s1 = p.getUser().getName();
         System.out.println(s1);
         System.out.println(p.getGroup().getName());
         String s2 = System.getProperty("user.name");
+
+        // Check returned user name
+
         if (!s1.equals(s2)) {
             throw new RuntimeException("wrong username");
         }
+
+        // Try setting the option: Read only
+
+        try {
+            c.setOption(SO_PEERCRED, p);
+            throw new RuntimeException("should have thrown SocketException");
+        } catch (SocketException e) {}
+
+        c.close();
+        s.close();
+
+        // Try getting from unconnected socket
+
+        c = SocketChannel.open(StandardProtocolFamily.UNIX);
+        try {
+            p = c.getOption(SO_PEERCRED);
+            throw new RuntimeException("should have thrown SocketException");
+        } catch (SocketException e) {}
     }
 
     static boolean supported() {

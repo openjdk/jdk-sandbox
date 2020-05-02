@@ -28,6 +28,7 @@ package jdk.net;
 import java.io.FileDescriptor;
 import java.net.SocketException;
 import java.net.SocketOption;
+import java.nio.channels.SocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collections;
@@ -168,8 +169,8 @@ public final class ExtendedSocketOptions {
     /**
      * Unix domain {@link SocketChannel} peer credentials.
      * <p>
-     * This socket option returns a {@link UnixDomainPrincipal} for the 
-     * socket this channel is connected to.
+     * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
+     * peer socket that the channel is connected to.
      */
     public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
             = new ExtSocketOption<UnixDomainPrincipal>
@@ -236,6 +237,8 @@ public final class ExtendedSocketOptions {
                     setTcpKeepAliveTime(fd, (Integer) value);
                 } else if (option == TCP_KEEPINTERVAL) {
                     setTcpKeepAliveIntvl(fd, (Integer) value);
+                } else if (option == SO_PEERCRED) {
+                    throw new SocketException("SO_PEERCRED cannot be set ");
                 } else {
                     throw new InternalError("Unexpected option " + option);
                 }
