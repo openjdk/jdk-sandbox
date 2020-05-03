@@ -170,8 +170,8 @@ public final class ExtendedSocketOptions {
      * Unix domain {@link SocketChannel} peer credentials.
      * <p>
      * This is a read-only socket option which returns a {@link UnixDomainPrincipal} for the
-     * peer socket that the channel is connected to. Attempting to set this option will
-     * throw a {@link SocketException}.
+     * peer socket that the channel is connected to. Attempting to set this option or to get
+     * it from an unconnected socket will throw a {@link SocketException}.
      */
     public static final SocketOption<UnixDomainPrincipal> SO_PEERCRED
             = new ExtSocketOption<UnixDomainPrincipal>
