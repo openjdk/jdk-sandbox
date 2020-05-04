@@ -92,10 +92,7 @@ public final class UnixDomainSocketAddress extends SocketAddress {
      * @param path the path to the socket.
      * @return a UnixDomainSocketAddress
      *
-     * @throws IllegalArgumentException if path name is too long
      * @throws InvalidPathException if path is not from the system-default filesystem
-     * @throws UnsupportedOperationException if Unix domain channels not supported
-     *         on this platform.
      * @throws NullPointerException if path is null
      */
     public static UnixDomainSocketAddress of(Path path) {

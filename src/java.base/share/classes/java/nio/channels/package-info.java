@@ -371,11 +371,15 @@
  * operating system permissions to create a file of that name.
  * The socket file that is created when a channel binds to a name is not removed when
  * the channel is closed. User code must arrange for the deletion of this file if
- * another channel needs to bind to the same name. Note also, that it may be possible
+ * another channel needs to bind to the same name. Note, this also applies to automatically
+ * bound {@code ServerSocketChannel}s. Note also, that it may be possible
  * to delete the socket file, even before the channel is closed, thus allowing another
  * channel to bind to the same name. The original channel is not notified of any error
  * in this situation. Operating system permissions can be used to control who is allowed
- * to create and delete these socket files.
+ * to create and delete these socket files. Note also, that each platform enforces an
+ * implementation specific, maximum length for the name of a Unix domain channel.
+ * This limitation is enforced when a channel is bound. The maximum length is typically
+ * close to and generally not less than 100 bytes.
  *
  * @since 1.4
  * @author Mark Reinhold
