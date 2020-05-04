@@ -91,9 +91,11 @@ class outputStream;
   SHENANDOAH_PAR_PHASE_DO(evac_,                    "    E: ", f)                      \
                                                                                        \
   f(conc_weak_roots,                                "Concurrent Weak Roots")           \
+  SHENANDOAH_PAR_PHASE_DO(conc_weak_roots_,         "  CWR: ", f)                      \
   f(conc_cleanup_early,                             "Concurrent Cleanup")              \
   f(conc_class_unloading,                           "Concurrent Class Unloading")      \
   f(conc_strong_roots,                              "Concurrent Strong Roots")         \
+  SHENANDOAH_PAR_PHASE_DO(conc_strong_roots_,       "  CSR: ", f)                      \
   f(conc_evac,                                      "Concurrent Evacuation")           \
                                                                                        \
   f(init_update_refs_gross,                         "Pause Init  Update Refs (G)")     \
@@ -183,12 +185,11 @@ private:
   HdrSeq              _global_data[_num_phases];
   static const char*  _phase_names[_num_phases];
 
-  Phase                 _current_worker_phase;
   ShenandoahWorkerData* _worker_data[_num_phases];
   ShenandoahCollectorPolicy* _policy;
 
   static bool is_worker_phase(Phase phase);
-  Phase current_worker_phase() { return _current_worker_phase; }
+  static bool is_root_work_phase(Phase phase);
 
   ShenandoahWorkerData* worker_data(Phase phase, ParPhase par_phase);
   Phase worker_par_phase(Phase phase, ParPhase par_phase);
@@ -225,7 +226,7 @@ private:
   double _start_time;
   EventGCPhaseParallel _event;
 public:
-  ShenandoahWorkerTimingsTracker(ShenandoahPhaseTimings::ParPhase par_phase, uint worker_id);
+  ShenandoahWorkerTimingsTracker(ShenandoahPhaseTimings::Phase phase, ShenandoahPhaseTimings::ParPhase par_phase, uint worker_id);
   ~ShenandoahWorkerTimingsTracker();
 };
 
