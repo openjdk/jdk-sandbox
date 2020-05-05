@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -50,10 +50,11 @@ ifeq ($(HAS_SPEC),)
 
   # Make control variables, handled by Init.gmk
   INIT_CONTROL_VARIABLES += LOG CONF CONF_NAME SPEC JOBS TEST_JOBS CONF_CHECK \
-      COMPARE_BUILD JTREG GTEST MICRO TEST_OPTS TEST_VM_OPTS
+      DEPS COMPARE_BUILD
 
   # All known make control variables
-  MAKE_CONTROL_VARIABLES := $(INIT_CONTROL_VARIABLES) TEST JDK_FILTER SPEC_FILTER
+  MAKE_CONTROL_VARIABLES := $(INIT_CONTROL_VARIABLES) TEST JDK_FILTER \
+      SPEC_FILTER JTREG GTEST MICRO TEST_OPTS TEST_VM_OPTS
 
   # Define a simple reverse function.
   # Should maybe move to MakeBase.gmk, but we can't include that file now.
@@ -529,6 +530,37 @@ else # $(HAS_SPEC)=true
       } \
       $(BUILD_LOG_PIPE_SIMPLE)
     )
+  endef
+
+  # Parse the DEPS dependency control variable.
+  define ParseDepsControl
+
+    # Catch empty assignment, and replace it with "smart"
+    ifneq ($$(origin DEPS), undefined)
+      ifeq ($$(DEPS), )
+        override DEPS := smart
+      endif
+    else
+      # If unspecified, default is "full"
+      DEPS := full
+    endif
+
+    # Expand short forms
+    ifneq ($$(filter $$(DEPS)%, full), )
+      override DEPS := full
+    else ifneq ($$(filter $$(DEPS)%, none), )
+      override DEPS := none
+      $$(info Beware: Building targets but no dependencies. Rebuild without DEPS in case of problems.)
+    else ifneq ($$(filter $$(DEPS)%, only), )
+      override DEPS := only
+      $$(info Beware: Only building dependencies, not targets. Make sure you know what you are doing.)
+    else ifneq ($$(filter $$(DEPS)%, smart), )
+      override DEPS := smart
+      $$(info Beware: Using 'smart' dependency tracking. Rebuild without DEPS in case of problems.)
+    else
+      $$(info Error: Invalid value for DEPS: '$$(DEPS)'. Use DEPS=<full|none|only|[smart]>. Values can be shortened.)
+      $$(error Cannot continue)
+    endif
   endef
 
 endif # HAS_SPEC

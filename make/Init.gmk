@@ -57,6 +57,16 @@ ifeq ($(HAS_SPEC),)
   # or "default" if unspecified.
   CALLED_TARGETS := $(if $(MAKECMDGOALS), $(MAKECMDGOALS), default)
 
+  # Legacy support: reinterpret "foo-only" as "foo DEPS=none"
+  ifneq ($(findstring -only, $(CALLED_TARGETS)), )
+    CALLED_LEGACY_DEPS_TARGETS := $(filter %-only, $(CALLED_TARGETS))
+    CALLED_TARGETS := $(patsubst %-only, %, $(CALLED_TARGETS))
+    ifneq ($(origin DEPS), undefined)
+      $(error You cannot combine DEPS= with deprecated '<target>-only' targets)
+    endif
+    export DEPS := none
+  endif
+
   # Extract non-global targets that require a spec file.
   CALLED_SPEC_TARGETS := $(filter-out $(ALL_GLOBAL_TARGETS), $(CALLED_TARGETS))
 
@@ -134,6 +144,7 @@ ifeq ($(HAS_SPEC),)
     MAIN_TARGETS := $(filter $(ALL_MAIN_TARGETS), $(CALLED_SPEC_TARGETS))
     SEQUENTIAL_TARGETS := $(filter dist-clean clean%, $(MAIN_TARGETS))
     PARALLEL_TARGETS := $(filter-out $(SEQUENTIAL_TARGETS), $(MAIN_TARGETS))
+    LEGACY_DEPS_TARGETS := $(addsuffix -only, $(ALL_MAIN_TARGETS))
 
     # The spec files depend on the autoconf source code. This check makes sure
     # the configuration is up to date after changes to configure.
@@ -169,6 +180,15 @@ ifeq ($(HAS_SPEC),)
 	  $(info Running make as '$(strip $(MAKE) $(MFLAGS) \
 	      $(COMMAND_LINE_VARIABLES) $(MAKECMDGOALS))')
         endif
+
+    warn-deprecated-deps-targets:
+	$(info Warning: The following targets use the '<target>-only' syntax, which is deprecated: '$(CALLED_LEGACY_DEPS_TARGETS)'.)
+	$(info Please use "make $(patsubst %-only,%, $(CALLED_LEGACY_DEPS_TARGETS)) DEPS=" instead.)
+	$(info )
+
+    # This rule ensures all *-only targets are still valid, and delegate to
+    # the processed targets as listed in CALLED_SPEC_TARGETS.
+    $(LEGACY_DEPS_TARGETS): warn-deprecated-deps-targets $(CALLED_SPEC_TARGETS)
 
     MAKE_INIT_WITH_SPEC_ARGUMENTS := ACTUAL_TOPDIR=$(topdir) \
         USER_MAKE_VARS="$(USER_MAKE_VARS)" MAKE_LOG_FLAGS=$(MAKE_LOG_FLAGS) \
@@ -222,6 +242,9 @@ else # HAS_SPEC=true
 
   # Our helper functions.
   include $(TOPDIR)/make/InitSupport.gmk
+
+  # Parse DEPS (for dependency management)
+  $(eval $(call ParseDepsControl))
 
   # Parse COMPARE_BUILD (for makefile development)
   $(eval $(call ParseCompareBuild))

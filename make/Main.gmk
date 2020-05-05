@@ -60,8 +60,10 @@ ALL_MODULES := $(call FindAllModules)
 ################################################################################
 #
 # Recipes for all targets. Only recipes, dependencies are declared later.
+# These should always be executed, unless using DEPS=only.
 #
 ################################################################################
+ifneq ($(DEPS), only)
 
 ################################################################################
 # Interim/build tools targets, compiling tools used during the build
@@ -638,6 +640,10 @@ install:
 
 ALL_TARGETS += install
 
+else # if DEPS != only
+  # In case of DEPS=only, we will have no actual recipe targets
+endif
+
 ################################################################################
 #
 # Dependency declarations between targets.
@@ -650,13 +656,16 @@ ALL_TARGETS += install
 ################################################################################
 # Targets with recipes above
 
-# If running an *-only target, parallel execution and dependencies between
+# If building without dependencies, parallel execution and dependencies between
 # recipe targets are disabled. This makes it possible to run a select set of
 # recipe targets in order. It's the responsibility of the user to make sure
 # all prerequisites are fulfilled.
-ifneq ($(findstring -only, $(MAKECMDGOALS)), )
+ifeq ($(DEPS), none)
   .NOTPARALLEL:
-else
+else ifeq ($(DEPS), smart)
+  # FIXME: do fancy depencendy checking
+else # DEPS=full or DEPS=only
+
   $(LANGTOOLS_GENSRC_TARGETS): buildtools-langtools
 
   interim-langtools: $(INTERIM_LANGTOOLS_GENSRC_TARGETS)
@@ -964,7 +973,8 @@ else
 endif
 
 ################################################################################
-# Virtual targets without recipes
+# Virtual targets without recipes. These will be handled as if they were an
+# alias for their dependencies, w.r.t. DEPS.
 
 # If not already set, set the JVM specific tools targets
 JVM_TOOLS_TARGETS ?= buildtools-hotspot
@@ -1234,12 +1244,6 @@ dist-clean: clean
 ALL_TARGETS += clean clean-docs clean-compile-commands dist-clean $(CLEAN_DIR_TARGETS) \
     $(CLEAN_SUPPORT_DIR_TARGETS) $(CLEAN_TEST_TARGETS) $(CLEAN_PHASE_TARGETS) \
     $(CLEAN_MODULE_TARGETS) $(CLEAN_MODULE_PHASE_TARGETS)
-
-################################################################################
-# Declare *-only targets for each normal target
-$(foreach t, $(ALL_TARGETS), $(eval $(t)-only: $(t)))
-
-ALL_TARGETS += $(addsuffix -only, $(filter-out dist-clean clean%, $(ALL_TARGETS)))
 
 ################################################################################
 
