@@ -40,15 +40,12 @@ import java.util.Collections;
 
 public class TestAllocateHeapAt {
   public static void main(String args[]) throws Exception {
-    String test_dir = System.getProperty("test.dir", ".");
-    String[] flags = {
-        "-XX:AllocateHeapAt=" + test_dir,
+    ProcessBuilder pb = ProcessTools.createTestJvm(
+        "-XX:AllocateHeapAt=" + System.getProperty("test.dir", "."),
         "-Xlog:gc+heap=info",
         "-Xmx32m",
         "-Xms32m",
-        "-version"};
-
-    ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true, flags);
+        "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
     System.out.println("Output:\n" + output.getOutput());
