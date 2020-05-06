@@ -1425,10 +1425,6 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     char*         name;         // String representation
   } arch_t;
 
-#ifndef EM_AARCH64
-  #define EM_AARCH64    183               /* ARM AARCH64 */
-#endif
-
   static const arch_t arch_array[]={
     {EM_386,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
     {EM_486,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
@@ -3920,7 +3916,7 @@ jint os::init_2(void) {
 
   if (UseNUMA) {
     if (!Solaris::liblgrp_init()) {
-      UseNUMA = false;
+      FLAG_SET_ERGO(UseNUMA, false);
     } else {
       size_t lgrp_limit = os::numa_get_groups_num();
       int *lgrp_ids = NEW_C_HEAP_ARRAY(int, lgrp_limit, mtInternal);
@@ -3932,6 +3928,11 @@ jint os::init_2(void) {
         UseNUMA = ForceNUMA;
       }
     }
+  }
+
+  // When NUMA requested, not-NUMA-aware allocations default to interleaving.
+  if (UseNUMA && !UseNUMAInterleaving) {
+    FLAG_SET_ERGO_IF_DEFAULT(UseNUMAInterleaving, true);
   }
 
   Solaris::signal_sets_init();

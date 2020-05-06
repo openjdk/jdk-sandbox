@@ -23,79 +23,89 @@
 
 /*
  * @test
+ * @bug 8243488
+ * @library /test/lib
+ * @build jdk.test.lib.Platform
  * @summary Check that setSendBufferSize and getSendBufferSize work as expected
- * @run testng/othervm SetGetSendBufferSize
+ * @run testng SetGetSendBufferSize
  * @run testng/othervm -Djava.net.preferIPv4Stack=true SetGetSendBufferSize
  */
 
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.nio.channels.DatagramChannel;
 
+import jdk.test.lib.Platform;
+
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class SetGetSendBufferSize {
-    DatagramSocket datagramSocket, multicastSocket, datagramSocketAdaptor;
+    static final Class<SocketException> SE = SocketException.class;
+    static final Class<IllegalArgumentException> IAE = IllegalArgumentException.class;
 
-    private static final Class<SocketException> SE = SocketException.class;
-    private static final Class<IllegalArgumentException> IAE =
-            IllegalArgumentException.class;
-
-    @BeforeTest
-    public void setUp() throws Exception {
-        datagramSocket = new DatagramSocket();
-        multicastSocket = new MulticastSocket();
-        datagramSocketAdaptor = DatagramChannel.open().socket();
+    public interface DatagramSocketSupplier {
+        DatagramSocket open() throws IOException;
     }
+    static DatagramSocketSupplier supplier(DatagramSocketSupplier supplier) { return supplier; }
 
-    @DataProvider(name = "data")
-    public Object[][] variants() {
+    @DataProvider
+    public Object[][] invariants() {
         return new Object[][]{
-                { datagramSocket        },
-                { datagramSocketAdaptor },
-                { multicastSocket       },
+                {"DatagramSocket", supplier(() -> new DatagramSocket())},
+                {"MulticastSocket", supplier(() -> new MulticastSocket())},
+                {"DatagramSocketAdaptor", supplier(() -> DatagramChannel.open().socket())},
         };
     }
 
-    @Test(dataProvider = "data")
-    public void testSetNegArguments(DatagramSocket ds) {
-        assertThrows(IAE, () -> ds.setSendBufferSize(-1));
+    @Test(dataProvider = "invariants")
+    public void testSetInvalidBufferSize(String name, DatagramSocketSupplier supplier) throws IOException {
+        var invalidArgs = new int[]{ -1, 0 };
+
+        try (var socket = supplier.open()) {
+            for (int i : invalidArgs) {
+                Exception ex = expectThrows(IAE, () -> socket.setSendBufferSize(i));
+                System.out.println(name + " got expected exception: " + ex);
+            }
+        }
     }
 
-    @Test(dataProvider = "data")
-    public void testGetSendBufferSize(DatagramSocket ds) throws Exception {
-        ds.setSendBufferSize(2345);
-        assertEquals(ds.getSendBufferSize(), 2345);
+    @Test(dataProvider = "invariants")
+    public void testSetAndGetBufferSize(String name, DatagramSocketSupplier supplier) throws IOException {
+        var validArgs = new int[]{ 2345, 3456 };
+
+        try (var socket = supplier.open()) {
+            for (int i : validArgs) {
+                socket.setSendBufferSize(i);
+                assertEquals(socket.getSendBufferSize(), i, name);
+            }
+        }
     }
 
-    @AfterTest
-    public void tearDown() {
-        datagramSocket.close();
-        multicastSocket.close();
-        datagramSocketAdaptor.close();
+    @Test(dataProvider = "invariants")
+    public void testInitialSendBufferSize(String name, DatagramSocketSupplier supplier) throws IOException {
+        if(Platform.isOSX()) {
+            try (var socket = supplier.open()){
+                assertTrue(socket.getSendBufferSize() >= 65507, name);
+            }
+        }
     }
 
-    @Test
-    public void testSetGetAfterClose() throws Exception {
-        var ds = new DatagramSocket();
-        var ms = new MulticastSocket();
-        var dsa = DatagramChannel.open().socket();
+    @Test(dataProvider = "invariants")
+    public void testSetGetAfterClose(String name, DatagramSocketSupplier supplier) throws IOException {
+        var socket = supplier.open();
+        socket.close();
 
-        ds.close();
-        ms.close();
-        dsa.close();
-        assertThrows(SE, () -> ds.setSendBufferSize(2345));
-        assertThrows(SE, () -> ds.getSoTimeout());
-        assertThrows(SE, () -> ms.setSendBufferSize(2345));
-        assertThrows(SE, () -> ms.getSoTimeout());
-        assertThrows(SE, () -> dsa.setSendBufferSize(2345));
-        assertThrows(SE, () -> dsa.getSoTimeout());
+        Exception setException = expectThrows(SE, () -> socket.setSendBufferSize(2345));
+        System.out.println(name + " got expected exception: " + setException);
+
+        Exception getException = expectThrows(SE, () -> socket.getSendBufferSize());
+        System.out.println(name + " got expected exception: " + getException);
     }
 }
