@@ -56,8 +56,6 @@ public class PropertyResolvingWrapper {
             family = "mac";
         else if (name.startsWith("OS400") || name.startsWith("OS/400") )
             family = "os400";
-        else if (name.startsWith("SunOS") || name.startsWith("Solaris"))
-            family = "solaris";
         else if (name.startsWith("Windows"))
             family = "windows";
         else

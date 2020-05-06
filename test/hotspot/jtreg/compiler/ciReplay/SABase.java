@@ -133,15 +133,6 @@ public class SABase extends CiReplayBase {
                 throw new Error("Unable to set limits");
             }
         }
-        if (Platform.isSolaris()) {
-            try {
-                OutputAnalyzer oa = ProcessTools.executeProcess("coreadm", "-p", "core",
-                        "" + ProcessHandle.current().pid());
-                oa.shouldHaveExitValue(0);
-            } catch (Throwable t) {
-                throw new Error("Can't launch coreadm: " + t, t);
-            }
-        }
     }
 }
 

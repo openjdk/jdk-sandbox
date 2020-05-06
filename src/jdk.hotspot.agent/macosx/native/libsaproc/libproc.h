@@ -59,19 +59,6 @@ typedef int bool;
 #include <link.h>
 #include <machine/reg.h>
 #include <proc_service.h>
-#if defined(sparc) || defined(sparcv9)
-/*
-  If _LP64 is defined ptrace.h should be taken from /usr/include/asm-sparc64
-  otherwise it should be from /usr/include/asm-sparc
-  These two files define pt_regs structure differently
-*/
-#ifdef _LP64
-#include "asm-sparc64/ptrace.h"
-#else
-#include "asm-sparc/ptrace.h"
-#endif
-
-#endif //sparc or sparcv9
 
 // This C bool type must be int for compatibility with BSD calls and
 // it would be a mistake to equivalence it to C++ bool on many platforms

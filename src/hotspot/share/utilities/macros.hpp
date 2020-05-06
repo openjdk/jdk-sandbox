@@ -412,14 +412,6 @@
 #define NOT_AIX(code) code
 #endif
 
-#ifdef SOLARIS
-#define SOLARIS_ONLY(code) code
-#define NOT_SOLARIS(code)
-#else
-#define SOLARIS_ONLY(code)
-#define NOT_SOLARIS(code) code
-#endif
-
 #ifdef _WINDOWS
 #define WINDOWS_ONLY(code) code
 #define NOT_WINDOWS(code)
@@ -499,14 +491,6 @@
 #else
 #define S390_ONLY(code)
 #define NOT_S390(code) code
-#endif
-
-#ifdef SPARC
-#define SPARC_ONLY(code) code
-#define NOT_SPARC(code)
-#else
-#define SPARC_ONLY(code)
-#define NOT_SPARC(code) code
 #endif
 
 #if defined(PPC32) || defined(PPC64)
@@ -593,9 +577,9 @@
 // This macro constructs from basename and INCLUDE_SUFFIX_OS /
 // INCLUDE_SUFFIX_CPU / INCLUDE_SUFFIX_COMPILER, which are set on
 // the command line, the name of platform dependent files to be included.
-// Example: INCLUDE_SUFFIX_OS=_linux / INCLUDE_SUFFIX_CPU=_sparc
-//   CPU_HEADER_INLINE(macroAssembler) --> macroAssembler_sparc.inline.hpp
-//   OS_CPU_HEADER(vmStructs)          --> vmStructs_linux_sparc.hpp
+// Example: INCLUDE_SUFFIX_OS=_linux / INCLUDE_SUFFIX_CPU=_x86
+//   CPU_HEADER_INLINE(macroAssembler) --> macroAssembler_x86.inline.hpp
+//   OS_CPU_HEADER(vmStructs)          --> vmStructs_linux_x86.hpp
 //
 // basename<cpu>.hpp / basename<cpu>.inline.hpp
 #define CPU_HEADER_H(basename)         XSTR(CPU_HEADER_STEM(basename).h)

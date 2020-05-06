@@ -82,7 +82,7 @@ public class MotifLookAndFeel extends BasicLookAndFeel
 
 
     public boolean isNativeLookAndFeel() {
-        return OSInfo.getOSType() == OSInfo.OSType.SOLARIS;
+        return false;
     }
 
 

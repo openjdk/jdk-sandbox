@@ -323,7 +323,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testTerminalOptionInShebang() throws IOException {
         starting("testTerminalOptionInShebang");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between terminal options on the
             // shebang line and those on the command line.
             // On Solaris, all options after the first on the shebang line are
@@ -347,7 +347,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testTerminalOptionInShebangAtFile() throws IOException {
         starting("testTerminalOptionInShebangAtFile");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between terminal options in a
             // shebang @-file and those on the command line.
             // On Solaris, all options after the first on the shebang line are
@@ -374,7 +374,7 @@ public class SourceMode extends TestHelper {
     @Test
     void testMainClassInShebang() throws IOException {
         starting("testMainClassInShebang");
-        if (skipShebangTest || isAIX || isMacOSX || isSolaris) {
+        if (skipShebangTest || isAIX || isMacOSX) {
             // On MacOSX, we cannot distinguish between a main class on the
             // shebang line and one on the command line.
             // On Solaris, all options after the first on the shebang line are

@@ -73,9 +73,7 @@ public class TestNativeLibrariesEvent {
 
     private static List<String> getExpectedLibs() throws Throwable {
         String libTemplate = null;
-        if (Platform.isSolaris()) {
-            libTemplate = "lib%s.so";
-        } else if (Platform.isWindows()) {
+        if (Platform.isWindows()) {
             libTemplate = "%s.dll";
         } else if (Platform.isOSX()) {
             libTemplate = "lib%s.dylib";

@@ -24,7 +24,7 @@
  * @test
  * @bug 6575247 8170579
  * @summary  Verifies if Banner page is printed
- * @requires (os.family == "linux" | os.family == "solaris")
+ * @requires os.family == "solaris"
  * @run main/manual BannerTest
  */
 

@@ -63,14 +63,6 @@ pass()
 # Checking for proper OS
 OS=`uname -s`
 case "$OS" in
-   SunOS )
-      VAR="One value for Sun"
-      DEFAULT_JDK=/
-      FILESEP="/"
-      PATHSEP=":"
-      TMP="/tmp"
-      ;;
-
    Linux )
       VAR="A different value for Linux"
       DEFAULT_JDK=/

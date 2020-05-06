@@ -62,22 +62,6 @@ echo ""
 
 OS=`uname -s`
 case "$OS" in
-  SunOS )
-    FS="/"
-    PS=":"
-    OS_VERSION=`uname -r`
-    case "${OS_VERSION}" in
-      5.1* )
-        SOFTTOKEN_DIR=${TESTCLASSES}
-        export SOFTTOKEN_DIR
-        TOKENS="nss solaris"
-        ;;
-      * )
-        # SunPKCS11-Solaris Test only runs on Solaris 5.10 and later
-        TOKENS="nss"
-        ;;
-    esac
-    ;;
   Windows_* )
     FS="\\"
     PS=";"

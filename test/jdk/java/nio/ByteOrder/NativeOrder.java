@@ -40,8 +40,7 @@ public class NativeOrder {
             ((arch.equals("x86_64") && (bo != ByteOrder.LITTLE_ENDIAN))) ||
             ((arch.equals("ppc64") && (bo != ByteOrder.BIG_ENDIAN))) ||
             ((arch.equals("ppc64le") && (bo != ByteOrder.LITTLE_ENDIAN))) ||
-            ((arch.equals("s390x") && (bo != ByteOrder.BIG_ENDIAN))) ||
-            ((arch.equals("sparc") && (bo != ByteOrder.BIG_ENDIAN)))) {
+            ((arch.equals("s390x") && (bo != ByteOrder.BIG_ENDIAN)))) {
             throw new Exception("Wrong byte order");
         }
         System.err.println("test is OK");

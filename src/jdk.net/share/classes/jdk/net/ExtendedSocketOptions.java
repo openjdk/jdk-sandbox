@@ -347,9 +347,7 @@ public final class ExtendedSocketOptions {
                             return System.getProperty("os.name");
                         }
                     });
-            if ("SunOS".equals(osname)) {
-                return newInstance("jdk.net.SolarisSocketOptions");
-            } else if ("Linux".equals(osname)) {
+            if ("Linux".equals(osname)) {
                 return newInstance("jdk.net.LinuxSocketOptions");
             } else if (osname.startsWith("Mac")) {
                 return newInstance("jdk.net.MacOSXSocketOptions");

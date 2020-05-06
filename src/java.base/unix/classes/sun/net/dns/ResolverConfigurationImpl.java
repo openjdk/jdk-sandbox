@@ -177,16 +177,6 @@ public class ResolverConfigurationImpl
 
         // No search keyword so use local domain
 
-
-        // LOCALDOMAIN has absolute priority on Solaris
-
-        String localDomain = localDomain0();
-        if (localDomain != null && !localDomain.isEmpty()) {
-            sl = new LinkedList<>();
-            sl.add(localDomain);
-            return sl;
-        }
-
         // try domain keyword in /etc/resolv.conf
 
         sl = java.security.AccessController.doPrivileged(

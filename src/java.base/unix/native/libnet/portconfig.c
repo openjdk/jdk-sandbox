@@ -60,13 +60,6 @@ static int getPortRange(struct portrange *range)
         }
         return -1;
     }
-
-#elif defined(__solaris__)
-    {
-        range->higher = net_getParam("/dev/tcp", "tcp_largest_anon_port");
-        range->lower = net_getParam("/dev/tcp", "tcp_smallest_anon_port");
-        return 0;
-    }
 #elif defined(_ALLBSD_SOURCE)
     {
         int ret;

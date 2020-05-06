@@ -46,7 +46,7 @@ else
 fi
 
 
-if [ $OS = SunOS -o $OS = Linux ]
+if [ $OS = Linux ]
 then
     exit 0
 fi

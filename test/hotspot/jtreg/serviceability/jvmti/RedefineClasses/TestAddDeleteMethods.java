@@ -24,7 +24,6 @@
 /*
  * @test
  * @bug 8192936
- * @requires os.family != "solaris"
  * @summary RI does not follow the JVMTI RedefineClasses spec; need to disallow adding and deleting methods
  * @library /test/lib
  * @modules java.base/jdk.internal.misc

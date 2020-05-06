@@ -63,11 +63,6 @@ public class InconsistentError {
                 // this is not an error since the  error message on windows
                 // is "The system cannot find the file specified "
                 // See bug 4450257
-
-                if (System.getProperty("os.name").equals("SunOS")) {
-                        System.out.println("test 2 failed");
-                        throw se;
-                }
             }
         }
 

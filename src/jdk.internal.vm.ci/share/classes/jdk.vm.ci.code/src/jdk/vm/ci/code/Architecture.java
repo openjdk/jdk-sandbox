@@ -40,7 +40,7 @@ public abstract class Architecture {
     private final PlatformKind wordKind;
 
     /**
-     * The name of this architecture (e.g. "AMD64", "SPARCv9").
+     * The name of this architecture (e.g. "AMD64").
      */
     private final String name;
 

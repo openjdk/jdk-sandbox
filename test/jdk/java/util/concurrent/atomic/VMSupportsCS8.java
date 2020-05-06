@@ -35,7 +35,7 @@ public class VMSupportsCS8 {
     public static void main(String[] args) throws Exception {
         String isalist = System.getProperty("sun.cpu.isalist");
         if (isalist != null && isalist.matches
-            (".*\\b(sparcv9|pentium_pro|ia64|amd64).*")
+            (".*\\b(pentium_pro|ia64|amd64).*")
             ||
             System.getProperty("os.arch").matches
             (".*\\b(ia64|amd64).*")) {

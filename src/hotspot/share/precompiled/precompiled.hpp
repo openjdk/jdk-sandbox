@@ -22,8 +22,8 @@
  *
  */
 
-// Precompiled headers are turned off for Solaris Studio,
-// or if the user passes --disable-precompiled-headers to configure.
+// Precompiled headers are turned off if the user passes
+// --disable-precompiled-headers to configure.
 
 #ifndef DONT_USE_PRECOMPILED_HEADER
 

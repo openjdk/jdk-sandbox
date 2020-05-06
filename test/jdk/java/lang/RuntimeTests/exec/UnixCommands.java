@@ -32,7 +32,6 @@ public class UnixCommands {
 
     public static final boolean isUnix = ! System.getProperty("os.name").startsWith("Windows");
     public static final boolean isLinux = System.getProperty("os.name").startsWith("Linux");
-    public static final boolean isSunOS = System.getProperty("os.name").equals("SunOS");
 
     private static final String[] paths = {"/bin", "/usr/bin"};
 

@@ -164,7 +164,7 @@ public class KeyMaskTest extends KeyAdapter {
         int keys[];
         String OS = System.getProperty("os.name").toLowerCase();
         System.out.println(OS);
-        if (OS.contains("os x") || OS.contains("sunos")) {
+        if (OS.contains("os x")) {
             keys = new int[] {KeyEvent.VK_SHIFT, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_META};
         } else {
             keys = new int[] {KeyEvent.VK_SHIFT, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT};

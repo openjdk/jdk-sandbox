@@ -22,6 +22,7 @@
  */
 
 /* @test
+ * @requires os.family == "Linux"
  * @bug 4863423
  * @summary Test Util caching policy
  */
@@ -35,11 +36,6 @@ public class BigReadWrite {
     static int testSize = 15;
 
     public static void main(String[] args) throws Exception {
-        // One platform suffices to check for this bug
-        String osName = System.getProperty("os.name");
-        if (!osName.startsWith("SunOS"))
-            return;
-
         FileOutputStream fos = new FileOutputStream("/dev/zero");
         FileChannel fc = fos.getChannel();
 

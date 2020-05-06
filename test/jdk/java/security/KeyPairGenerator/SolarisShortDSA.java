@@ -43,14 +43,7 @@ public class SolarisShortDSA {
             int len = dpk.getX().bitLength();
             if (len <= 152) {
                 if (!use(kp)) {
-                    String os = System.getProperty("os.name");
-                    // Solaris bug, update the following line once it's fixed
-                    if (os.equals("SunOS")) {
-                        throw new IllegalStateException(
-                                "Don't panic. This is a Solaris bug");
-                    } else {
-                        throw new RuntimeException("Real test failure");
-                    }
+                    throw new RuntimeException("Real test failure");
                 }
                 break;
             }

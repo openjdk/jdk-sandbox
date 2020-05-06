@@ -113,7 +113,6 @@ public class DestroyTest {
             File tempFile = File.createTempFile("ProcessTrap-", ".sh", userDir);
             if (osName.startsWith("Linux")
                     || osName.startsWith("Mac OS")
-                    || osName.equals("SunOS")
                     || osName.equals("AIX")) {
                 return new UnixTest(tempFile);
             }

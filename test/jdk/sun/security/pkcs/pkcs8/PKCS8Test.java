@@ -26,7 +26,6 @@
  * @bug 8048357
  * @summary PKCS8 Standards Conformance Tests
  * @library /test/lib
- * @requires (os.family != "solaris")
  * @modules java.base/sun.security.pkcs
  *          java.base/sun.security.util
  *          java.base/sun.security.provider

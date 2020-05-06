@@ -49,14 +49,6 @@ public class Platform {
     }
 
     /**
-     * Checking whether the platform is Solaris
-     * @return
-     */
-    public static boolean isSolaris() {
-        return isOs("sunos");
-    }
-
-    /**
      * Checking whether the platform is Windows
      * @return
      */

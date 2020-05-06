@@ -77,10 +77,6 @@ public class TestUtil {
 
     private static String osName = System.getProperty("os.name");
 
-    static boolean onSolaris() {
-        return osName.startsWith("SunOS");
-    }
-
     static boolean onWindows() {
         return osName.startsWith("Windows");
     }

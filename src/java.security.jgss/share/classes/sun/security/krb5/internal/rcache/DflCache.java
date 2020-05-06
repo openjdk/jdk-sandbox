@@ -107,7 +107,7 @@ public class DflCache extends ReplayCache {
 
     private static long uid;
     static {
-        // Available on Solaris, Linux and Mac. Otherwise, -1 and no _euid suffix
+        // Available on Linux and Mac. Otherwise, -1 and no _euid suffix
         uid = jdk.internal.misc.VM.geteuid();
     }
 

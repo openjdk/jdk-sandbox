@@ -175,7 +175,6 @@ const char* Abstract_VM_Version::jre_release_version() {
 
 #define OS       LINUX_ONLY("linux")             \
                  WINDOWS_ONLY("windows")         \
-                 SOLARIS_ONLY("solaris")         \
                  AIX_ONLY("aix")                 \
                  BSD_ONLY("bsd")
 
@@ -193,8 +192,7 @@ const char* Abstract_VM_Version::jre_release_version() {
                  AMD64_ONLY("amd64")             \
                  IA32_ONLY("x86")                \
                  IA64_ONLY("ia64")               \
-                 S390_ONLY("s390")               \
-                 SPARC_ONLY("sparc")
+                 S390_ONLY("s390")
 #endif // !ZERO
 #endif // !CPU
 

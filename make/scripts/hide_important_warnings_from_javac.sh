@@ -22,13 +22,8 @@
 # questions.
 #
 
-if [ -x /usr/bin/ggrep ] ; then
-    # Gnu grep on Solaris
-    # (reference configure and build/solaris-i586-clientANDserver-release/spec.gmk
-    GREP=/usr/bin/ggrep
-else
-    GREP=grep
-fi
+GREP=grep
+
 #
 EXP="Note: Some input files use or override a deprecated API."
 EXP="${EXP}|Note: Recompile with -Xlint:deprecation for details."

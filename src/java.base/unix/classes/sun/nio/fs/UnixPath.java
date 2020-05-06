@@ -801,15 +801,7 @@ class UnixPath implements Path {
                     ("NOFOLLOW_LINKS is not supported on this platform");
             flags |= O_NOFOLLOW;
         }
-        try {
-            return open(this, flags, 0);
-        } catch (UnixException x) {
-            // HACK: EINVAL instead of ELOOP on Solaris 10 prior to u4 (see 6460380)
-            if (getFileSystem().isSolaris() && x.errno() == EINVAL)
-                x.setError(ELOOP);
-
-            throw x;
-        }
+        return open(this, flags, 0);
     }
 
     void checkRead() {

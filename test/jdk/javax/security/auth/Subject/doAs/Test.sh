@@ -33,11 +33,6 @@
 # set platform-dependent variables
 OS=`uname -s`
 case "$OS" in
-  SunOS )
-    PS=":"
-    FS="/"
-    RM="/bin/rm -f"
-    ;;
   Linux )
     PS=":"
     FS="/"

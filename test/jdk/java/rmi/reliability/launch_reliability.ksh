@@ -84,10 +84,7 @@ echo "VMOPTS : $VMOPTS "
 
 
 # set platform-dependent variables
-if [ `uname` = "SunOS" ] ; then
-        PATH_SEP=":"
-
-elif [ `uname` = "Linux" ] ; then
+if [ `uname` = "Linux" ] ; then
         PATH_SEP=":"
 else
         PATH_SEP=";"

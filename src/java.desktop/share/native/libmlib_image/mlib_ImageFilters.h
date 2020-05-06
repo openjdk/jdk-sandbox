@@ -48,14 +48,10 @@ extern const mlib_f32 mlib_filters_u8f_bc2[];
 extern const mlib_f32 mlib_filters_s16f_bc[];
 extern const mlib_f32 mlib_filters_s16f_bc2[];
 
-#ifndef __sparc
-
 extern const mlib_s16 mlib_filters_u8_bc[];
 extern const mlib_s16 mlib_filters_u8_bc2[];
 extern const mlib_s16 mlib_filters_s16_bc[];
 extern const mlib_s16 mlib_filters_s16_bc2[];
-
-#endif /* __sparc */
 
 #ifdef __cplusplus
 }

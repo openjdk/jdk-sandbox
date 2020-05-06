@@ -191,12 +191,7 @@ int generateJvmOffsets(GEN_variant gen_variant) {
   printf("\n");
 
   GEN_VALUE(MAX_METHOD_CODE_SIZE, max_method_code_size);
-#if defined(sparc) || defined(__sparc)
-  GEN_VALUE(OFFSET_interpreter_frame_method, 2 * pointer_size);     /* L2 in saved window */
-  GEN_VALUE(OFFSET_interpreter_frame_sender_sp, 13 * pointer_size); /* I5 in saved window */
-  // Fake value for consistency. It is not going to be used.
-  GEN_VALUE(OFFSET_interpreter_frame_bcp_offset, 0xFFFF);
-#elif defined(i386) || defined(__i386) || defined(__amd64)
+#if defined(i386) || defined(__i386) || defined(__amd64)
   GEN_VALUE(OFFSET_interpreter_frame_sender_sp, -1 * pointer_size);
   GEN_VALUE(OFFSET_interpreter_frame_method, -3 * pointer_size);
   GEN_VALUE(OFFSET_interpreter_frame_bcp_offset, -7 * pointer_size);

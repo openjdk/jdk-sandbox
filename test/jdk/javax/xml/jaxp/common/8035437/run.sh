@@ -30,9 +30,6 @@
 
 OS=`uname -s`
 case "$OS" in
-  SunOS )
-    PS=":"
-    ;;
   Linux )
     PS=":"
     ;;

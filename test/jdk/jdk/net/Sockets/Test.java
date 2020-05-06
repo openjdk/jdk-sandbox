@@ -189,21 +189,7 @@ public class Test {
     }
 
     private static boolean checkExpectedOptionSupport() {
-        if (Platform.isSolaris()) {
-            OSVersion solarisVersion = OSVersion.current();
-            OSVersion solarisVersionToCheck = new OSVersion(11, 2);
-            if (solarisVersion.compareTo(solarisVersionToCheck) >= 0) {
-                System.out.println("This Solaris version (" + solarisVersion
-                        + ") should support SO_FLOW_SLA option");
-                return true;
-            } else {
-                System.out.println("This Solaris version (" + solarisVersion
-                        + ") should not support SO_FLOW_SLA option");
-            }
-        } else {
-            System.out.println("Not Solaris, SO_FLOW_SLA should not be " +
-                    "supported");
-        }
+        System.out.println("SO_FLOW_SLA should not be supported");
         return false;
     }
 

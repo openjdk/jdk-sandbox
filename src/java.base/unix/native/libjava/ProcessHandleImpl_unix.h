@@ -29,7 +29,7 @@
  * Declaration of ProcessHandleImpl functions common on all Unix platforms.
  * 'unix_' functions have a single implementation in ProcessHandleImpl_unix.c
  * 'os_' prefixed functions have different, os-specific implementations in the
- * various ProcessHandleImpl_{linux,macosx,solaris,aix}.c files.
+ * various ProcessHandleImpl_{linux,macosx,aix}.c files.
  * See ProcessHandleImpl_unix.c for more details.
  */
 

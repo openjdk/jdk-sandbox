@@ -67,22 +67,6 @@ case "$OS" in
       echo "Test passed. Not supported on AIX."
       exit 0
     ;;
-  SunOS )
-    NULL=/dev/null
-    PS=":"
-    FS="/"
-    if [ `uname -p | grep -c 'sparc'` -gt '0' ]
-    then
-        ARCH="sparc"
-    else
-        ARCH="i386"
-    fi
-    SYST="solaris"
-    MAKEFILE="Makefile.unix"
-    CC="gcc"
-	MAKE="make"
-	LD_LIBRARY_PATH="."
-    ;;
   Windows* )
     NULL=null
     PS=";"
@@ -149,15 +133,6 @@ then
     echo "No C compiler found. Test passed."
     exit 0
 fi
-case "$OS" in
-    SunOS )
-      ${CC} -v >${NULL} 2>&1
-      if [ "$?" -ne '0' ]
-      then
-          echo "No C compiler found. Test passed."
-          exit 0
-      fi
-esac
 
 cp ${TESTSRC}${FS}${MAKEFILE} .
 

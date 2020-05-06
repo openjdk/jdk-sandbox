@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#if defined(__linux__) || defined(__solaris__)
+#if defined(__linux__)
 #include <sys/sendfile.h>
 #elif defined(_AIX)
 #include <string.h>
@@ -182,36 +182,6 @@ Java_sun_nio_ch_FileChannelImpl_transferTo0(JNIEnv *env, jobject this,
         return IOS_THROWN;
     }
     return n;
-#elif defined (__solaris__)
-    sendfilevec64_t sfv;
-    size_t numBytes = 0;
-    jlong result;
-
-    sfv.sfv_fd = srcFD;
-    sfv.sfv_flag = 0;
-    sfv.sfv_off = (off64_t)position;
-    sfv.sfv_len = count;
-
-    result = sendfilev64(dstFD, &sfv, 1, &numBytes);
-
-    /* Solaris sendfilev() will return -1 even if some bytes have been
-     * transferred, so we check numBytes first.
-     */
-    if (numBytes > 0)
-        return numBytes;
-    if (result < 0) {
-        if (errno == EAGAIN)
-            return IOS_UNAVAILABLE;
-        if (errno == EOPNOTSUPP)
-            return IOS_UNSUPPORTED_CASE;
-        if ((errno == EINVAL) && ((ssize_t)count >= 0))
-            return IOS_UNSUPPORTED_CASE;
-        if (errno == EINTR)
-            return IOS_INTERRUPTED;
-        JNU_ThrowIOExceptionWithLastError(env, "Transfer failed");
-        return IOS_THROWN;
-    }
-    return result;
 #elif defined(__APPLE__)
     off_t numBytes;
     int result;

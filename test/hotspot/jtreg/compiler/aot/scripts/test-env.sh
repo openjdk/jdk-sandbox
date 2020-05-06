@@ -22,7 +22,7 @@
 # set platform-dependent variables
 OS=`uname -s`
 case "$OS" in
-  Linux | SunOS )
+  Linux )
     SO_TYPE=so
     ;;
   Darwin )

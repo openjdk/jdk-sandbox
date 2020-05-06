@@ -83,13 +83,6 @@ pass()
 # Checking for proper OS
 OS=`uname -s`
 case "$OS" in
-   SunOS )
-      VAR="One value for Sun"
-      DEFAULT_JDK=/none
-      #DEFAULT_JDK=/usr/local/java/jdk1.2/solaris
-      FILESEP="/"
-      ;;
-
    Linux | Darwin | AIX )
       VAR="A different value for Linux"
       DEFAULT_JDK=/none

@@ -88,9 +88,7 @@ public class ModifierRobotKeyTest extends KeyAdapter {
 
         String os = System.getProperty("os.name").toLowerCase();
 
-        if (os.contains("solaris") || os.contains("sunos"))
-            textKeys[1] = KeyEvent.VK_S;
-        else if (os.contains("os x"))
+        if (os.contains("os x"))
             textKeys[1] = KeyEvent.VK_K;
         else
             textKeys[1] = KeyEvent.VK_I;

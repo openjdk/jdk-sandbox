@@ -33,18 +33,14 @@
 #define DTRACE_ONLY(x) x
 #define NOT_DTRACE(x)
 
-#if defined(SOLARIS)
-// Work around dtrace tail call bug 6672627 until it is fixed in solaris 10.
-#define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG() \
-  do { volatile size_t dtrace_workaround_tail_call_bug = 1; } while (0)
-#elif defined(LINUX)
+#if defined(LINUX)
 #define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG()
 #elif defined(__APPLE__)
 #define HS_DTRACE_WORKAROUND_TAIL_CALL_BUG()
 #include <sys/types.h>
 #else
 #error "dtrace enabled for unknown os"
-#endif /* defined(SOLARIS) */
+#endif /* defined(LINUX) */
 
 #include "dtracefiles/hotspot.h"
 #include "dtracefiles/hotspot_jni.h"

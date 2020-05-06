@@ -44,8 +44,6 @@ class OS {
             family = "linux";
         } else if (name.startsWith("Mac") || name.startsWith("Darwin")) {
             family = "mac";
-        } else if (name.startsWith("SunOS") || name.startsWith("Solaris")) {
-            family = "solaris";
         } else if (name.startsWith("Windows")) {
             family = "windows";
         } else {

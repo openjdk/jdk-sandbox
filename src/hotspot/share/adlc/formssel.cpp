@@ -1043,11 +1043,7 @@ uint  InstructForm::reloc(FormDict &globals) {
     const char  *opType   = NULL;
     while (_matrule->base_operand(position, globals, result, name, opType)) {
       if ( strcmp(opType,"ConP") == 0 ) {
-#ifdef SPARC
-        reloc_entries += 2; // 1 for sethi + 1 for setlo
-#else
         ++reloc_entries;
-#endif
       }
       ++position;
     }
@@ -1081,13 +1077,7 @@ uint  InstructForm::reloc(FormDict &globals) {
   // Check for any component being an immediate float or double.
   Form::DataType data_type = is_chain_of_constant(globals);
   if( data_type==idealD || data_type==idealF ) {
-#ifdef SPARC
-    // sparc required more relocation entries for floating constants
-    // (expires 9/98)
-    reloc_entries += 6;
-#else
     reloc_entries++;
-#endif
   }
 
   return reloc_entries;

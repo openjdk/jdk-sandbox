@@ -33,7 +33,7 @@
 
 <project name="make" basedir="..">
     
-    <target name="-make.init" depends="-init,-pre-init.linux,-pre-init.macosx,-pre-init.solaris,-pre-init.windows,-pre-init.macosx">
+    <target name="-make.init" depends="-init,-pre-init.linux,-pre-init.macosx,-pre-init.windows,-pre-init.macosx">
         <property name="make.options" value=""/> <!-- default, can be overridden per user or per project -->
     </target>
     
@@ -45,11 +45,6 @@
     <target name="-pre-init.macosx" if="os.macosx">
         <property name="platform" value="macosx"/>
         <property name="make" value="make"/>
-    </target>
-
-    <target name="-pre-init.solaris" if="os.solaris">
-        <property name="platform" value="solaris"/>
-        <property name="make" value="gmake"/>
     </target>
 
     <target name="-pre-init.windows" if="os.windows">

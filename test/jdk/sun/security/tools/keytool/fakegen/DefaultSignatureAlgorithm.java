@@ -29,7 +29,6 @@
  * @build java.base/sun.security.rsa.RSAKeyPairGenerator
  *        java.base/sun.security.provider.DSAKeyPairGenerator
  *        jdk.crypto.ec/sun.security.ec.ECKeyPairGenerator
- * @requires os.family != "solaris"
  * @run main DefaultSignatureAlgorithm
  * @modules jdk.crypto.ec
  */

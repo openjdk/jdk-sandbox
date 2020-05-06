@@ -104,9 +104,6 @@ JLI_CmdToArgs(char *cmdline);
 #define JLI_Open                        open
 #define JLI_PutEnv                      putenv
 #define JLI_GetPid                      getpid
-#ifdef __solaris__
-#define JLI_Lseek                       llseek
-#endif
 #ifdef __linux__
 #define _LARGFILE64_SOURCE
 #define JLI_Lseek                       lseek64

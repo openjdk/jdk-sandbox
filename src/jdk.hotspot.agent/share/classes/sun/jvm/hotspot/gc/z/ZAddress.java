@@ -56,11 +56,6 @@ class ZAddress {
     }
 
     static Address address(long value) {
-        VM vm = VM.getVM();
-        if (vm.getOS().equals("solaris") && vm.getCPU().equals("sparc")) {
-            value |= ZGlobals.ZAddressSpaceStart;
-        }
-
         return ZUtils.longToAddress(value);
     }
 

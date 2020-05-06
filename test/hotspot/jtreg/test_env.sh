@@ -56,7 +56,7 @@ echo "TESTOPTS=${TESTOPTS}"
 # set platform-dependent variables
 OS=`uname -s`
 case "$OS" in
-  AIX | Darwin | Linux | SunOS )
+  AIX | Darwin | Linux )
     NULL=/dev/null
     PS=":"
     FS="/"
@@ -149,11 +149,6 @@ if [ $? = 0 ]
 then
   VM_OS="linux"
 fi
-grep "solaris" vm_version.out > ${NULL}
-if [ $? = 0 ]
-then
-  VM_OS="solaris"
-fi
 grep "windows" vm_version.out > ${NULL}
 if [ $? = 0 ]
 then
@@ -161,15 +156,6 @@ then
 fi
 
 VM_CPU="unknown"
-grep "sparc" vm_version.out > ${NULL}
-if [ $? = 0 ]
-then
-  VM_CPU="sparc"
-  if [ $VM_BITS = "64" ]
-  then
-    VM_CPU="sparcv9"
-  fi
-fi
 grep "x86" vm_version.out > ${NULL}
 if [ $? = 0 ]
 then

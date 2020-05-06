@@ -91,9 +91,6 @@
         <condition property="os.linux">
             <os name="linux"/>
         </condition>
-        <condition property="os.solaris">
-            <os name="SunOS"/>
-        </condition>
         <condition property="osfamily.unix">
             <os family="unix"/>
         </condition>

@@ -48,9 +48,7 @@
 #pragma weak mlib_memset = __mlib_memset
 #pragma weak mlib_memcpy = __mlib_memcpy
 
-#ifdef MLIB_NO_LIBSUNMATH
 #pragma weak mlib_sincosf = __mlib_sincosf
-#endif /* MLIB_NO_LIBSUNMATH */
 
 #elif defined ( __GNUC__ ) /* defined ( __SUNPRO_C ) */
 
@@ -67,13 +65,10 @@
   __typeof__ ( __mlib_memcpy) mlib_memcpy
     __attribute__ ((weak,alias("__mlib_memcpy")));
 
-#ifdef MLIB_NO_LIBSUNMATH
-
 void __mlib_sincosf (float x, float *s, float *c);
 
 __typeof__ ( __mlib_sincosf) mlib_sincosf
     __attribute__ ((weak,alias("__mlib_sincosf")));
-#endif /* MLIB_NO_LIBSUNMATH */
 
 #else /* defined ( __SUNPRO_C ) */
 
@@ -127,12 +122,8 @@ void *__mlib_memmove(void *s1, void *s2, mlib_u32 n)
   return memmove(s1, s2, n);
 }
 
-#ifdef MLIB_NO_LIBSUNMATH
-
 void __mlib_sincosf (mlib_f32 x, mlib_f32 *s, mlib_f32 *c)
 {
   *s = (mlib_f32)sin(x);
   *c = (mlib_f32)cos(x);
 }
-
-#endif /* MLIB_NO_LIBSUNMATH */

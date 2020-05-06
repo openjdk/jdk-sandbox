@@ -25,7 +25,6 @@
  * @test
  * @bug 8202414
  * @summary Unsafe write after primitive array creation may result in array length change
- * @requires (os.arch != "sparc") & (os.arch != "sparcv9")
  * @run main/othervm compiler.c2.Test8202414
  */
 

@@ -109,10 +109,6 @@ class TemplateInterpreterGenerator: public AbstractInterpreterGenerator {
   void generate_counter_overflow(Label& continue_entry);
 
   void generate_fixed_frame(bool native_call);
-#ifdef SPARC
-  void save_native_result(void);
-  void restore_native_result(void);
-#endif // SPARC
 
 #ifdef AARCH64
   void generate_transcendental_entry(AbstractInterpreter::MethodKind kind, int fpargs);

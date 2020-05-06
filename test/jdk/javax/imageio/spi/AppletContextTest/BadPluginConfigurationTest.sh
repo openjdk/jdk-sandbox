@@ -103,7 +103,7 @@ case "$OS" in
       fi
       ;;
 
-   Darwin | Linux | SunOS )
+   Darwin | Linux )
       FILESEP="/"
       PATHSEP=":"
       TMP=`cd /tmp; pwd -P`

@@ -35,9 +35,7 @@ public class SelProvider {
         if (expected == null) {
             String osname = System.getProperty("os.name");
             String osver = System.getProperty("os.version");
-            if ("SunOS".equals(osname)) {
-                expected = "sun.nio.ch.DevPollSelectorProvider";
-            } else if ("Linux".equals(osname)) {
+            if ("Linux".equals(osname)) {
                 expected = "sun.nio.ch.EPollSelectorProvider";
             } else if (osname.contains("OS X")) {
                 expected = "sun.nio.ch.KQueueSelectorProvider";

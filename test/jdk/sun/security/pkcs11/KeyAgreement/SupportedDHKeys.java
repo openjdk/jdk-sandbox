@@ -109,14 +109,11 @@ public class SupportedDHKeys extends PKCS11Test {
         BigInteger leftOpen = BigInteger.ONE;
         BigInteger rightOpen = p.subtract(BigInteger.ONE);
 
-        // ignore the private key range checking on Solaris at present
-        if (!provider.getName().equals("SunPKCS11-Solaris")) {
-            BigInteger x = privateKey.getX();
-            if ((x.compareTo(leftOpen) <= 0) ||
-                    (x.compareTo(rightOpen) >= 0)) {
-                throw new Exception(
-                    "X outside range [2, p - 2]:  x: " + x + " p: " + p);
-            }
+        BigInteger x = privateKey.getX();
+        if ((x.compareTo(leftOpen) <= 0) ||
+            (x.compareTo(rightOpen) >= 0)) {
+            throw new Exception(
+                "X outside range [2, p - 2]:  x: " + x + " p: " + p);
         }
 
         BigInteger y = publicKey.getY();

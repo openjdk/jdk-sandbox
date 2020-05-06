@@ -41,7 +41,7 @@ public class RunpathTest extends TestHelper {
 
     final String findElfReader() {
         String[] paths = {"/usr/sbin", "/usr/bin"};
-        final String cmd = isSolaris ? "elfdump" : "readelf";
+        final String cmd = "readelf";
         for (String x : paths) {
             File p = new File(x);
             File e = new File(p, cmd);
@@ -69,7 +69,7 @@ public class RunpathTest extends TestHelper {
     }
 
     public static void main(String... args) throws Exception {
-        if (isSolaris || isLinux) {
+        if (isLinux) {
             RunpathTest rp = new RunpathTest();
             if (rp.elfreaderCmd == null) {
                 System.err.println("Warning: test passes vacuously");

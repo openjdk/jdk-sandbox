@@ -34,13 +34,8 @@ struct G1HeapRegionAttr {
 public:
   // We use different types to represent the state value depending on platform as
   // some have issues loading parts of words.
-#ifdef SPARC
-  typedef int32_t region_type_t;
-  typedef uint32_t needs_remset_update_t;
-#else
   typedef int8_t region_type_t;
   typedef uint8_t needs_remset_update_t;
-#endif
 
 private:
   needs_remset_update_t _needs_remset_update;

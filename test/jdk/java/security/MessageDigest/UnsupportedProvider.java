@@ -67,11 +67,6 @@ public class UnsupportedProvider {
         if ("SUN".equals(provName)) {
             return true;
         }
-        if ("OracleUcrypto".equals(provName)
-                && "SunOS".equals(System.getProperty("os.name"))
-                && System.getProperty("os.version").compareTo("5.12") >= 0) {
-            return true;
-        }
         return false;
     }
 }

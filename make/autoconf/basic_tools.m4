@@ -270,8 +270,6 @@ AC_DEFUN([BASIC_CHECK_TAR],
     TAR_TYPE="bsd"
   elif test "x$($TAR -v | $GREP "bsdtar")" != "x"; then
     TAR_TYPE="bsd"
-  elif test "x$OPENJDK_BUILD_OS" = "xsolaris"; then
-    TAR_TYPE="solaris"
   elif test "x$OPENJDK_BUILD_OS" = "xaix"; then
     TAR_TYPE="aix"
   fi
@@ -283,10 +281,6 @@ AC_DEFUN([BASIC_CHECK_TAR],
   if test "x$TAR_TYPE" = "xgnu"; then
     TAR_INCLUDE_PARAM="T"
     TAR_SUPPORTS_TRANSFORM="true"
-    if test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-      # When using gnu tar for Solaris targets, need to use compatibility mode
-      TAR_CREATE_EXTRA_PARAM="--format=ustar"
-    fi
   elif test "x$TAR_TYPE" = "aix"; then
     # -L InputList of aix tar: name of file listing the files and directories
     # that need to be   archived or extracted
@@ -359,7 +353,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   UTIL_PATH_PROGS(STAT, stat)
   UTIL_PATH_PROGS(TIME, time)
   UTIL_PATH_PROGS(FLOCK, flock)
-  # Dtrace is usually found in /usr/sbin on Solaris, but that directory may not
+  # Dtrace is usually found in /usr/sbin, but that directory may not
   # be in the user path.
   UTIL_PATH_PROGS(DTRACE, dtrace, $PATH:/usr/sbin)
   UTIL_PATH_PROGS(PATCH, [gpatch patch])
@@ -415,8 +409,6 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
       fi
     fi
     UTIL_REQUIRE_PROGS(SETFILE, SetFile)
-  elif test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-    UTIL_REQUIRE_PROGS(ELFEDIT, elfedit)
   fi
   if ! test "x$OPENJDK_TARGET_OS" = "xwindows"; then
     UTIL_REQUIRE_BUILTIN_PROGS(ULIMIT, ulimit)

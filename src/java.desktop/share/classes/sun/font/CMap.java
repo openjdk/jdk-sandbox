@@ -234,26 +234,8 @@ abstract class CMap {
                                   getConverterMap(GBKEncoding));
             }
             else if (three4 != 0) {
-                /* GB2312 TrueType fonts on Solaris have wrong encoding ID for
-                 * cmap table, these fonts have EncodingID 4 which is Big5
-                 * encoding according the TrueType spec, but actually the
-                 * fonts are using gb2312 encoding, have to use this
-                 * workaround to make Solaris zh_CN locale work.  -sherman
-                 */
-                if (FontUtilities.isSolaris && font.platName != null &&
-                    (font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh_CN.EUC/X11/fonts/TrueType") ||
-                     font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh_CN/X11/fonts/TrueType") ||
-                     font.platName.startsWith(
-                     "/usr/openwin/lib/locale/zh/X11/fonts/TrueType"))) {
-                    cmap = createCMap(cmapBuffer, three4,
-                                       getConverterMap(GBKEncoding));
-                }
-                else {
-                    cmap = createCMap(cmapBuffer, three4,
-                                      getConverterMap(Big5Encoding));
-                }
+                cmap = createCMap(cmapBuffer, three4,
+                                  getConverterMap(Big5Encoding));
             }
             else if (three5 != 0) {
                 cmap = createCMap(cmapBuffer, three5,

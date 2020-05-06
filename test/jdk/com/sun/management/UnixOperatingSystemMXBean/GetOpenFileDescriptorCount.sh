@@ -47,11 +47,11 @@ runOne()
 
 # Test GetOpenFileDescriptorCount if we are running on Unix
 case `uname -s` in
-    SunOS | Linux )
+    Linux )
        runOne GetOpenFileDescriptorCount
        ;;
     * )
-       echo "Ignore test when not run on Solaris or Linux"
+       echo "Ignore test when not run on Linux"
        exit 0
        ;;
 esac

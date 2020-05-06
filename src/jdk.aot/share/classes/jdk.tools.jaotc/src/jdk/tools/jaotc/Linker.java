@@ -83,15 +83,6 @@ final class Linker {
                 linkerCmd = linkerPath + " -shared -z noexecstack -o " + libraryFileName + " " + objectFileName;
                 linkerCheck = linkerPath + " -v";
                 break;
-            case "SunOS":
-                if (name.endsWith(".so")) {
-                    objectFileName = name.substring(0, name.length() - ".so".length());
-                }
-                objectFileName = objectFileName + ".o";
-                linkerPath = (options.linkerpath != null) ? options.linkerpath : "ld";
-                linkerCmd = linkerPath + " -shared -o " + libraryFileName + " " + objectFileName;
-                linkerCheck = linkerPath + " -V";
-                break;
             case "Mac OS X":
                 if (name.endsWith(".dylib")) {
                     objectFileName = name.substring(0, name.length() - ".dylib".length());

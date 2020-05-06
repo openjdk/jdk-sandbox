@@ -27,7 +27,7 @@
  * @requires os.family != "windows" & os.family != "aix"
  *
  * @summary converted from VM testbase runtime/signal/sigvtalrm01.
- * VM testbase keywords: [signal, runtime, linux, solaris, macosx]
+ * VM testbase keywords: [signal, runtime, linux, macosx]
  *
  * @library /test/lib
  * @run main/native SigTestDriver SIGVTALRM

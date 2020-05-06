@@ -27,9 +27,9 @@
  * @requires os.family != "windows" & os.family != "aix"
  *
  * @summary converted from VM testbase runtime/signal/sigfpe01.
- * VM testbase keywords: [signal, runtime, linux, solaris, macosx]
+ * VM testbase keywords: [signal, runtime, linux, macosx]
  *
-  * @library /test/lib
+ * @library /test/lib
  * @run main/native SigTestDriver SIGFPE
  */
 

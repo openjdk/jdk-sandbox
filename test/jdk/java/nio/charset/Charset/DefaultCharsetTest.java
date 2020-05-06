@@ -25,7 +25,7 @@
  * @test
  * @bug 4772857
  * @summary Unit test for Charset.defaultCharset
- * @requires (os.family == "linux" | os.family == "solaris")
+ * @requires os.family == "linux"
  * @library /test/lib
  * @build jdk.test.lib.Utils
  *        jdk.test.lib.Asserts
@@ -75,12 +75,6 @@ public class DefaultCharsetTest {
             data.add(new String[]{"ja_JP.eucjp", "x-euc-jp-linux"});
             data.add(new String[]{"ja_JP.ujis", "x-euc-jp-linux"});
             data.add(new String[]{"ja_JP.utf8", "utf-8"});
-        }
-        if (Platform.isSolaris()) {
-            data.add(new String[]{"ja", "x-eucjp-open"});
-            data.add(new String[]{"ja_JP.eucJP", "x-eucjp-open"});
-            data.add(new String[]{"ja_JP.PCK", "x-PCK"});
-            data.add(new String[]{"ja_JP.UTF-8", "utf-8"});
         }
         return data.iterator();
     }

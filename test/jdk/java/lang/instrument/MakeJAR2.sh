@@ -55,7 +55,7 @@ fi
 
 OS=`uname -s`
 case "$OS" in
-   SunOS | Linux )
+   Linux )
       PATHSEP=":"
       ;;
 

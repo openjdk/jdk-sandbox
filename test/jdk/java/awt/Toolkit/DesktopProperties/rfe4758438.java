@@ -115,7 +115,7 @@ public class rfe4758438 implements PropertyChangeListener {
         tool = System.getProperty("tool");
 
         String osName = System.getProperty("os.name");
-        if (!"Linux".equals(osName) && !"SunOS".equals(osName))
+        if (!"Linux".equals(osName))
             System.out.println("This test need not be run on this platform");
         else
             new rfe4758438().doTest();

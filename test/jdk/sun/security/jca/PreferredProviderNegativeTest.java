@@ -107,12 +107,7 @@ public class PreferredProviderNegativeTest {
 
         String expected;
         String value = args[1];
-        // If OS is solaris, expect OracleUcrypto, otherwise SunJCE
-        if (System.getProperty("os.name").toLowerCase().contains("sun")) {
-            expected = "OracleUcrypto";
-        } else {
-            expected = "SunJCE";
-        }
+        expected = "SunJCE";
 
         if (args.length >= 2) {
             switch (args[0]) {

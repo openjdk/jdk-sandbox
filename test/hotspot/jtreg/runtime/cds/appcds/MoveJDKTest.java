@@ -35,7 +35,6 @@
 // This test works only on Linux because it depends on symlinks and the name of the hotspot DLL (libjvm.so).
 // It probably doesn't work on Windows.
 // TODO: change libjvm.so to libjvm.dylib on MacOS, before adding "@requires os.family == mac"
-// TODO: test on solaris, before adding "@requires os.family == solaris"
 
 import java.io.File;
 import java.nio.file.Files;

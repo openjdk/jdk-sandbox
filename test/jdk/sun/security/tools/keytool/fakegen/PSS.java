@@ -29,7 +29,6 @@
  * @build java.base/sun.security.rsa.RSAKeyPairGenerator
  * @modules java.base/sun.security.util
  *          java.base/sun.security.x509
- * @requires os.family != "solaris"
  * @run main PSS
  */
 

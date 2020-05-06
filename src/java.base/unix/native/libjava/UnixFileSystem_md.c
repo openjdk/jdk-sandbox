@@ -63,10 +63,6 @@
   #define stat stat64
 #endif
 
-#if defined(__solaris__) && !defined(NAME_MAX)
-  #define NAME_MAX MAXNAMLEN
-#endif
-
 #if defined(_ALLBSD_SOURCE)
   #ifndef MACOSX
     #define statvfs64 statvfs

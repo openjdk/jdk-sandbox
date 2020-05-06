@@ -225,9 +225,7 @@ public class JISAutoDetect
          * Returned Shift_JIS Charset name is OS dependent
          */
         private static String getSJISName() {
-            if (osName.equals("Solaris") || osName.equals("SunOS"))
-                return("PCK");
-            else if (osName.startsWith("Windows"))
+            if (osName.startsWith("Windows"))
                 return("windows-31J");
             else
                 return("Shift_JIS");
@@ -238,10 +236,7 @@ public class JISAutoDetect
          */
 
         private static String getEUCJPName() {
-            if (osName.equals("Solaris") || osName.equals("SunOS"))
-                return("x-eucjp-open");
-            else
-                return("EUC_JP");
+            return("EUC_JP");
         }
 
     }

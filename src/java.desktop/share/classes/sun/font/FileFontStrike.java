@@ -222,24 +222,6 @@ public class FileFontStrike extends PhysicalStrike {
             !((TrueTypeFont)fileFont).useEmbeddedBitmapsForSize(intPtSize)) {
             useNatives = true;
         }
-        else if (fileFont.checkUseNatives() && desc.aaHint==0 && !algoStyle) {
-            /* Check its a simple scale of a pt size in the range
-             * where native bitmaps typically exist (6-36 pts) */
-            if (matrix[1] == 0.0 && matrix[2] == 0.0 &&
-                matrix[0] >= 6.0 && matrix[0] <= 36.0 &&
-                matrix[0] == matrix[3]) {
-                useNatives = true;
-                int numNatives = fileFont.nativeFonts.length;
-                nativeStrikes = new NativeStrike[numNatives];
-                /* Maybe initialise these strikes lazily?. But we
-                 * know we need at least one
-                 */
-                for (int i=0; i<numNatives; i++) {
-                    nativeStrikes[i] =
-                        new NativeStrike(fileFont.nativeFonts[i], desc, false);
-                }
-            }
-        }
         if (FontUtilities.isLogging() && FontUtilities.isWindows) {
             FontUtilities.getLogger().info
                 ("Strike for " + fileFont + " at size = " + intPtSize +

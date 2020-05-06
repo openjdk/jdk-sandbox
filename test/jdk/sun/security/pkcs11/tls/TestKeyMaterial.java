@@ -157,13 +157,6 @@ public class TestKeyMaterial extends PKCS11Test {
                         match(lineNumber, clientMacBytes, result.getClientMacKey(), "");
                         match(lineNumber, serverMacBytes, result.getServerMacKey(), "");
                     } catch (InvalidAlgorithmParameterException iape) {
-                        // SSLv3 support is removed in S12
-                        if (provider.getName().indexOf("Solaris") != -1) {
-                            if (major == 3 && minor == 0) {
-                                System.out.println("Skip testing SSLv3 on Solaris");
-                                continue;
-                            }
-                        }
                         throw iape;
                     } catch (ProviderException pe) {
                         if (provider.getName().indexOf("NSS") != -1) {

@@ -46,16 +46,12 @@ BIT_FLAG=""
 # set platform-dependent variables
 OS=`uname -s`
 case "$OS" in
-  AIX | Darwin | Linux | SunOS )
+  AIX | Darwin | Linux )
     NULL=/dev/null
     PS=":"
     FS="/"
-    ## for solaris, linux it's HOME
+    ## for linux it's HOME
     FILE_LOCATION=$HOME
-    if [ -f ${FILE_LOCATION}${FS}JDK64BIT -a ${OS} = "SunOS" ]
-    then
-        BIT_FLAG=`cat ${FILE_LOCATION}${FS}JDK64BIT`
-    fi
     ;;
   Windows_* | CYGWIN* )
     NULL=NUL

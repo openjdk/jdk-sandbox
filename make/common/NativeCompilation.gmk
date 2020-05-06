@@ -239,31 +239,17 @@ ifeq ($(ALLOW_ABSOLUTE_PATHS_IN_OUTPUT)-$(FILE_MACRO_CFLAGS), false-)
 
   # When compiling with relative paths, the deps file comes out with relative
   # paths.
-  ifeq ($(TOOLCHAIN_TYPE), solstudio)
-    define fix-deps-file
-	$(SED) -e 's|\./|$(WORKSPACE_ROOT)/|g' $1.tmp > $1
-    endef
-  else
-    define fix-deps-file
+  define fix-deps-file
 	$(SED) -e 's|^\([ ]*\)|\1$(WORKSPACE_ROOT)|' $1.tmp > $1
-    endef
-  endif
+  endef
 else
   # By default the MakeCommandRelative macro does nothing.
   MakeCommandRelative = $1
 
-  # Even with absolute paths on the command line, the Solaris studio compiler
-  # doesn't output the full path to the object file in the generated deps files.
-  # For other toolchains, no adjustment is needed.
-  ifeq ($(TOOLCHAIN_TYPE), solstudio)
-    define fix-deps-file
-	$(SED) 's|^$$(@F):|$$@:|' $1.tmp > $1
-    endef
-  else
-    define fix-deps-file
+  # No adjustment is needed.
+  define fix-deps-file
 	$(MV) $1.tmp $1
-    endef
-  endif
+  endef
 endif
 
 ################################################################################
@@ -699,11 +685,6 @@ define SetupNativeCompilationBody
     $1_EXTRA_ASFLAGS += $$(ASFLAGS_DEBUG_SYMBOLS)
   endif
 
-  ifneq ($$($1_REORDER), )
-    $1_EXTRA_CFLAGS += $$(C_FLAG_REORDER)
-    $1_EXTRA_CXXFLAGS += $$(C_FLAG_REORDER)
-  endif
-
   # Pass the library name for static JNI library naming
   ifeq ($$($1_TYPE), STATIC_LIBRARY)
     $1_EXTRA_CFLAGS += -DLIBRARY_NAME=$$($1_NAME)
@@ -973,7 +954,7 @@ define SetupNativeCompilationBody
           $1_DEBUGINFO_FILES := $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).pdb \
               $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).map
 
-        else ifeq ($(call isTargetOs, linux solaris), true)
+        else ifeq ($(call isTargetOs, linux), true)
           $1_DEBUGINFO_FILES := $$($1_SYMBOLS_DIR)/$$($1_NOSUFFIX).debuginfo
           # Setup the command line creating debuginfo files, to be run after linking.
           # It cannot be run separately since it updates the original target file

@@ -24,7 +24,7 @@
 /* @test
  * @bug 8181493 8231174
  * @summary Verify that nanosecond precision is maintained for file timestamps
- * @requires (os.family == "linux") | (os.family == "mac") | (os.family == "solaris") | (os.family == "windows")
+ * @requires (os.family == "linux") | (os.family == "mac") | (os.family == "windows")
  * @modules java.base/sun.nio.fs:+open
  */
 

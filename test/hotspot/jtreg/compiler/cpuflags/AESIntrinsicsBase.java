@@ -36,7 +36,6 @@ public abstract class AESIntrinsicsBase {
     public static final String USE_AES = "UseAES";
     public static final String USE_AES_INTRINSICS = "UseAESIntrinsics";
     public static final String USE_SSE = "UseSSE";
-    public static final String USE_VIS = "UseVIS";
     public static final String[] USE_DIAGNOSTIC_CMD
             = {"-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintIntrinsics"};
     public static final String[] TEST_AES_CMD

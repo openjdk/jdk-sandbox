@@ -103,15 +103,9 @@ public class TestSameLength {
     }
 
     // SHA-3 hash algorithms are only supported by "SUN" provider
-    // and "OracleUcrypto" provider on Solaris 12.0 or later
     // This method checks if system supports SHA-3
     private boolean isSHA3supported() {
         if (Security.getProvider("SUN") != null) {
-            return true;
-        }
-        if (Security.getProvider("OracleUcrypto") != null
-                && "SunOS".equals(System.getProperty("os.name"))
-                && System.getProperty("os.version").compareTo("5.12") >= 0) {
             return true;
         }
         return false;

@@ -42,8 +42,7 @@ public class SysDictCrash {
     public static void test(String[] args) throws Exception {
         String vmOptionsPrefix[] = SharedStringsUtils.getChildVMOptionsPrefix();
 
-        // SharedBaseAddress=0 puts the archive at a very high address on solaris,
-        // which provokes the crash.
+        // SharedBaseAddress=0 puts the archive at a very high address, which provokes the crash.
         ProcessBuilder dumpPb = ProcessTools.createJavaProcessBuilder(true,
           TestCommon.concat(vmOptionsPrefix,
             "-XX:+UseG1GC", "-XX:MaxRAMPercentage=12.5",

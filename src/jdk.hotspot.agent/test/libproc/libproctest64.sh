@@ -58,10 +58,8 @@ done
 gcore $pid
 kill -9 $pid
 
-OPTIONS="-Djava.library.path=$STARTDIR/../src/os/solaris/proc/sparcv9:$STARTDIR/../solaris/sparcv9"
-
 # run libproc client
-$SA_JAVA -d64 -showversion ${OPTIONS} -cp $STARTDIR/../../build/classes::$STARTDIR/../sa.jar:$STARTDIR LibprocClient x core.$pid
+$SA_JAVA -d64 -showversion -cp $STARTDIR/../../build/classes::$STARTDIR/../sa.jar:$STARTDIR LibprocClient x core.$pid
 
 # delete core
 rm -f core.$pid

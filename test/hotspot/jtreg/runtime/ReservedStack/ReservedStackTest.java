@@ -237,8 +237,7 @@ public class ReservedStackTest {
             (Platform.isLinux() &&
              (Platform.isPPC() || Platform.isS390x() || Platform.isX64() ||
               Platform.isX86() || Platform.isAArch64())) ||
-            Platform.isOSX() ||
-            Platform.isSolaris();
+            Platform.isOSX();
     }
 
     private static boolean isNeverSupportedPlatform() {

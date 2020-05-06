@@ -33,12 +33,8 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
-#ifdef __solaris__
-#include <thread.h>
-#else
 #include <pthread.h>
 #include <poll.h>
-#endif
 
 #include "socket_md.h"
 #include "sysSocket.h"
@@ -277,35 +273,6 @@ dbgsysGetLastIOError(char *buf, jint size) {
     return 0;
 }
 
-#ifdef __solaris__
-int
-dbgsysTlsAlloc() {
-    thread_key_t tk;
-    if (thr_keycreate(&tk, NULL)) {
-        perror("thr_keycreate");
-        exit(-1);
-    }
-    return (int)tk;
-}
-
-void
-dbgsysTlsFree(int index) {
-   /* no-op */
-}
-
-void
-dbgsysTlsPut(int index, void *value) {
-    thr_setspecific((thread_key_t)index, value) ;
-}
-
-void *
-dbgsysTlsGet(int index) {
-    void* r = NULL;
-    thr_getspecific((thread_key_t)index, &r);
-    return r;
-}
-
-#else
 int
 dbgsysTlsAlloc() {
     pthread_key_t key;
@@ -330,8 +297,6 @@ void *
 dbgsysTlsGet(int index) {
     return pthread_getspecific((pthread_key_t)index);
 }
-
-#endif
 
 long
 dbgsysCurrentTimeMillis() {

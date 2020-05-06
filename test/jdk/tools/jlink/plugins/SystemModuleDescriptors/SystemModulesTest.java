@@ -79,8 +79,6 @@ public class SystemModulesTest {
         switch (OS_NAME) {
             case "Linux":
                 return name.equals("linux");
-            case "SunOS":
-                return name.equals("solaris");
             case "Mac OS X":
                 return name.equals("macos");
             default:

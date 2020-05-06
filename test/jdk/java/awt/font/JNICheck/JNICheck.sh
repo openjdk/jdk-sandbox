@@ -37,7 +37,7 @@ else
   CP="${TESTCLASSES}"
 fi
 
-if [ $OS != SunOS -a $OS != Linux ]
+if [ $OS != Linux ]
 then
     exit 0
 fi

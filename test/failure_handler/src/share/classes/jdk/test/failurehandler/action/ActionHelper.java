@@ -319,7 +319,7 @@ public class ActionHelper {
      * Special values for prepareProcess exit code.
      *
      * <p>Can we clash with normal codes?
-     * On Solaris and Linux, only [0..255] are returned.
+     * On Linux, only [0..255] are returned.
      * On Windows, prepareProcess exit codes are stored in unsigned int.
      * On MacOSX no limits (except it should fit C int type)
      * are defined in the exit() man pages.

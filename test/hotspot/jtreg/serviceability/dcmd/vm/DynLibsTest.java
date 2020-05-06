@@ -52,8 +52,6 @@ public class DynLibsTest {
             osDependentBaseString = "lib%s.so";
         } else if (Platform.isOSX()) {
             osDependentBaseString = "lib%s.dylib";
-        } else if (Platform.isSolaris()) {
-            osDependentBaseString = "lib%s.so";
         } else if (Platform.isWindows()) {
             osDependentBaseString = "%s.dll";
         }

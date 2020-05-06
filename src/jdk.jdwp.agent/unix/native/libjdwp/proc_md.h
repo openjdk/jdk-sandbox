@@ -23,7 +23,7 @@
  * questions.
  */
 
-/* Posix threads (Solaris and Linux) */
+/* Posix threads */
 
 #include <unistd.h>
 #include <sys/wait.h>

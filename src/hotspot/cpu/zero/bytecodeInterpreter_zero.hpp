@@ -28,7 +28,7 @@
 
 // Platform specific for C++ based Interpreter
 
-#if defined(PPC) || defined(SPARC) || defined(IA64)
+#if defined(PPC) || defined(IA64)
 #define LOTS_OF_REGS   // Use plenty of registers
 #else
 #undef LOTS_OF_REGS    // Loser platforms

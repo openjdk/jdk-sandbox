@@ -90,13 +90,6 @@ public class MacSameTest extends PKCS11Test {
         try {
             mac = Mac.getInstance(algo, provider);
         } catch (NoSuchAlgorithmException nsae) {
-            if ("SunPKCS11-Solaris".equals(provider.getName())) {
-                // depending on Solaris configuration,
-                // it can support HMAC or not with Mac
-                System.out.println("Expected NoSuchAlgorithmException thrown: "
-                        + nsae);
-                return;
-            }
             throw nsae;
         }
 

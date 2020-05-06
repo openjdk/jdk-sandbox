@@ -46,9 +46,6 @@ public final class PortConfig {
         if (os.startsWith("Linux")) {
             defaultLower = 32768;
             defaultUpper = 61000;
-        } else if (os.startsWith("SunOS")) {
-            defaultLower = 32768;
-            defaultUpper = 65535;
         } else if (os.contains("OS X")) {
             defaultLower = 49152;
             defaultUpper = 65535;

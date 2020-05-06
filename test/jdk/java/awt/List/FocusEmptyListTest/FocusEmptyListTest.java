@@ -26,7 +26,7 @@
   @key headful
   @bug 6387275
   @summary List: the focus is at the top of the first item, XAWT
-  @requires (os.family == "linux" | os.family == "solaris")
+  @requires os.family == "linux"
   @modules java.desktop/sun.awt
            java.desktop/java.awt.peer
            java.desktop/sun.awt.X11:open

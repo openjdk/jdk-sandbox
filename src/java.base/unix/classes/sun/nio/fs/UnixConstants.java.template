@@ -31,10 +31,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-/* On Solaris, "sun" is defined as a macro. Undefine to make package
-   declaration valid */
-#undef sun
-
 /* To be able to name the Java constants the same as the C constants without
    having the preprocessor rewrite those identifiers, add PREFIX_ to all
    identifiers matching a C constant. The PREFIX_ is filtered out in the

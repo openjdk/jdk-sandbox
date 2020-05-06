@@ -142,12 +142,6 @@ public class CompressedClassPointers {
     }
 
     public static void main(String[] args) throws Exception {
-        if (Platform.isSolaris()) {
-             String name = System.getProperty("os.version");
-             if (name.equals("5.10")) {
-                throw new SkippedException("Solaris 10 can't mmap compressed oops space without a base");
-             }
-        }
         smallHeapTest();
         smallHeapTestWith1G();
         largeHeapTest();

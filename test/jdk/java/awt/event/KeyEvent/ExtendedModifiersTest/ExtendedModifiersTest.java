@@ -247,7 +247,7 @@ public class ExtendedModifiersTest implements KeyListener {
             runScenario(new int[]{KeyEvent.VK_SHIFT, KeyEvent.VK_ALT},
                     InputEvent.SHIFT_DOWN_MASK | InputEvent.ALT_DOWN_MASK);
 
-            if (OS.contains("os x") || OS.contains("sunos")) {
+            if (OS.contains("os x")) {
                 // 6. meta
                 runScenario(new int[]{KeyEvent.VK_META},
                         InputEvent.META_DOWN_MASK);

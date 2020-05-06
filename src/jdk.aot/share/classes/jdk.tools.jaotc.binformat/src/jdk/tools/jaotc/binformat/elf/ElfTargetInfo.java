@@ -65,7 +65,7 @@ final class ElfTargetInfo {
         }
 
         osName = System.getProperty("os.name").toLowerCase();
-        if (!osName.equals("linux") && !osName.equals("sunos")) {
+        if (!osName.equals("linux")) {
             System.out.println("Unsupported Operating System " + osName);
             osName = "Unknown";
         }

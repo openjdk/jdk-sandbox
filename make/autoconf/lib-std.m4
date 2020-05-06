@@ -77,14 +77,6 @@ AC_DEFUN_ONCE([LIB_SETUP_STD_LIBS],
     fi
   fi
 
-  # libCrun is the c++ runtime-library with SunStudio (roughly the equivalent of gcc's libstdc++.so)
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio && test "x$LIBCXX" = x; then
-    LIBCXX="${SYSROOT}/usr/lib${OPENJDK_TARGET_CPU_ISADIR}/libCrun.so.1"
-  fi
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    LIBCXX_JVM="-lCrun"
-  fi
-
   AC_SUBST(LIBCXX)
 
   # Setup Windows runtime dlls

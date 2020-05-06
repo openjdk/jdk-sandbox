@@ -114,9 +114,8 @@ public class bug8024061 {
     }
 
     public static void main(String[] args) throws AWTException, InvocationTargetException, InterruptedException {
-        if (!Platform.isLinux() && !Platform.isSolaris()) {
-            System.out.println("This test is for Linux and Solaris only... " +
-                               "skipping!");
+        if (!Platform.isLinux()) {
+            System.out.println("This test is for Linux only... skipping!");
             return;
         }
 

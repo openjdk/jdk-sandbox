@@ -28,7 +28,7 @@ JAVA_OPTS="$TESTJAVAOPTS $TESTVMOPTS -cp $TESTCLASSPATH -agentlib:alloc001"
 # Set virtual memory usage limit to be not 'unlimited' on unix platforms
 # This is workaround for 6683371.
 case $VM_OS in
-aix | bsd | linux | solaris)
+aix | bsd | linux)
     echo "Check virtual memory usage limits"
     soft_limit=`ulimit -S -v` || ""
     hard_limit=`ulimit -H -v` || ""

@@ -53,13 +53,6 @@ AC_DEFUN([LIB_CHECK_POTENTIAL_FREETYPE],
     if ! test -s "$POTENTIAL_FREETYPE_LIB_PATH/$FREETYPE_LIB_NAME"; then
       AC_MSG_NOTICE([Could not find $POTENTIAL_FREETYPE_LIB_PATH/$FREETYPE_LIB_NAME. Ignoring location.])
       FOUND_FREETYPE=no
-    else
-      if test "x$OPENJDK_TARGET_OS" = "xsolaris" \
-          && test -s "$POTENTIAL_FREETYPE_LIB_PATH$OPENJDK_TARGET_CPU_ISADIR/$FREETYPE_LIB_NAME"; then
-        # Found lib in isa dir, use that instead.
-        POTENTIAL_FREETYPE_LIB_PATH="$POTENTIAL_FREETYPE_LIB_PATH$OPENJDK_TARGET_CPU_ISADIR"
-        AC_MSG_NOTICE([Rewriting to use $POTENTIAL_FREETYPE_LIB_PATH instead])
-      fi
     fi
   fi
 
@@ -92,7 +85,7 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
 
   # This setup is to verify access to system installed freetype header and
   # libraries. On Windows and MacOS this does not apply and using these options
-  # will report an error. On other platforms (Linux, Solaris), they will
+  # will report an error. On other platforms (Linux), they will
   # default to using the system libraries. If they are found automatically,
   # nothing need be done. If they are not found, the configure
   # "--with-freetype-*" options may be used to fix that. If the preference is
@@ -170,12 +163,6 @@ AC_DEFUN_ONCE([LIB_SETUP_FREETYPE],
               # On solaris, pkg_check adds -lz to freetype libs, which isn't
               # necessary for us.
               FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's/-lz//g'`
-              # 64-bit libs for Solaris x86 are installed in the amd64
-              # subdirectory, change lib to lib/amd64
-              if test "x$OPENJDK_TARGET_OS" = "xsolaris" && \
-                  test "x$OPENJDK_TARGET_CPU" = "xx86_64" ; then
-                FREETYPE_LIBS=`$ECHO $FREETYPE_LIBS | $SED 's?/lib?/lib/amd64?g'`
-              fi
               AC_MSG_CHECKING([for freetype])
               AC_MSG_RESULT([yes (using pkg-config)])
             fi

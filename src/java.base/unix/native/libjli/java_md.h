@@ -27,7 +27,7 @@
 #define JAVA_MD_H
 
 /*
- * This file contains common defines and includes for Solaris, Linux and MacOSX.
+ * This file contains common defines and includes for unix.
  */
 #include <limits.h>
 #include <unistd.h>

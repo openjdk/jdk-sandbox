@@ -203,12 +203,9 @@ public class NewSocketMethods {
             System.out.println("Client getReuseAddress(): "
                         + socket.getReuseAddress());
 
-            // Solaris does not support set/get of IPV6_TCLASS when connected
-            if (!"SunOS".equals(System.getProperty("os.name"))) {
-                socket.setTrafficClass(8);
-                System.out.println("Client getTrafficClass(): "
-                        + socket.getTrafficClass());
-            }
+            socket.setTrafficClass(8);
+            System.out.println("Client getTrafficClass(): "
+                    + socket.getTrafficClass());
 
             os.write(237);
             os.flush();

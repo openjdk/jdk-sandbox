@@ -163,8 +163,6 @@ typedef union {
   adr_dst = (type *)mlib_ImageGetData(dst)
 
 /***************************************************************/
-#ifndef __sparc
-
 #if IMG_TYPE == 1
 
 /* Test for the presence of any "1" bit in bits
@@ -207,7 +205,6 @@ typedef union {
     dst = (mlib_u16)val
 
 #endif /* IMG_TYPE == 1 */
-#endif /* __sparc */
 
 /***************************************************************/
 #define MAX_KER   7
@@ -853,7 +850,7 @@ mlib_status CONV_FUNC(MxN)(mlib_image       *dst,
 }
 
 /***************************************************************/
-#ifndef __sparc /* for x86, using integer multiplies is faster */
+/* for x86, using integer multiplies is faster */
 
 #define STORE_RES(res, x)                                       \
   x >>= shift2;                                                 \
@@ -1264,8 +1261,5 @@ mlib_status CONV_FUNC_I(MxN)(mlib_image       *dst,
 
   return MLIB_SUCCESS;
 }
-
-/***************************************************************/
-#endif /* __sparc ( for x86, using integer multiplies is faster ) */
 
 /***************************************************************/

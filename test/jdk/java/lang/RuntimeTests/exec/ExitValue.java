@@ -96,7 +96,7 @@ public class ExitValue
 
         checkPosixShellExitValue("exit 7", 7);
 
-        int sigoffset = UnixCommands.isSunOS ? 0 : 128;
+        int sigoffset = 128;
         checkPosixShellExitValue(UnixCommands.kill() + " -9 $$", sigoffset+9);
     }
 

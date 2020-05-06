@@ -42,7 +42,7 @@ public class TestCardTablePageCommits {
         // The test is run with a small heap to make sure all pages in the card
         // table gets committed. Need 8 MB heap to trigger the bug on SPARC
         // because of 8kB pages, assume 4 KB pages for all other CPUs.
-        String Xmx = Platform.isSparc() ? "-Xmx8m" : "-Xmx4m";
+        String Xmx = "-Xmx4m";
 
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             Xmx,

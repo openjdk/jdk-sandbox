@@ -33,7 +33,6 @@ import java.security.SecureRandom;
 public class DefaultProvider {
 
     private static final String OS_NAME = System.getProperty("os.name");
-    private static final String SUNOS = "SunOS";
     private static final String WINDOWS = "Windows";
 
     public static void main(String[] args) throws NoSuchAlgorithmException {

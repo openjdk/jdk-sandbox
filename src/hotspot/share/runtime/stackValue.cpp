@@ -41,12 +41,6 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* r
     // Stack or register value
     Location loc = ((LocationValue *)sv)->location();
 
-#ifdef SPARC
-    // %%%%% Callee-save floats will NOT be working on a Sparc until we
-    // handle the case of a 2 floats in a single double register.
-    assert( !(loc.is_register() && loc.type() == Location::float_in_dbl), "Sparc does not handle callee-save floats yet" );
-#endif // SPARC
-
     // First find address of value
 
     address value_addr = loc.is_register()

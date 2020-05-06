@@ -23,7 +23,6 @@
 
 /**
  * @test
- * @requires os.family != "solaris"
  * @run testng ConnectionReset
  * @summary Test behavior of SocketChannel.read and the Socket adaptor read
  *          and available methods when a connection is reset

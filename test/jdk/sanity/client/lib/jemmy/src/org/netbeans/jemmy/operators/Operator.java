@@ -302,12 +302,9 @@ public abstract class Operator
     static {
         //init visualizer depending on OS:
         //Linux - new MouseVisualizer(MouseVisualizer.TOP, 0.5, 10, false)
-        //solaris - new MouseVisualizer()
         //others - new DefaultVisualizer()
         if (Platform.isLinux()) {
             setDefaultComponentVisualizer(new MouseVisualizer(MouseVisualizer.TOP, 0.5, 10, false));
-        } else if (Platform.isSolaris()) {
-            setDefaultComponentVisualizer(new MouseVisualizer());
         } else {
             setDefaultComponentVisualizer(new DefaultVisualizer());
         }

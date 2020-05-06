@@ -672,9 +672,6 @@ public class UIManager implements Serializable
                     return "com.apple.laf.AquaLookAndFeel";
                 }
             }
-            if (osType == OSInfo.OSType.SOLARIS) {
-                return "com.sun.java.swing.plaf.motif.MotifLookAndFeel";
-            }
         }
         return getCrossPlatformLookAndFeelClassName();
     }

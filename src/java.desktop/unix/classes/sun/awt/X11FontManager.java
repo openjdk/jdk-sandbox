@@ -708,8 +708,7 @@ public final class X11FontManager extends FcFontManager {
          * and do the best we can.
          */
         FontConfiguration mFontConfig = new MFontConfiguration(this);
-        if ((FontUtilities.isLinux && !mFontConfig.foundOsSpecificFile()) ||
-            (FontUtilities.isSolaris && !mFontConfig.fontFilesArePresent())) {
+        if ((FontUtilities.isLinux && !mFontConfig.foundOsSpecificFile())) {
             FcFontConfiguration fcFontConfig =
                 new FcFontConfiguration(this);
             if (fcFontConfig.init()) {

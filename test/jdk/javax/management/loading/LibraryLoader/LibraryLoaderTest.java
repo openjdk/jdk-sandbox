@@ -58,12 +58,11 @@ public class LibraryLoaderTest {
 
         // Check for supported platforms:
         //
-        // Solaris/SPARC and Windows/x86
+        // Windows/x86
         //
-        if ((!(osName.equals("SunOS") && osArch.equals("sparc"))) &&
-            (!(osName.startsWith("Windows") && osArch.equals("x86")))) {
+        if ((!(osName.startsWith("Windows") && osArch.equals("x86")))) {
             System.out.println(
-              "This test runs only on Solaris/SPARC and Windows/x86 platforms");
+              "This test runs only on Windows/x86 platforms");
             System.out.println("Bye! Bye!");
             return;
         }

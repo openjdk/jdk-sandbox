@@ -33,7 +33,7 @@
 # set platform-dependent variables
 OS=`uname -s`
 case "$OS" in
-  SunOS | Linux | Darwin | AIX | CYGWIN* )
+  Linux | Darwin | AIX | CYGWIN* )
     FS="/"
     ;;
   Windows_* )

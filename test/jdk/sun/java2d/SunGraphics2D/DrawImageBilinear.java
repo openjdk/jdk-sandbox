@@ -168,7 +168,7 @@ public class DrawImageBilinear extends Canvas {
 
         String arch = System.getProperty("os.arch");
         boolean isOglEnabled = Boolean.getBoolean("sun.java2d.opengl");
-        skipOglTextureTest = isOglEnabled && ("sparc".equals(arch));
+        skipOglTextureTest = false;
         System.out.println("Skip OpenGL texture test: " + skipOglTextureTest);
 
         DrawImageBilinear test = new DrawImageBilinear();

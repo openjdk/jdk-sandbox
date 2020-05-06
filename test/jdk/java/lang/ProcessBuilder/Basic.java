@@ -2140,30 +2140,7 @@ public class Basic {
                 latch.await();
                 Thread.sleep(10);
 
-                String os = System.getProperty("os.name");
-                if (os.equalsIgnoreCase("Solaris") ||
-                    os.equalsIgnoreCase("SunOS"))
-                {
-                    final Object deferred;
-                    Class<?> c = s.getClass();
-                    if (c.getName().equals(
-                        "java.lang.ProcessImpl$DeferredCloseInputStream"))
-                    {
-                        deferred = s;
-                    } else {
-                        Field deferredField = p.getClass().
-                            getDeclaredField("stdout_inner_stream");
-                        deferredField.setAccessible(true);
-                        deferred = deferredField.get(p);
-                    }
-                    Field useCountField = deferred.getClass().
-                        getDeclaredField("useCount");
-                    useCountField.setAccessible(true);
-
-                    while (useCountField.getInt(deferred) <= 0) {
-                        Thread.yield();
-                    }
-                } else if (s instanceof BufferedInputStream) {
+                if (s instanceof BufferedInputStream) {
                     // Wait until after the s.read occurs in "thread" by
                     // checking when the input stream monitor is acquired
                     // (BufferedInputStream.read is synchronized)

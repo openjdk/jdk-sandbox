@@ -192,10 +192,6 @@ public class MouseButtonsAndKeyMasksTest implements MouseListener, KeyListener {
             keyModsEx = new int[]{
                 InputEvent.SHIFT_DOWN_MASK, InputEvent.CTRL_DOWN_MASK, InputEvent.ALT_DOWN_MASK, InputEvent.META_DOWN_MASK};
             keys = new int[]{KeyEvent.VK_SHIFT, KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_META};
-        } else if (OS.contains("sunos")) {
-            keyMods   = new int[]{InputEvent.SHIFT_MASK, InputEvent.META_MASK};
-            keyModsEx = new int[]{InputEvent.SHIFT_DOWN_MASK, InputEvent.META_DOWN_MASK};
-            keys = new int[]{KeyEvent.VK_SHIFT, KeyEvent.VK_META};
         } else {
             keyMods = new int[]{
                 InputEvent.SHIFT_MASK, InputEvent.CTRL_MASK, InputEvent.ALT_MASK};

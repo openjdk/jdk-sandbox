@@ -59,10 +59,8 @@ gcore $pid
 kill -9 $pid
 
 
-OPTIONS="-Djava.library.path=$STARTDIR/../src/os/solaris/proc/`uname -p`:$STARTDIR/../solaris/`uname -p`"
-
 # run libproc client
-$SA_JAVA -showversion ${OPTIONS} -cp $STARTDIR/../../build/classes::$STARTDIR/../sa.jar:$STARTDIR LibprocClient x core.$pid
+$SA_JAVA -showversion -cp $STARTDIR/../../build/classes::$STARTDIR/../sa.jar:$STARTDIR LibprocClient x core.$pid
 
 # delete core
 rm -f core.$pid

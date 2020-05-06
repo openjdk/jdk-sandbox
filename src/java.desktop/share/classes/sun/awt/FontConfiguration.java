@@ -1428,22 +1428,6 @@ public abstract class FontConfiguration {
                 }
             }
         }
-        if ("SunOS".equals(osName)) {
-            for (int ii = 0; ii < table_awtfontpaths.length; ii++) {
-                if (table_awtfontpaths[ii] == 0) {
-                    String script = getString(table_scriptIDs[ii]);
-                    if (script.contains("dingbats") ||
-                        script.contains("symbol")) {
-                        continue;
-                    }
-                    System.err.println("\nError: "
-                                       + "<awtfontpath."
-                                       + script
-                                       + "> entry is missing!!!");
-                    errors++;
-                }
-            }
-        }
         if (errors != 0) {
             System.err.println("!!THERE ARE " + errors + " ERROR(S) IN "
                                + "THE FONTCONFIG FILE, PLEASE CHECK ITS CONTENT!!\n");

@@ -104,7 +104,7 @@ import static sun.security.util.ResourcesMgr.getAuthResourceString;
  * to false if you do not want this module to use the ticket cache.
  * (Default is False).
  * This module will search for the ticket
- * cache in the following locations: On Solaris and Linux
+ * cache in the following locations: On Linux
  * it will look for the ticket cache in /tmp/krb5cc_{@code uid}
  * where the uid is numeric user identifier. If the ticket cache is
  * not available in the above location, or if we are on a

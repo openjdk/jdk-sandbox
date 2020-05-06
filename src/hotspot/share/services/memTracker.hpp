@@ -85,11 +85,9 @@ class MemTracker : AllStatic {
 #include "services/threadStackTracker.hpp"
 #include "services/virtualMemoryTracker.hpp"
 
-extern volatile bool NMT_stack_walkable;
-
-#define CURRENT_PC ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ? \
+#define CURRENT_PC ((MemTracker::tracking_level() == NMT_detail) ? \
                     NativeCallStack(0, true) : NativeCallStack::empty_stack())
-#define CALLER_PC  ((MemTracker::tracking_level() == NMT_detail && NMT_stack_walkable) ?  \
+#define CALLER_PC  ((MemTracker::tracking_level() == NMT_detail) ?  \
                     NativeCallStack(1, true) : NativeCallStack::empty_stack())
 
 class MemBaseline;

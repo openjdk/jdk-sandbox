@@ -39,6 +39,5 @@ module jdk.internal.vm.ci {
 
     provides jdk.vm.ci.hotspot.HotSpotJVMCIBackendFactory with
         jdk.vm.ci.hotspot.aarch64.AArch64HotSpotJVMCIBackendFactory,
-        jdk.vm.ci.hotspot.amd64.AMD64HotSpotJVMCIBackendFactory,
-        jdk.vm.ci.hotspot.sparc.SPARCHotSpotJVMCIBackendFactory;
+        jdk.vm.ci.hotspot.amd64.AMD64HotSpotJVMCIBackendFactory;
 }

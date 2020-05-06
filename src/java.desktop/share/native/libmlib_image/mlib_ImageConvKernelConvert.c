@@ -61,12 +61,6 @@
 #include "mlib_ImageConv.h"
 
 /***************************************************************/
-#ifdef __sparc
-
-#define CLAMP_S32(dst, src)                                     \
-  dst = (mlib_s32)(src)
-
-#else
 
 #define CLAMP_S32(dst, src) {                                   \
   mlib_d64 s0 = (mlib_d64)(src);                                \
@@ -74,8 +68,6 @@
   if (s0 < (mlib_d64)MLIB_S32_MIN) s0 = (mlib_d64)MLIB_S32_MIN; \
   dst = (mlib_s32)s0;                                           \
 }
-
-#endif /* __sparc */
 
 /***************************************************************/
 JNIEXPORT
@@ -150,15 +142,10 @@ mlib_status mlib_ImageConvKernelConvert(mlib_s32       *ikernel,
     }
 
     /* try to round coefficients */
-#ifdef __sparc
-    scale1 = 16;                            /* shift of coefficients is 16 */
-#else
-
     if (chk_flag == 3)
       scale1 = 16;                          /* MMX */
     else
       scale1 = (type == MLIB_BYTE) ? 8 : 16;
-#endif /* __sparc */
     norm = (1u << (scale - scale1));
 
     for (i = 0; i < m * n; i++) {

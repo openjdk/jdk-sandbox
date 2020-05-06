@@ -33,7 +33,7 @@ import java.util.Arrays;
 import sun.security.util.Debug;
 
 /**
- * Native PRNG implementation for Solaris/Linux/MacOS.
+ * Native PRNG implementation for Linux/MacOS.
  * <p>
  * It obtains seed and random numbers by reading system files such as
  * the special device files /dev/random and /dev/urandom.  This

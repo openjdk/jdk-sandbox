@@ -112,7 +112,7 @@ public class TestKeyStoreBasic {
             "jks", "jceks", "pkcs12", "PKCS11KeyStore"
     };
     private static final String[] PROVIDERS = {
-            "SUN", "SunJCE", "SunJSSE", "SunPKCS11-Solaris"
+            "SUN", "SunJCE", "SunJSSE"
     };
     private static final String ALIAS_HEAD = "test";
 
@@ -129,21 +129,9 @@ public class TestKeyStoreBasic {
                 runTest(provider);
                 System.out.println("Test with provider " + provider + " passed");
             } catch (java.security.KeyStoreException e) {
-                if (provider.equals("SunPKCS11-Solaris")) {
-                    System.out.println("KeyStoreException is expected: "
-                            + "PKCS11KeyStore is invalid keystore type: " + e);
-                } else {
-                    throw e;
-                }
+                throw e;
             } catch (NoSuchProviderException e) {
-                String osName = System.getProperty("os.name");
-                if (provider.equals("SunPKCS11-Solaris")
-                        && !osName.equals("SunOS")) {
-                    System.out.println("Skip SunPKCS11-Solaris provider on "
-                            + osName);
-                } else {
-                    throw e;
-                }
+                throw e;
             }
         }
     }

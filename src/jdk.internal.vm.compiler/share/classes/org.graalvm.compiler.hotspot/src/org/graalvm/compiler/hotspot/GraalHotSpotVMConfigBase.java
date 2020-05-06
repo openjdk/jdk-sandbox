@@ -103,9 +103,6 @@ public abstract class GraalHotSpotVMConfigBase extends HotSpotVMConfigAccess {
             case "Linux":
                 osName = "linux";
                 break;
-            case "SunOS":
-                osName = "solaris";
-                break;
             case "Mac OS X":
                 osName = "bsd";
                 break;
@@ -125,9 +122,6 @@ public abstract class GraalHotSpotVMConfigBase extends HotSpotVMConfigAccess {
         switch (arch) {
             case "x86_64":
                 arch = "amd64";
-                break;
-            case "sparcv9":
-                arch = "sparc";
                 break;
         }
         return arch;

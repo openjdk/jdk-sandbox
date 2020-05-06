@@ -29,7 +29,6 @@ import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.debugger.linux.amd64.*;
 import sun.jvm.hotspot.debugger.linux.x86.*;
 import sun.jvm.hotspot.debugger.linux.ppc64.*;
-import sun.jvm.hotspot.debugger.linux.sparc.*;
 
 class LinuxThreadContextFactory {
    static ThreadContext createThreadContext(LinuxDebugger dbg) {
@@ -38,8 +37,6 @@ class LinuxThreadContextFactory {
          return new LinuxX86ThreadContext(dbg);
       } else if (cpu.equals("amd64")) {
          return new LinuxAMD64ThreadContext(dbg);
-      } else if (cpu.equals("sparc")) {
-         return new LinuxSPARCThreadContext(dbg);
       }  else if (cpu.equals("ppc64")) {
           return new LinuxPPC64ThreadContext(dbg);
       } else  {

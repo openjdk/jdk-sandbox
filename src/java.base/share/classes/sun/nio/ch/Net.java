@@ -444,7 +444,7 @@ public class Net {
     private static native boolean isReusePortAvailable0();
 
     /*
-     * Returns 1 for Windows and -1 for Solaris/Linux/Mac OS
+     * Returns 1 for Windows and -1 for Linux/Mac OS
      */
     private static native int isExclusiveBindAvailable();
 

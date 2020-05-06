@@ -45,8 +45,6 @@ inline int os::Posix::clock_getres(clockid_t clock_id, struct timespec *tp) {
 
 #endif // SUPPORTS_CLOCK_MONOTONIC
 
-#ifndef SOLARIS
-
 // Platform Mutex/Monitor implementation
 
 inline void os::PlatformMutex::lock() {
@@ -74,7 +72,5 @@ inline void os::PlatformMonitor::notify_all() {
   int status = pthread_cond_broadcast(cond());
   assert_status(status == 0, status, "cond_broadcast");
 }
-
-#endif // !SOLARIS
 
 #endif // OS_POSIX_OS_POSIX_INLINE_HPP

@@ -88,29 +88,26 @@ public class Serial {
             throw new SecurityException("RSA test failed");
         }
 
-        // exclude test is ECF provider is installed, see 4923290
-        if (Security.getProvider("SunPKCS11-Solaris") == null) {
-            // generate DH key pair
-            kpg = KeyPairGenerator.getInstance("DiffieHellman", JCE);
-            kpg.initialize(new DHParameterSpec(skip1024Modulus, skip1024Base));
-            KeyPair dhKp = kpg.genKeyPair();
+        // generate DH key pair
+        kpg = KeyPairGenerator.getInstance("DiffieHellman", JCE);
+        kpg.initialize(new DHParameterSpec(skip1024Modulus, skip1024Base));
+        KeyPair dhKp = kpg.genKeyPair();
 
-            // serialize DH key pair
-            baos.reset();
-            oos = new ObjectOutputStream(baos);
-            oos.writeObject(dhKp);
-            oos.close();
+        // serialize DH key pair
+        baos.reset();
+        oos = new ObjectOutputStream(baos);
+        oos.writeObject(dhKp);
+        oos.close();
 
-            // deserialize DH key pair
-            ois = new ObjectInputStream
-                            (new ByteArrayInputStream(baos.toByteArray()));
-            KeyPair dhKp2 = (KeyPair)ois.readObject();
-            ois.close();
+        // deserialize DH key pair
+        ois = new ObjectInputStream
+                        (new ByteArrayInputStream(baos.toByteArray()));
+        KeyPair dhKp2 = (KeyPair)ois.readObject();
+        ois.close();
 
-            if (!dhKp2.getPublic().equals(dhKp.getPublic()) ||
-                !dhKp2.getPrivate().equals(dhKp.getPrivate())) {
-                throw new SecurityException("DH test failed");
-            }
+        if (!dhKp2.getPublic().equals(dhKp.getPublic()) ||
+            !dhKp2.getPrivate().equals(dhKp.getPrivate())) {
+            throw new SecurityException("DH test failed");
         }
 
         // generate RC5 key

@@ -61,7 +61,7 @@ mlib_status mlib_c_convMxNext_u8(mlib_image       *dst,
                                  mlib_s32         scale,
                                  mlib_s32         cmask);
 
-#if ! defined ( __sparc ) /* for x86, using integer multiplies is faster */
+/* for x86, using integer multiplies is faster */
 
 mlib_status mlib_i_convMxNnw_s16(mlib_image       *dst,
                                  const mlib_image *src,
@@ -128,8 +128,6 @@ mlib_status mlib_i_convMxNext_u16(mlib_image       *dst,
                                   mlib_s32         dy_b,
                                   mlib_s32         scale,
                                   mlib_s32         cmask);
-
-#endif /* ! defined ( __sparc ) ( for x86, using integer multiplies is faster ) */
 
 #ifdef __cplusplus
 }

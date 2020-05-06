@@ -32,10 +32,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* For POSIX-compliant getpwuid_r on Solaris */
-#if defined(__solaris__)
-#define _POSIX_PTHREAD_SEMANTICS
-#endif
 #include <pwd.h>
 
 /*

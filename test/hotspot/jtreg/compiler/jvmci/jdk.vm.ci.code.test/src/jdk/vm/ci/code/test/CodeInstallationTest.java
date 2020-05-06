@@ -28,7 +28,6 @@ import jdk.vm.ci.code.CodeCacheProvider;
 import jdk.vm.ci.code.InstalledCode;
 import jdk.vm.ci.code.TargetDescription;
 import jdk.vm.ci.code.test.amd64.AMD64TestAssembler;
-import jdk.vm.ci.code.test.sparc.SPARCTestAssembler;
 import jdk.vm.ci.hotspot.HotSpotCompiledCode;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
@@ -36,7 +35,6 @@ import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.runtime.JVMCI;
 import jdk.vm.ci.runtime.JVMCIBackend;
-import jdk.vm.ci.sparc.SPARC;
 import org.junit.Assert;
 
 import java.lang.reflect.Method;
@@ -70,8 +68,6 @@ public class CodeInstallationTest {
         Architecture arch = codeCache.getTarget().arch;
         if (arch instanceof AMD64) {
             return new AMD64TestAssembler(codeCache, config);
-        } else if (arch instanceof SPARC) {
-            return new SPARCTestAssembler(codeCache, config);
         } else {
             Assert.fail("unsupported architecture");
             return null;

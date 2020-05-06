@@ -168,7 +168,6 @@ public class Type1Font extends FileFont {
         throws FontFormatException {
         super(platname, nativeNames);
         fontRank = Font2D.TYPE1_RANK;
-        checkedNatives = true;
         try {
             verify();
         } catch (Throwable t) {

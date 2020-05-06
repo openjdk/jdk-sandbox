@@ -76,8 +76,6 @@ public abstract class FileFont extends PhysicalFont {
      * the native path, since fonts have contiguous zero-based glyph indexes,
      * and these obviously do all exist in the font.
      */
-    protected boolean checkedNatives;
-    protected boolean useNatives;
     protected NativeFont[] nativeFonts;
     protected char[] glyphToCharMap;
     /*
@@ -90,15 +88,7 @@ public abstract class FileFont extends PhysicalFont {
     }
 
     FontStrike createStrike(FontStrikeDesc desc) {
-        if (!checkedNatives) {
-           checkUseNatives();
-        }
         return new FileFontStrike(this, desc);
-    }
-
-    protected boolean checkUseNatives() {
-        checkedNatives = true;
-        return useNatives;
     }
 
     /* This method needs to be accessible to FontManager if there is

@@ -70,9 +70,6 @@ else
   ifeq ($(call isTargetOs, linux), true)
     BUILD_JDK_JTREG_LIBRARIES_LIBS_libInheritedChannel := -ljava
     BUILD_JDK_JTREG_EXECUTABLES_LIBS_exelauncher := -ldl
-  else ifeq ($(call isTargetOs, solaris), true)
-    BUILD_JDK_JTREG_LIBRARIES_LIBS_libInheritedChannel := -ljava -lsocket -lnsl
-    BUILD_JDK_JTREG_EXECUTABLES_LIBS_exelauncher := -lthread -ldl
   endif
   BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeJliLaunchTest := -ljli
   BUILD_JDK_JTREG_EXECUTABLES_LIBS_exeCallerAccessTest := -ljvm

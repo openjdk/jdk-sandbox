@@ -83,7 +83,6 @@ OPENJDK_TARGET_CPU_ENDIAN:=@OPENJDK_TARGET_CPU_ENDIAN@
 COMPILE_TYPE:=@COMPILE_TYPE@
 
 # Legacy support
-OPENJDK_TARGET_CPU_ISADIR:=@OPENJDK_TARGET_CPU_ISADIR@
 OPENJDK_TARGET_CPU_LEGACY:=@OPENJDK_TARGET_CPU_LEGACY@
 OPENJDK_TARGET_CPU_LEGACY_LIB:=@OPENJDK_TARGET_CPU_LEGACY_LIB@
 OPENJDK_TARGET_CPU_OSARCH:=@OPENJDK_TARGET_CPU_OSARCH@
@@ -424,7 +423,7 @@ MACOSX_VERSION_MAX=@MACOSX_VERSION_MAX@
 # The macosx code signing identity to use
 MACOSX_CODESIGN_IDENTITY=@MACOSX_CODESIGN_IDENTITY@
 
-# Toolchain type: gcc, clang, solstudio, lxc, microsoft...
+# Toolchain type: gcc, clang, xlc, microsoft...
 TOOLCHAIN_TYPE:=@TOOLCHAIN_TYPE@
 TOOLCHAIN_VERSION := @TOOLCHAIN_VERSION@
 CC_VERSION_NUMBER := @CC_VERSION_NUMBER@
@@ -570,10 +569,6 @@ INSTALL_NAME_TOOL:=@INSTALL_NAME_TOOL@
 # Options to linker to specify a mapfile.
 # (Note absence of := assignment, because we do not want to evaluate the macro body here)
 SET_SHARED_LIBRARY_MAPFILE=@SET_SHARED_LIBRARY_MAPFILE@
-
-# Options for C/CXX compiler to be used if linking is performed
-#   using reorder file
-C_FLAG_REORDER:=@C_FLAG_REORDER@
 
 #
 # Options for generating debug symbols

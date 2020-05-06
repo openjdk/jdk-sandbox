@@ -48,11 +48,6 @@ public class ExtOptionTest {
                     throw new RuntimeException("Test failed, TCP_QUICKACK should"
                             + " have been set");
                 }
-            } else if (operSys.equals("SunOS")) {
-                if (ss.supportedOptions().contains(SO_FLOW_SLA)) {
-                    throw new RuntimeException("Test failed, SO_FLOW_SLA is not "
-                            + "applicable for ServerSocket");
-                }
             } else {
                 if (ss.supportedOptions().contains(TCP_QUICKACK)) {
                     ss.setOption(TCP_QUICKACK, true);

@@ -51,9 +51,6 @@ mlib_s32 mlib_ImageConvVersion(mlib_s32 m,
                                mlib_s32 scale,
                                mlib_type type)
 {
-#ifdef __sparc
-  return 0;
-#else
   mlib_d64 dscale = 1.0 / (1 << scale); /* 16 < scale <= 31 */
 
   if (type == MLIB_BYTE) {
@@ -69,7 +66,6 @@ mlib_s32 mlib_ImageConvVersion(mlib_s32 m,
   }
   else
     return 0;
-#endif /* __sparc */
 }
 
 /***************************************************************/

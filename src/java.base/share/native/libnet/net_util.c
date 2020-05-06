@@ -81,7 +81,6 @@ DEF_JNI_OnLoad(JavaVM *vm, void *reserved)
     /* check if SO_REUSEPORT is supported on this platform */
     REUSEPORT_available = reuseport_supported();
     platformInit();
-    parseExclusiveBindProperty(env);
 
     return JNI_VERSION_1_2;
 }

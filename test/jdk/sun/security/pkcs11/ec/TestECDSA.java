@@ -126,7 +126,7 @@ public class TestECDSA extends PKCS11Test {
             return true;
         }
 
-        if (isBadNSSVersion(provider) || isBadSolarisSparc(provider)) {
+        if (isBadNSSVersion(provider)) {
             return true;
         }
 
