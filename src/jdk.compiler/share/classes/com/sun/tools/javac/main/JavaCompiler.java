@@ -1020,10 +1020,7 @@ public class JavaCompiler {
        return parseFiles(fileObjects, false);
    }
 
-   public List<JCCompilationUnit> parseFiles(Iterable<JavaFileObject> fileObjects, boolean force) {
-       if (!force && shouldStop(CompileState.PARSE))
-           return List.nil();
-
+   public Function<Iterable<JavaFileObject>, List<JCCompilationUnit>> doParseFiles = fileObjects -> {
         //parse all files
         ListBuffer<JCCompilationUnit> trees = new ListBuffer<>();
         Set<JavaFileObject> filesSoFar = new HashSet<>();
@@ -1034,6 +1031,14 @@ public class JavaCompiler {
             }
         }
         return trees.toList();
+   };
+
+   public List<JCCompilationUnit> parseFiles(Iterable<JavaFileObject> fileObjects, boolean force) {
+       if (!force && shouldStop(CompileState.PARSE))
+           return List.nil();
+
+        //parse all files
+        return doParseFiles.apply(fileObjects);
     }
 
     /**

@@ -124,7 +124,7 @@ public class ToolProvider {
             ServiceLoader<T> sl = ServiceLoader.load(clazz, ClassLoader.getSystemClassLoader());
             for (Iterator<T> iter = sl.iterator(); iter.hasNext(); ) {
                 T tool = iter.next();
-                if (matches(tool, moduleName))
+//                if (matches(tool, moduleName))
                     return tool;
             }
         } catch (ServiceConfigurationError e) {

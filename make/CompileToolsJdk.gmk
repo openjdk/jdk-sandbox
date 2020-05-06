@@ -76,6 +76,12 @@ $(eval $(call SetupJavaCompilation, COMPILE_DEPEND, \
     INCLUDES := build/tools/depend, \
     BIN := $(BUILDTOOLS_OUTPUTDIR)/depend, \
     DISABLED_WARNINGS := options, \
+    JAVAC_FLAGS := \
+        --add-exports jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+        --add-exports jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED, \
 ))
 
 DEPEND_SERVICE_PROVIDER := $(BUILDTOOLS_OUTPUTDIR)/depend/META-INF/services/com.sun.source.util.Plugin
