@@ -30,11 +30,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
-import java.lang.reflect.*;
 import java.net.*;
 import java.nio.channels.*;
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 import static java.lang.Boolean.parseBoolean;
@@ -46,30 +44,32 @@ import static jdk.test.lib.net.IPSupport.*;
 
 /*
  * @test
- * @summary Test SocketChannel, ServerSocketChannel
- *          and DatagramChannel open and connect
+ * @summary Test SocketChannel, ServerSocketChannel and DatagramChannel
+ *          open() and connect(), taking into consideration combinations of
+ *          protocol families (INET, INET6, default),
+ *          addresses (Inet4Address, Inet6Address),
+ *          platforms (Linux, Mac OS, Windows),
+ *          and the system properties preferIPv4Stack and preferIPv6Addresses.
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run testng/othervm/timeout=30 OpenConnect
+ * @run testng OpenAndConnect
  */
 
-// * @run testng/othervm -Djava.net.preferIPv6Addresses=true OpenConnect
-// * @run testng/othervm -Djava.net.preferIPv4Stack=true OpenConnect
+// * @run testng -Djava.net.preferIPv6Addresses=true OpenAndConnect
+// * @run testng -Djava.net.preferIPv4Stack=true OpenAndConnect
 
-public class OpenConnect {
-    static final boolean isWindows = Platform.isWindows();
-    static final boolean hasIPv6 = hasIPv6();
-    static final boolean preferIPv4 = preferIPv4Stack();
-    static final boolean preferIPv6 =
+public class OpenAndConnect {
+    static final boolean PREFERIPV4 = preferIPv4Stack();
+    static final boolean PREFERIPV6 =
             parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
-
-    static Inet4Address IA4LOCAL;
-    static Inet6Address IA6LOCAL;
     static final Inet4Address IA4ANYLOCAL;
     static final Inet6Address IA6ANYLOCAL;
     static final Inet4Address IA4LOOPBACK;
     static final Inet6Address IA6LOOPBACK;
-    static final Predicate<InetAddress> linkLocalAddr = a -> (a instanceof Inet6Address) && a.isLinkLocalAddress();
+    static final Predicate<InetAddress> IPV6LINKLOCALADDR = a ->
+            (a instanceof Inet6Address) && a.isLinkLocalAddress();
+    static Inet4Address IA4LOCAL;
+    static Inet6Address IA6LOCAL;
 
     static {
         try {
@@ -87,7 +87,7 @@ public class OpenConnect {
     public void setup() {
         NetworkConfiguration.printSystemConfiguration(out);
         IPSupport.printPlatformSupport(out);
-        out.println("preferIPv6Addresses: " + preferIPv6);
+        out.println("preferIPv6Addresses: " + PREFERIPV6);
         throwSkippedExceptionIfNonOperational();
 
         out.println("IA4LOCAL:    " + IA4LOCAL);
@@ -101,23 +101,16 @@ public class OpenConnect {
     // Platform bits: run test on platforms specified only
     static final int L = 1; // Linux
     static final int W = 2; // Windows
-    static final int M = 4; // Macos
-    static final int S = 8; // Solaris
+    static final int M = 4; // Mac OS
 
-    static final int ALL = L|M|W|S;
-    static final int MWS = M|W|S; // ALL except Linux
-    static final int MLS = M|L|S; // ALL except Windows
-    static final int MS = M|S; // Mac OS & Solaris
+    static final int ALL = L|M|W;
     static final int ML = M|L; // Mac OS & Linux
-    static final int LS = L|S; // Linux & Solaris
 
     static final boolean passOnThisPlatform(int mask) {
         if (Platform.isLinux())
             return (mask & L) != 0;
         if (Platform.isWindows())
             return (mask & W) != 0;
-        if (Platform.isSolaris())
-            return (mask & S) != 0;
         if (Platform.isOSX())
             return (mask & M) != 0;
         return false;
@@ -129,41 +122,41 @@ public class OpenConnect {
             //                                                                       Should pass
             //  {   sfam,   saddr,         cfam,    caddr,         ipv4,    ipv6,    DG    SC     }
 
-                {   INET,   null,          INET,    null,          false,   false,   MLS,  ALL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   INET,   null,          INET,    null,          false,   false,   ML,   ALL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   false,   false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      false,   false,   ALL,  ALL    },
-                {   INET,   null,          null,    null,          false,   false,   MLS,  ALL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   INET,   null,          null,    null,          false,   false,   ML,   ALL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   false,   false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      false,   false,   ALL,  ALL    },
 
-                {   INET,   null,          INET,    null,          true,    false,   MLS,  ALL    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   true,    false,   MLS,  ALL    },
+                {   INET,   null,          INET,    null,          true,    false,   ML,   ALL    },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   true,    false,   ML,   ALL    },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   true,    false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      true,    false,   ALL,  ALL    },
-                {   INET,   null,          null,    null,          true,    false,   MLS,  ALL    },
-                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   true,    false,   MLS,  ALL    },
+                {   INET,   null,          null,    null,          true,    false,   ML,   ALL    },
+                {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   true,    false,   ML,   ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   true,    false,   ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      true,    false,   ALL,  ALL    },
 
-                {   INET,   null,          INET,    null,          false,   true,    MLS,  MLS    },
-                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   true,    MLS,  MLS    },
+                {   INET,   null,          INET,    null,          false,   true,    ML,   ML     },
+                {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   true,    ML,   ML     },
                 {   INET,   IA4LOOPBACK,   INET,    IA4LOOPBACK,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOCAL,      INET,    IA4LOCAL,      false,   true,    ALL,  ALL    },
-                {   INET,   null,          null,    null,          false,   true,    MLS,  MLS    },
+                {   INET,   null,          null,    null,          false,   true,    ML,   ML     },
                 {   INET,   IA4ANYLOCAL,   null,    IA4ANYLOCAL,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOOPBACK,   null,    IA4LOOPBACK,   false,   true,    ALL,  ALL    },
                 {   INET,   IA4LOCAL,      null,    IA4LOCAL,      false,   true,    ALL,  ALL    },
 
 
-                {   INET6,   null,          INET6,   null,          false,   false,  MLS,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
+                {   INET6,   null,          INET6,   null,          false,   false,  ML,   ALL    },
+                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,  ML,   ALL    },
                 {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,  ALL,  ALL    },
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,  ALL,  ALL    },
-                {   INET6,   null,          null,    null,          false,   false,  MLS,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  MLS,  ALL    },
-                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  M  ,  ~ALL   },
+                {   INET6,   null,          null,    null,          false,   false,  ML,   ALL    },
+                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,  ML,   ALL    },
+                {   INET6,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,  M,    ~ALL   },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,  ALL,  ALL    },
 
                 {   INET6,   null,          INET6,   null,          true,    false,  ~ALL, ~ALL   },
@@ -175,13 +168,13 @@ public class OpenConnect {
                 {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   true,    false,  ~ALL, ~ALL   },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      true,    false,  ~ALL, ~ALL   },
 
-                {   INET6,   null,          INET6,   null,          false,   true,   MLS,  ALL    },
-                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   true,   MLS,  ALL    },
+                {   INET6,   null,          INET6,   null,          false,   true,   ML,   ALL    },
+                {   INET6,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   true,   ML,   ALL    },
                 {   INET6,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   true,   ALL,  ALL    },
                 {   INET6,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   true,   ALL,  ALL    },
-                {   INET6,   null,          null,    null,          false,   true,   MLS,  MLS    },
-                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   true,   MLS,  MLS    },
-                {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   true,   MLS,  MLS    },
+                {   INET6,   null,          null,    null,          false,   true,   ML,   ML     },
+                {   INET6,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   true,   ML,   ML     },
+                {   INET6,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   true,   ML,   ML     },
                 {   INET6,   IA6LOCAL,      null,    IA6LOCAL,      false,   true,   ALL,  ALL    },
 
 
@@ -190,14 +183,14 @@ public class OpenConnect {
 
                 {   null,   IA4LOOPBACK,   INET,    IA4ANYLOCAL,    false,   false,  ALL,  ALL    },
                 {   null,   IA4LOCAL,      INET,    IA4ANYLOCAL,    false,   false,  ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   INET,    IA4ANYLOCAL,    false,   false,  ~ALL, ~ALL    },
+                {   null,   IA6ANYLOCAL,   INET,    IA4ANYLOCAL,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOOPBACK,   INET,    IA4ANYLOCAL,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOCAL,      INET,    IA4ANYLOCAL,    false,   false,  ~ALL, ~ALL   },
                 {   null,   null,          INET,    IA4ANYLOCAL,    false,   false,  ~ALL, ~ALL   },
 
                 {   null,   IA4ANYLOCAL,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA4LOOPBACK,   INET,    IA4LOOPBACK,    false,   false,  ALL,  ALL    },
-                {   null,   IA4LOCAL,      INET,    IA4LOOPBACK,    false,   false,  MLS,  MLS    },
+                {   null,   IA4LOCAL,      INET,    IA4LOOPBACK,    false,   false,  ML,   ML     },
                 {   null,   IA6ANYLOCAL,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOOPBACK,   INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOCAL,      INET,    IA4LOOPBACK,    false,   false,  ~ALL, ~ALL   },
@@ -206,7 +199,7 @@ public class OpenConnect {
                 {   null,   IA4ANYLOCAL,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
 
                 // true on Macos(??)
-                {   null,   IA4LOOPBACK,   INET,    IA4LOCAL,       false,   false,  MLS,  MLS    },
+                {   null,   IA4LOOPBACK,   INET,    IA4LOCAL,       false,   false,  ML,   ML     },
                 {   null,   IA4LOCAL,      INET,    IA4LOCAL,       false,   false,  ALL,  ALL    },
                 {   null,   IA6ANYLOCAL,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
                 {   null,   IA6LOOPBACK,   INET,    IA4LOCAL,       false,   false,  ~ALL, ~ALL   },
@@ -222,213 +215,170 @@ public class OpenConnect {
                 {   null,   null,          INET,    null,           false,   false,  ~ALL, ~ALL   },
 
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      INET6,   IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   null,          INET6,   IA6ANYLOCAL,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   M  ,  ~ALL   },
-                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   M  ,  ~ALL   },
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   ML,   ALL    },
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   M,    ~ALL   },
+                {   null,   IA4LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   M,    ~ALL   },
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOOPBACK,   false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   MLS,  M      },
-                {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA6LOCAL,      INET6,   IA6LOOPBACK,   false,   false,   ML,   M      },
+                {   null,   null,          INET6,   IA6LOOPBACK,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M  ,  ~ALL   }, // *
-                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   M  ,  ~ALL  }, // *
-                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA4ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA4LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M,    ~ALL   }, // *
+                {   null,   IA4LOCAL,      INET6,   IA6LOCAL,      false,   false,   M,    ~ALL   }, // *
+                {   null,   IA6ANYLOCAL,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA6LOOPBACK,   INET6,   IA6LOCAL,      false,   false,   M,    M      },
                 {   null,   IA6LOCAL,      INET6,   IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   null,          INET6,   IA6LOCAL,      false,   false,   M,    M      },
 
-                {   null,   IA4ANYLOCAL,   INET6,   null,          false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   INET6,   null,          false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   INET6,   null,          false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      INET6,   null,          false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   INET6,   null,          false,   false,   MLS,  ALL    },
+                {   null,   IA6ANYLOCAL,   INET6,   null,          false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   INET6,   null,          false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      INET6,   null,          false,   false,   ALL,  ALL    },
-                {   null,   null,          INET6,   null,          false,   false,   MLS,  ALL    },
+                {   null,   null,          INET6,   null,          false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   IA6ANYLOCAL,   null,    IA6ANYLOCAL,   false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      null,    IA6ANYLOCAL,   false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    IA6ANYLOCAL,   false,   false,   MLS,  ALL    },
+                {   null,   null,          null,    IA6ANYLOCAL,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
-                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   M  ,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   M  ,  ~ALL   }, //*
-                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   ML,   ALL    },
+                {   null,   IA4LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   M,    ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOOPBACK,   false,   false,   M,    ~ALL   }, //*
+                {   null,   IA6ANYLOCAL,   null,    IA6LOOPBACK,   false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   null,    IA6LOOPBACK,   false,   false,   ALL,  ALL    },
-                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   MLS,  M      }, // hangs L
-                {   null,   null,          null,    IA6LOOPBACK,   false,   false,   MLS,  ALL    },
+                {   null,   IA6LOCAL,      null,    IA6LOOPBACK,   false,   false,   ML,   M      }, // hangs L
+                {   null,   null,          null,    IA6LOOPBACK,   false,   false,   ML,   ALL    },
 
-                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   M  ,  ~ALL   }, //*
-                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   M  ,  ~ALL   }, //*
-                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
-                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   IA4ANYLOCAL,   null,    IA6LOCAL,      false,   false,   M,    M     },
+                {   null,   IA4LOOPBACK,   null,    IA6LOCAL,      false,   false,   M,    ~ALL   }, //*
+                {   null,   IA4LOCAL,      null,    IA6LOCAL,      false,   false,   M,    ~ALL   }, //*
+                {   null,   IA6ANYLOCAL,   null,    IA6LOCAL,      false,   false,   M,    M      },
+                {   null,   IA6LOOPBACK,   null,    IA6LOCAL,      false,   false,   M,    M      },
                 {   null,   IA6LOCAL,      null,    IA6LOCAL,      false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    IA6LOCAL,      false,   false,   MS ,  MS     },
+                {   null,   null,          null,    IA6LOCAL,      false,   false,   M,    M      },
 
-                {   null,   IA4ANYLOCAL,   null,    null,          false,   false,   MLS,  ALL    },
+                {   null,   IA4ANYLOCAL,   null,    null,          false,   false,   ML,   ALL    },
                 {   null,   IA4LOOPBACK,   null,    null,          false,   false,   ALL,  ALL    },
                 {   null,   IA4LOCAL,      null,    null,          false,   false,   ALL,  ALL    },
-                {   null,   IA6ANYLOCAL,   null,    null,          false,   false,   MLS,  ALL    },
+                {   null,   IA6ANYLOCAL,   null,    null,          false,   false,   ML,   ALL    },
                 {   null,   IA6LOOPBACK,   null,    null,          false,   false,   ALL,  ALL    },
                 {   null,   IA6LOCAL,      null,    null,          false,   false,   ALL,  ALL    },
-                {   null,   null,          null,    null,          false,   false,   MLS,  ALL    },
+                {   null,   null,          null,    null,          false,   false,   ML,   ALL    },
         };
     }
 
     @Test(dataProvider = "openConnect")
-    public void scOpenConnect(StandardProtocolFamily sfam,
+    public void scOpenConnect(ProtocolFamily sfam,
                               InetAddress saddr,
-                              StandardProtocolFamily cfam,
+                              ProtocolFamily cfam,
                               InetAddress caddr,
                               boolean ipv4,
                               boolean ipv6,
-                              int dgMask, int scMask) throws Exception {
-        if (ipv4 != preferIPv4 || ipv6 != preferIPv6) {
+                              int dgMask, int scMask) {
+        if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
 
         if (IA4LOCAL == null || IA6LOCAL == null)
-            throw new SkipException("can't run due to configuration"); // mark test as skipped
+            // mark test as skipped
+            throw new SkipException("can't run due to configuration");
 
         boolean scPass = passOnThisPlatform(scMask);
-        System.out.printf("scOpenConnect: server bind: %s client bind: %s\n", saddr, caddr);
+        out.printf("scOpenConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
-            if (ssc == null) return; // not supported
             ssc.bind(getSocketAddress(saddr));
             InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
-            System.out.println(ssa);
+            out.println(ssa);
             try (SocketChannel csc = openSC(cfam)) {
-                if (csc == null) return; // not supported
                 InetSocketAddress csa = (InetSocketAddress)getSocketAddress(caddr);
-                System.out.printf("Connecting to:  %s/port: %d\n", ssa.getAddress(), ssa.getPort());
+                out.printf("Connecting to:  %s/port: %d\n", ssa.getAddress(), ssa.getPort());
                 csc.bind(csa);
                 connectNonBlocking(csc, ssa, Duration.ofSeconds(3));
                 throwIf(!scPass);
             } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException re) {
-                throwIf(scPass, re);
+                    | UnsupportedOperationException e) {
+                throwIf(scPass, e);
             }
-        } catch (UnsupportedOperationException re) {
-            throwIf(scPass, re);
-        } catch (IOException ioe) {
-            throwIf(scPass, ioe);
+        } catch (UnsupportedOperationException | IOException e) {
+            throwIf(scPass, e);
         }
     }
 
-    static void connectNonBlocking(SocketChannel chan, SocketAddress dest, Duration duration) throws IOException {
+    static void connectNonBlocking(SocketChannel chan,
+                                   SocketAddress dest,
+                                   Duration duration) throws IOException {
         Selector sel = Selector.open();
         chan.configureBlocking(false);
-        chan.register(sel, SelectionKey.OP_CONNECT);
-        chan.connect(dest);
-        long timeout = duration.toMillis();
-        int res = sel.select(timeout);
+        if (!chan.connect(dest)) {  // connect operation still in progress
+            chan.register(sel, SelectionKey.OP_CONNECT);
+            sel.select(duration.toMillis());
+        }
         if (!chan.finishConnect())
             throw new IOException("connection not made");
     }
 
     @Test(dataProvider = "openConnect")
-    public void dcOpenConnect(StandardProtocolFamily sfam,
+    public void dcOpenConnect(ProtocolFamily sfam,
                               InetAddress saddr,
-                              StandardProtocolFamily cfam,
+                              ProtocolFamily cfam,
                               InetAddress caddr,
                               boolean ipv4,
                               boolean ipv6,
-                              int dgMask, int scMask) throws Exception {
-        if (ipv4 != preferIPv4 || ipv6 != preferIPv6) {
+                              int dgMask, int scMask) {
+        if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
 
         if (IA4LOCAL == null || IA6LOCAL == null)
-            throw new SkipException("can't run due to configuration"); // mark test as skipped
+            // mark test as skipped
+            throw new SkipException("can't run due to configuration");
 
         boolean dgPass = passOnThisPlatform(dgMask);
         try (DatagramChannel sdc = openDC(sfam)) {
             sdc.bind(getSocketAddress(saddr));
             SocketAddress ssa = sdc.getLocalAddress();
-            System.out.println(ssa);
+            out.println(ssa);
             try (DatagramChannel dc = openDC(cfam)) {
                 SocketAddress csa = getSocketAddress(caddr);
                 dc.bind(csa);
                 dc.connect(ssa);
                 throwIf(!dgPass);
             } catch (UnsupportedAddressTypeException
-                    | UnsupportedOperationException re) {
-                throwIf(dgPass, re);
+                    | UnsupportedOperationException e) {
+                throwIf(dgPass, e);
             }
-        } catch (UnsupportedOperationException re) {
-            throwIf(dgPass, re);
-        } catch (IOException ioe) {
-            throwIf(dgPass, ioe);
+        } catch (UnsupportedOperationException | IOException e) {
+            throwIf(dgPass, e);
         }
     }
 
     // Helper methods
 
-    static Method cfactory;
-    static Method sfactory;
-
-    static {
-        try {
-            Class<?> clazz = SocketChannel.class;
-            cfactory = clazz.getDeclaredMethod("open", java.net.ProtocolFamily.class);
-            clazz = ServerSocketChannel.class;
-            sfactory = clazz.getDeclaredMethod("open", java.net.ProtocolFamily.class);
-        } catch (Exception e) {
-            cfactory = null;
-            sfactory = null;
-        }
+    private static SocketChannel openSC(ProtocolFamily fam) throws IOException {
+        return fam == null ? SocketChannel.open() : SocketChannel.open(fam);
     }
 
-    private static SocketChannel openSC(StandardProtocolFamily fam)
-        throws IOException {
-
-        if (fam == null) {
-            return SocketChannel.open();
-        }
-        if (cfactory == null) {
-            return null;
-        }
-        try {
-            return (SocketChannel) cfactory.invoke(null, fam);
-        } catch (Exception e) {
-            // should not happen
-            throw new InternalError(e);
-        }
+    private static ServerSocketChannel openSSC(ProtocolFamily fam)
+            throws IOException {
+        return fam == null ? ServerSocketChannel.open()
+                : ServerSocketChannel.open(fam);
     }
 
-
-    private static ServerSocketChannel openSSC(StandardProtocolFamily fam)
-        throws IOException {
-
-        if (fam == null) {
-            return ServerSocketChannel.open();
-        }
-        if (sfactory == null) {
-            return null;
-        }
-        try {
-            return (ServerSocketChannel) sfactory.invoke(null, fam);
-        } catch (Exception e) {
-            // should not happen
-            throw new InternalError(e);
-        }
-
-    }
-
-    private static DatagramChannel openDC(StandardProtocolFamily fam)
+    private static DatagramChannel openDC(ProtocolFamily fam)
             throws IOException {
         return fam == null ? DatagramChannel.open()
                 : DatagramChannel.open(fam);
@@ -453,7 +403,7 @@ public class OpenConnect {
         }
 
         IA6LOCAL = (Inet6Address)iface.inetAddresses()
-                .filter(linkLocalAddr)
+                .filter(IPV6LINKLOCALADDR)
                 .findFirst()
                 .orElse(null);
 
@@ -466,22 +416,22 @@ public class OpenConnect {
     static boolean isUp(NetworkInterface nif) {
         try {
             return nif.isUp();
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
+        } catch (SocketException se) {
+            throw new RuntimeException(se);
         }
     }
 
     static boolean hasV4andV6Addrs(NetworkInterface nif) {
-        if (!nif.inetAddresses().anyMatch(linkLocalAddr))
+        if (nif.inetAddresses().noneMatch(IPV6LINKLOCALADDR))
             return false;
-        if (!nif.inetAddresses().anyMatch(a -> a instanceof Inet4Address))
+        if (nif.inetAddresses().noneMatch(a -> a instanceof Inet4Address))
             return false;
         return true;
     }
 
-    private static void throwIf(boolean condition, Exception... re) {
-        if (condition && re.length > 0) {
-            throw new RuntimeException("Expected to pass", re[0]);
+    private static void throwIf(boolean condition, Exception... e) {
+        if (condition && e.length > 0) {
+            throw new RuntimeException("Expected to pass", e[0]);
         }
         if (condition) {
             throw new RuntimeException("Expected to fail");
