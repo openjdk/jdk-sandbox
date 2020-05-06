@@ -23,12 +23,12 @@
 
 /*
  * @test
- * @summary Test no-arg open method
+ * @summary Test local address type
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run testng/othervm OpenDefault
- * @run testng/othervm -Djava.net.preferIPv4Stack=true OpenDefault
- * @run testng/othervm -Djava.net.preferIPv6Addresses=true OpenDefault
+ * @run testng/othervm LocalSocketAddressType
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true LocalSocketAddressType
+ * @run testng/othervm -Djava.net.preferIPv6Addresses=true LocalSocketAddressType
  */
 
 import jdk.test.lib.NetworkConfiguration;
@@ -52,7 +52,7 @@ import static jdk.test.lib.Asserts.assertEquals;
 import static jdk.test.lib.Asserts.assertTrue;
 import static jdk.test.lib.net.IPSupport.*;
 
-public class OpenDefault {
+public class LocalSocketAddressType {
     static final boolean preferIPv6 =
             parseBoolean(getProperty("java.net.preferIPv6Addresses", "false"));
 
@@ -81,31 +81,37 @@ public class OpenDefault {
     }
 
     @Test(dataProvider = "addresses")
-    public static void openSC(InetSocketAddress addr)
+    public static void testSocketChannel(InetSocketAddress addr)
             throws Exception {
         try (var c = SocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
-            InetAddress ia = c.bind(addr).socket().getLocalAddress();
+            InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
+            assertEquals(ia.getClass(), cls);
+            ia = c.socket().getLocalAddress();
             assertEquals(ia.getClass(), cls);
         }
     }
 
     @Test(dataProvider = "addresses")
-    public static void openSSC(InetSocketAddress addr)
+    public static void testServerSocketChannel(InetSocketAddress addr)
             throws Exception {
         try (var c = ServerSocketChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
-            InetAddress ia = c.bind(addr).socket().getInetAddress();
+            InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
+            assertEquals(ia.getClass(), cls);
+            ia = c.socket().getInetAddress();
             assertEquals(ia.getClass(), cls);
         }
     }
 
     @Test(dataProvider = "addresses")
-    public static void openDC(InetSocketAddress addr)
+    public static void testDatagramChannel(InetSocketAddress addr)
             throws Exception {
         try (var c = DatagramChannel.open()) {
             Class<? extends InetAddress> cls = addr.getAddress().getClass();
-            InetAddress ia = c.bind(addr).socket().getLocalAddress();
+            InetAddress ia = ((InetSocketAddress)c.bind(addr).getLocalAddress()).getAddress();
+            assertEquals(ia.getClass(), cls);
+            ia = c.socket().getLocalAddress();
             assertEquals(ia.getClass(), cls);
         }
     }
