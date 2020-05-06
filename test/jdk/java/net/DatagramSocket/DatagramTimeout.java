@@ -106,11 +106,11 @@ public class DatagramTimeout {
         ds.close();
         ms.close();
         dsa.close();
-        assertThrows(SE, () -> ds.setSendBufferSize(10));
+        assertThrows(SE, () -> ds.setSoTimeout(10));
         assertThrows(SE, () -> ds.getSoTimeout());
-        assertThrows(SE, () -> ms.setSendBufferSize(10));
+        assertThrows(SE, () -> ms.setSoTimeout(10));
         assertThrows(SE, () -> ms.getSoTimeout());
-        assertThrows(SE, () -> dsa.setSendBufferSize(10));
+        assertThrows(SE, () -> dsa.setSoTimeout(10));
         assertThrows(SE, () -> dsa.getSoTimeout());
     }
 }
