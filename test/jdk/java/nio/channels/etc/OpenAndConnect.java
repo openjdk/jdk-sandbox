@@ -52,11 +52,11 @@ import static jdk.test.lib.net.IPSupport.*;
  *          and the system properties preferIPv4Stack and preferIPv6Addresses.
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
- * @run testng OpenAndConnect
+ * @run testng/othervm OpenAndConnect
+ * @run testng/othervm -Djava.net.preferIPv4Stack=true OpenAndConnect
+ * @run testng/othervm -Djava.net.preferIPv6Addresses=true OpenAndConnect
  */
 
-// * @run testng -Djava.net.preferIPv6Addresses=true OpenAndConnect
-// * @run testng -Djava.net.preferIPv4Stack=true OpenAndConnect
 
 public class OpenAndConnect {
     static final boolean PREFERIPV4 = preferIPv4Stack();
@@ -119,8 +119,9 @@ public class OpenAndConnect {
     @DataProvider(name = "openConnect")
     public Object[][] openConnect() {
         return new Object[][]{
-            //                                                                       Should pass
-            //  {   sfam,   saddr,         cfam,    caddr,         ipv4,    ipv6,    DG    SC     }
+            //                                                        Run if set      Should
+            //                                                     ipv4     ipv6      pass on
+            //  {   sfam,   saddr,         cfam,    caddr,         only,    addrs,   DG    SC     }
 
                 {   INET,   null,          INET,    null,          false,   false,   ML,   ALL    },
                 {   INET,   IA4ANYLOCAL,   INET,    IA4ANYLOCAL,   false,   false,   ML,   ALL    },
