@@ -150,6 +150,18 @@ AC_DEFUN([PLATFORM_EXTRACT_VARS_FROM_CPU],
       VAR_CPU_BITS=32
       VAR_CPU_ENDIAN=little
       ;;
+    sparc)
+      VAR_CPU=sparc
+      VAR_CPU_ARCH=sparc
+      VAR_CPU_BITS=32
+      VAR_CPU_ENDIAN=big
+      ;;
+    sparcv9|sparc64)
+      VAR_CPU=sparcv9
+      VAR_CPU_ARCH=sparc
+      VAR_CPU_BITS=64
+      VAR_CPU_ENDIAN=big
+      ;;
     *)
       AC_MSG_ERROR([unsupported cpu $1])
       ;;
@@ -308,8 +320,10 @@ AC_DEFUN([PLATFORM_SETUP_TARGET_CPU_BITS],
       OPENJDK_TARGET_CPU_BITS=32
       if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86"; then
         OPENJDK_TARGET_CPU=x86
+      elif test "x$OPENJDK_TARGET_CPU_ARCH" = "xsparc"; then
+        OPENJDK_TARGET_CPU=sparc
       else
-        AC_MSG_ERROR([Reduced build (--with-target-bits=32) is only supported on x86_64])
+        AC_MSG_ERROR([Reduced build (--with-target-bits=32) is only supported on x86_64 and sparcv9])
       fi
     elif test "x$with_target_bits" = x64 && test "x$OPENJDK_TARGET_CPU_BITS" = x32; then
       AC_MSG_ERROR([It is not possible to use --with-target-bits=64 on a 32 bit system. Use proper cross-compilation instead.])
@@ -422,6 +436,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
   HOTSPOT_$1_CPU=${OPENJDK_$1_CPU}
   if test "x$OPENJDK_$1_CPU" = xx86; then
     HOTSPOT_$1_CPU=x86_32
+  elif test "x$OPENJDK_$1_CPU" = xsparcv9; then
+    HOTSPOT_$1_CPU=sparc
   elif test "x$OPENJDK_$1_CPU" = xppc64; then
     HOTSPOT_$1_CPU=ppc_64
   elif test "x$OPENJDK_$1_CPU" = xppc64le; then
@@ -440,6 +456,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=AMD64
   elif test "x$OPENJDK_$1_CPU" = xx32; then
     HOTSPOT_$1_CPU_DEFINE=X32
+  elif test "x$OPENJDK_$1_CPU" = xsparcv9; then
+    HOTSPOT_$1_CPU_DEFINE=SPARC
   elif test "x$OPENJDK_$1_CPU" = xaarch64; then
     HOTSPOT_$1_CPU_DEFINE=AARCH64
   elif test "x$OPENJDK_$1_CPU" = xppc64; then
@@ -448,6 +466,8 @@ AC_DEFUN([PLATFORM_SETUP_LEGACY_VARS_HELPER],
     HOTSPOT_$1_CPU_DEFINE=PPC64
 
   # The cpu defines below are for zero, we don't support them directly.
+  elif test "x$OPENJDK_$1_CPU" = xsparc; then
+    HOTSPOT_$1_CPU_DEFINE=SPARC
   elif test "x$OPENJDK_$1_CPU" = xppc; then
     HOTSPOT_$1_CPU_DEFINE=PPC32
   elif test "x$OPENJDK_$1_CPU" = xs390; then
@@ -526,6 +546,9 @@ AC_DEFUN_ONCE([PLATFORM_SETUP_OPENJDK_BUILD_AND_TARGET],
   PLATFORM_SET_MODULE_TARGET_OS_VALUES
   PLATFORM_SET_RELEASE_FILE_OS_VALUES
   PLATFORM_SETUP_LEGACY_VARS
+
+  # Deprecated in JDK 15
+  UTIL_DEPRECATED_ARG_ENABLE(deprecated-ports)
 ])
 
 AC_DEFUN_ONCE([PLATFORM_SETUP_OPENJDK_BUILD_OS_VERSION],

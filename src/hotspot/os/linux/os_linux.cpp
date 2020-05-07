@@ -318,7 +318,7 @@ bool os::have_special_privileges() {
 
 
 #ifndef SYS_gettid
-// i386: 224, ia64: 1105, amd64: 186
+// i386: 224, ia64: 1105, amd64: 186, sparc 143
   #ifdef __ia64__
     #define SYS_gettid 1105
   #else
@@ -328,7 +328,11 @@ bool os::have_special_privileges() {
       #ifdef __amd64__
         #define SYS_gettid 186
       #else
-        #error define gettid for the arch
+        #ifdef __sparc__
+          #define SYS_gettid 143
+        #else
+          #error define gettid for the arch
+        #endif
       #endif
     #endif
   #endif
@@ -404,7 +408,7 @@ void os::init_system_properties_values() {
   //        ...
   //        7: The default directories, normally /lib and /usr/lib.
 #ifndef OVERRIDE_LIBPATH
-  #if defined(AMD64) || defined(PPC64) || defined(S390)
+  #if defined(AMD64) || (defined(_LP64) && defined(SPARC)) || defined(PPC64) || defined(S390)
     #define DEFAULT_LIBPATH "/usr/lib64:/lib64:/lib:/usr/lib"
   #else
     #define DEFAULT_LIBPATH "/lib:/usr/lib"
@@ -1854,6 +1858,9 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_486,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
     {EM_IA_64,       EM_IA_64,   ELFCLASS64, ELFDATA2LSB, (char*)"IA 64"},
     {EM_X86_64,      EM_X86_64,  ELFCLASS64, ELFDATA2LSB, (char*)"AMD 64"},
+    {EM_SPARC,       EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
+    {EM_SPARC32PLUS, EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
+    {EM_SPARCV9,     EM_SPARCV9, ELFCLASS64, ELFDATA2MSB, (char*)"Sparc v9 64"},
     {EM_PPC,         EM_PPC,     ELFCLASS32, ELFDATA2MSB, (char*)"Power PC 32"},
 #if defined(VM_LITTLE_ENDIAN)
     {EM_PPC64,       EM_PPC64,   ELFCLASS64, ELFDATA2LSB, (char*)"Power PC 64 LE"},
@@ -1880,6 +1887,10 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_X86_64;
 #elif  (defined IA64)
   static  Elf32_Half running_arch_code=EM_IA_64;
+#elif  (defined __sparc) && (defined _LP64)
+  static  Elf32_Half running_arch_code=EM_SPARCV9;
+#elif  (defined __sparc) && (!defined _LP64)
+  static  Elf32_Half running_arch_code=EM_SPARC;
 #elif  (defined __powerpc64__)
   static  Elf32_Half running_arch_code=EM_PPC64;
 #elif  (defined __powerpc__)
@@ -1906,7 +1917,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_RISCV;
 #else
     #error Method os::dll_load requires that one of following is defined:\
-        AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, RISCV, S390, SH
+        AARCH64, ALPHA, ARM, AMD64, IA32, IA64, M68K, MIPS, MIPSEL, PARISC, __powerpc__, __powerpc64__, RISCV, S390, SH, __sparc
 #endif
 
   // Identify compatibility class for VM's architecture and library's architecture
@@ -2564,6 +2575,8 @@ const char* search_string = "CPU";
 const char* search_string = "cpu";
 #elif defined(S390)
 const char* search_string = "machine =";
+#elif defined(SPARC)
+const char* search_string = "cpu";
 #else
 const char* search_string = "Processor";
 #endif
@@ -2615,6 +2628,8 @@ void os::get_summary_cpu_info(char* cpuinfo, size_t length) {
   strncpy(cpuinfo, "PPC64", length);
 #elif defined(S390)
   strncpy(cpuinfo, "S390", length);
+#elif defined(SPARC)
+  strncpy(cpuinfo, "sparcv9", length);
 #elif defined(ZERO_LIBARCH)
   strncpy(cpuinfo, ZERO_LIBARCH, length);
 #else
