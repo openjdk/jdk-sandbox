@@ -34,7 +34,22 @@ import java.nio.channels.SocketChannel;
 
 public class NonBlockingAccept {
 
+    static boolean supported() {
+        try {
+            SocketChannel.open(StandardProtocolFamily.UNIX);
+        } catch (UnsupportedOperationException e) {
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+        return true;
+    }
+
     public static void main(String[] args) throws Exception {
+
+        if (!supported()) {
+            return;
+        }
 
         try (ServerSocketChannel serverSocketChannel =
                                  ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
