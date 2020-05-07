@@ -53,8 +53,6 @@ import static jdk.test.lib.net.IPSupport.*;
  * @library /test/lib
  * @build jdk.test.lib.NetworkConfiguration
  * @run testng/othervm OpenAndConnect
- * @run testng/othervm -Djava.net.preferIPv4Stack=true OpenAndConnect
- * @run testng/othervm -Djava.net.preferIPv6Addresses=true OpenAndConnect
  */
 
 
@@ -283,13 +281,13 @@ public class OpenAndConnect {
     }
 
     @Test(dataProvider = "openConnect")
-    public void scOpenConnect(ProtocolFamily sfam,
-                              InetAddress saddr,
-                              ProtocolFamily cfam,
-                              InetAddress caddr,
-                              boolean ipv4,
-                              boolean ipv6,
-                              int dgMask, int scMask) {
+    public void scOpenAndConnect(ProtocolFamily sfam,
+                                 InetAddress saddr,
+                                 ProtocolFamily cfam,
+                                 InetAddress caddr,
+                                 boolean ipv4,
+                                 boolean ipv6,
+                                 int dgMask, int scMask) {
         if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
@@ -299,7 +297,7 @@ public class OpenAndConnect {
             throw new SkipException("can't run due to configuration");
 
         boolean scPass = passOnThisPlatform(scMask);
-        out.printf("scOpenConnect: server bind: %s client bind: %s\n", saddr, caddr);
+        out.printf("scOpenAndConnect: server bind: %s client bind: %s\n", saddr, caddr);
         try (ServerSocketChannel ssc = openSSC(sfam)) {
             ssc.bind(getSocketAddress(saddr));
             InetSocketAddress ssa = (InetSocketAddress)ssc.getLocalAddress();
@@ -333,13 +331,13 @@ public class OpenAndConnect {
     }
 
     @Test(dataProvider = "openConnect")
-    public void dcOpenConnect(ProtocolFamily sfam,
-                              InetAddress saddr,
-                              ProtocolFamily cfam,
-                              InetAddress caddr,
-                              boolean ipv4,
-                              boolean ipv6,
-                              int dgMask, int scMask) {
+    public void dcOpenAndConnect(ProtocolFamily sfam,
+                                 InetAddress saddr,
+                                 ProtocolFamily cfam,
+                                 InetAddress caddr,
+                                 boolean ipv4,
+                                 boolean ipv6,
+                                 int dgMask, int scMask) {
         if (ipv4 != PREFERIPV4 || ipv6 != PREFERIPV6) {
             return;
         }
