@@ -25,7 +25,10 @@
 package build.tools.depend;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.ImportTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
@@ -100,11 +103,17 @@ import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Options;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.Properties;
+import java.util.LinkedHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Name;
 import javax.tools.ForwardingJavaFileManager;
 import javax.tools.JavaFileManager;
 import javax.tools.StandardLocation;
@@ -137,20 +146,25 @@ public class Depend implements Plugin {
         AtomicBoolean noApiChange = new AtomicBoolean(); 
         try {
             Context context = ((BasicJavacTask) jt).getContext();
-            Set<String> modified = new HashSet<>(Arrays.asList(Options.instance(context).get("modifiedInputs").split(" ")));
-            File internalAPIDigestFile = new File(args[1]);
-            Properties internalAPI = new Properties();
-            if (internalAPIDigestFile.canRead()) {
-                try (InputStream in = new FileInputStream(internalAPIDigestFile)) {
-                    internalAPI.load(in);
-                } catch (IOException ex) {
-                    throw new IllegalStateException(ex);
-                }
+            Options options = Options.instance(context);
+            String modifiedInputs = options.get("modifiedInputs");
+            if (modifiedInputs == null) {
+                throw new IllegalStateException("Expected modifiedInputs to be set using -XDmodifiedInputs=<list-of-files>");
+            }
+            Set<String> modified = new HashSet<>(Arrays.asList(modifiedInputs.split(" ")));
+            Path internalAPIDigestFile = Paths.get(args[1]);
+            Map<String, String> internalAPI = new LinkedHashMap<>();
+            if (Files.isReadable(internalAPIDigestFile)) {
+                Files.readAllLines(internalAPIDigestFile, StandardCharsets.UTF_8)
+                     .forEach(line -> {
+                         String[] keyAndValue = line.split("=");
+                         internalAPI.put(keyAndValue[0], keyAndValue[1]);
+                     });
             }
             JavaCompiler compiler = JavaCompiler.instance(context);
             JavaCompiler.class.getDeclaredField("doParseFiles").set(compiler, (Function<Iterable<JavaFileObject>, com.sun.tools.javac.util.List<JCCompilationUnit>>) fileObjects -> {
                 Map<JavaFileObject, JCCompilationUnit> files2CUT = new IdentityHashMap<>();
-                boolean fullRecompile = modified.stream().anyMatch(f -> !f.endsWith(".java"));
+                boolean fullRecompile = modified.stream().anyMatch(f -> !f.endsWith(".java")); //TODO: case sensitive!
                 for (JavaFileObject jfo : fileObjects) {
                     if (modified.contains(jfo.getName())) {
                         JCCompilationUnit parsed = compiler.parse(jfo);
@@ -173,8 +187,12 @@ public class Depend implements Plugin {
                         }
                         result.add(parsed);
                     }
-                    try (OutputStream out = new FileOutputStream(internalAPIDigestFile)) {
-                        internalAPI.store(out, "");
+                    try (OutputStream out = Files.newOutputStream(internalAPIDigestFile)) {
+                        String hashes = internalAPI.entrySet()
+                                                   .stream()
+                                                   .map(e -> e.getKey() + "=" + e.getValue())
+                                                   .collect(Collectors.joining("\n"));
+                        out.write(hashes.getBytes(StandardCharsets.UTF_8));
                     } catch (IOException ex) {
                         throw new IllegalStateException(ex);
                     }
@@ -638,6 +656,7 @@ public class Depend implements Plugin {
     
     private static final class TreeVisitor extends TreeScanner<Void, Void> {
 
+        private final Set<Name> seenIdentifiers = new HashSet<>();
         private final MessageDigest apiHash;
         private final Charset utf8;
 
@@ -656,13 +675,44 @@ public class Depend implements Plugin {
             if (tree != null) {
                 update(tree.getKind().name());
             };
+            super.scan(tree, p);
             update(")");
-            return super.scan(tree, p);
+            return null;
+        }
+
+        @Override
+        public Void visitCompilationUnit(CompilationUnitTree node, Void p) {
+            scan(node.getPackage(), p);
+            seenIdentifiers.clear();
+            scan(node.getTypeDecls(), p);
+            List<ImportTree> importantImports = new ArrayList<>();
+            for (ImportTree imp : node.getImports()) {
+                Tree t = imp.getQualifiedIdentifier();
+                if (t.getKind() == Tree.Kind.MEMBER_SELECT) {
+                    Name member = ((MemberSelectTree) t).getIdentifier();
+                    if (member.contentEquals("*") || seenIdentifiers.contains(member)) {
+                        importantImports.add(imp);
+                    }
+                } else {
+                    //should not happen, possibly erroneous source?
+                    importantImports.add(imp);
+                }
+            }
+            importantImports.sort((imp1, imp2) -> {
+                if (imp1.isStatic() ^ imp2.isStatic()) {
+                    return imp1.isStatic() ? -1 : 1;
+                } else {
+                    return imp1.getQualifiedIdentifier().toString().compareTo(imp2.getQualifiedIdentifier().toString());
+                }
+            });
+            scan(importantImports, p);
+            return null;
         }
 
         @Override
         public Void visitIdentifier(IdentifierTree node, Void p) {
             update(node.getName());
+            seenIdentifiers.add(node.getName());
             return super.visitIdentifier(node, p);
         }
 
@@ -676,6 +726,14 @@ public class Depend implements Plugin {
         public Void visitMemberReference(MemberReferenceTree node, Void p) {
             update(node.getName());
             return super.visitMemberReference(node, p);
+        }
+
+        @Override
+        public Void scan(Iterable<? extends Tree> nodes, Void p) {
+            update("(");
+            super.scan(nodes, p);
+            update(")");
+            return null;
         }
 
         @Override
@@ -728,7 +786,18 @@ public class Depend implements Plugin {
             scan(node.getDefaultValue(), p);
             return null;
         }
-        
+
+        @Override
+        public Void visitLiteral(LiteralTree node, Void p) {
+            update(String.valueOf(node.getValue()));
+            return super.visitLiteral(node, p);
+        }
+
+        @Override
+        public Void visitModifiers(ModifiersTree node, Void p) {
+            update(node.getFlags().toString());
+            return super.visitModifiers(node, p);
+        }
+
     }
-    
 }
