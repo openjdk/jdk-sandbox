@@ -215,27 +215,18 @@ Java_sun_nio_ch_Net_unixDomainAccept(JNIEnv *env, jclass clazz, jobject fdo, job
     socklen_t sa_len = sizeof(sa);
     jobject usa;
 
-    /* accept connection but ignore ECONNABORTED */
-    for (;;) {
-        newfd = (jint)accept(fd, (struct sockaddr *)&sa, &sa_len);
-        if (newfd >= 0) {
-            break;
-        }
-        if (errno != ECONNABORTED) {
-            break;
-        }
-        /* ECONNABORTED => restart accept */
-    }
-
-    if (newfd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+    memset((char *)&sa, 0, sizeof(sa));
+    newfd = (jint) accept(fd, (struct sockaddr *)&sa, &sa_len);
+    if (newfd == INVALID_SOCKET) {
+        int theErr = (jint)WSAGetLastError();
+        if (theErr == WSAEWOULDBLOCK) {
             return IOS_UNAVAILABLE;
-        if (errno == EINTR)
-            return IOS_INTERRUPTED;
+        }
         JNU_ThrowIOExceptionWithLastError(env, "Accept failed");
         return IOS_THROWN;
     }
 
+    SetHandleInformation((HANDLE)(UINT_PTR)newfd, HANDLE_FLAG_INHERIT, 0);
     setfdval(env, newfdo, newfd);
 
     usa = NET_SockaddrToUnixAddress(env, &sa, sa_len);
