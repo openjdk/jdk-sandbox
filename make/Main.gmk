@@ -82,14 +82,17 @@ $(eval $(call SetupTarget, interim-tzdb, \
 
 $(eval $(call SetupTarget, buildtools-jdk, \
     MAKEFILE := CompileToolsJdk, \
+    DEPS := interim-langtools interim-tzdb, \
 ))
 
 $(eval $(call SetupTarget, buildtools-modules, \
     MAKEFILE := CompileModuleTools, \
+    DEPS := exploded-image-base, \
 ))
 
 $(eval $(call SetupTarget, buildtools-hotspot, \
     MAKEFILE := CompileToolsHotspot, \
+    DEPS := interim-langtools, \
 ))
 
 ################################################################################
@@ -97,6 +100,7 @@ $(eval $(call SetupTarget, buildtools-hotspot, \
 
 $(eval $(call SetupTarget, generate-exported-symbols, \
     MAKEFILE := BuildStatic, \
+    DEPS := java.base-libs jdk.jdwp.agent-libs, \
 ))
 
 ################################################################################
@@ -255,6 +259,7 @@ $(foreach v, $(JVM_VARIANTS), $(eval $(call DeclareHotspotLibsRecipe,$v)))
 
 $(eval $(call SetupTarget, hotspot-ide-project, \
     MAKEFILE := ide/CreateVSProject, \
+    DEPS := hotspot exploded-image, \
 ))
 
 ALL_TARGETS += $(HOTSPOT_VARIANT_TARGETS) $(HOTSPOT_VARIANT_GENSRC_TARGETS) \
@@ -283,7 +288,6 @@ $(eval $(call SetupTarget, compile-commands, \
     MAKEFILE := CompileCommands, \
 ))
 
-## FIXME: are both needed???
 $(eval $(call SetupTarget, compile-commands-hotspot, \
     MAKEFILE := CompileCommands, \
 ))
@@ -296,33 +300,42 @@ ALL_TARGETS += $(COMPILE_COMMANDS_TARGETS_HOTSPOT) $(COMPILE_COMMANDS_TARGETS_JD
 $(eval $(call SetupTarget, vscode-project, \
     MAKEFILE := CreateVSCodeProject, \
     ARGS := VSCODE_INDEXER=cpptools, \
+    DEPS := compile-commands, \
 ))
 
 $(eval $(call SetupTarget, vscode-project-clangd, \
     MAKEFILE := CreateVSCodeProject, \
     ARGS := VSCODE_INDEXER=clangd, \
+    DEPS := compile-commands, \
 ))
 
 $(eval $(call SetupTarget, vscode-project-rtags, \
     MAKEFILE := CreateVSCodeProject, \
     ARGS := VSCODE_INDEXER=rtags, \
+    DEPS := compile-commands, \
 ))
 
 $(eval $(call SetupTarget, vscode-project-ccls, \
     MAKEFILE := CreateVSCodeProject, \
     ARGS := VSCODE_INDEXER=ccls, \
+    DEPS := compile-commands, \
 ))
 
 ################################################################################
 # Build demos targets
 
+# The demos are currently linking to libjvm and libjava, just like all other
+# jdk libs, even though they don't need to. To avoid warnings, make sure they
+# aren't built until after libjava and libjvm are available to link to.
 $(eval $(call SetupTarget, demos-jdk, \
     MAKEFILE := CompileDemos, \
+    DEPS := java.base-libs exploded-image, \
 ))
 
 $(eval $(call SetupTarget, test-image-demos-jdk, \
     MAKEFILE := CompileDemos, \
     TARGET := images, \
+    DEPS := demos-jdk, \
 ))
 
 ################################################################################
@@ -330,6 +343,7 @@ $(eval $(call SetupTarget, test-image-demos-jdk, \
 
 $(eval $(call SetupTarget, generate-summary, \
     MAKEFILE := GenerateModuleSummary, \
+    DEPS := jmods buildtools-modules, \
 ))
 
 ################################################################################
@@ -374,24 +388,29 @@ bootcycle-images:
 
 $(eval $(call SetupTarget, zip-security, \
     MAKEFILE := ZipSecurity, \
+    DEPS := java.base-java java.security.jgss-java java.security.jgss-libs, \
 ))
 
 $(eval $(call SetupTarget, zip-source, \
     MAKEFILE := ZipSource, \
+    DEPS := gensrc, \
 ))
 
 $(eval $(call SetupTarget, jrtfs-jar, \
     MAKEFILE := JrtfsJar, \
+    DEPS := interim-langtools, \
 ))
 
 $(eval $(call SetupTarget, jdk-image, \
     MAKEFILE := Images, \
     TARGET := jdk, \
+    DEPS := jmods zip-source demos release-file, \
 ))
 
 $(eval $(call SetupTarget, legacy-jre-image, \
     MAKEFILE := Images, \
     TARGET := jre, \
+    DEPS := jmods release-file, \
 ))
 
 $(eval $(call SetupTarget, symbols-image, \
@@ -406,29 +425,36 @@ $(eval $(call SetupTarget, static-libs-image, \
 $(eval $(call SetupTarget, mac-jdk-bundle, \
     MAKEFILE := MacBundles, \
     TARGET := jdk-bundle, \
+    DEPS := jdk-image, \
 ))
 
 $(eval $(call SetupTarget, mac-legacy-jre-bundle, \
     MAKEFILE := MacBundles, \
     TARGET := jre-bundle, \
+    DEPS := legacy-jre-image, \
 ))
 
 $(eval $(call SetupTarget, release-file, \
     MAKEFILE := ReleaseFile, \
+    DEPS := create-source-revision-tracker, \
 ))
 
 $(eval $(call SetupTarget, exploded-image-optimize, \
     MAKEFILE := ExplodedImageOptimize, \
+    DEPS := java copy gendata java.base-libs java.base-launchers \
+        buildtools-modules, \
 ))
 
 $(eval $(call SetupTarget, graal-builder-image, \
     MAKEFILE := GraalBuilderImage, \
+    DEPS := jdk-image static-libs-image, \
 ))
 
 ifeq ($(JCOV_ENABLED), true)
   $(eval $(call SetupTarget, jcov-image, \
       MAKEFILE := Coverage, \
       TARGET := jcov-image, \
+      DEPS := jdk-image, \
   ))
 endif
 
@@ -447,6 +473,7 @@ $(eval $(call SetupTarget, docs-jdk-api-javadoc, \
 $(eval $(call SetupTarget, docs-jdk-api-modulegraph, \
     MAKEFILE := Docs, \
     TARGET := docs-jdk-api-modulegraph, \
+    DEPS := exploded-image buildtools-modules, \
 ))
 
 $(eval $(call SetupTarget, docs-javase-api-javadoc, \
@@ -457,6 +484,7 @@ $(eval $(call SetupTarget, docs-javase-api-javadoc, \
 $(eval $(call SetupTarget, docs-javase-api-modulegraph, \
     MAKEFILE := Docs, \
     TARGET := docs-javase-api-modulegraph, \
+    DEPS := exploded-image buildtools-modules, \
 ))
 
 $(eval $(call SetupTarget, docs-reference-api-javadoc, \
@@ -467,11 +495,14 @@ $(eval $(call SetupTarget, docs-reference-api-javadoc, \
 $(eval $(call SetupTarget, docs-reference-api-modulegraph, \
     MAKEFILE := Docs, \
     TARGET := docs-reference-api-modulegraph, \
+    DEPS := exploded-image buildtools-modules, \
 ))
 
+# The gensrc steps for jdk.jdi create html spec files.
 $(eval $(call SetupTarget, docs-jdk-specs, \
     MAKEFILE := Docs, \
     TARGET := docs-jdk-specs, \
+    DEPS := buildtools-jdk jdk.jdi-gensrc docs-jdk-index, \
 ))
 
 $(eval $(call SetupTarget, docs-jdk-index, \
@@ -482,11 +513,13 @@ $(eval $(call SetupTarget, docs-jdk-index, \
 $(eval $(call SetupTarget, docs-zip, \
     MAKEFILE := Docs, \
     TARGET := docs-zip, \
+    DEPS :=  docs-jdk, \
 ))
 
 $(eval $(call SetupTarget, docs-specs-zip, \
     MAKEFILE := Docs, \
     TARGET := docs-specs-zip, \
+    DEPS := docs-jdk-specs, \
 ))
 
 $(eval $(call SetupTarget, update-build-docs, \
@@ -495,6 +528,7 @@ $(eval $(call SetupTarget, update-build-docs, \
 
 $(eval $(call SetupTarget, update-x11wrappers, \
     MAKEFILE := UpdateX11Wrappers, \
+    DEPS := java.base-copy buildtools-jdk, \
 ))
 
 ################################################################################
@@ -583,41 +617,49 @@ $(eval $(call SetupTarget, prepare-test-image, \
 $(eval $(call SetupTarget, build-test-hotspot-jtreg-native, \
     MAKEFILE := test/JtregNativeHotspot, \
     TARGET := build-test-hotspot-jtreg-native, \
+    DEPS := buildtools-jdk, \
 ))
 
 $(eval $(call SetupTarget, test-image-hotspot-jtreg-native, \
     MAKEFILE := test/JtregNativeHotspot, \
     TARGET := test-image-hotspot-jtreg-native, \
+    DEPS := build-test-hotspot-jtreg-native, \
 ))
 
 $(eval $(call SetupTarget, build-test-jdk-jtreg-native, \
     MAKEFILE := test/JtregNativeJdk, \
     TARGET := build-test-jdk-jtreg-native, \
+    DEPS := buildtools-jdk java.base-libs, \
 ))
 
 $(eval $(call SetupTarget, test-image-jdk-jtreg-native, \
     MAKEFILE := test/JtregNativeJdk, \
     TARGET := test-image-jdk-jtreg-native, \
+    DEPS := build-test-jdk-jtreg-native, \
 ))
 
 $(eval $(call SetupTarget, build-test-hotspot-jtreg-graal, \
     MAKEFILE := test/JtregGraalUnit, \
     TARGET := build-test-hotspot-jtreg-graal, \
+    DEPS := exploded-image, \
 ))
 
 $(eval $(call SetupTarget, test-image-hotspot-jtreg-graal, \
     MAKEFILE := test/JtregGraalUnit, \
     TARGET := test-image-hotspot-jtreg-graal, \
+    DEPS := build-test-hotspot-jtreg-graal, \
 ))
 
 ifeq ($(BUILD_GTEST), true)
   $(eval $(call SetupTarget, test-image-hotspot-gtest, \
       MAKEFILE := hotspot/test/GtestImage, \
+      DEPS := hotspot, \
   ))
 endif
 
 $(eval $(call SetupTarget, build-test-lib, \
     MAKEFILE := test/BuildTestLib, \
+    DEPS := exploded-image, \
 ))
 
 ifeq ($(BUILD_FAILURE_HANDLER), true)
@@ -625,17 +667,20 @@ ifeq ($(BUILD_FAILURE_HANDLER), true)
   $(eval $(call SetupTarget, build-test-failure-handler, \
       MAKEFILE := test/BuildFailureHandler, \
       TARGET := build, \
+      DEPS := interim-langtools, \
   ))
 
   # Copies the failure handler jtreg extension into the test image
   $(eval $(call SetupTarget, test-image-failure-handler, \
       MAKEFILE := test/BuildFailureHandler, \
       TARGET := images, \
+      DEPS := build-test-failure-handler, \
   ))
 endif
 
 $(eval $(call SetupTarget, build-microbenchmark, \
     MAKEFILE := test/BuildMicrobenchmark, \
+    DEPS := interim-langtools exploded-image, \
 ))
 
 ################################################################################
@@ -644,17 +689,22 @@ $(eval $(call SetupTarget, build-microbenchmark, \
 $(eval $(call SetupTarget, test, \
     MAKEFILE := RunTests, \
     ARGS := TEST="$(TEST)", \
+    DEPS := jdk-image test-image, \
 ))
 
 $(eval $(call SetupTarget, exploded-test, \
     MAKEFILE := RunTests, \
     ARGS := TEST="$(TEST)" JDK_IMAGE_DIR=$(JDK_OUTPUTDIR), \
+    DEPS := exploded-image test-image, \
 ))
 
-$(eval $(call SetupTarget, jcov-test, \
-    MAKEFILE := RunTests, \
-    ARGS := TEST="$(TEST)" TEST_OPTS_JCOV=true, \
-))
+ifeq ($(JCOV_ENABLED), true)
+  $(eval $(call SetupTarget, jcov-test, \
+      MAKEFILE := RunTests, \
+      ARGS := TEST="$(TEST)" TEST_OPTS_JCOV=true, \
+      DEPS := jcov-image test-image, \
+  ))
+endif
 
 ################################################################################
 # Bundles
@@ -662,32 +712,38 @@ $(eval $(call SetupTarget, jcov-test, \
 $(eval $(call SetupTarget, product-bundles, \
     MAKEFILE := Bundles, \
     TARGET := product-bundles, \
+    DEPS := product-images, \
 ))
 
 $(eval $(call SetupTarget, legacy-bundles, \
     MAKEFILE := Bundles, \
     TARGET := legacy-bundles, \
+    DEPS := legacy-images, \
 ))
 
 $(eval $(call SetupTarget, test-bundles, \
     MAKEFILE := Bundles, \
     TARGET := test-bundles, \
+    DEPS := test-image, \
 ))
 
 $(eval $(call SetupTarget, docs-bundles, \
     MAKEFILE := Bundles, \
     TARGET := docs-bundles, \
+    DEPS := docs-image, \
 ))
 
 $(eval $(call SetupTarget, static-libs-bundles, \
     MAKEFILE := Bundles, \
     TARGET := static-libs-bundles, \
+    DEPS := static-libs-image, \
 ))
 
 ifeq ($(JCOV_ENABLED), true)
   $(eval $(call SetupTarget, jcov-bundles, \
       MAKEFILE := Bundles, \
       TARGET := jcov-bundles, \
+      DEPS := jcov-image, \
   ))
 endif
 
@@ -696,6 +752,7 @@ endif
 
 $(eval $(call SetupTarget, install, \
     MAKEFILE := Install, \
+    DEPS := product-images, \
 ))
 
 else # if DEPS != only
@@ -728,12 +785,6 @@ else # DEPS=full or DEPS=only
 
   interim-langtools: $(INTERIM_LANGTOOLS_GENSRC_TARGETS)
 
-  buildtools-jdk: interim-langtools interim-tzdb
-
-  buildtools-hotspot: interim-langtools
-
-  buildtools-modules: exploded-image-base
-
   $(HOTSPOT_GENSRC_TARGETS): interim-langtools buildtools-hotspot
 
   $(JDK_GENSRC_TARGETS): interim-langtools buildtools-jdk
@@ -750,10 +801,6 @@ else # DEPS=full or DEPS=only
       $(eval hotspot-$v-libs: hotspot-$v-gensrc java.base-copy) \
   )
 
-  hotspot-ide-project: hotspot exploded-image
-
-  generate-exported-symbols: java.base-libs jdk.jdwp.agent-libs
-
   # If not already set, set the JVM variant target so that the JVM will be built.
   JVM_MAIN_LIB_TARGETS ?= hotspot-$(JVM_VARIANT_MAIN)-libs
 
@@ -765,12 +812,6 @@ else # DEPS=full or DEPS=only
   ifeq ($(STATIC_BUILD), true)
     $(LAUNCHER_TARGETS): generate-exported-symbols
   endif
-
-  # The demos are currently linking to libjvm and libjava, just like all other
-  # jdk libs, even though they don't need to. To avoid warnings, make sure they
-  # aren't built until after libjava and libjvm are available to link to.
-  demos-jdk: java.base-libs exploded-image
-  test-image-demos-jdk: demos-jdk
 
   # Declare dependency from <module>-java to <module>-gensrc
   $(foreach m, $(GENSRC_MODULES), $(eval $m-java: $m-gensrc))
@@ -859,11 +900,6 @@ else # DEPS=full or DEPS=only
   compile-commands-hotspot: $(COMPILE_COMMANDS_TARGETS_HOTSPOT)
   compile-commands: $(COMPILE_COMMANDS_TARGETS_HOTSPOT) $(COMPILE_COMMANDS_TARGETS_JDK)
 
-  vscode-project: compile-commands
-  vscode-project-clangd: compile-commands
-  vscode-project-rtags: compile-commands
-  vscode-project-ccls: compile-commands
-
   # The -static-libs targets depend on -java as well as java.base-copy.
   $(foreach m, $(filter $(JAVA_MODULES), $(STATIC_LIBS_MODULES)), \
     $(eval $m-static-libs: $m-java java.base-copy))
@@ -899,14 +935,7 @@ else # DEPS=full or DEPS=only
   # All modules include the main license files from java.base.
   $(JMOD_TARGETS): java.base-copy
 
-  zip-security: java.base-java java.security.jgss-java java.security.jgss-libs \
-      $(filter jdk.crypto%, $(JAVA_TARGETS))
-
-  zip-source: gensrc
-
-  jrtfs-jar: interim-langtools
-
-  build-microbenchmark: interim-langtools exploded-image
+  zip-security: $(filter jdk.crypto%, $(JAVA_TARGETS))
 
   ifeq ($(ENABLE_GENERATE_CLASSLIST), true)
     ifeq ($(CREATE_BUILDJDK), true)
@@ -924,28 +953,9 @@ else # DEPS=full or DEPS=only
     java.base-jmod jdk.jlink-jmod jdk-image legacy-jre-image: generate-link-opt-data
   endif
 
-  release-file: create-source-revision-tracker
-
-  jdk-image: jmods zip-source demos release-file
-  legacy-jre-image: jmods release-file
   symbols-image: $(LIBS_TARGETS) $(LAUNCHER_TARGETS)
 
   static-libs-image: $(STATIC_LIBS_TARGETS)
-
-  graal-builder-image: jdk-image static-libs-image
-
-  mac-jdk-bundle: jdk-image
-  mac-legacy-jre-bundle: legacy-jre-image
-
-  ifeq ($(JCOV_INPUT_JDK), )
-    jcov-image: jdk-image
-  endif
-
-  # The optimize target can run as soon as the modules dir has been completely
-  # populated (java, copy and gendata targets) and the basic libs and launchers
-  # have been built.
-  exploded-image-optimize: java copy gendata java.base-libs java.base-launchers \
-      buildtools-modules
 
   bootcycle-images: jdk-image
 
@@ -955,30 +965,13 @@ else # DEPS=full or DEPS=only
 
   docs-reference-api-javadoc: $(GENSRC_TARGETS)
 
-  docs-jdk-api-modulegraph: exploded-image buildtools-modules
-
-  docs-javase-api-modulegraph: exploded-image buildtools-modules
-
-  docs-reference-api-modulegraph: exploded-image buildtools-modules
-
   # If not already set, then set the JVM specific docs targets
   JVM_DOCS_TARGETS ?= hotspot-$(JVM_VARIANT_MAIN)-gensrc
 
-  # The gensrc steps for hotspot and jdk.jdi create html spec files.
-  docs-jdk-specs: buildtools-jdk $(JVM_DOCS_TARGETS) jdk.jdi-gensrc \
-      docs-jdk-index
-
-  docs-zip: docs-jdk
-
-  docs-specs-zip: docs-jdk-specs
+  # The gensrc steps for hotspot create html spec files.
+  docs-jdk-specs: $(JVM_DOCS_TARGETS)
 
   # Tests
-  test: jdk-image test-image
-
-  exploded-test: exploded-image test-image
-
-  jcov-test: jcov-image test-image
-
   test-make: clean-test-make compile-commands
 
   test-make-compile-commands: compile-commands
@@ -989,44 +982,7 @@ else # DEPS=full or DEPS=only
 
   interim-image: $(INTERIM_JMOD_TARGETS)
 
-  build-test-lib: exploded-image
-
-  build-test-failure-handler: interim-langtools
-
-  test-image-failure-handler: build-test-failure-handler
-
-  build-test-hotspot-jtreg-native: buildtools-jdk \
-      hotspot-$(JVM_VARIANT_MAIN)-libs
-
-  build-test-jdk-jtreg-native: buildtools-jdk java.base-libs
-
-  build-test-hotspot-jtreg-graal: exploded-image
-
-  test-image-hotspot-jtreg-native: build-test-hotspot-jtreg-native
-
-  test-image-jdk-jtreg-native: build-test-jdk-jtreg-native
-
-  test-image-hotspot-jtreg-graal: build-test-hotspot-jtreg-graal
-
-  test-image-hotspot-gtest: hotspot
-
-  install: product-images
-
-  product-bundles: product-images
-
-  legacy-bundles: legacy-images
-
-  test-bundles: test-image
-
-  docs-bundles: docs-image
-
-  jcov-bundles: jcov-image
-
-  static-libs-bundles: static-libs-image
-
-  generate-summary: jmods buildtools-modules
-
-  update-x11wrappers: java.base-copy buildtools-jdk
+  build-test-hotspot-jtreg-native: hotspot-$(JVM_VARIANT_MAIN)-libs
 
 endif
 

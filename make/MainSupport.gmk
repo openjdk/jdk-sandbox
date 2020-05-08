@@ -38,6 +38,7 @@ _MAINSUPPORT_GMK := 1
 #   MAKEFILE the makefile to delegate to
 #   TARGET the makefile target
 #   ARGS arguments to the makefile
+#   DEPS the target(s) this new rule depends on
 #
 SetupTarget = $(NamedParamsMacroTemplate)
 define SetupTargetBody
@@ -45,6 +46,8 @@ $1:
 	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) -f $$($1_MAKEFILE).gmk $$($1_ARGS))
 
   ALL_TARGETS += $1
+
+$1: $$($1_DEPS)
 endef
 
 define CleanDocs
