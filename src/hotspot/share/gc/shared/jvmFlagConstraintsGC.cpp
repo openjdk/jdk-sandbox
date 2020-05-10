@@ -262,18 +262,6 @@ JVMFlag::Error GCPauseIntervalMillisConstraintFunc(uintx value, bool verbose) {
   return JVMFlag::SUCCESS;
 }
 
-JVMFlag::Error InitialBootClassLoaderMetaspaceSizeConstraintFunc(size_t value, bool verbose) {
-  size_t aligned_max = align_down(max_uintx/2, Metaspace::reserve_alignment_words());
-  if (value > aligned_max) {
-    JVMFlag::printError(verbose,
-                        "InitialBootClassLoaderMetaspaceSize (" SIZE_FORMAT ") must be "
-                        "less than or equal to aligned maximum value (" SIZE_FORMAT ")\n",
-                        value, aligned_max);
-    return JVMFlag::VIOLATES_CONSTRAINT;
-  }
-  return JVMFlag::SUCCESS;
-}
-
 // To avoid an overflow by 'align_up(value, alignment)'.
 static JVMFlag::Error MaxSizeForAlignment(const char* name, size_t value, size_t alignment, bool verbose) {
   size_t aligned_max = ((max_uintx - alignment) & ~(alignment-1));

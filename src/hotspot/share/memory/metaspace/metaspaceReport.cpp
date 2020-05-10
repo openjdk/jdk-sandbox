@@ -98,9 +98,6 @@ static void print_settings(outputStream* out, size_t scale) {
     print_human_readable_size(out, CompressedClassSpaceSize, scale);
   }
   out->cr();
-  out->print("InitialBootClassLoaderMetaspaceSize: ");
-  print_human_readable_size(out, InitialBootClassLoaderMetaspaceSize, scale);
-  out->cr();
   Settings::print_on(out);
 }
 

@@ -887,12 +887,6 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, IgnoreEmptyClassPaths, false,                               \
           "Ignore empty path elements in -classpath")                       \
                                                                             \
-  product(size_t, InitialBootClassLoaderMetaspaceSize,                      \
-          NOT_LP64(2200*K) LP64_ONLY(4*M),                                  \
-          "Initial size of the boot class loader data metaspace")           \
-          range(30*K, max_uintx/BytesPerWord)                               \
-          constraint(InitialBootClassLoaderMetaspaceSizeConstraintFunc, AfterErgo)\
-                                                                            \
   product(bool, PrintHeapAtSIGBREAK, true,                                  \
           "Print heap layout in response to SIGBREAK")                      \
                                                                             \

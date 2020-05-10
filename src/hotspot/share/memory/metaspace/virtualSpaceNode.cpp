@@ -396,7 +396,7 @@ Metachunk* VirtualSpaceNode::merge(Metachunk* c, MetachunkListVector* freelists)
   assert(c != NULL && c->is_free(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
 
-  // Get the tree associated with this chunk and let it handle the merging
+  // Get the rca associated with this chunk and let it handle the merging
   RootChunkArea* rca = _root_chunk_area_lut.get_area_by_address(c->base());
 
   Metachunk* c2 = rca->merge(c, freelists);
@@ -421,7 +421,7 @@ bool VirtualSpaceNode::attempt_enlarge_chunk(Metachunk* c, MetachunkListVector* 
   assert(c != NULL && c->is_in_use() && !c->is_root_chunk(), "Sanity");
   assert_lock_strong(MetaspaceExpand_lock);
 
-  // Get the tree associated with this chunk and let it handle the merging
+  // Get the rca associated with this chunk and let it handle the merging
   RootChunkArea* rca = _root_chunk_area_lut.get_area_by_address(c->base());
 
   bool rc = rca->attempt_enlarge_chunk(c, freelists);

@@ -30,6 +30,10 @@
 
 namespace metaspace {
 
+// Todo: simplify?
+// This used to contain more logic in the first prototypes, but now it is basically
+// a set of hard-wired integer arrays. We may do away with the implementation hiding.
+
 // A chunk allocation sequence which can be encoded with a simple const array.
 class ConstantChunkAllocSequence : public ChunkAllocSequence {
 
@@ -124,57 +128,6 @@ DEFINE_CLASS_FOR_ARRAY(refl_non_class)
 DEFINE_CLASS_FOR_ARRAY(refl_class)
 DEFINE_CLASS_FOR_ARRAY(boot_non_class)
 DEFINE_CLASS_FOR_ARRAY(boot_class)
-
-/*
-class BootLoaderChunkAllocSequence : public ChunkAllocSequence {
-
-  // For now, this mirrors what the old code did
-  // (see SpaceManager::get_initial_chunk_size() and SpaceManager::calc_chunk_size).
-
-  // Not sure how much sense this still makes, especially with CDS - by default we
-  // now load JDK classes from CDS and therefore most of the boot loader
-  // chunks remain unoccupied.
-
-  // Also, InitialBootClassLoaderMetaspaceSize was/is confusing since it only applies
-  // to the non-class chunk.
-
-  const bool _is_class;
-
-  static chklvl_t calc_initial_chunk_level(bool is_class) {
-
-    size_t word_size = 0;
-    if (is_class) {
-      // In the old version first class space chunk for boot loader was always medium class chunk size * 6.
-      word_size = (32 * K * 6) / BytesPerWord;
-
-    } else {
-      //assert(InitialBootClassLoaderMetaspaceSize < chklvl::MAX_CHUNK_BYTE_SIZE,
-      //       "InitialBootClassLoaderMetaspaceSize too large");
-      word_size = MIN2(InitialBootClassLoaderMetaspaceSize,
-                       chklvl::MAX_CHUNK_BYTE_SIZE) / BytesPerWord;
-    }
-    return chklvl::level_fitting_word_size(word_size);
-  }
-
-public:
-
-  BootLoaderChunkAllocSequence(bool is_class)
-    : _is_class(is_class)
-  {}
-
-  chklvl_t get_next_chunk_level(int num_allocated) const {
-    if (num_allocated == 0) {
-      return calc_initial_chunk_level(_is_class);
-    }
-    // bit arbitrary, but this is what the old code did. Can tweak later if needed.
-    return chklvl::CHUNK_LEVEL_64K;
-  }
-
-};
-
-static BootLoaderChunkAllocSequence g_chunk_alloc_sequence_boot_non_class(false);
-static BootLoaderChunkAllocSequence g_chunk_alloc_sequence_boot_class(true);
-*/
 
 const ChunkAllocSequence* ChunkAllocSequence::alloc_sequence_by_space_type(MetaspaceType space_type, bool is_class) {
 
