@@ -709,16 +709,50 @@ void Metaspace::ergo_initialize() {
   // Reserve alignment: all Metaspace memory mappings are to be aligned to the size of a root chunk.
   _reserve_alignment = MAX2((size_t)os::vm_allocation_granularity(), metaspace::chklvl::MAX_CHUNK_BYTE_SIZE);
 
-  // Do not use FLAG_SET_ERGO to update MaxMetaspaceSize, since this will
-  // override if MaxMetaspaceSize was set on the command line or not.
-  // This information is needed later to conform to the specification of the
-  // java.lang.management.MemoryUsage API.
-  //
-  // Ideally, we would be able to set the default value of MaxMetaspaceSize in
-  // globals.hpp to the aligned value, but this is not possible, since the
-  // alignment depends on other flags being parsed.
-  MaxMetaspaceSize = align_down_bounded(MaxMetaspaceSize, _reserve_alignment);
 
+  // MaxMetaspaceSize and CompressedClassSpaceSize:
+  //
+  // MaxMetaspaceSize is the maximum size, in bytes, of memory we are allowed to commit for the Metaspace.
+  //  It is just a number, a cap we compare against before committing. It does not have to be aligned to anything.
+  //  It gets used as compare value in class CommitLimiter.
+  //  It is set to max_uintx in globals.hpp by default, so by default it does not limit anything.
+  //
+  // CompressedClassSpaceSize is the size, in bytes, of the address range we pre-reserve for the compressed
+  //  class space if -XX:+UseCompressedClassPointers is on.
+  //  This size has to be aligned to the metaspace reserve alignment (to the size of a root chunk). It gets
+  //  aligned up from whatever value the caller gave us to the next multiple of root chunk size.
+  //
+  // Note: Strictly speaking MaxMetaspaceSize and CompressedClassSpaceSize have very little to do with each
+  // other. The notion often encountered: MaxMetaspaceSize = CompressedClassSpaceSize + <non-class metadata size>
+  // is subtly wrong: MaxMetaspaceSize could be way smaller than CompressedClassSpaceSize, in which case we just
+  // would not be able to fully commit the class space range.
+  //
+  // We still adjust CompressedClassSpaceSize to constitute only a max. percentage of MaxMetaspaceSize. Mainly
+  // to save on reserved space, and to make ergnonomics less confusing.
+
+  // Even though there are no hard reasons to limit MaxMetaspaceSize, lets align it to commit granule size
+  // and impose a minimum limit - mainly for cleanliness.
+  MaxMetaspaceSize = MAX2(align_down(MaxMetaspaceSize, _commit_alignment), _commit_alignment);
+
+  if (UseCompressedClassPointers) {
+    // Let CCS size not be larger than one third of MaxMetaspaceSize.
+    // (this is still grossly over-dimensioned - typically, ratio between class-to-nonclass data
+    //  are about 1:5 or 1:8)
+    size_t one_third = MaxMetaspaceSize / 3;
+    size_t adjusted_ccs_size = MIN2(CompressedClassSpaceSize, one_third);
+
+    // CCS must be aligned to root chunk size:
+    adjusted_ccs_size = align_up(adjusted_ccs_size, _reserve_alignment);
+    // Note: as a result of the alignment, CompressedClassSpaceSize may end up being larger than or equal to
+    // MaxMetaspaceSize. Lets live with that, its not a big deal. We just won't be able to fill it completely.
+
+    if (adjusted_ccs_size != CompressedClassSpaceSize) {
+      FLAG_SET_ERGO(CompressedClassSpaceSize, adjusted_ccs_size);
+      log_info(metaspace)("Setting CompressedClassSpaceSize to " SIZE_FORMAT ".", CompressedClassSpaceSize);
+    }
+  }
+
+  // Set MetaspaceSize, MinMetaspaceExpansion and MaxMetaspaceExpansion
   if (MetaspaceSize > MaxMetaspaceSize) {
     MetaspaceSize = MaxMetaspaceSize;
   }
@@ -729,17 +763,6 @@ void Metaspace::ergo_initialize() {
 
   MinMetaspaceExpansion = align_down_bounded(MinMetaspaceExpansion, _commit_alignment);
   MaxMetaspaceExpansion = align_down_bounded(MaxMetaspaceExpansion, _commit_alignment);
-
-  CompressedClassSpaceSize = align_down_bounded(CompressedClassSpaceSize, _reserve_alignment);
-
-  size_t min_metaspace_sz = _reserve_alignment;
-  if (UseCompressedClassPointers) {
-    if (min_metaspace_sz >= MaxMetaspaceSize) {
-      vm_exit_during_initialization("MaxMetaspaceSize is too small.");
-    } else if ((min_metaspace_sz + CompressedClassSpaceSize) >  MaxMetaspaceSize) {
-      FLAG_SET_ERGO(CompressedClassSpaceSize, MaxMetaspaceSize - min_metaspace_sz);
-    }
-  }
 
   _compressed_class_space_size = CompressedClassSpaceSize;
 
