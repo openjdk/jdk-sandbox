@@ -38,6 +38,8 @@ namespace metaspace {
 
 class VirtualSpaceNode;
 
+// Todo: comment is outdated.
+
 //  Metachunk - Quantum of allocation from a Virtualspace
 //    Metachunks are reused (when freed are put on a global freelist) and
 //    have no permanent association to a SpaceManager.

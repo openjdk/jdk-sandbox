@@ -177,10 +177,6 @@ const size_t minimumSymbolTableSize = 1024;
   develop(bool, LargePagesIndividualAllocationInjectError, false,           \
           "Fail large pages individual allocation")                         \
                                                                             \
-  product(bool, UseLargePagesInMetaspace, false,                            \
-          "Use large page memory in metaspace. "                            \
-          "Only used if UseLargePages is enabled.")                         \
-                                                                            \
   product(bool, UseNUMA, false,                                             \
           "Use NUMA if available")                                          \
                                                                             \

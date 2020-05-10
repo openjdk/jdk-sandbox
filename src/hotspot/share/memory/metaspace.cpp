@@ -597,7 +597,6 @@ void Metaspace::allocate_metaspace_compressed_klass_ptrs(ReservedSpace metaspace
 // the Java heap.  The argument passed in is at the base of the compressed space.
 void Metaspace::initialize_class_space(ReservedSpace rs) {
 
-  // The reserved space size may be bigger because of alignment, esp with UseLargePages
   assert(rs.size() >= CompressedClassSpaceSize,
          SIZE_FORMAT " != " SIZE_FORMAT, rs.size(), CompressedClassSpaceSize);
   assert(using_class_space(), "Must be using class space");
@@ -703,25 +702,12 @@ void Metaspace::ergo_initialize() {
   // Must happen before using any setting from Settings::---
   metaspace::Settings::ergo_initialize();
 
-  if (DumpSharedSpaces) {
-    // Using large pages when dumping the shared archive is currently not implemented.
-    FLAG_SET_ERGO(UseLargePagesInMetaspace, false);
-  }
-
-  size_t page_size = os::vm_page_size();
-  if (UseLargePages && UseLargePagesInMetaspace) {
-    page_size = os::large_page_size();
-  }
-
   // Commit alignment: (I would rather hide this since this is an implementation detail but we need it
   // when calculating the gc threshold).
   _commit_alignment  = metaspace::Settings::commit_granule_bytes();
 
   // Reserve alignment: all Metaspace memory mappings are to be aligned to the size of a root chunk.
-  _reserve_alignment = MAX2(page_size, (size_t)metaspace::chklvl::MAX_CHUNK_BYTE_SIZE);
-
-  assert(is_aligned(_reserve_alignment, os::vm_allocation_granularity()),
-         "root chunk size must be a multiple of alloc granularity");
+  _reserve_alignment = MAX2((size_t)os::vm_allocation_granularity(), metaspace::chklvl::MAX_CHUNK_BYTE_SIZE);
 
   // Do not use FLAG_SET_ERGO to update MaxMetaspaceSize, since this will
   // override if MaxMetaspaceSize was set on the command line or not.
